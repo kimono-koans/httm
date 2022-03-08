@@ -1,6 +1,6 @@
 [![asciicast](https://asciinema.org/a/qrTvMMDerBwnCga3X26LLdM37.svg)](https://asciinema.org/a/qrTvMMDerBwnCga3X26LLdM37)
 
-# httm is not a h-- t-- time machine 
+# httm is *not* h-- t-- time machine
 
 `httm` prints the size, date and corresponding locations of available unique versions (dedup-ed by modify time and size) of files residing on ZFS snapshots.
 
@@ -8,9 +8,9 @@ Inspired by the wonderful [findoid](https://github.com/jimsalterjrs/sanoid) but 
 
 `httm` also boasts an array of seductive features, like:
 
-* Ability to search for deleted files! Ooooooooo!
-* Ability to select non-immediate datasets (on a different pool, or remote).
-* Ability to use with rsync-ed non-ZFS local datasets (like APFS), not just ZFS.
+* Search for deleted files! Ooooooooo!
+* Select non-immediate datasets (on a different pool, or remote).
+* Use with rsync-ed non-ZFS local datasets (like APFS), not just ZFS.
 * Select from several formatting styles.
 * Parseable ... or not ...  oh my!
 
