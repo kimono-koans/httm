@@ -9,7 +9,9 @@ Inspired by the wonderful [findoid](https://github.com/jimsalterjrs/sanoid) but 
 `httm` also boasts an array of seductive features, like:
 
 * Ability to search for deleted files! Ooooooooo!
-* Select from several formatting styles!
+* Ability to select non-immediate datasets (on a different pool, or remote).
+* Ability to use on rsync-ed non-ZFS local sets (like APFS), not just ZFS.
+* Select from several formatting styles.
 * Parseable ... or not ...  oh my!
 
 Use in combination with a fuzzy finder like `sk` or `fzf` for even more fun.
