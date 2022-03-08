@@ -222,7 +222,7 @@ fn main() {
 fn exec() -> Result<(), Box<dyn std::error::Error>> {
     let mut out = std::io::stdout();
 
-    let matches = clap::Command::new("httm").about("displays information about unique versions of files contained on ZFS snapshots.\n *Not* an acronym for Hot Tub Time Machine?")
+    let matches = clap::Command::new("httm").about("displays information about unique file versions contained on ZFS snapshots.\n\n*Not* an acronym for Hot Tub Time Machine?")
         .arg(
             Arg::new("INPUT_FILES")
                 .help("...you should put your files here, if stdin(3) is not your flavor.")
@@ -233,7 +233,7 @@ fn exec() -> Result<(), Box<dyn std::error::Error>> {
             Arg::new("MANUAL_MNT_POINT")
                 .short('m')
                 .long("mnt-point")
-                .help("ordinarily httm will automatically choose your most local snapshot directory, but here you may manually specify your mount point")
+                .help("ordinarily httm will automatically choose your most local snapshot directory, but here you may manually specify your mount point.")
                 .takes_value(true)
         )
         .arg(
