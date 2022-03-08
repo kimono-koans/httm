@@ -2,6 +2,11 @@
 
 function httm_restore () {
 
+	if ! command -v sk &> /dev/null; then
+    	echo "sk, AKA skim, could not be found.  httm_restore depends on sk!"
+    	exit
+	fi
+	
 	local TMP_DIR=$( mktemp -d )
 
 	if [[ -z $1 ]]; then 
