@@ -2,9 +2,11 @@
 
 # httm is not a h-- t-- time machine 
 
+`httm` prints size, date and corresponding locations of available versions of files residing on snapshots.
+
 Inspired by the wonderful [findoid](https://github.com/jimsalterjrs/sanoid) but about twice as fast in the ordinary case.  *Ready and able* to be used in scripted interactive shell apps and widgets.  See, for example `httm_restore.sh` in the src folder.
 
-`httm` compiles to a single executable: `httm` which the prints size, date and corresponding locations of available versions of files residing on snapshots.
+It also boasts an array of features, like:
 
 * Ability to search for deleted files! Ooooooooo!
 * Select from several formatting styles!
