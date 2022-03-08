@@ -17,7 +17,7 @@ Use in combination with a fuzzy finder like `sk` or `fzf` for even more fun.
 The `httm` project contains two components:
 
 1. The `httm` executable: To install `git clone` this repo, and `cargo build` for right now.  Sorry kids!
-3. `httm_restore.sh` script -- To install just place somewhere in your PATH.  Depends upon `sk` or [skim](https://github.com/lotabout/skim) because that's my jam.
+3. The `httm_restore.sh` script: To install just place somewhere in your PATH.  Depends upon `sk` or [skim](https://github.com/lotabout/skim) because that's my jam.
 
 ## License
 
