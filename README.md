@@ -1,3 +1,5 @@
+[![asciicast](https://asciinema.org/a/qrTvMMDerBwnCga3X26LLdM37.svg)](https://asciinema.org/a/qrTvMMDerBwnCga3X26LLdM37)
+
 # httm is not a h-- t-- time machine 
 
 Inspired by the wonderful [findoid](https://github.com/jimsalterjrs/sanoid) but about twice as fast in the ordinary case.  *Ready and able* to be used in scripted interactive shell apps and widgets.  See, for example `httm_restore.sh` in the src folder.
