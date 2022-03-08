@@ -24,5 +24,3 @@ The `httm` project contains two components:
 ## License
 
 httm is licensed under the MPL 2.0 License - see the LICENSE file for more details.
-
-
