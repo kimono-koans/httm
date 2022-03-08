@@ -15,7 +15,7 @@ function httm_restore () {
 
 	FILE="$( cut -d'"' -f2 $TMP_DIR/buf2 )" && rm -rf $TMP_DIR
 	
-	if [[ -e "$FILE" ]]; then
+	if [[ ! -e "$FILE" ]]; then
 		echo "Error: Selected file does not exist." 
 		exit 2		
 	fi
