@@ -2,7 +2,7 @@
 
 # httm is not a h-- t-- time machine 
 
-`httm` prints size, date and corresponding locations of available versions of files residing on snapshots.
+`httm` prints the size, date and corresponding locations of available versions of files residing on snapshots.
 
 Inspired by the wonderful [findoid](https://github.com/jimsalterjrs/sanoid) but about twice as fast in the ordinary case.  *Ready and able* to be used in scripted interactive shell apps and widgets.  See, for example `httm_restore.sh` in the src folder.
 
