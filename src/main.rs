@@ -53,26 +53,24 @@ struct PathData {
 
 impl PathData {
     fn new(path: &Path) -> Option<PathData> {
-        // call for canonical path won't work unless path is dir.
-        // Also, safe to unwrap as we check invariants above,
-        // but let's keep living safely
         let parent = if let Some(parent) = path.parent() {
             parent
         } else {
             Path::new("/")
         };
 
-        let pwd = if let Ok(pwd) = std::env::var("PWD") {
-            PathBuf::from(&pwd)
-        } else {
-            PathBuf::from("/")
-        };
-
+        // call for canonical path won't work unless path is dir.
+        // Also, safe to unwrap as we check invariants above,
+        // but let's keep living safely
         let mut canonical_parent = match canonicalize(parent) {
             Ok(cp) => cp,
             Err(_) => {
                 if path.is_relative() {
-                    pwd
+                    if let Ok(pwd) = std::env::var("PWD") {
+                        PathBuf::from(&pwd)
+                    } else {
+                        PathBuf::from("/")
+                    }
                 } else {
                     PathBuf::from("/")
                 }
@@ -116,6 +114,8 @@ struct Config {
     opt_zeros: bool,
     opt_no_pretty: bool,
     opt_no_live_vers: bool,
+    opt_man_mnt_point: Option<OsString>,
+    working_dir: PathBuf,
 }
 
 impl Config {
@@ -126,9 +126,26 @@ impl Config {
         let no_live_vers = matches.is_present("NO_LIVE");
 
         let pwd = if let Ok(pwd) = std::env::var("PWD") {
-            PathBuf::from(pwd)
+            PathBuf::from(&pwd)
         } else {
             PathBuf::from("/")
+        };
+
+        let mnt_point = if let Some(raw_value) = matches.value_of_os("MANUAL_MNT_POINT") {
+            // very path contains hidden snapshot directory
+            let mut snapshot_dir: PathBuf = PathBuf::from(&raw_value);
+            snapshot_dir.push(".zfs");
+            snapshot_dir.push("snapshot");
+
+            if snapshot_dir.metadata().is_ok() {
+                Some(raw_value.to_os_string())
+            } else {
+                return Err(HttmError::new(
+                    "Manually set mountpoint does not contain a hidden ZFS directory.  Please try another.",
+                ).into());
+            }
+        } else {
+            None
         };
 
         let file_names: Vec<String> = if matches.is_present("INPUT_FILES") {
@@ -170,6 +187,8 @@ impl Config {
             opt_zeros: zeros,
             opt_no_pretty: no_so_pretty,
             opt_no_live_vers: no_live_vers,
+            opt_man_mnt_point: mnt_point,
+            working_dir: pwd,
         };
 
         Ok(config)
@@ -207,7 +226,15 @@ fn exec() -> Result<(), Box<dyn std::error::Error>> {
         .arg(
             Arg::new("INPUT_FILES")
                 .help("...you should put your files here, if stdin(3) is not your flavor.")
-                .multiple_values(true),
+                .takes_value(true)
+                .multiple_values(true)
+        )
+        .arg(
+            Arg::new("MANUAL_MNT_POINT")
+                .short('m')
+                .long("mnt-point")
+                .help("ordinary httm automatically uses your local  manually specify your mount point")
+                .takes_value(true)
         )
         .arg(
             Arg::new("RAW")
@@ -241,12 +268,13 @@ fn exec() -> Result<(), Box<dyn std::error::Error>> {
     let mut snapshot_versions: Vec<PathData> = Vec::new();
 
     for instance_pd in config.path_data.iter().flatten() {
-        let datasets = get_datasets(instance_pd)?;
-        for ds in datasets {
-            if !ds.is_empty() {
-                snapshot_versions.extend_from_slice(&get_versions(instance_pd, ds)?);
-            }
-        }
+        let dataset = if let Some(ref mp) = config.opt_man_mnt_point {
+            mp.to_owned()
+        } else {
+            get_dataset(instance_pd)?
+        };
+
+        snapshot_versions.extend_from_slice(&get_versions(&config, instance_pd, dataset)?);
     }
 
     let mut live_versions: Vec<PathData> = Vec::new();
@@ -348,12 +376,12 @@ fn display_pretty(
             let mut d_size = format!("{:>width$}", display_human_size(pd), width = size_padding);
             let mut fixed_padding = format!("{:<5}", " ");
             let d_path = pd.path_buf.display();
-            
+
             if config.opt_no_pretty {
                 fixed_padding = "\t".to_owned();
                 d_size = format!("\t{}", display_human_size(pd));
             };
-            
+
             if !pd.is_phantom {
                 buffer += &format!("{}{}{}\"{}\"\n", d_date, d_size, fixed_padding, d_path);
             } else {
@@ -403,7 +431,7 @@ fn display_date(st: &SystemTime) -> String {
 }
 
 fn get_versions(
-    //config: &Config,
+    config: &Config,
     pathdata: &PathData,
     dataset: OsString,
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error>> {
@@ -411,7 +439,11 @@ fn get_versions(
     snapshot_dir.push(".zfs");
     snapshot_dir.push("snapshot");
 
-    let relative_path = pathdata.path_buf.strip_prefix(&dataset)?;
+    let relative_path = if config.opt_man_mnt_point.is_some() {
+        pathdata.path_buf.strip_prefix(&config.working_dir)?
+    } else {
+        pathdata.path_buf.strip_prefix(&dataset)?
+    };
 
     let snapshots = std::fs::read_dir(snapshot_dir)?;
 
@@ -438,7 +470,7 @@ fn get_versions(
     Ok(sorted.into_iter().map(|(_, v)| v).collect())
 }
 
-fn get_datasets(pathdata: &PathData) -> Result<Vec<OsString>, Box<dyn std::error::Error>> {
+fn get_dataset(pathdata: &PathData) -> Result<OsString, Box<dyn std::error::Error>> {
     let path = &pathdata.path_buf;
 
     // fn parent() cannot return None, when path is a canonical path
@@ -465,8 +497,10 @@ fn get_datasets(pathdata: &PathData) -> Result<Vec<OsString>, Box<dyn std::error
         .collect::<Vec<&str>>();
 
     if select_potential_mountpoints.is_empty() {
-        return Ok(vec![OsString::new()]);
-    }
+        let msg = "Could not identify any qualifying dataset.  Maybe consider specifying manually?"
+            .to_string();
+        return Err(HttmError::new(&msg).into());
+    };
 
     let best_potential_mountpoint = if let Some(bpmp) = select_potential_mountpoints
         .clone()
@@ -482,5 +516,5 @@ fn get_datasets(pathdata: &PathData) -> Result<Vec<OsString>, Box<dyn std::error
         return Err(HttmError::new(&msg).into());
     };
 
-    Ok(vec![OsString::from(best_potential_mountpoint)])
+    Ok(OsString::from(best_potential_mountpoint))
 }
