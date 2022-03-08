@@ -2,11 +2,11 @@
 
 # httm is not a h-- t-- time machine 
 
-`httm` prints the size, date and corresponding locations of available versions of files residing on snapshots.
+`httm` prints the size, date and corresponding locations of available versions of files residing on ZFS snapshots.
 
-Inspired by the wonderful [findoid](https://github.com/jimsalterjrs/sanoid) but about twice as fast in the ordinary case.  *Ready and able* to be used in scripted interactive shell apps and widgets.  See, for example `httm_restore.sh` in the src folder.
+Inspired by the wonderful [findoid](https://github.com/jimsalterjrs/sanoid) but about twice as fast in the ordinary case.  *Ready and able* to be used in scripted interactive shell apps and widgets.  See, for example `httm_restore.sh` in the src folder, which can interactively assist you in restoring a file from ZFS snapshots to your current working directory.
 
-It also boasts an array of features, like:
+`httm` also boasts an array of seductive features, like:
 
 * Ability to search for deleted files! Ooooooooo!
 * Select from several formatting styles!
