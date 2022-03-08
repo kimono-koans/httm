@@ -2,7 +2,7 @@
 
 function httm_restore () {
 
-	TMP_DIR=$( mktemp -d )
+	local TMP_DIR=$( mktemp -d )
 
 	if [[ -z $1 ]]; then 
 		ls -1a | \
@@ -13,9 +13,14 @@ function httm_restore () {
 		httm $1 | sk -i > $TMP_DIR/buf2
 	fi
 
-	FILE="$( cut -d'"' -f2 $TMP_DIR/buf2 )" && rm -rf $TMP_DIR
+	local FILE="$( cut -d'"' -f2 $TMP_DIR/buf2 )" && rm -rf $TMP_DIR	
 	
-	if [[ ! -e "$FILE" ]]; then
+	if [[ -z $FILE ]]; then
+		echo "Error: You must select a file."
+		exit 2
+	fi
+
+	if [[ ! -e $FILE ]]; then
 		echo "Error: Selected file does not exist." 
 		exit 2		
 	fi
@@ -34,10 +39,9 @@ function httm_restore () {
 	printf "	from: $FILE\n"
 	printf "	to:   $PWD/$NEWNAME\n\n"
 	
-	read -p "Continue? (Y/N): " confirm && [[ $confirm == [yY] || $confirm == [yY][eE][sS] ]] || echo "No restore made." && exit 1
+	read -p "Continue? (Y/N): " confirm && [[ $confirm == [yY] || $confirm == [yY][eE][sS] ]] || exit 1
 	
-	cp -r "$FILE" "$PWD/$NEWNAME"
-
+	cp -R $FILE $PWD/$NEWNAME && printf "\nRestore completed successfully.\n"
 }
 
 httm_restore $1
