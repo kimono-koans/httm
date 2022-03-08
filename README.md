@@ -10,7 +10,7 @@ Inspired by the wonderful [findoid](https://github.com/jimsalterjrs/sanoid) but 
 
 * Ability to search for deleted files! Ooooooooo!
 * Ability to select non-immediate datasets (on a different pool, or remote).
-* Ability to use on rsync-ed non-ZFS local sets (like APFS), not just ZFS.
+* Ability to use with rsync-ed non-ZFS local datasets (like APFS), not just ZFS.
 * Select from several formatting styles.
 * Parseable ... or not ...  oh my!
 
@@ -20,7 +20,7 @@ Use in combination with a fuzzy finder like `sk` or `fzf` for even more fun.
 
 The `httm` project contains two components:
 
-1. The `httm` executable: To install `git clone` this repo, and `cargo build` for right now.  Sorry kids!
+1. The `httm` executable: To install `git clone` this repo, and `cargo build` for right now.  On MacOS, you will have to [code-sign](https://developer.apple.com/library/archive/documentation/Security/Conceptual/CodeSigningGuide/Procedures/Procedures.html) to use the remote capabilities.  Sorry kids!
 3. The `httm_restore.sh` script: To install just place somewhere in your PATH.  Depends upon `sk` or [skim](https://github.com/lotabout/skim) because that's my jam.
 
 ## License
