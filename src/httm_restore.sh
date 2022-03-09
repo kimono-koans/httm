@@ -12,8 +12,8 @@ function httm_restore () {
 	#local RELATIVE_DIR="/Users/<NAME>"
 
 	if [[ -z $1 ]]; then 
-		ls -1a | \
-		sk --preview "httm {}" --preview-window=70% | \
+		ls -1a --color=always | \
+		sk --ansi --preview "httm {}" --preview-window=70% | \
 		httm > $TMP_DIR/buf1
 		#sk --preview "httm --mnt-point $DATASET --relative $RELATIVE_DIR {}" --preview-window=70% | \
 		#httm --mnt-point $DATASET --relative $RELATIVE_DIR > $TMP_DIR/buf1
