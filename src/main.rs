@@ -91,7 +91,9 @@ impl PathData {
                 time = md.modified().ok()?;
                 phantom = false;
             }
-            // because we need to account for any phantom files later
+            // this seems like a perfect place for a None but we want some
+            // iters to print the request, say for deleted files, so we set up
+            // a dummy Some
             Err(_) => {
                 len = 0u64;
                 time = SystemTime::UNIX_EPOCH;
@@ -286,6 +288,7 @@ fn exec() -> Result<(), Box<dyn std::error::Error>> {
 
     let config = Config::from(matches)?;
 
+    // create vec of backups
     let mut snapshot_versions: Vec<PathData> = Vec::new();
 
     for instance_pd in config.path_data.iter().flatten() {
@@ -298,6 +301,7 @@ fn exec() -> Result<(), Box<dyn std::error::Error>> {
         snapshot_versions.extend_from_slice(&get_versions(&config, instance_pd, dataset)?);
     }
 
+    // create vec of live copies
     let mut live_versions: Vec<PathData> = Vec::new();
 
     if !config.opt_no_live_vers {
@@ -308,7 +312,8 @@ fn exec() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    if snapshot_versions.is_empty() || (live_versions.len() == 1 && live_versions[0].is_phantom) {
+    // check for all files DNE, if we're here someone has messed up, either us or the user
+    if snapshot_versions.is_empty() && live_versions.iter().all(|i| i.is_phantom) {
         return Err(HttmError::new(
             "Neither a live copy, nor a snapshot copy of such a file appears to exist, so, umm, 🤷? Please try another file.",
         )
