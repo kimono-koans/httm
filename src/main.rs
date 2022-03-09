@@ -115,6 +115,7 @@ struct Config {
     opt_no_pretty: bool,
     opt_no_live_vers: bool,
     opt_man_mnt_point: Option<OsString>,
+    opt_relative_dir: Option<OsString>,
     working_dir: PathBuf,
 }
 
@@ -132,7 +133,7 @@ impl Config {
         };
 
         let mnt_point = if let Some(raw_value) = matches.value_of_os("MANUAL_MNT_POINT") {
-            // very path contains hidden snapshot directory
+            // check path contains hidden snapshot directory
             let mut snapshot_dir: PathBuf = PathBuf::from(&raw_value);
             snapshot_dir.push(".zfs");
             snapshot_dir.push("snapshot");
@@ -143,6 +144,19 @@ impl Config {
                 return Err(HttmError::new(
                     "Manually set mountpoint does not contain a hidden ZFS directory.  Please try another.",
                 ).into());
+            }
+        } else {
+            None
+        };
+
+        let relative_dir = if let Some(raw_value) = matches.value_of_os("RELATIVE_DIR") {
+            if PathBuf::from(raw_value).metadata().is_ok() {
+                Some(raw_value.to_os_string())
+            } else {
+                return Err(HttmError::new(
+                    "Manually set relative directory does not exist.  Please try another.",
+                )
+                .into());
             }
         } else {
             None
@@ -189,6 +203,7 @@ impl Config {
             opt_no_live_vers: no_live_vers,
             opt_man_mnt_point: mnt_point,
             working_dir: pwd,
+            opt_relative_dir: relative_dir,
         };
 
         Ok(config)
@@ -231,10 +246,16 @@ fn exec() -> Result<(), Box<dyn std::error::Error>> {
         )
         .arg(
             Arg::new("MANUAL_MNT_POINT")
-                .short('m')
                 .long("mnt-point")
-                .help("ordinarily httm will automatically choose your most local snapshot directory, but here you may manually specify your mount point.")
-                .takes_value(true)
+                .help("ordinarily httm will automatically choose your most local snapshot directory, but here you may manually specify your own mount point.")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::new("RELATIVE_DIR")
+                .long("relative")
+                .help("used with MANUAL_MNT_POINT to determine where to the corresponding live root of the ZFS snapshot dataset is.")
+                .requires("MANUAL_MNT_POINT")
+                .takes_value(true),
         )
         .arg(
             Arg::new("RAW")
@@ -440,7 +461,11 @@ fn get_versions(
     snapshot_dir.push("snapshot");
 
     let relative_path = if config.opt_man_mnt_point.is_some() {
-        pathdata.path_buf.strip_prefix(&config.working_dir)?
+        if let Some(relative_dir) = &config.opt_relative_dir {
+            pathdata.path_buf.strip_prefix(relative_dir)?
+        } else {
+            pathdata.path_buf.strip_prefix(&config.working_dir)?
+        }
     } else {
         pathdata.path_buf.strip_prefix(&dataset)?
     };

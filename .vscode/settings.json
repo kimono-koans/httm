@@ -3,6 +3,7 @@
         "bpmp",
         "canonicalize",
         "chrono",
+        "filesystems",
         "Findoid",
         "fxhash",
         "httm",
