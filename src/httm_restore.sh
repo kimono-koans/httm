@@ -8,14 +8,19 @@ function httm_restore () {
 	fi
 	
 	local TMP_DIR=$( mktemp -d )
+    #local DATASET="/Volumes/Home"
+	#local RELATIVE_DIR="/Users/<NAME>"
 
 	if [[ -z $1 ]]; then 
 		ls -1a | \
 		sk --preview "httm {}" --preview-window=70% | \
 		httm > $TMP_DIR/buf1
+		#sk --preview "httm --mnt-point $DATASET --relative $RELATIVE_DIR {}" --preview-window=70% | \
+		#httm --mnt-point $DATASET --relative $RELATIVE_DIR > $TMP_DIR/buf1
 		cat $TMP_DIR/buf1 | sk -i > $TMP_DIR/buf2
 	else
 		httm $1 | sk -i > $TMP_DIR/buf2
+		#httm --mnt-point $DATASET --relative $RELATIVE_DIR $1 | sk -i > $TMP_DIR/buf2
 	fi
 
 	local FILE="$( cut -d'"' -f2 $TMP_DIR/buf2 )" && rm -rf $TMP_DIR	

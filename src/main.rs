@@ -310,7 +310,7 @@ fn exec() -> Result<(), Box<dyn std::error::Error>> {
 
     if snapshot_versions.is_empty() || (live_versions.len() == 1 && live_versions[0].is_phantom) {
         return Err(HttmError::new(
-            "File does not seem to exist, umm, 🤷? Please try another file.",
+            "Neither a live copy, nor a snapshot copy of such a file appears to exist, so, umm, 🤷? Please try another file.",
         )
         .into());
     }
