@@ -59,25 +59,21 @@ impl PathData {
             Path::new("/")
         };
 
-        // call for canonical path won't work unless path is dir.
-        // Also, safe to unwrap as we check invariants above,
-        // but let's keep living safely
-        let mut canonical_parent = match canonicalize(parent) {
-            Ok(cp) => cp,
-            Err(_) => {
-                if path.is_relative() {
-                    if let Ok(pwd) = std::env::var("PWD") {
-                        PathBuf::from(&pwd)
-                    } else {
-                        PathBuf::from("/")
-                    }
-                } else {
-                    PathBuf::from("/")
-                }
+        let mut canonical_parent = if path.is_relative() {
+            if let Ok(pwd) = std::env::var("PWD") {
+                PathBuf::from(&pwd)
+            } else {
+                PathBuf::from("/")
+            }
+        } else {
+            if let Ok(cp) = canonicalize(parent) {
+                cp
+            } else {
+                PathBuf::from("/")
             }
         };
 
-        // add last component to parent path
+        // add last component, filename, to parent path
         canonical_parent.push(path);
         let absolute_path = canonical_parent;
 
@@ -91,9 +87,11 @@ impl PathData {
                 time = md.modified().ok()?;
                 phantom = false;
             }
-            // this seems like a perfect place for a None but we want some
-            // iters to print the request, say for deleted files, so we set up
-            // a dummy Some
+            // this seems like a perfect place for a None value, as file has no metadata, 
+            // however we will want certain iters to print the *request*, say for deleted/fake files, 
+            // so we set up a dummy Some value just so we can have the path names we entered
+            //
+            // if we get a spurious example of no metadata in snapshot directories we just ignore later
             Err(_) => {
                 len = 0u64;
                 time = SystemTime::UNIX_EPOCH;
@@ -128,6 +126,7 @@ impl Config {
         let no_so_pretty = matches.is_present("NOT_SO_PRETTY");
         let no_live_vers = matches.is_present("NO_LIVE");
 
+        // working dir from env
         let pwd = if let Ok(pwd) = std::env::var("PWD") {
             PathBuf::from(&pwd)
         } else {
@@ -135,7 +134,7 @@ impl Config {
         };
 
         let mnt_point = if let Some(raw_value) = matches.value_of_os("MANUAL_MNT_POINT") {
-            // check path contains hidden snapshot directory
+            // dir exists sanity check?: check that path contains the hidden snapshot directory
             let mut snapshot_dir: PathBuf = PathBuf::from(&raw_value);
             snapshot_dir.push(".zfs");
             snapshot_dir.push("snapshot");
@@ -144,7 +143,7 @@ impl Config {
                 Some(raw_value.to_os_string())
             } else {
                 return Err(HttmError::new(
-                    "Manually set mountpoint does not contain a hidden ZFS directory.  Please try another.",
+                    "Manually set mountpoint does not contain a hidden ZFS directory.  Please mount a ZFS directory there or try another mountpoint.",
                 ).into());
             }
         } else {
@@ -152,6 +151,7 @@ impl Config {
         };
 
         let relative_dir = if let Some(raw_value) = matches.value_of_os("RELATIVE_DIR") {
+            // dir exists sanity check?: check path exists by checking for path metadata
             if PathBuf::from(raw_value).metadata().is_ok() {
                 Some(raw_value.to_os_string())
             } else {
@@ -175,6 +175,8 @@ impl Config {
                 }
             }
 
+            // if "-" then read from stdin, per the cli convention,
+            // collect and read to String here
             if res.get(0).unwrap() == &String::from("-") {
                 read_stdin()?
             } else {
@@ -227,6 +229,7 @@ fn read_stdin() -> Result<Vec<String>, Box<dyn std::error::Error>> {
     Ok(broken_string)
 }
 
+// happy 'lil mr main fn that only handles errors
 fn main() {
     if let Err(e) = exec() {
         eprintln!("error {}", e);
@@ -255,7 +258,7 @@ fn exec() -> Result<(), Box<dyn std::error::Error>> {
         .arg(
             Arg::new("RELATIVE_DIR")
                 .long("relative")
-                .help("used with MANUAL_MNT_POINT to determine where to the corresponding live root of the ZFS snapshot dataset is.")
+                .help("used with MANUAL_MNT_POINT to determine where to the corresponding live root of the ZFS snapshot dataset is.  If not set, httm defaults to the working directory.")
                 .requires("MANUAL_MNT_POINT")
                 .takes_value(true),
         )
@@ -312,7 +315,8 @@ fn exec() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    // check for all files DNE, if we're here someone has messed up, either us or the user
+    // check if all files (snap and live) do not exist, if this is true, then user probably messed up 
+    // and entered a file that never existed?  Or was on a snapshot that has since been destroyed?
     if snapshot_versions.is_empty() && live_versions.iter().all(|i| i.is_phantom) {
         return Err(HttmError::new(
             "Neither a live copy, nor a snapshot copy of such a file appears to exist, so, umm, 🤷? Please try another file.",
@@ -344,6 +348,7 @@ fn display_raw(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let delimiter = if config.opt_zeros { '\0' } else { '\n' };
 
+    // so easy!
     for version in &working_set {
         for pd in version {
             let d_path = pd.path_buf.display().to_string();
@@ -363,7 +368,7 @@ fn display_pretty(
     let mut size_padding = 1usize;
     let mut fancy_border = 1usize;
 
-    // calculate padding and borders
+    // calculate padding and borders for display later
     for version in &working_set {
         for pd in version {
             let d_date = display_date(&pd.system_time);
@@ -373,6 +378,7 @@ fn display_pretty(
 
             let d_size_len = display_human_size(pd).len();
             let formatted_line_len =
+                // 2usize is for the two single quotes we add to the path display below 
                 d_date.len() + d_size.len() + fixed_padding.len() + d_path.len() + 2usize;
 
             size_padding = d_size_len.max(size_padding);
@@ -383,6 +389,8 @@ fn display_pretty(
     size_padding += 5usize;
     fancy_border += 5usize;
 
+    // has to be a more idiomatic way to do this
+    // if you know, let me know
     let fancy_string: String = {
         let mut res: String = String::new();
         for _ in 0..fancy_border {
@@ -391,7 +399,7 @@ fn display_pretty(
         res
     };
 
-    // display all
+    // now display with that padding
     if !config.opt_no_pretty {
         writeln!(out, "{}", fancy_string)?;
     }
@@ -413,6 +421,10 @@ fn display_pretty(
             } else {
                 let mut pad_date: String = String::new();
                 let mut pad_size: String = String::new();
+                // displays blanks for phantom values, equaling their dummy lens and dates
+                // see struct PathData for more details
+                //
+                // again must be a better way to print padding, etc.
                 for _ in 0..d_date.len() {
                     pad_date += " ";
                 }
@@ -461,10 +473,19 @@ fn get_versions(
     pathdata: &PathData,
     dataset: OsString,
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error>> {
+    // building the snapshot path
     let mut snapshot_dir: PathBuf = PathBuf::from(&dataset);
     snapshot_dir.push(".zfs");
     snapshot_dir.push("snapshot");
 
+    // building our local relative path by removing parent 
+    // directories below the remote/snap mount point
+    //
+    // TODO: I *could* step backwards and check each ancestor folder for .zfs dirs as 
+    // an auto detect mechanism.  Currently, we rely on the user to provide.
+    //
+    // It would only work on ZFS datasets and not local-rsynced sets. :(
+    // Presently, defaults to everything below the working dir in the unspecified case.
     let relative_path = if config.opt_man_mnt_point.is_some() {
         if let Some(relative_dir) = &config.opt_relative_dir {
             pathdata.path_buf.strip_prefix(relative_dir)?
@@ -509,11 +530,12 @@ fn get_versions(
 fn get_dataset(pathdata: &PathData) -> Result<OsString, Box<dyn std::error::Error>> {
     let path = &pathdata.path_buf;
 
-    // fn parent() cannot return None, when path is a canonical path
-    let parent_folder = path.parent().unwrap_or(path).to_string_lossy();
+    // method parent() cannot return None, when path is a canonical path
+    // and this should have been previous set in PathData new(), so None only if the root dir
+    let parent_folder = path.parent().unwrap_or(Path::new("/")).to_string_lossy();
 
+    // ingest datasets from the cmdline
     let exec_command = "zfs list -H -t filesystem -o mountpoint,mounted";
-
     let raw_ds = std::str::from_utf8(
         &ExecProcess::new("env")
             .arg("sh")
@@ -524,6 +546,7 @@ fn get_dataset(pathdata: &PathData) -> Result<OsString, Box<dyn std::error::Erro
     )?
     .to_owned();
 
+    // prune most datasets by match the parent_folder of file contains those datasets
     let select_potential_mountpoints = raw_ds
         .lines()
         .filter(|line| line.contains("yes"))
@@ -532,12 +555,15 @@ fn get_dataset(pathdata: &PathData) -> Result<OsString, Box<dyn std::error::Erro
         .filter(|line| parent_folder.contains(line))
         .collect::<Vec<&str>>();
 
+    // do we have any left, if yes just continue
     if select_potential_mountpoints.is_empty() {
-        let msg = "Could not identify any qualifying dataset.  Maybe consider specifying manually?"
+        let msg = "Could not identify any qualifying dataset.  Maybe consider specifying manually at MANUAL_MNT_POINT?"
             .to_string();
         return Err(HttmError::new(&msg).into());
     };
 
+    // select the best match for us: the longest, as we've already matched on the parent folder
+    // so for /usr/bin/bash, we prefer /usr/bin to /usr
     let best_potential_mountpoint = if let Some(bpmp) = select_potential_mountpoints
         .clone()
         .into_iter()

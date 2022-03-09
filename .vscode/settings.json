@@ -3,6 +3,7 @@
         "bpmp",
         "canonicalize",
         "chrono",
+        "cmdline",
         "filesystems",
         "Findoid",
         "fxhash",
