@@ -469,7 +469,13 @@ fn get_versions(
         if let Some(relative_dir) = &config.opt_relative_dir {
             pathdata.path_buf.strip_prefix(relative_dir)?
         } else {
-            pathdata.path_buf.strip_prefix(&config.working_dir)?
+            match pathdata.path_buf.strip_prefix(&config.working_dir) {
+                Ok(path) => path,
+                Err(_) => {
+                    let msg = "Are you sure you're in the correct working directory?  Perhaps you need to set the RELATIVE_DIR value.".to_string();
+                    return Err(HttmError::new(&msg).into());
+                }
+            }
         }
     } else {
         pathdata.path_buf.strip_prefix(&dataset)?
