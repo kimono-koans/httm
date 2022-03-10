@@ -217,7 +217,7 @@ impl Config {
 }
 
 fn parse_args() -> ArgMatches {
-    clap::Command::new("httm").about("displays information about unique file versions contained on ZFS snapshots.\n\n *** Now with interactive file selections!! *** \n\n*Not* an acronym for Hot Tub Time Machine?")
+    clap::Command::new("httm").about("displays information about unique file versions contained on ZFS snapshots.\n*Don't call it H__ T__ Time Machine.*")
         .arg(
             Arg::new("INPUT_FILES")
                 .help("...you should put your files here, if stdin(3) is not your flavor.")
