@@ -2,7 +2,7 @@
 
 # Don't call it a h-- t-- time machine
 
-`httm` prints the size, date and corresponding locations of available unique versions (dedup-ed by modify time and size) of files residing on ZFS snapshots.
+`httm` prints the size, date and corresponding locations of available unique versions (dedup-ed by modify time and size) of files residing on ZFS snapshots, as well as allowing the *interactive* viewing and restoration of snapshots.
 
 Inspired by the wonderful [findoid](https://github.com/jimsalterjrs/sanoid) but about twice as fast in the ordinary case.  *Ready and able* to be used in scripted interactive shell apps and widgets.
 
