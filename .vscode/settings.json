@@ -1,6 +1,7 @@
 {
     "cSpell.words": [
         "bpmp",
+        "bufread",
         "canonicalize",
         "chrono",
         "cmdline",
@@ -12,7 +13,9 @@
         "mountpoints",
         "parseable",
         "pathdata",
+        "pbuf",
         "Swinford",
+        "Vecs",
         "walkdir"
     ]
 }

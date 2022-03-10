@@ -1,7 +1,11 @@
 [package]
 name = "httm"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
+
+[[bin]]
+name = "httm"
+path = "src/httm.rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -10,3 +14,4 @@ clap = "3.1.5"
 chrono = "0.4.19"
 number_prefix = "0.4.0"
 fxhash = "0.2.1"
+skim = "0.9.4"
