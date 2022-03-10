@@ -1,16 +1,16 @@
+use crate::convert_strings_to_pathdata;
 use crate::display::*;
 use crate::lookup::*;
+use crate::read_stdin;
 use crate::Config;
 use crate::HttmError;
-use crate::convert_strings_to_pathdata;
-use crate::read_stdin;
 
 extern crate skim;
+use chrono::DateTime;
+use chrono::Local;
 use skim::prelude::*;
 use std::io::Cursor;
 use std::io::Write;
-use chrono::Local;
-use chrono::DateTime;
 use std::time::SystemTime;
 
 use std::io::Stdout;
@@ -163,44 +163,51 @@ pub fn interactive_exec(
         let snap_md = if let Ok(snap_md) = snap_pbuf.metadata() {
             snap_md
         } else {
-            return Err(HttmError::new(
-                "Snapshot location does not exist on disk. Quitting.",
-            ).into());
+            return Err(
+                HttmError::new("Snapshot location does not exist on disk. Quitting.").into(),
+            );
         };
 
         // build new place to send file
         let mut snap_file = snap_pbuf.file_name().unwrap().to_string_lossy().to_string();
         snap_file.push_str(".restored.");
         snap_file.push_str(&timestamp_file(&snap_md.modified()?));
-        
+
         let new_file_dir = config.current_working_dir.clone();
         let mut new_file_pbuf = PathBuf::new();
         new_file_pbuf.push(new_file_dir);
         new_file_pbuf.push(snap_file);
-        
+
         println!("{:?}", new_file_pbuf);
-        
+
         if new_file_pbuf == snap_pbuf {
             return Err(HttmError::new(
                 "Will not restore files as files are the same file. Quitting.",
-            ).into());
+            )
+            .into());
         };
 
         // Tell the user what we're up to
-        write!(out, "httm will copy a file from a local ZFS snapshot...\n\n")?;
-        write!(out, "\tfrom: {:?}\n", snap_pbuf)?;
+        write!(
+            out,
+            "httm will copy a file from a local ZFS snapshot...\n\n"
+        )?;
+        writeln!(out, "\tfrom: {:?}\n", snap_pbuf)?;
         write!(out, "\tto:   {:?}\n\n", new_file_pbuf)?;
-        write!(out, "But, before httm does so, httm would like you to first consent.\n")?;
+        writeln!(
+            out,
+            "But, before httm does so, httm would like you to first consent."
+        )?;
         write!(out, "Continue? (Y/N)\n\n")?;
         out.flush()?;
-        
+
         let input_buffer = read_stdin()?;
         let res = input_buffer.get(0).unwrap().to_lowercase();
         if res == "y" || res == "yes" {
             std::fs::copy(snap_pbuf, new_file_pbuf)?;
             write!(out, "\nRestore completed successfully.\n")?;
         } else {
-            write!(out, "\nUser declined.  No files were restored.\n")?; 
+            write!(out, "\nUser declined.  No files were restored.\n")?;
         }
 
         std::process::exit(0)
