@@ -178,8 +178,6 @@ pub fn interactive_exec(
         new_file_pbuf.push(new_file_dir);
         new_file_pbuf.push(snap_file);
 
-        println!("{:?}", new_file_pbuf);
-
         if new_file_pbuf == snap_pbuf {
             return Err(HttmError::new(
                 "Will not restore files as files are the same file. Quitting.",
@@ -193,12 +191,12 @@ pub fn interactive_exec(
             "httm will copy a file from a local ZFS snapshot...\n\n"
         )?;
         writeln!(out, "\tfrom: {:?}\n", snap_pbuf)?;
-        write!(out, "\tto:   {:?}\n\n", new_file_pbuf)?;
+        writeln!(out, "\tto:   {:?}\n", new_file_pbuf)?;
         writeln!(
             out,
-            "But, before httm does so, httm would like you to first consent."
+            "But, before httm does so, httm would like you to first consent.\n"
         )?;
-        write!(out, "Continue? (Y/N)\n\n")?;
+        writeln!(out, "Continue? (Y/N)\n")?;
         out.flush()?;
 
         let input_buffer = read_stdin()?;
