@@ -89,7 +89,7 @@ impl PathData {
                 time = md.modified().ok()?;
                 phantom = false;
             }
-            // this seems like a perfect place for a None value, as file has no metadata,
+            // this seems like a perfect place for a None value, as the file has no metadata,
             // however we will want certain iters to print the *request*, say for deleted/fake files,
             // so we set up a dummy Some value just so we can have the path names we entered
             //
@@ -120,7 +120,8 @@ pub struct Config {
     opt_restore: bool,
     opt_man_mnt_point: Option<OsString>,
     opt_relative_dir: Option<OsString>,
-    working_dir: PathBuf,
+    current_working_dir: PathBuf,
+    user_requested_dir: PathBuf,
 }
 
 impl Config {
@@ -129,7 +130,7 @@ impl Config {
         let raw = matches.is_present("RAW");
         let no_so_pretty = matches.is_present("NOT_SO_PRETTY");
         let no_live_vers = matches.is_present("NO_LIVE");
-        let interactive = matches.is_present("INTERACTIVE") || matches.is_present("INTERACTIVE");
+        let interactive = matches.is_present("INTERACTIVE") || matches.is_present("RESTORE");
         let restore = matches.is_present("RESTORE");
 
         let mnt_point = if let Some(raw_value) = matches.value_of_os("MANUAL_MNT_POINT") {
@@ -187,6 +188,16 @@ impl Config {
             read_stdin()?
         };
 
+        // is there a user defined working dir given at the cli?
+        let requested_dir = if interactive
+            && file_names.get(0).is_some()
+            && PathBuf::from(file_names.get(0).unwrap()).is_dir()
+        {
+            PathBuf::from(&file_names.get(0).unwrap())
+        } else {
+            pwd.clone()
+        };
+
         let config = Config {
             raw_paths: file_names,
             opt_raw: raw,
@@ -194,10 +205,11 @@ impl Config {
             opt_no_pretty: no_so_pretty,
             opt_no_live_vers: no_live_vers,
             opt_man_mnt_point: mnt_point,
-            working_dir: pwd,
+            current_working_dir: pwd,
             opt_relative_dir: relative_dir,
             opt_interactive: interactive,
             opt_restore: restore,
+            user_requested_dir: requested_dir,
         };
 
         Ok(config)
@@ -216,7 +228,14 @@ fn parse_args() -> ArgMatches {
             Arg::new("INTERACTIVE")
                 .short('i')
                 .long("interactive")
-                .help("use native dialogs for an interactive restore (no need to script in your favorite shell!!)")
+                .help("use native dialogs for an interactive lookup session.")
+                .multiple_values(true)
+        )
+        .arg(
+            Arg::new("RESTORE")
+                .short('r')
+                .long("restore")
+                .help("use native dialogs for an interactive restore from backup.")
                 .multiple_values(true)
         )
         .arg(
@@ -234,7 +253,6 @@ fn parse_args() -> ArgMatches {
         )
         .arg(
             Arg::new("RAW")
-                .short('r')
                 .long("raw")
                 .help("list the backup locations, without extraneous information, delimited by a NEWLINE.")
                 .conflicts_with_all(&["ZEROS", "NOT_SO_PRETTY"]),
@@ -260,7 +278,7 @@ fn parse_args() -> ArgMatches {
         .get_matches()
 }
 
-// happy 'lil mr main fn that only handles errors
+// happy 'lil main fn that only handles errors
 fn main() {
     if let Err(e) = exec() {
         eprintln!("error {}", e);
@@ -275,35 +293,15 @@ fn exec() -> Result<(), Box<dyn std::error::Error>> {
     let arg_matches = parse_args();
     let config = Config::from(arg_matches)?;
 
-    // first, is there a user defined working dir given at the cli?
-    let requested_dir = if config.opt_interactive
-        && config.raw_paths.get(0).is_some()
-        && PathBuf::from(&config.raw_paths[0]).is_dir()
-    {
-        PathBuf::from(&config.raw_paths[0])
-    } else {
-        config.working_dir.clone()
-    };
+    // next, let's do our interactive lookup thing, if appropriate
+    // and modify strings returned according to the interactive session
+    let raw_paths = interactive_exec(&mut out, &config, &config.user_requested_dir)?;
 
-    // next, let's do our interactive lookup thing if appropriate
-    let raw_paths = interactive_exec(&config, &requested_dir)?;
+    // build pathdata from strings
+    let pathdata_set = convert_strings_to_pathdata(&config, &raw_paths)?;
 
-    // build our pathdata Vecs for our lookup request
-    let mut vec_pd: Vec<Option<PathData>> = Vec::new();
-
-    for raw_path_string in raw_paths {
-        let path = Path::new(&raw_path_string);
-        if path.is_relative() {
-            let mut wd = requested_dir.clone();
-            wd.push(path);
-            vec_pd.push(PathData::new(&wd))
-        } else {
-            vec_pd.push(PathData::new(path))
-        }
-    }
-
-    // and finally run search
-    let working_set = run_search(&config, vec_pd)?;
+    // finally run search on those paths
+    let working_set = run_search(&config, pathdata_set)?;
 
     // and display
     let output_buf = if config.opt_raw || config.opt_zeros {
@@ -331,4 +329,25 @@ fn read_stdin() -> Result<Vec<String>, Box<dyn std::error::Error>> {
     }
 
     Ok(broken_string)
+}
+
+pub fn convert_strings_to_pathdata(
+    config: &Config,
+    raw_paths: &[String],
+) -> Result<Vec<Option<PathData>>, Box<dyn std::error::Error>> {
+    // build our pathdata Vecs for our lookup request
+    let mut vec_pd: Vec<Option<PathData>> = Vec::new();
+
+    for string in raw_paths {
+        let path = Path::new(&string);
+        if path.is_relative() {
+            let mut wd = config.user_requested_dir.clone();
+            wd.push(path);
+            vec_pd.push(PathData::new(&wd))
+        } else {
+            vec_pd.push(PathData::new(path))
+        }
+    }
+
+    Ok(vec_pd)
 }

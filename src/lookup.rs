@@ -78,7 +78,7 @@ fn get_versions(
         if let Some(relative_dir) = &config.opt_relative_dir {
             pathdata.path_buf.strip_prefix(relative_dir)?
         } else {
-            match pathdata.path_buf.strip_prefix(&config.working_dir) {
+            match pathdata.path_buf.strip_prefix(&config.current_working_dir) {
                 Ok(path) => path,
                 Err(_) => {
                     let msg = "Are you sure you're in the correct working directory?  Perhaps you need to set the RELATIVE_DIR value.".to_string();

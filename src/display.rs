@@ -63,11 +63,11 @@ pub fn display_pretty(
         res
     };
 
-    let mut instance_buffer = String::new();
+    let mut working_set_buffer = String::new();
 
     // now display with all that beautiful padding
     if !config.opt_no_pretty {
-        instance_buffer += &format!("{}\n", fancy_string);
+        working_set_buffer += &format!("{}\n", fancy_string);
     }
 
     for version in &working_set {
@@ -83,7 +83,7 @@ pub fn display_pretty(
             };
 
             if !pd.is_phantom {
-                instance_buffer +=
+                working_set_buffer +=
                     &format!("{}{}{}\"{}\"\n", d_date, d_size, fixed_padding, d_path);
             } else {
                 let mut pad_date: String = String::new();
@@ -98,21 +98,21 @@ pub fn display_pretty(
                 for _ in 0..d_size.len() {
                     pad_size += " ";
                 }
-                instance_buffer +=
+                working_set_buffer +=
                     &format!("{}{}{}\"{}\"\n", pad_date, pad_size, fixed_padding, d_path);
             }
         }
         if !config.opt_no_pretty {
-            instance_buffer += &format!("{}\n", fancy_string);
+            working_set_buffer += &format!("{}\n", fancy_string);
         }
     }
 
     if config.opt_no_pretty {
-        for line in instance_buffer.lines().rev() {
+        for line in working_set_buffer.lines().rev() {
             buffer += &format!("{}\n", line);
         }
     } else {
-        buffer += &instance_buffer.to_string();
+        buffer += &working_set_buffer.to_string();
     };
 
     Ok(buffer)

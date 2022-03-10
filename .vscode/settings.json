@@ -13,6 +13,7 @@
         "mountpoints",
         "parseable",
         "pathdata",
+        "pbuf",
         "Swinford",
         "Vecs",
         "walkdir"
