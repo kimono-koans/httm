@@ -3,23 +3,27 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use chrono::{DateTime, Local};
 use clap::{Arg, ArgMatches};
-use fxhash::FxHashMap as HashMap;
-use number_prefix::NumberPrefix;
+use std::io::BufRead;
+use std::time::SystemTime;
 use std::{
     error::Error,
     ffi::OsString,
     fmt,
     fs::canonicalize,
-    io::{BufRead, Write},
+    io::Write,
     path::{Path, PathBuf},
-    process::Command as ExecProcess,
-    time::SystemTime,
 };
 
+mod interactive;
+use crate::interactive::*;
+mod lookup;
+use crate::lookup::*;
+mod display;
+use crate::display::*;
+
 #[derive(Debug)]
-struct HttmError {
+pub struct HttmError {
     details: String,
 }
 
@@ -44,7 +48,7 @@ impl Error for HttmError {
 }
 
 #[derive(Clone)]
-struct PathData {
+pub struct PathData {
     system_time: SystemTime,
     size: u64,
     path_buf: PathBuf,
@@ -65,12 +69,10 @@ impl PathData {
             } else {
                 PathBuf::from("/")
             }
+        } else if let Ok(cp) = canonicalize(parent) {
+            cp
         } else {
-            if let Ok(cp) = canonicalize(parent) {
-                cp
-            } else {
-                PathBuf::from("/")
-            }
+            PathBuf::from("/")
         };
 
         // add last component, filename, to parent path
@@ -87,8 +89,8 @@ impl PathData {
                 time = md.modified().ok()?;
                 phantom = false;
             }
-            // this seems like a perfect place for a None value, as file has no metadata, 
-            // however we will want certain iters to print the *request*, say for deleted/fake files, 
+            // this seems like a perfect place for a None value, as file has no metadata,
+            // however we will want certain iters to print the *request*, say for deleted/fake files,
             // so we set up a dummy Some value just so we can have the path names we entered
             //
             // if we get a spurious example of no metadata in snapshot directories we just ignore later
@@ -108,12 +110,14 @@ impl PathData {
     }
 }
 
-struct Config {
-    path_data: Vec<Option<PathData>>,
+pub struct Config {
+    raw_paths: Vec<String>,
     opt_raw: bool,
     opt_zeros: bool,
     opt_no_pretty: bool,
     opt_no_live_vers: bool,
+    opt_interactive: bool,
+    opt_restore: bool,
     opt_man_mnt_point: Option<OsString>,
     opt_relative_dir: Option<OsString>,
     working_dir: PathBuf,
@@ -125,13 +129,8 @@ impl Config {
         let raw = matches.is_present("RAW");
         let no_so_pretty = matches.is_present("NOT_SO_PRETTY");
         let no_live_vers = matches.is_present("NO_LIVE");
-
-        // working dir from env
-        let pwd = if let Ok(pwd) = std::env::var("PWD") {
-            PathBuf::from(&pwd)
-        } else {
-            PathBuf::from("/")
-        };
+        let interactive = matches.is_present("INTERACTIVE") || matches.is_present("INTERACTIVE");
+        let restore = matches.is_present("RESTORE");
 
         let mnt_point = if let Some(raw_value) = matches.value_of_os("MANUAL_MNT_POINT") {
             // dir exists sanity check?: check that path contains the hidden snapshot directory
@@ -164,6 +163,13 @@ impl Config {
             None
         };
 
+        // working dir from env
+        let pwd = if let Ok(pwd) = std::env::var("PWD") {
+            PathBuf::from(&pwd)
+        } else {
+            PathBuf::from("/")
+        };
+
         let file_names: Vec<String> = if matches.is_present("INPUT_FILES") {
             let raw_values = matches.values_of_os("INPUT_FILES").unwrap();
 
@@ -174,33 +180,15 @@ impl Config {
                     res.push(r);
                 }
             }
-
-            // if "-" then read from stdin, per the cli convention,
-            // collect and read to String here
-            if res.get(0).unwrap() == &String::from("-") {
-                read_stdin()?
-            } else {
-                res
-            }
+            res
+        } else if interactive {
+            Vec::new()
         } else {
             read_stdin()?
         };
 
-        let mut vec_pd: Vec<Option<PathData>> = Vec::new();
-
-        for file in file_names {
-            let path = Path::new(&file);
-            if path.is_relative() {
-                let mut pwd_clone = pwd.clone();
-                pwd_clone.push(path);
-                vec_pd.push(PathData::new(&pwd_clone))
-            } else {
-                vec_pd.push(PathData::new(path))
-            }
-        }
-
         let config = Config {
-            path_data: vec_pd,
+            raw_paths: file_names,
             opt_raw: raw,
             opt_zeros: zeros,
             opt_no_pretty: no_so_pretty,
@@ -208,45 +196,27 @@ impl Config {
             opt_man_mnt_point: mnt_point,
             working_dir: pwd,
             opt_relative_dir: relative_dir,
+            opt_interactive: interactive,
+            opt_restore: restore,
         };
 
         Ok(config)
     }
 }
 
-fn read_stdin() -> Result<Vec<String>, Box<dyn std::error::Error>> {
-    let mut buffer = String::new();
-    let stdin = std::io::stdin();
-    let mut stdin = stdin.lock();
-    stdin.read_line(&mut buffer)?;
-
-    let mut broken_string: Vec<String> = Vec::new();
-
-    for i in buffer.split_ascii_whitespace() {
-        broken_string.push(i.to_owned())
-    }
-
-    Ok(broken_string)
-}
-
-// happy 'lil mr main fn that only handles errors
-fn main() {
-    if let Err(e) = exec() {
-        eprintln!("error {}", e);
-        std::process::exit(1)
-    } else {
-        std::process::exit(0)
-    }
-}
-
-fn exec() -> Result<(), Box<dyn std::error::Error>> {
-    let mut out = std::io::stdout();
-
-    let matches = clap::Command::new("httm").about("displays information about unique file versions contained on ZFS snapshots.\n\n*Not* an acronym for Hot Tub Time Machine?")
+fn parse_args() -> ArgMatches {
+    clap::Command::new("httm").about("displays information about unique file versions contained on ZFS snapshots.\n\n *** Now with interactive file selections!! *** \n\n*Not* an acronym for Hot Tub Time Machine?")
         .arg(
             Arg::new("INPUT_FILES")
                 .help("...you should put your files here, if stdin(3) is not your flavor.")
                 .takes_value(true)
+                .multiple_values(true)
+        )
+        .arg(
+            Arg::new("INTERACTIVE")
+                .short('i')
+                .long("interactive")
+                .help("use native dialogs for an interactive restore (no need to script in your favorite shell!!)")
                 .multiple_values(true)
         )
         .arg(
@@ -287,296 +257,78 @@ fn exec() -> Result<(), Box<dyn std::error::Error>> {
                 .long("no-live")
                 .help("only display snapshot copies, and no 'live' copies of files or directories."),
         )
-        .get_matches();
+        .get_matches()
+}
 
-    let config = Config::from(matches)?;
-
-    // create vec of backups
-    let mut snapshot_versions: Vec<PathData> = Vec::new();
-
-    for instance_pd in config.path_data.iter().flatten() {
-        let dataset = if let Some(ref mp) = config.opt_man_mnt_point {
-            mp.to_owned()
-        } else {
-            get_dataset(instance_pd)?
-        };
-
-        snapshot_versions.extend_from_slice(&get_versions(&config, instance_pd, dataset)?);
+// happy 'lil mr main fn that only handles errors
+fn main() {
+    if let Err(e) = exec() {
+        eprintln!("error {}", e);
+        std::process::exit(1)
+    } else {
+        std::process::exit(0)
     }
+}
 
-    // create vec of live copies
-    let mut live_versions: Vec<PathData> = Vec::new();
+fn exec() -> Result<(), Box<dyn std::error::Error>> {
+    let mut out = std::io::stdout();
+    let arg_matches = parse_args();
+    let config = Config::from(arg_matches)?;
 
-    if !config.opt_no_live_vers {
-        for instance_pd in &config.path_data {
-            if instance_pd.is_some() {
-                live_versions.push(instance_pd.clone().unwrap());
-            }
+    // first, is there a user defined working dir given at the cli?
+    let requested_dir = if config.opt_interactive
+        && config.raw_paths.get(0).is_some()
+        && PathBuf::from(&config.raw_paths[0]).is_dir()
+    {
+        PathBuf::from(&config.raw_paths[0])
+    } else {
+        config.working_dir.clone()
+    };
+
+    // next, let's do our interactive lookup thing if appropriate
+    let raw_paths = interactive_exec(&config, &requested_dir)?;
+
+    // build our pathdata Vecs for our lookup request
+    let mut vec_pd: Vec<Option<PathData>> = Vec::new();
+
+    for raw_path_string in raw_paths {
+        let path = Path::new(&raw_path_string);
+        if path.is_relative() {
+            let mut wd = requested_dir.clone();
+            wd.push(path);
+            vec_pd.push(PathData::new(&wd))
+        } else {
+            vec_pd.push(PathData::new(path))
         }
     }
 
-    // check if all files (snap and live) do not exist, if this is true, then user probably messed up 
-    // and entered a file that never existed?  Or was on a snapshot that has since been destroyed?
-    if snapshot_versions.is_empty() && live_versions.iter().all(|i| i.is_phantom) {
-        return Err(HttmError::new(
-            "Neither a live copy, nor a snapshot copy of such a file appears to exist, so, umm, 🤷? Please try another file.",
-        )
-        .into());
-    }
+    // and finally run search
+    let working_set = run_search(&config, vec_pd)?;
 
-    let working_set: Vec<Vec<PathData>> = if config.opt_no_live_vers {
-        vec![snapshot_versions]
+    // and display
+    let output_buf = if config.opt_raw || config.opt_zeros {
+        display_raw(&config, working_set)?
     } else {
-        vec![snapshot_versions, live_versions]
+        display_pretty(&config, working_set)?
     };
 
-    if config.opt_raw || config.opt_zeros {
-        display_raw(&mut out, &config, working_set)?
-    } else {
-        display_pretty(&mut out, &config, working_set)?
-    }
-
+    write!(out, "{}", output_buf)?;
     out.flush()?;
 
     Ok(())
 }
 
-fn display_raw(
-    out: &mut std::io::Stdout,
-    config: &Config,
-    working_set: Vec<Vec<PathData>>,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let delimiter = if config.opt_zeros { '\0' } else { '\n' };
-
-    // so easy!
-    for version in &working_set {
-        for pd in version {
-            let d_path = pd.path_buf.display().to_string();
-            write!(out, "{}", d_path)?;
-            write!(out, "{}", delimiter)?;
-        }
-    }
-
-    Ok(())
-}
-
-fn display_pretty(
-    out: &mut std::io::Stdout,
-    config: &Config,
-    working_set: Vec<Vec<PathData>>,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let mut size_padding = 1usize;
-    let mut fancy_border = 1usize;
-
-    // calculate padding and borders for display later
-    for version in &working_set {
-        for pd in version {
-            let d_date = display_date(&pd.system_time);
-            let d_size = format!("{:>width$}", display_human_size(pd), width = size_padding);
-            let fixed_padding = format!("{:<5}", " ");
-            let d_path = pd.path_buf.display().to_string();
-
-            let d_size_len = display_human_size(pd).len();
-            let formatted_line_len =
-                // 2usize is for the two single quotes we add to the path display below 
-                d_date.len() + d_size.len() + fixed_padding.len() + d_path.len() + 2usize;
-
-            size_padding = d_size_len.max(size_padding);
-            fancy_border = formatted_line_len.max(fancy_border);
-        }
-    }
-
-    size_padding += 5usize;
-    fancy_border += 5usize;
-
-    // has to be a more idiomatic way to do this
-    // if you know, let me know
-    let fancy_string: String = {
-        let mut res: String = String::new();
-        for _ in 0..fancy_border {
-            res += "-";
-        }
-        res
-    };
-
-    // now display with that padding
-    if !config.opt_no_pretty {
-        writeln!(out, "{}", fancy_string)?;
-    }
+fn read_stdin() -> Result<Vec<String>, Box<dyn std::error::Error>> {
     let mut buffer = String::new();
-    for version in &working_set {
-        for pd in version {
-            let d_date = display_date(&pd.system_time);
-            let mut d_size = format!("{:>width$}", display_human_size(pd), width = size_padding);
-            let mut fixed_padding = format!("{:<5}", " ");
-            let d_path = pd.path_buf.display();
+    let stdin = std::io::stdin();
+    let mut stdin = stdin.lock();
+    stdin.read_line(&mut buffer)?;
 
-            if config.opt_no_pretty {
-                fixed_padding = "\t".to_owned();
-                d_size = format!("\t{}", display_human_size(pd));
-            };
+    let mut broken_string: Vec<String> = Vec::new();
 
-            if !pd.is_phantom {
-                buffer += &format!("{}{}{}\"{}\"\n", d_date, d_size, fixed_padding, d_path);
-            } else {
-                let mut pad_date: String = String::new();
-                let mut pad_size: String = String::new();
-                // displays blanks for phantom values, equaling their dummy lens and dates
-                // see struct PathData for more details
-                //
-                // again must be a better way to print padding, etc.
-                for _ in 0..d_date.len() {
-                    pad_date += " ";
-                }
-                for _ in 0..d_size.len() {
-                    pad_size += " ";
-                }
-                buffer += &format!("{}{}{}\"{}\"\n", pad_date, pad_size, fixed_padding, d_path);
-            }
-        }
-        if !config.opt_no_pretty {
-            buffer += &format!("{}\n", fancy_string);
-        }
+    for i in buffer.split_ascii_whitespace() {
+        broken_string.push(i.to_owned())
     }
 
-    if config.opt_no_pretty {
-        for line in buffer.lines().rev() {
-            writeln!(out, "{}", line)?
-        }
-    } else {
-        write!(out, "{}", buffer)?
-    };
-
-    Ok(())
-}
-
-fn display_human_size(pd: &PathData) -> String {
-    let size = pd.size as f64;
-
-    match NumberPrefix::binary(size) {
-        NumberPrefix::Standalone(bytes) => {
-            format!("{} bytes", bytes)
-        }
-        NumberPrefix::Prefixed(prefix, n) => {
-            format!("{:.1} {}B", n, prefix)
-        }
-    }
-}
-
-fn display_date(st: &SystemTime) -> String {
-    let dt: DateTime<Local> = st.to_owned().into();
-    format!("{}", dt.format("%b %e %H:%M:%S %Y"))
-}
-
-fn get_versions(
-    config: &Config,
-    pathdata: &PathData,
-    dataset: OsString,
-) -> Result<Vec<PathData>, Box<dyn std::error::Error>> {
-    // building the snapshot path
-    let mut snapshot_dir: PathBuf = PathBuf::from(&dataset);
-    snapshot_dir.push(".zfs");
-    snapshot_dir.push("snapshot");
-
-    // building our local relative path by removing parent 
-    // directories below the remote/snap mount point
-    //
-    // TODO: I *could* step backwards and check each ancestor folder for .zfs dirs as 
-    // an auto detect mechanism.  Currently, we rely on the user to provide.
-    //
-    // It would only work on ZFS datasets and not local-rsynced sets. :(
-    // Presently, defaults to everything below the working dir in the unspecified case.
-    let relative_path = if config.opt_man_mnt_point.is_some() {
-        if let Some(relative_dir) = &config.opt_relative_dir {
-            pathdata.path_buf.strip_prefix(relative_dir)?
-        } else {
-            match pathdata.path_buf.strip_prefix(&config.working_dir) {
-                Ok(path) => path,
-                Err(_) => {
-                    let msg = "Are you sure you're in the correct working directory?  Perhaps you need to set the RELATIVE_DIR value.".to_string();
-                    return Err(HttmError::new(&msg).into());
-                }
-            }
-        }
-    } else {
-        pathdata.path_buf.strip_prefix(&dataset)?
-    };
-
-    let snapshots = std::fs::read_dir(snapshot_dir)?;
-
-    let versions: Vec<_> = snapshots
-        .filter_map(|entry| entry.ok())
-        .map(|entry| entry.path())
-        .map(|path| path.join(relative_path))
-        .collect();
-
-    let mut unique_versions: HashMap<(SystemTime, u64), PathData> = HashMap::default();
-
-    for path in &versions {
-        if let Some(pd) = PathData::new(path) {
-            if !pd.is_phantom {
-                unique_versions.insert((pd.system_time, pd.size), pd);
-            }
-        }
-    }
-
-    let mut sorted: Vec<_> = unique_versions.into_iter().collect();
-
-    sorted.sort_by_key(|&(k, _)| k);
-
-    Ok(sorted.into_iter().map(|(_, v)| v).collect())
-}
-
-fn get_dataset(pathdata: &PathData) -> Result<OsString, Box<dyn std::error::Error>> {
-    let path = &pathdata.path_buf;
-
-    // method parent() cannot return None, when path is a canonical path
-    // and this should have been previous set in PathData new(), so None only if the root dir
-    let parent_folder = path.parent().unwrap_or(Path::new("/")).to_string_lossy();
-
-    // ingest datasets from the cmdline
-    let exec_command = "zfs list -H -t filesystem -o mountpoint,mounted";
-    let raw_ds = std::str::from_utf8(
-        &ExecProcess::new("env")
-            .arg("sh")
-            .arg("-c")
-            .arg(exec_command)
-            .output()?
-            .stdout,
-    )?
-    .to_owned();
-
-    // prune most datasets by match the parent_folder of file contains those datasets
-    let select_potential_mountpoints = raw_ds
-        .lines()
-        .filter(|line| line.contains("yes"))
-        .filter_map(|line| line.split('\t').next())
-        .map(|line| line.trim())
-        .filter(|line| parent_folder.contains(line))
-        .collect::<Vec<&str>>();
-
-    // do we have any left, if yes just continue
-    if select_potential_mountpoints.is_empty() {
-        let msg = "Could not identify any qualifying dataset.  Maybe consider specifying manually at MANUAL_MNT_POINT?"
-            .to_string();
-        return Err(HttmError::new(&msg).into());
-    };
-
-    // select the best match for us: the longest, as we've already matched on the parent folder
-    // so for /usr/bin/bash, we prefer /usr/bin to /usr
-    let best_potential_mountpoint = if let Some(bpmp) = select_potential_mountpoints
-        .clone()
-        .into_iter()
-        .max_by_key(|x| x.len())
-    {
-        bpmp
-    } else {
-        let msg = format!(
-            "There is no best match for a ZFS dataset to use for path {:?}. Sorry!/Not sorry?)",
-            path
-        );
-        return Err(HttmError::new(&msg).into());
-    };
-
-    Ok(OsString::from(best_potential_mountpoint))
+    Ok(broken_string)
 }
