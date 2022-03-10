@@ -194,7 +194,8 @@ pub fn interactive_exec(
         writeln!(out, "\tto:   {:?}\n", new_file_pbuf)?;
         writeln!(
             out,
-            "But, before httm does this, httm would like you to first consent. Continue? (Y/N) ")?;
+            "But, before httm does this, httm would like you to first consent. Continue? (Y/N) "
+        )?;
         out.flush()?;
 
         let input_buffer = read_stdin()?;
@@ -212,5 +213,5 @@ pub fn interactive_exec(
 
 fn timestamp_file(st: &SystemTime) -> String {
     let dt: DateTime<Local> = st.to_owned().into();
-    format!("{}", dt.format("%b_%e_%H:%M:%S_%Y"))
+    format!("{}", dt.format("%b-%d-%H:%M:%S-%Y"))
 }
