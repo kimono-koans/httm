@@ -132,6 +132,9 @@ impl Config {
         let no_live_vers = matches.is_present("NO_LIVE");
         let interactive = matches.is_present("INTERACTIVE") || matches.is_present("RESTORE");
         let restore = matches.is_present("RESTORE");
+        
+        let env_relative_dir = std::env::var("HTTM_RELATIVE_DIR").ok();
+        let env_manual_mnt = std::env::var("HTTM_MANUAL_MNT_POINT").ok();
 
         let mnt_point = if let Some(raw_value) = matches.value_of_os("MANUAL_MNT_POINT") {
             // dir exists sanity check?: check that path contains the hidden snapshot directory
@@ -146,6 +149,8 @@ impl Config {
                     "Manually set mountpoint does not contain a hidden ZFS directory.  Please mount a ZFS directory there or try another mountpoint.",
                 ).into());
             }
+        } else if let Some(env_manual_mnt) = env_manual_mnt {
+            Some(OsString::from(env_manual_mnt))
         } else {
             None
         };
@@ -160,6 +165,8 @@ impl Config {
                 )
                 .into());
             }
+        } else if let Some(env_relative_dir) = env_relative_dir {
+            Some(OsString::from(env_relative_dir))
         } else {
             None
         };
@@ -217,12 +224,14 @@ impl Config {
 }
 
 fn parse_args() -> ArgMatches {
-    clap::Command::new("httm").about("displays information about unique file versions contained on ZFS snapshots.\n*Don't call it H__ T__ Time Machine.*")
+    clap::Command::new("httm")
+        .about("displays information about unique file versions contained on ZFS snapshots, as well as interactive snapshot viewing and restore.\n\n*But don't call it H__ T__ Time Machine.*")
         .arg(
             Arg::new("INPUT_FILES")
                 .help("...you should put your files here, if stdin(3) is not your flavor.")
                 .takes_value(true)
                 .multiple_values(true)
+                .display_order(1)
         )
         .arg(
             Arg::new("INTERACTIVE")
@@ -230,6 +239,7 @@ fn parse_args() -> ArgMatches {
                 .long("interactive")
                 .help("use native dialogs for an interactive lookup session.")
                 .multiple_values(true)
+                .display_order(2)
         )
         .arg(
             Arg::new("RESTORE")
@@ -237,43 +247,50 @@ fn parse_args() -> ArgMatches {
                 .long("restore")
                 .help("use native dialogs for an interactive restore from backup.")
                 .multiple_values(true)
+                .display_order(3)
         )
         .arg(
             Arg::new("MANUAL_MNT_POINT")
                 .long("mnt-point")
-                .help("ordinarily httm will automatically choose your most local snapshot directory, but here you may manually specify your own mount point.")
-                .takes_value(true),
+                .help("ordinarily httm will automatically choose your most local snapshot directory, but here you may manually specify your own mount point for that directory.  You can also set via the environment variable HTTM_MANUAL_MNT_POINT.")
+                .takes_value(true)
+                .display_order(4)
         )
         .arg(
             Arg::new("RELATIVE_DIR")
                 .long("relative")
-                .help("used with MANUAL_MNT_POINT to determine where to the corresponding live root of the ZFS snapshot dataset is.  If not set, httm defaults to the working directory.")
+                .help("used with MANUAL_MNT_POINT to determine where the corresponding live root of the ZFS snapshot dataset is.  If not set, httm defaults to the working directory.  You can also set via the environment variable HTTM_RELATIVE_DIR.")
                 .requires("MANUAL_MNT_POINT")
-                .takes_value(true),
+                .takes_value(true)
+                .display_order(5)
         )
         .arg(
             Arg::new("RAW")
                 .long("raw")
                 .help("list the backup locations, without extraneous information, delimited by a NEWLINE.")
-                .conflicts_with_all(&["ZEROS", "NOT_SO_PRETTY"]),
+                .conflicts_with_all(&["ZEROS", "NOT_SO_PRETTY"])
+                .display_order(6)
         )
         .arg(
             Arg::new("ZEROS")
                 .short('0')
                 .long("zero")
                 .help("list the backup locations, without extraneous information, delimited by a NULL CHARACTER.")
-                .conflicts_with_all(&["RAW", "NOT_SO_PRETTY"]),
+                .conflicts_with_all(&["RAW", "NOT_SO_PRETTY"])
+                .display_order(7)
         )
         .arg(
             Arg::new("NOT_SO_PRETTY")
                 .long("not-so-pretty")
                 .help("list the backup locations in a parseable format.")
-                .conflicts_with_all(&["RAW", "ZEROS"]),
+                .conflicts_with_all(&["RAW", "ZEROS"])
+                .display_order(8)
         )
         .arg(
             Arg::new("NO_LIVE")
                 .long("no-live")
-                .help("only display snapshot copies, and no 'live' copies of files or directories."),
+                .help("only display snapshot copies, and no 'live' copies of files or directories.")
+                .display_order(8)
         )
         .get_matches()
 }
