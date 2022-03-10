@@ -190,13 +190,11 @@ pub fn interactive_exec(
             out,
             "httm will copy a file from a local ZFS snapshot...\n\n"
         )?;
-        writeln!(out, "\tfrom: {:?}\n", snap_pbuf)?;
+        writeln!(out, "\tfrom: {:?}", snap_pbuf)?;
         writeln!(out, "\tto:   {:?}\n", new_file_pbuf)?;
         writeln!(
             out,
-            "But, before httm does so, httm would like you to first consent.\n"
-        )?;
-        writeln!(out, "Continue? (Y/N)\n")?;
+            "But, before httm does this, httm would like you to first consent. Continue? (Y/N) ")?;
         out.flush()?;
 
         let input_buffer = read_stdin()?;
