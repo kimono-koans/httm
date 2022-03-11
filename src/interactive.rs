@@ -16,10 +16,8 @@ use std::time::SystemTime;
 use std::vec;
 use lscolors::{LsColors, Style};
 
-
 use std::io::Stdout;
 use std::{
-    ffi::OsString,
     path::{Path, PathBuf},
     fmt::Write as FmtWrite,
 };
@@ -84,17 +82,12 @@ fn interactive_lookup(config: &Config) -> Result<String, Box<dyn std::error::Err
 }
 
 fn interactive_select(
-    requested_dir: &Path,
     selection_buffer: String,
 ) -> Result<String, Box<dyn std::error::Error>> {
     let options = SkimOptionsBuilder::default()
         .interactive(true)
         .build()
         .unwrap();
-
-    // probably a fancy pure rust way to do this but does it have colors?!
-    let mut command_str = OsString::from("ls -a1 --color=always ");
-    command_str.push(requested_dir.as_os_str());
 
     // `SkimItemReader` is a helper to turn any `BufRead` into a stream of `SkimItem`
     // `SkimItem` was implemented for `AsRef<str>` by default
@@ -155,7 +148,6 @@ fn enter_directory(config: &Config,  buff: &mut String, lscolors: &LsColors, rea
 pub fn interactive_exec(
     out: &mut Stdout,
     config: &Config,
-    requested_dir: &Path,
 ) -> Result<Vec<String>, Box<dyn std::error::Error>> {
     let raw_paths = if config.opt_interactive {
         let res = if config.raw_paths.is_empty() || PathBuf::from(&config.raw_paths[0]).is_dir() {
@@ -184,7 +176,7 @@ pub fn interactive_exec(
         let selection_buffer = display_pretty(config, working_set)?;
 
         // file name ready to do some file ops!!
-        let requested_file_name = interactive_select(requested_dir, selection_buffer)?;
+        let requested_file_name = interactive_select(selection_buffer)?;
         let broken_string: Vec<_> = requested_file_name.split_terminator('"').collect();
 
         // we want the 2nd item or the indexed "1" object

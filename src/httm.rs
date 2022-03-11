@@ -335,7 +335,7 @@ fn exec() -> Result<(), Box<dyn std::error::Error>> {
 
     // next, let's do our interactive lookup thing, if appropriate
     // and modify strings returned according to the interactive session
-    let raw_paths = interactive_exec(&mut out, &config, &config.user_requested_dir)?;
+    let raw_paths = interactive_exec(&mut out, &config)?;
 
     // build pathdata from strings
     let pathdata_set = convert_strings_to_pathdata(&config, &raw_paths)?;
