@@ -18,7 +18,7 @@ pub fn run_search(
     let mut snapshot_versions: Vec<PathData> = Vec::new();
 
     for instance_pd in path_data.iter().flatten() {
-        let dataset = if let Some(ref mp) = config.opt_man_mnt_point {
+        let dataset = if let Some(ref mp) = config.opt_snap_point {
             mp.to_owned()
         } else {
             get_dataset(instance_pd)?
@@ -74,9 +74,9 @@ fn get_versions(
     //
     // It would only work on ZFS datasets and not local-rsync-ed sets. :(
     // Presently, defaults to everything below the working dir in the unspecified case.
-    let relative_path = if config.opt_man_mnt_point.is_some() {
-        if let Some(relative_dir) = &config.opt_relative_dir {
-            pathdata.path_buf.strip_prefix(relative_dir)?
+    let local_path = if config.opt_snap_point.is_some() {
+        if let Some(local_dir) = &config.opt_local_dir {
+            pathdata.path_buf.strip_prefix(local_dir)?
         } else {
             match pathdata.path_buf.strip_prefix(&config.current_working_dir) {
                 Ok(path) => path,
@@ -95,7 +95,7 @@ fn get_versions(
     let versions: Vec<_> = snapshots
         .filter_map(|entry| entry.ok())
         .map(|entry| entry.path())
-        .map(|path| path.join(relative_path))
+        .map(|path| path.join(local_path))
         .collect();
 
     let mut unique_versions: HashMap<(SystemTime, u64), PathData> = HashMap::default();
@@ -148,7 +148,7 @@ fn get_dataset(pathdata: &PathData) -> Result<OsString, Box<dyn std::error::Erro
 
     // do we have any left, if yes just continue
     if select_potential_mountpoints.is_empty() {
-        let msg = "Could not identify any qualifying dataset.  Maybe consider specifying manually at MANUAL_MNT_POINT?"
+        let msg = "Could not identify any qualifying dataset.  Maybe consider specifying manually at SNAP_POINT?"
             .to_string();
         return Err(HttmError::new(&msg).into());
     };

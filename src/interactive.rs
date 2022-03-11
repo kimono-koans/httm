@@ -9,22 +9,26 @@ extern crate skim;
 use chrono::DateTime;
 use chrono::Local;
 use skim::prelude::*;
+use std::fs::ReadDir;
 use std::io::Cursor;
 use std::io::Write;
 use std::time::SystemTime;
+use std::vec;
+use lscolors::{LsColors, Style};
+
 
 use std::io::Stdout;
 use std::{
     ffi::OsString,
     path::{Path, PathBuf},
-    process::Command as ExecProcess,
+    fmt::Write as FmtWrite,
 };
 
 fn interactive_lookup(config: &Config) -> Result<String, Box<dyn std::error::Error>> {
     // build our paths for the httm preview invocations, we need Strings because for now
     // skim does not allow invoking preview from a Rust function, we actually just exec httm again
-    let relative = if let Some(relative_dir) = &config.opt_relative_dir {
-        relative_dir.to_string_lossy()
+    let local_dir = if let Some(local_dir) = &config.opt_local_dir {
+        local_dir.to_string_lossy()
     } else {
         config.current_working_dir.to_string_lossy()
     };
@@ -35,43 +39,36 @@ fn interactive_lookup(config: &Config) -> Result<String, Box<dyn std::error::Err
         config.current_working_dir.clone()
     };
 
+    let mut buff = String::new();
+    let lscolors = LsColors::from_env().unwrap_or_default();
+    let mut read_dir =  std::fs::read_dir(&can_path)?;
+    let cp_string = can_path.to_string_lossy();
+
+    // enter directory 
+    enter_directory(config, &mut buff, &lscolors, &mut read_dir, &can_path);
+
     // string to exec on each preview
-    let preview_str = if let Some(mp_os) = &config.opt_man_mnt_point {
-        let mnt_point = mp_os.to_string_lossy();
+    let preview_str = if let Some(sp_os) = &config.opt_snap_point {
+        let snap_point = sp_os.to_string_lossy();
         format!(
-            "httm --mnt-point \"{mnt_point}\" --relative \"{relative}\" \"{}\"/{{}}",
-            can_path.to_string_lossy()
+            "httm --snap-point \"{snap_point}\" --local-dir \"{local_dir}\" \"{}\"/{{}}",
+            cp_string
         )
     } else {
-        format!("httm \"{}\"/{{}}", can_path.to_string_lossy())
+        format!("httm \"{}\"/{{}}", cp_string)
     };
 
     let options = SkimOptionsBuilder::default()
-        .interactive(true)
         .preview_window(Some("70%"))
         .preview(Some(&preview_str))
         .build()
         .unwrap();
 
-    // probably a fancy pure rust way to do this but does it have colors?!
-    let mut command_str = OsString::from("ls -a1 --color=always ");
-    command_str.push(can_path.as_os_str());
-
-    let ls_files = std::str::from_utf8(
-        &ExecProcess::new("env")
-            .arg("sh")
-            .arg("-c")
-            .arg(command_str)
-            .output()?
-            .stdout,
-    )?
-    .to_owned();
-
     // `SkimItemReader` is a helper to turn any `BufRead` into a stream of `SkimItem`
     // `SkimItem` was implemented for `AsRef<str>` by default
     let reader_opt = SkimItemReaderOption::default().ansi(true);
     let item_reader = SkimItemReader::new(reader_opt);
-    let items = item_reader.of_bufread(Cursor::new(ls_files));
+    let items = item_reader.of_bufread(Cursor::new(buff));
 
     // `run_with` would read and show items from the stream
     let selected_items = Skim::run_with(&options, Some(items))
@@ -115,6 +112,44 @@ fn interactive_select(
         .collect();
 
     Ok(res)
+}
+
+fn enter_directory(config: &Config,  buff: &mut String, lscolors: &LsColors, read_dir: &mut ReadDir, can_path: &PathBuf) {
+    let mut vec_dir = Vec::new();
+    let mut vec_files = Vec::new();
+    
+    // convert to paths
+    for raw_entry in read_dir {
+        let dir_entry = if let Ok(de) = raw_entry { de } else { continue };
+        let path = dir_entry.path();
+        
+        if path.is_dir() {
+            vec_dir.push(path);
+        } else if path.is_file() || path.is_symlink() {
+            vec_files.push(path);
+        }
+    }
+
+    // display with pretty ANSI colors
+    let mut combined_vec = vec_dir.clone();
+    combined_vec.append(&mut vec_files);
+    for path in combined_vec {
+        let style = if let Some(style) = lscolors.style_for_path(&path) { style } else { continue };
+        let ansi_style = &Style::to_ansi_term_style(style);
+        if let Ok(stripped_path) = &path.strip_prefix(&can_path) {
+            let stripped_str = stripped_path.to_string_lossy();
+            let _ = writeln!(buff, "{}", ansi_style.paint(stripped_str));
+        }
+    }
+
+    // now recurse, if requested
+    if config.opt_recursive {
+        for dir in vec_dir {
+            let mut rd =  if let Ok(rd) = std::fs::read_dir(dir) { rd } else { continue };
+            enter_directory(config, buff ,lscolors, &mut rd, &can_path);
+
+        }
+    }
 }
 
 pub fn interactive_exec(

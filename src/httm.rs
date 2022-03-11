@@ -118,8 +118,9 @@ pub struct Config {
     opt_no_live_vers: bool,
     opt_interactive: bool,
     opt_restore: bool,
-    opt_man_mnt_point: Option<OsString>,
-    opt_relative_dir: Option<OsString>,
+    opt_recursive: bool,
+    opt_snap_point: Option<OsString>,
+    opt_local_dir: Option<OsString>,
     current_working_dir: PathBuf,
     user_requested_dir: PathBuf,
 }
@@ -132,17 +133,24 @@ impl Config {
         let no_live_vers = matches.is_present("NO_LIVE");
         let interactive = matches.is_present("INTERACTIVE") || matches.is_present("RESTORE");
         let restore = matches.is_present("RESTORE");
-        let env_relative_dir = std::env::var("HTTM_RELATIVE_DIR").ok();
+        let env_local_dir = std::env::var("HTTM_LOCAL_DIR").ok();
+        let recursive = matches.is_present("RECURSIVE");
 
-        let raw_mnt_var = if let Some(raw_value) = matches.value_of_os("MANUAL_MNT_POINT") {
+        if recursive && !interactive && !restore {
+             return Err(HttmError::new(
+                 "Recursive search feature only allowed with interactive or restore modes.",
+             ).into()); 
+        }
+
+        let raw_snap_var = if let Some(raw_value) = matches.value_of_os("SNAP_POINT") {
             Some(raw_value.to_os_string())
-        } else if let Ok(env_manual_mnt) = std::env::var("HTTM_MANUAL_MNT_POINT") {
+        } else if let Ok(env_manual_mnt) = std::env::var("HTTM_SNAP_POINT") {
             Some(OsString::from(env_manual_mnt))
         } else {
             None
         };
 
-        let manual_mnt_point = if let Some(raw_value) = raw_mnt_var {
+        let snap_point = if let Some(raw_value) = raw_snap_var {
             // dir exists sanity check?: check that path contains the hidden snapshot directory
             let mut snapshot_dir: PathBuf = PathBuf::from(&raw_value);
             snapshot_dir.push(".zfs");
@@ -159,7 +167,7 @@ impl Config {
             None
         };
 
-        let relative_dir = if let Some(raw_value) = matches.value_of_os("RELATIVE_DIR") {
+        let local_dir = if let Some(raw_value) = matches.value_of_os("LOCAL_DIR") {
             // dir exists sanity check?: check path exists by checking for path metadata
             if PathBuf::from(raw_value).metadata().is_ok() {
                 Some(raw_value.to_os_string())
@@ -170,7 +178,7 @@ impl Config {
                 .into());
             }
         } else {
-            env_relative_dir.map(OsString::from)
+            env_local_dir.map(OsString::from)
         };
 
         // working dir from env
@@ -217,9 +225,10 @@ impl Config {
             opt_zeros: zeros,
             opt_no_pretty: no_so_pretty,
             opt_no_live_vers: no_live_vers,
-            opt_man_mnt_point: manual_mnt_point,
+            opt_snap_point: snap_point,
             current_working_dir: pwd,
-            opt_relative_dir: relative_dir,
+            opt_local_dir: local_dir,
+            opt_recursive: recursive,
             opt_interactive: interactive,
             opt_restore: restore,
             user_requested_dir: requested_dir,
@@ -256,26 +265,34 @@ fn parse_args() -> ArgMatches {
                 .display_order(3)
         )
         .arg(
-            Arg::new("MANUAL_MNT_POINT")
-                .long("mnt-point")
-                .help("ordinarily httm will automatically choose your most local snapshot directory, but here you may manually specify your own mount point for that directory.  You can also set via the environment variable HTTM_MANUAL_MNT_POINT.")
-                .takes_value(true)
+            Arg::new("RECURSIVE")
+                .short('R')
+                .long("recursive")
+                .help("recurse into selected directory to find more files. Only available in interactive and restore modes.")
                 .display_order(4)
         )
         .arg(
-            Arg::new("RELATIVE_DIR")
-                .long("relative")
-                .help("used with MANUAL_MNT_POINT to determine where the corresponding live root of the ZFS snapshot dataset is.  If not set, httm defaults to the working directory.  You can also set via the environment variable HTTM_RELATIVE_DIR.")
-                .requires("MANUAL_MNT_POINT")
+            Arg::new("SNAP_POINT")
+                .long("snap-point")
+                .help("ordinarily httm will automatically choose your most local snapshot directory, but here you may manually specify your own mount point for that directory, such as the mount point for a remote share.  You can also set via the environment variable HTTM_SNAP_POINT.")
                 .takes_value(true)
                 .display_order(5)
         )
         .arg(
+            Arg::new("LOCAL_DIR")
+                .long("local-dir")
+                .help("used with SNAP_POINT to determine where the corresponding live root of the ZFS snapshot dataset is.  If not set, httm defaults to your current working directory.  You can also set via the environment variable HTTM_LOCAL_DIR.")
+                .requires("SNAP_POINT")
+                .takes_value(true)
+                .display_order(6)
+        )
+        .arg(
             Arg::new("RAW")
+                .short('n')
                 .long("raw")
                 .help("list the backup locations, without extraneous information, delimited by a NEWLINE.")
                 .conflicts_with_all(&["ZEROS", "NOT_SO_PRETTY"])
-                .display_order(6)
+                .display_order(7)
         )
         .arg(
             Arg::new("ZEROS")
@@ -283,7 +300,7 @@ fn parse_args() -> ArgMatches {
                 .long("zero")
                 .help("list the backup locations, without extraneous information, delimited by a NULL CHARACTER.")
                 .conflicts_with_all(&["RAW", "NOT_SO_PRETTY"])
-                .display_order(7)
+                .display_order(8)
         )
         .arg(
             Arg::new("NOT_SO_PRETTY")
@@ -296,7 +313,7 @@ fn parse_args() -> ArgMatches {
             Arg::new("NO_LIVE")
                 .long("no-live")
                 .help("only display snapshot copies, and no 'live' copies of files or directories.")
-                .display_order(8)
+                .display_order(9)
         )
         .get_matches()
 }
