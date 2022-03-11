@@ -132,25 +132,29 @@ impl Config {
         let no_live_vers = matches.is_present("NO_LIVE");
         let interactive = matches.is_present("INTERACTIVE") || matches.is_present("RESTORE");
         let restore = matches.is_present("RESTORE");
-        
         let env_relative_dir = std::env::var("HTTM_RELATIVE_DIR").ok();
-        let env_manual_mnt = std::env::var("HTTM_MANUAL_MNT_POINT").ok();
 
-        let mnt_point = if let Some(raw_value) = matches.value_of_os("MANUAL_MNT_POINT") {
+        let raw_mnt_var = if let Some(raw_value) = matches.value_of_os("MANUAL_MNT_POINT") {
+            Some(raw_value.to_os_string())
+        } else if let Some(env_manual_mnt) = std::env::var("HTTM_MANUAL_MNT_POINT").ok() {
+            Some(OsString::from(env_manual_mnt))
+        } else {
+            None
+        };
+
+        let manual_mnt_point = if let Some(raw_value) = raw_mnt_var {
             // dir exists sanity check?: check that path contains the hidden snapshot directory
             let mut snapshot_dir: PathBuf = PathBuf::from(&raw_value);
             snapshot_dir.push(".zfs");
             snapshot_dir.push("snapshot");
 
             if snapshot_dir.metadata().is_ok() {
-                Some(raw_value.to_os_string())
+                Some(raw_value)
             } else {
                 return Err(HttmError::new(
                     "Manually set mountpoint does not contain a hidden ZFS directory.  Please mount a ZFS directory there or try another mountpoint.",
                 ).into());
             }
-        } else if let Some(env_manual_mnt) = env_manual_mnt {
-            Some(OsString::from(env_manual_mnt))
         } else {
             None
         };
@@ -211,7 +215,7 @@ impl Config {
             opt_zeros: zeros,
             opt_no_pretty: no_so_pretty,
             opt_no_live_vers: no_live_vers,
-            opt_man_mnt_point: mnt_point,
+            opt_man_mnt_point: manual_mnt_point,
             current_working_dir: pwd,
             opt_relative_dir: relative_dir,
             opt_interactive: interactive,
