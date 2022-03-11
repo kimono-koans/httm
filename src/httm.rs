@@ -136,7 +136,7 @@ impl Config {
 
         let raw_mnt_var = if let Some(raw_value) = matches.value_of_os("MANUAL_MNT_POINT") {
             Some(raw_value.to_os_string())
-        } else if let Some(env_manual_mnt) = std::env::var("HTTM_MANUAL_MNT_POINT").ok() {
+        } else if let Ok(env_manual_mnt) = std::env::var("HTTM_MANUAL_MNT_POINT") {
             Some(OsString::from(env_manual_mnt))
         } else {
             None
@@ -169,15 +169,17 @@ impl Config {
                 )
                 .into());
             }
-        } else if let Some(env_relative_dir) = env_relative_dir {
-            Some(OsString::from(env_relative_dir))
         } else {
-            None
+            env_relative_dir.map(OsString::from)
         };
 
         // working dir from env
         let pwd = if let Ok(pwd) = std::env::var("PWD") {
-            PathBuf::from(&pwd)
+            if let Ok(cp) = PathBuf::from(&pwd).canonicalize() {
+                cp
+            } else {
+                PathBuf::from("/")
+            }
         } else {
             PathBuf::from("/")
         };

@@ -29,12 +29,6 @@ fn interactive_lookup(config: &Config) -> Result<String, Box<dyn std::error::Err
         config.current_working_dir.to_string_lossy()
     };
 
-    let mnt_point = if let Some(mnt_point) = &config.opt_man_mnt_point {
-        mnt_point.to_string_lossy()
-    } else {
-        config.current_working_dir.to_string_lossy()
-    };
-
     let can_path = if let Ok(can_path) = config.user_requested_dir.canonicalize() {
         can_path
     } else {
@@ -42,22 +36,26 @@ fn interactive_lookup(config: &Config) -> Result<String, Box<dyn std::error::Err
     };
 
     // string to exec on each preview
-    let preview_str = &format!(
-        "httm --mnt-point \"{mnt_point}\" --relative \"{relative}\" \"{}\"/{{}}",
-        can_path.to_string_lossy()
-    );
+    let preview_str = if let Some(mp_os) = &config.opt_man_mnt_point {
+        let mnt_point = mp_os.to_string_lossy();
+        format!(
+            "httm --mnt-point \"{mnt_point}\" --relative \"{relative}\" \"{}\"/{{}}",
+            can_path.to_string_lossy()
+        )
+    } else {
+        format!("httm \"{}\"/{{}}", can_path.to_string_lossy())
+    };
 
     let options = SkimOptionsBuilder::default()
         .interactive(true)
-        .height(Some("100%"))
         .preview_window(Some("70%"))
-        .preview(Some(preview_str))
+        .preview(Some(&preview_str))
         .build()
         .unwrap();
 
     // probably a fancy pure rust way to do this but does it have colors?!
     let mut command_str = OsString::from("ls -a1 --color=always ");
-    command_str.push(config.user_requested_dir.as_os_str());
+    command_str.push(can_path.as_os_str());
 
     let ls_files = std::str::from_utf8(
         &ExecProcess::new("env")
@@ -94,7 +92,6 @@ fn interactive_select(
 ) -> Result<String, Box<dyn std::error::Error>> {
     let options = SkimOptionsBuilder::default()
         .interactive(true)
-        .height(Some("100%"))
         .build()
         .unwrap();
 
