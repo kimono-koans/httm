@@ -144,7 +144,9 @@ impl Config {
         let raw = matches.is_present("RAW");
         let no_so_pretty = matches.is_present("NOT_SO_PRETTY");
         let no_live_vers = matches.is_present("NO_LIVE");
-        let interactive = matches.is_present("INTERACTIVE") || matches.is_present("RESTORE") || matches.is_present("SELECT");
+        let interactive = matches.is_present("INTERACTIVE")
+            || matches.is_present("RESTORE")
+            || matches.is_present("SELECT");
         let restore = matches.is_present("RESTORE");
         let env_local_dir = std::env::var("HTTM_LOCAL_DIR").ok();
         let recursive = matches.is_present("RECURSIVE");

@@ -190,7 +190,7 @@ fn interactive_select(
     } else {
         return Err(HttmError::new("Invalid value selected. Quitting.").into());
     };
-    
+
     if config.opt_restore {
         Ok(interactive_restore(out, config, parsed_str)?)
     } else {
