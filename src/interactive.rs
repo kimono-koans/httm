@@ -103,12 +103,7 @@ fn interactive_select(selection_buffer: String) -> Result<String, Box<dyn std::e
     Ok(res)
 }
 
-fn enter_directory(
-    config: &Config,
-    buff: &mut String,
-    read_dir: &mut ReadDir,
-    can_path: &Path,
-) {
+fn enter_directory(config: &Config, buff: &mut String, read_dir: &mut ReadDir, can_path: &Path) {
     let mut vec_dir = Vec::new();
     let mut vec_files = Vec::new();
 
@@ -129,7 +124,7 @@ fn enter_directory(
     combined_vec.append(&mut vec_files);
     combined_vec.sort();
     for path in combined_vec {
-        let _ = writeln!(buff, "{}", display_path(&path, &can_path));
+        let _ = writeln!(buff, "{}", display_path(&path, can_path));
     }
 
     // now recurse, if requested

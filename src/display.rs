@@ -2,11 +2,11 @@ use crate::Config;
 use crate::PathData;
 
 use chrono::{DateTime, Local};
-use number_prefix::NumberPrefix;
-use std::time::SystemTime;
-use lscolors::Style;
 use lscolors::LsColors;
+use lscolors::Style;
+use number_prefix::NumberPrefix;
 use std::path::Path;
+use std::time::SystemTime;
 
 pub fn display_raw(
     config: &Config,
@@ -43,14 +43,13 @@ pub fn display_pretty(
 
     for working_set in &collections_array {
         let mut working_set_buffer = String::new();
-        
-        for pd in working_set {
 
+        for pd in working_set {
             let d_date = display_date(&pd.system_time);
             let d_size;
             let d_path;
             let fixed_padding;
-            
+
             if !config.opt_no_pretty {
                 d_size = format!("{:>width$}", display_human_size(pd), width = size_padding);
                 fixed_padding = format!("{:<5}", " ");
@@ -151,17 +150,14 @@ fn display_date(st: &SystemTime) -> String {
 }
 
 pub fn display_path(path: &Path, can_path: &Path) -> String {
-
     let lscolors = LsColors::from_env().unwrap_or_default();
 
     let stripped_str = if can_path == Path::new("") {
         path.to_string_lossy()
+    } else if let Ok(stripped_path) = &path.strip_prefix(&can_path) {
+        stripped_path.to_string_lossy()
     } else {
-        if let Ok(stripped_path) = &path.strip_prefix(&can_path) {
-            stripped_path.to_string_lossy()
-        } else {
-            path.to_string_lossy()
-        }
+        path.to_string_lossy()
     };
 
     if let Some(style) = lscolors.style_for_path(&path) {
@@ -169,5 +165,5 @@ pub fn display_path(path: &Path, can_path: &Path) -> String {
         ansi_style.paint(stripped_str).to_string()
     } else {
         stripped_str.to_string()
-    }   
+    }
 }
