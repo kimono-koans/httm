@@ -259,6 +259,7 @@ impl Config {
 fn parse_args() -> ArgMatches {
     clap::Command::new("httm")
         .about("displays information about unique file versions contained on ZFS snapshots, as well as interactive snapshot viewing and restore.\n\n*But don't call it H__ T__ Time Machine.*")
+        .version("0.4.0") 
         .arg(
             Arg::new("INPUT_FILES")
                 .help("...you should put your files here, if stdin(3) is not your flavor.")
