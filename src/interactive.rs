@@ -196,7 +196,7 @@ fn interactive_restore(
 
     // build new place to send file
     let mut snap_file = snap_pbuf.file_name().unwrap().to_string_lossy().to_string();
-    snap_file.push_str(".restored.");
+    snap_file.push_str(".httm_restored.");
     snap_file.push_str(&timestamp_file(&snap_md.modified()?));
 
     let new_file_dir = config.current_working_dir.clone();
@@ -217,9 +217,9 @@ fn interactive_restore(
     )?;
     writeln!(out, "\tfrom: {:?}", snap_pbuf)?;
     writeln!(out, "\tto:   {:?}\n", new_file_pbuf)?;
-    writeln!(
+    write!(
         out,
-        "But, before httm does this, httm would like you to first consent. Continue? (Y/N) "
+        "But, before httm does anything, it would your consent. Continue? (Y/N) "
     )?;
     out.flush()?;
 
