@@ -1,6 +1,6 @@
 use crate::convert_strings_to_pathdata;
-use crate::display::*;
-use crate::lookup::*;
+use crate::display::{display_path_colors, display_pretty};
+use crate::lookup::run_search;
 use crate::read_stdin;
 use crate::Config;
 use crate::HttmError;
@@ -124,7 +124,7 @@ fn enter_directory(config: &Config, buff: &mut String, read_dir: &mut ReadDir, c
     combined_vec.append(&mut vec_files);
     combined_vec.sort();
     for path in combined_vec {
-        let _ = writeln!(buff, "{}", display_path(&path, can_path));
+        let _ = writeln!(buff, "{}", display_path_colors(&path, can_path));
     }
 
     // now recurse, if requested
@@ -164,70 +164,75 @@ pub fn interactive_exec(
     if !config.opt_restore {
         Ok(raw_paths)
     } else {
-        // same stuff we do at exec, snooze...
-        let search_path = raw_paths.get(0).unwrap().to_owned();
-        let pathdata_set = convert_strings_to_pathdata(config, &[search_path])?;
-        let working_set = run_search(config, pathdata_set)?;
-        let selection_buffer = display_pretty(config, working_set)?;
-
-        // file name ready to do some file ops!!
-        let requested_file_name = interactive_select(selection_buffer)?;
-        let broken_string: Vec<_> = requested_file_name.split_terminator('"').collect();
-
-        // we want the 2nd item or the indexed "1" object
-        let parsed = broken_string.get(1).unwrap();
-
-        let snap_pbuf = PathBuf::from(&parsed);
-
-        let snap_md = if let Ok(snap_md) = snap_pbuf.metadata() {
-            snap_md
-        } else {
-            return Err(
-                HttmError::new("Snapshot location does not exist on disk. Quitting.").into(),
-            );
-        };
-
-        // build new place to send file
-        let mut snap_file = snap_pbuf.file_name().unwrap().to_string_lossy().to_string();
-        snap_file.push_str(".restored.");
-        snap_file.push_str(&timestamp_file(&snap_md.modified()?));
-
-        let new_file_dir = config.current_working_dir.clone();
-        let mut new_file_pbuf = PathBuf::new();
-        new_file_pbuf.push(new_file_dir);
-        new_file_pbuf.push(snap_file);
-
-        if new_file_pbuf == snap_pbuf {
-            return Err(HttmError::new(
-                "Will not restore files as files are the same file. Quitting.",
-            )
-            .into());
-        };
-
-        // Tell the user what we're up to
-        write!(
-            out,
-            "httm will copy a file from a local ZFS snapshot...\n\n"
-        )?;
-        writeln!(out, "\tfrom: {:?}", snap_pbuf)?;
-        writeln!(out, "\tto:   {:?}\n", new_file_pbuf)?;
-        writeln!(
-            out,
-            "But, before httm does this, httm would like you to first consent. Continue? (Y/N) "
-        )?;
-        out.flush()?;
-
-        let input_buffer = read_stdin()?;
-        let res = input_buffer.get(0).unwrap().to_lowercase();
-        if res == "y" || res == "yes" {
-            std::fs::copy(snap_pbuf, new_file_pbuf)?;
-            write!(out, "\nRestore completed successfully.\n")?;
-        } else {
-            write!(out, "\nUser declined.  No files were restored.\n")?;
-        }
-
-        std::process::exit(0)
+        interactive_restore(out, config, raw_paths)
     }
+}
+
+fn interactive_restore(
+    out: &mut Stdout,
+    config: &Config,
+    raw_paths: Vec<String>,
+) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+    // same stuff we do at exec, snooze...
+    let search_path = raw_paths.get(0).unwrap().to_owned();
+    let pathdata_set = convert_strings_to_pathdata(config, &[search_path])?;
+    let snaps_and_live_set = run_search(config, pathdata_set)?;
+    let selection_buffer = display_pretty(config, snaps_and_live_set)?;
+
+    // file name ready to do some file ops!!
+    // ... we want the 2nd item or the indexed "1" object
+    // everything between the quotes
+    let requested_file_name = interactive_select(selection_buffer)?;
+    let broken_string: Vec<_> = requested_file_name.split_terminator('"').collect();
+    let parsed = broken_string.get(1).unwrap();
+
+    let snap_pbuf = PathBuf::from(&parsed);
+
+    let snap_md = if let Ok(snap_md) = snap_pbuf.metadata() {
+        snap_md
+    } else {
+        return Err(HttmError::new("Snapshot location does not exist on disk. Quitting.").into());
+    };
+
+    // build new place to send file
+    let mut snap_file = snap_pbuf.file_name().unwrap().to_string_lossy().to_string();
+    snap_file.push_str(".restored.");
+    snap_file.push_str(&timestamp_file(&snap_md.modified()?));
+
+    let new_file_dir = config.current_working_dir.clone();
+    let mut new_file_pbuf = PathBuf::new();
+    new_file_pbuf.push(new_file_dir);
+    new_file_pbuf.push(snap_file);
+
+    if new_file_pbuf == snap_pbuf {
+        return Err(
+            HttmError::new("Will not restore files as files are the same file. Quitting.").into(),
+        );
+    };
+
+    // tell the user what we're up to
+    write!(
+        out,
+        "httm will copy a file from a local ZFS snapshot...\n\n"
+    )?;
+    writeln!(out, "\tfrom: {:?}", snap_pbuf)?;
+    writeln!(out, "\tto:   {:?}\n", new_file_pbuf)?;
+    writeln!(
+        out,
+        "But, before httm does this, httm would like you to first consent. Continue? (Y/N) "
+    )?;
+    out.flush()?;
+
+    let input_buffer = read_stdin()?;
+    let res = input_buffer.get(0).unwrap().to_lowercase();
+    if res == "y" || res == "yes" {
+        std::fs::copy(snap_pbuf, new_file_pbuf)?;
+        write!(out, "\nRestore completed successfully.\n")?;
+    } else {
+        write!(out, "\nUser declined.  No files were restored.\n")?;
+    }
+
+    std::process::exit(0)
 }
 
 fn timestamp_file(st: &SystemTime) -> String {

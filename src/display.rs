@@ -10,14 +10,14 @@ use std::time::SystemTime;
 
 pub fn display_raw(
     config: &Config,
-    working_set: Vec<Vec<PathData>>,
+    snaps_and_live_set: Vec<Vec<PathData>>,
 ) -> Result<String, Box<dyn std::error::Error>> {
     let mut buffer = String::new();
 
     let delimiter = if config.opt_zeros { '\0' } else { '\n' };
 
     // so easy!
-    for version in &working_set {
+    for version in &snaps_and_live_set {
         for pd in version {
             let d_path = pd.path_buf.display().to_string();
             buffer += &format!("{}{}", d_path, delimiter);
@@ -29,22 +29,22 @@ pub fn display_raw(
 
 pub fn display_pretty(
     config: &Config,
-    collections_array: Vec<Vec<PathData>>,
+    snaps_and_live_set: Vec<Vec<PathData>>,
 ) -> Result<String, Box<dyn std::error::Error>> {
     let mut write_out_buffer = String::new();
 
-    let (size_padding, fancy_string) = calculate_padding(&collections_array);
+    let (size_padding, fancy_string) = calculate_padding(&snaps_and_live_set);
 
     // now display with all that beautiful padding
     if !config.opt_no_pretty {
-        // only print one border to the top -- to buffer, not working_set_buffer
+        // only print one border to the top -- to buffer, not pathdata_set_buffer
         write_out_buffer += &format!("{}\n", fancy_string);
     }
 
-    for working_set in &collections_array {
-        let mut working_set_buffer = String::new();
+    for pathdata_set in &snaps_and_live_set {
+        let mut pathdata_set_buffer = String::new();
 
-        for pd in working_set {
+        for pd in pathdata_set {
             let d_date = display_date(&pd.system_time);
             let d_size;
             let fixed_padding;
@@ -59,7 +59,7 @@ pub fn display_pretty(
             }
 
             if !pd.is_phantom {
-                working_set_buffer +=
+                pathdata_set_buffer +=
                     &format!("{}{}{}\"{}\"\n", d_date, d_size, fixed_padding, d_path);
             } else {
                 let mut pad_date: String = String::new();
@@ -74,15 +74,15 @@ pub fn display_pretty(
                 for _ in 0..d_size.len() {
                     pad_size += " ";
                 }
-                working_set_buffer +=
+                pathdata_set_buffer +=
                     &format!("{}{}{}\"{}\"\n", pad_date, pad_size, fixed_padding, d_path);
             }
         }
-        if !config.opt_no_pretty && !working_set_buffer.is_empty() {
-            working_set_buffer += &format!("{}\n", fancy_string);
-            write_out_buffer += &working_set_buffer.to_string();
+        if !config.opt_no_pretty && !pathdata_set_buffer.is_empty() {
+            pathdata_set_buffer += &format!("{}\n", fancy_string);
+            write_out_buffer += &pathdata_set_buffer.to_string();
         } else {
-            for line in working_set_buffer.lines().rev() {
+            for line in pathdata_set_buffer.lines().rev() {
                 write_out_buffer += &format!("{}\n", line);
             }
         }
@@ -91,12 +91,12 @@ pub fn display_pretty(
     Ok(write_out_buffer)
 }
 
-fn calculate_padding(collections_array: &[Vec<PathData>]) -> (usize, String) {
+fn calculate_padding(snaps_and_live_set: &[Vec<PathData>]) -> (usize, String) {
     let mut size_padding = 1usize;
     let mut fancy_border = 1usize;
 
     // calculate padding and borders for display later
-    for ver_set in collections_array {
+    for ver_set in snaps_and_live_set {
         for pd in ver_set {
             let d_date = display_date(&pd.system_time);
             let d_size = format!("{:>width$}", display_human_size(pd), width = size_padding);
@@ -147,7 +147,7 @@ fn display_date(st: &SystemTime) -> String {
     format!("{}", dt.format("%b %e %H:%M:%S %Y"))
 }
 
-pub fn display_path(path: &Path, can_path: &Path) -> String {
+pub fn display_path_colors(path: &Path, can_path: &Path) -> String {
     let lscolors = LsColors::from_env().unwrap_or_default();
 
     let stripped_str = if can_path == Path::new("") {

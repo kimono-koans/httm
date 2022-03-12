@@ -14,13 +14,13 @@ use std::{
     io::Write,
     path::{Path, PathBuf},
 };
-
-mod interactive;
-use crate::interactive::*;
-mod lookup;
-use crate::lookup::*;
 mod display;
-use crate::display::*;
+mod interactive;
+mod lookup;
+
+use crate::display::{display_pretty, display_raw};
+use crate::interactive::interactive_exec;
+use crate::lookup::run_search;
 
 #[derive(Debug)]
 pub struct HttmError {
@@ -342,13 +342,13 @@ fn exec() -> Result<(), Box<dyn std::error::Error>> {
     let pathdata_set = convert_strings_to_pathdata(&config, &raw_paths)?;
 
     // finally run search on those paths
-    let working_set = run_search(&config, pathdata_set)?;
+    let snaps_and_live_set = run_search(&config, pathdata_set)?;
 
     // and display
     let output_buf = if config.opt_raw || config.opt_zeros {
-        display_raw(&config, working_set)?
+        display_raw(&config, snaps_and_live_set)?
     } else {
-        display_pretty(&config, working_set)?
+        display_pretty(&config, snaps_and_live_set)?
     };
 
     write!(out, "{}", output_buf)?;
