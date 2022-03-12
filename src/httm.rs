@@ -1,14 +1,14 @@
-//       ___           ___           ___           ___     
-//      /\__\         /\  \         /\  \         /\__\    
-//     /:/  /         \:\  \        \:\  \       /::|  |   
-//    /:/__/           \:\  \        \:\  \     /:|:|  |   
-//   /::\  \ ___       /::\  \       /::\  \   /:/|:|__|__ 
+//       ___           ___           ___           ___
+//      /\__\         /\  \         /\  \         /\__\
+//     /:/  /         \:\  \        \:\  \       /::|  |
+//    /:/__/           \:\  \        \:\  \     /:|:|  |
+//   /::\  \ ___       /::\  \       /::\  \   /:/|:|__|__
 //  /:/\:\  /\__\     /:/\:\__\     /:/\:\__\ /:/ |::::\__\
 //  \/__\:\/:/  /    /:/  \/__/    /:/  \/__/ \/__/~~/:/  /
-//       \::/  /    /:/  /        /:/  /            /:/  / 
-//       /:/  /     \/__/         \/__/            /:/  /  
-//      /:/  /                                    /:/  /   
-//      \/__/                                     \/__/    
+//       \::/  /    /:/  /        /:/  /            /:/  /
+//       /:/  /     \/__/         \/__/            /:/  /
+//      /:/  /                                    /:/  /
+//      \/__/                                     \/__/
 //
 // (c) Robert Swinford <robert.swinford<...at...>gmail.com>
 //
@@ -26,13 +26,13 @@ use std::{
     io::Write,
     path::{Path, PathBuf},
 };
-mod lookup;
-mod interactive;
 mod display;
+mod interactive;
+mod lookup;
 
+use crate::display::{display_pretty, display_raw};
 use crate::interactive::interactive_exec;
 use crate::lookup::run_search;
-use crate::display::{display_pretty, display_raw};
 
 #[derive(Debug)]
 pub struct HttmError {
