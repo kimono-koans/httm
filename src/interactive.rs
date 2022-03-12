@@ -21,6 +21,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+
 fn interactive_lookup(config: &Config) -> Result<String, Box<dyn std::error::Error>> {
     // build our paths for the httm preview invocations, we need Strings because for now
     // skim does not allow invoking preview from a Rust function, we actually just exec httm again
@@ -184,7 +185,11 @@ fn interactive_restore(
     // everything between the quotes
     let requested_file_name = interactive_select(selection_buffer)?;
     let broken_string: Vec<_> = requested_file_name.split_terminator('"').collect();
-    let parsed = broken_string.get(1).unwrap();
+    let parsed = if let Some(parsed) = broken_string.get(1) {
+        parsed
+    } else {
+        return Err(HttmError::new("Invalid value selected. Quitting.").into());
+    };
 
     let snap_pbuf = PathBuf::from(&parsed);
 
@@ -213,7 +218,7 @@ fn interactive_restore(
     // tell the user what we're up to
     write!(
         out,
-        "httm will copy a file from a local ZFS snapshot...\n\n"
+        "httm will copy a file from a ZFS snapshot...\n\n"
     )?;
     writeln!(out, "\tfrom: {:?}", snap_pbuf)?;
     writeln!(out, "\tto:   {:?}\n", new_file_pbuf)?;
