@@ -14,12 +14,11 @@ use std::io::Cursor;
 use std::io::Write;
 use std::time::SystemTime;
 use std::vec;
-use lscolors::{LsColors, Style};
 
 use std::io::Stdout;
 use std::{
-    path::{Path, PathBuf},
     fmt::Write as FmtWrite,
+    path::{Path, PathBuf},
 };
 
 fn interactive_lookup(config: &Config) -> Result<String, Box<dyn std::error::Error>> {
@@ -38,12 +37,11 @@ fn interactive_lookup(config: &Config) -> Result<String, Box<dyn std::error::Err
     };
 
     let mut buff = String::new();
-    let lscolors = LsColors::from_env().unwrap_or_default();
-    let mut read_dir =  std::fs::read_dir(&can_path)?;
+    let mut read_dir = std::fs::read_dir(&can_path)?;
     let cp_string = can_path.to_string_lossy();
 
-    // enter directory 
-    enter_directory(config, &mut buff, &lscolors, &mut read_dir, &can_path);
+    // enter directory
+    enter_directory(config, &mut buff, &mut read_dir, &can_path);
 
     // string to exec on each preview
     let preview_str = if let Some(sp_os) = &config.opt_snap_point {
@@ -81,9 +79,7 @@ fn interactive_lookup(config: &Config) -> Result<String, Box<dyn std::error::Err
     Ok(res)
 }
 
-fn interactive_select(
-    selection_buffer: String,
-) -> Result<String, Box<dyn std::error::Error>> {
+fn interactive_select(selection_buffer: String) -> Result<String, Box<dyn std::error::Error>> {
     let options = SkimOptionsBuilder::default()
         .interactive(true)
         .build()
@@ -107,15 +103,20 @@ fn interactive_select(
     Ok(res)
 }
 
-fn enter_directory(config: &Config,  buff: &mut String, lscolors: &LsColors, read_dir: &mut ReadDir, can_path: &PathBuf) {
+fn enter_directory(
+    config: &Config,
+    buff: &mut String,
+    read_dir: &mut ReadDir,
+    can_path: &Path,
+) {
     let mut vec_dir = Vec::new();
     let mut vec_files = Vec::new();
-    
+
     // convert to paths
     for raw_entry in read_dir {
         let dir_entry = if let Ok(de) = raw_entry { de } else { continue };
         let path = dir_entry.path();
-        
+
         if path.is_dir() {
             vec_dir.push(path);
         } else if path.is_file() || path.is_symlink() {
@@ -126,21 +127,20 @@ fn enter_directory(config: &Config,  buff: &mut String, lscolors: &LsColors, rea
     // display with pretty ANSI colors
     let mut combined_vec = vec_dir.clone();
     combined_vec.append(&mut vec_files);
+    combined_vec.sort();
     for path in combined_vec {
-        let style = if let Some(style) = lscolors.style_for_path(&path) { style } else { continue };
-        let ansi_style = &Style::to_ansi_term_style(style);
-        if let Ok(stripped_path) = &path.strip_prefix(&can_path) {
-            let stripped_str = stripped_path.to_string_lossy();
-            let _ = writeln!(buff, "{}", ansi_style.paint(stripped_str));
-        }
+        let _ = writeln!(buff, "{}", display_path(&path, &can_path));
     }
 
     // now recurse, if requested
     if config.opt_recursive {
         for dir in vec_dir {
-            let mut rd =  if let Ok(rd) = std::fs::read_dir(dir) { rd } else { continue };
-            enter_directory(config, buff ,lscolors, &mut rd, &can_path);
-
+            let mut rd = if let Ok(rd) = std::fs::read_dir(dir) {
+                rd
+            } else {
+                continue;
+            };
+            enter_directory(config, buff, &mut rd, can_path);
         }
     }
 }

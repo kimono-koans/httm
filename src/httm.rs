@@ -137,9 +137,10 @@ impl Config {
         let recursive = matches.is_present("RECURSIVE");
 
         if recursive && !interactive && !restore {
-             return Err(HttmError::new(
-                 "Recursive search feature only allowed with interactive or restore modes.",
-             ).into()); 
+            return Err(HttmError::new(
+                "Recursive search feature only allowed with interactive or restore modes.",
+            )
+            .into());
         }
 
         let raw_snap_var = if let Some(raw_value) = matches.value_of_os("SNAP_POINT") {
