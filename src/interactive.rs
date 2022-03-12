@@ -219,7 +219,7 @@ fn interactive_restore(
     writeln!(out, "\tto:   {:?}\n", new_file_pbuf)?;
     write!(
         out,
-        "But, before httm does anything, it would your consent. Continue? (Y/N) "
+        "But, before httm does anything, it would like your consent. Continue? (Y/N) "
     )?;
     out.flush()?;
 
