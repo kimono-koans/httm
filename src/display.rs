@@ -47,17 +47,15 @@ pub fn display_pretty(
         for pd in working_set {
             let d_date = display_date(&pd.system_time);
             let d_size;
-            let d_path;
             let fixed_padding;
+            let d_path = &pd.path_buf.to_string_lossy();
 
             if !config.opt_no_pretty {
                 d_size = format!("{:>width$}", display_human_size(pd), width = size_padding);
                 fixed_padding = format!("{:<5}", " ");
-                d_path = pd.path_buf.to_string_lossy().to_string();
             } else {
                 d_size = format!("\t{}", display_human_size(pd));
                 fixed_padding = "\t".to_owned();
-                d_path = display_path(&pd.path_buf, Path::new(""));
             }
 
             if !pd.is_phantom {
@@ -98,12 +96,12 @@ fn calculate_padding(collections_array: &[Vec<PathData>]) -> (usize, String) {
     let mut fancy_border = 1usize;
 
     // calculate padding and borders for display later
-    for version in collections_array {
-        for pd in version {
+    for ver_set in collections_array {
+        for pd in ver_set {
             let d_date = display_date(&pd.system_time);
             let d_size = format!("{:>width$}", display_human_size(pd), width = size_padding);
             let fixed_padding = format!("{:<5}", " ");
-            let d_path = display_path(&pd.path_buf, Path::new(""));
+            let d_path = &pd.path_buf.to_string_lossy();
 
             let d_size_len = display_human_size(pd).len();
             let formatted_line_len =
