@@ -131,6 +131,7 @@ pub struct Config {
     opt_interactive: bool,
     opt_restore: bool,
     opt_recursive: bool,
+    opt_select: bool,
     opt_snap_point: Option<OsString>,
     opt_local_dir: Option<OsString>,
     current_working_dir: PathBuf,
@@ -143,10 +144,11 @@ impl Config {
         let raw = matches.is_present("RAW");
         let no_so_pretty = matches.is_present("NOT_SO_PRETTY");
         let no_live_vers = matches.is_present("NO_LIVE");
-        let interactive = matches.is_present("INTERACTIVE") || matches.is_present("RESTORE");
+        let interactive = matches.is_present("INTERACTIVE") || matches.is_present("RESTORE") || matches.is_present("SELECT");
         let restore = matches.is_present("RESTORE");
         let env_local_dir = std::env::var("HTTM_LOCAL_DIR").ok();
         let recursive = matches.is_present("RECURSIVE");
+        let select = matches.is_present("SELECT");
 
         if recursive && !interactive && !restore {
             return Err(HttmError::new(
@@ -239,11 +241,12 @@ impl Config {
             opt_no_pretty: no_so_pretty,
             opt_no_live_vers: no_live_vers,
             opt_snap_point: snap_point,
-            current_working_dir: pwd,
             opt_local_dir: local_dir,
             opt_recursive: recursive,
             opt_interactive: interactive,
             opt_restore: restore,
+            opt_select: select,
+            current_working_dir: pwd,
             user_requested_dir: requested_dir,
         };
 
@@ -270,26 +273,34 @@ fn parse_args() -> ArgMatches {
                 .display_order(2)
         )
         .arg(
+            Arg::new("SELECT")
+                .short('s')
+                .long("select")
+                .help("use native dialogs for an interactive lookup and file select.")
+                .multiple_values(true)
+                .display_order(3)
+        )
+        .arg(
             Arg::new("RESTORE")
                 .short('r')
                 .long("restore")
                 .help("use native dialogs for an interactive restore from backup.")
                 .multiple_values(true)
-                .display_order(3)
+                .display_order(4)
         )
         .arg(
             Arg::new("RECURSIVE")
                 .short('R')
                 .long("recursive")
-                .help("recurse into selected directory to find more files. Only available in interactive and restore modes.")
-                .display_order(4)
+                .help("recurse into selected directory to find more files. Only available in interactive, select and restore modes.  WARNING: Right now, this method blocks until the recursive search is complete.  So, right now, only useful in directories with fewer (several thousand?) files.")
+                .display_order(5)
         )
         .arg(
             Arg::new("SNAP_POINT")
                 .long("snap-point")
                 .help("ordinarily httm will automatically choose your most local snapshot directory, but here you may manually specify your own mount point for that directory, such as the mount point for a remote share.  You can also set via the environment variable HTTM_SNAP_POINT.")
                 .takes_value(true)
-                .display_order(5)
+                .display_order(6)
         )
         .arg(
             Arg::new("LOCAL_DIR")
@@ -297,7 +308,7 @@ fn parse_args() -> ArgMatches {
                 .help("used with SNAP_POINT to determine where the corresponding live root of the ZFS snapshot dataset is.  If not set, httm defaults to your current working directory.  You can also set via the environment variable HTTM_LOCAL_DIR.")
                 .requires("SNAP_POINT")
                 .takes_value(true)
-                .display_order(6)
+                .display_order(7)
         )
         .arg(
             Arg::new("RAW")
@@ -305,7 +316,7 @@ fn parse_args() -> ArgMatches {
                 .long("raw")
                 .help("list the backup locations, without extraneous information, delimited by a NEWLINE.")
                 .conflicts_with_all(&["ZEROS", "NOT_SO_PRETTY"])
-                .display_order(7)
+                .display_order(8)
         )
         .arg(
             Arg::new("ZEROS")
@@ -313,20 +324,20 @@ fn parse_args() -> ArgMatches {
                 .long("zero")
                 .help("list the backup locations, without extraneous information, delimited by a NULL CHARACTER.")
                 .conflicts_with_all(&["RAW", "NOT_SO_PRETTY"])
-                .display_order(8)
+                .display_order(9)
         )
         .arg(
             Arg::new("NOT_SO_PRETTY")
                 .long("not-so-pretty")
                 .help("list the backup locations in a parseable format.")
                 .conflicts_with_all(&["RAW", "ZEROS"])
-                .display_order(8)
+                .display_order(10)
         )
         .arg(
             Arg::new("NO_LIVE")
                 .long("no-live")
                 .help("only display snapshot copies, and no 'live' copies of files or directories.")
-                .display_order(9)
+                .display_order(11)
         )
         .get_matches()
 }

@@ -21,7 +21,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-fn interactive_lookup(config: &Config) -> Result<String, Box<dyn std::error::Error>> {
+fn lookup_view(config: &Config) -> Result<String, Box<dyn std::error::Error>> {
     // build our paths for the httm preview invocations, we need Strings because for now
     // skim does not allow invoking preview from a Rust function, we actually just exec httm again
     let local_dir = if let Some(local_dir) = &config.opt_local_dir {
@@ -79,7 +79,7 @@ fn interactive_lookup(config: &Config) -> Result<String, Box<dyn std::error::Err
     Ok(res)
 }
 
-fn interactive_select(selection_buffer: String) -> Result<String, Box<dyn std::error::Error>> {
+fn select_view(selection_buffer: String) -> Result<String, Box<dyn std::error::Error>> {
     let options = SkimOptionsBuilder::default()
         .interactive(true)
         .build()
@@ -146,7 +146,7 @@ pub fn interactive_exec(
 ) -> Result<Vec<String>, Box<dyn std::error::Error>> {
     let raw_paths = if config.opt_interactive {
         let res = if config.raw_paths.is_empty() || PathBuf::from(&config.raw_paths[0]).is_dir() {
-            vec![interactive_lookup(config)?]
+            vec![lookup_view(config)?]
         } else if config.raw_paths.len().gt(&1usize) {
             return Err(HttmError::new("May only specify one path in interactive mode.").into());
         } else if !Path::new(&config.raw_paths[0]).is_dir() {
@@ -154,25 +154,26 @@ pub fn interactive_exec(
                 HttmError::new("Path specified is not a directory suitable for browsing.").into(),
             );
         } else {
-            unreachable!("Nope, nope, shouldn't be here!!")
+            unreachable!("Nope, nope, you shouldn't be here!!  Just kidding, file a bug if you find yourself here.")
         };
         res
     } else {
         config.raw_paths.clone()
     };
 
-    if !config.opt_restore {
-        Ok(raw_paths)
+    if config.opt_restore || config.opt_select {
+        interactive_select(out, config, raw_paths)?;
+        unreachable!("You *really* shouldn't be here!!! No.... no.... AHHHHHHHHGGGGG... Just kidding, file a bug if you find yourself here.")
     } else {
-        interactive_restore(out, config, raw_paths)
+        Ok(raw_paths)
     }
 }
 
-fn interactive_restore(
+fn interactive_select(
     out: &mut Stdout,
     config: &Config,
     raw_paths: Vec<String>,
-) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error>> {
     // same stuff we do at exec, snooze...
     let search_path = raw_paths.get(0).unwrap().to_owned();
     let pathdata_set = convert_strings_to_pathdata(config, &[search_path])?;
@@ -182,15 +183,28 @@ fn interactive_restore(
     // file name ready to do some file ops!!
     // ... we want the 2nd item or the indexed "1" object
     // everything between the quotes
-    let requested_file_name = interactive_select(selection_buffer)?;
+    let requested_file_name = select_view(selection_buffer)?;
     let broken_string: Vec<_> = requested_file_name.split_terminator('"').collect();
-    let parsed = if let Some(parsed) = broken_string.get(1) {
+    let parsed_str = if let Some(parsed) = broken_string.get(1) {
         parsed
     } else {
         return Err(HttmError::new("Invalid value selected. Quitting.").into());
     };
+    
+    if config.opt_restore {
+        Ok(interactive_restore(out, config, parsed_str)?)
+    } else {
+        writeln!(out, "\"{}\"", parsed_str)?;
+        std::process::exit(0)
+    }
+}
 
-    let snap_pbuf = PathBuf::from(&parsed);
+fn interactive_restore(
+    out: &mut Stdout,
+    config: &Config,
+    parsed_str: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let snap_pbuf = PathBuf::from(&parsed_str);
 
     let snap_md = if let Ok(snap_md) = snap_pbuf.metadata() {
         snap_md
@@ -226,7 +240,7 @@ fn interactive_restore(
     writeln!(out, "\tto:   {:?}\n", new_file_pbuf)?;
     write!(
         out,
-        "But, before httm does anything, it would like your consent. Continue? (Y/N) "
+        "This action is a *non-destructive* copy, but, before httm does anything, it would like your consent. Continue? (Y/N) "
     )?;
     out.flush()?;
 
