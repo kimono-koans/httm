@@ -229,7 +229,8 @@ fn interactive_restore(
     out.flush()?;
 
     let input_buffer = read_stdin()?;
-    let res = input_buffer.get(0).unwrap().to_lowercase();
+    let res = input_buffer.get(0).unwrap_or(&"N".to_owned()).to_lowercase();
+    
     if res == "y" || res == "yes" {
         std::fs::copy(snap_pbuf, new_file_pbuf)?;
         write!(out, "\nRestore completed successfully.\n")?;
