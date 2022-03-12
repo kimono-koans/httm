@@ -21,7 +21,6 @@ use std::{
     path::{Path, PathBuf},
 };
 
-
 fn interactive_lookup(config: &Config) -> Result<String, Box<dyn std::error::Error>> {
     // build our paths for the httm preview invocations, we need Strings because for now
     // skim does not allow invoking preview from a Rust function, we actually just exec httm again
@@ -200,26 +199,29 @@ fn interactive_restore(
     };
 
     // build new place to send file
-    let mut snap_file = snap_pbuf.file_name().unwrap().to_string_lossy().to_string();
-    snap_file.push_str(".httm_restored.");
-    snap_file.push_str(&timestamp_file(&snap_md.modified()?));
+    let old_snap_filename = snap_pbuf.file_name().unwrap().to_string_lossy().to_string();
+    let mut new_snap_filename = old_snap_filename.clone();
+    new_snap_filename.push_str(".httm_restored.");
+    new_snap_filename.push_str(&timestamp_file(&snap_md.modified()?));
 
     let new_file_dir = config.current_working_dir.clone();
     let mut new_file_pbuf = PathBuf::new();
     new_file_pbuf.push(new_file_dir);
-    new_file_pbuf.push(snap_file);
+    new_file_pbuf.push(new_snap_filename);
 
-    if new_file_pbuf == snap_pbuf {
+    let old_file_dir = config.current_working_dir.clone();
+    let mut old_file_pbuf = PathBuf::new();
+    old_file_pbuf.push(old_file_dir);
+    old_file_pbuf.push(&old_snap_filename);
+
+    if old_file_pbuf == snap_pbuf {
         return Err(
             HttmError::new("Will not restore files as files are the same file. Quitting.").into(),
         );
     };
 
     // tell the user what we're up to
-    write!(
-        out,
-        "httm will copy a file from a ZFS snapshot...\n\n"
-    )?;
+    write!(out, "httm will copy a file from a ZFS snapshot...\n\n")?;
     writeln!(out, "\tfrom: {:?}", snap_pbuf)?;
     writeln!(out, "\tto:   {:?}\n", new_file_pbuf)?;
     write!(
@@ -229,8 +231,11 @@ fn interactive_restore(
     out.flush()?;
 
     let input_buffer = read_stdin()?;
-    let res = input_buffer.get(0).unwrap_or(&"N".to_owned()).to_lowercase();
-    
+    let res = input_buffer
+        .get(0)
+        .unwrap_or(&"N".to_owned())
+        .to_lowercase();
+
     if res == "y" || res == "yes" {
         std::fs::copy(snap_pbuf, new_file_pbuf)?;
         write!(out, "\nRestore completed successfully.\n")?;
