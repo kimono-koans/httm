@@ -75,21 +75,18 @@ impl PathData {
             Path::new("/")
         };
 
-        let mut canonical_parent = if path.is_relative() {
+        let absolute_path: PathBuf = if path.is_relative() {
             if let Ok(pwd) = std::env::var("PWD") {
-                PathBuf::from(&pwd)
+                [PathBuf::from(&pwd), path.to_path_buf()].iter().collect()
             } else {
-                PathBuf::from("/")
+                [PathBuf::from("/"), path.to_path_buf()].iter().collect()
             }
         } else if let Ok(cp) = canonicalize(parent) {
-            cp
+            [cp, path.to_path_buf()].iter().collect()
+            
         } else {
-            PathBuf::from("/")
+            [PathBuf::from("/"), path.to_path_buf()].iter().collect()
         };
-
-        // add last component, filename, to parent path
-        canonical_parent.push(path);
-        let absolute_path = canonical_parent;
 
         let len;
         let time;
@@ -169,9 +166,7 @@ impl Config {
 
         let snap_point = if let Some(raw_value) = raw_snap_var {
             // dir exists sanity check?: check that path contains the hidden snapshot directory
-            let mut snapshot_dir: PathBuf = PathBuf::from(&raw_value);
-            snapshot_dir.push(".zfs");
-            snapshot_dir.push("snapshot");
+            let snapshot_dir: PathBuf = [&raw_value.to_string_lossy(), ".zfs","snapshot"].iter().collect();
 
             if snapshot_dir.metadata().is_ok() {
                 Some(raw_value)
@@ -211,15 +206,7 @@ impl Config {
 
         let file_names: Vec<String> = if matches.is_present("INPUT_FILES") {
             let raw_values = matches.values_of_os("INPUT_FILES").unwrap();
-
-            let mut res = Vec::new();
-
-            for i in raw_values {
-                if let Ok(r) = i.to_owned().into_string() {
-                    res.push(r);
-                }
-            }
-            res
+            raw_values.filter_map(|i| i.to_owned().into_string().ok()).collect()
         } else if interactive {
             Vec::new()
         } else {
@@ -389,11 +376,11 @@ fn read_stdin() -> Result<Vec<String>, Box<dyn std::error::Error>> {
     let mut stdin = stdin.lock();
     stdin.read_line(&mut buffer)?;
 
-    let mut broken_string: Vec<String> = Vec::new();
-
-    for i in buffer.split_ascii_whitespace() {
-        broken_string.push(i.to_owned())
-    }
+    let broken_string: Vec<String> = buffer
+        .split_ascii_whitespace()
+        .into_iter()
+        .map(|i| i.to_owned())
+        .collect();
 
     Ok(broken_string)
 }
@@ -403,18 +390,15 @@ pub fn convert_strings_to_pathdata(
     raw_paths: &[String],
 ) -> Result<Vec<Option<PathData>>, Box<dyn std::error::Error>> {
     // build our pathdata Vecs for our lookup request
-    let mut vec_pd: Vec<Option<PathData>> = Vec::new();
-
-    for string in raw_paths {
+    let vec_pd: Vec<Option<PathData>> = raw_paths.iter().map( |string| {
         let path = Path::new(&string);
         if path.is_relative() {
-            let mut wd = config.user_requested_dir.clone();
-            wd.push(path);
-            vec_pd.push(PathData::new(&wd))
+            let wd: PathBuf = [config.user_requested_dir.clone(), path.to_path_buf()].iter().collect();
+            PathData::new(&wd)
         } else {
-            vec_pd.push(PathData::new(path))
+            PathData::new(path)
         }
-    }
+    }).collect();
 
     Ok(vec_pd)
 }

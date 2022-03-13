@@ -37,14 +37,14 @@ pub fn display_pretty(
 
     // now display with all that beautiful padding
     if !config.opt_no_pretty {
-        // only print one border to the top -- to buffer, not pathdata_set_buffer
+        // only print one border to the top -- to buffer, not pd_set_buffer
         write_out_buffer += &format!("{}\n", fancy_string);
     }
 
-    for pathdata_set in &snaps_and_live_set {
-        let mut pathdata_set_buffer = String::new();
+    for pd_set in &snaps_and_live_set {
+        let mut pd_set_buffer = String::new();
 
-        for pd in pathdata_set {
+        for pd in pd_set {
             let d_date = display_date(&pd.system_time);
             let d_size;
             let fixed_padding;
@@ -59,30 +59,29 @@ pub fn display_pretty(
             }
 
             if !pd.is_phantom {
-                pathdata_set_buffer +=
+                pd_set_buffer +=
                     &format!("{}{}{}\"{}\"\n", d_date, d_size, fixed_padding, d_path);
             } else {
-                let mut pad_date: String = String::new();
-                let mut pad_size: String = String::new();
+
                 // displays blanks for phantom values, equaling their dummy lens and dates
                 // see struct PathData for more details
                 //
                 // again must be a better way to print padding, etc.
-                for _ in 0..d_date.len() {
-                    pad_date += " ";
-                }
-                for _ in 0..d_size.len() {
-                    pad_size += " ";
-                }
-                pathdata_set_buffer +=
+                let pad_date: String = (0..d_date.len()).map(|_| {
+                    " "
+                }).collect();
+                let pad_size: String = (0..d_size.len()).map(|_| {
+                    " "
+                }).collect();
+                pd_set_buffer +=
                     &format!("{}{}{}\"{}\"\n", pad_date, pad_size, fixed_padding, d_path);
             }
         }
-        if !config.opt_no_pretty && !pathdata_set_buffer.is_empty() {
-            pathdata_set_buffer += &format!("{}\n", fancy_string);
-            write_out_buffer += &pathdata_set_buffer.to_string();
+        if !config.opt_no_pretty && !pd_set_buffer.is_empty() {
+            pd_set_buffer += &format!("{}\n", fancy_string);
+            write_out_buffer += &pd_set_buffer.to_string();
         } else {
-            for line in pathdata_set_buffer.lines().rev() {
+            for line in pd_set_buffer.lines().rev() {
                 write_out_buffer += &format!("{}\n", line);
             }
         }
@@ -118,13 +117,7 @@ fn calculate_padding(snaps_and_live_set: &[Vec<PathData>]) -> (usize, String) {
 
     // has to be a more idiomatic way to do this
     // if you know, let me know
-    let fancy_string: String = {
-        let mut res: String = String::new();
-        for _ in 0..fancy_border {
-            res += "-";
-        }
-        res
-    };
+    let fancy_string: String = (0..fancy_border).map(|_| { "─" }).collect();
 
     (size_padding, fancy_string)
 }
