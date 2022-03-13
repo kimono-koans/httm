@@ -24,9 +24,11 @@ Use in combination with you favorite shell and a fuzzy finder like `sk` or `fzf`
 The `httm` project contains two main components:
 
 1. The `httm` executable: To build and install, simply:
-    ```curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh 
+    ```bash
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh 
     git clone kimono-koans/httm 
-    cargo install --path ./httm/```
+    cargo install --path ./httm/
+    ```
 2. The optional `zsh` hot-key bindings: Use `ESC+S` to select snapshots filenames to be dropped to your command line, or use `ESC+M` to browse for all of a file's snapshots.  
 
 Note: The main functionality of `httm` is fully native and doesn't depend on `zsh` or any program other than your native `zfs-utils` but *use it how you want to*, as example scripts and key bindings are provided.
