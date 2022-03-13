@@ -12,6 +12,7 @@ use skim::prelude::*;
 use skim::DisplayContext;
 use std::fs::ReadDir;
 use std::io::Cursor;
+use std::thread;
 use std::time::SystemTime;
 use std::vec;
 
@@ -35,15 +36,19 @@ fn lookup_view(config: &Config) -> Result<String, Box<dyn std::error::Error>> {
         config.current_working_dir.clone()
     };
 
+    // prep thread spawn
     let mut read_dir = std::fs::read_dir(&can_path)?;
-    let cp_string = can_path.to_string_lossy();
-
     let (tx_item, rx_item): (SkimItemSender, SkimItemReceiver) = unbounded();
+    let config_clone = config.clone();
+    let can_path_clone = can_path.clone();
 
-    // enter directory
-    enter_directory(config, &tx_item, &mut read_dir, &can_path);
+    // spawn recursive fn enter_directory
+    thread::spawn(move || {
+        enter_directory(&config_clone, &tx_item, &mut read_dir, &can_path_clone);
+    });
 
     // string to exec on each preview
+    let cp_string = can_path.to_string_lossy();
     let preview_str = if let Some(sp_os) = &config.opt_snap_point {
         let snap_point = sp_os.to_string_lossy();
         format!(
@@ -107,7 +112,6 @@ fn enter_directory(
     let (vec_files, vec_dirs): (Vec<PathBuf>, Vec<PathBuf>) = read_dir
         .filter_map(|i| i.ok())
         .map(|dir_entry| dir_entry.path())
-        .filter(|path| path.is_file() || path.is_symlink() || path.is_dir())
         .partition(|path| path.is_file() || path.is_symlink());
 
     // display with pretty ANSI colors

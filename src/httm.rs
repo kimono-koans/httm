@@ -118,6 +118,7 @@ impl PathData {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct Config {
     raw_paths: Vec<String>,
     opt_raw: bool,
@@ -285,7 +286,7 @@ fn parse_args() -> ArgMatches {
             Arg::new("RECURSIVE")
                 .short('R')
                 .long("recursive")
-                .help("recurse into selected directory to find more files. Only available in interactive, select and restore modes.  WARNING: Right now, this method blocks until the recursive search is complete.  So, right now, only useful in directories with fewer (several thousand?) files.")
+                .help("recurse into selected directory to find more files. Only available in interactive, select and restore modes.")
                 .display_order(5)
         )
         .arg(
