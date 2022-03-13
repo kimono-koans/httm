@@ -22,7 +22,9 @@ Use in combination with you favorite shell and a fuzzy finder like `sk` or `fzf`
 The `httm` project contains two main components:
 
 1. The `httm` executable: To build and install, simply, `git clone kimono-koans/httm`, and `cargo install --path ./httm/`.
-2. The optional `zsh` hot-key bindings: Use `ESC+S` to select snapshots filenames to be dropped to your command line, or use `ESC+M` to browse for all of a file's snapshots.  Note: The main functionality of `httm` is fully native and doesn't depend on `zsh` or any program other than your `zfs-utils` but *use it how you want to,* as example scripts and key bindings are provided.
+2. The optional `zsh` hot-key bindings: Use `ESC+S` to select snapshots filenames to be dropped to your command line, or use `ESC+M` to browse for all of a file's snapshots.  
+
+Note: The main functionality of `httm` is fully native and doesn't depend on `zsh` or any program other than your native `zfs-utils` but *use it how you want to*, as example scripts and key bindings are provided.
 
 ## License
 
