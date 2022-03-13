@@ -15,6 +15,7 @@ use std::io::Write;
 use std::time::SystemTime;
 use std::vec;
 
+
 use std::io::Stdout;
 use std::{
     fmt::Write as FmtWrite,
@@ -104,43 +105,29 @@ fn select_view(selection_buffer: String) -> Result<String, Box<dyn std::error::E
 }
 
 fn enter_directory(config: &Config, buff: &mut String, read_dir: &mut ReadDir, can_path: &Path) {
-    let mut vec_dir = Vec::new();
-    let mut vec_files = Vec::new();
-
     // convert to paths
-    for raw_entry in read_dir {
-        let dir_entry = if let Ok(dir_entry) = raw_entry {
-            dir_entry
-        } else {
-            continue;
-        };
-        let path = dir_entry.path();
-
-        if path.is_dir() {
-            vec_dir.push(path);
-        } else if path.is_file() || path.is_symlink() {
-            vec_files.push(path);
-        }
-    }
+    let (vec_files, vec_dirs): (Vec<PathBuf>, Vec<PathBuf>) = read_dir
+        .filter_map(|i| i.ok()).map(|dir_entry| {
+        dir_entry.path()
+    }).partition(|path| path.is_file() || path.is_symlink() );
 
     // display with pretty ANSI colors
-    let mut combined_vec = vec_dir.clone();
-    combined_vec.append(&mut vec_files);
+    let mut combined_vec: Vec<&PathBuf> = vec![&vec_files, &vec_dirs].into_iter().flatten().collect();
     combined_vec.sort();
     for path in combined_vec {
-        let _ = writeln!(buff, "{}", display_path_colors(&path, can_path));
+        let _ = writeln!(buff, "{}", display_path_colors(path, can_path));
     }
 
     // now recurse, if requested
     if config.opt_recursive {
-        for dir in vec_dir {
-            let mut read_dir = if let Ok(read_dir) = std::fs::read_dir(dir) {
-                read_dir
-            } else {
-                continue;
-            };
-            enter_directory(config, buff, &mut read_dir, can_path);
-        }
+        let vec: Vec<ReadDir> = vec_dirs
+            .iter()
+            .filter_map(|read_dir| std::fs::read_dir(read_dir).ok())
+            .collect();
+
+        vec.into_iter().for_each(|mut read_dir| { 
+            enter_directory(config, buff, &mut read_dir, can_path); 
+        })
     }
 }
 

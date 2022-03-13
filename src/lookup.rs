@@ -24,19 +24,17 @@ pub fn run_search(
             get_dataset(instance_pd)?
         };
 
-        snapshot_versions.extend_from_slice(&get_versions(config, instance_pd, dataset)?);
+        snapshot_versions.extend_from_slice(&get_versions(config, instance_pd, dataset)?)
     }
 
     // create vec of live copies
-    let mut live_versions: Vec<PathData> = Vec::new();
-
-    if !config.opt_no_live_vers {
-        for instance_pd in &path_data {
-            if instance_pd.is_some() {
-                live_versions.push(instance_pd.clone().unwrap());
-            }
-        }
-    }
+    let live_versions: Vec<PathData> = if !config.opt_no_live_vers {
+       path_data
+        .into_iter()
+        .flatten().collect()
+    } else {
+        Vec::new()
+    };
 
     // check if all files (snap and live) do not exist, if this is true, then user probably messed up
     // and entered a file that never existed?  Or was on a snapshot that has since been destroyed?
@@ -47,13 +45,12 @@ pub fn run_search(
         .into());
     }
 
-    let res = if config.opt_no_live_vers {
-        vec![snapshot_versions]
+    if live_versions.is_empty() {
+        Ok(vec![snapshot_versions])
     } else {
-        vec![snapshot_versions, live_versions]
-    };
+        Ok(vec![snapshot_versions, live_versions])
 
-    Ok(res)
+    }
 }
 
 fn get_versions(
