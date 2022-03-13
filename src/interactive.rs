@@ -1,5 +1,5 @@
 use crate::convert_strings_to_pathdata;
-use crate::display::{display_path_colors, display_pretty};
+use crate::display::{display_colors, display_pretty};
 use crate::lookup::run_search;
 use crate::read_stdin;
 use crate::Config;
@@ -9,18 +9,16 @@ extern crate skim;
 use chrono::DateTime;
 use chrono::Local;
 use skim::prelude::*;
+use skim::DisplayContext;
 use std::fs::ReadDir;
 use std::io::Cursor;
-use std::io::Write;
 use std::time::SystemTime;
 use std::vec;
 
+use std::io::Write as IoWrite;
 
 use std::io::Stdout;
-use std::{
-    fmt::Write as FmtWrite,
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 
 fn lookup_view(config: &Config) -> Result<String, Box<dyn std::error::Error>> {
     // build our paths for the httm preview invocations, we need Strings because for now
@@ -37,12 +35,13 @@ fn lookup_view(config: &Config) -> Result<String, Box<dyn std::error::Error>> {
         config.current_working_dir.clone()
     };
 
-    let mut buff = String::new();
     let mut read_dir = std::fs::read_dir(&can_path)?;
     let cp_string = can_path.to_string_lossy();
 
+    let (tx_item, rx_item): (SkimItemSender, SkimItemReceiver) = unbounded();
+
     // enter directory
-    enter_directory(config, &mut buff, &mut read_dir, &can_path);
+    enter_directory(config, &tx_item, &mut read_dir, &can_path);
 
     // string to exec on each preview
     let preview_str = if let Some(sp_os) = &config.opt_snap_point {
@@ -61,14 +60,8 @@ fn lookup_view(config: &Config) -> Result<String, Box<dyn std::error::Error>> {
         .build()
         .unwrap();
 
-    // `SkimItemReader` is a helper to turn any `BufRead` into a stream of `SkimItem`
-    // `SkimItem` was implemented for `AsRef<str>` by default
-    let reader_opt = SkimItemReaderOption::default().ansi(true);
-    let item_reader = SkimItemReader::new(reader_opt);
-    let items = item_reader.of_bufread(Cursor::new(buff));
-
     // `run_with` would read and show items from the stream
-    let selected_items = Skim::run_with(&options, Some(items))
+    let selected_items = Skim::run_with(&options, Some(rx_item))
         .map(|out| out.selected_items)
         .unwrap_or_else(Vec::new);
 
@@ -78,6 +71,65 @@ fn lookup_view(config: &Config) -> Result<String, Box<dyn std::error::Error>> {
         .collect();
 
     Ok(res)
+}
+struct SelectionCandidate {
+    path: PathBuf,
+    can_path: PathBuf,
+}
+
+impl SkimItem for SelectionCandidate {
+    fn text(&self) -> Cow<str> {
+        Cow::Owned(path_to_string(&self.path, &self.can_path))
+    }
+    fn display<'a>(&'a self, _context: DisplayContext<'a>) -> AnsiString<'a> {
+        AnsiString::parse(&display_colors(self.text(), &self.path))
+    }
+}
+
+fn path_to_string(path: &Path, can_path: &Path) -> String {
+    let stripped_str = if can_path == Path::new("") {
+        path.to_string_lossy()
+    } else if let Ok(stripped_path) = &path.strip_prefix(&can_path) {
+        stripped_path.to_string_lossy()
+    } else {
+        path.to_string_lossy()
+    };
+    stripped_str.to_string()
+}
+
+fn enter_directory(
+    config: &Config,
+    tx_item: &SkimItemSender,
+    read_dir: &mut ReadDir,
+    can_path: &Path,
+) {
+    // convert to paths
+    let (vec_files, vec_dirs): (Vec<PathBuf>, Vec<PathBuf>) = read_dir
+        .filter_map(|i| i.ok())
+        .map(|dir_entry| dir_entry.path())
+        .filter(|path| path.is_file() || path.is_symlink() || path.is_dir())
+        .partition(|path| path.is_file() || path.is_symlink());
+
+    // display with pretty ANSI colors
+    let mut combined_vec: Vec<&PathBuf> =
+        vec![&vec_files, &vec_dirs].into_iter().flatten().collect();
+    combined_vec.sort();
+    combined_vec.iter().for_each(|path| {
+        let _ = tx_item.send(Arc::new(SelectionCandidate {
+            path: path.to_path_buf(),
+            can_path: can_path.to_path_buf(),
+        }));
+    });
+
+    // now recurse, if requested
+    if config.opt_recursive {
+        vec_dirs
+            .iter()
+            .filter_map(|read_dir| std::fs::read_dir(read_dir).ok())
+            .for_each(|mut read_dir| {
+                enter_directory(config, tx_item, &mut read_dir, can_path);
+            })
+    }
 }
 
 fn select_view(selection_buffer: String) -> Result<String, Box<dyn std::error::Error>> {
@@ -102,31 +154,6 @@ fn select_view(selection_buffer: String) -> Result<String, Box<dyn std::error::E
         .collect();
 
     Ok(res)
-}
-
-fn enter_directory(config: &Config, buff: &mut String, read_dir: &mut ReadDir, can_path: &Path) {
-    // convert to paths
-    let (vec_files, vec_dirs): (Vec<PathBuf>, Vec<PathBuf>) = read_dir
-        .filter_map(|i| i.ok()).map(|dir_entry| {
-        dir_entry.path()
-    }).filter(|path| path.is_file() || path.is_symlink() || path.is_dir()).partition(|path| path.is_file() || path.is_symlink() );
-
-    // display with pretty ANSI colors
-    let mut combined_vec: Vec<&PathBuf> = vec![&vec_files, &vec_dirs].into_iter().flatten().collect();
-    combined_vec.sort();
-    for path in combined_vec {
-        let _ = writeln!(buff, "{}", display_path_colors(path, can_path));
-    }
-
-    // now recurse, if requested
-    if config.opt_recursive {
-        vec_dirs
-            .iter()
-            .filter_map(|read_dir| std::fs::read_dir(read_dir).ok())
-            .for_each(|mut read_dir| { 
-            enter_directory(config, buff, &mut read_dir, can_path); 
-        })
-    }
 }
 
 pub fn interactive_exec(

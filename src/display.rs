@@ -5,9 +5,10 @@ use chrono::{DateTime, Local};
 use lscolors::LsColors;
 use lscolors::Style;
 use number_prefix::NumberPrefix;
+use std::borrow::Cow;
 use std::path::Path;
 use std::time::SystemTime;
-use terminal_size::{Width, Height, terminal_size};
+use terminal_size::{terminal_size, Height, Width};
 
 pub fn display_raw(
     config: &Config,
@@ -144,16 +145,8 @@ fn display_date(st: &SystemTime) -> String {
     format!("{}", dt.format("%b %e %H:%M:%S %Y"))
 }
 
-pub fn display_path_colors(path: &Path, can_path: &Path) -> String {
+pub fn display_colors(stripped_str: Cow<str>, path: &Path) -> String {
     let lscolors = LsColors::from_env().unwrap_or_default();
-
-    let stripped_str = if can_path == Path::new("") {
-        path.to_string_lossy()
-    } else if let Ok(stripped_path) = &path.strip_prefix(&can_path) {
-        stripped_path.to_string_lossy()
-    } else {
-        path.to_string_lossy()
-    };
 
     if let Some(style) = lscolors.style_for_path(&path) {
         let ansi_style = &Style::to_ansi_term_style(style);

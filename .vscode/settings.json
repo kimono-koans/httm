@@ -21,6 +21,7 @@
         "mindepth",
         "mountpoint",
         "mountpoints",
+        "nocolors",
         "NTFS",
         "parseable",
         "pathdata",

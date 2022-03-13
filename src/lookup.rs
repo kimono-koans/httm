@@ -29,9 +29,7 @@ pub fn run_search(
 
     // create vec of live copies
     let live_versions: Vec<PathData> = if !config.opt_no_live_vers {
-       path_data
-        .into_iter()
-        .flatten().collect()
+        path_data.into_iter().flatten().collect()
     } else {
         Vec::new()
     };
@@ -49,7 +47,6 @@ pub fn run_search(
         Ok(vec![snapshot_versions])
     } else {
         Ok(vec![snapshot_versions, live_versions])
-
     }
 }
 
