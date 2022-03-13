@@ -81,8 +81,8 @@ impl PathData {
             } else {
                 [PathBuf::from("/"), path.to_path_buf()].iter().collect()
             }
-        } else if let Ok(cp) = canonicalize(parent) {
-            [cp, path.to_path_buf()].iter().collect()
+        } else if let Ok(can_path) = canonicalize(parent) {
+            [can_path, path.to_path_buf()].iter().collect()
         } else {
             [PathBuf::from("/"), path.to_path_buf()].iter().collect()
         };

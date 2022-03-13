@@ -7,6 +7,7 @@ use lscolors::Style;
 use number_prefix::NumberPrefix;
 use std::path::Path;
 use std::time::SystemTime;
+use terminal_size::{Width, Height, terminal_size};
 
 pub fn display_raw(
     config: &Config,
@@ -111,7 +112,16 @@ fn calculate_padding(snaps_and_live_set: &[Vec<PathData>]) -> (usize, String) {
 
     // has to be a more idiomatic way to do this
     // if you know, let me know
-    let fancy_string: String = (0..fancy_border).map(|_| "─").collect();
+
+    let fancy_string: String = if let Some((Width(w), Height(_h))) = terminal_size() {
+        if (w as usize) < fancy_border {
+            (0..w as usize).map(|_| "─").collect()
+        } else {
+            (0..fancy_border).map(|_| "─").collect()
+        }
+    } else {
+        (0..fancy_border).map(|_| "─").collect()
+    };
 
     (size_padding, fancy_string)
 }

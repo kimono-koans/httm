@@ -109,7 +109,7 @@ fn enter_directory(config: &Config, buff: &mut String, read_dir: &mut ReadDir, c
     let (vec_files, vec_dirs): (Vec<PathBuf>, Vec<PathBuf>) = read_dir
         .filter_map(|i| i.ok()).map(|dir_entry| {
         dir_entry.path()
-    }).partition(|path| path.is_file() || path.is_symlink() );
+    }).filter(|path| path.is_file() || path.is_symlink() || path.is_dir()).partition(|path| path.is_file() || path.is_symlink() );
 
     // display with pretty ANSI colors
     let mut combined_vec: Vec<&PathBuf> = vec![&vec_files, &vec_dirs].into_iter().flatten().collect();
@@ -120,12 +120,10 @@ fn enter_directory(config: &Config, buff: &mut String, read_dir: &mut ReadDir, c
 
     // now recurse, if requested
     if config.opt_recursive {
-        let vec: Vec<ReadDir> = vec_dirs
+        vec_dirs
             .iter()
             .filter_map(|read_dir| std::fs::read_dir(read_dir).ok())
-            .collect();
-
-        vec.into_iter().for_each(|mut read_dir| { 
+            .for_each(|mut read_dir| { 
             enter_directory(config, buff, &mut read_dir, can_path); 
         })
     }
