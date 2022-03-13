@@ -12,6 +12,8 @@ Inspired by the wonderful [findoid](https://github.com/jimsalterjrs/sanoid) but 
 * Select non-immediate datasets (on a different pool, or remote).
 * For use with even rsync-ed non-ZFS local datasets (like ext4, APFS, or NTFS), not just ZFS.
 * 3 native interactive modes: lookup, select and restore
+* ANSI ls colors for files
+* Non-blocking recursive directory walking (Can you hear my screams of pain?!  Can you celebrate my delight in that this is done??)
 * Select from several formatting styles.
 * Parseable ... or not ...  oh my!
 

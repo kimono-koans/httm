@@ -14,7 +14,7 @@ httm [OPTIONS] [\-\-] [INPUT_FILES]...
 .SS "ARGS:"
 .TP
 <INPUT_FILES>...
-\&...you should put your files here, if stdin(3) is not your jam.
+\&...you should put your files here, if stdin(3) is not your flavor.
 .SS "OPTIONS:"
 .TP
 \fB\-i\fR, \fB\-\-interactive\fR
@@ -28,10 +28,7 @@ use native dialogs for an interactive restore from backup.
 .TP
 \fB\-R\fR, \fB\-\-recursive\fR
 recurse into selected directory to find more files. Only
-available in interactive, select and restore modes.  WARNING:
-Right now, this method blocks until the recursive search is
-complete.  So, right now, only useful in directories with fewer
-(several thousand?) files.
+available in interactive, select and restore modes.
 .TP
 \fB\-\-snap\-point\fR <SNAP_POINT>
 ordinarily httm will automatically choose your most local
