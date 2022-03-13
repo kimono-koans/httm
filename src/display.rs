@@ -59,20 +59,14 @@ pub fn display_pretty(
             }
 
             if !pd.is_phantom {
-                pd_set_buffer +=
-                    &format!("{}{}{}\"{}\"\n", d_date, d_size, fixed_padding, d_path);
+                pd_set_buffer += &format!("{}{}{}\"{}\"\n", d_date, d_size, fixed_padding, d_path);
             } else {
-
                 // displays blanks for phantom values, equaling their dummy lens and dates
                 // see struct PathData for more details
                 //
                 // again must be a better way to print padding, etc.
-                let pad_date: String = (0..d_date.len()).map(|_| {
-                    " "
-                }).collect();
-                let pad_size: String = (0..d_size.len()).map(|_| {
-                    " "
-                }).collect();
+                let pad_date: String = (0..d_date.len()).map(|_| " ").collect();
+                let pad_size: String = (0..d_size.len()).map(|_| " ").collect();
                 pd_set_buffer +=
                     &format!("{}{}{}\"{}\"\n", pad_date, pad_size, fixed_padding, d_path);
             }
@@ -117,7 +111,7 @@ fn calculate_padding(snaps_and_live_set: &[Vec<PathData>]) -> (usize, String) {
 
     // has to be a more idiomatic way to do this
     // if you know, let me know
-    let fancy_string: String = (0..fancy_border).map(|_| { "─" }).collect();
+    let fancy_string: String = (0..fancy_border).map(|_| "─").collect();
 
     (size_padding, fancy_string)
 }

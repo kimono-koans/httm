@@ -83,7 +83,6 @@ impl PathData {
             }
         } else if let Ok(cp) = canonicalize(parent) {
             [cp, path.to_path_buf()].iter().collect()
-            
         } else {
             [PathBuf::from("/"), path.to_path_buf()].iter().collect()
         };
@@ -166,7 +165,9 @@ impl Config {
 
         let snap_point = if let Some(raw_value) = raw_snap_var {
             // dir exists sanity check?: check that path contains the hidden snapshot directory
-            let snapshot_dir: PathBuf = [&raw_value.to_string_lossy(), ".zfs","snapshot"].iter().collect();
+            let snapshot_dir: PathBuf = [&raw_value.to_string_lossy(), ".zfs", "snapshot"]
+                .iter()
+                .collect();
 
             if snapshot_dir.metadata().is_ok() {
                 Some(raw_value)
@@ -206,7 +207,9 @@ impl Config {
 
         let file_names: Vec<String> = if matches.is_present("INPUT_FILES") {
             let raw_values = matches.values_of_os("INPUT_FILES").unwrap();
-            raw_values.filter_map(|i| i.to_owned().into_string().ok()).collect()
+            raw_values
+                .filter_map(|i| i.to_owned().into_string().ok())
+                .collect()
         } else if interactive {
             Vec::new()
         } else {
@@ -390,15 +393,20 @@ pub fn convert_strings_to_pathdata(
     raw_paths: &[String],
 ) -> Result<Vec<Option<PathData>>, Box<dyn std::error::Error>> {
     // build our pathdata Vecs for our lookup request
-    let vec_pd: Vec<Option<PathData>> = raw_paths.iter().map( |string| {
-        let path = Path::new(&string);
-        if path.is_relative() {
-            let wd: PathBuf = [config.user_requested_dir.clone(), path.to_path_buf()].iter().collect();
-            PathData::new(&wd)
-        } else {
-            PathData::new(path)
-        }
-    }).collect();
+    let vec_pd: Vec<Option<PathData>> = raw_paths
+        .iter()
+        .map(|string| {
+            let path = Path::new(&string);
+            if path.is_relative() {
+                let wd: PathBuf = [config.user_requested_dir.clone(), path.to_path_buf()]
+                    .iter()
+                    .collect();
+                PathData::new(&wd)
+            } else {
+                PathData::new(path)
+            }
+        })
+        .collect();
 
     Ok(vec_pd)
 }

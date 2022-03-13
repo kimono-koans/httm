@@ -109,7 +109,11 @@ fn enter_directory(config: &Config, buff: &mut String, read_dir: &mut ReadDir, c
 
     // convert to paths
     for raw_entry in read_dir {
-        let dir_entry = if let Ok(dir_entry) = raw_entry { dir_entry } else { continue };
+        let dir_entry = if let Ok(dir_entry) = raw_entry {
+            dir_entry
+        } else {
+            continue;
+        };
         let path = dir_entry.path();
 
         if path.is_dir() {
@@ -214,13 +218,18 @@ fn interactive_restore(
 
     // build new place to send file
     let old_snap_filename = snap_pbuf.file_name().unwrap().to_string_lossy().to_string();
-    let new_snap_filename: String = old_snap_filename.clone() + &".httm_restored." + &timestamp_file(&snap_md.modified()?);
+    let new_snap_filename: String =
+        old_snap_filename.clone() + ".httm_restored." + &timestamp_file(&snap_md.modified()?);
 
     let new_file_dir = config.current_working_dir.clone();
-    let new_file_pbuf: PathBuf = [new_file_dir, PathBuf::from(new_snap_filename)].iter().collect();
+    let new_file_pbuf: PathBuf = [new_file_dir, PathBuf::from(new_snap_filename)]
+        .iter()
+        .collect();
 
     let old_file_dir = config.current_working_dir.clone();
-    let old_file_pbuf: PathBuf = [old_file_dir, PathBuf::from(old_snap_filename)].iter().collect();
+    let old_file_pbuf: PathBuf = [old_file_dir, PathBuf::from(old_snap_filename)]
+        .iter()
+        .collect();
 
     if old_file_pbuf == snap_pbuf {
         return Err(

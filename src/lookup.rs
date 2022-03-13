@@ -18,8 +18,8 @@ pub fn run_search(
     let mut snapshot_versions: Vec<PathData> = Vec::new();
 
     for instance_pd in path_data.iter().flatten() {
-        let dataset = if let Some(ref mp) = config.opt_snap_point {
-            mp.to_owned()
+        let dataset = if let Some(ref snap_point) = config.opt_snap_point {
+            snap_point.to_owned()
         } else {
             get_dataset(instance_pd)?
         };
@@ -62,9 +62,9 @@ fn get_versions(
     dataset: OsString,
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error>> {
     // building the snapshot path
-    let mut snapshot_dir: PathBuf = PathBuf::from(&dataset);
-    snapshot_dir.push(".zfs");
-    snapshot_dir.push("snapshot");
+    let snapshot_dir: PathBuf = [&dataset.to_string_lossy(), ".zfs", "snapshot"]
+        .iter()
+        .collect();
 
     // building our local relative path by removing parent
     // directories below the remote/snap mount point
