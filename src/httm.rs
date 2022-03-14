@@ -181,22 +181,22 @@ impl Config {
             .into());
         }
 
-        let raw_snap_var = if let Some(raw_value) = matches.value_of_os("SNAP_POINT") {
-            Some(raw_value.to_os_string())
+        let raw_snap_var = if let Some(value) = matches.value_of_os("SNAP_POINT") {
+            Some(value.to_os_string())
         } else if let Ok(env_manual_mnt) = std::env::var("HTTM_SNAP_POINT") {
             Some(OsString::from(env_manual_mnt))
         } else {
             None
         };
 
-        let snap_point = if let Some(raw_value) = raw_snap_var {
+        let snap_point = if let Some(value) = raw_snap_var {
             // dir exists sanity check?: check that path contains the hidden snapshot directory
-            let snapshot_dir: PathBuf = [&raw_value.to_string_lossy(), ".zfs", "snapshot"]
+            let snapshot_dir: PathBuf = [&value.to_string_lossy(), ".zfs", "snapshot"]
                 .iter()
                 .collect();
 
             if snapshot_dir.metadata().is_ok() {
-                Some(raw_value)
+                Some(value)
             } else {
                 return Err(HttmError::new(
                     "Manually set mountpoint does not contain a hidden ZFS directory.  Please mount a ZFS directory there or try another mountpoint.",
@@ -417,10 +417,10 @@ fn read_stdin() -> Result<Vec<String>, Box<dyn std::error::Error>> {
 
 pub fn convert_strings_to_pathdata(
     config: &Config,
-    raw_paths: &[String],
+    paths_as_strings: &[String],
 ) -> Result<Vec<Option<PathData>>, Box<dyn std::error::Error>> {
     // build our pathdata Vecs for our lookup request
-    let vec_pd: Vec<Option<PathData>> = raw_paths
+    let vec_pd: Vec<Option<PathData>> = paths_as_strings
         .iter()
         .map(|string| {
             let path = Path::new(&string);

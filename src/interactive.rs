@@ -61,7 +61,12 @@ fn lookup_view(config: &Config) -> Result<String, Box<dyn std::error::Error>> {
 
     // spawn recursive fn enter_directory
     thread::spawn(move || {
-        enter_directory(&config_clone, &tx_item, &mut read_dir, &canonical_parent_clone);
+        enter_directory(
+            &config_clone,
+            &tx_item,
+            &mut read_dir,
+            &canonical_parent_clone,
+        );
     });
 
     // string to exec on each preview
@@ -77,12 +82,12 @@ fn lookup_view(config: &Config) -> Result<String, Box<dyn std::error::Error>> {
     // skim doesn't allow us to use a function, we must call a command
     // and that cause all sorts of nastiness with PATHs etc if the user
     // is not expecting it
-    let httm_command = if path_command == *"" {
+    let httm_command = if path_command.is_empty() {
         let path: PathBuf = [&config.current_working_dir, &PathBuf::from("httm")]
             .iter()
             .collect();
         if path.exists() {
-            path.to_string_lossy().trim_end_matches('\n').to_owned()
+            path.to_string_lossy().to_string()
         } else {
             return Err(HttmError::new(
                 "You must place the httm command in your path.  Perhaps the .cargo folder isn't in your path?",
@@ -90,7 +95,7 @@ fn lookup_view(config: &Config) -> Result<String, Box<dyn std::error::Error>> {
             .into());
         }
     } else {
-        path_command
+        path_command.trim_end_matches('\n').to_string()
     };
 
     // create command to use for preview, as noted unable to use a function for now
@@ -102,7 +107,7 @@ fn lookup_view(config: &Config) -> Result<String, Box<dyn std::error::Error>> {
             cp_string
         )
     } else {
-        format!("httm \"{}\"/{{}}", cp_string)
+        format!("\"{httm_command}\" \"{}\"/{{}}", cp_string)
     };
 
     // create the skim component for previews
@@ -210,7 +215,9 @@ pub fn interactive_exec(
     out: &mut Stdout,
     config: &Config,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let paths_as_strings = if config.raw_paths.is_empty() || PathBuf::from(&config.raw_paths[0]).is_dir() {
+    let paths_as_strings = if config.raw_paths.is_empty()
+        || PathBuf::from(&config.raw_paths[0]).is_dir()
+    {
         vec![lookup_view(config)?]
     } else if config.raw_paths.len().gt(&1usize) {
         return Err(HttmError::new("May only specify one path in interactive mode.").into());

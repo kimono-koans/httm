@@ -112,9 +112,9 @@ fn get_versions(
     let mut unique_versions: HashMap<(SystemTime, u64), PathData> = HashMap::default();
 
     for path in &versions {
-        if let Some(pd) = PathData::new(path) {
-            if !pd.is_phantom {
-                unique_versions.insert((pd.system_time, pd.size), pd);
+        if let Some(pathdata) = PathData::new(path) {
+            if !pathdata.is_phantom {
+                unique_versions.insert((pathdata.system_time, pathdata.size), pathdata);
             }
         }
     }

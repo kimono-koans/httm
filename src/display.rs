@@ -37,8 +37,8 @@ pub fn display_raw(
 
     // so easy!
     for version in &snaps_and_live_set {
-        for pd in version {
-            let display_path = pd.path_buf.display().to_string();
+        for pathdata in version {
+            let display_path = pathdata.path_buf.display().to_string();
             buffer += &format!("{}{}", display_path, delimiter);
         }
     }
@@ -70,7 +70,11 @@ pub fn display_pretty(
             let display_path = &pathdata.path_buf.to_string_lossy();
 
             if !config.opt_no_pretty {
-                display_size = format!("{:>width$}", display_human_size(pathdata), width = size_padding);
+                display_size = format!(
+                    "{:>width$}",
+                    display_human_size(pathdata),
+                    width = size_padding
+                );
                 fixed_padding = format!("{:<5}", " ");
             } else {
                 display_size = format!("\t{}", display_human_size(pathdata));
@@ -78,7 +82,10 @@ pub fn display_pretty(
             }
 
             if !pathdata.is_phantom {
-                pathdata_set_buffer += &format!("{}{}{}\"{}\"\n", display_date, display_size, fixed_padding, display_path);
+                pathdata_set_buffer += &format!(
+                    "{}{}{}\"{}\"\n",
+                    display_date, display_size, fixed_padding, display_path
+                );
             } else {
                 // displays blanks for phantom values, equaling their dummy lens and dates
                 // see struct PathData for more details
@@ -86,8 +93,10 @@ pub fn display_pretty(
                 // again must be a better way to print padding, etc.
                 let pad_date: String = (0..display_date.len()).map(|_| " ").collect();
                 let pad_size: String = (0..display_size.len()).map(|_| " ").collect();
-                pathdata_set_buffer +=
-                    &format!("{}{}{}\"{}\"\n", pad_date, pad_size, fixed_padding, display_path);
+                pathdata_set_buffer += &format!(
+                    "{}{}{}\"{}\"\n",
+                    pad_date, pad_size, fixed_padding, display_path
+                );
             }
         }
         if !config.opt_no_pretty && !pathdata_set_buffer.is_empty() {
@@ -109,13 +118,17 @@ fn calculate_padding(snaps_and_live_set: &[Vec<PathData>]) -> (usize, String) {
 
     // calculate padding and borders for display later
     for ver_set in snaps_and_live_set {
-        for pd in ver_set {
-            let display_date = display_date(&pd.system_time);
-            let display_size = format!("{:>width$}", display_human_size(pd), width = size_padding);
+        for pathdata in ver_set {
+            let display_date = display_date(&pathdata.system_time);
+            let display_size = format!(
+                "{:>width$}",
+                display_human_size(pathdata),
+                width = size_padding
+            );
             let fixed_padding = format!("{:<5}", " ");
-            let display_path = &pd.path_buf.to_string_lossy();
+            let display_path = &pathdata.path_buf.to_string_lossy();
 
-            let display_size_len = display_human_size(pd).len();
+            let display_size_len = display_human_size(pathdata).len();
             let formatted_line_len =
                 // 2usize is for the two single quotes we add to the path display below 
                 display_date.len() + display_size.len() + fixed_padding.len() + display_path.len() + 2usize;
@@ -144,8 +157,8 @@ fn calculate_padding(snaps_and_live_set: &[Vec<PathData>]) -> (usize, String) {
     (size_padding, fancy_string)
 }
 
-fn display_human_size(pd: &PathData) -> String {
-    let size = pd.size as f64;
+fn display_human_size(pathdata: &PathData) -> String {
+    let size = pathdata.size as f64;
 
     match NumberPrefix::binary(size) {
         NumberPrefix::Standalone(bytes) => {
