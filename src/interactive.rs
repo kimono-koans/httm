@@ -90,7 +90,7 @@ fn lookup_view(config: &Config) -> Result<String, Box<dyn std::error::Error>> {
             path.to_string_lossy().to_string()
         } else {
             return Err(HttmError::new(
-                "You must place the httm command in your path.  Perhaps the .cargo folder isn't in your path?",
+                "You must place the httm command in your path.  Perhaps the .cargo/bin folder isn't in your path?",
             )
             .into());
         }
