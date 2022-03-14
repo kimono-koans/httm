@@ -38,8 +38,8 @@ pub fn display_raw(
     // so easy!
     for version in &snaps_and_live_set {
         for pd in version {
-            let d_path = pd.path_buf.display().to_string();
-            buffer += &format!("{}{}", d_path, delimiter);
+            let display_path = pd.path_buf.display().to_string();
+            buffer += &format!("{}{}", display_path, delimiter);
         }
     }
 
@@ -56,45 +56,45 @@ pub fn display_pretty(
 
     // now display with all that beautiful padding
     if !config.opt_no_pretty {
-        // only print one border to the top -- to buffer, not pd_set_buffer
+        // only print one border to the top -- to buffer, not pathdata_set_buffer
         write_out_buffer += &format!("{}\n", fancy_string);
     }
 
-    for pd_set in &snaps_and_live_set {
-        let mut pd_set_buffer = String::new();
+    for pathdata_set in &snaps_and_live_set {
+        let mut pathdata_set_buffer = String::new();
 
-        for pd in pd_set {
-            let d_date = display_date(&pd.system_time);
-            let d_size;
+        for pathdata in pathdata_set {
+            let display_date = display_date(&pathdata.system_time);
+            let display_size;
             let fixed_padding;
-            let d_path = &pd.path_buf.to_string_lossy();
+            let display_path = &pathdata.path_buf.to_string_lossy();
 
             if !config.opt_no_pretty {
-                d_size = format!("{:>width$}", display_human_size(pd), width = size_padding);
+                display_size = format!("{:>width$}", display_human_size(pathdata), width = size_padding);
                 fixed_padding = format!("{:<5}", " ");
             } else {
-                d_size = format!("\t{}", display_human_size(pd));
+                display_size = format!("\t{}", display_human_size(pathdata));
                 fixed_padding = "\t".to_owned();
             }
 
-            if !pd.is_phantom {
-                pd_set_buffer += &format!("{}{}{}\"{}\"\n", d_date, d_size, fixed_padding, d_path);
+            if !pathdata.is_phantom {
+                pathdata_set_buffer += &format!("{}{}{}\"{}\"\n", display_date, display_size, fixed_padding, display_path);
             } else {
                 // displays blanks for phantom values, equaling their dummy lens and dates
                 // see struct PathData for more details
                 //
                 // again must be a better way to print padding, etc.
-                let pad_date: String = (0..d_date.len()).map(|_| " ").collect();
-                let pad_size: String = (0..d_size.len()).map(|_| " ").collect();
-                pd_set_buffer +=
-                    &format!("{}{}{}\"{}\"\n", pad_date, pad_size, fixed_padding, d_path);
+                let pad_date: String = (0..display_date.len()).map(|_| " ").collect();
+                let pad_size: String = (0..display_size.len()).map(|_| " ").collect();
+                pathdata_set_buffer +=
+                    &format!("{}{}{}\"{}\"\n", pad_date, pad_size, fixed_padding, display_path);
             }
         }
-        if !config.opt_no_pretty && !pd_set_buffer.is_empty() {
-            pd_set_buffer += &format!("{}\n", fancy_string);
-            write_out_buffer += &pd_set_buffer.to_string();
+        if !config.opt_no_pretty && !pathdata_set_buffer.is_empty() {
+            pathdata_set_buffer += &format!("{}\n", fancy_string);
+            write_out_buffer += &pathdata_set_buffer.to_string();
         } else {
-            for line in pd_set_buffer.lines().rev() {
+            for line in pathdata_set_buffer.lines().rev() {
                 write_out_buffer += &format!("{}\n", line);
             }
         }
@@ -110,17 +110,17 @@ fn calculate_padding(snaps_and_live_set: &[Vec<PathData>]) -> (usize, String) {
     // calculate padding and borders for display later
     for ver_set in snaps_and_live_set {
         for pd in ver_set {
-            let d_date = display_date(&pd.system_time);
-            let d_size = format!("{:>width$}", display_human_size(pd), width = size_padding);
+            let display_date = display_date(&pd.system_time);
+            let display_size = format!("{:>width$}", display_human_size(pd), width = size_padding);
             let fixed_padding = format!("{:<5}", " ");
-            let d_path = &pd.path_buf.to_string_lossy();
+            let display_path = &pd.path_buf.to_string_lossy();
 
-            let d_size_len = display_human_size(pd).len();
+            let display_size_len = display_human_size(pd).len();
             let formatted_line_len =
                 // 2usize is for the two single quotes we add to the path display below 
-                d_date.len() + d_size.len() + fixed_padding.len() + d_path.len() + 2usize;
+                display_date.len() + display_size.len() + fixed_padding.len() + display_path.len() + 2usize;
 
-            size_padding = d_size_len.max(size_padding);
+            size_padding = display_size_len.max(size_padding);
             fancy_border = formatted_line_len.max(fancy_border);
         }
     }

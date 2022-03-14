@@ -138,7 +138,7 @@ fn get_dataset(pathdata: &PathData) -> Result<OsString, Box<dyn std::error::Erro
 
     // ingest datasets from the cmdline
     let exec_command = "zfs list -H -t filesystem -o mountpoint,mounted";
-    let raw_ds = std::str::from_utf8(
+    let datasets_from_zfs = std::str::from_utf8(
         &ExecProcess::new("env")
             .arg("sh")
             .arg("-c")
@@ -149,7 +149,7 @@ fn get_dataset(pathdata: &PathData) -> Result<OsString, Box<dyn std::error::Erro
     .to_owned();
 
     // prune most datasets by match the parent_folder of file contains those datasets
-    let select_potential_mountpoints = raw_ds
+    let select_potential_mountpoints = datasets_from_zfs
         .lines()
         .filter(|line| line.contains("yes"))
         .filter_map(|line| line.split('\t').next())
@@ -166,12 +166,12 @@ fn get_dataset(pathdata: &PathData) -> Result<OsString, Box<dyn std::error::Erro
 
     // select the best match for us: the longest, as we've already matched on the parent folder
     // so for /usr/bin/bash, we prefer /usr/bin to /usr
-    let best_potential_mountpoint = if let Some(bpmp) = select_potential_mountpoints
+    let best_potential_mountpoint = if let Some(some_bpmp) = select_potential_mountpoints
         .clone()
         .into_iter()
         .max_by_key(|x| x.len())
     {
-        bpmp
+        some_bpmp
     } else {
         let msg = format!(
             "There is no best match for a ZFS dataset to use for path {:?}. Sorry!/Not sorry?)",

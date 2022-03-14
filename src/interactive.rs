@@ -47,21 +47,21 @@ fn lookup_view(config: &Config) -> Result<String, Box<dyn std::error::Error>> {
         config.current_working_dir.to_string_lossy()
     };
 
-    let can_path = if let Ok(can_path) = config.user_requested_dir.canonicalize() {
-        can_path
+    let canonical_parent = if let Ok(canonical_parent) = config.user_requested_dir.canonicalize() {
+        canonical_parent
     } else {
         config.current_working_dir.clone()
     };
 
     // prep thread spawn
-    let mut read_dir = std::fs::read_dir(&can_path)?;
+    let mut read_dir = std::fs::read_dir(&canonical_parent)?;
     let (tx_item, rx_item): (SkimItemSender, SkimItemReceiver) = unbounded();
     let config_clone = config.clone();
-    let can_path_clone = can_path.clone();
+    let canonical_parent_clone = canonical_parent.clone();
 
     // spawn recursive fn enter_directory
     thread::spawn(move || {
-        enter_directory(&config_clone, &tx_item, &mut read_dir, &can_path_clone);
+        enter_directory(&config_clone, &tx_item, &mut read_dir, &canonical_parent_clone);
     });
 
     // string to exec on each preview
@@ -94,7 +94,7 @@ fn lookup_view(config: &Config) -> Result<String, Box<dyn std::error::Error>> {
     };
 
     // create command to use for preview, as noted unable to use a function for now
-    let cp_string = can_path.to_string_lossy();
+    let cp_string = canonical_parent.to_string_lossy();
     let preview_str = if let Some(sp_os) = &config.opt_snap_point {
         let snap_point = sp_os.to_string_lossy();
         format!(
@@ -125,22 +125,22 @@ fn lookup_view(config: &Config) -> Result<String, Box<dyn std::error::Error>> {
 }
 struct SelectionCandidate {
     path: PathBuf,
-    can_path: PathBuf,
+    canonical_parent: PathBuf,
 }
 
 impl SkimItem for SelectionCandidate {
     fn text(&self) -> Cow<str> {
-        Cow::Owned(path_to_string(&self.path, &self.can_path))
+        Cow::Owned(path_to_string(&self.path, &self.canonical_parent))
     }
     fn display<'a>(&'a self, _context: DisplayContext<'a>) -> AnsiString<'a> {
         AnsiString::parse(&display_colors(self.text(), &self.path))
     }
 }
 
-fn path_to_string(path: &Path, can_path: &Path) -> String {
-    let stripped_str = if can_path == Path::new("") {
+fn path_to_string(path: &Path, canonical_parent: &Path) -> String {
+    let stripped_str = if canonical_parent == Path::new("") {
         path.to_string_lossy()
-    } else if let Ok(stripped_path) = &path.strip_prefix(&can_path) {
+    } else if let Ok(stripped_path) = &path.strip_prefix(&canonical_parent) {
         stripped_path.to_string_lossy()
     } else {
         path.to_string_lossy()
@@ -152,7 +152,7 @@ fn enter_directory(
     config: &Config,
     tx_item: &SkimItemSender,
     read_dir: &mut ReadDir,
-    can_path: &Path,
+    canonical_parent: &Path,
 ) {
     // convert to paths
     let (vec_files, vec_dirs): (Vec<PathBuf>, Vec<PathBuf>) = read_dir
@@ -167,7 +167,7 @@ fn enter_directory(
     combined_vec.iter().for_each(|path| {
         let _ = tx_item.send(Arc::new(SelectionCandidate {
             path: path.to_path_buf(),
-            can_path: can_path.to_path_buf(),
+            canonical_parent: canonical_parent.to_path_buf(),
         }));
     });
 
@@ -177,7 +177,7 @@ fn enter_directory(
             .iter()
             .filter_map(|read_dir| std::fs::read_dir(read_dir).ok())
             .for_each(|mut read_dir| {
-                enter_directory(config, tx_item, &mut read_dir, can_path);
+                enter_directory(config, tx_item, &mut read_dir, canonical_parent);
             })
     }
 }
@@ -210,7 +210,7 @@ pub fn interactive_exec(
     out: &mut Stdout,
     config: &Config,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let raw_paths = if config.raw_paths.is_empty() || PathBuf::from(&config.raw_paths[0]).is_dir() {
+    let paths_as_strings = if config.raw_paths.is_empty() || PathBuf::from(&config.raw_paths[0]).is_dir() {
         vec![lookup_view(config)?]
     } else if config.raw_paths.len().gt(&1usize) {
         return Err(HttmError::new("May only specify one path in interactive mode.").into());
@@ -221,17 +221,17 @@ pub fn interactive_exec(
     } else {
         unreachable!("Nope, nope, you shouldn't be here!!  Just kidding, file a bug if you find yourself here.")
     };
-    interactive_select(out, config, raw_paths)?;
+    interactive_select(out, config, paths_as_strings)?;
     Ok(())
 }
 
 fn interactive_select(
     out: &mut Stdout,
     config: &Config,
-    raw_paths: Vec<String>,
+    paths_as_strings: Vec<String>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     // same stuff we do at exec, snooze...
-    let search_path = raw_paths.get(0).unwrap().to_owned();
+    let search_path = paths_as_strings.get(0).unwrap().to_owned();
     let pathdata_set = convert_strings_to_pathdata(config, &[search_path])?;
     let snaps_and_live_set = run_search(config, pathdata_set)?;
     let selection_buffer = display_pretty(config, snaps_and_live_set)?;

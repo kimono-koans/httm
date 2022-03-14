@@ -139,11 +139,11 @@ pub struct Config {
     opt_zeros: bool,
     opt_no_pretty: bool,
     opt_no_live_vers: bool,
-    exec_mode: ExecMode,
-    interactive_mode: InteractiveMode,
     opt_recursive: bool,
     opt_snap_point: Option<OsString>,
     opt_local_dir: Option<OsString>,
+    exec_mode: ExecMode,
+    interactive_mode: InteractiveMode,
     current_working_dir: PathBuf,
     user_requested_dir: PathBuf,
 }
@@ -152,7 +152,7 @@ impl Config {
     fn from(matches: ArgMatches) -> Result<Config, Box<dyn std::error::Error>> {
         let zeros = matches.is_present("ZEROS");
         let raw = matches.is_present("RAW");
-        let no_so_pretty = matches.is_present("NOT_SO_PRETTY");
+        let not_so_pretty = matches.is_present("NOT_SO_PRETTY");
         let no_live_vers = matches.is_present("NO_LIVE");
         let exec = if matches.is_present("INTERACTIVE")
             || matches.is_present("RESTORE")
@@ -256,7 +256,7 @@ impl Config {
             raw_paths: file_names,
             opt_raw: raw,
             opt_zeros: zeros,
-            opt_no_pretty: no_so_pretty,
+            opt_no_pretty: not_so_pretty,
             opt_no_live_vers: no_live_vers,
             opt_snap_point: snap_point,
             opt_local_dir: local_dir,
