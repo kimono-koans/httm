@@ -223,13 +223,13 @@ pub fn interactive_exec(
         unreachable!("Nope, nope, you shouldn't be here!!  Just kidding, file a bug if you find yourself here.");
     };
 
-    if config.interactive_mode == InteractiveMode::Restore
-        || config.interactive_mode == InteractiveMode::Select
-    {
-        interactive_select(out, config, paths_as_strings)?;
-        unreachable!("You *really* shouldn't be here!!! No.... no.... AHHHHHHHHGGGGG... Just kidding, file a bug if you find yourself here.")
-    } else {
-        Ok(paths_as_strings)
+    match config.interactive_mode {
+        InteractiveMode::Restore | InteractiveMode::Select => {
+            interactive_select(out, config, paths_as_strings)?;
+            unreachable!("You *really* shouldn't be here!!! No.... no.... AHHHHHHHHGGGGG... Just kidding, file a bug if you find yourself here.")
+        },
+        // Interactive lookup executes back through fn exec() in httm.rs
+        _ => Ok(paths_as_strings),
     }
 }
 
