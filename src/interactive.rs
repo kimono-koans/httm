@@ -1,9 +1,26 @@
-use crate::convert_strings_to_pathdata;
+//       ___           ___           ___           ___
+//      /\__\         /\  \         /\  \         /\__\
+//     /:/  /         \:\  \        \:\  \       /::|  |
+//    /:/__/           \:\  \        \:\  \     /:|:|  |
+//   /::\  \ ___       /::\  \       /::\  \   /:/|:|__|__
+//  /:/\:\  /\__\     /:/\:\__\     /:/\:\__\ /:/ |::::\__\
+//  \/__\:\/:/  /    /:/  \/__/    /:/  \/__/ \/__/~~/:/  /
+//       \::/  /    /:/  /        /:/  /            /:/  /
+//       /:/  /     \/__/         \/__/            /:/  /
+//      /:/  /                                    /:/  /
+//      \/__/                                     \/__/
+//
+// (c) Robert Swinford <robert.swinford<...at...>gmail.com>
+//
+// For the full copyright and license information, please view the LICENSE file
+// that was distributed with this source code.
+
 use crate::display::{display_colors, display_pretty};
 use crate::lookup::run_search;
 use crate::read_stdin;
 use crate::Config;
 use crate::HttmError;
+use crate::{convert_strings_to_pathdata, InteractiveMode};
 
 extern crate skim;
 use chrono::DateTime;
@@ -12,11 +29,11 @@ use skim::prelude::*;
 use skim::DisplayContext;
 use std::fs::ReadDir;
 use std::io::Cursor;
+use std::io::Write as IoWrite;
+use std::process::Command as ExecProcess;
 use std::thread;
 use std::time::SystemTime;
 use std::vec;
-
-use std::io::Write as IoWrite;
 
 use std::io::Stdout;
 use std::path::{Path, PathBuf};
@@ -48,11 +65,36 @@ fn lookup_view(config: &Config) -> Result<String, Box<dyn std::error::Error>> {
     });
 
     // string to exec on each preview
+    let path_command = std::str::from_utf8(
+        &ExecProcess::new("command")
+            .arg("-v")
+            .arg("httm")
+            .output()?
+            .stdout,
+    )?
+    .to_owned();
+
+    let httm_command = if path_command == *"" {
+        let path: PathBuf = [&config.current_working_dir, &PathBuf::from("httm")]
+            .iter()
+            .collect();
+        if path.exists() {
+            path.to_string_lossy().to_string()
+        } else {
+            return Err(HttmError::new(
+                "You must place the httm command in your path.  Is the .cargo folder in your path?",
+            )
+            .into());
+        }
+    } else {
+        path_command
+    };
+
     let cp_string = can_path.to_string_lossy();
     let preview_str = if let Some(sp_os) = &config.opt_snap_point {
         let snap_point = sp_os.to_string_lossy();
         format!(
-            "httm --snap-point \"{snap_point}\" --local-dir \"{local_dir}\" \"{}\"/{{}}",
+            "\"{httm_command}\" --snap-point \"{snap_point}\" --local-dir \"{local_dir}\" \"{}\"/{{}}",
             cp_string
         )
     } else {
@@ -163,30 +205,20 @@ fn select_view(selection_buffer: String) -> Result<String, Box<dyn std::error::E
 pub fn interactive_exec(
     out: &mut Stdout,
     config: &Config,
-) -> Result<Vec<String>, Box<dyn std::error::Error>> {
-    let raw_paths = if config.opt_interactive {
-        let res = if config.raw_paths.is_empty() || PathBuf::from(&config.raw_paths[0]).is_dir() {
-            vec![lookup_view(config)?]
-        } else if config.raw_paths.len().gt(&1usize) {
-            return Err(HttmError::new("May only specify one path in interactive mode.").into());
-        } else if !Path::new(&config.raw_paths[0]).is_dir() {
-            return Err(
-                HttmError::new("Path specified is not a directory suitable for browsing.").into(),
-            );
-        } else {
-            unreachable!("Nope, nope, you shouldn't be here!!  Just kidding, file a bug if you find yourself here.")
-        };
-        res
+) -> Result<(), Box<dyn std::error::Error>> {
+    let raw_paths = if config.raw_paths.is_empty() || PathBuf::from(&config.raw_paths[0]).is_dir() {
+        vec![lookup_view(config)?]
+    } else if config.raw_paths.len().gt(&1usize) {
+        return Err(HttmError::new("May only specify one path in interactive mode.").into());
+    } else if !Path::new(&config.raw_paths[0]).is_dir() {
+        return Err(
+            HttmError::new("Path specified is not a directory suitable for browsing.").into(),
+        );
     } else {
-        config.raw_paths.clone()
+        unreachable!("Nope, nope, you shouldn't be here!!  Just kidding, file a bug if you find yourself here.")
     };
-
-    if config.opt_restore || config.opt_select {
-        interactive_select(out, config, raw_paths)?;
-        unreachable!("You *really* shouldn't be here!!! No.... no.... AHHHHHHHHGGGGG... Just kidding, file a bug if you find yourself here.")
-    } else {
-        Ok(raw_paths)
-    }
+    interactive_select(out, config, raw_paths)?;
+    Ok(())
 }
 
 fn interactive_select(
@@ -211,7 +243,7 @@ fn interactive_select(
         return Err(HttmError::new("Invalid value selected. Quitting.").into());
     };
 
-    if config.opt_restore {
+    if config.interactive_mode == InteractiveMode::Restore {
         Ok(interactive_restore(out, config, parsed_str)?)
     } else {
         writeln!(out, "\"{}\"", parsed_str)?;

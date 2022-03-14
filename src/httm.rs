@@ -118,6 +118,20 @@ impl PathData {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
+enum ExecMode {
+    Interactive,
+    Display,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+enum InteractiveMode {
+    None,
+    Lookup,
+    Select,
+    Restore,
+}
+
 #[derive(Debug, Clone)]
 pub struct Config {
     raw_paths: Vec<String>,
@@ -125,10 +139,9 @@ pub struct Config {
     opt_zeros: bool,
     opt_no_pretty: bool,
     opt_no_live_vers: bool,
-    opt_interactive: bool,
-    opt_restore: bool,
+    exec_mode: ExecMode,
+    interactive_mode: InteractiveMode,
     opt_recursive: bool,
-    opt_select: bool,
     opt_snap_point: Option<OsString>,
     opt_local_dir: Option<OsString>,
     current_working_dir: PathBuf,
@@ -141,15 +154,27 @@ impl Config {
         let raw = matches.is_present("RAW");
         let no_so_pretty = matches.is_present("NOT_SO_PRETTY");
         let no_live_vers = matches.is_present("NO_LIVE");
-        let interactive = matches.is_present("INTERACTIVE")
+        let exec = if matches.is_present("INTERACTIVE")
             || matches.is_present("RESTORE")
-            || matches.is_present("SELECT");
-        let restore = matches.is_present("RESTORE");
+            || matches.is_present("SELECT")
+        {
+            ExecMode::Interactive
+        } else {
+            ExecMode::Display
+        };
         let env_local_dir = std::env::var("HTTM_LOCAL_DIR").ok();
         let recursive = matches.is_present("RECURSIVE");
-        let select = matches.is_present("SELECT");
+        let interactive = if matches.is_present("RESTORE") {
+            InteractiveMode::Restore
+        } else if matches.is_present("SELECT") {
+            InteractiveMode::Select
+        } else if matches.is_present("INTERACTIVE") {
+            InteractiveMode::Lookup
+        } else {
+            InteractiveMode::None
+        };
 
-        if recursive && !interactive && !restore {
+        if recursive && interactive == InteractiveMode::None {
             return Err(HttmError::new(
                 "Recursive search feature only allowed with interactive or restore modes.",
             )
@@ -211,14 +236,14 @@ impl Config {
             raw_values
                 .filter_map(|i| i.to_owned().into_string().ok())
                 .collect()
-        } else if interactive {
+        } else if exec == ExecMode::Interactive {
             Vec::new()
         } else {
             read_stdin()?
         };
 
         // is there a user defined working dir given at the cli?
-        let requested_dir = if interactive
+        let requested_dir = if exec == ExecMode::Interactive
             && file_names.get(0).is_some()
             && PathBuf::from(file_names.get(0).unwrap()).is_dir()
         {
@@ -236,9 +261,8 @@ impl Config {
             opt_snap_point: snap_point,
             opt_local_dir: local_dir,
             opt_recursive: recursive,
-            opt_interactive: interactive,
-            opt_restore: restore,
-            opt_select: select,
+            exec_mode: exec,
+            interactive_mode: interactive,
             current_working_dir: pwd,
             user_requested_dir: requested_dir,
         };
@@ -353,10 +377,12 @@ fn exec() -> Result<(), Box<dyn std::error::Error>> {
 
     // next, let's do our interactive lookup thing, if appropriate
     // and modify strings returned according to the interactive session
-    let raw_paths = interactive_exec(&mut out, &config)?;
+    if config.exec_mode == ExecMode::Interactive {
+        interactive_exec(&mut out, &config)?;
+    }
 
     // build pathdata from strings
-    let pathdata_set = convert_strings_to_pathdata(&config, &raw_paths)?;
+    let pathdata_set = convert_strings_to_pathdata(&config, &config.raw_paths)?;
 
     // finally run search on those paths
     let snaps_and_live_set = run_search(&config, pathdata_set)?;
