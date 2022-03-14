@@ -377,12 +377,12 @@ fn exec() -> Result<(), Box<dyn std::error::Error>> {
 
     // next, let's do our interactive lookup thing, if appropriate
     // and modify strings returned according to the interactive session
-    if config.exec_mode == ExecMode::Interactive {
-        interactive_exec(&mut out, &config)?;
-    }
-
-    // build pathdata from strings
-    let pathdata_set = convert_strings_to_pathdata(&config, &config.raw_paths)?;
+    let pathdata_set = if config.exec_mode == ExecMode::Interactive {
+        let interactive_vec_strings = interactive_exec(&mut out, &config)?;
+        convert_strings_to_pathdata(&config, &interactive_vec_strings)?
+    } else {
+        convert_strings_to_pathdata(&config, &config.raw_paths)?
+    };
 
     // finally run search on those paths
     let snaps_and_live_set = run_search(&config, pathdata_set)?;

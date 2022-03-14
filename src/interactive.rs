@@ -70,14 +70,8 @@ fn lookup_view(config: &Config) -> Result<String, Box<dyn std::error::Error>> {
     });
 
     // string to exec on each preview
-    let path_command = std::str::from_utf8(
-        &ExecProcess::new("command")
-            .arg("-v")
-            .arg("httm")
-            .output()?
-            .stdout,
-    )?
-    .to_owned();
+    let path_command =
+        std::str::from_utf8(&ExecProcess::new("which").arg("httm").output()?.stdout)?.to_owned();
 
     // skim doesn't allow us to use a function, we must call a command
     // and that cause all sorts of nastiness with PATHs etc if the user
@@ -214,7 +208,7 @@ fn select_view(selection_buffer: String) -> Result<String, Box<dyn std::error::E
 pub fn interactive_exec(
     out: &mut Stdout,
     config: &Config,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<Vec<String>, Box<dyn std::error::Error>> {
     let paths_as_strings = if config.raw_paths.is_empty()
         || PathBuf::from(&config.raw_paths[0]).is_dir()
     {
@@ -226,10 +220,17 @@ pub fn interactive_exec(
             HttmError::new("Path specified is not a directory suitable for browsing.").into(),
         );
     } else {
-        unreachable!("Nope, nope, you shouldn't be here!!  Just kidding, file a bug if you find yourself here.")
+        unreachable!("Nope, nope, you shouldn't be here!!  Just kidding, file a bug if you find yourself here.");
     };
-    interactive_select(out, config, paths_as_strings)?;
-    Ok(())
+
+    if config.interactive_mode == InteractiveMode::Restore
+        || config.interactive_mode == InteractiveMode::Select
+    {
+        interactive_select(out, config, paths_as_strings)?;
+        unreachable!("You *really* shouldn't be here!!! No.... no.... AHHHHHHHHGGGGG... Just kidding, file a bug if you find yourself here.")
+    } else {
+        Ok(paths_as_strings)
+    }
 }
 
 fn interactive_select(
