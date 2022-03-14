@@ -74,12 +74,15 @@ fn lookup_view(config: &Config) -> Result<String, Box<dyn std::error::Error>> {
     )?
     .to_owned();
 
+    // skim doesn't allow us to use a function, we must call a command
+    // and that cause all sorts of nastiness with PATHs etc if the user
+    // is not expecting it
     let httm_command = if path_command == *"" {
         let path: PathBuf = [&config.current_working_dir, &PathBuf::from("httm")]
             .iter()
             .collect();
         if path.exists() {
-            path.to_string_lossy().trim_end_matches("\n").to_owned()
+            path.to_string_lossy().trim_end_matches('\n').to_owned()
         } else {
             return Err(HttmError::new(
                 "You must place the httm command in your path.  Perhaps the .cargo folder isn't in your path?",
@@ -90,6 +93,7 @@ fn lookup_view(config: &Config) -> Result<String, Box<dyn std::error::Error>> {
         path_command
     };
 
+    // create command to use for preview, as noted unable to use a function for now
     let cp_string = can_path.to_string_lossy();
     let preview_str = if let Some(sp_os) = &config.opt_snap_point {
         let snap_point = sp_os.to_string_lossy();
@@ -101,13 +105,13 @@ fn lookup_view(config: &Config) -> Result<String, Box<dyn std::error::Error>> {
         format!("httm \"{}\"/{{}}", cp_string)
     };
 
+    // create the skim component for previews
     let options = SkimOptionsBuilder::default()
         .preview_window(Some("70%"))
         .preview(Some(&preview_str))
         .build()
         .unwrap();
 
-    // `run_with` would read and show items from the stream
     let selected_items = Skim::run_with(&options, Some(rx_item))
         .map(|out| out.selected_items)
         .unwrap_or_else(Vec::new);
