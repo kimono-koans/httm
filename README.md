@@ -1,4 +1,4 @@
-[![asciicast](https://asciinema.org/a/WMf4IEAqqGuHSikUcpCe2kcbh.svg)](https://asciinema.org/a/WMf4IEAqqGuHSikUcpCe2kcbh)
+[![asciicast](https://asciinema.org/a/477019.svg)](https://asciinema.org/a/477019)
 
 # Don't call it a h-- t-- time machine
 
