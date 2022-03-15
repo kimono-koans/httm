@@ -303,7 +303,7 @@ fn interactive_restore(
     writeln!(out, "\tto:   {:?}\n", new_file_pbuf)?;
     write!(
         out,
-        "This action is a *non-destructive* copy, but, before httm does anything, it would like your consent. Continue? (Y/N) "
+        "Before httm does anything, it would like your consent. Continue? (Y/N) "
     )?;
     out.flush()?;
 
