@@ -30,17 +30,14 @@ pub fn lookup_exec(
     path_data: Vec<Option<PathData>>,
 ) -> Result<Vec<Vec<PathData>>, Box<dyn std::error::Error>> {
     // create vec of backups
-    let mut snapshot_versions: Vec<PathData> = Vec::new();
-
-    for instance_pd in path_data.iter().flatten() {
-        let dataset = if let Some(ref snap_point) = config.opt_snap_point {
-            snap_point.to_owned()
-        } else {
-            get_dataset(instance_pd)?
-        };
-
-        snapshot_versions.extend_from_slice(&get_versions(config, instance_pd, dataset)?)
-    }
+    let snapshot_versions: Vec<PathData> = path_data
+        .iter()
+        .flatten()
+        .map(|pathdata| get_versions_set(config, pathdata))
+        .collect::<Result<Vec<_>, Box<dyn std::error::Error>>>()?
+        .into_iter()
+        .flatten()
+        .collect();
 
     // create vec of live copies
     let live_versions: Vec<PathData> = if !config.opt_no_live_vers {
@@ -65,6 +62,18 @@ pub fn lookup_exec(
     }
 }
 
+fn get_versions_set(
+    config: &Config,
+    pathdata: &PathData,
+) -> Result<Vec<PathData>, Box<dyn std::error::Error>> {
+    let dataset = if let Some(ref snap_point) = config.opt_snap_point {
+        snap_point.to_owned()
+    } else {
+        get_dataset(pathdata)?
+    };
+    get_versions(config, pathdata, dataset)
+}
+
 fn get_versions(
     config: &Config,
     pathdata: &PathData,
@@ -85,18 +94,18 @@ fn get_versions(
     // Presently, defaults to everything below the working dir in the unspecified case.
     let local_path = if config.opt_snap_point.is_some() {
         if let Some(local_dir) = &config.opt_local_dir {
-            pathdata.path_buf
-                .strip_prefix(&local_dir)
-                .or(Err(HttmError::new("LOCAL_DIR and SNAP_DIR do not match.  Confirm they are set correctly.".into())))
+            pathdata.path_buf.strip_prefix(&local_dir).map_err(|_| {
+                HttmError::new(
+                    "LOCAL_DIR and SNAP_DIR do not match.  Confirm they are set correctly.",
+                )
+            })
         } else {
             pathdata.path_buf
-            .strip_prefix(&config.current_working_dir)
-            .or(Err(HttmError::new("Are you sure you're in the correct working directory?  Perhaps you need to set the LOCAL_DIR value.".into())))
+            .strip_prefix(&config.current_working_dir).map_err(|_| HttmError::new("Are you sure you're in the correct working directory?  Perhaps you need to set the LOCAL_DIR value."))
         }
     } else {
         pathdata.path_buf
-        .strip_prefix(&dataset)
-        .or(Err(HttmError::new("Are you sure you're in the correct working directory?  Perhaps you need to set the SNAP_DIR and LOCAL_DIR values.".into())))
+        .strip_prefix(&dataset).map_err(|_| HttmError::new("Are you sure you're in the correct working directory?  Perhaps you need to set the SNAP_DIR and LOCAL_DIR values."))
     }?;
 
     let snapshots = std::fs::read_dir(snapshot_dir)?;
