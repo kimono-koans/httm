@@ -227,7 +227,7 @@ pub fn interactive_exec(
         InteractiveMode::Restore | InteractiveMode::Select => {
             interactive_select(out, config, paths_as_strings)?;
             unreachable!("You *really* shouldn't be here!!! No.... no.... AHHHHHHHHGGGGG... Just kidding, file a bug if you find yourself here.")
-        },
+        }
         // InteractiveMode::Lookup executes back through fn exec() in httm.rs
         _ => Ok(paths_as_strings),
     }
