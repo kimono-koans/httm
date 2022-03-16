@@ -15,9 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::Config;
-use crate::HttmError;
-use crate::PathData;
+use crate::{Config, HttmError, PathData};
 
 use fxhash::FxHashMap as HashMap;
 use std::{
@@ -27,7 +25,7 @@ use std::{
     time::SystemTime,
 };
 
-pub fn run_search(
+pub fn lookup_exec(
     config: &Config,
     path_data: Vec<Option<PathData>>,
 ) -> Result<Vec<Vec<PathData>>, Box<dyn std::error::Error>> {

@@ -15,19 +15,27 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::Config;
-use crate::PathData;
+use crate::{Config, PathData};
 
 use chrono::{DateTime, Local};
-use lscolors::LsColors;
-use lscolors::Style;
 use number_prefix::NumberPrefix;
-use std::borrow::Cow;
-use std::path::Path;
 use std::time::SystemTime;
 use terminal_size::{terminal_size, Height, Width};
 
-pub fn display_raw(
+pub fn display_exec(
+    config: &Config,
+    snaps_and_live_set: Vec<Vec<PathData>>,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let output_buffer = if config.opt_raw || config.opt_zeros {
+        display_raw(config, snaps_and_live_set)?
+    } else {
+        display_pretty(config, snaps_and_live_set)?
+    };
+
+    Ok(output_buffer)
+}
+
+fn display_raw(
     config: &Config,
     snaps_and_live_set: Vec<Vec<PathData>>,
 ) -> Result<String, Box<dyn std::error::Error>> {
@@ -46,7 +54,7 @@ pub fn display_raw(
     Ok(buffer)
 }
 
-pub fn display_pretty(
+fn display_pretty(
     config: &Config,
     snaps_and_live_set: Vec<Vec<PathData>>,
 ) -> Result<String, Box<dyn std::error::Error>> {
@@ -173,15 +181,4 @@ fn display_human_size(pathdata: &PathData) -> String {
 fn display_date(st: &SystemTime) -> String {
     let dt: DateTime<Local> = st.to_owned().into();
     format!("{}", dt.format("%b %e %H:%M:%S %Y"))
-}
-
-pub fn display_colors(stripped_str: Cow<str>, path: &Path) -> String {
-    let lscolors = LsColors::from_env().unwrap_or_default();
-
-    if let Some(style) = lscolors.style_for_path(&path) {
-        let ansi_style = &Style::to_ansi_term_style(style);
-        ansi_style.paint(stripped_str).to_string()
-    } else {
-        stripped_str.to_string()
-    }
 }

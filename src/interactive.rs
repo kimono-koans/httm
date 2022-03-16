@@ -15,28 +15,115 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::display::{display_colors, display_pretty};
-use crate::lookup::run_search;
-use crate::read_stdin;
-use crate::Config;
-use crate::HttmError;
-use crate::{convert_strings_to_pathdata, InteractiveMode};
+use crate::display::display_exec;
+use crate::lookup::lookup_exec;
+use crate::{get_pathdata, read_stdin};
+use crate::{Config, HttmError, InteractiveMode};
 
 extern crate skim;
 use chrono::DateTime;
 use chrono::Local;
+use lscolors::LsColors;
+use lscolors::Style;
 use skim::prelude::*;
 use skim::DisplayContext;
-use std::fs::ReadDir;
-use std::io::Cursor;
-use std::io::Write as IoWrite;
-use std::process::Command as ExecProcess;
-use std::thread;
-use std::time::SystemTime;
-use std::vec;
+use std::{
+    fs::ReadDir,
+    io::{Cursor, Stdout, Write as IoWrite},
+    path::{Path, PathBuf},
+    process::Command as ExecProcess,
+    thread,
+    time::SystemTime,
+    vec,
+};
 
-use std::io::Stdout;
-use std::path::{Path, PathBuf};
+pub fn interactive_exec(
+    out: &mut Stdout,
+    config: &Config,
+) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+    let paths_as_strings = if config.raw_paths.is_empty()
+        || PathBuf::from(&config.raw_paths[0]).is_dir()
+    {
+        vec![lookup_view(config)?]
+    } else if config.raw_paths.len().gt(&1usize) {
+        return Err(HttmError::new("May only specify one path in interactive mode.").into());
+    } else if !Path::new(&config.raw_paths[0]).is_dir() {
+        return Err(
+            HttmError::new("Path specified is not a directory suitable for browsing.").into(),
+        );
+    } else {
+        unreachable!("Nope, nope, you shouldn't be here!!  Just kidding, file a bug if you find yourself here.");
+    };
+
+    match config.interactive_mode {
+        InteractiveMode::Restore | InteractiveMode::Select => {
+            interactive_select(out, config, paths_as_strings)?;
+            unreachable!("You *really* shouldn't be here!!! No.... no.... AHHHHHHHHGGGGG... Just kidding, file a bug if you find yourself here.")
+        }
+        // InteractiveMode::Lookup executes back through fn exec() in httm.rs
+        _ => Ok(paths_as_strings),
+    }
+}
+
+fn interactive_restore(
+    out: &mut Stdout,
+    config: &Config,
+    parsed_str: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let snap_pbuf = PathBuf::from(&parsed_str);
+
+    let snap_md = if let Ok(snap_md) = snap_pbuf.metadata() {
+        snap_md
+    } else {
+        return Err(HttmError::new("Snapshot location does not exist on disk. Quitting.").into());
+    };
+
+    // build new place to send file
+    let old_snap_filename = snap_pbuf.file_name().unwrap().to_string_lossy().to_string();
+    let new_snap_filename: String =
+        old_snap_filename.clone() + ".httm_restored." + &timestamp_file(&snap_md.modified()?);
+
+    let new_file_dir = config.current_working_dir.clone();
+    let new_file_pbuf: PathBuf = [new_file_dir, PathBuf::from(new_snap_filename)]
+        .iter()
+        .collect();
+
+    let old_file_dir = config.current_working_dir.clone();
+    let old_file_pbuf: PathBuf = [old_file_dir, PathBuf::from(old_snap_filename)]
+        .iter()
+        .collect();
+
+    if old_file_pbuf == snap_pbuf {
+        return Err(
+            HttmError::new("Will not restore files as files are the same file. Quitting.").into(),
+        );
+    };
+
+    // tell the user what we're up to
+    write!(out, "httm will copy a file from a ZFS snapshot...\n\n")?;
+    writeln!(out, "\tfrom: {:?}", snap_pbuf)?;
+    writeln!(out, "\tto:   {:?}\n", new_file_pbuf)?;
+    write!(
+        out,
+        "Before httm does anything, it would like your consent. Continue? (Y/N) "
+    )?;
+    out.flush()?;
+
+    let input_buffer = read_stdin()?;
+    let res = input_buffer
+        .get(0)
+        .unwrap_or(&"N".to_owned())
+        .to_lowercase();
+
+    if res == "y" || res == "yes" {
+        std::fs::copy(snap_pbuf, new_file_pbuf)?;
+        write!(out, "\nRestore completed successfully.\n")?;
+    } else {
+        write!(out, "\nUser declined.  No files were restored.\n")?;
+    }
+
+    std::process::exit(0)
+}
 
 fn lookup_view(config: &Config) -> Result<String, Box<dyn std::error::Error>> {
     // build our paths for the httm preview invocations, we need Strings because for now
@@ -59,9 +146,9 @@ fn lookup_view(config: &Config) -> Result<String, Box<dyn std::error::Error>> {
     let config_clone = config.clone();
     let canonical_parent_clone = canonical_parent.clone();
 
-    // spawn recursive fn enter_directory
+    // spawn recursive fn enumerate_directory
     thread::spawn(move || {
-        enter_directory(
+        enumerate_directory(
             &config_clone,
             &tx_item,
             &mut read_dir,
@@ -127,27 +214,63 @@ struct SelectionCandidate {
     canonical_parent: PathBuf,
 }
 
+impl SelectionCandidate {
+    fn strip_string(&self) -> String {
+        let stripped_str = if self.canonical_parent == Path::new("") {
+            self.path.to_string_lossy()
+        } else if let Ok(stripped_path) = &self.path.strip_prefix(&self.canonical_parent) {
+            stripped_path.to_string_lossy()
+        } else {
+            self.path.to_string_lossy()
+        };
+        stripped_str.to_string()
+    }
+    fn paint_string(&self) -> String {
+        let lscolors = LsColors::from_env().unwrap_or_default();
+
+        if let Some(style) = lscolors.style_for_path(&self.path) {
+            let ansi_style = &Style::to_ansi_term_style(style);
+            ansi_style.paint(self.text()).to_string()
+        } else {
+            self.text().to_string()
+        }
+    }
+}
+
 impl SkimItem for SelectionCandidate {
     fn text(&self) -> Cow<str> {
-        Cow::Owned(path_to_string(&self.path, &self.canonical_parent))
+        Cow::Owned(self.strip_string())
     }
     fn display<'a>(&'a self, _context: DisplayContext<'a>) -> AnsiString<'a> {
-        AnsiString::parse(&display_colors(self.text(), &self.path))
+        AnsiString::parse(&self.paint_string())
     }
 }
 
-fn path_to_string(path: &Path, canonical_parent: &Path) -> String {
-    let stripped_str = if canonical_parent == Path::new("") {
-        path.to_string_lossy()
-    } else if let Ok(stripped_path) = &path.strip_prefix(&canonical_parent) {
-        stripped_path.to_string_lossy()
-    } else {
-        path.to_string_lossy()
-    };
-    stripped_str.to_string()
+fn select_view(selection_buffer: String) -> Result<String, Box<dyn std::error::Error>> {
+    let options = SkimOptionsBuilder::default()
+        .interactive(true)
+        .build()
+        .unwrap();
+
+    // `SkimItemReader` is a helper to turn any `BufRead` into a stream of `SkimItem`
+    // `SkimItem` was implemented for `AsRef<str>` by default
+    let item_reader = SkimItemReader::default();
+    let items = item_reader.of_bufread(Cursor::new(selection_buffer));
+
+    // `run_with` would read and show items from the stream
+    let selected_items = Skim::run_with(&options, Some(items))
+        .map(|out| out.selected_items)
+        .unwrap_or_else(Vec::new);
+
+    let res = selected_items
+        .iter()
+        .map(|i| i.output().to_string())
+        .collect();
+
+    Ok(res)
 }
 
-fn enter_directory(
+fn enumerate_directory(
     config: &Config,
     tx_item: &SkimItemSender,
     read_dir: &mut ReadDir,
@@ -176,60 +299,8 @@ fn enter_directory(
             .iter()
             .filter_map(|read_dir| std::fs::read_dir(read_dir).ok())
             .for_each(|mut read_dir| {
-                enter_directory(config, tx_item, &mut read_dir, canonical_parent);
+                enumerate_directory(config, tx_item, &mut read_dir, canonical_parent);
             })
-    }
-}
-
-fn select_view(selection_buffer: String) -> Result<String, Box<dyn std::error::Error>> {
-    let options = SkimOptionsBuilder::default()
-        .interactive(true)
-        .build()
-        .unwrap();
-
-    // `SkimItemReader` is a helper to turn any `BufRead` into a stream of `SkimItem`
-    // `SkimItem` was implemented for `AsRef<str>` by default
-    let item_reader = SkimItemReader::default();
-    let items = item_reader.of_bufread(Cursor::new(selection_buffer));
-
-    // `run_with` would read and show items from the stream
-    let selected_items = Skim::run_with(&options, Some(items))
-        .map(|out| out.selected_items)
-        .unwrap_or_else(Vec::new);
-
-    let res = selected_items
-        .iter()
-        .map(|i| i.output().to_string())
-        .collect();
-
-    Ok(res)
-}
-
-pub fn interactive_exec(
-    out: &mut Stdout,
-    config: &Config,
-) -> Result<Vec<String>, Box<dyn std::error::Error>> {
-    let paths_as_strings = if config.raw_paths.is_empty()
-        || PathBuf::from(&config.raw_paths[0]).is_dir()
-    {
-        vec![lookup_view(config)?]
-    } else if config.raw_paths.len().gt(&1usize) {
-        return Err(HttmError::new("May only specify one path in interactive mode.").into());
-    } else if !Path::new(&config.raw_paths[0]).is_dir() {
-        return Err(
-            HttmError::new("Path specified is not a directory suitable for browsing.").into(),
-        );
-    } else {
-        unreachable!("Nope, nope, you shouldn't be here!!  Just kidding, file a bug if you find yourself here.");
-    };
-
-    match config.interactive_mode {
-        InteractiveMode::Restore | InteractiveMode::Select => {
-            interactive_select(out, config, paths_as_strings)?;
-            unreachable!("You *really* shouldn't be here!!! No.... no.... AHHHHHHHHGGGGG... Just kidding, file a bug if you find yourself here.")
-        }
-        // InteractiveMode::Lookup executes back through fn exec() in httm.rs
-        _ => Ok(paths_as_strings),
     }
 }
 
@@ -240,11 +311,11 @@ fn interactive_select(
 ) -> Result<(), Box<dyn std::error::Error>> {
     // same stuff we do at exec, snooze...
     let search_path = paths_as_strings.get(0).unwrap().to_owned();
-    let pathdata_set = convert_strings_to_pathdata(config, &[search_path])?;
-    let snaps_and_live_set = run_search(config, pathdata_set)?;
-    let selection_buffer = display_pretty(config, snaps_and_live_set)?;
+    let pathdata_set = get_pathdata(config, &[search_path])?;
+    let snaps_and_live_set = lookup_exec(config, pathdata_set)?;
+    let selection_buffer = display_exec(config, snaps_and_live_set)?;
 
-    // file name ready to do some file ops!!
+    // get file name, and get ready to do some file ops!!
     // ... we want the 2nd item or the indexed "1" object
     // everything between the quotes
     let requested_file_name = select_view(selection_buffer)?;
@@ -261,66 +332,6 @@ fn interactive_select(
         writeln!(out, "\"{}\"", parsed_str)?;
         std::process::exit(0)
     }
-}
-
-fn interactive_restore(
-    out: &mut Stdout,
-    config: &Config,
-    parsed_str: &str,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let snap_pbuf = PathBuf::from(&parsed_str);
-
-    let snap_md = if let Ok(snap_md) = snap_pbuf.metadata() {
-        snap_md
-    } else {
-        return Err(HttmError::new("Snapshot location does not exist on disk. Quitting.").into());
-    };
-
-    // build new place to send file
-    let old_snap_filename = snap_pbuf.file_name().unwrap().to_string_lossy().to_string();
-    let new_snap_filename: String =
-        old_snap_filename.clone() + ".httm_restored." + &timestamp_file(&snap_md.modified()?);
-
-    let new_file_dir = config.current_working_dir.clone();
-    let new_file_pbuf: PathBuf = [new_file_dir, PathBuf::from(new_snap_filename)]
-        .iter()
-        .collect();
-
-    let old_file_dir = config.current_working_dir.clone();
-    let old_file_pbuf: PathBuf = [old_file_dir, PathBuf::from(old_snap_filename)]
-        .iter()
-        .collect();
-
-    if old_file_pbuf == snap_pbuf {
-        return Err(
-            HttmError::new("Will not restore files as files are the same file. Quitting.").into(),
-        );
-    };
-
-    // tell the user what we're up to
-    write!(out, "httm will copy a file from a ZFS snapshot...\n\n")?;
-    writeln!(out, "\tfrom: {:?}", snap_pbuf)?;
-    writeln!(out, "\tto:   {:?}\n", new_file_pbuf)?;
-    write!(
-        out,
-        "Before httm does anything, it would like your consent. Continue? (Y/N) "
-    )?;
-    out.flush()?;
-
-    let input_buffer = read_stdin()?;
-    let res = input_buffer
-        .get(0)
-        .unwrap_or(&"N".to_owned())
-        .to_lowercase();
-
-    if res == "y" || res == "yes" {
-        std::fs::copy(snap_pbuf, new_file_pbuf)?;
-        write!(out, "\nRestore completed successfully.\n")?;
-    } else {
-        write!(out, "\nUser declined.  No files were restored.\n")?;
-    }
-
-    std::process::exit(0)
 }
 
 fn timestamp_file(st: &SystemTime) -> String {

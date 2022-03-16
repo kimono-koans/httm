@@ -15,24 +15,24 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
+mod display;
+mod interactive;
+mod lookup;
+
+use crate::display::display_exec;
+use crate::interactive::interactive_exec;
+use crate::lookup::lookup_exec;
+
 use clap::{Arg, ArgMatches};
-use std::io::BufRead;
-use std::time::SystemTime;
 use std::{
     error::Error,
     ffi::OsString,
     fmt,
     fs::canonicalize,
-    io::Write,
+    io::{BufRead, Write},
     path::{Path, PathBuf},
+    time::SystemTime,
 };
-mod display;
-mod interactive;
-mod lookup;
-
-use crate::display::{display_pretty, display_raw};
-use crate::interactive::interactive_exec;
-use crate::lookup::run_search;
 
 #[derive(Debug)]
 pub struct HttmError {
@@ -87,15 +87,12 @@ impl PathData {
             [PathBuf::from("/"), path.to_path_buf()].iter().collect()
         };
 
-        let len;
-        let time;
-        let phantom;
-
-        match std::fs::metadata(&absolute_path) {
+        let (len, time, phantom) = match std::fs::metadata(&absolute_path) {
             Ok(md) => {
-                len = md.len();
-                time = md.modified().ok()?;
-                phantom = false;
+                let len = md.len();
+                let time = md.modified().ok()?;
+                let phantom = false;
+                (len, time, phantom)
             }
             // this seems like a perfect place for a None value, as the file has no metadata,
             // however we will want certain iters to print the *request*, say for deleted/fake files,
@@ -103,11 +100,12 @@ impl PathData {
             //
             // if we get a spurious example of no metadata in snapshot directories we just ignore later
             Err(_) => {
-                len = 0u64;
-                time = SystemTime::UNIX_EPOCH;
-                phantom = true;
+                let len = 0u64;
+                let time = SystemTime::UNIX_EPOCH;
+                let phantom = true;
+                (len, time, phantom)
             }
-        }
+        };
 
         Some(PathData {
             system_time: time,
@@ -363,7 +361,7 @@ fn parse_args() -> ArgMatches {
 // happy 'lil main fn that only handles errors
 fn main() {
     if let Err(e) = exec() {
-        eprintln!("error {}", e);
+        eprintln!("Error: {}", e);
         std::process::exit(1)
     } else {
         std::process::exit(0)
@@ -378,21 +376,16 @@ fn exec() -> Result<(), Box<dyn std::error::Error>> {
     // next, let's do our interactive lookup thing, if appropriate
     // and modify strings returned according to the interactive session
     let pathdata_set = if config.exec_mode == ExecMode::Interactive {
-        let interactive_vec_strings = interactive_exec(&mut out, &config)?;
-        convert_strings_to_pathdata(&config, &interactive_vec_strings)?
+        get_pathdata(&config, &interactive_exec(&mut out, &config)?)?
     } else {
-        convert_strings_to_pathdata(&config, &config.raw_paths)?
+        get_pathdata(&config, &config.raw_paths)?
     };
 
     // finally run search on those paths
-    let snaps_and_live_set = run_search(&config, pathdata_set)?;
+    let snaps_and_live_set = lookup_exec(&config, pathdata_set)?;
 
     // and display
-    let output_buf = if config.opt_raw || config.opt_zeros {
-        display_raw(&config, snaps_and_live_set)?
-    } else {
-        display_pretty(&config, snaps_and_live_set)?
-    };
+    let output_buf = display_exec(&config, snaps_and_live_set)?;
 
     write!(out, "{}", output_buf)?;
     out.flush()?;
@@ -415,7 +408,7 @@ fn read_stdin() -> Result<Vec<String>, Box<dyn std::error::Error>> {
     Ok(broken_string)
 }
 
-pub fn convert_strings_to_pathdata(
+pub fn get_pathdata(
     config: &Config,
     paths_as_strings: &[String],
 ) -> Result<Vec<Option<PathData>>, Box<dyn std::error::Error>> {
