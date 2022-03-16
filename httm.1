@@ -3,11 +3,9 @@
 .SH NAME
 httm \- manual page for httm 0.5.0
 .SH DESCRIPTION
-httm 0.5.0
-displays information about unique file versions contained on ZFS snapshots, but can 
-also interactively view and restore such files.
+httm displays information about unique file versions contained on ZFS snapshots.
 .PP
-*But don't call it H__ T__ Time Machine.*
+*But don't call it a H__ T__ Time Machine.*
 .SS "USAGE:"
 .IP
 httm [OPTIONS] [\-\-] [INPUT_FILES]...
@@ -30,12 +28,12 @@ use native dialogs for an interactive restore from backup.
 .TP
 \fB\-R\fR, \fB\-\-recursive\fR
 recurse into selected directory to find more files. Only
-available in interactive, select and restore modes.
+available in interactive modes.
 .TP
 \fB\-\-snap\-point\fR <SNAP_POINT>
 ordinarily httm will automatically choose your most local
 snapshot directory, but here you may manually specify your own
-mount point for that directory, such as the mount point for a
+mount point for that directory, such as the mount point for 
 remote share.  You can also set via the environment variable
 HTTM_SNAP_POINT.
 .TP

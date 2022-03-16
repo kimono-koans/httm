@@ -273,7 +273,7 @@ impl Config {
 
 fn parse_args() -> ArgMatches {
     clap::Command::new("httm")
-        .about("displays information about unique file versions contained on ZFS snapshots, but can also interactively view and restore such files.\n\n*But don't call it H__ T__ Time Machine.*")
+        .about("displays information about unique file versions contained on ZFS snapshots.\n\n*But don't call it a H__ T__ Time Machine.*")
         .version("0.5.0") 
         .arg(
             Arg::new("INPUT_FILES")
@@ -310,7 +310,7 @@ fn parse_args() -> ArgMatches {
             Arg::new("RECURSIVE")
                 .short('R')
                 .long("recursive")
-                .help("recurse into selected directory to find more files. Only available in interactive, select and restore modes.")
+                .help("recurse into selected directory to find more files. Only available in interactive modes.")
                 .display_order(5)
         )
         .arg(
