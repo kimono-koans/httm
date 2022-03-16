@@ -277,7 +277,7 @@ fn parse_args() -> ArgMatches {
         .version("0.5.0") 
         .arg(
             Arg::new("INPUT_FILES")
-                .help("...you should put your files here, if stdin(3) is not your flavor.")
+                .help("You should put your requested files, in non-interactive mode, or path to search, in interactive mode, here.  If you enter no files, then httm will pause waiting for input on stdin(3).")
                 .takes_value(true)
                 .multiple_values(true)
                 .display_order(1)
