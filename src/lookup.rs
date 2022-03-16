@@ -85,32 +85,19 @@ fn get_versions(
     // Presently, defaults to everything below the working dir in the unspecified case.
     let local_path = if config.opt_snap_point.is_some() {
         if let Some(local_dir) = &config.opt_local_dir {
-            match pathdata.path_buf.strip_prefix(&local_dir) {
-                Ok(path) => path,
-                Err(_) => {
-                    let msg =
-                        "LOCAL_DIR and SNAP_DIR do not match.  Confirm they are set correctly."
-                            .to_string();
-                    return Err(HttmError::new(&msg).into());
-                }
-            }
+            pathdata
+                .path_buf
+                .strip_prefix(&local_dir)
+                .expect("LOCAL_DIR and SNAP_DIR do not match.  Confirm they are set correctly.")
         } else {
-            match pathdata.path_buf.strip_prefix(&config.current_working_dir) {
-                Ok(path) => path,
-                Err(_) => {
-                    let msg = "Are you sure you're in the correct working directory?  Perhaps you need to set the LOCAL_DIR value.".to_string();
-                    return Err(HttmError::new(&msg).into());
-                }
-            }
+            pathdata.path_buf
+            .strip_prefix(&config.current_working_dir)
+            .expect("Are you sure you're in the correct working directory?  Perhaps you need to set the LOCAL_DIR value.")
         }
     } else {
-        match pathdata.path_buf.strip_prefix(&dataset) {
-            Ok(path) => path,
-            Err(_) => {
-                let msg = "Are you sure you're in the correct working directory?  Perhaps you need to set the SNAP_DIR and LOCAL_DIR values.".to_string();
-                return Err(HttmError::new(&msg).into());
-            }
-        }
+        pathdata.path_buf
+        .strip_prefix(&dataset)
+        .expect("Are you sure you're in the correct working directory?  Perhaps you need to set the SNAP_DIR and LOCAL_DIR values.")
     };
 
     let snapshots = std::fs::read_dir(snapshot_dir)?;
