@@ -273,11 +273,11 @@ impl Config {
 
 fn parse_args() -> ArgMatches {
     clap::Command::new("httm")
-        .about("displays information about unique file versions contained on ZFS snapshots, as well as interactive snapshot viewing and restore.\n\n*But don't call it H__ T__ Time Machine.*")
+        .about("displays information about unique file versions contained on ZFS snapshots, but can also interactively view and restore such files.\n\n*But don't call it H__ T__ Time Machine.*")
         .version("0.5.0") 
         .arg(
             Arg::new("INPUT_FILES")
-                .help("You should put your requested files, in non-interactive mode, or path to search, in interactive mode, here.  If you enter no files, then httm will pause waiting for input on stdin(3).")
+                .help("in non-interactive mode, put requested files here.  In interactive mode, this is the search path.  If you enter no files, then httm will pause waiting for input on stdin(3).")
                 .takes_value(true)
                 .multiple_values(true)
                 .display_order(1)
