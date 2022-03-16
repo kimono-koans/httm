@@ -4,9 +4,9 @@
 
 `httm` prints the size, date and corresponding locations of available unique versions (deduplicated by modify time and size) of files residing on ZFS snapshots, but can also be used to the *interactively* view and restore such files.
 
-`httm` might change the way you use ZFS snapshots (because searching for unique file versions can be a chore) or the Time Machine concept (because `httm` is actually fast!).
+Inspired by the wonderful [findoid](https://github.com/jimsalterjrs/sanoid) script.
 
-Inspired by the wonderful [findoid](https://github.com/jimsalterjrs/sanoid) but is about twice as fast in non-interactive mode.
+`httm` might change the way you use ZFS snapshots (because ZFS isn't designed for finding for unique file versions) or the Time Machine concept (because `httm` is fast!).
 
 `httm` also boasts an array of seductive features, like:
 
@@ -30,9 +30,7 @@ The `httm` project contains two main components:
     git clone kimono-koans/httm 
     cargo install --path ./httm/
     ```
-2. The optional `zsh` hot-key bindings: Use `ESC+S` to select snapshots filenames to be dropped to your command line, or use `ESC+M` to browse for all of a file's snapshots.  
-
-Note: The main functionality of `httm` is fully native and doesn't depend on `zsh` or any program other than your native `zfs-utils` but *use it how you would*.  Further example scripts and key bindings are provided as well.
+2. The optional `zsh` hot-key bindings: Use `ESC+S` to select snapshots filenames to be dropped to your command line, or use `ESC+M` to browse for all of a file's snapshots.  Further example scripts and key bindings are provided as well.
 
 ## License
 

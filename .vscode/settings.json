@@ -26,9 +26,13 @@
         "parseable",
         "pathdata",
         "pbuf",
+        "proto",
         "realpath",
+        "sandoid",
         "Swinford",
+        "syncoid",
         "sysfs",
+        "tlsv",
         "Vecs",
         "walkdir"
     ]
