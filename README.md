@@ -13,6 +13,7 @@ Inspired by the wonderful [findoid](https://github.com/jimsalterjrs/sanoid) scri
 * Search for deleted files! Ooooooooo!
 * Select non-immediate datasets (on a different pool, or remote).
 * For use even with rsync-ed non-ZFS local datasets (like ext4, APFS, or NTFS), not just ZFS.
+* Specify multiple files for lookup on different datasets
 * 3 native interactive modes: lookup, select and restore
 * ANSI `ls` colors from your environment
 * Non-blocking recursive directory walking (available in all interactive modes)

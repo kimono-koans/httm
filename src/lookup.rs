@@ -123,13 +123,13 @@ fn get_versions(
 
     let mut unique_versions: HashMap<(SystemTime, u64), PathData> = HashMap::default();
 
-    for path in &versions {
-        if let Some(pathdata) = PathData::new(path) {
-            if !pathdata.is_phantom {
-                unique_versions.insert((pathdata.system_time, pathdata.size), pathdata);
-            }
-        }
-    }
+    let _ = &versions
+        .iter()
+        .filter_map(|path| PathData::new(path))
+        .filter(|pathdata| !pathdata.is_phantom)
+        .for_each(|pathdata| {
+            let _ = unique_versions.insert((pathdata.system_time, pathdata.size), pathdata);
+        });
 
     let mut sorted: Vec<_> = unique_versions.into_iter().collect();
 
