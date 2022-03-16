@@ -85,20 +85,19 @@ fn get_versions(
     // Presently, defaults to everything below the working dir in the unspecified case.
     let local_path = if config.opt_snap_point.is_some() {
         if let Some(local_dir) = &config.opt_local_dir {
-            pathdata
-                .path_buf
+            pathdata.path_buf
                 .strip_prefix(&local_dir)
-                .expect("LOCAL_DIR and SNAP_DIR do not match.  Confirm they are set correctly.")
+                .or(Err(HttmError::new("LOCAL_DIR and SNAP_DIR do not match.  Confirm they are set correctly.".into())))
         } else {
             pathdata.path_buf
             .strip_prefix(&config.current_working_dir)
-            .expect("Are you sure you're in the correct working directory?  Perhaps you need to set the LOCAL_DIR value.")
+            .or(Err(HttmError::new("Are you sure you're in the correct working directory?  Perhaps you need to set the LOCAL_DIR value.".into())))
         }
     } else {
         pathdata.path_buf
         .strip_prefix(&dataset)
-        .expect("Are you sure you're in the correct working directory?  Perhaps you need to set the SNAP_DIR and LOCAL_DIR values.")
-    };
+        .or(Err(HttmError::new("Are you sure you're in the correct working directory?  Perhaps you need to set the SNAP_DIR and LOCAL_DIR values.".into())))
+    }?;
 
     let snapshots = std::fs::read_dir(snapshot_dir)?;
 
