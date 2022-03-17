@@ -4,7 +4,7 @@
 httm-lookup-widget() {
 
   echo
-  command httm -i
+  command httm -i -R
 
   local ret=$?
   zle reset-prompt
@@ -17,7 +17,7 @@ bindkey '\em'   httm-lookup-widget
 # ALT-S - select files on ZFS snapshots interactively
 __httm-select() {
 
-  command httm -s | \
+  command httm -s -R | \
   while read item; do
     echo -n "${item}"
   done
