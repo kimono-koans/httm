@@ -269,7 +269,7 @@ impl Config {
 fn parse_args() -> ArgMatches {
     clap::Command::new("httm")
         .about("displays information about unique file versions contained on ZFS snapshots.\n\n*But don't call it a H__ T__ Time Machine.*")
-        .version("0.5.1") 
+        .version("0.5.2") 
         .arg(
             Arg::new("INPUT_FILES")
                 .help("in non-interactive mode, put requested files here.  In interactive mode, this is the search path.  If you enter no files, then httm will pause waiting for input on stdin(3).")
