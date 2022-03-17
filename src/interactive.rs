@@ -155,14 +155,8 @@ fn lookup_view(config: &Config) -> Result<String, Box<dyn std::error::Error>> {
     });
 
     // string to exec on each preview
-    let path_command = std::str::from_utf8(
-        &ExecProcess::new("command")
-            .arg("-v")
-            .arg("httm")
-            .output()?
-            .stdout,
-    )?
-    .to_owned();
+    let path_command =
+        std::str::from_utf8(&ExecProcess::new("which").arg("httm").output()?.stdout)?.to_owned();
 
     // skim doesn't allow us to use a function, we must call a command
     // and that cause all sorts of nastiness with PATHs etc if the user
