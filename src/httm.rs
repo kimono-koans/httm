@@ -28,7 +28,6 @@ use std::{
     error::Error,
     ffi::OsString,
     fmt,
-    fs::canonicalize,
     io::{BufRead, Write},
     path::{Path, PathBuf},
     time::SystemTime,
@@ -69,22 +68,14 @@ pub struct PathData {
 
 impl PathData {
     fn new(path: &Path) -> Option<PathData> {
-        let parent = if let Some(parent) = path.parent() {
-            parent
-        } else {
-            Path::new("/")
-        };
-
         let absolute_path: PathBuf = if path.is_relative() {
             if let Ok(pwd) = std::env::var("PWD") {
                 [PathBuf::from(&pwd), path.to_path_buf()].iter().collect()
             } else {
                 [PathBuf::from("/"), path.to_path_buf()].iter().collect()
             }
-        } else if let Ok(can_path) = canonicalize(parent) {
-            [can_path, path.to_path_buf()].iter().collect()
         } else {
-            [PathBuf::from("/"), path.to_path_buf()].iter().collect()
+            path.to_path_buf()
         };
 
         let (len, time, phantom) = match std::fs::metadata(&absolute_path) {
@@ -239,6 +230,12 @@ impl Config {
         } else {
             read_stdin()?
         };
+
+        if !file_names.len() == 1 && exec == ExecMode::Interactive {
+            return Err(
+                HttmError::new("Interactive modes are only available on one directory.").into(),
+            );
+        }
 
         // is there a user defined working dir given at the cli?
         let requested_dir = if exec == ExecMode::Interactive

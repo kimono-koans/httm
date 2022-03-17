@@ -15,7 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::display::display_exec;
+use crate::display::{display_exec, paint_string};
 use crate::lookup::lookup_exec;
 use crate::{get_pathdata, read_stdin};
 use crate::{Config, HttmError, InteractiveMode};
@@ -23,8 +23,6 @@ use crate::{Config, HttmError, InteractiveMode};
 extern crate skim;
 use chrono::DateTime;
 use chrono::Local;
-use lscolors::LsColors;
-use lscolors::Style;
 use skim::prelude::*;
 use skim::DisplayContext;
 use std::{
@@ -157,8 +155,14 @@ fn lookup_view(config: &Config) -> Result<String, Box<dyn std::error::Error>> {
     });
 
     // string to exec on each preview
-    let path_command =
-        std::str::from_utf8(&ExecProcess::new("which").arg("httm").output()?.stdout)?.to_owned();
+    let path_command = std::str::from_utf8(
+        &ExecProcess::new("command")
+            .arg("-v")
+            .arg("httm")
+            .output()?
+            .stdout,
+    )?
+    .to_owned();
 
     // skim doesn't allow us to use a function, we must call a command
     // and that cause all sorts of nastiness with PATHs etc if the user
@@ -225,16 +229,6 @@ impl SelectionCandidate {
         };
         stripped_str.to_string()
     }
-    fn paint_string(&self) -> String {
-        let lscolors = LsColors::from_env().unwrap_or_default();
-
-        if let Some(style) = lscolors.style_for_path(&self.path) {
-            let ansi_style = &Style::to_ansi_term_style(style);
-            ansi_style.paint(self.text()).to_string()
-        } else {
-            self.text().to_string()
-        }
-    }
 }
 
 impl SkimItem for SelectionCandidate {
@@ -242,7 +236,10 @@ impl SkimItem for SelectionCandidate {
         Cow::Owned(self.strip_string())
     }
     fn display<'a>(&'a self, _context: DisplayContext<'a>) -> AnsiString<'a> {
-        AnsiString::parse(&self.paint_string())
+        AnsiString::parse(&paint_string(
+            &self.path,
+            &self.path.file_name().unwrap_or_default().to_string_lossy(),
+        ))
     }
 }
 

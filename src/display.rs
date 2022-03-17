@@ -18,7 +18,10 @@
 use crate::{Config, PathData};
 
 use chrono::{DateTime, Local};
+use lscolors::LsColors;
+use lscolors::Style;
 use number_prefix::NumberPrefix;
+use std::path::Path;
 use std::time::SystemTime;
 use terminal_size::{terminal_size, Height, Width};
 
@@ -68,14 +71,20 @@ fn display_pretty(
         write_out_buffer += &format!("{}\n", fancy_string);
     }
 
-    for pathdata_set in &snaps_and_live_set {
+    for (idx, pathdata_set) in snaps_and_live_set.iter().enumerate() {
         let mut pathdata_set_buffer = String::new();
 
         for pathdata in pathdata_set {
             let display_date = display_date(&pathdata.system_time);
             let display_size;
             let fixed_padding;
-            let display_path = &pathdata.path_buf.to_string_lossy();
+
+            let display_path = if idx == 1 {
+                let path = &pathdata.path_buf;
+                paint_string(path, &path.to_string_lossy().to_string())
+            } else {
+                pathdata.path_buf.to_string_lossy().to_string()
+            };
 
             if !config.opt_no_pretty {
                 display_size = format!(
@@ -181,4 +190,15 @@ fn display_human_size(pathdata: &PathData) -> String {
 fn display_date(st: &SystemTime) -> String {
     let dt: DateTime<Local> = st.to_owned().into();
     format!("{}", dt.format("%b %e %H:%M:%S %Y"))
+}
+
+pub fn paint_string(path: &Path, file_name: &str) -> String {
+    let lscolors = LsColors::from_env().unwrap_or_default();
+
+    if let Some(style) = lscolors.style_for_path(path) {
+        let ansi_style = &Style::to_ansi_term_style(style);
+        ansi_style.paint(file_name).to_string()
+    } else {
+        file_name.to_owned()
+    }
 }
