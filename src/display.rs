@@ -49,7 +49,7 @@ fn display_raw(
     // so easy!
     for version in &snaps_and_live_set {
         for pathdata in version {
-            let display_path = pathdata.path_buf.display().to_string();
+            let display_path = pathdata.path_buf.display();
             buffer += &format!("{}{}", display_path, delimiter);
         }
     }
@@ -81,9 +81,9 @@ fn display_pretty(
 
             let display_path = if idx == 1 {
                 let path = &pathdata.path_buf;
-                paint_string(path, &path.to_string_lossy().to_string())
+                paint_string(path, &path.to_string_lossy())
             } else {
-                pathdata.path_buf.to_string_lossy().to_string()
+                pathdata.path_buf.to_string_lossy().into_owned()
             };
 
             if !config.opt_no_pretty {
@@ -118,7 +118,7 @@ fn display_pretty(
         }
         if !config.opt_no_pretty && !pathdata_set_buffer.is_empty() {
             pathdata_set_buffer += &format!("{}\n", fancy_border_string);
-            write_out_buffer += &pathdata_set_buffer.to_string();
+            write_out_buffer += &pathdata_set_buffer;
         } else {
             for line in pathdata_set_buffer.lines().rev() {
                 write_out_buffer += &format!("{}\n", line);

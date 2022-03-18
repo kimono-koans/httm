@@ -70,7 +70,7 @@ pub fn interactive_exec(
     match config.interactive_mode {
         InteractiveMode::Restore | InteractiveMode::Select => {
             interactive_select(out, config, paths_as_strings)?;
-            unreachable!("You *really* shouldn't be here!!! No.... no.... AHHHHHHHHGGGGG... Just kidding, file a bug if you find yourself here.")
+            unreachable!()
         }
         // InteractiveMode::Lookup executes back through fn exec() in httm.rs
         _ => Ok(paths_as_strings),
@@ -121,7 +121,11 @@ fn interactive_restore(
     };
 
     // build new place to send file
-    let old_snap_filename = snap_pbuf.file_name().unwrap().to_string_lossy().to_string();
+    let old_snap_filename = snap_pbuf
+        .file_name()
+        .unwrap()
+        .to_string_lossy()
+        .into_owned();
     let new_snap_filename: String =
         old_snap_filename.clone() + ".httm_restored." + &timestamp_file(&snap_md.modified()?);
 
@@ -171,8 +175,6 @@ fn lookup_view(config: &Config) -> Result<String, Box<dyn std::error::Error>> {
     // We can build a method on our SkimItem to do this, except, right now, it's slower
     // because it blocks on preview(), given the implementation of skim, see the new_preview branch
 
-    // let's build our paths for the httm preview invocations
-
     // prep thread spawn
     let mut read_dir = std::fs::read_dir(&config.user_requested_dir)?;
     let (tx_item, rx_item): (SkimItemSender, SkimItemReceiver) = unbounded();
@@ -195,7 +197,7 @@ fn lookup_view(config: &Config) -> Result<String, Box<dyn std::error::Error>> {
 
     // string to exec on each preview
     let httm_command = if httm_pwd_cmd.exists() {
-        httm_pwd_cmd.to_string_lossy().to_string()
+        httm_pwd_cmd.to_string_lossy().into_owned()
     } else if !httm_path_cmd.is_empty() {
         httm_path_cmd.trim_end_matches('\n').to_owned()
     } else {
@@ -206,16 +208,16 @@ fn lookup_view(config: &Config) -> Result<String, Box<dyn std::error::Error>> {
     };
 
     // create command to use for preview, as noted, unable to use a function for now
-    let requested_parent_string = &config.user_requested_dir.to_string_lossy();
+    let user_requested_dir_string = &config.user_requested_dir.to_string_lossy();
 
     let preview_str = if let Some(raw_value) = &config.opt_snap_point {
         let snap_point = raw_value.to_string_lossy();
         let local_dir = &config.opt_local_dir.to_string_lossy();
         format!(
-            "\"{httm_command}\" --snap-point \"{snap_point}\" --local-dir \"{local_dir}\" \"{requested_parent_string}\"/{{}}"
+            "\"{httm_command}\" --snap-point \"{snap_point}\" --local-dir \"{local_dir}\" \"{user_requested_dir_string}\"/{{}}"
         )
     } else {
-        format!("\"{httm_command}\" \"{requested_parent_string}\"/{{}}")
+        format!("\"{httm_command}\" \"{user_requested_dir_string}\"/{{}}")
     };
 
     // create the skim component for previews
@@ -229,10 +231,7 @@ fn lookup_view(config: &Config) -> Result<String, Box<dyn std::error::Error>> {
         .map(|out| out.selected_items)
         .unwrap_or_else(Vec::new);
 
-    let res = selected_items
-        .iter()
-        .map(|i| i.output().to_string())
-        .collect();
+    let res = selected_items.iter().map(|i| i.output()).collect();
 
     Ok(res)
 }
@@ -253,10 +252,7 @@ fn select_view(selection_buffer: String) -> Result<String, Box<dyn std::error::E
         .map(|out| out.selected_items)
         .unwrap_or_else(Vec::new);
 
-    let res = selected_items
-        .iter()
-        .map(|i| i.output().to_string())
-        .collect();
+    let res = selected_items.iter().map(|i| i.output()).collect();
 
     Ok(res)
 }

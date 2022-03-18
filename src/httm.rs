@@ -40,7 +40,7 @@ pub struct HttmError {
 impl HttmError {
     fn new(msg: &str) -> HttmError {
         HttmError {
-            details: msg.to_string(),
+            details: msg.to_owned(),
         }
     }
 }
@@ -230,7 +230,7 @@ impl Config {
         let file_names: Vec<String> = if matches.is_present("INPUT_FILES") {
             let raw_values = matches.values_of_os("INPUT_FILES").unwrap();
             raw_values
-                .filter_map(|i| i.to_owned().into_string().ok())
+                .map(|i| i.to_string_lossy().into_owned())
                 .collect()
         } else if exec == ExecMode::Interactive {
             Vec::new()

@@ -157,9 +157,8 @@ fn get_dataset(pathdata: &PathData) -> Result<PathBuf, Box<dyn std::error::Error
 
     // do we have any left, if yes just continue
     if select_potential_mountpoints.is_empty() {
-        let msg = "Could not identify any qualifying dataset.  Maybe consider specifying manually at SNAP_POINT?"
-            .to_string();
-        return Err(HttmError::new(&msg).into());
+        let msg = "Could not identify any qualifying dataset.  Maybe consider specifying manually at SNAP_POINT?";
+        return Err(HttmError::new(msg).into());
     };
 
     // select the best match for us: the longest, as we've already matched on the parent folder
