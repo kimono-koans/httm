@@ -57,6 +57,15 @@ impl SkimItem for SelectionCandidate {
                 .to_string_lossy(),
         ))
     }
+    fn output(&self) -> Cow<str> {
+        let path = self
+            .path
+            .canonicalize()
+            .unwrap_or_else(|_| self.path.clone())
+            .to_string_lossy()
+            .into_owned();
+        Cow::Owned(path)
+    }
 }
 
 pub fn interactive_exec(
@@ -208,16 +217,12 @@ fn lookup_view(config: &Config) -> Result<String, Box<dyn std::error::Error>> {
     };
 
     // create command to use for preview, as noted, unable to use a function for now
-    let user_requested_dir_string = &config.user_requested_dir.to_string_lossy();
-
     let preview_str = if let Some(raw_value) = &config.opt_snap_point {
         let snap_point = raw_value.to_string_lossy();
         let local_dir = &config.opt_local_dir.to_string_lossy();
-        format!(
-            "\"{httm_command}\" --snap-point \"{snap_point}\" --local-dir \"{local_dir}\" \"{user_requested_dir_string}\"/{{}}"
-        )
+        format!("\"{httm_command}\" --snap-point \"{snap_point}\" --local-dir \"{local_dir}\" {{}}")
     } else {
-        format!("\"{httm_command}\" \"{user_requested_dir_string}\"/{{}}")
+        format!("\"{httm_command}\" {{}}")
     };
 
     // create the skim component for previews
@@ -231,7 +236,10 @@ fn lookup_view(config: &Config) -> Result<String, Box<dyn std::error::Error>> {
         .map(|out| out.selected_items)
         .unwrap_or_else(Vec::new);
 
-    let res = selected_items.iter().map(|i| i.output()).collect();
+    let res = selected_items
+        .iter()
+        .map(|i| i.output().into_owned())
+        .collect();
 
     Ok(res)
 }
@@ -252,7 +260,10 @@ fn select_view(selection_buffer: String) -> Result<String, Box<dyn std::error::E
         .map(|out| out.selected_items)
         .unwrap_or_else(Vec::new);
 
-    let res = selected_items.iter().map(|i| i.output()).collect();
+    let res = selected_items
+        .iter()
+        .map(|i| i.output().into_owned())
+        .collect();
 
     Ok(res)
 }
