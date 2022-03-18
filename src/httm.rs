@@ -206,13 +206,13 @@ impl Config {
             return Err(HttmError::new("Working directory is not set in your environment.").into());
         };
 
-        let raw_local_dir = if let Some(raw_value) = matches.value_of_os("LOCAL_DIR") {
+        let raw_local_var = if let Some(raw_value) = matches.value_of_os("LOCAL_DIR") {
             Some(raw_value.to_os_string())
         } else {
             env_local_dir
         };
 
-        let local_dir = if let Some(value) = raw_local_dir {
+        let local_dir = if let Some(value) = raw_local_var {
             let local_dir: PathBuf = PathBuf::from(value);
 
             if local_dir.metadata().is_ok() {

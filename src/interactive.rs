@@ -205,7 +205,7 @@ fn lookup_view(config: &Config) -> Result<String, Box<dyn std::error::Error>> {
         .into());
     };
 
-    // create command to use for preview, as noted unable to use a function for now
+    // create command to use for preview, as noted, unable to use a function for now
     let requested_parent_string = &config.user_requested_dir.to_string_lossy();
 
     let preview_str = if let Some(raw_value) = &config.opt_snap_point {
