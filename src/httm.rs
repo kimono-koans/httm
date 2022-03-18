@@ -210,7 +210,7 @@ impl Config {
             env_local_dir.map(OsString::from)
         };
 
-        // working dir from env
+        // grab working dir from env
         let pwd = if let Ok(pwd) = std::env::var("PWD") {
             if let Ok(path) = PathBuf::from(&pwd).canonicalize() {
                 path
@@ -241,13 +241,26 @@ impl Config {
             );
         }
 
-        // is there a user defined working dir given at the cli?
-        let requested_dir = if exec == ExecMode::Interactive
-            && file_names.get(0).is_some()
-            && PathBuf::from(file_names.get(0).unwrap()).is_dir()
-        {
-            PathBuf::from(&file_names.get(0).unwrap())
+        let requested_dir = if exec == ExecMode::Interactive {
+            if file_names.len() > 1usize {
+                return Err(
+                    HttmError::new("May only specify one path in interactive mode.").into(),
+                );
+            } else if file_names.len() == 1 && !Path::new(&file_names[0]).is_dir() {
+                return Err(HttmError::new(
+                    "Path specified is not a directory suitable for browsing.",
+                )
+                .into());
+            } else if file_names.len() == 1 && PathBuf::from(&file_names[0]).is_dir() {
+                PathBuf::from(&file_names.get(0).unwrap()).canonicalize()?
+            } else if file_names.is_empty() {
+                pwd.clone()
+            } else {
+                unreachable!()
+            }
         } else {
+            // in non-interactive mode / display mode, requested dir is just a file
+            // like every other file and pwd must be the requested working dir.
             pwd.clone()
         };
 

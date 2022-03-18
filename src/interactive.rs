@@ -35,24 +35,44 @@ use std::{
     vec,
 };
 
+struct SelectionCandidate {
+    path: PathBuf,
+    user_requested_dir: PathBuf,
+}
+
+impl SelectionCandidate {
+    fn strip_string(&self) -> String {
+        let stripped_str = if self.user_requested_dir == Path::new("") {
+            self.path.to_string_lossy()
+        } else if let Ok(stripped_path) = &self.path.strip_prefix(&self.user_requested_dir) {
+            stripped_path.to_string_lossy()
+        } else {
+            self.path.to_string_lossy()
+        };
+        stripped_str.to_string()
+    }
+}
+
+impl SkimItem for SelectionCandidate {
+    fn text(&self) -> Cow<str> {
+        Cow::Owned(self.strip_string())
+    }
+    fn display<'a>(&'a self, _context: DisplayContext<'a>) -> AnsiString<'a> {
+        AnsiString::parse(&paint_string(
+            &self.path,
+            &self.path.file_name().unwrap_or_default().to_string_lossy(),
+        ))
+    }
+}
+
 pub fn interactive_exec(
     out: &mut Stdout,
     config: &Config,
 ) -> Result<Vec<String>, Box<dyn std::error::Error>> {
-    let paths_as_strings = if config.raw_paths.is_empty()
-        || PathBuf::from(&config.raw_paths[0]).is_dir()
-    {
-        vec![lookup_view(config)?]
-    } else if config.raw_paths.len().gt(&1usize) {
-        return Err(HttmError::new("May only specify one path in interactive mode.").into());
-    } else if !Path::new(&config.raw_paths[0]).is_dir() {
-        return Err(
-            HttmError::new("Path specified is not a directory suitable for browsing.").into(),
-        );
-    } else {
-        unreachable!("Nope, nope, you shouldn't be here!!  Just kidding, file a bug if you find yourself here.");
-    };
+    // are the raw paths as strings suitable for interactive mode
+    let paths_as_strings = vec![lookup_view(config)?];
 
+    // do we return back to our exec function to print or into interactive mode?
     match config.interactive_mode {
         InteractiveMode::Restore | InteractiveMode::Select => {
             interactive_select(out, config, paths_as_strings)?;
@@ -60,6 +80,36 @@ pub fn interactive_exec(
         }
         // InteractiveMode::Lookup executes back through fn exec() in httm.rs
         _ => Ok(paths_as_strings),
+    }
+}
+
+fn interactive_select(
+    out: &mut Stdout,
+    config: &Config,
+    paths_as_strings: Vec<String>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    // same stuff we do at exec, snooze...
+    let search_path = paths_as_strings.get(0).unwrap().to_owned();
+    let pathdata_set = get_pathdata(config, &[search_path])?;
+    let snaps_and_live_set = lookup_exec(config, pathdata_set)?;
+    let selection_buffer = display_exec(config, snaps_and_live_set)?;
+
+    // get file name, and get ready to do some file ops!!
+    // ... we want the 2nd item or the indexed "1" object
+    // everything between the quotes
+    let requested_file_name = select_view(selection_buffer)?;
+    let broken_string: Vec<_> = requested_file_name.split_terminator('"').collect();
+    let parsed_str = if let Some(parsed) = broken_string.get(1) {
+        parsed
+    } else {
+        return Err(HttmError::new("Invalid value selected. Quitting.").into());
+    };
+
+    if config.interactive_mode == InteractiveMode::Restore {
+        Ok(interactive_restore(out, config, parsed_str)?)
+    } else {
+        writeln!(out, "\"{}\"", parsed_str)?;
+        std::process::exit(0)
     }
 }
 
@@ -125,39 +175,26 @@ fn interactive_restore(
 
 fn lookup_view(config: &Config) -> Result<String, Box<dyn std::error::Error>> {
     // We can build a method on our SkimItem to do this, except, right now, it's slower
-    // because it blocks on preview(), because of the implementation of skim, see the new_preview branch
+    // because it blocks on preview(), given the implementation of skim, see the new_preview branch
 
     // let's build our paths for the httm preview invocations
+
+    // why not just set to this value in config?  Because it may be advantageous in the
+    // future to know if the user requested a dir (Some) or not (None)
     let local_dir = if let Some(local_dir) = &config.opt_local_dir {
         local_dir.to_string_lossy()
     } else {
         config.current_working_dir.to_string_lossy()
     };
 
-    let user_requested_parent =
-        if let Ok(user_requested_parent) = config.user_requested_dir.canonicalize() {
-            user_requested_parent
-        } else {
-            return Err(HttmError::new(
-                "Absolute path of the requested directory does not appear to exist.",
-            )
-            .into());
-        };
-
     // prep thread spawn
-    let mut read_dir = std::fs::read_dir(&user_requested_parent)?;
+    let mut read_dir = std::fs::read_dir(&config.user_requested_dir)?;
     let (tx_item, rx_item): (SkimItemSender, SkimItemReceiver) = unbounded();
     let config_clone = config.clone();
-    let canonical_parent_clone = user_requested_parent.clone();
 
-    // spawn recursive fn enumerate_directory
+    // spawn fn enumerate_directory - useful for recursive mode
     thread::spawn(move || {
-        enumerate_directory(
-            &config_clone,
-            &tx_item,
-            &mut read_dir,
-            &canonical_parent_clone,
-        );
+        enumerate_directory(&config_clone, &tx_item, &mut read_dir);
     });
 
     // as skim is slower if we use a function, we must call a command
@@ -183,14 +220,15 @@ fn lookup_view(config: &Config) -> Result<String, Box<dyn std::error::Error>> {
     };
 
     // create command to use for preview, as noted unable to use a function for now
-    let user_parent_string = user_requested_parent.to_string_lossy();
+    let requested_parent_string = &config.user_requested_dir.to_string_lossy();
+
     let preview_str = if let Some(raw_value) = &config.opt_snap_point {
         let snap_point = raw_value.to_string_lossy();
         format!(
-            "\"{httm_command}\" --snap-point \"{snap_point}\" --local-dir \"{local_dir}\" \"{user_parent_string}\"/{{}}"
+            "\"{httm_command}\" --snap-point \"{snap_point}\" --local-dir \"{local_dir}\" \"{requested_parent_string}\"/{{}}"
         )
     } else {
-        format!("\"{httm_command}\" \"{user_parent_string}\"/{{}}")
+        format!("\"{httm_command}\" \"{requested_parent_string}\"/{{}}")
     };
 
     // create the skim component for previews
@@ -210,35 +248,6 @@ fn lookup_view(config: &Config) -> Result<String, Box<dyn std::error::Error>> {
         .collect();
 
     Ok(res)
-}
-struct SelectionCandidate {
-    path: PathBuf,
-    canonical_parent: PathBuf,
-}
-
-impl SelectionCandidate {
-    fn strip_string(&self) -> String {
-        let stripped_str = if self.canonical_parent == Path::new("") {
-            self.path.to_string_lossy()
-        } else if let Ok(stripped_path) = &self.path.strip_prefix(&self.canonical_parent) {
-            stripped_path.to_string_lossy()
-        } else {
-            self.path.to_string_lossy()
-        };
-        stripped_str.to_string()
-    }
-}
-
-impl SkimItem for SelectionCandidate {
-    fn text(&self) -> Cow<str> {
-        Cow::Owned(self.strip_string())
-    }
-    fn display<'a>(&'a self, _context: DisplayContext<'a>) -> AnsiString<'a> {
-        AnsiString::parse(&paint_string(
-            &self.path,
-            &self.path.file_name().unwrap_or_default().to_string_lossy(),
-        ))
-    }
 }
 
 fn select_view(selection_buffer: String) -> Result<String, Box<dyn std::error::Error>> {
@@ -265,12 +274,7 @@ fn select_view(selection_buffer: String) -> Result<String, Box<dyn std::error::E
     Ok(res)
 }
 
-fn enumerate_directory(
-    config: &Config,
-    tx_item: &SkimItemSender,
-    read_dir: &mut ReadDir,
-    canonical_parent: &Path,
-) {
+fn enumerate_directory(config: &Config, tx_item: &SkimItemSender, read_dir: &mut ReadDir) {
     // convert to paths
     let (vec_files, vec_dirs): (Vec<PathBuf>, Vec<PathBuf>) = read_dir
         .filter_map(|i| i.ok())
@@ -284,48 +288,18 @@ fn enumerate_directory(
     combined_vec.iter().for_each(|path| {
         let _ = tx_item.send(Arc::new(SelectionCandidate {
             path: path.to_path_buf(),
-            canonical_parent: canonical_parent.to_path_buf(),
+            user_requested_dir: config.user_requested_dir.clone(),
         }));
     });
 
-    // now recurse, if requested
+    // now recurse into dirs, if requested
     if config.opt_recursive {
         vec_dirs
             .iter()
             .filter_map(|read_dir| std::fs::read_dir(read_dir).ok())
             .for_each(|mut read_dir| {
-                enumerate_directory(config, tx_item, &mut read_dir, canonical_parent);
+                enumerate_directory(config, tx_item, &mut read_dir);
             })
-    }
-}
-
-fn interactive_select(
-    out: &mut Stdout,
-    config: &Config,
-    paths_as_strings: Vec<String>,
-) -> Result<(), Box<dyn std::error::Error>> {
-    // same stuff we do at exec, snooze...
-    let search_path = paths_as_strings.get(0).unwrap().to_owned();
-    let pathdata_set = get_pathdata(config, &[search_path])?;
-    let snaps_and_live_set = lookup_exec(config, pathdata_set)?;
-    let selection_buffer = display_exec(config, snaps_and_live_set)?;
-
-    // get file name, and get ready to do some file ops!!
-    // ... we want the 2nd item or the indexed "1" object
-    // everything between the quotes
-    let requested_file_name = select_view(selection_buffer)?;
-    let broken_string: Vec<_> = requested_file_name.split_terminator('"').collect();
-    let parsed_str = if let Some(parsed) = broken_string.get(1) {
-        parsed
-    } else {
-        return Err(HttmError::new("Invalid value selected. Quitting.").into());
-    };
-
-    if config.interactive_mode == InteractiveMode::Restore {
-        Ok(interactive_restore(out, config, parsed_str)?)
-    } else {
-        writeln!(out, "\"{}\"", parsed_str)?;
-        std::process::exit(0)
     }
 }
 
