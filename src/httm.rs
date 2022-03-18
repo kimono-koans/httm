@@ -130,8 +130,8 @@ pub struct Config {
     opt_no_pretty: bool,
     opt_no_live_vers: bool,
     opt_recursive: bool,
-    opt_snap_point: Option<OsString>,
-    opt_local_dir: Option<OsString>,
+    opt_snap_point: Option<PathBuf>,
+    opt_local_dir: PathBuf,
     exec_mode: ExecMode,
     interactive_mode: InteractiveMode,
     current_working_dir: PathBuf,
@@ -152,7 +152,7 @@ impl Config {
         } else {
             ExecMode::Display
         };
-        let env_local_dir = std::env::var("HTTM_LOCAL_DIR").ok();
+        let env_local_dir = std::env::var_os("HTTM_LOCAL_DIR");
         let recursive = matches.is_present("RECURSIVE");
         let interactive = if matches.is_present("RESTORE") {
             InteractiveMode::Restore
@@ -186,7 +186,7 @@ impl Config {
                 .collect();
 
             if snapshot_dir.metadata().is_ok() {
-                Some(value)
+                Some(snapshot_dir)
             } else {
                 return Err(HttmError::new(
                     "Manually set mountpoint does not contain a hidden ZFS directory.  Please mount a ZFS directory there or try another mountpoint.",
@@ -196,21 +196,6 @@ impl Config {
             None
         };
 
-        let local_dir = if let Some(raw_value) = matches.value_of_os("LOCAL_DIR") {
-            // dir exists sanity check?: check path exists by checking for path metadata
-            if PathBuf::from(raw_value).metadata().is_ok() {
-                Some(raw_value.to_os_string())
-            } else {
-                return Err(HttmError::new(
-                    "Manually set local relative directory does not exist.  Please try another.",
-                )
-                .into());
-            }
-        } else {
-            env_local_dir.map(OsString::from)
-        };
-
-        // grab working dir from env
         let pwd = if let Ok(pwd) = std::env::var("PWD") {
             if let Ok(path) = PathBuf::from(&pwd).canonicalize() {
                 path
@@ -224,6 +209,27 @@ impl Config {
             return Err(HttmError::new("Working directory is not set in your environment.").into());
         };
 
+        let raw_local_dir = if let Some(raw_value) = matches.value_of_os("LOCAL_DIR") {
+            Some(raw_value.to_os_string())
+        } else {
+            env_local_dir
+        };
+
+        let local_dir = if let Some(raw_value) = raw_local_dir {
+            let local_dir: PathBuf = PathBuf::from(&raw_value);
+
+            if local_dir.metadata().is_ok() {
+                local_dir
+            } else {
+                return Err(HttmError::new(
+                    "Manually set local relative directory does not exist.  Please try another.",
+                )
+                .into());
+            }
+        } else {
+            pwd.clone()
+        };
+
         let file_names: Vec<String> = if matches.is_present("INPUT_FILES") {
             let raw_values = matches.values_of_os("INPUT_FILES").unwrap();
             raw_values
@@ -234,12 +240,6 @@ impl Config {
         } else {
             read_stdin()?
         };
-
-        if !file_names.len() == 1 && exec == ExecMode::Interactive {
-            return Err(
-                HttmError::new("Interactive modes are only available on one directory.").into(),
-            );
-        }
 
         let requested_dir = if exec == ExecMode::Interactive {
             if file_names.len() > 1usize {

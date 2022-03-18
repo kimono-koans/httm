@@ -19,7 +19,6 @@ use crate::{Config, HttmError, PathData};
 
 use fxhash::FxHashMap as HashMap;
 use std::{
-    ffi::OsString,
     path::{Path, PathBuf},
     process::Command as ExecProcess,
     time::SystemTime,
@@ -77,7 +76,7 @@ fn get_versions_set(
 fn get_versions(
     config: &Config,
     pathdata: &PathData,
-    dataset: OsString,
+    dataset: PathBuf,
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error>> {
     // building the snapshot path
     let snapshot_dir: PathBuf = [&dataset.to_string_lossy(), ".zfs", "snapshot"]
@@ -93,16 +92,8 @@ fn get_versions(
     // It would only work on ZFS datasets and not local-rsync-ed sets. :(
     // Presently, defaults to everything below the working dir in the unspecified case.
     let local_path = if config.opt_snap_point.is_some() {
-        if let Some(local_dir) = &config.opt_local_dir {
-            pathdata.path_buf.strip_prefix(&local_dir).map_err(|_| {
-                HttmError::new(
-                    "LOCAL_DIR and SNAP_DIR do not match.  Confirm they are set correctly.",
-                )
-            })
-        } else {
-            pathdata.path_buf
-            .strip_prefix(&config.current_working_dir).map_err(|_| HttmError::new("Are you sure you're in the correct working directory?  Perhaps you need to set the LOCAL_DIR value."))
-        }
+        pathdata.path_buf
+        .strip_prefix(&config.current_working_dir).map_err(|_| HttmError::new("Are you sure you're in the correct working directory?  Perhaps you need to set the LOCAL_DIR value."))
     } else {
         pathdata.path_buf
         .strip_prefix(&dataset).map_err(|_| HttmError::new("Are you sure you're in the correct working directory?  Perhaps you need to set the SNAP_DIR and LOCAL_DIR values."))
@@ -133,7 +124,7 @@ fn get_versions(
     Ok(sorted.into_iter().map(|(_, v)| v).collect())
 }
 
-fn get_dataset(pathdata: &PathData) -> Result<OsString, Box<dyn std::error::Error>> {
+fn get_dataset(pathdata: &PathData) -> Result<PathBuf, Box<dyn std::error::Error>> {
     let path = &pathdata.path_buf;
 
     // method parent() cannot return None, when path is an absolute path
@@ -187,5 +178,5 @@ fn get_dataset(pathdata: &PathData) -> Result<OsString, Box<dyn std::error::Erro
         return Err(HttmError::new(&msg).into());
     };
 
-    Ok(OsString::from(best_potential_mountpoint))
+    Ok(PathBuf::from(best_potential_mountpoint))
 }

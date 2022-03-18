@@ -179,14 +179,6 @@ fn lookup_view(config: &Config) -> Result<String, Box<dyn std::error::Error>> {
 
     // let's build our paths for the httm preview invocations
 
-    // why not just set to this value in config?  Because it may be advantageous in the
-    // future to know if the user requested a dir (Some) or not (None)
-    let local_dir = if let Some(local_dir) = &config.opt_local_dir {
-        local_dir.to_string_lossy()
-    } else {
-        config.current_working_dir.to_string_lossy()
-    };
-
     // prep thread spawn
     let mut read_dir = std::fs::read_dir(&config.user_requested_dir)?;
     let (tx_item, rx_item): (SkimItemSender, SkimItemReceiver) = unbounded();
@@ -224,6 +216,7 @@ fn lookup_view(config: &Config) -> Result<String, Box<dyn std::error::Error>> {
 
     let preview_str = if let Some(raw_value) = &config.opt_snap_point {
         let snap_point = raw_value.to_string_lossy();
+        let local_dir = &config.opt_local_dir.to_string_lossy();
         format!(
             "\"{httm_command}\" --snap-point \"{snap_point}\" --local-dir \"{local_dir}\" \"{requested_parent_string}\"/{{}}"
         )
