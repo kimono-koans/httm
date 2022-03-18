@@ -26,9 +26,10 @@ use chrono::Local;
 use skim::prelude::*;
 use skim::DisplayContext;
 use std::{
+    ffi::OsStr,
     fs::ReadDir,
     io::{Cursor, Stdout, Write as IoWrite},
-    path::{Path, PathBuf},
+    path::PathBuf,
     process::Command as ExecProcess,
     thread,
     time::SystemTime,
@@ -37,30 +38,23 @@ use std::{
 
 struct SelectionCandidate {
     path: PathBuf,
-    user_requested_dir: PathBuf,
-}
-
-impl SelectionCandidate {
-    fn strip_string(&self) -> String {
-        let stripped_str = if self.user_requested_dir == Path::new("") {
-            self.path.to_string_lossy()
-        } else if let Ok(stripped_path) = &self.path.strip_prefix(&self.user_requested_dir) {
-            stripped_path.to_string_lossy()
-        } else {
-            self.path.to_string_lossy()
-        };
-        stripped_str.to_string()
-    }
 }
 
 impl SkimItem for SelectionCandidate {
     fn text(&self) -> Cow<str> {
-        Cow::Owned(self.strip_string())
+        self.path
+            .file_name()
+            .unwrap_or_else(|| OsStr::new(""))
+            .to_string_lossy()
     }
     fn display<'a>(&'a self, _context: DisplayContext<'a>) -> AnsiString<'a> {
         AnsiString::parse(&paint_string(
             &self.path,
-            &self.path.file_name().unwrap_or_default().to_string_lossy(),
+            &self
+                .path
+                .file_name()
+                .unwrap_or_else(|| OsStr::new(""))
+                .to_string_lossy(),
         ))
     }
 }
@@ -281,7 +275,6 @@ fn enumerate_directory(config: &Config, tx_item: &SkimItemSender, read_dir: &mut
     combined_vec.iter().for_each(|path| {
         let _ = tx_item.send(Arc::new(SelectionCandidate {
             path: path.to_path_buf(),
-            user_requested_dir: config.user_requested_dir.clone(),
         }));
     });
 
