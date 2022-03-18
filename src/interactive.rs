@@ -97,17 +97,18 @@ fn interactive_select(
     let snaps_and_live_set = lookup_exec(config, pathdata_set)?;
     let selection_buffer = display_exec(config, snaps_and_live_set)?;
 
-    // get file name, and get ready to do some file ops!!
-    // ... we want the 2nd item or the indexed "1" object
-    // everything between the quotes
+    // get the file name, and get ready to do some file ops!!
     let requested_file_name = select_view(selection_buffer)?;
+    // ... we want everything between the quotes
     let broken_string: Vec<_> = requested_file_name.split_terminator('"').collect();
+    // ... and the file is the 2nd item or the indexed "1" object
     let parsed_str = if let Some(parsed) = broken_string.get(1) {
         parsed
     } else {
         return Err(HttmError::new("Invalid value selected. Quitting.").into());
     };
 
+    // continue to restore or print and exit?
     if config.interactive_mode == InteractiveMode::Restore {
         Ok(interactive_restore(out, config, parsed_str)?)
     } else {
@@ -121,8 +122,10 @@ fn interactive_restore(
     config: &Config,
     parsed_str: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    // build path from selection buffer string
     let snap_pbuf = PathBuf::from(&parsed_str);
 
+    // sanity check for metadata, also we will want the time for a timestamp
     let snap_md = if let Ok(snap_md) = snap_pbuf.metadata() {
         snap_md
     } else {
@@ -148,6 +151,7 @@ fn interactive_restore(
         .iter()
         .collect();
 
+    // print error on the user selecting to restore the live version of a file
     if old_file_pbuf == snap_pbuf {
         return Err(
             HttmError::new("Will not restore files as files are the same file. Quitting.").into(),
@@ -181,7 +185,7 @@ fn interactive_restore(
 }
 
 fn lookup_view(config: &Config) -> Result<String, Box<dyn std::error::Error>> {
-    // We can build a method on our SkimItem to do this, except, right now, it's slower
+    // We *can* build a method on our SkimItem to do this, except, right now, it's slower
     // because it blocks on preview(), given the implementation of skim, see the new_preview branch
 
     // prep thread spawn
@@ -194,8 +198,8 @@ fn lookup_view(config: &Config) -> Result<String, Box<dyn std::error::Error>> {
         enumerate_directory(&config_clone, &tx_item, &mut read_dir);
     });
 
-    // as skim is slower if we use a function, we must call a command
-    // and that cause all sorts of nastiness with PATHs etc if the user
+    // as skim is slower, if we use a function, we must call our httm command
+    // for preview and that cause all sorts of nastiness with PATHs etc if the user
     // is not expecting it, so we must locate which command to use.
 
     let httm_pwd_cmd: PathBuf = [&config.current_working_dir, &PathBuf::from("httm")]
@@ -232,10 +236,12 @@ fn lookup_view(config: &Config) -> Result<String, Box<dyn std::error::Error>> {
         .build()
         .unwrap();
 
+    // fn run_with() reads and shows items from the thread stream created above
     let selected_items = Skim::run_with(&options, Some(rx_item))
         .map(|out| out.selected_items)
         .unwrap_or_else(Vec::new);
 
+    // fn output() converts the filename/raw path to a absolute path string for use elsewhere
     let res = selected_items
         .iter()
         .map(|i| i.output().into_owned())
@@ -245,21 +251,20 @@ fn lookup_view(config: &Config) -> Result<String, Box<dyn std::error::Error>> {
 }
 
 fn select_view(selection_buffer: String) -> Result<String, Box<dyn std::error::Error>> {
+    // take what lookup gave us and select from among the snapshot options
+    // build our skim view - less to do than before - no previews, looking through one 'lil buffer
+
     let options = SkimOptionsBuilder::default()
         .interactive(true)
         .build()
         .unwrap();
-
-    // `SkimItemReader` is a helper to turn any `BufRead` into a stream of `SkimItem`
-    // `SkimItem` was implemented for `AsRef<str>` by default
     let item_reader = SkimItemReader::default();
     let items = item_reader.of_bufread(Cursor::new(selection_buffer));
-
-    // `run_with` would read and show items from the stream
     let selected_items = Skim::run_with(&options, Some(items))
         .map(|out| out.selected_items)
         .unwrap_or_else(Vec::new);
 
+    // fn output converts the filename/raw path to a absolute path string for use elsewhere
     let res = selected_items
         .iter()
         .map(|i| i.output().into_owned())
@@ -269,13 +274,13 @@ fn select_view(selection_buffer: String) -> Result<String, Box<dyn std::error::E
 }
 
 fn enumerate_directory(config: &Config, tx_item: &SkimItemSender, read_dir: &mut ReadDir) {
-    // convert to paths
+    // convert to paths, and split into dirs and files
     let (vec_files, vec_dirs): (Vec<PathBuf>, Vec<PathBuf>) = read_dir
         .filter_map(|i| i.ok())
         .map(|dir_entry| dir_entry.path())
         .partition(|path| path.is_file() || path.is_symlink());
 
-    // display with pretty ANSI colors
+    // combine dirs and files into a vec and sort to display
     let mut combined_vec: Vec<&PathBuf> =
         vec![&vec_files, &vec_dirs].into_iter().flatten().collect();
     combined_vec.sort();
@@ -285,7 +290,7 @@ fn enumerate_directory(config: &Config, tx_item: &SkimItemSender, read_dir: &mut
         }));
     });
 
-    // now recurse into dirs, if requested
+    // now recurse into those dirs, if requested
     if config.opt_recursive {
         vec_dirs
             .iter()

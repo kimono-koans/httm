@@ -54,6 +54,7 @@ pub fn lookup_exec(
         .into());
     }
 
+    // return a vec of vecs with no live copies if that is the user's want
     if live_versions.is_empty() {
         Ok(vec![snapshot_versions])
     } else {
@@ -99,8 +100,11 @@ fn get_versions(
         .strip_prefix(&dataset).map_err(|_| HttmError::new("Are you sure you're in the correct working directory?  Perhaps you need to set the SNAP_DIR and LOCAL_DIR values."))
     }?;
 
+    // get the DirEntry for our snapshot path which will have all our possible
+    // needed snapshots
     let snapshots = std::fs::read_dir(snapshot_dir)?;
 
+    // build all possible versions
     let versions: Vec<_> = snapshots
         .filter_map(|entry| entry.ok())
         .map(|entry| entry.path())
@@ -109,6 +113,8 @@ fn get_versions(
 
     let mut unique_versions: HashMap<(SystemTime, u64), PathData> = HashMap::default();
 
+    // filter_map here will remove all the None values silently as we build a list of unique versions
+    // and our hashmap will then remove duplicates with the same system modify time and size/file len
     let _ = &versions
         .iter()
         .filter_map(|path| PathData::new(config, path))
@@ -127,7 +133,7 @@ fn get_versions(
 fn get_dataset(pathdata: &PathData) -> Result<PathBuf, Box<dyn std::error::Error>> {
     let path = &pathdata.path_buf;
 
-    // method parent() cannot return None, when path is an absolute path
+    // method parent() cannot return None, when path is an absolute path and not the root dir
     // and this should have been previous set in PathData new(), so None only if the root dir
     let parent_folder = path
         .parent()

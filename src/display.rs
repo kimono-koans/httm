@@ -79,6 +79,7 @@ fn display_pretty(
             let display_size;
             let fixed_padding;
 
+            // paint the live string with ls colors
             let display_path = if idx == 1 {
                 let path = &pathdata.path_buf;
                 paint_string(path, &path.to_string_lossy())
@@ -86,6 +87,7 @@ fn display_pretty(
                 pathdata.path_buf.to_string_lossy().into_owned()
             };
 
+            // tab delimited if no pretty, and no border lines
             if !config.opt_no_pretty {
                 display_size = format!(
                     "{:>width$}",
@@ -98,16 +100,17 @@ fn display_pretty(
                 fixed_padding = "\t".to_owned();
             }
 
+            // displays blanks for phantom values, equaling their dummy lens and dates
+            // see struct PathData for more details as to why we use a dummy instead of
+            // a None value here
+            //
+            // again must be a better way to print padding, etc.
             if !pathdata.is_phantom {
                 pathdata_set_buffer += &format!(
                     "{}{}{}\"{}\"\n",
                     display_date, display_size, fixed_padding, display_path
                 );
             } else {
-                // displays blanks for phantom values, equaling their dummy lens and dates
-                // see struct PathData for more details
-                //
-                // again must be a better way to print padding, etc.
                 let pad_date: String = (0..display_date.len()).map(|_| " ").collect();
                 let pad_size: String = (0..display_size.len()).map(|_| " ").collect();
                 pathdata_set_buffer += &format!(

@@ -171,6 +171,7 @@ impl Config {
             .into());
         }
 
+        // two ways to get a snap dir: cli and env var
         let raw_snap_var = if let Some(value) = matches.value_of_os("SNAP_POINT") {
             Some(value.to_os_string())
         } else {
@@ -206,6 +207,7 @@ impl Config {
             return Err(HttmError::new("Working directory is not set in your environment.").into());
         };
 
+        // two ways to get a local relative dir: cli and env var
         let raw_local_var = if let Some(raw_value) = matches.value_of_os("LOCAL_DIR") {
             Some(raw_value.to_os_string())
         } else {
@@ -369,7 +371,6 @@ fn parse_args() -> ArgMatches {
         .get_matches()
 }
 
-// happy 'lil main fn that only handles errors
 fn main() {
     if let Err(e) = exec() {
         eprintln!("Error: {}", e);
@@ -381,11 +382,14 @@ fn main() {
 
 fn exec() -> Result<(), Box<dyn std::error::Error>> {
     let mut out = std::io::stdout();
+
+    // get our program args and generate a config for use
+    // everywhere else
     let arg_matches = parse_args();
     let config = Config::from(arg_matches)?;
 
-    // next, let's do our interactive lookup thing, if appropriate
-    // and modify strings returned according to the interactive session
+    // next, let's do our interactive lookup thing, if appropriate,
+    // and for all relevant strings get our PathData struct
     let pathdata_set = if config.exec_mode == ExecMode::Interactive {
         get_pathdata(&config, &interactive_exec(&mut out, &config)?)?
     } else {
