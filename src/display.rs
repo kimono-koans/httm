@@ -63,12 +63,12 @@ fn display_pretty(
 ) -> Result<String, Box<dyn std::error::Error>> {
     let mut write_out_buffer = String::new();
 
-    let (size_padding, fancy_string) = calculate_padding(&snaps_and_live_set);
+    let (size_padding, fancy_border_string) = calculate_padding(&snaps_and_live_set);
 
     // now display with all that beautiful padding
     if !config.opt_no_pretty {
         // only print one border to the top -- to buffer, not pathdata_set_buffer
-        write_out_buffer += &format!("{}\n", fancy_string);
+        write_out_buffer += &format!("{}\n", fancy_border_string);
     }
 
     for (idx, pathdata_set) in snaps_and_live_set.iter().enumerate() {
@@ -117,7 +117,7 @@ fn display_pretty(
             }
         }
         if !config.opt_no_pretty && !pathdata_set_buffer.is_empty() {
-            pathdata_set_buffer += &format!("{}\n", fancy_string);
+            pathdata_set_buffer += &format!("{}\n", fancy_border_string);
             write_out_buffer += &pathdata_set_buffer.to_string();
         } else {
             for line in pathdata_set_buffer.lines().rev() {
@@ -161,7 +161,7 @@ fn calculate_padding(snaps_and_live_set: &[Vec<PathData>]) -> (usize, String) {
     // has to be a more idiomatic way to do this
     // if you know, let me know
 
-    let fancy_string: String = if let Some((Width(w), Height(_h))) = terminal_size() {
+    let fancy_border_string: String = if let Some((Width(w), Height(_h))) = terminal_size() {
         if (w as usize) < fancy_border {
             (0..w as usize).map(|_| "─").collect()
         } else {
@@ -171,7 +171,7 @@ fn calculate_padding(snaps_and_live_set: &[Vec<PathData>]) -> (usize, String) {
         (0..fancy_border).map(|_| "─").collect()
     };
 
-    (size_padding, fancy_string)
+    (size_padding, fancy_border_string)
 }
 
 fn display_human_size(pathdata: &PathData) -> String {

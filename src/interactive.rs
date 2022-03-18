@@ -138,7 +138,9 @@ fn lookup_view(config: &Config) -> Result<String, Box<dyn std::error::Error>> {
         if let Ok(user_requested_parent) = config.user_requested_dir.canonicalize() {
             user_requested_parent
         } else {
-            config.current_working_dir.clone()
+            return Err(
+                HttmError::new("Absolute path of the requested directory does not appear to exist.").into(),
+            );
         };
 
     // prep thread spawn

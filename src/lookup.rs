@@ -120,7 +120,7 @@ fn get_versions(
 
     let _ = &versions
         .iter()
-        .filter_map(|path| PathData::new(path))
+        .filter_map(|path| PathData::new(config, path))
         .filter(|pathdata| !pathdata.is_phantom)
         .for_each(|pathdata| {
             let _ = unique_versions.insert((pathdata.system_time, pathdata.size), pathdata);

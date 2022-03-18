@@ -67,13 +67,9 @@ pub struct PathData {
 }
 
 impl PathData {
-    fn new(path: &Path) -> Option<PathData> {
+    fn new(config: &Config, path: &Path) -> Option<PathData> {
         let absolute_path: PathBuf = if path.is_relative() {
-            if let Ok(pwd) = std::env::var("PWD") {
-                [PathBuf::from(&pwd), path.to_path_buf()].iter().collect()
-            } else {
-                [PathBuf::from("/"), path.to_path_buf()].iter().collect()
-            }
+            [PathBuf::from(&config.current_working_dir), path.to_path_buf()].iter().collect()
         } else {
             path.to_path_buf()
         };
@@ -165,7 +161,7 @@ impl Config {
 
         if recursive && interactive == InteractiveMode::None {
             return Err(HttmError::new(
-                "Recursive search feature only allowed with interactive or restore modes.",
+                "Recursive search feature only allowed in one of the interactive modes.",
             )
             .into());
         }
@@ -201,7 +197,7 @@ impl Config {
                 Some(raw_value.to_os_string())
             } else {
                 return Err(HttmError::new(
-                    "Manually set relative directory does not exist.  Please try another.",
+                    "Manually set local relative directory does not exist.  Please try another.",
                 )
                 .into());
             }
@@ -211,13 +207,17 @@ impl Config {
 
         // working dir from env
         let pwd = if let Ok(pwd) = std::env::var("PWD") {
-            if let Ok(cp) = PathBuf::from(&pwd).canonicalize() {
-                cp
+            if let Ok(path) = PathBuf::from(&pwd).canonicalize() {
+                path
             } else {
-                PathBuf::from("/")
+                return Err(
+                    HttmError::new("Working directory, as set in your environment, does not appear to exist").into(),
+                );
             }
         } else {
-            PathBuf::from("/")
+            return Err(
+                HttmError::new("Working directory is not set in your environment.").into(),
+            );
         };
 
         let file_names: Vec<String> = if matches.is_present("INPUT_FILES") {
@@ -415,12 +415,12 @@ pub fn get_pathdata(
         .map(|string| {
             let path = Path::new(&string);
             if path.is_relative() {
-                let wd: PathBuf = [config.user_requested_dir.clone(), path.to_path_buf()]
+                let working_dir: PathBuf = [config.user_requested_dir.clone(), path.to_path_buf()]
                     .iter()
                     .collect();
-                PathData::new(&wd)
+                PathData::new(config, &working_dir)
             } else {
-                PathData::new(path)
+                PathData::new(config, path)
             }
         })
         .collect();
