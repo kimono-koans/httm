@@ -26,7 +26,6 @@ use crate::lookup::lookup_exec;
 use clap::{Arg, ArgMatches};
 use std::{
     error::Error,
-    ffi::OsString,
     fmt,
     io::{BufRead, Write},
     path::{Path, PathBuf},
@@ -152,6 +151,7 @@ impl Config {
         } else {
             ExecMode::Display
         };
+        let env_snap_dir = std::env::var_os("HTTM_SNAP_POINT");
         let env_local_dir = std::env::var_os("HTTM_LOCAL_DIR");
         let recursive = matches.is_present("RECURSIVE");
         let interactive = if matches.is_present("RESTORE") {
@@ -173,20 +173,17 @@ impl Config {
 
         let raw_snap_var = if let Some(value) = matches.value_of_os("SNAP_POINT") {
             Some(value.to_os_string())
-        } else if let Ok(env_manual_mnt) = std::env::var("HTTM_SNAP_POINT") {
-            Some(OsString::from(env_manual_mnt))
         } else {
-            None
+            env_snap_dir
         };
 
-        let snap_point = if let Some(value) = raw_snap_var {
+        let snap_point = if let Some(raw_value) = raw_snap_var {
             // dir exists sanity check?: check that path contains the hidden snapshot directory
-            let snapshot_dir: PathBuf = [&value.to_string_lossy(), ".zfs", "snapshot"]
-                .iter()
-                .collect();
+            let path = PathBuf::from(raw_value);
+            let snapshot_dir = path.join(".zfs").join("snapshot");
 
             if snapshot_dir.metadata().is_ok() {
-                Some(snapshot_dir)
+                Some(path)
             } else {
                 return Err(HttmError::new(
                     "Manually set mountpoint does not contain a hidden ZFS directory.  Please mount a ZFS directory there or try another mountpoint.",
@@ -215,8 +212,8 @@ impl Config {
             env_local_dir
         };
 
-        let local_dir = if let Some(raw_value) = raw_local_dir {
-            let local_dir: PathBuf = PathBuf::from(&raw_value);
+        let local_dir = if let Some(value) = raw_local_dir {
+            let local_dir: PathBuf = PathBuf::from(value);
 
             if local_dir.metadata().is_ok() {
                 local_dir
