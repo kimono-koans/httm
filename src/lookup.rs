@@ -136,7 +136,7 @@ fn get_versions(
 fn get_dataset(pathdata: &PathData) -> Result<OsString, Box<dyn std::error::Error>> {
     let path = &pathdata.path_buf;
 
-    // method parent() cannot return None, when path is a canonical path
+    // method parent() cannot return None, when path is an absolute path
     // and this should have been previous set in PathData new(), so None only if the root dir
     let parent_folder = path
         .parent()

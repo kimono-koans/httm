@@ -124,25 +124,28 @@ fn interactive_restore(
 }
 
 fn lookup_view(config: &Config) -> Result<String, Box<dyn std::error::Error>> {
-    // build our paths for the httm preview invocations, we need Strings because for now
-    // skim does not allow invoking preview from a Rust function, we actually just exec httm again
+    // We can build a method on our SkimItem to do this, except, right now, it's slower
+    // because it blocks on preview(), because of the implementation of skim, see the new_preview branch
+
+    // let's build our paths for the httm preview invocations
     let local_dir = if let Some(local_dir) = &config.opt_local_dir {
         local_dir.to_string_lossy()
     } else {
         config.current_working_dir.to_string_lossy()
     };
 
-    let canonical_parent = if let Ok(canonical_parent) = config.user_requested_dir.canonicalize() {
-        canonical_parent
-    } else {
-        config.current_working_dir.clone()
-    };
+    let user_requested_parent =
+        if let Ok(user_requested_parent) = config.user_requested_dir.canonicalize() {
+            user_requested_parent
+        } else {
+            config.current_working_dir.clone()
+        };
 
     // prep thread spawn
-    let mut read_dir = std::fs::read_dir(&canonical_parent)?;
+    let mut read_dir = std::fs::read_dir(&user_requested_parent)?;
     let (tx_item, rx_item): (SkimItemSender, SkimItemReceiver) = unbounded();
     let config_clone = config.clone();
-    let canonical_parent_clone = canonical_parent.clone();
+    let canonical_parent_clone = user_requested_parent.clone();
 
     // spawn recursive fn enumerate_directory
     thread::spawn(move || {
@@ -154,39 +157,37 @@ fn lookup_view(config: &Config) -> Result<String, Box<dyn std::error::Error>> {
         );
     });
 
-    // string to exec on each preview
-    let path_command =
+    // as skim is slower if we use a function, we must call a command
+    // and that cause all sorts of nastiness with PATHs etc if the user
+    // is not expecting it, so we must locate which command to use.
+
+    let httm_pwd_cmd: PathBuf = [&config.current_working_dir, &PathBuf::from("httm")]
+        .iter()
+        .collect();
+    let httm_path_cmd =
         std::str::from_utf8(&ExecProcess::new("which").arg("httm").output()?.stdout)?.to_owned();
 
-    // skim doesn't allow us to use a function, we must call a command
-    // and that cause all sorts of nastiness with PATHs etc if the user
-    // is not expecting it
-    let httm_command = if path_command.is_empty() {
-        let path: PathBuf = [&config.current_working_dir, &PathBuf::from("httm")]
-            .iter()
-            .collect();
-        if path.exists() {
-            path.to_string_lossy().to_string()
-        } else {
-            return Err(HttmError::new(
-                "You must place the httm command in your path.  Perhaps the .cargo/bin folder isn't in your path?",
-            )
-            .into());
-        }
+    // string to exec on each preview
+    let httm_command = if httm_pwd_cmd.exists() {
+        httm_pwd_cmd.to_string_lossy().to_string()
+    } else if !httm_path_cmd.is_empty() {
+        httm_path_cmd.trim_end_matches('\n').to_owned()
     } else {
-        path_command.trim_end_matches('\n').to_string()
+        return Err(HttmError::new(
+            "You must place the 'httm' command in your path.  Perhaps the .cargo/bin folder isn't in your path?",
+        )
+        .into());
     };
 
     // create command to use for preview, as noted unable to use a function for now
-    let cp_string = canonical_parent.to_string_lossy();
-    let preview_str = if let Some(sp_os) = &config.opt_snap_point {
-        let snap_point = sp_os.to_string_lossy();
+    let user_parent_string = user_requested_parent.to_string_lossy();
+    let preview_str = if let Some(raw_value) = &config.opt_snap_point {
+        let snap_point = raw_value.to_string_lossy();
         format!(
-            "\"{httm_command}\" --snap-point \"{snap_point}\" --local-dir \"{local_dir}\" \"{}\"/{{}}",
-            cp_string
+            "\"{httm_command}\" --snap-point \"{snap_point}\" --local-dir \"{local_dir}\" \"{user_parent_string}\"/{{}}"
         )
     } else {
-        format!("\"{httm_command}\" \"{}\"/{{}}", cp_string)
+        format!("\"{httm_command}\" \"{user_parent_string}\"/{{}}")
     };
 
     // create the skim component for previews
