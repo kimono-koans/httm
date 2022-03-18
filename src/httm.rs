@@ -69,7 +69,12 @@ pub struct PathData {
 impl PathData {
     fn new(config: &Config, path: &Path) -> Option<PathData> {
         let absolute_path: PathBuf = if path.is_relative() {
-            [PathBuf::from(&config.current_working_dir), path.to_path_buf()].iter().collect()
+            [
+                PathBuf::from(&config.current_working_dir),
+                path.to_path_buf(),
+            ]
+            .iter()
+            .collect()
         } else {
             path.to_path_buf()
         };
@@ -210,14 +215,13 @@ impl Config {
             if let Ok(path) = PathBuf::from(&pwd).canonicalize() {
                 path
             } else {
-                return Err(
-                    HttmError::new("Working directory, as set in your environment, does not appear to exist").into(),
-                );
+                return Err(HttmError::new(
+                    "Working directory, as set in your environment, does not appear to exist",
+                )
+                .into());
             }
         } else {
-            return Err(
-                HttmError::new("Working directory is not set in your environment.").into(),
-            );
+            return Err(HttmError::new("Working directory is not set in your environment.").into());
         };
 
         let file_names: Vec<String> = if matches.is_present("INPUT_FILES") {
