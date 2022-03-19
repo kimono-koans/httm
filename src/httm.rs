@@ -430,18 +430,7 @@ pub fn get_pathdata(
     // build our pathdata Vecs for our lookup request
     let vec_pd: Vec<Option<PathData>> = paths_as_strings
         .iter()
-        .map(|string| {
-            let path = Path::new(&string);
-            if path.is_relative() {
-                let working_dir: PathBuf = [config.user_requested_dir.clone(), path.to_path_buf()]
-                    .iter()
-                    .collect();
-                PathData::new(config, &working_dir)
-            } else {
-                PathData::new(config, path)
-            }
-        })
+        .map(|string| PathData::new(config, Path::new(&string)))
         .collect();
-
     Ok(vec_pd)
 }
