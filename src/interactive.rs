@@ -125,9 +125,9 @@ fn interactive_restore(
     // build pathdata from selection buffer parsed string
     //
     // request is also sanity check for metadata, also we will want the time for a timestamp
-    let snap_pd = if let Some(snap_pd) = PathData::new(config, &PathBuf::from(&parsed_str)) {
-        snap_pd
-    } else {
+    let snap_pd = PathData::new(config, &PathBuf::from(&parsed_str));
+
+    if snap_pd.is_phantom {
         return Err(HttmError::new("Snapshot location does not exist on disk. Quitting.").into());
     };
 

@@ -66,7 +66,7 @@ pub struct PathData {
 }
 
 impl PathData {
-    fn new(config: &Config, path: &Path) -> Option<PathData> {
+    fn new(config: &Config, path: &Path) -> PathData {
         let absolute_path: PathBuf = if path.is_relative() {
             [
                 PathBuf::from(&config.current_working_dir),
@@ -81,7 +81,7 @@ impl PathData {
         let (len, time, phantom) = match std::fs::metadata(&absolute_path) {
             Ok(md) => {
                 let len = md.len();
-                let time = md.modified().ok()?;
+                let time = md.modified().unwrap_or(SystemTime::UNIX_EPOCH);
                 let phantom = false;
                 (len, time, phantom)
             }
@@ -89,7 +89,7 @@ impl PathData {
             // however we will want certain iters to print the *request*, say for deleted/fake files,
             // so we set up a dummy Some value just so we can have the path names we entered
             //
-            // if we get a spurious example of no metadata in snapshot directories we just ignore later
+            // if we get a spurious example of no metadata in snapshot directories, we just ignore later
             Err(_) => {
                 let len = 0u64;
                 let time = SystemTime::UNIX_EPOCH;
@@ -98,12 +98,12 @@ impl PathData {
             }
         };
 
-        Some(PathData {
+        PathData {
             system_time: time,
             size: len,
             path_buf: absolute_path,
             is_phantom: phantom,
-        })
+        }
     }
 }
 
@@ -426,9 +426,9 @@ fn read_stdin() -> Result<Vec<String>, Box<dyn std::error::Error>> {
 pub fn get_pathdata(
     config: &Config,
     paths_as_strings: &[String],
-) -> Result<Vec<Option<PathData>>, Box<dyn std::error::Error>> {
+) -> Result<Vec<PathData>, Box<dyn std::error::Error>> {
     // build our pathdata Vecs for our lookup request
-    let vec_pd: Vec<Option<PathData>> = paths_as_strings
+    let vec_pd: Vec<PathData> = paths_as_strings
         .iter()
         .map(|string| PathData::new(config, Path::new(&string)))
         .collect();

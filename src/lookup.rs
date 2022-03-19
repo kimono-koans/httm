@@ -26,12 +26,11 @@ use std::{
 
 pub fn lookup_exec(
     config: &Config,
-    path_data: Vec<Option<PathData>>,
+    path_data: Vec<PathData>,
 ) -> Result<Vec<Vec<PathData>>, Box<dyn std::error::Error>> {
     // create vec of backups
     let snapshot_versions: Vec<PathData> = path_data
         .iter()
-        .flatten()
         .map(|pathdata| get_versions_set(config, pathdata))
         .collect::<Result<Vec<_>, Box<dyn std::error::Error>>>()?
         .into_iter()
@@ -40,7 +39,7 @@ pub fn lookup_exec(
 
     // create vec of live copies
     let live_versions: Vec<PathData> = if !config.opt_no_live_vers {
-        path_data.into_iter().flatten().collect()
+        path_data.into_iter().collect()
     } else {
         Vec::new()
     };
@@ -113,11 +112,11 @@ fn get_versions(
 
     let mut unique_versions: HashMap<(SystemTime, u64), PathData> = HashMap::default();
 
-    // filter_map here will remove all the None values silently as we build a list of unique versions
+    // filter here will remove all the None values silently as we build a list of unique versions
     // and our hashmap will then remove duplicates with the same system modify time and size/file len
     let _ = &versions
         .iter()
-        .filter_map(|path| PathData::new(config, path))
+        .map(|path| PathData::new(config, path))
         .filter(|pathdata| !pathdata.is_phantom)
         .for_each(|pathdata| {
             let _ = unique_versions.insert((pathdata.system_time, pathdata.size), pathdata);
