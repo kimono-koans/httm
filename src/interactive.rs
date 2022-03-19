@@ -21,6 +21,7 @@ use crate::{get_pathdata, read_stdin};
 use crate::{Config, HttmError, InteractiveMode, PathData};
 
 extern crate skim;
+use anyhow::Result;
 use chrono::DateTime;
 use chrono::Local;
 use skim::prelude::*;
@@ -68,10 +69,7 @@ impl SkimItem for SelectionCandidate {
     }
 }
 
-pub fn interactive_exec(
-    out: &mut Stdout,
-    config: &Config,
-) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+pub fn interactive_exec(out: &mut Stdout, config: &Config) -> Result<Vec<String>> {
     // are the raw paths as strings suitable for interactive mode
     let paths_as_strings = vec![lookup_view(config)?];
 
@@ -90,7 +88,7 @@ fn interactive_select(
     out: &mut Stdout,
     config: &Config,
     paths_as_strings: Vec<String>,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<()> {
     // same stuff we do at exec, snooze...
     let search_path = paths_as_strings.get(0).unwrap().to_owned();
     let pathdata_set = get_pathdata(config, &[search_path]);
@@ -117,11 +115,7 @@ fn interactive_select(
     }
 }
 
-fn interactive_restore(
-    out: &mut Stdout,
-    config: &Config,
-    parsed_str: &str,
-) -> Result<(), Box<dyn std::error::Error>> {
+fn interactive_restore(out: &mut Stdout, config: &Config, parsed_str: &str) -> Result<()> {
     // build pathdata from selection buffer parsed string
     //
     // request is also sanity check for metadata, also we will want the time for a timestamp
@@ -179,7 +173,7 @@ fn interactive_restore(
     std::process::exit(0)
 }
 
-fn lookup_view(config: &Config) -> Result<String, Box<dyn std::error::Error>> {
+fn lookup_view(config: &Config) -> Result<String> {
     // We *can* build a method on our SkimItem to do this, except, right now, it's slower
     // because it blocks on preview(), given the implementation of skim, see the new_preview branch
 
@@ -245,7 +239,7 @@ fn lookup_view(config: &Config) -> Result<String, Box<dyn std::error::Error>> {
     Ok(res)
 }
 
-fn select_view(selection_buffer: String) -> Result<String, Box<dyn std::error::Error>> {
+fn select_view(selection_buffer: String) -> Result<String> {
     // take what lookup gave us and select from among the snapshot options
     // build our skim view - less to do than before - no previews, looking through one 'lil buffer
 

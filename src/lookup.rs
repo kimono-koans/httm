@@ -17,6 +17,7 @@
 
 use crate::{Config, HttmError, PathData};
 
+use anyhow::Result;
 use fxhash::FxHashMap as HashMap;
 use std::{
     path::{Path, PathBuf},
@@ -24,22 +25,19 @@ use std::{
     time::SystemTime,
 };
 
-pub fn lookup_exec(
-    config: &Config,
-    path_data: Vec<PathData>,
-) -> Result<Vec<Vec<PathData>>, Box<dyn std::error::Error>> {
+pub fn lookup_exec(config: &Config, path_data: Vec<PathData>) -> Result<Vec<Vec<PathData>>> {
     // create vec of backups
     let snapshot_versions: Vec<PathData> = path_data
         .iter()
         .map(|pathdata| get_versions_set(config, pathdata))
-        .collect::<Result<Vec<_>, Box<dyn std::error::Error>>>()?
+        .collect::<Result<Vec<_>>>()?
         .into_iter()
         .flatten()
         .collect();
 
     // create vec of live copies
     let live_versions: Vec<PathData> = if !config.opt_no_live_vers {
-        path_data.into_iter().collect()
+        path_data
     } else {
         Vec::new()
     };
@@ -61,10 +59,7 @@ pub fn lookup_exec(
     }
 }
 
-fn get_versions_set(
-    config: &Config,
-    pathdata: &PathData,
-) -> Result<Vec<PathData>, Box<dyn std::error::Error>> {
+fn get_versions_set(config: &Config, pathdata: &PathData) -> Result<Vec<PathData>> {
     let dataset = if let Some(ref snap_point) = config.opt_snap_point {
         snap_point.to_owned()
     } else {
@@ -73,11 +68,7 @@ fn get_versions_set(
     get_versions(config, pathdata, dataset)
 }
 
-fn get_versions(
-    config: &Config,
-    pathdata: &PathData,
-    dataset: PathBuf,
-) -> Result<Vec<PathData>, Box<dyn std::error::Error>> {
+fn get_versions(config: &Config, pathdata: &PathData, dataset: PathBuf) -> Result<Vec<PathData>> {
     // building the snapshot path
     let snapshot_dir: PathBuf = [&dataset.to_string_lossy(), ".zfs", "snapshot"]
         .iter()
@@ -99,30 +90,30 @@ fn get_versions(
         .strip_prefix(&dataset).map_err(|_| HttmError::new("Are you sure you're in the correct working directory?  Perhaps you need to set the SNAP_DIR and LOCAL_DIR values."))
     }?;
 
+    // filter below will remove all the "None"-like phantom values silently as we build a list of unique versions
+    // and our hashmap will then remove duplicates with the same system modify time and size/file len
+    let mut unique_versions: HashMap<(SystemTime, u64), PathData> = HashMap::default();
+
     // get the DirEntry for our snapshot path which will have all our possible
     // needed snapshots
-    let versions = std::fs::read_dir(snapshot_dir)?
-        .into_iter()
+    let mut versions = std::fs::read_dir(snapshot_dir)?
         .flatten()
         .map(|entry| entry.path())
         .map(|path| path.join(local_path))
         .map(|path| PathData::new(config, &path))
-        .filter(|pathdata| !pathdata.is_phantom);
-    // filter here will remove all the None values silently as we build a list of unique versions
-    // and our hashmap will then remove duplicates with the same system modify time and size/file len
-    let mut unique_versions: HashMap<(SystemTime, u64), PathData> = HashMap::default();
-    let _ = versions.into_iter().for_each(|pathdata| {
-        let _ = unique_versions.insert((pathdata.system_time, pathdata.size), pathdata);
-    });
+        .filter(|pathdata| !pathdata.is_phantom)
+        .into_iter()
+        .filter_map(|pathdata| {
+            unique_versions.insert((pathdata.system_time, pathdata.size), pathdata)
+        })
+        .collect::<Vec<PathData>>();
 
-    let mut sorted: Vec<_> = unique_versions.into_iter().collect();
+    versions.sort_by_key(|pathdata| (pathdata.system_time, pathdata.size));
 
-    sorted.sort_by_key(|&(k, _)| k);
-
-    Ok(sorted.into_iter().map(|(_, v)| v).collect())
+    Ok(versions)
 }
 
-fn get_dataset(pathdata: &PathData) -> Result<PathBuf, Box<dyn std::error::Error>> {
+fn get_dataset(pathdata: &PathData) -> Result<PathBuf> {
     let path = &pathdata.path_buf;
 
     // method parent() cannot return None, when path is an absolute path and not the root dir
