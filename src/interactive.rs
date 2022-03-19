@@ -146,13 +146,8 @@ fn interactive_restore(
         .iter()
         .collect();
 
-    let old_file_dir = config.current_working_dir.clone();
-    let old_file_path_buf: PathBuf = [old_file_dir, PathBuf::from(old_snap_filename)]
-        .iter()
-        .collect();
-
     // print error on the user selecting to restore the live version of a file
-    if old_file_path_buf == snap_pd.path_buf {
+    if new_file_path_buf == snap_pd.path_buf {
         return Err(
             HttmError::new("Will not restore files as files are the same file. Quitting.").into(),
         );

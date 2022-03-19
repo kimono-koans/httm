@@ -101,24 +101,19 @@ fn get_versions(
 
     // get the DirEntry for our snapshot path which will have all our possible
     // needed snapshots
-    let snapshots = std::fs::read_dir(snapshot_dir)?;
-
-    // build all possible versions
-    let versions: Vec<_> = snapshots
-        .filter_map(|entry| entry.ok())
+    let versions = std::fs::read_dir(snapshot_dir)?
+        .into_iter()
+        .flatten()
         .map(|entry| entry.path())
         .map(|path| path.join(local_path))
-        .collect();
-
-    let mut unique_versions: HashMap<(SystemTime, u64), PathData> = HashMap::default();
+        .map(|path| PathData::new(config, &path))
+        .filter(|pathdata| !pathdata.is_phantom)
+        .collect::<Vec<PathData>>();
 
     // filter here will remove all the None values silently as we build a list of unique versions
     // and our hashmap will then remove duplicates with the same system modify time and size/file len
-    let _ = &versions
-        .iter()
-        .map(|path| PathData::new(config, path))
-        .filter(|pathdata| !pathdata.is_phantom)
-        .for_each(|pathdata| {
+    let mut unique_versions: HashMap<(SystemTime, u64), PathData> = HashMap::default();
+    let _ = versions.into_iter().for_each(|pathdata| {
             let _ = unique_versions.insert((pathdata.system_time, pathdata.size), pathdata);
         });
 
@@ -169,8 +164,7 @@ fn get_dataset(pathdata: &PathData) -> Result<PathBuf, Box<dyn std::error::Error
     // select the best match for us: the longest, as we've already matched on the parent folder
     // so for /usr/bin/bash, we prefer /usr/bin to /usr
     let best_potential_mountpoint = if let Some(some_bpmp) = select_potential_mountpoints
-        .clone()
-        .into_iter()
+        .iter()
         .max_by_key(|x| x.len())
     {
         some_bpmp
