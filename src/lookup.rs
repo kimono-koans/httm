@@ -107,15 +107,13 @@ fn get_versions(
         .map(|entry| entry.path())
         .map(|path| path.join(local_path))
         .map(|path| PathData::new(config, &path))
-        .filter(|pathdata| !pathdata.is_phantom)
-        .collect::<Vec<PathData>>();
-
+        .filter(|pathdata| !pathdata.is_phantom);
     // filter here will remove all the None values silently as we build a list of unique versions
     // and our hashmap will then remove duplicates with the same system modify time and size/file len
     let mut unique_versions: HashMap<(SystemTime, u64), PathData> = HashMap::default();
     let _ = versions.into_iter().for_each(|pathdata| {
-            let _ = unique_versions.insert((pathdata.system_time, pathdata.size), pathdata);
-        });
+        let _ = unique_versions.insert((pathdata.system_time, pathdata.size), pathdata);
+    });
 
     let mut sorted: Vec<_> = unique_versions.into_iter().collect();
 
@@ -163,18 +161,16 @@ fn get_dataset(pathdata: &PathData) -> Result<PathBuf, Box<dyn std::error::Error
 
     // select the best match for us: the longest, as we've already matched on the parent folder
     // so for /usr/bin/bash, we prefer /usr/bin to /usr
-    let best_potential_mountpoint = if let Some(some_bpmp) = select_potential_mountpoints
-        .iter()
-        .max_by_key(|x| x.len())
-    {
-        some_bpmp
-    } else {
-        let msg = format!(
-            "There is no best match for a ZFS dataset to use for path {:?}. Sorry!/Not sorry?)",
-            path
-        );
-        return Err(HttmError::new(&msg).into());
-    };
+    let best_potential_mountpoint =
+        if let Some(some_bpmp) = select_potential_mountpoints.iter().max_by_key(|x| x.len()) {
+            some_bpmp
+        } else {
+            let msg = format!(
+                "There is no best match for a ZFS dataset to use for path {:?}. Sorry!/Not sorry?)",
+                path
+            );
+            return Err(HttmError::new(&msg).into());
+        };
 
     Ok(PathBuf::from(best_potential_mountpoint))
 }
