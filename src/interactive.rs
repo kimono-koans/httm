@@ -18,7 +18,7 @@
 use crate::display::{display_exec, paint_string};
 use crate::lookup::lookup_exec;
 use crate::{get_pathdata, read_stdin};
-use crate::{Config, HttmError, InteractiveMode};
+use crate::{Config, HttmError, InteractiveMode, PathData};
 
 extern crate skim;
 use chrono::DateTime;
@@ -122,37 +122,37 @@ fn interactive_restore(
     config: &Config,
     parsed_str: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    // build path from selection buffer string
-    let snap_pbuf = PathBuf::from(&parsed_str);
-
-    // sanity check for metadata, also we will want the time for a timestamp
-    let snap_md = if let Ok(snap_md) = snap_pbuf.metadata() {
-        snap_md
+    // build pathdata from selection buffer parsed string
+    //
+    // request is also sanity check for metadata, also we will want the time for a timestamp
+    let snap_pd = if let Some(snap_pd) = PathData::new(config, &PathBuf::from(&parsed_str)) {
+        snap_pd
     } else {
         return Err(HttmError::new("Snapshot location does not exist on disk. Quitting.").into());
     };
 
     // build new place to send file
-    let old_snap_filename = snap_pbuf
+    let old_snap_filename = snap_pd
+        .path_buf
         .file_name()
         .unwrap()
         .to_string_lossy()
         .into_owned();
     let new_snap_filename: String =
-        old_snap_filename.clone() + ".httm_restored." + &timestamp_file(&snap_md.modified()?);
+        old_snap_filename.clone() + ".httm_restored." + &timestamp_file(&snap_pd.system_time);
 
     let new_file_dir = config.current_working_dir.clone();
-    let new_file_pbuf: PathBuf = [new_file_dir, PathBuf::from(new_snap_filename)]
+    let new_file_path_buf: PathBuf = [new_file_dir, PathBuf::from(new_snap_filename)]
         .iter()
         .collect();
 
     let old_file_dir = config.current_working_dir.clone();
-    let old_file_pbuf: PathBuf = [old_file_dir, PathBuf::from(old_snap_filename)]
+    let old_file_path_buf: PathBuf = [old_file_dir, PathBuf::from(old_snap_filename)]
         .iter()
         .collect();
 
     // print error on the user selecting to restore the live version of a file
-    if old_file_pbuf == snap_pbuf {
+    if old_file_path_buf == snap_pd.path_buf {
         return Err(
             HttmError::new("Will not restore files as files are the same file. Quitting.").into(),
         );
@@ -160,8 +160,8 @@ fn interactive_restore(
 
     // tell the user what we're up to
     write!(out, "httm will copy a file from a ZFS snapshot...\n\n")?;
-    writeln!(out, "\tfrom: {:?}", snap_pbuf)?;
-    writeln!(out, "\tto:   {:?}\n", new_file_pbuf)?;
+    writeln!(out, "\tfrom: {:?}", snap_pd.path_buf)?;
+    writeln!(out, "\tto:   {:?}\n", new_file_path_buf)?;
     write!(
         out,
         "Before httm does anything, it would like your consent. Continue? (Y/N) "
@@ -175,7 +175,7 @@ fn interactive_restore(
         .to_lowercase();
 
     if res == "y" || res == "yes" {
-        std::fs::copy(snap_pbuf, new_file_pbuf)?;
+        std::fs::copy(snap_pd.path_buf, new_file_path_buf)?;
         write!(out, "\nRestore completed successfully.\n")?;
     } else {
         write!(out, "\nUser declined.  No files were restored.\n")?;
