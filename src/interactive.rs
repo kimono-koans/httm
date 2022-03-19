@@ -139,7 +139,7 @@ fn interactive_restore(
         .to_string_lossy()
         .into_owned();
     let new_snap_filename: String =
-        old_snap_filename + ".httm_restored." + &timestamp_file(&snap_pd.system_time);
+        old_snap_filename.clone() + ".httm_restored." + &timestamp_file(&snap_pd.system_time);
 
     let new_file_dir = config.current_working_dir.clone();
     let new_file_path_buf: PathBuf = [new_file_dir, PathBuf::from(new_snap_filename)]
