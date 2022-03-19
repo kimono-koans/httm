@@ -23,7 +23,6 @@ use crate::display::display_exec;
 use crate::interactive::interactive_exec;
 use crate::lookup::lookup_exec;
 
-use anyhow::Result;
 use clap::{Arg, ArgMatches};
 use std::{
     error::Error,
@@ -39,7 +38,7 @@ pub struct HttmError {
 }
 
 impl HttmError {
-    fn new(msg: &str) -> Self {
+    fn new(msg: &str) -> HttmError {
         HttmError {
             details: msg.to_owned(),
         }
@@ -139,7 +138,7 @@ pub struct Config {
 }
 
 impl Config {
-    fn from(matches: ArgMatches) -> Result<Config> {
+    fn from(matches: ArgMatches) -> Result<Config, Box<dyn std::error::Error>> {
         let zeros = matches.is_present("ZEROS");
         let raw = matches.is_present("RAW");
         let not_so_pretty = matches.is_present("NOT_SO_PRETTY");
@@ -374,14 +373,14 @@ fn parse_args() -> ArgMatches {
 
 fn main() {
     if let Err(e) = exec() {
-        eprintln!("httm error: {}", e);
+        eprintln!("Error: {}", e);
         std::process::exit(1)
     } else {
         std::process::exit(0)
     }
 }
 
-fn exec() -> Result<()> {
+fn exec() -> Result<(), Box<dyn std::error::Error>> {
     let mut out = std::io::stdout();
 
     // get our program args and generate a config for use
@@ -409,7 +408,7 @@ fn exec() -> Result<()> {
     Ok(())
 }
 
-fn read_stdin() -> Result<Vec<String>> {
+fn read_stdin() -> Result<Vec<String>, Box<dyn std::error::Error>> {
     let mut buffer = String::new();
     let stdin = std::io::stdin();
     let mut stdin = stdin.lock();

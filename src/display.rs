@@ -17,7 +17,6 @@
 
 use crate::{Config, PathData};
 
-use anyhow::Result;
 use chrono::{DateTime, Local};
 use lscolors::LsColors;
 use lscolors::Style;
@@ -26,7 +25,10 @@ use std::path::Path;
 use std::time::SystemTime;
 use terminal_size::{terminal_size, Height, Width};
 
-pub fn display_exec(config: &Config, snaps_and_live_set: Vec<Vec<PathData>>) -> Result<String> {
+pub fn display_exec(
+    config: &Config,
+    snaps_and_live_set: Vec<Vec<PathData>>,
+) -> Result<String, Box<dyn std::error::Error>> {
     let output_buffer = if config.opt_raw || config.opt_zeros {
         display_raw(config, snaps_and_live_set)?
     } else {
@@ -36,7 +38,10 @@ pub fn display_exec(config: &Config, snaps_and_live_set: Vec<Vec<PathData>>) -> 
     Ok(output_buffer)
 }
 
-fn display_raw(config: &Config, snaps_and_live_set: Vec<Vec<PathData>>) -> Result<String> {
+fn display_raw(
+    config: &Config,
+    snaps_and_live_set: Vec<Vec<PathData>>,
+) -> Result<String, Box<dyn std::error::Error>> {
     let mut buffer = String::new();
 
     let delimiter = if config.opt_zeros { '\0' } else { '\n' };
@@ -52,7 +57,10 @@ fn display_raw(config: &Config, snaps_and_live_set: Vec<Vec<PathData>>) -> Resul
     Ok(buffer)
 }
 
-fn display_pretty(config: &Config, snaps_and_live_set: Vec<Vec<PathData>>) -> Result<String> {
+fn display_pretty(
+    config: &Config,
+    snaps_and_live_set: Vec<Vec<PathData>>,
+) -> Result<String, Box<dyn std::error::Error>> {
     let mut write_out_buffer = String::new();
 
     let (size_padding, fancy_border_string) = calculate_padding(&snaps_and_live_set);
