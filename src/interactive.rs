@@ -93,7 +93,7 @@ fn interactive_select(
 ) -> Result<(), Box<dyn std::error::Error>> {
     // same stuff we do at exec, snooze...
     let search_path = paths_as_strings.get(0).unwrap().to_owned();
-    let pathdata_set = get_pathdata(config, &[search_path])?;
+    let pathdata_set = get_pathdata(config, &[search_path]);
     let snaps_and_live_set = lookup_exec(config, pathdata_set)?;
     let selection_buffer = display_exec(config, snaps_and_live_set)?;
 

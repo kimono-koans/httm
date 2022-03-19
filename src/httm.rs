@@ -391,9 +391,9 @@ fn exec() -> Result<(), Box<dyn std::error::Error>> {
     // next, let's do our interactive lookup thing, if appropriate,
     // and for all relevant strings get our PathData struct
     let pathdata_set = if config.exec_mode == ExecMode::Interactive {
-        get_pathdata(&config, &interactive_exec(&mut out, &config)?)?
+        get_pathdata(&config, &interactive_exec(&mut out, &config)?)
     } else {
-        get_pathdata(&config, &config.raw_paths)?
+        get_pathdata(&config, &config.raw_paths)
     };
 
     // finally run search on those paths
@@ -423,14 +423,11 @@ fn read_stdin() -> Result<Vec<String>, Box<dyn std::error::Error>> {
     Ok(broken_string)
 }
 
-pub fn get_pathdata(
-    config: &Config,
-    paths_as_strings: &[String],
-) -> Result<Vec<PathData>, Box<dyn std::error::Error>> {
+pub fn get_pathdata(config: &Config, paths_as_strings: &[String]) -> Vec<PathData> {
     // build our pathdata Vecs for our lookup request
     let vec_pd: Vec<PathData> = paths_as_strings
         .iter()
         .map(|string| PathData::new(config, Path::new(&string)))
         .collect();
-    Ok(vec_pd)
+    vec_pd
 }
