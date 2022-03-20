@@ -16,6 +16,7 @@
 // that was distributed with this source code.
 
 use crate::{Config, HttmError, PathData};
+use which::which;
 
 use fxhash::FxHashMap as HashMap;
 use std::{
@@ -134,10 +135,24 @@ fn get_dataset(pathdata: &PathData) -> Result<PathBuf, Box<dyn std::error::Error
         .to_string_lossy();
 
     // ingest datasets from the cmdline
-    let exec_command = "zfs list -H -t filesystem -o mountpoint,mounted";
+    let shell = which("sh")
+        .map_err(|_| {
+            HttmError::new("sh command not found. Make sure the command 'sh' is in your path.")
+        })?
+        .to_string_lossy()
+        .to_string();
+
+    let exec_args = " list -H -t filesystem -o mountpoint,mounted";
+    let exec_command = which("zfs")
+        .map_err(|_| {
+            HttmError::new("zfs command not found. Make sure the command 'zfs' is in your path.")
+        })?
+        .to_string_lossy()
+        .to_string()
+        + exec_args;
+
     let datasets_from_zfs = std::str::from_utf8(
-        &ExecProcess::new("env")
-            .arg("sh")
+        &ExecProcess::new(shell)
             .arg("-c")
             .arg(exec_command)
             .output()?

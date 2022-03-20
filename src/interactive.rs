@@ -193,7 +193,7 @@ fn lookup_view(config: &Config) -> Result<String, Box<dyn std::error::Error>> {
         enumerate_directory(&config_clone, &tx_item, &mut read_dir);
     });
 
-    // as skim is slower, if we use a function, we must call our httm command
+    // as skim is slower if we use a function, we must call our httm command
     // for preview and that cause all sorts of nastiness with PATHs etc if the user
     // is not expecting it, so we must locate which command to use.
 
