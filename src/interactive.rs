@@ -222,6 +222,7 @@ fn lookup_view(config: &Config) -> Result<String, Box<dyn std::error::Error>> {
     let options = SkimOptionsBuilder::default()
         .preview_window(Some("70%"))
         .preview(Some(&preview_str))
+        .exact(true)
         .build()
         .unwrap();
 
@@ -245,6 +246,7 @@ fn select_view(selection_buffer: String) -> Result<String, Box<dyn std::error::E
 
     let options = SkimOptionsBuilder::default()
         .interactive(true)
+        .exact(true)
         .build()
         .unwrap();
     let item_reader = SkimItemReader::default();
