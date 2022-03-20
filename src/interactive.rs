@@ -26,11 +26,11 @@ use chrono::Local;
 use skim::prelude::*;
 use skim::DisplayContext;
 use std::{
+    env,
     ffi::OsStr,
     fs::ReadDir,
     io::{Cursor, Stdout, Write as IoWrite},
     path::PathBuf,
-    process::Command as ExecProcess,
     thread,
     time::SystemTime,
     vec,
@@ -139,7 +139,7 @@ fn interactive_restore(
         .to_string_lossy()
         .into_owned();
     let new_snap_filename: String =
-        old_snap_filename.clone() + ".httm_restored." + &timestamp_file(&snap_pd.system_time);
+        old_snap_filename + ".httm_restored." + &timestamp_file(&snap_pd.system_time);
 
     let new_file_dir = config.current_working_dir.clone();
     let new_file_path_buf: PathBuf = [new_file_dir, PathBuf::from(new_snap_filename)]
@@ -193,21 +193,15 @@ fn lookup_view(config: &Config) -> Result<String, Box<dyn std::error::Error>> {
         enumerate_directory(&config_clone, &tx_item, &mut read_dir);
     });
 
-    // as skim is slower, if we use a function, we must call our httm command
+    // as skim is slower if we use a function, we must call our httm command
     // for preview and that cause all sorts of nastiness with PATHs etc if the user
     // is not expecting it, so we must locate which command to use.
 
-    let httm_pwd_cmd: PathBuf = [&config.current_working_dir, &PathBuf::from("httm")]
-        .iter()
-        .collect();
-    let httm_path_cmd =
-        std::str::from_utf8(&ExecProcess::new("which").arg("httm").output()?.stdout)?.to_owned();
+    let httm_prog_args = env::args_os().into_iter().next();
 
     // string to exec on each preview
-    let httm_command = if httm_pwd_cmd.exists() {
-        httm_pwd_cmd.to_string_lossy().into_owned()
-    } else if !httm_path_cmd.is_empty() {
-        httm_path_cmd.trim_end_matches('\n').to_owned()
+    let httm_command = if let Some(httm_prog_args) = httm_prog_args {
+        httm_prog_args.to_string_lossy().into_owned()
     } else {
         return Err(HttmError::new(
             "You must place the 'httm' command in your path.  Perhaps the .cargo/bin folder isn't in your path?",
