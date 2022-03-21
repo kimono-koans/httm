@@ -404,6 +404,7 @@ dependencies = [
  "fxhash",
  "lscolors",
  "number_prefix",
+ "rayon",
  "skim",
  "terminal_size",
  "which",

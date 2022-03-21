@@ -23,6 +23,7 @@ use crate::{Config, HttmError, InteractiveMode, PathData};
 extern crate skim;
 use chrono::DateTime;
 use chrono::Local;
+use rayon::prelude::*;
 use skim::prelude::*;
 use skim::DisplayContext;
 use std::{
@@ -71,7 +72,7 @@ impl SkimItem for SelectionCandidate {
 pub fn interactive_exec(
     out: &mut Stdout,
     config: &Config,
-) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+) -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // are the raw paths as strings suitable for interactive mode
     let paths_as_strings = vec![lookup_view(config)?];
 
@@ -90,7 +91,7 @@ fn interactive_select(
     out: &mut Stdout,
     config: &Config,
     paths_as_strings: Vec<String>,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     // same stuff we do at exec, snooze...
     let search_path = paths_as_strings.get(0).unwrap().to_owned();
     let pathdata_set = get_pathdata(config, &[search_path]);
@@ -121,7 +122,7 @@ fn interactive_restore(
     out: &mut Stdout,
     config: &Config,
     parsed_str: &str,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     // build pathdata from selection buffer parsed string
     //
     // request is also sanity check for metadata, also we will want the time for a timestamp
@@ -179,7 +180,9 @@ fn interactive_restore(
     std::process::exit(0)
 }
 
-fn lookup_view(config: &Config) -> Result<String, Box<dyn std::error::Error>> {
+fn lookup_view(
+    config: &Config,
+) -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // We *can* build a method on our SkimItem to do this, except, right now, it's slower
     // because it blocks on preview(), given the implementation of skim, see the new_preview branch
 
@@ -240,7 +243,9 @@ fn lookup_view(config: &Config) -> Result<String, Box<dyn std::error::Error>> {
     Ok(res)
 }
 
-fn select_view(selection_buffer: String) -> Result<String, Box<dyn std::error::Error>> {
+fn select_view(
+    selection_buffer: String,
+) -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // take what lookup gave us and select from among the snapshot options
     // build our skim view - less to do than before - no previews, looking through one 'lil buffer
 
@@ -274,8 +279,8 @@ fn enumerate_directory(config: &Config, tx_item: &SkimItemSender, read_dir: &mut
     // combine dirs and files into a vec and sort to display
     let mut combined_vec: Vec<&PathBuf> =
         vec![&vec_files, &vec_dirs].into_iter().flatten().collect();
-    combined_vec.sort();
-    combined_vec.iter().for_each(|path| {
+    combined_vec.par_sort();
+    combined_vec.par_iter().for_each(|path| {
         let _ = tx_item.send(Arc::new(SelectionCandidate {
             path: path.to_path_buf(),
         }));
@@ -284,6 +289,7 @@ fn enumerate_directory(config: &Config, tx_item: &SkimItemSender, read_dir: &mut
     // now recurse into those dirs, if requested
     if config.opt_recursive {
         vec_dirs
+            // don't want to a par_iter here because it will block instead of recurse
             .iter()
             .filter_map(|read_dir| std::fs::read_dir(read_dir).ok())
             .for_each(|mut read_dir| {

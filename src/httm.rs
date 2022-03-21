@@ -24,6 +24,7 @@ use crate::interactive::interactive_exec;
 use crate::lookup::lookup_exec;
 
 use clap::{Arg, ArgMatches};
+use rayon::prelude::*;
 use std::{
     error::Error,
     fmt,
@@ -138,7 +139,9 @@ pub struct Config {
 }
 
 impl Config {
-    fn from(matches: ArgMatches) -> Result<Config, Box<dyn std::error::Error>> {
+    fn from(
+        matches: ArgMatches,
+    ) -> Result<Config, Box<dyn std::error::Error + Send + Sync + 'static>> {
         let zeros = matches.is_present("ZEROS");
         let raw = matches.is_present("RAW");
         let not_so_pretty = matches.is_present("NOT_SO_PRETTY");
@@ -380,7 +383,7 @@ fn main() {
     }
 }
 
-fn exec() -> Result<(), Box<dyn std::error::Error>> {
+fn exec() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let mut out = std::io::stdout();
 
     // get our program args and generate a config for use
@@ -408,7 +411,7 @@ fn exec() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn read_stdin() -> Result<Vec<String>, Box<dyn std::error::Error>> {
+fn read_stdin() -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     let mut buffer = String::new();
     let stdin = std::io::stdin();
     let mut stdin = stdin.lock();
@@ -426,7 +429,7 @@ fn read_stdin() -> Result<Vec<String>, Box<dyn std::error::Error>> {
 pub fn get_pathdata(config: &Config, paths_as_strings: &[String]) -> Vec<PathData> {
     // build our pathdata Vecs for our lookup request
     let vec_pd: Vec<PathData> = paths_as_strings
-        .iter()
+        .par_iter()
         .map(|string| PathData::new(config, Path::new(&string)))
         .collect();
     vec_pd

@@ -28,7 +28,7 @@ use terminal_size::{terminal_size, Height, Width};
 pub fn display_exec(
     config: &Config,
     snaps_and_live_set: Vec<Vec<PathData>>,
-) -> Result<String, Box<dyn std::error::Error>> {
+) -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
     let output_buffer = if config.opt_raw || config.opt_zeros {
         display_raw(config, snaps_and_live_set)?
     } else {
@@ -41,7 +41,7 @@ pub fn display_exec(
 fn display_raw(
     config: &Config,
     snaps_and_live_set: Vec<Vec<PathData>>,
-) -> Result<String, Box<dyn std::error::Error>> {
+) -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
     let mut buffer = String::new();
 
     let delimiter = if config.opt_zeros { '\0' } else { '\n' };
@@ -60,7 +60,7 @@ fn display_raw(
 fn display_pretty(
     config: &Config,
     snaps_and_live_set: Vec<Vec<PathData>>,
-) -> Result<String, Box<dyn std::error::Error>> {
+) -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
     let mut write_out_buffer = String::new();
 
     let (size_padding, fancy_border_string) = calculate_padding(&snaps_and_live_set);

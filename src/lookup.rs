@@ -16,6 +16,7 @@
 // that was distributed with this source code.
 
 use crate::{Config, HttmError, PathData};
+use rayon::prelude::*;
 use which::which;
 
 use fxhash::FxHashMap as HashMap;
@@ -28,19 +29,19 @@ use std::{
 pub fn lookup_exec(
     config: &Config,
     path_data: Vec<PathData>,
-) -> Result<Vec<Vec<PathData>>, Box<dyn std::error::Error>> {
+) -> Result<Vec<Vec<PathData>>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // create vec of backups
     let snapshot_versions: Vec<PathData> = path_data
-        .iter()
+        .par_iter()
         .map(|pathdata| get_versions_set(config, pathdata))
-        .collect::<Result<Vec<_>, Box<dyn std::error::Error>>>()?
+        .collect::<Result<Vec<_>, Box<dyn std::error::Error + Send + Sync + 'static>>>()?
         .into_iter()
         .flatten()
         .collect();
 
     // create vec of live copies
     let live_versions: Vec<PathData> = if !config.opt_no_live_vers {
-        path_data.into_iter().collect()
+        path_data
     } else {
         Vec::new()
     };
@@ -65,7 +66,7 @@ pub fn lookup_exec(
 fn get_versions_set(
     config: &Config,
     pathdata: &PathData,
-) -> Result<Vec<PathData>, Box<dyn std::error::Error>> {
+) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     let dataset = if let Some(ref snap_point) = config.opt_snap_point {
         snap_point.to_owned()
     } else {
@@ -78,7 +79,7 @@ fn get_versions(
     config: &Config,
     pathdata: &PathData,
     dataset: PathBuf,
-) -> Result<Vec<PathData>, Box<dyn std::error::Error>> {
+) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // building the snapshot path
     let snapshot_dir: PathBuf = [&dataset.to_string_lossy(), ".zfs", "snapshot"]
         .iter()
@@ -105,26 +106,30 @@ fn get_versions(
     let versions = std::fs::read_dir(snapshot_dir)?
         .into_iter()
         .flatten()
+        .par_bridge()
         .map(|entry| entry.path())
         .map(|path| path.join(local_path))
         .map(|path| PathData::new(config, &path))
-        .filter(|pathdata| !pathdata.is_phantom);
+        .filter(|pathdata| !pathdata.is_phantom)
+        .collect::<Vec<PathData>>();
 
     // filter here will remove all the None values silently as we build a list of unique versions
     // and our hashmap will then remove duplicates with the same system modify time and size/file len
     let mut unique_versions: HashMap<(SystemTime, u64), PathData> = HashMap::default();
-    let _ = versions.for_each(|pathdata| {
+    let _ = versions.into_iter().for_each(|pathdata| {
         let _ = unique_versions.insert((pathdata.system_time, pathdata.size), pathdata);
     });
 
     let mut sorted: Vec<_> = unique_versions.into_iter().collect();
 
-    sorted.sort_by_key(|&(k, _)| k);
+    sorted.par_sort_by_key(|&(k, _)| k);
 
     Ok(sorted.into_iter().map(|(_, v)| v).collect())
 }
 
-fn get_dataset(pathdata: &PathData) -> Result<PathBuf, Box<dyn std::error::Error>> {
+fn get_dataset(
+    pathdata: &PathData,
+) -> Result<PathBuf, Box<dyn std::error::Error + Send + Sync + 'static>> {
     let path = &pathdata.path_buf;
 
     // method parent() cannot return None, when path is an absolute path and not the root dir
@@ -162,7 +167,7 @@ fn get_dataset(pathdata: &PathData) -> Result<PathBuf, Box<dyn std::error::Error
 
     // prune most datasets by match the parent_folder of file contains those datasets
     let select_potential_mountpoints = datasets_from_zfs
-        .lines()
+        .par_lines()
         .filter(|line| line.contains("yes"))
         .filter_map(|line| line.split('\t').next())
         .map(|line| line.trim())
@@ -177,16 +182,18 @@ fn get_dataset(pathdata: &PathData) -> Result<PathBuf, Box<dyn std::error::Error
 
     // select the best match for us: the longest, as we've already matched on the parent folder
     // so for /usr/bin/bash, we prefer /usr/bin to /usr
-    let best_potential_mountpoint =
-        if let Some(some_bpmp) = select_potential_mountpoints.iter().max_by_key(|x| x.len()) {
-            some_bpmp
-        } else {
-            let msg = format!(
-                "There is no best match for a ZFS dataset to use for path {:?}. Sorry!/Not sorry?)",
-                path
-            );
-            return Err(HttmError::new(&msg).into());
-        };
+    let best_potential_mountpoint = if let Some(some_bpmp) = select_potential_mountpoints
+        .par_iter()
+        .max_by_key(|x| x.len())
+    {
+        some_bpmp
+    } else {
+        let msg = format!(
+            "There is no best match for a ZFS dataset to use for path {:?}. Sorry!/Not sorry?)",
+            path
+        );
+        return Err(HttmError::new(&msg).into());
+    };
 
     Ok(PathBuf::from(best_potential_mountpoint))
 }
