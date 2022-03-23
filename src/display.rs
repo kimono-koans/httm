@@ -87,7 +87,7 @@ fn display_pretty(
                 pathdata.path_buf.to_string_lossy().into_owned()
             };
 
-            // tab delimited if no pretty, and no border lines
+            // tab delimited if "no pretty", and no border lines
             if !config.opt_no_pretty {
                 display_size = format!(
                     "{:>width$}",
@@ -150,7 +150,7 @@ fn calculate_padding(snaps_and_live_set: &[Vec<PathData>]) -> (usize, String) {
 
             let display_size_len = display_human_size(pathdata).len();
             let formatted_line_len =
-                // 2usize is for the two single quotes we add to the path display below 
+                // addition of 2usize is for the two quotation marks we add to the path display below 
                 display_date.len() + display_size.len() + fixed_padding.len() + display_path.len() + 2usize;
 
             size_padding = display_size_len.max(size_padding);
@@ -163,7 +163,6 @@ fn calculate_padding(snaps_and_live_set: &[Vec<PathData>]) -> (usize, String) {
 
     // has to be a more idiomatic way to do this
     // if you know, let me know
-
     let fancy_border_string: String = if let Some((Width(w), Height(_h))) = terminal_size() {
         if (w as usize) < fancy_border {
             (0..w as usize).map(|_| "─").collect()

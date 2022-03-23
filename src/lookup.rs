@@ -113,7 +113,7 @@ fn get_versions(
         .filter(|pathdata| !pathdata.is_phantom)
         .collect::<Vec<PathData>>();
 
-    // filter here will remove all the None values silently as we build a list of unique versions
+    // filter above will remove all the None-like phantom values silently as we build a list of unique versions
     // and our hashmap will then remove duplicates with the same system modify time and size/file len
     let mut unique_versions: HashMap<(SystemTime, u64), PathData> = HashMap::default();
     let _ = versions.into_iter().for_each(|pathdata| {
@@ -181,7 +181,7 @@ fn get_dataset(
     };
 
     // select the best match for us: the longest, as we've already matched on the parent folder
-    // so for /usr/bin/bash, we prefer /usr/bin to /usr
+    // so for /usr/bin/bash, we would then prefer /usr/bin to /usr
     let best_potential_mountpoint = if let Some(some_bpmp) = select_potential_mountpoints
         .par_iter()
         .max_by_key(|x| x.len())

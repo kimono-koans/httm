@@ -199,7 +199,6 @@ fn lookup_view(
     // as skim is slower if we use a function, we must call our httm command
     // for preview and that cause all sorts of nastiness with PATHs etc if the user
     // is not expecting it, so we must locate which command to use.
-
     let httm_prog_args = env::args_os().into_iter().next();
 
     // string to exec on each preview

@@ -393,11 +393,13 @@ fn exec() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
 
     // next, let's do our interactive lookup thing, if appropriate,
     // and for all relevant strings get our PathData struct
-    let pathdata_set = if config.exec_mode == ExecMode::Interactive {
-        get_pathdata(&config, &interactive_exec(&mut out, &config)?)
+    let paths_as_strings = if config.exec_mode == ExecMode::Interactive {
+        interactive_exec(&mut out, &config)?
     } else {
-        get_pathdata(&config, &config.raw_paths)
+        config.raw_paths.clone()
     };
+
+    let pathdata_set = get_pathdata(&config, &paths_as_strings);
 
     // finally run search on those paths
     let snaps_and_live_set = lookup_exec(&config, pathdata_set)?;
