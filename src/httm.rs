@@ -392,13 +392,13 @@ fn exec() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let config = Config::from(arg_matches)?;
 
     // next, let's do our interactive lookup thing, if appropriate,
-    // and for all relevant strings get our PathData struct
     let paths_as_strings = if config.exec_mode == ExecMode::Interactive {
         interactive_exec(&mut out, &config)?
     } else {
         config.raw_paths.clone()
     };
 
+    // ...and for all relevant strings get our PathData struct
     let pathdata_set = get_pathdata(&config, &paths_as_strings);
 
     // finally run search on those paths

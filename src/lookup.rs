@@ -182,18 +182,16 @@ fn get_dataset(
 
     // select the best match for us: the longest, as we've already matched on the parent folder
     // so for /usr/bin/bash, we would then prefer /usr/bin to /usr
-    let best_potential_mountpoint = if let Some(some_bpmp) = select_potential_mountpoints
-        .par_iter()
-        .max_by_key(|x| x.len())
-    {
-        some_bpmp
-    } else {
-        let msg = format!(
-            "There is no best match for a ZFS dataset to use for path {:?}. Sorry!/Not sorry?)",
-            path
-        );
-        return Err(HttmError::new(&msg).into());
-    };
+    let best_potential_mountpoint =
+        if let Some(some_bpmp) = select_potential_mountpoints.iter().max_by_key(|x| x.len()) {
+            some_bpmp
+        } else {
+            let msg = format!(
+                "There is no best match for a ZFS dataset to use for path {:?}. Sorry!/Not sorry?)",
+                path
+            );
+            return Err(HttmError::new(&msg).into());
+        };
 
     Ok(PathBuf::from(best_potential_mountpoint))
 }
