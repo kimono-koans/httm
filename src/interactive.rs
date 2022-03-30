@@ -82,7 +82,7 @@ pub fn interactive_exec(
             interactive_select(out, config, paths_as_strings)?;
             unreachable!()
         }
-        // InteractiveMode::Lookup executes back through fn exec() in httm.rs
+        // InteractiveMode::Lookup, etc., executes back through fn exec() in httm.rs
         _ => Ok(paths_as_strings),
     }
 }
@@ -191,14 +191,13 @@ fn lookup_view(
     let (tx_item, rx_item): (SkimItemSender, SkimItemReceiver) = unbounded();
     let config_clone = config.clone();
 
-    // spawn fn enumerate_directory - useful for recursive mode
+    // spawn fn enumerate_directory - permits recursion into dirs without blocking
     thread::spawn(move || {
         enumerate_directory(&config_clone, &tx_item, &mut read_dir);
     });
 
-    // as skim is slower if we use a function, we must call our httm command
-    // for preview and that cause all sorts of nastiness if the user is running in the PWD
-    // and not expecting it, so we must locate which command to use.
+    // as skim is slower if we call as a function, we must call our httm command
+    // for preview, so we locate which command to use here
     let httm_prog_args = env::args_os().into_iter().next();
 
     // string to exec on each preview
@@ -228,12 +227,12 @@ fn lookup_view(
         .build()
         .unwrap();
 
-    // fn run_with() reads and shows items from the thread stream created above
+    // run_with() reads and shows items from the thread stream created above
     let selected_items = Skim::run_with(&options, Some(rx_item))
         .map(|out| out.selected_items)
         .unwrap_or_else(Vec::new);
 
-    // fn output() converts the filename/raw path to a absolute path string for use elsewhere
+    // output() converts the filename/raw path to a absolute path string for use elsewhere
     let res = selected_items
         .iter()
         .map(|i| i.output().into_owned())
@@ -259,7 +258,7 @@ fn select_view(
         .map(|out| out.selected_items)
         .unwrap_or_else(Vec::new);
 
-    // fn output converts the filename/raw path to a absolute path string for use elsewhere
+    // output() converts the filename/raw path to a absolute path string for use elsewhere
     let res = selected_items
         .iter()
         .map(|i| i.output().into_owned())
@@ -288,7 +287,8 @@ fn enumerate_directory(config: &Config, tx_item: &SkimItemSender, read_dir: &mut
     // now recurse into those dirs, if requested
     if config.opt_recursive {
         vec_dirs
-            // don't want to a par_iter here because it will block and wait for all results instead of print and recurse
+            // don't want to a par_iter here because it will block and wait for all results, instead of
+            // printing and recursing into the subsequent dirs
             .iter()
             .filter_map(|read_dir| std::fs::read_dir(read_dir).ok())
             .for_each(|mut read_dir| {

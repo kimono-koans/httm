@@ -87,12 +87,6 @@ fn get_versions(
 
     // building our local relative path by removing parent
     // directories below the remote/snap mount point
-    //
-    // TODO: I *could* step backwards and check each ancestor folder for .zfs dirs as
-    // an auto detect mechanism.  Currently, we rely on the user to provide.
-    //
-    // It would only work on ZFS datasets and not local-rsync-ed sets. :(
-    // Presently, defaults to everything below the working dir in the unspecified case.
     let local_path = if config.opt_snap_point.is_some() {
         pathdata.path_buf
         .strip_prefix(&config.opt_local_dir).map_err(|_| HttmError::new("Are you sure you're in the correct working directory?  Perhaps you need to set the LOCAL_DIR value."))
@@ -113,7 +107,7 @@ fn get_versions(
         .filter(|pathdata| !pathdata.is_phantom)
         .collect::<Vec<PathData>>();
 
-    // filter above will remove all the None-like phantom values silently as we build a list of unique versions
+    // filter above will remove all the phantom values silently as we build a list of unique versions
     // and our hashmap will then remove duplicates with the same system modify time and size/file len
     let mut unique_versions: HashMap<(SystemTime, u64), PathData> = HashMap::default();
     let _ = versions.into_iter().for_each(|pathdata| {
@@ -132,8 +126,8 @@ fn get_dataset(
 ) -> Result<PathBuf, Box<dyn std::error::Error + Send + Sync + 'static>> {
     let path = &pathdata.path_buf;
 
-    // method parent() cannot return None, when path is an absolute path and not the root dir
-    // and this should have been previous set in PathData new(), so None only if the root dir
+    // only possible None is if root dir because
+    // of previous work in the Pathdata new method
     let parent_folder = path
         .parent()
         .unwrap_or_else(|| Path::new("/"))
@@ -181,7 +175,7 @@ fn get_dataset(
     };
 
     // select the best match for us: the longest, as we've already matched on the parent folder
-    // so for /usr/bin/bash, we would then prefer /usr/bin to /usr
+    // so for /usr/bin, we would then prefer /usr/bin to /usr and /
     let best_potential_mountpoint =
         if let Some(some_bpmp) = select_potential_mountpoints.iter().max_by_key(|x| x.len()) {
             some_bpmp
