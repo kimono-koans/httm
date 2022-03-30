@@ -197,7 +197,7 @@ fn lookup_view(
     });
 
     // as skim is slower if we use a function, we must call our httm command
-    // for preview and that cause all sorts of nastiness if the user is running in the PWD 
+    // for preview and that cause all sorts of nastiness if the user is running in the PWD
     // and not expecting it, so we must locate which command to use.
     let httm_prog_args = env::args_os().into_iter().next();
 
