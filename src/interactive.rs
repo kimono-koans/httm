@@ -125,7 +125,7 @@ fn interactive_restore(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     // build pathdata from selection buffer parsed string
     //
-    // request is also sanity check for metadata, also we will want the time for a timestamp
+    // request is also sanity check for metadata
     let snap_pd = PathData::new(config, &PathBuf::from(&parsed_str));
 
     if snap_pd.is_phantom {
@@ -154,7 +154,7 @@ fn interactive_restore(
         );
     };
 
-    // tell the user what we're up to
+    // tell the user what we're up to, and get consent
     write!(out, "httm will copy a file from a ZFS snapshot...\n\n")?;
     writeln!(out, "\tfrom: {:?}", snap_pd.path_buf)?;
     writeln!(out, "\tto:   {:?}\n", new_file_path_buf)?;
@@ -197,8 +197,8 @@ fn lookup_view(
     });
 
     // as skim is slower if we use a function, we must call our httm command
-    // for preview and that cause all sorts of nastiness with PATHs etc if the user
-    // is not expecting it, so we must locate which command to use.
+    // for preview and that cause all sorts of nastiness if the user is running in the PWD 
+    // and not expecting it, so we must locate which command to use.
     let httm_prog_args = env::args_os().into_iter().next();
 
     // string to exec on each preview
@@ -288,7 +288,7 @@ fn enumerate_directory(config: &Config, tx_item: &SkimItemSender, read_dir: &mut
     // now recurse into those dirs, if requested
     if config.opt_recursive {
         vec_dirs
-            // don't want to a par_iter here because it will block instead of recurse
+            // don't want to a par_iter here because it will block and wait for all results instead of print and recurse
             .iter()
             .filter_map(|read_dir| std::fs::read_dir(read_dir).ok())
             .for_each(|mut read_dir| {
