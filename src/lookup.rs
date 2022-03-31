@@ -39,7 +39,7 @@ pub fn lookup_exec(
         .flatten()
         .collect();
 
-    // create vec of live copies
+    // create vec of live copies - unless user doesn't want it!
     let live_versions: Vec<PathData> = if !config.opt_no_live_vers {
         path_data
     } else {
@@ -47,7 +47,7 @@ pub fn lookup_exec(
     };
 
     // check if all files (snap and live) do not exist, if this is true, then user probably messed up
-    // and entered a file that never existed?  Or was on a snapshot that has since been destroyed?
+    // and entered a file that never existed (perhaps a wrong file name)?  Or was on a snapshot that has since been destroyed?
     if snapshot_versions.is_empty() && live_versions.iter().all(|i| i.is_phantom) {
         return Err(HttmError::new(
             "Neither a live copy, nor a snapshot copy of such a file appears to exist, so, umm, 🤷? Please try another file.",
@@ -124,17 +124,17 @@ fn get_versions(
 fn get_dataset(
     pathdata: &PathData,
 ) -> Result<PathBuf, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let path = &pathdata.path_buf;
+    let file_path = &pathdata.path_buf;
 
     // only possible None is if root dir because
     // of previous work in the Pathdata new method
-    let parent_folder = path
+    let parent_folder = file_path
         .parent()
         .unwrap_or_else(|| Path::new("/"))
         .to_string_lossy();
 
     // ingest datasets from the cmdline
-    let shell = which("sh")
+    let shell_command = which("sh")
         .map_err(|_| {
             HttmError::new("sh command not found. Make sure the command 'sh' is in your path.")
         })?
@@ -151,7 +151,7 @@ fn get_dataset(
         + exec_args;
 
     let datasets_from_zfs = std::str::from_utf8(
-        &ExecProcess::new(shell)
+        &ExecProcess::new(shell_command)
             .arg("-c")
             .arg(exec_command)
             .output()?
@@ -182,7 +182,7 @@ fn get_dataset(
         } else {
             let msg = format!(
                 "There is no best match for a ZFS dataset to use for path {:?}. Sorry!/Not sorry?)",
-                path
+                file_path
             );
             return Err(HttmError::new(&msg).into());
         };
