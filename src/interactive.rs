@@ -299,5 +299,5 @@ fn enumerate_directory(config: &Config, tx_item: &SkimItemSender, read_dir: &mut
 
 fn timestamp_file(st: &SystemTime) -> String {
     let dt: DateTime<Local> = st.to_owned().into();
-    format!("{}", dt.format("%b-%d-%H:%M:%S-%Y"))
+    format!("{}", dt.format("%b-%d-%Y-%H:%M:%S"))
 }

@@ -191,7 +191,7 @@ fn display_human_size(pathdata: &PathData) -> String {
 
 fn display_date(st: &SystemTime) -> String {
     let dt: DateTime<Local> = st.to_owned().into();
-    format!("{}", dt.format("%b %e %H:%M:%S %Y"))
+    format!("{}", dt.format("%b %e %Y %H:%M:%S"))
 }
 
 pub fn paint_string(path: &Path, file_name: &str) -> String {
