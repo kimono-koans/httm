@@ -73,10 +73,11 @@ pub fn interactive_exec(
     out: &mut Stdout,
     config: &Config,
 ) -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    // are the raw paths as strings suitable for interactive mode
+    // collect string paths from what we get from lookup_view
     let paths_as_strings = vec![lookup_view(config)?];
 
-    // do we return back to our exec function to print or into interactive mode?
+    // do we return back to our main exec function to print,
+    // or continue down the interactive rabbit hole?
     match config.interactive_mode {
         InteractiveMode::Restore | InteractiveMode::Select => {
             interactive_select(out, config, paths_as_strings)?;
@@ -109,7 +110,7 @@ fn interactive_select(
         return Err(HttmError::new("Invalid value selected. Quitting.").into());
     };
 
-    // continue to restore or print and exit?
+    // continue to interactive_restore or print and exit here?
     if config.interactive_mode == InteractiveMode::Restore {
         Ok(interactive_restore(out, config, parsed_str)?)
     } else {
@@ -269,10 +270,10 @@ fn select_view(
 
 fn enumerate_directory(config: &Config, tx_item: &SkimItemSender, read_dir: &mut ReadDir) {
     // convert to paths, and split into dirs and files
-    let (vec_files, vec_dirs): (Vec<PathBuf>, Vec<PathBuf>) = read_dir
+    let (vec_dirs, vec_files): (Vec<PathBuf>, Vec<PathBuf>) = read_dir
         .filter_map(|i| i.ok())
         .map(|dir_entry| dir_entry.path())
-        .partition(|path| path.is_file() || path.is_symlink());
+        .partition(|path| path.is_dir());
 
     // combine dirs and files into a vec and sort to display
     let mut combined_vec: Vec<&PathBuf> =
