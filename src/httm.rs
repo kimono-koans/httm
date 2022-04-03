@@ -87,7 +87,7 @@ impl PathData {
                 (len, time, phantom)
             }
             // this seems like a perfect place for a None value, as the file has no metadata,
-            // however we will want certain iters to print the *request*, say for deleted/fake files,
+            // however we will want certain iters to print the *request*, say for deleted files,
             // so we set up a dummy Some value just so we can have the path names we entered
             //
             // if we get a spurious example of no metadata in snapshot directories, we just ignore later

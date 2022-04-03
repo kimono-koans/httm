@@ -168,7 +168,7 @@ fn get_dataset(
         .filter(|line| parent_folder.contains(line))
         .collect::<Vec<&str>>();
 
-    // do we have any left, if yes just continue
+    // do we have any left? if not print error
     if select_potential_mountpoints.is_empty() {
         let msg = "Could not identify any qualifying dataset.  Maybe consider specifying manually at SNAP_POINT?";
         return Err(HttmError::new(msg).into());
