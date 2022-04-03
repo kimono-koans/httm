@@ -184,7 +184,7 @@ fn interactive_restore(
 fn lookup_view(
     config: &Config,
 ) -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    // We *can* build a method on our SkimItem to do this, except, right now, it's slower
+    // We *can* build a preview() method on our SkimItem to do this, except, right now, it's slower
     // because it blocks on preview(), given the implementation of skim, see the new_preview branch
 
     // prep thread spawn
@@ -197,8 +197,7 @@ fn lookup_view(
         enumerate_directory(&config_clone, &tx_item, &mut read_dir);
     });
 
-    // as skim is slower if we call as a function, we must call our httm command
-    // for preview, so we locate which command to use here
+    // as skim is slower if we call as a function, we locate which httm command to use here
     let httm_prog_args = env::args_os().into_iter().next();
 
     // string to exec on each preview
