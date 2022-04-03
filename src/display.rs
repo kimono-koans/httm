@@ -100,11 +100,10 @@ fn display_pretty(
                 fixed_padding = "\t".to_owned();
             }
 
-            // displays blanks for phantom values, equaling their dummy lens and dates
-            // see struct PathData for more details as to why we use a dummy instead of
-            // a None value here
+            // displays blanks for phantom values, equaling their dummy lens and dates.
             //
-            // again must be a better way to print padding, etc.
+            // see struct PathData for more details as to why we use a dummy instead of
+            // a None value here.
             if !pathdata.is_phantom {
                 pathdata_set_buffer += &format!(
                     "{}{}{}\"{}\"\n",
@@ -150,7 +149,7 @@ fn calculate_padding(snaps_and_live_set: &[Vec<PathData>]) -> (usize, String) {
 
             let display_size_len = display_human_size(pathdata).len();
             let formatted_line_len =
-                // addition of 2usize is for the two quotation marks we add to the path display below 
+                // addition of 2usize is for the two quotation marks we add to the path display 
                 display_date.len() + display_size.len() + fixed_padding.len() + display_path.len() + 2usize;
 
             size_padding = display_size_len.max(size_padding);

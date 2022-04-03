@@ -1,6 +1,6 @@
 # HTTM ZSH Widgets
 
-# ALT-I - browse for ZFS snapshots interactively
+# ALT-m - browse for ZFS snapshots interactively
 httm-lookup-widget() {
 
   echo
@@ -14,7 +14,7 @@ httm-lookup-widget() {
 zle     -N      httm-lookup-widget
 bindkey '\em'   httm-lookup-widget
 
-# ALT-S - select files on ZFS snapshots interactively
+# ALT-s - select files on ZFS snapshots interactively
 __httm-select() {
 
   command httm -s -R | \

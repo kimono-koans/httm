@@ -47,7 +47,7 @@ pub fn lookup_exec(
     };
 
     // check if all files (snap and live) do not exist, if this is true, then user probably messed up
-    // and entered a file that never existed (perhaps a wrong file name)?  Or was on a snapshot that has since been destroyed?
+    // and entered a file that never existed (that is, perhaps a wrong file name)?
     if snapshot_versions.is_empty() && live_versions.iter().all(|i| i.is_phantom) {
         return Err(HttmError::new(
             "Neither a live copy, nor a snapshot copy of such a file appears to exist, so, umm, 🤷? Please try another file.",
