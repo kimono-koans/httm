@@ -21,11 +21,9 @@ use crate::{get_pathdata, read_stdin};
 use crate::{Config, HttmError, InteractiveMode, PathData};
 
 extern crate skim;
-use chrono::DateTime;
-use chrono::Local;
+use chrono::{DateTime, Local};
 use rayon::prelude::*;
 use skim::prelude::*;
-use skim::DisplayContext;
 use std::{
     env,
     ffi::OsStr,
@@ -246,7 +244,6 @@ fn select_view(
 ) -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // take what lookup gave us and select from among the snapshot options
     // build our skim view - less to do than before - no previews, looking through one 'lil buffer
-
     let options = SkimOptionsBuilder::default()
         .interactive(true)
         .exact(true)

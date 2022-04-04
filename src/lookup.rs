@@ -159,7 +159,7 @@ fn get_dataset(
     )?
     .to_owned();
 
-    // prune most datasets by match the parent_folder of file contains those datasets
+    // prune away most datasets by filtering - parent folder of file must contain relevant dataset
     let select_potential_mountpoints = datasets_from_zfs
         .par_lines()
         .filter(|line| line.contains("yes"))

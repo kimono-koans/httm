@@ -18,11 +18,9 @@
 use crate::{Config, PathData};
 
 use chrono::{DateTime, Local};
-use lscolors::LsColors;
-use lscolors::Style;
+use lscolors::{LsColors, Style};
 use number_prefix::NumberPrefix;
-use std::path::Path;
-use std::time::SystemTime;
+use std::{path::Path, time::SystemTime};
 use terminal_size::{terminal_size, Height, Width};
 
 pub fn display_exec(
@@ -67,7 +65,7 @@ fn display_pretty(
 
     // now display with all that beautiful padding
     if !config.opt_no_pretty {
-        // only print one border to the top -- to buffer, not pathdata_set_buffer
+        // only print one border to the top -- to write_out_buffer, not pathdata_set_buffer
         write_out_buffer += &format!("{}\n", fancy_border_string);
     }
 
