@@ -21,7 +21,7 @@ mod lookup;
 
 use crate::display::display_exec;
 use crate::interactive::interactive_exec;
-use crate::lookup::lookup_exec;
+use crate::lookup::{get_deleted, lookup_exec};
 
 use clap::{Arg, ArgMatches};
 use rayon::prelude::*;
@@ -58,7 +58,7 @@ impl Error for HttmError {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct PathData {
     system_time: SystemTime,
     size: u64,
@@ -130,6 +130,7 @@ pub struct Config {
     opt_no_pretty: bool,
     opt_no_live_vers: bool,
     opt_recursive: bool,
+    opt_deleted: bool,
     opt_snap_point: Option<PathBuf>,
     opt_local_dir: PathBuf,
     exec_mode: ExecMode,
@@ -142,6 +143,7 @@ impl Config {
     fn from(
         matches: ArgMatches,
     ) -> Result<Config, Box<dyn std::error::Error + Send + Sync + 'static>> {
+        let deleted = matches.is_present("DELETED");
         let zeros = matches.is_present("ZEROS");
         let raw = matches.is_present("RAW");
         let not_so_pretty = matches.is_present("NOT_SO_PRETTY");
@@ -239,6 +241,8 @@ impl Config {
                 .collect()
         } else if exec == ExecMode::Interactive {
             Vec::new()
+        } else if deleted {
+            vec![pwd.to_string_lossy().to_string()]
         } else {
             read_stdin()?
         };
@@ -275,6 +279,7 @@ impl Config {
             opt_snap_point: snap_point,
             opt_local_dir: local_dir,
             opt_recursive: recursive,
+            opt_deleted: deleted,
             exec_mode: exec,
             interactive_mode: interactive,
             current_working_dir: pwd,
@@ -321,18 +326,25 @@ fn parse_args() -> ArgMatches {
                 .display_order(4)
         )
         .arg(
+            Arg::new("DELETED")
+                .short('d')
+                .long("deleted")
+                .help("show deleted files.")
+                .display_order(5)
+        )
+        .arg(
             Arg::new("RECURSIVE")
                 .short('R')
                 .long("recursive")
                 .help("recurse into selected directory to find more files. Only available in interactive modes.")
-                .display_order(5)
+                .display_order(6)
         )
         .arg(
             Arg::new("SNAP_POINT")
                 .long("snap-point")
                 .help("ordinarily httm will automatically choose your most local snapshot directory, but here you may manually specify your own mount point for that directory, such as the mount point for a remote share.  You can also set via the environment variable HTTM_SNAP_POINT.")
                 .takes_value(true)
-                .display_order(6)
+                .display_order(7)
         )
         .arg(
             Arg::new("LOCAL_DIR")
@@ -340,7 +352,7 @@ fn parse_args() -> ArgMatches {
                 .help("used with SNAP_POINT to determine where the corresponding live root of the ZFS snapshot dataset is.  If not set, httm defaults to your current working directory.  You can also set via the environment variable HTTM_LOCAL_DIR.")
                 .requires("SNAP_POINT")
                 .takes_value(true)
-                .display_order(7)
+                .display_order(8)
         )
         .arg(
             Arg::new("RAW")
@@ -348,7 +360,7 @@ fn parse_args() -> ArgMatches {
                 .long("raw")
                 .help("list the backup locations, without extraneous information, delimited by a NEWLINE.")
                 .conflicts_with_all(&["ZEROS", "NOT_SO_PRETTY"])
-                .display_order(8)
+                .display_order(9)
         )
         .arg(
             Arg::new("ZEROS")
@@ -356,20 +368,20 @@ fn parse_args() -> ArgMatches {
                 .long("zero")
                 .help("list the backup locations, without extraneous information, delimited by a NULL CHARACTER.")
                 .conflicts_with_all(&["RAW", "NOT_SO_PRETTY"])
-                .display_order(9)
+                .display_order(10)
         )
         .arg(
             Arg::new("NOT_SO_PRETTY")
                 .long("not-so-pretty")
                 .help("list the backup locations in a parseable format.")
                 .conflicts_with_all(&["RAW", "ZEROS"])
-                .display_order(10)
+                .display_order(11)
         )
         .arg(
             Arg::new("NO_LIVE")
                 .long("no-live")
                 .help("only display snapshot copies, and no 'live' copies of files or directories.")
-                .display_order(11)
+                .display_order(12)
         )
         .get_matches()
 }
@@ -391,18 +403,26 @@ fn exec() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let arg_matches = parse_args();
     let config = Config::from(arg_matches)?;
 
-    // next, let's do our interactive lookup thing, if appropriate,
-    let paths_as_strings = if config.exec_mode == ExecMode::Interactive {
-        interactive_exec(&mut out, &config)?
+    let snaps_and_live_set = if config.opt_deleted && config.exec_mode != ExecMode::Interactive {
+        let path = PathBuf::from(&config.raw_paths.get(0).unwrap());
+
+        let pathdata_set = get_deleted(&config, &path)?;
+
+        vec![pathdata_set, Vec::new()]
     } else {
-        config.raw_paths.clone()
+        // next, let's do our interactive lookup thing, if appropriate,
+        let paths_as_strings = if config.exec_mode == ExecMode::Interactive {
+            interactive_exec(&mut out, &config)?
+        } else {
+            config.raw_paths.clone()
+        };
+
+        // ...and for all relevant strings get our PathData struct
+        let pathdata_set = get_pathdata(&config, &paths_as_strings);
+
+        // finally run search on those paths
+        lookup_exec(&config, pathdata_set)?
     };
-
-    // ...and for all relevant strings get our PathData struct
-    let pathdata_set = get_pathdata(&config, &paths_as_strings);
-
-    // finally run search on those paths
-    let snaps_and_live_set = lookup_exec(&config, pathdata_set)?;
 
     // and display
     let output_buf = display_exec(&config, snaps_and_live_set)?;
