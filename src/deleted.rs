@@ -58,6 +58,8 @@ fn recursive_del_search(
 
     // convert to paths, and split into dirs and files
     let vec_dirs: Vec<PathBuf> = read_dir
+        .into_iter()
+        .par_bridge()
         .filter_map(|i| i.ok())
         .map(|dir_entry| dir_entry.path())
         .filter(|path| path.is_dir())
@@ -71,7 +73,6 @@ fn recursive_del_search(
     } else {
         let output_buf = display_exec(config, vec![vec_deleted, Vec::new()])?;
         write!(out, "{}", output_buf)?;
-        out.flush()?;
     }
 
     // now recurse into those dirs as requested
@@ -92,13 +93,14 @@ pub fn get_deleted(
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     let pathdata = PathData::new(config, path);
 
+    // which ZFS dataset do we want to use
     let dataset = if let Some(ref snap_point) = config.opt_snap_point {
         snap_point.to_owned()
     } else {
         get_dataset(&pathdata)?
     };
 
-    // building the snapshot path
+    // building our snapshot path from out dataset
     let snapshot_dir: PathBuf = [&dataset.to_string_lossy(), ".zfs", "snapshot"]
         .iter()
         .collect();
@@ -130,14 +132,14 @@ pub fn get_deleted(
     let snap_files: Vec<(OsString, PathBuf)> = std::fs::read_dir(&snapshot_dir)?
         .into_iter()
         .par_bridge()
-        .flatten()
+        .flatten_iter()
         .map(|entry| entry.path())
         .map(|path| path.join(local_path))
         .map(|path| std::fs::read_dir(&path))
         .flatten_iter()
         .flatten_iter()
         .flatten_iter()
-        .map(|de| (de.file_name(), de.path()))
+        .map(|dir_entry| (dir_entry.file_name(), dir_entry.path()))
         .collect();
 
     let mut unique_snap_filenames: HashMap<OsString, PathBuf> = HashMap::default();
