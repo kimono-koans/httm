@@ -15,8 +15,9 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
+use crate::deleted::get_deleted;
 use crate::display::{display_exec, paint_string};
-use crate::lookup::{get_deleted, lookup_exec};
+use crate::lookup::lookup_exec;
 use crate::{get_pathdata, read_stdin};
 use crate::{Config, HttmError, InteractiveMode, PathData};
 

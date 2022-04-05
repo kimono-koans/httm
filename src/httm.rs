@@ -15,13 +15,15 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
+mod deleted;
 mod display;
 mod interactive;
 mod lookup;
 
+use crate::deleted::deleted_exec;
 use crate::display::display_exec;
 use crate::interactive::interactive_exec;
-use crate::lookup::{get_deleted, lookup_exec};
+use crate::lookup::lookup_exec;
 
 use clap::{Arg, ArgMatches};
 use rayon::prelude::*;
@@ -111,6 +113,7 @@ impl PathData {
 #[derive(Debug, Clone, PartialEq)]
 enum ExecMode {
     Interactive,
+    Deleted,
     Display,
 }
 
@@ -153,6 +156,8 @@ impl Config {
             || matches.is_present("SELECT")
         {
             ExecMode::Interactive
+        } else if deleted {
+            ExecMode::Deleted
         } else {
             ExecMode::Display
         };
@@ -169,11 +174,10 @@ impl Config {
             InteractiveMode::None
         };
 
-        if recursive && interactive == InteractiveMode::None {
-            return Err(HttmError::new(
-                "Recursive search feature only allowed in one of the interactive modes.",
-            )
-            .into());
+        if recursive && exec == ExecMode::Display {
+            return Err(
+                HttmError::new("Recursive search feature only allowed in select modes.").into(),
+            );
         }
 
         // two ways to get a snap dir: cli and env var
@@ -403,12 +407,8 @@ fn exec() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let arg_matches = parse_args();
     let config = Config::from(arg_matches)?;
 
-    let snaps_and_live_set = if config.opt_deleted && config.exec_mode != ExecMode::Interactive {
-        let path = PathBuf::from(&config.raw_paths.get(0).unwrap());
-
-        let pathdata_set = get_deleted(&config, &path)?;
-
-        vec![pathdata_set, Vec::new()]
+    let snaps_and_live_set = if config.exec_mode == ExecMode::Deleted {
+        deleted_exec(&config, &mut out)?
     } else {
         // next, let's do our interactive lookup thing, if appropriate,
         let paths_as_strings = if config.exec_mode == ExecMode::Interactive {

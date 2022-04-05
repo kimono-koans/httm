@@ -27,7 +27,9 @@ pub fn display_exec(
     config: &Config,
     snaps_and_live_set: Vec<Vec<PathData>>,
 ) -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let output_buffer = if config.opt_raw || config.opt_zeros {
+    let output_buffer = if snaps_and_live_set.iter().all(|x| x.is_empty()) {
+        "...\n".to_string()
+    } else if config.opt_raw || config.opt_zeros {
         display_raw(config, snaps_and_live_set)?
     } else {
         display_pretty(config, snaps_and_live_set)?
