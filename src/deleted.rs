@@ -39,12 +39,12 @@ pub fn deleted_exec(
         let path = PathBuf::from(config.raw_paths.get(0).unwrap());
         let pathdata = PathData::new(config, &path);
         recursive_del_search(config, &pathdata, out)?;
-        
+
         std::process::exit(0)
     } else {
-        let path = PathBuf::from(&config.raw_paths.get(0).unwrap());
-        let pathdata_set = get_deleted(&config, &path)?;
-        
+        let path = PathBuf::from(config.raw_paths.get(0).unwrap());
+        let pathdata_set = get_deleted(config, &path)?;
+
         Ok(vec![pathdata_set, Vec::new()])
     }
 }
@@ -57,19 +57,24 @@ fn recursive_del_search(
     let read_dir = std::fs::read_dir(&pathdata.path_buf)?;
 
     // convert to paths, and split into dirs and files
-    let (vec_dirs, _): (Vec<PathBuf>, Vec<PathBuf>) = read_dir
+    let vec_dirs: Vec<PathBuf> = read_dir
         .filter_map(|i| i.ok())
         .map(|dir_entry| dir_entry.path())
-        .partition(|path| path.is_dir());
+        .filter(|path| path.is_dir())
+        .collect();
 
     let vec_deleted: Vec<PathData> = get_deleted(config, &pathdata.path_buf)?;
 
-    let output_buf = display_exec(config, vec![vec_deleted, Vec::new()])?;
+    if vec_deleted.is_empty() {
+        // Shows progress, while we are finding no deleted files
+        eprintln!("...");
+    } else {
+        let output_buf = display_exec(config, vec![vec_deleted, Vec::new()])?;
+        write!(out, "{}", output_buf)?;
+        out.flush()?;
+    }
 
-    write!(out, "{}", output_buf)?;
-    out.flush()?;
-
-    // now recurse into those dirs, if requested
+    // now recurse into those dirs as requested
     vec_dirs
         // don't want to a par_iter here because it will block and wait for all results, instead of
         // printing and recursing into the subsequent dirs

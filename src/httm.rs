@@ -407,21 +407,22 @@ fn exec() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let arg_matches = parse_args();
     let config = Config::from(arg_matches)?;
 
-    let snaps_and_live_set = if config.exec_mode == ExecMode::Deleted {
-        deleted_exec(&config, &mut out)?
-    } else {
-        // next, let's do our interactive lookup thing, if appropriate,
-        let paths_as_strings = if config.exec_mode == ExecMode::Interactive {
-            interactive_exec(&mut out, &config)?
-        } else {
-            config.raw_paths.clone()
-        };
-
-        // ...and for all relevant strings get our PathData struct
-        let pathdata_set = get_pathdata(&config, &paths_as_strings);
-
-        // finally run search on those paths
-        lookup_exec(&config, pathdata_set)?
+    let snaps_and_live_set = match config.exec_mode {
+        ExecMode::Deleted => deleted_exec(&config, &mut out)?,
+        ExecMode::Interactive => {
+            let paths_as_strings = interactive_exec(&mut out, &config)?;
+            // ...and for all relevant strings get our PathData struct
+            let pathdata_set = get_pathdata(&config, &paths_as_strings);
+            // finally run search on those paths
+            lookup_exec(&config, pathdata_set)?
+        }
+        ExecMode::Display => {
+            let paths_as_strings = config.raw_paths.clone();
+            // ...and for all relevant strings get our PathData struct
+            let pathdata_set = get_pathdata(&config, &paths_as_strings);
+            // finally run search on those paths
+            lookup_exec(&config, pathdata_set)?
+        }
     };
 
     // and display
