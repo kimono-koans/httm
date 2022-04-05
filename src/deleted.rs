@@ -74,6 +74,7 @@ fn recursive_del_search(
     } else {
         let output_buf = display_exec(config, vec![vec_deleted, Vec::new()])?;
         write!(out, "{}", output_buf)?;
+        out.flush()?;
     }
 
     // now recurse into those dirs as requested

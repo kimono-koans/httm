@@ -419,7 +419,7 @@ fn exec() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
             let pathdata_set = get_pathdata(&config, &paths_as_strings);
             // finally run search on those paths
             lookup_exec(&config, pathdata_set)?
-        },
+        }
     };
 
     // and display
