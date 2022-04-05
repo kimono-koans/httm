@@ -4,13 +4,11 @@
 
 `httm` prints the size, date and corresponding locations of available unique versions (deduplicated by modify time and size) of files residing on ZFS snapshots, but can also be used to the *interactively* view and restore such files.
 
-Inspired by the wonderful [findoid](https://github.com/jimsalterjrs/sanoid) script.
-
 `httm` might change the way you use ZFS snapshots (because ZFS isn't designed for finding for unique file versions) or the Time Machine concept (because `httm` is fast!).
 
 `httm` also boasts an array of seductive features, like:
 
-* Search for deleted files! Ooooooooo!
+* Lookup deleted files! Ooooooooo!
 * Select non-immediate datasets (on a different pool, or remote).
 * For use even with rsync-ed non-ZFS local datasets (like ext4, APFS, or NTFS), not just ZFS.
 * Specify multiple files for lookup on different datasets
@@ -20,6 +18,8 @@ Inspired by the wonderful [findoid](https://github.com/jimsalterjrs/sanoid) scri
 * Select from several formatting styles.  Parseable ... or not ...  oh my!
 
 Use in combination with you favorite shell (hot keys!) for even more fun.
+
+Inspired by the wonderful [findoid](https://github.com/jimsalterjrs/sanoid) script.
 
 ## Installation
 
