@@ -258,7 +258,7 @@ impl Config {
                 );
             } else if file_names.len() == 1 && !Path::new(&file_names[0]).is_dir() {
                 return Err(HttmError::new(
-                    "Path specified is not a directory suitable for browsing.",
+                    "Path specified is not a directory, and therefore not suitable for browsing.",
                 )
                 .into());
             } else if file_names.len() == 1 && PathBuf::from(&file_names[0]).is_dir() {

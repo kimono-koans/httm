@@ -16,9 +16,9 @@
 // that was distributed with this source code.
 
 use crate::display::display_exec;
-use crate::lookup::get_dataset;
+use crate::lookup::{get_snap_and_local, get_dataset};
 
-use crate::{Config, HttmError, PathData};
+use crate::{Config, PathData};
 use rayon::prelude::*;
 
 use fxhash::FxHashMap as HashMap;
@@ -101,22 +101,8 @@ pub fn get_deleted(
         get_dataset(&pathdata)?
     };
 
-    // building our snapshot path from our dataset
-    let snapshot_dir: PathBuf = [&dataset.to_string_lossy(), ".zfs", "snapshot"]
-        .iter()
-        .collect();
-
-    // building our local relative path by removing parent
-    // directories below the remote/snap mount point
-    let local_path = if config.opt_snap_point.is_some() {
-        pathdata.path_buf
-        .strip_prefix(&config.opt_local_dir)
-        .map_err(|_| HttmError::new("Are you sure you're in the correct working directory?  Perhaps you need to set the LOCAL_DIR value."))
-    } else {
-        pathdata.path_buf
-        .strip_prefix(&dataset)
-        .map_err(|_| HttmError::new("Are you sure you're in the correct working directory?  Perhaps you need to set the SNAP_DIR and LOCAL_DIR values."))
-    }?;
+    // generates path for hidden .zfs snap dir, and the corresponding local path
+    let (snapshot_dir, local_path) = get_snap_and_local(config, &pathdata, dataset)?;
 
     let local_dir_entries: Vec<DirEntry> = std::fs::read_dir(&pathdata.path_buf)?
         .into_iter()
@@ -137,7 +123,7 @@ pub fn get_deleted(
         .par_bridge()
         .flatten_iter()
         .map(|entry| entry.path())
-        .map(|path| path.join(local_path))
+        .map(|path| path.join(&local_path))
         .map(|path| std::fs::read_dir(&path))
         .flatten_iter()
         .flatten_iter()

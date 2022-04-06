@@ -75,11 +75,11 @@ fn get_versions_set(
     get_versions(config, pathdata, dataset)
 }
 
-fn get_versions(
+pub fn get_snap_and_local(
     config: &Config,
     pathdata: &PathData,
     dataset: PathBuf,
-) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
+) -> Result<(PathBuf, PathBuf), Box<dyn std::error::Error + Send + Sync + 'static>> {
     // building the snapshot path from our dataset
     let snapshot_dir: PathBuf = [&dataset.to_string_lossy(), ".zfs", "snapshot"]
         .iter()
@@ -95,6 +95,17 @@ fn get_versions(
         .strip_prefix(&dataset).map_err(|_| HttmError::new("Are you sure you're in the correct working directory?  Perhaps you need to set the SNAP_DIR and LOCAL_DIR values."))
     }?;
 
+    Ok((snapshot_dir, local_path.to_path_buf()))
+}
+
+fn get_versions(
+    config: &Config,
+    pathdata: &PathData,
+    dataset: PathBuf,
+) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    // generates path for hidden .zfs snap dir, and the corresponding local path
+    let (snapshot_dir, local_path) = get_snap_and_local(config, pathdata, dataset)?;
+
     // get the DirEntry for our snapshot path which will have all our possible
     // needed snapshots
     let versions = std::fs::read_dir(snapshot_dir)?
@@ -102,7 +113,7 @@ fn get_versions(
         .flatten()
         .par_bridge()
         .map(|entry| entry.path())
-        .map(|path| path.join(local_path))
+        .map(|path| path.join(&local_path))
         .map(|path| PathData::new(config, &path))
         .filter(|pathdata| !pathdata.is_phantom)
         .collect::<Vec<PathData>>();

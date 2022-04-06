@@ -302,8 +302,8 @@ fn enumerate_directory(
     // now recurse into those dirs, if requested
     if config.opt_recursive {
         vec_dirs
-            // don't want to a par_iter here because it will block and wait for all results, instead of
-            // printing and recursing into the subsequent dirs
+            // don't want a par_iter here because it will block and wait for all
+            // results, instead of printing and recursing into the subsequent dirs
             .iter()
             .for_each(|requested_dir| {
                 let _ = enumerate_directory(config, tx_item, requested_dir);
