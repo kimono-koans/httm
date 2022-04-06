@@ -101,7 +101,7 @@ pub fn get_deleted(
         get_dataset(&pathdata)?
     };
 
-    // building our snapshot path from out dataset
+    // building our snapshot path from our dataset
     let snapshot_dir: PathBuf = [&dataset.to_string_lossy(), ".zfs", "snapshot"]
         .iter()
         .collect();

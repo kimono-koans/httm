@@ -80,7 +80,7 @@ fn get_versions(
     pathdata: &PathData,
     dataset: PathBuf,
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    // building the snapshot path
+    // building the snapshot path from our dataset
     let snapshot_dir: PathBuf = [&dataset.to_string_lossy(), ".zfs", "snapshot"]
         .iter()
         .collect();
