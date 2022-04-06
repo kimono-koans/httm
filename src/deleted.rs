@@ -23,9 +23,9 @@ use rayon::prelude::*;
 
 use fxhash::FxHashMap as HashMap;
 use std::{
+    ffi::OsString,
     fs::DirEntry,
     io::{Stdout, Write},
-    ffi::OsString,
     path::{Path, PathBuf},
     time::SystemTime,
 };
@@ -110,10 +110,12 @@ pub fn get_deleted(
     // directories below the remote/snap mount point
     let local_path = if config.opt_snap_point.is_some() {
         pathdata.path_buf
-        .strip_prefix(&config.opt_local_dir).map_err(|_| HttmError::new("Are you sure you're in the correct working directory?  Perhaps you need to set the LOCAL_DIR value."))
+        .strip_prefix(&config.opt_local_dir)
+        .map_err(|_| HttmError::new("Are you sure you're in the correct working directory?  Perhaps you need to set the LOCAL_DIR value."))
     } else {
         pathdata.path_buf
-        .strip_prefix(&dataset).map_err(|_| HttmError::new("Are you sure you're in the correct working directory?  Perhaps you need to set the SNAP_DIR and LOCAL_DIR values."))
+        .strip_prefix(&dataset)
+        .map_err(|_| HttmError::new("Are you sure you're in the correct working directory?  Perhaps you need to set the SNAP_DIR and LOCAL_DIR values."))
     }?;
 
     let local_dir_entries: Vec<DirEntry> = std::fs::read_dir(&pathdata.path_buf)?
