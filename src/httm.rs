@@ -330,17 +330,6 @@ fn parse_args() -> ArgMatches {
                 .display_order(4)
         )
         .arg(
-<<<<<<< Updated upstream
-            Arg::new("DELETED")
-                .short('d')
-                .long("deleted")
-                .help("show deleted files.  Include deleted files in the interactive listing.  Recursive directory listing in interactive mode is much slower when enabled.  When used in lookup mode, it will print all the deleted files within a directory.  When used recursively, in lookup mode, it will print as the files become available to stdout.")
-                .display_order(5)
-        )
-        .arg(
-=======
-<<<<<<< Updated upstream
-=======
             Arg::new("DELETED")
                 .short('d')
                 .long("deleted")
@@ -348,8 +337,6 @@ fn parse_args() -> ArgMatches {
                 .display_order(5)
         )
         .arg(
->>>>>>> Stashed changes
->>>>>>> Stashed changes
             Arg::new("RECURSIVE")
                 .short('R')
                 .long("recursive")
