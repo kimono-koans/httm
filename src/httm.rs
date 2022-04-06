@@ -297,7 +297,7 @@ impl Config {
 fn parse_args() -> ArgMatches {
     clap::Command::new("httm")
         .about("displays information about unique file versions contained on ZFS snapshots.\n\n*But don't call it a H__ T__ Time Machine.*")
-        .version("0.5.2") 
+        .version("0.6.0") 
         .arg(
             Arg::new("INPUT_FILES")
                 .help("in non-interactive mode, put requested files here.  In interactive mode, this is the search path.  If you enter no files, then httm will pause waiting for input on stdin(3).")
@@ -333,7 +333,7 @@ fn parse_args() -> ArgMatches {
             Arg::new("DELETED")
                 .short('d')
                 .long("deleted")
-                .help("show deleted files.")
+                .help("show deleted files.  Include deleted files in the interactive listing.  Recursive directory listing in interactive mode is much slower when enabled.  When used in lookup mode, it will print all the deleted files within a directory.  When used recursively, in lookup mode, it will print as the files become available to stdout.")
                 .display_order(5)
         )
         .arg(
