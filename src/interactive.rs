@@ -17,8 +17,7 @@
 
 use crate::deleted::get_deleted;
 use crate::display::{display_exec, paint_string};
-use crate::lookup::lookup_exec;
-use crate::{get_pathdata, read_stdin};
+use crate::{get_snaps_and_live_set, read_stdin};
 use crate::{Config, HttmError, InteractiveMode, PathData};
 
 extern crate skim;
@@ -94,8 +93,7 @@ fn interactive_select(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     // same stuff we do at exec, snooze...
     let search_path = paths_as_strings.get(0).unwrap().to_owned();
-    let pathdata_set = get_pathdata(config, &[search_path]);
-    let snaps_and_live_set = lookup_exec(config, pathdata_set)?;
+    let snaps_and_live_set = get_snaps_and_live_set(config, vec![search_path])?;
     let selection_buffer = display_exec(config, snaps_and_live_set)?;
 
     // get the file name, and get ready to do some file ops!!

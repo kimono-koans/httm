@@ -408,18 +408,16 @@ fn exec() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let config = Config::from(arg_matches)?;
 
     let snaps_and_live_set = match config.exec_mode {
-        ExecMode::Deleted => deleted_exec(&config, &mut out)?,
-        _ => {
-            let paths_as_strings = match config.exec_mode {
-                ExecMode::Interactive => interactive_exec(&mut out, &config)?,
-                ExecMode::Display => config.raw_paths.clone(),
-                _ => unreachable!(),
-            };
-            // ...and for all relevant strings get our PathData struct
-            let pathdata_set = get_pathdata(&config, &paths_as_strings);
-            // finally run search on those paths
-            lookup_exec(&config, pathdata_set)?
+        // 1. Do our interactive lookup thing, or not, to obtain raw string paths
+        // 2. Get PathData struct for all paths - lens, modify times, paths
+        // 3. Determine/lookup whether file matches any files on snapshots
+        ExecMode::Interactive => {
+            get_snaps_and_live_set(&config, interactive_exec(&mut out, &config)?)?
         }
+        ExecMode::Display => get_snaps_and_live_set(&config, config.raw_paths.clone())?,
+        // deleted_exec is special because it is more convenient to get PathData in 'mod deleted' 
+        // on raw paths rather than strings, also there is no need to run a lookup on files already on snapshots
+        ExecMode::Deleted => deleted_exec(&config, &mut out)?,
     };
 
     // and display
@@ -446,11 +444,15 @@ fn read_stdin() -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sync +
     Ok(broken_string)
 }
 
-pub fn get_pathdata(config: &Config, paths_as_strings: &[String]) -> Vec<PathData> {
+pub fn get_snaps_and_live_set(
+    config: &Config,
+    paths_as_strings: Vec<String>,
+) -> Result<Vec<Vec<PathData>>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // build our pathdata Vecs for our lookup request
     let vec_pd: Vec<PathData> = paths_as_strings
         .par_iter()
         .map(|string| PathData::new(config, Path::new(&string)))
         .collect();
-    vec_pd
+    // finally run search on those paths
+    lookup_exec(config, vec_pd)
 }
