@@ -17,15 +17,14 @@
 
 use crate::display::display_exec;
 use crate::lookup::get_dataset;
-use std::io::Write;
 
 use crate::{get_pathdata, Config, HttmError, PathData};
 use rayon::prelude::*;
 
 use fxhash::FxHashMap as HashMap;
-use std::fs::DirEntry;
-use std::io::Stdout;
 use std::{
+    fs::DirEntry,
+    io::{Stdout, Write},
     ffi::OsString,
     path::{Path, PathBuf},
     time::SystemTime,
@@ -149,7 +148,7 @@ pub fn get_deleted(
         let _ = unique_snap_filenames.insert(file_name, path);
     });
 
-    // dedup by name - none values are unique here
+    // deduplication by name - none values are unique here
     let deleted_file_strings: Vec<String> = unique_snap_filenames
         .par_iter()
         .filter(|(file_name, _)| local_unique_filenames.get(file_name.to_owned()).is_none())
@@ -158,7 +157,7 @@ pub fn get_deleted(
 
     let deleted_pathdata = get_pathdata(config, &deleted_file_strings);
 
-    // dedup by time - as we would elsewhere
+    // deduplication by time - as we would elsewhere
     let mut unique_deleted_versions: HashMap<(SystemTime, u64), PathData> = HashMap::default();
     let _ = deleted_pathdata.into_iter().for_each(|pathdata| {
         let _ = unique_deleted_versions.insert((pathdata.system_time, pathdata.size), pathdata);
