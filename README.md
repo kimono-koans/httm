@@ -6,9 +6,9 @@
 
 `httm` boasts an array of seductive features, like:
 
-* Lookup deleted files! Ooooooooo!
+* Search for an recursively list all deleted files! Ooooooooo!
 * Select non-immediate datasets (on a different pool, or remote).
-* For use even with rsync-ed non-ZFS local datasets (like ext4, APFS, or NTFS), not just ZFS.
+* For use with even rsync-ed non-ZFS local datasets (like ext4, APFS, or NTFS), not just ZFS.
 * Specify multiple files for lookup on different datasets
 * 3 native interactive modes: lookup, select and restore
 * ANSI `ls` colors from your environment
@@ -17,7 +17,7 @@
 
 Use in combination with you favorite shell (hot keys!) for even more fun.
 
-Inspired by the wonderful [findoid](https://github.com/jimsalterjrs/sanoid) script.
+Inspired by [findoid](https://github.com/jimsalterjrs/sanoid) script, [fzf](https://github.com/junegunn/fzf) and many wonderful [zsh](https://www.zsh.org) key bindings.
 
 ## Installation
 
@@ -29,7 +29,7 @@ The `httm` project contains two main components:
     git clone kimono-koans/httm 
     cargo install --path ./httm/
     ```
-2. The optional `zsh` hot-key bindings: Use `ESC+S` to select snapshots filenames to be dropped to your command line, or use `ESC+M` to browse for all of a file's snapshots.  Further example scripts and key bindings are provided as well.
+2. The optional `zsh` hot-key bindings: Use `ESC+s` to select snapshots filenames to be dropped to your command line, or use `ESC+m` to browse for all of a file's snapshots.  Further example scripts and key bindings are provided as well.
 
 ## License
 
