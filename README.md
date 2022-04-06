@@ -17,7 +17,7 @@
 
 Use in combination with you favorite shell (hot keys!) for even more fun.
 
-Inspired by [findoid](https://github.com/jimsalterjrs/sanoid) script, [fzf](https://github.com/junegunn/fzf) and many wonderful [zsh](https://www.zsh.org) key bindings.
+Inspired by the [findoid](https://github.com/jimsalterjrs/sanoid) script, [fzf](https://github.com/junegunn/fzf) and many wonderful [zsh](https://www.zsh.org) key bindings.
 
 ## Installation
 
