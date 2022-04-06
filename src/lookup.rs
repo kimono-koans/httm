@@ -121,7 +121,7 @@ fn get_versions(
     Ok(sorted.into_iter().map(|(_, v)| v).collect())
 }
 
-fn get_dataset(
+pub fn get_dataset(
     pathdata: &PathData,
 ) -> Result<PathBuf, Box<dyn std::error::Error + Send + Sync + 'static>> {
     let file_path = &pathdata.path_buf;

@@ -15,6 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
+use crate::deleted::get_deleted;
 use crate::display::{display_exec, paint_string};
 use crate::lookup::lookup_exec;
 use crate::{get_pathdata, read_stdin};
@@ -27,8 +28,8 @@ use skim::prelude::*;
 use std::{
     env,
     ffi::OsStr,
-    fs::ReadDir,
     io::{Cursor, Stdout, Write as IoWrite},
+    path::Path,
     path::PathBuf,
     thread,
     time::SystemTime,
@@ -186,13 +187,13 @@ fn lookup_view(
     // because it blocks on preview(), given the implementation of skim, see the new_preview branch
 
     // prep thread spawn
-    let mut read_dir = std::fs::read_dir(&config.user_requested_dir)?;
+    let requested_dir = config.user_requested_dir.clone();
     let (tx_item, rx_item): (SkimItemSender, SkimItemReceiver) = unbounded();
     let config_clone = config.clone();
 
     // spawn fn enumerate_directory - permits recursion into dirs without blocking
     thread::spawn(move || {
-        enumerate_directory(&config_clone, &tx_item, &mut read_dir);
+        let _ = enumerate_directory(&config_clone, &tx_item, &requested_dir);
     });
 
     // as skim is slower if we call as a function, we locate which httm command to use here
@@ -264,16 +265,35 @@ fn select_view(
     Ok(res)
 }
 
-fn enumerate_directory(config: &Config, tx_item: &SkimItemSender, read_dir: &mut ReadDir) {
+fn enumerate_directory(
+    config: &Config,
+    tx_item: &SkimItemSender,
+    requested_dir: &Path,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    let read_dir = std::fs::read_dir(requested_dir)?;
+
     // convert to paths, and split into dirs and files
     let (vec_dirs, vec_files): (Vec<PathBuf>, Vec<PathBuf>) = read_dir
         .filter_map(|i| i.ok())
         .map(|dir_entry| dir_entry.path())
         .partition(|path| path.is_dir());
 
+    let vec_deleted = if config.opt_deleted {
+        get_deleted(config, requested_dir)?
+            .par_iter()
+            .map(|path| path.path_buf.file_name())
+            .flatten()
+            .map(|str| Path::new(requested_dir).join(str))
+            .collect()
+    } else {
+        Vec::new()
+    };
+
     // combine dirs and files into a vec and sort to display
-    let mut combined_vec: Vec<&PathBuf> =
-        vec![&vec_files, &vec_dirs].into_iter().flatten().collect();
+    let mut combined_vec: Vec<&PathBuf> = vec![&vec_files, &vec_dirs, &vec_deleted]
+        .into_iter()
+        .flatten()
+        .collect();
     combined_vec.par_sort();
     combined_vec.par_iter().for_each(|path| {
         let _ = tx_item.send(Arc::new(SelectionCandidate {
@@ -287,11 +307,11 @@ fn enumerate_directory(config: &Config, tx_item: &SkimItemSender, read_dir: &mut
             // don't want to a par_iter here because it will block and wait for all results, instead of
             // printing and recursing into the subsequent dirs
             .iter()
-            .filter_map(|read_dir| std::fs::read_dir(read_dir).ok())
-            .for_each(|mut read_dir| {
-                enumerate_directory(config, tx_item, &mut read_dir);
+            .for_each(|requested_dir| {
+                let _ = enumerate_directory(config, tx_item, requested_dir);
             })
     }
+    Ok(())
 }
 
 fn timestamp_file(st: &SystemTime) -> String {
