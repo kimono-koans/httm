@@ -415,7 +415,7 @@ fn exec() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
             get_snaps_and_live_set(&config, interactive_exec(&mut out, &config)?)?
         }
         ExecMode::Display => get_snaps_and_live_set(&config, config.raw_paths.clone())?,
-        // deleted_exec is special because it is more convenient to get PathData in 'mod deleted' 
+        // deleted_exec is special because it is more convenient to get PathData in 'mod deleted'
         // on raw paths rather than strings, also there is no need to run a lookup on files already on snapshots
         ExecMode::Deleted => deleted_exec(&config, &mut out)?,
     };
