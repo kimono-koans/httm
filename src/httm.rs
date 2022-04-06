@@ -391,8 +391,8 @@ fn parse_args() -> ArgMatches {
 }
 
 fn main() {
-    if let Err(e) = exec() {
-        eprintln!("Error: {}", e);
+    if let Err(error) = exec() {
+        eprintln!("Error: {}", error);
         std::process::exit(1)
     } else {
         std::process::exit(0)
@@ -409,7 +409,7 @@ fn exec() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
 
     let snaps_and_live_set = match config.exec_mode {
         ExecMode::Deleted => deleted_exec(&config, &mut out)?,
-        ExecMode::Interactive | ExecMode::Display => {
+        _ => {
             let paths_as_strings = match config.exec_mode {
                 ExecMode::Interactive => interactive_exec(&mut out, &config)?,
                 ExecMode::Display => config.raw_paths.clone(),

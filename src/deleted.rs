@@ -18,7 +18,7 @@
 use crate::display::display_exec;
 use crate::lookup::get_dataset;
 
-use crate::{get_pathdata, Config, HttmError, PathData};
+use crate::{Config, HttmError, PathData};
 use rayon::prelude::*;
 
 use fxhash::FxHashMap as HashMap;
@@ -151,13 +151,11 @@ pub fn get_deleted(
     });
 
     // deduplication by name - none values are unique here
-    let deleted_file_strings: Vec<String> = unique_snap_filenames
+    let deleted_pathdata: Vec<PathData> = unique_snap_filenames
         .par_iter()
         .filter(|(file_name, _)| local_unique_filenames.get(file_name.to_owned()).is_none())
-        .map(|(_, path)| path.to_string_lossy().to_string())
+        .map(|(_, path)| PathData::new(config, path))
         .collect();
-
-    let deleted_pathdata = get_pathdata(config, &deleted_file_strings);
 
     // deduplication by time - as we would elsewhere
     let mut unique_deleted_versions: HashMap<(SystemTime, u64), PathData> = HashMap::default();
