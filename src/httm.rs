@@ -255,9 +255,7 @@ impl Config {
         let requested_dir = match exec {
             ExecMode::Interactive => {
                 match file_names.len() {
-                    0 => {
-                        pwd.clone()
-                    },
+                    0 => pwd.clone(),
                     1 => {
                         if Path::new(&file_names[0]).is_dir() {
                             PathBuf::from(&file_names.get(0).unwrap()).canonicalize()?
@@ -268,7 +266,7 @@ impl Config {
                                     return Err(HttmError::new(
                                         "Path specified is not a directory, and therefore not suitable for browsing.",
                                     )
-                                    .into())
+                                    .into());
                                 }
                                 InteractiveMode::Restore | InteractiveMode::Select => {
                                     // non-dir file will just cause us to skip the lookup phase
@@ -283,19 +281,20 @@ impl Config {
                             )
                             .into());
                         }
-                    },
+                    }
                     n if n > 1 => {
-                        return Err(
-                        HttmError::new("May only specify one path in interactive mode.").into(),
+                        return Err(HttmError::new(
+                            "May only specify one path in interactive mode.",
                         )
-                    },
+                        .into())
+                    }
                     _ => {
                         unreachable!()
-                    }, 
+                    }
                 }
             }
             ExecMode::Deleted => {
-                if file_names.len() >= 1 || (Path::new(&file_names[0]).exists() && !Path::new(&file_names[0]).is_dir()) {
+                if file_names.len() > 1 || !Path::new(&file_names[0]).is_dir() {
                     exec = ExecMode::Display
                 }
                 pwd.clone()
@@ -307,8 +306,6 @@ impl Config {
             }
         };
 
-        
-        
         let config = Config {
             raw_paths: file_names,
             opt_raw: raw,
