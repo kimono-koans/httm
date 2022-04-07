@@ -74,7 +74,7 @@ pub fn interactive_exec(
     // go to interactive_select early if user has already requested a file
     // and we are in the appropriate mode Select or Restore, see struct Config
     let paths_as_strings =
-        if config.raw_paths.len() == 1 && !Path::new(&config.raw_paths[0]).is_dir() {
+        if config.raw_paths.len() == 1 && Path::new(&config.raw_paths[0]).is_file() {
             let selected_file = config.raw_paths.clone();
             interactive_select(out, config, selected_file)?;
             unreachable!()
