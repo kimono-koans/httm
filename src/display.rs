@@ -77,7 +77,8 @@ fn display_pretty(
 
             pathdata_set.iter().for_each(|pathdata| {
                 let pathdata_date = display_date(&pathdata.system_time);
-                let fixed_width_padding: String = (0..2).map(|_| " ").collect();
+                // 2 space wide padding
+                let fixed_width_padding: String = "  ".to_string();
 
                 // tab delimited if "no pretty", no border lines, and no colors
                 let (pathdata_size, display_path, display_padding) = if !config.opt_no_pretty {
