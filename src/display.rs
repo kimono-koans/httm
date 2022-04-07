@@ -77,9 +77,10 @@ fn display_pretty(
             let fixed_padding: String = (0..5).map(|_| " ").collect();
             let display_size;
             let display_path;
+            let display_padding;
 
             // paint the live string with ls colors
-            let painted_path = if idx == 1 {
+            let painted_path = if idx == 1 && !config.opt_no_pretty {
                 let path = &pathdata.path_buf;
                 paint_string(path, &path.to_string_lossy())
             } else {
@@ -94,9 +95,11 @@ fn display_pretty(
                     width = size_padding
                 );
                 display_path = format!("{:<width$}", painted_path, width = 5);
+                display_padding = fixed_padding;
             } else {
                 display_size = display_human_size(pathdata);
                 display_path = painted_path;
+                display_padding = "\t".to_string();
             }
 
             // displays blanks for phantom values, equaling their dummy lens and dates.
@@ -106,14 +109,14 @@ fn display_pretty(
             if !pathdata.is_phantom {
                 pathdata_set_buffer += &format!(
                     "{}{}{}{}\"{}\"\n",
-                    display_date, fixed_padding, display_size, fixed_padding, display_path
+                    display_date, display_padding, display_size, display_padding, display_path
                 );
             } else {
                 let phantom_date: String = (0..display_date.len()).map(|_| " ").collect();
                 let phantom_size: String = (0..display_size.len()).map(|_| " ").collect();
                 pathdata_set_buffer += &format!(
                     "{}{}{}{}\"{}\"\n",
-                    phantom_date, fixed_padding, phantom_size, fixed_padding, display_path
+                    phantom_date, display_padding, phantom_size, display_padding, display_path
                 );
             }
         }

@@ -339,7 +339,7 @@ impl Config {
 fn parse_args() -> ArgMatches {
     clap::Command::new("httm")
         .about("displays information about unique file versions contained on ZFS snapshots.\n\n*But don't call it a H__ T__ Time Machine.*")
-        .version("0.6.1") 
+        .version("0.6.2") 
         .arg(
             Arg::new("INPUT_FILES")
                 .help("in non-interactive mode, put requested files here.  In interactive mode, this is the search path.  If you enter no files, then httm will pause waiting for input on stdin(3).")
@@ -421,7 +421,7 @@ fn parse_args() -> ArgMatches {
         .arg(
             Arg::new("NOT_SO_PRETTY")
                 .long("not-so-pretty")
-                .help("list the backup locations without any pretty border lines.")
+                .help("list the backup locations tab delimited, without any pretty border lines.")
                 .conflicts_with_all(&["RAW", "ZEROS"])
                 .display_order(11)
         )
