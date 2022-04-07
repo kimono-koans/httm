@@ -95,8 +95,8 @@ fn display_pretty(
                 );
                 display_path = format!("{:<width$}", painted_path, width = 5);
             } else {
-                display_size = format!("{}", display_human_size(pathdata));
-                display_path = format!("{}", painted_path);
+                display_size = display_human_size(pathdata);
+                display_path = painted_path;
             }
 
             // displays blanks for phantom values, equaling their dummy lens and dates.
