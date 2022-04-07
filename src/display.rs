@@ -121,11 +121,7 @@ fn display_pretty(
                 };
                 pathdata_set_buffer += &format!(
                     "{}{}{}{}\"{}\"\n",
-                    display_date,
-                    display_padding,
-                    display_size,
-                    display_padding,
-                    display_path
+                    display_date, display_padding, display_size, display_padding, display_path
                 );
             });
             if !config.opt_no_pretty && !pathdata_set_buffer.is_empty() {
