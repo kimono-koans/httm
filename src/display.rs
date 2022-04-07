@@ -74,11 +74,12 @@ fn display_pretty(
 
         for pathdata in pathdata_set {
             let display_date = display_date(&pathdata.system_time);
+            let fixed_padding: String = (0..5).map(|_| " ").collect();
             let display_size;
-            let fixed_padding;
+            let display_path;
 
             // paint the live string with ls colors
-            let display_path = if idx == 1 {
+            let painted_path = if idx == 1 {
                 let path = &pathdata.path_buf;
                 paint_string(path, &path.to_string_lossy())
             } else {
@@ -92,10 +93,10 @@ fn display_pretty(
                     display_human_size(pathdata),
                     width = size_padding
                 );
-                fixed_padding = format!("{:<5}", " ");
+                display_path = format!("{:<width$}", painted_path, width = 5);
             } else {
-                display_size = format!("\t{}", display_human_size(pathdata));
-                fixed_padding = "\t".to_owned();
+                display_size = format!("{}", display_human_size(pathdata));
+                display_path = format!("{}", painted_path);
             }
 
             // displays blanks for phantom values, equaling their dummy lens and dates.
@@ -104,15 +105,15 @@ fn display_pretty(
             // a None value here.
             if !pathdata.is_phantom {
                 pathdata_set_buffer += &format!(
-                    "{}{}{}\"{}\"\n",
-                    display_date, display_size, fixed_padding, display_path
+                    "{}{}{}{}\"{}\"\n",
+                    display_date, fixed_padding, display_size, fixed_padding, display_path
                 );
             } else {
-                let pad_date: String = (0..display_date.len()).map(|_| " ").collect();
-                let pad_size: String = (0..display_size.len()).map(|_| " ").collect();
+                let phantom_date: String = (0..display_date.len()).map(|_| " ").collect();
+                let phantom_size: String = (0..display_size.len()).map(|_| " ").collect();
                 pathdata_set_buffer += &format!(
-                    "{}{}{}\"{}\"\n",
-                    pad_date, pad_size, fixed_padding, display_path
+                    "{}{}{}{}\"{}\"\n",
+                    phantom_date, fixed_padding, phantom_size, fixed_padding, display_path
                 );
             }
         }
@@ -142,21 +143,18 @@ fn calculate_padding(snaps_and_live_set: &[Vec<PathData>]) -> (usize, String) {
                 display_human_size(pathdata),
                 width = size_padding
             );
-            let fixed_padding = format!("{:<5}", " ");
+            let fixed_padding: String = (0..5).map(|_| " ").collect();
             let display_path = &pathdata.path_buf.to_string_lossy();
 
             let display_size_len = display_human_size(pathdata).len();
             let formatted_line_len =
                 // addition of 2usize is for the two quotation marks we add to the path display 
-                display_date.len() + display_size.len() + fixed_padding.len() + display_path.len() + 2usize;
+                display_date.len() + display_size.len() + (2 * fixed_padding.len()) + display_path.len() + 2usize;
 
             size_padding = display_size_len.max(size_padding);
             fancy_border = formatted_line_len.max(fancy_border);
         }
     }
-
-    size_padding += 5usize;
-    fancy_border += 5usize;
 
     // has to be a more idiomatic way to do this
     // if you know, let me know
