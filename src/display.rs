@@ -76,11 +76,11 @@ fn display_pretty(
             let mut pathdata_set_buffer = String::new();
 
             pathdata_set.iter().for_each(|pathdata| {
-                let path_date = display_date(&pathdata.system_time);
+                let pathdata_date = display_date(&pathdata.system_time);
                 let fixed_width_padding: String = (0..2).map(|_| " ").collect();
 
                 // tab delimited if "no pretty", no border lines, and no colors
-                let (path_size, display_path, display_padding) = if !config.opt_no_pretty {
+                let (pathdata_size, display_path, display_padding) = if !config.opt_no_pretty {
                     let path_size = format!(
                         "{:>width$}",
                         display_human_size(pathdata),
@@ -95,10 +95,9 @@ fn display_pretty(
                     } else {
                         path.to_string_lossy().to_string()
                     };
-                    let formatted_path =
-                        format!("{:<width$}", painted_string, width = size_padding);
+                    let display_path = format!("{:<width$}", painted_string, width = size_padding);
 
-                    (path_size, formatted_path, display_padding)
+                    (path_size, display_path, display_padding)
                 } else {
                     let path_size = display_human_size(pathdata);
                     let display_path = pathdata.path_buf.to_string_lossy().into_owned();
@@ -111,12 +110,12 @@ fn display_pretty(
                 // see struct PathData for more details as to why we use a dummy instead of
                 // a None value here.
                 let (display_date, display_size) = if !pathdata.is_phantom {
-                    let date = path_date;
-                    let size = path_size;
+                    let date = pathdata_date;
+                    let size = pathdata_size;
                     (date, size)
                 } else {
-                    let date: String = (0..path_date.len()).map(|_| " ").collect();
-                    let size: String = (0..path_size.len()).map(|_| " ").collect();
+                    let date: String = (0..pathdata_date.len()).map(|_| " ").collect();
+                    let size: String = (0..pathdata_size.len()).map(|_| " ").collect();
                     (date, size)
                 };
                 pathdata_set_buffer += &format!(
