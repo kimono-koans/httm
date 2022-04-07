@@ -151,11 +151,13 @@ impl Config {
         let raw = matches.is_present("RAW");
         let not_so_pretty = matches.is_present("NOT_SO_PRETTY");
         let no_live_vers = matches.is_present("NO_LIVE");
-        let exec = if matches.is_present("INTERACTIVE")
+        let recursive = matches.is_present("RECURSIVE");
+        let mut exec = if matches.is_present("INTERACTIVE")
             || matches.is_present("RESTORE")
             || matches.is_present("SELECT")
         {
             ExecMode::Interactive
+        // ExecMode::Deleted is for a recursive dir search only for now
         } else if deleted {
             ExecMode::Deleted
         } else {
@@ -163,7 +165,6 @@ impl Config {
         };
         let env_snap_dir = std::env::var_os("HTTM_SNAP_POINT");
         let env_local_dir = std::env::var_os("HTTM_LOCAL_DIR");
-        let recursive = matches.is_present("RECURSIVE");
         let interactive = if matches.is_present("RESTORE") {
             InteractiveMode::Restore
         } else if matches.is_present("SELECT") {
@@ -251,29 +252,63 @@ impl Config {
             read_stdin()?
         };
 
-        let requested_dir = if exec == ExecMode::Interactive {
-            if file_names.len() > 1usize {
-                return Err(
-                    HttmError::new("May only specify one path in interactive mode.").into(),
-                );
-            } else if file_names.len() == 1 && !Path::new(&file_names[0]).is_dir() {
-                return Err(HttmError::new(
-                    "Path specified is not a directory suitable for browsing.",
-                )
-                .into());
-            } else if file_names.len() == 1 && PathBuf::from(&file_names[0]).is_dir() {
-                PathBuf::from(&file_names.get(0).unwrap()).canonicalize()?
-            } else if file_names.is_empty() {
-                pwd.clone()
-            } else {
-                unreachable!()
+        let requested_dir = match exec {
+            ExecMode::Interactive => {
+                match file_names.len() {
+                    0 => {
+                        pwd.clone()
+                    },
+                    1 => {
+                        if Path::new(&file_names[0]).is_dir() {
+                            PathBuf::from(&file_names.get(0).unwrap()).canonicalize()?
+                        } else if Path::new(&file_names[0]).is_file() {
+                            match interactive {
+                                InteractiveMode::Lookup | InteractiveMode::None => {
+                                    // doesn't make sense to have a non-dir in these modes
+                                    return Err(HttmError::new(
+                                        "Path specified is not a directory, and therefore not suitable for browsing.",
+                                    )
+                                    .into())
+                                }
+                                InteractiveMode::Restore | InteractiveMode::Select => {
+                                    // non-dir file will just cause us to skip the lookup phase
+                                    // this is a value which won't get used
+                                    PathBuf::from(&file_names.get(0).unwrap()).canonicalize()?
+                                }
+                            }
+                        } else {
+                            // let's not screw with symlinks, char, block devices, whatever else.
+                            return Err(HttmError::new(
+                                "Path specified is either not a directory or a file, or does not exist, and therefore is not suitable for an interactive mode.",
+                            )
+                            .into());
+                        }
+                    },
+                    n if n > 1 => {
+                        return Err(
+                        HttmError::new("May only specify one path in interactive mode.").into(),
+                        )
+                    },
+                    _ => {
+                        unreachable!()
+                    }, 
+                }
             }
-        } else {
-            // in non-interactive mode / display mode, requested dir is just a file
-            // like every other file and pwd must be the requested working dir.
-            pwd.clone()
+            ExecMode::Deleted => {
+                if file_names.len() >= 1 || (Path::new(&file_names[0]).exists() && !Path::new(&file_names[0]).is_dir()) {
+                    exec = ExecMode::Display
+                }
+                pwd.clone()
+            }
+            ExecMode::Display => {
+                // in non-interactive mode / display mode, requested dir is just a file
+                // like every other file and pwd must be the requested working dir.
+                pwd.clone()
+            }
         };
 
+        
+        
         let config = Config {
             raw_paths: file_names,
             opt_raw: raw,
@@ -333,7 +368,7 @@ fn parse_args() -> ArgMatches {
             Arg::new("DELETED")
                 .short('d')
                 .long("deleted")
-                .help("show deleted files.  Includes deleted/moved files in the interactive listing.  Recursive directory listing in interactive mode is much slower when enabled.  When used in lookup mode, it will print all the deleted files within a directory.  When used recursively, in lookup mode, it will print as the files become available to stdout.")
+                .help("show deleted files in interactive modes, or do a search for such files, if a directory is specified.  Note: Any recursive directory listing in interactive mode is much slower when enabled.")
                 .display_order(5)
         )
         .arg(

@@ -1,8 +1,8 @@
 [![asciicast](https://asciinema.org/a/477019.svg)](https://asciinema.org/a/477019)
 
-# Don't call it a h-- t-- time machine
+# zsys is *le sigh*, but the dream of a ZFS Time Machine is still alive with `httm`
 
-`httm` prints the size, date and corresponding locations of available unique versions (deduplicated by modify time and size) of files residing on ZFS snapshots, but can also be used to the *interactively* view and restore such files.  `httm` might change the way you use ZFS snapshots (because ZFS isn't designed for finding for unique file versions) or the Time Machine concept (because `httm` is fast!).
+`httm` prints the size, date and corresponding locations of available unique versions (deduplicated by modify time and size) of files residing on ZFS snapshots, but can also be used *interactively* to view and restore such files.  `httm` might change the way you use ZFS snapshots (because ZFS isn't designed for finding for unique file versions) or the Time Machine concept (because `httm` is fast!).
 
 `httm` boasts an array of seductive features, like:
 
