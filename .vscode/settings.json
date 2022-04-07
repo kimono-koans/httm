@@ -35,6 +35,7 @@
         "sysfs",
         "tlsv",
         "Vecs",
-        "walkdir"
+        "walkdir",
+        "zsys"
     ]
 }

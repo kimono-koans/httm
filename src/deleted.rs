@@ -16,7 +16,7 @@
 // that was distributed with this source code.
 
 use crate::display::display_exec;
-use crate::lookup::{get_snap_and_local, get_dataset};
+use crate::lookup::{get_dataset, get_snap_and_local};
 
 use crate::{Config, PathData};
 use rayon::prelude::*;

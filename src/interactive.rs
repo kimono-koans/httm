@@ -71,8 +71,17 @@ pub fn interactive_exec(
     out: &mut Stdout,
     config: &Config,
 ) -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    // collect string paths from what we get from lookup_view
-    let paths_as_strings = vec![lookup_view(config)?];
+    // go to interactive_select early if user has already requested a file
+    // and we are in the appropriate mode Select or Restore, see struct Config
+    let paths_as_strings =
+        if config.raw_paths.len() == 1 && !Path::new(&config.raw_paths[0]).is_dir() {
+            let selected_file = config.raw_paths.clone();
+            interactive_select(out, config, selected_file)?;
+            unreachable!()
+        } else {
+            // collect string paths from what we get from lookup_view
+            vec![lookup_view(config)?]
+        };
 
     // do we return back to our main exec function to print,
     // or continue down the interactive rabbit hole?
