@@ -160,7 +160,7 @@ fn calculate_padding(snaps_and_live_set: &[Vec<PathData>]) -> (usize, String) {
             let display_size_len = display_human_size(pathdata).len();
             let formatted_line_len =
                 // addition of 2usize is for the two quotation marks we add to the path display 
-                display_date.len() + display_size.len() + size_padding + 2 * fixed_width_padding_size + display_path.len() + 2usize;
+                display_date.len() + display_size.len() + size_padding + 2 * fixed_width_padding_len + display_path.len() + 2usize;
 
             size_padding = display_size_len.max(size_padding);
             fancy_border = formatted_line_len.max(fancy_border);
