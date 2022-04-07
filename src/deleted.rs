@@ -143,7 +143,7 @@ pub fn get_deleted(
         .map(|(_, path)| PathData::new(config, path))
         .collect();
 
-    // deduplication by time - as we would elsewhere
+    // deduplication by modify time and size - as we would elsewhere
     let mut unique_deleted_versions: HashMap<(SystemTime, u64), PathData> = HashMap::default();
     let _ = deleted_pathdata.into_iter().for_each(|pathdata| {
         let _ = unique_deleted_versions.insert((pathdata.system_time, pathdata.size), pathdata);

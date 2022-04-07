@@ -257,29 +257,33 @@ impl Config {
                 match file_names.len() {
                     0 => pwd.clone(),
                     1 => {
-                        if Path::new(&file_names[0]).is_dir() {
-                            PathBuf::from(&file_names.get(0).unwrap()).canonicalize()?
-                        } else if Path::new(&file_names[0]).is_file() {
-                            match interactive {
-                                InteractiveMode::Lookup | InteractiveMode::None => {
-                                    // doesn't make sense to have a non-dir in these modes
-                                    return Err(HttmError::new(
-                                        "Path specified is not a directory, and therefore not suitable for browsing.",
-                                    )
-                                    .into());
-                                }
-                                InteractiveMode::Restore | InteractiveMode::Select => {
-                                    // non-dir file will just cause us to skip the lookup phase
-                                    // this is a value which won't get used
-                                    PathBuf::from(&file_names.get(0).unwrap()).canonicalize()?
+                        match Path::new(&file_names[0]) {
+                            n if n.is_dir() => {
+                                PathBuf::from(&file_names.get(0).unwrap()).canonicalize()?
+                            }
+                            n if n.is_file() => {
+                                match interactive {
+                                    InteractiveMode::Lookup | InteractiveMode::None => {
+                                        // doesn't make sense to have a non-dir in these modes
+                                        return Err(HttmError::new(
+                                                "Path specified is not a directory, and therefore not suitable for browsing.",
+                                            )
+                                            .into());
+                                    }
+                                    InteractiveMode::Restore | InteractiveMode::Select => {
+                                        // non-dir file will just cause us to skip the lookup phase
+                                        // this is a value which won't get used
+                                        PathBuf::from(&file_names.get(0).unwrap()).canonicalize()?
+                                    }
                                 }
                             }
-                        } else {
                             // let's not screw with symlinks, char, block devices, whatever else.
-                            return Err(HttmError::new(
-                                "Path specified is either not a directory or a file, or does not exist, and therefore is not suitable for an interactive mode.",
-                            )
-                            .into());
+                            _ => {
+                                return Err(HttmError::new(
+                                    "Path specified is either not a directory or a file, or does not exist, and therefore is not suitable for an interactive mode.",
+                                )
+                                .into());
+                            }
                         }
                     }
                     n if n > 1 => {
