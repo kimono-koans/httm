@@ -73,11 +73,12 @@ fn display_pretty(
         let mut pathdata_set_buffer = String::new();
 
         for pathdata in pathdata_set {
-            let display_date = display_date(&pathdata.system_time);
-            let fixed_padding: String = (0..5).map(|_| " ").collect();
-            let display_size;
+            let path_date = display_date(&pathdata.system_time);
+            let path_size;
             let display_path;
-            let display_padding;
+            let display_padding_size;
+            let display_padding_path;
+            let fixed_width_padding = (0..5).map(|_| " ").collect();
 
             // paint the live string with ls colors
             let painted_path = if idx == 1 && !config.opt_no_pretty {
@@ -89,36 +90,42 @@ fn display_pretty(
 
             // tab delimited if "no pretty", and no border lines
             if !config.opt_no_pretty {
-                display_size = format!(
+                path_size = format!(
                     "{:>width$}",
                     display_human_size(pathdata),
                     width = size_padding
                 );
-                display_path = format!("{:<width$}", painted_path, width = 5);
-                display_padding = fixed_padding;
+                display_path = format!("{:<width$}", painted_path, width = size_padding);
+                display_padding_size = (0..size_padding).map(|_| " ").collect();
+                display_padding_path = fixed_width_padding;
             } else {
-                display_size = display_human_size(pathdata);
+                path_size = display_human_size(pathdata);
                 display_path = painted_path;
-                display_padding = "\t".to_string();
+                display_padding_size = "\t".to_string();
+                display_padding_path = "\t".to_string();
             }
 
             // displays blanks for phantom values, equaling their dummy lens and dates.
             //
             // see struct PathData for more details as to why we use a dummy instead of
             // a None value here.
-            if !pathdata.is_phantom {
-                pathdata_set_buffer += &format!(
-                    "{}{}{}{}\"{}\"\n",
-                    display_date, display_padding, display_size, display_padding, display_path
-                );
+            let (display_date, display_size) = if !pathdata.is_phantom {
+                let date = path_date;
+                let size = path_size;
+                (date, size)
             } else {
-                let phantom_date: String = (0..display_date.len()).map(|_| " ").collect();
-                let phantom_size: String = (0..display_size.len()).map(|_| " ").collect();
-                pathdata_set_buffer += &format!(
-                    "{}{}{}{}\"{}\"\n",
-                    phantom_date, display_padding, phantom_size, display_padding, display_path
-                );
-            }
+                let date: String = (0..path_date.len()).map(|_| " ").collect();
+                let size: String = (0..path_size.len()).map(|_| " ").collect();
+                (date, size)
+            };
+            pathdata_set_buffer += &format!(
+                "{}{}{}{}\"{}\"\n",
+                display_date,
+                display_padding_size,
+                display_size,
+                display_padding_path,
+                display_path
+            );
         }
         if !config.opt_no_pretty && !pathdata_set_buffer.is_empty() {
             pathdata_set_buffer += &format!("{}\n", fancy_border_string);
@@ -146,13 +153,13 @@ fn calculate_padding(snaps_and_live_set: &[Vec<PathData>]) -> (usize, String) {
                 display_human_size(pathdata),
                 width = size_padding
             );
-            let fixed_padding: String = (0..5).map(|_| " ").collect();
+            let fixed_width_padding_size = 5usize;
             let display_path = &pathdata.path_buf.to_string_lossy();
 
             let display_size_len = display_human_size(pathdata).len();
             let formatted_line_len =
                 // addition of 2usize is for the two quotation marks we add to the path display 
-                display_date.len() + display_size.len() + (2 * fixed_padding.len()) + display_path.len() + 2usize;
+                display_date.len() + display_size.len() + (size_padding + fixed_width_padding_size) + display_path.len() + 2usize;
 
             size_padding = display_size_len.max(size_padding);
             fancy_border = formatted_line_len.max(fancy_border);
