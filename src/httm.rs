@@ -244,12 +244,13 @@ impl Config {
             raw_values
                 .map(|i| i.to_string_lossy().into_owned())
                 .collect()
-        } else if exec == ExecMode::Interactive {
-            Vec::new()
-        } else if deleted {
+        // keeps us from waiting on stdin when in non-Display modes
+        } else if exec == ExecMode::Interactive || exec == ExecMode::Deleted {
             vec![pwd.to_string_lossy().to_string()]
-        } else {
+        } else if exec == ExecMode::Display {
             read_stdin()?
+        } else {
+            unreachable!()
         };
 
         let requested_dir = match exec {
@@ -294,7 +295,10 @@ impl Config {
                 }
             }
             ExecMode::Deleted => {
-                if file_names.len() > 1 || !Path::new(&file_names[0]).is_dir() {
+                // file_names should never be empty for ExecMode::Deleted
+                if file_names.len() > 1
+                    || (file_names.len() == 1 && !Path::new(&file_names[0]).is_dir())
+                {
                     exec = ExecMode::Display
                 }
                 pwd.clone()
