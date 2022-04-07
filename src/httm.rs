@@ -157,7 +157,6 @@ impl Config {
             || matches.is_present("SELECT")
         {
             ExecMode::Interactive
-        // ExecMode::Deleted is for a recursive dir search only for now
         } else if deleted {
             ExecMode::Deleted
         } else {
@@ -296,6 +295,9 @@ impl Config {
             }
             ExecMode::Deleted => {
                 // file_names should never be empty for ExecMode::Deleted
+                //
+                // we only want one dir for a ExecMode::Deleted run, else
+                // we should run in ExecMode::Display mode
                 if file_names.len() > 1
                     || (file_names.len() == 1 && !Path::new(&file_names[0]).is_dir())
                 {
