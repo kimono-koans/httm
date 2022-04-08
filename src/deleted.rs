@@ -16,7 +16,7 @@
 // that was distributed with this source code.
 
 use crate::display::display_exec;
-use crate::lookup::{get_dataset, get_snap_and_local};
+use crate::lookup::{get_dataset, get_snap_point_and_local_relative_path};
 
 use crate::{Config, PathData, SnapPoint};
 use rayon::prelude::*;
@@ -101,7 +101,8 @@ pub fn get_deleted(
     };
 
     // generates path for hidden .zfs snap dir, and the corresponding local path
-    let (snapshot_dir, local_path) = get_snap_and_local(config, &pathdata, dataset)?;
+    let (snapshot_dir, local_path) =
+        get_snap_point_and_local_relative_path(config, &pathdata, dataset)?;
 
     let local_dir_entries: Vec<DirEntry> = std::fs::read_dir(&pathdata.path_buf)?
         .into_iter()

@@ -192,7 +192,8 @@ impl Config {
             );
         }
 
-        // need to know the command executed for previews in interactive mode, best explained why there
+        // need to know the command to execute for previews in interactive mode, best explained why there
+        // the 0th element of the env args passed at the command line is the program's path
         let self_command = env::args_os()
             .into_iter()
             .next()
@@ -210,7 +211,7 @@ impl Config {
         };
 
         let snap_point = if let Some(raw_value) = raw_snap_var {
-            // dir exists sanity check?: check that path contains the hidden snapshot directory
+            // user defined dir exists?: check that path contains the hidden snapshot directory
             let path = PathBuf::from(raw_value);
             let snapshot_dir = path.join(".zfs").join("snapshot");
 
@@ -386,7 +387,7 @@ impl Config {
 fn parse_args() -> ArgMatches {
     clap::Command::new("httm")
         .about("displays information about unique file versions contained on ZFS snapshots.\n\n*But don't call it a H__ T__ Time Machine.*")
-        .version("0.6.4") 
+        .version("0.6.5") 
         .arg(
             Arg::new("INPUT_FILES")
                 .help("in non-interactive mode, put requested files here.  In interactive mode, this is the search path.  If you enter no files, then httm will pause waiting for input on stdin(3).")
