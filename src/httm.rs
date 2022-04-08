@@ -28,12 +28,14 @@ use crate::lookup::lookup_exec;
 use clap::{Arg, ArgMatches};
 use rayon::prelude::*;
 use std::{
+    env,
     error::Error,
     fmt,
     io::{BufRead, Write},
     path::{Path, PathBuf},
     time::SystemTime,
 };
+use which::which;
 
 #[derive(Debug)]
 pub struct HttmError {
@@ -71,12 +73,9 @@ pub struct PathData {
 impl PathData {
     fn new(config: &Config, path: &Path) -> PathData {
         let absolute_path: PathBuf = if path.is_relative() {
-            [
-                PathBuf::from(&config.current_working_dir),
-                path.to_path_buf(),
-            ]
-            .iter()
-            .collect()
+            [PathBuf::from(&config.pwd), path.to_path_buf()]
+                .iter()
+                .collect()
         } else {
             path.to_path_buf()
         };
@@ -126,6 +125,18 @@ enum InteractiveMode {
 }
 
 #[derive(Debug, Clone)]
+enum SnapPoint {
+    Native(NativeCommands),
+    UserDefined(PathBuf),
+}
+
+#[derive(Debug, Clone)]
+pub struct NativeCommands {
+    zfs_command: String,
+    shell_command: String,
+}
+
+#[derive(Debug, Clone)]
 pub struct Config {
     raw_paths: Vec<String>,
     opt_raw: bool,
@@ -134,37 +145,38 @@ pub struct Config {
     opt_no_live_vers: bool,
     opt_recursive: bool,
     opt_deleted: bool,
-    opt_snap_point: Option<PathBuf>,
     opt_local_dir: PathBuf,
     exec_mode: ExecMode,
+    snap_point: SnapPoint,
     interactive_mode: InteractiveMode,
-    current_working_dir: PathBuf,
-    user_requested_dir: PathBuf,
+    pwd: PathBuf,
+    requested_dir: PathBuf,
+    self_command: String,
 }
 
 impl Config {
     fn from(
         matches: ArgMatches,
     ) -> Result<Config, Box<dyn std::error::Error + Send + Sync + 'static>> {
-        let deleted = matches.is_present("DELETED");
-        let zeros = matches.is_present("ZEROS");
-        let raw = matches.is_present("RAW");
-        let not_so_pretty = matches.is_present("NOT_SO_PRETTY");
-        let no_live_vers = matches.is_present("NO_LIVE");
-        let recursive = matches.is_present("RECURSIVE");
-        let mut exec = if matches.is_present("INTERACTIVE")
+        let opt_deleted = matches.is_present("DELETED");
+        let opt_zeros = matches.is_present("ZEROS");
+        let opt_raw = matches.is_present("RAW");
+        let opt_no_pretty = matches.is_present("NOT_SO_PRETTY");
+        let opt_no_live_vers = matches.is_present("NO_LIVE");
+        let opt_recursive = matches.is_present("RECURSIVE");
+        let mut exec_mode = if matches.is_present("INTERACTIVE")
             || matches.is_present("RESTORE")
             || matches.is_present("SELECT")
         {
             ExecMode::Interactive
-        } else if deleted {
+        } else if opt_deleted {
             ExecMode::Deleted
         } else {
             ExecMode::Display
         };
         let env_snap_dir = std::env::var_os("HTTM_SNAP_POINT");
         let env_local_dir = std::env::var_os("HTTM_LOCAL_DIR");
-        let interactive = if matches.is_present("RESTORE") {
+        let interactive_mode = if matches.is_present("RESTORE") {
             InteractiveMode::Restore
         } else if matches.is_present("SELECT") {
             InteractiveMode::Select
@@ -174,11 +186,21 @@ impl Config {
             InteractiveMode::None
         };
 
-        if recursive && exec == ExecMode::Display {
+        if opt_recursive && exec_mode == ExecMode::Display {
             return Err(
                 HttmError::new("Recursive search feature only allowed in select modes.").into(),
             );
         }
+
+        // need to know the command executed for previews in interactive mode, best explained why there
+        let self_command = env::args_os()
+            .into_iter()
+            .next()
+            .expect(
+                "You must place the 'httm' command in your path.  Perhaps the .cargo/bin folder isn't in your path?"
+            )
+            .to_string_lossy()
+            .into_owned();
 
         // two ways to get a snap dir: cli and env var
         let raw_snap_var = if let Some(value) = matches.value_of_os("SNAP_POINT") {
@@ -192,15 +214,38 @@ impl Config {
             let path = PathBuf::from(raw_value);
             let snapshot_dir = path.join(".zfs").join("snapshot");
 
-            if snapshot_dir.metadata().is_ok() {
-                Some(path)
+            let snap_point = if snapshot_dir.metadata().is_ok() {
+                path
             } else {
                 return Err(HttmError::new(
                     "Manually set mountpoint does not contain a hidden ZFS directory.  Please mount a ZFS directory there or try another mountpoint.",
                 ).into());
-            }
+            };
+            SnapPoint::UserDefined(snap_point)
         } else {
-            None
+            // Make sure we have the necessary commands for execution without a snap point
+            let shell = which("sh")
+                .map_err(|_| {
+                    HttmError::new(
+                        "sh command not found. Make sure the command 'sh' is in your path.",
+                    )
+                })?
+                .to_string_lossy()
+                .into_owned();
+
+            let zfs = which("zfs")
+                .map_err(|_| {
+                    HttmError::new(
+                        "zfs command not found. Make sure the command 'zfs' is in your path.",
+                    )
+                })?
+                .to_string_lossy()
+                .into_owned();
+
+            SnapPoint::Native(NativeCommands {
+                zfs_command: zfs,
+                shell_command: shell,
+            })
         };
 
         let pwd = if let Ok(pwd) = std::env::var("PWD") {
@@ -223,7 +268,8 @@ impl Config {
             env_local_dir
         };
 
-        let local_dir = if let Some(value) = raw_local_var {
+        // local dir can be set at cmdline or as an env var, but defaults to current working directory
+        let opt_local_dir = if let Some(value) = raw_local_var {
             let local_dir: PathBuf = PathBuf::from(value);
 
             if local_dir.metadata().is_ok() {
@@ -238,31 +284,31 @@ impl Config {
             pwd.clone()
         };
 
-        let file_names: Vec<String> = if matches.is_present("INPUT_FILES") {
+        let raw_paths: Vec<String> = if matches.is_present("INPUT_FILES") {
             let raw_values = matches.values_of_os("INPUT_FILES").unwrap();
             raw_values
                 .map(|i| i.to_string_lossy().into_owned())
                 .collect()
         // keeps us from waiting on stdin when in non-Display modes
-        } else if exec == ExecMode::Interactive || exec == ExecMode::Deleted {
+        } else if exec_mode == ExecMode::Interactive || exec_mode == ExecMode::Deleted {
             vec![pwd.to_string_lossy().to_string()]
-        } else if exec == ExecMode::Display {
+        } else if exec_mode == ExecMode::Display {
             read_stdin()?
         } else {
             unreachable!()
         };
 
-        let requested_dir = match exec {
+        let requested_dir = match exec_mode {
             ExecMode::Interactive => {
-                match file_names.len() {
+                match raw_paths.len() {
                     0 => pwd.clone(),
                     1 => {
-                        match Path::new(&file_names[0]) {
+                        match Path::new(&raw_paths[0]) {
                             n if n.is_dir() => {
-                                PathBuf::from(&file_names.get(0).unwrap()).canonicalize()?
+                                PathBuf::from(&raw_paths.get(0).unwrap()).canonicalize()?
                             }
                             n if n.is_file() => {
-                                match interactive {
+                                match interactive_mode {
                                     InteractiveMode::Lookup | InteractiveMode::None => {
                                         // doesn't make sense to have a non-dir in these modes
                                         return Err(HttmError::new(
@@ -273,7 +319,7 @@ impl Config {
                                     InteractiveMode::Restore | InteractiveMode::Select => {
                                         // non-dir file will just cause us to skip the lookup phase
                                         // this is a value which won't get used
-                                        PathBuf::from(&file_names.get(0).unwrap()).canonicalize()?
+                                        PathBuf::from(&raw_paths.get(0).unwrap()).canonicalize()?
                                     }
                                 }
                             }
@@ -302,10 +348,10 @@ impl Config {
                 //
                 // we only want one dir for a ExecMode::Deleted run, else
                 // we should run in ExecMode::Display mode
-                if file_names.len() > 1
-                    || (file_names.len() == 1 && !Path::new(&file_names[0]).is_dir())
+                if raw_paths.len() > 1
+                    || (raw_paths.len() == 1 && !Path::new(&raw_paths[0]).is_dir())
                 {
-                    exec = ExecMode::Display
+                    exec_mode = ExecMode::Display
                 }
                 pwd.clone()
             }
@@ -317,19 +363,20 @@ impl Config {
         };
 
         let config = Config {
-            raw_paths: file_names,
-            opt_raw: raw,
-            opt_zeros: zeros,
-            opt_no_pretty: not_so_pretty,
-            opt_no_live_vers: no_live_vers,
-            opt_snap_point: snap_point,
-            opt_local_dir: local_dir,
-            opt_recursive: recursive,
-            opt_deleted: deleted,
-            exec_mode: exec,
-            interactive_mode: interactive,
-            current_working_dir: pwd,
-            user_requested_dir: requested_dir,
+            raw_paths,
+            opt_raw,
+            opt_zeros,
+            opt_no_pretty,
+            opt_no_live_vers,
+            opt_local_dir,
+            opt_recursive,
+            opt_deleted,
+            snap_point,
+            exec_mode,
+            interactive_mode,
+            pwd,
+            requested_dir,
+            self_command,
         };
 
         Ok(config)

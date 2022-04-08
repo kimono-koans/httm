@@ -18,7 +18,7 @@
 use crate::display::display_exec;
 use crate::lookup::{get_dataset, get_snap_and_local};
 
-use crate::{Config, PathData};
+use crate::{Config, PathData, SnapPoint};
 use rayon::prelude::*;
 
 use fxhash::FxHashMap as HashMap;
@@ -95,10 +95,9 @@ pub fn get_deleted(
     let pathdata = PathData::new(config, path);
 
     // which ZFS dataset do we want to use
-    let dataset = if let Some(ref snap_point) = config.opt_snap_point {
-        snap_point.to_owned()
-    } else {
-        get_dataset(&pathdata)?
+    let dataset = match &config.snap_point {
+        SnapPoint::UserDefined(path) => path.to_owned(),
+        SnapPoint::Native(native_commands) => get_dataset(native_commands, &pathdata)?,
     };
 
     // generates path for hidden .zfs snap dir, and the corresponding local path

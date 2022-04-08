@@ -164,7 +164,8 @@ fn calculate_padding(snaps_and_live_set: &[Vec<PathData>]) -> (usize, String) {
 
     // has to be a more idiomatic way to do this
     // if you know, let me know
-    let fancy_border_string: String = if let Some((Width(width), Height(_height))) = terminal_size() {
+    let fancy_border_string: String = if let Some((Width(width), Height(_height))) = terminal_size()
+    {
         if (width as usize) < fancy_border {
             (0..width as usize).map(|_| "─").collect()
         } else {

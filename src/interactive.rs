@@ -17,7 +17,7 @@
 
 use crate::deleted::get_deleted;
 use crate::display::{display_exec, paint_string};
-use crate::{get_snaps_and_live_set, read_stdin};
+use crate::{get_snaps_and_live_set, read_stdin, SnapPoint};
 use crate::{Config, HttmError, InteractiveMode, PathData};
 
 extern crate skim;
@@ -25,7 +25,6 @@ use chrono::{DateTime, Local};
 use rayon::prelude::*;
 use skim::prelude::*;
 use std::{
-    env,
     ffi::OsStr,
     io::{Cursor, Stdout, Write as IoWrite},
     path::Path,
@@ -149,7 +148,7 @@ fn interactive_restore(
     let new_snap_filename: String =
         old_snap_filename + ".httm_restored." + &timestamp_file(&snap_pd.system_time);
 
-    let new_file_dir = config.current_working_dir.clone();
+    let new_file_dir = config.pwd.clone();
     let new_file_path_buf: PathBuf = [new_file_dir, PathBuf::from(new_snap_filename)]
         .iter()
         .collect();
@@ -194,7 +193,7 @@ fn lookup_view(
     // because it blocks on preview(), given the implementation of skim, see the new_preview branch
 
     // prep thread spawn
-    let requested_dir = config.user_requested_dir.clone();
+    let requested_dir = config.requested_dir.clone();
     let (tx_item, rx_item): (SkimItemSender, SkimItemReceiver) = unbounded();
     let config_clone = config.clone();
 
@@ -203,26 +202,22 @@ fn lookup_view(
         let _ = enumerate_directory(&config_clone, &tx_item, &requested_dir);
     });
 
-    // as skim is slower if we call as a function, we locate which httm command to use here
-    let httm_prog_args = env::args_os().into_iter().next();
-
-    // string to exec on each preview
-    let httm_command = if let Some(httm_prog_args) = httm_prog_args {
-        httm_prog_args.to_string_lossy().into_owned()
-    } else {
-        return Err(HttmError::new(
-            "You must place the 'httm' command in your path.  Perhaps the .cargo/bin folder isn't in your path?",
-        )
-        .into());
-    };
+    // as skim is slower if we call as a function, we locate which httm command to use in struct Config
+    let httm_command = &config.self_command;
 
     // create command to use for preview, as noted, unable to use a function for now
-    let preview_str = if let Some(raw_value) = &config.opt_snap_point {
-        let snap_point = raw_value.to_string_lossy();
-        let local_dir = &config.opt_local_dir.to_string_lossy();
-        format!("\"{httm_command}\" --snap-point \"{snap_point}\" --local-dir \"{local_dir}\" {{}}")
-    } else {
-        format!("\"{httm_command}\" {{}}")
+    let preview_str = match &config.snap_point {
+        SnapPoint::UserDefined(path) => {
+            let snap_point = path.to_string_lossy();
+            let local_dir = &config.opt_local_dir.to_string_lossy();
+
+            format!(
+                "\"{httm_command}\" --snap-point \"{snap_point}\" --local-dir \"{local_dir}\" {{}}"
+            )
+        }
+        SnapPoint::Native(_) => {
+            format!("\"{httm_command}\" {{}}")
+        }
     };
 
     // create the skim component for previews

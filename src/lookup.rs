@@ -15,11 +15,9 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::{Config, HttmError, PathData};
-use rayon::prelude::*;
-use which::which;
-
+use crate::{Config, HttmError, NativeCommands, PathData, SnapPoint};
 use fxhash::FxHashMap as HashMap;
+use rayon::prelude::*;
 use std::{
     path::{Path, PathBuf},
     process::Command as ExecProcess,
@@ -67,10 +65,10 @@ fn get_versions_set(
     config: &Config,
     pathdata: &PathData,
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let dataset = if let Some(ref snap_point) = config.opt_snap_point {
-        snap_point.to_owned()
-    } else {
-        get_dataset(pathdata)?
+    // which ZFS dataset do we want to use
+    let dataset = match &config.snap_point {
+        SnapPoint::UserDefined(path) => path.to_owned(),
+        SnapPoint::Native(native_commands) => get_dataset(native_commands, pathdata)?,
     };
     get_versions(config, pathdata, dataset)
 }
@@ -87,12 +85,15 @@ pub fn get_snap_and_local(
 
     // building our local relative path by removing parent
     // directories below the remote/snap mount point
-    let local_path = if config.opt_snap_point.is_some() {
-        pathdata.path_buf
-        .strip_prefix(&config.opt_local_dir).map_err(|_| HttmError::new("Are you sure you're in the correct working directory?  Perhaps you need to set the LOCAL_DIR value."))
-    } else {
-        pathdata.path_buf
-        .strip_prefix(&dataset).map_err(|_| HttmError::new("Are you sure you're in the correct working directory?  Perhaps you need to set the SNAP_DIR and LOCAL_DIR values."))
+    let local_path = match config.snap_point {
+        SnapPoint::UserDefined(_) => {
+            pathdata.path_buf
+            .strip_prefix(&config.opt_local_dir).map_err(|_| HttmError::new("Are you sure you're in the correct working directory?  Perhaps you need to set the LOCAL_DIR value."))
+        }
+        SnapPoint::Native(_) => {
+            pathdata.path_buf
+            .strip_prefix(&dataset).map_err(|_| HttmError::new("Are you sure you're in the correct working directory?  Perhaps you need to set the SNAP_DIR and LOCAL_DIR values."))    
+        }
     }?;
 
     Ok((snapshot_dir, local_path.to_path_buf()))
@@ -133,6 +134,7 @@ fn get_versions(
 }
 
 pub fn get_dataset(
+    native_commands: &NativeCommands,
     pathdata: &PathData,
 ) -> Result<PathBuf, Box<dyn std::error::Error + Send + Sync + 'static>> {
     let file_path = &pathdata.path_buf;
@@ -144,25 +146,12 @@ pub fn get_dataset(
         .unwrap_or_else(|| Path::new("/"))
         .to_string_lossy();
 
-    // ingest datasets from the cmdline
-    let shell_command = which("sh")
-        .map_err(|_| {
-            HttmError::new("sh command not found. Make sure the command 'sh' is in your path.")
-        })?
-        .to_string_lossy()
-        .to_string();
-
-    let exec_args = " list -H -t filesystem -o mountpoint,mounted";
-    let exec_command = which("zfs")
-        .map_err(|_| {
-            HttmError::new("zfs command not found. Make sure the command 'zfs' is in your path.")
-        })?
-        .to_string_lossy()
-        .to_string()
-        + exec_args;
+    // build zfs query to execute
+    let exec_command =
+        native_commands.zfs_command.clone() + " list -H -t filesystem -o mountpoint,mounted";
 
     let datasets_from_zfs = std::str::from_utf8(
-        &ExecProcess::new(shell_command)
+        &ExecProcess::new(&native_commands.shell_command)
             .arg("-c")
             .arg(exec_command)
             .output()?
