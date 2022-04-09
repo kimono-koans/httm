@@ -17,11 +17,10 @@
 
 use crate::display::display_exec;
 use crate::lookup::{get_dataset, get_snap_point_and_local_relative_path};
-
 use crate::{Config, PathData, SnapPoint};
-use rayon::prelude::*;
 
 use fxhash::FxHashMap as HashMap;
+use rayon::prelude::*;
 use std::{
     ffi::OsString,
     fs::DirEntry,

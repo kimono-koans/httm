@@ -17,8 +17,9 @@
 
 use crate::deleted::get_deleted;
 use crate::display::{display_exec, paint_string};
-use crate::{get_snaps_and_live_set, read_stdin, SnapPoint};
-use crate::{Config, HttmError, InteractiveMode, PathData};
+use crate::{
+    get_snaps_and_live_set, read_stdin, Config, HttmError, InteractiveMode, PathData, SnapPoint,
+};
 
 extern crate skim;
 use chrono::{DateTime, Local};
