@@ -23,10 +23,10 @@ use number_prefix::NumberPrefix;
 use std::{path::Path, time::SystemTime};
 use terminal_size::{terminal_size, Height, Width};
 
-// 2 space wide padding - used twice between date and size, and size and path
+// 2 space wide padding - used between date and size, and size and path
 const FIXED_WIDTH_PADDING: &str = "  ";
 // our FIXED_WIDTH_PADDING is used twice
-const FIXED_WIDTH_PADDING_LEN: usize = FIXED_WIDTH_PADDING.len() * 2;
+const FIXED_WIDTH_PADDING_LEN_X2: usize = FIXED_WIDTH_PADDING.len() * 2;
 // and we add 2 quotation marks to the path when we format
 const QUOTATION_MARKS_LEN: usize = 2;
 
@@ -160,7 +160,7 @@ fn calculate_padding(snaps_and_live_set: &[Vec<PathData>]) -> (usize, String) {
             let display_size_len = display_human_size(pathdata).len();
             let formatted_line_len =
                 // addition of 2usize is for the two quotation marks we add to the path display
-                display_date.len() + display_size.len() + display_path.len() + FIXED_WIDTH_PADDING_LEN  + QUOTATION_MARKS_LEN;
+                display_date.len() + display_size.len() + display_path.len() + FIXED_WIDTH_PADDING_LEN_X2  + QUOTATION_MARKS_LEN;
 
             size_padding = display_size_len.max(size_padding);
             fancy_border = formatted_line_len.max(fancy_border);
