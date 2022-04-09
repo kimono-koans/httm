@@ -23,6 +23,13 @@ use number_prefix::NumberPrefix;
 use std::{path::Path, time::SystemTime};
 use terminal_size::{terminal_size, Height, Width};
 
+// 2 space wide padding - used twice between date and size, and size and path
+const FIXED_WIDTH_PADDING: &str = "  ";
+// our FIXED_WIDTH_PADDING is used twice
+const FIXED_WIDTH_PADDING_LEN: usize = FIXED_WIDTH_PADDING.len() * 2;
+// and we add 2 quotation marks to the path when we format
+static QUOTATION_MARKS_LEN: usize = 2;
+
 pub fn display_exec(
     config: &Config,
     snaps_and_live_set: Vec<Vec<PathData>>,
@@ -77,8 +84,6 @@ fn display_pretty(
 
             pathdata_set.iter().for_each(|pathdata| {
                 let pathdata_date = display_date(&pathdata.system_time);
-                // 2 space wide padding
-                let fixed_width_padding: String = "  ".to_string();
 
                 // tab delimited if "no pretty", no border lines, and no colors
                 let (pathdata_size, display_path, display_padding) = if !config.opt_no_pretty {
@@ -87,7 +92,7 @@ fn display_pretty(
                         display_human_size(pathdata),
                         width = size_padding
                     );
-                    let display_padding = fixed_width_padding;
+                    let display_padding = FIXED_WIDTH_PADDING.to_owned();
 
                     // paint the live string with ls colors
                     let path = &pathdata.path_buf;
@@ -152,15 +157,10 @@ fn calculate_padding(snaps_and_live_set: &[Vec<PathData>]) -> (usize, String) {
             );
             let display_path = &pathdata.path_buf.to_string_lossy();
 
-            // our fixed_padding_len and is used twice -- thus 2usize * 2 = 4
-            let fixed_width_padding_len_x2 = 4usize;
-            // we add 2 quotation marks to the path when we format later
-            let quotation_marks = 2usize;
-
             let display_size_len = display_human_size(pathdata).len();
             let formatted_line_len =
                 // addition of 2usize is for the two quotation marks we add to the path display
-                display_date.len() + display_size.len() + display_path.len() + fixed_width_padding_len_x2  + quotation_marks;
+                display_date.len() + display_size.len() + display_path.len() + FIXED_WIDTH_PADDING_LEN  + QUOTATION_MARKS_LEN;
 
             size_padding = display_size_len.max(size_padding);
             fancy_border = formatted_line_len.max(fancy_border);
