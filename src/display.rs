@@ -151,11 +151,16 @@ fn calculate_padding(snaps_and_live_set: &[Vec<PathData>]) -> (usize, String) {
                 width = size_padding
             );
             let display_path = &pathdata.path_buf.to_string_lossy();
-            let fixed_width_padding_len = 2usize;
+
+            // our fixed_padding_len and is used twice -- thus 2usize * 2 = 4
+            let fixed_width_padding_len_x2 = 4usize;
+            // we add 2 quotation marks to the path when we format later
+            let quotation_marks = 2usize;
+
             let display_size_len = display_human_size(pathdata).len();
             let formatted_line_len =
-                // addition of 2usize is for the two quotation marks we add to the path display 
-                display_date.len() + display_size.len() + (2 * fixed_width_padding_len) + display_path.len() + 2usize;
+                // addition of 2usize is for the two quotation marks we add to the path display
+                display_date.len() + display_size.len() + display_path.len() + fixed_width_padding_len_x2  + quotation_marks;
 
             size_padding = display_size_len.max(size_padding);
             fancy_border = formatted_line_len.max(fancy_border);
