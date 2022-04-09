@@ -127,7 +127,13 @@ enum InteractiveMode {
 #[derive(Debug, Clone)]
 enum SnapPoint {
     Native(NativeCommands),
-    UserDefined(PathBuf),
+    UserDefined(UserDefinedDirs),
+}
+
+#[derive(Debug, Clone)]
+pub struct UserDefinedDirs {
+    snap_dir: PathBuf,
+    local_dir: PathBuf,
 }
 
 #[derive(Debug, Clone)]
@@ -145,7 +151,6 @@ pub struct Config {
     opt_no_live_vers: bool,
     opt_recursive: bool,
     opt_deleted: bool,
-    opt_local_dir: PathBuf,
     exec_mode: ExecMode,
     snap_point: SnapPoint,
     interactive_mode: InteractiveMode,
@@ -203,52 +208,6 @@ impl Config {
             .to_string_lossy()
             .into_owned();
 
-        // two ways to get a snap dir: cli and env var
-        let raw_snap_var = if let Some(value) = matches.value_of_os("SNAP_POINT") {
-            Some(value.to_os_string())
-        } else {
-            env_snap_dir
-        };
-
-        let snap_point = if let Some(raw_value) = raw_snap_var {
-            // user defined dir exists?: check that path contains the hidden snapshot directory
-            let path = PathBuf::from(raw_value);
-            let snapshot_dir = path.join(".zfs").join("snapshot");
-
-            let snap_point = if snapshot_dir.metadata().is_ok() {
-                path
-            } else {
-                return Err(HttmError::new(
-                    "Manually set mountpoint does not contain a hidden ZFS directory.  Please mount a ZFS directory there or try another mountpoint.",
-                ).into());
-            };
-            SnapPoint::UserDefined(snap_point)
-        } else {
-            // Make sure we have the necessary commands for execution without a snap point
-            let shell = which("sh")
-                .map_err(|_| {
-                    HttmError::new(
-                        "sh command not found. Make sure the command 'sh' is in your path.",
-                    )
-                })?
-                .to_string_lossy()
-                .into_owned();
-
-            let zfs = which("zfs")
-                .map_err(|_| {
-                    HttmError::new(
-                        "zfs command not found. Make sure the command 'zfs' is in your path.",
-                    )
-                })?
-                .to_string_lossy()
-                .into_owned();
-
-            SnapPoint::Native(NativeCommands {
-                zfs_command: zfs,
-                shell_command: shell,
-            })
-        };
-
         let pwd = if let Ok(pwd) = std::env::var("PWD") {
             if let Ok(path) = PathBuf::from(&pwd).canonicalize() {
                 path
@@ -262,27 +221,77 @@ impl Config {
             return Err(HttmError::new("Working directory is not set in your environment.").into());
         };
 
-        // two ways to get a local relative dir: cli and env var
-        let raw_local_var = if let Some(raw_value) = matches.value_of_os("LOCAL_DIR") {
-            Some(raw_value.to_os_string())
+        // two ways to get a snap dir: cli and env var
+        let raw_snap_var = if let Some(value) = matches.value_of_os("SNAP_POINT") {
+            Some(value.to_os_string())
         } else {
-            env_local_dir
+            env_snap_dir
         };
 
-        // local dir can be set at cmdline or as an env var, but defaults to current working directory
-        let opt_local_dir = if let Some(value) = raw_local_var {
-            let local_dir: PathBuf = PathBuf::from(value);
+        let snap_point = if let Some(raw_value) = raw_snap_var {
+            // user defined dir exists?: check that path contains the hidden snapshot directory
+            let path = PathBuf::from(raw_value);
+            let hidden_snap_dir = path.join(".zfs").join("snapshot");
 
-            if local_dir.metadata().is_ok() {
-                local_dir
+            let snap_dir = if hidden_snap_dir.metadata().is_ok() {
+                path
             } else {
                 return Err(HttmError::new(
-                    "Manually set local relative directory does not exist.  Please try another.",
-                )
-                .into());
-            }
+                    "Manually set mountpoint does not contain a hidden ZFS directory.  Please mount a ZFS directory there or try another mountpoint.",
+                ).into());
+            };
+
+            // two ways to get a local relative dir: cli and env var
+            let raw_local_var = if let Some(raw_value) = matches.value_of_os("LOCAL_DIR") {
+                Some(raw_value.to_os_string())
+            } else {
+                env_local_dir
+            };
+
+            // local dir can be set at cmdline or as an env var, but defaults to current working directory
+            let local_dir = if let Some(value) = raw_local_var {
+                let local_dir: PathBuf = PathBuf::from(value);
+
+                if local_dir.metadata().is_ok() {
+                    local_dir
+                } else {
+                    return Err(HttmError::new(
+                        "Manually set local relative directory does not exist.  Please try another.",
+                    )
+                    .into());
+                }
+            } else {
+                pwd.clone()
+            };
+
+            SnapPoint::UserDefined(UserDefinedDirs {
+                snap_dir,
+                local_dir,
+            })
         } else {
-            pwd.clone()
+            // Make sure we have the necessary commands for execution without a snap point
+            let shell_command = which("sh")
+                .map_err(|_| {
+                    HttmError::new(
+                        "sh command not found. Make sure the command 'sh' is in your path.",
+                    )
+                })?
+                .to_string_lossy()
+                .into_owned();
+
+            let zfs_command = which("zfs")
+                .map_err(|_| {
+                    HttmError::new(
+                        "zfs command not found. Make sure the command 'zfs' is in your path.",
+                    )
+                })?
+                .to_string_lossy()
+                .into_owned();
+
+            SnapPoint::Native(NativeCommands {
+                zfs_command,
+                shell_command,
+            })
         };
 
         let raw_paths: Vec<String> = if matches.is_present("INPUT_FILES") {
@@ -369,7 +378,6 @@ impl Config {
             opt_zeros,
             opt_no_pretty,
             opt_no_live_vers,
-            opt_local_dir,
             opt_recursive,
             opt_deleted,
             snap_point,

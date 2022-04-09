@@ -67,7 +67,7 @@ fn get_versions_set(
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // which ZFS dataset do we want to use
     let dataset = match &config.snap_point {
-        SnapPoint::UserDefined(path) => path.to_owned(),
+        SnapPoint::UserDefined(defined_dirs) => defined_dirs.snap_dir.to_owned(),
         SnapPoint::Native(native_commands) => get_dataset(native_commands, pathdata)?,
     };
     get_versions(config, pathdata, dataset)
@@ -85,10 +85,10 @@ pub fn get_snap_point_and_local_relative_path(
 
     // building our local relative path by removing parent
     // directories below the remote/snap mount point
-    let local_path = match config.snap_point {
-        SnapPoint::UserDefined(_) => {
+    let local_path = match &config.snap_point {
+        SnapPoint::UserDefined(defined_dirs) => {
             pathdata.path_buf
-            .strip_prefix(&config.opt_local_dir).map_err(|_| HttmError::new("Are you sure you're in the correct working directory?  Perhaps you need to set the LOCAL_DIR value."))
+            .strip_prefix(&defined_dirs.local_dir).map_err(|_| HttmError::new("Are you sure you're in the correct working directory?  Perhaps you need to set the LOCAL_DIR value."))
         }
         SnapPoint::Native(_) => {
             pathdata.path_buf

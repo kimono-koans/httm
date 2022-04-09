@@ -207,9 +207,9 @@ fn lookup_view(
 
     // create command to use for preview, as noted, unable to use a function for now
     let preview_str = match &config.snap_point {
-        SnapPoint::UserDefined(path) => {
-            let snap_point = path.to_string_lossy();
-            let local_dir = &config.opt_local_dir.to_string_lossy();
+        SnapPoint::UserDefined(defined_dirs) => {
+            let snap_point = defined_dirs.snap_dir.to_string_lossy();
+            let local_dir = defined_dirs.local_dir.to_string_lossy();
 
             format!(
                 "\"{httm_command}\" --snap-point \"{snap_point}\" --local-dir \"{local_dir}\" {{}}"
@@ -293,7 +293,7 @@ fn enumerate_directory(
 
     // combine dirs and files into a vec and sort to display
     let mut combined_vec: Vec<&PathBuf> = vec![&vec_files, &vec_dirs, &vec_deleted]
-        .into_iter()
+        .into_par_iter()
         .flatten()
         .collect();
     combined_vec.par_sort();
