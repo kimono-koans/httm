@@ -28,7 +28,7 @@ const FIXED_WIDTH_PADDING: &str = "  ";
 // our FIXED_WIDTH_PADDING is used twice
 const FIXED_WIDTH_PADDING_LEN: usize = FIXED_WIDTH_PADDING.len() * 2;
 // and we add 2 quotation marks to the path when we format
-static QUOTATION_MARKS_LEN: usize = 2;
+const QUOTATION_MARKS_LEN: usize = 2;
 
 pub fn display_exec(
     config: &Config,
