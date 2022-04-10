@@ -408,7 +408,6 @@ fn parse_args() -> ArgMatches {
                 .short('i')
                 .long("interactive")
                 .help("use fuzzy finder views for an interactive file lookup session.")
-                .multiple_values(true)
                 .display_order(2)
         )
         .arg(
@@ -417,7 +416,6 @@ fn parse_args() -> ArgMatches {
                 .long("select")
                 .help("use fuzzy finder views for an interactive file lookup and select.")
                 .conflicts_with("RESTORE")
-                .multiple_values(true)
                 .display_order(3)
         )
         .arg(
@@ -426,7 +424,6 @@ fn parse_args() -> ArgMatches {
                 .long("restore")
                 .help("use fuzzy finder views for an interactive file restore from backup.")
                 .conflicts_with("SELECT")
-                .multiple_values(true)
                 .display_order(4)
         )
         .arg(
