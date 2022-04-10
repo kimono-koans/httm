@@ -47,7 +47,7 @@ fn display_raw(
     config: &Config,
     snaps_and_live_set: Vec<Vec<PathData>>,
 ) -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let mut buffer = String::new();
+    let mut write_out_buffer = String::new();
 
     let delimiter = if config.opt_zeros { '\0' } else { '\n' };
 
@@ -55,11 +55,11 @@ fn display_raw(
     snaps_and_live_set.iter().for_each(|version| {
         version.iter().for_each(|pathdata| {
             let display_path = pathdata.path_buf.display();
-            buffer += &format!("{}{}", display_path, delimiter);
+            write_out_buffer += &format!("{}{}", display_path, delimiter);
         });
     });
 
-    Ok(buffer)
+    Ok(write_out_buffer)
 }
 
 fn display_pretty(
@@ -125,10 +125,12 @@ fn display_pretty(
                     (date, size)
                 };
                 pathdata_set_buffer += &format!(
+                    // add quotation marks to path
                     "{}{}{}{}\"{}\"\n",
                     display_date, display_padding, display_size, display_padding, display_path
                 );
             });
+            // reverse if in no-pretty mode
             if !config.opt_no_pretty && !pathdata_set_buffer.is_empty() {
                 pathdata_set_buffer += &format!("{}\n", fancy_border_string);
                 write_out_buffer += &pathdata_set_buffer;

@@ -44,6 +44,7 @@ pub fn deleted_exec(
         let path = PathBuf::from(config.raw_paths.get(0).unwrap());
         let pathdata_set = get_deleted(config, &path)?;
 
+        // back to our main fn exec() to be printed
         Ok(vec![pathdata_set, Vec::new()])
     }
 }
