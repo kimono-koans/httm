@@ -87,7 +87,7 @@ fn display_pretty(
 
                 // tab delimited if "no pretty", no border lines, and no colors
                 let (pathdata_size, display_path, display_padding) = if !config.opt_no_pretty {
-                    let path_size = format!(
+                    let pathdata_size = format!(
                         "{:>width$}",
                         display_human_size(pathdata),
                         width = size_padding
@@ -101,14 +101,15 @@ fn display_pretty(
                     } else {
                         path.to_string_lossy().to_string()
                     };
-                    let display_path = format!("{:<width$}", painted_string, width = size_padding);
+                    let display_path =
+                        format!("\"{:<width$}\"", painted_string, width = size_padding);
 
-                    (path_size, display_path, display_padding)
+                    (pathdata_size, display_path, display_padding)
                 } else {
-                    let path_size = display_human_size(pathdata);
+                    let pathdata_size = display_human_size(pathdata);
                     let display_path = pathdata.path_buf.to_string_lossy().into_owned();
                     let display_padding = "\t".to_string();
-                    (path_size, display_path, display_padding)
+                    (pathdata_size, display_path, display_padding)
                 };
 
                 // displays blanks for phantom values, equaling their dummy lens and dates.
@@ -124,9 +125,10 @@ fn display_pretty(
                     let size: String = (0..pathdata_size.len()).map(|_| " ").collect();
                     (date, size)
                 };
+
                 pathdata_set_buffer += &format!(
-                    // add quotation marks to path
-                    "{}{}{}{}\"{}\"\n",
+                    // no quotation marks to path
+                    "{}{}{}{}{}\n",
                     display_date, display_padding, display_size, display_padding, display_path
                 );
             });
@@ -135,9 +137,7 @@ fn display_pretty(
                 pathdata_set_buffer += &format!("{}\n", fancy_border_string);
                 write_out_buffer += &pathdata_set_buffer;
             } else {
-                pathdata_set_buffer.lines().rev().for_each(|line| {
-                    write_out_buffer += &format!("{}\n", line);
-                });
+                write_out_buffer += &pathdata_set_buffer;
             }
         });
 
@@ -200,7 +200,7 @@ fn display_human_size(pathdata: &PathData) -> String {
 
 fn display_date(st: &SystemTime) -> String {
     let dt: DateTime<Local> = st.to_owned().into();
-    format!("{}", dt.format("%b %e %Y %H:%M:%S"))
+    format!("{}", dt.format("%a %b %e %H:%M:%S %Y"))
 }
 
 pub fn paint_string(path: &Path, file_name: &str) -> String {

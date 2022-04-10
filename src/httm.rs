@@ -202,9 +202,7 @@ impl Config {
         let self_command = env::args_os()
             .into_iter()
             .next()
-            .expect(
-                "You must place the 'httm' command in your path.  Perhaps the .cargo/bin folder isn't in your path?"
-            )
+            .ok_or_else(|| HttmError::new("You must place the 'httm' command in your path.  Perhaps the .cargo/bin folder isn't in your path?"))?
             .to_string_lossy()
             .into_owned();
 
