@@ -4,36 +4,39 @@
 httm \- manual page for httm 0.6.6
 .SH DESCRIPTION
 httm 0.6.6
-displays information about unique file versions contained on ZFS snapshots.
 .PP
-*But don't call it a H__ T__ Time Machine.*
+By default, httm will display non\-interactive information about unique file versions contained on
+ZFS snapshots.
+.PP
+You may also select from the various interactive modes below to browse for, select, and/or restore
+files.
 .SS "USAGE:"
 .IP
 httm [OPTIONS] [INPUT_FILES]...
 .SS "ARGS:"
 .TP
 <INPUT_FILES>...
-in non\-interactive mode, put requested files here.  If you enter no
-files, then httm will pause waiting for input on stdin(3).  In
-interactive mode, this is the search path.  If none is entered, httm
+in the default, non\-interactive mode, put requested files here.  If you
+enter no files, then httm will pause waiting for input on stdin(3).  In
+any interactive mode, this is the search path. If none is entered, httm
 will use the current working directory.
 .SS "OPTIONS:"
 .TP
 \fB\-i\fR, \fB\-\-interactive\fR
-use fuzzy finder views for an interactive file lookup session.
+interactively browse files from a fuzzy\-finder view.
 .TP
 \fB\-s\fR, \fB\-\-select\fR
-use fuzzy finder views for an interactive file lookup and
-select.
+interactively browse files and select snapshot versions from a
+fuzzy\-finder view.
 .TP
 \fB\-r\fR, \fB\-\-restore\fR
-use fuzzy finder views for an interactive file restore from
-backup.
+interactively browse files and restore from backup from a
+fuzzy\-finder view.
 .TP
 \fB\-d\fR, \fB\-\-deleted\fR
-show deleted files in interactive modes, or do a search for
+show deleted files in interactive modes, or do a search for all
 such files, if a directory is specified.  Note: Any directory
-listing in interactive mode is much slower when enabled.
+listing in interactive mode is slower when enabled.
 .TP
 \fB\-R\fR, \fB\-\-recursive\fR
 recurse into selected directory to find more files. Only

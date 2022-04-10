@@ -392,11 +392,14 @@ impl Config {
 
 fn parse_args() -> ArgMatches {
     clap::Command::new("httm")
-        .about("displays information about unique file versions contained on ZFS snapshots.\n\n*But don't call it a H__ T__ Time Machine.*")
+        .about("\nBy default, httm will display non-interactive information about unique file versions contained on ZFS snapshots.\n\n\
+        You may also select from the various interactive modes below to browse for, select, and/or restore files.")
         .version("0.6.6") 
         .arg(
             Arg::new("INPUT_FILES")
-                .help("in non-interactive mode, put requested files here.  If you enter no files, then httm will pause waiting for input on stdin(3).  In interactive mode, this is the search path.  If none is entered, httm will use the current working directory.")
+                .help("in the default, non-interactive mode, put requested files here.  If you enter no files, \
+                then httm will pause waiting for input on stdin(3).  In any interactive mode, this is the search path. \
+                If none is entered, httm will use the current working directory.")
                 .takes_value(true)
                 .multiple_values(true)
                 .display_order(1)
@@ -405,14 +408,14 @@ fn parse_args() -> ArgMatches {
             Arg::new("INTERACTIVE")
                 .short('i')
                 .long("interactive")
-                .help("use fuzzy finder views for an interactive file lookup session.")
+                .help("interactively browse files from a fuzzy-finder view.")
                 .display_order(2)
         )
         .arg(
             Arg::new("SELECT")
                 .short('s')
                 .long("select")
-                .help("use fuzzy finder views for an interactive file lookup and select.")
+                .help("interactively browse files and select snapshot versions from a fuzzy-finder view.")
                 .conflicts_with("RESTORE")
                 .display_order(3)
         )
@@ -420,7 +423,7 @@ fn parse_args() -> ArgMatches {
             Arg::new("RESTORE")
                 .short('r')
                 .long("restore")
-                .help("use fuzzy finder views for an interactive file restore from backup.")
+                .help("interactively browse files and restore from backup from a fuzzy-finder view.")
                 .conflicts_with("SELECT")
                 .display_order(4)
         )
@@ -428,7 +431,8 @@ fn parse_args() -> ArgMatches {
             Arg::new("DELETED")
                 .short('d')
                 .long("deleted")
-                .help("show deleted files in interactive modes, or do a search for such files, if a directory is specified.  Note: Any directory listing in interactive mode is much slower when enabled.")
+                .help("show deleted files in interactive modes, or do a search for all such files, if a directory is specified.  \
+                Note: Any directory listing in interactive mode is slower when enabled.")
                 .display_order(5)
         )
         .arg(
@@ -441,14 +445,17 @@ fn parse_args() -> ArgMatches {
         .arg(
             Arg::new("SNAP_POINT")
                 .long("snap-point")
-                .help("ordinarily httm will automatically choose your most local snapshot directory, but here you may manually specify your own mount point for that directory, such as the mount point for a remote share.  You can also set via the environment variable HTTM_SNAP_POINT.")
+                .help("ordinarily httm will automatically choose your most local snapshot directory, \
+                but here you may manually specify your own mount point for that directory, such as the mount point for a remote share.  \
+                You can also set via the environment variable HTTM_SNAP_POINT.")
                 .takes_value(true)
                 .display_order(7)
         )
         .arg(
             Arg::new("LOCAL_DIR")
                 .long("local-dir")
-                .help("used with SNAP_POINT to determine where the corresponding live root of the ZFS snapshot dataset is.  If not set, httm defaults to your current working directory.  You can also set via the environment variable HTTM_LOCAL_DIR.")
+                .help("used with SNAP_POINT to determine where the corresponding live root of the ZFS snapshot dataset is.  If not set, \
+                httm defaults to your current working directory.  You can also set via the environment variable HTTM_LOCAL_DIR.")
                 .requires("SNAP_POINT")
                 .takes_value(true)
                 .display_order(8)
