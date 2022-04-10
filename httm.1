@@ -13,9 +13,10 @@ httm [OPTIONS] [\-\-] [INPUT_FILES]...
 .SS "ARGS:"
 .TP
 <INPUT_FILES>...
-in non\-interactive mode, put requested files here.  In interactive mode,
-this is the search path.  If you enter no files, then httm will pause
-waiting for input on stdin(3).
+in non\-interactive mode, put requested files here.  If you enter no
+files, then httm will pause waiting for input on stdin(3).  In
+interactive mode, this is the search path.  If none is entered, httm
+will use the current working directory.
 .SS "OPTIONS:"
 .TP
 \fB\-i\fR, \fB\-\-interactive\fR
@@ -31,9 +32,8 @@ backup.
 .TP
 \fB\-d\fR, \fB\-\-deleted\fR
 show deleted files in interactive modes, or do a search for
-such files, if a directory is specified.  Note: Any recursive
-directory listing in interactive mode is much slower when
-enabled.
+such files, if a directory is specified.  Note: Any directory
+listing in interactive mode is much slower when enabled.
 .TP
 \fB\-R\fR, \fB\-\-recursive\fR
 recurse into selected directory to find more files. Only

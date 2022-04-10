@@ -398,7 +398,7 @@ fn parse_args() -> ArgMatches {
         .version("0.6.6") 
         .arg(
             Arg::new("INPUT_FILES")
-                .help("in non-interactive mode, put requested files here.  In interactive mode, this is the search path.  If you enter no files, then httm will pause waiting for input on stdin(3).")
+                .help("in non-interactive mode, put requested files here.  If you enter no files, then httm will pause waiting for input on stdin(3).  In interactive mode, this is the search path.  If none is entered, httm will use the current working directory.")
                 .takes_value(true)
                 .multiple_values(true)
                 .display_order(1)
@@ -433,7 +433,7 @@ fn parse_args() -> ArgMatches {
             Arg::new("DELETED")
                 .short('d')
                 .long("deleted")
-                .help("show deleted files in interactive modes, or do a search for such files, if a directory is specified.  Note: Any recursive directory listing in interactive mode is much slower when enabled.")
+                .help("show deleted files in interactive modes, or do a search for such files, if a directory is specified.  Note: Any directory listing in interactive mode is much slower when enabled.")
                 .display_order(5)
         )
         .arg(
