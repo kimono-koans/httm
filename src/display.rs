@@ -68,7 +68,7 @@ fn display_pretty(
 ) -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
     let mut write_out_buffer = String::new();
 
-    let (size_padding, fancy_border_string) = calculate_padding(&snaps_and_live_set);
+    let (size_padding_len, fancy_border_string) = calculate_padding(&snaps_and_live_set);
 
     // now display with all that beautiful padding
     if !config.opt_no_pretty {
@@ -90,7 +90,7 @@ fn display_pretty(
                     let pathdata_size = format!(
                         "{:>width$}",
                         display_human_size(pathdata),
-                        width = size_padding
+                        width = size_padding_len
                     );
                     let display_padding = FIXED_WIDTH_PADDING.to_owned();
 
@@ -102,7 +102,7 @@ fn display_pretty(
                         path.to_string_lossy().to_string()
                     };
                     let display_path =
-                        format!("\"{:<width$}\"", painted_string, width = size_padding);
+                        format!("\"{:<width$}\"", painted_string, width = size_padding_len);
 
                     (pathdata_size, display_path, display_padding)
                 } else {
@@ -145,8 +145,8 @@ fn display_pretty(
 }
 
 fn calculate_padding(snaps_and_live_set: &[Vec<PathData>]) -> (usize, String) {
-    let mut size_padding = 0usize;
-    let mut fancy_border = 0usize;
+    let mut size_padding_len = 0usize;
+    let mut fancy_border_len = 0usize;
 
     // calculate padding and borders for display later
     snaps_and_live_set.iter().for_each(|ver_set| {
@@ -155,7 +155,7 @@ fn calculate_padding(snaps_and_live_set: &[Vec<PathData>]) -> (usize, String) {
             let display_size = format!(
                 "{:>width$}",
                 display_human_size(pathdata),
-                width = size_padding
+                width = size_padding_len
             );
             let display_path = &pathdata.path_buf.to_string_lossy();
 
@@ -164,8 +164,8 @@ fn calculate_padding(snaps_and_live_set: &[Vec<PathData>]) -> (usize, String) {
                 // addition of 2usize is for the two quotation marks we add to the path display
                 display_date.len() + display_size.len() + display_path.len() + FIXED_WIDTH_PADDING_LEN_X2  + QUOTATION_MARKS_LEN;
 
-            size_padding = display_size_len.max(size_padding);
-            fancy_border = formatted_line_len.max(fancy_border);
+            size_padding_len = display_size_len.max(size_padding_len);
+            fancy_border_len = formatted_line_len.max(fancy_border_len);
         });
     });
 
@@ -173,16 +173,16 @@ fn calculate_padding(snaps_and_live_set: &[Vec<PathData>]) -> (usize, String) {
     // if you know, let me know
     let fancy_border_string: String = if let Some((Width(width), Height(_height))) = terminal_size()
     {
-        if (width as usize) < fancy_border {
+        if (width as usize) < fancy_border_len {
             (0..width as usize).map(|_| "─").collect()
         } else {
-            (0..fancy_border).map(|_| "─").collect()
+            (0..fancy_border_len).map(|_| "─").collect()
         }
     } else {
-        (0..fancy_border).map(|_| "─").collect()
+        (0..fancy_border_len).map(|_| "─").collect()
     };
 
-    (size_padding, fancy_border_string)
+    (size_padding_len, fancy_border_string)
 }
 
 fn display_human_size(pathdata: &PathData) -> String {
