@@ -298,7 +298,9 @@ fn enumerate_directory(
         .flatten()
         .collect();
     combined_vec.par_sort();
-    combined_vec.par_iter().for_each(|path| {
+    // don't want a par_iter here because it will block and wait for all
+    // results, instead of printing and recursing into the subsequent dirs
+    combined_vec.iter().for_each(|path| {
         let _ = tx_item.send(Arc::new(SelectionCandidate {
             path: path.to_path_buf(),
         }));
