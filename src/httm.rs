@@ -597,7 +597,7 @@ fn install_hot_keys() -> Result<(), Box<dyn std::error::Error + Send + Sync + 's
         file
     } else {
         return Err(HttmError::new(
-                "Either your .zshrc file does not exist or you do not have the permissions to access it.",
+                "Either your ~/.zshrc file does not exist or you do not have the permissions to access it.",
             )
             .into());
     };
