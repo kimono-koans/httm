@@ -631,7 +631,7 @@ fn install_hot_keys() -> Result<(), Box<dyn std::error::Error + Send + Sync + 's
         )?;
         eprintln!("httm: zsh hot keys were installed successfully.");
     } else {
-        eprintln!("httm: zsh hot keys appear to already be sourced in the user's .zshrc.");
+        eprintln!("httm: zsh hot keys appear to already be sourced in the user's ~/.zshrc. Quitting.");
     }
 
     std::process::exit(0)
