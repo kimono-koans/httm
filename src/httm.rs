@@ -165,7 +165,7 @@ impl Config {
         matches: ArgMatches,
     ) -> Result<Config, Box<dyn std::error::Error + Send + Sync + 'static>> {
         if matches.is_present("ZSH_HOT_KEYS") {
-            install_zsh_hot_keys()?
+            install_hot_keys()?
         }
         let opt_deleted = matches.is_present("DELETED");
         let opt_zeros = matches.is_present("ZEROS");
@@ -570,56 +570,68 @@ pub fn get_snaps_and_live_set(
     lookup_exec(config, vec_pd)
 }
 
-fn install_zsh_hot_keys() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+fn install_hot_keys() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let home_dir = if let Ok(home) = std::env::var("HOME") {
         if let Ok(path) = PathBuf::from(&home).canonicalize() {
             path
         } else {
-            return Err(HttmError::new(
-                "Home directory, as set in your environment, does not appear to exist",
-            )
-            .into());
+            return Err(
+                HttmError::new("$HOME does not appear to be set in your environment").into(),
+            );
         }
     } else {
-        return Err(HttmError::new(
-            "Home directory, as set in your environment, does not appear to exist",
-        )
-        .into());
+        return Err(
+            HttmError::new("$HOME, as set in your environment, does not appear to exist").into(),
+        );
     };
 
-    // create key binding file at compile time
-    let zsh_hot_key_script = include_str!("../scripts/httm-key-bindings.zsh");
-    let zsh_script_path: PathBuf = [&home_dir, &PathBuf::from(".httm-key-bindings.zsh")]
-        .iter()
-        .collect();
-    // creates file or will fail if file already exists
-    if let Ok(mut zsh_script_file) = OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(zsh_script_path)
-    {
-        zsh_script_file.write_all(zsh_hot_key_script.as_bytes())?;
-    } else {
-        eprintln!("httm hot keys are already present in user's home directory.");
-    }
-
-    // append "source ~/.httm-key-bindings.zsh" to zshrc
+    // check whether httm-key-bindings.zsh is already sourced
     let mut buffer = String::new();
     let zshrc_path: PathBuf = [&home_dir, &PathBuf::from(".zshrc")].iter().collect();
-    let mut zshrc_file = OpenOptions::new()
+    let mut zshrc_file = if let Ok(file) = OpenOptions::new()
         .read(true)
         .write(true)
         .append(true)
-        .open(zshrc_path)?;
+        .open(zshrc_path)
+    {
+        file
+    } else {
+        return Err(HttmError::new(
+                "Either your .zshrc file does not exist or you do not have the permissions to access it.",
+            )
+            .into());
+    };
     zshrc_file.read_to_string(&mut buffer)?;
 
-    if buffer.contains("httm-key-bindings.zsh") {
-        eprintln!("httm hot keys appear to already be sourced in the user's zshrc.");
-    } else {
+    if !buffer
+        .lines()
+        .filter(|line| !line.starts_with('#'))
+        .any(|line| line.contains("source") && line.contains("httm-key-bindings.zsh"))
+    {
+        // create key binding file at compile time
+        let zsh_hot_key_script = include_str!("../scripts/httm-key-bindings.zsh");
+        let zsh_script_path: PathBuf = [&home_dir, &PathBuf::from(".httm-key-bindings.zsh")]
+            .iter()
+            .collect();
+        // creates file or will fail if file already exists
+        if let Ok(mut zsh_script_file) = OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(zsh_script_path)
+        {
+            zsh_script_file.write_all(zsh_hot_key_script.as_bytes())?;
+        } else {
+            eprintln!("httm hot keys are already present in user's home directory.");
+        }
+
+        // append "source ~/.httm-key-bindings.zsh" to zshrc
         zshrc_file.write_all(
             "\n# httm zsh hot keys script\nsource ~/.httm-key-bindings.zsh\n".as_bytes(),
         )?;
         eprintln!("httm hot keys were installed successfully.");
+    } else {
+        eprintln!("httm hot keys appear to already be sourced in the user's .zshrc.");
     }
+
     std::process::exit(0)
 }
