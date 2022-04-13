@@ -603,17 +603,18 @@ fn install_hot_keys() -> Result<(), Box<dyn std::error::Error + Send + Sync + 's
     };
     zshrc_file.read_to_string(&mut buffer)?;
 
+    // check that there are not lines in the zshrc that contain "source" and "httm-key-bindings.zsh"
     if !buffer
         .lines()
         .filter(|line| !line.starts_with('#'))
         .any(|line| line.contains("source") && line.contains("httm-key-bindings.zsh"))
     {
-        // create key binding file at compile time
+        // create key binding file -- done at compile time
         let zsh_hot_key_script = include_str!("../scripts/httm-key-bindings.zsh");
         let zsh_script_path: PathBuf = [&home_dir, &PathBuf::from(".httm-key-bindings.zsh")]
             .iter()
             .collect();
-        // creates file or will fail if file already exists
+        // creates script file in user's home dir or will fail if file already exists
         if let Ok(mut zsh_script_file) = OpenOptions::new()
             .write(true)
             .create_new(true)
