@@ -37,7 +37,7 @@ The `httm` project contains two main components:
     ```
 `cargo` has no native facilities for man page installation (though it may in the future!).  You can use `manpath` to see the various directories your system uses and decide which directory works best for you.  To install the man page, you can just copy it to such a directory in your man path:
 
-    ```bash
+ ```bash
     cp ./httm/httm.1 /usr/local/share/man/man1/
     ```
 
