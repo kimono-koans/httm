@@ -105,12 +105,12 @@ fn get_versions(
     dataset: PathBuf,
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // generates path for hidden .zfs snap dir, and the corresponding local path
-    let (snapshot_dir, local_path) =
+    let (hidden_snapshot_dir, local_path) =
         get_snap_point_and_local_relative_path(config, pathdata, dataset)?;
 
     // get the DirEntry for our snapshot path which will have all our possible
     // needed snapshots
-    let versions = std::fs::read_dir(snapshot_dir)?
+    let versions = std::fs::read_dir(hidden_snapshot_dir)?
         .into_iter()
         .flatten()
         .par_bridge()

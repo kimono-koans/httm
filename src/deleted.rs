@@ -101,7 +101,7 @@ pub fn get_deleted(
     };
 
     // generates path for hidden .zfs snap dir, and the corresponding local path
-    let (snapshot_dir, local_path) =
+    let (hidden_snapshot_dir, local_path) =
         get_snap_point_and_local_relative_path(config, &pathdata, dataset)?;
 
     let local_dir_entries: Vec<DirEntry> = std::fs::read_dir(&pathdata.path_buf)?
@@ -118,7 +118,7 @@ pub fn get_deleted(
     });
 
     // Now we have to find all file names in the snap_dirs and compare against the local_dir
-    let snap_files: Vec<(OsString, PathBuf)> = std::fs::read_dir(&snapshot_dir)?
+    let snap_files: Vec<(OsString, PathBuf)> = std::fs::read_dir(&hidden_snapshot_dir)?
         .into_iter()
         .par_bridge()
         .flatten_iter()
