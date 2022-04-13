@@ -571,6 +571,7 @@ pub fn get_snaps_and_live_set(
 }
 
 fn install_hot_keys() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    // get our home directory
     let home_dir = if let Ok(home) = std::env::var("HOME") {
         if let Ok(path) = PathBuf::from(&home).canonicalize() {
             path
@@ -586,6 +587,7 @@ fn install_hot_keys() -> Result<(), Box<dyn std::error::Error + Send + Sync + 's
     };
 
     // check whether httm-key-bindings.zsh is already sourced
+    // and open ~/.zshrc for later
     let mut buffer = String::new();
     let zshrc_path: PathBuf = [&home_dir, &PathBuf::from(".zshrc")].iter().collect();
     let mut zshrc_file = if let Ok(file) = OpenOptions::new()
