@@ -35,7 +35,7 @@ The `httm` project contains only a few components:
     ```bash
     httm --install-zsh-hot-keys
     ```
-3. `cargo` has no native facilities for man page installation (though it may in the future!).  You can use `manpath` to see the various directories your system uses and decide which directory works best for you.  To install the man page, you can just copy it to such a directory in your man path:
+3. The optional `man` page: `cargo` has no native facilities for man page installation (though it may in the future!).  You can use `manpath` to see the various directories your system uses and decide which directory works best for you.  To install, just copy it to a directory in your `man` path, like so:
 
     ```bash
     cp ./httm/httm.1 /usr/local/share/man/man1/
