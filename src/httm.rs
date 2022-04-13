@@ -622,16 +622,16 @@ fn install_hot_keys() -> Result<(), Box<dyn std::error::Error + Send + Sync + 's
         {
             zsh_script_file.write_all(zsh_hot_key_script.as_bytes())?;
         } else {
-            eprintln!("httm hot keys are already present in user's home directory.");
+            eprintln!("httm: httm-key-bindings.zsh is already present in user's home directory.");
         }
 
         // append "source ~/.httm-key-bindings.zsh" to zshrc
         zshrc_file.write_all(
-            "\n# httm zsh hot keys script\nsource ~/.httm-key-bindings.zsh\n".as_bytes(),
+            "\n# httm: zsh hot keys script\nsource ~/.httm-key-bindings.zsh\n".as_bytes(),
         )?;
-        eprintln!("httm hot keys were installed successfully.");
+        eprintln!("httm: zsh hot keys were installed successfully.");
     } else {
-        eprintln!("httm hot keys appear to already be sourced in the user's .zshrc.");
+        eprintln!("httm: zsh hot keys appear to already be sourced in the user's .zshrc.");
     }
 
     std::process::exit(0)
