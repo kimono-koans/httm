@@ -21,7 +21,7 @@ Inspired by the [findoid](https://github.com/jimsalterjrs/sanoid) script, [fzf](
 
 ## Installation
 
-The `httm` project contains two main components:
+The `httm` project contains only a few components:
 
 1. The `httm` executable. To build and install:
 
@@ -35,9 +35,9 @@ The `httm` project contains two main components:
     ```bash
     httm --install-zsh-hot-keys
     ```
-`cargo` has no native facilities for man page installation (though it may in the future!).  You can use `manpath` to see the various directories your system uses and decide which directory works best for you.  To install the man page, you can just copy it to such a directory in your man path:
+3. `cargo` has no native facilities for man page installation (though it may in the future!).  You can use `manpath` to see the various directories your system uses and decide which directory works best for you.  To install the man page, you can just copy it to such a directory in your man path:
 
- ```bash
+    ```bash
     cp ./httm/httm.1 /usr/local/share/man/man1/
     ```
 
