@@ -23,17 +23,22 @@ Inspired by the [findoid](https://github.com/jimsalterjrs/sanoid) script, [fzf](
 
 The `httm` project contains two main components:
 
-1. The `httm` executable: To build and install:
+1. The `httm` executable. To build and install:
 
     ```bash
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh 
     git clone kimono-koans/httm 
     cargo install --path ./httm/
     ```
-2. The optional `zsh` hot-key bindings: Use `ESC+s` to select snapshots filenames to be dropped to your command line, or use `ESC+m` to browse for all of a file's snapshots. To copy the hot key script to your home directory, and source within your zshrc:
+2. The optional `zsh` hot-key bindings: Use `ESC+s` to select snapshots filenames to be dropped to your command line (for instance after the `cat` command), or use `ESC+m` to browse for all of a file's snapshots. After you install the `httm` binary -- to copy the hot key script to your home directory, and source that script within your zshrc:
 
     ```bash
     httm --install-zsh-hot-keys
+    ```
+`cargo` has no native facilities for man page installation (though it may in the future!).  You can use `manpath` to see the various directories your system uses and decide which directory works best for you.  To install the man page, you can just copy it to such a directory in your man path:
+
+    ```bash
+    cp ./httm/httm.1 /usr/local/share/man/man1/
     ```
 
 ## License
