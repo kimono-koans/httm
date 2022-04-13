@@ -33,6 +33,8 @@ pub fn deleted_exec(
     config: &Config,
     out: &mut Stdout,
 ) -> Result<Vec<Vec<PathData>>, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    // ExecMode::Deleted will always have at least
+    // one item in raw_paths.  If not set, it will be the pwd.
     if config.opt_recursive {
         let path = PathBuf::from(config.raw_paths.get(0).unwrap());
         let pathdata = PathData::new(config, &path);

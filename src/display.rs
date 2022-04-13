@@ -199,14 +199,14 @@ fn display_human_size(pathdata: &PathData) -> String {
 }
 
 fn display_date(st: &SystemTime) -> String {
-    let dt: DateTime<Local> = st.to_owned().into();
-    format!("{}", dt.format("%a %b %e %H:%M:%S %Y"))
+    let date_time: DateTime<Local> = st.to_owned().into();
+    format!("{}", date_time.format("%a %b %e %H:%M:%S %Y"))
 }
 
 pub fn paint_string(path: &Path, file_name: &str) -> String {
-    let lscolors = LsColors::from_env().unwrap_or_default();
+    let ls_colors = LsColors::from_env().unwrap_or_default();
 
-    if let Some(style) = lscolors.style_for_path(path) {
+    if let Some(style) = ls_colors.style_for_path(path) {
         let ansi_style = &Style::to_ansi_term_style(style);
         ansi_style.paint(file_name).to_string()
     } else {
