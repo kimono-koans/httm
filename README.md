@@ -30,7 +30,7 @@ The `httm` project contains two main components:
     git clone kimono-koans/httm 
     cargo install --path ./httm/
     ```
-2. The optional `zsh` hot-key bindings: Use `ESC+s` to select snapshots filenames to be dropped to your command line, or use `ESC+m` to browse for all of a file's snapshots. To copy the script to your home directory and source within your zshrc:
+2. The optional `zsh` hot-key bindings: Use `ESC+s` to select snapshots filenames to be dropped to your command line, or use `ESC+m` to browse for all of a file's snapshots. To copy the hot key script to your home directory, and source within your zshrc:
 
     ```bash
     httm --install-zsh-hot-keys
