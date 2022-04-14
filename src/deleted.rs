@@ -135,7 +135,7 @@ pub fn get_deleted(
 
     // deduplication by name - none values are unique here
     let deleted_pathdata: Vec<PathData> = unique_snap_filenames
-        .par_iter()
+        .iter()
         .filter(|(file_name, _)| local_unique_filenames.get(file_name.to_owned()).is_none())
         .map(|(_, path)| PathData::new(&config.pwd, path))
         .collect();
