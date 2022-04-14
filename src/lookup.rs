@@ -74,7 +74,7 @@ fn get_versions_set(
 
 pub fn get_snap_point_and_local_relative_path(
     config: &Config,
-    pathdata: &PathData,
+    path: &Path,
     dataset: PathBuf,
 ) -> Result<(PathBuf, PathBuf), Box<dyn std::error::Error + Send + Sync + 'static>> {
     // building the snapshot path from our dataset
@@ -86,11 +86,11 @@ pub fn get_snap_point_and_local_relative_path(
     // directories below the remote/snap mount point
     let local_path = match &config.snap_point {
         SnapPoint::UserDefined(defined_dirs) => {
-            pathdata.path_buf
+            path
             .strip_prefix(&defined_dirs.local_dir).map_err(|_| HttmError::new("Are you sure you're in the correct working directory?  Perhaps you need to set the LOCAL_DIR value."))
         }
         SnapPoint::Native(_) => {
-            pathdata.path_buf
+            path
             .strip_prefix(&dataset).map_err(|_| HttmError::new("Are you sure you're in the correct working directory?  Perhaps you need to set the SNAP_DIR and LOCAL_DIR values."))    
         }
     }?;
@@ -105,7 +105,7 @@ fn get_versions(
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // generates path for hidden .zfs snap dir, and the corresponding local path
     let (hidden_snapshot_dir, local_path) =
-        get_snap_point_and_local_relative_path(config, pathdata, dataset)?;
+        get_snap_point_and_local_relative_path(config, &pathdata.path_buf, dataset)?;
 
     // get the DirEntry for our snapshot path which will have all our possible
     // needed snapshots
@@ -115,7 +115,7 @@ fn get_versions(
         .par_bridge()
         .map(|entry| entry.path())
         .map(|path| path.join(&local_path))
-        .map(|path| PathData::new(config, &path))
+        .map(|path| PathData::new(&config.pwd, &path))
         .filter(|pathdata| !pathdata.is_phantom)
         .collect::<Vec<PathData>>();
 

@@ -17,9 +17,8 @@
 
 use crate::deleted::get_deleted;
 use crate::display::{display_exec, paint_string};
-use crate::{
-    get_snaps_and_live_set, read_stdin, Config, HttmError, InteractiveMode, PathData, SnapPoint,
-};
+use crate::lookup::lookup_exec;
+use crate::{read_stdin, Config, HttmError, InteractiveMode, PathData, SnapPoint};
 
 extern crate skim;
 use chrono::{DateTime, Local};
@@ -70,39 +69,38 @@ impl SkimItem for SelectionCandidate {
 pub fn interactive_exec(
     out: &mut Stdout,
     config: &Config,
-) -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sync + 'static>> {
+) -> Result<PathData, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // go to interactive_select early if user has already requested a file
     // and we are in the appropriate mode Select or Restore, see struct Config
-    let paths_as_strings =
-        if config.raw_paths.len() == 1 && Path::new(&config.raw_paths[0]).is_file() {
-            let selected_file = config.raw_paths.clone();
-            interactive_select(out, config, selected_file)?;
-            unreachable!()
-        } else {
-            // collect string paths from what we get from lookup_view
-            vec![lookup_view(config)?]
-        };
+    let path = if config.paths.len() == 1 && config.paths[0].path_buf.is_file() {
+        let selected_file = &config.paths[0];
+        interactive_select(out, config, selected_file)?;
+        unreachable!()
+    } else {
+        // collect string paths from what we get from lookup_view
+        let string_path = lookup_view(config)?;
+        PathData::new(&config.pwd, Path::new(&string_path))
+    };
 
     // do we return back to our main exec function to print,
     // or continue down the interactive rabbit hole?
     match config.interactive_mode {
         InteractiveMode::Restore | InteractiveMode::Select => {
-            interactive_select(out, config, paths_as_strings)?;
+            interactive_select(out, config, &path)?;
             unreachable!()
         }
         // InteractiveMode::Lookup, etc., executes back through fn exec() in httm.rs
-        _ => Ok(paths_as_strings),
+        _ => Ok(path),
     }
 }
 
 fn interactive_select(
     out: &mut Stdout,
     config: &Config,
-    paths_as_strings: Vec<String>,
+    path: &PathData,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     // same stuff we do at exec, snooze...
-    let search_path = paths_as_strings.get(0).unwrap().to_owned();
-    let snaps_and_live_set = get_snaps_and_live_set(config, vec![search_path])?;
+    let snaps_and_live_set = lookup_exec(config, vec![path.to_owned()])?;
     let selection_buffer = display_exec(config, snaps_and_live_set)?;
 
     // get the file name, and get ready to do some file ops!!
@@ -133,7 +131,7 @@ fn interactive_restore(
     // build pathdata from selection buffer parsed string
     //
     // request is also sanity check for metadata
-    let snap_pd = PathData::new(config, &PathBuf::from(&parsed_str));
+    let snap_pd = PathData::new(&config.pwd, &PathBuf::from(&parsed_str));
 
     if snap_pd.is_phantom {
         return Err(HttmError::new("Snapshot location does not exist on disk. Quitting.").into());
@@ -194,13 +192,13 @@ fn lookup_view(
     // because it blocks on preview(), given the implementation of skim, see the new_preview branch
 
     // prep thread spawn
-    let requested_dir = config.requested_dir.clone();
+    let requested_dir_clone = config.requested_dir.path_buf.clone();
     let (tx_item, rx_item): (SkimItemSender, SkimItemReceiver) = unbounded();
     let config_clone = config.clone();
 
     // spawn fn enumerate_directory - permits recursion into dirs without blocking
     thread::spawn(move || {
-        let _ = enumerate_directory(&config_clone, &tx_item, &requested_dir);
+        let _ = enumerate_directory(&config_clone, &tx_item, &requested_dir_clone);
     });
 
     // as skim is slower if we call as a function, we locate which httm command to use in struct Config
@@ -273,7 +271,7 @@ fn enumerate_directory(
     tx_item: &SkimItemSender,
     requested_dir: &Path,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let read_dir = std::fs::read_dir(requested_dir)?;
+    let read_dir = std::fs::read_dir(&requested_dir)?;
 
     // convert to paths, and split into dirs and files
     let (vec_dirs, vec_files): (Vec<PathBuf>, Vec<PathBuf>) = read_dir
@@ -286,7 +284,7 @@ fn enumerate_directory(
             .par_iter()
             .map(|path| path.path_buf.file_name())
             .flatten()
-            .map(|str| Path::new(requested_dir).join(str))
+            .map(|str| requested_dir.join(str))
             .collect()
     } else {
         Vec::new()
