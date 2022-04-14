@@ -594,14 +594,13 @@ fn install_hot_keys() -> Result<(), Box<dyn std::error::Error + Send + Sync + 's
         if let Ok(path) = PathBuf::from(&home).canonicalize() {
             path
         } else {
-            return Err(
-                HttmError::new("$HOME does not appear to be set in your environment").into(),
-            );
+            return Err(HttmError::new(
+                "$HOME, as set in your environment, does not appear to exist",
+            )
+            .into());
         }
     } else {
-        return Err(
-            HttmError::new("$HOME, as set in your environment, does not appear to exist").into(),
-        );
+        return Err(HttmError::new("$HOME does not appear to be set in your environment").into());
     };
 
     // check whether httm-key-bindings.zsh is already sourced
@@ -642,7 +641,7 @@ fn install_hot_keys() -> Result<(), Box<dyn std::error::Error + Send + Sync + 's
         {
             zsh_script_file.write_all(zsh_hot_key_script.as_bytes())?;
         } else {
-            eprintln!("httm: httm-key-bindings.zsh is already present in user's home directory.");
+            eprintln!("httm: .httm-key-bindings.zsh is already present in user's home directory.");
         }
 
         // append "source ~/.httm-key-bindings.zsh" to zshrc
