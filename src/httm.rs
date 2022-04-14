@@ -26,6 +26,7 @@ use crate::interactive::interactive_exec;
 use crate::lookup::lookup_exec;
 
 use clap::{Arg, ArgMatches};
+use fxhash::FxHashMap as HashMap;
 use rayon::prelude::*;
 use std::{
     env,
@@ -63,7 +64,7 @@ impl Error for HttmError {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct PathData {
     system_time: SystemTime,
     size: u64,
@@ -298,7 +299,7 @@ impl Config {
             })
         };
 
-        let paths: Vec<PathData> = if matches.is_present("INPUT_FILES") {
+        let mut paths: Vec<PathData> = if matches.is_present("INPUT_FILES") {
             // can unwrap because we check if present above
             let raw_values = matches.values_of_os("INPUT_FILES").unwrap();
             raw_values
@@ -395,6 +396,18 @@ impl Config {
                 // like every other file and pwd must be the requested working dir.
                 PathData::new(&pwd)
             }
+        };
+
+        // deduplicate pathdata if in display mode -- so ./.z* and ./.zshrc only print once
+        paths = if exec_mode == ExecMode::Display {
+            let mut unique_paths: HashMap<PathBuf, PathData> = HashMap::default();
+
+            paths.into_iter().for_each(|pathdata| {
+                let _ = unique_paths.insert(pathdata.path_buf.clone(), pathdata);
+            });
+            unique_paths.into_iter().map(|(_, v)| v).collect()
+        } else {
+            paths
         };
 
         let config = Config {
