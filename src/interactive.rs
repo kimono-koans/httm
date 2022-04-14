@@ -69,38 +69,42 @@ impl SkimItem for SelectionCandidate {
 pub fn interactive_exec(
     out: &mut Stdout,
     config: &Config,
-) -> Result<PathData, Box<dyn std::error::Error + Send + Sync + 'static>> {
+) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // go to interactive_select early if user has already requested a file
     // and we are in the appropriate mode Select or Restore, see struct Config
-    let path = if config.paths.len() == 1 && config.paths[0].path_buf.is_file() {
-        let selected_file = &config.paths[0];
-        interactive_select(out, config, selected_file)?;
+    let vec_pathdata = if config.paths.len() == 1 && config.paths[0].path_buf.is_file() {
+        let selected_file = config.paths[0].to_owned();
+        interactive_select(out, config, &vec![selected_file])?;
         unreachable!()
     } else {
         // collect string paths from what we get from lookup_view
-        let string_path = lookup_view(config)?;
-        PathData::new(Path::new(&string_path))
+        let paths: Vec<PathData> = lookup_view(config)?
+            .iter()
+            .map(Path::new)
+            .map(PathData::new)
+            .collect();
+        paths
     };
 
     // do we return back to our main exec function to print,
     // or continue down the interactive rabbit hole?
     match config.interactive_mode {
         InteractiveMode::Restore | InteractiveMode::Select => {
-            interactive_select(out, config, &path)?;
+            interactive_select(out, config, &vec_pathdata)?;
             unreachable!()
         }
         // InteractiveMode::Lookup, etc., executes back through fn exec() in httm.rs
-        _ => Ok(path),
+        _ => Ok(vec_pathdata),
     }
 }
 
 fn interactive_select(
     out: &mut Stdout,
     config: &Config,
-    path: &PathData,
+    vec_paths: &Vec<PathData>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     // same stuff we do at exec, snooze...
-    let snaps_and_live_set = lookup_exec(config, &vec![path.to_owned()])?;
+    let snaps_and_live_set = lookup_exec(config, vec_paths)?;
     let selection_buffer = display_exec(config, snaps_and_live_set)?;
 
     // get the file name, and get ready to do some file ops!!
@@ -187,7 +191,7 @@ fn interactive_restore(
 
 fn lookup_view(
     config: &Config,
-) -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
+) -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // We *can* build a preview() method on our SkimItem to do this, except, right now, it's slower
     // because it blocks on preview(), given the implementation of skim, see the new_preview branch
 
@@ -223,6 +227,7 @@ fn lookup_view(
     let options = SkimOptionsBuilder::default()
         .preview_window(Some("70%"))
         .preview(Some(&preview_str))
+        .multi(true)
         .exact(true)
         .build()
         .unwrap();
@@ -233,7 +238,7 @@ fn lookup_view(
         .unwrap_or_else(Vec::new);
 
     // output() converts the filename/raw path to a absolute path string for use elsewhere
-    let res = selected_items
+    let res: Vec<String> = selected_items
         .iter()
         .map(|i| i.output().into_owned())
         .collect();
@@ -249,6 +254,7 @@ fn select_view(
     let options = SkimOptionsBuilder::default()
         .interactive(true)
         .exact(true)
+        .multi(false)
         .build()
         .unwrap();
     let item_reader = SkimItemReader::default();
