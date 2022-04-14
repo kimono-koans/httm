@@ -32,9 +32,8 @@ pub fn lookup_exec(
     let snapshot_versions: Vec<PathData> = path_data
         .par_iter()
         .map(|pathdata| get_versions_set(config, pathdata))
-        .collect::<Result<Vec<_>, Box<dyn std::error::Error + Send + Sync + 'static>>>()?
-        .into_iter()
-        .flatten()
+        .flatten_iter()
+        .flatten_iter()
         .collect();
 
     // create vec of live copies - unless user doesn't want it!
