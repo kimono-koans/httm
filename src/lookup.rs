@@ -165,7 +165,6 @@ pub fn get_dataset(
         .par_lines()
         .filter(|line| line.contains("yes"))
         .filter_map(|line| line.split('\t').next())
-        .map(|line| line.trim())
         .filter(|line| parent_folder.contains(line))
         .collect::<Vec<&str>>();
 
