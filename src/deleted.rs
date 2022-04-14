@@ -114,7 +114,7 @@ pub fn get_deleted(
 
     let mut local_unique_filenames: HashMap<OsString, PathBuf> = HashMap::default();
 
-    let _ = local_dir_entries.iter().for_each(|dir_entry| {
+    local_dir_entries.iter().for_each(|dir_entry| {
         let stripped = dir_entry.file_name();
         let _ = local_unique_filenames.insert(stripped, dir_entry.path());
     });
@@ -134,7 +134,7 @@ pub fn get_deleted(
         .collect();
 
     let mut unique_snap_filenames: HashMap<OsString, PathBuf> = HashMap::default();
-    let _ = snap_files.into_iter().for_each(|(file_name, path)| {
+    snap_files.into_iter().for_each(|(file_name, path)| {
         let _ = unique_snap_filenames.insert(file_name, path);
     });
 
@@ -147,7 +147,7 @@ pub fn get_deleted(
 
     // deduplication by modify time and size - as we would elsewhere
     let mut unique_deleted_versions: HashMap<(SystemTime, u64), PathData> = HashMap::default();
-    let _ = deleted_pathdata.into_iter().for_each(|pathdata| {
+    deleted_pathdata.into_iter().for_each(|pathdata| {
         let _ = unique_deleted_versions.insert((pathdata.system_time, pathdata.size), pathdata);
     });
 

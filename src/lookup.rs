@@ -123,7 +123,7 @@ fn get_versions(
     // filter above will remove all the phantom values silently as we build a list of unique versions
     // and our hashmap will then remove duplicates with the same system modify time and size/file len
     let mut unique_versions: HashMap<(SystemTime, u64), PathData> = HashMap::default();
-    let _ = versions.into_iter().for_each(|pathdata| {
+    versions.into_iter().for_each(|pathdata| {
         let _ = unique_versions.insert((pathdata.system_time, pathdata.size), pathdata);
     });
 
