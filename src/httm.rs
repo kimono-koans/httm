@@ -301,8 +301,9 @@ impl Config {
 
         let mut paths: Vec<PathData> = if matches.is_present("INPUT_FILES") {
             // can unwrap because we check if present above
-            let raw_values = matches.values_of_os("INPUT_FILES").unwrap();
-            raw_values
+            matches
+                .values_of_os("INPUT_FILES")
+                .unwrap()
                 .into_iter()
                 .par_bridge()
                 .map(|string| PathData::new(Path::new(string)))
