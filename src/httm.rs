@@ -364,17 +364,26 @@ impl Config {
                 //
                 // we only want one dir for a ExecMode::Deleted run, else
                 // we should run in ExecMode::Display mode
-                if paths.len() > 1 || (paths.len() == 1 && !paths[0].path_buf.is_dir()) {
-                    exec_mode = ExecMode::Display;
-                    PathData::new(&pwd, &pwd)
-                } else if paths.len() == 1 && paths[0].path_buf.is_dir() {
-                    paths.get(0).unwrap().to_owned()
-                } else if paths.is_empty() {
-                    // paths should never be empty, but here we make sure
-                    PathData::new(&pwd, &pwd)
-                } else {
-                    // because we should have covered all cases
-                    unreachable!()
+                match paths.len() {
+                    n if n > 1 => {
+                        exec_mode = ExecMode::Display;
+                        PathData::new(&pwd, &pwd)
+                    }
+                    n if n == 1 => match &paths[0].path_buf {
+                        n if n.is_dir() => paths.get(0).unwrap().to_owned(),
+                        _ => {
+                            exec_mode = ExecMode::Display;
+                            PathData::new(&pwd, &pwd)
+                        }
+                    },
+                    n if n == 0 => {
+                        // paths should never be empty, but here we make sure
+                        PathData::new(&pwd, &pwd)
+                    }
+                    _ => {
+                        // because we should have covered all cases
+                        unreachable!()
+                    }
                 }
             }
             ExecMode::Display => {
@@ -534,8 +543,8 @@ fn exec() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         // 1. Do our interactive lookup thing, or not, to obtain raw string paths
         // 2. Get PathData struct for all paths - lens, modify times, paths
         // 3. Determine/lookup whether file matches any files on snapshots
-        ExecMode::Interactive => lookup_exec(&config, vec![interactive_exec(&mut out, &config)?])?,
-        ExecMode::Display => lookup_exec(&config, config.paths.clone())?,
+        ExecMode::Interactive => lookup_exec(&config, &vec![interactive_exec(&mut out, &config)?])?,
+        ExecMode::Display => lookup_exec(&config, &config.paths)?,
         // deleted_exec is special because it is more convenient to get PathData in 'mod deleted'
         // on raw paths rather than strings, also there is no need to run a lookup on files already on snapshots
         ExecMode::Deleted => deleted_exec(&config, &mut out)?,

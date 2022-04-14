@@ -99,7 +99,7 @@ pub fn get_deleted(
 
     // generates path for hidden .zfs snap dir, and the corresponding local path
     let (hidden_snapshot_dir, local_path) =
-        get_snap_point_and_local_relative_path(config, path, dataset)?;
+        get_snap_point_and_local_relative_path(config, path, &dataset)?;
 
     let local_dir_entries: Vec<DirEntry> = std::fs::read_dir(&path)?
         .into_iter()

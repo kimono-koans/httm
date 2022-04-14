@@ -26,7 +26,7 @@ use std::{
 
 pub fn lookup_exec(
     config: &Config,
-    path_data: Vec<PathData>,
+    path_data: &Vec<PathData>,
 ) -> Result<Vec<Vec<PathData>>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // create vec of backups
     let snapshot_versions: Vec<PathData> = path_data
@@ -38,7 +38,7 @@ pub fn lookup_exec(
 
     // create vec of live copies - unless user doesn't want it!
     let live_versions: Vec<PathData> = if !config.opt_no_live_vers {
-        path_data
+        path_data.to_owned()
     } else {
         Vec::new()
     };
@@ -69,13 +69,13 @@ fn get_versions_set(
         SnapPoint::UserDefined(defined_dirs) => defined_dirs.snap_dir.to_owned(),
         SnapPoint::Native(native_commands) => get_dataset(native_commands, pathdata)?,
     };
-    get_versions(config, pathdata, dataset)
+    get_versions(config, pathdata, &dataset)
 }
 
 pub fn get_snap_point_and_local_relative_path(
     config: &Config,
     path: &Path,
-    dataset: PathBuf,
+    dataset: &Path,
 ) -> Result<(PathBuf, PathBuf), Box<dyn std::error::Error + Send + Sync + 'static>> {
     // building the snapshot path from our dataset
     let snapshot_dir: PathBuf = [&dataset.to_string_lossy(), ".zfs", "snapshot"]
@@ -101,7 +101,7 @@ pub fn get_snap_point_and_local_relative_path(
 fn get_versions(
     config: &Config,
     pathdata: &PathData,
-    dataset: PathBuf,
+    dataset: &Path,
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // generates path for hidden .zfs snap dir, and the corresponding local path
     let (hidden_snapshot_dir, local_path) =

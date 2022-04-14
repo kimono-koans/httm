@@ -100,7 +100,7 @@ fn interactive_select(
     path: &PathData,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     // same stuff we do at exec, snooze...
-    let snaps_and_live_set = lookup_exec(config, vec![path.to_owned()])?;
+    let snaps_and_live_set = lookup_exec(config, &vec![path.to_owned()])?;
     let selection_buffer = display_exec(config, snaps_and_live_set)?;
 
     // get the file name, and get ready to do some file ops!!
