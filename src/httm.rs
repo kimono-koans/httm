@@ -382,13 +382,9 @@ impl Config {
                             PathData::new(&pwd)
                         }
                     },
-                    n if n == 0 => {
+                    _ => {
                         // paths should never be empty, but here we make sure
                         PathData::new(&pwd)
-                    }
-                    _ => {
-                        // because we should have covered all cases
-                        unreachable!()
                     }
                 }
             }
