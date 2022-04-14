@@ -399,7 +399,7 @@ impl Config {
         };
 
         // deduplicate pathdata if in display mode -- so ./.z* and ./.zshrc only print once
-        paths = if exec_mode == ExecMode::Display {
+        paths = if exec_mode == ExecMode::Display && paths.len() > 1 {
             let mut unique_paths: HashMap<PathBuf, PathData> = HashMap::default();
 
             paths.into_iter().for_each(|pathdata| {
