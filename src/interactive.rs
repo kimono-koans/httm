@@ -79,7 +79,7 @@ pub fn interactive_exec(
     } else {
         // collect string paths from what we get from lookup_view
         let string_path = lookup_view(config)?;
-        PathData::new(&config.pwd, Path::new(&string_path))
+        PathData::new(Path::new(&string_path))
     };
 
     // do we return back to our main exec function to print,
@@ -131,7 +131,7 @@ fn interactive_restore(
     // build pathdata from selection buffer parsed string
     //
     // request is also sanity check for metadata
-    let snap_pd = PathData::new(&config.pwd, &PathBuf::from(&parsed_str));
+    let snap_pd = PathData::new(&PathBuf::from(&parsed_str));
 
     if snap_pd.is_phantom {
         return Err(HttmError::new("Snapshot location does not exist on disk. Quitting.").into());

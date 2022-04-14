@@ -72,9 +72,13 @@ pub struct PathData {
 }
 
 impl PathData {
-    fn new(pwd: &Path, path: &Path) -> PathData {
+    fn new(path: &Path) -> PathData {
         let absolute_path: PathBuf = if path.is_relative() {
-            [PathBuf::from(pwd), path.to_path_buf()].iter().collect()
+            if let Ok(canonical_path) = path.canonicalize() {
+                canonical_path
+            } else {
+                path.to_path_buf()
+            }
         } else {
             path.to_path_buf()
         };
@@ -300,16 +304,16 @@ impl Config {
             raw_values
                 .into_iter()
                 .par_bridge()
-                .map(|string| PathData::new(&pwd, Path::new(string)))
+                .map(|string| PathData::new(Path::new(string)))
                 .collect()
         // setting pwd as the path, here, keeps us from waiting on stdin when in non-Display modes
         } else if exec_mode == ExecMode::Interactive || exec_mode == ExecMode::Deleted {
-            vec![PathData::new(&pwd, &pwd)]
+            vec![PathData::new(&pwd)]
         } else if exec_mode == ExecMode::Display {
             read_stdin()?
                 .into_iter()
                 .par_bridge()
-                .map(|string| PathData::new(&pwd, Path::new(&string)))
+                .map(|string| PathData::new(Path::new(&string)))
                 .collect()
         } else {
             unreachable!()
@@ -319,7 +323,7 @@ impl Config {
         let requested_dir: PathData = match exec_mode {
             ExecMode::Interactive => {
                 match paths.len() {
-                    0 => PathData::new(&pwd, &pwd),
+                    0 => PathData::new(&pwd),
                     1 => {
                         match &paths[0].path_buf {
                             n if n.is_dir() => paths.get(0).unwrap().to_owned(),
@@ -367,18 +371,18 @@ impl Config {
                 match paths.len() {
                     n if n > 1 => {
                         exec_mode = ExecMode::Display;
-                        PathData::new(&pwd, &pwd)
+                        PathData::new(&pwd)
                     }
                     n if n == 1 => match &paths[0].path_buf {
                         n if n.is_dir() => paths.get(0).unwrap().to_owned(),
                         _ => {
                             exec_mode = ExecMode::Display;
-                            PathData::new(&pwd, &pwd)
+                            PathData::new(&pwd)
                         }
                     },
                     n if n == 0 => {
                         // paths should never be empty, but here we make sure
-                        PathData::new(&pwd, &pwd)
+                        PathData::new(&pwd)
                     }
                     _ => {
                         // because we should have covered all cases
@@ -389,7 +393,7 @@ impl Config {
             ExecMode::Display => {
                 // in non-interactive mode / display mode, requested dir is just a file
                 // like every other file and pwd must be the requested working dir.
-                PathData::new(&pwd, &pwd)
+                PathData::new(&pwd)
             }
         };
 

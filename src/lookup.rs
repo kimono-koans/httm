@@ -115,7 +115,7 @@ fn get_versions(
         .par_bridge()
         .map(|entry| entry.path())
         .map(|path| path.join(&local_path))
-        .map(|path| PathData::new(&config.pwd, &path))
+        .map(|path| PathData::new(&path))
         .filter(|pathdata| !pathdata.is_phantom)
         .collect::<Vec<PathData>>();
 

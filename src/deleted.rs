@@ -79,7 +79,7 @@ fn recursive_del_search(
         // printing and recursing into the subsequent dirs
         .iter()
         .for_each(|requested_dir| {
-            let path = PathData::new(&config.pwd, requested_dir);
+            let path = PathData::new(requested_dir);
             let _ = recursive_del_search(config, &path, out);
         });
     Ok(())
@@ -92,9 +92,7 @@ pub fn get_deleted(
     // which ZFS dataset do we want to use
     let dataset = match &config.snap_point {
         SnapPoint::UserDefined(defined_dirs) => defined_dirs.snap_dir.to_owned(),
-        SnapPoint::Native(native_commands) => {
-            get_dataset(native_commands, &PathData::new(&config.pwd, path))?
-        }
+        SnapPoint::Native(native_commands) => get_dataset(native_commands, &PathData::new(path))?,
     };
 
     // generates path for hidden .zfs snap dir, and the corresponding local path
@@ -134,11 +132,10 @@ pub fn get_deleted(
     });
 
     // deduplication by name - none values are unique here
-    let deleted_pathdata: Vec<PathData> = unique_snap_filenames
+    let deleted_pathdata = unique_snap_filenames
         .iter()
         .filter(|(file_name, _)| local_unique_filenames.get(file_name.to_owned()).is_none())
-        .map(|(_, path)| PathData::new(&config.pwd, path))
-        .collect();
+        .map(|(_, path)| PathData::new(path));
 
     // deduplication by modify time and size - as we would elsewhere
     let mut unique_deleted_versions: HashMap<(SystemTime, u64), PathData> = HashMap::default();
