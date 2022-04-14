@@ -95,11 +95,11 @@ fn display_pretty(
                     let display_padding = FIXED_WIDTH_PADDING.to_owned();
 
                     // paint the live string with ls colors
-                    let path = &pathdata.path_buf;
+                    let file_path = &pathdata.path_buf;
                     let painted_string = if idx == 1 {
-                        paint_string(path, &path.to_string_lossy())
+                        paint_string(file_path, &file_path.to_string_lossy())
                     } else {
-                        path.to_string_lossy().to_string()
+                        file_path.to_string_lossy().to_string()
                     };
                     let display_path =
                         format!("\"{:<width$}\"", painted_string, width = size_padding_len);

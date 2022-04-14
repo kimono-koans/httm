@@ -26,6 +26,7 @@ use crate::interactive::interactive_exec;
 use crate::lookup::lookup_exec;
 
 use clap::{Arg, ArgMatches};
+use fxhash::FxHashMap as HashMap;
 use rayon::prelude::*;
 use std::{
     env,
@@ -63,7 +64,7 @@ impl Error for HttmError {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct PathData {
     system_time: SystemTime,
     size: u64,
@@ -72,11 +73,13 @@ pub struct PathData {
 }
 
 impl PathData {
-    fn new(config: &Config, path: &Path) -> PathData {
+    fn new(path: &Path) -> PathData {
         let absolute_path: PathBuf = if path.is_relative() {
-            [PathBuf::from(&config.pwd), path.to_path_buf()]
-                .iter()
-                .collect()
+            if let Ok(canonical_path) = path.canonicalize() {
+                canonical_path
+            } else {
+                path.to_path_buf()
+            }
         } else {
             path.to_path_buf()
         };
@@ -145,7 +148,7 @@ pub struct NativeCommands {
 
 #[derive(Debug, Clone)]
 pub struct Config {
-    raw_paths: Vec<String>,
+    paths: Vec<PathData>,
     opt_raw: bool,
     opt_zeros: bool,
     opt_no_pretty: bool,
@@ -156,7 +159,7 @@ pub struct Config {
     snap_point: SnapPoint,
     interactive_mode: InteractiveMode,
     pwd: PathBuf,
-    requested_dir: PathBuf,
+    requested_dir: PathData,
     self_command: String,
 }
 
@@ -296,29 +299,36 @@ impl Config {
             })
         };
 
-        let raw_paths: Vec<String> = if matches.is_present("INPUT_FILES") {
-            let raw_values = matches.values_of_os("INPUT_FILES").unwrap();
-            raw_values
-                .map(|i| i.to_string_lossy().into_owned())
+        let mut paths: Vec<PathData> = if matches.is_present("INPUT_FILES") {
+            // can unwrap because we check if present above
+            matches
+                .values_of_os("INPUT_FILES")
+                .unwrap()
+                .into_iter()
+                .par_bridge()
+                .map(|string| PathData::new(Path::new(string)))
                 .collect()
-        // keeps us from waiting on stdin when in non-Display modes
+        // setting pwd as the path, here, keeps us from waiting on stdin when in non-Display modes
         } else if exec_mode == ExecMode::Interactive || exec_mode == ExecMode::Deleted {
-            vec![pwd.to_string_lossy().to_string()]
+            vec![PathData::new(&pwd)]
         } else if exec_mode == ExecMode::Display {
             read_stdin()?
+                .into_iter()
+                .par_bridge()
+                .map(|string| PathData::new(Path::new(&string)))
+                .collect()
         } else {
             unreachable!()
         };
 
-        let requested_dir = match exec_mode {
+        // for modes in which we can only take a single directory, process how to handle here
+        let requested_dir: PathData = match exec_mode {
             ExecMode::Interactive => {
-                match raw_paths.len() {
-                    0 => pwd.clone(),
+                match paths.len() {
+                    0 => PathData::new(&pwd),
                     1 => {
-                        match Path::new(&raw_paths[0]) {
-                            n if n.is_dir() => {
-                                PathBuf::from(&raw_paths.get(0).unwrap()).canonicalize()?
-                            }
+                        match &paths[0].path_buf {
+                            n if n.is_dir() => paths.get(0).unwrap().to_owned(),
                             n if n.is_file() => {
                                 match interactive_mode {
                                     InteractiveMode::Lookup | InteractiveMode::None => {
@@ -331,7 +341,7 @@ impl Config {
                                     InteractiveMode::Restore | InteractiveMode::Select => {
                                         // non-dir file will just cause us to skip the lookup phase
                                         // this is a value which won't get used
-                                        PathBuf::from(&raw_paths.get(0).unwrap()).canonicalize()?
+                                        paths.get(0).unwrap().to_owned()
                                     }
                                 }
                             }
@@ -356,26 +366,53 @@ impl Config {
                 }
             }
             ExecMode::Deleted => {
-                // file_names should never be empty for ExecMode::Deleted
+                // paths should never be empty for ExecMode::Deleted
                 //
                 // we only want one dir for a ExecMode::Deleted run, else
                 // we should run in ExecMode::Display mode
-                if raw_paths.len() > 1
-                    || (raw_paths.len() == 1 && !Path::new(&raw_paths[0]).is_dir())
-                {
-                    exec_mode = ExecMode::Display
+                match paths.len() {
+                    n if n > 1 => {
+                        exec_mode = ExecMode::Display;
+                        PathData::new(&pwd)
+                    }
+                    n if n == 1 => match &paths[0].path_buf {
+                        n if n.is_dir() => paths.get(0).unwrap().to_owned(),
+                        _ => {
+                            exec_mode = ExecMode::Display;
+                            PathData::new(&pwd)
+                        }
+                    },
+                    n if n == 0 => {
+                        // paths should never be empty, but here we make sure
+                        PathData::new(&pwd)
+                    }
+                    _ => {
+                        // because we should have covered all cases
+                        unreachable!()
+                    }
                 }
-                pwd.clone()
             }
             ExecMode::Display => {
                 // in non-interactive mode / display mode, requested dir is just a file
                 // like every other file and pwd must be the requested working dir.
-                pwd.clone()
+                PathData::new(&pwd)
             }
         };
 
+        // deduplicate pathdata if in display mode -- so ./.z* and ./.zshrc only print once
+        paths = if exec_mode == ExecMode::Display && paths.len() > 1 {
+            let mut unique_paths: HashMap<PathBuf, PathData> = HashMap::default();
+
+            paths.into_iter().for_each(|pathdata| {
+                let _ = unique_paths.insert(pathdata.path_buf.clone(), pathdata);
+            });
+            unique_paths.into_iter().map(|(_, v)| v).collect()
+        } else {
+            paths
+        };
+
         let config = Config {
-            raw_paths,
+            paths,
             opt_raw,
             opt_zeros,
             opt_no_pretty,
@@ -524,10 +561,8 @@ fn exec() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         // 1. Do our interactive lookup thing, or not, to obtain raw string paths
         // 2. Get PathData struct for all paths - lens, modify times, paths
         // 3. Determine/lookup whether file matches any files on snapshots
-        ExecMode::Interactive => {
-            get_snaps_and_live_set(&config, interactive_exec(&mut out, &config)?)?
-        }
-        ExecMode::Display => get_snaps_and_live_set(&config, config.raw_paths.clone())?,
+        ExecMode::Interactive => lookup_exec(&config, &interactive_exec(&mut out, &config)?)?,
+        ExecMode::Display => lookup_exec(&config, &config.paths)?,
         // deleted_exec is special because it is more convenient to get PathData in 'mod deleted'
         // on raw paths rather than strings, also there is no need to run a lookup on files already on snapshots
         ExecMode::Deleted => deleted_exec(&config, &mut out)?,
@@ -555,19 +590,6 @@ fn read_stdin() -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sync +
         .collect();
 
     Ok(broken_string)
-}
-
-pub fn get_snaps_and_live_set(
-    config: &Config,
-    paths_as_strings: Vec<String>,
-) -> Result<Vec<Vec<PathData>>, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    // build our pathdata Vecs for our lookup request
-    let vec_pd: Vec<PathData> = paths_as_strings
-        .par_iter()
-        .map(|string| PathData::new(config, Path::new(&string)))
-        .collect();
-    // finally run search on those paths
-    lookup_exec(config, vec_pd)
 }
 
 fn install_hot_keys() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {

@@ -33,30 +33,25 @@ pub fn deleted_exec(
     config: &Config,
     out: &mut Stdout,
 ) -> Result<Vec<Vec<PathData>>, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    // ExecMode::Deleted will always have at least
-    // one item in raw_paths.  If not set, it will be the pwd.
     if config.opt_recursive {
-        let path = PathBuf::from(config.raw_paths.get(0).unwrap());
-        let pathdata = PathData::new(config, &path);
-        recursive_del_search(config, &pathdata, out)?;
+        recursive_del_search(config, &config.requested_dir, out)?;
 
         // exit successfully upon ending recursive search
         std::process::exit(0)
     } else {
-        let path = PathBuf::from(config.raw_paths.get(0).unwrap());
-        let pathdata_set = get_deleted(config, &path)?;
+        let pathdata_set = get_deleted(config, &config.requested_dir.path_buf)?;
 
-        // back to our main fn exec() to be printed
+        // back to our main fn exec() to be printed, with an empty live set
         Ok(vec![pathdata_set, Vec::new()])
     }
 }
 
 fn recursive_del_search(
     config: &Config,
-    pathdata: &PathData,
+    requested_dir: &PathData,
     out: &mut Stdout,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let read_dir = std::fs::read_dir(&pathdata.path_buf)?;
+    let read_dir = std::fs::read_dir(&requested_dir.path_buf)?;
 
     // convert to paths, and split into dirs and files
     let vec_dirs: Vec<PathBuf> = read_dir
@@ -67,7 +62,7 @@ fn recursive_del_search(
         .filter(|path| path.is_dir())
         .collect();
 
-    let vec_deleted: Vec<PathData> = get_deleted(config, &pathdata.path_buf)?;
+    let vec_deleted: Vec<PathData> = get_deleted(config, &requested_dir.path_buf)?;
 
     if vec_deleted.is_empty() {
         // Shows progress, while we are finding no deleted files
@@ -84,7 +79,7 @@ fn recursive_del_search(
         // printing and recursing into the subsequent dirs
         .iter()
         .for_each(|requested_dir| {
-            let path = PathData::new(config, requested_dir);
+            let path = PathData::new(requested_dir);
             let _ = recursive_del_search(config, &path, out);
         });
     Ok(())
@@ -94,19 +89,17 @@ pub fn get_deleted(
     config: &Config,
     path: &Path,
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let pathdata = PathData::new(config, path);
-
     // which ZFS dataset do we want to use
     let dataset = match &config.snap_point {
         SnapPoint::UserDefined(defined_dirs) => defined_dirs.snap_dir.to_owned(),
-        SnapPoint::Native(native_commands) => get_dataset(native_commands, &pathdata)?,
+        SnapPoint::Native(native_commands) => get_dataset(native_commands, &PathData::new(path))?,
     };
 
     // generates path for hidden .zfs snap dir, and the corresponding local path
     let (hidden_snapshot_dir, local_path) =
-        get_snap_point_and_local_relative_path(config, &pathdata, dataset)?;
+        get_snap_point_and_local_relative_path(config, path, &dataset)?;
 
-    let local_dir_entries: Vec<DirEntry> = std::fs::read_dir(&pathdata.path_buf)?
+    let local_dir_entries: Vec<DirEntry> = std::fs::read_dir(&path)?
         .into_iter()
         .par_bridge()
         .flatten()
@@ -139,11 +132,10 @@ pub fn get_deleted(
     });
 
     // deduplication by name - none values are unique here
-    let deleted_pathdata: Vec<PathData> = unique_snap_filenames
-        .par_iter()
+    let deleted_pathdata = unique_snap_filenames
+        .iter()
         .filter(|(file_name, _)| local_unique_filenames.get(file_name.to_owned()).is_none())
-        .map(|(_, path)| PathData::new(config, path))
-        .collect();
+        .map(|(_, path)| PathData::new(path));
 
     // deduplication by modify time and size - as we would elsewhere
     let mut unique_deleted_versions: HashMap<(SystemTime, u64), PathData> = HashMap::default();
