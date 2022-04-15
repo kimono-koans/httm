@@ -32,7 +32,7 @@ use std::{
 pub fn deleted_exec(
     config: &Config,
     out: &mut Stdout,
-) -> Result<Vec<Vec<PathData>>, Box<dyn std::error::Error + Send + Sync + 'static>> {
+) -> Result<[Vec<PathData>; 2], Box<dyn std::error::Error + Send + Sync + 'static>> {
     if config.opt_recursive {
         recursive_del_search(config, &config.requested_dir, out)?;
 
@@ -42,7 +42,7 @@ pub fn deleted_exec(
         let pathdata_set = get_deleted(config, &config.requested_dir.path_buf)?;
 
         // back to our main fn exec() to be printed, with an empty live set
-        Ok(vec![pathdata_set, Vec::new()])
+        Ok([pathdata_set, Vec::new()])
     }
 }
 
@@ -66,7 +66,7 @@ fn recursive_del_search(
         // Shows progress, while we are finding no deleted files
         eprintln!("...");
     } else {
-        let output_buf = display_exec(config, vec![vec_deleted, Vec::new()])?;
+        let output_buf = display_exec(config, [vec_deleted, Vec::new()])?;
         write!(out, "{}", output_buf)?;
         out.flush()?;
     }

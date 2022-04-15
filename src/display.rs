@@ -32,7 +32,7 @@ const QUOTATION_MARKS_LEN: usize = 2;
 
 pub fn display_exec(
     config: &Config,
-    snaps_and_live_set: Vec<Vec<PathData>>,
+    snaps_and_live_set: [Vec<PathData>; 2],
 ) -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
     let output_buffer = if config.opt_raw || config.opt_zeros {
         display_raw(config, snaps_and_live_set)?
@@ -45,7 +45,7 @@ pub fn display_exec(
 
 fn display_raw(
     config: &Config,
-    snaps_and_live_set: Vec<Vec<PathData>>,
+    snaps_and_live_set: [Vec<PathData>; 2],
 ) -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
     let mut write_out_buffer = String::new();
 
@@ -64,7 +64,7 @@ fn display_raw(
 
 fn display_pretty(
     config: &Config,
-    snaps_and_live_set: Vec<Vec<PathData>>,
+    snaps_and_live_set: [Vec<PathData>; 2],
 ) -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
     let mut write_out_buffer = String::new();
 
@@ -198,8 +198,8 @@ fn display_human_size(pathdata: &PathData) -> String {
     }
 }
 
-fn display_date(st: &SystemTime) -> String {
-    let date_time: DateTime<Local> = st.to_owned().into();
+fn display_date(system_time: &SystemTime) -> String {
+    let date_time: DateTime<Local> = system_time.to_owned().into();
     format!("{}", date_time.format("%a %b %e %H:%M:%S %Y"))
 }
 

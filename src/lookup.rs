@@ -27,7 +27,7 @@ use std::{
 pub fn lookup_exec(
     config: &Config,
     path_data: &Vec<PathData>,
-) -> Result<Vec<Vec<PathData>>, Box<dyn std::error::Error + Send + Sync + 'static>> {
+) -> Result<[Vec<PathData>; 2], Box<dyn std::error::Error + Send + Sync + 'static>> {
     // create vec of backups
     let snapshot_versions: Vec<PathData> = path_data
         .par_iter()
@@ -52,12 +52,7 @@ pub fn lookup_exec(
         .into());
     }
 
-    // return a vec of vecs with no live copies if that is the user's want
-    if live_versions.is_empty() {
-        Ok(vec![snapshot_versions])
-    } else {
-        Ok(vec![snapshot_versions, live_versions])
-    }
+    Ok([snapshot_versions, live_versions])
 }
 
 fn get_versions_set(
