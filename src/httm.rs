@@ -213,6 +213,7 @@ impl Config {
             .to_string_lossy()
             .into_owned();
 
+        // current working directory will be helpful in a number of places
         let pwd = if let Ok(pwd) = std::env::var("PWD") {
             if let Ok(path) = PathBuf::from(&pwd).canonicalize() {
                 path
@@ -226,13 +227,16 @@ impl Config {
             return Err(HttmError::new("Working directory is not set in your environment.").into());
         };
 
-        // two ways to get a snap dir: cli and env var
+        // where is the hidden snapshot directory located?
+        // just below we ask whether the user has defined that place
         let raw_snap_var = if let Some(value) = matches.value_of_os("SNAP_POINT") {
             Some(value.to_os_string())
         } else {
             env_snap_dir
         };
 
+        // here we determine how we will obtain our snap point -- has the user defined it
+        // or will we find it by searching the native filesystem?
         let snap_point = if let Some(raw_value) = raw_snap_var {
             // user defined dir exists?: check that path contains the hidden snapshot directory
             let path = PathBuf::from(raw_value);
@@ -246,14 +250,14 @@ impl Config {
                 ).into());
             };
 
-            // two ways to get a local relative dir: cli and env var
+            // has the user has defined a corresponding local relative directory?
             let raw_local_var = if let Some(raw_value) = matches.value_of_os("LOCAL_DIR") {
                 Some(raw_value.to_os_string())
             } else {
                 env_local_dir
             };
 
-            // local dir can be set at cmdline or as an env var, but defaults to current working directory
+            // local relative dir can be set at cmdline or as an env var, but defaults to current working directory
             let local_dir = if let Some(value) = raw_local_var {
                 let local_dir: PathBuf = PathBuf::from(value);
 
@@ -274,7 +278,7 @@ impl Config {
                 local_dir,
             })
         } else {
-            // Make sure we have the necessary commands for execution without a snap point
+            // do we have the necessary commands for search if user has not defined a snap point?
             let shell_command = which("sh")
                 .map_err(|_| {
                     HttmError::new(
@@ -299,8 +303,9 @@ impl Config {
             })
         };
 
+        // paths are immediately converted to our PathData struct
         let mut paths: Vec<PathData> = if matches.is_present("INPUT_FILES") {
-            // can unwrap because we check if present above
+            // can unwrap because we confirm "is some" above
             matches
                 .values_of_os("INPUT_FILES")
                 .unwrap()
@@ -321,7 +326,7 @@ impl Config {
             unreachable!()
         };
 
-        // for modes in which we can only take a single directory, process how to handle here
+        // for exec_modes in which we can only take a single directory, process how we handle those here
         let requested_dir: PathData = match exec_mode {
             ExecMode::Interactive => {
                 match paths.len() {
@@ -603,7 +608,7 @@ fn install_hot_keys() -> Result<(), Box<dyn std::error::Error + Send + Sync + 's
     };
 
     // check whether httm-key-bindings.zsh is already sourced
-    // and open ~/.zshrc for later
+    // and if not open ~/.zshrc for sourcing the httm-key-bindings.zsh
     let mut buffer = String::new();
     let zshrc_path: PathBuf = [&home_dir, &PathBuf::from(".zshrc")].iter().collect();
     let mut zshrc_file = if let Ok(file) = OpenOptions::new()
