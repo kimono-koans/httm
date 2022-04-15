@@ -94,7 +94,7 @@ fn display_pretty(
                     );
                     let display_padding = FIXED_WIDTH_PADDING.to_owned();
 
-                    // paint the live string with ls colors
+                    // paint the live strings with ls colors - idx == 1 is 2nd or live set
                     let file_path = &pathdata.path_buf;
                     let painted_string = if idx == 1 {
                         paint_string(file_path, &file_path.to_string_lossy())
