@@ -103,7 +103,7 @@ fn interactive_select(
     config: &Config,
     vec_paths: &Vec<PathData>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    // same stuff we do at exec, snooze...
+    // same stuff we do at fn exec, snooze...
     let snaps_and_live_set = lookup_exec(config, vec_paths)?;
     let selection_buffer = display_exec(config, snaps_and_live_set)?;
 
@@ -200,7 +200,7 @@ fn lookup_view(
     let (tx_item, rx_item): (SkimItemSender, SkimItemReceiver) = unbounded();
     let config_clone = config.clone();
 
-    // spawn fn enumerate_directory - permits recursion into dirs without blocking
+    // thread spawn fn enumerate_directory - permits recursion into dirs without blocking
     thread::spawn(move || {
         let _ = enumerate_directory(&config_clone, &tx_item, &requested_dir_clone);
     });

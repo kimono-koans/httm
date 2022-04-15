@@ -114,8 +114,8 @@ fn display_pretty(
 
                 // displays blanks for phantom values, equaling their dummy lens and dates.
                 //
-                // see struct PathData for more details as to why we use a dummy instead of
-                // a None value here.
+                // we use a dummy instead of a None value here.  Basically, sometimes, we want
+                // to print the request even if a live file does not exist
                 let (display_date, display_size) = if !pathdata.is_phantom {
                     let date = pathdata_date;
                     let size = pathdata_size;
