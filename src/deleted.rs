@@ -76,7 +76,7 @@ fn recursive_del_search(
         // don't want to a par_iter here because it will block and wait for all results, instead of
         // printing and recursing into the subsequent dirs
         .iter()
-        .for_each(|requested_dir| {
+        .for_each(move |requested_dir| {
             let path = PathData::new(requested_dir);
             let _ = recursive_del_search(config, &path, out);
         });

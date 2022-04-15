@@ -316,14 +316,14 @@ fn enumerate_directory(
             // don't want a par_iter here because it will block and wait for all
             // results, instead of printing and recursing into the subsequent dirs
             .iter()
-            .for_each(|requested_dir| {
+            .for_each(move |requested_dir| {
                 let _ = enumerate_directory(config, tx_item, requested_dir);
-            })
+            });
     }
     Ok(())
 }
 
-fn timestamp_file(st: &SystemTime) -> String {
-    let dt: DateTime<Local> = st.to_owned().into();
-    format!("{}", dt.format("%b-%d-%Y-%H:%M:%S"))
+fn timestamp_file(system_time: &SystemTime) -> String {
+    let date_time: DateTime<Local> = system_time.to_owned().into();
+    format!("{}", date_time.format("%b-%d-%Y-%H:%M:%S"))
 }
