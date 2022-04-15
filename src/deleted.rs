@@ -51,10 +51,8 @@ fn recursive_del_search(
     requested_dir: &PathData,
     out: &mut Stdout,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let read_dir = std::fs::read_dir(&requested_dir.path_buf)?;
-
     // convert to paths, and split into dirs and files
-    let vec_dirs: Vec<PathBuf> = read_dir
+    let vec_dirs: Vec<PathBuf> = std::fs::read_dir(&requested_dir.path_buf)?
         .into_iter()
         .par_bridge()
         .filter_map(|i| i.ok())

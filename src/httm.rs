@@ -555,8 +555,7 @@ fn exec() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
 
     let snaps_and_live_set = match config.exec_mode {
         // 1. Do our interactive lookup thing, or not, to obtain raw string paths
-        // 2. Get PathData struct for all paths - lens, modify times, paths
-        // 3. Determine/lookup whether file matches any files on snapshots
+        // 2. Determine/lookup whether file matches any files on snapshots
         ExecMode::Interactive => lookup_exec(&config, &interactive_exec(&mut out, &config)?)?,
         ExecMode::Display => lookup_exec(&config, &config.paths)?,
         // deleted_exec is special because it is more convenient to get PathData in 'mod deleted'
