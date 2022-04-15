@@ -225,7 +225,7 @@ fn lookup_view(
 
     // create the skim component for previews
     let options = SkimOptionsBuilder::default()
-        .preview_window(Some("70%"))
+        .preview_window(Some("75%"))
         .preview(Some(&preview_str))
         .multi(true)
         .exact(true)
