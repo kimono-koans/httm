@@ -103,14 +103,14 @@ pub fn get_deleted(
         .flatten()
         .collect();
 
+    // create a collection of local unique file names
     let mut local_unique_filenames: HashMap<OsString, PathBuf> = HashMap::default();
-
     local_dir_entries.iter().for_each(|dir_entry| {
         let stripped = dir_entry.file_name();
         let _ = local_unique_filenames.insert(stripped, dir_entry.path());
     });
 
-    // Now we have to find all file names in the snap_dirs and compare against the local_dir
+    // now create a collection of file names in the snap_dirs
     let snap_files: Vec<(OsString, PathBuf)> = std::fs::read_dir(&hidden_snapshot_dir)?
         .into_iter()
         .par_bridge()
@@ -129,13 +129,13 @@ pub fn get_deleted(
         let _ = unique_snap_filenames.insert(file_name, path);
     });
 
-    // deduplication by name - none values are unique here
+    // compare local filenames to all unique snap filenames - none values are unique here
     let deleted_pathdata = unique_snap_filenames
         .iter()
         .filter(|(file_name, _)| local_unique_filenames.get(file_name.to_owned()).is_none())
         .map(|(_, path)| PathData::new(path));
 
-    // deduplication by modify time and size - as we would elsewhere
+    // deduplicate all by modify time and size - as we would elsewhere
     let mut unique_deleted_versions: HashMap<(SystemTime, u64), PathData> = HashMap::default();
     deleted_pathdata.into_iter().for_each(|pathdata| {
         let _ = unique_deleted_versions.insert((pathdata.system_time, pathdata.size), pathdata);

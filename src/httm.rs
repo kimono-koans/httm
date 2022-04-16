@@ -242,6 +242,7 @@ impl Config {
             let path = PathBuf::from(raw_value);
             let hidden_snap_dir = path.join(".zfs").join("snapshot");
 
+            // little sanity check -- make sure the user defined snap dir exist
             let snap_dir = if hidden_snap_dir.metadata().is_ok() {
                 path
             } else {
@@ -261,6 +262,7 @@ impl Config {
             let local_dir = if let Some(value) = raw_local_var {
                 let local_dir: PathBuf = PathBuf::from(value);
 
+                // little sanity check -- make sure the user defined local dir exist
                 if local_dir.metadata().is_ok() {
                     local_dir
                 } else {
