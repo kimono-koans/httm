@@ -124,7 +124,7 @@ enum ExecMode {
 #[derive(Debug, Clone, PartialEq)]
 enum InteractiveMode {
     None,
-    Lookup,
+    Browse,
     Select,
     Restore,
 }
@@ -194,7 +194,7 @@ impl Config {
         } else if matches.is_present("SELECT") {
             InteractiveMode::Select
         } else if matches.is_present("INTERACTIVE") {
-            InteractiveMode::Lookup
+            InteractiveMode::Browse
         } else {
             InteractiveMode::None
         };
@@ -339,7 +339,7 @@ impl Config {
                             n if n.is_dir() => paths.get(0).unwrap().to_owned(),
                             n if n.is_file() | n.is_symlink() => {
                                 match interactive_mode {
-                                    InteractiveMode::Lookup | InteractiveMode::None => {
+                                    InteractiveMode::Browse | InteractiveMode::None => {
                                         // doesn't make sense to have a non-dir in these modes
                                         return Err(HttmError::new(
                                                 "Path specified is not a directory, and therefore not suitable for browsing.",
@@ -453,14 +453,14 @@ fn parse_args() -> ArgMatches {
             Arg::new("INTERACTIVE")
                 .short('i')
                 .long("interactive")
-                .help("interactively browse files from a fuzzy-finder view.")
+                .help("interactively browse and search files.")
                 .display_order(2)
         )
         .arg(
             Arg::new("SELECT")
                 .short('s')
                 .long("select")
-                .help("interactively browse files and select snapshot versions from a fuzzy-finder view.")
+                .help("interactively browse and search files for selection of a snapshot version.")
                 .conflicts_with("RESTORE")
                 .display_order(3)
         )
@@ -468,7 +468,7 @@ fn parse_args() -> ArgMatches {
             Arg::new("RESTORE")
                 .short('r')
                 .long("restore")
-                .help("interactively browse files and restore from backup from a fuzzy-finder view.")
+                .help("interactively browse and search files for selection of a snapshot version to restore.")
                 .conflicts_with("SELECT")
                 .display_order(4)
         )
