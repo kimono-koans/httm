@@ -283,7 +283,6 @@ fn enumerate_directory(
     let (vec_dirs, vec_files): (Vec<PathBuf>, Vec<PathBuf>) = read_dir
         .flatten()
         .map(|dir_entry| dir_entry.path())
-        .filter(|path| !path.is_symlink())
         .partition(|path| path.is_dir());
 
     let vec_deleted = if config.opt_deleted {
