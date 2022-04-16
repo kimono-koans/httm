@@ -84,7 +84,8 @@ impl PathData {
             path.to_path_buf()
         };
 
-        let (len, time, phantom) = match std::fs::metadata(&absolute_path) {
+        // call symlink_metadata as we need to resolve to get non-phantom metadata for symlinks
+        let (len, time, phantom) = match std::fs::symlink_metadata(&absolute_path) {
             Ok(md) => {
                 let len = md.len();
                 let time = md.modified().unwrap_or(SystemTime::UNIX_EPOCH);
@@ -336,7 +337,7 @@ impl Config {
                     1 => {
                         match &paths[0].path_buf {
                             n if n.is_dir() => paths.get(0).unwrap().to_owned(),
-                            n if n.is_file() => {
+                            n if n.is_file() | n.is_symlink() => {
                                 match interactive_mode {
                                     InteractiveMode::Lookup | InteractiveMode::None => {
                                         // doesn't make sense to have a non-dir in these modes
