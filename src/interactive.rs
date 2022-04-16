@@ -258,10 +258,10 @@ fn select_view(
         .build()
         .unwrap();
     
-    let item_reader_opts = SkimItemReaderOption::default().ansi(true);
-    
+    let item_reader_opts = SkimItemReaderOption::default().ansi(true);   
     let item_reader = SkimItemReader::new(item_reader_opts);
     let items = item_reader.of_bufread(Cursor::new(selection_buffer));
+
     let selected_items = Skim::run_with(&skim_opts, Some(items))
         .map(|out| out.selected_items)
         .unwrap_or_else(Vec::new);
