@@ -106,8 +106,7 @@ pub fn get_deleted(
     // create a collection of local unique file names
     let mut local_unique_filenames: HashMap<OsString, PathBuf> = HashMap::default();
     local_dir_entries.iter().for_each(|dir_entry| {
-        let stripped = dir_entry.file_name();
-        let _ = local_unique_filenames.insert(stripped, dir_entry.path());
+        let _ = local_unique_filenames.insert(dir_entry.file_name(), dir_entry.path());
     });
 
     // now create a collection of file names in the snap_dirs
@@ -131,9 +130,9 @@ pub fn get_deleted(
 
     // compare local filenames to all unique snap filenames - none values are unique here
     let deleted_pathdata = unique_snap_filenames
-        .iter()
-        .filter(|(file_name, _)| local_unique_filenames.get(file_name.to_owned()).is_none())
-        .map(|(_, path)| PathData::new(path));
+        .into_iter()
+        .filter(|(file_name, _)| local_unique_filenames.get(file_name).is_none())
+        .map(|(_, path)| PathData::new(&path));
 
     // deduplicate all by modify time and size - as we would elsewhere
     let mut unique_deleted_versions: HashMap<(SystemTime, u64), PathData> = HashMap::default();

@@ -257,8 +257,8 @@ fn select_view(
         .multi(false)
         .build()
         .unwrap();
-    
-    let item_reader_opts = SkimItemReaderOption::default().ansi(true);   
+
+    let item_reader_opts = SkimItemReaderOption::default().ansi(true);
     let item_reader = SkimItemReader::new(item_reader_opts);
     let items = item_reader.of_bufread(Cursor::new(selection_buffer));
 
