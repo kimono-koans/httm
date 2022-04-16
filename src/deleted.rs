@@ -25,7 +25,7 @@ use std::{
     ffi::OsString,
     fs::DirEntry,
     io::{Stdout, Write},
-    path::{Path, PathBuf},
+    path::Path,
     time::SystemTime,
 };
 
@@ -52,12 +52,12 @@ fn recursive_del_search(
     out: &mut Stdout,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     // convert to paths, and split into dirs and files
-    let vec_dirs: Vec<PathBuf> = std::fs::read_dir(&requested_dir.path_buf)?
+    let vec_dirs: Vec<DirEntry> = std::fs::read_dir(&requested_dir.path_buf)?
         .into_iter()
         .par_bridge()
-        .filter_map(|i| i.ok())
-        .map(|dir_entry| dir_entry.path())
-        .filter(|path| path.is_dir())
+        .flatten_iter()
+        .filter(|dir_entry| dir_entry.file_type().is_ok())
+        .filter(|dir_entry| dir_entry.file_type().unwrap().is_dir())
         .collect();
 
     let vec_deleted: Vec<PathData> = get_deleted(config, &requested_dir.path_buf)?;
@@ -77,7 +77,7 @@ fn recursive_del_search(
         // printing and recursing into the subsequent dirs
         .iter()
         .for_each(move |requested_dir| {
-            let path = PathData::new(requested_dir);
+            let path = PathData::from(requested_dir);
             let _ = recursive_del_search(config, &path, out);
         });
     Ok(())
@@ -90,7 +90,7 @@ pub fn get_deleted(
     // which ZFS dataset do we want to use
     let dataset = match &config.snap_point {
         SnapPoint::UserDefined(defined_dirs) => defined_dirs.snap_dir.to_owned(),
-        SnapPoint::Native(native_commands) => get_dataset(native_commands, &PathData::new(path))?,
+        SnapPoint::Native(native_commands) => get_dataset(native_commands, &PathData::from(path))?,
     };
 
     // generates path for hidden .zfs snap dir, and the corresponding local path
@@ -104,13 +104,13 @@ pub fn get_deleted(
         .collect();
 
     // create a collection of local unique file names
-    let mut local_unique_filenames: HashMap<OsString, PathBuf> = HashMap::default();
-    local_dir_entries.iter().for_each(|dir_entry| {
-        let _ = local_unique_filenames.insert(dir_entry.file_name(), dir_entry.path());
+    let mut local_unique_filenames: HashMap<OsString, DirEntry> = HashMap::default();
+    local_dir_entries.into_iter().for_each(|dir_entry| {
+        let _ = local_unique_filenames.insert(dir_entry.file_name(), dir_entry);
     });
 
     // now create a collection of file names in the snap_dirs
-    let snap_files: Vec<(OsString, PathBuf)> = std::fs::read_dir(&hidden_snapshot_dir)?
+    let snap_files: Vec<(OsString, DirEntry)> = std::fs::read_dir(&hidden_snapshot_dir)?
         .into_iter()
         .par_bridge()
         .flatten_iter()
@@ -120,19 +120,19 @@ pub fn get_deleted(
         .flatten_iter()
         .flatten_iter()
         .flatten_iter()
-        .map(|dir_entry| (dir_entry.file_name(), dir_entry.path()))
+        .map(|dir_entry| (dir_entry.file_name(), dir_entry))
         .collect();
 
-    let mut unique_snap_filenames: HashMap<OsString, PathBuf> = HashMap::default();
-    snap_files.into_iter().for_each(|(file_name, path)| {
-        let _ = unique_snap_filenames.insert(file_name, path);
+    let mut unique_snap_filenames: HashMap<OsString, DirEntry> = HashMap::default();
+    snap_files.into_iter().for_each(|(file_name, dir_entry)| {
+        let _ = unique_snap_filenames.insert(file_name, dir_entry);
     });
 
     // compare local filenames to all unique snap filenames - none values are unique here
     let deleted_pathdata = unique_snap_filenames
         .into_iter()
         .filter(|(file_name, _)| local_unique_filenames.get(file_name).is_none())
-        .map(|(_, path)| PathData::new(&path));
+        .map(|(_, dir_entry)| PathData::from(&dir_entry));
 
     // deduplicate all by modify time and size - as we would elsewhere
     let mut unique_deleted_versions: HashMap<(SystemTime, u64), PathData> = HashMap::default();

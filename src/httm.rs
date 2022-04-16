@@ -32,7 +32,7 @@ use std::{
     env,
     error::Error,
     fmt,
-    fs::OpenOptions,
+    fs::{DirEntry, Metadata, OpenOptions},
     io::{BufRead, Read, Write},
     path::{Path, PathBuf},
     time::SystemTime,
@@ -72,8 +72,23 @@ pub struct PathData {
     is_phantom: bool,
 }
 
+impl From<&Path> for PathData {
+    fn from(path: &Path) -> PathData {
+        let metadata_res = std::fs::symlink_metadata(path);
+        PathData::new(path, metadata_res)
+    }
+}
+
+impl From<&DirEntry> for PathData {
+    fn from(dir_entry: &DirEntry) -> PathData {
+        let metadata_res = dir_entry.metadata();
+        let path = dir_entry.path();
+        PathData::new(&path, metadata_res)
+    }
+}
+
 impl PathData {
-    fn new(path: &Path) -> PathData {
+    fn new(path: &Path, metadata_res: Result<Metadata, std::io::Error>) -> PathData {
         let absolute_path: PathBuf = if path.is_relative() {
             if let Ok(canonical_path) = path.canonicalize() {
                 canonical_path
@@ -85,7 +100,7 @@ impl PathData {
         };
 
         // call symlink_metadata, as we need to resolve symlinks to get non-"phantom" metadata
-        let (len, time, phantom) = match std::fs::symlink_metadata(&absolute_path) {
+        let (len, time, phantom) = match metadata_res {
             Ok(md) => {
                 let len = md.len();
                 let time = md.modified().unwrap_or(SystemTime::UNIX_EPOCH);
@@ -314,16 +329,16 @@ impl Config {
                 .unwrap()
                 .into_iter()
                 .par_bridge()
-                .map(|string| PathData::new(Path::new(string)))
+                .map(|string| PathData::from(Path::new(string)))
                 .collect()
         // setting pwd as the path, here, keeps us from waiting on stdin when in non-Display modes
         } else if exec_mode == ExecMode::Interactive || exec_mode == ExecMode::Deleted {
-            vec![PathData::new(&pwd)]
+            vec![PathData::from(pwd.as_path())]
         } else if exec_mode == ExecMode::Display {
             read_stdin()?
                 .into_iter()
                 .par_bridge()
-                .map(|string| PathData::new(Path::new(&string)))
+                .map(|string| PathData::from(Path::new(&string)))
                 .collect()
         } else {
             unreachable!()
@@ -333,7 +348,7 @@ impl Config {
         let requested_dir: PathData = match exec_mode {
             ExecMode::Interactive => {
                 match paths.len() {
-                    0 => PathData::new(&pwd),
+                    0 => PathData::from(pwd.as_path()),
                     1 => {
                         match &paths[0].path_buf {
                             n if n.is_dir() => paths.get(0).unwrap().to_owned(),
@@ -380,25 +395,25 @@ impl Config {
                 match paths.len() {
                     n if n > 1 => {
                         exec_mode = ExecMode::Display;
-                        PathData::new(&pwd)
+                        PathData::from(pwd.as_path())
                     }
                     n if n == 1 => match &paths[0].path_buf {
                         n if n.is_dir() => paths.get(0).unwrap().to_owned(),
                         _ => {
                             exec_mode = ExecMode::Display;
-                            PathData::new(&pwd)
+                            PathData::from(pwd.as_path())
                         }
                     },
                     _ => {
                         // paths should never be empty, but here we make sure
-                        PathData::new(&pwd)
+                        PathData::from(pwd.as_path())
                     }
                 }
             }
             ExecMode::Display => {
                 // in non-interactive mode / display mode, requested dir is just a file
                 // like every other file and pwd must be the requested working dir.
-                PathData::new(&pwd)
+                PathData::from(pwd.as_path())
             }
         };
 

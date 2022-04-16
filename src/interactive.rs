@@ -81,7 +81,7 @@ pub fn interactive_exec(
         let paths: Vec<PathData> = lookup_view(config)?
             .iter()
             .map(Path::new)
-            .map(PathData::new)
+            .map(PathData::from)
             .collect();
         paths
     };
@@ -135,7 +135,7 @@ fn interactive_restore(
     // build pathdata from selection buffer parsed string
     //
     // request is also sanity check for metadata
-    let snap_pd = PathData::new(&PathBuf::from(&parsed_str));
+    let snap_pd = PathData::from(Path::new(&parsed_str));
 
     if snap_pd.is_phantom {
         return Err(HttmError::new("Snapshot location does not exist on disk. Quitting.").into());
@@ -280,10 +280,8 @@ fn enumerate_directory(
     tx_item: &SkimItemSender,
     requested_dir: &Path,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let read_dir = std::fs::read_dir(&requested_dir)?;
-
     // convert to paths, and split into dirs and files
-    let (vec_dirs, vec_files): (Vec<PathBuf>, Vec<PathBuf>) = read_dir
+    let (vec_dirs, vec_files): (Vec<PathBuf>, Vec<PathBuf>) = std::fs::read_dir(&requested_dir)?
         .flatten()
         .map(|dir_entry| dir_entry.path())
         .partition(|path| path.is_dir());
