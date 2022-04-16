@@ -72,7 +72,7 @@ pub fn interactive_exec(
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // go to interactive_select early if user has already requested a file
     // and we are in the appropriate mode Select or Restore, see struct Config
-    let vec_pathdata = if config.paths.len() == 1 && config.paths[0].path_buf.is_file() {
+    let vec_pathdata = if config.paths.len() == 1 && !config.paths[0].path_buf.is_dir() {
         let selected_file = config.paths[0].to_owned();
         interactive_select(out, config, &vec![selected_file])?;
         unreachable!()
@@ -251,15 +251,18 @@ fn select_view(
 ) -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // take what lookup gave us and select from among the snapshot options
     // build our skim view - less to do than before - no previews, looking through one 'lil buffer
-    let options = SkimOptionsBuilder::default()
+    let skim_opts = SkimOptionsBuilder::default()
         .interactive(true)
         .exact(true)
         .multi(false)
         .build()
         .unwrap();
-    let item_reader = SkimItemReader::default();
+    
+    let item_reader_opts = SkimItemReaderOption::default().ansi(true);
+    
+    let item_reader = SkimItemReader::new(item_reader_opts);
     let items = item_reader.of_bufread(Cursor::new(selection_buffer));
-    let selected_items = Skim::run_with(&options, Some(items))
+    let selected_items = Skim::run_with(&skim_opts, Some(items))
         .map(|out| out.selected_items)
         .unwrap_or_else(Vec::new);
 

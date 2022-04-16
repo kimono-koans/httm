@@ -348,12 +348,11 @@ impl Config {
                                     }
                                     InteractiveMode::Restore | InteractiveMode::Select => {
                                         // non-dir file will just cause us to skip the lookup phase
-                                        // this is a value which won't get used
                                         paths.get(0).unwrap().to_owned()
                                     }
                                 }
                             }
-                            // let's not screw with char, block devices, whatever else.
+                            // let's not screw with symlinks, char, block devices, whatever else.
                             _ => {
                                 return Err(HttmError::new(
                                     "Path specified is either not a directory or a file, or does not exist, and therefore is not suitable for an interactive mode.",
