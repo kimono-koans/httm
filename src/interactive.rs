@@ -93,7 +93,7 @@ pub fn interactive_exec(
             interactive_select(out, config, &vec_pathdata)?;
             unreachable!()
         }
-        // InteractiveMode::Lookup, etc., executes back through fn exec() in httm.rs
+        // InteractiveMode::Browse, etc., executes back through fn exec() in httm.rs
         _ => Ok(vec_pathdata),
     }
 }

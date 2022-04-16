@@ -352,7 +352,7 @@ impl Config {
                                     }
                                 }
                             }
-                            // let's not screw with symlinks, char, block devices, whatever else.
+                            // let's not screw with char, block devices, whatever else.
                             _ => {
                                 return Err(HttmError::new(
                                     "Path specified is either not a directory or a file, or does not exist, and therefore is not suitable for an interactive mode.",
