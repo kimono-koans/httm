@@ -84,7 +84,7 @@ impl PathData {
             path.to_path_buf()
         };
 
-        // call symlink_metadata as we need to resolve to get non-phantom metadata for symlinks
+        // call symlink_metadata, as we need to resolve symlinks to get non-"phantom" metadata
         let (len, time, phantom) = match std::fs::symlink_metadata(&absolute_path) {
             Ok(md) => {
                 let len = md.len();
