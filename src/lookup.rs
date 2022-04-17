@@ -15,14 +15,11 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::{Config, HttmError, NativeCommands, PathData, SnapPoint};
+use crate::{Config, HttmError, PathData, SnapPoint};
 use fxhash::FxHashMap as HashMap;
 use rayon::prelude::*;
 use std::{
-    fs::OpenOptions,
-    io::Read,
     path::{Path, PathBuf},
-    process::Command as ExecProcess,
     time::SystemTime,
 };
 
@@ -165,54 +162,4 @@ pub fn get_snap_point_and_local_relative_path(
     }?;
 
     Ok((snapshot_dir, local_path.to_path_buf()))
-}
-
-pub fn list_all_filesystems(
-    native_commands: &NativeCommands,
-) -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let fallback = |native_commands: &NativeCommands| {
-        // build zfs query to execute - slower but we are sure it works everywhere
-        let exec_command =
-            native_commands.zfs_command.clone() + " list -H -t filesystem -o mountpoint,mounted";
-
-        let command_output = std::str::from_utf8(
-            &ExecProcess::new(&native_commands.shell_command)
-                .arg("-c")
-                .arg(exec_command)
-                .output()?
-                .stdout,
-        )?
-        .to_owned();
-
-        let res = command_output
-            .par_lines()
-            .filter(|line| line.contains("yes"))
-            .filter_map(|line| line.split('\t').next())
-            .map(|line| line.to_owned())
-            .collect::<Vec<String>>();
-        Ok(res)
-    };
-
-    // read datasets from /proc/mounts if possible -- much faster than using zfs command -- but Linux only
-    if cfg!(target_os = "linux") {
-        if let Ok(mut file) = OpenOptions::new()
-            .read(true)
-            .open(Path::new("/proc/mounts"))
-        {
-            let mut buffer = String::new();
-            let _ = &file.read_to_string(&mut buffer)?;
-
-            let res = buffer
-                .par_lines()
-                .filter(|line| line.contains("zfs"))
-                .filter_map(|line| line.split(' ').nth(1))
-                .map(|line| line.replace(r#"\040"#, " "))
-                .collect::<Vec<String>>();
-            Ok(res)
-        } else {
-            fallback(native_commands)
-        }
-    } else {
-        fallback(native_commands)
-    }
 }
