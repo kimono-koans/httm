@@ -102,18 +102,14 @@ pub fn get_snapshot_dataset(
 
     // only possible None is if root dir because
     // of previous work in the Pathdata new method
-    let parent_folder = file_path
-        .parent()
-        .unwrap_or_else(|| Path::new("/"))
-        .to_string_lossy();
+    let parent_folder = file_path.parent().unwrap_or_else(|| Path::new("/"));
 
     // prune away most datasets by filtering - parent folder of file must contain relevant dataset
     let potential_mountpoints: Vec<String> = config
         .all_filesystems
         .clone()
         .into_par_iter()
-        .filter(|line| parent_folder.contains(line))
-        .map(|x| x)
+        .filter(|line| parent_folder.starts_with(line))
         .collect();
 
     // do we have any left? if not print error
