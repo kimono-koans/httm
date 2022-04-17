@@ -61,7 +61,9 @@ fn get_versions(
     // which ZFS dataset do we want to use
     let dataset = match &config.snap_point {
         SnapPoint::UserDefined(defined_dirs) => defined_dirs.snap_dir.to_owned(),
-        SnapPoint::Native(_) => get_snapshot_dataset(config, pathdata)?,
+        SnapPoint::Native(all_zfs_filesystems) => {
+            get_snapshot_dataset(pathdata, all_zfs_filesystems)?
+        }
     };
 
     // generates path for hidden .zfs snap dir, and the corresponding local path
@@ -95,8 +97,8 @@ fn get_versions(
 }
 
 pub fn get_snapshot_dataset(
-    config: &Config,
     pathdata: &PathData,
+    all_zfs_filesystems: &[String],
 ) -> Result<PathBuf, Box<dyn std::error::Error + Send + Sync + 'static>> {
     let file_path = &pathdata.path_buf;
 
@@ -105,9 +107,7 @@ pub fn get_snapshot_dataset(
     let parent_folder = file_path.parent().unwrap_or_else(|| Path::new("/"));
 
     // prune away most datasets by filtering - parent folder of file must contain relevant dataset
-    let potential_mountpoints: Vec<String> = config
-        .all_filesystems
-        .clone()
+    let potential_mountpoints: Vec<&String> = all_zfs_filesystems
         .into_par_iter()
         .filter(|line| parent_folder.starts_with(line))
         .collect();

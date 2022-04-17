@@ -147,7 +147,7 @@ enum InteractiveMode {
 
 #[derive(Debug, Clone)]
 enum SnapPoint {
-    Native(NativeCommands),
+    Native(Vec<String>),
     UserDefined(UserDefinedDirs),
 }
 
@@ -158,15 +158,8 @@ pub struct UserDefinedDirs {
 }
 
 #[derive(Debug, Clone)]
-pub struct NativeCommands {
-    zfs_command: String,
-    shell_command: String,
-}
-
-#[derive(Debug, Clone)]
 pub struct Config {
     paths: Vec<PathData>,
-    all_filesystems: Vec<String>,
     opt_raw: bool,
     opt_zeros: bool,
     opt_no_pretty: bool,
@@ -317,15 +310,19 @@ impl Config {
                 .to_string_lossy()
                 .into_owned();
 
-            SnapPoint::Native(NativeCommands {
-                zfs_command,
-                shell_command,
-            })
-        };
+            let mount_command = which("mount")
+                .map_err(|_| {
+                    HttmError::new(
+                        "mount command not found. Make sure the command 'mount' is in your path.",
+                    )
+                })?
+                .to_string_lossy()
+                .into_owned();
 
-        let all_filesystems = match &snap_point {
-            SnapPoint::UserDefined(_) => Vec::new(),
-            SnapPoint::Native(native_commands) => list_all_filesystems(native_commands)?,
+            let all_zfs_filesystems =
+                list_all_filesystems(shell_command, zfs_command, mount_command)?;
+
+            SnapPoint::Native(all_zfs_filesystems)
         };
 
         // paths are immediately converted to our PathData struct
@@ -438,7 +435,6 @@ impl Config {
 
         let config = Config {
             paths,
-            all_filesystems,
             opt_raw,
             opt_zeros,
             opt_no_pretty,
@@ -688,15 +684,17 @@ fn install_hot_keys() -> Result<(), Box<dyn std::error::Error + Send + Sync + 's
 }
 
 fn list_all_filesystems(
-    native_commands: &NativeCommands,
+    shell_command: String,
+    zfs_command: String,
+    mount_command: String,
 ) -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let fallback = |native_commands: &NativeCommands| {
-        // build zfs query to execute - slower but we are sure it works everywhere
-        let exec_command =
-            native_commands.zfs_command.clone() + " list -H -t filesystem -o mountpoint,mounted";
+    // build zfs query to execute - in case the fast path fails
+    // this is slower but we are sure it works everywhere
+    let fallback = |shell_command: String, zfs_command: String| {
+        let exec_command = zfs_command + " list -H -t filesystem -o mountpoint,mounted";
 
         let command_output = std::str::from_utf8(
-            &ExecProcess::new(&native_commands.shell_command)
+            &ExecProcess::new(&shell_command)
                 .arg("-c")
                 .arg(exec_command)
                 .output()?
@@ -708,31 +706,54 @@ fn list_all_filesystems(
             .par_lines()
             .filter(|line| line.contains("yes"))
             .filter_map(|line| line.split('\t').next())
+            // sanity check: does the filesystem exists, if not, filter it
+            .filter(|line| Path::new(line).exists())
             .map(|line| line.to_owned())
             .collect::<Vec<String>>();
         Ok(res)
     };
 
-    // read datasets from /proc/mounts if possible -- much faster than using zfs command -- but Linux only
-    if cfg!(target_os = "linux") {
-        if let Ok(mut file) = OpenOptions::new()
-            .read(true)
-            .open(Path::new("/proc/mounts"))
-        {
-            let mut buffer = String::new();
-            let _ = &file.read_to_string(&mut buffer)?;
+    // read datasets from `mount` if possible -- this is much faster than using zfs command
+    // reading /proc/mounts is even faster but Linux only (this should work on the BSDs and MacOS)
+    let exec_command = mount_command + " -t zfs";
 
-            let res = buffer
-                .par_lines()
-                .filter(|line| line.contains("zfs"))
-                .filter_map(|line| line.split(' ').nth(1))
-                .map(|line| line.replace(r#"\040"#, " "))
-                .collect::<Vec<String>>();
-            Ok(res)
-        } else {
-            fallback(native_commands)
-        }
+    let command_output = std::str::from_utf8(
+        &ExecProcess::new(&shell_command)
+            .arg("-c")
+            .arg(exec_command)
+            .output()?
+            .stdout,
+    )?
+    .to_owned();
+
+    if command_output.is_empty() {
+        fallback(shell_command, zfs_command)
     } else {
-        fallback(native_commands)
+        // parse "mount -t zfs" for filesystems
+        let res: Vec<String> = command_output
+            .par_lines()
+            .map(|line| line.split_once(&"on "))
+            .flatten()
+            .map(|(_,last)| last)
+            .map(|line|
+                // GNU Linux output
+                if line.contains("type") {
+                    line.split_once(&" type")
+                // Busybox and BSD output
+                } else {
+                    line.split_once(&" (")
+                })
+            .flatten()
+            .map(|(first,_)| first)
+            // sanity check does the filesystem exists, if not, filter it
+            .filter(|line| Path::new(line).exists())
+            .map(|line| line.to_owned())
+            .collect();
+
+        if res.is_empty() {
+            fallback(shell_command, zfs_command)
+        } else {
+            Ok(res)
+        }
     }
 }

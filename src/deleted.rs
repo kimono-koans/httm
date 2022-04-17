@@ -90,7 +90,9 @@ pub fn get_deleted(
     // which ZFS dataset do we want to use
     let dataset = match &config.snap_point {
         SnapPoint::UserDefined(defined_dirs) => defined_dirs.snap_dir.to_owned(),
-        SnapPoint::Native(_) => get_snapshot_dataset(config, &PathData::from(path))?,
+        SnapPoint::Native(all_zfs_filesystems) => {
+            get_snapshot_dataset(&PathData::from(path), all_zfs_filesystems)?
+        }
     };
 
     // generates path for hidden .zfs snap dir, and the corresponding local path
