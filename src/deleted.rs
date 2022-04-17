@@ -16,7 +16,7 @@
 // that was distributed with this source code.
 
 use crate::display::display_exec;
-use crate::lookup::{get_dataset, get_snap_point_and_local_relative_path};
+use crate::lookup::{get_snap_point_and_local_relative_path, get_snapshot_dataset};
 use crate::{Config, PathData, SnapPoint};
 
 use fxhash::FxHashMap as HashMap;
@@ -90,7 +90,9 @@ pub fn get_deleted(
     // which ZFS dataset do we want to use
     let dataset = match &config.snap_point {
         SnapPoint::UserDefined(defined_dirs) => defined_dirs.snap_dir.to_owned(),
-        SnapPoint::Native(native_commands) => get_dataset(native_commands, &PathData::from(path))?,
+        SnapPoint::Native(native_commands) => {
+            get_snapshot_dataset(native_commands, &PathData::from(path))?
+        }
     };
 
     // generates path for hidden .zfs snap dir, and the corresponding local path

@@ -19,6 +19,8 @@ use crate::{Config, HttmError, NativeCommands, PathData, SnapPoint};
 use fxhash::FxHashMap as HashMap;
 use rayon::prelude::*;
 use std::{
+    fs::OpenOptions,
+    io::Read,
     path::{Path, PathBuf},
     process::Command as ExecProcess,
     time::SystemTime,
@@ -62,7 +64,7 @@ fn get_versions_set(
     // which ZFS dataset do we want to use
     let dataset = match &config.snap_point {
         SnapPoint::UserDefined(defined_dirs) => defined_dirs.snap_dir.to_owned(),
-        SnapPoint::Native(native_commands) => get_dataset(native_commands, pathdata)?,
+        SnapPoint::Native(native_commands) => get_snapshot_dataset(native_commands, pathdata)?,
     };
     get_versions(config, pathdata, &dataset)
 }
@@ -128,7 +130,7 @@ fn get_versions(
     Ok(sorted.into_iter().map(|(_, v)| v).collect())
 }
 
-pub fn get_dataset(
+pub fn get_snapshot_dataset(
     native_commands: &NativeCommands,
     pathdata: &PathData,
 ) -> Result<PathBuf, Box<dyn std::error::Error + Send + Sync + 'static>> {
@@ -141,29 +143,17 @@ pub fn get_dataset(
         .unwrap_or_else(|| Path::new("/"))
         .to_string_lossy();
 
-    // build zfs query to execute
-    let exec_command =
-        native_commands.zfs_command.clone() + " list -H -t filesystem -o mountpoint,mounted";
-
-    let datasets_from_zfs = std::str::from_utf8(
-        &ExecProcess::new(&native_commands.shell_command)
-            .arg("-c")
-            .arg(exec_command)
-            .output()?
-            .stdout,
-    )?
-    .to_owned();
+    let all_filesystems = list_all_filesystems(native_commands)?;
 
     // prune away most datasets by filtering - parent folder of file must contain relevant dataset
-    let select_potential_mountpoints = datasets_from_zfs
-        .par_lines()
-        .filter(|line| line.contains("yes"))
-        .filter_map(|line| line.split('\t').next())
+    let potential_mountpoints: Vec<String> = all_filesystems
+        .into_par_iter()
         .filter(|line| parent_folder.contains(line))
-        .collect::<Vec<&str>>();
+        .map(|x| x)
+        .collect();
 
     // do we have any left? if not print error
-    if select_potential_mountpoints.is_empty() {
+    if potential_mountpoints.is_empty() {
         let msg = "Could not identify any qualifying dataset.  Maybe consider specifying manually at SNAP_POINT?";
         return Err(HttmError::new(msg).into());
     };
@@ -171,7 +161,7 @@ pub fn get_dataset(
     // select the best match for us: the longest, as we've already matched on the parent folder
     // so for /usr/bin, we would then prefer /usr/bin to /usr and /
     let best_potential_mountpoint =
-        if let Some(some_bpmp) = select_potential_mountpoints.iter().max_by_key(|x| x.len()) {
+        if let Some(some_bpmp) = potential_mountpoints.par_iter().max_by_key(|x| x.len()) {
             some_bpmp
         } else {
             let msg = format!(
@@ -182,4 +172,45 @@ pub fn get_dataset(
         };
 
     Ok(PathBuf::from(best_potential_mountpoint))
+}
+
+fn list_all_filesystems(
+    native_commands: &NativeCommands,
+) -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    // read datasets from /proc/mounts if possible -- much faster than using zfs command -- but Linux only
+    let res = if let Ok(mut file) = OpenOptions::new()
+        .read(true)
+        .open(Path::new("/proc/mounts"))
+    {
+        let mut buffer = String::new();
+        let _ = &file.read_to_string(&mut buffer)?;
+
+        buffer
+            .par_lines()
+            .filter(|line| line.contains("zfs"))
+            .filter_map(|line| line.split(' ').nth(1))
+            .map(|line| line.replace(r#"\040"#, " "))
+            .collect::<Vec<String>>()
+    } else {
+        // build zfs query to execute - slower but we are sure it works everywhere
+        let exec_command =
+            native_commands.zfs_command.clone() + " list -H -t filesystem -o mountpoint,mounted";
+
+        let command_output = std::str::from_utf8(
+            &ExecProcess::new(&native_commands.shell_command)
+                .arg("-c")
+                .arg(exec_command)
+                .output()?
+                .stdout,
+        )?
+        .to_owned();
+
+        command_output
+            .par_lines()
+            .filter(|line| line.contains("yes"))
+            .filter_map(|line| line.split('\t').next())
+            .map(|line| line.to_owned())
+            .collect::<Vec<String>>()
+    };
+    Ok(res)
 }
