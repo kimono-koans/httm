@@ -33,7 +33,7 @@ pub fn lookup_exec(
     // create vec of backups
     let snapshot_versions: Vec<PathData> = path_data
         .par_iter()
-        .map(|pathdata| get_versions_set(config, pathdata))
+        .map(|pathdata| versions_exec(config, pathdata))
         .flatten_iter()
         .flatten_iter()
         .collect();
@@ -57,7 +57,7 @@ pub fn lookup_exec(
     Ok([snapshot_versions, live_versions])
 }
 
-fn get_versions_set(
+fn versions_exec(
     config: &Config,
     pathdata: &PathData,
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
