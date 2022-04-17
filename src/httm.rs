@@ -23,7 +23,7 @@ mod lookup;
 use crate::deleted::deleted_exec;
 use crate::display::display_exec;
 use crate::interactive::interactive_exec;
-use crate::lookup::lookup_exec;
+use crate::lookup::{list_all_filesystems, lookup_exec};
 
 use clap::{Arg, ArgMatches};
 use fxhash::FxHashMap as HashMap;
@@ -165,6 +165,7 @@ pub struct NativeCommands {
 #[derive(Debug, Clone)]
 pub struct Config {
     paths: Vec<PathData>,
+    all_filesystems: Vec<String>,
     opt_raw: bool,
     opt_zeros: bool,
     opt_no_pretty: bool,
@@ -321,6 +322,11 @@ impl Config {
             })
         };
 
+        let all_filesystems = match &snap_point {
+            SnapPoint::UserDefined(_) => Vec::new(),
+            SnapPoint::Native(native_commands) => list_all_filesystems(native_commands)?,
+        };
+
         // paths are immediately converted to our PathData struct
         let mut paths: Vec<PathData> = if matches.is_present("INPUT_FILES") {
             // can unwrap because we confirm "is some" above
@@ -431,6 +437,7 @@ impl Config {
 
         let config = Config {
             paths,
+            all_filesystems,
             opt_raw,
             opt_zeros,
             opt_no_pretty,

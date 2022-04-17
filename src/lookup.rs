@@ -64,7 +64,7 @@ fn versions_exec(
     // which ZFS dataset do we want to use
     let dataset = match &config.snap_point {
         SnapPoint::UserDefined(defined_dirs) => defined_dirs.snap_dir.to_owned(),
-        SnapPoint::Native(native_commands) => get_snapshot_dataset(native_commands, pathdata)?,
+        SnapPoint::Native(_) => get_snapshot_dataset(config, pathdata)?,
     };
     get_versions(config, pathdata, &dataset)
 }
@@ -131,7 +131,7 @@ fn get_versions(
 }
 
 pub fn get_snapshot_dataset(
-    native_commands: &NativeCommands,
+    config: &Config,
     pathdata: &PathData,
 ) -> Result<PathBuf, Box<dyn std::error::Error + Send + Sync + 'static>> {
     let file_path = &pathdata.path_buf;
@@ -143,10 +143,10 @@ pub fn get_snapshot_dataset(
         .unwrap_or_else(|| Path::new("/"))
         .to_string_lossy();
 
-    let all_filesystems = list_all_filesystems(native_commands)?;
-
     // prune away most datasets by filtering - parent folder of file must contain relevant dataset
-    let potential_mountpoints: Vec<String> = all_filesystems
+    let potential_mountpoints: Vec<String> = config
+        .all_filesystems
+        .clone()
         .into_par_iter()
         .filter(|line| parent_folder.contains(line))
         .map(|x| x)
@@ -174,7 +174,7 @@ pub fn get_snapshot_dataset(
     Ok(PathBuf::from(best_potential_mountpoint))
 }
 
-fn list_all_filesystems(
+pub fn list_all_filesystems(
     native_commands: &NativeCommands,
 ) -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // read datasets from /proc/mounts if possible -- much faster than using zfs command -- but Linux only
