@@ -99,7 +99,7 @@ fn display_pretty(
                     let painted_string = if idx == 1 {
                         paint_string(file_path, &file_path.to_string_lossy())
                     } else {
-                        file_path.to_string_lossy().to_string()
+                        file_path.to_string_lossy().into_owned()
                     };
                     let display_path =
                         format!("\"{:<width$}\"", painted_string, width = size_padding_len);
