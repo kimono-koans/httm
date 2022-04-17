@@ -177,21 +177,7 @@ pub fn get_snapshot_dataset(
 pub fn list_all_filesystems(
     native_commands: &NativeCommands,
 ) -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    // read datasets from /proc/mounts if possible -- much faster than using zfs command -- but Linux only
-    let res = if let Ok(mut file) = OpenOptions::new()
-        .read(true)
-        .open(Path::new("/proc/mounts"))
-    {
-        let mut buffer = String::new();
-        let _ = &file.read_to_string(&mut buffer)?;
-
-        buffer
-            .par_lines()
-            .filter(|line| line.contains("zfs"))
-            .filter_map(|line| line.split(' ').nth(1))
-            .map(|line| line.replace(r#"\040"#, " "))
-            .collect::<Vec<String>>()
-    } else {
+    let fallback = |native_commands: &NativeCommands| {
         // build zfs query to execute - slower but we are sure it works everywhere
         let exec_command =
             native_commands.zfs_command.clone() + " list -H -t filesystem -o mountpoint,mounted";
@@ -205,12 +191,35 @@ pub fn list_all_filesystems(
         )?
         .to_owned();
 
-        command_output
+        let res = command_output
             .par_lines()
             .filter(|line| line.contains("yes"))
             .filter_map(|line| line.split('\t').next())
             .map(|line| line.to_owned())
-            .collect::<Vec<String>>()
+            .collect::<Vec<String>>();
+        Ok(res)
     };
-    Ok(res)
+
+    // read datasets from /proc/mounts if possible -- much faster than using zfs command -- but Linux only
+    if cfg!(target_os = "linux") {
+        if let Ok(mut file) = OpenOptions::new()
+            .read(true)
+            .open(Path::new("/proc/mounts"))
+        {
+            let mut buffer = String::new();
+            let _ = &file.read_to_string(&mut buffer)?;
+
+            let res = buffer
+                .par_lines()
+                .filter(|line| line.contains("zfs"))
+                .filter_map(|line| line.split(' ').nth(1))
+                .map(|line| line.replace(r#"\040"#, " "))
+                .collect::<Vec<String>>();
+            Ok(res)
+        } else {
+            fallback(native_commands)
+        }
+    } else {
+        fallback(native_commands)
+    }
 }
