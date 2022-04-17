@@ -18,7 +18,7 @@
 use crate::deleted::get_deleted;
 use crate::display::{display_exec, paint_string};
 use crate::lookup::lookup_exec;
-use crate::{read_stdin, Config, HttmError, ExecMode, InteractiveMode, PathData};
+use crate::{read_stdin, Config, ExecMode, HttmError, InteractiveMode, PathData};
 
 extern crate skim;
 use chrono::{DateTime, Local};
@@ -68,11 +68,10 @@ impl SkimItem for SelectionCandidate {
     fn preview(&self, _: PreviewContext<'_>) -> skim::ItemPreview {
         let config = self.config.clone();
         let path = self.path.clone();
-        let res = preview_view(&config, &path).unwrap_or_default();
 
+        let res = preview_view(&config, &path).unwrap_or_default();
         skim::ItemPreview::AnsiText(res)
     }
-
 }
 
 pub fn interactive_exec(
@@ -90,7 +89,7 @@ pub fn interactive_exec(
         let paths: Vec<PathData> = lookup_view(config)?
             .into_par_iter()
             .map(|string| PathBuf::from(&string))
-            .map(|path | PathData::from(path.as_path()))
+            .map(|path| PathData::from(path.as_path()))
             .collect();
         paths
     };
@@ -198,35 +197,6 @@ fn interactive_restore(
     std::process::exit(0)
 }
 
-fn preview_view(
-    config: &Config,
-    path: &Path,
-) -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    // build a config just for previews
-    let config_clone = config.clone();
-    let gen_config = Config {
-        paths: vec![PathData::from(path)],
-        opt_raw: false,
-        opt_zeros: false,
-        opt_no_pretty: false,
-        opt_recursive: false,
-        opt_deleted: config_clone.opt_deleted,
-        exec_mode: ExecMode::Display,
-        interactive_mode: InteractiveMode::None,
-        opt_no_live_vers: config_clone.opt_no_live_vers,
-        snap_point: config_clone.snap_point,
-        pwd: config_clone.pwd,
-        requested_dir: config_clone.requested_dir,
-    };
-
-    // finally run search on those paths
-    let snaps_and_live_set = lookup_exec(&gen_config, &gen_config.paths)?;
-    // and display
-    let output_buf = display_exec(config, snaps_and_live_set)?;
-
-    Ok(output_buf)
-}
-
 fn lookup_view(
     config: &Config,
 ) -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sync + 'static>> {
@@ -264,6 +234,35 @@ fn lookup_view(
         .collect();
 
     Ok(res)
+}
+
+fn preview_view(
+    config: &Config,
+    path: &Path,
+) -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    // build a config just for previews
+    let config_clone = config.clone();
+    let gen_config = Config {
+        paths: vec![PathData::from(path)],
+        opt_raw: false,
+        opt_zeros: false,
+        opt_no_pretty: false,
+        opt_recursive: false,
+        opt_deleted: false,
+        opt_no_live_vers: false,
+        exec_mode: ExecMode::Display,
+        interactive_mode: InteractiveMode::None,
+        snap_point: config_clone.snap_point,
+        pwd: config_clone.pwd,
+        requested_dir: config_clone.requested_dir,
+    };
+
+    // finally run search on those paths
+    let snaps_and_live_set = lookup_exec(&gen_config, &gen_config.paths)?;
+    // and display
+    let output_buf = display_exec(config, snaps_and_live_set)?;
+
+    Ok(output_buf)
 }
 
 fn select_view(
