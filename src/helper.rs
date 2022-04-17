@@ -115,10 +115,11 @@ pub fn list_all_filesystems(
     zfs_command: String,
     mount_command: String,
 ) -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    // build zfs query to execute - in case the fast path fails
-    // this is slower but we are sure it works everywhere
-    let fallback = |shell_command: String, zfs_command: String| {
-        let exec_command = zfs_command + " list -H -t filesystem -o mountpoint,mounted";
+    // build zfs query to execute - in case the fast paths fail
+    // this is very slow but we are sure it works everywhere with zfs
+    // because the zfs command tab sanely delimits its output
+    let priority_3 = |shell_command: &String, zfs_command: &String| {
+        let exec_command = zfs_command.clone() + " list -H -t filesystem -o mountpoint,mounted";
 
         let command_output = std::str::from_utf8(
             &ExecProcess::new(&shell_command)
@@ -133,29 +134,27 @@ pub fn list_all_filesystems(
             .par_lines()
             .filter(|line| line.contains("yes"))
             .filter_map(|line| line.split('\t').next())
-            // sanity check: does the filesystem exists, if not, filter it
+            // sanity check: does the filesystem exist? if not, filter it
             .filter(|line| Path::new(line).exists())
             .map(|line| line.to_owned())
             .collect::<Vec<String>>();
         Ok(res)
     };
 
-    // read datasets from `mount` if possible -- this is much faster than using zfs command
-    // reading /proc/mounts is even faster but Linux only (this should work on the BSDs and MacOS)
-    let exec_command = mount_command + " -t zfs";
+    let priority_2 = |shell_command: &String, zfs_command: &String, mount_command: &String| {
+        // read datasets from 'mount' if possible -- this is much faster than using zfs command
+        // but I trust we've parsed it correctly less, because BSD and Linux output are different
+        let exec_command = mount_command.clone() + " -t zfs";
 
-    let command_output = std::str::from_utf8(
-        &ExecProcess::new(&shell_command)
-            .arg("-c")
-            .arg(exec_command)
-            .output()?
-            .stdout,
-    )?
-    .to_owned();
+        let command_output = std::str::from_utf8(
+            &ExecProcess::new(&shell_command)
+                .arg("-c")
+                .arg(exec_command)
+                .output()?
+                .stdout,
+        )?
+        .to_owned();
 
-    if command_output.is_empty() {
-        fallback(shell_command, zfs_command)
-    } else {
         // parse "mount -t zfs" for filesystems
         let res: Vec<String> = command_output
             .par_lines()
@@ -172,15 +171,54 @@ pub fn list_all_filesystems(
                 })
             .flatten()
             .map(|(first,_)| first)
-            // sanity check does the filesystem exists, if not, filter it
+            // sanity check: does the filesystem exist? if not, filter it
             .filter(|line| Path::new(line).exists())
             .map(|line| line.to_owned())
             .collect();
 
         if res.is_empty() {
-            fallback(shell_command, zfs_command)
+            priority_3(shell_command, zfs_command)
         } else {
             Ok(res)
         }
+    };
+
+    let priority_1 = |shell_command: &String, zfs_command: &String, mount_command: &String| {
+        // read /proc/mounts -- fastest but only works on Linux, least certain the parsing is correct
+        // as Linux dumps escaped characters into filesystem strings, and space delimits
+        let mut file = OpenOptions::new()
+            .read(true)
+            .open(Path::new("/proc/mounts"))?;
+        let mut buffer = String::new();
+        let _ = &file.read_to_string(&mut buffer)?;
+
+        let res = buffer
+            .par_lines()
+            .filter(|line| line.contains("zfs"))
+            .filter_map(|line| line.split(' ').nth(1))
+            .map(|line| line.replace(r#"\040"#, " "))
+            // sanity check: does the filesystem exist? if not, filter it
+            .filter(|line| Path::new(line).exists())
+            .collect::<Vec<String>>();
+
+        if res.is_empty() {
+            priority_2(shell_command, zfs_command, mount_command)
+        } else {
+            Ok(res)
+        }
+    };
+
+    if cfg!(target_os = "linux") {
+        let res1 = priority_1(&shell_command, &zfs_command, &mount_command);
+        if res1.is_ok() {
+            return res1;
+        }
     }
+
+    let res2 = priority_2(&shell_command, &zfs_command, &mount_command);
+    if res2.is_ok() {
+        return res2;
+    }
+
+    priority_3(&shell_command, &zfs_command)
 }
