@@ -29,7 +29,6 @@ use clap::{Arg, ArgMatches};
 use fxhash::FxHashMap as HashMap;
 use rayon::prelude::*;
 use std::{
-    env,
     error::Error,
     fmt,
     fs::{DirEntry, Metadata, OpenOptions},
@@ -171,7 +170,6 @@ pub struct Config {
     interactive_mode: InteractiveMode,
     pwd: PathBuf,
     requested_dir: PathData,
-    self_command: String,
 }
 
 impl Config {
@@ -214,15 +212,6 @@ impl Config {
                 HttmError::new("Recursive search feature only allowed in select modes.").into(),
             );
         }
-
-        // need to know the command to execute for previews in interactive mode, best explained why there
-        // the 0th element of the env args passed at the command line is the program's path
-        let self_command = env::args_os()
-            .into_iter()
-            .next()
-            .ok_or_else(|| HttmError::new("You must place the 'httm' command in your path.  Perhaps the .cargo/bin folder isn't in your path?"))?
-            .to_string_lossy()
-            .into_owned();
 
         // current working directory will be helpful in a number of places
         let pwd = if let Ok(pwd) = std::env::var("PWD") {
@@ -446,7 +435,6 @@ impl Config {
             interactive_mode,
             pwd,
             requested_dir,
-            self_command,
         };
 
         Ok(config)

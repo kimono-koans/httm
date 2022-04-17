@@ -18,7 +18,7 @@
 use crate::deleted::get_deleted;
 use crate::display::{display_exec, paint_string};
 use crate::lookup::lookup_exec;
-use crate::{read_stdin, Config, HttmError, InteractiveMode, PathData, SnapPoint};
+use crate::{read_stdin, Config, ExecMode, HttmError, InteractiveMode, PathData};
 
 extern crate skim;
 use chrono::{DateTime, Local};
@@ -35,6 +35,7 @@ use std::{
 };
 
 struct SelectionCandidate {
+    config: Config,
     path: PathBuf,
 }
 
@@ -64,6 +65,13 @@ impl SkimItem for SelectionCandidate {
             .into_owned();
         Cow::Owned(path)
     }
+    fn preview(&self, _: PreviewContext<'_>) -> skim::ItemPreview {
+        let config = self.config.clone();
+        let path = self.path.clone();
+
+        let res = preview_view(&config, &path).unwrap_or_default();
+        skim::ItemPreview::AnsiText(res)
+    }
 }
 
 pub fn interactive_exec(
@@ -79,9 +87,9 @@ pub fn interactive_exec(
     } else {
         // collect string paths from what we get from lookup_view
         let paths: Vec<PathData> = lookup_view(config)?
-            .iter()
-            .map(Path::new)
-            .map(PathData::from)
+            .into_par_iter()
+            .map(|string| PathBuf::from(&string))
+            .map(|path| PathData::from(path.as_path()))
             .collect();
         paths
     };
@@ -205,28 +213,10 @@ fn lookup_view(
         let _ = enumerate_directory(&config_clone, &tx_item, &requested_dir_clone);
     });
 
-    // as skim is slower if we call as a function, we locate which httm command to use in struct Config
-    let httm_command = &config.self_command;
-
-    // create command to use for preview, as noted, unable to use a function for now
-    let preview_str = match &config.snap_point {
-        SnapPoint::UserDefined(defined_dirs) => {
-            let snap_point = defined_dirs.snap_dir.to_string_lossy();
-            let local_dir = defined_dirs.local_dir.to_string_lossy();
-
-            format!(
-                "\"{httm_command}\" --snap-point \"{snap_point}\" --local-dir \"{local_dir}\" {{}}"
-            )
-        }
-        SnapPoint::Native(_) => {
-            format!("\"{httm_command}\" {{}}")
-        }
-    };
-
     // create the skim component for previews
     let options = SkimOptionsBuilder::default()
         .preview_window(Some("75%"))
-        .preview(Some(&preview_str))
+        .preview(Some(""))
         .multi(true)
         .exact(true)
         .build()
@@ -244,6 +234,35 @@ fn lookup_view(
         .collect();
 
     Ok(res)
+}
+
+fn preview_view(
+    config: &Config,
+    path: &Path,
+) -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    // build a config just for previews
+    let config_clone = config.clone();
+    let gen_config = Config {
+        paths: vec![PathData::from(path)],
+        opt_raw: false,
+        opt_zeros: false,
+        opt_no_pretty: false,
+        opt_recursive: false,
+        opt_deleted: false,
+        opt_no_live_vers: false,
+        exec_mode: ExecMode::Display,
+        interactive_mode: InteractiveMode::None,
+        snap_point: config_clone.snap_point,
+        pwd: config_clone.pwd,
+        requested_dir: config_clone.requested_dir,
+    };
+
+    // finally run search on those paths
+    let snaps_and_live_set = lookup_exec(&gen_config, &gen_config.paths)?;
+    // and display
+    let output_buf = display_exec(config, snaps_and_live_set)?;
+
+    Ok(output_buf)
 }
 
 fn select_view(
@@ -307,6 +326,7 @@ fn enumerate_directory(
     // results, instead of printing and recursing into the subsequent dirs
     combined_vec.iter().for_each(|path| {
         let _ = tx_item.send(Arc::new(SelectionCandidate {
+            config: config.clone(),
             path: path.to_path_buf(),
         }));
     });
