@@ -33,7 +33,6 @@ pub fn deleted_exec(
     config: &Config,
     out: &mut Stdout,
 ) -> Result<[Vec<PathData>; 2], Box<dyn std::error::Error + Send + Sync + 'static>> {
-    // if recursive mode or if one path is directory path is given do a deleted search
     deleted_search(config, &config.requested_dir, out)?;
 
     // flush and exit successfully upon ending recursive search
