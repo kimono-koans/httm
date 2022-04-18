@@ -298,7 +298,9 @@ fn enumerate_directory(
     tx_item: &SkimItemSender,
     requested_dir: &Path,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    // file_type() call on dir entry is very fast, so split into dirs and files here and then to paths
+    // Why is this so complicated?  The dir entry file_type() call is inexpensive,
+    // so split into dirs and files here and then to paths, but must appropriately
+    // handle symlinks to dirs as well
     let (vec_dirs, vec_files): (Vec<PathBuf>, Vec<PathBuf>) = std::fs::read_dir(&requested_dir)?
         .flatten()
         .par_bridge()
@@ -307,7 +309,19 @@ fn enumerate_directory(
             if dir_entry.file_type().unwrap().is_dir() {
                 Either::Left(dir_entry.path())
             } else {
-                Either::Right(dir_entry.path())
+                let path = dir_entry.path();
+                // path.is_symlink() *will not* traverse symlinks
+                if path.is_symlink() {
+                    // path.is_dir() *will* traverse symlinks to check
+                    // if what we are pointing to is a directory
+                    if path.is_dir() {
+                        Either::Left(path)
+                    } else {
+                        Either::Right(path)
+                    }
+                } else {
+                    Either::Right(path)
+                }
             }
         });
 
