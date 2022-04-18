@@ -34,21 +34,14 @@ pub fn deleted_exec(
     out: &mut Stdout,
 ) -> Result<[Vec<PathData>; 2], Box<dyn std::error::Error + Send + Sync + 'static>> {
     // if recursive mode or if one path is directory path is given do a deleted search
-    if config.requested_dir_mode || config.opt_recursive {
-        deleted_search(config, &config.requested_dir, out)?;
+    deleted_search(config, &config.requested_dir, out)?;
 
-        // flush and exit successfully upon ending recursive search
-        if config.opt_recursive {
-            println!();
-            out.flush()?;
-        }
-        std::process::exit(0)
-    } else {
-        let pathdata_set = get_deleted(config, &config.requested_dir.path_buf)?;
-
-        // back to our main fn exec() to be printed, with an empty live set
-        Ok([pathdata_set, Vec::new()])
+    // flush and exit successfully upon ending recursive search
+    if config.opt_recursive {
+        println!();
+        out.flush()?;
     }
+    std::process::exit(0)
 }
 
 fn deleted_search(

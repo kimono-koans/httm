@@ -170,7 +170,6 @@ pub struct Config {
     snap_point: SnapPoint,
     interactive_mode: InteractiveMode,
     pwd: PathBuf,
-    requested_dir_mode: bool,
     requested_dir: PathData,
 }
 
@@ -328,17 +327,13 @@ impl Config {
             };
 
         // for exec_modes in which we can only take a single directory, process how we handle those here
-        let mut requested_dir_mode = false;
         let requested_dir: PathData = match exec_mode {
             ExecMode::Interactive => {
                 match paths.len() {
                     0 => PathData::from(pwd.as_path()),
                     1 => {
                         match &paths[0].path_buf {
-                            n if n.is_dir() => {
-                                requested_dir_mode = true;
-                                paths.get(0).unwrap().to_owned()
-                            }
+                            n if n.is_dir() => paths.get(0).unwrap().to_owned(),
                             n if n.is_file() | n.is_symlink() => {
                                 match interactive_mode {
                                     InteractiveMode::Browse | InteractiveMode::None => {
@@ -385,10 +380,7 @@ impl Config {
                         PathData::from(pwd.as_path())
                     }
                     n if n == 1 => match &paths[0].path_buf {
-                        n if n.is_dir() => {
-                            requested_dir_mode = true;
-                            paths.get(0).unwrap().to_owned()
-                        }
+                        n if n.is_dir() => paths.get(0).unwrap().to_owned(),
                         _ => {
                             exec_mode = ExecMode::Display;
                             PathData::from(pwd.as_path())
@@ -431,7 +423,6 @@ impl Config {
             exec_mode,
             interactive_mode,
             pwd,
-            requested_dir_mode,
             requested_dir,
         };
 
