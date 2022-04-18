@@ -241,7 +241,6 @@ fn preview_view(
     path: &Path,
 ) -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // build a config just for previews
-    let config_clone = config.clone();
     let gen_config = Config {
         paths: vec![PathData::from(path)],
         opt_raw: false,
@@ -252,9 +251,9 @@ fn preview_view(
         opt_no_live_vers: false,
         exec_mode: ExecMode::Display,
         interactive_mode: InteractiveMode::None,
-        snap_point: config_clone.snap_point,
-        pwd: config_clone.pwd,
-        requested_dir: config_clone.requested_dir,
+        snap_point: config.snap_point.to_owned(),
+        pwd: config.pwd.to_owned(),
+        requested_dir: config.requested_dir.to_owned(),
     };
 
     // finally run search on those paths
