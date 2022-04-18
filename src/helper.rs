@@ -141,9 +141,9 @@ pub fn list_all_filesystems(
         Ok(res)
     };
 
+    // read datasets from 'mount' if possible -- this is much faster than using zfs command
+    // but I trust we've parsed it correctly less, because BSD and Linux output are different
     let priority_2 = |shell_command: &String, zfs_command: &String, mount_command: &String| {
-        // read datasets from 'mount' if possible -- this is much faster than using zfs command
-        // but I trust we've parsed it correctly less, because BSD and Linux output are different
         let exec_command = mount_command.clone() + " -t zfs";
 
         let command_output = std::str::from_utf8(
@@ -183,9 +183,9 @@ pub fn list_all_filesystems(
         }
     };
 
+    // read /proc/mounts -- fastest but only works on Linux, least certain the parsing is correct
+    // as Linux dumps escaped characters into filesystem strings, and space delimits
     let priority_1 = |shell_command: &String, zfs_command: &String, mount_command: &String| {
-        // read /proc/mounts -- fastest but only works on Linux, least certain the parsing is correct
-        // as Linux dumps escaped characters into filesystem strings, and space delimits
         let mut file = OpenOptions::new()
             .read(true)
             .open(Path::new("/proc/mounts"))?;
