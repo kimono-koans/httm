@@ -35,7 +35,7 @@ use std::{
 };
 
 struct SelectionCandidate {
-    config: Config,
+    config: Arc<Config>,
     path: PathBuf,
 }
 
@@ -206,11 +206,11 @@ fn lookup_view(
     // prep thread spawn
     let requested_dir_clone = config.requested_dir.path_buf.clone();
     let (tx_item, rx_item): (SkimItemSender, SkimItemReceiver) = unbounded();
-    let config_clone = config.clone();
+    let config_clone = Arc::new(config.clone());
 
     // thread spawn fn enumerate_directory - permits recursion into dirs without blocking
     thread::spawn(move || {
-        let _ = enumerate_directory(&config_clone, &tx_item, &requested_dir_clone);
+        let _ = enumerate_directory(config_clone, &tx_item, &requested_dir_clone);
     });
 
     // create the skim component for previews
@@ -295,7 +295,7 @@ fn select_view(
 }
 
 fn enumerate_directory(
-    config: &Config,
+    config: Arc<Config>,
     tx_item: &SkimItemSender,
     requested_dir: &Path,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
@@ -306,7 +306,7 @@ fn enumerate_directory(
         .partition(|path| path.is_dir());
 
     let vec_deleted = if config.opt_deleted {
-        get_deleted(config, requested_dir)?
+        get_deleted(&config, requested_dir)?
             .par_iter()
             .map(|path| path.path_buf.file_name())
             .flatten()
@@ -338,7 +338,8 @@ fn enumerate_directory(
             // results, instead of printing and recursing into the subsequent dirs
             .iter()
             .for_each(move |requested_dir| {
-                let _ = enumerate_directory(config, tx_item, requested_dir);
+                let config_clone = config.clone();
+                let _ = enumerate_directory(config_clone, tx_item, requested_dir);
             });
     }
     Ok(())
