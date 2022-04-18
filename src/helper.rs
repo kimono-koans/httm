@@ -209,20 +209,20 @@ pub fn list_all_filesystems(
     };
 
     if cfg!(target_os = "linux") {
-        let res1 = priority_1(&shell_command, &zfs_command, &mount_command);
-        if res1.is_ok() {
-            return res1;
+        let best = priority_1(&shell_command, &zfs_command, &mount_command);
+        if best.is_ok() {
+            return best;
         }
     }
 
-    let res2 = priority_2(&shell_command, &zfs_command, &mount_command);
-    if res2.is_ok() {
-        return res2;
+    let good = priority_2(&shell_command, &zfs_command, &mount_command);
+    if good.is_ok() {
+        return good;
     }
 
-    let res3 = priority_3(&shell_command, &zfs_command);
-    if res3.is_ok() {
-        res3
+    let meh = priority_3(&shell_command, &zfs_command);
+    if meh.is_ok() {
+        meh
     } else {
         Err(HttmError::new("httm could not find any valid ZFS datasets on the system.").into())
     }
