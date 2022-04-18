@@ -220,5 +220,10 @@ pub fn list_all_filesystems(
         return res2;
     }
 
-    priority_3(&shell_command, &zfs_command)
+    let res3 = priority_3(&shell_command, &zfs_command);
+    if res3.is_ok() {
+        res3
+    } else {
+        Err(HttmError::new("httm could not find any valid ZFS datasets on the system.").into())
+    }
 }
