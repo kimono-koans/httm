@@ -145,6 +145,13 @@ enum InteractiveMode {
     Restore,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+enum DeletedMode {
+    Disabled,
+    Enabled,
+    Only,
+}
+
 #[derive(Debug, Clone)]
 enum SnapPoint {
     Native(Vec<String>),
@@ -165,9 +172,9 @@ pub struct Config {
     opt_no_pretty: bool,
     opt_no_live_vers: bool,
     opt_recursive: bool,
-    opt_deleted: bool,
     exec_mode: ExecMode,
     snap_point: SnapPoint,
+    deleted_mode: DeletedMode,
     interactive_mode: InteractiveMode,
     pwd: PathBuf,
     requested_dir: PathData,
@@ -180,18 +187,23 @@ impl Config {
         if matches.is_present("ZSH_HOT_KEYS") {
             install_hot_keys()?
         }
-        let opt_deleted = matches.is_present("DELETED");
         let opt_zeros = matches.is_present("ZEROS");
         let opt_raw = matches.is_present("RAW");
         let opt_no_pretty = matches.is_present("NOT_SO_PRETTY");
         let opt_no_live_vers = matches.is_present("NO_LIVE");
         let opt_recursive = matches.is_present("RECURSIVE");
+        let mut deleted_mode = match matches.value_of("DELETED") {
+            None => DeletedMode::Disabled,
+            Some("") => DeletedMode::Enabled,
+            Some("only") | Some("ONLY") => DeletedMode::Only,
+            _ => DeletedMode::Enabled,
+        };
         let mut exec_mode = if matches.is_present("INTERACTIVE")
             || matches.is_present("RESTORE")
             || matches.is_present("SELECT")
         {
             ExecMode::Interactive
-        } else if opt_deleted {
+        } else if deleted_mode != DeletedMode::Disabled {
             ExecMode::Deleted
         } else {
             ExecMode::Display
@@ -377,12 +389,14 @@ impl Config {
                 match paths.len() {
                     n if n > 1 => {
                         exec_mode = ExecMode::Display;
+                        deleted_mode = DeletedMode::Disabled;
                         PathData::from(pwd.as_path())
                     }
                     n if n == 1 => match &paths[0].path_buf {
                         n if n.is_dir() => paths.get(0).unwrap().to_owned(),
                         _ => {
                             exec_mode = ExecMode::Display;
+                            deleted_mode = DeletedMode::Disabled;
                             PathData::from(pwd.as_path())
                         }
                     },
@@ -418,9 +432,9 @@ impl Config {
             opt_no_pretty,
             opt_no_live_vers,
             opt_recursive,
-            opt_deleted,
             snap_point,
             exec_mode,
+            deleted_mode,
             interactive_mode,
             pwd,
             requested_dir,
@@ -434,7 +448,7 @@ fn parse_args() -> ArgMatches {
     clap::Command::new("httm")
         .about("\nBy default, httm will display non-interactive information about unique file versions contained on ZFS snapshots.\n\n\
         You may also select from the various interactive modes below to browse for, select, and/or restore files.")
-        .version("0.7.5") 
+        .version("0.7.6") 
         .arg(
             Arg::new("INPUT_FILES")
                 .help("in the default, non-interactive mode, put requested files here.  If you enter no files, \
@@ -471,7 +485,9 @@ fn parse_args() -> ArgMatches {
             Arg::new("DELETED")
                 .short('d')
                 .long("deleted")
-                .help("show deleted files in interactive modes, or do a search for all such files, if a directory is specified.")
+                .takes_value(true)
+                .help("show deleted files in interactive modes, or do a search for all such files, if a directory is specified. \
+                If --deleted=only is specified, then, in interactive modes, non-deleted files will be excluded from the search.")
                 .display_order(5)
         )
         .arg(

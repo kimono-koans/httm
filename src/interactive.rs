@@ -18,7 +18,7 @@
 use crate::deleted::get_deleted;
 use crate::display::{display_exec, paint_string};
 use crate::lookup::lookup_exec;
-use crate::{read_stdin, Config, ExecMode, HttmError, InteractiveMode, PathData};
+use crate::{read_stdin, Config, DeletedMode, ExecMode, HttmError, InteractiveMode, PathData};
 
 extern crate skim;
 use chrono::{DateTime, Local};
@@ -247,9 +247,9 @@ fn preview_view(
         opt_zeros: false,
         opt_no_pretty: false,
         opt_recursive: false,
-        opt_deleted: false,
         opt_no_live_vers: false,
         exec_mode: ExecMode::Display,
+        deleted_mode: DeletedMode::Disabled,
         interactive_mode: InteractiveMode::None,
         snap_point: config.snap_point.to_owned(),
         pwd: config.pwd.to_owned(),
@@ -304,7 +304,7 @@ fn enumerate_directory(
         .map(|dir_entry| dir_entry.path())
         .partition(|path| path.is_dir());
 
-    let vec_deleted = if config.opt_deleted {
+    let vec_deleted = if config.deleted_mode != DeletedMode::Disabled {
         get_deleted(&config, requested_dir)?
             .par_iter()
             .map(|path| path.path_buf.file_name())
@@ -316,10 +316,15 @@ fn enumerate_directory(
     };
 
     // combine dirs and files into a vec and sort to display
-    let mut combined_vec: Vec<&PathBuf> = vec![&vec_files, &vec_dirs, &vec_deleted]
-        .into_par_iter()
-        .flatten()
-        .collect();
+    let mut combined_vec: Vec<&PathBuf> = if config.deleted_mode == DeletedMode::Only {
+        vec![&vec_deleted].into_par_iter().flatten().collect()
+    } else {
+        vec![&vec_files, &vec_dirs, &vec_deleted]
+            .into_par_iter()
+            .flatten()
+            .collect()
+    };
+
     combined_vec.par_sort();
     // don't want a par_iter here because it will block and wait for all
     // results, instead of printing and recursing into the subsequent dirs
