@@ -316,15 +316,15 @@ fn enumerate_directory(
                     // if what we are pointing to is a directory
                     //
                     // also remove infinitely recursive paths, like /usr/bin/X11
-                    if path.is_dir()
-                        && path.read_link().is_ok()
-                        && path
-                            .ancestors()
-                            .all(|ancestor| ancestor.to_path_buf() != path.read_link().unwrap())
-                    {
-                        Either::Left(path)
-                    } else {
-                        Either::Right(path)
+                    match path.read_link() {
+                        Ok(link) => {
+                            if path.is_dir() && path.ancestors().all(|ancestor| ancestor != link) {
+                                Either::Left(path)
+                            } else {
+                                Either::Right(path)
+                            }
+                        }
+                        Err(_) => Either::Right(path),
                     }
                 } else {
                     Either::Right(path)
