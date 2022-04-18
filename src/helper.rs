@@ -207,7 +207,7 @@ pub fn list_all_filesystems(
     };
 
     // not the end of the world if we can't use the fast path.  only really useful for quick non-interactive runs
-    // as we store the values in the Config.  Therefore, we want to fail and fallback if there is some sign that parsed 
+    // as we store the values in the Config.  Therefore, we want to fail and fallback if there is some sign that parsed
     // input is not current
     if cfg!(target_os = "linux") {
         let best = priority_1(&shell_command, &zfs_command, &mount_command);

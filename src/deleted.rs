@@ -33,12 +33,15 @@ pub fn deleted_exec(
     config: &Config,
     out: &mut Stdout,
 ) -> Result<[Vec<PathData>; 2], Box<dyn std::error::Error + Send + Sync + 'static>> {
-    if config.opt_recursive {
-        recursive_del_search(config, &config.requested_dir, out)?;
+    // if recursive mode or if one path is directory path is given do a deleted search
+    if config.requested_dir_mode || config.opt_recursive {
+        deleted_search(config, &config.requested_dir, out)?;
 
-        // exit successfully upon ending recursive search
-        print!("\n");
-        out.flush()?;
+        // flush and exit successfully upon ending recursive search
+        if config.opt_recursive {
+            println!();
+            out.flush()?;
+        }
         std::process::exit(0)
     } else {
         let pathdata_set = get_deleted(config, &config.requested_dir.path_buf)?;
@@ -48,7 +51,7 @@ pub fn deleted_exec(
     }
 }
 
-fn recursive_del_search(
+fn deleted_search(
     config: &Config,
     requested_dir: &PathData,
     out: &mut Stdout,
@@ -66,23 +69,32 @@ fn recursive_del_search(
 
     if vec_deleted.is_empty() {
         // Shows progress, while we are finding no deleted files
-        eprint!(".");
+        if config.opt_recursive {
+            eprint!(".");
+        }
     } else {
         let output_buf = display_exec(config, [vec_deleted, Vec::new()])?;
-        eprintln!(".");
+        // have to get a line break here, but shouldn't look unnatural
+        // print "." but don't print if in non-recursive mode
+        if config.opt_recursive {
+            eprintln!(".");
+        }
         write!(out, "{}", output_buf)?;
         out.flush()?;
     }
 
     // now recurse into those dirs as requested
-    vec_dirs
-        // don't want to a par_iter here because it will block and wait for all results, instead of
-        // printing and recursing into the subsequent dirs
-        .iter()
-        .for_each(move |requested_dir| {
-            let path = PathData::from(requested_dir);
-            let _ = recursive_del_search(config, &path, out);
-        });
+    if config.opt_recursive {
+        vec_dirs
+            // don't want to a par_iter here because it will block and wait for all results, instead of
+            // printing and recursing into the subsequent dirs
+            .iter()
+            .for_each(move |requested_dir| {
+                let path = PathData::from(requested_dir);
+                let _ = deleted_search(config, &path, out);
+            });
+    }
+
     Ok(())
 }
 

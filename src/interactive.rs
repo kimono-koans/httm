@@ -80,7 +80,9 @@ pub fn interactive_exec(
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // go to interactive_select early if user has already requested a file
     // and we are in the appropriate mode Select or Restore, see struct Config
-    let vec_pathdata = if config.paths.len() == 1 && !config.paths[0].path_buf.is_dir() {
+    let vec_pathdata = if config.requested_dir_mode {
+        // can index here because requested_dir_mode guarantees we have one and only
+        // one path
         let selected_file = config.paths[0].to_owned();
         interactive_select(out, config, &vec![selected_file])?;
         unreachable!()
@@ -252,6 +254,7 @@ fn preview_view(
         interactive_mode: InteractiveMode::None,
         snap_point: config.snap_point.to_owned(),
         pwd: config.pwd.to_owned(),
+        requested_dir_mode: false,
         requested_dir: config.requested_dir.to_owned(),
     };
 
