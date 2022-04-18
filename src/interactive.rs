@@ -314,7 +314,14 @@ fn enumerate_directory(
                 if path.is_symlink() {
                     // path.is_dir() *will* traverse symlinks to check
                     // if what we are pointing to is a directory
-                    if path.is_dir() {
+                    //
+                    // also remove infinitely recursive paths, like /usr/bin/X11
+                    if path.is_dir()
+                        && path.read_link().is_ok()
+                        && path
+                            .ancestors()
+                            .all(|ancestor| ancestor.to_path_buf() != path.read_link().unwrap())
+                    {
                         Either::Left(path)
                     } else {
                         Either::Right(path)
