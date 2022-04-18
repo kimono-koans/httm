@@ -305,27 +305,26 @@ impl Config {
         };
 
         // paths are immediately converted to our PathData struct
-        let mut paths: Vec<PathData> = if matches.is_present("INPUT_FILES") {
-            // can unwrap because we confirm "is some" above
-            matches
-                .values_of_os("INPUT_FILES")
-                .unwrap()
-                .into_iter()
-                .par_bridge()
-                .map(|string| PathData::from(Path::new(string)))
-                .collect()
-        // setting pwd as the path, here, keeps us from waiting on stdin when in non-Display modes
-        } else if exec_mode == ExecMode::Interactive || exec_mode == ExecMode::Deleted {
-            vec![PathData::from(pwd.as_path())]
-        } else if exec_mode == ExecMode::Display {
-            read_stdin()?
-                .into_iter()
-                .par_bridge()
-                .map(|string| PathData::from(Path::new(&string)))
-                .collect()
-        } else {
-            unreachable!()
-        };
+        let mut paths: Vec<PathData> =
+            if let Some(input_files) = matches.values_of_os("INPUT_FILES") {
+                // can unwrap because we confirm "is some" above
+                input_files
+                    .into_iter()
+                    .par_bridge()
+                    .map(|string| PathData::from(Path::new(string)))
+                    .collect()
+            // setting pwd as the path, here, keeps us from waiting on stdin when in non-Display modes
+            } else if exec_mode == ExecMode::Interactive || exec_mode == ExecMode::Deleted {
+                vec![PathData::from(pwd.as_path())]
+            } else if exec_mode == ExecMode::Display {
+                read_stdin()?
+                    .into_iter()
+                    .par_bridge()
+                    .map(|string| PathData::from(Path::new(&string)))
+                    .collect()
+            } else {
+                unreachable!()
+            };
 
         // for exec_modes in which we can only take a single directory, process how we handle those here
         let requested_dir: PathData = match exec_mode {
