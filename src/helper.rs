@@ -112,13 +112,18 @@ pub fn install_hot_keys() -> Result<(), Box<dyn std::error::Error + Send + Sync 
 
 pub fn list_all_filesystems(
     shell_command: PathBuf,
-    zfs_command: PathBuf,
+    zfs_command: Option<PathBuf>,
     mount_command: PathBuf,
 ) -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // build zfs query to execute - in case the fast paths fail
     // this is very slow but we are sure it works everywhere with zfs
     // because the zfs command tab sanely delimits its output
-    let priority_3 = |shell_command: &PathBuf, zfs_command: &PathBuf| {
+    let priority_3 = |shell_command: &PathBuf,
+                      zfs_command: &PathBuf|
+     -> Result<
+        Vec<std::string::String>,
+        Box<dyn std::error::Error + Send + Sync + 'static>,
+    > {
         let command_output = std::str::from_utf8(
             &ExecProcess::new(&shell_command)
                 .arg("-c")
@@ -142,7 +147,12 @@ pub fn list_all_filesystems(
 
     // read datasets from 'mount' if possible -- this is much faster than using zfs command
     // but I trust we've parsed it correctly less, because BSD and Linux output are different
-    let priority_2 = |shell_command: &PathBuf, zfs_command: &PathBuf, mount_command: &PathBuf| {
+    let priority_2 = |shell_command: &PathBuf,
+                      mount_command: &PathBuf|
+     -> Result<
+        Vec<std::string::String>,
+        Box<dyn std::error::Error + Send + Sync + 'static>,
+    > {
         let command_output = std::str::from_utf8(
             &ExecProcess::new(&shell_command)
                 .arg("-c")
@@ -156,6 +166,7 @@ pub fn list_all_filesystems(
         // parse "mount -t zfs" for filesystems
         let res: Vec<String> = command_output
             .par_lines()
+            .filter(|line| line.contains("zfs"))
             .map(|line| line.split_once(&"on "))
             .flatten()
             .map(|(_,last)| last)
@@ -174,16 +185,12 @@ pub fn list_all_filesystems(
             .map(|line| line.to_owned())
             .collect();
 
-        if res.is_empty() {
-            priority_3(shell_command, zfs_command)
-        } else {
-            Ok(res)
-        }
+        Ok(res)
     };
 
     // read /proc/mounts -- fastest but only works on Linux, least certain the parsing is correct
     // as Linux dumps escaped characters into filesystem strings, and space delimits
-    let priority_1 = |shell_command: &PathBuf, zfs_command: &PathBuf, mount_command: &PathBuf| {
+    let priority_1 = || -> Result<Vec<std::string::String>, Box<dyn std::error::Error + Send + Sync + 'static>> {
         let mut file = OpenOptions::new()
             .read(true)
             .open(Path::new("/proc/mounts"))?;
@@ -199,32 +206,35 @@ pub fn list_all_filesystems(
             .filter(|line| Path::new(line).exists())
             .collect::<Vec<String>>();
 
-        if res.is_empty() {
-            priority_2(shell_command, zfs_command, mount_command)
-        } else {
-            Ok(res)
-        }
+        Ok(res)
     };
 
     // not the end of the world if we can't use the fast path.  only really useful for quick non-interactive runs
     // as we store the values in the Config.  Therefore, we want to fail and fallback if there is some sign that parsed
     // input is not current
     if cfg!(target_os = "linux") {
-        let best = priority_1(&shell_command, &zfs_command, &mount_command);
-        if best.is_ok() {
-            return best;
+        let best = priority_1();
+        if let Ok(best) = best {
+            if !best.is_empty() {
+                return Ok(best);
+            }
         }
     }
 
-    let good = priority_2(&shell_command, &zfs_command, &mount_command);
-    if good.is_ok() {
-        return good;
+    let good = priority_2(&shell_command, &mount_command);
+    if let Ok(good) = good {
+        if !good.is_empty() {
+            return Ok(good);
+        }
     }
 
-    let meh = priority_3(&shell_command, &zfs_command);
-    if meh.is_ok() {
-        meh
-    } else {
-        Err(HttmError::new("httm could not find any valid ZFS datasets on the system.").into())
+    if let Some(zfs_command) = zfs_command {
+        let meh = priority_3(&shell_command, &zfs_command);
+        if let Ok(meh) = meh {
+            if !meh.is_empty() {
+                return Ok(meh);
+            }
+        }
     }
+    Err(HttmError::new("httm could not find any valid ZFS datasets on the system.").into())
 }

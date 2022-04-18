@@ -298,11 +298,7 @@ impl Config {
                 HttmError::new("sh command not found. Make sure the command 'sh' is in your path.")
             })?;
 
-            let zfs_command = which("zfs").map_err(|_| {
-                HttmError::new(
-                    "zfs command not found. Make sure the command 'zfs' is in your path.",
-                )
-            })?;
+            let zfs_command = which("zfs").ok();
 
             let mount_command = which("mount").map_err(|_| {
                 HttmError::new(
