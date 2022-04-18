@@ -111,9 +111,9 @@ pub fn install_hot_keys() -> Result<(), Box<dyn std::error::Error + Send + Sync 
 }
 
 pub fn list_all_filesystems(
-    shell_command: PathBuf,
+    shell_command: Option<PathBuf>,
     zfs_command: Option<PathBuf>,
-    mount_command: PathBuf,
+    mount_command: Option<PathBuf>,
 ) -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // build zfs query to execute - in case the fast paths fail
     // this is very slow but we are sure it works everywhere with zfs
@@ -221,20 +221,34 @@ pub fn list_all_filesystems(
         }
     }
 
-    let good = priority_2(&shell_command, &mount_command);
-    if let Ok(good) = good {
-        if !good.is_empty() {
-            return Ok(good);
+    if let Some(shell_command) = shell_command {
+        if let Some(mount_command) = mount_command {
+            let good = priority_2(&shell_command, &mount_command);
+            if let Ok(good) = good {
+                if !good.is_empty() {
+                    return Ok(good);
+                }
+            }
+        } else {
+            return Err(HttmError::new(
+                "mount command not found. Make sure the command 'mount' is in your path.",
+            )
+            .into());
         }
-    }
 
-    if let Some(zfs_command) = zfs_command {
-        let meh = priority_3(&shell_command, &zfs_command);
-        if let Ok(meh) = meh {
-            if !meh.is_empty() {
-                return Ok(meh);
+        if let Some(zfs_command) = zfs_command {
+            let meh = priority_3(&shell_command, &zfs_command);
+            if let Ok(meh) = meh {
+                if !meh.is_empty() {
+                    return Ok(meh);
+                }
             }
         }
+    } else {
+        return Err(HttmError::new(
+            "sh command not found. Make sure the command 'sh' is in your path.",
+        )
+        .into());
     }
     Err(HttmError::new("httm could not find any valid ZFS datasets on the system.").into())
 }

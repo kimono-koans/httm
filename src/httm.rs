@@ -294,17 +294,11 @@ impl Config {
             })
         } else {
             // do we have the necessary commands for search if user has not defined a snap point?
-            let shell_command = which("sh").map_err(|_| {
-                HttmError::new("sh command not found. Make sure the command 'sh' is in your path.")
-            })?;
+            let shell_command = which("sh").ok();
 
             let zfs_command = which("zfs").ok();
 
-            let mount_command = which("mount").map_err(|_| {
-                HttmError::new(
-                    "mount command not found. Make sure the command 'mount' is in your path.",
-                )
-            })?;
+            let mount_command = which("mount").ok();
 
             let all_zfs_filesystems =
                 list_all_filesystems(shell_command, zfs_command, mount_command)?;
