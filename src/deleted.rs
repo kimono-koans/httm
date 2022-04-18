@@ -50,9 +50,8 @@ fn deleted_search(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     // convert to paths, and split into dirs and files
     let vec_dirs: Vec<DirEntry> = std::fs::read_dir(&requested_dir.path_buf)?
-        .into_iter()
+        .flatten()
         .par_bridge()
-        .flatten_iter()
         .filter(|dir_entry| dir_entry.file_type().is_ok())
         .filter(|dir_entry| dir_entry.file_type().unwrap().is_dir())
         .collect();
@@ -120,9 +119,8 @@ pub fn get_deleted(
 
     // now create a collection of file names in the snap_dirs
     let snap_files: Vec<(OsString, DirEntry)> = std::fs::read_dir(&hidden_snapshot_dir)?
-        .into_iter()
+        .flatten()
         .par_bridge()
-        .flatten_iter()
         .map(|entry| entry.path())
         .map(|path| path.join(&local_path))
         .map(|path| std::fs::read_dir(&path))

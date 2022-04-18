@@ -17,6 +17,7 @@
         "fstype",
         "fxhash",
         "httm",
+        "Itertools",
         "lscolors",
         "manpath",
         "maxdepth",

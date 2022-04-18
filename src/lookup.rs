@@ -73,7 +73,6 @@ fn get_versions(
     // get the DirEntry for our snapshot path which will have all our possible
     // needed snapshots
     let versions = std::fs::read_dir(hidden_snapshot_dir)?
-        .into_iter()
         .flatten()
         .par_bridge()
         .map(|entry| entry.path())

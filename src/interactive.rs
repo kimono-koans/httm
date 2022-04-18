@@ -22,7 +22,7 @@ use crate::{read_stdin, Config, DeletedMode, ExecMode, HttmError, InteractiveMod
 
 extern crate skim;
 use chrono::{DateTime, Local};
-use rayon::prelude::*;
+use rayon::{iter::Either, prelude::*};
 use skim::prelude::*;
 use std::{
     ffi::OsStr,
@@ -298,11 +298,18 @@ fn enumerate_directory(
     tx_item: &SkimItemSender,
     requested_dir: &Path,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    // convert to paths, and split into dirs and files
+    // file_type() call on dir entry is very fast, so split into dirs and files here and then to paths
     let (vec_dirs, vec_files): (Vec<PathBuf>, Vec<PathBuf>) = std::fs::read_dir(&requested_dir)?
         .flatten()
-        .map(|dir_entry| dir_entry.path())
-        .partition(|path| path.is_dir());
+        .par_bridge()
+        .filter(|dir_entry| dir_entry.file_type().is_ok())
+        .partition_map(|dir_entry| {
+            if dir_entry.file_type().unwrap().is_dir() {
+                Either::Left(dir_entry.path())
+            } else {
+                Either::Right(dir_entry.path())
+            }
+        });
 
     let vec_deleted = if config.deleted_mode != DeletedMode::Disabled {
         get_deleted(&config, requested_dir)?
