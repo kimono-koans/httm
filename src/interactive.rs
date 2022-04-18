@@ -316,13 +316,16 @@ fn enumerate_directory(
     };
 
     // combine dirs and files into a vec and sort to display
-    let mut combined_vec: Vec<&PathBuf> = if config.deleted_mode == DeletedMode::Only {
-        vec![&vec_deleted].into_par_iter().flatten().collect()
-    } else {
-        vec![&vec_files, &vec_dirs, &vec_deleted]
+    let mut combined_vec: Vec<&PathBuf> = match config.deleted_mode {
+        DeletedMode::Only => vec![&vec_deleted].into_par_iter().flatten().collect(),
+        DeletedMode::Enabled => vec![&vec_files, &vec_dirs, &vec_deleted]
             .into_par_iter()
             .flatten()
-            .collect()
+            .collect(),
+        DeletedMode::Disabled => vec![&vec_files, &vec_dirs]
+            .into_par_iter()
+            .flatten()
+            .collect(),
     };
 
     combined_vec.par_sort();
