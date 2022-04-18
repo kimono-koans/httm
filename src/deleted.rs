@@ -37,6 +37,8 @@ pub fn deleted_exec(
         recursive_del_search(config, &config.requested_dir, out)?;
 
         // exit successfully upon ending recursive search
+        print!("\n");
+        out.flush()?;
         std::process::exit(0)
     } else {
         let pathdata_set = get_deleted(config, &config.requested_dir.path_buf)?;
@@ -64,9 +66,10 @@ fn recursive_del_search(
 
     if vec_deleted.is_empty() {
         // Shows progress, while we are finding no deleted files
-        eprintln!("...");
+        eprint!(".");
     } else {
         let output_buf = display_exec(config, [vec_deleted, Vec::new()])?;
+        eprintln!(".");
         write!(out, "{}", output_buf)?;
         out.flush()?;
     }

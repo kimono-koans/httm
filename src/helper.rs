@@ -160,10 +160,10 @@ pub fn list_all_filesystems(
             .flatten()
             .map(|(_,last)| last)
             .map(|line|
-                // GNU Linux output
+                // GNU Linux mount output
                 if line.contains("type") {
                     line.split_once(&" type")
-                // Busybox and BSD output
+                // Busybox and BSD mount output
                 } else {
                     line.split_once(&" (")
                 })
@@ -206,6 +206,9 @@ pub fn list_all_filesystems(
         }
     };
 
+    // not the end of the world if we can't use the fast path.  only really useful for quick non-interactive runs
+    // as we store the values in the Config.  Therefore, we want to fail and fallback if there is some sign that parsed 
+    // input is not current
     if cfg!(target_os = "linux") {
         let best = priority_1(&shell_command, &zfs_command, &mount_command);
         if best.is_ok() {
