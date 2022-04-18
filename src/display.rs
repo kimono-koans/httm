@@ -108,7 +108,7 @@ fn display_pretty(
                 } else {
                     let pathdata_size = display_human_size(pathdata);
                     let display_path = pathdata.path_buf.to_string_lossy().into_owned();
-                    let display_padding = "\t".to_string();
+                    let display_padding = "\t".to_owned();
                     (pathdata_size, display_path, display_padding)
                 };
 

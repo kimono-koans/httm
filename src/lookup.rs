@@ -140,9 +140,7 @@ pub fn get_snap_point_and_local_relative_path(
     dataset: &Path,
 ) -> Result<(PathBuf, PathBuf), Box<dyn std::error::Error + Send + Sync + 'static>> {
     // building the snapshot path from our dataset
-    let snapshot_dir: PathBuf = [&dataset.to_string_lossy(), ".zfs", "snapshot"]
-        .iter()
-        .collect();
+    let snapshot_dir: PathBuf = [dataset, Path::new(".zfs/snapshot")].iter().collect();
 
     // building our local relative path by removing parent
     // directories below the remote/snap mount point

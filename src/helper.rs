@@ -111,20 +111,19 @@ pub fn install_hot_keys() -> Result<(), Box<dyn std::error::Error + Send + Sync 
 }
 
 pub fn list_all_filesystems(
-    shell_command: String,
-    zfs_command: String,
-    mount_command: String,
+    shell_command: PathBuf,
+    zfs_command: PathBuf,
+    mount_command: PathBuf,
 ) -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // build zfs query to execute - in case the fast paths fail
     // this is very slow but we are sure it works everywhere with zfs
     // because the zfs command tab sanely delimits its output
-    let priority_3 = |shell_command: &String, zfs_command: &String| {
-        let exec_command = zfs_command.clone() + " list -H -t filesystem -o mountpoint,mounted";
-
+    let priority_3 = |shell_command: &PathBuf, zfs_command: &PathBuf| {
         let command_output = std::str::from_utf8(
             &ExecProcess::new(&shell_command)
                 .arg("-c")
-                .arg(exec_command)
+                .arg(zfs_command)
+                .arg("list -H -t filesystem -o mountpoint,mounted")
                 .output()?
                 .stdout,
         )?
@@ -143,13 +142,12 @@ pub fn list_all_filesystems(
 
     // read datasets from 'mount' if possible -- this is much faster than using zfs command
     // but I trust we've parsed it correctly less, because BSD and Linux output are different
-    let priority_2 = |shell_command: &String, zfs_command: &String, mount_command: &String| {
-        let exec_command = mount_command.clone() + " -t zfs";
-
+    let priority_2 = |shell_command: &PathBuf, zfs_command: &PathBuf, mount_command: &PathBuf| {
         let command_output = std::str::from_utf8(
             &ExecProcess::new(&shell_command)
                 .arg("-c")
-                .arg(exec_command)
+                .arg(mount_command)
+                .arg("-t zfs")
                 .output()?
                 .stdout,
         )?
@@ -185,7 +183,7 @@ pub fn list_all_filesystems(
 
     // read /proc/mounts -- fastest but only works on Linux, least certain the parsing is correct
     // as Linux dumps escaped characters into filesystem strings, and space delimits
-    let priority_1 = |shell_command: &String, zfs_command: &String, mount_command: &String| {
+    let priority_1 = |shell_command: &PathBuf, zfs_command: &PathBuf, mount_command: &PathBuf| {
         let mut file = OpenOptions::new()
             .read(true)
             .open(Path::new("/proc/mounts"))?;

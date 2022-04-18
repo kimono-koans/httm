@@ -86,12 +86,11 @@ pub fn interactive_exec(
         unreachable!()
     } else {
         // collect string paths from what we get from lookup_view
-        let paths: Vec<PathData> = lookup_view(config)?
+        lookup_view(config)?
             .into_par_iter()
             .map(|string| PathBuf::from(&string))
             .map(|path| PathData::from(path.as_path()))
-            .collect();
-        paths
+            .collect::<Vec<PathData>>()
     };
 
     // do we return back to our main exec function to print,
