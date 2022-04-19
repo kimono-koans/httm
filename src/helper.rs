@@ -24,6 +24,7 @@ use std::{
     path::{Path, PathBuf},
     process::Command as ExecProcess,
 };
+use which::which;
 
 pub fn read_stdin() -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     let mut buffer = String::new();
@@ -111,9 +112,6 @@ pub fn install_hot_keys() -> Result<(), Box<dyn std::error::Error + Send + Sync 
 }
 
 pub fn list_all_filesystems(
-    shell_command: Option<PathBuf>,
-    zfs_command: Option<PathBuf>,
-    mount_command: Option<PathBuf>,
 ) -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // build zfs query to execute - in case the fast paths fail
     // this is very slow but we are sure it works everywhere with zfs
@@ -220,8 +218,9 @@ pub fn list_all_filesystems(
         }
     }
 
-    if let Some(shell_command) = shell_command {
-        if let Some(mount_command) = mount_command {
+    // do we have the necessary commands for search if user has not defined a snap point?
+    if let Ok(shell_command) = which("sh") {
+        if let Ok(mount_command) = which("mount") {
             if let Ok(good) = good_performance(&shell_command, &mount_command) {
                 if !good.is_empty() {
                     return Ok(good);
@@ -234,7 +233,7 @@ pub fn list_all_filesystems(
             .into());
         }
 
-        if let Some(zfs_command) = zfs_command {
+        if let Ok(zfs_command) = which("zfs") {
             if let Ok(meh) = meh_performance(&shell_command, &zfs_command) {
                 if !meh.is_empty() {
                     return Ok(meh);

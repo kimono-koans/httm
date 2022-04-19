@@ -38,7 +38,6 @@ use std::{
     path::{Path, PathBuf},
     time::SystemTime,
 };
-use which::which;
 
 #[derive(Debug)]
 pub struct HttmError {
@@ -293,13 +292,7 @@ impl Config {
                 local_dir,
             })
         } else {
-            // do we have the necessary commands for search if user has not defined a snap point?
-            let shell_command = which("sh").ok();
-            let zfs_command = which("zfs").ok();
-            let mount_command = which("mount").ok();
-
-            let all_zfs_filesystems =
-                list_all_filesystems(shell_command, zfs_command, mount_command)?;
+            let all_zfs_filesystems = list_all_filesystems()?;
 
             SnapPoint::Native(all_zfs_filesystems)
         };
