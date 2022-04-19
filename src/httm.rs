@@ -15,16 +15,18 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
+mod config_helper;
 mod deleted;
 mod display;
-mod helper;
 mod interactive;
+mod library;
 mod lookup;
 
+use crate::config_helper::{install_hot_keys, list_all_filesystems};
 use crate::deleted::deleted_exec;
 use crate::display::display_exec;
-use crate::helper::{install_hot_keys, list_all_filesystems, read_stdin};
 use crate::interactive::interactive_exec;
+use crate::library::read_stdin;
 use crate::lookup::lookup_exec;
 
 use clap::{Arg, ArgMatches};
@@ -375,7 +377,7 @@ impl Config {
                         deleted_mode = DeletedMode::Disabled;
                         PathData::from(pwd.as_path())
                     }
-                    n if n == 1 => match &paths[0].path_buf {
+                    n if n == 1 => match &paths.get(0).unwrap().path_buf {
                         n if n.is_dir() => paths.get(0).unwrap().to_owned(),
                         _ => {
                             exec_mode = ExecMode::Display;

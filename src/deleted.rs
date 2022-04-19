@@ -15,12 +15,13 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::display::display_exec;
+use crate::library::enumerate_directory;
 use crate::lookup::{get_snap_point_and_local_relative_path, get_snapshot_dataset};
 use crate::{Config, PathData, SnapPoint};
 
 use fxhash::FxHashMap as HashMap;
 use rayon::prelude::*;
+use skim::prelude::*;
 use std::{
     ffi::OsString,
     fs::DirEntry,
@@ -33,7 +34,15 @@ pub fn deleted_exec(
     config: &Config,
     out: &mut Stdout,
 ) -> Result<[Vec<PathData>; 2], Box<dyn std::error::Error + Send + Sync + 'static>> {
-    deleted_search(config, &config.requested_dir, out)?;
+    let (dummy_tx_item, _): (SkimItemSender, SkimItemReceiver) = unbounded();
+    let config_clone = Arc::new(config.clone());
+
+    enumerate_directory(
+        config_clone,
+        &dummy_tx_item,
+        &config.requested_dir.path_buf,
+        out,
+    )?;
 
     // flush and exit successfully upon ending recursive search
     if config.opt_recursive {
@@ -41,60 +50,6 @@ pub fn deleted_exec(
         out.flush()?;
     }
     std::process::exit(0)
-}
-
-fn deleted_search(
-    config: &Config,
-    requested_dir: &PathData,
-    out: &mut Stdout,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    // convert to paths, and split into dirs and files
-    let vec_dirs: Vec<DirEntry> = std::fs::read_dir(&requested_dir.path_buf)?
-        .flatten()
-        .par_bridge()
-        .filter(|dir_entry| dir_entry.file_type().is_ok())
-        .filter(|dir_entry| dir_entry.file_type().unwrap().is_dir())
-        .collect();
-
-    let vec_deleted: Vec<PathData> = get_deleted(config, &requested_dir.path_buf)?;
-
-    if vec_deleted.is_empty() {
-        // Shows progress, while we are finding no deleted files
-        if config.opt_recursive {
-            eprint!(".");
-        }
-    } else {
-        let pseudo_live_versions: Vec<PathData> = vec_deleted
-            .par_iter()
-            .map(|path| path.path_buf.file_name())
-            .flatten()
-            .map(|file_name| config.requested_dir.path_buf.join(file_name))
-            .map(|path| PathData::from(path.as_path()))
-            .collect();
-
-        let output_buf = display_exec(config, [vec_deleted, pseudo_live_versions])?;
-        // have to get a line break here, but shouldn't look unnatural
-        // print "." but don't print if in non-recursive mode
-        if config.opt_recursive {
-            eprintln!(".");
-        }
-        write!(out, "{}", output_buf)?;
-        out.flush()?;
-    }
-
-    // now recurse into those dirs as requested
-    if config.opt_recursive {
-        vec_dirs
-            // don't want to a par_iter here because it will block and wait for all results, instead of
-            // printing and recursing into the subsequent dirs
-            .iter()
-            .for_each(move |requested_dir| {
-                let path = PathData::from(requested_dir);
-                let _ = deleted_search(config, &path, out);
-            });
-    }
-
-    Ok(())
 }
 
 pub fn get_deleted(

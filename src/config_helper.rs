@@ -20,26 +20,11 @@ use crate::HttmError;
 use rayon::prelude::*;
 use std::{
     fs::OpenOptions,
-    io::{BufRead, Read, Write},
+    io::{Read, Write},
     path::{Path, PathBuf},
     process::Command as ExecProcess,
 };
 use which::which;
-
-pub fn read_stdin() -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let mut buffer = String::new();
-    let stdin = std::io::stdin();
-    let mut stdin = stdin.lock();
-    stdin.read_line(&mut buffer)?;
-
-    let broken_string: Vec<String> = buffer
-        .split_ascii_whitespace()
-        .into_iter()
-        .map(|i| i.to_owned())
-        .collect();
-
-    Ok(broken_string)
-}
 
 pub fn install_hot_keys() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     // get our home directory

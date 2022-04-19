@@ -15,12 +15,12 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
+use crate::library::paint_string;
 use crate::{Config, PathData};
 
 use chrono::{DateTime, Local};
-use lscolors::{LsColors, Style};
 use number_prefix::NumberPrefix;
-use std::{path::Path, time::SystemTime};
+use std::time::SystemTime;
 use terminal_size::{terminal_size, Height, Width};
 
 // 2 space wide padding - used between date and size, and size and path
@@ -201,15 +201,4 @@ fn display_human_size(pathdata: &PathData) -> String {
 fn display_date(system_time: &SystemTime) -> String {
     let date_time: DateTime<Local> = system_time.to_owned().into();
     format!("{}", date_time.format("%a %b %e %H:%M:%S %Y"))
-}
-
-pub fn paint_string(path: &Path, file_name: &str) -> String {
-    let ls_colors = LsColors::from_env().unwrap_or_default();
-
-    if let Some(style) = ls_colors.style_for_path(path) {
-        let ansi_style = &Style::to_ansi_term_style(style);
-        ansi_style.paint(file_name).to_string()
-    } else {
-        file_name.to_owned()
-    }
 }
