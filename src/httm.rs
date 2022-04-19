@@ -377,15 +377,15 @@ impl Config {
                         deleted_mode = DeletedMode::Disabled;
                         PathData::from(pwd.as_path())
                     }
-                    n if n == 1 => match &paths.get(0).unwrap().path_buf {
-                        n if n.is_dir() => paths.get(0).unwrap().to_owned(),
+                    1 => match paths.get(0) {
+                        Some(pathdata) if pathdata.path_buf.is_dir() => pathdata.to_owned(),
                         _ => {
                             exec_mode = ExecMode::Display;
                             deleted_mode = DeletedMode::Disabled;
                             PathData::from(pwd.as_path())
                         }
                     },
-                    _ => {
+                    0 | _ => {
                         // paths should never be empty, but here we make sure
                         PathData::from(pwd.as_path())
                     }
@@ -476,6 +476,7 @@ fn parse_args() -> ArgMatches {
                 .long("deleted")
                 .takes_value(true)
                 .default_missing_value("")
+                .possible_values(&["only", "ONLY", ""])
                 .help("show deleted files in interactive modes, or do a search for all such files, if a directory is specified. \
                 If --deleted=only is specified, then, in interactive modes, non-deleted files will be excluded from the search.")
                 .display_order(5)
