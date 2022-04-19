@@ -26,7 +26,7 @@ use crate::config_helper::{install_hot_keys, list_all_filesystems};
 use crate::deleted::deleted_exec;
 use crate::display::display_exec;
 use crate::interactive::interactive_exec;
-use crate::library::read_stdin;
+use crate::library::{for_real_is_dir, read_stdin};
 use crate::lookup::lookup_exec;
 
 use clap::{Arg, ArgMatches};
@@ -329,7 +329,9 @@ impl Config {
                     0 => PathData::from(pwd.as_path()),
                     1 => {
                         match paths.get(0) {
-                            Some(pathdata) if pathdata.path_buf.is_dir() => pathdata.to_owned(),
+                            Some(pathdata) if for_real_is_dir(&pathdata.path_buf) => {
+                                pathdata.to_owned()
+                            }
                             Some(pathdata)
                                 if pathdata.path_buf.is_file() | pathdata.path_buf.is_symlink() =>
                             {
@@ -379,7 +381,9 @@ impl Config {
                         PathData::from(pwd.as_path())
                     }
                     1 => match paths.get(0) {
-                        Some(pathdata) if pathdata.path_buf.is_dir() => pathdata.to_owned(),
+                        Some(pathdata) if for_real_is_dir(&pathdata.path_buf) => {
+                            pathdata.to_owned()
+                        }
                         _ => {
                             exec_mode = ExecMode::Display;
                             deleted_mode = DeletedMode::Disabled;

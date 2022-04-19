@@ -24,12 +24,24 @@ use lscolors::{LsColors, Style};
 use rayon::iter::Either;
 use rayon::prelude::*;
 use skim::prelude::*;
+use std::fs::DirEntry;
 use std::{
     io::Stdout,
     io::{BufRead, Write},
     path::{Path, PathBuf},
     sync::Arc,
 };
+
+pub fn paint_string(path: &Path, file_name: &str) -> String {
+    let ls_colors = LsColors::from_env().unwrap_or_default();
+
+    if let Some(style) = ls_colors.style_for_path(path) {
+        let ansi_style = &Style::to_ansi_term_style(style);
+        ansi_style.paint(file_name).to_string()
+    } else {
+        file_name.to_owned()
+    }
+}
 
 pub fn read_stdin() -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     let mut buffer = String::new();
@@ -46,48 +58,97 @@ pub fn read_stdin() -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sy
     Ok(broken_string)
 }
 
+// is this something we should count as a directory for our purposes?
+pub fn for_real_is_dir<T>(entry: &T) -> bool
+where
+    T: ForRealIsDir,
+{
+    let path = entry.for_real_as_path();
+    match entry {
+        file_type if file_type.for_real_is_dir() => true,
+        file_type if file_type.for_real_is_file() => false,
+        file_type if file_type.for_real_is_symlink() => {
+            match path.read_link() {
+                Ok(link) => {
+                    // read_link() will check symlink is pointing to a directory
+                    //
+                    // checking ancestors() against the read_link() will reduce/remove
+                    // infinitely recursive paths, like /usr/bin/X11 pointing to /usr/X11
+                    link.is_dir() && link.ancestors().all(|ancestor| ancestor != link)
+                }
+                // we get an error? still pass the path on, as we get a good path from the dir entry
+                Err(_) => false,
+            }
+        }
+        // char, block, etc devices(?) to the right
+        _ => false,
+    }
+}
+
+pub trait ForRealIsDir {
+    fn for_real_is_dir(&self) -> bool;
+    fn for_real_is_file(&self) -> bool;
+    fn for_real_is_symlink(&self) -> bool;
+    fn for_real_as_path(&self) -> PathBuf;
+}
+
+impl ForRealIsDir for PathBuf {
+    fn for_real_is_dir(&self) -> bool {
+        self.is_dir()
+    }
+    fn for_real_is_file(&self) -> bool {
+        self.is_file()
+    }
+    fn for_real_is_symlink(&self) -> bool {
+        self.is_symlink()
+    }
+    fn for_real_as_path(&self) -> PathBuf {
+        self.to_path_buf()
+    }
+}
+
+impl ForRealIsDir for DirEntry {
+    fn for_real_is_dir(&self) -> bool {
+        if let Ok(file_type) = self.file_type() {
+            file_type.is_dir()
+        } else {
+            false
+        }
+    }
+    fn for_real_is_file(&self) -> bool {
+        if let Ok(file_type) = self.file_type() {
+            file_type.is_file()
+        } else {
+            false
+        }
+    }
+    fn for_real_is_symlink(&self) -> bool {
+        if let Ok(file_type) = self.file_type() {
+            file_type.is_symlink()
+        } else {
+            false
+        }
+    }
+    fn for_real_as_path(&self) -> PathBuf {
+        self.path()
+    }
+}
+
 pub fn enumerate_directory(
     config: Arc<Config>,
     tx_item: &SkimItemSender,
     requested_dir: &Path,
     out: &mut Stdout,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    // Why is this so complicated?  The dir entry file_type() call is inexpensive,
-    // so split into dirs and files here and then to paths, and must appropriately
-    // handle symlinks to dirs to avoid recursive symlinks as well
     let (vec_dirs, vec_files): (Vec<PathBuf>, Vec<PathBuf>) = std::fs::read_dir(&requested_dir)?
         .flatten()
         .par_bridge()
         .partition_map(|dir_entry| {
             let path = dir_entry.path();
-            match dir_entry.file_type() {
-                Ok(file_type) => match file_type {
-                    file_type if file_type.is_dir() => Either::Left(path),
-                    file_type if file_type.is_file() => Either::Right(path),
-                    file_type if file_type.is_symlink() => {
-                        match path.read_link() {
-                            Ok(link) => {
-                                // read_link() will check symlink is pointing to a directory
-                                //
-                                // checking ancestors() against the read_link() will reduce/remove
-                                // infinitely recursive paths, like /usr/bin/X11 pointing to /usr/X11
-                                if link.is_dir()
-                                    && link.ancestors().all(|ancestor| ancestor != link)
-                                {
-                                    Either::Left(path)
-                                } else {
-                                    Either::Right(path)
-                                }
-                            }
-                            // we get an error? still pass the path on, as we get a good path from the dir entry
-                            Err(_) => Either::Right(path),
-                        }
-                    }
-                    // char, block, etc devices(?) to the right
-                    _ => Either::Right(path),
-                },
-                // we get an error? still pass the path on, as we get a good path from the dir entry
-                Err(_) => Either::Right(path),
+            if for_real_is_dir(&dir_entry) {
+                Either::Left(path)
+            } else {
+                Either::Right(path)
             }
         });
 
@@ -177,15 +238,4 @@ pub fn enumerate_directory(
             });
     }
     Ok(())
-}
-
-pub fn paint_string(path: &Path, file_name: &str) -> String {
-    let ls_colors = LsColors::from_env().unwrap_or_default();
-
-    if let Some(style) = ls_colors.style_for_path(path) {
-        let ansi_style = &Style::to_ansi_term_style(style);
-        ansi_style.paint(file_name).to_string()
-    } else {
-        file_name.to_owned()
-    }
 }
