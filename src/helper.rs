@@ -118,7 +118,7 @@ pub fn list_all_filesystems(
     // build zfs query to execute - in case the fast paths fail
     // this is very slow but we are sure it works everywhere with zfs
     // because the zfs command tab sanely delimits its output
-    let priority_3 = |shell_command: &PathBuf,
+    let meh_performance = |shell_command: &PathBuf,
                       zfs_command: &PathBuf|
      -> Result<
         Vec<std::string::String>,
@@ -147,7 +147,7 @@ pub fn list_all_filesystems(
 
     // read datasets from 'mount' if possible -- this is much faster than using zfs command
     // but I trust we've parsed it correctly less, because BSD and Linux output are different
-    let priority_2 = |shell_command: &PathBuf,
+    let good_performance = |shell_command: &PathBuf,
                       mount_command: &PathBuf|
      -> Result<
         Vec<std::string::String>,
@@ -190,7 +190,7 @@ pub fn list_all_filesystems(
 
     // read /proc/mounts -- fastest but only works on Linux, least certain the parsing is correct
     // as Linux dumps escaped characters into filesystem strings, and space delimits
-    let priority_1 = || -> Result<Vec<std::string::String>, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    let best_performance = || -> Result<Vec<std::string::String>, Box<dyn std::error::Error + Send + Sync + 'static>> {
         let mut file = OpenOptions::new()
             .read(true)
             .open(Path::new("/proc/mounts"))?;
@@ -213,8 +213,7 @@ pub fn list_all_filesystems(
     // as we store the values in the Config.  Therefore, we want to fail and fallback if there is some sign that parsed
     // input is not current
     if cfg!(target_os = "linux") {
-        let best = priority_1();
-        if let Ok(best) = best {
+        if let Ok(best) = best_performance() {
             if !best.is_empty() {
                 return Ok(best);
             }
@@ -223,8 +222,7 @@ pub fn list_all_filesystems(
 
     if let Some(shell_command) = shell_command {
         if let Some(mount_command) = mount_command {
-            let good = priority_2(&shell_command, &mount_command);
-            if let Ok(good) = good {
+            if let Ok(good) = good_performance(&shell_command, &mount_command) {
                 if !good.is_empty() {
                     return Ok(good);
                 }
@@ -237,8 +235,7 @@ pub fn list_all_filesystems(
         }
 
         if let Some(zfs_command) = zfs_command {
-            let meh = priority_3(&shell_command, &zfs_command);
-            if let Ok(meh) = meh {
+            if let Ok(meh) = meh_performance(&shell_command, &zfs_command) {
                 if !meh.is_empty() {
                     return Ok(meh);
                 }
