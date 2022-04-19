@@ -23,9 +23,10 @@ mod library;
 mod lookup;
 
 use crate::config_helper::{install_hot_keys, list_all_filesystems};
+use crate::deleted::deleted_exec;
 use crate::display::display_exec;
 use crate::interactive::interactive_exec;
-use crate::library::{display_recursive_exec, for_real_is_dir, read_stdin};
+use crate::library::{for_real_is_dir, read_stdin};
 use crate::lookup::lookup_exec;
 
 use clap::{Arg, ArgMatches};
@@ -571,9 +572,9 @@ fn exec() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         // 2. Determine/lookup whether file matches any files on snapshots
         ExecMode::Interactive => lookup_exec(&config, &interactive_exec(&mut out, &config)?)?,
         ExecMode::Display => lookup_exec(&config, &config.paths)?,
-        // display_recursive_exec is special because it is more convenient to get PathData in 'mod deleted'
+        // deleted_exec is special because it is more convenient to get PathData in 'mod deleted'
         // on raw paths rather than strings, also there is no need to run a lookup on files already on snapshots
-        ExecMode::DisplayRecursive => display_recursive_exec(&config, &mut out)?,
+        ExecMode::DisplayRecursive => deleted_exec(&config, &mut out)?,
     };
 
     // and display

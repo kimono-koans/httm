@@ -21,8 +21,7 @@ use crate::interactive::SelectionCandidate;
 use crate::{Config, DeletedMode, ExecMode, PathData};
 
 use lscolors::{LsColors, Style};
-use rayon::iter::Either;
-use rayon::prelude::*;
+use rayon::{iter::Either, prelude::*};
 use skim::prelude::*;
 use std::fs::{DirEntry, FileType};
 use std::{
@@ -111,28 +110,6 @@ impl ForRealIsDir for DirEntry {
     }
 }
 
-pub fn display_recursive_exec(
-    config: &Config,
-    out: &mut Stdout,
-) -> Result<[Vec<PathData>; 2], Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let (dummy_tx_item, _): (SkimItemSender, SkimItemReceiver) = unbounded();
-    let config_clone = Arc::new(config.clone());
-
-    enumerate_directory(
-        config_clone,
-        &dummy_tx_item,
-        &config.requested_dir.path_buf,
-        out,
-    )?;
-
-    // flush and exit successfully upon ending recursive search
-    if config.opt_recursive {
-        println!();
-        out.flush()?;
-    }
-    std::process::exit(0)
-}
-
 pub fn enumerate_directory(
     config: Arc<Config>,
     tx_item: &SkimItemSender,
@@ -158,6 +135,8 @@ pub fn enumerate_directory(
                 // something to implement in the future but I'm not sure
                 // it really makes sense
                 DeletedMode::Disabled => unreachable!(),
+                // for all other non-disabled DeletedModes we display
+                // all deleted files
                 _ => {
                     let vec_deleted = get_deleted(&config, requested_dir)?;
                     if vec_deleted.is_empty() {

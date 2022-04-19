@@ -15,12 +15,43 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
+use crate::library::enumerate_directory;
 use crate::lookup::{get_snap_point_and_local_relative_path, get_snapshot_dataset};
 use crate::{Config, PathData, SnapPoint};
 
 use fxhash::FxHashMap as HashMap;
 use rayon::prelude::*;
-use std::{ffi::OsString, fs::DirEntry, path::Path, time::SystemTime};
+use skim::prelude::*;
+use std::{
+    ffi::OsString,
+    fs::DirEntry,
+    io::{Stdout, Write},
+    path::Path,
+    sync::Arc,
+    time::SystemTime,
+};
+
+pub fn deleted_exec(
+    config: &Config,
+    out: &mut Stdout,
+) -> Result<[Vec<PathData>; 2], Box<dyn std::error::Error + Send + Sync + 'static>> {
+    let (dummy_tx_item, _): (SkimItemSender, SkimItemReceiver) = unbounded();
+    let config_clone = Arc::new(config.clone());
+
+    enumerate_directory(
+        config_clone,
+        &dummy_tx_item,
+        &config.requested_dir.path_buf,
+        out,
+    )?;
+
+    // flush and exit successfully upon ending recursive search
+    if config.opt_recursive {
+        println!();
+        out.flush()?;
+    }
+    std::process::exit(0)
+}
 
 pub fn get_deleted(
     config: &Config,
