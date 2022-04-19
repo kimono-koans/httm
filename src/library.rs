@@ -63,11 +63,11 @@ pub fn for_real_is_dir<T>(entry: &T) -> bool
 where
     T: ForRealIsDir,
 {
-    let path = entry.for_real_as_path();
+    let path = entry.fr_get_path();
     match entry {
-        file_type if file_type.for_real_is_dir() => true,
-        file_type if file_type.for_real_is_file() => false,
-        file_type if file_type.for_real_is_symlink() => {
+        file_type if file_type.fr_is_dir() => true,
+        file_type if file_type.fr_is_file() => false,
+        file_type if file_type.fr_is_symlink() => {
             match path.read_link() {
                 Ok(link) => {
                     // read_link() will check symlink is pointing to a directory
@@ -86,50 +86,50 @@ where
 }
 
 pub trait ForRealIsDir {
-    fn for_real_is_dir(&self) -> bool;
-    fn for_real_is_file(&self) -> bool;
-    fn for_real_is_symlink(&self) -> bool;
-    fn for_real_as_path(&self) -> PathBuf;
+    fn fr_is_dir(&self) -> bool;
+    fn fr_is_file(&self) -> bool;
+    fn fr_is_symlink(&self) -> bool;
+    fn fr_get_path(&self) -> PathBuf;
 }
 
 impl ForRealIsDir for PathBuf {
-    fn for_real_is_dir(&self) -> bool {
+    fn fr_is_dir(&self) -> bool {
         self.is_dir()
     }
-    fn for_real_is_file(&self) -> bool {
+    fn fr_is_file(&self) -> bool {
         self.is_file()
     }
-    fn for_real_is_symlink(&self) -> bool {
+    fn fr_is_symlink(&self) -> bool {
         self.is_symlink()
     }
-    fn for_real_as_path(&self) -> PathBuf {
+    fn fr_get_path(&self) -> PathBuf {
         self.to_path_buf()
     }
 }
 
 impl ForRealIsDir for DirEntry {
-    fn for_real_is_dir(&self) -> bool {
+    fn fr_is_dir(&self) -> bool {
         if let Ok(file_type) = self.file_type() {
             file_type.is_dir()
         } else {
             false
         }
     }
-    fn for_real_is_file(&self) -> bool {
+    fn fr_is_file(&self) -> bool {
         if let Ok(file_type) = self.file_type() {
             file_type.is_file()
         } else {
             false
         }
     }
-    fn for_real_is_symlink(&self) -> bool {
+    fn fr_is_symlink(&self) -> bool {
         if let Ok(file_type) = self.file_type() {
             file_type.is_symlink()
         } else {
             false
         }
     }
-    fn for_real_as_path(&self) -> PathBuf {
+    fn fr_get_path(&self) -> PathBuf {
         self.path()
     }
 }
