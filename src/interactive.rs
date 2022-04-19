@@ -333,6 +333,9 @@ fn enumerate_directory(
         });
 
     let vec_deleted = if config.deleted_mode != DeletedMode::Disabled {
+        // why do we do this?  B/c the files are deleted we are recreating what their previous names
+        // once were.  Here, we are receiving snap metadata, what would its live version look like if
+        // it had not been deleted
         get_deleted(&config, requested_dir)?
             .par_iter()
             .map(|path| path.path_buf.file_name())
