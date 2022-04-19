@@ -64,7 +64,15 @@ fn deleted_search(
             eprint!(".");
         }
     } else {
-        let output_buf = display_exec(config, [vec_deleted, Vec::new()])?;
+        let pseudo_live_versions: Vec<PathData> = vec_deleted
+            .par_iter()
+            .map(|path| path.path_buf.file_name())
+            .flatten()
+            .map(|file_name| config.requested_dir.path_buf.join(file_name))
+            .map(|path| PathData::from(path.as_path()))
+            .collect();
+
+        let output_buf = display_exec(config, [vec_deleted, pseudo_live_versions])?;
         // have to get a line break here, but shouldn't look unnatural
         // print "." but don't print if in non-recursive mode
         if config.opt_recursive {
