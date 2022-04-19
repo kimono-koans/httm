@@ -23,10 +23,9 @@ mod library;
 mod lookup;
 
 use crate::config_helper::{install_hot_keys, list_all_filesystems};
-use crate::deleted::deleted_exec;
 use crate::display::display_exec;
 use crate::interactive::interactive_exec;
-use crate::library::{for_real_is_dir, read_stdin};
+use crate::library::{display_recursive_exec, for_real_is_dir, read_stdin};
 use crate::lookup::lookup_exec;
 
 use clap::{Arg, ArgMatches};
@@ -137,7 +136,7 @@ impl PathData {
 #[derive(Debug, Clone, PartialEq)]
 enum ExecMode {
     Interactive,
-    Deleted,
+    DisplayRecursive,
     Display,
 }
 
@@ -209,7 +208,7 @@ impl Config {
         {
             ExecMode::Interactive
         } else if deleted_mode != DeletedMode::Disabled {
-            ExecMode::Deleted
+            ExecMode::DisplayRecursive
         } else {
             ExecMode::Display
         };
@@ -304,26 +303,27 @@ impl Config {
         };
 
         // paths are immediately converted to our PathData struct
-        let mut paths: Vec<PathData> =
-            if let Some(input_files) = matches.values_of_os("INPUT_FILES") {
-                // can unwrap because we confirm "is some" above
-                input_files
-                    .into_iter()
-                    .par_bridge()
-                    .map(|string| PathData::from(Path::new(string)))
-                    .collect()
-            // setting pwd as the path, here, keeps us from waiting on stdin when in non-Display modes
-            } else if exec_mode == ExecMode::Interactive || exec_mode == ExecMode::Deleted {
-                vec![PathData::from(pwd.as_path())]
-            } else if exec_mode == ExecMode::Display {
-                read_stdin()?
-                    .into_iter()
-                    .par_bridge()
-                    .map(|string| PathData::from(Path::new(&string)))
-                    .collect()
-            } else {
-                unreachable!()
-            };
+        let mut paths: Vec<PathData> = if let Some(input_files) =
+            matches.values_of_os("INPUT_FILES")
+        {
+            // can unwrap because we confirm "is some" above
+            input_files
+                .into_iter()
+                .par_bridge()
+                .map(|string| PathData::from(Path::new(string)))
+                .collect()
+        // setting pwd as the path, here, keeps us from waiting on stdin when in non-Display modes
+        } else if exec_mode == ExecMode::Interactive || exec_mode == ExecMode::DisplayRecursive {
+            vec![PathData::from(pwd.as_path())]
+        } else if exec_mode == ExecMode::Display {
+            read_stdin()?
+                .into_iter()
+                .par_bridge()
+                .map(|string| PathData::from(Path::new(&string)))
+                .collect()
+        } else {
+            unreachable!()
+        };
 
         // for exec_modes in which we can only take a single directory, process how we handle those here
         let requested_dir: PathData = match exec_mode {
@@ -370,7 +370,7 @@ impl Config {
                     }
                 }
             }
-            ExecMode::Deleted => {
+            ExecMode::DisplayRecursive => {
                 // paths should never be empty for ExecMode::Deleted
                 //
                 // we only want one dir for a ExecMode::Deleted run, else
@@ -573,7 +573,7 @@ fn exec() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         ExecMode::Display => lookup_exec(&config, &config.paths)?,
         // deleted_exec is special because it is more convenient to get PathData in 'mod deleted'
         // on raw paths rather than strings, also there is no need to run a lookup on files already on snapshots
-        ExecMode::Deleted => deleted_exec(&config, &mut out)?,
+        ExecMode::DisplayRecursive => display_recursive_exec(&config, &mut out)?,
     };
 
     // and display

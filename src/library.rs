@@ -111,6 +111,28 @@ impl ForRealIsDir for DirEntry {
     }
 }
 
+pub fn display_recursive_exec(
+    config: &Config,
+    out: &mut Stdout,
+) -> Result<[Vec<PathData>; 2], Box<dyn std::error::Error + Send + Sync + 'static>> {
+    let (dummy_tx_item, _): (SkimItemSender, SkimItemReceiver) = unbounded();
+    let config_clone = Arc::new(config.clone());
+
+    enumerate_directory(
+        config_clone,
+        &dummy_tx_item,
+        &config.requested_dir.path_buf,
+        out,
+    )?;
+
+    // flush and exit successfully upon ending recursive search
+    if config.opt_recursive {
+        println!();
+        out.flush()?;
+    }
+    std::process::exit(0)
+}
+
 pub fn enumerate_directory(
     config: Arc<Config>,
     tx_item: &SkimItemSender,
@@ -130,30 +152,39 @@ pub fn enumerate_directory(
         });
 
     match config.exec_mode {
-        ExecMode::Deleted => {
-            let vec_deleted = get_deleted(&config, requested_dir)?;
-            if vec_deleted.is_empty() {
-                // Shows progress, while we are finding no deleted files
-                if config.opt_recursive {
-                    eprint!(".");
-                }
-            } else {
-                let pseudo_live_versions: Vec<PathData> = vec_deleted
-                    .par_iter()
-                    .map(|path| path.path_buf.file_name())
-                    .flatten()
-                    .map(|file_name| requested_dir.join(file_name))
-                    .map(|path| PathData::from(path.as_path()))
-                    .collect();
+        ExecMode::DisplayRecursive => {
+            match config.deleted_mode {
+                // display recursive in DeletedMode::Disabled may be
+                // something to implement in the future but I'm not sure
+                // it really makes sense
+                DeletedMode::Disabled => unreachable!(),
+                _ => {
+                    let vec_deleted = get_deleted(&config, requested_dir)?;
+                    if vec_deleted.is_empty() {
+                        // Shows progress, while we are finding no deleted files
+                        if config.opt_recursive {
+                            eprint!(".");
+                        }
+                    } else {
+                        let pseudo_live_versions: Vec<PathData> = vec_deleted
+                            .par_iter()
+                            .map(|path| path.path_buf.file_name())
+                            .flatten()
+                            .map(|file_name| requested_dir.join(file_name))
+                            .map(|path| PathData::from(path.as_path()))
+                            .collect();
 
-                let output_buf = display_exec(&config, [vec_deleted, pseudo_live_versions])?;
-                // have to get a line break here, but shouldn't look unnatural
-                // print "." but don't print if in non-recursive mode
-                if config.opt_recursive {
-                    eprintln!(".");
+                        let output_buf =
+                            display_exec(&config, [vec_deleted, pseudo_live_versions])?;
+                        // have to get a line break here, but shouldn't look unnatural
+                        // print "." but don't print if in non-recursive mode
+                        if config.opt_recursive {
+                            eprintln!(".");
+                        }
+                        write!(out, "{}", output_buf)?;
+                        out.flush()?;
+                    }
                 }
-                write!(out, "{}", output_buf)?;
-                out.flush()?;
             }
         }
         _ => {
