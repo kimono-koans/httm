@@ -58,9 +58,9 @@ pub fn read_stdin() -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sy
 }
 
 // is this something we should count as a directory for our purposes?
-pub fn for_real_is_dir<T>(entry: &T) -> bool
+pub fn httm_is_dir<T>(entry: &T) -> bool
 where
-    T: ForRealIsDir,
+    T: HttmIsDir,
 {
     let path = entry.get_path();
     match entry.get_filetype() {
@@ -87,12 +87,12 @@ where
     }
 }
 
-pub trait ForRealIsDir {
+pub trait HttmIsDir {
     fn get_filetype(&self) -> Result<FileType, std::io::Error>;
     fn get_path(&self) -> PathBuf;
 }
 
-impl ForRealIsDir for PathBuf {
+impl HttmIsDir for PathBuf {
     fn get_filetype(&self) -> Result<FileType, std::io::Error> {
         Ok(self.metadata()?.file_type())
     }
@@ -101,7 +101,7 @@ impl ForRealIsDir for PathBuf {
     }
 }
 
-impl ForRealIsDir for DirEntry {
+impl HttmIsDir for DirEntry {
     fn get_filetype(&self) -> Result<FileType, std::io::Error> {
         self.file_type()
     }
@@ -121,7 +121,7 @@ pub fn enumerate_directory(
         .par_bridge()
         .partition_map(|dir_entry| {
             let path = dir_entry.path();
-            if for_real_is_dir(&dir_entry) {
+            if httm_is_dir(&dir_entry) {
                 Either::Left(path)
             } else {
                 Either::Right(path)

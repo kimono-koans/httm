@@ -81,7 +81,7 @@ pub fn interactive_exec(
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // go to interactive_select early if user has already requested a file
     // and we are in the appropriate mode Select or Restore, see struct Config
-    let vec_pathdata = if config.paths.get(0).is_some() && !&config.paths[0].for_real_is_dir() {
+    let vec_pathdata = if config.paths.get(0).is_some() && !&config.paths[0].httm_is_dir() {
         // can index here because because we have guaranteed we have this one path
         let selected_file = config.paths[0].to_owned();
         interactive_select(out, config, &vec![selected_file])?;
