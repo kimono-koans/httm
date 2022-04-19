@@ -57,12 +57,7 @@ impl SkimItem for SelectionCandidate {
         ))
     }
     fn output(&self) -> Cow<str> {
-        let path = self
-            .path
-            .canonicalize()
-            .unwrap_or_else(|_| self.path.clone())
-            .to_string_lossy()
-            .into_owned();
+        let path = self.path.to_string_lossy().into_owned();
         Cow::Owned(path)
     }
     fn preview(&self, _: PreviewContext<'_>) -> skim::ItemPreview {
@@ -307,26 +302,33 @@ fn enumerate_directory(
         .partition_map(|dir_entry| {
             let path = dir_entry.path();
             match dir_entry.file_type() {
-                Ok(file_type) if file_type.is_dir() => Either::Left(path),
-                Ok(file_type) if file_type.is_symlink() => {
+                Ok(file_type) => match file_type {
+                    file_type if file_type.is_dir() => Either::Left(path),
                     // path.is_symlink() *will not* traverse symlinks
-                    match path.read_link() {
-                        Ok(link) => {
-                            // path.is_dir() *will* traverse symlinks to check
-                            // if what we are pointing to is a directory
-                            //
-                            // also remove infinitely recursive paths, like /usr/bin/X11 pointing to /usr/X11
-                            if path.is_dir() && path.ancestors().all(|ancestor| ancestor != link) {
-                                Either::Left(path)
-                            } else {
-                                Either::Right(path)
+                    file_type if file_type.is_symlink() => {
+                        match path.read_link() {
+                            Ok(link) => {
+                                // path.is_dir() *will* traverse symlinks to check
+                                // if what we are pointing to is a directory
+                                //
+                                // also reduce/remove infinitely recursive paths, like /usr/bin/X11 pointing to /usr/X11
+                                if path.is_dir()
+                                    && path.ancestors().all(|ancestor| ancestor != link)
+                                {
+                                    Either::Left(path)
+                                } else {
+                                    Either::Right(path)
+                                }
                             }
+                            // we get an error? still pass the path as we get a good path from the dir entry
+                            Err(_) => Either::Right(path),
                         }
-                        Err(_) => Either::Right(path),
                     }
-                }
-                // files and other char, block, etc devices to the right
-                _ => Either::Right(path),
+                    // files and other char, block, etc devices to the right
+                    _ => Either::Right(path),
+                },
+                // we get an error? still pass the path as we get a good path from the dir entry
+                Err(_) => Either::Right(path),
             }
         });
 
