@@ -403,7 +403,8 @@ impl Config {
             }
         };
 
-        // deduplicate pathdata and sort if in display mode -- so ./.z* and ./.zshrc only print once
+        // deduplicate pathdata and sort if in display mode --
+        // so input of ./.z* and ./.zshrc will only print ./.zshrc once
         paths = if exec_mode == ExecMode::Display && paths.len() > 1 {
             let mut unique_paths: HashMap<PathBuf, PathData> = HashMap::default();
 

@@ -70,9 +70,9 @@ where
             file_type if file_type.is_symlink() => {
                 match path.read_link() {
                     Ok(link) => {
-                        // read_link() will check symlink is pointing to a directory
+                        // First, read_link() will check symlink is pointing to a directory
                         //
-                        // checking ancestors() against the read_link() will reduce/remove
+                        // Next, check ancestors() against the read_link() will reduce/remove
                         // infinitely recursive paths, like /usr/bin/X11 pointing to /usr/X11
                         link.is_dir() && link.ancestors().all(|ancestor| ancestor != link)
                     }
@@ -80,7 +80,7 @@ where
                     Err(_) => false,
                 }
             }
-            // char, block, etc devices(?) to the right
+            // char, block, etc devices(?), errs are not dirs, and we have a good path to pass on, so false
             _ => false,
         },
         Err(_) => false,
@@ -119,6 +119,8 @@ pub fn enumerate_directory(
     let (vec_dirs, vec_files): (Vec<PathBuf>, Vec<PathBuf>) = std::fs::read_dir(&requested_dir)?
         .flatten()
         .par_bridge()
+        // checking file_type on dirs is always preferable
+        // as it is much faster than a metadata call on th path
         .partition_map(|dir_entry| {
             let path = dir_entry.path();
             if httm_is_dir(&dir_entry) {
@@ -145,6 +147,7 @@ pub fn enumerate_directory(
                             eprint!(".");
                         }
                     } else {
+                        // these are dummy placeholder values created from file on snapshots
                         let pseudo_live_versions: Vec<PathData> = vec_deleted
                             .par_iter()
                             .map(|path| path.path_buf.file_name())
@@ -167,6 +170,7 @@ pub fn enumerate_directory(
             }
         }
         _ => {
+            // these are dummy placeholder values created from file on snapshots
             let get_pseudo_live_versions = |config: &Config,
                                             requested_dir: &Path|
              -> Result<
