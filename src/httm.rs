@@ -385,7 +385,7 @@ impl Config {
                             PathData::from(pwd.as_path())
                         }
                     },
-                    0 | _ => {
+                    _ => {
                         // paths should never be empty, but here we make sure
                         PathData::from(pwd.as_path())
                     }
