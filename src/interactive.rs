@@ -16,7 +16,7 @@
 // that was distributed with this source code.
 
 use crate::display::display_exec;
-use crate::library::{enumerate_directory, for_real_is_dir, paint_string};
+use crate::library::{enumerate_directory, paint_string};
 use crate::lookup::lookup_exec;
 use crate::{read_stdin, Config, DeletedMode, ExecMode, HttmError, InteractiveMode, PathData};
 
@@ -81,20 +81,19 @@ pub fn interactive_exec(
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // go to interactive_select early if user has already requested a file
     // and we are in the appropriate mode Select or Restore, see struct Config
-    let vec_pathdata =
-        if config.paths.get(0).is_some() && !for_real_is_dir(&config.paths[0].path_buf) {
-            // can index here because because we have guaranteed we have this one path
-            let selected_file = config.paths[0].to_owned();
-            interactive_select(out, config, &vec![selected_file])?;
-            unreachable!()
-        } else {
-            // collect string paths from what we get from lookup_view
-            lookup_view(config)?
-                .into_par_iter()
-                .map(|string| PathBuf::from(&string))
-                .map(|path| PathData::from(path.as_path()))
-                .collect::<Vec<PathData>>()
-        };
+    let vec_pathdata = if config.paths.get(0).is_some() && !&config.paths[0].for_real_is_dir() {
+        // can index here because because we have guaranteed we have this one path
+        let selected_file = config.paths[0].to_owned();
+        interactive_select(out, config, &vec![selected_file])?;
+        unreachable!()
+    } else {
+        // collect string paths from what we get from lookup_view
+        lookup_view(config)?
+            .into_par_iter()
+            .map(|string| PathBuf::from(&string))
+            .map(|path| PathData::from(path.as_path()))
+            .collect::<Vec<PathData>>()
+    };
 
     // do we return back to our main exec function to print,
     // or continue down the interactive rabbit hole?

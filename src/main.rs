@@ -129,6 +129,9 @@ impl PathData {
             is_phantom: phantom,
         }
     }
+    fn for_real_is_dir(&self) -> bool {
+        for_real_is_dir(&self.path_buf)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -329,9 +332,7 @@ impl Config {
                     0 => PathData::from(pwd.as_path()),
                     1 => {
                         match paths.get(0) {
-                            Some(pathdata) if for_real_is_dir(&pathdata.path_buf) => {
-                                pathdata.to_owned()
-                            }
+                            Some(pathdata) if pathdata.for_real_is_dir() => pathdata.to_owned(),
                             Some(pathdata)
                                 if pathdata.path_buf.is_file() | pathdata.path_buf.is_symlink() =>
                             {
@@ -381,9 +382,7 @@ impl Config {
                         PathData::from(pwd.as_path())
                     }
                     1 => match paths.get(0) {
-                        Some(pathdata) if for_real_is_dir(&pathdata.path_buf) => {
-                            pathdata.to_owned()
-                        }
+                        Some(pathdata) if pathdata.for_real_is_dir() => pathdata.to_owned(),
                         _ => {
                             exec_mode = ExecMode::Display;
                             deleted_mode = DeletedMode::Disabled;
