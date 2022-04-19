@@ -1,4 +1,4 @@
-[![asciicast](https://asciinema.org/a/477019.svg)](https://asciinema.org/a/477019)
+[![asciicast](https://asciinema.org/a/488641.svg)](https://asciinema.org/a/488641)
 
 # zsys is *le sigh*, but the dream of a CLI ZFS Time Machine is still alive with `httm`
 
