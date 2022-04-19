@@ -299,25 +299,23 @@ fn enumerate_directory(
     requested_dir: &Path,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     // Why is this so complicated?  The dir entry file_type() call is inexpensive,
-    // so split into dirs and files here and then to paths, but must appropriately
-    // handle symlinks to dirs as well
+    // so split into dirs and files here and then to paths, and must appropriately
+    // handle symlinks to dirs to avoid recursive symlinks as well
     let (vec_dirs, vec_files): (Vec<PathBuf>, Vec<PathBuf>) = std::fs::read_dir(&requested_dir)?
         .flatten()
         .par_bridge()
-        .filter(|dir_entry| dir_entry.file_type().is_ok())
         .partition_map(|dir_entry| {
-            if dir_entry.file_type().unwrap().is_dir() {
-                Either::Left(dir_entry.path())
-            } else {
-                let path = dir_entry.path();
-                // path.is_symlink() *will not* traverse symlinks
-                if path.is_symlink() {
-                    // path.is_dir() *will* traverse symlinks to check
-                    // if what we are pointing to is a directory
-                    //
-                    // also remove infinitely recursive paths, like /usr/bin/X11
+            let path = dir_entry.path();
+            match dir_entry.file_type() {
+                Ok(file_type) if file_type.is_dir() => Either::Left(path),
+                Ok(file_type) if file_type.is_symlink() => {
+                    // path.is_symlink() *will not* traverse symlinks
                     match path.read_link() {
                         Ok(link) => {
+                            // path.is_dir() *will* traverse symlinks to check
+                            // if what we are pointing to is a directory
+                            //
+                            // also remove infinitely recursive paths, like /usr/bin/X11 pointing to /usr/X11
                             if path.is_dir() && path.ancestors().all(|ancestor| ancestor != link) {
                                 Either::Left(path)
                             } else {
@@ -326,9 +324,9 @@ fn enumerate_directory(
                         }
                         Err(_) => Either::Right(path),
                     }
-                } else {
-                    Either::Right(path)
                 }
+                // files and other char, block, etc devices to the right
+                _ => Either::Right(path),
             }
         });
 
@@ -356,7 +354,7 @@ fn enumerate_directory(
             .collect(),
     };
 
-    combined_vec.par_sort();
+    combined_vec.par_sort_unstable_by(|a, b| a.cmp(b));
     // don't want a par_iter here because it will block and wait for all
     // results, instead of printing and recursing into the subsequent dirs
     combined_vec.iter().for_each(|path| {

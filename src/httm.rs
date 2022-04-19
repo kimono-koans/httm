@@ -325,9 +325,11 @@ impl Config {
                 match paths.len() {
                     0 => PathData::from(pwd.as_path()),
                     1 => {
-                        match &paths[0].path_buf {
-                            n if n.is_dir() => paths.get(0).unwrap().to_owned(),
-                            n if n.is_file() | n.is_symlink() => {
+                        match paths.get(0) {
+                            Some(pathdata) if pathdata.path_buf.is_dir() => pathdata.to_owned(),
+                            Some(pathdata)
+                                if pathdata.path_buf.is_file() | pathdata.path_buf.is_symlink() =>
+                            {
                                 match interactive_mode {
                                     InteractiveMode::Browse | InteractiveMode::None => {
                                         // doesn't make sense to have a non-dir in these modes
@@ -338,7 +340,7 @@ impl Config {
                                     }
                                     InteractiveMode::Restore | InteractiveMode::Select => {
                                         // non-dir file will just cause us to skip the lookup phase
-                                        paths.get(0).unwrap().to_owned()
+                                        pathdata.to_owned()
                                     }
                                 }
                             }
