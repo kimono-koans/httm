@@ -197,7 +197,8 @@ impl Config {
             None => DeletedMode::Disabled,
             Some("") => DeletedMode::Enabled,
             Some("only") | Some("ONLY") => DeletedMode::Only,
-            _ => DeletedMode::Enabled,
+            // invalid value to not specify one of the above
+            _ => unreachable!(),
         };
         let mut exec_mode = if matches.is_present("INTERACTIVE")
             || matches.is_present("RESTORE")
