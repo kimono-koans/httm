@@ -401,14 +401,18 @@ impl Config {
             }
         };
 
-        // deduplicate pathdata if in display mode -- so ./.z* and ./.zshrc only print once
+        // deduplicate pathdata and sort if in display mode -- so ./.z* and ./.zshrc only print once
         paths = if exec_mode == ExecMode::Display && paths.len() > 1 {
             let mut unique_paths: HashMap<PathBuf, PathData> = HashMap::default();
 
             paths.into_iter().for_each(|pathdata| {
                 let _ = unique_paths.insert(pathdata.path_buf.clone(), pathdata);
             });
-            unique_paths.into_iter().map(|(_, v)| v).collect()
+
+            let mut sorted: Vec<(PathBuf, PathData)> = unique_paths.into_iter().collect();
+            sorted.par_sort_unstable_by(|a, b| a.0.cmp(&b.0));
+
+            sorted.into_iter().map(|(_, v)| v).collect()
         } else {
             paths
         };

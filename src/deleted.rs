@@ -149,7 +149,7 @@ pub fn get_deleted(
 
     let mut sorted: Vec<_> = unique_deleted_versions.into_iter().collect();
 
-    sorted.par_sort_by_key(|&(k, _)| k);
+    sorted.par_sort_unstable_by_key(|&(k, _)| k);
 
     Ok(sorted.into_iter().map(|(_, v)| v).collect())
 }

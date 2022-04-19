@@ -119,7 +119,7 @@ pub fn list_all_filesystems(
     // this is very slow but we are sure it works everywhere with zfs
     // because the zfs command tab sanely delimits its output
     let meh_performance = |shell_command: &PathBuf,
-                      zfs_command: &PathBuf|
+                           zfs_command: &PathBuf|
      -> Result<
         Vec<std::string::String>,
         Box<dyn std::error::Error + Send + Sync + 'static>,
@@ -148,7 +148,7 @@ pub fn list_all_filesystems(
     // read datasets from 'mount' if possible -- this is much faster than using zfs command
     // but I trust we've parsed it correctly less, because BSD and Linux output are different
     let good_performance = |shell_command: &PathBuf,
-                      mount_command: &PathBuf|
+                            mount_command: &PathBuf|
      -> Result<
         Vec<std::string::String>,
         Box<dyn std::error::Error + Send + Sync + 'static>,
