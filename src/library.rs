@@ -24,7 +24,7 @@ use lscolors::{LsColors, Style};
 use rayon::iter::Either;
 use rayon::prelude::*;
 use skim::prelude::*;
-use std::fs::DirEntry;
+use std::fs::{DirEntry, FileType};
 use std::{
     io::Stdout,
     io::{BufRead, Write},
@@ -63,73 +63,50 @@ pub fn for_real_is_dir<T>(entry: &T) -> bool
 where
     T: ForRealIsDir,
 {
-    let path = entry.fr_get_path();
-    match entry {
-        file_type if file_type.fr_is_dir() => true,
-        file_type if file_type.fr_is_file() => false,
-        file_type if file_type.fr_is_symlink() => {
-            match path.read_link() {
-                Ok(link) => {
-                    // read_link() will check symlink is pointing to a directory
-                    //
-                    // checking ancestors() against the read_link() will reduce/remove
-                    // infinitely recursive paths, like /usr/bin/X11 pointing to /usr/X11
-                    link.is_dir() && link.ancestors().all(|ancestor| ancestor != link)
+    let path = entry.get_path();
+    match entry.get_filetype() {
+        Ok(file_type) => match file_type {
+            file_type if file_type.is_dir() => true,
+            file_type if file_type.is_file() => false,
+            file_type if file_type.is_symlink() => {
+                match path.read_link() {
+                    Ok(link) => {
+                        // read_link() will check symlink is pointing to a directory
+                        //
+                        // checking ancestors() against the read_link() will reduce/remove
+                        // infinitely recursive paths, like /usr/bin/X11 pointing to /usr/X11
+                        link.is_dir() && link.ancestors().all(|ancestor| ancestor != link)
+                    }
+                    // we get an error? still pass the path on, as we get a good path from the dir entry
+                    Err(_) => false,
                 }
-                // we get an error? still pass the path on, as we get a good path from the dir entry
-                Err(_) => false,
             }
-        }
-        // char, block, etc devices(?) to the right
-        _ => false,
+            // char, block, etc devices(?) to the right
+            _ => false,
+        },
+        Err(_) => false,
     }
 }
 
 pub trait ForRealIsDir {
-    fn fr_is_dir(&self) -> bool;
-    fn fr_is_file(&self) -> bool;
-    fn fr_is_symlink(&self) -> bool;
-    fn fr_get_path(&self) -> PathBuf;
+    fn get_filetype(&self) -> Result<FileType, std::io::Error>;
+    fn get_path(&self) -> PathBuf;
 }
 
 impl ForRealIsDir for PathBuf {
-    fn fr_is_dir(&self) -> bool {
-        self.is_dir()
+    fn get_filetype(&self) -> Result<FileType, std::io::Error> {
+        Ok(self.metadata()?.file_type())
     }
-    fn fr_is_file(&self) -> bool {
-        self.is_file()
-    }
-    fn fr_is_symlink(&self) -> bool {
-        self.is_symlink()
-    }
-    fn fr_get_path(&self) -> PathBuf {
+    fn get_path(&self) -> PathBuf {
         self.to_path_buf()
     }
 }
 
 impl ForRealIsDir for DirEntry {
-    fn fr_is_dir(&self) -> bool {
-        if let Ok(file_type) = self.file_type() {
-            file_type.is_dir()
-        } else {
-            false
-        }
+    fn get_filetype(&self) -> Result<FileType, std::io::Error> {
+        self.file_type()
     }
-    fn fr_is_file(&self) -> bool {
-        if let Ok(file_type) = self.file_type() {
-            file_type.is_file()
-        } else {
-            false
-        }
-    }
-    fn fr_is_symlink(&self) -> bool {
-        if let Ok(file_type) = self.file_type() {
-            file_type.is_symlink()
-        } else {
-            false
-        }
-    }
-    fn fr_get_path(&self) -> PathBuf {
+    fn get_path(&self) -> PathBuf {
         self.path()
     }
 }
