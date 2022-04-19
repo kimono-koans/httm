@@ -340,7 +340,7 @@ fn enumerate_directory(
             .par_iter()
             .map(|path| path.path_buf.file_name())
             .flatten()
-            .map(|str| requested_dir.join(str))
+            .map(|file_name| requested_dir.join(file_name))
             .collect()
     } else {
         Vec::new()
