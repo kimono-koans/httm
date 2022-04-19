@@ -143,13 +143,13 @@ pub fn enumerate_directory(
                     vec![&vec_files, &vec_dirs, &pseudo_live_versions]
                         .into_par_iter()
                         .flatten()
-                        .map(|e| e.to_owned())
+                        .cloned()
                         .collect()
                 }
                 DeletedMode::Disabled => vec![&vec_files, &vec_dirs]
                     .into_par_iter()
                     .flatten()
-                    .map(|e| e.to_owned())
+                    .cloned()
                     .collect(),
             };
 
