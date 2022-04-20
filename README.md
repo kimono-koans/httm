@@ -43,7 +43,7 @@ The `httm` project contains only a few components:
 
 ## Slow your roll. `httm` is *not*...
 
-[To be clear, httm is *not* a H__ T__ T___ M______](https://images.app.goo.gl/Vc1mkNDugcNaCrZMA)
+[To be clear, httm is *not* a H__ T__ T___ M______](https://i.pinimg.com/originals/23/7f/2a/237f2ab8765663c721325366406197b7.gif)
 
 ## License
 
