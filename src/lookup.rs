@@ -119,6 +119,9 @@ pub fn get_search_dirs(
                             .filter(|(_, fs)| fs.ends_with(most_local_fs_name.as_str()))
                             .max_by_key(|(_, fs)| fs.len())
                         {
+                            if alt_replicated_mount == most_local_snap_mount {
+                                return Err(HttmError::new("httm was unable to fine an alternate replicated mount point.  Perhaps the replicated filesystem is not mounted?").into());
+                            }
                             (alt_replicated_mount.to_path_buf(), most_local_snap_mount)
                         } else {
                             (most_local_snap_mount.clone(), most_local_snap_mount)
