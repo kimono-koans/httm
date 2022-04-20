@@ -1,6 +1,8 @@
 [![asciicast](https://asciinema.org/a/488641.svg)](https://asciinema.org/a/488641)
 
-## `httm` - the dream of a CLI ZFS Time Machine is still alive with `httm`
+# `httm`
+
+## The dream of a CLI ZFS Time Machine is still alive with `httm`
 
 `httm` prints the size, date and corresponding locations of available unique versions (deduplicated by modify time and size) of files residing on ZFS snapshots, but can also be used *interactively* to view and restore such files.  `httm` might change the way you use ZFS snapshots (because ZFS isn't designed for finding for unique file versions) or the Time Machine concept (because `httm` is very fast!).
 
