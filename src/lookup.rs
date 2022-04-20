@@ -27,7 +27,7 @@ pub fn lookup_exec(
     config: &Config,
     path_data: &Vec<PathData>,
 ) -> Result<[Vec<PathData>; 2], Box<dyn std::error::Error + Send + Sync + 'static>> {
-    // create vec of backups
+    // create vec of most local dataset/user specified backups
     let snapshot_versions: Vec<PathData> = {
         path_data
             .par_iter()
@@ -55,6 +55,7 @@ pub fn lookup_exec(
         Vec::new()
     };
 
+    // combine and sort by time
     let mut all_snaps_sorted: Vec<PathData> = [snapshot_versions, alt_replicated_versions]
         .into_iter()
         .flatten()
@@ -85,7 +86,7 @@ pub fn get_search_dirs(
     config: &Config,
     file_pathdata: &PathData,
     for_alt_replicated: bool,
-) -> Result<(PathBuf, PathBuf, PathBuf), Box<dyn std::error::Error + Send + Sync + 'static>> {
+) -> Result<(PathBuf, PathBuf), Box<dyn std::error::Error + Send + Sync + 'static>> {
     // which ZFS dataset do we want to use
     let file_path = &file_pathdata.path_buf;
 
@@ -106,12 +107,12 @@ pub fn get_search_dirs(
                 });
 
                 // so we can search for the mount as key
-                let standard_fs_name = unique_mounts.get(&most_local_snap_mount.as_path()).unwrap();
+                let most_local_fs_name = unique_mounts.get(&most_local_snap_mount.as_path()).unwrap();
 
                 if let Some((alt_mount, _)) = unique_mounts
                     .clone()
                     .into_par_iter()
-                    .filter(|(_, fs)| fs.ends_with(standard_fs_name.as_str()))
+                    .filter(|(_, fs)| fs.ends_with(most_local_fs_name.as_str()))
                     .max_by_key(|(_, fs)| fs.len())
                 {
                     (alt_mount.to_path_buf(), most_local_snap_mount)
@@ -140,13 +141,13 @@ pub fn get_search_dirs(
             }
     }?;
 
-    Ok((dataset, hidden_snapshot_dir, local_path.to_path_buf()))
+    Ok((hidden_snapshot_dir, local_path.to_path_buf()))
 }
 
 fn get_versions(
-    search_dirs: (PathBuf, PathBuf, PathBuf),
+    search_dirs: (PathBuf, PathBuf),
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let (_, hidden_snapshot_dir, local_path) = search_dirs;
+    let (hidden_snapshot_dir, local_path) = search_dirs;
     // get the DirEntry for our snapshot path which will have all our possible
     // needed snapshots
     let versions = std::fs::read_dir(hidden_snapshot_dir)?

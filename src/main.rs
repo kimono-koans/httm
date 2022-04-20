@@ -494,7 +494,7 @@ fn parse_args() -> ArgMatches {
             Arg::new("REPLICATED")
                 .short('a')
                 .long("alt-replicated")
-                .help("discover replicated datasets and include their snapshots.")
+                .help("automatically discover local replicated datasets and include their snapshots as well.")
                 .conflicts_with_all(&["SNAP_POINT", "LOCAL_DIR"])
                 .display_order(6)
         )

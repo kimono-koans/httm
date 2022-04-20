@@ -58,8 +58,7 @@ pub fn get_deleted(
     path: &Path,
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // generates path for hidden .zfs snap dir, and the corresponding local path
-    let (hidden_snapshot_dir, local_path, _) =
-        get_search_dirs(config, &PathData::from(path), false)?;
+    let (hidden_snapshot_dir, local_path) = get_search_dirs(config, &PathData::from(path), false)?;
 
     let local_dir_entries: Vec<DirEntry> = std::fs::read_dir(&path)?
         .into_iter()
