@@ -101,7 +101,7 @@ pub fn list_all_filesystems(
     // read datasets from 'mount' if possible -- this is much faster than using zfs command
     // but I trust we've parsed it correctly less, because BSD and Linux output are different
     let get_filesystems_and_mountpoints = |shell_command: &PathBuf,
-                                       mount_command: &PathBuf|
+                                           mount_command: &PathBuf|
      -> Result<
         Vec<(String, String)>,
         Box<dyn std::error::Error + Send + Sync + 'static>,
@@ -142,11 +142,11 @@ pub fn list_all_filesystems(
             .map(|line| line.to_owned())
             .collect();
 
-        
         if filesystems.is_empty() || mount_points.is_empty() {
-            return Err(
-                HttmError::new("httm could not find any valid ZFS datasets on the system.").into(),
-            );
+            return Err(HttmError::new(
+                "httm could not find any valid ZFS datasets on the system.",
+            )
+            .into());
         }
 
         let mount_collection: Vec<(String, String)> = filesystems
@@ -169,9 +169,9 @@ pub fn list_all_filesystems(
             .into())
         }
     } else {
-        Err(HttmError::new(
-            "sh command not found. Make sure the command 'sh' is in your path.",
+        Err(
+            HttmError::new("sh command not found. Make sure the command 'sh' is in your path.")
+                .into(),
         )
-        .into())
     }
 }

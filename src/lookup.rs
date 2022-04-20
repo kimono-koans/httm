@@ -26,30 +26,41 @@ use std::{
 pub fn lookup_exec(
     config: &Config,
     path_data: &Vec<PathData>,
-) -> Result<[Vec<PathData>; 2], Box<dyn std::error::Error + Send + Sync + 'static>> {   
+) -> Result<[Vec<PathData>; 2], Box<dyn std::error::Error + Send + Sync + 'static>> {
     // create vec of backups
-    // let snapshot_versions: Vec<PathData> = path_data
-    //     .par_iter()
-    //     .map(|pathdata| get_versions(config, pathdata, &switch_dataset(config, pathdata, false)?))
-    //     .flatten_iter()
-    //     .flatten_iter()
-    //     .collect();
-
-    // create vec of backups
-    //
-    let snapshot_versions: Vec<PathData> = 
-    //if config.opt_alt_root {
+    let snapshot_versions: Vec<PathData> = {
         path_data
             .par_iter()
-            .map(|pathdata| get_versions(config, pathdata, &switch_dataset(config, pathdata, true)?))
+            .map(|path_data| get_search_dirs(config, path_data, false))
+            .map(|search_dirs| search_dirs.ok())
+            .flatten()
+            .map(get_versions)
             .flatten_iter()
             .flatten_iter()
-            .collect();
-    // } else {
-    //     Vec::new()
-    // };
+            .collect()
+    };
 
-    //let all_snaps: Vec<PathData> = [snapshot_versions, alt_replicated].into_iter().flatten().collect();
+    // create vec of replicated backups
+    let alt_replicated_versions: Vec<PathData> = if config.opt_alt_replicated {
+        path_data
+            .par_iter()
+            .map(|path_data| get_search_dirs(config, path_data, true))
+            .map(|search_dirs| search_dirs.ok())
+            .flatten()
+            .map(get_versions)
+            .flatten_iter()
+            .flatten_iter()
+            .collect()
+    } else {
+        Vec::new()
+    };
+
+    let mut all_snaps_sorted: Vec<PathData> = [snapshot_versions, alt_replicated_versions]
+        .into_iter()
+        .flatten()
+        .collect();
+
+    all_snaps_sorted.par_sort_unstable_by_key(|k| k.system_time);
 
     // create vec of live copies - unless user doesn't want it!
     let live_versions: Vec<PathData> = if !config.opt_no_live_vers {
@@ -60,108 +71,82 @@ pub fn lookup_exec(
 
     // check if all files (snap and live) do not exist, if this is true, then user probably messed up
     // and entered a file that never existed (that is, perhaps a wrong file name)?
-    if snapshot_versions.is_empty() && live_versions.iter().all(|i| i.is_phantom) {
+    if all_snaps_sorted.is_empty() && live_versions.iter().all(|i| i.is_phantom) {
         return Err(HttmError::new(
             "Neither a live copy, nor a snapshot copy of such a file appears to exist, so, umm, 🤷? Please try another file.",
         )
         .into());
     }
 
-    Ok([snapshot_versions, live_versions])
+    Ok([all_snaps_sorted, live_versions])
 }
 
-pub fn get_snap_point_and_local_relative_path(
+pub fn get_search_dirs(
     config: &Config,
-    path: &Path,
-    og_dataset: &Path,
-    dataset: &Path,
-) -> Result<(PathBuf, PathBuf), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    file_pathdata: &PathData,
+    for_alt_replicated: bool,
+) -> Result<(PathBuf, PathBuf, PathBuf), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    // which ZFS dataset do we want to use
+    let file_path = &file_pathdata.path_buf;
+
+    let (dataset, most_local_snap_mount) = match &config.snap_point {
+        SnapPoint::UserDefined(defined_dirs) => (
+            defined_dirs.snap_dir.to_owned(),
+            defined_dirs.snap_dir.to_owned(),
+        ),
+        SnapPoint::Native(mount_collection) => {
+            let most_local_snap_mount = get_snapshot_dataset(file_pathdata, mount_collection)?;
+
+            if for_alt_replicated {
+                let mut unique_mounts: HashMap<&Path, &String> = HashMap::default();
+
+                // reverse the order - mount as key, fs as value
+                mount_collection.iter().for_each(|(fs, mount)| {
+                    let _ = unique_mounts.insert(Path::new(mount), fs);
+                });
+
+                // so we can search for the mount as key
+                let standard_fs_name = unique_mounts.get(&most_local_snap_mount.as_path()).unwrap();
+
+                if let Some((alt_mount, _)) = unique_mounts
+                    .clone()
+                    .into_par_iter()
+                    .filter(|(_, fs)| fs.ends_with(standard_fs_name.as_str()))
+                    .max_by_key(|(_, fs)| fs.len())
+                {
+                    (alt_mount.to_path_buf(), most_local_snap_mount)
+                } else {
+                    (most_local_snap_mount.clone(), most_local_snap_mount)
+                }
+            } else {
+                (most_local_snap_mount.clone(), most_local_snap_mount)
+            }
+        }
+    };
+
     // building the snapshot path from our dataset
-    let snapshot_dir: PathBuf = [dataset, Path::new(".zfs/snapshot")].iter().collect();
+    let hidden_snapshot_dir: PathBuf = [&dataset, &PathBuf::from(".zfs/snapshot")].iter().collect();
 
     // building our local relative path by removing parent
     // directories below the remote/snap mount point
     let local_path = match &config.snap_point {
         SnapPoint::UserDefined(defined_dirs) => {
-            path
-            .strip_prefix(&defined_dirs.local_dir).map_err(|_| HttmError::new("Are you sure you're in the correct working directory?  Perhaps you need to set the LOCAL_DIR value."))
+            file_path
+                .strip_prefix(&defined_dirs.local_dir).map_err(|_| HttmError::new("Are you sure you're in the correct working directory?  Perhaps you need to set the LOCAL_DIR value."))
         }
         SnapPoint::Native(_) => {
-            let parent = path.parent().unwrap();
-            if path.ancestors().all(|dataset| dataset != parent) {
-                let mut res = Ok(path);
-                for parent in path.ancestors() {
-                    let hidden_snap_dir: PathBuf = [parent, Path::new(".zfs")].iter().collect();
-                    if hidden_snap_dir.exists() {
-                        res = path.strip_prefix(&parent).map_err(|_| HttmError::new("Are you sure you're in the correct working directory?  Perhaps you need to set the SNAP_DIR and LOCAL_DIR values."));
-                    } else {
-                        continue
-                    }
-                }
-                println!("{:?}", res);
-                res
-            } else {
-                path
-                .strip_prefix(&dataset).map_err(|_| HttmError::new("Are you sure you're in the correct working directory?  Perhaps you need to set the SNAP_DIR and LOCAL_DIR values."))   
+            file_path
+                .strip_prefix(&most_local_snap_mount).map_err(|_| HttmError::new("Are you sure you're in the correct working directory?  Perhaps you need to set the SNAP_DIR and LOCAL_DIR values."))   
             }
-
-        }
     }?;
 
-    Ok((snapshot_dir, local_path.to_path_buf()))
-}
-
-fn switch_dataset(
-    config: &Config,
-    pathdata: &PathData,
-    for_alt_root: bool,
-) -> Result<PathBuf, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    // which ZFS dataset do we want to use
-    let dataset = match &config.snap_point {
-        SnapPoint::UserDefined(defined_dirs) => defined_dirs.snap_dir.to_owned(),
-        SnapPoint::Native(mount_collection) => {
-            let standard_mount = get_snapshot_dataset(pathdata, mount_collection)?;
-            if for_alt_root {
-                
-                let mut unique_mounts: HashMap<&Path, &String> = HashMap::default();
-                
-                // reverse the order - mount as key, fs as value
-                mount_collection.into_iter().for_each(|(fs, mount)| {
-                    let _ = unique_mounts.insert(Path::new(mount), fs);
-                });
-
-                // so we can search for the mount as key
-                let standard_fs_name = if let Some(name) = unique_mounts.get(standard_mount.as_path()) {
-                    name.to_owned().to_owned()
-                } else {
-                    return Ok(standard_mount)
-                };
-
-                if let Some((alt_mount, _)) = unique_mounts.clone()
-                    .into_par_iter()
-                    .filter(|(_, fs)| fs.ends_with(standard_fs_name.as_str()))
-                    .max_by_key(|(_,fs)| fs.len()) {
-                        alt_mount.to_path_buf()
-                    } else {
-                        standard_mount
-                    }
-            } else {
-                standard_mount
-            }
-        }
-    };
-    Ok(dataset)
+    Ok((dataset, hidden_snapshot_dir, local_path.to_path_buf()))
 }
 
 fn get_versions(
-    config: &Config,
-    pathdata: &PathData,
-    dataset: &Path,
+    search_dirs: (PathBuf, PathBuf, PathBuf),
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    // generates path for hidden .zfs snap dir, and the corresponding local path
-    let (hidden_snapshot_dir, local_path) =
-        get_snap_point_and_local_relative_path(config, &pathdata.path_buf, &dataset)?;
-
+    let (_, hidden_snapshot_dir, local_path) = search_dirs;
     // get the DirEntry for our snapshot path which will have all our possible
     // needed snapshots
     let versions = std::fs::read_dir(hidden_snapshot_dir)?
@@ -180,11 +165,7 @@ fn get_versions(
         let _ = unique_versions.insert((pathdata.system_time, pathdata.size), pathdata);
     });
 
-    let mut sorted: Vec<_> = unique_versions.into_iter().collect();
-
-    sorted.par_sort_unstable_by_key(|&(k, _)| k);
-
-    Ok(sorted.into_iter().map(|(_, v)| v).collect())
+    Ok(unique_versions.into_iter().map(|(_, v)| v).collect())
 }
 
 pub fn get_snapshot_dataset(

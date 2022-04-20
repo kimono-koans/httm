@@ -171,7 +171,7 @@ pub struct UserDefinedDirs {
 #[derive(Debug, Clone)]
 pub struct Config {
     paths: Vec<PathData>,
-    opt_alt_root: bool,
+    opt_alt_replicated: bool,
     opt_raw: bool,
     opt_zeros: bool,
     opt_no_pretty: bool,
@@ -191,9 +191,8 @@ impl Config {
     ) -> Result<Config, Box<dyn std::error::Error + Send + Sync + 'static>> {
         if matches.is_present("ZSH_HOT_KEYS") {
             install_hot_keys()?
-
         }
-        let opt_alt_root = matches.is_present("REPLICATED");
+        let opt_alt_replicated = matches.is_present("REPLICATED");
         let opt_zeros = matches.is_present("ZEROS");
         let opt_raw = matches.is_present("RAW");
         let opt_no_pretty = matches.is_present("NOT_SO_PRETTY");
@@ -425,7 +424,7 @@ impl Config {
 
         let config = Config {
             paths,
-            opt_alt_root,
+            opt_alt_replicated,
             opt_raw,
             opt_zeros,
             opt_no_pretty,
@@ -494,7 +493,7 @@ fn parse_args() -> ArgMatches {
         .arg(
             Arg::new("REPLICATED")
                 .short('a')
-                .long("alt-root")
+                .long("alt-replicated")
                 .help("discover replicated datasets and include their snapshots.")
                 .conflicts_with_all(&["SNAP_POINT", "LOCAL_DIR"])
                 .display_order(6)
@@ -506,7 +505,6 @@ fn parse_args() -> ArgMatches {
                 .help("recurse into selected directory to find more files. Only available in interactive and deleted file modes.")
                 .display_order(7)
         )
-        
         .arg(
             Arg::new("SNAP_POINT")
                 .long("snap-point")

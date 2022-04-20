@@ -16,8 +16,8 @@
 // that was distributed with this source code.
 
 use crate::library::enumerate_directory;
-use crate::lookup::{get_snap_point_and_local_relative_path, get_snapshot_dataset};
-use crate::{Config, PathData, SnapPoint};
+use crate::lookup::get_search_dirs;
+use crate::{Config, PathData};
 
 use fxhash::FxHashMap as HashMap;
 use rayon::prelude::*;
@@ -57,17 +57,9 @@ pub fn get_deleted(
     config: &Config,
     path: &Path,
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    // which ZFS dataset do we want to use
-    let dataset = match &config.snap_point {
-        SnapPoint::UserDefined(defined_dirs) => defined_dirs.snap_dir.to_owned(),
-        SnapPoint::Native(mount_collection) => {
-            get_snapshot_dataset(&PathData::from(path), mount_collection)?
-        }
-    };
-
     // generates path for hidden .zfs snap dir, and the corresponding local path
-    let (hidden_snapshot_dir, local_path) =
-        get_snap_point_and_local_relative_path(config, path, &dataset)?;
+    let (hidden_snapshot_dir, local_path, _) =
+        get_search_dirs(config, &PathData::from(path), false)?;
 
     let local_dir_entries: Vec<DirEntry> = std::fs::read_dir(&path)?
         .into_iter()
