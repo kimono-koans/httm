@@ -107,15 +107,16 @@ pub fn get_search_dirs(
                 });
 
                 // so we can search for the mount as key
-                let most_local_fs_name = unique_mounts.get(&most_local_snap_mount.as_path()).unwrap();
+                let most_local_fs_name =
+                    unique_mounts.get(&most_local_snap_mount.as_path()).unwrap();
 
-                if let Some((alt_mount, _)) = unique_mounts
+                if let Some((alt_replicated_mount, _)) = unique_mounts
                     .clone()
                     .into_par_iter()
                     .filter(|(_, fs)| fs.ends_with(most_local_fs_name.as_str()))
                     .max_by_key(|(_, fs)| fs.len())
                 {
-                    (alt_mount.to_path_buf(), most_local_snap_mount)
+                    (alt_replicated_mount.to_path_buf(), most_local_snap_mount)
                 } else {
                     (most_local_snap_mount.clone(), most_local_snap_mount)
                 }
