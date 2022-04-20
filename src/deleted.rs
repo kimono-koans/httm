@@ -57,8 +57,47 @@ pub fn get_deleted(
     config: &Config,
     path: &Path,
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    let most_local_vec_deleted = get_deleted_per_dataset(config, path, false)?;
+
+    let alt_replicated_deleted = if config.opt_alt_replicated {
+        get_deleted_per_dataset(config, path, true)?
+    } else {
+        Vec::new()
+    };
+
+    let combined_deleted: Vec<PathData> = [most_local_vec_deleted, alt_replicated_deleted]
+        .into_iter()
+        .flatten()
+        .collect();
+
+    let unique_deleted = if config.opt_alt_replicated {
+        let mut unique_deleted: HashMap<&SystemTime, &PathData> = HashMap::default();
+
+        // reverse the order - mount as key, fs as value
+        combined_deleted.iter().for_each(|pathdata| {
+            let _ = unique_deleted.insert(&pathdata.system_time, pathdata);
+        });
+
+        unique_deleted
+            .into_iter()
+            .map(|(_, v)| v)
+            .cloned()
+            .collect()
+    } else {
+        combined_deleted
+    };
+
+    Ok(unique_deleted)
+}
+
+fn get_deleted_per_dataset(
+    config: &Config,
+    path: &Path,
+    for_alt_replicated: bool,
+) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // generates path for hidden .zfs snap dir, and the corresponding local path
-    let (hidden_snapshot_dir, local_path) = get_search_dirs(config, &PathData::from(path), false)?;
+    let (hidden_snapshot_dir, local_path) =
+        get_search_dirs(config, &PathData::from(path), for_alt_replicated)?;
 
     let local_dir_entries: Vec<DirEntry> = std::fs::read_dir(&path)?
         .into_iter()
