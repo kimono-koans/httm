@@ -1,6 +1,6 @@
 [![asciicast](https://asciinema.org/a/488641.svg)](https://asciinema.org/a/488641)
 
-# zsys is *le sigh*, but the dream of a CLI ZFS Time Machine is still alive with `httm`
+## `httm` - the dream of a CLI ZFS Time Machine is still alive with `httm`
 
 `httm` prints the size, date and corresponding locations of available unique versions (deduplicated by modify time and size) of files residing on ZFS snapshots, but can also be used *interactively* to view and restore such files.  `httm` might change the way you use ZFS snapshots (because ZFS isn't designed for finding for unique file versions) or the Time Machine concept (because `httm` is very fast!).
 
@@ -40,6 +40,10 @@ The `httm` project contains only a few components:
     ```bash
     cp ./httm/httm.1 /usr/local/share/man/man1/
     ```
+
+## Slow your roll. `httm` is *not*...
+
+[To be clear, httm is *not* a H__ T__ T___ M______](https://images.app.goo.gl/Vc1mkNDugcNaCrZMA)
 
 ## License
 

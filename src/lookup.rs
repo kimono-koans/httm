@@ -36,6 +36,7 @@ pub fn lookup_exec(
     //     .collect();
 
     // create vec of backups
+    //
     let snapshot_versions: Vec<PathData> = 
     //if config.opt_alt_root {
         path_data
@@ -67,6 +68,47 @@ pub fn lookup_exec(
     }
 
     Ok([snapshot_versions, live_versions])
+}
+
+pub fn get_snap_point_and_local_relative_path(
+    config: &Config,
+    path: &Path,
+    og_dataset: &Path,
+    dataset: &Path,
+) -> Result<(PathBuf, PathBuf), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    // building the snapshot path from our dataset
+    let snapshot_dir: PathBuf = [dataset, Path::new(".zfs/snapshot")].iter().collect();
+
+    // building our local relative path by removing parent
+    // directories below the remote/snap mount point
+    let local_path = match &config.snap_point {
+        SnapPoint::UserDefined(defined_dirs) => {
+            path
+            .strip_prefix(&defined_dirs.local_dir).map_err(|_| HttmError::new("Are you sure you're in the correct working directory?  Perhaps you need to set the LOCAL_DIR value."))
+        }
+        SnapPoint::Native(_) => {
+            let parent = path.parent().unwrap();
+            if path.ancestors().all(|dataset| dataset != parent) {
+                let mut res = Ok(path);
+                for parent in path.ancestors() {
+                    let hidden_snap_dir: PathBuf = [parent, Path::new(".zfs")].iter().collect();
+                    if hidden_snap_dir.exists() {
+                        res = path.strip_prefix(&parent).map_err(|_| HttmError::new("Are you sure you're in the correct working directory?  Perhaps you need to set the SNAP_DIR and LOCAL_DIR values."));
+                    } else {
+                        continue
+                    }
+                }
+                println!("{:?}", res);
+                res
+            } else {
+                path
+                .strip_prefix(&dataset).map_err(|_| HttmError::new("Are you sure you're in the correct working directory?  Perhaps you need to set the SNAP_DIR and LOCAL_DIR values."))   
+            }
+
+        }
+    }?;
+
+    Ok((snapshot_dir, local_path.to_path_buf()))
 }
 
 fn switch_dataset(
@@ -182,28 +224,4 @@ pub fn get_snapshot_dataset(
         };
 
     Ok(PathBuf::from(best_potential_mountpoint))
-}
-
-pub fn get_snap_point_and_local_relative_path(
-    config: &Config,
-    path: &Path,
-    dataset: &Path,
-) -> Result<(PathBuf, PathBuf), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    // building the snapshot path from our dataset
-    let snapshot_dir: PathBuf = [dataset, Path::new(".zfs/snapshot")].iter().collect();
-
-    // building our local relative path by removing parent
-    // directories below the remote/snap mount point
-    let local_path = match &config.snap_point {
-        SnapPoint::UserDefined(defined_dirs) => {
-            path
-            .strip_prefix(&defined_dirs.local_dir).map_err(|_| HttmError::new("Are you sure you're in the correct working directory?  Perhaps you need to set the LOCAL_DIR value."))
-        }
-        SnapPoint::Native(_) => {
-            path
-            .strip_prefix(&dataset).map_err(|_| HttmError::new("Are you sure you're in the correct working directory?  Perhaps you need to set the SNAP_DIR and LOCAL_DIR values."))    
-        }
-    }?;
-
-    Ok((snapshot_dir, local_path.to_path_buf()))
 }
