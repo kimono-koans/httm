@@ -41,9 +41,9 @@ The `httm` project contains only a few components:
     cp ./httm/httm.1 /usr/local/share/man/man1/
     ```
 
-## Slow your roll. `httm` is *not*...
+## I know what you're thinking, but slow your roll.
 
-![To be clear, httm is *not* a H__ T__ T___ M______](https://i.pinimg.com/originals/23/7f/2a/237f2ab8765663c721325366406197b7.gif)
+![To be clear, httm is *not*...](https://i.pinimg.com/originals/23/7f/2a/237f2ab8765663c721325366406197b7.gif)
 
 ## License
 
