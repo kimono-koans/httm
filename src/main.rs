@@ -192,7 +192,6 @@ impl Config {
         if matches.is_present("ZSH_HOT_KEYS") {
             install_hot_keys()?
         }
-        let opt_alt_replicated = matches.is_present("REPLICATED");
         let opt_zeros = matches.is_present("ZEROS");
         let opt_raw = matches.is_present("RAW");
         let opt_no_pretty = matches.is_present("NOT_SO_PRETTY");
@@ -257,7 +256,7 @@ impl Config {
 
         // here we determine how we will obtain our snap point -- has the user defined it
         // or will we find it by searching the native filesystem?
-        let snap_point = if let Some(raw_value) = raw_snap_var {
+        let (opt_alt_replicated, snap_point) = if let Some(raw_value) = raw_snap_var {
             // user defined dir exists?: check that path contains the hidden snapshot directory
             let path = PathBuf::from(raw_value);
             let hidden_snap_dir = path.join(".zfs").join("snapshot");
@@ -295,13 +294,19 @@ impl Config {
                 pwd.clone()
             };
 
-            SnapPoint::UserDefined(UserDefinedDirs {
-                snap_dir,
-                local_dir,
-            })
+            (
+                false,
+                SnapPoint::UserDefined(UserDefinedDirs {
+                    snap_dir,
+                    local_dir,
+                }),
+            )
         } else {
             let mount_collection: Vec<(String, String)> = list_all_filesystems()?;
-            SnapPoint::Native(mount_collection)
+            (
+                matches.is_present("REPLICATED"),
+                SnapPoint::Native(mount_collection),
+            )
         };
 
         // paths are immediately converted to our PathData struct
