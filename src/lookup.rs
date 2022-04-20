@@ -165,7 +165,11 @@ fn get_versions(
         let _ = unique_versions.insert((pathdata.system_time, pathdata.size), pathdata);
     });
 
-    Ok(unique_versions.into_iter().map(|(_, v)| v).collect())
+    let mut sorted: Vec<PathData> = unique_versions.into_iter().map(|(_, v)| v).collect();
+
+    sorted.par_sort_unstable_by_key(|k| k.system_time);
+
+    Ok(sorted)
 }
 
 pub fn get_snapshot_dataset(
