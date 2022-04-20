@@ -9,7 +9,8 @@ The dream of a CLI ZFS Time Machine is still alive with `httm`.
 `httm` boasts an array of seductive features, like:
 
 * Search for and recursively list all deleted files! Ooooooooo!
-* Select non-immediate datasets (on a different pool, or remote).
+* List file snapshots from *all* local pools (`httm` automatically detects local snapshots as well as local replicated snapshots)!
+* List file snapshots from remote backup pools (you may designate replicated remote snapshot directories).
 * For use with even `rsync`-ed non-ZFS local datasets (like ext4, APFS, or NTFS), not just ZFS.
 * Specify multiple files for lookup on different datasets
 * 3 native interactive modes: lookup, select and restore
