@@ -48,6 +48,8 @@ The `httm` project contains only a few components:
 
 ![To be clear, httm is *not*...](https://i.pinimg.com/originals/23/7f/2a/237f2ab8765663c721325366406197b7.gif)
 
+To be clear, `httm` is *not* a H__ T__ T___ M______!
+
 ## License
 
 httm is licensed under the MPL 2.0 License - see the LICENSE file for more details.
