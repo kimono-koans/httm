@@ -28,23 +28,27 @@ pub fn lookup_exec(
     path_data: &Vec<PathData>,
 ) -> Result<[Vec<PathData>; 2], Box<dyn std::error::Error + Send + Sync + 'static>> {   
     // create vec of backups
-    let mut snapshot_versions: Vec<PathData> = path_data
-        .par_iter()
-        .map(|pathdata| get_versions(config, pathdata, &which_dataset(config, pathdata, false)?))
-        .flatten_iter()
-        .flatten_iter()
-        .collect();
+    // let snapshot_versions: Vec<PathData> = path_data
+    //     .par_iter()
+    //     .map(|pathdata| get_versions(config, pathdata, &switch_dataset(config, pathdata, false)?))
+    //     .flatten_iter()
+    //     .flatten_iter()
+    //     .collect();
 
     // create vec of backups
-    if config.opt_alt_root {
-        let res = path_data
+    let snapshot_versions: Vec<PathData> = 
+    //if config.opt_alt_root {
+        path_data
             .par_iter()
-            .map(|pathdata| get_versions(config, pathdata, &which_dataset(config, pathdata, true)?))
+            .map(|pathdata| get_versions(config, pathdata, &switch_dataset(config, pathdata, true)?))
             .flatten_iter()
             .flatten_iter()
             .collect();
-        snapshot_versions = [snapshot_versions, res].into_iter().flatten().collect();
-    }
+    // } else {
+    //     Vec::new()
+    // };
+
+    //let all_snaps: Vec<PathData> = [snapshot_versions, alt_replicated].into_iter().flatten().collect();
 
     // create vec of live copies - unless user doesn't want it!
     let live_versions: Vec<PathData> = if !config.opt_no_live_vers {
@@ -65,7 +69,7 @@ pub fn lookup_exec(
     Ok([snapshot_versions, live_versions])
 }
 
-fn which_dataset(
+fn switch_dataset(
     config: &Config,
     pathdata: &PathData,
     for_alt_root: bool,
@@ -86,21 +90,19 @@ fn which_dataset(
 
                 // so we can search for the mount as key
                 let standard_fs_name = if let Some(name) = unique_mounts.get(standard_mount.as_path()) {
-                    name
+                    name.to_owned().to_owned()
                 } else {
                     return Ok(standard_mount)
                 };
 
-                if let Some((mount, _)) = unique_mounts.clone()
+                if let Some((alt_mount, _)) = unique_mounts.clone()
                     .into_par_iter()
-                    .filter(|(_, fs)| fs != standard_fs_name )
                     .filter(|(_, fs)| fs.ends_with(standard_fs_name.as_str()))
-                    .max_by_key(|(_, fs)| fs.len()) {
-                        PathBuf::from(mount)
+                    .max_by_key(|(_,fs)| fs.len()) {
+                        alt_mount.to_path_buf()
                     } else {
-                        return Ok(standard_mount)
+                        standard_mount
                     }
-
             } else {
                 standard_mount
             }

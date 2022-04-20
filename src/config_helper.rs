@@ -120,7 +120,7 @@ pub fn list_all_filesystems(
         let (first, the_rest): (Vec<&str>, Vec<&str>) = command_output
             .par_lines()
             .filter(|line| line.contains("zfs"))
-            .filter_map(|line| line.split_once(&"on "))
+            .filter_map(|line| line.split_once(&" on "))
             .collect();
 
         let filesystems: Vec<String> = first.into_par_iter().map(|str| str.to_owned()).collect();
