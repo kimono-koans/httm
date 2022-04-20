@@ -97,43 +97,13 @@ pub fn install_hot_keys() -> Result<(), Box<dyn std::error::Error + Send + Sync 
 }
 
 pub fn list_all_filesystems(
-) -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    // build zfs query to execute - in case the fast paths fail
-    // this is very slow but we are sure it works everywhere with zfs
-    // because the zfs command tab sanely delimits its output
-    let meh_performance = |shell_command: &PathBuf,
-                           zfs_command: &PathBuf|
-     -> Result<
-        Vec<std::string::String>,
-        Box<dyn std::error::Error + Send + Sync + 'static>,
-    > {
-        let command_output = std::str::from_utf8(
-            &ExecProcess::new(&shell_command)
-                .arg("-c")
-                .arg(zfs_command)
-                .arg("list -H -t filesystem -o mountpoint,mounted")
-                .output()?
-                .stdout,
-        )?
-        .to_owned();
-
-        let res = command_output
-            .par_lines()
-            .filter(|line| line.contains("yes"))
-            .filter_map(|line| line.split('\t').next())
-            // sanity check: does the filesystem exist? if not, filter it
-            .filter(|line| Path::new(line).exists())
-            .map(|line| line.to_owned())
-            .collect::<Vec<String>>();
-        Ok(res)
-    };
-
+) -> Result<Vec<(String, String)>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // read datasets from 'mount' if possible -- this is much faster than using zfs command
     // but I trust we've parsed it correctly less, because BSD and Linux output are different
-    let good_performance = |shell_command: &PathBuf,
-                            mount_command: &PathBuf|
+    let get_filesystems_and_mountpoints = |shell_command: &PathBuf,
+                                       mount_command: &PathBuf|
      -> Result<
-        Vec<std::string::String>,
+        Vec<(String, String)>,
         Box<dyn std::error::Error + Send + Sync + 'static>,
     > {
         let command_output = std::str::from_utf8(
@@ -147,89 +117,61 @@ pub fn list_all_filesystems(
         .to_owned();
 
         // parse "mount -t zfs" for filesystems
-        let res: Vec<String> = command_output
+        let (first, the_rest): (Vec<&str>, Vec<&str>) = command_output
             .par_lines()
             .filter(|line| line.contains("zfs"))
-            .map(|line| line.split_once(&"on "))
-            .flatten()
-            .map(|(_,last)| last)
-            .map(|line|
+            .filter_map(|line| line.split_once(&"on "))
+            .collect();
+
+        let filesystems: Vec<String> = first.into_par_iter().map(|str| str.to_owned()).collect();
+
+        let mount_points: Vec<String> = the_rest
+            .into_par_iter()
+            .filter_map(|the_rest|
                 // GNU Linux mount output
-                if line.contains("type") {
-                    line.split_once(&" type")
+                if the_rest.contains("type") {
+                    the_rest.split_once(&" type")
                 // Busybox and BSD mount output
                 } else {
-                    line.split_once(&" (")
-                })
-            .flatten()
-            .map(|(first,_)| first)
+                    the_rest.split_once(&" (")
+                }
+            )
             // sanity check: does the filesystem exist? if not, filter it
+            .map(|(first, _)| first)
             .filter(|line| Path::new(line).exists())
             .map(|line| line.to_owned())
             .collect();
 
-        Ok(res)
-    };
-
-    // read /proc/mounts -- fastest but only works on Linux, least certain the parsing is correct
-    // as Linux dumps escaped characters into filesystem strings, and space delimits
-    let best_performance = || -> Result<Vec<std::string::String>, Box<dyn std::error::Error + Send + Sync + 'static>> {
-        let mut file = OpenOptions::new()
-            .read(true)
-            .open(Path::new("/proc/mounts"))?;
-        let mut buffer = String::new();
-        let _ = &file.read_to_string(&mut buffer)?;
-
-        let res = buffer
-            .par_lines()
-            .filter(|line| line.contains("zfs"))
-            .filter_map(|line| line.split(' ').nth(1))
-            .map(|line| line.replace(r#"\040"#, " "))
-            // sanity check: does the filesystem exist? if not, filter it
-            .filter(|line| Path::new(line).exists())
-            .collect::<Vec<String>>();
-
-        Ok(res)
-    };
-
-    // not the end of the world if we can't use the fast path.  only really useful for quick non-interactive runs
-    // as we store the values in the Config.  Therefore, we want to fail and fallback if there is some sign that parsed
-    // input is not current
-    if cfg!(target_os = "linux") {
-        if let Ok(best) = best_performance() {
-            if !best.is_empty() {
-                return Ok(best);
-            }
+        
+        if filesystems.is_empty() || mount_points.is_empty() {
+            return Err(
+                HttmError::new("httm could not find any valid ZFS datasets on the system.").into(),
+            );
         }
-    }
+
+        let mount_collection: Vec<(String, String)> = filesystems
+            .iter()
+            .cloned()
+            .zip(mount_points.iter().cloned())
+            .collect();
+
+        Ok(mount_collection)
+    };
 
     // do we have the necessary commands for search if user has not defined a snap point?
     if let Ok(shell_command) = which("sh") {
         if let Ok(mount_command) = which("mount") {
-            if let Ok(good) = good_performance(&shell_command, &mount_command) {
-                if !good.is_empty() {
-                    return Ok(good);
-                }
-            }
+            get_filesystems_and_mountpoints(&shell_command, &mount_command)
         } else {
-            return Err(HttmError::new(
+            Err(HttmError::new(
                 "mount command not found. Make sure the command 'mount' is in your path.",
             )
-            .into());
-        }
-
-        if let Ok(zfs_command) = which("zfs") {
-            if let Ok(meh) = meh_performance(&shell_command, &zfs_command) {
-                if !meh.is_empty() {
-                    return Ok(meh);
-                }
-            }
+            .into())
         }
     } else {
-        return Err(HttmError::new(
+        Err(HttmError::new(
             "sh command not found. Make sure the command 'sh' is in your path.",
         )
-        .into());
+        .into())
     }
-    Err(HttmError::new("httm could not find any valid ZFS datasets on the system.").into())
 }

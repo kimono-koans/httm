@@ -245,6 +245,7 @@ fn preview_view(
     // build a config just for previews
     let gen_config = Config {
         paths: vec![PathData::from(path)],
+        opt_alt_root: config.opt_alt_root.to_owned(),
         opt_raw: false,
         opt_zeros: false,
         opt_no_pretty: false,

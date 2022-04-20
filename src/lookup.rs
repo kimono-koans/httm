@@ -26,14 +26,25 @@ use std::{
 pub fn lookup_exec(
     config: &Config,
     path_data: &Vec<PathData>,
-) -> Result<[Vec<PathData>; 2], Box<dyn std::error::Error + Send + Sync + 'static>> {
+) -> Result<[Vec<PathData>; 2], Box<dyn std::error::Error + Send + Sync + 'static>> {   
     // create vec of backups
-    let snapshot_versions: Vec<PathData> = path_data
+    let mut snapshot_versions: Vec<PathData> = path_data
         .par_iter()
-        .map(|pathdata| get_versions(config, pathdata))
+        .map(|pathdata| get_versions(config, pathdata, &which_dataset(config, pathdata, false)?))
         .flatten_iter()
         .flatten_iter()
         .collect();
+
+    // create vec of backups
+    if config.opt_alt_root {
+        let res = path_data
+            .par_iter()
+            .map(|pathdata| get_versions(config, pathdata, &which_dataset(config, pathdata, true)?))
+            .flatten_iter()
+            .flatten_iter()
+            .collect();
+        snapshot_versions = [snapshot_versions, res].into_iter().flatten().collect();
+    }
 
     // create vec of live copies - unless user doesn't want it!
     let live_versions: Vec<PathData> = if !config.opt_no_live_vers {
@@ -54,18 +65,55 @@ pub fn lookup_exec(
     Ok([snapshot_versions, live_versions])
 }
 
-fn get_versions(
+fn which_dataset(
     config: &Config,
     pathdata: &PathData,
-) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    for_alt_root: bool,
+) -> Result<PathBuf, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // which ZFS dataset do we want to use
     let dataset = match &config.snap_point {
         SnapPoint::UserDefined(defined_dirs) => defined_dirs.snap_dir.to_owned(),
-        SnapPoint::Native(all_zfs_filesystems) => {
-            get_snapshot_dataset(pathdata, all_zfs_filesystems)?
+        SnapPoint::Native(mount_collection) => {
+            let standard_mount = get_snapshot_dataset(pathdata, mount_collection)?;
+            if for_alt_root {
+                
+                let mut unique_mounts: HashMap<&Path, &String> = HashMap::default();
+                
+                // reverse the order - mount as key, fs as value
+                mount_collection.into_iter().for_each(|(fs, mount)| {
+                    let _ = unique_mounts.insert(Path::new(mount), fs);
+                });
+
+                // so we can search for the mount as key
+                let standard_fs_name = if let Some(name) = unique_mounts.get(standard_mount.as_path()) {
+                    name
+                } else {
+                    return Ok(standard_mount)
+                };
+
+                if let Some((mount, _)) = unique_mounts.clone()
+                    .into_par_iter()
+                    .filter(|(_, fs)| fs != standard_fs_name )
+                    .filter(|(_, fs)| fs.ends_with(standard_fs_name.as_str()))
+                    .max_by_key(|(_, fs)| fs.len()) {
+                        PathBuf::from(mount)
+                    } else {
+                        return Ok(standard_mount)
+                    }
+
+            } else {
+                standard_mount
+            }
         }
     };
+    Ok(dataset)
+}
 
+fn get_versions(
+    config: &Config,
+    pathdata: &PathData,
+    dataset: &Path,
+) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // generates path for hidden .zfs snap dir, and the corresponding local path
     let (hidden_snapshot_dir, local_path) =
         get_snap_point_and_local_relative_path(config, &pathdata.path_buf, &dataset)?;
@@ -97,7 +145,7 @@ fn get_versions(
 
 pub fn get_snapshot_dataset(
     pathdata: &PathData,
-    all_zfs_filesystems: &[String],
+    mount_collection: &Vec<(String, String)>,
 ) -> Result<PathBuf, Box<dyn std::error::Error + Send + Sync + 'static>> {
     let file_path = &pathdata.path_buf;
 
@@ -106,8 +154,9 @@ pub fn get_snapshot_dataset(
     let parent_folder = file_path.parent().unwrap_or_else(|| Path::new("/"));
 
     // prune away most datasets by filtering - parent folder of file must contain relevant dataset
-    let potential_mountpoints: Vec<&String> = all_zfs_filesystems
+    let potential_mountpoints: Vec<&String> = mount_collection
         .into_par_iter()
+        .map(|(_, mount)| mount)
         .filter(|line| parent_folder.starts_with(line))
         .collect();
 
