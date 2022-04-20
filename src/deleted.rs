@@ -57,18 +57,17 @@ pub fn get_deleted(
     config: &Config,
     path: &Path,
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let most_local_vec_deleted = get_deleted_per_dataset(config, path, false)?;
+    let combined_deleted: Vec<PathData> = if config.opt_alt_replicated {
+        let most_local_vec_deleted = get_deleted_per_dataset(config, path, false)?;
+        let alt_replicated_deleted = get_deleted_per_dataset(config, path, true)?;
 
-    let alt_replicated_deleted = if config.opt_alt_replicated {
-        get_deleted_per_dataset(config, path, true)?
+        [most_local_vec_deleted, alt_replicated_deleted]
+            .into_iter()
+            .flatten()
+            .collect()
     } else {
-        Vec::new()
+        get_deleted_per_dataset(config, path, false)?
     };
-
-    let combined_deleted: Vec<PathData> = [most_local_vec_deleted, alt_replicated_deleted]
-        .into_iter()
-        .flatten()
-        .collect();
 
     let unique_deleted = if config.opt_alt_replicated {
         let mut unique_deleted: HashMap<&SystemTime, &PathData> = HashMap::default();

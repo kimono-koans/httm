@@ -27,39 +27,45 @@ pub fn lookup_exec(
     config: &Config,
     path_data: &Vec<PathData>,
 ) -> Result<[Vec<PathData>; 2], Box<dyn std::error::Error + Send + Sync + 'static>> {
-    // create vec of most local dataset/user specified backups
-    let snapshot_versions: Vec<PathData> = {
-        path_data
+    // combine and sort by time
+    let all_snaps: Vec<PathData> = if config.opt_alt_replicated {
+        // create vec of all local and replicated backups
+        let most_local_snaps: Vec<PathData> = path_data
             .par_iter()
-            .map(|path_data| get_search_dirs(config, path_data, false))
+            .map(|path_data| get_search_dirs(config, path_data, !config.opt_alt_replicated))
             .map(|search_dirs| search_dirs.ok())
             .flatten()
             .map(get_versions)
             .flatten_iter()
             .flatten_iter()
-            .collect()
-    };
+            .collect();
 
-    // create vec of replicated backups
-    let alt_replicated_versions: Vec<PathData> = if config.opt_alt_replicated {
-        path_data
+        let alt_replicated_snaps: Vec<PathData> = path_data
             .par_iter()
-            .map(|path_data| get_search_dirs(config, path_data, true))
+            .map(|path_data| get_search_dirs(config, path_data, config.opt_alt_replicated))
             .map(|search_dirs| search_dirs.ok())
             .flatten()
             .map(get_versions)
             .flatten_iter()
             .flatten_iter()
+            .collect();
+
+        [alt_replicated_snaps, most_local_snaps]
+            .into_iter()
+            .flatten()
             .collect()
     } else {
-        Vec::new()
+        // create vec of most local dataset/user specified backups
+        path_data
+            .par_iter()
+            .map(|path_data| get_search_dirs(config, path_data, config.opt_alt_replicated))
+            .map(|search_dirs| search_dirs.ok())
+            .flatten()
+            .map(get_versions)
+            .flatten_iter()
+            .flatten_iter()
+            .collect()
     };
-
-    // combine and sort by time
-    let all_snaps: Vec<PathData> = [alt_replicated_versions, snapshot_versions]
-        .into_iter()
-        .flatten()
-        .collect();
 
     // create vec of live copies - unless user doesn't want it!
     let live_versions: Vec<PathData> = if !config.opt_no_live_vers {
