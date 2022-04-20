@@ -120,7 +120,7 @@ pub fn get_search_dirs(
                             .max_by_key(|(_, fs)| fs.len())
                         {
                             if alt_replicated_mount == most_local_snap_mount {
-                                return Err(HttmError::new("httm was unable to fine an alternate replicated mount point.  Perhaps the replicated filesystem is not mounted?").into());
+                                return Err(HttmError::new("httm was unable to detect an alternate replicated mount point.  Perhaps the replicated filesystem is not mounted?").into());
                             }
                             (alt_replicated_mount.to_path_buf(), most_local_snap_mount)
                         } else {

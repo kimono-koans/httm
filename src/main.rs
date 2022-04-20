@@ -301,7 +301,6 @@ impl Config {
             })
         } else {
             let mount_collection: Vec<(String, String)> = list_all_filesystems()?;
-
             SnapPoint::Native(mount_collection)
         };
 
