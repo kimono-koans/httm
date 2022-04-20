@@ -56,12 +56,10 @@ pub fn lookup_exec(
     };
 
     // combine and sort by time
-    let mut all_snaps_sorted: Vec<PathData> = [snapshot_versions, alt_replicated_versions]
+    let all_snaps: Vec<PathData> = [alt_replicated_versions, snapshot_versions]
         .into_iter()
         .flatten()
         .collect();
-
-    all_snaps_sorted.par_sort_unstable_by_key(|k| k.system_time);
 
     // create vec of live copies - unless user doesn't want it!
     let live_versions: Vec<PathData> = if !config.opt_no_live_vers {
@@ -72,14 +70,14 @@ pub fn lookup_exec(
 
     // check if all files (snap and live) do not exist, if this is true, then user probably messed up
     // and entered a file that never existed (that is, perhaps a wrong file name)?
-    if all_snaps_sorted.is_empty() && live_versions.iter().all(|i| i.is_phantom) {
+    if all_snaps.is_empty() && live_versions.iter().all(|i| i.is_phantom) {
         return Err(HttmError::new(
             "Neither a live copy, nor a snapshot copy of such a file appears to exist, so, umm, 🤷? Please try another file.",
         )
         .into());
     }
 
-    Ok([all_snaps_sorted, live_versions])
+    Ok([all_snaps, live_versions])
 }
 
 pub fn get_search_dirs(
