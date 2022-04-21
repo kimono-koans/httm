@@ -34,11 +34,13 @@ The `httm` project contains only a few components:
     cargo install --path ./httm/
     ```
 Right now, you will need to use a Unix-ish-y Rust-supported platform to build and install (that is: Linux, Solaris/illumos, the BSDs, MacOS).  Note: the platform need not support ZFS.  There is no fundamental reason a non-interactive Windows version could not be built, as it once did build, but Windows platform support is not a priority for me, a non-Windows user.  Contributions from Windows users are, of course, welcome.
+
 2. The optional `zsh` hot-key bindings: Use `ESC+s` to select snapshots filenames to be dropped to your command line (for instance after the `cat` command), or use `ESC+m` to browse for all of a file's snapshots. After you install the `httm` binary -- to copy the hot key script to your home directory, and source that script within your zshrc:
 
     ```bash
     httm --install-zsh-hot-keys
     ```
+
 3. The optional `man` page: `cargo` has no native facilities for man page installation (though it may in the future!).  You can use `manpath` to see the various directories your system uses and decide which directory works best for you.  To install, just copy it to a directory in your `man` path, like so:
 
     ```bash
