@@ -148,13 +148,17 @@ pub fn enumerate_directory(
                         }
                     } else {
                         // these are dummy placeholder values created from file on snapshots
-                        let pseudo_live_versions: Vec<PathData> = vec_deleted
-                            .par_iter()
-                            .map(|path| path.path_buf.file_name())
-                            .flatten()
-                            .map(|file_name| requested_dir.join(file_name))
-                            .map(|path| PathData::from(path.as_path()))
-                            .collect();
+                        let pseudo_live_versions: Vec<PathData> = if !config.opt_no_live_vers {
+                            vec_deleted
+                                .par_iter()
+                                .map(|path| path.path_buf.file_name())
+                                .flatten()
+                                .map(|file_name| requested_dir.join(file_name))
+                                .map(|path| PathData::from(path.as_path()))
+                                .collect()
+                        } else {
+                            Vec::new()
+                        };
 
                         let output_buf =
                             display_exec(&config, [vec_deleted, pseudo_live_versions])?;

@@ -52,7 +52,7 @@ httm ~/.histfile
 ```
 Print all files on snapshots deleted from your home directory, recursive, newline delimited, piped to a `deleted-files.txt` file: 
 ```bash
-httm -d -n -R ~ > deleted-files.txt
+httm -d -n -R --no-live ~ > deleted-files.txt
 ```
 Browse all files in your home directory, recursively, and view snapshot-ed versions on local snapshots:
 ```bash
