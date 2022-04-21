@@ -57,8 +57,9 @@ pub fn get_deleted(
     config: &Config,
     path: &Path,
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    let most_local_vec_deleted = get_deleted_per_dataset(config, path, false)?;
+
     let combined_deleted: Vec<PathData> = if config.opt_alt_replicated {
-        let most_local_vec_deleted = get_deleted_per_dataset(config, path, false)?;
         let alt_replicated_deleted = get_deleted_per_dataset(config, path, true)?;
 
         [most_local_vec_deleted, alt_replicated_deleted]
@@ -66,7 +67,7 @@ pub fn get_deleted(
             .flatten()
             .collect()
     } else {
-        get_deleted_per_dataset(config, path, false)?
+        most_local_vec_deleted
     };
 
     let unique_deleted = if config.opt_alt_replicated {

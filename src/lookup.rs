@@ -27,22 +27,22 @@ pub fn lookup_exec(
     config: &Config,
     path_data: &Vec<PathData>,
 ) -> Result<[Vec<PathData>; 2], Box<dyn std::error::Error + Send + Sync + 'static>> {
-    // combine and sort by time
+    // create vec of most local dataset/user specified backups
+    let most_local_snaps: Vec<PathData> = path_data
+        .par_iter()
+        .map(|path_data| get_search_dirs(config, path_data, false))
+        .map(|search_dirs| search_dirs.ok())
+        .flatten()
+        .map(get_versions)
+        .flatten_iter()
+        .flatten_iter()
+        .collect();
+
     let all_snaps: Vec<PathData> = if config.opt_alt_replicated {
         // create vec of all local and replicated backups
-        let most_local_snaps: Vec<PathData> = path_data
-            .par_iter()
-            .map(|path_data| get_search_dirs(config, path_data, !config.opt_alt_replicated))
-            .map(|search_dirs| search_dirs.ok())
-            .flatten()
-            .map(get_versions)
-            .flatten_iter()
-            .flatten_iter()
-            .collect();
-
         let alt_replicated_snaps: Vec<PathData> = path_data
             .par_iter()
-            .map(|path_data| get_search_dirs(config, path_data, config.opt_alt_replicated))
+            .map(|path_data| get_search_dirs(config, path_data, true))
             .map(|search_dirs| search_dirs.ok())
             .flatten()
             .map(get_versions)
@@ -55,16 +55,7 @@ pub fn lookup_exec(
             .flatten()
             .collect()
     } else {
-        // create vec of most local dataset/user specified backups
-        path_data
-            .par_iter()
-            .map(|path_data| get_search_dirs(config, path_data, config.opt_alt_replicated))
-            .map(|search_dirs| search_dirs.ok())
-            .flatten()
-            .map(get_versions)
-            .flatten_iter()
-            .flatten_iter()
-            .collect()
+        most_local_snaps
     };
 
     // create vec of live copies - unless user doesn't want it!
