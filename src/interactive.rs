@@ -144,21 +144,21 @@ fn interactive_restore(
     // build pathdata from selection buffer parsed string
     //
     // request is also sanity check for metadata
-    let snap_pd = PathData::from(Path::new(&parsed_str));
+    let snap_pathdata = PathData::from(Path::new(&parsed_str));
 
-    if snap_pd.is_phantom {
+    if snap_pathdata.is_phantom {
         return Err(HttmError::new("Snapshot location does not exist on disk. Quitting.").into());
     };
 
     // build new place to send file
-    let old_snap_filename = snap_pd
+    let old_snap_filename = snap_pathdata
         .path_buf
         .file_name()
         .unwrap()
         .to_string_lossy()
         .into_owned();
     let new_snap_filename: String =
-        old_snap_filename + ".httm_restored." + &timestamp_file(&snap_pd.system_time);
+        old_snap_filename + ".httm_restored." + &timestamp_file(&snap_pathdata.system_time);
 
     let new_file_dir = config.pwd.clone();
     let new_file_path_buf: PathBuf = [new_file_dir, PathBuf::from(new_snap_filename)]
@@ -166,7 +166,7 @@ fn interactive_restore(
         .collect();
 
     // print error on the user selecting to restore the live version of a file
-    if new_file_path_buf == snap_pd.path_buf {
+    if new_file_path_buf == snap_pathdata.path_buf {
         return Err(
             HttmError::new("Will not restore files as files are the same file. Quitting.").into(),
         );
@@ -174,7 +174,7 @@ fn interactive_restore(
 
     // tell the user what we're up to, and get consent
     write!(out, "httm will copy a file from a ZFS snapshot...\n\n")?;
-    writeln!(out, "\tfrom: {:?}", snap_pd.path_buf)?;
+    writeln!(out, "\tfrom: {:?}", snap_pathdata.path_buf)?;
     writeln!(out, "\tto:   {:?}\n", new_file_path_buf)?;
     write!(
         out,
@@ -189,7 +189,7 @@ fn interactive_restore(
         .to_lowercase();
 
     if res == "y" || res == "yes" {
-        match copy_all(&snap_pd.path_buf, &new_file_path_buf) {
+        match copy_all(&snap_pathdata.path_buf, &new_file_path_buf) {
             Ok(_) => write!(out, "\nRestore completed successfully.\n")?,
             Err(err) => {
                 return Err(HttmError::with_context("Restore failed", Box::new(err)).into());
