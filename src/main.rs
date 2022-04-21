@@ -304,7 +304,7 @@ impl Config {
         } else {
             let mount_collection: Vec<(String, String)> = list_all_filesystems()?;
             (
-                matches.is_present("REPLICATED"),
+                matches.is_present("ALT_REPLICATED"),
                 SnapPoint::Native(mount_collection),
             )
         };
@@ -495,10 +495,10 @@ fn parse_args() -> ArgMatches {
                 .display_order(5)
         )
         .arg(
-            Arg::new("REPLICATED")
+            Arg::new("ALT_REPLICATED")
                 .short('a')
                 .long("alt-replicated")
-                .help("automatically discover alternative locally replicated datasets and include their snapshots as well.")
+                .help("automatically discover alternative locally replicated datasets and list their snapshots as well.")
                 .conflicts_with_all(&["SNAP_POINT", "LOCAL_DIR"])
                 .display_order(6)
         )
