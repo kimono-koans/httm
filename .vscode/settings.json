@@ -32,6 +32,7 @@
         "pbuf",
         "proto",
         "realpath",
+        "rpool",
         "sandoid",
         "Swinford",
         "syncoid",

@@ -104,6 +104,13 @@ pub fn get_search_dirs(
                 // so we can search for the mount as a key
                 match unique_mounts.get(&most_local_snap_mount.as_path()) {
                     Some(most_local_fs_name) => {
+                        // find a filesystem that ends with our most local filesystem name
+                        // but has a preface name, like a different pool name: rpool might be
+                        // at tank/rpool
+                        //
+                        // note: this won't work where dozer/rpool is replicated to tank/rpool, and
+                        // is only one way (one can only see the receiving fs from the sending fs),
+                        // but works well enough.  If you have a better idea, let me know.
                         if let Some((alt_replicated_mount, _)) = unique_mounts
                             .clone()
                             .into_par_iter()
