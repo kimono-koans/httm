@@ -70,10 +70,12 @@ pub fn get_deleted(
         most_local_vec_deleted
     };
 
+    // we need to make certain that what we return from possibly multiple datasets are unique
+    // as these will be the filenames that populate our interactive views, so deduplicate
+    // by system time here
     let unique_deleted = if config.opt_alt_replicated {
         let mut unique_deleted: HashMap<&SystemTime, &PathData> = HashMap::default();
 
-        // reverse the order - mount as key, fs as value
         combined_deleted.iter().for_each(|pathdata| {
             let _ = unique_deleted.insert(&pathdata.system_time, pathdata);
         });
@@ -95,10 +97,11 @@ fn get_deleted_per_dataset(
     path: &Path,
     for_alt_replicated: bool,
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    // generates path for hidden .zfs snap dir, and the corresponding local path
     let (hidden_snapshot_dir, local_path) =
         get_search_dirs(config, &PathData::from(path), for_alt_replicated)?;
 
+    // get all local entries we need to compare against these to know
+    // what is a deleted file
     let local_dir_entries: Vec<DirEntry> = std::fs::read_dir(&path)?
         .into_iter()
         .par_bridge()
@@ -124,6 +127,7 @@ fn get_deleted_per_dataset(
         .map(|dir_entry| (dir_entry.file_name(), dir_entry))
         .collect();
 
+    // create a list of unique filenames on snaps
     let mut unique_snap_filenames: HashMap<OsString, DirEntry> = HashMap::default();
     snap_files.into_iter().for_each(|(file_name, dir_entry)| {
         let _ = unique_snap_filenames.insert(file_name, dir_entry);
