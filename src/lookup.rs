@@ -159,8 +159,10 @@ fn get_versions(
     search_dirs: (PathBuf, PathBuf),
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     let (hidden_snapshot_dir, local_path) = search_dirs;
+
     // get the DirEntry for our snapshot path which will have all our possible
-    // needed snapshots
+    // needed snapshots, like so: .zfs/snapshots/<some snap name>/, some snap name
+    // are our entries here
     let versions = std::fs::read_dir(hidden_snapshot_dir)?
         .flatten()
         .par_bridge()
@@ -190,8 +192,8 @@ pub fn get_snapshot_dataset(
 ) -> Result<PathBuf, Box<dyn std::error::Error + Send + Sync + 'static>> {
     let file_path = &pathdata.path_buf;
 
-    // only possible None is if root dir because
-    // of previous work in the Pathdata new method
+    // only possible None value is if root dir because
+    // of previous work in the Pathdata new method, safe to unwrap or else here
     let parent_folder = file_path.parent().unwrap_or_else(|| Path::new("/"));
 
     // prune away most datasets by filtering - parent folder of file must contain relevant dataset

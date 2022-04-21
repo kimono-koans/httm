@@ -116,7 +116,7 @@ pub fn list_all_filesystems(
         )?
         .to_owned();
 
-        // parse "mount -t zfs" for filesystems
+        // parse "mount -t zfs" for filesystems and mountpoints
         let (first, the_rest): (Vec<&str>, Vec<&str>) = command_output
             .par_lines()
             .filter(|line| line.contains("zfs"))
@@ -136,7 +136,7 @@ pub fn list_all_filesystems(
                     the_rest.split_once(&" (")
                 }
             )
-            // sanity check: does the filesystem exist? if not, filter it
+            // sanity check: does the filesystem exist? if not, filter it out
             .map(|(first, _)| first)
             .filter(|line| Path::new(line).exists())
             .map(|line| line.to_owned())
