@@ -106,7 +106,7 @@ pub fn get_search_dirs(
                     Some(most_local_fs_name) => {
                         // find a filesystem that ends with our most local filesystem name
                         // but has a preface name, like a different pool name: rpool might be
-                        // at tank/rpool
+                        // replicated to tank/rpool
                         //
                         // note: this won't work where dozer/rpool is replicated to tank/rpool, and
                         // is only one way (one can only see the receiving fs from the sending fs),
@@ -145,7 +145,8 @@ pub fn get_search_dirs(
         }
         SnapPoint::Native(_) => {
             // Note: this must be our most local snapshot mount to get get the correct relative path
-            // this is why we don't process need the original dataset even when we are searching an alternate
+            // this is why we need the original dataset even when we are searching an alternate filesystem
+            // and cannot process all these items separately, in a multitude of functions
             file_path
                 .strip_prefix(&most_local_snap_mount).map_err(|_| HttmError::new("Are you sure you're in the correct working directory?  Perhaps you need to set the SNAP_DIR and LOCAL_DIR values."))   
             }
