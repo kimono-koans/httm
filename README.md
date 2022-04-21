@@ -33,6 +33,7 @@ The `httm` project contains only a few components:
     git clone kimono-koans/httm 
     cargo install --path ./httm/
     ```
+Right now, you will need to use a Unix-ish-y Rust-supported platform to build and install (that is: Linux, Solaris/illumos, the BSDs, MacOS).  Note: the platform need not support ZFS.  There is no fundamental reason a non-interactive Windows version could not be built, as it once did build, but Windows platform support is not a priority for me, a non-Windows user.  Contributions from Windows users are, of course, welcome.
 2. The optional `zsh` hot-key bindings: Use `ESC+s` to select snapshots filenames to be dropped to your command line (for instance after the `cat` command), or use `ESC+m` to browse for all of a file's snapshots. After you install the `httm` binary -- to copy the hot key script to your home directory, and source that script within your zshrc:
 
     ```bash
