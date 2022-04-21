@@ -145,9 +145,12 @@ fn get_deleted_per_dataset(
         let _ = unique_deleted_versions.insert((pathdata.system_time, pathdata.size), pathdata);
     });
 
-    let mut sorted: Vec<_> = unique_deleted_versions.into_iter().collect();
+    let mut sorted: Vec<_> = unique_deleted_versions
+        .into_iter()
+        .map(|(_, v)| v)
+        .collect();
 
-    sorted.par_sort_unstable_by_key(|&(k, _)| k);
+    sorted.par_sort_unstable_by_key(|pathdata| pathdata.system_time);
 
-    Ok(sorted.into_iter().map(|(_, v)| v).collect())
+    Ok(sorted)
 }

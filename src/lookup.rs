@@ -181,7 +181,7 @@ fn get_versions(
 
     let mut sorted: Vec<PathData> = unique_versions.into_iter().map(|(_, v)| v).collect();
 
-    sorted.par_sort_unstable_by_key(|k| k.system_time);
+    sorted.par_sort_unstable_by_key(|pathdata| pathdata.system_time);
 
     Ok(sorted)
 }
