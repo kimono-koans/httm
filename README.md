@@ -50,19 +50,19 @@ Print all local file snapshots of your `zsh` history file:
 ```bash
 httm ~/.histfile
 ```
-Print all files on snapshots deleted from your home directory, recursive, newline delimited, piped to a `deleted-files.txt` file: 
+Print all files on snapshots (no "live" versions) deleted from your home directory, recursive, newline delimited, piped to a `deleted-files.txt` file: 
 ```bash
 httm -d -n -R --no-live ~ > deleted-files.txt
 ```
-Browse all files in your home directory, recursively, and view snapshot-ed versions on local snapshots:
+Browse all files in your home directory, recursively, and view versions on local snapshots:
 ```bash
 httm -i -R ~/
 ```
-Browse all files deleted from your home directory, recursively, and view snapshot-ed versions on all local and alternative replicated dataset snapshots:
+Browse all files deleted from your home directory, recursively, and view versions on all local and alternative replicated dataset snapshots:
 ```bash
 httm -d only -i -a -R ~/
 ```
-Browse all files in your home directory, recursively, and view their snapshot-ed versions on local snapshots, to select and ultimately restore to your working directory:
+Browse all files in your home directory, recursively, and view versions on local snapshots, to select and ultimately restore to your working directory:
 ```bash
 httm -r -R ~/
 ```
