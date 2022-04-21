@@ -46,7 +46,9 @@ The `httm` project contains only a few components:
 
 ### Caveats 
 
-Right now, you will need to use a Unix-ish-y Rust-supported platform to build and install (that is: Linux, Solaris/illumos, the BSDs, MacOS).  Note, your platform need not support ZFS.  There is no fundamental reason a non-interactive Windows version of `httm` could not be built, as it once did build, but Windows platform support is not a priority for me, a non-Windows user.  Contributions from Windows users are, of course, welcome.
+Right now, you will need to use a Unix-ish-y Rust-supported platform to build and install (that is: Linux, Solaris/illumos, the BSDs, MacOS).  Note, your platform *does not* need to support ZFS to use `httm`.  And there is no fundamental reason a non-interactive Windows version of `httm` could not be built, as it once did build, but Windows platform support is not a priority for me right now, as a non-Windows user.  
+
+Contributions from Windows users are, of course, very welcome.
 
 ## Example Usage
 
