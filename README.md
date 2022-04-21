@@ -9,7 +9,7 @@ The dream of a CLI ZFS Time Machine is still alive with `httm`.
 `httm` boasts an array of seductive features, like:
 
 * Search for and recursively list all deleted files! Ooooooooo!
-* List file snapshots from *all* local pools (`httm` automatically detects local snapshots as well as local replicated snapshots)!
+* List file snapshots from *all* local pools (`httm` automatically detects local snapshots *as well as* locally replicated snapshots)!
 * List file snapshots from remote backup pools (you may designate replicated remote snapshot directories).
 * For use with even `rsync`-ed non-ZFS local datasets (like ext4, APFS, or NTFS), not just ZFS.
 * Specify multiple files for lookup on different datasets
@@ -48,7 +48,30 @@ The `httm` project contains only a few components:
 
 ![To be clear, httm is *not*...](https://i.pinimg.com/originals/23/7f/2a/237f2ab8765663c721325366406197b7.gif)
 
-To be clear, `httm` is *not* a H__ T__ T___ M______!
+To be clear, `httm` is not a H__ T__ T___ M______.
+
+## Example Usage
+
+Print all local file snapshots of your `zsh` history file:
+```bash
+httm ~/.histfile
+```
+Print all files on snapshots deleted from your home directory, recursive, newline delimited, piped to a `deleted-files.txt` file: 
+```bash
+httm -d -n -R ~ > deleted-files.txt
+```
+Browse all files in your home directory, recursively, and view snapshot-ed versions on local snapshots:
+```bash
+httm -i -R ~/
+```
+Browse all files deleted from your home directory, recursively, and view snapshot-ed versions on all local and alternative replicated dataset snapshots:
+```bash
+httm -d only -i -a -R ~/
+```
+Browse all files in your home directory, recursively, and view their snapshot-ed versions on local snapshots, to select and ultimately restore to your working directory:
+```bash
+httm -r -R ~/
+```
 
 ## License
 

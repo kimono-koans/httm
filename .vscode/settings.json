@@ -16,6 +16,7 @@
         "Findoid",
         "fstype",
         "fxhash",
+        "histfile",
         "httm",
         "Itertools",
         "lscolors",
