@@ -136,9 +136,7 @@ pub fn list_all_filesystems(
                     the_rest.split_once(&" (")
                 }
             )
-            // sanity check: does the filesystem exist? if not, filter it out
             .map(|(first, _)| first)
-            .filter(|line| Path::new(line).exists())
             .map(|line| line.to_owned())
             .collect();
 
@@ -153,6 +151,8 @@ pub fn list_all_filesystems(
             .iter()
             .cloned()
             .zip(mount_points.iter().cloned())
+            // sanity check: does the filesystem exist? if not, filter it out
+            .filter(|(_fs, mount)| Path::new(mount).exists())
             .collect();
 
         Ok(mount_collection)
