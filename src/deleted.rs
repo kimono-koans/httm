@@ -72,12 +72,12 @@ pub fn get_deleted(
 
     // we need to make certain that what we return from possibly multiple datasets are unique
     // as these will be the filenames that populate our interactive views, so deduplicate
-    // by system time here
+    // by system time and size here
     let unique_deleted = if config.opt_alt_replicated {
-        let mut unique_deleted: HashMap<&SystemTime, &PathData> = HashMap::default();
+        let mut unique_deleted: HashMap<(&SystemTime, &u64), &PathData> = HashMap::default();
 
         combined_deleted.iter().for_each(|pathdata| {
-            let _ = unique_deleted.insert(&pathdata.system_time, pathdata);
+            let _ = unique_deleted.insert((&pathdata.system_time, &pathdata.size), pathdata);
         });
 
         unique_deleted
