@@ -25,11 +25,29 @@ use rayon::{iter::Either, prelude::*};
 use skim::prelude::*;
 use std::fs::{DirEntry, FileType};
 use std::{
-    io::Stdout,
-    io::{BufRead, Write},
+    fs,
+    io::{self, BufRead, Stdout, Write},
     path::{Path, PathBuf},
     sync::Arc,
 };
+
+pub fn copy_all(src: &Path, dst: &Path) -> io::Result<()> {
+    if PathBuf::from(src).is_dir() {
+        fs::create_dir_all(&dst)?;
+        for entry in fs::read_dir(src)? {
+            let entry = entry?;
+            let ty = entry.file_type()?;
+            if ty.is_dir() {
+                copy_all(&entry.path(), &dst.join(&entry.file_name()))?;
+            } else {
+                fs::copy(&entry.path(), &dst.join(&entry.file_name()))?;
+            }
+        }
+    } else {
+        std::fs::copy(src, dst)?;
+    }
+    Ok(())
+}
 
 pub fn paint_string(path: &Path, file_name: &str) -> String {
     let ls_colors = LsColors::from_env().unwrap_or_default();

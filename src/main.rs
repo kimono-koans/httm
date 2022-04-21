@@ -52,6 +52,12 @@ impl HttmError {
             details: msg.to_owned(),
         }
     }
+    fn with_context(msg: &str, err: Box<dyn Error + 'static>) -> HttmError {
+        let msg_plus_context = format!("{} : {:?}", msg, err);
+        HttmError {
+            details: msg_plus_context,
+        }
+    }
 }
 
 impl fmt::Display for HttmError {
@@ -450,7 +456,7 @@ fn parse_args() -> ArgMatches {
     clap::Command::new("httm")
         .about("\nBy default, httm will display non-interactive information about unique file versions contained on ZFS snapshots.\n\n\
         You may also select from the various interactive modes below to browse for, select, and/or restore files.")
-        .version("0.9.0") 
+        .version("0.9.1") 
         .arg(
             Arg::new("INPUT_FILES")
                 .help("in the default, non-interactive mode, put requested files here.  If you enter no files, \

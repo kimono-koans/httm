@@ -16,7 +16,7 @@
 // that was distributed with this source code.
 
 use crate::display::display_exec;
-use crate::library::{enumerate_directory, paint_string};
+use crate::library::{copy_all, enumerate_directory, paint_string};
 use crate::lookup::lookup_exec;
 use crate::{read_stdin, Config, DeletedMode, ExecMode, HttmError, InteractiveMode, PathData};
 
@@ -189,8 +189,12 @@ fn interactive_restore(
         .to_lowercase();
 
     if res == "y" || res == "yes" {
-        std::fs::copy(snap_pd.path_buf, new_file_path_buf)?;
-        write!(out, "\nRestore completed successfully.\n")?;
+        match copy_all(&snap_pd.path_buf, &new_file_path_buf) {
+            Ok(_) => write!(out, "\nRestore completed successfully.\n")?,
+            Err(err) => {
+                return Err(HttmError::with_context("Restore failed", Box::new(err)).into());
+            }
+        }
     } else {
         write!(out, "\nUser declined.  No files were restored.\n")?;
     }
