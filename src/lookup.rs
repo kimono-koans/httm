@@ -137,6 +137,8 @@ pub fn get_search_dirs(
                 .strip_prefix(&defined_dirs.local_dir).map_err(|_| HttmError::new("Are you sure you're in the correct working directory?  Perhaps you need to set the LOCAL_DIR value."))
         }
         SnapPoint::Native(_) => {
+            // Note: this must be our most local snapshot mount to get get the correct relative path
+            // this is why we don't process need the original dataset even when we are searching an alternate
             file_path
                 .strip_prefix(&most_local_snap_mount).map_err(|_| HttmError::new("Are you sure you're in the correct working directory?  Perhaps you need to set the SNAP_DIR and LOCAL_DIR values."))   
             }
