@@ -26,12 +26,13 @@ use crate::config_helper::{install_hot_keys, list_all_filesystems};
 use crate::deleted::deleted_exec;
 use crate::display::display_exec;
 use crate::interactive::interactive_exec;
-use crate::library::{get_pwd, httm_is_dir, read_stdin};
+use crate::library::{httm_is_dir, read_stdin};
 use crate::lookup::lookup_exec;
 
 use clap::{Arg, ArgMatches};
 use fxhash::FxHashMap as HashMap;
 use rayon::prelude::*;
+use std::fs::canonicalize;
 use std::{
     error::Error,
     fmt,
@@ -101,10 +102,10 @@ impl PathData {
             if let Ok(canonical_path) = path.canonicalize() {
                 canonical_path
             } else {
-                // canonicalize() on deleted relative will not exist
-                // so we have to join with the pwd to make a path that
-                // will exist on a snapshot
-                get_pwd().unwrap_or_else(|_| PathBuf::from("/")).join(path)
+                // canonicalize() on any path that DNE will throw an error
+                // in general we handle those cases elsewhere, like the ingest
+                // of input files in Config::from for deleted relative paths, etc.
+                path.to_path_buf()
             }
         } else {
             path.to_path_buf()
@@ -242,7 +243,18 @@ impl Config {
         }
 
         // current working directory will be helpful in a number of places
-        let pwd = get_pwd()?;
+        let pwd = if let Ok(pwd) = std::env::var("PWD") {
+            if let Ok(path) = PathBuf::from(&pwd).canonicalize() {
+                path
+            } else {
+                return Err(HttmError::new(
+                    "Working directory, as set in your environment, does not appear to exist",
+                )
+                .into());
+            }
+        } else {
+            return Err(HttmError::new("Working directory is not set in your environment.").into());
+        };
 
         // where is the hidden snapshot directory located?
         // just below we ask whether the user has defined that place
@@ -315,8 +327,14 @@ impl Config {
             input_files
                 .into_iter()
                 .par_bridge()
-                .map(|string| PathData::from(Path::new(string)))
+                .map(Path::new)
+                // canonicalize() on a deleted relative path will not exist,
+                // so we have to join with the pwd to make a path that
+                // will exist on a snapshot
+                .map(|path| canonicalize(path).unwrap_or_else(|_| pwd.join(path)))
+                .map(|path| PathData::from(path.as_path()))
                 .collect()
+
         // setting pwd as the path, here, keeps us from waiting on stdin when in non-Display modes
         } else if exec_mode == ExecMode::Interactive || exec_mode == ExecMode::DisplayRecursive {
             vec![PathData::from(pwd.as_path())]

@@ -18,7 +18,7 @@
 use crate::deleted::get_deleted;
 use crate::display::display_exec;
 use crate::interactive::SelectionCandidate;
-use crate::{Config, DeletedMode, ExecMode, HttmError, PathData};
+use crate::{Config, DeletedMode, ExecMode, PathData};
 
 use lscolors::{LsColors, Style};
 use rayon::{iter::Either, prelude::*};
@@ -30,21 +30,6 @@ use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
-
-pub fn get_pwd() -> Result<PathBuf, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    if let Ok(pwd) = std::env::var("PWD") {
-        if let Ok(path) = PathBuf::from(&pwd).canonicalize() {
-            Ok(path)
-        } else {
-            Err(HttmError::new(
-                "Working directory, as set in your environment, does not appear to exist",
-            )
-            .into())
-        }
-    } else {
-        Err(HttmError::new("Working directory is not set in your environment.").into())
-    }
-}
 
 pub fn copy_all(src: &Path, dst: &Path) -> io::Result<()> {
     if PathBuf::from(src).is_dir() {
