@@ -146,9 +146,21 @@ fn interactive_restore(
     // request is also sanity check for metadata
     let snap_pathdata = PathData::from(Path::new(&parsed_str));
 
+    // sanity check -- snap version has good metadata?
     if snap_pathdata.is_phantom {
         return Err(HttmError::new("Snapshot location does not exist on disk. Quitting.").into());
-    };
+    }
+
+    // sanity check -- snap version is not actually a live copy?
+    if config
+        .paths
+        .clone()
+        .into_iter()
+        .any(|path| path == snap_pathdata)
+        .to_owned()
+    {
+        return Err(HttmError::new("Path selected is a 'live' version.  httm will not restore from a live version.  Quitting.").into());
+    }
 
     // build new place to send file
     let old_snap_filename = snap_pathdata
