@@ -28,7 +28,7 @@ pub fn lookup_exec(
     path_data: &Vec<PathData>,
 ) -> Result<[Vec<PathData>; 2], Box<dyn std::error::Error + Send + Sync + 'static>> {
     // create vec of most local dataset/user specified backups
-    let most_local_snaps: Vec<PathData> = path_data
+    let immediate_dataset_snaps: Vec<PathData> = path_data
         .par_iter()
         .map(|path_data| get_search_dirs(config, path_data, false))
         .map(|search_dirs| search_dirs.ok())
@@ -50,12 +50,12 @@ pub fn lookup_exec(
             .flatten_iter()
             .collect();
 
-        [alt_replicated_snaps, most_local_snaps]
+        [alt_replicated_snaps, immediate_dataset_snaps]
             .into_iter()
             .flatten()
             .collect()
     } else {
-        most_local_snaps
+        immediate_dataset_snaps
     };
 
     // create vec of live copies - unless user doesn't want it!
@@ -85,13 +85,14 @@ pub fn get_search_dirs(
     // which ZFS dataset do we want to use
     let file_path = &file_pathdata.path_buf;
 
-    let (dataset, most_local_snap_mount) = match &config.snap_point {
+    let (dataset, immediate_dataset_snap_mount) = match &config.snap_point {
         SnapPoint::UserDefined(defined_dirs) => (
             defined_dirs.snap_dir.to_owned(),
             defined_dirs.snap_dir.to_owned(),
         ),
         SnapPoint::Native(mount_collection) => {
-            let most_local_snap_mount = get_snapshot_dataset(file_pathdata, mount_collection)?;
+            let immediate_dataset_snap_mount =
+                get_snapshot_dataset(file_pathdata, mount_collection)?;
 
             if for_alt_replicated {
                 let mut unique_mounts: HashMap<&Path, &String> = HashMap::default();
@@ -102,8 +103,8 @@ pub fn get_search_dirs(
                 });
 
                 // so we can search for the mount as a key
-                match unique_mounts.get(&most_local_snap_mount.as_path()) {
-                    Some(most_local_fs_name) => {
+                match unique_mounts.get(&immediate_dataset_snap_mount.as_path()) {
+                    Some(immediate_dataset_fs_name) => {
                         // find a filesystem that ends with our most local filesystem name
                         // but has a preface name, like a different pool name: rpool might be
                         // replicated to tank/rpool
@@ -114,21 +115,33 @@ pub fn get_search_dirs(
                         if let Some((alt_replicated_mount, _)) = unique_mounts
                             .clone()
                             .into_par_iter()
-                            .filter(|(_, fs)| fs.ends_with(most_local_fs_name.as_str()))
+                            .filter(|(_, fs)| fs.ends_with(immediate_dataset_fs_name.as_str()))
                             .max_by_key(|(_, fs)| fs.len())
                         {
-                            if alt_replicated_mount == most_local_snap_mount {
+                            if alt_replicated_mount == immediate_dataset_snap_mount {
                                 return Err(HttmError::new("httm was unable to detect an alternate replicated mount point.  Perhaps the replicated filesystem is not mounted?").into());
                             }
-                            (alt_replicated_mount.to_path_buf(), most_local_snap_mount)
+                            (
+                                alt_replicated_mount.to_path_buf(),
+                                immediate_dataset_snap_mount,
+                            )
                         } else {
-                            (most_local_snap_mount.clone(), most_local_snap_mount)
+                            (
+                                immediate_dataset_snap_mount.clone(),
+                                immediate_dataset_snap_mount,
+                            )
                         }
                     }
-                    None => (most_local_snap_mount.clone(), most_local_snap_mount),
+                    None => (
+                        immediate_dataset_snap_mount.clone(),
+                        immediate_dataset_snap_mount,
+                    ),
                 }
             } else {
-                (most_local_snap_mount.clone(), most_local_snap_mount)
+                (
+                    immediate_dataset_snap_mount.clone(),
+                    immediate_dataset_snap_mount,
+                )
             }
         }
     };
@@ -148,7 +161,7 @@ pub fn get_search_dirs(
             // this is why we need the original dataset even when we are searching an alternate filesystem
             // and cannot process all these items separately, in a multitude of functions
             file_path
-                .strip_prefix(&most_local_snap_mount).map_err(|_| HttmError::new("Are you sure you're in the correct working directory?  Perhaps you need to set the SNAP_DIR and LOCAL_DIR values."))   
+                .strip_prefix(&immediate_dataset_snap_mount).map_err(|_| HttmError::new("Are you sure you're in the correct working directory?  Perhaps you need to set the SNAP_DIR and LOCAL_DIR values."))   
             }
     }?;
 

@@ -135,7 +135,7 @@ impl PathData {
             is_phantom: phantom,
         }
     }
-    fn httm_is_dir(&self) -> bool {
+    fn is_dir(&self) -> bool {
         httm_is_dir(&self.path_buf)
     }
 }
@@ -345,7 +345,7 @@ impl Config {
                     0 => PathData::from(pwd.as_path()),
                     1 => {
                         match paths.get(0) {
-                            Some(pathdata) if pathdata.httm_is_dir() => pathdata.to_owned(),
+                            Some(pathdata) if pathdata.is_dir() => pathdata.to_owned(),
                             Some(pathdata)
                                 if pathdata.path_buf.is_file() | pathdata.path_buf.is_symlink() =>
                             {
@@ -384,10 +384,10 @@ impl Config {
                 }
             }
             ExecMode::DisplayRecursive => {
-                // paths should never be empty for ExecMode::Deleted
+                // paths should never be empty for ExecMode::DisplayRecursive
                 //
-                // we only want one dir for a ExecMode::Deleted run, else
-                // we should run in ExecMode::Display mode
+                // we only want one dir for a ExecMode::DisplayRecursive run, else
+                // we should run in ExecMode::DisplayRecursive mode
                 match paths.len() {
                     n if n > 1 => {
                         exec_mode = ExecMode::Display;
@@ -395,7 +395,7 @@ impl Config {
                         PathData::from(pwd.as_path())
                     }
                     1 => match paths.get(0) {
-                        Some(pathdata) if pathdata.httm_is_dir() => pathdata.to_owned(),
+                        Some(pathdata) if pathdata.is_dir() => pathdata.to_owned(),
                         _ => {
                             exec_mode = ExecMode::Display;
                             deleted_mode = DeletedMode::Disabled;
