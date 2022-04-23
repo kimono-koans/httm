@@ -26,7 +26,7 @@ use crate::config_helper::{install_hot_keys, list_all_filesystems};
 use crate::deleted::deleted_exec;
 use crate::display::display_exec;
 use crate::interactive::interactive_exec;
-use crate::library::{httm_is_dir, read_stdin};
+use crate::library::{get_pwd, httm_is_dir, read_stdin};
 use crate::lookup::lookup_exec;
 
 use clap::{Arg, ArgMatches};
@@ -101,7 +101,10 @@ impl PathData {
             if let Ok(canonical_path) = path.canonicalize() {
                 canonical_path
             } else {
-                path.to_path_buf()
+                // canonicalize() on deleted relative will not exist
+                // so we have to join with the pwd to make a path that
+                // will exist on a snapshot
+                get_pwd().unwrap_or_else(|_| PathBuf::from("/")).join(path)
             }
         } else {
             path.to_path_buf()
@@ -239,18 +242,7 @@ impl Config {
         }
 
         // current working directory will be helpful in a number of places
-        let pwd = if let Ok(pwd) = std::env::var("PWD") {
-            if let Ok(path) = PathBuf::from(&pwd).canonicalize() {
-                path
-            } else {
-                return Err(HttmError::new(
-                    "Working directory, as set in your environment, does not appear to exist",
-                )
-                .into());
-            }
-        } else {
-            return Err(HttmError::new("Working directory is not set in your environment.").into());
-        };
+        let pwd = get_pwd()?;
 
         // where is the hidden snapshot directory located?
         // just below we ask whether the user has defined that place
