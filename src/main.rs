@@ -354,28 +354,25 @@ impl Config {
                 match paths.len() {
                     0 => PathData::from(pwd.as_path()),
                     1 => {
-                        match paths.get(0) {
-                            // use our bespoke fn for determining whether a dir here see pub httm_is_dir
-                            Some(pathdata) if pathdata.is_dir() => pathdata.to_owned(),
-                            // and then we take all comers here because may be a deleted file that DNE on a live version
-                            Some(pathdata) => {
-                                match interactive_mode {
-                                    InteractiveMode::Browse | InteractiveMode::None => {
-                                        // doesn't make sense to have a non-dir in these modes
-                                        return Err(HttmError::new(
+                        // impossible to panic, because we are indexing to 0 on a len we know to be 1
+                        let pathdata = paths.get(0).unwrap();
+                        // use our bespoke is_dir fn for determining whether a dir here see pub httm_is_dir
+                        if pathdata.is_dir() {
+                            pathdata.to_owned()
+                        // and then we take all comers here because may be a deleted file that DNE on a live version
+                        } else {
+                            match interactive_mode {
+                                InteractiveMode::Browse | InteractiveMode::None => {
+                                    // doesn't make sense to have a non-dir in these modes
+                                    return Err(HttmError::new(
                                                 "Path specified is not a directory, and therefore not suitable for browsing.",
                                             )
                                             .into());
-                                    }
-                                    InteractiveMode::Restore | InteractiveMode::Select => {
-                                        // non-dir file will just cause us to skip the lookup phase
-                                        pathdata.to_owned()
-                                    }
                                 }
-                            }
-                            None => {
-                                // known to be impossible because we are indexing to 0 on a len we know to be 1
-                                unreachable!()
+                                InteractiveMode::Restore | InteractiveMode::Select => {
+                                    // non-dir file will just cause us to skip the lookup phase
+                                    pathdata.to_owned()
+                                }
                             }
                         }
                     }
