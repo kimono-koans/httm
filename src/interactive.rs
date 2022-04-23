@@ -157,7 +157,6 @@ fn interactive_restore(
         .clone()
         .into_iter()
         .any(|path| path == snap_pathdata)
-        .to_owned()
     {
         return Err(HttmError::new("Path selected is a 'live' version.  httm will not restore from a live version.  Quitting.").into());
     }
