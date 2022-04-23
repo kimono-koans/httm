@@ -355,10 +355,10 @@ impl Config {
                     0 => PathData::from(pwd.as_path()),
                     1 => {
                         match paths.get(0) {
+                            // use our bespoke fn for determining whether a dir here see pub httm_is_dir
                             Some(pathdata) if pathdata.is_dir() => pathdata.to_owned(),
-                            Some(pathdata)
-                                if pathdata.path_buf.is_file() | pathdata.path_buf.is_symlink() =>
-                            {
+                            // and then we take all comers here because may be a deleted file that DNE on a live version
+                            Some(pathdata) => {
                                 match interactive_mode {
                                     InteractiveMode::Browse | InteractiveMode::None => {
                                         // doesn't make sense to have a non-dir in these modes
@@ -373,12 +373,9 @@ impl Config {
                                     }
                                 }
                             }
-                            // let's not screw with char, block devices, whatever else.
-                            _ => {
-                                return Err(HttmError::new(
-                                    "Path specified is either not a directory or a file, or does not exist, and therefore is not suitable for an interactive mode.",
-                                )
-                                .into());
+                            None => {
+                                // known to be impossible because we are indexing to 0 on a len we know to be 1
+                                unreachable!()
                             }
                         }
                     }
