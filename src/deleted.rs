@@ -141,7 +141,7 @@ fn get_deleted_per_dataset(
 
     // deduplicate all by modify time and size - as we would elsewhere
     let mut unique_deleted_versions: HashMap<(SystemTime, u64), PathData> = HashMap::default();
-    deleted_pathdata.into_iter().for_each(|pathdata| {
+    deleted_pathdata.for_each(|pathdata| {
         let _ = unique_deleted_versions.insert((pathdata.system_time, pathdata.size), pathdata);
     });
 
