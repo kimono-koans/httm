@@ -60,13 +60,17 @@ pub fn get_deleted(
     path: &Path,
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     let immediate_dataset_deleted = vec![path]
-        .into_iter().flat_map(|path| get_search_dirs(config, &PathData::from(path), false)).flat_map(|search_dirs| get_deleted_per_dataset(path, search_dirs))
+        .into_iter()
+        .flat_map(|path| get_search_dirs(config, &PathData::from(path), false))
+        .flat_map(|search_dirs| get_deleted_per_dataset(path, search_dirs))
         .flatten()
         .collect();
 
     let combined_deleted: Vec<PathData> = if config.opt_alt_replicated {
         let alt_replicated_deleted = vec![path]
-            .into_iter().flat_map(|path| get_search_dirs(config, &PathData::from(path), true)).flat_map(|search_dirs| get_deleted_per_dataset(path, search_dirs))
+            .into_iter()
+            .flat_map(|path| get_search_dirs(config, &PathData::from(path), true))
+            .flat_map(|search_dirs| get_deleted_per_dataset(path, search_dirs))
             .flatten()
             .collect();
 

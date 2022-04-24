@@ -460,7 +460,7 @@ fn parse_args() -> ArgMatches {
     clap::Command::new("httm")
         .about("\nBy default, httm will display non-interactive information about unique file versions contained on ZFS snapshots.\n\n\
         You may also select from the various interactive modes below to browse for, select, and/or restore files.")
-        .version("0.9.2") 
+        .version("0.9.3") 
         .arg(
             Arg::new("INPUT_FILES")
                 .help("in the default, non-interactive mode, put requested files here.  If you enter no files, \
@@ -508,7 +508,9 @@ fn parse_args() -> ArgMatches {
             Arg::new("ALT_REPLICATED")
                 .short('a')
                 .long("alt-replicated")
-                .help("automatically discover alternative locally replicated datasets and list their snapshots as well.")
+                .help("automatically discover an alternative locally replicated dataset and list its snapshots as well.  \
+                Users should make certain any replicated dataset is mounted before use, as httm will silently ignore any unmounted \
+                datasets in the interactive modes.")
                 .conflicts_with_all(&["SNAP_POINT", "LOCAL_DIR"])
                 .display_order(6)
         )
