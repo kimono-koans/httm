@@ -250,7 +250,7 @@ fn lookup_view(
     // run_with() reads and shows items from the thread stream created above
     let selected_items = Skim::run_with(&options, Some(rx_item))
         .map(|out| out.selected_items)
-        .unwrap_or_else(Vec::new);
+        .unwrap();
 
     // output() converts the filename/raw path to a absolute path string for use elsewhere
     let res: Vec<String> = selected_items
@@ -258,6 +258,7 @@ fn lookup_view(
         .map(|i| i.output().into_owned())
         .collect();
     
+    // if the res is the empty path, return an empty vec which will exit 
     if res.get(0).unwrap_or(&"".to_owned()).eq(&"".to_owned()) {
         Ok(Vec::new())
     } else {
