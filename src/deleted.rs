@@ -22,6 +22,7 @@ use crate::{Config, PathData};
 use fxhash::FxHashMap as HashMap;
 use rayon::prelude::*;
 use skim::prelude::*;
+use std::path::PathBuf;
 use std::{
     ffi::OsString,
     fs::DirEntry,
@@ -58,10 +59,16 @@ pub fn get_deleted(
     config: &Config,
     path: &Path,
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let immediate_dataset_deleted = get_deleted_per_dataset(config, path, false)?;
+    let immediate_dataset_deleted = vec![path]
+        .into_iter().flat_map(|path| get_search_dirs(config, &PathData::from(path), false)).flat_map(|search_dirs| get_deleted_per_dataset(path, search_dirs))
+        .flatten()
+        .collect();
 
     let combined_deleted: Vec<PathData> = if config.opt_alt_replicated {
-        let alt_replicated_deleted = get_deleted_per_dataset(config, path, true)?;
+        let alt_replicated_deleted = vec![path]
+            .into_iter().flat_map(|path| get_search_dirs(config, &PathData::from(path), true)).flat_map(|search_dirs| get_deleted_per_dataset(path, search_dirs))
+            .flatten()
+            .collect();
 
         [immediate_dataset_deleted, alt_replicated_deleted]
             .into_iter()
@@ -94,12 +101,10 @@ pub fn get_deleted(
 }
 
 fn get_deleted_per_dataset(
-    config: &Config,
     path: &Path,
-    for_alt_replicated: bool,
+    search_dirs: (PathBuf, PathBuf),
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let (hidden_snapshot_dir, local_path) =
-        get_search_dirs(config, &PathData::from(path), for_alt_replicated)?;
+    let (hidden_snapshot_dir, local_path) = search_dirs;
 
     // get all local entries we need to compare against these to know
     // what is a deleted file

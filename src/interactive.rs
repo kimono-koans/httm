@@ -100,10 +100,10 @@ pub fn interactive_exec(
     match config.interactive_mode {
         InteractiveMode::Restore | InteractiveMode::Select => {
             if vec_pathdata.is_empty() {
-                std::process::exit(0)                
+                std::process::exit(0)
             } else {
                 interactive_select(out, config, &vec_pathdata)?;
-                unreachable!()    
+                unreachable!()
             }
         }
         // InteractiveMode::Browse, etc., executes back through fn exec() in httm.rs
@@ -225,7 +225,7 @@ fn lookup_view(
     let requested_dir_clone = config.requested_dir.path_buf.clone();
     let (tx_item, rx_item): (SkimItemSender, SkimItemReceiver) = unbounded();
     let config_clone = Arc::new(config.clone());
-    
+
     // send an empty selection candidate, which if selected just exits the program
     let _ = tx_item.send(Arc::new(SelectionCandidate::new(
         Arc::new(config.clone()),
@@ -257,8 +257,8 @@ fn lookup_view(
         .iter()
         .map(|i| i.output().into_owned())
         .collect();
-    
-    // if the res is the empty path, return an empty vec which will exit 
+
+    // if the res is the empty path, return an empty vec which will exit
     if res.get(0).unwrap_or(&"".to_owned()).eq(&"".to_owned()) {
         Ok(Vec::new())
     } else {
