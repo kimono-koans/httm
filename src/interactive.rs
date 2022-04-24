@@ -143,7 +143,8 @@ fn interactive_restore(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     // build pathdata from selection buffer parsed string
     //
-    // request is also sanity check for metadata
+    // request is also sanity check for snap path exists below when we check
+    // if snap_pathdata is_phantom below
     let snap_pathdata = PathData::from(Path::new(&parsed_str));
 
     // sanity check -- snap version has good metadata?
@@ -216,9 +217,6 @@ fn interactive_restore(
 fn lookup_view(
     config: &Config,
 ) -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    // We *can* build a preview() method on our SkimItem to do this, except, right now, it's slower
-    // because it blocks on preview(), given the implementation of skim, see the new_preview branch
-
     // prep thread spawn
     let requested_dir_clone = config.requested_dir.path_buf.clone();
     let (tx_item, rx_item): (SkimItemSender, SkimItemReceiver) = unbounded();

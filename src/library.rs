@@ -36,8 +36,8 @@ pub fn copy_all(src: &Path, dst: &Path) -> io::Result<()> {
         fs::create_dir_all(&dst)?;
         for entry in fs::read_dir(src)? {
             let entry = entry?;
-            let ty = entry.file_type()?;
-            if ty.is_dir() {
+            let file_type = entry.file_type()?;
+            if file_type.is_dir() {
                 copy_all(&entry.path(), &dst.join(&entry.file_name()))?;
             } else {
                 fs::copy(&entry.path(), &dst.join(&entry.file_name()))?;
