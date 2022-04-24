@@ -35,6 +35,7 @@ pub fn deleted_exec(
     config: &Config,
     out: &mut Stdout,
 ) -> Result<[Vec<PathData>; 2], Box<dyn std::error::Error + Send + Sync + 'static>> {
+    // won't be sending anything anywhere, this just allows us to reuse enumerate_directory
     let (dummy_tx_item, _): (SkimItemSender, SkimItemReceiver) = unbounded();
     let config_clone = Arc::new(config.clone());
 
@@ -57,17 +58,17 @@ pub fn get_deleted(
     config: &Config,
     path: &Path,
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let immediate_dataset_vec_deleted = get_deleted_per_dataset(config, path, false)?;
+    let immediate_dataset_deleted = get_deleted_per_dataset(config, path, false)?;
 
     let combined_deleted: Vec<PathData> = if config.opt_alt_replicated {
         let alt_replicated_deleted = get_deleted_per_dataset(config, path, true)?;
 
-        [immediate_dataset_vec_deleted, alt_replicated_deleted]
+        [immediate_dataset_deleted, alt_replicated_deleted]
             .into_iter()
             .flatten()
             .collect()
     } else {
-        immediate_dataset_vec_deleted
+        immediate_dataset_deleted
     };
 
     // we need to make certain that what we return from possibly multiple datasets are unique
