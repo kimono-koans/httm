@@ -16,7 +16,6 @@
 // that was distributed with this source code.
 
 use crate::{Config, HttmError, PathData, SnapPoint};
-use crate::library::{get_alt_replicated_dataset};
 use fxhash::FxHashMap as HashMap;
 use rayon::prelude::*;
 use std::{
@@ -92,7 +91,8 @@ pub fn get_search_dirs(
             defined_dirs.snap_dir.to_owned(),
         ),
         SnapPoint::Native(mount_collection) => {
-            let immediate_dataset_snap_mount = get_immediate_dataset(file_pathdata, mount_collection)?;
+            let immediate_dataset_snap_mount =
+                get_immediate_dataset(file_pathdata, mount_collection)?;
 
             if for_alt_replicated {
                 get_alt_replicated_dataset(&immediate_dataset_snap_mount, mount_collection)?
@@ -103,7 +103,7 @@ pub fn get_search_dirs(
                     immediate_dataset_snap_mount,
                 )
             }
-        },
+        }
     };
 
     // building the snapshot path from our dataset
@@ -126,6 +126,52 @@ pub fn get_search_dirs(
     }?;
 
     Ok((hidden_snapshot_dir, local_path.to_path_buf()))
+}
+
+fn get_alt_replicated_dataset(
+    immediate_dataset_snap_mount: &PathBuf,
+    mount_collection: &[(String, String)],
+) -> Result<(PathBuf, PathBuf), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    let mut unique_mounts: HashMap<&Path, &String> = HashMap::default();
+
+    // reverse the order - mount as key, fs as value
+    mount_collection.iter().for_each(|(fs, mount)| {
+        let _ = unique_mounts.insert(Path::new(mount), fs);
+    });
+
+    // so we can search for the mount as a key
+    match &unique_mounts.get(&immediate_dataset_snap_mount.as_path()) {
+        Some(immediate_dataset_fs_name) => {
+            // find a filesystem that ends with our most local filesystem name
+            // but has a preface name, like a different pool name: rpool might be
+            // replicated to tank/rpool
+            //
+            // note: this won't work where dozer/rpool is replicated to tank/rpool, and
+            // is only one way (one can only see the receiving fs from the sending fs),
+            // but works well enough.  If you have a better idea, let me know.
+            if let Some((alt_replicated_mount, _)) = unique_mounts
+                .clone()
+                .into_par_iter()
+                .filter(|(_, fs)| fs.ends_with(immediate_dataset_fs_name.as_str()))
+                .max_by_key(|(_, fs)| fs.len())
+            {
+                if &alt_replicated_mount.to_owned() == immediate_dataset_snap_mount {
+                    return Err(HttmError::new("httm was unable to detect an alternate replicated mount point.  Perhaps the replicated filesystem is not mounted?").into());
+                }
+                Ok((
+                    alt_replicated_mount.to_path_buf(),
+                    immediate_dataset_snap_mount.clone(),
+                ))
+            } else {
+                // could not find the some replicated mount
+                Err(HttmError::new("httm was unable to detect an alternate replicated mount point.  Perhaps the replicated filesystem is not mounted?").into())
+            }
+        }
+        _ => {
+            // could not find the immediate dataset
+            Err(HttmError::new("httm was unable to detect an alternate replicated mount point.  Perhaps the replicated filesystem is not mounted?").into())
+        }
+    }
 }
 
 fn get_versions(

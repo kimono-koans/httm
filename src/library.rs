@@ -18,12 +18,11 @@
 use crate::deleted::get_deleted;
 use crate::display::display_exec;
 use crate::interactive::SelectionCandidate;
-use crate::{Config, DeletedMode, ExecMode, PathData, HttmError};
+use crate::{Config, DeletedMode, ExecMode, PathData};
 
 use lscolors::{LsColors, Style};
 use rayon::{iter::Either, prelude::*};
 use skim::prelude::*;
-use fxhash::FxHashMap as HashMap;
 use std::fs::{DirEntry, FileType};
 use std::{
     fs,
@@ -253,48 +252,3 @@ pub fn enumerate_directory(
     }
     Ok(())
 }
-
-pub fn get_alt_replicated_dataset(immediate_dataset_snap_mount: &PathBuf, mount_collection: &Vec<(String, String)>) -> Result<(PathBuf, PathBuf), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let mut unique_mounts: HashMap<&Path, &String> = HashMap::default();
-
-    // reverse the order - mount as key, fs as value
-    mount_collection.iter().for_each(|(fs, mount)| {
-        let _ = unique_mounts.insert(Path::new(mount), fs);
-    });
-
-    // so we can search for the mount as a key
-    match &unique_mounts.get(&immediate_dataset_snap_mount.as_path()) {
-        Some(immediate_dataset_fs_name) => {
-            // find a filesystem that ends with our most local filesystem name
-            // but has a preface name, like a different pool name: rpool might be
-            // replicated to tank/rpool
-            //
-            // note: this won't work where dozer/rpool is replicated to tank/rpool, and
-            // is only one way (one can only see the receiving fs from the sending fs),
-            // but works well enough.  If you have a better idea, let me know.
-            if let Some((alt_replicated_mount, _)) = unique_mounts
-                .clone()
-                .into_par_iter()
-                .filter(|(_, fs)| fs.ends_with(immediate_dataset_fs_name.as_str()))
-                .max_by_key(|(_, fs)| fs.len())
-            {
-                if &alt_replicated_mount.to_owned() == immediate_dataset_snap_mount {
-                    return Err(HttmError::new("httm was unable to detect an alternate replicated mount point.  Perhaps the replicated filesystem is not mounted?").into());
-                }
-                Ok((
-                    alt_replicated_mount.to_path_buf(),
-                    immediate_dataset_snap_mount.clone(),
-                ))
-            } else {
-                // could not find the some replicated mount
-                return Err(HttmError::new("httm was unable to detect an alternate replicated mount point.  Perhaps the replicated filesystem is not mounted?").into())
-            }
-        }
-        _ => {
-            // could not find the immediate dataset
-            return Err(HttmError::new("httm was unable to detect an alternate replicated mount point.  Perhaps the replicated filesystem is not mounted?").into())
-        }
-    }
-}
-
-    
