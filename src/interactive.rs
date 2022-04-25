@@ -221,18 +221,18 @@ fn lookup_view(
     // prep thread spawn
     let requested_dir_clone = config.requested_dir.path_buf.clone();
     let (tx_item, rx_item): (SkimItemSender, SkimItemReceiver) = unbounded();
-    let config_clone = Arc::new(config.clone());
+    let arc_config = Arc::new(config.clone());
 
     // send an empty selection candidate, which, if selected, just exits the program
     let _ = tx_item.send(Arc::new(SelectionCandidate::new(
-        config_clone.clone(),
+        arc_config.clone(),
         PathBuf::from(""),
     )));
 
     // thread spawn fn enumerate_directory - permits recursion into dirs without blocking
     thread::spawn(move || {
         let mut out = std::io::stdout();
-        let _ = enumerate_directory(config_clone, &tx_item, &requested_dir_clone, &mut out);
+        let _ = enumerate_directory(arc_config, &tx_item, &requested_dir_clone, &mut out);
     });
 
     // create the skim component for previews
