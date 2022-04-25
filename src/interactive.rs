@@ -301,7 +301,8 @@ fn select_view(
     let skim_opts = SkimOptionsBuilder::default()
         .exact(true)
         .multi(false)
-        .header(Some("PAGE UP:    page up  | PAGE DOWN:    page down\n\
+        .header(Some(
+            "PAGE UP:    page up  | PAGE DOWN:    page down\n\
                       SELECT:     enter    |\n\
                       EXIT:       esc      |\n\
                       ───────────────────────────────────────────────────",
