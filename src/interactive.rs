@@ -67,10 +67,7 @@ impl SkimItem for SelectionCandidate {
         Cow::Owned(path)
     }
     fn preview(&self, _: PreviewContext<'_>) -> skim::ItemPreview {
-        let config = self.config.clone();
-        let path = self.path.clone();
-
-        let res = preview_view(&config, &path).unwrap_or_default();
+        let res = preview_view(&self.config, &self.path).unwrap_or_default();
         skim::ItemPreview::AnsiText(res)
     }
 }
