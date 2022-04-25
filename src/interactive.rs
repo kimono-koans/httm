@@ -18,7 +18,7 @@
 use crate::display::display_exec;
 use crate::library::{copy_all, enumerate_directory, paint_string};
 use crate::lookup::lookup_exec;
-use crate::{read_stdin, Config, DeletedMode, ExecMode, HttmError, InteractiveMode, PathData};
+use crate::{read_stdin, Config, ExecMode, HttmError, InteractiveMode, PathData};
 
 extern crate skim;
 use chrono::{DateTime, Local};
@@ -41,7 +41,6 @@ pub struct SelectionCandidate {
 
 impl SelectionCandidate {
     pub fn new(config: Arc<Config>, path: PathBuf) -> Self {
-        // build a config just for previews
         SelectionCandidate { config, path }
     }
 }
@@ -86,7 +85,7 @@ fn preview_view(
         opt_recursive: false,
         opt_no_live_vers: false,
         exec_mode: ExecMode::Display,
-        deleted_mode: DeletedMode::Disabled,
+        deleted_mode: config.deleted_mode.to_owned(),
         interactive_mode: InteractiveMode::None,
         snap_point: config.snap_point.to_owned(),
         pwd: config.pwd.to_owned(),
@@ -94,7 +93,7 @@ fn preview_view(
     };
 
     // finally run search on those paths
-    let snaps_and_live_set = lookup_exec(&gen_config, &config.paths)?;
+    let snaps_and_live_set = lookup_exec(&gen_config, &gen_config.paths)?;
     // and display
     let output_buf = display_exec(config, snaps_and_live_set)?;
 
@@ -302,9 +301,9 @@ fn select_view(
     let skim_opts = SkimOptionsBuilder::default()
         .exact(true)
         .multi(false)
-        .header(Some(
-            "SELECT: enter |\n\
-                      EXIT:   esc   |\n\
+        .header(Some("PAGE UP:    page up  | PAGE DOWN:    page down\n\
+                      SELECT:     enter    |\n\
+                      EXIT:       esc      |\n\
                       ───────────────────────────────────────────────────",
         ))
         .build()
