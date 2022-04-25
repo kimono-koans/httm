@@ -68,24 +68,37 @@ impl SkimItem for SelectionCandidate {
         Cow::Owned(path)
     }
     fn preview(&self, _: PreviewContext<'_>) -> skim::ItemPreview {
-        let gen_config = Config {
-            paths: vec![PathData::from(self.path.as_path())],
-            opt_alt_replicated: self.config.opt_alt_replicated.to_owned(),
-            opt_raw: false,
-            opt_zeros: false,
-            opt_no_pretty: false,
-            opt_recursive: false,
-            opt_no_live_vers: false,
-            exec_mode: ExecMode::Display,
-            deleted_mode: DeletedMode::Disabled,
-            interactive_mode: InteractiveMode::None,
-            snap_point: self.config.snap_point.to_owned(),
-            pwd: self.config.pwd.to_owned(),
-            requested_dir: self.config.requested_dir.to_owned(),
-        };
-        let res = preview_view(&gen_config).unwrap_or_default();
+        let res = preview_view(&self.config, &self.path).unwrap_or_default();
         skim::ItemPreview::AnsiText(res)
     }
+}
+
+fn preview_view(
+    config: &Config,
+    path: &Path,
+) -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    let gen_config = Config {
+        paths: vec![PathData::from(path)],
+        opt_alt_replicated: config.opt_alt_replicated.to_owned(),
+        opt_raw: false,
+        opt_zeros: false,
+        opt_no_pretty: false,
+        opt_recursive: false,
+        opt_no_live_vers: false,
+        exec_mode: ExecMode::Display,
+        deleted_mode: DeletedMode::Disabled,
+        interactive_mode: InteractiveMode::None,
+        snap_point: config.snap_point.to_owned(),
+        pwd: config.pwd.to_owned(),
+        requested_dir: config.requested_dir.to_owned(),
+    };
+
+    // finally run search on those paths
+    let snaps_and_live_set = lookup_exec(&gen_config, &config.paths)?;
+    // and display
+    let output_buf = display_exec(config, snaps_and_live_set)?;
+
+    Ok(output_buf)
 }
 
 pub fn interactive_exec(
@@ -239,12 +252,6 @@ fn lookup_view(
     let (tx_item, rx_item): (SkimItemSender, SkimItemReceiver) = unbounded();
     let arc_config = Arc::new(config.clone());
 
-    // send an empty selection candidate, which, if selected, just exits the program
-    let _ = tx_item.send(Arc::new(SelectionCandidate::new(
-        arc_config.clone(),
-        PathBuf::from(""),
-    )));
-
     // thread spawn fn enumerate_directory - permits recursion into dirs without blocking
     thread::spawn(move || {
         let mut out = std::io::stdout();
@@ -253,17 +260,26 @@ fn lookup_view(
 
     // create the skim component for previews
     let options = SkimOptionsBuilder::default()
-        .preview_window(Some("75%"))
+        .preview_window(Some("up:50%"))
         .preview(Some(""))
+        .header(Some("PAGE UP: page up | PAGE DOWN: page down | PREVIEW UP: shift+up        | PREVIEW DOWN: shift+down\n\
+                      EXIT: esc        | SELECT: enter        | SELECT, MULTIPLE: shift+tab\n\
+                      ────────────────────────────────────────────────────────────────────────────────────────────────"))
         .multi(true)
-        .exact(true)
         .build()
         .unwrap();
 
     // run_with() reads and shows items from the thread stream created above
-    let selected_items = Skim::run_with(&options, Some(rx_item))
-        .map(|out| out.selected_items)
-        .unwrap();
+    let selected_items = if let Some(output) = Skim::run_with(&options, Some(rx_item)) {
+        if output.is_abort {
+            eprintln!("httm lookup session was aborted.  Quitting.");
+            std::process::exit(0)
+        } else {
+            output.selected_items
+        }    
+    } else {
+        return Err(HttmError::new("httm lookup session failed.").into())
+    };
 
     // output() converts the filename/raw path to a absolute path string for use elsewhere
     let res: Vec<String> = selected_items
@@ -271,23 +287,7 @@ fn lookup_view(
         .map(|i| i.output().into_owned())
         .collect();
 
-    // if the res is the empty path, return an empty vec which will exit
-    if res.get(0).unwrap_or(&"".to_owned()).eq(&"".to_owned()) {
-        Err(HttmError::new("Deliberately empty path selected.  Quitting.").into())
-    } else {
-        Ok(res)
-    }
-}
-
-fn preview_view(
-    config: &Config,
-) -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    // finally run search on those paths
-    let snaps_and_live_set = lookup_exec(config, &config.paths)?;
-    // and display
-    let output_buf = display_exec(config, snaps_and_live_set)?;
-
-    Ok(output_buf)
+    Ok(res)
 }
 
 fn select_view(
@@ -296,9 +296,10 @@ fn select_view(
     // take what lookup gave us and select from among the snapshot options
     // build our skim view - less to do than before - no previews, looking through one 'lil buffer
     let skim_opts = SkimOptionsBuilder::default()
-        .interactive(true)
         .exact(true)
         .multi(false)
+        .header(Some("EXIT: esc        | SELECT: enter\n\
+                      ────────────────────────────────────────────────────────────────────────────────────────────────"))
         .build()
         .unwrap();
 
@@ -306,9 +307,17 @@ fn select_view(
     let item_reader = SkimItemReader::new(item_reader_opts);
     let items = item_reader.of_bufread(Cursor::new(selection_buffer));
 
-    let selected_items = Skim::run_with(&skim_opts, Some(items))
-        .map(|out| out.selected_items)
-        .unwrap_or_else(Vec::new);
+    // run_with() reads and shows items from the thread stream created above
+    let selected_items = if let Some(output) = Skim::run_with(&skim_opts, Some(items)) {
+        if output.is_abort {
+            eprintln!("httm select session was aborted.  Quitting.");
+            std::process::exit(0)
+        } else {
+            output.selected_items
+        }    
+    } else {
+        return Err(HttmError::new("httm select session failed.").into())
+    };
 
     // output() converts the filename/raw path to a absolute path string for use elsewhere
     let res = selected_items
