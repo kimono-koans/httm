@@ -276,7 +276,7 @@ fn lookup_view(
 
     // if the res is the empty path, return an empty vec which will exit
     if res.get(0).unwrap_or(&"".to_owned()).eq(&"".to_owned()) {
-        Ok(Vec::new())
+        Err(HttmError::new("Deliberately empty path selected.  Quitting.").into())
     } else {
         Ok(res)
     }

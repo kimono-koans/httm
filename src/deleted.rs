@@ -64,7 +64,8 @@ pub fn get_deleted(
     let combined_deleted: Vec<PathData> = if config.opt_alt_replicated {
         vec![requested_dir]
             .into_iter()
-            .map(PathData::from).flat_map(|path_data| {
+            .map(PathData::from)
+            .flat_map(|path_data| {
                 [
                     get_search_dirs(config, &path_data, true),
                     get_search_dirs(config, &path_data, false),
