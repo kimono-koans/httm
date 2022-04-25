@@ -59,27 +59,29 @@ pub fn get_deleted(
     config: &Config,
     requested_dir: &Path,
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let immediate_dataset_deleted = vec![requested_dir]
-        .into_iter()
-        .flat_map(|path| get_search_dirs(config, &PathData::from(path), false))
-        .flat_map(|search_dirs| get_deleted_per_dataset(requested_dir, search_dirs))
-        .flatten()
-        .collect();
-
     let combined_deleted: Vec<PathData> = if config.opt_alt_replicated {
-        let alt_replicated_deleted = vec![requested_dir]
+        vec![requested_dir]
             .into_iter()
-            .flat_map(|path| get_search_dirs(config, &PathData::from(path), true))
-            .flat_map(|search_dirs| get_deleted_per_dataset(requested_dir, search_dirs))
+            .map(|path| PathData::from(path))
+            .map(|path_data| {
+                [
+                    get_search_dirs(config, &path_data, false),
+                    get_search_dirs(config, &path_data, true),
+                ]
+            })
+            .par_bridge()
             .flatten()
-            .collect();
-
-        [immediate_dataset_deleted, alt_replicated_deleted]
-            .into_iter()
+            .flatten()
+            .flat_map(|search_dirs| get_deleted_per_dataset(requested_dir, search_dirs))
             .flatten()
             .collect()
     } else {
-        immediate_dataset_deleted
+        vec![requested_dir]
+            .into_iter()
+            .flat_map(|path| get_search_dirs(config, &PathData::from(path), false))
+            .flat_map(|search_dirs| get_deleted_per_dataset(requested_dir, search_dirs))
+            .flatten()
+            .collect()
     };
 
     // we need to make certain that what we return from possibly multiple datasets are unique

@@ -27,8 +27,6 @@ pub fn lookup_exec(
     config: &Config,
     path_data: &Vec<PathData>,
 ) -> Result<[Vec<PathData>; 2], Box<dyn std::error::Error + Send + Sync + 'static>> {
-    // create vec of most local dataset/user specified backups
-
     let all_snaps: Vec<PathData> = if config.opt_alt_replicated {
         // create vec of all local and replicated backups
         path_data
@@ -47,6 +45,7 @@ pub fn lookup_exec(
             .flatten_iter()
             .collect()
     } else {
+        // create vec of most local dataset/user specified backups
         path_data
             .into_par_iter()
             .map(|path_data| get_search_dirs(config, path_data, false))
