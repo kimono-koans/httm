@@ -1,4 +1,4 @@
-[![asciicast](https://asciinema.org/a/488641.svg)](https://asciinema.org/a/488641)
+[![asciicast](https://asciinema.org/a/490012.svg)](https://asciinema.org/a/490012)
 
 # `httm`
 
