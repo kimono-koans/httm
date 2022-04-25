@@ -59,19 +59,17 @@ pub fn get_deleted(
     config: &Config,
     requested_dir: &Path,
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    // don't use into_par_iter() or par_bridge() here, as will cause hangs/pauses, 
+    // don't use into_par_iter() or par_bridge() here, as will cause hangs/pauses,
     // especially when we call on multiple datasets
     let combined_deleted: Vec<PathData> = if config.opt_alt_replicated {
         vec![requested_dir]
             .into_iter()
-            .map(PathData::from)
-            .map(|path_data| {
+            .map(PathData::from).flat_map(|path_data| {
                 [
-                    get_search_dirs(config, &path_data, true),    
+                    get_search_dirs(config, &path_data, true),
                     get_search_dirs(config, &path_data, false),
                 ]
             })
-            .flatten()
             .flatten()
             .flat_map(|search_dirs| get_deleted_per_dataset(requested_dir, search_dirs))
             .flatten()
