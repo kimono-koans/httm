@@ -42,25 +42,7 @@ pub struct SelectionCandidate {
 impl SelectionCandidate {
     pub fn new(config: Arc<Config>, path: PathBuf) -> Self {
         // build a config just for previews
-        let gen_config = Config {
-            paths: vec![PathData::from(path.as_path())],
-            opt_alt_replicated: config.opt_alt_replicated.to_owned(),
-            opt_raw: false,
-            opt_zeros: false,
-            opt_no_pretty: false,
-            opt_recursive: false,
-            opt_no_live_vers: false,
-            exec_mode: ExecMode::Display,
-            deleted_mode: DeletedMode::Disabled,
-            interactive_mode: InteractiveMode::None,
-            snap_point: config.snap_point.to_owned(),
-            pwd: config.pwd.to_owned(),
-            requested_dir: config.requested_dir.to_owned(),
-        };
-        SelectionCandidate {
-            config: Arc::new(gen_config),
-            path,
-        }
+        SelectionCandidate { config, path }
     }
 }
 
@@ -86,7 +68,22 @@ impl SkimItem for SelectionCandidate {
         Cow::Owned(path)
     }
     fn preview(&self, _: PreviewContext<'_>) -> skim::ItemPreview {
-        let res = preview_view(&self.config).unwrap_or_default();
+        let gen_config = Config {
+            paths: vec![PathData::from(self.path.as_path())],
+            opt_alt_replicated: self.config.opt_alt_replicated.to_owned(),
+            opt_raw: false,
+            opt_zeros: false,
+            opt_no_pretty: false,
+            opt_recursive: false,
+            opt_no_live_vers: false,
+            exec_mode: ExecMode::Display,
+            deleted_mode: DeletedMode::Disabled,
+            interactive_mode: InteractiveMode::None,
+            snap_point: self.config.snap_point.to_owned(),
+            pwd: self.config.pwd.to_owned(),
+            requested_dir: self.config.requested_dir.to_owned(),
+        };
+        let res = preview_view(&gen_config).unwrap_or_default();
         skim::ItemPreview::AnsiText(res)
     }
 }
