@@ -30,7 +30,7 @@ use crate::library::{httm_is_dir, read_stdin};
 use crate::lookup::lookup_exec;
 
 use clap::{Arg, ArgMatches};
-use fxhash::FxHashMap as HashMap;
+use fxhash::FxHashSet as HashSet;
 use rayon::prelude::*;
 use std::fs::canonicalize;
 use std::{
@@ -422,16 +422,16 @@ impl Config {
         // deduplicate pathdata and sort if in display mode --
         // so input of ./.z* and ./.zshrc will only print ./.zshrc once
         paths = if exec_mode == ExecMode::Display && paths.len() > 1 {
-            let mut unique_paths: HashMap<PathBuf, PathData> = HashMap::default();
+            let mut unique_paths: HashSet<PathData> = HashSet::default();
 
             paths.into_iter().for_each(|pathdata| {
-                let _ = unique_paths.insert(pathdata.path_buf.clone(), pathdata);
+                let _ = unique_paths.insert(pathdata);
             });
 
-            let mut sorted: Vec<(PathBuf, PathData)> = unique_paths.into_iter().collect();
-            sorted.par_sort_unstable_by(|a, b| a.0.cmp(&b.0));
+            let mut sorted: Vec<PathData> = unique_paths.into_iter().collect();
+            sorted.par_sort_unstable_by_key(|pathdata| (pathdata.system_time, pathdata.size));
 
-            sorted.into_iter().map(|(_, v)| v).collect()
+            sorted
         } else {
             paths
         };

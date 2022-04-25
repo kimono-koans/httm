@@ -223,9 +223,9 @@ fn lookup_view(
     let (tx_item, rx_item): (SkimItemSender, SkimItemReceiver) = unbounded();
     let config_clone = Arc::new(config.clone());
 
-    // send an empty selection candidate, which if selected just exits the program
+    // send an empty selection candidate, which, if selected, just exits the program
     let _ = tx_item.send(Arc::new(SelectionCandidate::new(
-        Arc::new(config.clone()),
+        config_clone.clone(),
         PathBuf::from(""),
     )));
 
