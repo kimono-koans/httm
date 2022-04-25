@@ -23,7 +23,7 @@ mod library;
 mod lookup;
 
 use crate::config_helper::{install_hot_keys, list_all_filesystems};
-use crate::deleted::deleted_exec;
+use crate::deleted::display_recursive_exec;
 use crate::display::display_exec;
 use crate::interactive::interactive_exec;
 use crate::library::{httm_is_dir, read_stdin};
@@ -602,7 +602,7 @@ fn exec() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         ExecMode::Display => lookup_exec(&config, &config.paths)?,
         // deleted_exec is special because it is more convenient to get PathData in 'mod deleted'
         // on raw paths rather than strings, also there is no need to run a lookup on files already on snapshots
-        ExecMode::DisplayRecursive => deleted_exec(&config, &mut out)?,
+        ExecMode::DisplayRecursive => display_recursive_exec(&config, &mut out)?,
     };
 
     // and display

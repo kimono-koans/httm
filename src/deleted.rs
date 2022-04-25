@@ -32,7 +32,7 @@ use std::{
     time::SystemTime,
 };
 
-pub fn deleted_exec(
+pub fn display_recursive_exec(
     config: &Config,
     out: &mut Stdout,
 ) -> Result<[Vec<PathData>; 2], Box<dyn std::error::Error + Send + Sync + 'static>> {
@@ -57,20 +57,20 @@ pub fn deleted_exec(
 
 pub fn get_deleted(
     config: &Config,
-    path: &Path,
+    requested_dir: &Path,
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let immediate_dataset_deleted = vec![path]
+    let immediate_dataset_deleted = vec![requested_dir]
         .into_iter()
         .flat_map(|path| get_search_dirs(config, &PathData::from(path), false))
-        .flat_map(|search_dirs| get_deleted_per_dataset(path, search_dirs))
+        .flat_map(|search_dirs| get_deleted_per_dataset(requested_dir, search_dirs))
         .flatten()
         .collect();
 
     let combined_deleted: Vec<PathData> = if config.opt_alt_replicated {
-        let alt_replicated_deleted = vec![path]
+        let alt_replicated_deleted = vec![requested_dir]
             .into_iter()
             .flat_map(|path| get_search_dirs(config, &PathData::from(path), true))
-            .flat_map(|search_dirs| get_deleted_per_dataset(path, search_dirs))
+            .flat_map(|search_dirs| get_deleted_per_dataset(requested_dir, search_dirs))
             .flatten()
             .collect();
 
