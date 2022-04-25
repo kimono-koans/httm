@@ -262,9 +262,13 @@ fn lookup_view(
     let options = SkimOptionsBuilder::default()
         .preview_window(Some("up:50%"))
         .preview(Some(""))
-        .header(Some("PAGE UP: page up | PAGE DOWN: page down | PREVIEW UP: shift+up        | PREVIEW DOWN: shift+down\n\
-                      EXIT: esc        | SELECT: enter        | SELECT, MULTIPLE: shift+tab\n\
-                      ────────────────────────────────────────────────────────────────────────────────────────────────"))
+        .header(Some(
+            "PREVIEW UP: shift+up | PREVIEW DOWN:     shift+down\n\
+                      PAGE UP:    page up  | PAGE DOWN:        page down \n\
+                      SELECT:     enter    | SELECT, MULTIPLE: shift+tab \n\
+                      EXIT:       esc      |\n\
+                      ───────────────────────────────────────────────────",
+        ))
         .multi(true)
         .build()
         .unwrap();
@@ -298,8 +302,11 @@ fn select_view(
     let skim_opts = SkimOptionsBuilder::default()
         .exact(true)
         .multi(false)
-        .header(Some("EXIT: esc        | SELECT: enter\n\
-                      ────────────────────────────────────────────────────────────────────────────────────────────────"))
+        .header(Some(
+            "SELECT: enter |\n\
+                      EXIT:   esc   |\n\
+                      ───────────────────────────────────────────────────",
+        ))
         .build()
         .unwrap();
 
