@@ -33,16 +33,16 @@ pub fn lookup_exec(
             .into_par_iter()
             .map(|path_data| {
                 [
-                    get_search_dirs(config, path_data, false),
                     get_search_dirs(config, path_data, true),
+                    get_search_dirs(config, path_data, false),
                 ]
             })
             .flatten()
             .map(|search_dirs| search_dirs.ok())
             .flatten()
             .map(get_versions)
-            .flatten_iter()
-            .flatten_iter()
+            .flatten()
+            .flatten()
             .collect()
     } else {
         // create vec of most local dataset/user specified backups
