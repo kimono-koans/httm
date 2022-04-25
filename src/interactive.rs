@@ -272,13 +272,13 @@ fn lookup_view(
     // run_with() reads and shows items from the thread stream created above
     let selected_items = if let Some(output) = Skim::run_with(&options, Some(rx_item)) {
         if output.is_abort {
-            eprintln!("httm lookup session was aborted.  Quitting.");
+            eprintln!("httm interactive file browse session was aborted.  Quitting.");
             std::process::exit(0)
         } else {
             output.selected_items
-        }    
+        }
     } else {
-        return Err(HttmError::new("httm lookup session failed.").into())
+        return Err(HttmError::new("httm interactive file browse session failed.").into());
     };
 
     // output() converts the filename/raw path to a absolute path string for use elsewhere
@@ -314,9 +314,9 @@ fn select_view(
             std::process::exit(0)
         } else {
             output.selected_items
-        }    
+        }
     } else {
-        return Err(HttmError::new("httm select session failed.").into())
+        return Err(HttmError::new("httm select session failed.").into());
     };
 
     // output() converts the filename/raw path to a absolute path string for use elsewhere

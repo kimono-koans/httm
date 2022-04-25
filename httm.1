@@ -18,33 +18,32 @@ httm [OPTIONS] [INPUT_FILES]...
 <INPUT_FILES>...
 in the default, non\-interactive mode, put requested files here.  If you
 enter no files, then httm will pause waiting for input on stdin(3).  In
-any interactive mode, this is the search path. If none is entered, httm
-will use the current working directory.
+any interactive mode, this is the directory search path. If no directory
+is entered, httm will use the current working directory.
 .SS "OPTIONS:"
 .TP
 \fB\-i\fR, \fB\-\-interactive\fR
 interactively browse and search files.
 .TP
 \fB\-s\fR, \fB\-\-select\fR
-interactively browse and search files for selection of a
-snapshot version.
+interactively browse and search files.  Continue to another
+dialog to select a snapshot version.
 .TP
 \fB\-r\fR, \fB\-\-restore\fR
-interactively browse and search files for selection of a
-snapshot version to restore.
+interactively browse and search files.  Continue to another
+dialog to select a snapshot version to restore.
 .TP
 \fB\-d\fR, \fB\-\-deleted\fR <DELETED>
 show deleted files in interactive modes, or do a search for all
 such files, if a directory is specified. If \fB\-\-deleted\fR=\fI\,only\/\fR is
 specified, then, in interactive modes, non\-deleted files will
-be excluded from the search. [possible values: only, ONLY, ]
+be excluded from the search.
 .TP
 \fB\-a\fR, \fB\-\-alt\-replicated\fR
 automatically discover an alternative locally replicated
-dataset and list its snapshots as well.  Users should make
-certain any replicated dataset is mounted before use, as httm
-will silently ignore any unmounted datasets in the interactive
-modes.
+dataset and list its snapshots as well.  NOTE: Make certain any
+replicated dataset is mounted before use, as httm will silently
+ignore any unmounted datasets in the interactive modes.
 .TP
 \fB\-R\fR, \fB\-\-recursive\fR
 recurse into selected directory to find more files. Only

@@ -464,8 +464,8 @@ fn parse_args() -> ArgMatches {
         .arg(
             Arg::new("INPUT_FILES")
                 .help("in the default, non-interactive mode, put requested files here.  If you enter no files, \
-                then httm will pause waiting for input on stdin(3).  In any interactive mode, this is the search path. \
-                If none is entered, httm will use the current working directory.")
+                then httm will pause waiting for input on stdin(3).  In any interactive mode, this is the directory search path. \
+                If no directory is entered, httm will use the current working directory.")
                 .takes_value(true)
                 .multiple_values(true)
                 .display_order(1)
@@ -481,7 +481,7 @@ fn parse_args() -> ArgMatches {
             Arg::new("SELECT")
                 .short('s')
                 .long("select")
-                .help("interactively browse and search files for selection of a snapshot version.")
+                .help("interactively browse and search files.  Continue to another dialog to select a snapshot version.")
                 .conflicts_with("RESTORE")
                 .display_order(3)
         )
@@ -489,7 +489,7 @@ fn parse_args() -> ArgMatches {
             Arg::new("RESTORE")
                 .short('r')
                 .long("restore")
-                .help("interactively browse and search files for selection of a snapshot version to restore.")
+                .help("interactively browse and search files.  Continue to another dialog to select a snapshot version to restore.")
                 .conflicts_with("SELECT")
                 .display_order(4)
         )
@@ -500,6 +500,7 @@ fn parse_args() -> ArgMatches {
                 .takes_value(true)
                 .default_missing_value("")
                 .possible_values(&["only", "ONLY", ""])
+                .hide_possible_values(true)
                 .help("show deleted files in interactive modes, or do a search for all such files, if a directory is specified. \
                 If --deleted=only is specified, then, in interactive modes, non-deleted files will be excluded from the search.")
                 .display_order(5)
@@ -509,7 +510,7 @@ fn parse_args() -> ArgMatches {
                 .short('a')
                 .long("alt-replicated")
                 .help("automatically discover an alternative locally replicated dataset and list its snapshots as well.  \
-                Users should make certain any replicated dataset is mounted before use, as httm will silently ignore any unmounted \
+                NOTE: Make certain any replicated dataset is mounted before use, as httm will silently ignore any unmounted \
                 datasets in the interactive modes.")
                 .conflicts_with_all(&["SNAP_POINT", "LOCAL_DIR"])
                 .display_order(6)
