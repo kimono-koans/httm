@@ -27,35 +27,33 @@ pub fn lookup_exec(
     config: &Config,
     path_data: &Vec<PathData>,
 ) -> Result<[Vec<PathData>; 2], Box<dyn std::error::Error + Send + Sync + 'static>> {
-    // create vec of most local dataset/user specified backups
-    let immediate_dataset_snaps: Vec<PathData> = path_data
-        .par_iter()
-        .map(|path_data| get_search_dirs(config, path_data, false))
-        .map(|search_dirs| search_dirs.ok())
-        .flatten()
-        .map(get_versions)
-        .flatten_iter()
-        .flatten_iter()
-        .collect();
-
     let all_snaps: Vec<PathData> = if config.opt_alt_replicated {
         // create vec of all local and replicated backups
-        let alt_replicated_snaps: Vec<PathData> = path_data
-            .par_iter()
-            .map(|path_data| get_search_dirs(config, path_data, true))
+        path_data
+            .into_par_iter()
+            .map(|path_data| {
+                [
+                    get_search_dirs(config, path_data, true),
+                    get_search_dirs(config, path_data, false),
+                ]
+            })
+            .flatten()
             .map(|search_dirs| search_dirs.ok())
+            .flatten()
+            .map(get_versions)
+            .flatten()
+            .flatten()
+            .collect()
+    } else {
+        // create vec of most local dataset/user specified backups
+        path_data
+            .into_par_iter()
+            .map(|path_data| get_search_dirs(config, path_data, false))
             .flatten()
             .map(get_versions)
             .flatten_iter()
             .flatten_iter()
-            .collect();
-
-        [alt_replicated_snaps, immediate_dataset_snaps]
-            .into_iter()
-            .flatten()
-            .collect()
-    } else {
-        immediate_dataset_snaps
+            .collect::<Vec<PathData>>()
     };
 
     // create vec of live copies - unless user doesn't want it!
@@ -92,52 +90,12 @@ pub fn get_search_dirs(
         ),
         SnapPoint::Native(mount_collection) => {
             let immediate_dataset_snap_mount =
-                get_snapshot_dataset(file_pathdata, mount_collection)?;
+                get_immediate_dataset(file_pathdata, mount_collection)?;
 
             if for_alt_replicated {
-                let mut unique_mounts: HashMap<&Path, &String> = HashMap::default();
-
-                // reverse the order - mount as key, fs as value
-                mount_collection.iter().for_each(|(fs, mount)| {
-                    let _ = unique_mounts.insert(Path::new(mount), fs);
-                });
-
-                // so we can search for the mount as a key
-                match unique_mounts.get(&immediate_dataset_snap_mount.as_path()) {
-                    Some(immediate_dataset_fs_name) => {
-                        // find a filesystem that ends with our most local filesystem name
-                        // but has a preface name, like a different pool name: rpool might be
-                        // replicated to tank/rpool
-                        //
-                        // note: this won't work where dozer/rpool is replicated to tank/rpool, and
-                        // is only one way (one can only see the receiving fs from the sending fs),
-                        // but works well enough.  If you have a better idea, let me know.
-                        if let Some((alt_replicated_mount, _)) = unique_mounts
-                            .clone()
-                            .into_par_iter()
-                            .filter(|(_, fs)| fs.ends_with(immediate_dataset_fs_name.as_str()))
-                            .max_by_key(|(_, fs)| fs.len())
-                        {
-                            if alt_replicated_mount == immediate_dataset_snap_mount {
-                                return Err(HttmError::new("httm was unable to detect an alternate replicated mount point.  Perhaps the replicated filesystem is not mounted?").into());
-                            }
-                            (
-                                alt_replicated_mount.to_path_buf(),
-                                immediate_dataset_snap_mount,
-                            )
-                        } else {
-                            (
-                                immediate_dataset_snap_mount.clone(),
-                                immediate_dataset_snap_mount,
-                            )
-                        }
-                    }
-                    None => (
-                        immediate_dataset_snap_mount.clone(),
-                        immediate_dataset_snap_mount,
-                    ),
-                }
+                get_alt_replicated_dataset(&immediate_dataset_snap_mount, mount_collection)?
             } else {
+                // ordinary case
                 (
                     immediate_dataset_snap_mount.clone(),
                     immediate_dataset_snap_mount,
@@ -166,6 +124,52 @@ pub fn get_search_dirs(
     }?;
 
     Ok((hidden_snapshot_dir, local_path.to_path_buf()))
+}
+
+fn get_alt_replicated_dataset(
+    immediate_dataset_snap_mount: &PathBuf,
+    mount_collection: &[(String, String)],
+) -> Result<(PathBuf, PathBuf), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    let mut unique_mounts: HashMap<&Path, &String> = HashMap::default();
+
+    // reverse the order - mount as key, fs as value
+    mount_collection.iter().for_each(|(fs, mount)| {
+        let _ = unique_mounts.insert(Path::new(mount), fs);
+    });
+
+    // so we can search for the mount as a key
+    match &unique_mounts.get(&immediate_dataset_snap_mount.as_path()) {
+        Some(immediate_dataset_fs_name) => {
+            // find a filesystem that ends with our most local filesystem name
+            // but has a preface name, like a different pool name: rpool might be
+            // replicated to tank/rpool
+            //
+            // note: this won't work where dozer/rpool is replicated to tank/rpool, and
+            // is only one way (one can only see the receiving fs from the sending fs),
+            // but works well enough.  If you have a better idea, let me know.
+            if let Some((alt_replicated_mount, _)) = unique_mounts
+                .clone()
+                .into_par_iter()
+                .filter(|(_, fs)| fs.ends_with(immediate_dataset_fs_name.as_str()))
+                .max_by_key(|(_, fs)| fs.len())
+            {
+                if &alt_replicated_mount.to_owned() == immediate_dataset_snap_mount {
+                    return Err(HttmError::new("httm was unable to detect an alternate replicated mount point.  Perhaps the replicated filesystem is not mounted?").into());
+                }
+                Ok((
+                    alt_replicated_mount.to_path_buf(),
+                    immediate_dataset_snap_mount.clone(),
+                ))
+            } else {
+                // could not find the some replicated mount
+                Err(HttmError::new("httm was unable to detect an alternate replicated mount point.  Perhaps the replicated filesystem is not mounted?").into())
+            }
+        }
+        _ => {
+            // could not find the immediate dataset
+            Err(HttmError::new("httm was unable to detect an alternate replicated mount point.  Perhaps the replicated filesystem is not mounted?").into())
+        }
+    }
 }
 
 fn get_versions(
@@ -199,7 +203,7 @@ fn get_versions(
     Ok(sorted)
 }
 
-pub fn get_snapshot_dataset(
+pub fn get_immediate_dataset(
     pathdata: &PathData,
     mount_collection: &Vec<(String, String)>,
 ) -> Result<PathBuf, Box<dyn std::error::Error + Send + Sync + 'static>> {

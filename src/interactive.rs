@@ -41,7 +41,26 @@ pub struct SelectionCandidate {
 
 impl SelectionCandidate {
     pub fn new(config: Arc<Config>, path: PathBuf) -> Self {
-        SelectionCandidate { config, path }
+        // build a config just for previews
+        let gen_config = Config {
+            paths: vec![PathData::from(path.as_path())],
+            opt_alt_replicated: config.opt_alt_replicated.to_owned(),
+            opt_raw: false,
+            opt_zeros: false,
+            opt_no_pretty: false,
+            opt_recursive: false,
+            opt_no_live_vers: false,
+            exec_mode: ExecMode::Display,
+            deleted_mode: DeletedMode::Disabled,
+            interactive_mode: InteractiveMode::None,
+            snap_point: config.snap_point.to_owned(),
+            pwd: config.pwd.to_owned(),
+            requested_dir: config.requested_dir.to_owned(),
+        };
+        SelectionCandidate {
+            config: Arc::new(gen_config),
+            path,
+        }
     }
 }
 
@@ -67,7 +86,7 @@ impl SkimItem for SelectionCandidate {
         Cow::Owned(path)
     }
     fn preview(&self, _: PreviewContext<'_>) -> skim::ItemPreview {
-        let res = preview_view(&self.config, &self.path).unwrap_or_default();
+        let res = preview_view(&self.config).unwrap_or_default();
         skim::ItemPreview::AnsiText(res)
     }
 }
@@ -265,27 +284,9 @@ fn lookup_view(
 
 fn preview_view(
     config: &Config,
-    path: &Path,
 ) -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    // build a config just for previews
-    let gen_config = Config {
-        paths: vec![PathData::from(path)],
-        opt_alt_replicated: config.opt_alt_replicated.to_owned(),
-        opt_raw: false,
-        opt_zeros: false,
-        opt_no_pretty: false,
-        opt_recursive: false,
-        opt_no_live_vers: false,
-        exec_mode: ExecMode::Display,
-        deleted_mode: DeletedMode::Disabled,
-        interactive_mode: InteractiveMode::None,
-        snap_point: config.snap_point.to_owned(),
-        pwd: config.pwd.to_owned(),
-        requested_dir: config.requested_dir.to_owned(),
-    };
-
     // finally run search on those paths
-    let snaps_and_live_set = lookup_exec(&gen_config, &gen_config.paths)?;
+    let snaps_and_live_set = lookup_exec(config, &config.paths)?;
     // and display
     let output_buf = display_exec(config, snaps_and_live_set)?;
 
