@@ -56,7 +56,11 @@ Print all local file snapshots of your `zsh` history file:
 ```bash
 httm ~/.histfile
 ```
-Print all files on snapshots (no "live" versions) deleted from your home directory, recursive, newline delimited, piped to a `deleted-files.txt` file: 
+Create tar archive of all versions of your `.zshrc`:
+```bash
+httm -n ~/.zshrc | tar -zcvf all-versions-zshrc.tar.gz -T -
+```
+Print all files on snapshots deleted from your home directory, recursive, newline delimited, piped to a `deleted-files.txt` file: 
 ```bash
 httm -d -n -R --no-live ~ > deleted-files.txt
 ```
