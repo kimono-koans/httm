@@ -153,10 +153,11 @@ pub fn enumerate_directory(
             match config.deleted_mode {
                 // display recursive in DeletedMode::Disabled may be
                 // something to implement in the future but I'm not sure
-                // it really makes sense
+                // it really makes sense, as it's only really good for a
+                // small subset of files
                 DeletedMode::Disabled => unreachable!(),
                 // for all other non-disabled DeletedModes we display
-                // all deleted files
+                // all deleted files in ExecMode::DisplayRecursive
                 _ => {
                     let vec_deleted = get_deleted(&config, requested_dir)?;
                     if vec_deleted.is_empty() {
@@ -191,6 +192,7 @@ pub fn enumerate_directory(
                 }
             }
         }
+        // for all other ExecModes - basically all interactive modes
         _ => {
             // these are dummy placeholder values created from file on snapshots
             let get_pseudo_live_versions = |config: &Config,
