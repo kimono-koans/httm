@@ -222,6 +222,8 @@ impl Config {
         } else if deleted_mode != DeletedMode::Disabled {
             ExecMode::DisplayRecursive
         } else {
+            // no need for deleted file modes in a non-interactive/display recursive setting
+            deleted_mode = DeletedMode::Disabled;
             ExecMode::Display
         };
         let env_snap_dir = std::env::var_os("HTTM_SNAP_POINT");
@@ -391,13 +393,8 @@ impl Config {
                 // paths should never be empty for ExecMode::DisplayRecursive
                 //
                 // we only want one dir for a ExecMode::DisplayRecursive run, else
-                // we should run in ExecMode::DisplayRecursive mode
+                // we should run in ExecMode::Display mode
                 match paths.len() {
-                    n if n > 1 => {
-                        exec_mode = ExecMode::Display;
-                        deleted_mode = DeletedMode::Disabled;
-                        PathData::from(pwd.as_path())
-                    }
                     1 => match paths.get(0) {
                         Some(pathdata) if pathdata.is_dir() => pathdata.to_owned(),
                         _ => {
@@ -408,6 +405,8 @@ impl Config {
                     },
                     _ => {
                         // paths should never be empty, but here we make sure
+                        exec_mode = ExecMode::Display;
+                        deleted_mode = DeletedMode::Disabled;
                         PathData::from(pwd.as_path())
                     }
                 }
