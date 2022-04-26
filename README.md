@@ -62,17 +62,18 @@ httm -n ~/.zshrc | tar -zcvf all-versions-zshrc.tar.gz -T -
 ```
 Create git archive of all file versions of `/var/log/syslog`:
 ```bash
+# create variable for file name
 file="/var/log/syslog"
 # create git repo
 mkdir ./archive-git; cd ./archive-git; git init
 # copy each version to repo and commit after each copy
 for version in $(httm -n $file)
 do 
-    cp $version ./ 
+    cp "$version" ./ 
     git add "./$(basename $version)"
     git commit -m "$(stat -c %y $version)"
 done
-# create tar archive 
+# create git tar.gz archive 
 git archive --format=tar.gz -o "../archive-git-$(basename $file).tar.gz" master; cd ../
 ```
 Print all files on snapshots deleted from your home directory, recursive, newline delimited, piped to a `deleted-files.txt` file: 
