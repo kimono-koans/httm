@@ -18,7 +18,7 @@
 use crate::display::display_exec;
 use crate::library::{copy_all, enumerate_directory, paint_string};
 use crate::lookup::lookup_exec;
-use crate::{read_stdin, Config, ExecMode, HttmError, InteractiveMode, PathData};
+use crate::{read_stdin, Config, DeletedMode, ExecMode, HttmError, InteractiveMode, PathData};
 
 extern crate skim;
 use chrono::{DateTime, Local};
@@ -78,15 +78,15 @@ fn preview_view(
 ) -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
     let gen_config = Config {
         paths: vec![PathData::from(path)],
-        opt_alt_replicated: config.opt_alt_replicated.to_owned(),
         opt_raw: false,
         opt_zeros: false,
         opt_no_pretty: false,
         opt_recursive: false,
         opt_no_live_vers: false,
         exec_mode: ExecMode::Display,
-        deleted_mode: config.deleted_mode.to_owned(),
+        deleted_mode: DeletedMode::Disabled,
         interactive_mode: InteractiveMode::None,
+        opt_alt_replicated: config.opt_alt_replicated.to_owned(),
         snap_point: config.snap_point.to_owned(),
         pwd: config.pwd.to_owned(),
         requested_dir: config.requested_dir.to_owned(),
