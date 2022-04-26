@@ -52,18 +52,18 @@ Contributions from users are, of course, very welcome.
 
 ## Example Usage
 
-Print all local file snapshots of your `zsh` history file:
+Print all local file snapshots of your history file:
 ```bash
 httm ~/.histfile
 ```
-Create tar archive of all versions of your `.zshrc`:
+Create tar archive of all versions of your `/var/log/syslog`:
 ```bash
-httm -n ~/.zshrc | tar -zcvf all-versions-zshrc.tar.gz -T -
+httm -n /var/log/syslog | tar -zcvf all-versions-zshrc.tar.gz -T -
 ```
-Create git archive of all file versions of `/var/log/syslog`:
+Create git archive of all file versions of `/etc/sysconfig/iptables`:
 ```bash
 # create variable for file name
-file="/var/log/syslog"
+file="/etc/sysconfig/iptables"
 # create git repo
 mkdir ./archive-git; cd ./archive-git; git init
 # copy each version to repo and commit after each copy
