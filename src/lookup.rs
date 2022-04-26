@@ -165,7 +165,7 @@ fn get_alt_replicated_dataset(
                 Err(HttmError::new("httm was unable to detect an alternate replicated mount point.  Perhaps the replicated filesystem is not mounted?").into())
             }
         }
-        _ => {
+        None => {
             // could not find the immediate dataset
             Err(HttmError::new("httm was unable to detect an alternate replicated mount point.  Perhaps the replicated filesystem is not mounted?").into())
         }

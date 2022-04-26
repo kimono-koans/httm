@@ -131,8 +131,9 @@ pub fn interactive_exec(
                 unreachable!()
             }
         }
-        // InteractiveMode::Browse, etc., executes back through fn exec() in httm.rs
-        _ => Ok(vec_pathdata),
+        // InteractiveMode::Browse executes back through fn exec() in httm.rs
+        InteractiveMode::Browse => Ok(vec_pathdata),
+        InteractiveMode::None => unreachable!(),
     }
 }
 

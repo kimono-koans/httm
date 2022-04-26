@@ -138,7 +138,7 @@ pub fn enumerate_directory(
         .flatten()
         .par_bridge()
         // checking file_type on dirs is always preferable
-        // as it is much faster than a metadata call on th path
+        // as it is much faster than a metadata call on the path
         .partition_map(|dir_entry| {
             let path = dir_entry.path();
             if httm_is_dir(&dir_entry) {
@@ -149,6 +149,7 @@ pub fn enumerate_directory(
         });
 
     match config.exec_mode {
+        ExecMode::Display => unreachable!(),
         ExecMode::DisplayRecursive => {
             match config.deleted_mode {
                 // display recursive in DeletedMode::Disabled may be
@@ -158,7 +159,7 @@ pub fn enumerate_directory(
                 DeletedMode::Disabled => unreachable!(),
                 // for all other non-disabled DeletedModes we display
                 // all deleted files in ExecMode::DisplayRecursive
-                _ => {
+                DeletedMode::Enabled | DeletedMode::Only => {
                     let vec_deleted = get_deleted(&config, requested_dir)?;
                     if vec_deleted.is_empty() {
                         // Shows progress, while we are finding no deleted files
@@ -192,8 +193,7 @@ pub fn enumerate_directory(
                 }
             }
         }
-        // for all other ExecModes - basically all interactive modes
-        _ => {
+        ExecMode::Interactive => {
             // these are dummy placeholder values created from file on snapshots
             let get_pseudo_live_versions = |config: &Config,
                                             requested_dir: &Path|
