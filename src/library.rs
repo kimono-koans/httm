@@ -98,7 +98,7 @@ where
                     Err(_) => false,
                 }
             }
-            // char, block, etc devices(?), errs are not dirs, and we have a good path to pass on, so false
+            // char, block, etc devices(?), None/Errs are not dirs, and we have a good path to pass on, so false
             _ => false,
         },
         Err(_) => false,
