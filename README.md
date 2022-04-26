@@ -67,8 +67,7 @@ file="/etc/sysconfig/iptables"
 # create git repo
 mkdir ./archive-git; cd ./archive-git; git init
 # copy each version to repo and commit after each copy
-for version in $(httm -n $file)
-do 
+for version in $(httm -n $file); do 
     cp "$version" ./ 
     git add "./$(basename $version)"
     git commit -m "$(stat -c %y $version)"
