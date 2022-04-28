@@ -197,7 +197,7 @@ pub struct Config {
     snap_point: SnapPoint,
     deleted_mode: DeletedMode,
     interactive_mode: InteractiveMode,
-    pwd: PathBuf,
+    pwd: PathData,
     requested_dir: PathData,
 }
 
@@ -253,7 +253,7 @@ impl Config {
         // current working directory will be helpful in a number of places
         let pwd = if let Ok(pwd) = std::env::var("PWD") {
             if let Ok(path) = PathBuf::from(&pwd).canonicalize() {
-                path
+                PathData::from(path.as_path())
             } else {
                 return Err(HttmError::new(
                     "Working directory, as set in your environment, does not appear to exist",
@@ -309,7 +309,7 @@ impl Config {
                     .into());
                 }
             } else {
-                pwd.clone()
+                pwd.path_buf.clone()
             };
 
             (
@@ -339,13 +339,13 @@ impl Config {
                 // canonicalize() on a deleted relative path will not exist,
                 // so we have to join with the pwd to make a path that
                 // will exist on a snapshot
-                .map(|path| canonicalize(path).unwrap_or_else(|_| pwd.join(path)))
+                .map(|path| canonicalize(path).unwrap_or_else(|_| pwd.clone().path_buf.join(path)))
                 .map(|path| PathData::from(path.as_path()))
                 .collect()
 
         // setting pwd as the path, here, keeps us from waiting on stdin when in non-Display modes
         } else if exec_mode == ExecMode::Interactive || exec_mode == ExecMode::DisplayRecursive {
-            vec![PathData::from(pwd.as_path())]
+            vec![pwd.clone()]
         } else if exec_mode == ExecMode::Display {
             read_stdin()?
                 .into_iter()
@@ -360,7 +360,7 @@ impl Config {
         let requested_dir: PathData = match exec_mode {
             ExecMode::Interactive => {
                 match paths.len() {
-                    0 => PathData::from(pwd.as_path()),
+                    0 => pwd.clone(),
                     1 => {
                         // impossible to panic, because we are indexing to 0 on a len we know to be 1
                         let pathdata = paths.get(0).unwrap();
@@ -406,21 +406,21 @@ impl Config {
                         _ => {
                             exec_mode = ExecMode::Display;
                             deleted_mode = DeletedMode::Disabled;
-                            PathData::from(pwd.as_path())
+                            pwd.clone()
                         }
                     },
                     _ => {
                         // paths should never be empty, but here we make sure
                         exec_mode = ExecMode::Display;
                         deleted_mode = DeletedMode::Disabled;
-                        PathData::from(pwd.as_path())
+                        pwd.clone()
                     }
                 }
             }
             ExecMode::Display => {
                 // in non-interactive mode / display mode, requested dir is just a file
                 // like every other file and pwd must be the requested working dir.
-                PathData::from(pwd.as_path())
+                pwd.clone()
             }
         };
 

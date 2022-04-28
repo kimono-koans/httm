@@ -202,7 +202,7 @@ fn interactive_restore(
     let new_snap_filename: String =
         old_snap_filename + ".httm_restored." + &timestamp_file(&snap_pathdata.system_time);
 
-    let new_file_dir = config.pwd.clone();
+    let new_file_dir = config.pwd.path_buf.clone();
     let new_file_path_buf: PathBuf = [new_file_dir, PathBuf::from(new_snap_filename)]
         .iter()
         .collect();
