@@ -293,7 +293,8 @@ fn restore_view(
     // take what lookup gave us and select from among the snapshot options
     // build our skim view - less to do than before - no previews, looking through one 'lil buffer
     let skim_opts = SkimOptionsBuilder::default()
-        .reverse(true)
+        .tac(true)
+        .nosort(true)
         .exact(true)
         .multi(false)
         .header(Some(
