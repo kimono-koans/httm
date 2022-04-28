@@ -175,7 +175,7 @@ enum SnapPoint {
 #[derive(Debug, Clone)]
 pub struct FilesystemsAndMounts {
     filesystem: String,
-    mount: String,    
+    mount: String,
 }
 
 #[derive(Debug, Clone)]
@@ -606,7 +606,7 @@ fn exec() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         // 2. Determine/lookup whether file matches any files on snapshots
         ExecMode::Interactive => lookup_exec(&config, &interactive_exec(&mut out, &config)?)?,
         ExecMode::Display => lookup_exec(&config, &config.paths)?,
-        // deleted_exec is special because it is more convenient to get PathData in 'mod deleted'
+        // display_recursive_exec is special because it is more convenient to lookup PathData in 'mod deleted'
         // on raw paths rather than strings, also there is no need to run a lookup on files already on snapshots
         ExecMode::DisplayRecursive => display_recursive_exec(&config, &mut out)?,
     };
