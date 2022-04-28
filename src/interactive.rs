@@ -294,8 +294,7 @@ fn select_restore_view(
     preview_buffer: String,
     reverse: bool,
 ) -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    // take what lookup gave us and select from among the snapshot options
-    // build our skim view - less to do than before - no previews, looking through one 'lil buffer
+    // build our interactive view - less to do than before - no previews, looking through one 'lil buffer
     let skim_opts = SkimOptionsBuilder::default()
         .tac(reverse)
         .nosort(reverse)
