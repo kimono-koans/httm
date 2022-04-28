@@ -4,7 +4,7 @@
 
 The dream of a CLI ZFS Time Machine is still alive with `httm`.
 
-`httm` prints the size, date and corresponding locations of available unique versions (deduplicated by modify time and size) of files residing on ZFS snapshots, but can also be used *interactively* to view and restore such files.  `httm` might change the way you use ZFS snapshots (because ZFS isn't designed for finding for unique file versions) or the Time Machine concept (because `httm` is very fast!).
+`httm` prints the size, date and corresponding locations of available unique versions (deduplicated by modify time and size) of files residing on ZFS snapshots, but can also be used *interactively* to select and restore such files.  `httm` might change the way you use ZFS snapshots (because ZFS isn't designed for finding for unique file versions) or the Time Machine concept (because `httm` is very fast!).
 
 `httm` boasts an array of seductive features, like:
 
@@ -13,7 +13,7 @@ The dream of a CLI ZFS Time Machine is still alive with `httm`.
 * List file snapshots from remote backup pools (you may designate replicated remote snapshot directories).
 * For use with even `rsync`-ed non-ZFS local datasets (like ext4, APFS, or NTFS), not just ZFS.
 * Specify multiple files for lookup on different datasets
-* 3 native interactive modes: lookup, select and restore
+* 3 native interactive modes: browse, select and restore
 * ANSI `ls` colors from your environment
 * Non-blocking recursive directory walking (available in all interactive modes)
 * Select from several formatting styles.  Parseable ... or not ...  oh my!
