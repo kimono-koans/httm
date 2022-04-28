@@ -125,7 +125,7 @@ pub fn interactive_exec(
     match config.interactive_mode {
         InteractiveMode::Restore | InteractiveMode::Select => {
             if vec_pathdata.is_empty() {
-                std::process::exit(0)
+                Err(HttmError::new("Invalid value selected. Quitting.").into())
             } else {
                 interactive_select(out, config, &vec_pathdata)?;
                 unreachable!()
