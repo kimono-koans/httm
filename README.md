@@ -58,7 +58,7 @@ httm ~/.histfile
 ```
 Create tar archive of all versions of your `/var/log/syslog`:
 ```bash
-httm -n /var/log/syslog | tar -zcvf all-versions-zshrc.tar.gz -T -
+httm -n /var/log/syslog | tar -zcvf all-versions-syslog.tar.gz -T -
 ```
 Create git archive of all file versions of `/etc/sysconfig/iptables`:
 ```bash
