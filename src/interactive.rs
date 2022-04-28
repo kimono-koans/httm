@@ -113,7 +113,7 @@ pub fn interactive_exec(
         unreachable!()
     } else {
         // collect string paths from what we get from lookup_view
-        lookup_view(config)?
+        browse_view(config)?
             .into_par_iter()
             .map(|string| PathBuf::from(&string))
             .map(|path| PathData::from(path.as_path()))
@@ -135,6 +135,54 @@ pub fn interactive_exec(
         InteractiveMode::Browse => Ok(vec_pathdata),
         InteractiveMode::None => unreachable!(),
     }
+}
+
+fn browse_view(
+    config: &Config,
+) -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    // prep thread spawn
+    let requested_dir_clone = config.requested_dir.path_buf.clone();
+    let (tx_item, rx_item): (SkimItemSender, SkimItemReceiver) = unbounded();
+    let arc_config = Arc::new(config.clone());
+
+    // thread spawn fn enumerate_directory - permits recursion into dirs without blocking
+    thread::spawn(move || {
+        let mut out = std::io::stdout();
+        let _ = enumerate_directory(arc_config, &tx_item, &requested_dir_clone, &mut out);
+    });
+
+    // create the skim component for previews
+    let options = SkimOptionsBuilder::default()
+        .preview_window(Some("up:50%"))
+        .preview(Some(""))
+        .header(Some("PREVIEW UP: shift+up | PREVIEW DOWN: shift+down\n\
+                      PAGE UP:    page up  | PAGE DOWN:    page down \n\
+                      EXIT:       esc      | SELECT:       enter      | SELECT, MULTIPLE: shift+tab\n\
+                      ──────────────────────────────────────────────────────────────────────────────",
+        ))
+        .multi(true)
+        .build()
+        .unwrap();
+
+    // run_with() reads and shows items from the thread stream created above
+    let selected_items = if let Some(output) = Skim::run_with(&options, Some(rx_item)) {
+        if output.is_abort {
+            eprintln!("httm interactive file browse session was aborted.  Quitting.");
+            std::process::exit(0)
+        } else {
+            output.selected_items
+        }
+    } else {
+        return Err(HttmError::new("httm interactive file browse session failed.").into());
+    };
+
+    // output() converts the filename/raw path to a absolute path string for use elsewhere
+    let res: Vec<String> = selected_items
+        .iter()
+        .map(|i| i.output().into_owned())
+        .collect();
+
+    Ok(res)
 }
 
 fn interactive_select(
@@ -164,6 +212,51 @@ fn interactive_select(
         writeln!(out, "\"{}\"", parsed_str)?;
         std::process::exit(0)
     }
+}
+
+fn select_restore_view(
+    preview_buffer: String,
+    reverse: bool,
+) -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    // build our browse view - less to do than before - no previews, looking through one 'lil buffer
+    let skim_opts = SkimOptionsBuilder::default()
+        .tac(reverse)
+        .nosort(reverse)
+        .tabstop(Some("4"))
+        .exact(true)
+        .multi(false)
+        .header(Some(
+            "PAGE UP:    page up  | PAGE DOWN:  page down\n\
+                      EXIT:       esc      | SELECT:     enter    \n\
+                      ─────────────────────────────────────────────",
+        ))
+        .build()
+        .unwrap();
+
+    let item_reader_opts = SkimItemReaderOption::default().ansi(true);
+    let item_reader = SkimItemReader::new(item_reader_opts);
+
+    let items = item_reader.of_bufread(Cursor::new(preview_buffer));
+
+    // run_with() reads and shows items from the thread stream created above
+    let selected_items = if let Some(output) = Skim::run_with(&skim_opts, Some(items)) {
+        if output.is_abort {
+            eprintln!("httm select/restore session was aborted.  Quitting.");
+            std::process::exit(0)
+        } else {
+            output.selected_items
+        }
+    } else {
+        return Err(HttmError::new("httm select/restore session failed.").into());
+    };
+
+    // output() converts the filename/raw path to a absolute path string for use elsewhere
+    let res = selected_items
+        .iter()
+        .map(|i| i.output().into_owned())
+        .collect();
+
+    Ok(res)
 }
 
 fn interactive_restore(
@@ -240,99 +333,6 @@ fn interactive_restore(
     }
 
     std::process::exit(0)
-}
-
-fn lookup_view(
-    config: &Config,
-) -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    // prep thread spawn
-    let requested_dir_clone = config.requested_dir.path_buf.clone();
-    let (tx_item, rx_item): (SkimItemSender, SkimItemReceiver) = unbounded();
-    let arc_config = Arc::new(config.clone());
-
-    // thread spawn fn enumerate_directory - permits recursion into dirs without blocking
-    thread::spawn(move || {
-        let mut out = std::io::stdout();
-        let _ = enumerate_directory(arc_config, &tx_item, &requested_dir_clone, &mut out);
-    });
-
-    // create the skim component for previews
-    let options = SkimOptionsBuilder::default()
-        .preview_window(Some("up:50%"))
-        .preview(Some(""))
-        .header(Some("PREVIEW UP: shift+up | PREVIEW DOWN: shift+down\n\
-                      PAGE UP:    page up  | PAGE DOWN:    page down \n\
-                      EXIT:       esc      | SELECT:       enter      | SELECT, MULTIPLE: shift+tab\n\
-                      ──────────────────────────────────────────────────────────────────────────────",
-        ))
-        .multi(true)
-        .build()
-        .unwrap();
-
-    // run_with() reads and shows items from the thread stream created above
-    let selected_items = if let Some(output) = Skim::run_with(&options, Some(rx_item)) {
-        if output.is_abort {
-            eprintln!("httm interactive file browse session was aborted.  Quitting.");
-            std::process::exit(0)
-        } else {
-            output.selected_items
-        }
-    } else {
-        return Err(HttmError::new("httm interactive file browse session failed.").into());
-    };
-
-    // output() converts the filename/raw path to a absolute path string for use elsewhere
-    let res: Vec<String> = selected_items
-        .iter()
-        .map(|i| i.output().into_owned())
-        .collect();
-
-    Ok(res)
-}
-
-fn select_restore_view(
-    preview_buffer: String,
-    reverse: bool,
-) -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    // build our interactive view - less to do than before - no previews, looking through one 'lil buffer
-    let skim_opts = SkimOptionsBuilder::default()
-        .tac(reverse)
-        .nosort(reverse)
-        .tabstop(Some("4"))
-        .exact(true)
-        .multi(false)
-        .header(Some(
-            "PAGE UP:    page up  | PAGE DOWN:  page down\n\
-                      EXIT:       esc      | SELECT:     enter    \n\
-                      ─────────────────────────────────────────────",
-        ))
-        .build()
-        .unwrap();
-
-    let item_reader_opts = SkimItemReaderOption::default().ansi(true);
-    let item_reader = SkimItemReader::new(item_reader_opts);
-
-    let items = item_reader.of_bufread(Cursor::new(preview_buffer));
-
-    // run_with() reads and shows items from the thread stream created above
-    let selected_items = if let Some(output) = Skim::run_with(&skim_opts, Some(items)) {
-        if output.is_abort {
-            eprintln!("httm select/restore session was aborted.  Quitting.");
-            std::process::exit(0)
-        } else {
-            output.selected_items
-        }
-    } else {
-        return Err(HttmError::new("httm select/restore session failed.").into());
-    };
-
-    // output() converts the filename/raw path to a absolute path string for use elsewhere
-    let res = selected_items
-        .iter()
-        .map(|i| i.output().into_owned())
-        .collect();
-
-    Ok(res)
 }
 
 fn timestamp_file(system_time: &SystemTime) -> String {
