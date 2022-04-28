@@ -18,7 +18,7 @@
 use crate::display::display_exec;
 use crate::library::{copy_all, enumerate_directory, paint_string};
 use crate::lookup::lookup_exec;
-use crate::{read_stdin, Config, DeletedMode, ExecMode, HttmError, InteractiveMode, PathData};
+use crate::{Config, DeletedMode, ExecMode, HttmError, InteractiveMode, PathData};
 
 extern crate skim;
 use chrono::{DateTime, Local};
@@ -215,30 +215,25 @@ fn interactive_restore(
     };
 
     // tell the user what we're up to, and get consent
-    write!(out, "httm will copy a file from a ZFS snapshot...\n\n")?;
-    writeln!(out, "\tfrom: {:?}", snap_pathdata.path_buf)?;
-    writeln!(out, "\tto:   {:?}\n", new_file_path_buf)?;
-    write!(
-        out,
-        "Before httm does anything, it would like your consent. Continue? (Y/N) "
-    )?;
-    out.flush()?;
+    let preview_buffer = format!(
+        "httm will copy a file from a ZFS snapshot...\n\n\
+        \tfrom: {:?}\n\
+        \tto:   {:?}\n\n\
+        Before httm does anything, it would like your consent. Continue? (YES/NO)",
+        snap_pathdata.path_buf, new_file_path_buf
+    );
 
-    let input_buffer = read_stdin()?;
-    let res = input_buffer
-        .get(0)
-        .unwrap_or(&"N".to_owned())
-        .to_lowercase();
+    let res = restore_view(&preview_buffer)?;
 
-    if res == "y" || res == "yes" {
+    if res == "YES" {
         match copy_all(&snap_pathdata.path_buf, &new_file_path_buf) {
-            Ok(_) => write!(out, "\nRestore completed successfully.\n")?,
+            Ok(_) => writeln!(out, "Restore completed successfully.")?,
             Err(err) => {
                 return Err(HttmError::with_context("Restore failed", Box::new(err)).into());
             }
         }
     } else {
-        write!(out, "\nUser declined.  No files were restored.\n")?;
+        writeln!(out, "User declined.  No files were restored.")?;
     }
 
     std::process::exit(0)
@@ -285,6 +280,52 @@ fn lookup_view(
 
     // output() converts the filename/raw path to a absolute path string for use elsewhere
     let res: Vec<String> = selected_items
+        .iter()
+        .map(|i| i.output().into_owned())
+        .collect();
+
+    Ok(res)
+}
+
+fn restore_view(
+    preview_buffer: &String,
+) -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    // take what lookup gave us and select from among the snapshot options
+    // build our skim view - less to do than before - no previews, looking through one 'lil buffer
+    let skim_opts = SkimOptionsBuilder::default()
+        .reverse(true)
+        .exact(true)
+        .multi(false)
+        .header(Some(
+            "PAGE UP:    page up  | PAGE DOWN:  page down\n\
+                      EXIT:       esc      | SELECT:     enter    \n\
+                      ─────────────────────────────────────────────",
+        ))
+        .build()
+        .unwrap();
+
+    let item_reader_opts = SkimItemReaderOption::default().ansi(true);
+    let item_reader = SkimItemReader::new(item_reader_opts);
+
+    let selection_buffer = "\n─────────────────────────────────────────────\nYES\nNO";
+    let write_out_buffer = preview_buffer.to_owned() + selection_buffer;
+
+    let items = item_reader.of_bufread(Cursor::new(write_out_buffer));
+
+    // run_with() reads and shows items from the thread stream created above
+    let selected_items = if let Some(output) = Skim::run_with(&skim_opts, Some(items)) {
+        if output.is_abort {
+            eprintln!("httm restore session was aborted.  Quitting.");
+            std::process::exit(0)
+        } else {
+            output.selected_items
+        }
+    } else {
+        return Err(HttmError::new("httm restore session failed.").into());
+    };
+
+    // output() converts the filename/raw path to a absolute path string for use elsewhere
+    let res = selected_items
         .iter()
         .map(|i| i.output().into_owned())
         .collect();
