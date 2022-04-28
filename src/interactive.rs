@@ -147,7 +147,7 @@ fn interactive_select(
     let selection_buffer = display_exec(config, snaps_and_live_set)?;
 
     // get the file name, and get ready to do some file ops!!
-    let requested_file_name = select_view(selection_buffer)?;
+    let requested_file_name = select_restore_view(selection_buffer, false)?;
     // ... we want everything between the quotes
     let broken_string: Vec<_> = requested_file_name.split_terminator('"').collect();
     // ... and the file is the 2nd item or the indexed "1" object
@@ -219,11 +219,14 @@ fn interactive_restore(
         "httm will copy a file from a ZFS snapshot...\n\n\
         \tfrom: {:?}\n\
         \tto:   {:?}\n\n\
-        Before httm does anything, it would like your consent. Continue? (YES/NO)",
+        Before httm does anything, it would like your consent. Continue? (YES/NO)\n\
+        ─────────────────────────────────────────────────────────────────────────\n\
+        YES\n\
+        NO",
         snap_pathdata.path_buf, new_file_path_buf
     );
 
-    let res = restore_view(&preview_buffer)?;
+    let res = select_restore_view(preview_buffer, true)?;
 
     if res == "YES" {
         match copy_all(&snap_pathdata.path_buf, &new_file_path_buf) {
@@ -287,14 +290,15 @@ fn lookup_view(
     Ok(res)
 }
 
-fn restore_view(
-    preview_buffer: &String,
+fn select_restore_view(
+    preview_buffer: String,
+    reverse: bool,
 ) -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // take what lookup gave us and select from among the snapshot options
     // build our skim view - less to do than before - no previews, looking through one 'lil buffer
     let skim_opts = SkimOptionsBuilder::default()
-        .tac(true)
-        .nosort(true)
+        .tac(reverse)
+        .nosort(reverse)
         .exact(true)
         .multi(false)
         .header(Some(
@@ -308,62 +312,18 @@ fn restore_view(
     let item_reader_opts = SkimItemReaderOption::default().ansi(true);
     let item_reader = SkimItemReader::new(item_reader_opts);
 
-    let selection_buffer = "\n─────────────────────────────────────────────\nYES\nNO";
-    let write_out_buffer = preview_buffer.to_owned() + selection_buffer;
-
-    let items = item_reader.of_bufread(Cursor::new(write_out_buffer));
+    let items = item_reader.of_bufread(Cursor::new(preview_buffer));
 
     // run_with() reads and shows items from the thread stream created above
     let selected_items = if let Some(output) = Skim::run_with(&skim_opts, Some(items)) {
         if output.is_abort {
-            eprintln!("httm restore session was aborted.  Quitting.");
+            eprintln!("httm select/restore session was aborted.  Quitting.");
             std::process::exit(0)
         } else {
             output.selected_items
         }
     } else {
-        return Err(HttmError::new("httm restore session failed.").into());
-    };
-
-    // output() converts the filename/raw path to a absolute path string for use elsewhere
-    let res = selected_items
-        .iter()
-        .map(|i| i.output().into_owned())
-        .collect();
-
-    Ok(res)
-}
-
-fn select_view(
-    selection_buffer: String,
-) -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    // take what lookup gave us and select from among the snapshot options
-    // build our skim view - less to do than before - no previews, looking through one 'lil buffer
-    let skim_opts = SkimOptionsBuilder::default()
-        .exact(true)
-        .multi(false)
-        .header(Some(
-            "PAGE UP:    page up  | PAGE DOWN:  page down\n\
-                      EXIT:       esc      | SELECT:     enter    \n\
-                      ─────────────────────────────────────────────",
-        ))
-        .build()
-        .unwrap();
-
-    let item_reader_opts = SkimItemReaderOption::default().ansi(true);
-    let item_reader = SkimItemReader::new(item_reader_opts);
-    let items = item_reader.of_bufread(Cursor::new(selection_buffer));
-
-    // run_with() reads and shows items from the thread stream created above
-    let selected_items = if let Some(output) = Skim::run_with(&skim_opts, Some(items)) {
-        if output.is_abort {
-            eprintln!("httm select session was aborted.  Quitting.");
-            std::process::exit(0)
-        } else {
-            output.selected_items
-        }
-    } else {
-        return Err(HttmError::new("httm select session failed.").into());
+        return Err(HttmError::new("httm select/restore session failed.").into());
     };
 
     // output() converts the filename/raw path to a absolute path string for use elsewhere
