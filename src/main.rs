@@ -168,8 +168,14 @@ enum DeletedMode {
 
 #[derive(Debug, Clone)]
 enum SnapPoint {
-    Native(Vec<(String, String)>),
+    Native(Vec<FilesystemsAndMounts>),
     UserDefined(UserDefinedDirs),
+}
+
+#[derive(Debug, Clone)]
+pub struct FilesystemsAndMounts {
+    filesystem: String,
+    mount: String,    
 }
 
 #[derive(Debug, Clone)]
@@ -314,7 +320,7 @@ impl Config {
                 }),
             )
         } else {
-            let mount_collection: Vec<(String, String)> = list_all_filesystems()?;
+            let mount_collection: Vec<FilesystemsAndMounts> = list_all_filesystems()?;
             (
                 matches.is_present("ALT_REPLICATED"),
                 SnapPoint::Native(mount_collection),
@@ -524,7 +530,7 @@ fn parse_args() -> ArgMatches {
         .arg(
             Arg::new("SNAP_POINT")
                 .long("snap-point")
-                .help("ordinarily httm will automatically choose your most local snapshot directory, \
+                .help("ordinarily httm will automatically choose your most immediate snapshot directory, \
                 but here you may manually specify your own mount point for that directory, such as the mount point for a remote share.  \
                 You can also set via the environment variable HTTM_SNAP_POINT.")
                 .takes_value(true)

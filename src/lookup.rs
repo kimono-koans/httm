@@ -15,7 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::{Config, HttmError, PathData, SnapPoint};
+use crate::{Config, HttmError, PathData, SnapPoint, FilesystemsAndMounts};
 use fxhash::FxHashMap as HashMap;
 use rayon::prelude::*;
 use std::{
@@ -128,13 +128,13 @@ pub fn get_search_dirs(
 
 fn get_alt_replicated_dataset(
     immediate_dataset_snap_mount: &PathBuf,
-    mount_collection: &[(String, String)],
+    mount_collection: &[FilesystemsAndMounts],
 ) -> Result<(PathBuf, PathBuf), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let mut unique_mounts: HashMap<&Path, &String> = HashMap::default();
 
     // reverse the order - mount as key, fs as value
-    mount_collection.iter().for_each(|(fs, mount)| {
-        let _ = unique_mounts.insert(Path::new(mount), fs);
+    mount_collection.iter().for_each(|fs_and_mounts| {
+        let _ = unique_mounts.insert(Path::new(&fs_and_mounts.mount), &fs_and_mounts.filesystem);
     });
 
     // so we can search for the mount as a key
@@ -205,7 +205,7 @@ fn get_versions(
 
 pub fn get_immediate_dataset(
     pathdata: &PathData,
-    mount_collection: &Vec<(String, String)>,
+    mount_collection: &Vec<FilesystemsAndMounts>,
 ) -> Result<PathBuf, Box<dyn std::error::Error + Send + Sync + 'static>> {
     let file_path = &pathdata.path_buf;
 
@@ -216,7 +216,7 @@ pub fn get_immediate_dataset(
     // prune away most datasets by filtering - parent folder of file must contain relevant dataset
     let potential_mountpoints: Vec<&String> = mount_collection
         .into_par_iter()
-        .map(|(_, mount)| mount)
+        .map(|fs_and_mounts| &fs_and_mounts.mount)
         .filter(|line| parent_folder.starts_with(line))
         .collect();
 
