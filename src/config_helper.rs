@@ -110,13 +110,12 @@ pub fn list_all_filesystems(
             &ExecProcess::new(&shell_command)
                 .arg("-c")
                 .arg(mount_command)
-                .arg("-t zfs")
                 .output()?
                 .stdout,
         )?
         .to_owned();
 
-        // parse "mount -t zfs" for filesystems and mountpoints
+        // parse "mount" for filesystems and mountpoints
         let (first, the_rest): (Vec<&str>, Vec<&str>) = command_output
             .par_lines()
             .filter(|line| line.contains("zfs"))
