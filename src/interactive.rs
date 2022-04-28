@@ -298,6 +298,7 @@ fn select_restore_view(
     let skim_opts = SkimOptionsBuilder::default()
         .tac(reverse)
         .nosort(reverse)
+        .tabstop(Some("4"))
         .exact(true)
         .multi(false)
         .header(Some(
