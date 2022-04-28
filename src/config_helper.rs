@@ -15,7 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::HttmError;
+use crate::{FilesystemsAndMounts, HttmError};
 
 use rayon::prelude::*;
 use std::{
@@ -97,13 +97,13 @@ pub fn install_hot_keys() -> Result<(), Box<dyn std::error::Error + Send + Sync 
 }
 
 pub fn list_all_filesystems(
-) -> Result<Vec<(String, String)>, Box<dyn std::error::Error + Send + Sync + 'static>> {
+) -> Result<Vec<FilesystemsAndMounts>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // read datasets from 'mount' if possible -- this is much faster than using zfs command
     // but I trust we've parsed it correctly less, because BSD and Linux output are different
     let get_filesystems_and_mountpoints = |shell_command: &PathBuf,
                                            mount_command: &PathBuf|
      -> Result<
-        Vec<(String, String)>,
+        Vec<FilesystemsAndMounts>,
         Box<dyn std::error::Error + Send + Sync + 'static>,
     > {
         let command_output = std::str::from_utf8(
@@ -147,12 +147,13 @@ pub fn list_all_filesystems(
             .into());
         }
 
-        let mount_collection: Vec<(String, String)> = filesystems
+        let mount_collection: Vec<FilesystemsAndMounts> = filesystems
             .iter()
             .cloned()
             .zip(mount_points.iter().cloned())
             // sanity check: does the filesystem exist? if not, filter it out
             .filter(|(_fs, mount)| Path::new(mount).exists())
+            .map(|(filesystem, mount)| FilesystemsAndMounts { filesystem, mount })
             .collect();
 
         Ok(mount_collection)

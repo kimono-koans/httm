@@ -15,7 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::{Config, HttmError, PathData, SnapPoint};
+use crate::{Config, FilesystemsAndMounts, HttmError, PathData, SnapPoint};
 use fxhash::FxHashMap as HashMap;
 use rayon::prelude::*;
 use std::{
@@ -28,7 +28,7 @@ pub fn lookup_exec(
     path_data: &Vec<PathData>,
 ) -> Result<[Vec<PathData>; 2], Box<dyn std::error::Error + Send + Sync + 'static>> {
     let all_snaps: Vec<PathData> = if config.opt_alt_replicated {
-        // create vec of all local and replicated backups
+        // create vec of all local and replicated backups at once
         path_data
             .into_par_iter()
             .map(|path_data| {
@@ -45,7 +45,7 @@ pub fn lookup_exec(
             .flatten()
             .collect()
     } else {
-        // create vec of most local dataset/user specified backups
+        // create vec of most immediate dataset/user specified backups
         path_data
             .into_par_iter()
             .map(|path_data| get_search_dirs(config, path_data, false))
@@ -116,7 +116,7 @@ pub fn get_search_dirs(
         }
         SnapPoint::Native(_) => {
             // Note: this must be our most local snapshot mount to get get the correct relative path
-            // this is why we need the original dataset even when we are searching an alternate filesystem
+            // this is why we need the original dataset, even when we are searching an alternate filesystem
             // and cannot process all these items separately, in a multitude of functions
             file_path
                 .strip_prefix(&immediate_dataset_snap_mount).map_err(|_| HttmError::new("Are you sure you're in the correct working directory?  Perhaps you need to set the SNAP_DIR and LOCAL_DIR values."))   
@@ -128,13 +128,13 @@ pub fn get_search_dirs(
 
 fn get_alt_replicated_dataset(
     immediate_dataset_snap_mount: &PathBuf,
-    mount_collection: &[(String, String)],
+    mount_collection: &[FilesystemsAndMounts],
 ) -> Result<(PathBuf, PathBuf), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let mut unique_mounts: HashMap<&Path, &String> = HashMap::default();
 
     // reverse the order - mount as key, fs as value
-    mount_collection.iter().for_each(|(fs, mount)| {
-        let _ = unique_mounts.insert(Path::new(mount), fs);
+    mount_collection.iter().for_each(|fs_and_mounts| {
+        let _ = unique_mounts.insert(Path::new(&fs_and_mounts.mount), &fs_and_mounts.filesystem);
     });
 
     // so we can search for the mount as a key
@@ -147,6 +147,8 @@ fn get_alt_replicated_dataset(
             // note: this won't work where dozer/rpool is replicated to tank/rpool, and
             // is only one way (one can only see the receiving fs from the sending fs),
             // but works well enough.  If you have a better idea, let me know.
+            //
+            // TODO: May return multiple alternative datasets if there is interest
             if let Some((alt_replicated_mount, _)) = unique_mounts
                 .clone()
                 .into_par_iter()
@@ -178,8 +180,7 @@ fn get_versions(
     let (hidden_snapshot_dir, local_path) = search_dirs;
 
     // get the DirEntry for our snapshot path which will have all our possible
-    // needed snapshots, like so: .zfs/snapshots/<some snap name>/, some snap name
-    // are our entries here
+    // snapshots, like so: .zfs/snapshots/<some snap name>/
     let versions = std::fs::read_dir(hidden_snapshot_dir)?
         .flatten()
         .par_bridge()
@@ -189,7 +190,7 @@ fn get_versions(
         .filter(|pathdata| !pathdata.is_phantom)
         .collect::<Vec<PathData>>();
 
-    // filter above will remove all the phantom values silently as we build a list of unique versions
+    // filter above will remove all the phantom values silently as we build a list of versions
     // and our hashmap will then remove duplicates with the same system modify time and size/file len
     let mut unique_versions: HashMap<(SystemTime, u64), PathData> = HashMap::default();
     versions.into_iter().for_each(|pathdata| {
@@ -205,18 +206,18 @@ fn get_versions(
 
 pub fn get_immediate_dataset(
     pathdata: &PathData,
-    mount_collection: &Vec<(String, String)>,
+    mount_collection: &Vec<FilesystemsAndMounts>,
 ) -> Result<PathBuf, Box<dyn std::error::Error + Send + Sync + 'static>> {
     let file_path = &pathdata.path_buf;
 
-    // only possible None value is if root dir because
-    // of previous work in the Pathdata new method, safe to unwrap or else here
+    // only possible None value is parent is root dir because
+    // of previous work in the Pathdata new method
     let parent_folder = file_path.parent().unwrap_or_else(|| Path::new("/"));
 
     // prune away most datasets by filtering - parent folder of file must contain relevant dataset
     let potential_mountpoints: Vec<&String> = mount_collection
         .into_par_iter()
-        .map(|(_, mount)| mount)
+        .map(|fs_and_mounts| &fs_and_mounts.mount)
         .filter(|line| parent_folder.starts_with(line))
         .collect();
 
