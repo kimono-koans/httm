@@ -465,7 +465,7 @@ fn parse_args() -> ArgMatches {
     clap::Command::new("httm")
         .about("\nBy default, httm will display non-interactive information about unique file versions contained on ZFS snapshots.\n\n\
         You may also select from the various interactive modes below to browse for, select, and/or restore files.")
-        .version("0.9.5") 
+        .version("0.9.6") 
         .arg(
             Arg::new("INPUT_FILES")
                 .help("in the default, non-interactive mode, put requested files here.  If you enter no files, \
