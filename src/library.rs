@@ -137,7 +137,7 @@ pub fn enumerate_directory(
     let (vec_dirs, vec_files): (Vec<PathBuf>, Vec<PathBuf>) = std::fs::read_dir(&requested_dir)?
         .flatten()
         .par_bridge()
-        // checking file_type on dirs is always preferable
+        // checking file_type on dir entries is always preferable
         // as it is much faster than a metadata call on the path
         .partition_map(|dir_entry| {
             let path = dir_entry.path();
