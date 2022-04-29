@@ -207,7 +207,7 @@ fn interactive_select(
 
     // continue to interactive_restore or print and exit here?
     if config.interactive_mode == InteractiveMode::Restore {
-        Ok(interactive_restore(out, config, parsed_str)?)
+        Ok(interactive_restore(config, parsed_str)?)
     } else {
         writeln!(out, "\"{}\"", parsed_str)?;
         std::process::exit(0)
@@ -260,7 +260,6 @@ fn select_restore_view(
 }
 
 fn interactive_restore(
-    out: &mut Stdout,
     config: &Config,
     parsed_str: &str,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
@@ -272,17 +271,16 @@ fn interactive_restore(
 
     // sanity check -- snap version has good metadata?
     if snap_pathdata.is_phantom {
-        return Err(HttmError::new("Snapshot location does not exist on disk. Quitting.").into());
+        return Err(HttmError::new("Source location does not exist on disk. Quitting.").into());
     }
 
     // sanity check -- snap version is not actually a live copy?
-    if config
-        .paths
-        .clone()
-        .into_iter()
-        .any(|path| path == snap_pathdata)
+    if !snap_pathdata
+        .path_buf
+        .to_string_lossy()
+        .contains(".zfs/snapshot")
     {
-        return Err(HttmError::new("Path selected is a 'live' version.  httm will not restore from a live version.  Quitting.").into());
+        return Err(HttmError::new("Path selected is not a 'snapshot version'.  httm will not restore from a non-'snapshot version'.  Quitting.").into());
     }
 
     // build new place to send file
@@ -300,36 +298,45 @@ fn interactive_restore(
         .iter()
         .collect();
 
-    // print error on the user selecting to restore the live version of a file
-    if new_file_path_buf == snap_pathdata.path_buf {
+    // don't let the user rewrite one restore over another.
+    if new_file_path_buf.exists() {
         return Err(
-            HttmError::new("Will not restore files as files are the same file. Quitting.").into(),
+            HttmError::new("httm will not restore to that file, as a file with the same path name already exists. Quitting.").into(),
         );
     };
 
     // tell the user what we're up to, and get consent
     let preview_buffer = format!(
-        "httm will copy a file from a ZFS snapshot...\n\n\
+        "httm will copy a file from a ZFS snapshot:\n\n\
         \tfrom: {:?}\n\
         \tto:   {:?}\n\n\
-        Before httm does anything, it would like your consent. Continue? (YES/NO)\n\
-        ─────────────────────────────────────────────────────────────────────────\n\
+        Before httm restores this file, it would like your consent. Continue? (YES/NO)\n\
+        ──────────────────────────────────────────────────────────────────────────────\n\
         YES\n\
         NO",
         snap_pathdata.path_buf, new_file_path_buf
     );
 
-    let res = select_restore_view(preview_buffer, true)?;
+    let user_consent = select_restore_view(preview_buffer, true)?;
 
-    if res == "YES" {
+    if user_consent == "YES" {
         match copy_all(&snap_pathdata.path_buf, &new_file_path_buf) {
-            Ok(_) => writeln!(out, "Restore completed successfully.")?,
+            Ok(_) => {
+                let result_buffer = format!(
+                    "httm copied a file from a ZFS snapshot:\n\n\
+                    \tfrom: {:?}\n\
+                    \tto:   {:?}\n\n\
+                    Restore completed successfully.",
+                    snap_pathdata.path_buf, new_file_path_buf
+                );
+                eprintln!("{}", result_buffer);
+            }
             Err(err) => {
-                return Err(HttmError::with_context("Restore failed", Box::new(err)).into());
+                return Err(HttmError::with_context("httm restore failed", Box::new(err)).into());
             }
         }
     } else {
-        writeln!(out, "User declined.  No files were restored.")?;
+        eprintln!("User declined.  No files were restored.");
     }
 
     std::process::exit(0)
