@@ -2,7 +2,7 @@
 
 # `httm`
 
-The dream of a CLI ZFS Time Machine is still alive with `httm`.
+*The dream of a CLI ZFS Time Machine is still alive with `httm`.*
 
 `httm` prints the size, date and corresponding locations of available unique versions (deduplicated by modify time and size) of files residing on ZFS snapshots, but can also be used *interactively* to select and restore such files.  `httm` might change the way you use ZFS snapshots (because ZFS isn't designed for finding for unique file versions) or the Time Machine concept (because `httm` is very fast!).
 
@@ -30,8 +30,7 @@ The `httm` project contains only a few components:
 
     ```bash
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh 
-    git clone https://github.com/kimono-koans/httm.git
-    cargo install --path ./httm/
+    cargo install --git https://github.com/kimono-koans/httm.git
     ```
 2. The optional `zsh` hot-key bindings: Use `ESC+s` to select snapshots filenames to be dropped to your command line (for instance after the `cat` command), or use `ESC+m` to browse for all of a file's snapshots. After you install the `httm` binary, to copy the hot key script to your home directory, and source that script within your `.zshrc`:
 
