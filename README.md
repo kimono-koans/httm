@@ -30,8 +30,7 @@ The `httm` project contains only a few components:
 
     ```bash
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh 
-    git clone https://github.com/kimono-koans/httm.git
-    cargo install --path ./httm/
+    cargo install --git https://github.com/kimono-koans/httm.git
     ```
 2. The optional `zsh` hot-key bindings: Use `ESC+s` to select snapshots filenames to be dropped to your command line (for instance after the `cat` command), or use `ESC+m` to browse for all of a file's snapshots. After you install the `httm` binary, to copy the hot key script to your home directory, and source that script within your `.zshrc`:
 
