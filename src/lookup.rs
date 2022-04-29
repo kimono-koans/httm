@@ -15,7 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::{Config, FilesystemsAndMounts, HttmError, PathData, SnapPoint};
+use crate::{Config, FilesystemAndMount, HttmError, PathData, SnapPoint};
 use fxhash::FxHashMap as HashMap;
 use rayon::prelude::*;
 use std::{
@@ -128,7 +128,7 @@ pub fn get_search_dirs(
 
 fn get_alt_replicated_dataset(
     immediate_dataset_snap_mount: &PathBuf,
-    mount_collection: &[FilesystemsAndMounts],
+    mount_collection: &[FilesystemAndMount],
 ) -> Result<(PathBuf, PathBuf), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let mut unique_mounts: HashMap<&Path, &String> = HashMap::default();
 
@@ -206,7 +206,7 @@ fn get_versions(
 
 pub fn get_immediate_dataset(
     pathdata: &PathData,
-    mount_collection: &Vec<FilesystemsAndMounts>,
+    mount_collection: &Vec<FilesystemAndMount>,
 ) -> Result<PathBuf, Box<dyn std::error::Error + Send + Sync + 'static>> {
     let file_path = &pathdata.path_buf;
 

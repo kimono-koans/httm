@@ -168,12 +168,12 @@ enum DeletedMode {
 
 #[derive(Debug, Clone)]
 enum SnapPoint {
-    Native(Vec<FilesystemsAndMounts>),
+    Native(Vec<FilesystemAndMount>),
     UserDefined(UserDefinedDirs),
 }
 
 #[derive(Debug, Clone)]
-pub struct FilesystemsAndMounts {
+pub struct FilesystemAndMount {
     filesystem: String,
     mount: String,
 }
@@ -321,7 +321,7 @@ impl Config {
                 }),
             )
         } else {
-            let mount_collection: Vec<FilesystemsAndMounts> = list_all_filesystems()?;
+            let mount_collection: Vec<FilesystemAndMount> = list_all_filesystems()?;
             (
                 matches.is_present("ALT_REPLICATED"),
                 SnapPoint::Native(mount_collection),
