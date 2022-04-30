@@ -110,7 +110,7 @@ pub fn get_search_dirs(
     dataset_collection.iter().map( |(dataset, immediate_dataset_snap_mount)| {
         // building the snapshot path from our dataset
         let hidden_snapshot_dir: PathBuf =
-            [&dataset, &PathBuf::from(".zfs/snapshot")].iter().collect();
+            [dataset, &PathBuf::from(".zfs/snapshot")].iter().collect();
 
         let local_path = match &config.snap_point {
             SnapPoint::UserDefined(defined_dirs) => {
@@ -148,7 +148,7 @@ fn get_alt_replicated_dataset(
             // find a filesystem that ends with our most local filesystem name
             // but has a preface name, like a different pool name: rpool might be
             // replicated to tank/rpool
-            let alt_replicated_mounts: Vec<PathBuf> = unique_mounts
+            let mut alt_replicated_mounts: Vec<PathBuf> = unique_mounts
                 .clone()
                 .into_par_iter()
                 .filter(|(_mount, fs)| &fs != immediate_dataset_fs_name)
@@ -157,9 +157,10 @@ fn get_alt_replicated_dataset(
                 .collect();
 
             if alt_replicated_mounts.is_empty() {
-                // could not find the some replicated mount
+                // could not find the any replicated mounts
                 Err(HttmError::new("httm was unable to detect an alternate replicated mount point.  Perhaps the replicated filesystem is not mounted?").into())
             } else {
+                alt_replicated_mounts.par_sort_unstable_by_key(|path| path.to_string_lossy().len());
                 let res = alt_replicated_mounts
                     .into_iter()
                     .map(|alt_replicated_mount| {
