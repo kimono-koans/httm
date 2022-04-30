@@ -107,10 +107,7 @@ pub fn get_search_dirs(
 
     // building our local relative path by removing parent
     // directories below the remote/snap mount point
-
-    let mut vec = Vec::new();
-
-    for (dataset, immediate_dataset_snap_mount) in dataset_collection {
+    dataset_collection.iter().map( |(dataset, immediate_dataset_snap_mount)| {
         // building the snapshot path from our dataset
         let hidden_snapshot_dir: PathBuf =
             [&dataset, &PathBuf::from(".zfs/snapshot")].iter().collect();
@@ -129,10 +126,9 @@ pub fn get_search_dirs(
                 }
         }?;
 
-        vec.push((hidden_snapshot_dir, local_path.to_path_buf()));
-    }
+        Ok((hidden_snapshot_dir, local_path.to_path_buf()))
 
-    Ok(vec)
+    }).collect()
 }
 
 fn get_alt_replicated_dataset(
