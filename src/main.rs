@@ -348,7 +348,7 @@ impl Config {
             vec![pwd.clone()]
         } else if exec_mode == ExecMode::Display {
             read_stdin()?
-                .into_iter()
+                .iter()
                 .par_bridge()
                 .map(|string| PathData::from(Path::new(&string)))
                 .collect()

@@ -38,7 +38,7 @@ pub fn lookup_exec(
                 ]
             })
             .flatten()
-            .map(|search_dirs| search_dirs.ok())
+            .flatten()
             .flatten()
             .map(get_versions)
             .flatten()
@@ -50,9 +50,10 @@ pub fn lookup_exec(
             .into_par_iter()
             .map(|path_data| get_search_dirs(config, path_data, false))
             .flatten()
+            .flatten()
             .map(get_versions)
-            .flatten_iter()
-            .flatten_iter()
+            .flatten()
+            .flatten()
             .collect::<Vec<PathData>>()
     };
 
@@ -79,15 +80,15 @@ pub fn get_search_dirs(
     config: &Config,
     file_pathdata: &PathData,
     for_alt_replicated: bool,
-) -> Result<(PathBuf, PathBuf), Box<dyn std::error::Error + Send + Sync + 'static>> {
+) -> Result<Vec<(PathBuf, PathBuf)>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // which ZFS dataset do we want to use
     let file_path = &file_pathdata.path_buf;
 
-    let (dataset, immediate_dataset_snap_mount) = match &config.snap_point {
-        SnapPoint::UserDefined(defined_dirs) => (
+    let dataset_collection: Vec<(PathBuf, PathBuf)> = match &config.snap_point {
+        SnapPoint::UserDefined(defined_dirs) => vec![(
             defined_dirs.snap_dir.to_owned(),
             defined_dirs.snap_dir.to_owned(),
-        ),
+        )],
         SnapPoint::Native(mount_collection) => {
             let immediate_dataset_snap_mount =
                 get_immediate_dataset(file_pathdata, mount_collection)?;
@@ -96,40 +97,44 @@ pub fn get_search_dirs(
                 get_alt_replicated_dataset(&immediate_dataset_snap_mount, mount_collection)?
             } else {
                 // ordinary case
-                (
+                vec![(
                     immediate_dataset_snap_mount.clone(),
                     immediate_dataset_snap_mount,
-                )
+                )]
             }
         }
     };
 
-    // building the snapshot path from our dataset
-    let hidden_snapshot_dir: PathBuf = [&dataset, &PathBuf::from(".zfs/snapshot")].iter().collect();
-
     // building our local relative path by removing parent
     // directories below the remote/snap mount point
-    let local_path = match &config.snap_point {
-        SnapPoint::UserDefined(defined_dirs) => {
-            file_path
-                .strip_prefix(&defined_dirs.local_dir).map_err(|_| HttmError::new("Are you sure you're in the correct working directory?  Perhaps you need to set the LOCAL_DIR value."))
-        }
-        SnapPoint::Native(_) => {
-            // Note: this must be our most local snapshot mount to get get the correct relative path
-            // this is why we need the original dataset, even when we are searching an alternate filesystem
-            // and cannot process all these items separately, in a multitude of functions
-            file_path
-                .strip_prefix(&immediate_dataset_snap_mount).map_err(|_| HttmError::new("Are you sure you're in the correct working directory?  Perhaps you need to set the SNAP_DIR and LOCAL_DIR values."))   
-            }
-    }?;
+    dataset_collection.iter().map( |(dataset, immediate_dataset_snap_mount)| {
+        // building the snapshot path from our dataset
+        let hidden_snapshot_dir: PathBuf =
+            [dataset, &PathBuf::from(".zfs/snapshot")].iter().collect();
 
-    Ok((hidden_snapshot_dir, local_path.to_path_buf()))
+        let local_path = match &config.snap_point {
+            SnapPoint::UserDefined(defined_dirs) => {
+                file_path
+                    .strip_prefix(&defined_dirs.local_dir).map_err(|_| HttmError::new("Are you sure you're in the correct working directory?  Perhaps you need to set the LOCAL_DIR value."))
+            }
+            SnapPoint::Native(_) => {
+                // Note: this must be our most local snapshot mount to get get the correct relative path
+                // this is why we need the original dataset, even when we are searching an alternate filesystem
+                // and cannot process all these items separately, in a multitude of functions
+                file_path
+                    .strip_prefix(&immediate_dataset_snap_mount).map_err(|_| HttmError::new("Are you sure you're in the correct working directory?  Perhaps you need to set the SNAP_DIR and LOCAL_DIR values."))   
+                }
+        }?;
+
+        Ok((hidden_snapshot_dir, local_path.to_path_buf()))
+
+    }).collect()
 }
 
 fn get_alt_replicated_dataset(
-    immediate_dataset_snap_mount: &PathBuf,
+    immediate_dataset_snap_mount: &Path,
     mount_collection: &[FilesystemAndMount],
-) -> Result<(PathBuf, PathBuf), Box<dyn std::error::Error + Send + Sync + 'static>> {
+) -> Result<Vec<(PathBuf, PathBuf)>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     let mut unique_mounts: HashMap<&Path, &String> = HashMap::default();
 
     // reverse the order - mount as key, fs as value
@@ -138,33 +143,34 @@ fn get_alt_replicated_dataset(
     });
 
     // so we can search for the mount as a key
-    match &unique_mounts.get(&immediate_dataset_snap_mount.as_path()) {
+    match &unique_mounts.get(&immediate_dataset_snap_mount) {
         Some(immediate_dataset_fs_name) => {
             // find a filesystem that ends with our most local filesystem name
             // but has a preface name, like a different pool name: rpool might be
             // replicated to tank/rpool
-            //
-            // note: this won't work where dozer/rpool is replicated to tank/rpool, and
-            // is only one way (one can only see the receiving fs from the sending fs),
-            // but works well enough.  If you have a better idea, let me know.
-            //
-            // TODO: May return multiple alternative datasets if there is interest
-            if let Some((alt_replicated_mount, _)) = unique_mounts
+            let mut alt_replicated_mounts: Vec<PathBuf> = unique_mounts
                 .clone()
                 .into_par_iter()
-                .filter(|(_, fs)| fs.ends_with(immediate_dataset_fs_name.as_str()))
-                .max_by_key(|(_, fs)| fs.len())
-            {
-                if &alt_replicated_mount.to_owned() == immediate_dataset_snap_mount {
-                    return Err(HttmError::new("httm was unable to detect an alternate replicated mount point.  Perhaps the replicated filesystem is not mounted?").into());
-                }
-                Ok((
-                    alt_replicated_mount.to_path_buf(),
-                    immediate_dataset_snap_mount.clone(),
-                ))
-            } else {
-                // could not find the some replicated mount
+                .filter(|(_mount, fs)| &fs != immediate_dataset_fs_name)
+                .filter(|(_mount, fs)| fs.ends_with(immediate_dataset_fs_name.as_str()))
+                .map(|(mount, _fs)| PathBuf::from(mount))
+                .collect();
+
+            if alt_replicated_mounts.is_empty() {
+                // could not find the any replicated mounts
                 Err(HttmError::new("httm was unable to detect an alternate replicated mount point.  Perhaps the replicated filesystem is not mounted?").into())
+            } else {
+                alt_replicated_mounts.par_sort_unstable_by_key(|path| path.to_string_lossy().len());
+                let res = alt_replicated_mounts
+                    .into_iter()
+                    .map(|alt_replicated_mount| {
+                        (
+                            alt_replicated_mount,
+                            immediate_dataset_snap_mount.to_path_buf(),
+                        )
+                    })
+                    .collect();
+                Ok(res)
             }
         }
         None => {
