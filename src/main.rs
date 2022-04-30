@@ -388,6 +388,7 @@ impl Config {
                         return Err(HttmError::new(
                             "May only specify one path in interactive mode.",
                         )
+                       
                         .into())
                     }
                     _ => {

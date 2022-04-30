@@ -72,6 +72,7 @@ pub fn get_deleted(
                 ]
             })
             .flatten()
+            .flatten()
             .flat_map(|search_dirs| get_deleted_per_dataset(requested_dir, search_dirs))
             .flatten()
             .collect()
@@ -79,6 +80,7 @@ pub fn get_deleted(
         vec![requested_dir]
             .into_iter()
             .flat_map(|path| get_search_dirs(config, &PathData::from(path), false))
+            .flatten()
             .flat_map(|search_dirs| get_deleted_per_dataset(requested_dir, search_dirs))
             .flatten()
             .collect()
