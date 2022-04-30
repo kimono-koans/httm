@@ -32,13 +32,12 @@ pub fn lookup_exec(
         path_data
             .into_par_iter()
             .map(|path_data| {
-                vec![
+                [
                     get_search_dirs(config, path_data, true),
                     get_search_dirs(config, path_data, false),
                 ]
             })
             .flatten()
-            .map(|search_dirs| search_dirs.ok())
             .flatten()
             .flatten()
             .map(get_versions)
@@ -53,8 +52,8 @@ pub fn lookup_exec(
             .flatten()
             .flatten()
             .map(get_versions)
-            .flatten_iter()
-            .flatten_iter()
+            .flatten()
+            .flatten()
             .collect::<Vec<PathData>>()
     };
 
@@ -137,7 +136,7 @@ pub fn get_search_dirs(
 }
 
 fn get_alt_replicated_dataset(
-    immediate_dataset_snap_mount: &PathBuf,
+    immediate_dataset_snap_mount: &Path,
     mount_collection: &[FilesystemAndMount],
 ) -> Result<Vec<(PathBuf, PathBuf)>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     let mut unique_mounts: HashMap<&Path, &String> = HashMap::default();
@@ -148,7 +147,7 @@ fn get_alt_replicated_dataset(
     });
 
     // so we can search for the mount as a key
-    match &unique_mounts.get(&immediate_dataset_snap_mount.as_path()) {
+    match &unique_mounts.get(&immediate_dataset_snap_mount) {
         Some(immediate_dataset_fs_name) => {
             // find a filesystem that ends with our most local filesystem name
             // but has a preface name, like a different pool name: rpool might be
@@ -156,22 +155,22 @@ fn get_alt_replicated_dataset(
             let alt_replicated_mounts: Vec<PathBuf> = unique_mounts
                 .clone()
                 .into_par_iter()
+                .filter(|(_mount, fs)| &fs != immediate_dataset_fs_name)
                 .filter(|(_mount, fs)| fs.ends_with(immediate_dataset_fs_name.as_str()))
                 .map(|(mount, _fs)| PathBuf::from(mount))
                 .collect();
 
-            if alt_replicated_mounts.is_empty()
-                || alt_replicated_mounts
-                    .iter()
-                    .any(|mount| mount == immediate_dataset_snap_mount)
-            {
+            if alt_replicated_mounts.is_empty() {
                 // could not find the some replicated mount
                 Err(HttmError::new("httm was unable to detect an alternate replicated mount point.  Perhaps the replicated filesystem is not mounted?").into())
             } else {
                 let res = alt_replicated_mounts
                     .into_iter()
                     .map(|alt_replicated_mount| {
-                        (alt_replicated_mount, immediate_dataset_snap_mount.clone())
+                        (
+                            alt_replicated_mount,
+                            immediate_dataset_snap_mount.to_path_buf(),
+                        )
                     })
                     .collect();
                 Ok(res)
