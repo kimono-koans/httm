@@ -93,7 +93,7 @@ fn preview_view(
     // finally run search on those paths
     let snaps_and_live_set = lookup_exec(&gen_config, &gen_config.paths)?;
     // and display
-    let output_buf = display_exec(config, snaps_and_live_set)?;
+    let output_buf = display_exec(&gen_config, snaps_and_live_set)?;
 
     Ok(output_buf)
 }
