@@ -106,17 +106,13 @@ pub fn get_search_dirs(
             defined_dirs.snap_dir.to_owned(),
         )],
         SnapPoint::Native(mount_collection) => {
-            let immediate_dataset_snap_mount =
-                get_immediate_dataset(file_pathdata, mount_collection)?;
+            let immediate_dataset_mount = get_immediate_dataset(file_pathdata, mount_collection)?;
 
             if for_alt_replicated {
-                get_alt_replicated_dataset(&immediate_dataset_snap_mount, mount_collection)?
+                get_alt_replicated_dataset(&immediate_dataset_mount, mount_collection)?
             } else {
                 // ordinary case
-                vec![(
-                    immediate_dataset_snap_mount.clone(),
-                    immediate_dataset_snap_mount,
-                )]
+                vec![(immediate_dataset_mount.clone(), immediate_dataset_mount)]
             }
         }
     };
@@ -153,7 +149,7 @@ pub fn get_search_dirs(
 }
 
 fn get_alt_replicated_dataset(
-    immediate_dataset_snap_mount: &Path,
+    immediate_dataset_mount: &Path,
     mount_collection: &[FilesystemAndMount],
 ) -> Result<Vec<(PathBuf, PathBuf)>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     let mut unique_mounts: HashMap<&Path, &String> = HashMap::default();
@@ -164,7 +160,7 @@ fn get_alt_replicated_dataset(
     });
 
     // so we can search for the mount as a key
-    match &unique_mounts.get(&immediate_dataset_snap_mount) {
+    match &unique_mounts.get(&immediate_dataset_mount) {
         Some(immediate_dataset_fs_name) => {
             // find a filesystem that ends with our most local filesystem name
             // but has a preface name, like a different pool name: rpool might be
@@ -172,9 +168,9 @@ fn get_alt_replicated_dataset(
             let mut alt_replicated_mounts: Vec<PathBuf> = unique_mounts
                 .clone()
                 .into_par_iter()
-                .filter(|(_mount, fs)| &fs != immediate_dataset_fs_name)
-                .filter(|(_mount, fs)| fs.ends_with(immediate_dataset_fs_name.as_str()))
-                .map(|(mount, _fs)| PathBuf::from(mount))
+                .filter(|(_mount, fs_name)| &fs_name != immediate_dataset_fs_name)
+                .filter(|(_mount, fs_name)| fs_name.ends_with(immediate_dataset_fs_name.as_str()))
+                .map(|(mount, _fs_name)| PathBuf::from(mount))
                 .collect();
 
             if alt_replicated_mounts.is_empty() {
@@ -185,10 +181,7 @@ fn get_alt_replicated_dataset(
                 let res = alt_replicated_mounts
                     .into_iter()
                     .map(|alt_replicated_mount| {
-                        (
-                            alt_replicated_mount,
-                            immediate_dataset_snap_mount.to_path_buf(),
-                        )
+                        (alt_replicated_mount, immediate_dataset_mount.to_path_buf())
                     })
                     .collect();
                 Ok(res)
