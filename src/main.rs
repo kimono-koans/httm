@@ -84,7 +84,7 @@ pub struct PathData {
 impl From<&Path> for PathData {
     fn from(path: &Path) -> PathData {
         let metadata_res = std::fs::symlink_metadata(path);
-        PathData::new(path, metadata_res)
+        PathData::from_parts(path, metadata_res)
     }
 }
 
@@ -92,12 +92,12 @@ impl From<&DirEntry> for PathData {
     fn from(dir_entry: &DirEntry) -> PathData {
         let metadata_res = dir_entry.metadata();
         let path = dir_entry.path();
-        PathData::new(&path, metadata_res)
+        PathData::from_parts(&path, metadata_res)
     }
 }
 
 impl PathData {
-    fn new(path: &Path, metadata_res: Result<Metadata, std::io::Error>) -> PathData {
+    fn from_parts(path: &Path, metadata_res: Result<Metadata, std::io::Error>) -> PathData {
         let absolute_path: PathBuf = if path.is_relative() {
             if let Ok(canonical_path) = path.canonicalize() {
                 canonical_path
@@ -356,6 +356,23 @@ impl Config {
             unreachable!()
         };
 
+        // deduplicate pathdata and sort if in display mode --
+        // so input of ./.z* and ./.zshrc will only print ./.zshrc once
+        paths = if exec_mode == ExecMode::Display && paths.len() > 1 {
+            let mut unique_paths: HashSet<PathData> = HashSet::default();
+
+            paths.into_iter().for_each(|pathdata| {
+                let _ = unique_paths.insert(pathdata);
+            });
+
+            let mut sorted: Vec<PathData> = unique_paths.into_iter().collect();
+            sorted.par_sort_unstable_by_key(|pathdata| (pathdata.system_time, pathdata.size));
+
+            sorted
+        } else {
+            paths
+        };
+
         // for exec_modes in which we can only take a single directory, process how we handle those here
         let requested_dir: PathData = match exec_mode {
             ExecMode::Interactive => {
@@ -422,23 +439,6 @@ impl Config {
                 // like every other file and pwd must be the requested working dir.
                 pwd.clone()
             }
-        };
-
-        // deduplicate pathdata and sort if in display mode --
-        // so input of ./.z* and ./.zshrc will only print ./.zshrc once
-        paths = if exec_mode == ExecMode::Display && paths.len() > 1 {
-            let mut unique_paths: HashSet<PathData> = HashSet::default();
-
-            paths.into_iter().for_each(|pathdata| {
-                let _ = unique_paths.insert(pathdata);
-            });
-
-            let mut sorted: Vec<PathData> = unique_paths.into_iter().collect();
-            sorted.par_sort_unstable_by_key(|pathdata| (pathdata.system_time, pathdata.size));
-
-            sorted
-        } else {
-            paths
         };
 
         let config = Config {
