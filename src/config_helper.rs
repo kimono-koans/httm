@@ -135,8 +135,7 @@ pub fn list_all_filesystems(
                     the_rest.split_once(&" (")
                 }
             )
-            .map(|(first, _)| first)
-            .map(|line| line.to_owned())
+            .map(|(first, _)| first.to_owned())
             .collect();
 
         if filesystems.is_empty() || mount_points.is_empty() {

@@ -113,8 +113,7 @@ pub fn interactive_exec(
         // collect string paths from what we get from lookup_view
         browse_view(config)?
             .into_par_iter()
-            .map(|string| PathBuf::from(&string))
-            .map(|path| PathData::from(path.as_path()))
+            .map(|path_string| PathData::from(Path::new(&path_string)))
             .collect::<Vec<PathData>>()
     };
 
