@@ -16,12 +16,12 @@
 // that was distributed with this source code.
 
 use crate::display::display_exec;
-use crate::library::{copy_recursive, enumerate_directory, paint_string};
 use crate::lookup::lookup_exec;
+use crate::recursive::enumerate_directory;
+use crate::utility::{copy_recursive, paint_string, timestamp_file};
 use crate::{Config, DeletedMode, ExecMode, HttmError, InteractiveMode, PathData};
 
 extern crate skim;
-use chrono::{DateTime, Local};
 use rayon::prelude::*;
 use skim::prelude::*;
 use std::{
@@ -29,9 +29,7 @@ use std::{
     io::{Cursor, Stdout, Write as IoWrite},
     path::Path,
     path::PathBuf,
-    thread,
-    time::SystemTime,
-    vec,
+    thread, vec,
 };
 
 pub struct SelectionCandidate {
@@ -340,9 +338,4 @@ fn interactive_restore(
     }
 
     std::process::exit(0)
-}
-
-fn timestamp_file(system_time: &SystemTime) -> String {
-    let date_time: DateTime<Local> = system_time.to_owned().into();
-    format!("{}", date_time.format("%b-%d-%Y-%H:%M:%S"))
 }

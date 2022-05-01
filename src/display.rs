@@ -15,7 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::library::paint_string;
+use crate::utility::paint_string;
 use crate::{Config, PathData};
 
 use chrono::{DateTime, Local};

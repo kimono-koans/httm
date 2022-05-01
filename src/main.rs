@@ -19,15 +19,16 @@ mod config_helper;
 mod deleted;
 mod display;
 mod interactive;
-mod library;
 mod lookup;
+mod recursive;
+mod utility;
 
 use crate::config_helper::{install_hot_keys, list_all_filesystems};
-use crate::deleted::display_recursive_exec;
 use crate::display::display_exec;
 use crate::interactive::interactive_exec;
-use crate::library::{httm_is_dir, read_stdin};
 use crate::lookup::lookup_exec;
+use crate::recursive::display_recursive_exec;
+use crate::utility::{httm_is_dir, read_stdin};
 
 use clap::{Arg, ArgMatches};
 use fxhash::FxHashSet as HashSet;
