@@ -119,7 +119,7 @@ pub fn get_search_dirs(
 
     // building our local relative path by removing parent
     // directories below the remote/snap mount point
-    dataset_collection.iter().map( |(dataset, immediate_dataset_snap_mount)| {
+    dataset_collection.par_iter().map( |(dataset, immediate_dataset_snap_mount)| {
         // building the snapshot path from our dataset
         let hidden_snapshot_dir: PathBuf =
             [dataset, &PathBuf::from(".zfs/snapshot")].iter().collect();
