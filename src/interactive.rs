@@ -16,7 +16,7 @@
 // that was distributed with this source code.
 
 use crate::display::display_exec;
-use crate::library::{copy_all, enumerate_directory, paint_string};
+use crate::library::{copy_recursive, enumerate_directory, paint_string};
 use crate::lookup::lookup_exec;
 use crate::{Config, DeletedMode, ExecMode, HttmError, InteractiveMode, PathData};
 
@@ -320,7 +320,7 @@ fn interactive_restore(
     let user_consent = select_restore_view(preview_buffer, true)?;
 
     if user_consent == "YES" {
-        match copy_all(&snap_pathdata.path_buf, &new_file_path_buf) {
+        match copy_recursive(&snap_pathdata.path_buf, &new_file_path_buf) {
             Ok(_) => {
                 let result_buffer = format!(
                     "httm copied a file from a ZFS snapshot:\n\n\

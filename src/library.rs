@@ -31,14 +31,14 @@ use std::{
     sync::Arc,
 };
 
-pub fn copy_all(src: &Path, dst: &Path) -> io::Result<()> {
+pub fn copy_recursive(src: &Path, dst: &Path) -> io::Result<()> {
     if PathBuf::from(src).is_dir() {
         fs::create_dir_all(&dst)?;
         for entry in fs::read_dir(src)? {
             let entry = entry?;
             let file_type = entry.file_type()?;
             if file_type.is_dir() {
-                copy_all(&entry.path(), &dst.join(&entry.file_name()))?;
+                copy_recursive(&entry.path(), &dst.join(&entry.file_name()))?;
             } else {
                 fs::copy(&entry.path(), &dst.join(&entry.file_name()))?;
             }
