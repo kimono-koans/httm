@@ -16,13 +16,12 @@
 // that was distributed with this source code.
 
 use crate::library::enumerate_directory;
-use crate::lookup::get_search_dirs;
+use crate::lookup::{get_search_dirs, SearchDirs};
 use crate::{Config, PathData};
 
 use fxhash::FxHashMap as HashMap;
 use rayon::prelude::*;
 use skim::prelude::*;
-use std::path::PathBuf;
 use std::{
     ffi::OsString,
     fs::DirEntry,
@@ -110,10 +109,8 @@ pub fn get_deleted(
 
 fn get_deleted_per_dataset(
     path: &Path,
-    search_dirs: (PathBuf, PathBuf),
+    search_dirs: SearchDirs,
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let (hidden_snapshot_dir, local_path) = search_dirs;
-
     // get all local entries we need to compare against these to know
     // what is a deleted file
     let local_dir_entries: Vec<DirEntry> = std::fs::read_dir(&path)?
@@ -129,17 +126,18 @@ fn get_deleted_per_dataset(
     });
 
     // now create a collection of file names in the snap_dirs
-    let snap_files: Vec<(OsString, DirEntry)> = std::fs::read_dir(&hidden_snapshot_dir)?
-        .flatten()
-        .par_bridge()
-        .map(|entry| entry.path())
-        .map(|path| path.join(&local_path))
-        .map(|path| std::fs::read_dir(&path))
-        .flatten_iter()
-        .flatten_iter()
-        .flatten_iter()
-        .map(|dir_entry| (dir_entry.file_name(), dir_entry))
-        .collect();
+    let snap_files: Vec<(OsString, DirEntry)> =
+        std::fs::read_dir(&search_dirs.hidden_snapshot_dir)?
+            .flatten()
+            .par_bridge()
+            .map(|entry| entry.path())
+            .map(|path| path.join(&search_dirs.local_path))
+            .map(|path| std::fs::read_dir(&path))
+            .flatten_iter()
+            .flatten_iter()
+            .flatten_iter()
+            .map(|dir_entry| (dir_entry.file_name(), dir_entry))
+            .collect();
 
     // create a list of unique filenames on snaps
     let mut unique_snap_filenames: HashMap<OsString, DirEntry> = HashMap::default();

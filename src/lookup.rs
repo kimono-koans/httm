@@ -76,12 +76,28 @@ pub fn lookup_exec(
     Ok([all_snaps, live_versions])
 }
 
+pub struct SearchDirs {
+    pub hidden_snapshot_dir: PathBuf,
+    pub local_path: PathBuf,
+}
+
 pub fn get_search_dirs(
     config: &Config,
     file_pathdata: &PathData,
     for_alt_replicated: bool,
-) -> Result<Vec<(PathBuf, PathBuf)>, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    // which ZFS dataset do we want to use
+) -> Result<Vec<SearchDirs>, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    // here, we take our file path and get back possibly multiple ZFS dataset mountpoints
+    // and our most immediate dataset mount point (which is always the same) for
+    // a single file
+    //
+    // we ask a few questions: has the location been user defined? if not, does
+    // the use want all local datasets on the system, including replicated datasets?
+    // the most common case is: just use the most immediate dataset mount point as both
+    // the dataset of interest and most immediate ZFS dataset
+    //
+    // why? we need both the dataset of interest and the most immediate dataset because we
+    // will user the most immediate dataset as our local relative path to our our canonical
+    // paths down to the difference between ZFS mount point and the canonical path
     let file_path = &file_pathdata.path_buf;
 
     let dataset_collection: Vec<(PathBuf, PathBuf)> = match &config.snap_point {
@@ -126,7 +142,12 @@ pub fn get_search_dirs(
                 }
         }?;
 
-        Ok((hidden_snapshot_dir, local_path.to_path_buf()))
+        Ok(
+            SearchDirs {
+                hidden_snapshot_dir,
+                local_path: local_path.to_path_buf(),
+            }
+        )
 
     }).collect()
 }
@@ -181,17 +202,15 @@ fn get_alt_replicated_dataset(
 }
 
 fn get_versions(
-    search_dirs: (PathBuf, PathBuf),
+    search_dirs: SearchDirs,
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let (hidden_snapshot_dir, local_path) = search_dirs;
-
     // get the DirEntry for our snapshot path which will have all our possible
     // snapshots, like so: .zfs/snapshots/<some snap name>/
-    let versions = std::fs::read_dir(hidden_snapshot_dir)?
+    let versions = std::fs::read_dir(search_dirs.hidden_snapshot_dir)?
         .flatten()
         .par_bridge()
         .map(|entry| entry.path())
-        .map(|path| path.join(&local_path))
+        .map(|path| path.join(&search_dirs.local_path))
         .map(|path| PathData::from(path.as_path()))
         .filter(|pathdata| !pathdata.is_phantom)
         .collect::<Vec<PathData>>();
@@ -216,18 +235,18 @@ pub fn get_immediate_dataset(
 ) -> Result<PathBuf, Box<dyn std::error::Error + Send + Sync + 'static>> {
     let file_path = &pathdata.path_buf;
 
-    // only possible None value is parent is root dir because
+    // only possible None value case is "parent is the '/' dir" because
     // of previous work in the Pathdata new method
     let parent_folder = file_path.parent().unwrap_or_else(|| Path::new("/"));
 
-    // prune away most datasets by filtering - parent folder of file must contain relevant dataset
+    // prune away most mount points by filtering - parent folder of file must contain relevant dataset
     let potential_mountpoints: Vec<&String> = mount_collection
         .into_par_iter()
         .map(|fs_and_mounts| &fs_and_mounts.mount)
         .filter(|line| parent_folder.starts_with(line))
         .collect();
 
-    // do we have any left? if not print error
+    // do we have any mount points left? if not print error
     if potential_mountpoints.is_empty() {
         let msg = "Could not identify any qualifying dataset.  Maybe consider specifying manually at SNAP_POINT?";
         return Err(HttmError::new(msg).into());
