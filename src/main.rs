@@ -33,11 +33,10 @@ use crate::utility::{httm_is_dir, read_stdin};
 use clap::{Arg, ArgMatches};
 use fxhash::FxHashSet as HashSet;
 use rayon::prelude::*;
-use std::fs::canonicalize;
 use std::{
     error::Error,
     fmt,
-    fs::{DirEntry, Metadata},
+    fs::{canonicalize, DirEntry, Metadata},
     io::Write,
     path::{Path, PathBuf},
     time::SystemTime,
