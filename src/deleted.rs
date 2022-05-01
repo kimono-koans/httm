@@ -162,7 +162,7 @@ fn get_deleted_per_dataset(
         .map(|(_, v)| v)
         .collect();
 
-    sorted.par_sort_unstable_by_key(|pathdata| pathdata.system_time);
+    sorted.sort_unstable_by_key(|pathdata| (pathdata.system_time, pathdata.size));
 
     Ok(sorted)
 }
