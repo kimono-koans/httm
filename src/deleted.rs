@@ -81,20 +81,17 @@ fn get_deleted_per_dataset(
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // get all local entries we need to compare against these to know
     // what is a deleted file
-    let local_dir_entries: Vec<DirEntry> = std::fs::read_dir(&path)?
+    // and create a collection of local unique file names
+    let local_unique_filenames: HashMap<OsString, DirEntry> = std::fs::read_dir(&path)?
         .into_iter()
         .par_bridge()
         .flatten()
+        .map(|dir_entry| (dir_entry.file_name(), dir_entry))
         .collect();
 
-    // create a collection of local unique file names
-    let mut local_unique_filenames: HashMap<OsString, DirEntry> = HashMap::default();
-    local_dir_entries.into_iter().for_each(|dir_entry| {
-        let _ = local_unique_filenames.insert(dir_entry.file_name(), dir_entry);
-    });
-
     // now create a collection of file names in the snap_dirs
-    let snap_files: Vec<(OsString, DirEntry)> =
+    // create a list of unique filenames on snaps
+    let unique_snap_filenames: HashMap<OsString, DirEntry> =
         std::fs::read_dir(&search_dirs.hidden_snapshot_dir)?
             .flatten()
             .par_bridge()
@@ -107,23 +104,14 @@ fn get_deleted_per_dataset(
             .map(|dir_entry| (dir_entry.file_name(), dir_entry))
             .collect();
 
-    // create a list of unique filenames on snaps
-    let mut unique_snap_filenames: HashMap<OsString, DirEntry> = HashMap::default();
-    snap_files.into_iter().for_each(|(file_name, dir_entry)| {
-        let _ = unique_snap_filenames.insert(file_name, dir_entry);
-    });
-
     // compare local filenames to all unique snap filenames - none values are unique here
-    let deleted_pathdata = unique_snap_filenames
-        .into_iter()
+    // and deduplicate all by modify time and size - as we would elsewhere
+    let unique_deleted_versions: HashMap<(SystemTime, u64), PathData> = unique_snap_filenames
+        .into_par_iter()
         .filter(|(file_name, _)| local_unique_filenames.get(file_name).is_none())
-        .map(|(_, dir_entry)| PathData::from(&dir_entry));
-
-    // deduplicate all by modify time and size - as we would elsewhere
-    let mut unique_deleted_versions: HashMap<(SystemTime, u64), PathData> = HashMap::default();
-    deleted_pathdata.for_each(|pathdata| {
-        let _ = unique_deleted_versions.insert((pathdata.system_time, pathdata.size), pathdata);
-    });
+        .map(|(_, dir_entry)| PathData::from(&dir_entry))
+        .map(|pathdata| ((pathdata.system_time, pathdata.size), pathdata))
+        .collect();
 
     let mut sorted: Vec<_> = unique_deleted_versions
         .into_iter()
