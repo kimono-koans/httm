@@ -136,7 +136,7 @@ pub fn enumerate_directory(
             };
 
             // combine dirs and files into a vec and sort to display
-            let mut combined_vec: Vec<PathBuf> = match config.deleted_mode {
+            let combined_vec: Vec<PathBuf> = match config.deleted_mode {
                 DeletedMode::Only => get_pseudo_live_versions(&config, requested_dir)?,
                 DeletedMode::Enabled => {
                     let pseudo_live_versions = get_pseudo_live_versions(&config, requested_dir)?;
@@ -153,7 +153,6 @@ pub fn enumerate_directory(
                     .collect(),
             };
 
-            combined_vec.par_sort_unstable_by(|a, b| a.cmp(b));
             // don't want a par_iter here because it will block and wait for all
             // results, instead of printing and recursing into the subsequent dirs
             combined_vec.iter().for_each(|path| {
