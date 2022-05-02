@@ -585,11 +585,12 @@ fn parse_args() -> ArgMatches {
 }
 
 fn main() {
-    if let Err(error) = exec() {
-        eprintln!("Error: {}", error);
-        std::process::exit(1)
-    } else {
-        std::process::exit(0)
+    match exec() {
+        Ok(_) => std::process::exit(0),
+        Err(error) => {
+            eprintln!("Error: {}", error);
+            std::process::exit(1)
+        }
     }
 }
 
