@@ -125,8 +125,7 @@ pub fn enumerate_directory(
                 Vec<PathBuf>,
                 Box<dyn std::error::Error + Send + Sync + 'static>,
             > {
-                let vec_deleted = get_deleted(config, requested_dir)?;
-                let pseudo_live_versions: Vec<PathBuf> = vec_deleted
+                let pseudo_live_versions: Vec<PathBuf> = get_deleted(config, requested_dir)?
                     .par_iter()
                     .map(|path| path.path_buf.file_name())
                     .flatten()
