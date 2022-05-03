@@ -468,9 +468,10 @@ fn parse_args() -> ArgMatches {
         .version("0.9.8") 
         .arg(
             Arg::new("INPUT_FILES")
-                .help("in the default, non-interactive mode, put requested files here.  If you enter no files, \
-                then httm will pause waiting for input on stdin(3).  In any interactive mode, this is the directory search path. \
-                If no directory is entered, httm will use the current working directory.")
+                .help("in any non-interactive mode, put requested files here.  If you enter no files, \
+                then httm will pause waiting for input on stdin(3).\n\nin any interactive mode, \
+                this is the directory search path. If no directory is entered, \
+                httm will use the current working directory.")
                 .takes_value(true)
                 .multiple_values(true)
                 .display_order(1)
