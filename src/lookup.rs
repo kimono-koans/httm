@@ -78,7 +78,7 @@ pub fn lookup_exec(
 
 pub struct SearchDirs {
     pub hidden_snapshot_dir: PathBuf,
-    pub local_path: PathBuf,
+    pub diff_path: PathBuf,
 }
 
 pub fn get_search_dirs(
@@ -124,7 +124,7 @@ pub fn get_search_dirs(
         let hidden_snapshot_dir: PathBuf =
             [dataset, &PathBuf::from(".zfs/snapshot")].iter().collect();
 
-        let local_path = match &config.snap_point {
+        let diff_path = match &config.snap_point {
             SnapPoint::UserDefined(defined_dirs) => {
                 file_path
                     .strip_prefix(&defined_dirs.local_dir).map_err(|_| HttmError::new("Are you sure you're in the correct working directory?  Perhaps you need to set the LOCAL_DIR value."))
@@ -141,7 +141,7 @@ pub fn get_search_dirs(
         Ok(
             SearchDirs {
                 hidden_snapshot_dir,
-                local_path: local_path.to_path_buf(),
+                diff_path: diff_path.to_path_buf(),
             }
         )
 
@@ -203,7 +203,7 @@ fn get_versions(
         .flatten()
         .par_bridge()
         .map(|entry| entry.path())
-        .map(|path| path.join(&search_dirs.local_path))
+        .map(|path| path.join(&search_dirs.diff_path))
         .map(|path| PathData::from(path.as_path()))
         .filter(|pathdata| !pathdata.is_phantom)
         .collect::<Vec<PathData>>();
