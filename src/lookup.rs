@@ -114,10 +114,10 @@ pub fn get_search_dirs(
             let immediate_dataset_mount = get_immediate_dataset(file_pathdata, mount_collection)?;
             match requested_dataset_type {
                 DatasetType::MostImmediate => {
-                    get_alt_replicated_dataset(&immediate_dataset_mount, mount_collection)?
+                    vec![(immediate_dataset_mount.clone(), immediate_dataset_mount)]
                 }
                 DatasetType::AltReplicated => {
-                    vec![(immediate_dataset_mount.clone(), immediate_dataset_mount)]
+                    get_alt_replicated_dataset(&immediate_dataset_mount, mount_collection)?
                 }
             }
         }
