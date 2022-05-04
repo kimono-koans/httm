@@ -19,6 +19,7 @@ use crate::{Config, FilesystemAndMount, HttmError, PathData, SnapPoint};
 use fxhash::FxHashMap as HashMap;
 use rayon::prelude::*;
 use std::{
+    fs::read_dir,
     path::{Path, PathBuf},
     time::SystemTime,
 };
@@ -205,7 +206,7 @@ fn get_versions(
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // get the DirEntry for our snapshot path which will have all our possible
     // snapshots, like so: .zfs/snapshots/<some snap name>/
-    let versions = std::fs::read_dir(search_dirs.hidden_snapshot_dir)?
+    let versions = read_dir(search_dirs.hidden_snapshot_dir)?
         .flatten()
         .par_bridge()
         .map(|entry| entry.path())

@@ -24,6 +24,7 @@ use crate::{Config, DeletedMode, ExecMode, PathData};
 use rayon::{iter::Either, prelude::*};
 use skim::prelude::*;
 use std::{
+    fs::read_dir,
     io::{Stdout, Write},
     path::{Path, PathBuf},
     sync::Arc,
@@ -58,7 +59,7 @@ pub fn enumerate_directory(
     requested_dir: &Path,
     out: &mut Stdout,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let (vec_dirs, vec_files): (Vec<PathBuf>, Vec<PathBuf>) = std::fs::read_dir(&requested_dir)?
+    let (vec_dirs, vec_files): (Vec<PathBuf>, Vec<PathBuf>) = read_dir(&requested_dir)?
         .flatten()
         .par_bridge()
         // checking file_type on dir entries is always preferable

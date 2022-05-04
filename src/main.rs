@@ -36,7 +36,7 @@ use rayon::prelude::*;
 use std::{
     error::Error,
     fmt,
-    fs::{canonicalize, DirEntry, Metadata},
+    fs::{canonicalize, symlink_metadata, DirEntry, Metadata},
     io::Write,
     path::{Path, PathBuf},
     time::SystemTime,
@@ -83,7 +83,7 @@ pub struct PathData {
 
 impl From<&Path> for PathData {
     fn from(path: &Path) -> PathData {
-        let metadata_res = std::fs::symlink_metadata(path);
+        let metadata_res = symlink_metadata(path);
         PathData::from_parts(path, metadata_res)
     }
 }

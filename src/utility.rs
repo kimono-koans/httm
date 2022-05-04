@@ -17,9 +17,8 @@
 
 use chrono::{DateTime, Local};
 use lscolors::{LsColors, Style};
-use std::fs::{DirEntry, FileType};
 use std::{
-    fs,
+    fs::{copy, create_dir_all, read_dir, DirEntry, FileType},
     io::{self, BufRead},
     path::{Path, PathBuf},
     time::SystemTime,
@@ -32,18 +31,18 @@ pub fn timestamp_file(system_time: &SystemTime) -> String {
 
 pub fn copy_recursive(src: &Path, dst: &Path) -> io::Result<()> {
     if PathBuf::from(src).is_dir() {
-        fs::create_dir_all(&dst)?;
-        for entry in fs::read_dir(src)? {
+        create_dir_all(&dst)?;
+        for entry in read_dir(src)? {
             let entry = entry?;
             let file_type = entry.file_type()?;
             if file_type.is_dir() {
                 copy_recursive(&entry.path(), &dst.join(&entry.file_name()))?;
             } else {
-                fs::copy(&entry.path(), &dst.join(&entry.file_name()))?;
+                copy(&entry.path(), &dst.join(&entry.file_name()))?;
             }
         }
     } else {
-        std::fs::copy(src, dst)?;
+        copy(src, dst)?;
     }
     Ok(())
 }
