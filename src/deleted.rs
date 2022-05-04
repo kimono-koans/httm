@@ -15,7 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::lookup::{get_search_dirs, SearchDirs};
+use crate::lookup::{get_search_dirs, DatasetType, SearchDirs};
 use crate::{Config, PathData};
 
 use fxhash::FxHashMap as HashMap;
@@ -34,8 +34,8 @@ pub fn get_deleted(
             .map(PathData::from)
             .flat_map(|path_data| {
                 [
-                    get_search_dirs(config, &path_data, true),
-                    get_search_dirs(config, &path_data, false),
+                    get_search_dirs(config, &path_data, DatasetType::AltReplicated),
+                    get_search_dirs(config, &path_data, DatasetType::MostImmediate),
                 ]
             })
             .flatten()
@@ -46,7 +46,9 @@ pub fn get_deleted(
     } else {
         vec![requested_dir]
             .into_iter()
-            .flat_map(|path| get_search_dirs(config, &PathData::from(path), false))
+            .flat_map(|path| {
+                get_search_dirs(config, &PathData::from(path), DatasetType::MostImmediate)
+            })
             .flatten()
             .flat_map(|search_dirs| get_deleted_per_dataset(requested_dir, search_dirs))
             .flatten()

@@ -33,8 +33,8 @@ pub fn lookup_exec(
             .into_par_iter()
             .map(|path_data| {
                 [
-                    get_search_dirs(config, path_data, true),
-                    get_search_dirs(config, path_data, false),
+                    get_search_dirs(config, path_data, DatasetType::AltReplicated),
+                    get_search_dirs(config, path_data, DatasetType::MostImmediate),
                 ]
             })
             .flatten()
@@ -48,7 +48,7 @@ pub fn lookup_exec(
         // create vec of most immediate dataset/user specified backups
         path_data
             .into_par_iter()
-            .map(|path_data| get_search_dirs(config, path_data, false))
+            .map(|path_data| get_search_dirs(config, path_data, DatasetType::MostImmediate))
             .flatten()
             .flatten()
             .map(get_versions)
@@ -76,6 +76,11 @@ pub fn lookup_exec(
     Ok([all_snaps, live_versions])
 }
 
+pub enum DatasetType {
+    MostImmediate,
+    AltReplicated,
+}
+
 pub struct SearchDirs {
     pub hidden_snapshot_dir: PathBuf,
     pub diff_path: PathBuf,
@@ -84,7 +89,7 @@ pub struct SearchDirs {
 pub fn get_search_dirs(
     config: &Config,
     file_pathdata: &PathData,
-    for_alt_replicated: bool,
+    requested_dataset_type: DatasetType,
 ) -> Result<Vec<SearchDirs>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // here, we take our file path and get back possibly multiple ZFS dataset mountpoints
     // and our most immediate dataset mount point (which is always the same) for
@@ -107,12 +112,13 @@ pub fn get_search_dirs(
         )],
         SnapPoint::Native(mount_collection) => {
             let immediate_dataset_mount = get_immediate_dataset(file_pathdata, mount_collection)?;
-
-            if for_alt_replicated {
-                get_alt_replicated_dataset(&immediate_dataset_mount, mount_collection)?
-            } else {
-                // ordinary case
-                vec![(immediate_dataset_mount.clone(), immediate_dataset_mount)]
+            match requested_dataset_type {
+                DatasetType::MostImmediate => {
+                    get_alt_replicated_dataset(&immediate_dataset_mount, mount_collection)?
+                }
+                DatasetType::AltReplicated => {
+                    vec![(immediate_dataset_mount.clone(), immediate_dataset_mount)]
+                }
             }
         }
     };
