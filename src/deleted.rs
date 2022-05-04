@@ -24,6 +24,7 @@ use std::{
     ffi::OsString,
     fs::{read_dir, DirEntry},
     path::Path,
+    sync::Arc,
     time::SystemTime,
 };
 
@@ -31,34 +32,28 @@ pub fn get_deleted(
     config: &Config,
     requested_dir: &Path,
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    // don't use into_par_iter() or par_bridge() here, as will cause hangs/pauses,
-    // especially when we call on multiple datasets
-    let combined_deleted: Vec<PathData> = if config.opt_alt_replicated {
-        vec![requested_dir]
-            .into_iter()
-            .map(PathData::from)
-            .flat_map(|path_data| {
-                [
-                    get_search_dirs(config, &path_data, DatasetType::AltReplicated),
-                    get_search_dirs(config, &path_data, DatasetType::MostImmediate),
-                ]
-            })
-            .flatten()
-            .flatten()
-            .flat_map(|search_dirs| get_deleted_per_dataset(requested_dir, search_dirs))
-            .flatten()
-            .collect()
+    // prepare for local and replicated backups
+    let selected_datasets = if config.opt_alt_replicated {
+        Arc::new(vec![DatasetType::AltReplicated, DatasetType::MostImmediate])
     } else {
-        vec![requested_dir]
-            .into_iter()
-            .flat_map(|path| {
-                get_search_dirs(config, &PathData::from(path), DatasetType::MostImmediate)
-            })
-            .flatten()
-            .flat_map(|search_dirs| get_deleted_per_dataset(requested_dir, search_dirs))
-            .flatten()
-            .collect()
+        Arc::new(vec![DatasetType::MostImmediate])
     };
+
+    // create vec of all local and replicated backups at once
+    let combined_deleted: Vec<PathData> = vec![PathData::from(requested_dir)]
+        .par_iter()
+        .map(|path_data| {
+            selected_datasets
+                .par_iter()
+                .map(move |dataset_type| get_search_dirs(config, path_data, dataset_type))
+                .flatten()
+        })
+        .into_par_iter()
+        .flatten()
+        .flatten_iter()
+        .flat_map(|search_dirs| get_deleted_per_dataset(requested_dir, search_dirs))
+        .flatten()
+        .collect();
 
     // we need to make certain that what we return from possibly multiple datasets are unique
     // as these will be the filenames that populate our interactive views, so deduplicate
@@ -88,55 +83,41 @@ fn get_deleted_per_dataset(
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // get all local entries we need to compare against these to know
     // what is a deleted file
-    let local_dir_entries: Vec<DirEntry> = read_dir(&path)?
-        .into_iter()
-        .par_bridge()
-        .flatten()
-        .collect();
-
     // create a collection of local unique file names
-    let mut local_unique_filenames: HashMap<OsString, DirEntry> = HashMap::default();
-    local_dir_entries.into_iter().for_each(|dir_entry| {
-        let _ = local_unique_filenames.insert(dir_entry.file_name(), dir_entry);
-    });
-
-    // now create a collection of file names in the snap_dirs
-    let snap_files: Vec<(OsString, DirEntry)> = read_dir(&search_dirs.hidden_snapshot_dir)?
+    let unique_local_filenames: HashMap<OsString, DirEntry> = read_dir(&path)?
         .flatten()
         .par_bridge()
-        .map(|entry| entry.path())
-        .map(|path| path.join(&search_dirs.diff_path))
-        .map(|path| read_dir(&path))
-        .flatten_iter()
-        .flatten_iter()
-        .flatten_iter()
         .map(|dir_entry| (dir_entry.file_name(), dir_entry))
         .collect();
 
+    // now create a collection of file names in the snap_dirs
     // create a list of unique filenames on snaps
-    let mut unique_snap_filenames: HashMap<OsString, DirEntry> = HashMap::default();
-    snap_files.into_iter().for_each(|(file_name, dir_entry)| {
-        let _ = unique_snap_filenames.insert(file_name, dir_entry);
-    });
+    let unique_snap_filenames: HashMap<OsString, DirEntry> =
+        read_dir(&search_dirs.hidden_snapshot_dir)?
+            .flatten()
+            .par_bridge()
+            .map(|entry| entry.path())
+            .map(|path| path.join(&search_dirs.diff_path))
+            .map(|path| read_dir(&path))
+            .flatten_iter()
+            .flatten_iter()
+            .flatten_iter()
+            .map(|dir_entry| (dir_entry.file_name(), dir_entry))
+            .collect();
 
     // compare local filenames to all unique snap filenames - none values are unique here
-    let deleted_pathdata = unique_snap_filenames
-        .into_iter()
-        .filter(|(file_name, _)| local_unique_filenames.get(file_name).is_none())
-        .map(|(_, dir_entry)| PathData::from(&dir_entry));
-
     // deduplicate all by modify time and size - as we would elsewhere
-    let mut unique_deleted_versions: HashMap<(SystemTime, u64), PathData> = HashMap::default();
-    deleted_pathdata.for_each(|pathdata| {
-        let _ = unique_deleted_versions.insert((pathdata.system_time, pathdata.size), pathdata);
-    });
+    let unique_deleted_versions: HashMap<(SystemTime, u64), PathData> = unique_snap_filenames
+        .into_par_iter()
+        .filter(|(file_name, _)| unique_local_filenames.get(file_name).is_none())
+        .map(|(_, dir_entry)| PathData::from(&dir_entry))
+        .map(|pathdata| ((pathdata.system_time, pathdata.size), pathdata))
+        .collect();
 
-    let mut sorted: Vec<_> = unique_deleted_versions
-        .into_iter()
+    let res_vec: Vec<_> = unique_deleted_versions
+        .into_par_iter()
         .map(|(_, v)| v)
         .collect();
 
-    sorted.sort_unstable_by_key(|pathdata| (pathdata.system_time, pathdata.size));
-
-    Ok(sorted)
+    Ok(res_vec)
 }

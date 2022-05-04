@@ -21,6 +21,7 @@ use rayon::prelude::*;
 use std::{
     fs::read_dir,
     path::{Path, PathBuf},
+    sync::Arc,
     time::SystemTime,
 };
 
@@ -28,35 +29,29 @@ pub fn lookup_exec(
     config: &Config,
     path_data: &Vec<PathData>,
 ) -> Result<[Vec<PathData>; 2], Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let all_snaps: Vec<PathData> = if config.opt_alt_replicated {
-        // create vec of all local and replicated backups at once
-        path_data
-            .into_par_iter()
-            .map(|path_data| {
-                [
-                    get_search_dirs(config, path_data, DatasetType::AltReplicated),
-                    get_search_dirs(config, path_data, DatasetType::MostImmediate),
-                ]
-            })
-            .flatten()
-            .flatten()
-            .flatten()
-            .map(get_versions)
-            .flatten()
-            .flatten()
-            .collect()
+    // prepare for local and replicated backups
+    let selected_datasets = if config.opt_alt_replicated {
+        Arc::new(vec![DatasetType::AltReplicated, DatasetType::MostImmediate])
     } else {
-        // create vec of most immediate dataset/user specified backups
-        path_data
-            .into_par_iter()
-            .map(|path_data| get_search_dirs(config, path_data, DatasetType::MostImmediate))
-            .flatten()
-            .flatten()
-            .map(get_versions)
-            .flatten()
-            .flatten()
-            .collect::<Vec<PathData>>()
+        Arc::new(vec![DatasetType::MostImmediate])
     };
+
+    // create vec of all local and replicated backups at once
+    let all_snaps: Vec<PathData> = path_data
+        .par_iter()
+        .map(|path_data| {
+            selected_datasets
+                .par_iter()
+                .map(move |dataset_type| get_search_dirs(config, path_data, dataset_type))
+                .flatten()
+        })
+        .into_par_iter()
+        .flatten()
+        .flatten_iter()
+        .map(|search_dirs| get_versions(&search_dirs))
+        .flatten()
+        .flatten()
+        .collect();
 
     // create vec of live copies - unless user doesn't want it!
     let live_versions: Vec<PathData> = if !config.opt_no_live_vers {
@@ -77,11 +72,13 @@ pub fn lookup_exec(
     Ok([all_snaps, live_versions])
 }
 
+#[derive(Debug, Clone)]
 pub enum DatasetType {
     MostImmediate,
     AltReplicated,
 }
 
+#[derive(Debug, Clone)]
 pub struct SearchDirs {
     pub hidden_snapshot_dir: PathBuf,
     pub diff_path: PathBuf,
@@ -90,7 +87,7 @@ pub struct SearchDirs {
 pub fn get_search_dirs(
     config: &Config,
     file_pathdata: &PathData,
-    requested_dataset_type: DatasetType,
+    requested_dataset_type: &DatasetType,
 ) -> Result<Vec<SearchDirs>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // here, we take our file path and get back possibly multiple ZFS dataset mountpoints
     // and our most immediate dataset mount point (which is always the same) for
@@ -202,11 +199,11 @@ fn get_alt_replicated_dataset(
 }
 
 fn get_versions(
-    search_dirs: SearchDirs,
+    search_dirs: &SearchDirs,
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // get the DirEntry for our snapshot path which will have all our possible
     // snapshots, like so: .zfs/snapshots/<some snap name>/
-    let versions = read_dir(search_dirs.hidden_snapshot_dir)?
+    let versions = read_dir(search_dirs.hidden_snapshot_dir.as_path())?
         .flatten()
         .par_bridge()
         .map(|entry| entry.path())

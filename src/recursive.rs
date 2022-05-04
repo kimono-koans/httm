@@ -94,13 +94,17 @@ pub fn enumerate_directory(
                     } else {
                         // these are dummy placeholder values created from file on snapshots
                         let pseudo_live_versions: Vec<PathData> = if !config.opt_no_live_vers {
-                            vec_deleted
+                            let mut res: Vec<PathData> = vec_deleted
                                 .par_iter()
                                 .map(|path| path.path_buf.file_name())
                                 .flatten()
                                 .map(|file_name| requested_dir.join(file_name))
                                 .map(|path| PathData::from(path.as_path()))
-                                .collect()
+                                .collect();
+                            res.par_sort_unstable_by_key(|pathdata| {
+                                (pathdata.system_time, pathdata.size)
+                            });
+                            res
                         } else {
                             Vec::new()
                         };
