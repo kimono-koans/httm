@@ -180,7 +180,7 @@ fn get_alt_replicated_dataset(
                 // could not find the any replicated mounts
                 Err(HttmError::new("httm was unable to detect an alternate replicated mount point.  Perhaps the replicated filesystem is not mounted?").into())
             } else {
-                alt_replicated_mounts.sort_unstable_by_key(|path| path.to_string_lossy().len());
+                alt_replicated_mounts.sort_unstable_by_key(|path| path.as_os_str().len());
                 let res = alt_replicated_mounts
                     .into_iter()
                     .map(|alt_replicated_mount| {
