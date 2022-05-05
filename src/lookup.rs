@@ -156,12 +156,11 @@ fn get_alt_replicated_dataset(
     immediate_dataset_mount: &Path,
     mount_collection: &[FilesystemAndMount],
 ) -> Result<Vec<(PathBuf, PathBuf)>, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let mut unique_mounts: HashMap<&Path, &String> = HashMap::default();
-
     // reverse the order - mount as key, fs as value
-    mount_collection.iter().for_each(|fs_and_mounts| {
-        let _ = unique_mounts.insert(Path::new(&fs_and_mounts.mount), &fs_and_mounts.filesystem);
-    });
+    let unique_mounts: HashMap<&Path, &String> = mount_collection
+        .into_par_iter()
+        .map(|fs_and_mounts| (Path::new(&fs_and_mounts.mount), &fs_and_mounts.filesystem))
+        .collect();
 
     // so we can search for the mount as a key
     match &unique_mounts.get(&immediate_dataset_mount) {
@@ -203,21 +202,18 @@ fn get_versions(
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // get the DirEntry for our snapshot path which will have all our possible
     // snapshots, like so: .zfs/snapshots/<some snap name>/
-    let versions = read_dir(search_dirs.hidden_snapshot_dir.as_path())?
-        .flatten()
-        .par_bridge()
-        .map(|entry| entry.path())
-        .map(|path| path.join(&search_dirs.diff_path))
-        .map(|path| PathData::from(path.as_path()))
-        .filter(|pathdata| !pathdata.is_phantom)
-        .collect::<Vec<PathData>>();
-
-    // filter above will remove all the phantom values silently as we build a list of versions
-    // and our hashmap will then remove duplicates with the same system modify time and size/file len
-    let mut unique_versions: HashMap<(SystemTime, u64), PathData> = HashMap::default();
-    versions.into_iter().for_each(|pathdata| {
-        let _ = unique_versions.insert((pathdata.system_time, pathdata.size), pathdata);
-    });
+    //
+    // hashmap will then remove duplicates with the same system modify time and size/file len
+    let unique_versions: HashMap<(SystemTime, u64), PathData> =
+        read_dir(search_dirs.hidden_snapshot_dir.as_path())?
+            .flatten()
+            .par_bridge()
+            .map(|entry| entry.path())
+            .map(|path| path.join(&search_dirs.diff_path))
+            .map(|path| PathData::from(path.as_path()))
+            .filter(|pathdata| !pathdata.is_phantom)
+            .map(|pathdata| ((pathdata.system_time, pathdata.size), pathdata))
+            .collect();
 
     let mut sorted: Vec<PathData> = unique_versions.into_iter().map(|(_, v)| v).collect();
 

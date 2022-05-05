@@ -51,7 +51,7 @@ pub fn get_deleted(
         .into_par_iter()
         .flatten()
         .flatten_iter()
-        .flat_map(|search_dirs| get_deleted_per_dataset(requested_dir, search_dirs))
+        .flat_map(|search_dirs| get_deleted_per_dataset(requested_dir, &search_dirs))
         .flatten()
         .collect();
 
@@ -59,17 +59,12 @@ pub fn get_deleted(
     // as these will be the filenames that populate our interactive views, so deduplicate
     // by system time and size here
     let unique_deleted = if config.opt_alt_replicated {
-        let mut unique_deleted: HashMap<(&SystemTime, &u64), &PathData> = HashMap::default();
+        let unique_deleted: HashMap<(SystemTime, u64), PathData> = combined_deleted
+            .into_par_iter()
+            .map(|pathdata| ((pathdata.system_time, pathdata.size), pathdata))
+            .collect();
 
-        combined_deleted.iter().for_each(|pathdata| {
-            let _ = unique_deleted.insert((&pathdata.system_time, &pathdata.size), pathdata);
-        });
-
-        unique_deleted
-            .into_iter()
-            .map(|(_, v)| v)
-            .cloned()
-            .collect()
+        unique_deleted.into_par_iter().map(|(_, v)| v).collect()
     } else {
         combined_deleted
     };
@@ -79,7 +74,7 @@ pub fn get_deleted(
 
 fn get_deleted_per_dataset(
     path: &Path,
-    search_dirs: SearchDirs,
+    search_dirs: &SearchDirs,
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // get all local entries we need to compare against these to know
     // what is a deleted file

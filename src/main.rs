@@ -359,13 +359,9 @@ impl Config {
         // deduplicate pathdata and sort if in display mode --
         // so input of ./.z* and ./.zshrc will only print ./.zshrc once
         paths = if exec_mode == ExecMode::Display && paths.len() > 1 {
-            let mut unique_paths: HashSet<PathData> = HashSet::default();
+            let unique_paths: HashSet<PathData> = paths.into_par_iter().collect();
 
-            paths.into_iter().for_each(|pathdata| {
-                let _ = unique_paths.insert(pathdata);
-            });
-
-            let mut sorted: Vec<PathData> = unique_paths.into_iter().collect();
+            let mut sorted: Vec<PathData> = unique_paths.into_par_iter().collect();
             sorted.par_sort_unstable_by_key(|pathdata| (pathdata.system_time, pathdata.size));
 
             sorted
