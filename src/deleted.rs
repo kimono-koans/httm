@@ -15,7 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::lookup::{get_search_dirs, DatasetType, SearchDirs};
+use crate::lookup::{get_search_dirs, NativeDatasetType, SearchDirs};
 use crate::{Config, PathData};
 
 use fxhash::FxHashMap as HashMap;
@@ -34,9 +34,12 @@ pub fn get_deleted(
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // prepare for local and replicated backups
     let selected_datasets = if config.opt_alt_replicated {
-        Arc::new(vec![DatasetType::AltReplicated, DatasetType::MostImmediate])
+        Arc::new(vec![
+            NativeDatasetType::AltReplicated,
+            NativeDatasetType::MostImmediate,
+        ])
     } else {
-        Arc::new(vec![DatasetType::MostImmediate])
+        Arc::new(vec![NativeDatasetType::MostImmediate])
     };
 
     // create vec of all local and replicated backups at once
