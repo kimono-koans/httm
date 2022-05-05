@@ -48,12 +48,12 @@ pub struct HttmError {
 }
 
 impl HttmError {
-    fn new(msg: &str) -> HttmError {
+    fn new(msg: &str) -> Self {
         HttmError {
             details: msg.to_owned(),
         }
     }
-    fn with_context(msg: &str, err: Box<dyn Error + 'static>) -> HttmError {
+    fn with_context(msg: &str, err: Box<dyn Error + 'static>) -> Self {
         let msg_plus_context = format!("{} : {:?}", msg, err);
         HttmError {
             details: msg_plus_context,
@@ -82,14 +82,14 @@ pub struct PathData {
 }
 
 impl From<&Path> for PathData {
-    fn from(path: &Path) -> PathData {
+    fn from(path: &Path) -> Self {
         let metadata_res = symlink_metadata(path);
         PathData::from_parts(path, metadata_res)
     }
 }
 
 impl From<&DirEntry> for PathData {
-    fn from(dir_entry: &DirEntry) -> PathData {
+    fn from(dir_entry: &DirEntry) -> Self {
         let metadata_res = dir_entry.metadata();
         let path = dir_entry.path();
         PathData::from_parts(&path, metadata_res)
@@ -97,7 +97,7 @@ impl From<&DirEntry> for PathData {
 }
 
 impl PathData {
-    fn from_parts(path: &Path, metadata_res: Result<Metadata, std::io::Error>) -> PathData {
+    fn from_parts(path: &Path, metadata_res: Result<Metadata, std::io::Error>) -> Self {
         let absolute_path: PathBuf = if path.is_relative() {
             if let Ok(canonical_path) = path.canonicalize() {
                 canonical_path
@@ -204,7 +204,7 @@ pub struct Config {
 impl Config {
     fn from(
         matches: ArgMatches,
-    ) -> Result<Config, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    ) -> Result<Self, Box<dyn std::error::Error + Send + Sync + 'static>> {
         if matches.is_present("ZSH_HOT_KEYS") {
             install_hot_keys()?
         }
