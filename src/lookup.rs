@@ -153,6 +153,43 @@ pub fn get_search_dirs(
     }).collect()
 }
 
+pub fn get_immediate_dataset(
+    pathdata: &PathData,
+    mount_collection: &Vec<FilesystemAndMount>,
+) -> Result<PathBuf, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    // only possible None value case is "parent is the '/' dir" because
+    // of previous work in the Pathdata new method
+    let parent_folder = pathdata.path_buf.parent().unwrap_or_else(|| Path::new("/"));
+
+    // prune away most mount points by filtering - parent folder of file must contain relevant dataset
+    let potential_mountpoints: Vec<&String> = mount_collection
+        .into_par_iter()
+        .map(|fs_and_mounts| &fs_and_mounts.mount)
+        .filter(|line| parent_folder.starts_with(line))
+        .collect();
+
+    // do we have any mount points left? if not print error
+    if potential_mountpoints.is_empty() {
+        let msg = "Could not identify any qualifying dataset.  Maybe consider specifying manually at SNAP_POINT?";
+        return Err(HttmError::new(msg).into());
+    };
+
+    // select the best match for us: the longest, as we've already matched on the parent folder
+    // so for /usr/bin, we would then prefer /usr/bin to /usr and /
+    let best_potential_mountpoint =
+        if let Some(some_bpmp) = potential_mountpoints.par_iter().max_by_key(|x| x.len()) {
+            some_bpmp
+        } else {
+            let msg = format!(
+                "There is no best match for a ZFS dataset to use for path {:?}. Sorry!/Not sorry?)",
+                pathdata.path_buf
+            );
+            return Err(HttmError::new(&msg).into());
+        };
+
+    Ok(PathBuf::from(best_potential_mountpoint))
+}
+
 fn get_alt_replicated_dataset(
     immediate_dataset_mount: &Path,
     mount_collection: &[FilesystemAndMount],
@@ -221,41 +258,4 @@ fn get_versions(
     sorted.par_sort_unstable_by_key(|pathdata| pathdata.system_time);
 
     Ok(sorted)
-}
-
-pub fn get_immediate_dataset(
-    pathdata: &PathData,
-    mount_collection: &Vec<FilesystemAndMount>,
-) -> Result<PathBuf, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    // only possible None value case is "parent is the '/' dir" because
-    // of previous work in the Pathdata new method
-    let parent_folder = pathdata.path_buf.parent().unwrap_or_else(|| Path::new("/"));
-
-    // prune away most mount points by filtering - parent folder of file must contain relevant dataset
-    let potential_mountpoints: Vec<&String> = mount_collection
-        .into_par_iter()
-        .map(|fs_and_mounts| &fs_and_mounts.mount)
-        .filter(|line| parent_folder.starts_with(line))
-        .collect();
-
-    // do we have any mount points left? if not print error
-    if potential_mountpoints.is_empty() {
-        let msg = "Could not identify any qualifying dataset.  Maybe consider specifying manually at SNAP_POINT?";
-        return Err(HttmError::new(msg).into());
-    };
-
-    // select the best match for us: the longest, as we've already matched on the parent folder
-    // so for /usr/bin, we would then prefer /usr/bin to /usr and /
-    let best_potential_mountpoint =
-        if let Some(some_bpmp) = potential_mountpoints.par_iter().max_by_key(|x| x.len()) {
-            some_bpmp
-        } else {
-            let msg = format!(
-                "There is no best match for a ZFS dataset to use for path {:?}. Sorry!/Not sorry?)",
-                pathdata.path_buf
-            );
-            return Err(HttmError::new(&msg).into());
-        };
-
-    Ok(PathBuf::from(best_potential_mountpoint))
 }
