@@ -31,7 +31,7 @@ use crate::recursive::display_recursive_exec;
 use crate::utility::{httm_is_dir, read_stdin};
 
 use clap::{Arg, ArgMatches};
-use fxhash::FxHashSet as HashSet;
+use fxhash::FxHashMap as HashMap;
 use rayon::prelude::*;
 use std::{
     error::Error,
@@ -359,9 +359,12 @@ impl Config {
         // deduplicate pathdata and sort if in display mode --
         // so input of ./.z* and ./.zshrc will only print ./.zshrc once
         paths = if exec_mode == ExecMode::Display && paths.len() > 1 {
-            let unique_paths: HashSet<PathData> = paths.into_par_iter().collect();
+            let unique_paths: HashMap<PathBuf, PathData> = paths
+                .into_par_iter()
+                .map(|pathdata| (pathdata.path_buf.clone(), pathdata))
+                .collect();
 
-            let mut sorted: Vec<PathData> = unique_paths.into_par_iter().collect();
+            let mut sorted: Vec<PathData> = unique_paths.into_par_iter().map(|(_, v)| v).collect();
             sorted.par_sort_unstable_by_key(|pathdata| (pathdata.system_time, pathdata.size));
 
             sorted
