@@ -104,8 +104,6 @@ pub fn get_search_dirs(
     // why? we need both the dataset of interest and the most immediate dataset because we
     // will user the most immediate dataset as our local relative path to our our canonical
     // paths down to the difference between ZFS mount point and the canonical path
-    let file_path = &file_pathdata.path_buf;
-
     let dataset_collection: Vec<(PathBuf, PathBuf)> = match &config.snap_point {
         SnapPoint::UserDefined(defined_dirs) => vec![(
             defined_dirs.snap_dir.to_owned(),
@@ -126,24 +124,24 @@ pub fn get_search_dirs(
 
     // building our local relative path by removing parent
     // directories below the remote/snap mount point
-    dataset_collection.par_iter().map( |(dataset, immediate_dataset_snap_mount)| {
+    dataset_collection.par_iter().map( |(dataset_of_interest, immediate_dataset_snap_mount)| {
         // building the snapshot path from our dataset
         let hidden_snapshot_dir: PathBuf =
-            [dataset, &PathBuf::from(".zfs/snapshot")].iter().collect();
+            [dataset_of_interest, &PathBuf::from(".zfs/snapshot")].iter().collect();
 
         let diff_path = match &config.snap_point {
             SnapPoint::UserDefined(defined_dirs) => {
-                file_path
+                file_pathdata.path_buf
                     .strip_prefix(&defined_dirs.local_dir).map_err(|_| HttmError::new("Are you sure you're in the correct working directory?  Perhaps you need to set the LOCAL_DIR value."))
             }
             SnapPoint::Native(_) => {
                 // Note: this must be our most local snapshot mount to get get the correct relative path
                 // this is why we need the original dataset, even when we are searching an alternate filesystem
                 // and cannot process all these items separately, in a multitude of functions
-                file_path
+                file_pathdata.path_buf
                     .strip_prefix(&immediate_dataset_snap_mount).map_err(|_| HttmError::new("Are you sure you're in the correct working directory?  Perhaps you need to set the SNAP_DIR and LOCAL_DIR values."))   
                 }
-        }?;
+            }?;
 
         Ok(
             SearchDirs {
