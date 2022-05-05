@@ -227,11 +227,9 @@ pub fn get_immediate_dataset(
     pathdata: &PathData,
     mount_collection: &Vec<FilesystemAndMount>,
 ) -> Result<PathBuf, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let file_path = &pathdata.path_buf;
-
     // only possible None value case is "parent is the '/' dir" because
     // of previous work in the Pathdata new method
-    let parent_folder = file_path.parent().unwrap_or_else(|| Path::new("/"));
+    let parent_folder = pathdata.path_buf.parent().unwrap_or_else(|| Path::new("/"));
 
     // prune away most mount points by filtering - parent folder of file must contain relevant dataset
     let potential_mountpoints: Vec<&String> = mount_collection
@@ -254,7 +252,7 @@ pub fn get_immediate_dataset(
         } else {
             let msg = format!(
                 "There is no best match for a ZFS dataset to use for path {:?}. Sorry!/Not sorry?)",
-                file_path
+                pathdata.path_buf
             );
             return Err(HttmError::new(&msg).into());
         };
