@@ -19,7 +19,7 @@ use chrono::{DateTime, Local};
 use lscolors::{LsColors, Style};
 use std::{
     fs::{copy, create_dir_all, read_dir, DirEntry, FileType},
-    io::{self, BufRead},
+    io::{self, Read},
     path::{Path, PathBuf},
     time::SystemTime,
 };
@@ -59,12 +59,12 @@ pub fn paint_string(path: &Path, file_name: &str) -> String {
 }
 
 pub fn read_stdin() -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let mut buffer = String::new();
+    let mut buffer = Vec::new();
     let stdin = std::io::stdin();
     let mut stdin = stdin.lock();
-    stdin.read_line(&mut buffer)?;
+    stdin.read_to_end(&mut buffer)?;
 
-    let broken_string: Vec<String> = buffer
+    let broken_string: Vec<String> = std::str::from_utf8(&buffer)?
         .split_ascii_whitespace()
         .into_iter()
         .map(|i| i.to_owned())
