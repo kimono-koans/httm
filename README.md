@@ -61,6 +61,7 @@ Create a `tar` archive of all unique versions of your `/var/log/syslog`:
 ```bash
 # simple
 httm -n /var/log/syslog | tar -zcvf all-versions-syslog.tar.gz -T -
+
 # or impress your friends with a slightly fancier GNU tar folder structure
 file="/var/log/syslog"
 base_dir="$(basename $file)_all_versions"
