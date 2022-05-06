@@ -365,7 +365,7 @@ impl Config {
                 .collect();
 
             let mut sorted: Vec<PathData> = unique_paths.into_par_iter().map(|(_, v)| v).collect();
-            sorted.par_sort_unstable_by_key(|pathdata| pathdata.path_buf.clone() );
+            sorted.par_sort_unstable_by_key(|pathdata| pathdata.path_buf.clone());
 
             sorted
         } else {

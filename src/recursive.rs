@@ -101,9 +101,7 @@ pub fn enumerate_directory(
                                 .map(|file_name| requested_dir.join(file_name))
                                 .map(|path| PathData::from(path.as_path()))
                                 .collect();
-                            res.par_sort_unstable_by_key(|pathdata| {
-                                pathdata.path_buf.clone()
-                            });
+                            res.par_sort_unstable_by_key(|pathdata| pathdata.path_buf.clone());
                             res
                         } else {
                             Vec::new()
