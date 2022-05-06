@@ -62,11 +62,11 @@ Create a `tar` archive of all unique versions of your `/var/log/syslog`:
 # simple
 httm -n /var/log/syslog | tar -zcvf all-versions-syslog.tar.gz -T -
 # or impress your friends with a slightly fancier GNU tar folder structure
-FILE="/var/log/syslog"
-BASEDIR="$(basename $FILE)_all_versions"
-DIRNAME="${$(dirname $FILE)/\//}"
+file="/var/log/syslog"
+base_dir="$(basename $file)_all_versions"
+dir_name="${$(dirname $file)/\//}"
 
-httm -n "$FILE" | tar --transform="flags=r;s|$DIRNAME|$BASEDIR|" \
+httm -n "$file" | tar --transform="flags=r;s|$dir_name|$base_dir|" \
 --transform="flags=r;s|.zfs/snapshot/||" --show-transformed-names \
 -zcvf all-versions-syslog.tar.gz -T  -
 ```
