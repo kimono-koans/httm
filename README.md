@@ -86,12 +86,12 @@ base_dir="$(basename $file)_all_versions"
 
 httm -n "$file" | tar --transform="flags=r;s|$dir_name|$base_dir|" \
 --transform="flags=r;s|.zfs/snapshot/||" --show-transformed-names \
--zcvf all-versions-syslog.tar.gz -T  -
+-zcvf "all-versions-$(basename $file).tar.gz" -T  -
 ```
-Create a *super fancy* `git` archive of all unique versions of `/etc/sysconfig/iptables`:
+Create a *super fancy* `git` archive of all unique versions of `/var/log/syslog`:
 ```bash
 # create variable for file name
-file="/etc/sysconfig/iptables"
+file="/var/log/syslog"
 # create git repo
 mkdir ./archive-git; cd ./archive-git; git init
 # copy each version to repo and commit after each copy
@@ -103,7 +103,7 @@ for version in $(httm -n $file); do
     git commit --amend --no-edit --date "$(date -d "$(stat -c %y $version)")"
 done
 # create git tar.gz archive
-git archive --format=tar.gz -o "../archive-git-$(basename $file).tar.gz" master; cd ../
+cd ../; tar -zcvf "all-versions-$(basename $file).tar.gz" "./archive-git"
 # and to view
 cd ../archive-git; git log --stat
 ```
