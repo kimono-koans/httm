@@ -91,7 +91,7 @@ httm -n "$file" | tar --transform="flags=r;s|$dir_name|$base_dir|" \
 Create a *super fancy* `git` archive of all unique versions of `/etc/sysconfig/iptables`:
 ```bash
 # create variable for file name
-file="/var/log/syslog"
+file="/etc/sysconfig/iptables"
 # create git repo
 mkdir ./archive-git; cd ./archive-git; git init
 # copy each version to repo and commit after each copy
