@@ -57,35 +57,6 @@ Print all unique versions of your history file:
 ```bash
 httm ~/.histfile
 ```
-Create a `tar` archive of all unique versions of your `/var/log/syslog`:
-```bash
-# simple
-httm -n /var/log/syslog | tar -zcvf all-versions-syslog.tar.gz -T -
-
-# or impress your friends with a slightly fancier GNU tar folder structure
-file="/var/log/syslog"
-base_dir="$(basename $file)_all_versions"
-dir_name="${$(dirname $file)/\//}"
-
-httm -n "$file" | tar --transform="flags=r;s|$dir_name|$base_dir|" \
---transform="flags=r;s|.zfs/snapshot/||" --show-transformed-names \
--zcvf all-versions-syslog.tar.gz -T  -
-```
-Create a `git` archive of all unique versions of `/etc/sysconfig/iptables`:
-```bash
-# create variable for file name
-file="/etc/sysconfig/iptables"
-# create git repo
-mkdir ./archive-git; cd ./archive-git; git init
-# copy each version to repo and commit after each copy
-for version in $(httm -n $file); do 
-    cp "$version" ./ 
-    git add "./$(basename $version)"
-    git commit -m "$(stat -c %y $version)"
-done
-# create git tar.gz archive 
-git archive --format=tar.gz -o "../archive-git-$(basename $file).tar.gz" master; cd ../
-```
 Print all files on snapshots deleted from your home directory, recursive, newline delimited, piped to a `deleted-files.txt` file: 
 ```bash
 httm -d -n -R --no-live ~ > deleted-files.txt
@@ -101,6 +72,40 @@ httm -d only -i -a -R ~
 Browse all files in your home directory, recursively, and view unique versions on local snapshots, to select and ultimately restore to your working directory:
 ```bash
 httm -r -R ~
+```
+Create a simple `tar` archive of all unique versions of your `/var/log/syslog`:
+```bash
+httm -n /var/log/syslog | tar -zcvf all-versions-syslog.tar.gz -T -
+```
+Create a *kinda fancy* `tar` archive of all unique versions of your `/var/log/syslog`:
+```bash
+# a slightly fancier GNU tar folder structure
+file="/var/log/syslog"
+dir_name="${$(dirname $file)/\//}"
+base_dir="$(basename $file)_all_versions"
+
+httm -n "$file" | tar --transform="flags=r;s|$dir_name|$base_dir|" \
+--transform="flags=r;s|.zfs/snapshot/||" --show-transformed-names \
+-zcvf all-versions-syslog.tar.gz -T  -
+```
+Create a *super fancy* `git` archive of all unique versions of `/etc/sysconfig/iptables`:
+```bash
+# create variable for file name
+file="/var/log/syslog"
+# create git repo
+mkdir ./archive-git; cd ./archive-git; git init
+# copy each version to repo and commit after each copy
+for version in $(httm -n $file); do
+    cp "$version" ./
+    git add "./$(basename $version)"
+    git commit -m "httm commit from ZFS snapshot"
+    # amend commit date to match snapshot modify time
+    git commit --amend --no-edit --date "$(date -d "$(stat -c %y $version)")"
+done
+# create git tar.gz archive
+git archive --format=tar.gz -o "../archive-git-$(basename $file).tar.gz" master; cd ../
+# and to view
+cd ../archive-git; git log --stat
 ```
 
 ## I know what you're thinking, but slow your roll.
