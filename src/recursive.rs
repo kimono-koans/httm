@@ -102,7 +102,7 @@ pub fn enumerate_directory(
                                 .map(|path| PathData::from(path.as_path()))
                                 .collect();
                             res.par_sort_unstable_by_key(|pathdata| {
-                                (pathdata.system_time, pathdata.size)
+                                pathdata.path_buf.clone()
                             });
                             res
                         } else {
