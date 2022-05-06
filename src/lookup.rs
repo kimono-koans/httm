@@ -29,7 +29,7 @@ pub fn lookup_exec(
     config: &Config,
     path_data: &Vec<PathData>,
 ) -> Result<[Vec<PathData>; 2], Box<dyn std::error::Error + Send + Sync + 'static>> {
-    // prepare for local and replicated backups
+    // prepare for local and replicated backups on alt replicated sets if necessary
     let selected_datasets = if config.opt_alt_replicated {
         Arc::new(vec![
             NativeDatasetType::AltReplicated,
@@ -84,7 +84,7 @@ pub enum NativeDatasetType {
 #[derive(Debug, Clone)]
 pub struct SearchDirs {
     pub hidden_snapshot_dir: PathBuf,
-    pub diff_path: PathBuf,
+    pub relative_path: PathBuf,
 }
 
 pub fn get_search_dirs(
@@ -97,13 +97,14 @@ pub fn get_search_dirs(
     // a single file
     //
     // we ask a few questions: has the location been user defined? if not, does
-    // the use want all local datasets on the system, including replicated datasets?
+    // the user want all local datasets on the system, including replicated datasets?
     // the most common case is: just use the most immediate dataset mount point as both
     // the dataset of interest and most immediate ZFS dataset
     //
     // why? we need both the dataset of interest and the most immediate dataset because we
-    // will user the most immediate dataset as our local relative path to our our canonical
-    // paths down to the difference between ZFS mount point and the canonical path
+    // will compare the most immediate dataset to our our canonical path and the difference
+    // between ZFS mount point and the canonical path is the path we will use to search the
+    // hidden snapshot dirs
     let dataset_collection: Vec<(PathBuf, PathBuf)> = match &config.snap_point {
         SnapPoint::UserDefined(defined_dirs) => vec![(
             defined_dirs.snap_dir.to_owned(),
@@ -122,22 +123,22 @@ pub fn get_search_dirs(
         }
     };
 
-    // building our local relative path by removing parent
-    // directories below the remote/snap mount point
     dataset_collection.par_iter().map( |(dataset_of_interest, immediate_dataset_snap_mount)| {
         // building the snapshot path from our dataset
         let hidden_snapshot_dir: PathBuf =
             [dataset_of_interest, &PathBuf::from(".zfs/snapshot")].iter().collect();
 
-        let diff_path = match &config.snap_point {
+        // building our relative path by removing parent below the snap dir
+        //
+        // for native searches the prefix is are the dirs below the most immediate dataset
+        // for user specified dirs these are specified by the user
+        let relative_path = match &config.snap_point {
             SnapPoint::UserDefined(defined_dirs) => {
                 file_pathdata.path_buf
                     .strip_prefix(&defined_dirs.local_dir).map_err(|_| HttmError::new("Are you sure you're in the correct working directory?  Perhaps you need to set the LOCAL_DIR value."))
             }
             SnapPoint::Native(_) => {
-                // Note: this must be our most local snapshot mount to get get the correct relative path
-                // this is why we need the original dataset, even when we are searching an alternate filesystem
-                // and cannot process all these items separately, in a multitude of functions
+                // this prefix removal is why we always need the immediate dataset name, even when we are searching an alternate replicated filesystem
                 file_pathdata.path_buf
                     .strip_prefix(&immediate_dataset_snap_mount).map_err(|_| HttmError::new("Are you sure you're in the correct working directory?  Perhaps you need to set the SNAP_DIR and LOCAL_DIR values."))   
                 }
@@ -146,7 +147,7 @@ pub fn get_search_dirs(
         Ok(
             SearchDirs {
                 hidden_snapshot_dir,
-                diff_path: diff_path.to_path_buf(),
+                relative_path: relative_path.to_path_buf(),
             }
         )
 
@@ -157,7 +158,7 @@ pub fn get_immediate_dataset(
     pathdata: &PathData,
     mount_collection: &Vec<FilesystemAndMount>,
 ) -> Result<PathBuf, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    // only possible None value case is "parent is the '/' dir" because
+    // only possible None case is "parent is the '/' dir" because
     // of previous work in the Pathdata new method
     let parent_folder = pathdata.path_buf.parent().unwrap_or_else(|| Path::new("/"));
 
@@ -194,17 +195,17 @@ fn get_alt_replicated_dataset(
     immediate_dataset_mount: &Path,
     mount_collection: &[FilesystemAndMount],
 ) -> Result<Vec<(PathBuf, PathBuf)>, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    // reverse the order - mount as key, fs as value
+    // reverse the order from how displayed in "mount" - mount point as key, device/fs as value,
+    // so we can search for the mount as a key
     let unique_mounts: HashMap<&Path, &String> = mount_collection
         .into_par_iter()
         .map(|fs_and_mounts| (Path::new(&fs_and_mounts.mount), &fs_and_mounts.filesystem))
         .collect();
 
-    // so we can search for the mount as a key
     match &unique_mounts.get(&immediate_dataset_mount) {
         Some(immediate_dataset_fs_name) => {
             // find a filesystem that ends with our most local filesystem name
-            // but has a preface name, like a different pool name: rpool might be
+            // but which has a prefix, like a different pool name: rpool might be
             // replicated to tank/rpool
             let mut alt_replicated_mounts: Vec<PathBuf> = unique_mounts
                 .clone()
@@ -247,7 +248,7 @@ fn get_versions(
             .flatten()
             .par_bridge()
             .map(|entry| entry.path())
-            .map(|path| path.join(&search_dirs.diff_path))
+            .map(|path| path.join(&search_dirs.relative_path))
             .map(|path| PathData::from(path.as_path()))
             .filter(|pathdata| !pathdata.is_phantom)
             .map(|pathdata| ((pathdata.system_time, pathdata.size), pathdata))
@@ -255,7 +256,7 @@ fn get_versions(
 
     let mut sorted: Vec<PathData> = unique_versions.into_iter().map(|(_, v)| v).collect();
 
-    sorted.par_sort_unstable_by_key(|pathdata| pathdata.system_time);
+    sorted.par_sort_unstable_by_key(|pathdata| (pathdata.system_time, pathdata.size));
 
     Ok(sorted)
 }

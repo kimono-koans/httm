@@ -74,6 +74,7 @@ fn preview_view(
     config: &Config,
     path: &Path,
 ) -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    // generate a config for a preview display only
     let gen_config = Config {
         paths: vec![PathData::from(path)],
         opt_raw: false,

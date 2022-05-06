@@ -150,7 +150,7 @@ pub fn list_all_filesystems(
             .cloned()
             .zip(mount_points.iter().cloned())
             // sanity check: does the filesystem exist? if not, filter it out
-            .filter(|(_fs, mount)| Path::new(mount).exists())
+            .filter(|(_filesystem, mount)| Path::new(mount).exists())
             .map(|(filesystem, mount)| FilesystemAndMount { filesystem, mount })
             .collect();
 
@@ -158,6 +158,7 @@ pub fn list_all_filesystems(
     };
 
     // do we have the necessary commands for search if user has not defined a snap point?
+    // if so run the mount search, if not print some errors
     if let Ok(shell_command) = which("sh") {
         if let Ok(mount_command) = which("mount") {
             get_filesystems_and_mountpoints(&shell_command, &mount_command)

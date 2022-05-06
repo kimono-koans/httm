@@ -95,7 +95,7 @@ fn get_deleted_per_dataset(
             .flatten()
             .par_bridge()
             .map(|entry| entry.path())
-            .map(|path| path.join(&search_dirs.diff_path))
+            .map(|path| path.join(&search_dirs.relative_path))
             .map(|path| read_dir(&path))
             .flatten_iter()
             .flatten_iter()

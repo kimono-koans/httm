@@ -73,7 +73,7 @@ pub fn read_stdin() -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sy
     Ok(broken_string)
 }
 
-// is this something we should count as a directory for our purposes?
+// is this path/dir_entry something we should count as a directory for our purposes?
 pub fn httm_is_dir<T>(entry: &T) -> bool
 where
     T: HttmIsDir,
