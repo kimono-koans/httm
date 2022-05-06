@@ -59,9 +59,9 @@ pub fn paint_string(path: &Path, file_name: &str) -> String {
 }
 
 pub fn read_stdin() -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let mut buffer = Vec::new();
     let stdin = std::io::stdin();
     let mut stdin = stdin.lock();
+    let mut buffer = Vec::new();
     stdin.read_to_end(&mut buffer)?;
 
     let broken_string: Vec<String> = std::str::from_utf8(&buffer)?
