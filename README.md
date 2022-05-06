@@ -90,15 +90,15 @@ httm -d -n -R --no-live ~ > deleted-files.txt
 ```
 Browse all files in your home directory, recursively, and view versions on local snapshots:
 ```bash
-httm -i -R ~/
+httm -i -R ~
 ```
 Browse all files deleted from your home directory, recursively, and view versions on all local and alternative replicated dataset snapshots:
 ```bash
-httm -d only -i -a -R ~/
+httm -d only -i -a -R ~
 ```
 Browse all files in your home directory, recursively, and view versions on local snapshots, to select and ultimately restore to your working directory:
 ```bash
-httm -r -R ~/
+httm -r -R ~
 ```
 
 ## I know what you're thinking, but slow your roll.
