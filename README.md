@@ -65,7 +65,9 @@ httm -n /var/log/syslog | tar -zcvf all-versions-syslog.tar.gz -T -
 FILE="/var/log/syslog"
 BASEDIR="$(basename $FILE)_all_versions"
 DIRNAME="${$(dirname $FILE)/\//}"
-httm -n "$FILE" | tar --transform="flags=r;s|$DIRNAME|$BASEDIR|" --transform="flags=r;s|.zfs/snapshot/||" --show-transformed-names -zcvf all-versions-syslog.tar.gz -T  -
+httm -n "$FILE" | tar --transform="flags=r;s|$DIRNAME|$BASEDIR|" \
+--transform="flags=r;s|.zfs/snapshot/||" --show-transformed-names \
+-zcvf all-versions-syslog.tar.gz -T  -
 ```
 Create git archive of all file versions of `/etc/sysconfig/iptables`:
 ```bash
