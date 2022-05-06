@@ -53,11 +53,11 @@ On some Linux distributions, which include old versions of `libc`, `cargo` may r
 
 ## Example Usage
 
-Print all local file snapshots of your history file:
+Print all unique local file snapshots of your history file:
 ```bash
 httm ~/.histfile
 ```
-Create tar archive of all versions of your `/var/log/syslog`:
+Create tar archive of all unique versions of your `/var/log/syslog`:
 ```bash
 # simple
 httm -n /var/log/syslog | tar -zcvf all-versions-syslog.tar.gz -T -
@@ -69,7 +69,7 @@ httm -n "$FILE" | tar --transform="flags=r;s|$DIRNAME|$BASEDIR|" \
 --transform="flags=r;s|.zfs/snapshot/||" --show-transformed-names \
 -zcvf all-versions-syslog.tar.gz -T  -
 ```
-Create git archive of all file versions of `/etc/sysconfig/iptables`:
+Create git archive of all unique file versions of `/etc/sysconfig/iptables`:
 ```bash
 # create variable for file name
 file="/etc/sysconfig/iptables"
@@ -84,19 +84,19 @@ done
 # create git tar.gz archive 
 git archive --format=tar.gz -o "../archive-git-$(basename $file).tar.gz" master; cd ../
 ```
-Print all files on snapshots deleted from your home directory, recursive, newline delimited, piped to a `deleted-files.txt` file: 
+Print all unique files on snapshots deleted from your home directory, recursive, newline delimited, piped to a `deleted-files.txt` file: 
 ```bash
 httm -d -n -R --no-live ~ > deleted-files.txt
 ```
-Browse all files in your home directory, recursively, and view versions on local snapshots:
+Browse all unique files in your home directory, recursively, and view versions on local snapshots:
 ```bash
 httm -i -R ~
 ```
-Browse all files deleted from your home directory, recursively, and view versions on all local and alternative replicated dataset snapshots:
+Browse all unique files deleted from your home directory, recursively, and view versions on all local and alternative replicated dataset snapshots:
 ```bash
 httm -d only -i -a -R ~
 ```
-Browse all files in your home directory, recursively, and view versions on local snapshots, to select and ultimately restore to your working directory:
+Browse all unique files in your home directory, recursively, and view versions on local snapshots, to select and ultimately restore to your working directory:
 ```bash
 httm -r -R ~
 ```
