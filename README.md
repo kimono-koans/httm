@@ -103,9 +103,9 @@ for version in $(httm -n $file); do
     git commit --amend --no-edit --date "$(date -d "$(stat -c %y $version)")"
 done
 # create git tar.gz archive
-cd ../; tar -zcvf "all-versions-$(basename $file).tar.gz" "./archive-git"
+tar -zcvf "../all-versions-$(basename $file).tar.gz" "./"
 # and to view
-cd ../archive-git; git log --stat
+git log --stat
 ```
 
 ## I know what you're thinking, but slow your roll.
