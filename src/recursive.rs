@@ -92,7 +92,9 @@ pub fn enumerate_directory(
                             eprint!(".");
                         }
                     } else {
-                        // these are dummy placeholder values created from file on snapshots
+                        // these are dummy "live versions" values generated to match deleted files
+                        // which have been found on snapshots, to combine with the delete files
+                        // on snapshots to make a snaps and live set
                         let pseudo_live_versions: Vec<PathData> = if !config.opt_no_live_vers {
                             let mut res: Vec<PathData> = vec_deleted
                                 .par_iter()
@@ -121,7 +123,9 @@ pub fn enumerate_directory(
             }
         }
         ExecMode::Interactive => {
-            // these are dummy placeholder values created from file on snapshots
+            // these are dummy "live versions" values generated to match deleted files
+            // which have been found on snapshots, we return to the user "the path that
+            // once was" in their browse panel
             let get_pseudo_live_versions = |config: &Config,
                                             requested_dir: &Path|
              -> Result<
