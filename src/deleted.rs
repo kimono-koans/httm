@@ -20,11 +20,11 @@ use crate::{Config, PathData};
 
 use fxhash::FxHashMap as HashMap;
 use rayon::prelude::*;
+use std::path::PathBuf;
 use std::{
     ffi::OsString,
     fs::{read_dir, DirEntry},
     path::Path,
-    sync::Arc,
     time::SystemTime,
 };
 
@@ -34,12 +34,12 @@ pub fn get_deleted(
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // prepare for local and replicated backups
     let selected_datasets = if config.opt_alt_replicated {
-        Arc::new(vec![
+        vec![
             NativeDatasetType::AltReplicated,
             NativeDatasetType::MostImmediate,
-        ])
+        ]
     } else {
-        Arc::new(vec![NativeDatasetType::MostImmediate])
+        vec![NativeDatasetType::MostImmediate]
     };
 
     // create vec of all local and replicated backups at once
@@ -48,23 +48,24 @@ pub fn get_deleted(
         .map(|path_data| {
             selected_datasets
                 .par_iter()
-                .map(move |dataset_type| get_search_dirs(config, path_data, dataset_type))
+                .map(|dataset_type| get_search_dirs(config, path_data, dataset_type))
                 .flatten()
         })
-        .into_par_iter()
         .flatten()
-        .flatten_iter()
+        .flatten()
         .flat_map(|search_dirs| get_deleted_per_dataset(requested_dir, &search_dirs))
         .flatten()
         .collect();
 
     // we need to make certain that what we return from possibly multiple datasets are unique
     // as these will be the filenames that populate our interactive views, so deduplicate
-    // by system time and size here
+    // by filename here
+    //
+    // FYI this is the bottleneck when alt replicated and deleted datasets are enabled
     let unique_deleted = if config.opt_alt_replicated {
-        let unique_deleted: HashMap<(SystemTime, u64), PathData> = combined_deleted
+        let unique_deleted: HashMap<PathBuf, PathData> = combined_deleted
             .into_par_iter()
-            .map(|pathdata| ((pathdata.system_time, pathdata.size), pathdata))
+            .map(|pathdata| (pathdata.path_buf.clone(), pathdata))
             .collect();
 
         unique_deleted.into_par_iter().map(|(_, v)| v).collect()
@@ -99,7 +100,7 @@ fn get_deleted_per_dataset(
             .map(|path| read_dir(&path))
             .flatten_iter()
             .flatten_iter()
-            .flatten_iter()
+            .flatten()
             .map(|dir_entry| (dir_entry.file_name(), dir_entry))
             .collect();
 
