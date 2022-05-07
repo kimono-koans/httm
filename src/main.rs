@@ -175,7 +175,7 @@ enum SnapPoint {
 #[derive(Debug, Clone)]
 pub struct FilesystemAndMount {
     filesystem: String,
-    mount: String,
+    mount: PathBuf,
 }
 
 #[derive(Debug, Clone)]

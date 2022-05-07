@@ -21,7 +21,7 @@ use rayon::prelude::*;
 use std::{
     fs::OpenOptions,
     io::{Read, Write},
-    path::{Path, PathBuf},
+    path::PathBuf,
     process::Command as ExecProcess,
 };
 use which::which;
@@ -131,13 +131,9 @@ pub fn list_all_filesystems(
             .map(|(filesystem_and_mount,_)| filesystem_and_mount )
             .filter_map(|filesystem_and_mount| filesystem_and_mount.split_once(&" on "))
             // sanity check: does the filesystem exist? if not, filter it out
-            .filter(|(_filesystem, mount)| Path::new(mount).exists())
-            .map(|(filesystem, mount)|
-                FilesystemAndMount {
-                    filesystem: filesystem.to_owned(),
-                    mount: mount.to_owned(),
-                }
-            )
+            .map(|(filesystem, mount)| (filesystem.to_owned(), PathBuf::from(mount)))
+            .filter(|(_filesystem, mount)| mount.exists())
+            .map(|(filesystem, mount)| FilesystemAndMount { filesystem, mount })
             .collect();
 
         if mount_collection.is_empty() {
