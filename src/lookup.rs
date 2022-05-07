@@ -204,37 +204,35 @@ fn get_alt_replicated_dataset(
         .map(|fs_and_mounts| (fs_and_mounts.mount.as_path(), &fs_and_mounts.filesystem))
         .collect();
 
-    match &unique_mounts.get(&immediate_dataset_mount) {
-        Some(immediate_dataset_fs_name) => {
-            // find a filesystem that ends with our most local filesystem name
-            // but which has a prefix, like a different pool name: rpool might be
-            // replicated to tank/rpool
-            let mut alt_replicated_mounts: Vec<PathBuf> = unique_mounts
-                .clone()
-                .into_par_iter()
-                .filter(|(_mount, fs_name)| &fs_name != immediate_dataset_fs_name)
-                .filter(|(_mount, fs_name)| fs_name.ends_with(immediate_dataset_fs_name.as_str()))
-                .map(|(mount, _fs_name)| mount.to_path_buf())
-                .collect();
-
-            if alt_replicated_mounts.is_empty() {
-                // could not find the any replicated mounts
-                Err(HttmError::new("httm was unable to detect an alternate replicated mount point.  Perhaps the replicated filesystem is not mounted?").into())
-            } else {
-                alt_replicated_mounts.sort_unstable_by_key(|path| path.as_os_str().len());
-                let res = alt_replicated_mounts
-                    .into_iter()
-                    .map(|alt_replicated_mount| {
-                        (alt_replicated_mount, immediate_dataset_mount.to_path_buf())
-                    })
-                    .collect();
-                Ok(res)
-            }
-        }
+    let immediate_dataset_fs_name = match &unique_mounts.get(immediate_dataset_mount) {
+        Some(immediate_dataset_fs_name) => immediate_dataset_fs_name.to_string(),
         None => {
-            // could not find the immediate dataset
-            Err(HttmError::new("httm was unable to detect an alternate replicated mount point.  Perhaps the replicated filesystem is not mounted?").into())
+            return Err(HttmError::new("httm was unable to detect an alternate replicated mount point.  Perhaps the replicated filesystem is not mounted?").into());
         }
+    };
+
+    // find a filesystem that ends with our most local filesystem name
+    // but which has a prefix, like a different pool name: rpool might be
+    // replicated to tank/rpool
+    let mut alt_replicated_mounts: Vec<PathBuf> = unique_mounts
+        .into_par_iter()
+        .filter(|(_mount, fs_name)| fs_name != &&immediate_dataset_fs_name)
+        .filter(|(_mount, fs_name)| fs_name.ends_with(immediate_dataset_fs_name.as_str()))
+        .map(|(mount, _fs_name)| mount.to_path_buf())
+        .collect();
+
+    if alt_replicated_mounts.is_empty() {
+        // could not find the any replicated mounts
+        Err(HttmError::new("httm was unable to detect an alternate replicated mount point.  Perhaps the replicated filesystem is not mounted?").into())
+    } else {
+        alt_replicated_mounts.sort_unstable_by_key(|path| path.as_os_str().len());
+        let res = alt_replicated_mounts
+            .into_iter()
+            .map(|alt_replicated_mount| {
+                (alt_replicated_mount, immediate_dataset_mount.to_path_buf())
+            })
+            .collect();
+        Ok(res)
     }
 }
 
