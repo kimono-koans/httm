@@ -90,7 +90,7 @@ pub fn snapshot_transversal(
         .map(|path_data| {
             selected_datasets
                 .par_iter()
-                .map(move |dataset_type| get_search_dirs(config, path_data, dataset_type))
+                .map(|dataset_type| get_search_dirs(config, path_data, dataset_type))
                 .flatten()
         })
         .flatten()
