@@ -62,7 +62,7 @@ pub fn get_deleted(
     // by filename here
     //
     // FYI this is the bottleneck when alt replicated and deleted datasets are enabled
-    let unique_deleted = if config.opt_alt_replicated {
+    let unique_deleted = if !combined_deleted.is_empty() || config.opt_alt_replicated {
         let unique_deleted: HashMap<PathBuf, PathData> = combined_deleted
             .into_par_iter()
             .map(|pathdata| (pathdata.path_buf.clone(), pathdata))
