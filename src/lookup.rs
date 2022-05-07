@@ -214,7 +214,7 @@ fn get_alt_replicated_dataset(
                 .into_par_iter()
                 .filter(|(_mount, fs_name)| &fs_name != immediate_dataset_fs_name)
                 .filter(|(_mount, fs_name)| fs_name.ends_with(immediate_dataset_fs_name.as_str()))
-                .map(|(mount, _fs_name)| PathBuf::from(mount))
+                .map(|(mount, _fs_name)| mount.to_path_buf())
                 .collect();
 
             if alt_replicated_mounts.is_empty() {
