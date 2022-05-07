@@ -16,7 +16,7 @@
 // that was distributed with this source code.
 
 use crate::display::display_exec;
-use crate::lookup::lookup_exec;
+use crate::lookup::get_versions;
 use crate::recursive::enumerate_directory;
 use crate::utility::{copy_recursive, paint_string, timestamp_file};
 use crate::{Config, DeletedMode, ExecMode, HttmError, InteractiveMode, PathData};
@@ -92,7 +92,7 @@ fn preview_view(
     };
 
     // finally run search on those paths
-    let snaps_and_live_set = lookup_exec(&gen_config, &gen_config.paths)?;
+    let snaps_and_live_set = get_versions(&gen_config, &gen_config.paths)?;
     // and display
     let output_buf = display_exec(&gen_config, snaps_and_live_set)?;
 
@@ -189,7 +189,7 @@ fn interactive_select(
     vec_paths: &Vec<PathData>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     // same stuff we do at fn exec, snooze...
-    let snaps_and_live_set = lookup_exec(config, vec_paths)?;
+    let snaps_and_live_set = get_versions(config, vec_paths)?;
     let selection_buffer = display_exec(config, snaps_and_live_set)?;
 
     // get the file name, and get ready to do some file ops!!

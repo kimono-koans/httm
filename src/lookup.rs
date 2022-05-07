@@ -15,63 +15,21 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
+use crate::deleted::get_deleted_per_dataset;
 use crate::{Config, FilesystemAndMount, HttmError, PathData, SnapPoint};
+
 use fxhash::FxHashMap as HashMap;
 use rayon::prelude::*;
 use std::{
     fs::read_dir,
     path::{Path, PathBuf},
-    sync::Arc,
     time::SystemTime,
 };
 
-pub fn lookup_exec(
-    config: &Config,
-    path_data: &Vec<PathData>,
-) -> Result<[Vec<PathData>; 2], Box<dyn std::error::Error + Send + Sync + 'static>> {
-    // prepare for local and replicated backups on alt replicated sets if necessary
-    let selected_datasets = if config.opt_alt_replicated {
-        Arc::new(vec![
-            NativeDatasetType::AltReplicated,
-            NativeDatasetType::MostImmediate,
-        ])
-    } else {
-        Arc::new(vec![NativeDatasetType::MostImmediate])
-    };
-
-    // create vec of all local and replicated backups at once
-    let all_snaps: Vec<PathData> = path_data
-        .par_iter()
-        .map(|path_data| {
-            selected_datasets
-                .par_iter()
-                .map(move |dataset_type| get_search_dirs(config, path_data, dataset_type))
-                .flatten()
-        })
-        .flatten()
-        .flatten()
-        .map(|search_dirs| get_versions(&search_dirs))
-        .flatten()
-        .flatten()
-        .collect();
-
-    // create vec of live copies - unless user doesn't want it!
-    let live_versions: Vec<PathData> = if !config.opt_no_live_vers {
-        path_data.to_owned()
-    } else {
-        Vec::new()
-    };
-
-    // check if all files (snap and live) do not exist, if this is true, then user probably messed up
-    // and entered a file that never existed (that is, perhaps a wrong file name)?
-    if all_snaps.is_empty() && live_versions.iter().all(|i| i.is_phantom) {
-        return Err(HttmError::new(
-            "Neither a live copy, nor a snapshot copy of such a file appears to exist, so, umm, 🤷? Please try another file.",
-        )
-        .into());
-    }
-
-    Ok([all_snaps, live_versions])
+#[derive(Debug, Clone)]
+pub enum LookupType {
+    Versions,
+    Deleted,
 }
 
 #[derive(Debug, Clone)]
@@ -86,7 +44,71 @@ pub struct SearchDirs {
     pub relative_path: PathBuf,
 }
 
-pub fn get_search_dirs(
+pub fn get_versions(
+    config: &Config,
+    pathdata: &Vec<PathData>,
+) -> Result<[Vec<PathData>; 2], Box<dyn std::error::Error + Send + Sync + 'static>> {
+    let all_snap_versions = snapshot_transversal(config, pathdata, LookupType::Versions)?;
+
+    // create vec of live copies - unless user doesn't want it!
+    let live_versions: Vec<PathData> = if !config.opt_no_live_vers {
+        pathdata.to_owned()
+    } else {
+        Vec::new()
+    };
+
+    // check if all files (snap and live) do not exist, if this is true, then user probably messed up
+    // and entered a file that never existed (that is, perhaps a wrong file name)?
+    if all_snap_versions.is_empty() && live_versions.iter().all(|i| i.is_phantom) {
+        return Err(HttmError::new(
+            "Neither a live copy, nor a snapshot copy of such a file appears to exist, so, umm, 🤷? Please try another file.",
+        )
+        .into());
+    }
+
+    Ok([all_snap_versions, live_versions])
+}
+
+pub fn snapshot_transversal(
+    config: &Config,
+    pathdata: &Vec<PathData>,
+    lookup_type: LookupType,
+) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    // prepare for local and replicated backups on alt replicated sets if necessary
+    let selected_datasets = if config.opt_alt_replicated {
+        vec![
+            NativeDatasetType::AltReplicated,
+            NativeDatasetType::MostImmediate,
+        ]
+    } else {
+        vec![NativeDatasetType::MostImmediate]
+    };
+
+    // create vec of all local and replicated backups at once
+    let res: Vec<PathData> = pathdata
+        .par_iter()
+        .map(|path_data| {
+            selected_datasets
+                .par_iter()
+                .map(move |dataset_type| get_search_dirs(config, path_data, dataset_type))
+                .flatten()
+        })
+        .flatten()
+        .flatten()
+        .flat_map(|search_dirs| match lookup_type {
+            LookupType::Versions => get_versions_per_dataset(&search_dirs),
+            LookupType::Deleted => {
+                // can index here because know pathdata for a deleted lookup type must always be 1
+                get_deleted_per_dataset(&pathdata[0].path_buf, &search_dirs)
+            }
+        })
+        .flatten()
+        .collect();
+
+    Ok(res)
+}
+
+fn get_search_dirs(
     config: &Config,
     file_pathdata: &PathData,
     requested_dataset_type: &NativeDatasetType,
@@ -153,7 +175,7 @@ pub fn get_search_dirs(
     }).collect()
 }
 
-pub fn get_immediate_dataset(
+fn get_immediate_dataset(
     pathdata: &PathData,
     mount_collection: &Vec<FilesystemAndMount>,
 ) -> Result<PathBuf, Box<dyn std::error::Error + Send + Sync + 'static>> {
@@ -235,7 +257,7 @@ fn get_alt_replicated_dataset(
     }
 }
 
-fn get_versions(
+fn get_versions_per_dataset(
     search_dirs: &SearchDirs,
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // get the DirEntry for our snapshot path which will have all our possible

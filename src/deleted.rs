@@ -15,12 +15,11 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::lookup::{get_search_dirs, NativeDatasetType, SearchDirs};
+use crate::lookup::{snapshot_transversal, LookupType, SearchDirs};
 use crate::{Config, PathData};
 
 use fxhash::FxHashMap as HashMap;
 use rayon::prelude::*;
-use std::path::PathBuf;
 use std::{
     ffi::OsString,
     fs::{read_dir, DirEntry},
@@ -28,55 +27,38 @@ use std::{
     time::SystemTime,
 };
 
+#[allow(clippy::manual_map)]
 pub fn get_deleted(
     config: &Config,
     requested_dir: &Path,
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    // prepare for local and replicated backups
-    let selected_datasets = if config.opt_alt_replicated {
-        vec![
-            NativeDatasetType::AltReplicated,
-            NativeDatasetType::MostImmediate,
-        ]
-    } else {
-        vec![NativeDatasetType::MostImmediate]
-    };
-
-    // create vec of all local and replicated backups at once
-    let combined_deleted: Vec<PathData> = vec![PathData::from(requested_dir)]
-        .par_iter()
-        .map(|path_data| {
-            selected_datasets
-                .par_iter()
-                .map(|dataset_type| get_search_dirs(config, path_data, dataset_type))
-                .flatten()
-        })
-        .flatten()
-        .flatten()
-        .flat_map(|search_dirs| get_deleted_per_dataset(requested_dir, &search_dirs))
-        .flatten()
-        .collect();
+    let all_deleted = snapshot_transversal(
+        config,
+        &vec![PathData::from(requested_dir)],
+        LookupType::Deleted,
+    )?;
 
     // we need to make certain that what we return from possibly multiple datasets are unique
     // as these will be the filenames that populate our interactive views, so deduplicate
     // by filename here
-    //
-    // FYI this is the bottleneck when alt replicated and deleted datasets are enabled
-    let unique_deleted = if !combined_deleted.is_empty() || config.opt_alt_replicated {
-        let unique_deleted: HashMap<PathBuf, PathData> = combined_deleted
+    let unique_deleted = if !all_deleted.is_empty() || config.opt_alt_replicated {
+        let unique_deleted: HashMap<OsString, PathData> = all_deleted
             .into_par_iter()
-            .map(|pathdata| (pathdata.path_buf.clone(), pathdata))
+            .filter_map(|pathdata| match pathdata.path_buf.file_name() {
+                Some(filename) => Some((filename.to_os_string(), pathdata)),
+                None => None,
+            })
             .collect();
 
         unique_deleted.into_par_iter().map(|(_, v)| v).collect()
     } else {
-        combined_deleted
+        all_deleted
     };
 
     Ok(unique_deleted)
 }
 
-fn get_deleted_per_dataset(
+pub fn get_deleted_per_dataset(
     path: &Path,
     search_dirs: &SearchDirs,
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {

@@ -26,7 +26,7 @@ mod utility;
 use crate::config_helper::{install_hot_keys, list_all_filesystems};
 use crate::display::display_exec;
 use crate::interactive::interactive_exec;
-use crate::lookup::lookup_exec;
+use crate::lookup::get_versions;
 use crate::recursive::display_recursive_exec;
 use crate::utility::{httm_is_dir, read_stdin};
 
@@ -605,8 +605,8 @@ fn exec() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let snaps_and_live_set = match config.exec_mode {
         // 1. Do our interactive lookup thing, or not, to obtain raw string paths
         // 2. Determine/lookup whether file matches any files on snapshots
-        ExecMode::Interactive => lookup_exec(&config, &interactive_exec(&mut out, &config)?)?,
-        ExecMode::Display => lookup_exec(&config, &config.paths)?,
+        ExecMode::Interactive => get_versions(&config, &interactive_exec(&mut out, &config)?)?,
+        ExecMode::Display => get_versions(&config, &config.paths)?,
         // display_recursive_exec is special as there is no need to run a lookup on files already on snapshots
         ExecMode::DisplayRecursive => display_recursive_exec(&config, &mut out)?,
     };
