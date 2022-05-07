@@ -145,8 +145,7 @@ fn browse_view(
 
     // thread spawn fn enumerate_directory - permits recursion into dirs without blocking
     thread::spawn(move || {
-        let mut out = std::io::stdout();
-        let _ = enumerate_directory(arc_config, &tx_item, &requested_dir_clone, &mut out);
+        let _ = enumerate_directory(arc_config, &tx_item, &requested_dir_clone);
     });
 
     // create the skim component for previews
