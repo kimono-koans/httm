@@ -87,10 +87,10 @@ pub fn enumerate_directory(
                     let requested_dir_clone = requested_dir.to_owned();
 
                     // thread spawn fn enumerate_directory - permits recursion into dirs without blocking
-                    let print_recursive_handle = std::thread::spawn(move || {
+                    let handle = std::thread::spawn(move || {
                         let _ = print_deleted_recursive(config_clone, &requested_dir_clone);
                     });
-                    join_handles.push(print_recursive_handle);
+                    join_handles.push(handle);
                 }
             }
         }
@@ -101,14 +101,14 @@ pub fn enumerate_directory(
                 let tx_item_clone = tx_item.clone();
 
                 // thread spawn fn enumerate_directory - permits recursion into dirs without blocking
-                let pseudo_live_handle = std::thread::spawn(move || {
+                let handle = std::thread::spawn(move || {
                     let _ = get_pseudo_live_versions(
                         config_clone,
                         &requested_dir_clone,
                         &tx_item_clone,
                     );
                 });
-                join_handles.push(pseudo_live_handle);
+                join_handles.push(handle);
             };
 
             // combine dirs and files into a vec and sort to display
