@@ -33,7 +33,7 @@ pub enum LookupType {
 }
 
 #[derive(Debug, Clone)]
-pub enum NativeDatasetType {
+enum NativeDatasetType {
     MostImmediate,
     AltReplicated,
 }
