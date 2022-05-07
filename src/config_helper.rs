@@ -116,45 +116,36 @@ pub fn list_all_filesystems(
         .to_owned();
 
         // parse "mount" for filesystems and mountpoints
-        let (first, the_rest): (Vec<&str>, Vec<&str>) = command_output
+        let (filesystems_and_mounts, _): (Vec<&str>, Vec<&str>) = command_output
             .par_lines()
             .filter(|line| line.contains("zfs"))
-            .filter_map(|line| line.split_once(&" on "))
-            .collect();
-
-        let filesystems: Vec<String> = first.into_par_iter().map(|str| str.to_owned()).collect();
-
-        let mount_points: Vec<String> = the_rest
-            .into_par_iter()
-            .filter_map(|the_rest|
+            .filter_map(|line|
                 // GNU Linux mount output
-                if the_rest.contains("type") {
-                    the_rest.split_once(&" type")
+                if line.contains("type") {
+                    line.split_once(&" type")
                 // Busybox and BSD mount output
                 } else {
-                    the_rest.split_once(&" (")
+                    line.split_once(&" (")
                 }
-            )
-            .map(|(first, _)| first.to_owned())
-            .collect();
+            ).collect();
 
-        if filesystems.is_empty() || mount_points.is_empty() {
-            return Err(HttmError::new(
-                "httm could not find any valid ZFS datasets on the system.",
-            )
-            .into());
-        }
-
-        let mount_collection: Vec<FilesystemAndMount> = filesystems
-            .iter()
-            .cloned()
-            .zip(mount_points.iter().cloned())
+        let mount_collection: Vec<FilesystemAndMount> = filesystems_and_mounts
+            .par_iter()
+            .map(|line| line.split_once(&" on "))
+            .flatten()
             // sanity check: does the filesystem exist? if not, filter it out
             .filter(|(_filesystem, mount)| Path::new(mount).exists())
-            .map(|(filesystem, mount)| FilesystemAndMount { filesystem, mount })
+            .map(|(filesystem, mount)| FilesystemAndMount {
+                filesystem: filesystem.to_owned(),
+                mount: mount.to_owned(),
+            })
             .collect();
 
-        Ok(mount_collection)
+        if mount_collection.is_empty() {
+            Err(HttmError::new("httm could not find any valid ZFS datasets on the system.").into())
+        } else {
+            Ok(mount_collection)
+        }
     };
 
     // do we have the necessary commands for search if user has not defined a snap point?
