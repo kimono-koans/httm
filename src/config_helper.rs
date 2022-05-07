@@ -116,7 +116,7 @@ pub fn list_all_filesystems(
         .to_owned();
 
         // parse "mount" for filesystems and mountpoints
-        let (filesystems_and_mounts, _): (Vec<&str>, Vec<&str>) = command_output
+        let mount_collection: Vec<FilesystemAndMount> = command_output
             .par_lines()
             .filter(|line| line.contains("zfs"))
             .filter_map(|line|
@@ -127,18 +127,17 @@ pub fn list_all_filesystems(
                 } else {
                     line.split_once(&" (")
                 }
-            ).collect();
-
-        let mount_collection: Vec<FilesystemAndMount> = filesystems_and_mounts
-            .par_iter()
-            .map(|line| line.split_once(&" on "))
-            .flatten()
+            )
+            .map(|(filesystem_and_mount,_)| filesystem_and_mount )
+            .filter_map(|filesystem_and_mount| filesystem_and_mount.split_once(&" on "))
             // sanity check: does the filesystem exist? if not, filter it out
             .filter(|(_filesystem, mount)| Path::new(mount).exists())
-            .map(|(filesystem, mount)| FilesystemAndMount {
-                filesystem: filesystem.to_owned(),
-                mount: mount.to_owned(),
-            })
+            .map(|(filesystem, mount)|
+                FilesystemAndMount {
+                    filesystem: filesystem.to_owned(),
+                    mount: mount.to_owned(),
+                }
+            )
             .collect();
 
         if mount_collection.is_empty() {
