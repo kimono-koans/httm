@@ -18,6 +18,7 @@
 use crate::deleted::get_deleted;
 use crate::display::display_exec;
 use crate::interactive::SelectionCandidate;
+use crate::lookup::get_versions;
 use crate::utility::httm_is_dir;
 use crate::{Config, DeletedMode, ExecMode, HttmError, PathData};
 
@@ -255,14 +256,17 @@ fn behind_deleted_dir(
             vec_behind_deleted_dirs.push(deleted_file);
         });
 
-        vec_dirs.into_iter().for_each(|dir| {
-            let _ = recurse_behind_deleted_dir(
-                &dir,
-                &deleted_dir_on_snap,
-                &pseudo_live_dir,
-                vec_behind_deleted_dirs,
-            );
-        });
+        vec_dirs
+            .into_iter()
+            .map(|dir| dir.file_name().unwrap().to_os_string())
+            .for_each(|dir| {
+                let _ = recurse_behind_deleted_dir(
+                    Path::new(&dir),
+                    &deleted_dir_on_snap,
+                    &pseudo_live_dir,
+                    vec_behind_deleted_dirs,
+                );
+            });
 
         Ok(())
     }
@@ -292,12 +296,38 @@ fn print_deleted_recursive(
             eprint!(".");
         }
     } else {
+        vec_deleted.par_sort_unstable_by_key(|pathdata| pathdata.path_buf.clone());
+
+        let (vec_dirs, vec_files): (Vec<PathData>, Vec<PathData>) = vec_deleted
+            .clone()
+            .into_par_iter()
+            .partition_map(|pathdata| {
+                if pathdata.is_dir() {
+                    Either::Left(pathdata)
+                } else {
+                    Either::Right(pathdata)
+                }
+            });
+
+        let behind_deleted_pseudo_live: Vec<PathData> = vec_dirs
+            .clone()
+            .into_par_iter()
+            .map(|pathdata| pathdata.path_buf)
+            .filter_map(|deleted_dir| behind_deleted_dir(&deleted_dir, requested_dir).ok())
+            .flatten()
+            .map(|path| PathData::from(path.as_path()))
+            .collect();
+
+        let behind_deleted_versions_set: [Vec<PathData>; 2] =
+            get_versions(&config, &behind_deleted_pseudo_live)?;
+
         // these are dummy "live versions" values generated to match deleted files
         // which have been found on snapshots, to combine with the delete files
         // on snapshots to make a snaps and live set
         let pseudo_live_versions: Vec<PathData> = if !config.opt_no_live_vers {
-            let mut res: Vec<PathData> = vec_deleted
+            let mut res: Vec<PathData> = [vec_dirs, vec_files]
                 .par_iter()
+                .flatten()
                 .map(|path| path.path_buf.file_name())
                 .flatten()
                 .map(|file_name| requested_dir.join(file_name))
@@ -309,16 +339,16 @@ fn print_deleted_recursive(
             Vec::new()
         };
 
-        vec_deleted.par_sort_unstable_by_key(|pathdata| pathdata.path_buf.clone());
-
-        let output_buf = display_exec(&config, [vec_deleted, pseudo_live_versions])?;
+        let regular_output_buf = display_exec(&config, [vec_deleted, pseudo_live_versions])?;
+        let behind_del_dir_output_buf = display_exec(&config, behind_deleted_versions_set)?;
         // have to get a line break here, but shouldn't look unnatural
         // print "." but don't print if in non-recursive mode
         if config.opt_recursive {
             eprintln!(".");
         }
         let mut out = std::io::stdout();
-        writeln!(out, "{}", output_buf)?;
+        writeln!(out, "{}", regular_output_buf)?;
+        writeln!(out, "{}", behind_del_dir_output_buf)?;
         out.flush()?;
     }
     Ok(())
