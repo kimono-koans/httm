@@ -19,7 +19,7 @@ use crate::deleted::get_deleted;
 use crate::display::display_exec;
 use crate::interactive::SelectionCandidate;
 use crate::utility::httm_is_dir;
-use crate::{Config, DeletedMode, ExecMode, PathData, HttmError};
+use crate::{Config, DeletedMode, ExecMode, HttmError, PathData};
 
 use rayon::{iter::Either, prelude::*};
 use skim::prelude::*;
@@ -192,7 +192,7 @@ fn enumerate_deleted(
         .clone()
         .into_par_iter()
         .map(|pathdata| pathdata.path_buf)
-        .map(|deleted_dir| behind_deleted_dir(&deleted_dir, &requested_dir).unwrap())
+        .filter_map(|deleted_dir| behind_deleted_dir(&deleted_dir, requested_dir).ok())
         .flatten()
         .collect();
 
@@ -227,14 +227,9 @@ fn behind_deleted_dir(
         from_requested_dir: &Path,
         vec_behind_deleted_dirs: &mut Vec<PathBuf>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+        let deleted_dir_on_snap = [&from_deleted_dir, &dir_name].iter().collect::<PathBuf>();
 
-        let deleted_dir_on_snap = [&from_deleted_dir, &dir_name]
-            .iter()
-            .collect::<PathBuf>();
-
-        let pseudo_live_dir = [&from_requested_dir, &dir_name]
-            .iter()
-            .collect::<PathBuf>();
+        let pseudo_live_dir = [&from_requested_dir, &dir_name].iter().collect::<PathBuf>();
 
         let (vec_dirs, vec_files): (Vec<PathBuf>, Vec<PathBuf>) = read_dir(&deleted_dir_on_snap)?
             .flatten()
@@ -261,7 +256,12 @@ fn behind_deleted_dir(
         });
 
         vec_dirs.into_iter().for_each(|dir| {
-            let _ = recurse_behind_deleted_dir(&dir, &deleted_dir_on_snap, &pseudo_live_dir, vec_behind_deleted_dirs);
+            let _ = recurse_behind_deleted_dir(
+                &dir,
+                &deleted_dir_on_snap,
+                &pseudo_live_dir,
+                vec_behind_deleted_dirs,
+            );
         });
 
         Ok(())
@@ -269,7 +269,12 @@ fn behind_deleted_dir(
 
     let mut vec_behind_deleted_dirs = Vec::new();
     match &deleted_dir.file_name() {
-        Some(dir_name) => recurse_behind_deleted_dir(Path::new(dir_name), deleted_dir.parent().unwrap(), requested_dir, &mut vec_behind_deleted_dirs)?,
+        Some(dir_name) => recurse_behind_deleted_dir(
+            Path::new(dir_name),
+            deleted_dir.parent().unwrap_or_else(|| Path::new("/")),
+            requested_dir,
+            &mut vec_behind_deleted_dirs,
+        )?,
         None => return Err(HttmError::new("Not a valid file!").into()),
     }
 
