@@ -296,8 +296,6 @@ fn print_deleted_recursive(
             eprint!(".");
         }
     } else {
-        vec_deleted.par_sort_unstable_by_key(|pathdata| pathdata.path_buf.clone());
-
         let (vec_dirs, vec_files): (Vec<PathData>, Vec<PathData>) = vec_deleted
             .clone()
             .into_par_iter()
@@ -339,16 +337,25 @@ fn print_deleted_recursive(
             Vec::new()
         };
 
-        let regular_output_buf = display_exec(&config, [vec_deleted, pseudo_live_versions])?;
-        let behind_del_dir_output_buf = display_exec(&config, behind_deleted_versions_set)?;
+        vec_deleted.par_sort_unstable_by_key(|pathdata| pathdata.path_buf.clone());
+
         // have to get a line break here, but shouldn't look unnatural
         // print "." but don't print if in non-recursive mode
         if config.opt_recursive {
             eprintln!(".");
         }
         let mut out = std::io::stdout();
-        writeln!(out, "{}", regular_output_buf)?;
-        writeln!(out, "{}", behind_del_dir_output_buf)?;
+
+        [
+            [vec_deleted, pseudo_live_versions],
+            behind_deleted_versions_set,
+        ]
+        .into_iter()
+        .filter_map(|pathdata_set| display_exec(&config, pathdata_set).ok())
+        .for_each(|output_buf| {
+            let _ = writeln!(out, "{}", output_buf);
+        });
+
         out.flush()?;
     }
     Ok(())
