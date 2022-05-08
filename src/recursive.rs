@@ -108,7 +108,7 @@ pub fn enumerate_directory(
                 join_handles.push(handle);
             };
 
-            // combine dirs and files into a vec and sort to display
+            // combine dirs and files into a vec to display
             let combined_vec: Vec<PathBuf> = match config.deleted_mode {
                 DeletedMode::Only => {
                     spawn_enumerate_deleted();
@@ -180,14 +180,12 @@ fn enumerate_deleted(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let deleted = get_deleted(&config, requested_dir)?;
 
-    let (vec_dirs, vec_files): (Vec<PathData>, Vec<PathData>) =
-        deleted.into_par_iter().partition_map(|pathdata| {
-            if pathdata.is_dir() {
-                Either::Left(pathdata)
-            } else {
-                Either::Right(pathdata)
-            }
-        });
+    let vec_dirs: Vec<PathData> =
+        deleted
+        .clone()
+        .into_par_iter()
+        .filter(|pathdata| pathdata.is_dir())
+        .collect();
 
     let behind_deleted_dirs: Vec<PathBuf> = vec_dirs
         .clone()
@@ -197,10 +195,10 @@ fn enumerate_deleted(
         .flatten()
         .collect();
 
-    let pseudo_live_versions: Vec<PathBuf> = [&vec_dirs, &vec_files]
+    let pseudo_live_versions: Vec<PathBuf> = deleted
+        .clone()
         .into_par_iter()
-        .flatten()
-        .map(|path| path.path_buf.file_name())
+        .map(|path| path.path_buf.clone().file_name())
         .flatten()
         .map(|file_name| requested_dir.join(file_name))
         .collect();
@@ -289,23 +287,18 @@ fn print_deleted_recursive(
     config: Arc<Config>,
     requested_dir: &Path,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let mut vec_deleted = get_deleted(&config, requested_dir)?;
-    if vec_deleted.is_empty() {
+    let same_level_snap_versions = get_deleted(&config, requested_dir)?;
+    if same_level_snap_versions.is_empty() {
         // Shows progress, while we are finding no deleted files
         if config.opt_recursive {
             eprint!(".");
         }
     } else {
-        let (vec_dirs, vec_files): (Vec<PathData>, Vec<PathData>) = vec_deleted
+        let vec_dirs: Vec<PathData> = same_level_snap_versions
             .clone()
             .into_par_iter()
-            .partition_map(|pathdata| {
-                if pathdata.is_dir() {
-                    Either::Left(pathdata)
-                } else {
-                    Either::Right(pathdata)
-                }
-            });
+            .filter(|pathdata| pathdata.is_dir())
+            .collect();
 
         let behind_deleted_pseudo_live: Vec<PathData> = vec_dirs
             .clone()
@@ -323,21 +316,23 @@ fn print_deleted_recursive(
         // which have been found on snapshots, to combine with the delete files
         // on snapshots to make a snaps and live set
         let pseudo_live_versions: Vec<PathData> = if !config.opt_no_live_vers {
-            let mut res: Vec<PathData> = [vec_dirs, vec_files]
+            let same_level_pseudo_live: Vec<PathData> = same_level_snap_versions.clone()
                 .par_iter()
-                .flatten()
-                .map(|path| path.path_buf.file_name())
-                .flatten()
+                .filter_map(|path| path.path_buf.file_name())
                 .map(|file_name| requested_dir.join(file_name))
                 .map(|path| PathData::from(path.as_path()))
                 .collect();
-            res.par_sort_unstable_by_key(|pathdata| pathdata.path_buf.clone());
-            res
+            let all_live_sorted: Vec<PathData> = [
+                same_level_pseudo_live,
+                behind_deleted_versions_set[1].clone(),
+            ].concat();
+            all_live_sorted
         } else {
             Vec::new()
         };
 
-        vec_deleted.par_sort_unstable_by_key(|pathdata| pathdata.path_buf.clone());
+        let snap_versions: Vec<PathData> =
+            [same_level_snap_versions, behind_deleted_versions_set[0].clone()].concat();
 
         // have to get a line break here, but shouldn't look unnatural
         // print "." but don't print if in non-recursive mode
@@ -345,18 +340,11 @@ fn print_deleted_recursive(
             eprintln!(".");
         }
         let mut out = std::io::stdout();
-
-        [
-            [vec_deleted, pseudo_live_versions],
-            behind_deleted_versions_set,
-        ]
-        .into_iter()
-        .filter_map(|pathdata_set| display_exec(&config, pathdata_set).ok())
-        .for_each(|output_buf| {
-            let _ = writeln!(out, "{}", output_buf);
-        });
+        let output_buf = display_exec(&config, [snap_versions, pseudo_live_versions])?;
+        writeln!(out, "{}", output_buf)?;
 
         out.flush()?;
     }
+
     Ok(())
 }
