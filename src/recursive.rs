@@ -202,7 +202,7 @@ fn enumerate_deleted(
     let res = [pseudo_live_versions, behind_deleted_dirs].concat();
 
     match config.exec_mode {
-        ExecMode::Interactive => send_deleted(config, &res, tx_item)?,
+        ExecMode::Interactive => send_deleted_recursive(config, &res, tx_item)?,
         ExecMode::DisplayRecursive => {
             if !res.is_empty() {
                 if config.opt_recursive {
@@ -285,7 +285,7 @@ fn behind_deleted_dir(
     Ok(vec_behind_deleted_dirs)
 }
 
-fn send_deleted(
+fn send_deleted_recursive(
     config: Arc<Config>,
     pathdata: &[PathBuf],
     tx_item: &SkimItemSender,
