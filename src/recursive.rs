@@ -297,7 +297,7 @@ fn send_deleted_recursive(
             config.clone(),
             path.to_path_buf(),
             // know this is phantom because deleted
-            true
+            true,
         )));
     });
     Ok(())
