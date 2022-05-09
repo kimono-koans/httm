@@ -55,15 +55,15 @@ pub fn paint_string<'a>(path: &Path, file_name: &'a str, is_phantom: bool) -> Co
         let ansi_style = &Style::to_ansi_term_style(style);
         Cow::Owned(ansi_style.paint(file_name).to_string())
     } else if !is_phantom {
-        // if a non-phantom file that should not be colored
-        Cow::from(file_name)
+        // if a non-phantom file that should not be colored (regular files)
+        Cow::Borrowed(file_name)
     } else if let Some(style) = &Style::from_ansi_sequence("38;2;250;200;200;1;0") {
         // paint all phantoms/deleted files the same color, light pink
         let ansi_style = &Style::to_ansi_term_style(style);
         Cow::Owned(ansi_style.paint(file_name).to_string())
     } else {
-        // just in case all else fails
-        Cow::from(file_name)
+        // just in case if all else fails
+        Cow::Borrowed(file_name)
     }
 }
 
