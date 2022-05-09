@@ -37,7 +37,6 @@ use std::{
     error::Error,
     fmt,
     fs::{canonicalize, symlink_metadata, DirEntry, Metadata},
-    io::Write,
     path::{Path, PathBuf},
     time::SystemTime,
 };
@@ -595,8 +594,6 @@ fn main() {
 }
 
 fn exec() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let mut out = std::io::stdout();
-
     // get our program args and generate a config for use
     // everywhere else
     let arg_matches = parse_args();
@@ -605,17 +602,15 @@ fn exec() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let snaps_and_live_set = match config.exec_mode {
         // 1. Do our interactive lookup thing, or not, to obtain raw string paths
         // 2. Determine/lookup whether file matches any files on snapshots
-        ExecMode::Interactive => get_versions(&config, &interactive_exec(&mut out, &config)?)?,
+        ExecMode::Interactive => get_versions(&config, &interactive_exec(&config)?)?,
         ExecMode::Display => get_versions(&config, &config.paths)?,
         // display_recursive_exec is special as there is no need to run a lookup on files already on snapshots
-        ExecMode::DisplayRecursive => display_recursive_exec(&config, &mut out)?,
+        ExecMode::DisplayRecursive => display_recursive_exec(&config)?,
     };
 
     // and display
     let output_buf = display_exec(&config, snaps_and_live_set)?;
-
-    write!(out, "{}", output_buf)?;
-    out.flush()?;
+    print!("{}", output_buf);
 
     Ok(())
 }

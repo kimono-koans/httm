@@ -24,13 +24,7 @@ use crate::{Config, DeletedMode, ExecMode, HttmError, InteractiveMode, PathData}
 extern crate skim;
 use rayon::prelude::*;
 use skim::prelude::*;
-use std::{
-    ffi::OsStr,
-    io::{Cursor, Stdout, Write as IoWrite},
-    path::Path,
-    path::PathBuf,
-    thread, vec,
-};
+use std::{ffi::OsStr, io::Cursor, path::Path, path::PathBuf, thread, vec};
 
 pub struct SelectionCandidate {
     config: Arc<Config>,
@@ -100,7 +94,6 @@ fn preview_view(
 }
 
 pub fn interactive_exec(
-    out: &mut Stdout,
     config: &Config,
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // go to interactive_select early if user has already requested a file
@@ -108,7 +101,7 @@ pub fn interactive_exec(
     let vec_pathdata = if config.paths.get(0).is_some() && !&config.paths[0].is_dir() {
         // can index here because because we have guaranteed we have this one path
         let selected_file = config.paths[0].to_owned();
-        interactive_select(out, config, &vec![selected_file])?;
+        interactive_select(config, &vec![selected_file])?;
         unreachable!()
     } else {
         // collect string paths from what we get from lookup_view
@@ -125,7 +118,7 @@ pub fn interactive_exec(
             if vec_pathdata.is_empty() {
                 Err(HttmError::new("Invalid value selected. Quitting.").into())
             } else {
-                interactive_select(out, config, &vec_pathdata)?;
+                interactive_select(config, &vec_pathdata)?;
                 unreachable!()
             }
         }
@@ -183,7 +176,6 @@ fn browse_view(
 }
 
 fn interactive_select(
-    out: &mut Stdout,
     config: &Config,
     vec_paths: &Vec<PathData>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
@@ -206,7 +198,7 @@ fn interactive_select(
     if config.interactive_mode == InteractiveMode::Restore {
         Ok(interactive_restore(config, parsed_str)?)
     } else {
-        writeln!(out, "\"{}\"", parsed_str)?;
+        println!("\"{}\"", parsed_str);
         std::process::exit(0)
     }
 }

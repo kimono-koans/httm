@@ -26,14 +26,13 @@ use rayon::{iter::Either, prelude::*};
 use skim::prelude::*;
 use std::{
     fs::read_dir,
-    io::{Stdout, Write},
+    io::Write,
     path::{Path, PathBuf},
     sync::Arc,
 };
 
 pub fn display_recursive_exec(
     config: &Config,
-    out: &mut Stdout,
 ) -> Result<[Vec<PathData>; 2], Box<dyn std::error::Error + Send + Sync + 'static>> {
     // won't be sending anything anywhere, this just allows us to reuse enumerate_directory
     let (dummy_tx_item, _): (SkimItemSender, SkimItemReceiver) = unbounded();
@@ -43,7 +42,8 @@ pub fn display_recursive_exec(
 
     // flush and exit successfully upon ending recursive search
     if config.opt_recursive {
-        println!();
+        let mut out = std::io::stdout();
+        writeln!(out)?;
         out.flush()?;
     }
     std::process::exit(0)
@@ -219,9 +219,8 @@ fn behind_deleted_dir(
         from_requested_dir: &Path,
         vec_behind_deleted_dirs: &mut Vec<PathBuf>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-        let deleted_dir_on_snap = [&from_deleted_dir, &dir_name].iter().collect::<PathBuf>();
-
-        let pseudo_live_dir = [&from_requested_dir, &dir_name].iter().collect::<PathBuf>();
+        let deleted_dir_on_snap = &from_deleted_dir.to_path_buf().join(&dir_name);
+        let pseudo_live_dir = &from_requested_dir.to_path_buf().join(&dir_name);
 
         let (vec_dirs, vec_files): (Vec<PathBuf>, Vec<PathBuf>) = read_dir(&deleted_dir_on_snap)?
             .flatten()
@@ -253,8 +252,8 @@ fn behind_deleted_dir(
             .for_each(|dir| {
                 let _ = recurse_behind_deleted_dir(
                     Path::new(&dir),
-                    &deleted_dir_on_snap,
-                    &pseudo_live_dir,
+                    deleted_dir_on_snap,
+                    pseudo_live_dir,
                     vec_behind_deleted_dirs,
                 );
             });
