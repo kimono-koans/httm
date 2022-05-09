@@ -184,9 +184,9 @@ fn get_immediate_dataset(
     let parent_folder = pathdata.path_buf.parent().unwrap_or_else(|| Path::new("/"));
 
     // prune away most mount points by filtering - parent folder of file must contain relevant dataset
-    let potential_mountpoints: Vec<PathBuf> = mount_collection
-        .clone()
-        .par_drain()
+    let potential_mountpoints: Vec<&PathBuf> = mount_collection
+        .iter()
+        .par_bridge()
         .map(|fs_and_mounts| fs_and_mounts.0)
         .filter(|line| parent_folder.starts_with(line))
         .collect();
@@ -229,10 +229,10 @@ fn get_alt_replicated_dataset(
     // find a filesystem that ends with our most local filesystem name
     // but which has a prefix, like a different pool name: rpool might be
     // replicated to tank/rpool
-    let mut alt_replicated_mounts: Vec<PathBuf> = mount_collection
-        .clone()
-        .par_drain()
-        .filter(|(_mount, fs_name)| fs_name != &immediate_dataset_fs_name)
+    let mut alt_replicated_mounts: Vec<&PathBuf> = mount_collection
+        .iter()
+        .par_bridge()
+        .filter(|(_mount, fs_name)| fs_name != &&immediate_dataset_fs_name)
         .filter(|(_mount, fs_name)| fs_name.ends_with(immediate_dataset_fs_name.as_str()))
         .map(|(mount, _fs_name)| mount)
         .collect();
@@ -245,7 +245,10 @@ fn get_alt_replicated_dataset(
         let res = alt_replicated_mounts
             .into_iter()
             .map(|alt_replicated_mount| {
-                (alt_replicated_mount, immediate_dataset_mount.to_path_buf())
+                (
+                    alt_replicated_mount.to_owned(),
+                    immediate_dataset_mount.to_path_buf(),
+                )
             })
             .collect();
         Ok(res)
