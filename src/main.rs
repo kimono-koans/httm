@@ -167,8 +167,14 @@ enum DeletedMode {
 
 #[derive(Debug, Clone)]
 enum SnapPoint {
-    Native(HashMap<PathBuf, String>),
+    Native(Vec<FilesystemAndMount>),
     UserDefined(UserDefinedDirs),
+}
+
+#[derive(Debug, Clone)]
+pub struct FilesystemAndMount {
+    filesystem: String,
+    mount: PathBuf,
 }
 
 #[derive(Debug, Clone)]
@@ -314,7 +320,7 @@ impl Config {
                 }),
             )
         } else {
-            let mount_collection: HashMap<PathBuf, String> = list_all_filesystems()?;
+            let mount_collection: Vec<FilesystemAndMount> = list_all_filesystems()?;
             (
                 matches.is_present("ALT_REPLICATED"),
                 SnapPoint::Native(mount_collection),

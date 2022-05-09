@@ -15,9 +15,8 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::HttmError;
+use crate::{FilesystemAndMount, HttmError};
 
-use fxhash::FxHashMap as HashMap;
 use rayon::prelude::*;
 use std::{
     fs::OpenOptions,
@@ -98,13 +97,13 @@ pub fn install_hot_keys() -> Result<(), Box<dyn std::error::Error + Send + Sync 
 }
 
 pub fn list_all_filesystems(
-) -> Result<HashMap<PathBuf, String>, Box<dyn std::error::Error + Send + Sync + 'static>> {
+) -> Result<Vec<FilesystemAndMount>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // read datasets from 'mount' if possible -- this is much faster than using zfs command
     // but I trust we've parsed it correctly less, because BSD and Linux output are different
     let get_filesystems_and_mountpoints = |shell_command: &PathBuf,
                                            mount_command: &PathBuf|
      -> Result<
-        HashMap<PathBuf, String>,
+        Vec<FilesystemAndMount>,
         Box<dyn std::error::Error + Send + Sync + 'static>,
     > {
         let command_output = std::str::from_utf8(
@@ -117,7 +116,7 @@ pub fn list_all_filesystems(
         .to_owned();
 
         // parse "mount" for filesystems and mountpoints
-        let mount_collection: HashMap<PathBuf, String> = command_output
+        let mount_collection: Vec<FilesystemAndMount> = command_output
             .par_lines()
             .filter(|line| line.contains("zfs"))
             .filter_map(|line|
@@ -134,8 +133,7 @@ pub fn list_all_filesystems(
             // sanity check: does the filesystem exist? if not, filter it out
             .map(|(filesystem, mount)| (filesystem.to_owned(), PathBuf::from(mount)))
             .filter(|(_filesystem, mount)| mount.exists())
-            // reverse order, mount needs to be the key later
-            .map(|(filesystem, mount)| (mount, filesystem))
+            .map(|(filesystem, mount)| FilesystemAndMount { filesystem, mount })
             .collect();
 
         if mount_collection.is_empty() {

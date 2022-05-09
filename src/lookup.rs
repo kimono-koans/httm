@@ -16,7 +16,7 @@
 // that was distributed with this source code.
 
 use crate::deleted::get_deleted_per_dataset;
-use crate::{Config, HttmError, PathData, SnapPoint};
+use crate::{Config, FilesystemAndMount, HttmError, PathData, SnapPoint};
 
 use fxhash::FxHashMap as HashMap;
 use rayon::prelude::*;
@@ -177,7 +177,7 @@ fn get_search_dirs(
 
 fn get_immediate_dataset(
     pathdata: &PathData,
-    mount_collection: &HashMap<PathBuf, String>,
+    mount_collection: &Vec<FilesystemAndMount>,
 ) -> Result<PathBuf, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // only possible None case is "parent is the '/' dir" because
     // of previous work in the Pathdata new method
@@ -186,7 +186,7 @@ fn get_immediate_dataset(
     // prune away most mount points by filtering - parent folder of file must contain relevant dataset
     let potential_mountpoints: Vec<&PathBuf> = mount_collection
         .into_par_iter()
-        .map(|fs_and_mounts| fs_and_mounts.0)
+        .map(|fs_and_mounts| &fs_and_mounts.mount)
         .filter(|line| parent_folder.starts_with(line))
         .collect();
 
@@ -216,9 +216,16 @@ fn get_immediate_dataset(
 
 fn get_alt_replicated_dataset(
     immediate_dataset_mount: &Path,
-    mount_collection: &HashMap<PathBuf, String>,
+    mount_collection: &[FilesystemAndMount],
 ) -> Result<Vec<(PathBuf, PathBuf)>, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let immediate_dataset_fs_name = match &mount_collection.get(immediate_dataset_mount) {
+    // reverse the order from how displayed in "mount" - mount point as key, device/fs as value,
+    // so we can search for the mount as a key
+    let unique_mounts: HashMap<&Path, &String> = mount_collection
+        .into_par_iter()
+        .map(|fs_and_mounts| (fs_and_mounts.mount.as_path(), &fs_and_mounts.filesystem))
+        .collect();
+
+    let immediate_dataset_fs_name = match &unique_mounts.get(immediate_dataset_mount) {
         Some(immediate_dataset_fs_name) => immediate_dataset_fs_name.to_string(),
         None => {
             return Err(HttmError::new("httm was unable to detect an alternate replicated mount point.  Perhaps the replicated filesystem is not mounted?").into());
@@ -228,7 +235,7 @@ fn get_alt_replicated_dataset(
     // find a filesystem that ends with our most local filesystem name
     // but which has a prefix, like a different pool name: rpool might be
     // replicated to tank/rpool
-    let mut alt_replicated_mounts: Vec<PathBuf> = mount_collection
+    let mut alt_replicated_mounts: Vec<PathBuf> = unique_mounts
         .into_par_iter()
         .filter(|(_mount, fs_name)| fs_name != &&immediate_dataset_fs_name)
         .filter(|(_mount, fs_name)| fs_name.ends_with(immediate_dataset_fs_name.as_str()))
