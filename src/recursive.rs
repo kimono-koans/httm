@@ -116,13 +116,13 @@ pub fn enumerate_directory(
                     // spawn_enumerate_deleted will send deleted files back to
                     // the main thread for us, so we can skip collecting a
                     // vec_deleted here
-                    vec![&vec_files, &vec_dirs]
+                    [&vec_files, &vec_dirs]
                         .into_par_iter()
                         .flatten()
                         .cloned()
                         .collect()
                 }
-                DeletedMode::Disabled => vec![&vec_files, &vec_dirs]
+                DeletedMode::Disabled => [&vec_files, &vec_dirs]
                     .into_par_iter()
                     .flatten()
                     .cloned()
