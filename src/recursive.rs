@@ -135,6 +135,8 @@ pub fn enumerate_directory(
                 let _ = tx_item.send(Arc::new(SelectionCandidate::new(
                     config.clone(),
                     path.to_path_buf(),
+                    // know this is non-phantom because obtained through dir entry
+                    false,
                 )));
             });
         }
@@ -294,6 +296,8 @@ fn send_deleted_recursive(
         let _ = tx_item.send(Arc::new(SelectionCandidate::new(
             config.clone(),
             path.to_path_buf(),
+            // know this is phantom because deleted
+            true
         )));
     });
     Ok(())

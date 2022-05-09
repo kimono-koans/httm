@@ -47,13 +47,13 @@ pub fn copy_recursive(src: &Path, dst: &Path) -> io::Result<()> {
     Ok(())
 }
 
-pub fn paint_string(path: &Path, file_name: &str) -> String {
+pub fn paint_string(path: &Path, file_name: &str, is_phantom: bool) -> String {
     let ls_colors = LsColors::from_env().unwrap_or_default();
 
     if let Some(style) = ls_colors.style_for_path(path) {
         let ansi_style = &Style::to_ansi_term_style(style);
         ansi_style.paint(file_name).to_string()
-    } else if path.exists() {
+    } else if !is_phantom {
         // if a non-phantom file that should not be colored
         file_name.to_owned()
     } else if let Some(style) = &Style::from_ansi_sequence("38;2;250;200;200;1;0") {

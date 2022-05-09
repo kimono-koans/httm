@@ -97,7 +97,7 @@ fn display_pretty(
                     // paint the live strings with ls colors - idx == 1 is 2nd or live set
                     let file_path = &pathdata.path_buf;
                     let painted_string = if idx == 1 {
-                        paint_string(file_path, &file_path.to_string_lossy())
+                        paint_string(file_path, &file_path.to_string_lossy(), pathdata.is_phantom)
                     } else {
                         file_path.to_string_lossy().into_owned()
                     };

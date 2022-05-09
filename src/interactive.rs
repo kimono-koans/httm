@@ -29,11 +29,12 @@ use std::{ffi::OsStr, io::Cursor, path::Path, path::PathBuf, thread, vec};
 pub struct SelectionCandidate {
     config: Arc<Config>,
     path: PathBuf,
+    is_phantom: bool,
 }
 
 impl SelectionCandidate {
-    pub fn new(config: Arc<Config>, path: PathBuf) -> Self {
-        SelectionCandidate { config, path }
+    pub fn new(config: Arc<Config>, path: PathBuf, is_phantom: bool) -> Self {
+        SelectionCandidate { config, path, is_phantom }
     }
 }
 
@@ -52,6 +53,7 @@ impl SkimItem for SelectionCandidate {
                 .file_name()
                 .unwrap_or_else(|| OsStr::new(""))
                 .to_string_lossy(),
+            self.is_phantom,
         ))
     }
     fn output(&self) -> Cow<str> {
