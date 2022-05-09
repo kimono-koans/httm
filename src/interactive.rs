@@ -24,7 +24,7 @@ use crate::{Config, DeletedMode, ExecMode, HttmError, InteractiveMode, PathData}
 extern crate skim;
 use rayon::prelude::*;
 use skim::prelude::*;
-use std::{ffi::OsStr, io::Cursor, path::Path, path::PathBuf, thread, vec};
+use std::{io::Cursor, path::Path, path::PathBuf, thread, vec};
 
 pub struct SelectionCandidate {
     config: Arc<Config>,
@@ -44,10 +44,7 @@ impl SelectionCandidate {
 
 impl SkimItem for SelectionCandidate {
     fn text(&self) -> Cow<str> {
-        self.path
-            .file_name()
-            .unwrap_or_else(|| OsStr::new(""))
-            .to_string_lossy()
+        self.path.file_name().unwrap_or_default().to_string_lossy()
     }
     fn display<'a>(&'a self, _context: DisplayContext<'a>) -> AnsiString<'a> {
         AnsiString::parse(&paint_string(
