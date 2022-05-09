@@ -53,7 +53,15 @@ pub fn paint_string(path: &Path, file_name: &str) -> String {
     if let Some(style) = ls_colors.style_for_path(path) {
         let ansi_style = &Style::to_ansi_term_style(style);
         ansi_style.paint(file_name).to_string()
+    } else if path.exists() {
+        // if a non-phantom file that should not be colored
+        file_name.to_owned()
+    } else if let Some(style) = &Style::from_ansi_sequence("38;2;250;200;200;1;0") {
+        // paint all phantoms/deleted files the same color, light pink
+        let ansi_style = &Style::to_ansi_term_style(style);
+        ansi_style.paint(file_name).to_string()
     } else {
+        // just in case all else fails
         file_name.to_owned()
     }
 }
