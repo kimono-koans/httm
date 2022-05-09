@@ -209,20 +209,6 @@ fn enumerate_deleted(
     Ok(())
 }
 
-fn send_deleted(
-    config: Arc<Config>,
-    pathdata: &Vec<PathBuf>,
-    tx_item: &SkimItemSender,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    pathdata.into_iter().for_each(|path| {
-        let _ = tx_item.send(Arc::new(SelectionCandidate::new(
-            config.clone(),
-            path.to_path_buf(),
-        )));
-    });
-    Ok(())
-}
-
 fn behind_deleted_dir(
     deleted_dir: &Path,
     requested_dir: &Path,
@@ -290,11 +276,24 @@ fn behind_deleted_dir(
     Ok(vec_behind_deleted_dirs)
 }
 
+fn send_deleted(
+    config: Arc<Config>,
+    pathdata: &[PathBuf],
+    tx_item: &SkimItemSender,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    pathdata.iter().for_each(|path| {
+        let _ = tx_item.send(Arc::new(SelectionCandidate::new(
+            config.clone(),
+            path.to_path_buf(),
+        )));
+    });
+    Ok(())
+}
+
 fn print_deleted_recursive(
     config: Arc<Config>,
     path_buf_set: &Vec<PathBuf>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    
     let pseudo_live_set: Vec<PathData> = path_buf_set
         .into_par_iter()
         .map(|path| PathData::from(path.as_path()))
