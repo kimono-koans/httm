@@ -96,6 +96,7 @@ pub fn enumerate_directory(
                 // for all other non-disabled DeletedModes we display
                 // all deleted files in ExecMode::DisplayRecursive
                 DeletedMode::Enabled | DeletedMode::Only => {
+                    // flush and exit successfully upon ending recursive search
                     spawn_enumerate_deleted();
                 }
             }
@@ -202,7 +203,16 @@ fn enumerate_deleted(
 
     match config.exec_mode {
         ExecMode::Interactive => send_deleted(config, &res, tx_item)?,
-        ExecMode::DisplayRecursive => print_deleted_recursive(config, &res)?,
+        ExecMode::DisplayRecursive => {
+            if !res.is_empty() {
+                if config.opt_recursive {
+                    eprintln!();
+                }
+                print_deleted_recursive(config, &res)?
+            } else if config.opt_recursive {
+                eprint!(".");
+            }
+        }
         _ => unreachable!(),
     }
 
@@ -300,15 +310,9 @@ fn print_deleted_recursive(
 
     let snaps_and_live_set = get_versions(&config, &pseudo_live_set)?;
 
-    // have to get a line break here, but shouldn't look unnatural
-    // print "." but don't print if in non-recursive mode
-    if config.opt_recursive {
-        eprintln!(".");
-    }
-
     let mut out = std::io::stdout();
     let output_buf = display_exec(&config, snaps_and_live_set)?;
-    let _ = writeln!(out, "{}", output_buf);
+    let _ = write!(out, "{}", output_buf);
     out.flush()?;
 
     Ok(())
