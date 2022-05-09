@@ -185,8 +185,7 @@ fn get_immediate_dataset(
 
     // prune away most mount points by filtering - parent folder of file must contain relevant dataset
     let potential_mountpoints: Vec<&PathBuf> = mount_collection
-        .iter()
-        .par_bridge()
+        .par_iter()
         .map(|fs_and_mounts| fs_and_mounts.0)
         .filter(|line| parent_folder.starts_with(line))
         .collect();
@@ -230,8 +229,7 @@ fn get_alt_replicated_dataset(
     // but which has a prefix, like a different pool name: rpool might be
     // replicated to tank/rpool
     let mut alt_replicated_mounts: Vec<&PathBuf> = mount_collection
-        .iter()
-        .par_bridge()
+        .par_iter()
         .filter(|(_mount, fs_name)| fs_name != &&immediate_dataset_fs_name)
         .filter(|(_mount, fs_name)| fs_name.ends_with(immediate_dataset_fs_name.as_str()))
         .map(|(mount, _fs_name)| mount)
