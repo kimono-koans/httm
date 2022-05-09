@@ -72,6 +72,18 @@ pub fn enumerate_directory(
     // also very helpful in the case we don't don't needs threads as it can be empty
     let mut join_handles = Vec::new();
 
+    let mut spawn_enumerate_deleted = || {
+        let config_clone = config.clone();
+        let requested_dir_clone = requested_dir.to_owned();
+        let tx_item_clone = tx_item.clone();
+
+        // thread spawn fn enumerate_directory - permits recursion into dirs without blocking
+        let handle = std::thread::spawn(move || {
+            let _ = enumerate_deleted(config_clone, &requested_dir_clone, &tx_item_clone);
+        });
+        join_handles.push(handle);
+    };
+
     match config.exec_mode {
         ExecMode::Display => unreachable!(),
         ExecMode::DisplayRecursive => {
@@ -84,30 +96,11 @@ pub fn enumerate_directory(
                 // for all other non-disabled DeletedModes we display
                 // all deleted files in ExecMode::DisplayRecursive
                 DeletedMode::Enabled | DeletedMode::Only => {
-                    let config_clone = config.clone();
-                    let requested_dir_clone = requested_dir.to_owned();
-
-                    // thread spawn fn enumerate_directory - permits recursion into dirs without blocking
-                    let handle = std::thread::spawn(move || {
-                        let _ = print_deleted_recursive(config_clone, &requested_dir_clone);
-                    });
-                    join_handles.push(handle);
+                    spawn_enumerate_deleted();
                 }
             }
         }
         ExecMode::Interactive => {
-            let mut spawn_enumerate_deleted = || {
-                let config_clone = config.clone();
-                let requested_dir_clone = requested_dir.to_owned();
-                let tx_item_clone = tx_item.clone();
-
-                // thread spawn fn enumerate_directory - permits recursion into dirs without blocking
-                let handle = std::thread::spawn(move || {
-                    let _ = enumerate_deleted(config_clone, &requested_dir_clone, &tx_item_clone);
-                });
-                join_handles.push(handle);
-            };
-
             // combine dirs and files into a vec and sort to display
             let combined_vec: Vec<PathBuf> = match config.deleted_mode {
                 DeletedMode::Only => {
@@ -205,16 +198,28 @@ fn enumerate_deleted(
         .map(|file_name| requested_dir.join(file_name))
         .collect();
 
-    [pseudo_live_versions, behind_deleted_dirs]
-        .iter()
-        .flatten()
-        .for_each(|path| {
-            let _ = tx_item.send(Arc::new(SelectionCandidate::new(
-                config.clone(),
-                path.to_path_buf(),
-            )));
-        });
+    let res = [pseudo_live_versions, behind_deleted_dirs].concat();
 
+    match config.exec_mode {
+        ExecMode::Interactive => send_deleted(config, &res, tx_item)?,
+        ExecMode::DisplayRecursive => print_deleted_recursive(config, &res)?,
+        _ => unreachable!(),
+    }
+
+    Ok(())
+}
+
+fn send_deleted(
+    config: Arc<Config>,
+    pathdata: &Vec<PathBuf>,
+    tx_item: &SkimItemSender,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    pathdata.into_iter().for_each(|path| {
+        let _ = tx_item.send(Arc::new(SelectionCandidate::new(
+            config.clone(),
+            path.to_path_buf(),
+        )));
+    });
     Ok(())
 }
 
@@ -287,76 +292,26 @@ fn behind_deleted_dir(
 
 fn print_deleted_recursive(
     config: Arc<Config>,
-    requested_dir: &Path,
+    path_buf_set: &Vec<PathBuf>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let mut vec_deleted = get_deleted(&config, requested_dir)?;
-    if vec_deleted.is_empty() {
-        // Shows progress, while we are finding no deleted files
-        if config.opt_recursive {
-            eprint!(".");
-        }
-    } else {
-        let (vec_dirs, vec_files): (Vec<PathData>, Vec<PathData>) = vec_deleted
-            .clone()
-            .into_par_iter()
-            .partition_map(|pathdata| {
-                if pathdata.is_dir() {
-                    Either::Left(pathdata)
-                } else {
-                    Either::Right(pathdata)
-                }
-            });
+    
+    let pseudo_live_set: Vec<PathData> = path_buf_set
+        .into_par_iter()
+        .map(|path| PathData::from(path.as_path()))
+        .collect();
 
-        let behind_deleted_pseudo_live: Vec<PathData> = vec_dirs
-            .clone()
-            .into_par_iter()
-            .map(|pathdata| pathdata.path_buf)
-            .filter_map(|deleted_dir| behind_deleted_dir(&deleted_dir, requested_dir).ok())
-            .flatten()
-            .map(|path| PathData::from(path.as_path()))
-            .collect();
+    let snaps_and_live_set = get_versions(&config, &pseudo_live_set)?;
 
-        let behind_deleted_versions_set: [Vec<PathData>; 2] =
-            get_versions(&config, &behind_deleted_pseudo_live)?;
-
-        // these are dummy "live versions" values generated to match deleted files
-        // which have been found on snapshots, to combine with the delete files
-        // on snapshots to make a snaps and live set
-        let pseudo_live_versions: Vec<PathData> = if !config.opt_no_live_vers {
-            let mut res: Vec<PathData> = [vec_dirs, vec_files]
-                .par_iter()
-                .flatten()
-                .map(|path| path.path_buf.file_name())
-                .flatten()
-                .map(|file_name| requested_dir.join(file_name))
-                .map(|path| PathData::from(path.as_path()))
-                .collect();
-            res.par_sort_unstable_by_key(|pathdata| pathdata.path_buf.clone());
-            res
-        } else {
-            Vec::new()
-        };
-
-        vec_deleted.par_sort_unstable_by_key(|pathdata| pathdata.path_buf.clone());
-
-        // have to get a line break here, but shouldn't look unnatural
-        // print "." but don't print if in non-recursive mode
-        if config.opt_recursive {
-            eprintln!(".");
-        }
-        let mut out = std::io::stdout();
-
-        [
-            [vec_deleted, pseudo_live_versions],
-            behind_deleted_versions_set,
-        ]
-        .into_iter()
-        .filter_map(|pathdata_set| display_exec(&config, pathdata_set).ok())
-        .for_each(|output_buf| {
-            let _ = writeln!(out, "{}", output_buf);
-        });
-
-        out.flush()?;
+    // have to get a line break here, but shouldn't look unnatural
+    // print "." but don't print if in non-recursive mode
+    if config.opt_recursive {
+        eprintln!(".");
     }
+
+    let mut out = std::io::stdout();
+    let output_buf = display_exec(&config, snaps_and_live_set)?;
+    let _ = writeln!(out, "{}", output_buf);
+    out.flush()?;
+
     Ok(())
 }
