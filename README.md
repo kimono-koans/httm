@@ -8,7 +8,7 @@
 
 `httm` boasts an array of seductive features, like:
 
-* Search for and recursively list all deleted files! Ooooooooo!
+* Search for and recursively list all deleted files.  *Even browse files hidden behind deleted directories*.
 * List file snapshots from *all* local pools (`httm` automatically detects local snapshots *as well as* locally replicated snapshots)!
 * List file snapshots from remote backup pools (you may designate replicated remote snapshot directories).
 * For use with even `rsync`-ed non-ZFS local datasets (like ext4, APFS, or NTFS), not just ZFS.
