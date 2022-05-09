@@ -54,8 +54,8 @@ impl SkimItem for SelectionCandidate {
         ))
     }
     fn output(&self) -> Cow<str> {
-        let path = self.path.to_string_lossy().into_owned();
-        Cow::Owned(path)
+        let path = self.path.to_string_lossy();
+        path
     }
     fn preview(&self, _: PreviewContext<'_>) -> skim::ItemPreview {
         let res = preview_view(&self.config, &self.path).unwrap_or_default();
