@@ -20,6 +20,7 @@ use crate::{Config, HttmError, PathData, SnapPoint};
 
 use fxhash::FxHashMap as HashMap;
 use rayon::prelude::*;
+use std::fs::DirEntry;
 use std::{
     fs::read_dir,
     path::{Path, PathBuf},
@@ -30,6 +31,11 @@ use std::{
 pub enum LookupType {
     Versions,
     Deleted,
+}
+
+pub enum LookupReturnType {
+    Versions(Vec<PathData>),
+    Deleted(Vec<DirEntry>),
 }
 
 #[derive(Debug, Clone)]
@@ -48,7 +54,15 @@ pub fn get_versions(
     config: &Config,
     pathdata: &Vec<PathData>,
 ) -> Result<[Vec<PathData>; 2], Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let all_snap_versions = snapshot_transversal(config, pathdata, LookupType::Versions)?;
+    let all_snap_versions: Vec<PathData> =
+        snapshot_transversal(config, pathdata, LookupType::Versions)?
+            .into_par_iter()
+            .map(|return_type| match return_type {
+                LookupReturnType::Versions(return_type) => return_type,
+                _ => unreachable!(),
+            })
+            .flatten()
+            .collect();
 
     // create vec of live copies - unless user doesn't want it!
     let live_versions: Vec<PathData> = if !config.opt_no_live_vers {
@@ -73,7 +87,7 @@ pub fn snapshot_transversal(
     config: &Config,
     pathdata: &Vec<PathData>,
     lookup_type: LookupType,
-) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
+) -> Result<Vec<LookupReturnType>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // prepare for local and replicated backups on alt replicated sets if necessary
     let selected_datasets = if config.opt_alt_replicated {
         vec![
@@ -85,7 +99,7 @@ pub fn snapshot_transversal(
     };
 
     // create vec of all local and replicated backups at once
-    let res: Vec<PathData> = pathdata
+    let res: Vec<LookupReturnType> = pathdata
         .par_iter()
         .map(|path_data| {
             selected_datasets
@@ -96,13 +110,16 @@ pub fn snapshot_transversal(
         .flatten()
         .flatten()
         .flat_map(|search_dirs| match lookup_type {
-            LookupType::Versions => get_versions_per_dataset(&search_dirs),
+            LookupType::Versions => get_versions_per_dataset(&search_dirs)
+                .ok()
+                .map(LookupReturnType::Versions),
             LookupType::Deleted => {
                 // can index here because know pathdata for a deleted lookup type must always be 1
                 get_deleted_per_dataset(&pathdata[0].path_buf, &search_dirs)
+                    .ok()
+                    .map(LookupReturnType::Deleted)
             }
         })
-        .flatten()
         .collect();
 
     Ok(res)

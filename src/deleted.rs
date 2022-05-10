@@ -15,7 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::lookup::{snapshot_transversal, LookupType, SearchDirs};
+use crate::lookup::{snapshot_transversal, LookupReturnType, LookupType, SearchDirs};
 use crate::{Config, PathData};
 
 use fxhash::FxHashMap as HashMap;
@@ -30,7 +30,7 @@ use std::{
 pub fn get_deleted(
     config: &Config,
     requested_dir: &Path,
-) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
+) -> Result<Vec<DirEntry>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     let all_deleted = snapshot_transversal(
         config,
         &vec![PathData::from(requested_dir)],
@@ -41,17 +41,28 @@ pub fn get_deleted(
     // as these will be the filenames that populate our interactive views, so deduplicate
     // by filename here
     let unique_deleted = if !all_deleted.is_empty() || config.opt_alt_replicated {
-        let unique_deleted: HashMap<OsString, PathData> = all_deleted
+        let unique_deleted: HashMap<OsString, DirEntry> = all_deleted
             .into_par_iter()
-            .filter_map(|pathdata| match pathdata.path_buf.file_name() {
-                Some(filename) => Some((filename.to_os_string(), pathdata)),
-                None => None,
+            .map(|returned| match returned {
+                LookupReturnType::Deleted(res) => Some(res),
+                _ => None,
             })
+            .flatten()
+            .flatten()
+            .map(|dir_entry| (dir_entry.file_name(), dir_entry))
             .collect();
 
         unique_deleted.into_par_iter().map(|(_, v)| v).collect()
     } else {
         all_deleted
+            .into_par_iter()
+            .map(|returned| match returned {
+                LookupReturnType::Deleted(res) => Some(res),
+                _ => None,
+            })
+            .flatten()
+            .flatten()
+            .collect()
     };
 
     Ok(unique_deleted)
@@ -60,7 +71,7 @@ pub fn get_deleted(
 pub fn get_deleted_per_dataset(
     path: &Path,
     search_dirs: &SearchDirs,
-) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
+) -> Result<Vec<DirEntry>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // get all local entries we need to compare against these to know
     // what is a deleted file
     // create a collection of local unique file names
@@ -86,10 +97,9 @@ pub fn get_deleted_per_dataset(
             .collect();
 
     // compare local filenames to all unique snap filenames - none values are unique here
-    let unique_deleted_versions: HashMap<OsString, PathData> = unique_snap_filenames
+    let unique_deleted_versions: HashMap<OsString, DirEntry> = unique_snap_filenames
         .into_par_iter()
         .filter(|(file_name, _)| unique_local_filenames.get(file_name).is_none())
-        .map(|(file_name, dir_entry)| (file_name, PathData::from(&dir_entry)))
         .collect();
 
     let res_vec: Vec<_> = unique_deleted_versions

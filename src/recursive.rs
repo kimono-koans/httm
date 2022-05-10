@@ -95,13 +95,9 @@ pub fn enumerate_directory(
                 DeletedMode::Disabled => unreachable!(),
                 // for all other non-disabled DeletedModes ex we display
                 // all deleted files in ExecMode::DisplayRecursive
-                DeletedMode::Enabled | DeletedMode::Only => {
+                DeletedMode::DepthOfOne | DeletedMode::Enabled | DeletedMode::Only => {
                     // flush and exit successfully upon ending recursive search
                     spawn_enumerate_deleted();
-                }
-                DeletedMode::DepthOfOne => {
-                    let config_clone = config.clone();
-                    let _ = enumerate_deleted(config_clone, requested_dir, tx_item);
                 }
             }
         }
@@ -115,21 +111,11 @@ pub fn enumerate_directory(
                     // and return an empty vec
                     Vec::new()
                 }
-                DeletedMode::Enabled => {
+                DeletedMode::DepthOfOne | DeletedMode::Enabled => {
                     spawn_enumerate_deleted();
                     // spawn_enumerate_deleted will send deleted files back to
                     // the main thread for us, so we can skip collecting a
                     // vec_deleted here
-                    [&vec_files, &vec_dirs]
-                        .into_par_iter()
-                        .flatten()
-                        .cloned()
-                        .collect()
-                }
-                DeletedMode::DepthOfOne => {
-                    let config_clone = config.clone();
-                    let _ = enumerate_deleted(config_clone, requested_dir, tx_item);
-
                     [&vec_files, &vec_dirs]
                         .into_par_iter()
                         .flatten()
@@ -190,12 +176,12 @@ fn enumerate_deleted(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let deleted = get_deleted(&config, requested_dir)?;
 
-    let (vec_dirs, vec_files): (Vec<PathData>, Vec<PathData>) =
-        deleted.into_par_iter().partition_map(|pathdata| {
-            if pathdata.is_dir() {
-                Either::Left(pathdata)
+    let (vec_dirs, vec_files): (Vec<PathBuf>, Vec<PathBuf>) =
+        deleted.into_par_iter().partition_map(|dir_entry| {
+            if httm_is_dir(&dir_entry) {
+                Either::Left(dir_entry.path())
             } else {
-                Either::Right(pathdata)
+                Either::Right(dir_entry.path())
             }
         });
 
@@ -203,7 +189,6 @@ fn enumerate_deleted(
         vec_dirs
             .clone()
             .into_par_iter()
-            .map(|pathdata| pathdata.path_buf)
             .filter_map(|deleted_dir| behind_deleted_dir(&deleted_dir, requested_dir).ok())
             .flatten()
             .collect()
@@ -214,8 +199,7 @@ fn enumerate_deleted(
     let pseudo_live_versions: Vec<PathBuf> = [&vec_dirs, &vec_files]
         .into_par_iter()
         .flatten()
-        .map(|path| path.path_buf.file_name())
-        .flatten()
+        .filter_map(|path| path.file_name())
         .map(|file_name| requested_dir.join(file_name))
         .collect();
 
