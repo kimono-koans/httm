@@ -93,11 +93,15 @@ pub fn enumerate_directory(
                 // it really makes sense, as it's only really good for a
                 // small subset of files
                 DeletedMode::Disabled => unreachable!(),
-                // for all other non-disabled DeletedModes we display
+                // for all other non-disabled DeletedModes ex we display
                 // all deleted files in ExecMode::DisplayRecursive
                 DeletedMode::Enabled | DeletedMode::Only => {
                     // flush and exit successfully upon ending recursive search
                     spawn_enumerate_deleted();
+                }
+                DeletedMode::DepthOfOne => {
+                    let config_clone = config.clone();
+                    let _ = enumerate_deleted(config_clone, requested_dir, tx_item);
                 }
             }
         }
@@ -116,6 +120,16 @@ pub fn enumerate_directory(
                     // spawn_enumerate_deleted will send deleted files back to
                     // the main thread for us, so we can skip collecting a
                     // vec_deleted here
+                    [&vec_files, &vec_dirs]
+                        .into_par_iter()
+                        .flatten()
+                        .cloned()
+                        .collect()
+                }
+                DeletedMode::DepthOfOne => {
+                    let config_clone = config.clone();
+                    let _ = enumerate_deleted(config_clone, requested_dir, tx_item);
+
                     [&vec_files, &vec_dirs]
                         .into_par_iter()
                         .flatten()
@@ -185,13 +199,17 @@ fn enumerate_deleted(
             }
         });
 
-    let behind_deleted_dirs: Vec<PathBuf> = vec_dirs
-        .clone()
-        .into_par_iter()
-        .map(|pathdata| pathdata.path_buf)
-        .filter_map(|deleted_dir| behind_deleted_dir(&deleted_dir, requested_dir).ok())
-        .flatten()
-        .collect();
+    let behind_deleted_dirs: Vec<PathBuf> = if config.deleted_mode != DeletedMode::DepthOfOne {
+        vec_dirs
+            .clone()
+            .into_par_iter()
+            .map(|pathdata| pathdata.path_buf)
+            .filter_map(|deleted_dir| behind_deleted_dir(&deleted_dir, requested_dir).ok())
+            .flatten()
+            .collect()
+    } else {
+        Vec::new()
+    };
 
     let pseudo_live_versions: Vec<PathBuf> = [&vec_dirs, &vec_files]
         .into_par_iter()

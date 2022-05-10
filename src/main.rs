@@ -102,6 +102,7 @@ impl PathData {
                 canonical_path
             } else {
                 // canonicalize() on any path that DNE will throw an error
+                //
                 // in general we handle those cases elsewhere, like the ingest
                 // of input files in Config::from for deleted relative paths, etc.
                 path.to_path_buf()
@@ -161,6 +162,7 @@ enum InteractiveMode {
 #[derive(Debug, Clone, PartialEq)]
 enum DeletedMode {
     Disabled,
+    DepthOfOne,
     Enabled,
     Only,
 }
@@ -208,8 +210,9 @@ impl Config {
         let opt_recursive = matches.is_present("RECURSIVE");
         let mut deleted_mode = match matches.value_of("DELETED") {
             None => DeletedMode::Disabled,
-            Some("") => DeletedMode::Enabled,
-            Some("only") | Some("ONLY") => DeletedMode::Only,
+            Some("") | Some("all") => DeletedMode::Enabled,
+            Some("single") => DeletedMode::DepthOfOne,
+            Some("only") => DeletedMode::Only,
             // invalid value to not specify one of the above
             _ => unreachable!(),
         };
@@ -457,7 +460,7 @@ fn parse_args() -> ArgMatches {
     clap::Command::new("httm")
         .about("\nBy default, httm will display non-interactive information about unique file versions contained on ZFS snapshots.\n\n\
         You may also select from the various interactive modes below to browse for, select, and/or restore files.")
-        .version("0.10.1") 
+        .version("0.10.2") 
         .arg(
             Arg::new("INPUT_FILES")
                 .help("in any non-interactive mode, put requested files here.  If you enter no files, \
@@ -497,10 +500,12 @@ fn parse_args() -> ArgMatches {
                 .long("deleted")
                 .takes_value(true)
                 .default_missing_value("")
-                .possible_values(&["only", "ONLY", ""])
+                .possible_values(&["single", "only", ""])
                 .hide_possible_values(true)
                 .help("show deleted files in interactive modes, or do a search for all such files, if a directory is specified. \
-                If --deleted=only is specified, then, in interactive modes, non-deleted files will be excluded from the search.")
+                If \"--deleted only\" is specified, then, in interactive modes, non-deleted files will be excluded from the search. \
+                If \"--deleted single\" is specified, then, deleted files behind deleted directories, \
+                with a depth greater than one will be ignored.")
                 .display_order(5)
         )
         .arg(
