@@ -185,16 +185,12 @@ fn enumerate_deleted(
             }
         });
 
-    let behind_deleted_dirs: Vec<PathBuf> = if config.deleted_mode != DeletedMode::DepthOfOne {
-        vec_dirs
+    if config.deleted_mode != DeletedMode::DepthOfOne {
+        let _ = vec_dirs
             .clone()
             .into_par_iter()
-            .filter_map(|deleted_dir| behind_deleted_dir(&deleted_dir, requested_dir).ok())
-            .flatten()
-            .collect()
-    } else {
-        Vec::new()
-    };
+            .try_for_each(|deleted_dir| behind_deleted_dir(config.clone(), &tx_item, &deleted_dir, requested_dir));
+    }
 
     let pseudo_live_versions: Vec<PathBuf> = [&vec_dirs, &vec_files]
         .into_par_iter()
@@ -203,16 +199,14 @@ fn enumerate_deleted(
         .map(|file_name| requested_dir.join(file_name))
         .collect();
 
-    let res = [pseudo_live_versions, behind_deleted_dirs].concat();
-
     match config.exec_mode {
-        ExecMode::Interactive => send_deleted_recursive(config, &res, tx_item)?,
+        ExecMode::Interactive => send_deleted_recursive(config, &pseudo_live_versions, tx_item)?,
         ExecMode::DisplayRecursive => {
-            if !res.is_empty() {
+            if !pseudo_live_versions.is_empty() {
                 if config.opt_recursive {
                     eprintln!();
                 }
-                print_deleted_recursive(config, &res)?
+                print_deleted_recursive(config, &pseudo_live_versions)?
             } else if config.opt_recursive {
                 eprint!(".");
             }
@@ -224,14 +218,17 @@ fn enumerate_deleted(
 }
 
 fn behind_deleted_dir(
+    config: Arc<Config>,
+    tx_item: &SkimItemSender,
     deleted_dir: &Path,
     requested_dir: &Path,
-) -> Result<Vec<PathBuf>, Box<dyn std::error::Error + Send + Sync + 'static>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     fn recurse_behind_deleted_dir(
+        config: Arc<Config>,
+        tx_item: &SkimItemSender,
         dir_name: &Path,
         from_deleted_dir: &Path,
         from_requested_dir: &Path,
-        vec_behind_deleted_dirs: &mut Vec<PathBuf>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         let deleted_dir_on_snap = &from_deleted_dir.to_path_buf().join(&dir_name);
         let pseudo_live_dir = &from_requested_dir.to_path_buf().join(&dir_name);
@@ -256,37 +253,49 @@ fn behind_deleted_dir(
             .map(|file_name| pseudo_live_dir.join(file_name))
             .collect();
 
-        pseudo_live_versions.into_iter().for_each(|deleted_file| {
-            vec_behind_deleted_dirs.push(deleted_file);
-        });
+        match config.exec_mode {
+            ExecMode::Interactive => send_deleted_recursive(config.clone(), &pseudo_live_versions, tx_item)?,
+            ExecMode::DisplayRecursive => {
+                if !pseudo_live_versions.is_empty() {
+                    if config.opt_recursive {
+                        eprintln!();
+                    }
+                    print_deleted_recursive(config.clone(), &pseudo_live_versions)?
+                } else if config.opt_recursive {
+                    eprint!(".");
+                }
+            }
+            _ => unreachable!(),
+        }
 
         vec_dirs
             .into_iter()
             .map(|dir| dir.file_name().unwrap_or_default().to_owned())
             .for_each(|dir| {
                 let _ = recurse_behind_deleted_dir(
+                    config.clone(),
+                    tx_item,
                     Path::new(&dir),
                     deleted_dir_on_snap,
                     pseudo_live_dir,
-                    vec_behind_deleted_dirs,
                 );
             });
 
         Ok(())
     }
 
-    let mut vec_behind_deleted_dirs = Vec::new();
     match &deleted_dir.file_name() {
         Some(dir_name) => recurse_behind_deleted_dir(
+            config.clone(),
+            tx_item,
             Path::new(dir_name),
             deleted_dir.parent().unwrap_or_else(|| Path::new("/")),
             requested_dir,
-            &mut vec_behind_deleted_dirs,
         )?,
         None => return Err(HttmError::new("Not a valid file!").into()),
     }
 
-    Ok(vec_behind_deleted_dirs)
+    Ok(())
 }
 
 fn send_deleted_recursive(
