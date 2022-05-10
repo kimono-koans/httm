@@ -97,10 +97,15 @@ fn display_pretty(
                     // paint the live strings with ls colors - idx == 1 is 2nd or live set
                     let file_path = &pathdata.path_buf;
                     let painted_string = if idx == 1 {
-                        paint_string(file_path, &file_path.to_string_lossy())
+                        paint_string(
+                            file_path,
+                            file_path.to_str().unwrap_or_default(),
+                            pathdata.is_phantom,
+                        )
                     } else {
-                        file_path.to_string_lossy().into_owned()
+                        file_path.to_string_lossy()
                     };
+
                     let display_path =
                         format!("\"{:<width$}\"", painted_string, width = size_padding_len);
 

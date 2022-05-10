@@ -103,6 +103,7 @@ impl PathData {
                 canonical_path
             } else {
                 // canonicalize() on any path that DNE will throw an error
+                //
                 // in general we handle those cases elsewhere, like the ingest
                 // of input files in Config::from for deleted relative paths, etc.
                 path.to_path_buf()
@@ -162,20 +163,15 @@ enum InteractiveMode {
 #[derive(Debug, Clone, PartialEq)]
 enum DeletedMode {
     Disabled,
+    DepthOfOne,
     Enabled,
     Only,
 }
 
 #[derive(Debug, Clone)]
 enum SnapPoint {
-    Native(Vec<FilesystemAndMount>),
+    Native(HashMap<PathBuf, String>),
     UserDefined(UserDefinedDirs),
-}
-
-#[derive(Debug, Clone)]
-pub struct FilesystemAndMount {
-    filesystem: String,
-    mount: PathBuf,
 }
 
 #[derive(Debug, Clone)]
@@ -215,8 +211,9 @@ impl Config {
         let opt_recursive = matches.is_present("RECURSIVE");
         let mut deleted_mode = match matches.value_of("DELETED") {
             None => DeletedMode::Disabled,
-            Some("") => DeletedMode::Enabled,
-            Some("only") | Some("ONLY") => DeletedMode::Only,
+            Some("") | Some("all") => DeletedMode::Enabled,
+            Some("single") => DeletedMode::DepthOfOne,
+            Some("only") => DeletedMode::Only,
             // invalid value to not specify one of the above
             _ => unreachable!(),
         };
@@ -321,7 +318,7 @@ impl Config {
                 }),
             )
         } else {
-            let mount_collection: Vec<FilesystemAndMount> = list_all_filesystems()?;
+            let mount_collection = list_all_filesystems()?;
             (
                 matches.is_present("ALT_REPLICATED"),
                 SnapPoint::Native(mount_collection),
@@ -504,10 +501,12 @@ fn parse_args() -> ArgMatches {
                 .long("deleted")
                 .takes_value(true)
                 .default_missing_value("")
-                .possible_values(&["only", "ONLY", ""])
+                .possible_values(&["all", "single", "only", ""])
                 .hide_possible_values(true)
                 .help("show deleted files in interactive modes, or do a search for all such files, if a directory is specified. \
-                If --deleted=only is specified, then, in interactive modes, non-deleted files will be excluded from the search.")
+                If \"--deleted only\" is specified, then, in interactive modes, non-deleted files will be excluded from the search. \
+                If \"--deleted single\" is specified, then, deleted files behind deleted directories, \
+                with a depth greater than one will be ignored.")
                 .display_order(5)
         )
         .arg(

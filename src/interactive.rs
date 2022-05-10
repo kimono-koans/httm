@@ -24,39 +24,37 @@ use crate::{Config, DeletedMode, ExecMode, HttmError, InteractiveMode, PathData}
 extern crate skim;
 use rayon::prelude::*;
 use skim::prelude::*;
-use std::{ffi::OsStr, io::Cursor, path::Path, path::PathBuf, thread, vec};
+use std::{io::Cursor, path::Path, path::PathBuf, thread, vec};
 
 pub struct SelectionCandidate {
     config: Arc<Config>,
     path: PathBuf,
+    is_phantom: bool,
 }
 
 impl SelectionCandidate {
-    pub fn new(config: Arc<Config>, path: PathBuf) -> Self {
-        SelectionCandidate { config, path }
+    pub fn new(config: Arc<Config>, path: PathBuf, is_phantom: bool) -> Self {
+        SelectionCandidate {
+            config,
+            path,
+            is_phantom,
+        }
     }
 }
 
 impl SkimItem for SelectionCandidate {
     fn text(&self) -> Cow<str> {
-        self.path
-            .file_name()
-            .unwrap_or_else(|| OsStr::new(""))
-            .to_string_lossy()
+        self.path.file_name().unwrap_or_default().to_string_lossy()
     }
     fn display<'a>(&'a self, _context: DisplayContext<'a>) -> AnsiString<'a> {
         AnsiString::parse(&paint_string(
             &self.path,
-            &self
-                .path
-                .file_name()
-                .unwrap_or_else(|| OsStr::new(""))
-                .to_string_lossy(),
+            &self.path.file_name().unwrap_or_default().to_string_lossy(),
+            self.is_phantom,
         ))
     }
     fn output(&self) -> Cow<str> {
-        let path = self.path.to_string_lossy().into_owned();
-        Cow::Owned(path)
+        self.path.to_string_lossy()
     }
     fn preview(&self, _: PreviewContext<'_>) -> skim::ItemPreview {
         let res = preview_view(&self.config, &self.path).unwrap_or_default();
