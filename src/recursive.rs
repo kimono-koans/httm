@@ -278,7 +278,7 @@ fn behind_deleted_dir(
 
         vec_dirs
             .into_iter()
-            .map(|dir| dir.file_name().unwrap().to_os_string())
+            .map(|dir| dir.file_name().unwrap_or_default().to_owned())
             .for_each(|dir| {
                 let _ = recurse_behind_deleted_dir(
                     Path::new(&dir),
@@ -314,7 +314,7 @@ fn send_deleted_recursive(
         let _ = tx_item.send(Arc::new(SelectionCandidate::new(
             config.clone(),
             path.to_path_buf(),
-            // know this is phantom because deleted
+            // know this is phantom because we know it is deleted
             true,
         )));
     });
