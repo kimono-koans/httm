@@ -15,13 +15,17 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-mod config_helper;
-mod deleted;
-mod display;
-mod interactive;
-mod lookup;
-mod recursive;
-mod utility;
+use std::{
+    error::Error,
+    fmt,
+    fs::{canonicalize, DirEntry, Metadata, symlink_metadata},
+    path::{Path, PathBuf},
+    time::SystemTime,
+};
+
+use clap::{Arg, ArgMatches, crate_name, crate_version};
+use fxhash::FxHashMap as HashMap;
+use rayon::prelude::*;
 
 use crate::config_helper::{install_hot_keys, list_all_filesystems};
 use crate::display::display_exec;
@@ -30,16 +34,13 @@ use crate::lookup::get_versions;
 use crate::recursive::display_recursive_exec;
 use crate::utility::{httm_is_dir, read_stdin};
 
-use clap::{Arg, ArgMatches};
-use fxhash::FxHashMap as HashMap;
-use rayon::prelude::*;
-use std::{
-    error::Error,
-    fmt,
-    fs::{canonicalize, symlink_metadata, DirEntry, Metadata},
-    path::{Path, PathBuf},
-    time::SystemTime,
-};
+mod config_helper;
+mod deleted;
+mod display;
+mod interactive;
+mod lookup;
+mod recursive;
+mod utility;
 
 #[derive(Debug)]
 pub struct HttmError {
@@ -457,10 +458,10 @@ impl Config {
 }
 
 fn parse_args() -> ArgMatches {
-    clap::Command::new("httm")
+    clap::Command::new(crate_name!())
         .about("\nBy default, httm will display non-interactive information about unique file versions contained on ZFS snapshots.\n\n\
         You may also select from the various interactive modes below to browse for, select, and/or restore files.")
-        .version("0.10.2") 
+        .version(crate_version!())
         .arg(
             Arg::new("INPUT_FILES")
                 .help("in any non-interactive mode, put requested files here.  If you enter no files, \
