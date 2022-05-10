@@ -24,7 +24,6 @@ use std::{
     ffi::OsString,
     fs::{read_dir, DirEntry},
     path::Path,
-    time::SystemTime,
 };
 
 #[allow(clippy::manual_map)]
@@ -87,12 +86,10 @@ pub fn get_deleted_per_dataset(
             .collect();
 
     // compare local filenames to all unique snap filenames - none values are unique here
-    // deduplicate all by modify time and size - as we would elsewhere
-    let unique_deleted_versions: HashMap<(SystemTime, u64), PathData> = unique_snap_filenames
+    let unique_deleted_versions: HashMap<OsString, PathData> = unique_snap_filenames
         .into_par_iter()
         .filter(|(file_name, _)| unique_local_filenames.get(file_name).is_none())
-        .map(|(_, dir_entry)| PathData::from(&dir_entry))
-        .map(|pathdata| ((pathdata.system_time, pathdata.size), pathdata))
+        .map(|(file_name, dir_entry)| (file_name, PathData::from(&dir_entry)))
         .collect();
 
     let res_vec: Vec<_> = unique_deleted_versions
