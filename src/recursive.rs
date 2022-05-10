@@ -189,7 +189,9 @@ fn enumerate_deleted(
         let _ = vec_dirs
             .clone()
             .into_par_iter()
-            .try_for_each(|deleted_dir| behind_deleted_dir(config.clone(), &tx_item, &deleted_dir, requested_dir));
+            .try_for_each(|deleted_dir| {
+                behind_deleted_dir(config.clone(), tx_item, &deleted_dir, requested_dir)
+            });
     }
 
     let pseudo_live_versions: Vec<PathBuf> = [&vec_dirs, &vec_files]
@@ -254,7 +256,9 @@ fn behind_deleted_dir(
             .collect();
 
         match config.exec_mode {
-            ExecMode::Interactive => send_deleted_recursive(config.clone(), &pseudo_live_versions, tx_item)?,
+            ExecMode::Interactive => {
+                send_deleted_recursive(config.clone(), &pseudo_live_versions, tx_item)?
+            }
             ExecMode::DisplayRecursive => {
                 if !pseudo_live_versions.is_empty() {
                     if config.opt_recursive {
@@ -286,7 +290,7 @@ fn behind_deleted_dir(
 
     match &deleted_dir.file_name() {
         Some(dir_name) => recurse_behind_deleted_dir(
-            config.clone(),
+            config,
             tx_item,
             Path::new(dir_name),
             deleted_dir.parent().unwrap_or_else(|| Path::new("/")),

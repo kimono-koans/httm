@@ -129,6 +129,7 @@ dependencies = [
  "bitflags",
  "clap_lex",
  "indexmap",
+ "lazy_static",
  "strsim 0.10.0",
  "termcolor",
  "textwrap 0.15.0",
@@ -407,7 +408,7 @@ dependencies = [
 
 [[package]]
 name = "httm"
-version = "0.10.2"
+version = "0.10.3"
 dependencies = [
  "chrono",
  "clap 3.1.13",

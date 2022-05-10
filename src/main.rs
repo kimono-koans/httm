@@ -18,12 +18,12 @@
 use std::{
     error::Error,
     fmt,
-    fs::{canonicalize, DirEntry, Metadata, symlink_metadata},
+    fs::{canonicalize, symlink_metadata, DirEntry, Metadata},
     path::{Path, PathBuf},
     time::SystemTime,
 };
 
-use clap::{Arg, ArgMatches, crate_name, crate_version};
+use clap::{crate_name, crate_version, Arg, ArgMatches};
 use fxhash::FxHashMap as HashMap;
 use rayon::prelude::*;
 
