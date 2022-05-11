@@ -101,16 +101,12 @@ pub fn get_deleted_per_dataset(
             .collect();
 
     // compare local filenames to all unique snap filenames - none values are unique here
-    let unique_deleted_versions: HashMap<OsString, DirEntry> = unique_snap_filenames
+    let unique_deleted_versions: Vec<LookupReturnType> = unique_snap_filenames
         .into_par_iter()
         .filter(|(file_name, _)| unique_local_filenames.get(file_name).is_none())
-        .collect();
-
-    let res_vec: Vec<_> = unique_deleted_versions
-        .into_par_iter()
         .map(|(_, v)| Box::new(v))
         .map(LookupReturnType::Deleted)
         .collect();
 
-    Ok(res_vec)
+    Ok(unique_deleted_versions)
 }
