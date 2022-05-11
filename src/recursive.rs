@@ -154,7 +154,7 @@ pub fn enumerate_directory(
     // here we make sure to wait until all child threads have exited before returning
     // this allows the main work of the fn to keep running while while work on deleted
     // files in the background
-    if !join_handles.is_empty() {
+    if !join_handles.is_empty() && config.exec_mode == ExecMode::DisplayRecursive {
         let _ = join_handles
             .into_iter()
             .try_for_each(|handle| handle.join());
