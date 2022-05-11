@@ -31,11 +31,19 @@ pub fn get_deleted(
     config: &Config,
     requested_dir: &Path,
 ) -> Result<Vec<DirEntry>, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let all_deleted = snapshot_transversal(
+    let all_deleted: Vec<DirEntry> = snapshot_transversal(
         config,
         &vec![PathData::from(requested_dir)],
         LookupType::Deleted,
-    )?;
+    )?
+    .into_par_iter()
+    .map(|returned| match returned {
+        LookupReturnType::Deleted(res) => Some(res),
+        _ => None,
+    })
+    .flatten()
+    .flatten()
+    .collect();
 
     // we need to make certain that what we return from possibly multiple datasets are unique
     // as these will be the filenames that populate our interactive views, so deduplicate
@@ -43,26 +51,12 @@ pub fn get_deleted(
     let unique_deleted = if !all_deleted.is_empty() || config.opt_alt_replicated {
         let unique_deleted: HashMap<OsString, DirEntry> = all_deleted
             .into_par_iter()
-            .map(|returned| match returned {
-                LookupReturnType::Deleted(res) => Some(res),
-                _ => None,
-            })
-            .flatten()
-            .flatten()
             .map(|dir_entry| (dir_entry.file_name(), dir_entry))
             .collect();
 
         unique_deleted.into_par_iter().map(|(_, v)| v).collect()
     } else {
         all_deleted
-            .into_par_iter()
-            .map(|returned| match returned {
-                LookupReturnType::Deleted(res) => Some(res),
-                _ => None,
-            })
-            .flatten()
-            .flatten()
-            .collect()
     };
 
     Ok(unique_deleted)
