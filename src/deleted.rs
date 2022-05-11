@@ -38,10 +38,9 @@ pub fn get_deleted(
     )?
     .into_par_iter()
     .map(|returned| match returned {
-        LookupReturnType::Deleted(res) => Some(res),
-        _ => None,
+        LookupReturnType::Deleted(return_type) => return_type,
+        _ => unreachable!(),
     })
-    .flatten()
     .map(|boxed| *boxed)
     .collect();
 
