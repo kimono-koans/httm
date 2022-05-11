@@ -79,6 +79,7 @@ pub fn enumerate_directory(
         let tx_item_clone = tx_item.clone();
 
         // thread spawn fn enumerate_directory - permits recursion into dirs without blocking
+        // or blocking when we choose to block
         let handle = std::thread::spawn(move || {
             let _ = enumerate_deleted(config_clone, &requested_dir_clone, &tx_item_clone);
         });
@@ -160,6 +161,10 @@ pub fn enumerate_directory(
         }
     };
 
+    // we do this here because over a slow smb connection it is likely that the thread will back up
+    // and get contended upon one and other, so we wait for all threads to finish before proceeding
+    // on a native system this likely will not happen so we gleefully continue in modes in which it's
+    // okay for the program to exit before the thread is finished (interactive, not display recursive)
     match config.snap_point {
         SnapPoint::Native(_) => {
             if config.exec_mode != ExecMode::Interactive {
@@ -174,10 +179,6 @@ pub fn enumerate_directory(
     Ok(())
 }
 
-// these are dummy "live versions" values generated to match deleted files
-// which have been found on snapshots, we return to the user "the path that
-// once was" in their browse panel
-//
 // why another fn? so we can spawn another thread and not block on finding deleted files
 // which generally takes a long time.
 fn enumerate_deleted(
@@ -202,6 +203,9 @@ fn enumerate_deleted(
         });
     }
 
+    // these are dummy "live versions" values generated to match deleted files
+    // which have been found on snapshots, we return to the user "the path that
+    // once was" in their browse panel
     let pseudo_live_versions: Vec<PathBuf> = [&vec_dirs, &vec_files]
         .into_iter()
         .flatten()
