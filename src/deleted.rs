@@ -19,11 +19,13 @@ use crate::lookup::{snapshot_transversal, LookupReturnType, LookupType, SearchDi
 use crate::{Config, PathData};
 
 use fxhash::FxHashMap as HashMap;
+use itertools::Itertools;
 use rayon::prelude::*;
 use std::{
     ffi::OsString,
     fs::{read_dir, DirEntry},
     path::Path,
+    time::SystemTime,
 };
 
 #[allow(clippy::manual_map)]
@@ -31,7 +33,7 @@ pub fn get_deleted(
     config: &Config,
     requested_dir: &Path,
 ) -> Result<Vec<DirEntry>, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let all_deleted: Vec<DirEntry> = snapshot_transversal(
+    let all_deleted: Vec<(SystemTime, DirEntry)> = snapshot_transversal(
         config,
         &vec![PathData::from(requested_dir)],
         LookupType::Deleted,
@@ -42,21 +44,30 @@ pub fn get_deleted(
         _ => unreachable!(),
     })
     .map(|boxed| *boxed)
+    .filter_map(|dir_entry| match dir_entry.metadata() {
+        Ok(md) => Some((md, dir_entry)),
+        Err(_) => None,
+    })
+    .filter_map(|(md, dir_entry)| match md.modified() {
+        Ok(modify_time) => Some((modify_time, dir_entry)),
+        Err(_) => None,
+    })
     .collect();
 
     // we need to make certain that what we return from possibly multiple datasets are unique
     // as these will be the filenames that populate our interactive views, so deduplicate
-    // by filename here
-    let unique_deleted = if !all_deleted.is_empty() || config.opt_alt_replicated {
-        let unique_deleted: HashMap<OsString, DirEntry> = all_deleted
-            .into_par_iter()
-            .map(|dir_entry| (dir_entry.file_name(), dir_entry))
-            .collect();
-
-        unique_deleted.into_par_iter().map(|(_, v)| v).collect()
-    } else {
-        all_deleted
-    };
+    // by filename and latest file version here
+    let unique_deleted = all_deleted
+        .into_iter()
+        .group_by(|(_modify_time, dir_entry)| dir_entry.file_name())
+        .into_iter()
+        .filter_map(|(_key, group)| {
+            group
+                .into_iter()
+                .max_by_key(|(modify_time, _dir_entry)| modify_time.to_owned())
+        })
+        .map(|(_modify_time, dir_entry)| dir_entry)
+        .collect();
 
     Ok(unique_deleted)
 }
