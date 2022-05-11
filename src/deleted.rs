@@ -42,7 +42,7 @@ pub fn get_deleted(
         _ => None,
     })
     .flatten()
-    .flatten()
+    .map(|boxed| *boxed)
     .collect();
 
     // we need to make certain that what we return from possibly multiple datasets are unique
@@ -65,7 +65,7 @@ pub fn get_deleted(
 pub fn get_deleted_per_dataset(
     path: &Path,
     search_dirs: &SearchDirs,
-) -> Result<Vec<DirEntry>, Box<dyn std::error::Error + Send + Sync + 'static>> {
+) -> Result<Vec<LookupReturnType>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // get all local entries we need to compare against these to know
     // what is a deleted file
     // create a collection of local unique file names
@@ -98,7 +98,8 @@ pub fn get_deleted_per_dataset(
 
     let res_vec: Vec<_> = unique_deleted_versions
         .into_par_iter()
-        .map(|(_, v)| v)
+        .map(|(_, v)| Box::new(v))
+        .map(LookupReturnType::Deleted)
         .collect();
 
     Ok(res_vec)

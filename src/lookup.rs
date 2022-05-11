@@ -34,8 +34,8 @@ pub enum LookupType {
 }
 
 pub enum LookupReturnType {
-    Versions(Vec<PathData>),
-    Deleted(Vec<DirEntry>),
+    Versions(PathData),
+    Deleted(Box<DirEntry>),
 }
 
 #[derive(Debug, Clone)]
@@ -61,7 +61,6 @@ pub fn get_versions(
                 LookupReturnType::Versions(return_type) => return_type,
                 _ => unreachable!(),
             })
-            .flatten()
             .collect();
 
     // create vec of live copies - unless user doesn't want it!
@@ -110,16 +109,10 @@ pub fn snapshot_transversal(
         .flatten()
         .flatten()
         .flat_map(|search_dirs| match lookup_type {
-            LookupType::Versions => get_versions_per_dataset(&search_dirs)
-                .ok()
-                .map(LookupReturnType::Versions),
-            LookupType::Deleted => {
-                // can index here because know pathdata for a deleted lookup type must always be 1
-                get_deleted_per_dataset(&pathdata[0].path_buf, &search_dirs)
-                    .ok()
-                    .map(LookupReturnType::Deleted)
-            }
+            LookupType::Versions => get_versions_per_dataset(&search_dirs),
+            LookupType::Deleted => get_deleted_per_dataset(&pathdata[0].path_buf, &search_dirs),
         })
+        .flatten()
         .collect();
 
     Ok(res)
@@ -272,7 +265,7 @@ fn get_alt_replicated_dataset(
 
 fn get_versions_per_dataset(
     search_dirs: &SearchDirs,
-) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
+) -> Result<Vec<LookupReturnType>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // get the DirEntry for our snapshot path which will have all our possible
     // snapshots, like so: .zfs/snapshots/<some snap name>/
     //
@@ -288,9 +281,14 @@ fn get_versions_per_dataset(
             .map(|pathdata| ((pathdata.system_time, pathdata.size), pathdata))
             .collect();
 
-    let mut sorted: Vec<PathData> = unique_versions.into_iter().map(|(_, v)| v).collect();
+    let mut vec_pathdata: Vec<PathData> = unique_versions.into_par_iter().map(|(_, v)| v).collect();
 
-    sorted.par_sort_unstable_by_key(|pathdata| pathdata.system_time);
+    vec_pathdata.par_sort_unstable_by_key(|pathdata| pathdata.system_time);
 
-    Ok(sorted)
+    let vec_return: Vec<LookupReturnType> = vec_pathdata
+        .into_iter()
+        .map(LookupReturnType::Versions)
+        .collect();
+
+    Ok(vec_return)
 }
