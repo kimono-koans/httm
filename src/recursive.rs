@@ -20,7 +20,7 @@ use crate::display::display_exec;
 use crate::interactive::SelectionCandidate;
 use crate::lookup::get_versions;
 use crate::utility::httm_is_dir;
-use crate::{Config, DeletedMode, ExecMode, HttmError, PathData};
+use crate::{Config, DeletedMode, ExecMode, HttmError, PathData, SnapPoint};
 
 use rayon::{iter::Either, prelude::*};
 use skim::prelude::*;
@@ -70,7 +70,7 @@ pub fn enumerate_directory(
 
     // need something to hold our threads that we need to wait to have complete,
     // also very helpful in the case we don't don't needs threads as it can be empty
-    let mut join_handles = Vec::new();
+    let mut vec_handles = Vec::new();
 
     let mut spawn_enumerate_deleted = || {
         let config_clone = config.clone();
@@ -81,7 +81,7 @@ pub fn enumerate_directory(
         let handle = std::thread::spawn(move || {
             let _ = enumerate_deleted(config_clone, &requested_dir_clone, &tx_item_clone);
         });
-        join_handles.push(handle);
+        vec_handles.push(handle);
     };
 
     match config.exec_mode {
@@ -93,8 +93,7 @@ pub fn enumerate_directory(
                 // it really makes sense, as it's only really good for a
                 // small subset of files
                 DeletedMode::Disabled => unreachable!(),
-                // for all other non-disabled DeletedModes ex we display
-                // all deleted files in ExecMode::DisplayRecursive
+                // for all other non-disabled DeletedModes
                 DeletedMode::DepthOfOne | DeletedMode::Enabled | DeletedMode::Only => {
                     // flush and exit successfully upon ending recursive search
                     spawn_enumerate_deleted();
@@ -154,10 +153,21 @@ pub fn enumerate_directory(
     // here we make sure to wait until all child threads have exited before returning
     // this allows the main work of the fn to keep running while while work on deleted
     // files in the background
-    if !join_handles.is_empty() && config.exec_mode == ExecMode::DisplayRecursive {
-        let _ = join_handles
-            .into_iter()
-            .try_for_each(|handle| handle.join());
+    let join_handles = || {
+        if !vec_handles.is_empty() {
+            let _ = vec_handles.into_iter().try_for_each(|handle| handle.join());
+        }
+    };
+
+    match config.snap_point {
+        SnapPoint::Native(_) => {
+            if config.exec_mode != ExecMode::Interactive {
+                join_handles();
+            }
+        }
+        SnapPoint::UserDefined(_) => {
+            join_handles();
+        }
     }
 
     Ok(())
@@ -311,7 +321,7 @@ fn send_deleted_recursive(
         let _ = tx_item.send(Arc::new(SelectionCandidate::new(
             config.clone(),
             path.to_path_buf(),
-            // know this is phantom because we know it is deleted
+            // know this is_phantom because we know it is deleted
             true,
         )));
     });
