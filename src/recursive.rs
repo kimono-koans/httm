@@ -15,13 +15,14 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::deleted::get_deleted;
+use crate::deleted::get_unique_deleted;
 use crate::display::display_exec;
 use crate::interactive::SelectionCandidate;
 use crate::lookup::get_versions;
 use crate::utility::httm_is_dir;
 use crate::{Config, DeletedMode, ExecMode, HttmError, PathData, SnapPoint};
 
+use itertools::Itertools;
 use rayon::{iter::Either, prelude::*};
 use skim::prelude::*;
 use std::{
@@ -184,10 +185,10 @@ fn enumerate_deleted(
     requested_dir: &Path,
     tx_item: &SkimItemSender,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let deleted = get_deleted(&config, requested_dir)?;
+    let deleted = get_unique_deleted(&config, requested_dir)?;
 
     let (vec_dirs, vec_files): (Vec<PathBuf>, Vec<PathBuf>) =
-        deleted.into_par_iter().partition_map(|dir_entry| {
+        deleted.into_iter().partition_map(|dir_entry| {
             if httm_is_dir(&dir_entry) {
                 Either::Left(dir_entry.path())
             } else {
@@ -196,16 +197,13 @@ fn enumerate_deleted(
         });
 
     if config.deleted_mode != DeletedMode::DepthOfOne {
-        let _ = vec_dirs
-            .clone()
-            .into_par_iter()
-            .try_for_each(|deleted_dir| {
-                behind_deleted_dir(config.clone(), tx_item, &deleted_dir, requested_dir)
-            });
+        let _ = vec_dirs.clone().into_iter().try_for_each(|deleted_dir| {
+            behind_deleted_dir(config.clone(), tx_item, &deleted_dir, requested_dir)
+        });
     }
 
     let pseudo_live_versions: Vec<PathBuf> = [&vec_dirs, &vec_files]
-        .into_par_iter()
+        .into_iter()
         .flatten()
         .filter_map(|path| path.file_name())
         .map(|file_name| requested_dir.join(file_name))
@@ -247,7 +245,6 @@ fn behind_deleted_dir(
 
         let (vec_dirs, vec_files): (Vec<PathBuf>, Vec<PathBuf>) = read_dir(&deleted_dir_on_snap)?
             .flatten()
-            .par_bridge()
             .partition_map(|dir_entry| {
                 let path_buf = dir_entry.path();
                 if httm_is_dir(&dir_entry) {
@@ -258,10 +255,9 @@ fn behind_deleted_dir(
             });
 
         let pseudo_live_versions: Vec<PathBuf> = [&vec_files, &vec_dirs]
-            .into_par_iter()
+            .into_iter()
             .flatten()
-            .map(|path| path.file_name())
-            .flatten()
+            .filter_map(|path| path.file_name())
             .map(|file_name| pseudo_live_dir.join(file_name))
             .collect();
 
@@ -330,10 +326,10 @@ fn send_deleted_recursive(
 
 fn print_deleted_recursive(
     config: Arc<Config>,
-    path_buf_set: &Vec<PathBuf>,
+    path_buf_set: &[PathBuf],
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let pseudo_live_set: Vec<PathData> = path_buf_set
-        .into_par_iter()
+        .iter()
         .map(|path| PathData::from(path.as_path()))
         .collect();
 
