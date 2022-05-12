@@ -4,14 +4,15 @@ version = "0.10.4"
 edition = "2021"
 keywords = ["zfs", "backup", "restore", "cli-utility", "snapshot", "shell"]
 description = "The dream of a CLI ZFS Time Machine is still alive with httm."
+repository = "https://github.com/kimono-koans/httm"
 readme = "README.md"
 categories = [ "command-line-utilities",  "os" ]
 license = "MPL-2.0"
+license-file = "LICENSE.txt"
+documentation = "https://github.com/kimono-koans/httm/blob/master/httm.1"
 
 [badges]
 maintenance = { status = "actively-developed" }
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 clap = { version = "3.1", features = ["cargo"]}
