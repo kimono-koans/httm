@@ -8,7 +8,7 @@ repository = "https://github.com/kimono-koans/httm"
 readme = "README.md"
 categories = [ "command-line-utilities",  "os" ]
 license = "MPL-2.0"
-license-file = "LICENSE.txt"
+license-file = "LICENSE"
 documentation = "https://github.com/kimono-koans/httm/blob/master/httm.1"
 
 [badges]
