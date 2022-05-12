@@ -49,9 +49,11 @@ pub fn get_unique_deleted(
     // as these will be the filenames that populate our interactive views, so deduplicate
     // by filename and latest file version here
     let unique_deleted: Vec<DirEntry> = vec![&pathdata]
-        .iter().flat_map(|pathdata| {
+        .iter()
+        .flat_map(|pathdata| {
             selected_datasets
-                .iter().flat_map(|dataset_type| get_search_dirs(config, pathdata, dataset_type))
+                .iter()
+                .flat_map(|dataset_type| get_search_dirs(config, pathdata, dataset_type))
         })
         .flatten()
         .flat_map(|search_dirs| get_deleted_per_dataset(&pathdata.path_buf, &search_dirs))
