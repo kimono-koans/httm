@@ -1,17 +1,12 @@
 [package]
 name = "httm"
-version = "0.10.3"
+version = "0.10.4"
 edition = "2021"
-keywords = ["zfs", "backup", "restore", "cli-utility", "snapshot"]
+keywords = ["zfs", "backup", "restore", "cli-utility", "snapshot", "shell"]
 description = "The dream of a CLI ZFS Time Machine is still alive with httm."
 readme = "README.md"
-documentation = "https://docs.rs/httm"
 categories = [ "command-line-utilities",  "os" ]
 license = "MPL-2.0"
-
-[package.metadata.docs.rs]
-all-features = true
-rustdoc-args = ["--cfg", "docsrs"]
 
 [badges]
 maintenance = { status = "actively-developed" }
