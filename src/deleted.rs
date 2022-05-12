@@ -20,12 +20,10 @@ use crate::{Config, PathData};
 
 use fxhash::FxHashMap as HashMap;
 use itertools::Itertools;
-use rayon::prelude::*;
 use std::{
     ffi::OsString,
     fs::{read_dir, DirEntry},
     path::Path,
-    time::SystemTime,
 };
 
 #[allow(clippy::manual_map)]
@@ -46,11 +44,15 @@ pub fn get_unique_deleted(
     let pathdata = PathData::from(requested_dir);
 
     // create vec of all local and replicated backups at once
-    let all_deleted: Vec<(SystemTime, DirEntry)> = vec![&pathdata]
-        .par_iter()
+    //
+    // we need to make certain that what we return from possibly multiple datasets are unique
+    // as these will be the filenames that populate our interactive views, so deduplicate
+    // by filename and latest file version here
+    let unique_deleted: Vec<DirEntry> = vec![&pathdata]
+        .iter()
         .map(|pathdata| {
             selected_datasets
-                .par_iter()
+                .iter()
                 .map(|dataset_type| get_search_dirs(config, pathdata, dataset_type))
                 .flatten()
         })
@@ -66,13 +68,6 @@ pub fn get_unique_deleted(
             Ok(modify_time) => Some((modify_time, dir_entry)),
             Err(_) => None,
         })
-        .collect();
-
-    // we need to make certain that what we return from possibly multiple datasets are unique
-    // as these will be the filenames that populate our interactive views, so deduplicate
-    // by filename and latest file version here
-    let unique_deleted: Vec<DirEntry> = all_deleted
-        .into_iter()
         .group_by(|(_modify_time, dir_entry)| dir_entry.file_name())
         .into_iter()
         .filter_map(|(_key, group)| {
