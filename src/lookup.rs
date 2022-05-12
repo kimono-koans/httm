@@ -15,12 +15,10 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::deleted::get_deleted_per_dataset;
 use crate::{Config, HttmError, PathData, SnapPoint};
 
 use fxhash::FxHashMap as HashMap;
 use rayon::prelude::*;
-use std::fs::DirEntry;
 use std::{
     fs::read_dir,
     path::{Path, PathBuf},
@@ -28,18 +26,7 @@ use std::{
 };
 
 #[derive(Debug, Clone)]
-pub enum LookupType {
-    Versions,
-    Deleted,
-}
-
-pub enum LookupReturnType {
-    Versions(PathData),
-    Deleted(Box<DirEntry>),
-}
-
-#[derive(Debug, Clone)]
-enum NativeDatasetType {
+pub enum NativeDatasetType {
     MostImmediate,
     AltReplicated,
 }
@@ -54,14 +41,18 @@ pub fn get_versions(
     config: &Config,
     pathdata: &Vec<PathData>,
 ) -> Result<[Vec<PathData>; 2], Box<dyn std::error::Error + Send + Sync + 'static>> {
+    // prepare for local and replicated backups on alt replicated sets if necessary
+    let selected_datasets = if config.opt_alt_replicated {
+        vec![
+            NativeDatasetType::AltReplicated,
+            NativeDatasetType::MostImmediate,
+        ]
+    } else {
+        vec![NativeDatasetType::MostImmediate]
+    };
+
     let all_snap_versions: Vec<PathData> =
-        snapshot_transversal(config, pathdata, LookupType::Versions)?
-            .into_par_iter()
-            .map(|return_type| match return_type {
-                LookupReturnType::Versions(return_type) => return_type,
-                _ => unreachable!(),
-            })
-            .collect();
+        snapshot_transversal(config, pathdata, &selected_datasets)?;
 
     // create vec of live copies - unless user doesn't want it!
     let live_versions: Vec<PathData> = if !config.opt_no_live_vers {
@@ -82,23 +73,13 @@ pub fn get_versions(
     Ok([all_snap_versions, live_versions])
 }
 
-pub fn snapshot_transversal(
+fn snapshot_transversal(
     config: &Config,
     pathdata: &Vec<PathData>,
-    lookup_type: LookupType,
-) -> Result<Vec<LookupReturnType>, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    // prepare for local and replicated backups on alt replicated sets if necessary
-    let selected_datasets = if config.opt_alt_replicated {
-        vec![
-            NativeDatasetType::AltReplicated,
-            NativeDatasetType::MostImmediate,
-        ]
-    } else {
-        vec![NativeDatasetType::MostImmediate]
-    };
-
+    selected_datasets: &Vec<NativeDatasetType>,
+) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // create vec of all local and replicated backups at once
-    let res: Vec<LookupReturnType> = pathdata
+    let res: Vec<PathData> = pathdata
         .par_iter()
         .map(|path_data| {
             selected_datasets
@@ -108,17 +89,14 @@ pub fn snapshot_transversal(
         })
         .flatten()
         .flatten()
-        .flat_map(|search_dirs| match lookup_type {
-            LookupType::Versions => get_versions_per_dataset(&search_dirs),
-            LookupType::Deleted => get_deleted_per_dataset(&pathdata[0].path_buf, &search_dirs),
-        })
+        .flat_map(|search_dirs| get_versions_per_dataset(&search_dirs))
         .flatten()
         .collect();
 
     Ok(res)
 }
 
-fn get_search_dirs(
+pub fn get_search_dirs(
     config: &Config,
     file_pathdata: &PathData,
     requested_dataset_type: &NativeDatasetType,
@@ -265,7 +243,7 @@ fn get_alt_replicated_dataset(
 
 fn get_versions_per_dataset(
     search_dirs: &SearchDirs,
-) -> Result<Vec<LookupReturnType>, Box<dyn std::error::Error + Send + Sync + 'static>> {
+) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // get the DirEntry for our snapshot path which will have all our possible
     // snapshots, like so: .zfs/snapshots/<some snap name>/
     //
@@ -285,10 +263,5 @@ fn get_versions_per_dataset(
 
     vec_pathdata.par_sort_unstable_by_key(|pathdata| pathdata.system_time);
 
-    let vec_return: Vec<LookupReturnType> = vec_pathdata
-        .into_iter()
-        .map(LookupReturnType::Versions)
-        .collect();
-
-    Ok(vec_return)
+    Ok(vec_pathdata)
 }
