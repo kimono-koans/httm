@@ -32,6 +32,8 @@ use std::{
     sync::Arc,
 };
 
+const ZFS_HIDDEN_DIRECTORY: &str = ".zfs";
+
 pub fn display_recursive_exec(
     config: &Config,
 ) -> Result<[Vec<PathData>; 2], Box<dyn std::error::Error + Send + Sync + 'static>> {
@@ -58,6 +60,10 @@ pub fn enumerate_directory(
     let (vec_dirs, vec_files): (Vec<PathBuf>, Vec<PathBuf>) = read_dir(&requested_dir)?
         .flatten()
         .par_bridge()
+        // never check the hidden snapshot directory for live files (duh)
+        // didn't think this was possible until I saw a SMB share return
+        // a .zfs dir entry
+        .filter(|dir_entry| dir_entry.file_name().to_str() != Some(ZFS_HIDDEN_DIRECTORY))
         // checking file_type on dir entries is always preferable
         // as it is much faster than a metadata call on the path
         .partition_map(|dir_entry| {
