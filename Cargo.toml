@@ -2,6 +2,21 @@
 name = "httm"
 version = "0.10.3"
 edition = "2021"
+keywords = ["zfs", "backup", "restore", "cli-utility", "snapshot"]
+description = "The dream of a CLI ZFS Time Machine is still alive with httm."
+readme = "README.md"
+documentation = "https://docs.rs/httm"
+categories = [ "command-line-utilities",  "os" ]
+license = "MPL-2.0"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[badges]
+maintenance = { status = "actively-developed" }
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 clap = { version = "3.1", features = ["cargo"]}
