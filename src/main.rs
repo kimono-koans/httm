@@ -42,6 +42,9 @@ mod lookup;
 mod recursive;
 mod utility;
 
+pub const ZFS_HIDDEN_DIRECTORY: &str = ".zfs";
+pub const ZFS_HIDDEN_SNAPSHOT_DIRECTORY: &str = ".zfs/snapshot";
+
 #[derive(Debug)]
 pub struct HttmError {
     details: String,
@@ -274,7 +277,7 @@ impl Config {
         let (opt_alt_replicated, snap_point) = if let Some(raw_value) = raw_snap_var {
             // user defined dir exists?: check that path contains the hidden snapshot directory
             let path = PathBuf::from(raw_value);
-            let hidden_snap_dir = path.join(".zfs").join("snapshot");
+            let hidden_snap_dir = path.join(ZFS_HIDDEN_SNAPSHOT_DIRECTORY);
 
             // little sanity check -- make sure the user defined snap dir exist
             let snap_dir = if hidden_snap_dir.metadata().is_ok() {

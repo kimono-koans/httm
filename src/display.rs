@@ -15,13 +15,14 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::utility::paint_string;
-use crate::{Config, PathData};
+use std::time::SystemTime;
 
 use chrono::{DateTime, Local};
 use number_prefix::NumberPrefix;
-use std::time::SystemTime;
 use terminal_size::{terminal_size, Height, Width};
+
+use crate::utility::paint_string;
+use crate::{Config, PathData};
 
 // 2 space wide padding - used between date and size, and size and path
 const FIXED_WIDTH_PADDING: &str = "  ";

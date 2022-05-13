@@ -15,8 +15,6 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use chrono::{DateTime, Local};
-use lscolors::{LsColors, Style};
 use std::{
     borrow::Cow,
     fs::{copy, create_dir_all, read_dir, DirEntry, FileType},
@@ -24,6 +22,9 @@ use std::{
     path::{Path, PathBuf},
     time::SystemTime,
 };
+
+use chrono::{DateTime, Local};
+use lscolors::{LsColors, Style};
 
 pub fn timestamp_file(system_time: &SystemTime) -> String {
     let date_time: DateTime<Local> = system_time.to_owned().into();

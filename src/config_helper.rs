@@ -15,17 +15,18 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::HttmError;
-
-use fxhash::FxHashMap as HashMap;
-use rayon::prelude::*;
 use std::{
     fs::OpenOptions,
     io::{Read, Write},
     path::PathBuf,
     process::Command as ExecProcess,
 };
+
+use fxhash::FxHashMap as HashMap;
+use rayon::prelude::*;
 use which::which;
+
+use crate::HttmError;
 
 pub fn install_hot_keys() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     // get our home directory

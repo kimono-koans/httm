@@ -15,16 +15,20 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::display::display_exec;
-use crate::lookup::get_versions;
-use crate::recursive::enumerate_directory;
-use crate::utility::{copy_recursive, paint_string, timestamp_file};
-use crate::{Config, DeletedMode, ExecMode, HttmError, InteractiveMode, PathData};
+use std::{io::Cursor, path::Path, path::PathBuf, thread, vec};
 
 extern crate skim;
 use rayon::prelude::*;
 use skim::prelude::*;
-use std::{io::Cursor, path::Path, path::PathBuf, thread, vec};
+
+use crate::display::display_exec;
+use crate::lookup::get_versions;
+use crate::recursive::enumerate_directory;
+use crate::utility::{copy_recursive, paint_string, timestamp_file};
+use crate::{
+    Config, DeletedMode, ExecMode, HttmError, InteractiveMode, PathData,
+    ZFS_HIDDEN_SNAPSHOT_DIRECTORY,
+};
 
 pub struct SelectionCandidate {
     config: Arc<Config>,
@@ -265,7 +269,7 @@ fn interactive_restore(
     if !snap_pathdata
         .path_buf
         .to_string_lossy()
-        .contains(".zfs/snapshot")
+        .contains(ZFS_HIDDEN_SNAPSHOT_DIRECTORY)
     {
         return Err(HttmError::new("Path selected is not a 'snapshot version'.  httm will not restore from a non-'snapshot version'.  Quitting.").into());
     }

@@ -15,16 +15,6 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::deleted::get_unique_deleted;
-use crate::display::display_exec;
-use crate::interactive::SelectionCandidate;
-use crate::lookup::get_versions;
-use crate::utility::httm_is_dir;
-use crate::{Config, DeletedMode, ExecMode, HttmError, PathData, SnapPoint};
-
-use itertools::Itertools;
-use rayon::{iter::Either, prelude::*};
-use skim::prelude::*;
 use std::{
     fs::read_dir,
     io::Write,
@@ -32,7 +22,16 @@ use std::{
     sync::Arc,
 };
 
-const ZFS_HIDDEN_DIRECTORY: &str = ".zfs";
+use itertools::Itertools;
+use rayon::{iter::Either, prelude::*};
+use skim::prelude::*;
+
+use crate::deleted::get_unique_deleted;
+use crate::display::display_exec;
+use crate::interactive::SelectionCandidate;
+use crate::lookup::get_versions;
+use crate::utility::httm_is_dir;
+use crate::{Config, DeletedMode, ExecMode, HttmError, PathData, SnapPoint, ZFS_HIDDEN_DIRECTORY};
 
 pub fn display_recursive_exec(
     config: &Config,

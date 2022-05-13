@@ -15,15 +15,16 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::{Config, HttmError, PathData, SnapPoint};
-
-use fxhash::FxHashMap as HashMap;
-use rayon::prelude::*;
 use std::{
     fs::read_dir,
     path::{Path, PathBuf},
     time::SystemTime,
 };
+
+use fxhash::FxHashMap as HashMap;
+use rayon::prelude::*;
+
+use crate::{Config, HttmError, PathData, SnapPoint, ZFS_HIDDEN_SNAPSHOT_DIRECTORY};
 
 #[derive(Debug, Clone)]
 pub enum NativeDatasetType {
@@ -135,7 +136,7 @@ pub fn get_search_dirs(
     dataset_collection.par_iter().map( |(dataset_of_interest, immediate_dataset_snap_mount)| {
         // building the snapshot path from our dataset
         let hidden_snapshot_dir: PathBuf =
-            [dataset_of_interest, &PathBuf::from(".zfs/snapshot")].iter().collect();
+            [dataset_of_interest, &PathBuf::from(ZFS_HIDDEN_SNAPSHOT_DIRECTORY)].iter().collect();
 
         // building our relative path by removing parent below the snap dir
         //

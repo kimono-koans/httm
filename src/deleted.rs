@@ -15,16 +15,17 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::lookup::{get_search_dirs, NativeDatasetType, SearchDirs};
-use crate::{Config, PathData};
-
-use fxhash::FxHashMap as HashMap;
-use itertools::Itertools;
 use std::{
     ffi::OsString,
     fs::{read_dir, DirEntry},
     path::Path,
 };
+
+use fxhash::FxHashMap as HashMap;
+use itertools::Itertools;
+
+use crate::lookup::{get_search_dirs, NativeDatasetType, SearchDirs};
+use crate::{Config, PathData};
 
 #[allow(clippy::manual_map)]
 pub fn get_unique_deleted(
