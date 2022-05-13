@@ -72,7 +72,7 @@ pub fn get_unique_deleted(
         .filter_map(|(_key, group)| {
             group
                 .into_iter()
-                .max_by_key(|(modify_time, _dir_entry)| modify_time.to_owned())
+                .max_by_key(|(modify_time, _dir_entry)| *modify_time)
         })
         .map(|(_modify_time, dir_entry)| dir_entry)
         .collect();
