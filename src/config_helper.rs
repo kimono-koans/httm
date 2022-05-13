@@ -46,7 +46,7 @@ pub fn install_hot_keys() -> Result<(), Box<dyn std::error::Error + Send + Sync 
     // check whether httm-key-bindings.zsh is already sourced
     // and, if not, open ~/.zshrc append only for sourcing the httm-key-bindings.zsh
     let mut buffer = String::new();
-    let zshrc_path: PathBuf = [&home_dir, &PathBuf::from(".zshrc")].iter().collect();
+    let zshrc_path: PathBuf = home_dir.join(".zshrc");
     let mut zshrc_file = if let Ok(file) = OpenOptions::new()
         .read(true)
         .write(true)

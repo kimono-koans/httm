@@ -135,8 +135,7 @@ pub fn get_search_dirs(
 
     dataset_collection.par_iter().map( |(dataset_of_interest, immediate_dataset_snap_mount)| {
         // building the snapshot path from our dataset
-        let hidden_snapshot_dir: PathBuf =
-            [dataset_of_interest, &PathBuf::from(ZFS_HIDDEN_SNAPSHOT_DIRECTORY)].iter().collect();
+        let hidden_snapshot_dir: PathBuf = dataset_of_interest.join(ZFS_HIDDEN_SNAPSHOT_DIRECTORY);
 
         // building our relative path by removing parent below the snap dir
         //
