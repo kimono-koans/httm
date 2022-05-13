@@ -312,6 +312,13 @@ impl Config {
                 pwd.path_buf.clone()
             };
 
+            if matches.is_present("ALT_REPLICATED") {
+                return Err(HttmError::new(
+                    "Alternate replicated datasets are not available for search, when the user defines a snap point.",
+                )
+                .into());
+            }
+
             (
                 // always set opt_alt_replicated to false in UserDefinedDirs mode
                 false,
