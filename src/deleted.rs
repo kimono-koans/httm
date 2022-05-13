@@ -111,11 +111,11 @@ pub fn get_deleted_per_dataset(
             .collect();
 
     // compare local filenames to all unique snap filenames - none values are unique here
-    let unique_deleted_versions: Vec<DirEntry> = unique_snap_filenames
+    let all_deleted_versions: Vec<DirEntry> = unique_snap_filenames
         .into_iter()
         .filter(|(file_name, _)| unique_local_filenames.get(file_name).is_none())
         .map(|(_file_name, dir_entry)| dir_entry)
         .collect();
 
-    Ok(unique_deleted_versions)
+    Ok(all_deleted_versions)
 }
