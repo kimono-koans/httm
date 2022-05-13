@@ -25,9 +25,11 @@ use crate::utility::paint_string;
 use crate::{Config, PathData};
 
 // 2 space wide padding - used between date and size, and size and path
-const FIXED_WIDTH_PADDING: &str = "  ";
+const PRETTY_FIXED_WIDTH_PADDING: &str = "  ";
 // our FIXED_WIDTH_PADDING is used twice
-const FIXED_WIDTH_PADDING_LEN_X2: usize = FIXED_WIDTH_PADDING.len() * 2;
+const PRETTY_FIXED_WIDTH_PADDING_LEN_X2: usize = PRETTY_FIXED_WIDTH_PADDING.len() * 2;
+// tab padding used in not so pretty
+const NOT_SO_PRETTY_FIXED_WIDTH_PADDING: &str = "\t";
 // and we add 2 quotation marks to the path when we format
 const QUOTATION_MARKS_LEN: usize = 2;
 
@@ -93,7 +95,7 @@ fn display_pretty(
                         display_human_size(pathdata),
                         width = size_padding_len
                     );
-                    let display_padding = FIXED_WIDTH_PADDING.to_owned();
+                    let display_padding = PRETTY_FIXED_WIDTH_PADDING.to_owned();
 
                     // paint the live strings with ls colors - idx == 1 is 2nd or live set
                     let file_path = &pathdata.path_buf;
@@ -114,7 +116,7 @@ fn display_pretty(
                 } else {
                     let pathdata_size = display_human_size(pathdata);
                     let display_path = pathdata.path_buf.to_string_lossy().into_owned();
-                    let display_padding = "\t".to_owned();
+                    let display_padding = NOT_SO_PRETTY_FIXED_WIDTH_PADDING.to_owned();
                     (pathdata_size, display_path, display_padding)
                 };
 
@@ -169,7 +171,7 @@ fn calculate_padding(snaps_and_live_set: &[Vec<PathData>]) -> (usize, String) {
             let formatted_line_len = display_date.len()
                 + display_size.len()
                 + display_path.len()
-                + FIXED_WIDTH_PADDING_LEN_X2
+                + PRETTY_FIXED_WIDTH_PADDING_LEN_X2
                 + QUOTATION_MARKS_LEN;
 
             size_padding_len = display_size_len.max(size_padding_len);
