@@ -42,14 +42,14 @@ pub fn get_unique_deleted(
         vec![NativeDatasetType::MostImmediate]
     };
 
-    let pathdata = PathData::from(requested_dir);
+    let requested_dir_pathdata = PathData::from(requested_dir);
 
     // create vec of all local and replicated backups at once
     //
     // we need to make certain that what we return from possibly multiple datasets are unique
     // as these will be the filenames that populate our interactive views, so deduplicate
     // by filename and latest file version here
-    let unique_deleted: Vec<DirEntry> = vec![&pathdata]
+    let unique_deleted: Vec<DirEntry> = vec![&requested_dir_pathdata]
         .iter()
         .flat_map(|pathdata| {
             selected_datasets
@@ -57,7 +57,9 @@ pub fn get_unique_deleted(
                 .flat_map(|dataset_type| get_search_dirs(config, pathdata, dataset_type))
         })
         .flatten()
-        .flat_map(|search_dirs| get_deleted_per_dataset(&pathdata.path_buf, &search_dirs))
+        .flat_map(|search_dirs| {
+            get_deleted_per_dataset(&requested_dir_pathdata.path_buf, &search_dirs)
+        })
         .flatten()
         .filter_map(|dir_entry| match dir_entry.metadata() {
             Ok(md) => Some((md, dir_entry)),
@@ -81,13 +83,13 @@ pub fn get_unique_deleted(
 }
 
 pub fn get_deleted_per_dataset(
-    path: &Path,
+    requested_dir: &Path,
     search_dirs: &SearchDirs,
 ) -> Result<Vec<DirEntry>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // get all local entries we need to compare against these to know
     // what is a deleted file
     // create a collection of local unique file names
-    let unique_local_filenames: HashMap<OsString, DirEntry> = read_dir(&path)?
+    let unique_local_filenames: HashMap<OsString, DirEntry> = read_dir(&requested_dir)?
         .flatten()
         .map(|dir_entry| (dir_entry.file_name(), dir_entry))
         .collect();
