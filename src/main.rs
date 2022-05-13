@@ -275,6 +275,13 @@ impl Config {
         // here we determine how we will obtain our snap point -- has the user defined it
         // or will we find it by searching the native filesystem?
         let (opt_alt_replicated, snap_point) = if let Some(raw_value) = raw_snap_var {
+            if matches.is_present("ALT_REPLICATED") {
+                return Err(HttmError::new(
+                    "Alternate replicated datasets are not available for search, when the user defines a snap point.",
+                )
+                .into());
+            }
+
             // user defined dir exists?: check that path contains the hidden snapshot directory
             let path = PathBuf::from(raw_value);
             let hidden_snap_dir = path.join(ZFS_HIDDEN_SNAPSHOT_DIRECTORY);
@@ -311,13 +318,6 @@ impl Config {
             } else {
                 pwd.path_buf.clone()
             };
-
-            if matches.is_present("ALT_REPLICATED") {
-                return Err(HttmError::new(
-                    "Alternate replicated datasets are not available for search, when the user defines a snap point.",
-                )
-                .into());
-            }
 
             (
                 // always set opt_alt_replicated to false in UserDefinedDirs mode
