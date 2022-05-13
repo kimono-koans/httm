@@ -27,7 +27,6 @@ use itertools::Itertools;
 use crate::lookup::{get_search_dirs, NativeDatasetType, SearchDirs};
 use crate::{Config, PathData};
 
-#[allow(clippy::manual_map)]
 pub fn get_unique_deleted(
     config: &Config,
     requested_dir: &Path,
@@ -42,6 +41,8 @@ pub fn get_unique_deleted(
         vec![NativeDatasetType::MostImmediate]
     };
 
+    // we always need a requesting dir because we are comparing the files in the
+    // requesting dir to those of their relative dirs on snapshots
     let requested_dir_pathdata = PathData::from(requested_dir);
 
     // create vec of all local and replicated backups at once
@@ -69,6 +70,8 @@ pub fn get_unique_deleted(
             Ok(modify_time) => Some((modify_time, dir_entry)),
             Err(_) => None,
         })
+        // this part right here functions like a hashmap, separate into buckets/groups
+        // by file name, then return the oldest deleted dir entry, or max by its modify time
         .group_by(|(_modify_time, dir_entry)| dir_entry.file_name())
         .into_iter()
         .filter_map(|(_key, group)| {
