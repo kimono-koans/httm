@@ -80,7 +80,7 @@ pub fn enumerate_directory(
 
     let mut spawn_enumerate_deleted = || {
         let config_clone = config.clone();
-        let requested_dir_clone = requested_dir.to_owned();
+        let requested_dir_clone = requested_dir.to_path_buf();
         let tx_item_clone = tx_item.clone();
 
         // thread spawn fn enumerate_directory - permits recursion into dirs without blocking
@@ -287,18 +287,15 @@ fn behind_deleted_dir(
             _ => unreachable!(),
         }
 
-        vec_dirs
-            .into_iter()
-            .map(|dir| dir.file_name().unwrap_or_default().to_owned())
-            .for_each(|dir| {
-                let _ = recurse_behind_deleted_dir(
-                    config.clone(),
-                    tx_item,
-                    Path::new(&dir),
-                    deleted_dir_on_snap,
-                    pseudo_live_dir,
-                );
-            });
+        vec_dirs.into_iter().for_each(|dir| {
+            let _ = recurse_behind_deleted_dir(
+                config.clone(),
+                tx_item,
+                Path::new(dir.file_name().unwrap_or_default()),
+                deleted_dir_on_snap,
+                pseudo_live_dir,
+            );
+        });
 
         Ok(())
     }
