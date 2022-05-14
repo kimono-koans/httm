@@ -18,7 +18,6 @@
 use std::{io::Cursor, path::Path, path::PathBuf, thread, vec};
 
 extern crate skim;
-use rayon::prelude::*;
 use skim::prelude::*;
 
 use crate::display::display_exec;
@@ -108,7 +107,7 @@ pub fn interactive_exec(
     } else {
         // collect string paths from what we get from lookup_view
         browse_view(config)?
-            .into_par_iter()
+            .into_iter()
             .map(|path_string| PathData::from(Path::new(&path_string)))
             .collect::<Vec<PathData>>()
     };

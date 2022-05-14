@@ -23,7 +23,6 @@ use std::{
     sync::Arc,
 };
 
-use itertools::Itertools;
 use rayon::{iter::Either, prelude::*};
 use skim::prelude::*;
 
@@ -178,7 +177,7 @@ fn enumerate_deleted(
     let deleted = get_unique_deleted(&config, requested_dir)?;
 
     let (vec_dirs, vec_files): (Vec<PathBuf>, Vec<PathBuf>) =
-        deleted.into_iter().partition_map(|dir_entry| {
+        deleted.into_par_iter().partition_map(|dir_entry| {
             if httm_is_dir(&dir_entry) {
                 Either::Left(dir_entry.path())
             } else {
@@ -187,7 +186,7 @@ fn enumerate_deleted(
         });
 
     if config.deleted_mode != DeletedMode::DepthOfOne {
-        let _ = vec_dirs.clone().into_iter().try_for_each(|deleted_dir| {
+        let _ = vec_dirs.clone().par_iter().try_for_each(|deleted_dir| {
             behind_deleted_dir(config.clone(), tx_item, &deleted_dir, requested_dir)
         });
     }
@@ -196,7 +195,7 @@ fn enumerate_deleted(
     // which have been found on snapshots, we return to the user "the path that
     // once was" in their browse panel
     let pseudo_live_versions: Vec<PathBuf> = [&vec_dirs, &vec_files]
-        .into_iter()
+        .into_par_iter()
         .flatten()
         .filter_map(|path| path.file_name())
         .map(|file_name| requested_dir.join(file_name))
@@ -238,6 +237,7 @@ fn behind_deleted_dir(
 
         let (vec_dirs, vec_files): (Vec<PathBuf>, Vec<PathBuf>) = read_dir(&deleted_dir_on_snap)?
             .flatten()
+            .par_bridge()
             .partition_map(|dir_entry| {
                 let path_buf = dir_entry.path();
                 if httm_is_dir(&dir_entry) {
@@ -248,7 +248,7 @@ fn behind_deleted_dir(
             });
 
         let pseudo_live_versions: Vec<PathBuf> = [&vec_files, &vec_dirs]
-            .into_iter()
+            .into_par_iter()
             .flatten()
             .filter_map(|path| path.file_name())
             .map(|file_name| pseudo_live_dir.join(file_name))
