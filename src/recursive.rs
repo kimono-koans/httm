@@ -76,19 +76,15 @@ pub fn enumerate_directory(
 
     // need something to hold our threads that we need to wait to have complete,
     // also very helpful in the case we don't don't needs threads as it can be empty
-    let mut vec_handles = Vec::new();
 
-    let mut spawn_enumerate_deleted = || {
+    let spawn_enumerate_deleted = || {
         let config_clone = config.clone();
         let requested_dir_clone = requested_dir.to_path_buf();
         let tx_item_clone = tx_item.clone();
 
         // thread spawn fn enumerate_directory - permits recursion into dirs without blocking
         // or blocking when we choose to block
-        let handle = std::thread::spawn(move || {
-            let _ = enumerate_deleted(config_clone, &requested_dir_clone, &tx_item_clone);
-        });
-        vec_handles.push(handle);
+        let _ = enumerate_deleted(config_clone, &requested_dir_clone, &tx_item_clone);
     };
 
     match config.exec_mode {
@@ -157,13 +153,6 @@ pub fn enumerate_directory(
         });
     }
 
-    // here we make sure to wait until all child threads have exited before returning
-    // this allows the main work of the fn to keep running while while work on deleted
-    // files in the background
-    if !vec_handles.is_empty() {
-        let _ = vec_handles.into_iter().try_for_each(|handle| handle.join());
-    }
-
     Ok(())
 }
 
@@ -185,9 +174,30 @@ fn enumerate_deleted(
             }
         });
 
+    let mut vec_handles = Vec::new();
+
+    let mut spawn_enumerate_deleted = |deleted_dir: PathBuf| {
+        let config_clone = config.clone();
+        let requested_dir_clone = requested_dir.to_path_buf();
+        let tx_item_clone = tx_item.clone();
+
+        // thread spawn fn enumerate_directory - permits recursion into dirs without blocking
+        // or blocking when we choose to block
+        let handle = std::thread::spawn(move || {
+            let _ = behind_deleted_dir(
+                config_clone,
+                &tx_item_clone,
+                &deleted_dir,
+                &requested_dir_clone,
+            );
+        });
+
+        vec_handles.push(handle);
+    };
+
     if config.deleted_mode != DeletedMode::DepthOfOne {
-        let _ = vec_dirs.par_iter().try_for_each(|deleted_dir| {
-            behind_deleted_dir(config.clone(), tx_item, deleted_dir, requested_dir)
+        let _ = vec_dirs.iter().for_each(|deleted_dir| {
+            let _ = spawn_enumerate_deleted(deleted_dir.clone());
         });
     }
 
@@ -204,6 +214,8 @@ fn enumerate_deleted(
     match config.exec_mode {
         ExecMode::Interactive => send_deleted_recursive(config, &pseudo_live_versions, tx_item)?,
         ExecMode::DisplayRecursive => {
+            let _ = vec_handles.into_iter().try_for_each(|handle| handle.join());
+
             if !pseudo_live_versions.is_empty() {
                 if config.opt_recursive {
                     eprintln!();
