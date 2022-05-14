@@ -178,28 +178,24 @@ fn enumerate_deleted(
     // also very helpful in the case we don't don't needs threads as it can be empty
     let mut vec_handles = Vec::new();
 
-    let mut spawn_enumerate_behind_dirs = |deleted_dir: PathBuf| {
-        let config_clone = config.clone();
-        let requested_dir_clone = requested_dir.to_path_buf();
-        let tx_item_clone = tx_item.clone();
-
-        // thread spawn fn enumerate_directory - permits recursion into dirs without blocking
-        // or blocking when we choose to block
-        let handle = std::thread::spawn(move || {
-            let _ = behind_deleted_dir(
-                config_clone,
-                &tx_item_clone,
-                &deleted_dir,
-                &requested_dir_clone,
-            );
-        });
-
-        vec_handles.push(handle);
-    };
-
     if config.deleted_mode != DeletedMode::DepthOfOne {
-        let _ = vec_dirs.iter().for_each(|deleted_dir| {
-            let _ = spawn_enumerate_behind_dirs(deleted_dir.clone());
+        let _ = vec_dirs.clone().into_iter().for_each(|deleted_dir| {
+            let config_clone = config.clone();
+            let requested_dir_clone = requested_dir.to_path_buf();
+            let tx_item_clone = tx_item.clone();
+
+            // thread spawn fn enumerate_directory - permits recursion into dirs without blocking
+            // or blocking when we choose to block
+            let handle = std::thread::spawn(move || {
+                let _ = behind_deleted_dir(
+                    config_clone,
+                    &tx_item_clone,
+                    &deleted_dir,
+                    &requested_dir_clone,
+                );
+            });
+
+            vec_handles.push(handle);
         });
     }
 
@@ -323,7 +319,7 @@ fn send_deleted_recursive(
     pathdata.iter().for_each(|path| {
         let _ = tx_item.send(Arc::new(SelectionCandidate::new(
             config.clone(),
-            path.to_path_buf(),
+            path.to_owned(),
             // know this is_phantom because we know it is deleted
             true,
         )));
