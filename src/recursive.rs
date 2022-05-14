@@ -20,6 +20,7 @@ use std::{
     io::Write,
     path::{Path, PathBuf},
     sync::Arc,
+    ffi::OsStr,
 };
 
 use itertools::Itertools;
@@ -62,7 +63,7 @@ pub fn enumerate_directory(
         // never check the hidden snapshot directory for live files (duh)
         // didn't think this was possible until I saw a SMB share return
         // a .zfs dir entry
-        .filter(|dir_entry| dir_entry.file_name().to_str() != Some(ZFS_HIDDEN_DIRECTORY))
+        .filter(|dir_entry| dir_entry.file_name().as_os_str() != OsStr::new(ZFS_HIDDEN_DIRECTORY))
         // checking file_type on dir entries is always preferable
         // as it is much faster than a metadata call on the path
         .partition_map(|dir_entry| {
