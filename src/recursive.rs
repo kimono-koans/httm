@@ -16,11 +16,11 @@
 // that was distributed with this source code.
 
 use std::{
+    ffi::OsStr,
     fs::read_dir,
     io::Write,
     path::{Path, PathBuf},
     sync::Arc,
-    ffi::OsStr,
 };
 
 use itertools::Itertools;
