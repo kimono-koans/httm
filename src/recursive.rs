@@ -32,7 +32,7 @@ use crate::display::display_exec;
 use crate::interactive::SelectionCandidate;
 use crate::lookup::get_versions;
 use crate::utility::httm_is_dir;
-use crate::{Config, DeletedMode, ExecMode, HttmError, PathData, SnapPoint, ZFS_HIDDEN_DIRECTORY};
+use crate::{Config, DeletedMode, ExecMode, HttmError, PathData, ZFS_HIDDEN_DIRECTORY};
 
 pub fn display_recursive_exec(
     config: &Config,
@@ -161,25 +161,8 @@ pub fn enumerate_directory(
     // here we make sure to wait until all child threads have exited before returning
     // this allows the main work of the fn to keep running while while work on deleted
     // files in the background
-    let join_handles = || {
-        if !vec_handles.is_empty() {
-            let _ = vec_handles.into_iter().try_for_each(|handle| handle.join());
-        }
-    };
-
-    // we do this here because over a slow smb connection it is likely that the thread will back up
-    // and get contended upon one and other, so we wait for all threads to finish before proceeding
-    // on a native system this likely will not happen so we gleefully continue in modes in which it's
-    // okay for the program to exit before the thread is finished (interactive, not display recursive)
-    match config.snap_point {
-        SnapPoint::Native(_) => {
-            if config.exec_mode != ExecMode::Interactive {
-                join_handles();
-            }
-        }
-        SnapPoint::UserDefined(_) => {
-            join_handles();
-        }
+    if !vec_handles.is_empty() {
+        let _ = vec_handles.into_iter().try_for_each(|handle| handle.join());
     }
 
     Ok(())
