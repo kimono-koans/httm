@@ -19,10 +19,12 @@ use std::{
     ffi::OsString,
     fs::{read_dir, DirEntry},
     path::Path,
+    time::SystemTime,
 };
 
 use fxhash::FxHashMap as HashMap;
 use itertools::Itertools;
+use rayon::prelude::*;
 
 use crate::lookup::{get_search_dirs, NativeDatasetType, SearchDirs};
 use crate::{Config, PathData};
@@ -50,11 +52,11 @@ pub fn get_unique_deleted(
     // we need to make certain that what we return from possibly multiple datasets are unique
     // as these will be the filenames that populate our interactive views, so deduplicate
     // by filename and latest file version here
-    let unique_deleted: Vec<DirEntry> = vec![&requested_dir_pathdata]
-        .iter()
+    let prep_deleted: Vec<(SystemTime, DirEntry)> = vec![&requested_dir_pathdata]
+        .into_par_iter()
         .flat_map(|pathdata| {
             selected_datasets
-                .iter()
+                .par_iter()
                 .flat_map(|dataset_type| get_search_dirs(config, pathdata, dataset_type))
         })
         .flatten()
@@ -70,8 +72,11 @@ pub fn get_unique_deleted(
             Ok(modify_time) => Some((modify_time, dir_entry)),
             Err(_) => None,
         })
-        // this part right here functions like a hashmap, separate into buckets/groups
-        // by file name, then return the oldest deleted dir entry, or max by its modify time
+        .collect();
+    // this part right here functions like a hashmap, separate into buckets/groups
+    // by file name, then return the oldest deleted dir entry, or max by its modify time
+    let unique_deleted = prep_deleted
+        .into_iter()
         .group_by(|(_modify_time, dir_entry)| dir_entry.file_name())
         .into_iter()
         .filter_map(|(_key, group)| {
@@ -94,6 +99,7 @@ pub fn get_deleted_per_dataset(
     // create a collection of local unique file names
     let unique_local_filenames: HashMap<OsString, DirEntry> = read_dir(&requested_dir)?
         .flatten()
+        .par_bridge()
         .map(|dir_entry| (dir_entry.file_name(), dir_entry))
         .collect();
 
@@ -102,17 +108,18 @@ pub fn get_deleted_per_dataset(
     let unique_snap_filenames: HashMap<OsString, DirEntry> =
         read_dir(&search_dirs.hidden_snapshot_dir)?
             .flatten()
+            .par_bridge()
             .map(|entry| entry.path())
             .map(|path| path.join(&search_dirs.relative_path))
             .flat_map(|path| read_dir(&path))
-            .flatten()
+            .flatten_iter()
             .flatten()
             .map(|dir_entry| (dir_entry.file_name(), dir_entry))
             .collect();
 
     // compare local filenames to all unique snap filenames - none values are unique here
     let all_deleted_versions: Vec<DirEntry> = unique_snap_filenames
-        .into_iter()
+        .into_par_iter()
         .filter(|(file_name, _)| unique_local_filenames.get(file_name).is_none())
         .map(|(_file_name, dir_entry)| dir_entry)
         .collect();
