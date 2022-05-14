@@ -186,8 +186,8 @@ fn enumerate_deleted(
         });
 
     if config.deleted_mode != DeletedMode::DepthOfOne {
-        let _ = vec_dirs.clone().par_iter().try_for_each(|deleted_dir| {
-            behind_deleted_dir(config.clone(), tx_item, &deleted_dir, requested_dir)
+        let _ = vec_dirs.par_iter().try_for_each(|deleted_dir| {
+            behind_deleted_dir(config.clone(), tx_item, deleted_dir, requested_dir)
         });
     }
 
