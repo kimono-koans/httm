@@ -366,15 +366,10 @@ impl Config {
         // deduplicate pathdata and sort if in display mode --
         // so input of ./.z* and ./.zshrc will only print ./.zshrc once
         paths = if exec_mode == ExecMode::Display && paths.len() > 1 {
-            let unique_paths: HashMap<PathBuf, PathData> = paths
-                .into_par_iter()
-                .map(|pathdata| (pathdata.path_buf.clone(), pathdata))
-                .collect();
+            paths.sort_by_key(|pathdata| pathdata.path_buf.to_owned());
+            paths.dedup_by_key(|pathdata| pathdata.path_buf.to_owned());
 
-            let mut sorted: Vec<PathData> = unique_paths.into_par_iter().map(|(_, v)| v).collect();
-            sorted.par_sort_unstable_by_key(|pathdata| pathdata.path_buf.clone());
-
-            sorted
+            paths
         } else {
             paths
         };
