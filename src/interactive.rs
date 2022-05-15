@@ -16,11 +16,11 @@
 // that was distributed with this source code.
 
 use std::fs::FileType;
-use std::{io::Cursor, path::Path, path::PathBuf, thread, vec, ffi::OsStr};
+use std::{ffi::OsStr, io::Cursor, path::Path, path::PathBuf, thread, vec};
 
 extern crate skim;
-use skim::prelude::*;
 use lscolors::Colorable;
+use skim::prelude::*;
 
 use crate::display::display_exec;
 use crate::lookup::get_versions;
@@ -39,7 +39,12 @@ pub struct SelectionCandidate {
 }
 
 impl SelectionCandidate {
-    pub fn new(config: Arc<Config>, path: PathBuf, file_type: Option<FileType>, is_phantom: bool) -> Self {
+    pub fn new(
+        config: Arc<Config>,
+        path: PathBuf,
+        file_type: Option<FileType>,
+        is_phantom: bool,
+    ) -> Self {
         SelectionCandidate {
             config,
             path,
@@ -54,7 +59,10 @@ impl Colorable for SelectionCandidate {
         self.path.to_owned()
     }
     fn file_name(&self) -> std::ffi::OsString {
-        self.path.file_name().unwrap_or_else(|| OsStr::new("")).to_os_string()
+        self.path
+            .file_name()
+            .unwrap_or_else(|| OsStr::new(""))
+            .to_owned()
     }
     fn file_type(&self) -> Option<FileType> {
         self.file_type
@@ -69,7 +77,7 @@ impl SkimItem for SelectionCandidate {
         self.path.file_name().unwrap_or_default().to_string_lossy()
     }
     fn display<'a>(&'a self, _context: DisplayContext<'a>) -> AnsiString<'a> {
-        AnsiString::parse(&paint_selection_candidate(&self))
+        AnsiString::parse(&paint_selection_candidate(self))
     }
     fn output(&self) -> Cow<str> {
         self.path.to_string_lossy()

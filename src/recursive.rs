@@ -17,13 +17,13 @@
 
 use std::{
     ffi::OsStr,
-    fs::{read_dir, DirEntry},
+    fs::{read_dir, DirEntry, FileType},
     io::Write,
     path::{Path, PathBuf},
     sync::Arc,
 };
 
-use rayon::{iter::Either, prelude::*};
+use rayon::prelude::*;
 use skim::prelude::*;
 
 use crate::deleted::get_unique_deleted;
@@ -71,7 +71,7 @@ pub fn enumerate_directory(
         let config_clone = config.clone();
         let requested_dir_clone = requested_dir.to_path_buf();
         let tx_item_clone = tx_item.clone();
-        
+
         let _ = enumerate_deleted(config_clone, &requested_dir_clone, &tx_item_clone);
     };
 
@@ -106,15 +106,11 @@ pub fn enumerate_directory(
                     // spawn_enumerate_deleted will send deleted files back to
                     // the main thread for us, so we can skip collecting a
                     // vec_deleted here
-                    [&vec_files, &vec_dirs]
-                        .into_par_iter()
-                        .flatten()
-                        .collect()
+                    [&vec_files, &vec_dirs].into_par_iter().flatten().collect()
                 }
-                DeletedMode::Disabled => [&vec_files, &vec_dirs]
-                    .into_par_iter()
-                    .flatten()
-                    .collect(),
+                DeletedMode::Disabled => {
+                    [&vec_files, &vec_dirs].into_par_iter().flatten().collect()
+                }
             };
 
             // don't want a par_iter here because it will block and wait for all
@@ -152,48 +148,49 @@ fn enumerate_deleted(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let deleted = get_unique_deleted(&config, requested_dir)?;
 
-    let (vec_dirs, vec_files): (Vec<PathBuf>, Vec<PathBuf>) =
-        deleted.into_par_iter().partition_map(|dir_entry| {
-            if httm_is_dir(&dir_entry) {
-                Either::Left(dir_entry.path())
-            } else {
-                Either::Right(dir_entry.path())
-            }
-        });
+    let (vec_dirs, vec_files): (Vec<DirEntry>, Vec<DirEntry>) = deleted
+        .into_par_iter()
+        .partition(|dir_entry| httm_is_dir(dir_entry));
 
     // need something to hold our thread handles that we need to wait to complete,
     // also very helpful in the case we don't don't needs threads as it can be empty
     let mut vec_handles = Vec::new();
 
     if config.deleted_mode != DeletedMode::DepthOfOne {
-        let _ = vec_dirs.clone().into_iter().for_each(|deleted_dir| {
-            let config_clone = config.clone();
-            let requested_dir_clone = requested_dir.to_path_buf();
-            let tx_item_clone = tx_item.clone();
+        let _ = &vec_dirs
+            .iter()
+            .map(|dir_entry| dir_entry.path())
+            .for_each(|deleted_dir| {
+                let config_clone = config.clone();
+                let requested_dir_clone = requested_dir.to_path_buf();
+                let tx_item_clone = tx_item.clone();
 
-            // thread spawn fn enumerate_directory - permits recursion into dirs without blocking
-            // or blocking when we choose to block
-            let handle = std::thread::spawn(move || {
-                let _ = behind_deleted_dir(
-                    config_clone,
-                    &tx_item_clone,
-                    &deleted_dir,
-                    &requested_dir_clone,
-                );
+                // thread spawn fn enumerate_directory - permits recursion into dirs without blocking
+                // or blocking when we choose to block
+                let handle = std::thread::spawn(move || {
+                    let _ = behind_deleted_dir(
+                        config_clone,
+                        &tx_item_clone,
+                        &deleted_dir,
+                        &requested_dir_clone,
+                    );
+                });
+
+                vec_handles.push(handle);
             });
-
-            vec_handles.push(handle);
-        });
     }
 
     // these are dummy "live versions" values generated to match deleted files
     // which have been found on snapshots, we return to the user "the path that
     // once was" in their browse panel
-    let pseudo_live_versions: Vec<PathBuf> = [&vec_dirs, &vec_files]
+    let pseudo_live_versions: Vec<(PathBuf, FileType)> = [&vec_dirs, &vec_files]
         .into_par_iter()
         .flatten()
-        .filter_map(|path| path.file_name())
-        .map(|file_name| requested_dir.join(file_name))
+        .filter_map(|dir_entry| match dir_entry.file_type() {
+            Ok(ft) => Some((dir_entry.file_name(), ft)),
+            Err(_) => None,
+        })
+        .map(|(file_name, file_type)| (requested_dir.join(file_name), file_type))
         .collect();
 
     match config.exec_mode {
@@ -235,23 +232,19 @@ fn behind_deleted_dir(
         let deleted_dir_on_snap = &from_deleted_dir.to_path_buf().join(&dir_name);
         let pseudo_live_dir = &from_requested_dir.to_path_buf().join(&dir_name);
 
-        let (vec_dirs, vec_files): (Vec<PathBuf>, Vec<PathBuf>) = read_dir(&deleted_dir_on_snap)?
+        let (vec_dirs, vec_files): (Vec<DirEntry>, Vec<DirEntry>) = read_dir(&deleted_dir_on_snap)?
             .flatten()
             .par_bridge()
-            .partition_map(|dir_entry| {
-                let path_buf = dir_entry.path();
-                if httm_is_dir(&dir_entry) {
-                    Either::Left(path_buf)
-                } else {
-                    Either::Right(path_buf)
-                }
-            });
+            .partition(|dir_entry| httm_is_dir(dir_entry));
 
-        let pseudo_live_versions: Vec<PathBuf> = [&vec_files, &vec_dirs]
+        let pseudo_live_versions: Vec<(PathBuf, FileType)> = [&vec_files, &vec_dirs]
             .into_par_iter()
             .flatten()
-            .filter_map(|path| path.file_name())
-            .map(|file_name| pseudo_live_dir.join(file_name))
+            .filter_map(|dir_entry| match dir_entry.file_type() {
+                Ok(ft) => Some((dir_entry.file_name(), ft)),
+                Err(_) => None,
+            })
+            .map(|(file_name, ft)| (pseudo_live_dir.join(file_name), ft))
             .collect();
 
         match config.exec_mode {
@@ -275,7 +268,7 @@ fn behind_deleted_dir(
             let _ = recurse_behind_deleted_dir(
                 config.clone(),
                 tx_item,
-                Path::new(dir.file_name().unwrap_or_default()),
+                Path::new(&dir.file_name()),
                 deleted_dir_on_snap,
                 pseudo_live_dir,
             );
@@ -300,17 +293,14 @@ fn behind_deleted_dir(
 
 fn send_deleted_recursive(
     config: Arc<Config>,
-    pathdata: &[PathBuf],
+    pathdata: &[(PathBuf, FileType)],
     tx_item: &SkimItemSender,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    pathdata.iter().for_each(|path| {
+    pathdata.iter().for_each(|(path, ft)| {
         let _ = tx_item.send(Arc::new(SelectionCandidate::new(
             config.clone(),
             path.to_owned(),
-            match path.symlink_metadata() {
-                Ok(md) => Some(md.file_type()),
-                Err(_) => None,
-            },
+            Some(*ft),
             // know this is_phantom because we know it is deleted
             true,
         )));
@@ -320,11 +310,11 @@ fn send_deleted_recursive(
 
 fn print_deleted_recursive(
     config: Arc<Config>,
-    path_buf_set: &[PathBuf],
+    path_buf_set: &[(PathBuf, FileType)],
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let pseudo_live_set: Vec<PathData> = path_buf_set
         .iter()
-        .map(|path| PathData::from(path.as_path()))
+        .map(|(path, _ft)| PathData::from(path.as_path()))
         .collect();
 
     let snaps_and_live_set = get_versions(&config, &pseudo_live_set)?;

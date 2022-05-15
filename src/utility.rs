@@ -23,9 +23,9 @@ use std::{
     time::SystemTime,
 };
 
-use chrono::{DateTime, Local};
-use lscolors::{LsColors, Style, Colorable};
 use crate::interactive::SelectionCandidate;
+use chrono::{DateTime, Local};
+use lscolors::{Colorable, LsColors, Style};
 
 pub fn timestamp_file(system_time: &SystemTime) -> String {
     let date_time: DateTime<Local> = system_time.to_owned().into();
@@ -55,17 +55,37 @@ pub fn paint_selection_candidate<'a>(selection_candidate: &SelectionCandidate) -
 
     if let Some(style) = ls_colors.style_for(selection_candidate) {
         let ansi_style = &Style::to_ansi_term_style(style);
-        Cow::Owned(ansi_style.paint(selection_candidate.file_name()).to_string_lossy().to_string())
+        Cow::Owned(
+            ansi_style
+                .paint(selection_candidate.file_name())
+                .to_string_lossy()
+                .to_string(),
+        )
     } else if !selection_candidate.is_phantom {
         // if a non-phantom file that should not be colored (regular files)
-        Cow::Owned(selection_candidate.file_name().to_string_lossy().to_string())
+        Cow::Owned(
+            selection_candidate
+                .file_name()
+                .to_string_lossy()
+                .to_string(),
+        )
     } else if let Some(style) = &Style::from_ansi_sequence("38;2;250;200;200;1;0") {
-        // paint all phantoms/deleted files the same color, light pink
+        // paint all other phantoms/deleted files the same color, light pink
         let ansi_style = &Style::to_ansi_term_style(style);
-        Cow::Owned(ansi_style.paint(selection_candidate.file_name()).to_string_lossy().to_string())
+        Cow::Owned(
+            ansi_style
+                .paint(selection_candidate.file_name())
+                .to_string_lossy()
+                .to_string(),
+        )
     } else {
         // just in case if all else fails
-        Cow::Owned(selection_candidate.file_name().to_string_lossy().to_string())
+        Cow::Owned(
+            selection_candidate
+                .file_name()
+                .to_string_lossy()
+                .to_string(),
+        )
     }
 }
 
