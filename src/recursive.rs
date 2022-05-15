@@ -17,13 +17,13 @@
 
 use std::{
     ffi::OsStr,
-    fs::{read_dir, DirEntry, FileType},
+    fs::{read_dir, FileType},
     io::Write,
     path::{Path, PathBuf},
     sync::Arc,
 };
 
-use rayon::prelude::*;
+use rayon::{iter::Either, prelude::*};
 use skim::prelude::*;
 
 use crate::deleted::get_unique_deleted;
@@ -51,12 +51,17 @@ pub fn display_recursive_exec(
     std::process::exit(0)
 }
 
+struct PathAndMaybeFileType {
+    path: PathBuf,
+    file_type: Option<FileType>,
+}
+
 pub fn enumerate_directory(
     config: Arc<Config>,
     tx_item: &SkimItemSender,
     requested_dir: &Path,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let (vec_dirs, vec_files): (Vec<DirEntry>, Vec<DirEntry>) = read_dir(&requested_dir)?
+    let (vec_dirs, vec_files): (Vec<PathAndMaybeFileType>, Vec<PathAndMaybeFileType>) = read_dir(&requested_dir)?
         .flatten()
         .par_bridge()
         // never check the hidden snapshot directory for live files (duh)
@@ -65,7 +70,19 @@ pub fn enumerate_directory(
         .filter(|dir_entry| dir_entry.file_name().as_os_str() != OsStr::new(ZFS_HIDDEN_DIRECTORY))
         // checking file_type on dir entries is always preferable
         // as it is much faster than a metadata call on the path
-        .partition(|dir_entry| httm_is_dir(dir_entry));
+        .partition_map(|dir_entry| 
+            if httm_is_dir(&dir_entry) {
+                Either::Left(PathAndMaybeFileType {
+                    path: dir_entry.path(),
+                    file_type: dir_entry.file_type().ok(),
+                })
+            } else {
+                Either::Right(PathAndMaybeFileType {
+                    path: dir_entry.path(),
+                    file_type: dir_entry.file_type().ok(),
+                })
+            }
+        );
 
     let spawn_enumerate_deleted = || {
         let config_clone = config.clone();
@@ -93,7 +110,7 @@ pub fn enumerate_directory(
         }
         ExecMode::Interactive => {
             // combine dirs and files into a vec and sort to display
-            let combined_vec: Vec<&DirEntry> = match config.deleted_mode {
+            let combined_vec: Vec<&PathAndMaybeFileType> = match config.deleted_mode {
                 DeletedMode::Only => {
                     spawn_enumerate_deleted();
                     // spawn_enumerate_deleted will send deleted files back to
@@ -115,11 +132,11 @@ pub fn enumerate_directory(
 
             // don't want a par_iter here because it will block and wait for all
             // results, instead of printing and recursing into the subsequent dirs
-            combined_vec.iter().for_each(|dir_entry| {
+            combined_vec.iter().for_each(|path_and_maybe_file_type| {
                 let _ = tx_item.send(Arc::new(SelectionCandidate::new(
                     config.clone(),
-                    dir_entry.path(),
-                    dir_entry.file_type().ok(),
+                    path_and_maybe_file_type.path.to_owned(),
+                    path_and_maybe_file_type.file_type,
                     // know this is non-phantom because obtained through dir entry
                     false,
                 )));
@@ -132,7 +149,7 @@ pub fn enumerate_directory(
         // don't want a par_iter here because it will block and wait for all
         // results, instead of printing and recursing into the subsequent dirs
         vec_dirs.iter().for_each(|requested_dir| {
-            let _ = enumerate_directory(config.clone(), tx_item, &requested_dir.path());
+            let _ = enumerate_directory(config.clone(), tx_item, &requested_dir.path);
         });
     }
 
@@ -148,9 +165,20 @@ fn enumerate_deleted(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let deleted = get_unique_deleted(&config, requested_dir)?;
 
-    let (vec_dirs, vec_files): (Vec<DirEntry>, Vec<DirEntry>) = deleted
+    let (vec_dirs, vec_files): (Vec<PathAndMaybeFileType>, Vec<PathAndMaybeFileType>) = deleted
         .into_par_iter()
-        .partition(|dir_entry| httm_is_dir(dir_entry));
+        .partition_map(|dir_entry| 
+        if httm_is_dir(&dir_entry) {
+            Either::Left(PathAndMaybeFileType {
+                path: dir_entry.path(),
+                file_type: dir_entry.file_type().ok(),
+            })
+        } else {
+            Either::Right(PathAndMaybeFileType {
+                path: dir_entry.path(),
+                file_type: dir_entry.file_type().ok(),
+            })
+        });
 
     // need something to hold our thread handles that we need to wait to complete,
     // also very helpful in the case we don't don't needs threads as it can be empty
@@ -159,7 +187,7 @@ fn enumerate_deleted(
     if config.deleted_mode != DeletedMode::DepthOfOne {
         let _ = &vec_dirs
             .iter()
-            .map(|dir_entry| dir_entry.path())
+            .map(|path_and_maybe_file_type| path_and_maybe_file_type.path.to_owned())
             .for_each(|deleted_dir| {
                 let config_clone = config.clone();
                 let requested_dir_clone = requested_dir.to_path_buf();
@@ -183,14 +211,20 @@ fn enumerate_deleted(
     // these are dummy "live versions" values generated to match deleted files
     // which have been found on snapshots, we return to the user "the path that
     // once was" in their browse panel
-    let pseudo_live_versions: Vec<(PathBuf, FileType)> = [&vec_dirs, &vec_files]
+    let pseudo_live_versions: Vec<PathAndMaybeFileType> = [&vec_dirs, &vec_files]
         .into_par_iter()
         .flatten()
-        .filter_map(|dir_entry| match dir_entry.file_type() {
-            Ok(ft) => Some((dir_entry.file_name(), ft)),
-            Err(_) => None,
-        })
-        .map(|(file_name, file_type)| (requested_dir.join(file_name), file_type))
+        .filter_map(|path_and_maybe_file_type| 
+            match path_and_maybe_file_type.path.file_name() {
+                Some(file_name) => {
+                    Some(PathAndMaybeFileType {
+                        path: requested_dir.join(file_name), 
+                        file_type: path_and_maybe_file_type.file_type,
+                    })
+                },
+                None => None,
+            }
+        )
         .collect();
 
     match config.exec_mode {
@@ -232,19 +266,37 @@ fn behind_deleted_dir(
         let deleted_dir_on_snap = &from_deleted_dir.to_path_buf().join(&dir_name);
         let pseudo_live_dir = &from_requested_dir.to_path_buf().join(&dir_name);
 
-        let (vec_dirs, vec_files): (Vec<DirEntry>, Vec<DirEntry>) = read_dir(&deleted_dir_on_snap)?
+        let (vec_dirs, vec_files): (Vec<PathAndMaybeFileType>, Vec<PathAndMaybeFileType>) = read_dir(&deleted_dir_on_snap)?
             .flatten()
             .par_bridge()
-            .partition(|dir_entry| httm_is_dir(dir_entry));
+            .partition_map(|dir_entry| 
+                if httm_is_dir(&dir_entry) {
+                    Either::Left(PathAndMaybeFileType {
+                        path: dir_entry.path(),
+                        file_type: dir_entry.file_type().ok(),
+                    })
+                } else {
+                    Either::Right(PathAndMaybeFileType {
+                        path: dir_entry.path(),
+                        file_type: dir_entry.file_type().ok(),
+                    })
+                }
+            );
 
-        let pseudo_live_versions: Vec<(PathBuf, FileType)> = [&vec_files, &vec_dirs]
+        let pseudo_live_versions: Vec<PathAndMaybeFileType> = [&vec_files, &vec_dirs]
             .into_par_iter()
             .flatten()
-            .filter_map(|dir_entry| match dir_entry.file_type() {
-                Ok(ft) => Some((dir_entry.file_name(), ft)),
-                Err(_) => None,
-            })
-            .map(|(file_name, ft)| (pseudo_live_dir.join(file_name), ft))
+            .filter_map(|path_and_maybe_file_type| 
+                match path_and_maybe_file_type.path.file_name() {
+                    Some(file_name) => {
+                        Some(PathAndMaybeFileType {
+                            path: pseudo_live_dir.join(file_name), 
+                            file_type: path_and_maybe_file_type.file_type,
+                        })
+                    },
+                    None => None,
+                }
+            )
             .collect();
 
         match config.exec_mode {
@@ -264,11 +316,14 @@ fn behind_deleted_dir(
             _ => unreachable!(),
         }
 
-        vec_dirs.into_iter().for_each(|dir| {
+        vec_dirs
+            .into_iter()
+            .filter(|path_and_maybe_file_type| path_and_maybe_file_type.path.file_name().is_some())
+            .for_each(|path_and_maybe_file_type| {
             let _ = recurse_behind_deleted_dir(
                 config.clone(),
                 tx_item,
-                Path::new(&dir.file_name()),
+                Path::new(path_and_maybe_file_type.path.file_name().unwrap()),
                 deleted_dir_on_snap,
                 pseudo_live_dir,
             );
@@ -293,14 +348,14 @@ fn behind_deleted_dir(
 
 fn send_deleted_recursive(
     config: Arc<Config>,
-    pathdata: &[(PathBuf, FileType)],
+    pathdata: &[PathAndMaybeFileType],
     tx_item: &SkimItemSender,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    pathdata.iter().for_each(|(path, ft)| {
+    pathdata.iter().for_each(|path_and_maybe_file_type| {
         let _ = tx_item.send(Arc::new(SelectionCandidate::new(
             config.clone(),
-            path.to_owned(),
-            Some(*ft),
+            path_and_maybe_file_type.path.to_owned(),
+            path_and_maybe_file_type.file_type,
             // know this is_phantom because we know it is deleted
             true,
         )));
@@ -310,11 +365,11 @@ fn send_deleted_recursive(
 
 fn print_deleted_recursive(
     config: Arc<Config>,
-    path_buf_set: &[(PathBuf, FileType)],
+    path_buf_set: &[PathAndMaybeFileType],
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let pseudo_live_set: Vec<PathData> = path_buf_set
         .iter()
-        .map(|(path, _ft)| PathData::from(path.as_path()))
+        .map(|path_and_maybe_file_type| PathData::from(path_and_maybe_file_type.path.as_path()))
         .collect();
 
     let snaps_and_live_set = get_versions(&config, &pseudo_live_set)?;
