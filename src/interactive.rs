@@ -15,33 +15,52 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::{io::Cursor, path::Path, path::PathBuf, thread, vec};
+use std::fs::FileType;
+use std::{io::Cursor, path::Path, path::PathBuf, thread, vec, ffi::OsStr};
 
 extern crate skim;
 use skim::prelude::*;
+use lscolors::Colorable;
 
 use crate::display::display_exec;
 use crate::lookup::get_versions;
 use crate::recursive::enumerate_directory;
-use crate::utility::{copy_recursive, paint_string, timestamp_file};
+use crate::utility::{copy_recursive, paint_selection_candidate, timestamp_file};
 use crate::{
     Config, DeletedMode, ExecMode, HttmError, InteractiveMode, PathData,
     ZFS_HIDDEN_SNAPSHOT_DIRECTORY,
 };
 
 pub struct SelectionCandidate {
-    config: Arc<Config>,
-    path: PathBuf,
-    is_phantom: bool,
+    pub config: Arc<Config>,
+    pub path: PathBuf,
+    pub file_type: Option<FileType>,
+    pub is_phantom: bool,
 }
 
 impl SelectionCandidate {
-    pub fn new(config: Arc<Config>, path: PathBuf, is_phantom: bool) -> Self {
+    pub fn new(config: Arc<Config>, path: PathBuf, file_type: Option<FileType>, is_phantom: bool) -> Self {
         SelectionCandidate {
             config,
             path,
+            file_type,
             is_phantom,
         }
+    }
+}
+
+impl Colorable for SelectionCandidate {
+    fn path(&self) -> PathBuf {
+        self.path.to_owned()
+    }
+    fn file_name(&self) -> std::ffi::OsString {
+        self.path.file_name().unwrap_or_else(|| OsStr::new("")).to_os_string()
+    }
+    fn file_type(&self) -> Option<FileType> {
+        self.file_type
+    }
+    fn metadata(&self) -> Option<std::fs::Metadata> {
+        self.path.symlink_metadata().ok()
     }
 }
 
@@ -50,17 +69,7 @@ impl SkimItem for SelectionCandidate {
         self.path.file_name().unwrap_or_default().to_string_lossy()
     }
     fn display<'a>(&'a self, _context: DisplayContext<'a>) -> AnsiString<'a> {
-        // println!("{:?}", &self.path);
-        // println!("{:?}", &self.config.pwd.path_buf);
-        AnsiString::parse(&paint_string(
-            &self.path,
-            &self
-                .path
-                .strip_prefix(&self.config.requested_dir.path_buf)
-                .unwrap_or_else(|_| Path::new("/"))
-                .to_string_lossy(),
-            self.is_phantom,
-        ))
+        AnsiString::parse(&paint_selection_candidate(&self))
     }
     fn output(&self) -> Cow<str> {
         self.path.to_string_lossy()

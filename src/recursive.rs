@@ -17,7 +17,7 @@
 
 use std::{
     ffi::OsStr,
-    fs::read_dir,
+    fs::{read_dir, DirEntry},
     io::Write,
     path::{Path, PathBuf},
     sync::Arc,
@@ -56,7 +56,7 @@ pub fn enumerate_directory(
     tx_item: &SkimItemSender,
     requested_dir: &Path,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let (vec_dirs, vec_files): (Vec<PathBuf>, Vec<PathBuf>) = read_dir(&requested_dir)?
+    let (vec_dirs, vec_files): (Vec<DirEntry>, Vec<DirEntry>) = read_dir(&requested_dir)?
         .flatten()
         .par_bridge()
         // never check the hidden snapshot directory for live files (duh)
@@ -65,25 +65,13 @@ pub fn enumerate_directory(
         .filter(|dir_entry| dir_entry.file_name().as_os_str() != OsStr::new(ZFS_HIDDEN_DIRECTORY))
         // checking file_type on dir entries is always preferable
         // as it is much faster than a metadata call on the path
-        .partition_map(|dir_entry| {
-            let path = dir_entry.path();
-            if httm_is_dir(&dir_entry) {
-                Either::Left(path)
-            } else {
-                Either::Right(path)
-            }
-        });
-
-    // need something to hold our threads that we need to wait to have complete,
-    // also very helpful in the case we don't don't needs threads as it can be empty
+        .partition(|dir_entry| httm_is_dir(dir_entry));
 
     let spawn_enumerate_deleted = || {
         let config_clone = config.clone();
         let requested_dir_clone = requested_dir.to_path_buf();
         let tx_item_clone = tx_item.clone();
-
-        // thread spawn fn enumerate_directory - permits recursion into dirs without blocking
-        // or blocking when we choose to block
+        
         let _ = enumerate_deleted(config_clone, &requested_dir_clone, &tx_item_clone);
     };
 
@@ -105,7 +93,7 @@ pub fn enumerate_directory(
         }
         ExecMode::Interactive => {
             // combine dirs and files into a vec and sort to display
-            let combined_vec: Vec<PathBuf> = match config.deleted_mode {
+            let combined_vec: Vec<&DirEntry> = match config.deleted_mode {
                 DeletedMode::Only => {
                     spawn_enumerate_deleted();
                     // spawn_enumerate_deleted will send deleted files back to
@@ -121,22 +109,21 @@ pub fn enumerate_directory(
                     [&vec_files, &vec_dirs]
                         .into_par_iter()
                         .flatten()
-                        .cloned()
                         .collect()
                 }
                 DeletedMode::Disabled => [&vec_files, &vec_dirs]
                     .into_par_iter()
                     .flatten()
-                    .cloned()
                     .collect(),
             };
 
             // don't want a par_iter here because it will block and wait for all
             // results, instead of printing and recursing into the subsequent dirs
-            combined_vec.iter().for_each(|path| {
+            combined_vec.iter().for_each(|dir_entry| {
                 let _ = tx_item.send(Arc::new(SelectionCandidate::new(
                     config.clone(),
-                    path.to_path_buf(),
+                    dir_entry.path(),
+                    dir_entry.file_type().ok(),
                     // know this is non-phantom because obtained through dir entry
                     false,
                 )));
@@ -149,7 +136,7 @@ pub fn enumerate_directory(
         // don't want a par_iter here because it will block and wait for all
         // results, instead of printing and recursing into the subsequent dirs
         vec_dirs.iter().for_each(|requested_dir| {
-            let _ = enumerate_directory(config.clone(), tx_item, requested_dir);
+            let _ = enumerate_directory(config.clone(), tx_item, &requested_dir.path());
         });
     }
 
@@ -320,6 +307,10 @@ fn send_deleted_recursive(
         let _ = tx_item.send(Arc::new(SelectionCandidate::new(
             config.clone(),
             path.to_owned(),
+            match path.symlink_metadata() {
+                Ok(md) => Some(md.file_type()),
+                Err(_) => None,
+            },
             // know this is_phantom because we know it is deleted
             true,
         )));
