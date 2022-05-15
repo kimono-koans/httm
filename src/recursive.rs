@@ -65,16 +65,14 @@ pub fn enumerate_directory(
             // checking file_type on dir entries is always preferable
             // as it is much faster than a metadata call on the path
             .partition_map(|dir_entry| {
+                let res = PathAndMaybeFileType {
+                    path: dir_entry.path(),
+                    file_type: dir_entry.file_type().ok(),
+                };
                 if httm_is_dir(&dir_entry) {
-                    Either::Left(PathAndMaybeFileType {
-                        path: dir_entry.path(),
-                        file_type: dir_entry.file_type().ok(),
-                    })
+                    Either::Left(res)
                 } else {
-                    Either::Right(PathAndMaybeFileType {
-                        path: dir_entry.path(),
-                        file_type: dir_entry.file_type().ok(),
-                    })
+                    Either::Right(res)
                 }
             });
 
@@ -252,16 +250,14 @@ fn behind_deleted_dir(
                 .flatten()
                 .par_bridge()
                 .partition_map(|dir_entry| {
+                    let res = PathAndMaybeFileType {
+                        path: dir_entry.path(),
+                        file_type: dir_entry.file_type().ok(),
+                    };
                     if httm_is_dir(&dir_entry) {
-                        Either::Left(PathAndMaybeFileType {
-                            path: dir_entry.path(),
-                            file_type: dir_entry.file_type().ok(),
-                        })
+                        Either::Left(res)
                     } else {
-                        Either::Right(PathAndMaybeFileType {
-                            path: dir_entry.path(),
-                            file_type: dir_entry.file_type().ok(),
-                        })
+                        Either::Right(res)
                     }
                 });
 

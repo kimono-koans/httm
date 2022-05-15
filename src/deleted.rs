@@ -47,51 +47,45 @@ pub fn get_unique_deleted(
     // we need to make certain that what we return from possibly multiple datasets are unique
     // as these will be the filenames that populate our interactive views, so deduplicate
     // by filename and latest file version here
-    let prep_deleted: Vec<(SystemTime, PathAndMaybeFileType)> = vec![&requested_dir_pathdata]
-        .into_par_iter()
-        .flat_map(|pathdata| {
-            selected_datasets
-                .par_iter()
-                .flat_map(|dataset_type| get_search_dirs(config, pathdata, dataset_type))
-        })
-        .flatten()
-        .flat_map(|search_dirs| {
-            get_deleted_per_dataset(&requested_dir_pathdata.path_buf, &search_dirs)
-        })
-        .flatten()
-        .filter_map(|path_and_maybe_file_type| {
-            match path_and_maybe_file_type.path.symlink_metadata() {
-                Ok(md) => Some((md, path_and_maybe_file_type)),
-                Err(_) => None,
-            }
-        })
-        .filter_map(|(md, path_and_maybe_file_type)| match md.modified() {
-            Ok(modify_time) => Some((modify_time, path_and_maybe_file_type)),
-            Err(_) => None,
-        })
-        .collect();
+    let prep_deleted: Vec<(SystemTime, OsString, PathAndMaybeFileType)> =
+        vec![&requested_dir_pathdata]
+            .into_par_iter()
+            .flat_map(|pathdata| {
+                selected_datasets
+                    .par_iter()
+                    .flat_map(|dataset_type| get_search_dirs(config, pathdata, dataset_type))
+            })
+            .flatten()
+            .flat_map(|search_dirs| {
+                get_deleted_per_dataset(&requested_dir_pathdata.path_buf, &search_dirs)
+            })
+            .flatten()
+            .filter_map(|(file_name, path_and_maybe_file_type)| {
+                match path_and_maybe_file_type.path.symlink_metadata() {
+                    Ok(md) => Some((md, file_name, path_and_maybe_file_type)),
+                    Err(_) => None,
+                }
+            })
+            .filter_map(
+                |(md, file_name, path_and_maybe_file_type)| match md.modified() {
+                    Ok(modify_time) => Some((modify_time, file_name, path_and_maybe_file_type)),
+                    Err(_) => None,
+                },
+            )
+            .collect();
 
     // this part right here functions like a hashmap, separate into buckets/groups
     // by file name, then return the oldest deleted dir entry, or max by its modify time
-    let unique_deleted = prep_deleted
+    let unique_deleted: Vec<PathAndMaybeFileType> = prep_deleted
         .into_iter()
-        .filter(|(_modify_time, path_and_maybe_file_type)| {
-            path_and_maybe_file_type.path.file_name().is_some()
-        })
-        .group_by(|(_modify_time, path_and_maybe_file_type)| {
-            path_and_maybe_file_type
-                .path
-                .file_name()
-                .unwrap()
-                .to_owned()
-        })
+        .group_by(|(_modify_time, file_name, _path_and_maybe_file_type)| file_name.clone())
         .into_iter()
         .filter_map(|(_key, group)| {
             group
                 .into_iter()
-                .max_by_key(|(modify_time, _dir_entry)| *modify_time)
+                .max_by_key(|(modify_time, _file_name, _path_and_maybe_file_type)| *modify_time)
         })
-        .map(|(_modify_time, path_and_maybe_file_type)| path_and_maybe_file_type)
+        .map(|(_modify_time, _file_name, path_and_maybe_file_type)| path_and_maybe_file_type)
         .collect();
 
     Ok(unique_deleted)
@@ -100,7 +94,8 @@ pub fn get_unique_deleted(
 pub fn get_deleted_per_dataset(
     requested_dir: &Path,
     search_dirs: &SearchDirs,
-) -> Result<Vec<PathAndMaybeFileType>, Box<dyn std::error::Error + Send + Sync + 'static>> {
+) -> Result<Vec<(OsString, PathAndMaybeFileType)>, Box<dyn std::error::Error + Send + Sync + 'static>>
+{
     // get all local entries we need to compare against these to know
     // what is a deleted file
     // create a collection of local unique file names
@@ -141,10 +136,9 @@ pub fn get_deleted_per_dataset(
             .collect();
 
     // compare local filenames to all unique snap filenames - none values are unique here
-    let all_deleted_versions: Vec<PathAndMaybeFileType> = unique_snap_filenames
+    let all_deleted_versions: Vec<(OsString, PathAndMaybeFileType)> = unique_snap_filenames
         .into_par_iter()
         .filter(|(file_name, _)| unique_local_filenames.get(file_name).is_none())
-        .map(|(_file_name, path_and_maybe_file_type)| path_and_maybe_file_type)
         .collect();
 
     Ok(all_deleted_versions)
