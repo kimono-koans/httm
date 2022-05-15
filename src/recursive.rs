@@ -61,28 +61,31 @@ pub fn enumerate_directory(
     tx_item: &SkimItemSender,
     requested_dir: &Path,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let (vec_dirs, vec_files): (Vec<PathAndMaybeFileType>, Vec<PathAndMaybeFileType>) = read_dir(&requested_dir)?
-        .flatten()
-        .par_bridge()
-        // never check the hidden snapshot directory for live files (duh)
-        // didn't think this was possible until I saw a SMB share return
-        // a .zfs dir entry
-        .filter(|dir_entry| dir_entry.file_name().as_os_str() != OsStr::new(ZFS_HIDDEN_DIRECTORY))
-        // checking file_type on dir entries is always preferable
-        // as it is much faster than a metadata call on the path
-        .partition_map(|dir_entry| 
-            if httm_is_dir(&dir_entry) {
-                Either::Left(PathAndMaybeFileType {
-                    path: dir_entry.path(),
-                    file_type: dir_entry.file_type().ok(),
-                })
-            } else {
-                Either::Right(PathAndMaybeFileType {
-                    path: dir_entry.path(),
-                    file_type: dir_entry.file_type().ok(),
-                })
-            }
-        );
+    let (vec_dirs, vec_files): (Vec<PathAndMaybeFileType>, Vec<PathAndMaybeFileType>) =
+        read_dir(&requested_dir)?
+            .flatten()
+            .par_bridge()
+            // never check the hidden snapshot directory for live files (duh)
+            // didn't think this was possible until I saw a SMB share return
+            // a .zfs dir entry
+            .filter(|dir_entry| {
+                dir_entry.file_name().as_os_str() != OsStr::new(ZFS_HIDDEN_DIRECTORY)
+            })
+            // checking file_type on dir entries is always preferable
+            // as it is much faster than a metadata call on the path
+            .partition_map(|dir_entry| {
+                if httm_is_dir(&dir_entry) {
+                    Either::Left(PathAndMaybeFileType {
+                        path: dir_entry.path(),
+                        file_type: dir_entry.file_type().ok(),
+                    })
+                } else {
+                    Either::Right(PathAndMaybeFileType {
+                        path: dir_entry.path(),
+                        file_type: dir_entry.file_type().ok(),
+                    })
+                }
+            });
 
     let spawn_enumerate_deleted = || {
         let config_clone = config.clone();
@@ -165,19 +168,19 @@ fn enumerate_deleted(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let deleted = get_unique_deleted(&config, requested_dir)?;
 
-    let (vec_dirs, vec_files): (Vec<PathAndMaybeFileType>, Vec<PathAndMaybeFileType>) = deleted
-        .into_par_iter()
-        .partition_map(|dir_entry| 
-        if httm_is_dir(&dir_entry) {
-            Either::Left(PathAndMaybeFileType {
-                path: dir_entry.path(),
-                file_type: dir_entry.file_type().ok(),
-            })
-        } else {
-            Either::Right(PathAndMaybeFileType {
-                path: dir_entry.path(),
-                file_type: dir_entry.file_type().ok(),
-            })
+    let (vec_dirs, vec_files): (Vec<PathAndMaybeFileType>, Vec<PathAndMaybeFileType>) =
+        deleted.into_par_iter().partition_map(|dir_entry| {
+            if httm_is_dir(&dir_entry) {
+                Either::Left(PathAndMaybeFileType {
+                    path: dir_entry.path(),
+                    file_type: dir_entry.file_type().ok(),
+                })
+            } else {
+                Either::Right(PathAndMaybeFileType {
+                    path: dir_entry.path(),
+                    file_type: dir_entry.file_type().ok(),
+                })
+            }
         });
 
     // need something to hold our thread handles that we need to wait to complete,
@@ -214,16 +217,11 @@ fn enumerate_deleted(
     let pseudo_live_versions: Vec<PathAndMaybeFileType> = [&vec_dirs, &vec_files]
         .into_par_iter()
         .flatten()
-        .filter_map(|path_and_maybe_file_type| 
-            match path_and_maybe_file_type.path.file_name() {
-                Some(file_name) => {
-                    Some(PathAndMaybeFileType {
-                        path: requested_dir.join(file_name), 
-                        file_type: path_and_maybe_file_type.file_type,
-                    })
-                },
-                None => None,
-            }
+        .filter_map(
+            |path_and_maybe_file_type| path_and_maybe_file_type.path.file_name().map(|file_name| PathAndMaybeFileType {
+                    path: requested_dir.join(file_name),
+                    file_type: path_and_maybe_file_type.file_type,
+                }),
         )
         .collect();
 
@@ -266,37 +264,33 @@ fn behind_deleted_dir(
         let deleted_dir_on_snap = &from_deleted_dir.to_path_buf().join(&dir_name);
         let pseudo_live_dir = &from_requested_dir.to_path_buf().join(&dir_name);
 
-        let (vec_dirs, vec_files): (Vec<PathAndMaybeFileType>, Vec<PathAndMaybeFileType>) = read_dir(&deleted_dir_on_snap)?
-            .flatten()
-            .par_bridge()
-            .partition_map(|dir_entry| 
-                if httm_is_dir(&dir_entry) {
-                    Either::Left(PathAndMaybeFileType {
-                        path: dir_entry.path(),
-                        file_type: dir_entry.file_type().ok(),
-                    })
-                } else {
-                    Either::Right(PathAndMaybeFileType {
-                        path: dir_entry.path(),
-                        file_type: dir_entry.file_type().ok(),
-                    })
-                }
-            );
+        let (vec_dirs, vec_files): (Vec<PathAndMaybeFileType>, Vec<PathAndMaybeFileType>) =
+            read_dir(&deleted_dir_on_snap)?
+                .flatten()
+                .par_bridge()
+                .partition_map(|dir_entry| {
+                    if httm_is_dir(&dir_entry) {
+                        Either::Left(PathAndMaybeFileType {
+                            path: dir_entry.path(),
+                            file_type: dir_entry.file_type().ok(),
+                        })
+                    } else {
+                        Either::Right(PathAndMaybeFileType {
+                            path: dir_entry.path(),
+                            file_type: dir_entry.file_type().ok(),
+                        })
+                    }
+                });
 
         let pseudo_live_versions: Vec<PathAndMaybeFileType> = [&vec_files, &vec_dirs]
             .into_par_iter()
             .flatten()
-            .filter_map(|path_and_maybe_file_type| 
-                match path_and_maybe_file_type.path.file_name() {
-                    Some(file_name) => {
-                        Some(PathAndMaybeFileType {
-                            path: pseudo_live_dir.join(file_name), 
-                            file_type: path_and_maybe_file_type.file_type,
-                        })
-                    },
-                    None => None,
-                }
-            )
+            .filter_map(|path_and_maybe_file_type| {
+                path_and_maybe_file_type.path.file_name().map(|file_name| PathAndMaybeFileType {
+                        path: pseudo_live_dir.join(file_name),
+                        file_type: path_and_maybe_file_type.file_type,
+                    })
+            })
             .collect();
 
         match config.exec_mode {
@@ -320,14 +314,14 @@ fn behind_deleted_dir(
             .into_iter()
             .filter(|path_and_maybe_file_type| path_and_maybe_file_type.path.file_name().is_some())
             .for_each(|path_and_maybe_file_type| {
-            let _ = recurse_behind_deleted_dir(
-                config.clone(),
-                tx_item,
-                Path::new(path_and_maybe_file_type.path.file_name().unwrap()),
-                deleted_dir_on_snap,
-                pseudo_live_dir,
-            );
-        });
+                let _ = recurse_behind_deleted_dir(
+                    config.clone(),
+                    tx_item,
+                    Path::new(path_and_maybe_file_type.path.file_name().unwrap()),
+                    deleted_dir_on_snap,
+                    pseudo_live_dir,
+                );
+            });
 
         Ok(())
     }

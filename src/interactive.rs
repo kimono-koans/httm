@@ -19,13 +19,14 @@ use std::fs::FileType;
 use std::{ffi::OsStr, io::Cursor, path::Path, path::PathBuf, thread, vec};
 
 extern crate skim;
-use lscolors::Colorable;
+use lscolors::{Colorable, LsColors, Style};
+
 use skim::prelude::*;
 
 use crate::display::display_exec;
 use crate::lookup::get_versions;
 use crate::recursive::enumerate_directory;
-use crate::utility::{copy_recursive, paint_selection_candidate, timestamp_file};
+use crate::utility::{copy_recursive, timestamp_file};
 use crate::{
     Config, DeletedMode, ExecMode, HttmError, InteractiveMode, PathData,
     ZFS_HIDDEN_SNAPSHOT_DIRECTORY,
@@ -92,6 +93,28 @@ impl SkimItem for SelectionCandidate {
     fn preview(&self, _: PreviewContext<'_>) -> skim::ItemPreview {
         let res = preview_view(&self.config, &self.path).unwrap_or_default();
         skim::ItemPreview::AnsiText(res)
+    }
+}
+
+fn paint_selection_candidate<'a>(
+    file_name: &'a str,
+    selection_candidate: &'a SelectionCandidate,
+) -> Cow<'a, str> {
+    let ls_colors = LsColors::from_env().unwrap_or_default();
+
+    if let Some(style) = ls_colors.style_for(selection_candidate) {
+        let ansi_style = &Style::to_ansi_term_style(style);
+        Cow::Owned(ansi_style.paint(file_name).to_string())
+    } else if !selection_candidate.is_phantom {
+        // if a non-phantom file that should not be colored (regular files)
+        Cow::Borrowed(file_name)
+    } else if let Some(style) = &Style::from_ansi_sequence("38;2;250;200;200;1;0") {
+        // paint all other phantoms/deleted files the same color, light pink
+        let ansi_style = &Style::to_ansi_term_style(style);
+        Cow::Owned(ansi_style.paint(file_name).to_string())
+    } else {
+        // just in case if all else fails
+        Cow::Borrowed(file_name)
     }
 }
 

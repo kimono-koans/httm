@@ -16,16 +16,13 @@
 // that was distributed with this source code.
 
 use std::{
-    borrow::Cow,
     fs::{copy, create_dir_all, read_dir, DirEntry, FileType},
     io::{self, Read},
     path::{Path, PathBuf},
     time::SystemTime,
 };
 
-use crate::interactive::SelectionCandidate;
 use chrono::{DateTime, Local};
-use lscolors::{LsColors, Style};
 
 pub fn timestamp_file(system_time: &SystemTime) -> String {
     let date_time: DateTime<Local> = system_time.to_owned().into();
@@ -48,47 +45,6 @@ pub fn copy_recursive(src: &Path, dst: &Path) -> io::Result<()> {
         copy(src, dst)?;
     }
     Ok(())
-}
-
-pub fn paint_selection_candidate<'a>(
-    file_name: &'a str,
-    selection_candidate: &'a SelectionCandidate,
-) -> Cow<'a, str> {
-    let ls_colors = LsColors::from_env().unwrap_or_default();
-
-    if let Some(style) = ls_colors.style_for(selection_candidate) {
-        let ansi_style = &Style::to_ansi_term_style(style);
-        Cow::Owned(ansi_style.paint(file_name).to_string())
-    } else if !selection_candidate.is_phantom {
-        // if a non-phantom file that should not be colored (regular files)
-        Cow::Borrowed(file_name)
-    } else if let Some(style) = &Style::from_ansi_sequence("38;2;250;200;200;1;0") {
-        // paint all other phantoms/deleted files the same color, light pink
-        let ansi_style = &Style::to_ansi_term_style(style);
-        Cow::Owned(ansi_style.paint(file_name).to_string())
-    } else {
-        // just in case if all else fails
-        Cow::Borrowed(file_name)
-    }
-}
-
-pub fn paint_string<'a>(path: &Path, file_name: &'a str, is_phantom: bool) -> Cow<'a, str> {
-    let ls_colors = LsColors::from_env().unwrap_or_default();
-
-    if let Some(style) = ls_colors.style_for_path(path) {
-        let ansi_style = &Style::to_ansi_term_style(style);
-        Cow::Owned(ansi_style.paint(file_name).to_string())
-    } else if !is_phantom {
-        // if a non-phantom file that should not be colored (regular files)
-        Cow::Borrowed(file_name)
-    } else if let Some(style) = &Style::from_ansi_sequence("38;2;250;200;200;1;0") {
-        // paint all phantoms/deleted files the same color, light pink
-        let ansi_style = &Style::to_ansi_term_style(style);
-        Cow::Owned(ansi_style.paint(file_name).to_string())
-    } else {
-        // just in case if all else fails
-        Cow::Borrowed(file_name)
-    }
 }
 
 pub fn read_stdin() -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sync + 'static>> {
