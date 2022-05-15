@@ -50,9 +50,15 @@ impl SkimItem for SelectionCandidate {
         self.path.file_name().unwrap_or_default().to_string_lossy()
     }
     fn display<'a>(&'a self, _context: DisplayContext<'a>) -> AnsiString<'a> {
+        // println!("{:?}", &self.path);
+        // println!("{:?}", &self.config.pwd.path_buf);
         AnsiString::parse(&paint_string(
             &self.path,
-            &self.path.file_name().unwrap_or_default().to_string_lossy(),
+            &self
+                .path
+                .strip_prefix(&self.config.requested_dir.path_buf)
+                .unwrap_or_else(|_| Path::new("/"))
+                .to_string_lossy(),
             self.is_phantom,
         ))
     }
