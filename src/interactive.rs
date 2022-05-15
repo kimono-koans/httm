@@ -53,6 +53,53 @@ impl SelectionCandidate {
             is_phantom,
         }
     }
+
+    fn paint_selection_candidate<'a>(&self, file_name: &'a str) -> Cow<'a, str> {
+        let ls_colors = LsColors::from_env().unwrap_or_default();
+
+        if let Some(style) = ls_colors.style_for(self) {
+            let ansi_style = &Style::to_ansi_term_style(style);
+            Cow::Owned(ansi_style.paint(file_name).to_string())
+        } else if !self.is_phantom {
+            // if a non-phantom file that should not be colored (regular files)
+            Cow::Borrowed(file_name)
+        } else if let Some(style) = &Style::from_ansi_sequence("38;2;250;200;200;1;0") {
+            // paint all other phantoms/deleted files the same color, light pink
+            let ansi_style = &Style::to_ansi_term_style(style);
+            Cow::Owned(ansi_style.paint(file_name).to_string())
+        } else {
+            // just in case if all else fails
+            Cow::Borrowed(file_name)
+        }
+    }
+
+    fn preview_view(&self) -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
+        let config = &self.config;
+        let path = &self.path;
+        // generate a config for a preview display only
+        let gen_config = Config {
+            paths: vec![PathData::from(path.as_path())],
+            opt_raw: false,
+            opt_zeros: false,
+            opt_no_pretty: false,
+            opt_recursive: false,
+            opt_no_live_vers: false,
+            exec_mode: ExecMode::Display,
+            deleted_mode: DeletedMode::Disabled,
+            interactive_mode: InteractiveMode::None,
+            opt_alt_replicated: config.opt_alt_replicated.to_owned(),
+            snap_point: config.snap_point.to_owned(),
+            pwd: config.pwd.to_owned(),
+            requested_dir: config.requested_dir.to_owned(),
+        };
+
+        // finally run search on those paths
+        let snaps_and_live_set = get_versions(&gen_config, &gen_config.paths)?;
+        // and display
+        let output_buf = display_exec(&gen_config, snaps_and_live_set)?;
+
+        Ok(output_buf)
+    }
 }
 
 impl Colorable for SelectionCandidate {
@@ -78,73 +125,23 @@ impl SkimItem for SelectionCandidate {
         self.path.file_name().unwrap_or_default().to_string_lossy()
     }
     fn display<'a>(&'a self, _context: DisplayContext<'a>) -> AnsiString<'a> {
-        AnsiString::parse(&paint_selection_candidate(
-            &self
-                .path
-                .strip_prefix(&self.config.requested_dir.path_buf)
-                .unwrap_or_else(|_| Path::new("/"))
-                .to_string_lossy(),
-            self,
-        ))
+        AnsiString::parse(
+            &self.paint_selection_candidate(
+                &self
+                    .path
+                    .strip_prefix(&self.config.requested_dir.path_buf)
+                    .unwrap_or_else(|_| Path::new("/"))
+                    .to_string_lossy(),
+            ),
+        )
     }
     fn output(&self) -> Cow<str> {
         self.path.to_string_lossy()
     }
     fn preview(&self, _: PreviewContext<'_>) -> skim::ItemPreview {
-        let res = preview_view(&self.config, &self.path).unwrap_or_default();
+        let res = self.preview_view().unwrap_or_default();
         skim::ItemPreview::AnsiText(res)
     }
-}
-
-fn paint_selection_candidate<'a>(
-    file_name: &'a str,
-    selection_candidate: &'a SelectionCandidate,
-) -> Cow<'a, str> {
-    let ls_colors = LsColors::from_env().unwrap_or_default();
-
-    if let Some(style) = ls_colors.style_for(selection_candidate) {
-        let ansi_style = &Style::to_ansi_term_style(style);
-        Cow::Owned(ansi_style.paint(file_name).to_string())
-    } else if !selection_candidate.is_phantom {
-        // if a non-phantom file that should not be colored (regular files)
-        Cow::Borrowed(file_name)
-    } else if let Some(style) = &Style::from_ansi_sequence("38;2;250;200;200;1;0") {
-        // paint all other phantoms/deleted files the same color, light pink
-        let ansi_style = &Style::to_ansi_term_style(style);
-        Cow::Owned(ansi_style.paint(file_name).to_string())
-    } else {
-        // just in case if all else fails
-        Cow::Borrowed(file_name)
-    }
-}
-
-fn preview_view(
-    config: &Config,
-    path: &Path,
-) -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    // generate a config for a preview display only
-    let gen_config = Config {
-        paths: vec![PathData::from(path)],
-        opt_raw: false,
-        opt_zeros: false,
-        opt_no_pretty: false,
-        opt_recursive: false,
-        opt_no_live_vers: false,
-        exec_mode: ExecMode::Display,
-        deleted_mode: DeletedMode::Disabled,
-        interactive_mode: InteractiveMode::None,
-        opt_alt_replicated: config.opt_alt_replicated.to_owned(),
-        snap_point: config.snap_point.to_owned(),
-        pwd: config.pwd.to_owned(),
-        requested_dir: config.requested_dir.to_owned(),
-    };
-
-    // finally run search on those paths
-    let snaps_and_live_set = get_versions(&gen_config, &gen_config.paths)?;
-    // and display
-    let output_buf = display_exec(&gen_config, snaps_and_live_set)?;
-
-    Ok(output_buf)
 }
 
 pub fn interactive_exec(
