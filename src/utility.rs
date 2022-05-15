@@ -22,7 +22,7 @@ use std::{
     time::SystemTime,
 };
 
-use crate::PathAndMaybeFileType;
+use crate::BasicDirEntryInfo;
 use chrono::{DateTime, Local};
 
 pub fn timestamp_file(system_time: &SystemTime) -> String {
@@ -116,7 +116,7 @@ impl HttmIsDir for DirEntry {
     }
 }
 
-impl HttmIsDir for PathAndMaybeFileType {
+impl HttmIsDir for BasicDirEntryInfo {
     fn get_filetype(&self) -> Result<FileType, std::io::Error> {
         // this is a placeholder, we just need an error to report back
         self.file_type

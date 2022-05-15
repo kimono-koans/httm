@@ -17,6 +17,7 @@
 
 use std::{
     error::Error,
+    ffi::OsString,
     fmt,
     fs::{canonicalize, symlink_metadata, DirEntry, FileType, Metadata},
     path::{Path, PathBuf},
@@ -156,7 +157,8 @@ enum ExecMode {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct PathAndMaybeFileType {
+pub struct BasicDirEntryInfo {
+    pub file_name: OsString,
     pub path: PathBuf,
     pub file_type: Option<FileType>,
 }
