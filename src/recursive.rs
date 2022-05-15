@@ -128,6 +128,7 @@ pub fn enumerate_directory(
             combined_vec.iter().for_each(|basic_dir_entry_info| {
                 let _ = tx_item.send(Arc::new(SelectionCandidate::new(
                     config.clone(),
+                    basic_dir_entry_info.file_name.to_owned(),
                     basic_dir_entry_info.path.to_owned(),
                     basic_dir_entry_info.file_type,
                     // know this is non-phantom because obtained through dir entry
@@ -313,6 +314,7 @@ fn send_deleted_recursive(
     pathdata.iter().for_each(|basic_dir_entry_info| {
         let _ = tx_item.send(Arc::new(SelectionCandidate::new(
             config.clone(),
+            basic_dir_entry_info.file_name.to_owned(),
             basic_dir_entry_info.path.to_owned(),
             basic_dir_entry_info.file_type,
             // know this is_phantom because we know it is deleted

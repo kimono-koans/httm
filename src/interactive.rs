@@ -16,7 +16,7 @@
 // that was distributed with this source code.
 
 use std::fs::FileType;
-use std::{ffi::OsStr, io::Cursor, path::Path, path::PathBuf, thread, vec};
+use std::{ffi::{OsStr, OsString}, io::Cursor, path::Path, path::PathBuf, thread, vec};
 
 extern crate skim;
 use lscolors::{Colorable, LsColors, Style};
@@ -34,6 +34,7 @@ use crate::{
 
 pub struct SelectionCandidate {
     config: Arc<Config>,
+    file_name: OsString,
     path: PathBuf,
     file_type: Option<FileType>,
     is_phantom: bool,
@@ -42,34 +43,36 @@ pub struct SelectionCandidate {
 impl SelectionCandidate {
     pub fn new(
         config: Arc<Config>,
+        file_name: OsString,
         path: PathBuf,
         file_type: Option<FileType>,
         is_phantom: bool,
     ) -> Self {
         SelectionCandidate {
             config,
+            file_name,
             path,
             file_type,
             is_phantom,
         }
     }
 
-    fn paint_selection_candidate<'a>(&self, file_name: &'a str) -> Cow<'a, str> {
+    fn paint_selection_candidate<'a>(&self, display_name: &'a str) -> Cow<'a, str> {
         let ls_colors = LsColors::from_env().unwrap_or_default();
 
         if let Some(style) = ls_colors.style_for(self) {
             let ansi_style = &Style::to_ansi_term_style(style);
-            Cow::Owned(ansi_style.paint(file_name).to_string())
+            Cow::Owned(ansi_style.paint(display_name).to_string())
         } else if !self.is_phantom {
             // if a non-phantom file that should not be colored (regular files)
-            Cow::Borrowed(file_name)
+            Cow::Borrowed(display_name)
         } else if let Some(style) = &Style::from_ansi_sequence("38;2;250;200;200;1;0") {
             // paint all other phantoms/deleted files the same color, light pink
             let ansi_style = &Style::to_ansi_term_style(style);
-            Cow::Owned(ansi_style.paint(file_name).to_string())
+            Cow::Owned(ansi_style.paint(display_name).to_string())
         } else {
             // just in case if all else fails
-            Cow::Borrowed(file_name)
+            Cow::Borrowed(display_name)
         }
     }
 
@@ -130,7 +133,7 @@ impl SkimItem for SelectionCandidate {
                 &self
                     .path
                     .strip_prefix(&self.config.requested_dir.path_buf)
-                    .unwrap_or_else(|_| Path::new("/"))
+                    .unwrap_or_else(|_| Path::new(&self.file_name))
                     .to_string_lossy(),
             ),
         )
