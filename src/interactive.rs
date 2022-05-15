@@ -16,13 +16,7 @@
 // that was distributed with this source code.
 
 use std::fs::FileType;
-use std::{
-    ffi::{OsStr, OsString},
-    io::Cursor,
-    path::Path,
-    path::PathBuf,
-    thread, vec,
-};
+use std::{ffi::OsString, io::Cursor, path::Path, path::PathBuf, thread, vec};
 
 extern crate skim;
 use lscolors::{Colorable, LsColors, Style};
@@ -116,10 +110,7 @@ impl Colorable for SelectionCandidate {
         self.path.to_owned()
     }
     fn file_name(&self) -> std::ffi::OsString {
-        self.path
-            .file_name()
-            .unwrap_or_else(|| OsStr::new(""))
-            .to_owned()
+        self.file_name.to_owned()
     }
     fn file_type(&self) -> Option<FileType> {
         self.file_type
