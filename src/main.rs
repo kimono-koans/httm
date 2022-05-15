@@ -77,6 +77,16 @@ impl Error for HttmError {
     }
 }
 
+// only the most basic data from a DirEntry 
+// for use internally, never displayed
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+pub struct BasicDirEntryInfo {
+    file_name: OsString,
+    path: PathBuf,
+    file_type: Option<FileType>,
+}
+
+// detailed info required to display file versions
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct PathData {
     system_time: SystemTime,
@@ -154,13 +164,6 @@ enum ExecMode {
     Interactive,
     DisplayRecursive,
     Display,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct BasicDirEntryInfo {
-    pub file_name: OsString,
-    pub path: PathBuf,
-    pub file_type: Option<FileType>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
