@@ -258,16 +258,7 @@ fn behind_deleted_dir(
         let pseudo_live_versions: Vec<BasicDirEntryInfo> = [&vec_files, &vec_dirs]
             .into_par_iter()
             .flatten()
-            .filter_map(|basic_dir_entry_info| {
-                basic_dir_entry_info
-                    .path
-                    .file_name()
-                    .map(|file_name| BasicDirEntryInfo {
-                        file_name: file_name.to_os_string(),
-                        path: pseudo_live_dir.join(file_name),
-                        file_type: basic_dir_entry_info.file_type,
-                    })
-            })
+            .cloned()
             .collect();
 
         match config.exec_mode {
