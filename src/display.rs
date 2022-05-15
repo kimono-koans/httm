@@ -15,13 +15,13 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::time::SystemTime;
+use std::{borrow::Cow, path::Path, time::SystemTime};
 
 use chrono::{DateTime, Local};
+use lscolors::{LsColors, Style};
 use number_prefix::NumberPrefix;
 use terminal_size::{terminal_size, Height, Width};
 
-use crate::utility::paint_string;
 use crate::{Config, PathData};
 
 // 2 space wide padding - used between date and size, and size and path
@@ -100,7 +100,7 @@ fn display_pretty(
                     // paint the live strings with ls colors - idx == 1 is 2nd or live set
                     let file_path = &pathdata.path_buf;
                     let painted_string = if idx == 1 {
-                        paint_string(
+                        paint_display_string(
                             file_path,
                             file_path.to_str().unwrap_or_default(),
                             pathdata.is_phantom,
@@ -211,4 +211,23 @@ fn display_human_size(pathdata: &PathData) -> String {
 fn display_date(system_time: &SystemTime) -> String {
     let date_time: DateTime<Local> = system_time.to_owned().into();
     format!("{}", date_time.format("%a %b %e %H:%M:%S %Y"))
+}
+
+fn paint_display_string<'a>(path: &Path, file_name: &'a str, is_phantom: bool) -> Cow<'a, str> {
+    let ls_colors = LsColors::from_env().unwrap_or_default();
+
+    if let Some(style) = ls_colors.style_for_path(path) {
+        let ansi_style = &Style::to_ansi_term_style(style);
+        Cow::Owned(ansi_style.paint(file_name).to_string())
+    } else if !is_phantom {
+        // if a non-phantom file that should not be colored (regular files)
+        Cow::Borrowed(file_name)
+    } else if let Some(style) = &Style::from_ansi_sequence("38;2;250;200;200;1;0") {
+        // paint all phantoms/deleted files the same color, light pink
+        let ansi_style = &Style::to_ansi_term_style(style);
+        Cow::Owned(ansi_style.paint(file_name).to_string())
+    } else {
+        // just in case if all else fails
+        Cow::Borrowed(file_name)
+    }
 }

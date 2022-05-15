@@ -15,15 +15,18 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::{io::Cursor, path::Path, path::PathBuf, thread, vec};
+use std::fs::FileType;
+use std::{ffi::OsString, io::Cursor, path::Path, path::PathBuf, thread, vec};
 
 extern crate skim;
+use lscolors::{Colorable, LsColors, Style};
+
 use skim::prelude::*;
 
 use crate::display::display_exec;
 use crate::lookup::get_versions;
 use crate::recursive::enumerate_directory;
-use crate::utility::{copy_recursive, paint_string, timestamp_file};
+use crate::utility::{copy_recursive, timestamp_file};
 use crate::{
     Config, DeletedMode, ExecMode, HttmError, InteractiveMode, PathData,
     ZFS_HIDDEN_SNAPSHOT_DIRECTORY,
@@ -31,17 +34,89 @@ use crate::{
 
 pub struct SelectionCandidate {
     config: Arc<Config>,
+    file_name: OsString,
     path: PathBuf,
+    file_type: Option<FileType>,
     is_phantom: bool,
 }
 
 impl SelectionCandidate {
-    pub fn new(config: Arc<Config>, path: PathBuf, is_phantom: bool) -> Self {
+    pub fn new(
+        config: Arc<Config>,
+        file_name: OsString,
+        path: PathBuf,
+        file_type: Option<FileType>,
+        is_phantom: bool,
+    ) -> Self {
         SelectionCandidate {
             config,
+            file_name,
             path,
+            file_type,
             is_phantom,
         }
+    }
+
+    fn paint_selection_candidate<'a>(&self, display_name: &'a str) -> Cow<'a, str> {
+        let ls_colors = LsColors::from_env().unwrap_or_default();
+
+        if let Some(style) = ls_colors.style_for(self) {
+            let ansi_style = &Style::to_ansi_term_style(style);
+            Cow::Owned(ansi_style.paint(display_name).to_string())
+        } else if !self.is_phantom {
+            // if a non-phantom file that should not be colored (regular files)
+            Cow::Borrowed(display_name)
+        } else if let Some(style) = &Style::from_ansi_sequence("38;2;250;200;200;1;0") {
+            // paint all other phantoms/deleted files the same color, light pink
+            let ansi_style = &Style::to_ansi_term_style(style);
+            Cow::Owned(ansi_style.paint(display_name).to_string())
+        } else {
+            // just in case if all else fails
+            Cow::Borrowed(display_name)
+        }
+    }
+
+    fn preview_view(&self) -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
+        let config = &self.config;
+        let path = &self.path;
+        // generate a config for a preview display only
+        let gen_config = Config {
+            paths: vec![PathData::from(path.as_path())],
+            opt_raw: false,
+            opt_zeros: false,
+            opt_no_pretty: false,
+            opt_recursive: false,
+            opt_no_live_vers: false,
+            exec_mode: ExecMode::Display,
+            deleted_mode: DeletedMode::Disabled,
+            interactive_mode: InteractiveMode::None,
+            opt_alt_replicated: config.opt_alt_replicated.to_owned(),
+            snap_point: config.snap_point.to_owned(),
+            pwd: config.pwd.to_owned(),
+            requested_dir: config.requested_dir.to_owned(),
+        };
+
+        // finally run search on those paths
+        let snaps_and_live_set = get_versions(&gen_config, &gen_config.paths)?;
+        // and display
+        let output_buf = display_exec(&gen_config, snaps_and_live_set)?;
+
+        Ok(output_buf)
+    }
+}
+
+impl Colorable for SelectionCandidate {
+    fn path(&self) -> PathBuf {
+        self.path.to_owned()
+    }
+    fn file_name(&self) -> std::ffi::OsString {
+        self.file_name.to_owned()
+    }
+    fn file_type(&self) -> Option<FileType> {
+        self.file_type
+    }
+    fn metadata(&self) -> Option<std::fs::Metadata> {
+        self.path.symlink_metadata().ok()
     }
 }
 
@@ -50,54 +125,23 @@ impl SkimItem for SelectionCandidate {
         self.path.file_name().unwrap_or_default().to_string_lossy()
     }
     fn display<'a>(&'a self, _context: DisplayContext<'a>) -> AnsiString<'a> {
-        // println!("{:?}", &self.path);
-        // println!("{:?}", &self.config.pwd.path_buf);
-        AnsiString::parse(&paint_string(
-            &self.path,
-            &self
-                .path
-                .strip_prefix(&self.config.requested_dir.path_buf)
-                .unwrap_or_else(|_| Path::new("/"))
-                .to_string_lossy(),
-            self.is_phantom,
-        ))
+        AnsiString::parse(
+            &self.paint_selection_candidate(
+                &self
+                    .path
+                    .strip_prefix(&self.config.requested_dir.path_buf)
+                    .unwrap_or_else(|_| Path::new(&self.file_name))
+                    .to_string_lossy(),
+            ),
+        )
     }
     fn output(&self) -> Cow<str> {
         self.path.to_string_lossy()
     }
     fn preview(&self, _: PreviewContext<'_>) -> skim::ItemPreview {
-        let res = preview_view(&self.config, &self.path).unwrap_or_default();
+        let res = self.preview_view().unwrap_or_default();
         skim::ItemPreview::AnsiText(res)
     }
-}
-
-fn preview_view(
-    config: &Config,
-    path: &Path,
-) -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    // generate a config for a preview display only
-    let gen_config = Config {
-        paths: vec![PathData::from(path)],
-        opt_raw: false,
-        opt_zeros: false,
-        opt_no_pretty: false,
-        opt_recursive: false,
-        opt_no_live_vers: false,
-        exec_mode: ExecMode::Display,
-        deleted_mode: DeletedMode::Disabled,
-        interactive_mode: InteractiveMode::None,
-        opt_alt_replicated: config.opt_alt_replicated.to_owned(),
-        snap_point: config.snap_point.to_owned(),
-        pwd: config.pwd.to_owned(),
-        requested_dir: config.requested_dir.to_owned(),
-    };
-
-    // finally run search on those paths
-    let snaps_and_live_set = get_versions(&gen_config, &gen_config.paths)?;
-    // and display
-    let output_buf = display_exec(&gen_config, snaps_and_live_set)?;
-
-    Ok(output_buf)
 }
 
 pub fn interactive_exec(

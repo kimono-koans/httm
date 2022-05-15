@@ -17,8 +17,9 @@
 
 use std::{
     error::Error,
+    ffi::OsString,
     fmt,
-    fs::{canonicalize, symlink_metadata, DirEntry, Metadata},
+    fs::{canonicalize, symlink_metadata, DirEntry, FileType, Metadata},
     path::{Path, PathBuf},
     time::SystemTime,
 };
@@ -76,6 +77,16 @@ impl Error for HttmError {
     }
 }
 
+// only the most basic data from a DirEntry
+// for use internally, never displayed
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+pub struct BasicDirEntryInfo {
+    file_name: OsString,
+    path: PathBuf,
+    file_type: Option<FileType>,
+}
+
+// detailed info required to display file versions
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct PathData {
     system_time: SystemTime,
