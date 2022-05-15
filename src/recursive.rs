@@ -15,13 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::{
-    ffi::OsStr,
-    fs::{read_dir, FileType},
-    io::Write,
-    path::{Path, PathBuf},
-    sync::Arc,
-};
+use std::{ffi::OsStr, fs::read_dir, io::Write, path::Path, sync::Arc};
 
 use rayon::{iter::Either, prelude::*};
 use skim::prelude::*;
@@ -31,7 +25,9 @@ use crate::display::display_exec;
 use crate::interactive::SelectionCandidate;
 use crate::lookup::get_versions;
 use crate::utility::httm_is_dir;
-use crate::{Config, DeletedMode, ExecMode, HttmError, PathData, ZFS_HIDDEN_DIRECTORY};
+use crate::{
+    Config, DeletedMode, ExecMode, HttmError, PathAndMaybeFileType, PathData, ZFS_HIDDEN_DIRECTORY,
+};
 
 pub fn display_recursive_exec(
     config: &Config,
@@ -49,11 +45,6 @@ pub fn display_recursive_exec(
         out.flush()?;
     }
     std::process::exit(0)
-}
-
-struct PathAndMaybeFileType {
-    path: PathBuf,
-    file_type: Option<FileType>,
 }
 
 pub fn enumerate_directory(
@@ -168,20 +159,9 @@ fn enumerate_deleted(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let deleted = get_unique_deleted(&config, requested_dir)?;
 
-    let (vec_dirs, vec_files): (Vec<PathAndMaybeFileType>, Vec<PathAndMaybeFileType>) =
-        deleted.into_par_iter().partition_map(|dir_entry| {
-            if httm_is_dir(&dir_entry) {
-                Either::Left(PathAndMaybeFileType {
-                    path: dir_entry.path(),
-                    file_type: dir_entry.file_type().ok(),
-                })
-            } else {
-                Either::Right(PathAndMaybeFileType {
-                    path: dir_entry.path(),
-                    file_type: dir_entry.file_type().ok(),
-                })
-            }
-        });
+    let (vec_dirs, vec_files): (Vec<PathAndMaybeFileType>, Vec<PathAndMaybeFileType>) = deleted
+        .into_par_iter()
+        .partition(|path_and_maybe_file_type| httm_is_dir(path_and_maybe_file_type));
 
     // need something to hold our thread handles that we need to wait to complete,
     // also very helpful in the case we don't don't needs threads as it can be empty
@@ -217,12 +197,15 @@ fn enumerate_deleted(
     let pseudo_live_versions: Vec<PathAndMaybeFileType> = [&vec_dirs, &vec_files]
         .into_par_iter()
         .flatten()
-        .filter_map(
-            |path_and_maybe_file_type| path_and_maybe_file_type.path.file_name().map(|file_name| PathAndMaybeFileType {
+        .filter_map(|path_and_maybe_file_type| {
+            path_and_maybe_file_type
+                .path
+                .file_name()
+                .map(|file_name| PathAndMaybeFileType {
                     path: requested_dir.join(file_name),
                     file_type: path_and_maybe_file_type.file_type,
-                }),
-        )
+                })
+        })
         .collect();
 
     match config.exec_mode {
@@ -286,7 +269,10 @@ fn behind_deleted_dir(
             .into_par_iter()
             .flatten()
             .filter_map(|path_and_maybe_file_type| {
-                path_and_maybe_file_type.path.file_name().map(|file_name| PathAndMaybeFileType {
+                path_and_maybe_file_type
+                    .path
+                    .file_name()
+                    .map(|file_name| PathAndMaybeFileType {
                         path: pseudo_live_dir.join(file_name),
                         file_type: path_and_maybe_file_type.file_type,
                     })

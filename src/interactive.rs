@@ -33,10 +33,10 @@ use crate::{
 };
 
 pub struct SelectionCandidate {
-    pub config: Arc<Config>,
-    pub path: PathBuf,
-    pub file_type: Option<FileType>,
-    pub is_phantom: bool,
+    config: Arc<Config>,
+    path: PathBuf,
+    file_type: Option<FileType>,
+    is_phantom: bool,
 }
 
 impl SelectionCandidate {

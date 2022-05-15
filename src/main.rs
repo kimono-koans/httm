@@ -18,7 +18,7 @@
 use std::{
     error::Error,
     fmt,
-    fs::{canonicalize, symlink_metadata, DirEntry, Metadata},
+    fs::{canonicalize, symlink_metadata, DirEntry, FileType, Metadata},
     path::{Path, PathBuf},
     time::SystemTime,
 };
@@ -153,6 +153,12 @@ enum ExecMode {
     Interactive,
     DisplayRecursive,
     Display,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct PathAndMaybeFileType {
+    pub path: PathBuf,
+    pub file_type: Option<FileType>,
 }
 
 #[derive(Debug, Clone, PartialEq)]

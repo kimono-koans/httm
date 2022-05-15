@@ -22,6 +22,7 @@ use std::{
     time::SystemTime,
 };
 
+use crate::PathAndMaybeFileType;
 use chrono::{DateTime, Local};
 
 pub fn timestamp_file(system_time: &SystemTime) -> String {
@@ -112,5 +113,16 @@ impl HttmIsDir for DirEntry {
     }
     fn get_path(&self) -> PathBuf {
         self.path()
+    }
+}
+
+impl HttmIsDir for PathAndMaybeFileType {
+    fn get_filetype(&self) -> Result<FileType, std::io::Error> {
+        // this is a placeholder, we just need an error to report back
+        self.file_type
+            .ok_or_else(|| io::Error::from(io::ErrorKind::NotFound))
+    }
+    fn get_path(&self) -> PathBuf {
+        self.path.to_owned()
     }
 }
