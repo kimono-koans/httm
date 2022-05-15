@@ -77,7 +77,7 @@ impl Error for HttmError {
     }
 }
 
-// only the most basic data from a DirEntry 
+// only the most basic data from a DirEntry
 // for use internally, never displayed
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct BasicDirEntryInfo {
