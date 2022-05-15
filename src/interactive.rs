@@ -16,7 +16,13 @@
 // that was distributed with this source code.
 
 use std::fs::FileType;
-use std::{ffi::{OsStr, OsString}, io::Cursor, path::Path, path::PathBuf, thread, vec};
+use std::{
+    ffi::{OsStr, OsString},
+    io::Cursor,
+    path::Path,
+    path::PathBuf,
+    thread, vec,
+};
 
 extern crate skim;
 use lscolors::{Colorable, LsColors, Style};
