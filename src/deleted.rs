@@ -73,6 +73,9 @@ pub fn get_unique_deleted(
 
     // this part right here functions like a hashmap, separate into buckets/groups
     // by file name, then return the oldest deleted dir entry, or max by its modify time
+    // why? because this might be a folder that has been deleted and we need some policy
+    // to give later functions an idea about which folder to choose when we want too look
+    // behind deleted dirs, here we just choose latest in time
     let unique_deleted: Vec<BasicDirEntryInfo> = prep_deleted
         .into_iter()
         .group_by(|(_modify_time, basic_dir_entry_info)| basic_dir_entry_info.file_name.clone())
@@ -120,7 +123,7 @@ pub fn get_deleted_per_dataset(
             .map(|path| path.join(&search_dirs.relative_path))
             .flat_map(|path| read_dir(&path))
             .flatten_iter()
-            .flatten()
+            .flatten_iter()
             .map(|dir_entry| {
                 (
                     dir_entry.file_name(),
