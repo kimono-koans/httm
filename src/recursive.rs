@@ -197,18 +197,10 @@ fn enumerate_deleted(
     let pseudo_live_versions: Vec<BasicDirEntryInfo> = [&vec_dirs, &vec_files]
         .into_par_iter()
         .flatten()
-        .cloned()
-        .map(|basic_dir_entry_info| {
-            (
-                basic_dir_entry_info.file_name,
-                basic_dir_entry_info.path,
-                basic_dir_entry_info.file_type,
-            )
-        })
-        .map(|(file_name, _path, file_type)| BasicDirEntryInfo {
-            file_name: file_name.clone(),
-            path: requested_dir.join(file_name),
-            file_type,
+        .map(|basic_dir_entry_info| BasicDirEntryInfo {
+            file_name: basic_dir_entry_info.file_name.clone(),
+            path: requested_dir.join(basic_dir_entry_info.file_name.clone()),
+            file_type: basic_dir_entry_info.file_type,
         })
         .collect();
 
@@ -271,18 +263,10 @@ fn behind_deleted_dir(
         let pseudo_live_versions: Vec<BasicDirEntryInfo> = [&vec_files, &vec_dirs]
             .into_par_iter()
             .flatten()
-            .cloned()
-            .map(|basic_dir_entry_info| {
-                (
-                    basic_dir_entry_info.file_name,
-                    basic_dir_entry_info.path,
-                    basic_dir_entry_info.file_type,
-                )
-            })
-            .map(|(file_name, _path, file_type)| BasicDirEntryInfo {
-                file_name: file_name.clone(),
-                path: pseudo_live_dir.join(file_name),
-                file_type,
+            .map(|basic_dir_entry_info| BasicDirEntryInfo {
+                file_name: basic_dir_entry_info.file_name.clone(),
+                path: pseudo_live_dir.join(basic_dir_entry_info.file_name.clone()),
+                file_type: basic_dir_entry_info.file_type,
             })
             .collect();
 
