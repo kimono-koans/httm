@@ -60,18 +60,17 @@ impl SelectionCandidate {
     fn paint_selection_candidate<'a>(&self, display_name: &'a str) -> Cow<'a, str> {
         let ls_colors = LsColors::from_env().unwrap_or_default();
 
-        if let Some(style) = ls_colors.style_for(self) {
-            let ansi_style = &Style::to_ansi_term_style(style);
-            Cow::Owned(ansi_style.paint(display_name).to_string())
-        } else if !self.is_phantom {
-            // if a non-phantom file that should not be colored (regular files)
-            Cow::Borrowed(display_name)
-        } else if let Some(style) = &Style::from_ansi_sequence("38;2;250;200;200;1;0") {
+        if self.is_phantom {
+            let style = &Style::from_ansi_sequence("38;2;250;200;200;1;0").unwrap_or_default();
             // paint all other phantoms/deleted files the same color, light pink
             let ansi_style = &Style::to_ansi_term_style(style);
             Cow::Owned(ansi_style.paint(display_name).to_string())
+        } else if let Some(style) = ls_colors.style_for(self) {
+            let ansi_style = &Style::to_ansi_term_style(style);
+            Cow::Owned(ansi_style.paint(display_name).to_string())
         } else {
-            // just in case if all else fails
+            // if a non-phantom file that should not be colored (sometimes -- your regular files)
+            // or just in case if all else fails, don't paint and return string
             Cow::Borrowed(display_name)
         }
     }
