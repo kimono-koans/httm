@@ -19,14 +19,14 @@ use std::fs::FileType;
 use std::{ffi::OsString, io::Cursor, path::Path, path::PathBuf, thread, vec};
 
 extern crate skim;
-use lscolors::{Colorable, LsColors, Style};
 
+use lscolors::Colorable;
 use skim::prelude::*;
 
 use crate::display::display_exec;
 use crate::lookup::get_versions;
 use crate::recursive::enumerate_directory;
-use crate::utility::{copy_recursive, timestamp_file};
+use crate::utility::{copy_recursive, httm_is_dir, paint_string, timestamp_file};
 use crate::{
     Config, DeletedMode, ExecMode, HttmError, InteractiveMode, PathData,
     ZFS_HIDDEN_SNAPSHOT_DIRECTORY,
@@ -37,7 +37,7 @@ pub struct SelectionCandidate {
     file_name: OsString,
     path: PathBuf,
     file_type: Option<FileType>,
-    is_phantom: bool,
+    pub is_phantom: bool,
 }
 
 impl SelectionCandidate {
@@ -54,24 +54,6 @@ impl SelectionCandidate {
             path,
             file_type,
             is_phantom,
-        }
-    }
-
-    fn paint_selection_candidate<'a>(&self, display_name: &'a str) -> Cow<'a, str> {
-        let ls_colors = LsColors::from_env().unwrap_or_default();
-
-        if self.is_phantom {
-            let style = &Style::from_ansi_sequence("38;2;250;200;200;1;0").unwrap_or_default();
-            // paint all other phantoms/deleted files the same color, light pink
-            let ansi_style = &Style::to_ansi_term_style(style);
-            Cow::Owned(ansi_style.paint(display_name).to_string())
-        } else if let Some(style) = ls_colors.style_for(self) {
-            let ansi_style = &Style::to_ansi_term_style(style);
-            Cow::Owned(ansi_style.paint(display_name).to_string())
-        } else {
-            // if a non-phantom file that should not be colored (sometimes -- your regular files)
-            // or just in case if all else fails, don't paint and return string
-            Cow::Borrowed(display_name)
         }
     }
 
@@ -104,7 +86,7 @@ impl SelectionCandidate {
     }
 }
 
-impl Colorable for SelectionCandidate {
+impl Colorable for &SelectionCandidate {
     fn path(&self) -> PathBuf {
         self.path.to_owned()
     }
@@ -124,15 +106,14 @@ impl SkimItem for SelectionCandidate {
         self.path.file_name().unwrap_or_default().to_string_lossy()
     }
     fn display<'a>(&'a self, _context: DisplayContext<'a>) -> AnsiString<'a> {
-        AnsiString::parse(
-            &self.paint_selection_candidate(
-                &self
-                    .path
-                    .strip_prefix(&self.config.requested_dir.path_buf)
-                    .unwrap_or_else(|_| Path::new(&self.file_name))
-                    .to_string_lossy(),
-            ),
-        )
+        AnsiString::parse(&paint_string(
+            self,
+            &self
+                .path
+                .strip_prefix(&self.config.requested_dir.path_buf)
+                .unwrap_or_else(|_| Path::new(&self.file_name))
+                .to_string_lossy(),
+        ))
     }
     fn output(&self) -> Cow<str> {
         self.path.to_string_lossy()
@@ -148,7 +129,7 @@ pub fn interactive_exec(
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // go to interactive_select early if user has already requested a file
     // and we are in the appropriate mode Select or Restore, see struct Config
-    let vec_pathdata = if config.paths.get(0).is_some() && !&config.paths[0].is_dir() {
+    let vec_pathdata = if config.paths.get(0).is_some() && !httm_is_dir(&config.paths[0]) {
         // can index here because because we have guaranteed we have this one path
         let selected_file = config.paths[0].to_owned();
         interactive_select(config, &vec![selected_file])?;

@@ -16,14 +16,17 @@
 // that was distributed with this source code.
 
 use std::{
+    borrow::Cow,
     fs::{copy, create_dir_all, read_dir, DirEntry, FileType},
     io::{self, Read},
     path::{Path, PathBuf},
     time::SystemTime,
 };
 
-use crate::BasicDirEntryInfo;
+use crate::interactive::SelectionCandidate;
+use crate::{BasicDirEntryInfo, PathData};
 use chrono::{DateTime, Local};
+use lscolors::{LsColors, Style};
 
 pub fn timestamp_file(system_time: &SystemTime) -> String {
     let date_time: DateTime<Local> = system_time.to_owned().into();
@@ -98,12 +101,21 @@ pub trait HttmIsDir {
     fn get_path(&self) -> PathBuf;
 }
 
-impl HttmIsDir for PathBuf {
+impl HttmIsDir for &Path {
     fn get_filetype(&self) -> Result<FileType, std::io::Error> {
         Ok(self.metadata()?.file_type())
     }
     fn get_path(&self) -> PathBuf {
         self.to_path_buf()
+    }
+}
+
+impl HttmIsDir for PathData {
+    fn get_filetype(&self) -> Result<FileType, std::io::Error> {
+        Ok(self.path_buf.metadata()?.file_type())
+    }
+    fn get_path(&self) -> PathBuf {
+        self.path_buf.to_owned()
     }
 }
 
@@ -116,7 +128,7 @@ impl HttmIsDir for DirEntry {
     }
 }
 
-impl HttmIsDir for BasicDirEntryInfo {
+impl HttmIsDir for &BasicDirEntryInfo {
     fn get_filetype(&self) -> Result<FileType, std::io::Error> {
         //  of course, this is a placeholder error, we just need an error to report back
         //  why not store the error in the struct instead?  because it's more complex.  it might
@@ -126,5 +138,51 @@ impl HttmIsDir for BasicDirEntryInfo {
     }
     fn get_path(&self) -> PathBuf {
         self.path.to_owned()
+    }
+}
+
+pub fn paint_string<T>(path: T, display_name: &str) -> Cow<str>
+where
+    T: PaintString,
+{
+    if path.get_is_phantom() {
+        let style = &Style::from_ansi_sequence("38;2;250;200;200;1;0").unwrap_or_default();
+        // paint all other phantoms/deleted files the same color, light pink
+        let ansi_style = &Style::to_ansi_term_style(style);
+        Cow::Owned(ansi_style.paint(display_name).to_string())
+    } else if let Some(style) = path.get_ansi_style() {
+        let ansi_style = &Style::to_ansi_term_style(&style);
+        Cow::Owned(ansi_style.paint(display_name).to_string())
+    } else {
+        // if a non-phantom file that should not be colored (sometimes -- your regular files)
+        // or just in case if all else fails, don't paint and return string
+        Cow::Borrowed(display_name)
+    }
+}
+
+pub trait PaintString {
+    fn get_ansi_style(&self) -> Option<lscolors::style::Style>;
+    fn get_is_phantom(&self) -> bool;
+}
+
+impl PaintString for &PathData {
+    fn get_ansi_style(&self) -> Option<lscolors::style::Style> {
+        let ls_colors = LsColors::from_env().unwrap_or_default();
+        let style = ls_colors.style_for_path(self.path_buf.as_path());
+        style.map(|style| style.to_owned())
+    }
+    fn get_is_phantom(&self) -> bool {
+        self.is_phantom
+    }
+}
+
+impl PaintString for &SelectionCandidate {
+    fn get_ansi_style(&self) -> Option<lscolors::style::Style> {
+        let ls_colors = LsColors::from_env().unwrap_or_default();
+        let style = ls_colors.style_for(self);
+        style.map(|style| style.to_owned())
+    }
+    fn get_is_phantom(&self) -> bool {
+        self.is_phantom
     }
 }

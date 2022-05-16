@@ -154,9 +154,6 @@ impl PathData {
             is_phantom: phantom,
         }
     }
-    fn is_dir(&self) -> bool {
-        httm_is_dir(&self.path_buf)
-    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -394,7 +391,7 @@ impl Config {
                         // impossible to panic, because we are indexing to 0 on a len we know to be 1
                         let pathdata = paths.get(0).unwrap();
                         // use our bespoke is_dir fn for determining whether a dir here see pub httm_is_dir
-                        if pathdata.is_dir() {
+                        if httm_is_dir(pathdata) {
                             pathdata.to_owned()
                         // and then we take all comers here because may be a deleted file that DNE on a live version
                         } else {
@@ -431,7 +428,7 @@ impl Config {
                 // we should run in ExecMode::Display mode
                 match paths.len() {
                     1 => match paths.get(0) {
-                        Some(pathdata) if pathdata.is_dir() => pathdata.to_owned(),
+                        Some(pathdata) if httm_is_dir(pathdata) => pathdata.to_owned(),
                         _ => {
                             exec_mode = ExecMode::Display;
                             deleted_mode = DeletedMode::Disabled;

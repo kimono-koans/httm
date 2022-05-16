@@ -161,7 +161,7 @@ fn enumerate_deleted(
 
     let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) = deleted
         .into_par_iter()
-        .partition(|basic_dir_entry_info| httm_is_dir(basic_dir_entry_info));
+        .partition(|basic_dir_entry_info| httm_is_dir(&basic_dir_entry_info));
 
     // need something to hold our thread handles that we need to wait to complete,
     // also very helpful in the case we don't don't needs threads as it can be empty
