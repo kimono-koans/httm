@@ -13,7 +13,7 @@ documentation = "https://github.com/kimono-koans/httm/blob/master/README.md"
 [package.metadata.deb]
 maintainer = "kimono koans <https://github.com/kimono-koans/>"
 copyright = "2022, Robert Swinford <robert.swinford<...at...>gmail.com>"
-license-file = ["LICENSE", "0"]
+license-file = ["LICENSE", "4"]
 extended-description = """\
 httm prints the size, date and corresponding locations of available unique versions \
 (deduplicated by modify time and size) of files residing on ZFS snapshots, but can also \
