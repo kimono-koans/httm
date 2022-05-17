@@ -80,12 +80,13 @@ where
             file_type if file_type.is_file() => false,
             file_type if file_type.is_symlink() => {
                 match path.read_link() {
-                    Ok(link) => {
+                    Ok(link_target) => {
                         // First, read_link() will check symlink is pointing to a directory
                         //
                         // Next, check ancestors() against the read_link() will reduce/remove
                         // infinitely recursive paths, like /usr/bin/X11 pointing to /usr/X11
-                        link.is_dir() && link.ancestors().all(|ancestor| ancestor != link)
+                        link_target.is_dir()
+                            && path.ancestors().all(|ancestor| ancestor != link_target)
                     }
                     // we get an error? still pass the path on, as we get a good path from the dir entry
                     Err(_) => false,
