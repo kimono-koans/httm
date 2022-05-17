@@ -374,7 +374,7 @@ impl Config {
         // deduplicate pathdata and sort if in display mode --
         // so input of ./.z* and ./.zshrc will only print ./.zshrc once
         paths = if exec_mode == ExecMode::Display && paths.len() > 1 {
-            paths.sort_by_key(|pathdata| pathdata.path_buf.to_owned());
+            paths.par_sort_by_key(|pathdata| pathdata.path_buf.to_owned());
             paths.dedup_by_key(|pathdata| pathdata.path_buf.to_owned());
 
             paths
