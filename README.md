@@ -43,13 +43,23 @@ The `httm` project contains only a few components:
     cp ./httm/httm.1 /usr/local/share/man/man1/
     ```
 
-### Caveats 
+### Caveats & Special Cases
 
 Right now, you will need to use a Unix-ish-y Rust-supported platform to build and install (that is: Linux, Solaris/illumos, the BSDs, MacOS).  Note, your platform *does not* need to support ZFS to use `httm`.  And there is no fundamental reason a non-interactive Windows version of `httm` could not be built, as it once did build, but Windows platform support is not a priority for me right now.  Contributions from users are, of course, very welcome.
 
 On FreeBSD, after a fresh minimal install, the interactive modes may not render properly, see the linked [issue](https://github.com/kimono-koans/httm/issues/20) for the fix.
 
 On some Linux distributions, which include old versions of `libc`, `cargo` may require building with `musl` instead, see the linked [issue](https://github.com/kimono-koans/httm/issues/17).
+
+For Debian based distributions (like Ubuntu, etc.), you can create and install your own package, like so:
+
+    ```bash
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+    cargo install cargo-deb 
+    git clone https://github.com/kimono-koans/httm.git
+    cd ./httm/; cargo deb
+    dpkg -i ./target/debian/httm_*.deb
+    ```
 
 ## Example Usage
 

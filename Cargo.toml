@@ -8,7 +8,24 @@ repository = "https://github.com/kimono-koans/httm"
 readme = "README.md"
 categories = [ "command-line-utilities",  "os" ]
 license = "MPL-2.0"
-documentation = "https://github.com/kimono-koans/httm/blob/master/httm.1"
+documentation = "https://github.com/kimono-koans/httm/blob/master/README.md"
+
+[package.metadata.deb]
+maintainer = "kimono koans <https://github.com/kimono-koans/>"
+copyright = "2022, Robert Swinford <robert.swinford<...at...>gmail.com>"
+license-file = ["LICENSE", "0"]
+extended-description = """\
+httm prints the size, date and corresponding locations of available unique versions \
+(deduplicated by modify time and size) of files residing on ZFS snapshots, but can also \
+be used interactively to select and restore such files."""
+depends = "$auto"
+section = "utility"
+priority = "optional"
+assets = [
+    ["target/release/httm", "usr/bin/", "755"],
+    ["httm.1", "usr/share/man/man1/", "644"],
+    ["README.md", "usr/share/doc/httm/README", "644"],
+]
 
 [badges]
 maintenance = { status = "actively-developed" }
