@@ -23,10 +23,11 @@ use std::{
     time::SystemTime,
 };
 
-use crate::interactive::SelectionCandidate;
-use crate::{BasicDirEntryInfo, PathData};
 use chrono::{DateTime, Local};
 use lscolors::{LsColors, Style};
+
+use crate::interactive::SelectionCandidate;
+use crate::{BasicDirEntryInfo, PathData};
 
 pub fn timestamp_file(system_time: &SystemTime) -> String {
     let date_time: DateTime<Local> = system_time.to_owned().into();
@@ -67,6 +68,7 @@ pub fn read_stdin() -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sy
 }
 
 // is this path/dir_entry something we should count as a directory for our purposes?
+#[inline(always)]
 pub fn httm_is_dir<T>(entry: &T) -> bool
 where
     T: HttmIsDir,
@@ -141,6 +143,7 @@ impl HttmIsDir for &BasicDirEntryInfo {
     }
 }
 
+#[inline(always)]
 pub fn paint_string<T>(path: T, display_name: &str) -> Cow<str>
 where
     T: PaintString,
