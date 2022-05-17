@@ -15,13 +15,13 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::{borrow::Cow, path::Path, time::SystemTime};
+use std::time::SystemTime;
 
 use chrono::{DateTime, Local};
-use lscolors::{LsColors, Style};
 use number_prefix::NumberPrefix;
 use terminal_size::{terminal_size, Height, Width};
 
+use crate::utility::paint_string;
 use crate::{Config, PathData};
 
 // 2 space wide padding - used between date and size, and size and path
@@ -100,11 +100,7 @@ fn display_pretty(
                     // paint the live strings with ls colors - idx == 1 is 2nd or live set
                     let file_path = &pathdata.path_buf;
                     let painted_string = if idx == 1 {
-                        paint_display_string(
-                            file_path,
-                            file_path.to_str().unwrap_or_default(),
-                            pathdata.is_phantom,
-                        )
+                        paint_string(pathdata, file_path.to_str().unwrap_or_default())
                     } else {
                         file_path.to_string_lossy()
                     };
@@ -211,22 +207,4 @@ fn display_human_size(pathdata: &PathData) -> String {
 fn display_date(system_time: &SystemTime) -> String {
     let date_time: DateTime<Local> = system_time.to_owned().into();
     format!("{}", date_time.format("%a %b %e %H:%M:%S %Y"))
-}
-
-fn paint_display_string<'a>(path: &Path, display_name: &'a str, is_phantom: bool) -> Cow<'a, str> {
-    let ls_colors = LsColors::from_env().unwrap_or_default();
-
-    if is_phantom {
-        let style = &Style::from_ansi_sequence("38;2;250;200;200;1;0").unwrap_or_default();
-        // paint all other phantoms/deleted files the same color, light pink
-        let ansi_style = &Style::to_ansi_term_style(style);
-        Cow::Owned(ansi_style.paint(display_name).to_string())
-    } else if let Some(style) = ls_colors.style_for_path(path) {
-        let ansi_style = &Style::to_ansi_term_style(style);
-        Cow::Owned(ansi_style.paint(display_name).to_string())
-    } else {
-        // if a non-phantom file that should not be colored (sometimes -- your regular files)
-        // or just in case if all else fails, don't paint and return string
-        Cow::Borrowed(display_name)
-    }
 }
