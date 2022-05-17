@@ -51,14 +51,19 @@ On FreeBSD, after a fresh minimal install, the interactive modes may not render 
 
 On some Linux distributions, which include old versions of `libc`, `cargo` may require building with `musl` instead, see the linked [issue](https://github.com/kimono-koans/httm/issues/17).
 
-For Debian-based distributions (like Ubuntu, etc.), you can create and install your own package, like so:
+For Debian-based or Redhat-based distributions (like, Ubuntu or Fedora, etc.), you can create and install your own package, like so:
 
 ```bash
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 cargo install cargo-deb 
 git clone https://github.com/kimono-koans/httm.git
 cd ./httm/; cargo deb
+# to install on a Debian/Ubuntu-based system
 dpkg -i ./target/debian/httm_*.deb
+# or convert to RPM 
+cd ./target/debian/; alien --to-rpm ./httm_*.deb
+# and install on a Redhat-based system
+rpm -i ./httm_*.rpm
 ```
 
 ## Example Usage
