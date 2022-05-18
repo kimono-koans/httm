@@ -427,6 +427,7 @@ impl Config {
                 // we only want one dir for a ExecMode::DisplayRecursive run, else
                 // we should run in ExecMode::Display mode
                 match paths.len() {
+                    0 => pwd.clone(),
                     1 => match paths.get(0) {
                         Some(pathdata) if httm_is_dir(pathdata) => pathdata.to_owned(),
                         _ => {
@@ -435,11 +436,14 @@ impl Config {
                             pwd.clone()
                         }
                     },
+                    n if n > 1 => {
+                        return Err(HttmError::new(
+                            "May only specify one path in display recursive mode.",
+                        )
+                        .into())
+                    }
                     _ => {
-                        // paths should never be empty, but here we make sure
-                        exec_mode = ExecMode::Display;
-                        deleted_mode = DeletedMode::Disabled;
-                        pwd.clone()
+                        unreachable!()
                     }
                 }
             }
