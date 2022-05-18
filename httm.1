@@ -5,7 +5,7 @@ httm \- manual page for httm 0.10.9
 .SH DESCRIPTION
 httm 0.10.9
 .PP
-By default, httm will display non\-interactive information about unique file versions contained on
+by default, httm will display non\-interactive information about unique file versions contained on
 ZFS snapshots.
 .PP
 You may also select from the various interactive modes below to browse for, select, and/or restore
@@ -17,10 +17,9 @@ httm [OPTIONS] [INPUT_FILES]...
 .TP
 <INPUT_FILES>...
 in any non\-interactive mode, put requested files here.  If you enter no
-files, then httm will pause waiting for input on stdin(3).
-.TP
-in any interactive mode, this is the directory search path. If no
-directory is entered, httm will use the current working directory.
+files, then httm will pause waiting for input on stdin(3). In any
+interactive mode, this is the directory search path. If no directory is
+entered, httm will use the current working directory.
 .SS "OPTIONS:"
 .TP
 \fB\-i\fR, \fB\-\-interactive\fR
@@ -55,17 +54,19 @@ recurse into selected directory to find more files. Only
 available in interactive and deleted file modes.
 .TP
 \fB\-\-snap\-point\fR <SNAP_POINT>
-ordinarily httm will automatically choose your most immediate
-snapshot directory, but here you may manually specify your own
-mount point for that directory, such as the mount point for a
-remote share.  You can also set via the environment variable
+ordinarily httm will automatically choose your ZFS dataset root
+directory (most immediate ancestor directory which contains
+".zfs"), but here you may manually specify your own mount point
+for that directory, such as the local mount point for a remote
+share.  You can also set via the environment variable
 HTTM_SNAP_POINT.
 .TP
 \fB\-\-local\-dir\fR <LOCAL_DIR>
 used with SNAP_POINT to determine where the corresponding live
-root of the ZFS snapshot dataset is.  If not set, httm defaults
-to your current working directory.  You can also set via the
-environment variable HTTM_LOCAL_DIR.
+root filesystem of the ZFS dataset is.  Put more simply, the
+LOCAL_DIR is the directory you backup to your SNAP_POINT.  If
+not set, httm defaults to your current working directory.  You
+can also set via the environment variable HTTM_LOCAL_DIR.
 .TP
 \fB\-n\fR, \fB\-\-raw\fR
 display the backup locations only, without extraneous

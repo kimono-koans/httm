@@ -472,13 +472,13 @@ impl Config {
 
 fn parse_args() -> ArgMatches {
     clap::Command::new(crate_name!())
-        .about("\nBy default, httm will display non-interactive information about unique file versions contained on ZFS snapshots.\n\n\
+        .about("\nby default, httm will display non-interactive information about unique file versions contained on ZFS snapshots.\n\n\
         You may also select from the various interactive modes below to browse for, select, and/or restore files.")
         .version(crate_version!())
         .arg(
             Arg::new("INPUT_FILES")
                 .help("in any non-interactive mode, put requested files here.  If you enter no files, \
-                then httm will pause waiting for input on stdin(3).\n\nin any interactive mode, \
+                then httm will pause waiting for input on stdin(3). In any interactive mode, \
                 this is the directory search path. If no directory is entered, \
                 httm will use the current working directory.")
                 .takes_value(true)
@@ -542,8 +542,8 @@ fn parse_args() -> ArgMatches {
         .arg(
             Arg::new("SNAP_POINT")
                 .long("snap-point")
-                .help("ordinarily httm will automatically choose your most immediate snapshot directory, \
-                but here you may manually specify your own mount point for that directory, such as the mount point for a remote share.  \
+                .help("ordinarily httm will automatically choose your ZFS dataset root directory (most immediate ancestor directory which contains \".zfs\"), \
+                but here you may manually specify your own mount point for that directory, such as the local mount point for a remote share.  \
                 You can also set via the environment variable HTTM_SNAP_POINT.")
                 .takes_value(true)
                 .display_order(8)
@@ -551,8 +551,9 @@ fn parse_args() -> ArgMatches {
         .arg(
             Arg::new("LOCAL_DIR")
                 .long("local-dir")
-                .help("used with SNAP_POINT to determine where the corresponding live root of the ZFS snapshot dataset is.  If not set, \
-                httm defaults to your current working directory.  You can also set via the environment variable HTTM_LOCAL_DIR.")
+                .help("used with SNAP_POINT to determine where the corresponding live root filesystem of the ZFS dataset is.  \
+                Put more simply, the LOCAL_DIR is the directory you backup to your SNAP_POINT.  If not set, httm defaults to your current working directory.  \
+                You can also set via the environment variable HTTM_LOCAL_DIR.")
                 .requires("SNAP_POINT")
                 .takes_value(true)
                 .display_order(9)
