@@ -51,7 +51,7 @@ On FreeBSD, after a fresh minimal install, the interactive modes may not render 
 
 On some Linux distributions, which include old versions of `libc`, `cargo` may require building with `musl` instead, see the linked [issue](https://github.com/kimono-koans/httm/issues/17).
 
-For Debian-based or Redhat-based Linux distributions (like, Ubuntu or Fedora, etc.), you can create and install your own package, like so:
+For Debian-based or Redhat-based Linux distributions (like, Ubuntu or Fedora, etc.), you can create and install your own native package, like so:
 
 ```bash
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
