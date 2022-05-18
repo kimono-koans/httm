@@ -526,8 +526,8 @@ fn parse_args() -> ArgMatches {
             Arg::new("ALT_REPLICATED")
                 .short('a')
                 .long("alt-replicated")
-                .help("automatically discover alternative locally replicated datasets and list their snapshots as well.  \
-                NOTE: Make certain replicated datasets are mounted before use, as httm will silently ignore any unmounted \
+                .help("automatically discover locally replicated datasets and list their snapshots as well.  \
+                NOTE: Be certain such replicated datasets are mounted before use, as httm will silently ignore any unmounted \
                 datasets in the interactive modes.")
                 .conflicts_with_all(&["SNAP_POINT", "LOCAL_DIR"])
                 .display_order(6)
