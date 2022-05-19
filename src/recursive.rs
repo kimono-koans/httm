@@ -150,8 +150,6 @@ pub fn enumerate_directory(
     Ok(())
 }
 
-// why another fn? so we can spawn another thread and not block on finding deleted files
-// which generally takes a long time.
 fn enumerate_deleted(
     config: Arc<Config>,
     requested_dir: &Path,
@@ -163,10 +161,6 @@ fn enumerate_deleted(
         .into_par_iter()
         .partition(|basic_dir_entry_info| httm_is_dir(&basic_dir_entry_info));
 
-    // need something to hold our thread handles that we need to wait to complete,
-    // also very helpful in the case we don't don't needs threads as it can be empty
-    let mut vec_handles = Vec::new();
-
     if config.deleted_mode != DeletedMode::DepthOfOne {
         let _ = &vec_dirs
             .iter()
@@ -176,18 +170,12 @@ fn enumerate_deleted(
                 let requested_dir_clone = requested_dir.to_path_buf();
                 let tx_item_clone = tx_item.clone();
 
-                // thread spawn fn enumerate_directory - permits recursion into dirs without blocking
-                // or blocking when we choose to block
-                let handle = std::thread::spawn(move || {
-                    let _ = behind_deleted_dir(
-                        config_clone,
-                        &tx_item_clone,
-                        &deleted_dir,
-                        &requested_dir_clone,
-                    );
-                });
-
-                vec_handles.push(handle);
+                let _ = behind_deleted_dir(
+                    config_clone,
+                    &tx_item_clone,
+                    &deleted_dir,
+                    &requested_dir_clone,
+                );
             });
     }
 
@@ -207,11 +195,6 @@ fn enumerate_deleted(
     match config.exec_mode {
         ExecMode::Interactive => send_deleted_recursive(config, &pseudo_live_versions, tx_item)?,
         ExecMode::DisplayRecursive => {
-            // here we make sure to wait until all child threads have exited before returning
-            // this allows the main work of the fn to keep running while while work on deleted
-            // files in the background
-            let _ = vec_handles.into_iter().try_for_each(|handle| handle.join());
-
             if !pseudo_live_versions.is_empty() {
                 if config.opt_recursive {
                     eprintln!();
