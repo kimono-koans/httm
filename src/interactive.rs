@@ -151,7 +151,7 @@ pub fn interactive_exec(
                 }
                 // Config::from should never allow us to have an instance where we don't
                 // have at least one path to use
-                _ => unreachable!(),
+                _ => unreachable!("config.paths.get(0) should never be a None value"),
             }
         }
     };
