@@ -142,12 +142,16 @@ pub fn interactive_exec(
         None => {
             // go to interactive_select early if user has already requested a file
             // and we are in the appropriate mode Select or Restore, see struct Config
-            if let Some(first_path) = config.paths.get(0) {
-                let selected_file = first_path.to_owned();
-                interactive_select(config, &vec![selected_file])?;
-                unreachable!()
-            } else {
-                unreachable!()
+            match config.paths.get(0) {
+                Some(first_path) => {
+                    let selected_file = first_path.to_owned();
+                    interactive_select(config, &vec![selected_file])?;
+                    // interactive select never returns so unreachable here
+                    unreachable!()
+                },
+                // Config::from should never allow us to have an instance where we don't
+                // have at least one path to use
+                _ => unreachable!(),
             }
         }
     };
