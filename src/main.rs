@@ -434,7 +434,7 @@ impl Config {
                         _ => {
                             exec_mode = ExecMode::Display;
                             deleted_mode = DeletedMode::Disabled;
-                            Some(pwd.clone())
+                            None
                         }
                     },
                     n if n > 1 => {
