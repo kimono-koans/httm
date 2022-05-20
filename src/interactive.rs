@@ -148,7 +148,7 @@ pub fn interactive_exec(
                     interactive_select(config, &vec![selected_file])?;
                     // interactive select never returns so unreachable here
                     unreachable!()
-                },
+                }
                 // Config::from should never allow us to have an instance where we don't
                 // have at least one path to use
                 _ => unreachable!(),
