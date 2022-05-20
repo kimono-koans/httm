@@ -404,7 +404,7 @@ impl Config {
                                     }
                                     InteractiveMode::Restore | InteractiveMode::Select => {
                                         // non-dir file will just cause us to skip the lookup phase
-                                        Some(pathdata.to_owned())
+                                        None
                                     }
                                 }
                             }

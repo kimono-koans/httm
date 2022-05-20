@@ -25,7 +25,7 @@ use skim::prelude::*;
 use crate::display::display_exec;
 use crate::lookup::get_versions;
 use crate::recursive::enumerate_directory;
-use crate::utility::{copy_recursive, httm_is_dir, paint_string, timestamp_file};
+use crate::utility::{copy_recursive, paint_string, timestamp_file};
 use crate::{
     Config, DeletedMode, ExecMode, HttmError, InteractiveMode, PathData,
     ZFS_HIDDEN_SNAPSHOT_DIRECTORY,
@@ -133,19 +133,23 @@ impl SkimItem for SelectionCandidate {
 pub fn interactive_exec(
     config: &Config,
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    // go to interactive_select early if user has already requested a file
-    // and we are in the appropriate mode Select or Restore, see struct Config
-    let vec_pathdata = if config.paths.get(0).is_some() && !httm_is_dir(&config.paths[0]) {
-        // can index here because because we have guaranteed we have this one path
-        let selected_file = config.paths[0].to_owned();
-        interactive_select(config, &vec![selected_file])?;
-        unreachable!()
-    } else {
+    let vec_pathdata = match &config.requested_dir {
         // collect string paths from what we get from lookup_view
-        browse_view(config)?
+        Some(requested_dir) => browse_view(config, requested_dir)?
             .into_iter()
             .map(|path_string| PathData::from(Path::new(&path_string)))
-            .collect::<Vec<PathData>>()
+            .collect::<Vec<PathData>>(),
+        None => {
+            // go to interactive_select early if user has already requested a file
+            // and we are in the appropriate mode Select or Restore, see struct Config
+            if let Some(first_path) = config.paths.get(0) {
+                let selected_file = first_path.to_owned();
+                interactive_select(config, &vec![selected_file])?;
+                unreachable!()
+            } else {
+                unreachable!()
+            }
+        }
     };
 
     // do we return back to our main exec function to print,
@@ -167,14 +171,10 @@ pub fn interactive_exec(
 
 fn browse_view(
     config: &Config,
+    requested_dir: &PathData,
 ) -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // prep thread spawn
-    let requested_dir_clone = config
-        .requested_dir
-        .as_ref()
-        .expect("requested_dir should never be None in Interactive mode")
-        .path_buf
-        .clone();
+    let requested_dir_clone = requested_dir.path_buf.clone();
     let (tx_item, rx_item): (SkimItemSender, SkimItemReceiver) = unbounded();
     let arc_config = Arc::new(config.clone());
 
