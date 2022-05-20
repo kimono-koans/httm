@@ -205,7 +205,7 @@ pub struct Config {
     deleted_mode: DeletedMode,
     interactive_mode: InteractiveMode,
     pwd: PathData,
-    requested_dir: PathData,
+    requested_dir: Option<PathData>,
 }
 
 impl Config {
@@ -383,15 +383,15 @@ impl Config {
         };
 
         // for exec_modes in which we can only take a single directory, process how we handle those here
-        let requested_dir: PathData = match exec_mode {
+        let requested_dir: Option<PathData> = match exec_mode {
             ExecMode::Interactive => {
                 match paths.len() {
-                    0 => pwd.clone(),
+                    0 => Some(pwd.clone()),
                     1 => match paths.get(0) {
                         Some(pathdata) => {
                             // use our bespoke is_dir fn for determining whether a dir here see pub httm_is_dir
                             if httm_is_dir(pathdata) {
-                                pathdata.to_owned()
+                                Some(pathdata.to_owned())
                             // and then we take all comers here because may be a deleted file that DNE on a live version
                             } else {
                                 match interactive_mode {
@@ -404,7 +404,7 @@ impl Config {
                                     }
                                     InteractiveMode::Restore | InteractiveMode::Select => {
                                         // non-dir file will just cause us to skip the lookup phase
-                                        pathdata.to_owned()
+                                        Some(pathdata.to_owned())
                                     }
                                 }
                             }
@@ -428,13 +428,13 @@ impl Config {
                 // we only want one dir for a ExecMode::DisplayRecursive run, else
                 // we should run in ExecMode::Display mode
                 match paths.len() {
-                    0 => pwd.clone(),
+                    0 => Some(pwd.clone()),
                     1 => match paths.get(0) {
-                        Some(pathdata) if httm_is_dir(pathdata) => pathdata.to_owned(),
+                        Some(pathdata) if httm_is_dir(pathdata) => Some(pathdata.to_owned()),
                         _ => {
                             exec_mode = ExecMode::Display;
                             deleted_mode = DeletedMode::Disabled;
-                            pwd.clone()
+                            Some(pwd.clone())
                         }
                     },
                     n if n > 1 => {
@@ -451,7 +451,7 @@ impl Config {
             ExecMode::Display => {
                 // in non-interactive mode / display mode, requested dir is just a file
                 // like every other file and pwd must be the requested working dir.
-                pwd.clone()
+                None
             }
         };
 

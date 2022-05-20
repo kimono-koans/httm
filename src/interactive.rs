@@ -109,7 +109,14 @@ impl SkimItem for SelectionCandidate {
             self,
             &self
                 .path
-                .strip_prefix(&self.config.requested_dir.path_buf)
+                .strip_prefix(
+                    &self
+                        .config
+                        .requested_dir
+                        .as_ref()
+                        .expect("requested_dir should never be None in Interactive mode")
+                        .path_buf,
+                )
                 .unwrap_or_else(|_| Path::new(&self.file_name))
                 .to_string_lossy(),
         ))
@@ -162,7 +169,12 @@ fn browse_view(
     config: &Config,
 ) -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // prep thread spawn
-    let requested_dir_clone = config.requested_dir.path_buf.clone();
+    let requested_dir_clone = config
+        .requested_dir
+        .as_ref()
+        .expect("requested_dir should never be None in Interactive mode")
+        .path_buf
+        .clone();
     let (tx_item, rx_item): (SkimItemSender, SkimItemReceiver) = unbounded();
     let arc_config = Arc::new(config.clone());
 
