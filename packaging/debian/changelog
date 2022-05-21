@@ -1,4 +1,4 @@
-rust-httm (0.10.9-1); urgency=medium
+rust-httm (0.10.9-1) jammy; urgency=medium
 
   * Team upload.
   * Package httm 0.10.9 from crates.io using debcargo 2.5.0
