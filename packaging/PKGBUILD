@@ -14,7 +14,7 @@ sha512sums=('35e9e6864753031318ba683b6a8f6a48323c5d83fa6c3478c5bc62f2feec22a49fd
 build(){
 	# install a stable rust toochain to build
 	rustup toolchain install stable
-	# install latest with cargo install --git https://github.com/kimono-koans/httm.git
+	# use cargo to build from a tagged release
 	cd "${srcdir}/$pkgname-$pkgver"; cargo build --release
 	cd -
 }
