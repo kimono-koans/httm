@@ -19,7 +19,7 @@ prepare() {
 
 build(){
 	export RUSTUP_TOOLCHAIN=stable
-    export CARGO_TARGET_DIR=target
+	export CARGO_TARGET_DIR=target
 	# use cargo to build from a tagged release
 	cd "${srcdir}/$pkgname-$pkgver"
 	cargo build --frozen --release --all-features
@@ -28,7 +28,7 @@ build(){
 
 package(){
 	# install executable
-    install -Dm755 "${srcdir}/${pkgname}-${pkgver}/target/release/${pkgname}" "${pkgdir}/usr/bin/${pkgname}"
+	install -Dm755 "${srcdir}/${pkgname}-${pkgver}/target/release/${pkgname}" "${pkgdir}/usr/bin/${pkgname}"
 
 	# install man page
 	install -Dm644 "${srcdir}/${pkgname}-${pkgver}/${pkgname}.1" "${pkgdir}/usr/share/man/man1/${pkgname}.1"
