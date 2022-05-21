@@ -13,7 +13,7 @@ sha512sums=('35e9e6864753031318ba683b6a8f6a48323c5d83fa6c3478c5bc62f2feec22a49fd
 
 prepare() {
 	cd "${srcdir}/$pkgname-$pkgver"
-    cargo fetch --locked --target "$CARCH-unknown-linux-gnu"
+	cargo fetch --locked --target "$CARCH-unknown-linux-gnu"
 	cd -
 }
 
@@ -22,7 +22,7 @@ build(){
 	export CARGO_TARGET_DIR=target
 	# use cargo to build from a tagged release
 	cd "${srcdir}/$pkgname-$pkgver"
-	cargo build --frozen --release --all-features
+	cargo build --frozen --release --all-features -- -C strip=symbols
 	cd -
 }
 
