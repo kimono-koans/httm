@@ -36,15 +36,17 @@ pub fn display_recursive_exec(
     let (dummy_tx_item, _): (SkimItemSender, SkimItemReceiver) = unbounded();
     let config_clone = Arc::new(config.clone());
 
-    enumerate_directory(
-        config_clone,
-        &dummy_tx_item,
-        &config
-            .clone()
-            .requested_dir
-            .expect("requested_dir should never be None in Display Recursive mode")
-            .path_buf,
-    )?;
+    match &config.clone().requested_dir {
+        Some(requested_dir) => {
+            enumerate_directory(config_clone, &dummy_tx_item, &requested_dir.path_buf)?;
+        }
+        None => {
+            return Err(HttmError::new(
+                "requested_dir should never be None in Display Recursive mode",
+            )
+            .into())
+        }
+    }
 
     // flush and exit successfully upon ending recursive search
     if config.opt_recursive {
