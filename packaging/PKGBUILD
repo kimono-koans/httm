@@ -1,7 +1,7 @@
 pkgname=httm
 pkgver=0.10.9
 pkgrel=1
-pkgdesc="The dream of a CLI ZFS Time Machine is still alive with httm. Httm prints the size, date and corresponding locations of available unique versions (deduplicated by modify time and size) of files residing on ZFS snapshots, but can also be used interactively to select and restore such files."
+pkgdesc="*The dream of a CLI ZFS Time Machine is still alive with httm.* httm prints the size, date and corresponding locations of available unique versions (deduplicated by modify time and size) of files residing on ZFS snapshots, but can also be used interactively to select and restore such files."
 arch=('x86_64')
 url="https://github.com/kimono-koans/httm/blob/master/README.md"
 license=('MPL-2.0')
@@ -15,22 +15,20 @@ build(){
 	# install a stable rust toochain to build
 	rustup toolchain install stable
 	# install latest with cargo install --git https://github.com/kimono-koans/httm.git
-	cd "${srcdir}/httm-$pkgver"; cargo build --release
+	cd "${srcdir}/$pkgname-$pkgver"; cargo build --release
 	cd -
 }
 
 package(){
+	# install executable
+    install -Dm755 "${srcdir}/${pkgname}-${pkgver}/target/release/${pkgname}" "${pkgdir}/usr/bin/${pkgname}"
 
-	mkdir -p "${pkgdir}/usr/bin"
-    cp "${srcdir}/target/release/httm" "${pkgdir}/usr/bin/"
-	chmod 755 "${pkgdir}/usr/bin/httm"
+	# install man page
+	install -Dm644 "${srcdir}/${pkgname}-${pkgver}/${pkgname}.1" "${pkgdir}/usr/share/man/man1/${pkgname}.1"
 
-	mkdir -p "${pkgdir}/usr/share/man/man1"
-    cp "${srcdir}/httm.1" "${pkgdir}/usr/share/man/man1/"
-	chmod 644 "${pkgdir}/usr/share/man/man1/httm.1"
+	# install README.md
+	install -Dm644 "${srcdir}/${pkgname}-${pkgver}/README.md" "${pkgdir}/usr/share/doc/${pkgname}/README.md"
 
-	mkdir -p "${pkgdir}/usr/share/doc/httm"
-    cp "${srcdir}/README.md" "${pkgdir}/usr/share/doc/httm/"
-	chmod 644 "${pkgdir}/usr/share/doc/httm/README.md"
-
+	# install LICENSE
+	install -Dm644 "${srcdir}/${pkgname}-$pkgver/LICENSE" "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
 }
