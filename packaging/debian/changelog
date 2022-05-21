@@ -1,0 +1,6 @@
+rust-httm (0.10.9-1); urgency=medium
+
+  * Team upload.
+  * Package httm 0.10.9 from crates.io using debcargo 2.5.0
+
+ -- Robert Swinford <robert.swinford<...at...>gmail.com>  Sat, 21 May 2022 22:31:49 +0000
