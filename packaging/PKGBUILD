@@ -11,10 +11,6 @@ source_x86_64=("https://github.com/kimono-koans/httm/releases/download/0.10.9/ht
 sha512sums_x86_64=('3c92ca14dc22e2a0769cf0162edd08bf25366798313b79001b250d318494d7f10bee78a605732d546bfc97180648d8e3d9d028c26295400ac836739e918b7360')
 
 package(){
-
 	# Extract package data
 	tar -xJ -f data.tar.xz -C "${pkgdir}"
-
-	install -D -m644 "usr/share/doc/httm/copyright" "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
-
 }
