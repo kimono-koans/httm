@@ -1,0 +1,20 @@
+pkgname=httm-bin
+pkgver=0.10.9
+pkgrel=1
+pkgdesc="The dream of a CLI ZFS Time Machine is still alive with httm. Httm prints the size, date and corresponding locations of available unique versions (deduplicated by modify time and size) of files residing on ZFS snapshots, but can also be used interactively to select and restore such files."
+arch=('i686' 'x86_64')
+url="https://github.com/kimono-koans/httm/blob/master/README.md"
+license=('MPL-2.0')
+groups=('utility')
+options=('!strip' '!emptydirs')
+source_x86_64=("https://github.com/kimono-koans/httm/releases/download/0.10.9/httm_0.10.9_amd64.deb")
+sha512sums_x86_64=('3c92ca14dc22e2a0769cf0162edd08bf25366798313b79001b250d318494d7f10bee78a605732d546bfc97180648d8e3d9d028c26295400ac836739e918b7360')
+
+package(){
+
+	# Extract package data
+	tar -xJ -f data.tar.xz -C "${pkgdir}"
+
+	install -D -m644 "usr/share/doc/httm/copyright" "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
+
+}
