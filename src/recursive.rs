@@ -162,6 +162,7 @@ pub fn enumerate_directory(
     Ok(())
 }
 
+// deleted file search for all modes
 fn enumerate_deleted(
     config: Arc<Config>,
     requested_dir: &Path,
@@ -173,6 +174,8 @@ fn enumerate_deleted(
         .into_par_iter()
         .partition(|basic_dir_entry_info| httm_is_dir(&basic_dir_entry_info));
 
+    // disable behind deleted dirs with DepthOfOne,
+    // otherwise recurse and find all those deleted files
     if config.deleted_mode != DeletedMode::DepthOfOne {
         let _ = &vec_dirs
             .iter()
@@ -269,6 +272,7 @@ fn behind_deleted_dir(
             })
             .collect();
 
+        // send to the interactive view, or print directly, never return back
         match config.exec_mode {
             ExecMode::Interactive => {
                 send_deleted_recursive(config.clone(), &pseudo_live_versions, tx_item)?
