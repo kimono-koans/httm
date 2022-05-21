@@ -139,15 +139,12 @@ cd ./target/debian/; alien --to-rpm ./httm_*.deb
 rpm -i ./httm_*.rpm
 ```
 
-For Arch-based Linux distributions, you can use the any Debian package, like the one we generated above, to create your own native package, like so:
+For Arch-based Linux distributions, you can create and install your own native package, like so:
 
 ```bash
-wget https://github.com/kimono-koans/httm/releases/download/0.10.9/httm_0.10.9_amd64.deb
-yaru -S debtap
-debtap httm_0.10.9_amd64.deb
+wget https://raw.githubusercontent.com/kimono-koans/httm/master/packaging/PKGBUILD
+makepkg -si
 ```
-
-See also the `PKGBUILD` file found the `packaging` directory. 
 
 ## License
 
