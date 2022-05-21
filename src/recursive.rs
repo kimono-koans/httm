@@ -85,6 +85,8 @@ pub fn enumerate_directory(
                 }
             });
 
+    // "spawn" is because we used to spawn a here for delete thread,
+    // but thread spawning here is more costly than just running in sync
     let spawn_enumerate_deleted = || {
         let config_clone = config.clone();
         let requested_dir_clone = requested_dir.to_path_buf();
@@ -218,6 +220,10 @@ fn enumerate_deleted(
     Ok(())
 }
 
+// searches for all files behind the dirs that have been deleted
+// recurses over all dir entries and creates pseudo live versions
+// for them all, policy is to use the latest snapshot version before
+// deletion
 fn behind_deleted_dir(
     config: Arc<Config>,
     tx_item: &SkimItemSender,
