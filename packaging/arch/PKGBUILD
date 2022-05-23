@@ -1,5 +1,5 @@
 pkgname=httm
-pkgver=0.10.9
+pkgver=0.10.10
 pkgrel=1
 pkgdesc="*The dream of a CLI ZFS Time Machine is still alive with httm.* httm prints the size, date and corresponding locations of available unique versions (deduplicated by modify time and size) of files residing on ZFS snapshots, but can also be used interactively to select and restore such files."
 arch=('x86_64')
