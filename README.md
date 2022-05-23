@@ -102,7 +102,6 @@ httm -r -R ~
 ```
 Compare all unique versions to the live file version of `.zshrc`:
 ```bash
-#!/bin/bash
 filename="$HOME/.zshrc"
 for version in $(httm -n $filename); do
     # check whether files differ (e.g. snapshot version is identical to live file)
