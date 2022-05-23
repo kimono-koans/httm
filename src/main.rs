@@ -259,17 +259,20 @@ impl Config {
         }
 
         // current working directory will be helpful in a number of places
-        let pwd = if let Ok(pwd) = std::env::var("PWD") {
+        let pwd = if let Ok(pwd) = std::env::current_dir() {
             if let Ok(path) = PathBuf::from(&pwd).canonicalize() {
                 PathData::from(path.as_path())
             } else {
                 return Err(HttmError::new(
-                    "Working directory, as set in your environment, does not appear to exist",
+                    "Could not obtain a canonical path for your working directory",
                 )
                 .into());
             }
         } else {
-            return Err(HttmError::new("Working directory is not set in your environment.").into());
+            return Err(HttmError::new(
+                "Working directory does not exist or your do not have permissions to access it.",
+            )
+            .into());
         };
 
         // where is the hidden snapshot directory located?
