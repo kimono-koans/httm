@@ -22,7 +22,32 @@ Use in combination with you favorite shell (hot keys!) for even more fun.
 
 Inspired by the [findoid](https://github.com/jimsalterjrs/sanoid) script, [fzf](https://github.com/junegunn/fzf) and many [zsh](https://www.zsh.org) key bindings.
 
-## Installation
+## Installation of Native Package
+
+For Debian-based and Redhat-based Linux distributions (like, Ubuntu or Fedora, etc.), check the tagged releases of native packages for your distribution.  You may also create and install your own native package from the latest sources, like so:
+
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+cargo install cargo-deb 
+git clone https://github.com/kimono-koans/httm.git
+cd ./httm/; cargo deb
+# to install on a Debian/Ubuntu-based system
+dpkg -i ./target/debian/httm_*.deb
+# or convert to RPM 
+alien -r ./target/debian/httm_*.deb
+# and install on a Redhat-based system
+rpm -i ./httm_*.rpm
+```
+
+For Arch-based Linux distributions, you can create and install your own native package from the latest sources, like so:
+
+```bash
+# you need to edit the PKGBUILD as needed to conform to the latest release
+wget https://raw.githubusercontent.com/kimono-koans/httm/master/packaging/arch/PKGBUILD
+makepkg -si
+```
+
+## Installation from Source
 
 The `httm` project contains only a few components:
 
@@ -30,7 +55,7 @@ The `httm` project contains only a few components:
 
     ```bash
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh 
-    cargo install --git https://github.com/kimono-koans/httm.git
+    cargo install httm
     ```
 2. The optional `zsh` hot-key bindings: Use `ESC+s` to select snapshots filenames to be dropped to your command line (for instance after the `cat` command), or use `ESC+m` to browse for all of a file's snapshots. After you install the `httm` binary, to copy the hot key script to your home directory, and source that script within your `.zshrc`:
 
@@ -121,31 +146,6 @@ httm -i -R ~
 ## I know what you're thinking, but slow your roll.
 
 ![To be clear, httm is *not*...](https://i.pinimg.com/originals/23/7f/2a/237f2ab8765663c721325366406197b7.gif)
-
-## Packaging
-
-For Debian-based and Redhat-based Linux distributions (like, Ubuntu or Fedora, etc.), you can create and install your own native package, like so:
-
-```bash
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-cargo install cargo-deb 
-git clone https://github.com/kimono-koans/httm.git
-cd ./httm/; cargo deb
-# to install on a Debian/Ubuntu-based system
-dpkg -i ./target/debian/httm_*.deb
-# or convert to RPM 
-cd ./target/debian/; alien --to-rpm ./httm_*.deb
-# and install on a Redhat-based system
-rpm -i ./httm_*.rpm
-```
-
-For Arch-based Linux distributions, you can create and install your own native package, like so:
-
-```bash
-# edit PKGBUILD as needed to conform to the latest release
-wget https://raw.githubusercontent.com/kimono-koans/httm/master/packaging/arch/PKGBUILD
-makepkg -si
-```
 
 ## License
 
