@@ -100,6 +100,20 @@ Browse all files in your home directory, recursively, and view unique versions o
 ```bash
 httm -r -R ~
 ```
+Compare all unique versions to the live file version of `.zshrc`:
+```bash
+#!/bin/bash
+filename="$HOME/.zshrc"
+for version in $(httm -n $filename); do
+    # check whether files differ (e.g. snapshot version is identical to live file)
+    if [[ ! -z "$( diff -q  "$version" "$filename" )" ]]; then
+        # print that version and file differ
+        diff -q  "$version" "$filename"
+        # print the difference
+        diff "$version" "$filename"
+    fi
+done
+```
 Create a simple `tar` archive of all unique versions of your `/var/log/syslog`:
 ```bash
 httm -n /var/log/syslog | tar -zcvf all-versions-syslog.tar.gz -T -
