@@ -100,6 +100,16 @@ Browse all files in your home directory, recursively, and view unique versions o
 ```bash
 httm -r -R ~
 ```
+Browse all files, recursively, in your MacOS home directory backed up via `rsync` to a ZFS remote share, shared via `smbd`, and view unique versions on remote snapshots:
+```bash
+# mount the share
+open smb://<your name>@<your remote share>.local/Home
+# set the location of you snapshot share point and local relative directory
+export HTTM_SNAP_POINT="/Volumes/Home"
+export HTTM_LOCAL_DIR="/Users/<your name>"
+# execute httm
+httm -i -R ~
+```
 View the differences between each unique snapshot version of `.zshrc` and the live file:
 ```bash
 filename="$HOME/.zshrc"
@@ -146,16 +156,6 @@ done
 tar -zcvf "../all-versions-$(basename $file).tar.gz" "./"
 # and to view
 git log --stat
-```
-Browse all files, recursively, in your MacOS home directory backed up via `rsync` to a ZFS remote share, shared via `smbd`, and view unique versions on remote snapshots:
-```bash
-# mount the share
-open smb://<your name>@<your remote share>.local/Home
-# set the location of you snapshot share point and local relative directory
-export HTTM_SNAP_POINT="/Volumes/Home"
-export HTTM_LOCAL_DIR="/Users/<your name>"
-# execute httm
-httm -i -R ~
 ```
 
 ## I know what you're thinking, but slow your roll.
