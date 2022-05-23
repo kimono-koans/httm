@@ -100,15 +100,15 @@ Browse all files in your home directory, recursively, and view unique versions o
 ```bash
 httm -r -R ~
 ```
-View the differences between each unique snapshot version of `.zshrc` and the live file `.zshrc`:
+View the differences between each unique snapshot version of `.zshrc` and the live file:
 ```bash
 filename="$HOME/.zshrc"
 for version in $(httm -n $filename); do
     # check whether files differ (e.g. snapshot version is identical to live file)
     if [[ ! -z "$( diff -q  "$version" "$filename" )" ]]; then
-        # print that version and file differ
+        # print that version and file that differ
         diff -q  "$version" "$filename"
-        # print the difference
+        # print the difference between that version and file
         diff "$version" "$filename"
     fi
 done
