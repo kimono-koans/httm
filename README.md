@@ -22,7 +22,7 @@ Use in combination with you favorite shell (hot keys!) for even more fun.
 
 Inspired by the [findoid](https://github.com/jimsalterjrs/sanoid) script, [fzf](https://github.com/junegunn/fzf) and many [zsh](https://www.zsh.org) key bindings.
 
-## Installation of Native Packages
+## Install via Native Packages
 
 For Debian-based and Redhat-based Linux distributions (like, Ubuntu or Fedora, etc.), check the [tagged releases](https://github.com/kimono-koans/httm/tags) for native packages for your distribution.  
 
@@ -49,7 +49,7 @@ wget https://raw.githubusercontent.com/kimono-koans/httm/master/packaging/arch/P
 makepkg -si
 ```
 
-## Installation from Source
+## Install via Source
 
 The `httm` project contains only a few components:
 
