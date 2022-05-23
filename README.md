@@ -24,7 +24,7 @@ Inspired by the [findoid](https://github.com/jimsalterjrs/sanoid) script, [fzf](
 
 ## Installation of Native Packages
 
-For Debian-based and Redhat-based Linux distributions (like, Ubuntu or Fedora, etc.), check the tagged releases of native packages for your distribution.  You may also create and install your own native package from the latest sources, like so:
+For Debian-based and Redhat-based Linux distributions (like, Ubuntu or Fedora, etc.), check the [tagged releases](https://github.com/kimono-koans/httm/tags) of native packages for your distribution.  You may also create and install your own native package from the latest sources, like so:
 
 ```bash
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
