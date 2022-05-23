@@ -22,7 +22,7 @@ Use in combination with you favorite shell (hot keys!) for even more fun.
 
 Inspired by the [findoid](https://github.com/jimsalterjrs/sanoid) script, [fzf](https://github.com/junegunn/fzf) and many [zsh](https://www.zsh.org) key bindings.
 
-## Installation of Native Package
+## Installation of Native Packages
 
 For Debian-based and Redhat-based Linux distributions (like, Ubuntu or Fedora, etc.), check the tagged releases of native packages for your distribution.  You may also create and install your own native package from the latest sources, like so:
 
