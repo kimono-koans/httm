@@ -100,7 +100,7 @@ Browse all files in your home directory, recursively, and view unique versions o
 ```bash
 httm -r -R ~
 ```
-Compare all unique versions to the live file version of `.zshrc`:
+View the differences between each unique snapshot version of `.zshrc` and the live file `.zshrc`:
 ```bash
 filename="$HOME/.zshrc"
 for version in $(httm -n $filename); do
