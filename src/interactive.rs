@@ -31,6 +31,10 @@ use crate::{
     ZFS_HIDDEN_SNAPSHOT_DIRECTORY,
 };
 
+// these represent to items ready for selection and preview
+// contains everything needs to request preview and paint with
+// LsColors -- see preview_view, preview for how preview is done
+// and impl Colorable for how we paint the path strings
 pub struct SelectionCandidate {
     config: Arc<Config>,
     file_name: OsString,
