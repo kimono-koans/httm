@@ -23,25 +23,27 @@ entered, httm will use the current working directory.
 .SS "OPTIONS:"
 .TP
 \fB\-i\fR, \fB\-\-interactive\fR
-interactive browse and search to display unique file versions.
+interactive browse and search a specified directory to display
+unique file versions.
 .TP
 \fB\-s\fR, \fB\-\-select\fR
-interactive browse and search to display unique file versions.
-Continue to another dialog to select a snapshot version to dump
-to stdout(3).
+interactive browse and search a specified directory to display
+unique file versions.  Continue to another dialog to select a
+snapshot version to dump to stdout(3).
 .TP
 \fB\-r\fR, \fB\-\-restore\fR
-interactive browse and search to display unique file versions.
-Continue to another dialog to select a snapshot version to
-restore.
+interactive browse and search a specified directory to display
+unique file versions.  Continue to another dialog to select a
+snapshot version to restore.
 .TP
 \fB\-d\fR, \fB\-\-deleted\fR <DELETED>
-show deleted files in interactive modes, or do a search for all
-such files, if a directory is specified. If "\-\-deleted only" is
-specified, then, in interactive modes, non\-deleted files will
-be excluded from the search. If "\-\-deleted single" is
-specified, then, deleted files behind deleted directories, with
-a depth greater than one will be ignored.
+show deleted files in interactive modes.  In non\-interactive
+modes, do a search for all files deleted from a specified
+directory. If "\-\-deleted only" is specified, then, in
+interactive modes, non\-deleted files will be excluded from the
+search. If "\-\-deleted single" is specified, then, deleted files
+behind deleted directories, (files with a depth greater than
+one) will be ignored.
 .TP
 \fB\-a\fR, \fB\-\-alt\-replicated\fR
 automatically discover locally replicated datasets and list

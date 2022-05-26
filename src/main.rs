@@ -497,14 +497,14 @@ fn parse_args() -> ArgMatches {
             Arg::new("INTERACTIVE")
                 .short('i')
                 .long("interactive")
-                .help("interactive browse and search to display unique file versions.")
+                .help("interactive browse and search a specified directory to display unique file versions.")
                 .display_order(2)
         )
         .arg(
             Arg::new("SELECT")
                 .short('s')
                 .long("select")
-                .help("interactive browse and search to display unique file versions.  Continue to another dialog to select a snapshot version to dump to stdout(3).")
+                .help("interactive browse and search a specified directory to display unique file versions.  Continue to another dialog to select a snapshot version to dump to stdout(3).")
                 .conflicts_with("RESTORE")
                 .display_order(3)
         )
@@ -512,7 +512,7 @@ fn parse_args() -> ArgMatches {
             Arg::new("RESTORE")
                 .short('r')
                 .long("restore")
-                .help("interactive browse and search to display unique file versions.  Continue to another dialog to select a snapshot version to restore.")
+                .help("interactive browse and search a specified directory to display unique file versions.  Continue to another dialog to select a snapshot version to restore.")
                 .conflicts_with("SELECT")
                 .display_order(4)
         )
@@ -524,10 +524,10 @@ fn parse_args() -> ArgMatches {
                 .default_missing_value("")
                 .possible_values(&["all", "single", "only", ""])
                 .hide_possible_values(true)
-                .help("show deleted files in interactive modes, or do a search for all such files, if a directory is specified. \
+                .help("show deleted files in interactive modes.  In non-interactive modes, do a search for all files deleted from a specified directory. \
                 If \"--deleted only\" is specified, then, in interactive modes, non-deleted files will be excluded from the search. \
                 If \"--deleted single\" is specified, then, deleted files behind deleted directories, \
-                with a depth greater than one will be ignored.")
+                (files with a depth greater than one) will be ignored.")
                 .display_order(5)
         )
         .arg(
