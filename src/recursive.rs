@@ -87,8 +87,9 @@ pub fn enumerate_directory(
                 }
             });
 
-    // "spawn" is because we used to spawn a here for delete thread,
-    // but thread spawning here is more costly than just running in sync
+    // "spawn" is because we used to spawn a thread here for deleted,
+    // but thread spawning has proven more costly than just running in sync
+    // might
     let spawn_enumerate_deleted = || {
         let config_clone = config.clone();
         let requested_dir_clone = requested_dir.to_path_buf();
