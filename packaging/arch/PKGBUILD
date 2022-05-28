@@ -9,7 +9,7 @@ groups=('utility')
 options=('!strip' '!emptydirs')
 makedepends=('cargo')
 source=("${pkgver}.tar.gz::https://static.crates.io/crates/$pkgname/$pkgname-$pkgver.crate")
-sha512sums=('35e9e6864753031318ba683b6a8f6a48323c5d83fa6c3478c5bc62f2feec22a49fd71195cd1001030333e78c8131071b05e2ebadda5775ba094cfe977e5daf15')
+sha512sums=('f8aa73b6ba71d0b55ecabd66e16fcbf4724c1a302a347b4f0eb9f22c1c7019eeaf6b6ca4a14253d173e0c34841a1c13551a1c9ab082019cfe2a2f7ae578ea355')
 
 prepare() {
 	cd "${srcdir}/${pkgname}-${pkgver}"
