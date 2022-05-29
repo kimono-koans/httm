@@ -126,7 +126,7 @@ pub fn enumerate_directory(
         }
         ExecMode::Interactive => {
             // combine dirs and files into a vec and sort to display
-            let combined_vec: Vec<&BasicDirEntryInfo> = match config.deleted_mode {
+            let combined_vec: Vec<BasicDirEntryInfo> = match config.deleted_mode {
                 DeletedMode::Only => {
                     spawn_enumerate_deleted();
                     // spawn_enumerate_deleted will send deleted files back to
@@ -139,20 +139,20 @@ pub fn enumerate_directory(
                     // spawn_enumerate_deleted will send deleted files back to
                     // the main thread for us, so we can skip collecting a
                     // vec_deleted here
-                    [&vec_files, &vec_dirs].into_par_iter().flatten().collect()
+                    [&vec_files, &vec_dirs].into_par_iter().flatten().cloned().collect()
                 }
                 DeletedMode::Disabled => {
-                    [&vec_files, &vec_dirs].into_par_iter().flatten().collect()
+                    [&vec_files, &vec_dirs].into_par_iter().flatten().cloned().collect()
                 }
             };
 
             // don't want a par_iter here because it will block and wait for all
             // results, instead of printing and recursing into the subsequent dirs
-            combined_vec.iter().for_each(|basic_dir_entry_info| {
+            combined_vec.into_iter().for_each(|basic_dir_entry_info| {
                 let _ = tx_item.send(Arc::new(SelectionCandidate::new(
                     config.clone(),
-                    basic_dir_entry_info.file_name.to_owned(),
-                    basic_dir_entry_info.path.to_owned(),
+                    basic_dir_entry_info.file_name,
+                    basic_dir_entry_info.path,
                     basic_dir_entry_info.file_type,
                     // know this is non-phantom because obtained through dir entry
                     false,
@@ -211,9 +211,10 @@ fn enumerate_deleted(
     let pseudo_live_versions: Vec<BasicDirEntryInfo> = [&vec_dirs, &vec_files]
         .into_iter()
         .flatten()
+        .cloned()
         .map(|basic_dir_entry_info| BasicDirEntryInfo {
-            file_name: basic_dir_entry_info.file_name.clone(),
-            path: requested_dir.join(basic_dir_entry_info.file_name.clone()),
+            path: requested_dir.join(&basic_dir_entry_info.file_name),
+            file_name: basic_dir_entry_info.file_name,
             file_type: basic_dir_entry_info.file_type,
         })
         .collect();
@@ -275,9 +276,10 @@ fn behind_deleted_dir(
         let pseudo_live_versions: Vec<BasicDirEntryInfo> = [&vec_files, &vec_dirs]
             .into_iter()
             .flatten()
+            .cloned()
             .map(|basic_dir_entry_info| BasicDirEntryInfo {
-                file_name: basic_dir_entry_info.file_name.clone(),
-                path: pseudo_live_dir.join(basic_dir_entry_info.file_name.clone()),
+                path: pseudo_live_dir.join(&basic_dir_entry_info.file_name),
+                file_name: basic_dir_entry_info.file_name,
                 file_type: basic_dir_entry_info.file_type,
             })
             .collect();
