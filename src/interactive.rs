@@ -71,6 +71,7 @@ impl SelectionCandidate {
             opt_no_pretty: false,
             opt_recursive: false,
             opt_no_live_vers: false,
+            opt_exact: false,
             exec_mode: ExecMode::Display,
             deleted_mode: DeletedMode::Disabled,
             interactive_mode: InteractiveMode::None,
@@ -195,6 +196,7 @@ fn browse_view(
     let options = SkimOptionsBuilder::default()
         .preview_window(Some("up:50%"))
         .preview(Some(""))
+        .exact(config.opt_exact)
         .header(Some("PREVIEW UP: shift+up | PREVIEW DOWN: shift+down\n\
                       PAGE UP:    page up  | PAGE DOWN:    page down \n\
                       EXIT:       esc      | SELECT:       enter      | SELECT, MULTIPLE: shift+tab\n\
