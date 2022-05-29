@@ -139,16 +139,14 @@ pub fn enumerate_directory(
                     // spawn_enumerate_deleted will send deleted files back to
                     // the main thread for us, so we can skip collecting a
                     // vec_deleted here
-                    [&vec_files, &vec_dirs]
+                    [vec_files, vec_dirs.clone()]
                         .into_par_iter()
                         .flatten()
-                        .cloned()
                         .collect()
                 }
-                DeletedMode::Disabled => [&vec_files, &vec_dirs]
+                DeletedMode::Disabled => [vec_files, vec_dirs.clone()]
                     .into_par_iter()
                     .flatten()
-                    .cloned()
                     .collect(),
             };
 
@@ -214,10 +212,9 @@ fn enumerate_deleted(
     // these are dummy "live versions" values generated to match deleted files
     // which have been found on snapshots, we return to the user "the path that
     // once was" in their browse panel
-    let pseudo_live_versions: Vec<BasicDirEntryInfo> = [&vec_dirs, &vec_files]
+    let pseudo_live_versions: Vec<BasicDirEntryInfo> = [vec_files, vec_dirs]
         .into_iter()
         .flatten()
-        .cloned()
         .map(|basic_dir_entry_info| BasicDirEntryInfo {
             path: requested_dir.join(&basic_dir_entry_info.file_name),
             file_name: basic_dir_entry_info.file_name,
@@ -279,10 +276,9 @@ fn behind_deleted_dir(
                     }
                 });
 
-        let pseudo_live_versions: Vec<BasicDirEntryInfo> = [&vec_files, &vec_dirs]
+        let pseudo_live_versions: Vec<BasicDirEntryInfo> = [vec_files, vec_dirs.clone()]
             .into_iter()
             .flatten()
-            .cloned()
             .map(|basic_dir_entry_info| BasicDirEntryInfo {
                 path: pseudo_live_dir.join(&basic_dir_entry_info.file_name),
                 file_name: basic_dir_entry_info.file_name,
