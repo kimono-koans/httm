@@ -96,7 +96,7 @@ pub fn enumerate_directory(
         if config.exec_mode == ExecMode::Interactive {
             if let SnapPoint::Native(_) = config.snap_point {
                 // "spawn" a lighter weight rayon/greenish thread for enumerate_deleted
-                rayon::spawn_fifo(move || {
+                rayon::spawn(move || {
                     let _ = enumerate_deleted(config_clone, &requested_dir_clone, &tx_item_clone);
                 });
                 return;
