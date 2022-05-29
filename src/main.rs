@@ -200,6 +200,7 @@ pub struct Config {
     opt_no_pretty: bool,
     opt_no_live_vers: bool,
     opt_recursive: bool,
+    opt_exact: bool,
     exec_mode: ExecMode,
     snap_point: SnapPoint,
     deleted_mode: DeletedMode,
@@ -220,6 +221,7 @@ impl Config {
         let opt_no_pretty = matches.is_present("NOT_SO_PRETTY");
         let opt_no_live_vers = matches.is_present("NO_LIVE");
         let opt_recursive = matches.is_present("RECURSIVE");
+        let opt_exact = matches.is_present("EXACT");
         let mut deleted_mode = match matches.value_of("DELETED") {
             None => DeletedMode::Disabled,
             Some("") | Some("all") => DeletedMode::Enabled,
@@ -466,6 +468,7 @@ impl Config {
             opt_no_pretty,
             opt_no_live_vers,
             opt_recursive,
+            opt_exact,
             snap_point,
             exec_mode,
             deleted_mode,
@@ -548,13 +551,20 @@ fn parse_args() -> ArgMatches {
                 .display_order(7)
         )
         .arg(
+            Arg::new("EXACT")
+                .short('e')
+                .long("exact")
+                .help("use exact matching for search in the interactive modes (in contrast to the default fuzzy-finder searching).")
+                .display_order(8)
+        )
+        .arg(
             Arg::new("SNAP_POINT")
                 .long("snap-point")
                 .help("ordinarily httm will automatically choose your ZFS dataset root directory (most immediate ancestor directory which contains \".zfs\"), \
                 but here you may manually specify your own mount point for that directory, such as the local mount point for a remote share.  \
                 You can also set via the environment variable HTTM_SNAP_POINT.")
                 .takes_value(true)
-                .display_order(8)
+                .display_order(9)
         )
         .arg(
             Arg::new("LOCAL_DIR")
@@ -564,7 +574,7 @@ fn parse_args() -> ArgMatches {
                 You can also set via the environment variable HTTM_LOCAL_DIR.")
                 .requires("SNAP_POINT")
                 .takes_value(true)
-                .display_order(9)
+                .display_order(10)
         )
         .arg(
             Arg::new("RAW")
@@ -572,7 +582,7 @@ fn parse_args() -> ArgMatches {
                 .long("raw")
                 .help("display the backup locations only, without extraneous information, delimited by a NEWLINE.")
                 .conflicts_with_all(&["ZEROS", "NOT_SO_PRETTY"])
-                .display_order(10)
+                .display_order(11)
         )
         .arg(
             Arg::new("ZEROS")
@@ -580,27 +590,27 @@ fn parse_args() -> ArgMatches {
                 .long("zero")
                 .help("display the backup locations only, without extraneous information, delimited by a NULL CHARACTER.")
                 .conflicts_with_all(&["RAW", "NOT_SO_PRETTY"])
-                .display_order(11)
+                .display_order(12)
         )
         .arg(
             Arg::new("NOT_SO_PRETTY")
                 .long("not-so-pretty")
                 .help("display the ordinary output, but tab delimited, without any pretty border lines.")
                 .conflicts_with_all(&["RAW", "ZEROS"])
-                .display_order(12)
+                .display_order(13)
         )
         .arg(
             Arg::new("NO_LIVE")
                 .long("no-live")
                 .help("only display information concerning snapshot versions, and no 'live' versions of files or directories.")
-                .display_order(13)
+                .display_order(14)
         )
         .arg(
             Arg::new("ZSH_HOT_KEYS")
                 .long("install-zsh-hot-keys")
                 .help("install zsh hot keys to the users home directory, and then exit")
                 .exclusive(true)
-                .display_order(14)
+                .display_order(15)
         )
         .get_matches()
 }
