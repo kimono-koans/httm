@@ -119,7 +119,6 @@ pub fn enumerate_directory(
                 DeletedMode::Disabled => unreachable!(),
                 // for all other non-disabled DeletedModes
                 DeletedMode::DepthOfOne | DeletedMode::Enabled | DeletedMode::Only => {
-                    // flush and exit successfully upon ending recursive search
                     spawn_enumerate_deleted();
                 }
             }
@@ -129,6 +128,7 @@ pub fn enumerate_directory(
             let combined_vec: Vec<BasicDirEntryInfo> = match config.deleted_mode {
                 DeletedMode::Only => {
                     spawn_enumerate_deleted();
+
                     // spawn_enumerate_deleted will send deleted files back to
                     // the main thread for us, so we can skip collecting deleted here
                     // and return an empty vec
@@ -136,9 +136,7 @@ pub fn enumerate_directory(
                 }
                 DeletedMode::DepthOfOne | DeletedMode::Enabled => {
                     spawn_enumerate_deleted();
-                    // spawn_enumerate_deleted will send deleted files back to
-                    // the main thread for us, so we can skip collecting a
-                    // vec_deleted here
+
                     let mut combined = vec_files;
                     combined.extend(vec_dirs.clone());
                     combined
@@ -150,18 +148,8 @@ pub fn enumerate_directory(
                 }
             };
 
-            // don't want a par_iter here because it will block and wait for all
-            // results, instead of printing and recursing into the subsequent dirs
-            combined_vec.into_iter().for_each(|basic_dir_entry_info| {
-                let _ = tx_item.send(Arc::new(SelectionCandidate::new(
-                    config.clone(),
-                    basic_dir_entry_info.file_name,
-                    basic_dir_entry_info.path,
-                    basic_dir_entry_info.file_type,
-                    // know this is non-phantom because obtained through dir entry
-                    false,
-                )));
-            });
+            // is_phantom is false because these are known live entries
+            send_entries(config.clone(), combined_vec, false, tx_item)?;
         }
     }
 
@@ -223,7 +211,8 @@ fn enumerate_deleted(
         .collect();
 
     match config.exec_mode {
-        ExecMode::Interactive => send_deleted_recursive(config, pseudo_live_versions, tx_item)?,
+        // know this is_phantom because we know it is deleted
+        ExecMode::Interactive => send_entries(config, pseudo_live_versions, true, tx_item)?,
         ExecMode::DisplayRecursive => {
             if !pseudo_live_versions.is_empty() {
                 if config.opt_recursive {
@@ -289,7 +278,8 @@ fn behind_deleted_dir(
         // send to the interactive view, or print directly, never return back
         match config.exec_mode {
             ExecMode::Interactive => {
-                send_deleted_recursive(config.clone(), pseudo_live_versions, tx_item)?
+                // know this is_phantom because we know it is deleted
+                send_entries(config.clone(), pseudo_live_versions, true, tx_item)?
             }
             ExecMode::DisplayRecursive => {
                 if !pseudo_live_versions.is_empty() {
@@ -331,21 +321,24 @@ fn behind_deleted_dir(
     Ok(())
 }
 
-fn send_deleted_recursive(
+fn send_entries(
     config: Arc<Config>,
-    pathdata: Vec<BasicDirEntryInfo>,
+    entries: Vec<BasicDirEntryInfo>,
+    is_phantom: bool,
     tx_item: &SkimItemSender,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    pathdata.into_iter().for_each(|basic_dir_entry_info| {
+    // don't want a par_iter here because it will block and wait for all
+    // results, instead of printing and recursing into the subsequent dirs
+    entries.into_iter().for_each(|basic_dir_entry_info| {
         let _ = tx_item.send(Arc::new(SelectionCandidate::new(
             config.clone(),
             basic_dir_entry_info.file_name,
             basic_dir_entry_info.path,
             basic_dir_entry_info.file_type,
-            // know this is_phantom because we know it is deleted
-            true,
+            is_phantom,
         )));
     });
+
     Ok(())
 }
 
