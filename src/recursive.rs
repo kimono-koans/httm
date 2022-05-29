@@ -17,6 +17,7 @@
 
 use std::{ffi::OsStr, fs::read_dir, io::Write, path::Path, sync::Arc};
 
+use itertools::Itertools;
 use rayon::{iter::Either, prelude::*};
 use skim::prelude::*;
 
@@ -181,7 +182,7 @@ fn enumerate_deleted(
     let deleted = get_unique_deleted(&config, requested_dir)?;
 
     let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) = deleted
-        .into_par_iter()
+        .into_iter()
         .partition(|basic_dir_entry_info| httm_is_dir(&basic_dir_entry_info));
 
     // disable behind deleted dirs with DepthOfOne,
@@ -208,7 +209,7 @@ fn enumerate_deleted(
     // which have been found on snapshots, we return to the user "the path that
     // once was" in their browse panel
     let pseudo_live_versions: Vec<BasicDirEntryInfo> = [&vec_dirs, &vec_files]
-        .into_par_iter()
+        .into_iter()
         .flatten()
         .map(|basic_dir_entry_info| BasicDirEntryInfo {
             file_name: basic_dir_entry_info.file_name.clone(),
@@ -258,7 +259,6 @@ fn behind_deleted_dir(
         let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
             read_dir(&deleted_dir_on_snap)?
                 .flatten()
-                .par_bridge()
                 .partition_map(|dir_entry| {
                     let res = BasicDirEntryInfo {
                         file_name: dir_entry.file_name(),
@@ -273,7 +273,7 @@ fn behind_deleted_dir(
                 });
 
         let pseudo_live_versions: Vec<BasicDirEntryInfo> = [&vec_files, &vec_dirs]
-            .into_par_iter()
+            .into_iter()
             .flatten()
             .map(|basic_dir_entry_info| BasicDirEntryInfo {
                 file_name: basic_dir_entry_info.file_name.clone(),

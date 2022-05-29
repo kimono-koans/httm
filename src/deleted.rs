@@ -15,11 +15,10 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::{ffi::OsString, fs::read_dir, path::Path, time::SystemTime};
+use std::{ffi::OsString, fs::read_dir, path::Path};
 
 use fxhash::FxHashMap as HashMap;
 use itertools::Itertools;
-use rayon::prelude::*;
 
 use crate::lookup::{get_search_dirs, NativeDatasetType, SearchDirs};
 use crate::{BasicDirEntryInfo, Config, PathData};
@@ -47,11 +46,11 @@ pub fn get_unique_deleted(
     // we need to make certain that what we return from possibly multiple datasets are unique
     // as these will be the filenames that populate our interactive views, so deduplicate
     // by filename and latest file version here
-    let prep_deleted: Vec<(SystemTime, BasicDirEntryInfo)> = vec![&requested_dir_pathdata]
-        .into_par_iter()
+    let unique_deleted: Vec<BasicDirEntryInfo> = vec![&requested_dir_pathdata]
+        .into_iter()
         .flat_map(|pathdata| {
             selected_datasets
-                .par_iter()
+                .iter()
                 .flat_map(|dataset_type| get_search_dirs(config, pathdata, dataset_type))
         })
         .flatten()
@@ -69,15 +68,11 @@ pub fn get_unique_deleted(
             Ok(modify_time) => Some((modify_time, basic_dir_entry_info)),
             Err(_) => None,
         })
-        .collect();
-
-    // this part right here functions like a hashmap, separate into buckets/groups
-    // by file name, then return the oldest deleted dir entry, or max by its modify time
-    // why? because this might be a folder that has been deleted and we need some policy
-    // to give later functions an idea about which folder to choose when we want too look
-    // behind deleted dirs, here we just choose latest in time
-    let unique_deleted: Vec<BasicDirEntryInfo> = prep_deleted
-        .into_iter()
+        // this part right here functions like a hashmap, separate into buckets/groups
+        // by file name, then return the oldest deleted dir entry, or max by its modify time
+        // why? because this might be a folder that has been deleted and we need some policy
+        // to give later functions an idea about which folder to choose when we want too look
+        // behind deleted dirs, here we just choose latest in time
         .group_by(|(_modify_time, basic_dir_entry_info)| basic_dir_entry_info.file_name.clone())
         .into_iter()
         .filter_map(|(_key, group)| {
@@ -100,7 +95,6 @@ pub fn get_deleted_per_dataset(
     // create a collection of local unique file names
     let unique_local_filenames: HashMap<OsString, BasicDirEntryInfo> = read_dir(&requested_dir)?
         .flatten()
-        .par_bridge()
         .map(|dir_entry| {
             (
                 dir_entry.file_name(),
@@ -118,12 +112,11 @@ pub fn get_deleted_per_dataset(
     let unique_snap_filenames: HashMap<OsString, BasicDirEntryInfo> =
         read_dir(&search_dirs.hidden_snapshot_dir)?
             .flatten()
-            .par_bridge()
             .map(|entry| entry.path())
             .map(|path| path.join(&search_dirs.relative_path))
             .flat_map(|path| read_dir(&path))
-            .flatten_iter()
-            .flatten_iter()
+            .flatten()
+            .flatten()
             .map(|dir_entry| {
                 (
                     dir_entry.file_name(),
@@ -138,7 +131,7 @@ pub fn get_deleted_per_dataset(
 
     // compare local filenames to all unique snap filenames - none values are unique here
     let all_deleted_versions: Vec<BasicDirEntryInfo> = unique_snap_filenames
-        .into_par_iter()
+        .into_iter()
         .filter(|(file_name, _)| unique_local_filenames.get(file_name).is_none())
         .map(|(_file_name, basic_dir_entry_info)| basic_dir_entry_info)
         .collect();
