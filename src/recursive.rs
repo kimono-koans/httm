@@ -87,15 +87,24 @@ pub fn enumerate_directory(
                 }
             });
 
-    // "spawn" is because we used to spawn a thread here for deleted,
-    // but thread spawning has proven more costly than just running in sync
-    // might
     let spawn_enumerate_deleted = || {
         let config_clone = config.clone();
         let requested_dir_clone = requested_dir.to_path_buf();
         let tx_item_clone = tx_item.clone();
 
-        let _ = enumerate_deleted(config_clone, &requested_dir_clone, &tx_item_clone);
+        match config.exec_mode {
+            ExecMode::Interactive => {
+                // "spawn" a lighter weight rayon/greenish thread for enumerate_deleted
+                rayon::scope_fifo(move |_| {
+                    let _ = enumerate_deleted(config_clone, &requested_dir_clone, &tx_item_clone);
+                });
+            }
+            _ => {
+                // no join handles for these rayon threads, therefore we can't be certain when they
+                // are all done executing, therefore we turn them off in the non-interactive modes
+                let _ = enumerate_deleted(config_clone, &requested_dir_clone, &tx_item_clone);
+            }
+        }
     };
 
     match config.exec_mode {
