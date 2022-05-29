@@ -554,7 +554,7 @@ fn parse_args() -> ArgMatches {
             Arg::new("EXACT")
                 .short('e')
                 .long("exact")
-                .help("use exact matching for search in the interactive modes (in contrast to the default fuzzy-finder searching).")
+                .help("use exact pattern matching for searches in the interactive modes (in contrast to the default fuzzy-finder searching).")
                 .display_order(8)
         )
         .arg(
