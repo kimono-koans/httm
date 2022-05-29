@@ -26,7 +26,8 @@ use crate::interactive::SelectionCandidate;
 use crate::lookup::get_versions;
 use crate::utility::httm_is_dir;
 use crate::{
-    BasicDirEntryInfo, Config, DeletedMode, ExecMode, HttmError, PathData, ZFS_HIDDEN_DIRECTORY,
+    BasicDirEntryInfo, Config, DeletedMode, ExecMode, HttmError, PathData, SnapPoint,
+    ZFS_HIDDEN_DIRECTORY,
 };
 
 pub fn display_recursive_exec(
@@ -92,19 +93,18 @@ pub fn enumerate_directory(
         let requested_dir_clone = requested_dir.to_path_buf();
         let tx_item_clone = tx_item.clone();
 
-        match config.exec_mode {
-            ExecMode::Interactive => {
+        if config.exec_mode == ExecMode::Interactive {
+            if let SnapPoint::Native(_) = config.snap_point {
                 // "spawn" a lighter weight rayon/greenish thread for enumerate_deleted
-                rayon::scope_fifo(move |_| {
+                rayon::spawn_fifo(move || {
                     let _ = enumerate_deleted(config_clone, &requested_dir_clone, &tx_item_clone);
                 });
-            }
-            _ => {
-                // no join handles for these rayon threads, therefore we can't be certain when they
-                // are all done executing, therefore we turn them off in the non-interactive modes
-                let _ = enumerate_deleted(config_clone, &requested_dir_clone, &tx_item_clone);
+                return;
             }
         }
+        // no join handles for these rayon threads, therefore we can't be certain when they
+        // are all done executing, therefore we turn them off in the non-interactive modes
+        let _ = enumerate_deleted(config_clone, &requested_dir_clone, &tx_item_clone);
     };
 
     match config.exec_mode {
