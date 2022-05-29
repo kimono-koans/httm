@@ -139,15 +139,15 @@ pub fn enumerate_directory(
                     // spawn_enumerate_deleted will send deleted files back to
                     // the main thread for us, so we can skip collecting a
                     // vec_deleted here
-                    [vec_files, vec_dirs.clone()]
-                        .into_par_iter()
-                        .flatten()
-                        .collect()
+                    let mut combined = vec_files;
+                    combined.extend(vec_dirs.clone());
+                    combined
                 }
-                DeletedMode::Disabled => [vec_files, vec_dirs.clone()]
-                    .into_par_iter()
-                    .flatten()
-                    .collect(),
+                DeletedMode::Disabled => {
+                    let mut combined = vec_files;
+                    combined.extend(vec_dirs.clone());
+                    combined
+                }
             };
 
             // don't want a par_iter here because it will block and wait for all
@@ -223,13 +223,13 @@ fn enumerate_deleted(
         .collect();
 
     match config.exec_mode {
-        ExecMode::Interactive => send_deleted_recursive(config, &pseudo_live_versions, tx_item)?,
+        ExecMode::Interactive => send_deleted_recursive(config, pseudo_live_versions, tx_item)?,
         ExecMode::DisplayRecursive => {
             if !pseudo_live_versions.is_empty() {
                 if config.opt_recursive {
                     eprintln!();
                 }
-                print_deleted_recursive(config, &pseudo_live_versions)?
+                print_deleted_recursive(config, pseudo_live_versions)?
             } else if config.opt_recursive {
                 eprint!(".");
             }
@@ -289,14 +289,14 @@ fn behind_deleted_dir(
         // send to the interactive view, or print directly, never return back
         match config.exec_mode {
             ExecMode::Interactive => {
-                send_deleted_recursive(config.clone(), &pseudo_live_versions, tx_item)?
+                send_deleted_recursive(config.clone(), pseudo_live_versions, tx_item)?
             }
             ExecMode::DisplayRecursive => {
                 if !pseudo_live_versions.is_empty() {
                     if config.opt_recursive {
                         eprintln!();
                     }
-                    print_deleted_recursive(config.clone(), &pseudo_live_versions)?
+                    print_deleted_recursive(config.clone(), pseudo_live_versions)?
                 } else if config.opt_recursive {
                     eprint!(".");
                 }
@@ -333,14 +333,14 @@ fn behind_deleted_dir(
 
 fn send_deleted_recursive(
     config: Arc<Config>,
-    pathdata: &[BasicDirEntryInfo],
+    pathdata: Vec<BasicDirEntryInfo>,
     tx_item: &SkimItemSender,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    pathdata.iter().for_each(|basic_dir_entry_info| {
+    pathdata.into_iter().for_each(|basic_dir_entry_info| {
         let _ = tx_item.send(Arc::new(SelectionCandidate::new(
             config.clone(),
-            basic_dir_entry_info.file_name.to_owned(),
-            basic_dir_entry_info.path.to_owned(),
+            basic_dir_entry_info.file_name,
+            basic_dir_entry_info.path,
             basic_dir_entry_info.file_type,
             // know this is_phantom because we know it is deleted
             true,
@@ -351,7 +351,7 @@ fn send_deleted_recursive(
 
 fn print_deleted_recursive(
     config: Arc<Config>,
-    path_buf_set: &[BasicDirEntryInfo],
+    path_buf_set: Vec<BasicDirEntryInfo>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let pseudo_live_set: Vec<PathData> = path_buf_set
         .iter()
