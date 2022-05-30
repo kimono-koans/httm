@@ -174,7 +174,7 @@ fn get_immediate_dataset(
     // prune away most mount points by filtering - parent folder of file must contain relevant dataset
     let potential_mountpoints: Vec<&PathBuf> = mount_collection
         .par_iter()
-        .map(|fs_and_mounts| fs_and_mounts.0)
+        .map(|(mount, _dataset)| mount)
         .filter(|line| parent_folder.starts_with(line))
         .collect();
 
@@ -186,20 +186,21 @@ fn get_immediate_dataset(
 
     // select the best match for us: the longest, as we've already matched on the parent folder
     // so for /usr/bin, we would then prefer /usr/bin to /usr and /
-    let best_potential_mountpoint = if let Some(some_bpmp) = potential_mountpoints
+    let best_potential_mountpoint = match potential_mountpoints
         .par_iter()
         .max_by_key(|x| x.as_os_str().len())
     {
-        some_bpmp
-    } else {
-        let msg = format!(
-            "There is no best match for a ZFS dataset to use for path {:?}. Sorry!/Not sorry?)",
-            pathdata.path_buf
-        );
-        return Err(HttmError::new(&msg).into());
+        Some(some_bpmp) => PathBuf::from(some_bpmp),
+        None => {
+            let msg = format!(
+                "There is no best match for a ZFS dataset to use for path {:?}. Sorry!/Not sorry?)",
+                pathdata.path_buf
+            );
+            return Err(HttmError::new(&msg).into());
+        }
     };
 
-    Ok(PathBuf::from(best_potential_mountpoint))
+    Ok(best_potential_mountpoint)
 }
 
 fn get_alt_replicated_dataset(
