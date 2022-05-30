@@ -75,9 +75,12 @@ pub fn recursive_exec(
         .unwrap();
 
     // pass this thread pool's scope to enumerate_directory, and spawn threads from within this scope
-    thread_pool.scope(|scope| {
+    // "in_place_scope" means don't spawn another thread, we already have a new system thread for this
+    // scope
+    thread_pool.in_place_scope(|scope| {
         let _ = enumerate_live_versions(config, tx_item, requested_dir, scope);
     });
+
     Ok(())
 }
 
