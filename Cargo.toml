@@ -1,6 +1,6 @@
 [package]
 name = "httm"
-version = "0.10.12"
+version = "0.10.13"
 edition = "2021"
 keywords = ["zfs", "backup", "restore", "cli-utility", "snapshot"]
 description = "The dream of a CLI ZFS Time Machine is still alive with httm."
