@@ -15,7 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::{ffi::OsStr, fs::read_dir, io::Write, path::Path, sync::Arc};
+use std::{ffi::OsStr, fs::read_dir, io::Write, path::Path, path::PathBuf, sync::Arc};
 
 use rayon::prelude::*;
 use skim::prelude::*;
@@ -39,7 +39,8 @@ pub fn display_recursive_exec(
 
     match &config.clone().requested_dir {
         Some(requested_dir) => {
-            enumerate_directory(config_clone, &dummy_tx_item, &requested_dir.path_buf)?;
+            let requested_dir_clone = requested_dir.path_buf.clone();
+            enumerate_directory(config_clone, &dummy_tx_item, requested_dir_clone)?;
         }
         None => {
             return Err(HttmError::new(
@@ -55,13 +56,14 @@ pub fn display_recursive_exec(
         writeln!(out)?;
         out.flush()?;
     }
+
     std::process::exit(0)
 }
 
 pub fn enumerate_directory(
     config: Arc<Config>,
     tx_item: &SkimItemSender,
-    requested_dir: &Path,
+    requested_dir: PathBuf,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     // combined entries will be sent or printed, but we need the vec_dirs to recurse
     let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
@@ -91,7 +93,7 @@ pub fn enumerate_directory(
         if config.exec_mode == ExecMode::Interactive {
             if let SnapPoint::Native(_) = config.snap_point {
                 // "spawn" a lighter weight rayon/greenish thread for enumerate_deleted
-                rayon::spawn_fifo(move || {
+                std::thread::spawn(move || {
                     let _ = enumerate_deleted(config_clone, &requested_dir_clone, &tx_item_clone);
                 });
                 return;
@@ -149,8 +151,8 @@ pub fn enumerate_directory(
     if config.opt_recursive {
         // don't want a par_iter here because it will block and wait for all
         // results, instead of printing and recursing into the subsequent dirs
-        vec_dirs.iter().for_each(move |requested_dir| {
-            let _ = enumerate_directory(config.clone(), tx_item, &requested_dir.path);
+        vec_dirs.into_iter().for_each(move |requested_dir| {
+            let _ = enumerate_directory(config.clone(), tx_item, requested_dir.path);
         });
     }
 
