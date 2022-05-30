@@ -124,32 +124,30 @@ pub fn enumerate_directory(
             }
         }
         ExecMode::Interactive => {
-            // combine dirs and files into a vec and sort to display
-            let combined_vec: Vec<BasicDirEntryInfo> = match config.deleted_mode {
-                DeletedMode::Only => {
-                    spawn_enumerate_deleted();
+            let combined_vec = {
+                let mut combined = vec_files;
+                combined.extend(vec_dirs.clone());
+                combined
+            };
 
+            // combine dirs and files into a vec and sort to display
+            let entries: Vec<BasicDirEntryInfo> = match config.deleted_mode {
+                DeletedMode::Only => {
                     // spawn_enumerate_deleted will send deleted files back to
                     // the main thread for us, so we can skip collecting deleted here
                     // and return an empty vec
+                    spawn_enumerate_deleted();
                     Vec::new()
                 }
                 DeletedMode::DepthOfOne | DeletedMode::Enabled => {
                     spawn_enumerate_deleted();
-
-                    let mut combined = vec_files;
-                    combined.extend(vec_dirs.clone());
-                    combined
+                    combined_vec
                 }
-                DeletedMode::Disabled => {
-                    let mut combined = vec_files;
-                    combined.extend(vec_dirs.clone());
-                    combined
-                }
+                DeletedMode::Disabled => combined_vec,
             };
 
             // is_phantom is false because these are known live entries
-            send_entries(config.clone(), combined_vec, false, tx_item)?;
+            send_entries(config.clone(), entries, false, tx_item)?;
         }
     }
 
@@ -197,18 +195,10 @@ fn enumerate_deleted(
             });
     }
 
-    // these are dummy "live versions" values generated to match deleted files
-    // which have been found on snapshots, we return to the user "the path that
-    // once was" in their browse panel
-    let pseudo_live_versions: Vec<BasicDirEntryInfo> = [vec_files, vec_dirs]
-        .into_iter()
-        .flatten()
-        .map(|basic_dir_entry_info| BasicDirEntryInfo {
-            path: requested_dir.join(&basic_dir_entry_info.file_name),
-            file_name: basic_dir_entry_info.file_name,
-            file_type: basic_dir_entry_info.file_type,
-        })
-        .collect();
+    let mut entries = vec_files;
+    entries.extend(vec_dirs);
+    let pseudo_live_versions: Vec<BasicDirEntryInfo> =
+        get_pseudo_live_versions(entries, requested_dir);
 
     match config.exec_mode {
         // know this is_phantom because we know it is deleted
@@ -227,6 +217,23 @@ fn enumerate_deleted(
     }
 
     Ok(())
+}
+
+// this function creates dummy "live versions" values to match deleted files
+// which have been found on snapshots, we return to the user "the path that
+// once was" in their browse panel
+fn get_pseudo_live_versions(
+    entries: Vec<BasicDirEntryInfo>,
+    pseudo_live_dir: &Path,
+) -> Vec<BasicDirEntryInfo> {
+    entries
+        .into_iter()
+        .map(|basic_dir_entry_info| BasicDirEntryInfo {
+            path: pseudo_live_dir.join(&basic_dir_entry_info.file_name),
+            file_name: basic_dir_entry_info.file_name,
+            file_type: basic_dir_entry_info.file_type,
+        })
+        .collect()
 }
 
 // searches for all files behind the dirs that have been deleted
@@ -265,15 +272,10 @@ fn behind_deleted_dir(
                     }
                 });
 
-        let pseudo_live_versions: Vec<BasicDirEntryInfo> = [vec_files, vec_dirs.clone()]
-            .into_iter()
-            .flatten()
-            .map(|basic_dir_entry_info| BasicDirEntryInfo {
-                path: pseudo_live_dir.join(&basic_dir_entry_info.file_name),
-                file_name: basic_dir_entry_info.file_name,
-                file_type: basic_dir_entry_info.file_type,
-            })
-            .collect();
+        let mut entries = vec_files;
+        entries.extend(vec_dirs.clone());
+        let pseudo_live_versions: Vec<BasicDirEntryInfo> =
+            get_pseudo_live_versions(entries, pseudo_live_dir);
 
         // send to the interactive view, or print directly, never return back
         match config.exec_mode {
