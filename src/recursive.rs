@@ -68,7 +68,6 @@ pub fn recursive_exec(
     // build thread pool with a stack size large enough to avoid a stack overflow
     // 8MB is the default Linux thread stack size
     let thread_pool = rayon::ThreadPoolBuilder::new()
-        .num_threads(4)
         .stack_size(8388608)
         .build()
         .unwrap();
