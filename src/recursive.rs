@@ -30,6 +30,8 @@ use crate::{
     ZFS_HIDDEN_DIRECTORY,
 };
 
+const DEFAULT_STACK_SIZE: usize = 8388608;
+
 pub fn display_recursive_wrapper(
     config: &Config,
 ) -> Result<[Vec<PathData>; 2], Box<dyn std::error::Error + Send + Sync + 'static>> {
@@ -68,7 +70,7 @@ pub fn recursive_exec(
     // build thread pool with a stack size large enough to avoid a stack overflow
     // 8MB is the default Linux thread stack size
     let thread_pool = rayon::ThreadPoolBuilder::new()
-        .stack_size(8388608)
+        .stack_size(DEFAULT_STACK_SIZE)
         .build()
         .unwrap();
 
