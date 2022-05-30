@@ -91,7 +91,7 @@ pub fn enumerate_directory(
         if config.exec_mode == ExecMode::Interactive {
             if let SnapPoint::Native(_) = config.snap_point {
                 // "spawn" a lighter weight rayon/greenish thread for enumerate_deleted
-                rayon::spawn(move || {
+                rayon::spawn_fifo(move || {
                     let _ = enumerate_deleted(config_clone, &requested_dir_clone, &tx_item_clone);
                 });
                 return;
@@ -149,7 +149,7 @@ pub fn enumerate_directory(
     if config.opt_recursive {
         // don't want a par_iter here because it will block and wait for all
         // results, instead of printing and recursing into the subsequent dirs
-        vec_dirs.iter().for_each(|requested_dir| {
+        vec_dirs.iter().for_each(move |requested_dir| {
             let _ = enumerate_directory(config.clone(), tx_item, &requested_dir.path);
         });
     }
