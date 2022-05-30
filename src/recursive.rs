@@ -64,6 +64,7 @@ pub fn enumerate_directory(
     tx_item: &SkimItemSender,
     requested_dir: &Path,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    // combined entries will be sent or printed, but we need the vec_dirs to recurse
     let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
         read_dir(&requested_dir)?
             .flatten()
@@ -76,16 +77,16 @@ pub fn enumerate_directory(
             })
             // checking file_type on dir entries is always preferable
             // as it is much faster than a metadata call on the path
-            .partition_map(|dir_entry| {
-                let res = BasicDirEntryInfo {
-                    file_name: dir_entry.file_name(),
-                    path: dir_entry.path(),
-                    file_type: dir_entry.file_type().ok(),
-                };
-                if httm_is_dir(&dir_entry) {
-                    Either::Left(res)
+            .map(|dir_entry| BasicDirEntryInfo {
+                file_name: dir_entry.file_name(),
+                path: dir_entry.path(),
+                file_type: dir_entry.file_type().ok(),
+            })
+            .partition_map(|entry| {
+                if httm_is_dir(&entry) {
+                    Either::Left(entry)
                 } else {
-                    Either::Right(res)
+                    Either::Right(entry)
                 }
             });
 
@@ -172,9 +173,10 @@ fn enumerate_deleted(
     // obtain all unique deleted, policy is one version for each file, latest in time
     let deleted = get_unique_deleted(&config, requested_dir)?;
 
+    // combined entries will be sent or printed, but we need the vec_dirs to recurse
     let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) = deleted
         .into_iter()
-        .partition(|basic_dir_entry_info| httm_is_dir(&basic_dir_entry_info));
+        .partition(|basic_dir_entry_info| httm_is_dir(basic_dir_entry_info));
 
     // disable behind deleted dirs with DepthOfOne,
     // otherwise recurse and find all those deleted files

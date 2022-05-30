@@ -103,7 +103,7 @@ pub trait HttmIsDir {
     fn get_path(&self) -> PathBuf;
 }
 
-impl HttmIsDir for &Path {
+impl HttmIsDir for Path {
     fn get_filetype(&self) -> Result<FileType, std::io::Error> {
         Ok(self.metadata()?.file_type())
     }
@@ -130,7 +130,7 @@ impl HttmIsDir for DirEntry {
     }
 }
 
-impl HttmIsDir for &BasicDirEntryInfo {
+impl HttmIsDir for BasicDirEntryInfo {
     fn get_filetype(&self) -> Result<FileType, std::io::Error> {
         //  of course, this is a placeholder error, we just need an error to report back
         //  why not store the error in the struct instead?  because it's more complex.  it might
