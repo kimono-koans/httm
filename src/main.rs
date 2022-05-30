@@ -353,7 +353,6 @@ impl Config {
             matches.values_of_os("INPUT_FILES")
         {
             input_files
-                .into_iter()
                 .par_bridge()
                 .map(Path::new)
                 // canonicalize() on a deleted relative path will not exist,

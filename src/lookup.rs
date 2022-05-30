@@ -53,7 +53,7 @@ pub fn get_versions(
     };
 
     let all_snap_versions: Vec<PathData> =
-        snapshot_transversal(config, pathdata, &selected_datasets)?;
+        get_all_snap_versions(config, pathdata, &selected_datasets)?;
 
     // create vec of live copies - unless user doesn't want it!
     let live_versions: Vec<PathData> = if !config.opt_no_live_vers {
@@ -74,13 +74,13 @@ pub fn get_versions(
     Ok([all_snap_versions, live_versions])
 }
 
-fn snapshot_transversal(
+fn get_all_snap_versions(
     config: &Config,
     pathdata: &Vec<PathData>,
     selected_datasets: &Vec<NativeDatasetType>,
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // create vec of all local and replicated backups at once
-    let res: Vec<PathData> = pathdata
+    let all_snap_versions: Vec<PathData> = pathdata
         .par_iter()
         .map(|path_data| {
             selected_datasets
@@ -94,7 +94,7 @@ fn snapshot_transversal(
         .flatten()
         .collect();
 
-    Ok(res)
+    Ok(all_snap_versions)
 }
 
 pub fn get_search_dirs(
