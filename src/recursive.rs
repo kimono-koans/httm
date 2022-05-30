@@ -29,7 +29,8 @@ use crate::{
     BasicDirEntryInfo, Config, DeletedMode, ExecMode, HttmError, PathData, ZFS_HIDDEN_DIRECTORY,
 };
 
-// 8mb default stack size
+// default stack size for rayon threads spawned to handle enumerate_deleted
+// here set at 8MB (the Linux default) to avoid a stack overflow with the Rayon default
 const DEFAULT_STACK_SIZE: usize = 8388608;
 
 pub fn display_recursive_wrapper(
@@ -68,13 +69,12 @@ pub fn recursive_exec(
     requested_dir: PathBuf,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     // build thread pool with a stack size large enough to avoid a stack overflow
-    // 8MB is the default Linux thread stack size
     let thread_pool = rayon::ThreadPoolBuilder::new()
         .stack_size(DEFAULT_STACK_SIZE)
         .build()
         .unwrap();
 
-    // pass this thread pools scope to enumerate_directory, and spawn threads from within this scope
+    // pass this thread pool's scope to enumerate_directory, and spawn threads from within this scope
     thread_pool.scope(|scope| {
         let _ = enumerate_live_versions(config, tx_item, requested_dir, scope);
     });
@@ -153,6 +153,7 @@ fn enumerate_live_versions(
                     Vec::new()
                 }
                 DeletedMode::DepthOfOne | DeletedMode::Enabled => {
+                    // DepthOfOne will be handled inside enumerate_deleted
                     spawn_enumerate_deleted();
                     combined_vec()
                 }
@@ -164,7 +165,7 @@ fn enumerate_live_versions(
         }
     }
 
-    // now recurse into those dirs, if requested
+    // now recurse into dirs, if requested
     if config.opt_recursive {
         // don't want a par_iter here because it will block and wait for all
         // results, instead of printing and recursing into the subsequent dirs
