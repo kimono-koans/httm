@@ -169,6 +169,7 @@ fn enumerate_deleted(
     requested_dir: &Path,
     tx_item: &SkimItemSender,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    // obtain all unique deleted, policy is one version for each file, latest in time
     let deleted = get_unique_deleted(&config, requested_dir)?;
 
     let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) = deleted
@@ -195,6 +196,9 @@ fn enumerate_deleted(
             });
     }
 
+    // partition above is needed as vec_files will be used later
+    // to determine dirs to recurse, here, we recombine to obtain
+    // pseudo live versions of deleted files, files that once were
     let mut entries = vec_files;
     entries.extend(vec_dirs);
     let pseudo_live_versions: Vec<BasicDirEntryInfo> =
@@ -219,23 +223,6 @@ fn enumerate_deleted(
     Ok(())
 }
 
-// this function creates dummy "live versions" values to match deleted files
-// which have been found on snapshots, we return to the user "the path that
-// once was" in their browse panel
-fn get_pseudo_live_versions(
-    entries: Vec<BasicDirEntryInfo>,
-    pseudo_live_dir: &Path,
-) -> Vec<BasicDirEntryInfo> {
-    entries
-        .into_iter()
-        .map(|basic_dir_entry_info| BasicDirEntryInfo {
-            path: pseudo_live_dir.join(&basic_dir_entry_info.file_name),
-            file_name: basic_dir_entry_info.file_name,
-            file_type: basic_dir_entry_info.file_type,
-        })
-        .collect()
-}
-
 // searches for all files behind the dirs that have been deleted
 // recurses over all dir entries and creates pseudo live versions
 // for them all, policy is to use the latest snapshot version before
@@ -253,6 +240,8 @@ fn behind_deleted_dir(
         from_deleted_dir: &Path,
         from_requested_dir: &Path,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+        // deleted_dir_on_snap is the path from the deleted dir on the snapshot
+        // pseudo_live_dir is the path from the fake, deleted directory that once was
         let deleted_dir_on_snap = &from_deleted_dir.to_path_buf().join(&dir_name);
         let pseudo_live_dir = &from_requested_dir.to_path_buf().join(&dir_name);
 
@@ -272,6 +261,9 @@ fn behind_deleted_dir(
                     }
                 });
 
+        // partition above is needed as vec_files will be used later
+        // to determine dirs to recurse, here, we recombine to obtain
+        // pseudo live versions of deleted files, files that once were
         let mut entries = vec_files;
         entries.extend(vec_dirs.clone());
         let pseudo_live_versions: Vec<BasicDirEntryInfo> =
@@ -321,6 +313,23 @@ fn behind_deleted_dir(
     }
 
     Ok(())
+}
+
+// this function creates dummy "live versions" values to match deleted files
+// which have been found on snapshots, we return to the user "the path that
+// once was" in their browse panel
+fn get_pseudo_live_versions(
+    entries: Vec<BasicDirEntryInfo>,
+    pseudo_live_dir: &Path,
+) -> Vec<BasicDirEntryInfo> {
+    entries
+        .into_iter()
+        .map(|basic_dir_entry_info| BasicDirEntryInfo {
+            path: pseudo_live_dir.join(&basic_dir_entry_info.file_name),
+            file_name: basic_dir_entry_info.file_name,
+            file_type: basic_dir_entry_info.file_type,
+        })
+        .collect()
 }
 
 fn send_entries(
