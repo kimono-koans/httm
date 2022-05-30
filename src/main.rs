@@ -32,7 +32,7 @@ use crate::config_helper::{install_hot_keys, list_all_filesystems};
 use crate::display::display_exec;
 use crate::interactive::interactive_exec;
 use crate::lookup::get_versions;
-use crate::recursive::display_recursive_exec;
+use crate::recursive::display_recursive_wrapper;
 use crate::utility::{httm_is_dir, read_stdin};
 
 mod config_helper;
@@ -637,7 +637,7 @@ fn exec() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         ExecMode::Interactive => get_versions(&config, &interactive_exec(&config)?)?,
         ExecMode::Display => get_versions(&config, &config.paths)?,
         // display_recursive_exec is special as there is no need to run a lookup on files already on snapshots
-        ExecMode::DisplayRecursive => display_recursive_exec(&config)?,
+        ExecMode::DisplayRecursive => display_recursive_wrapper(&config)?,
     };
 
     // and display

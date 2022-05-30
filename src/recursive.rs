@@ -17,7 +17,7 @@
 
 use std::{ffi::OsStr, fs::read_dir, io::Write, path::Path, path::PathBuf, sync::Arc};
 
-use rayon::prelude::*;
+use rayon::{prelude::*, Scope};
 use skim::prelude::*;
 
 use crate::deleted::get_unique_deleted;
@@ -30,7 +30,7 @@ use crate::{
     ZFS_HIDDEN_DIRECTORY,
 };
 
-pub fn display_recursive_exec(
+pub fn display_recursive_wrapper(
     config: &Config,
 ) -> Result<[Vec<PathData>; 2], Box<dyn std::error::Error + Send + Sync + 'static>> {
     // won't be sending anything anywhere, this just allows us to reuse enumerate_directory
@@ -40,7 +40,7 @@ pub fn display_recursive_exec(
     match &config.clone().requested_dir {
         Some(requested_dir) => {
             let requested_dir_clone = requested_dir.path_buf.clone();
-            enumerate_directory(config_clone, &dummy_tx_item, requested_dir_clone)?;
+            recursive_exec(config_clone, &dummy_tx_item, requested_dir_clone)?;
         }
         None => {
             return Err(HttmError::new(
@@ -60,10 +60,31 @@ pub fn display_recursive_exec(
     std::process::exit(0)
 }
 
-pub fn enumerate_directory(
+pub fn recursive_exec(
     config: Arc<Config>,
     tx_item: &SkimItemSender,
     requested_dir: PathBuf,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    // build thread pool with a stack size large enough to avoid a stack overflow
+    // 8MB is the default Linux thread stack size
+    let thread_pool = rayon::ThreadPoolBuilder::new()
+        .num_threads(4)
+        .stack_size(8388608)
+        .build()
+        .unwrap();
+
+    // pass this thread pools scope to enumerate_directory, and spawn threads from within this scope
+    thread_pool.scope(|scope| {
+        let _ = enumerate_live_versions(config, tx_item, requested_dir, scope);
+    });
+    Ok(())
+}
+
+fn enumerate_live_versions(
+    config: Arc<Config>,
+    tx_item: &SkimItemSender,
+    requested_dir: PathBuf,
+    scope: &Scope,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     // combined entries will be sent or printed, but we need the vec_dirs to recurse
     let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
@@ -93,7 +114,7 @@ pub fn enumerate_directory(
         if config.exec_mode == ExecMode::Interactive {
             if let SnapPoint::Native(_) = config.snap_point {
                 // "spawn" a lighter weight rayon/greenish thread for enumerate_deleted
-                std::thread::spawn(move || {
+                scope.spawn(move |_| {
                     let _ = enumerate_deleted(config_clone, &requested_dir_clone, &tx_item_clone);
                 });
                 return;
@@ -152,7 +173,7 @@ pub fn enumerate_directory(
         // don't want a par_iter here because it will block and wait for all
         // results, instead of printing and recursing into the subsequent dirs
         vec_dirs.into_iter().for_each(move |requested_dir| {
-            let _ = enumerate_directory(config.clone(), tx_item, requested_dir.path);
+            let _ = enumerate_live_versions(config.clone(), tx_item, requested_dir.path, scope);
         });
     }
 
