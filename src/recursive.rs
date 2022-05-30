@@ -118,7 +118,7 @@ pub fn enumerate_directory(
             }
         }
         ExecMode::Interactive => {
-            let combined_vec = {
+            let combined_vec = || {
                 let mut combined = vec_files;
                 combined.extend(vec_dirs.clone());
                 combined
@@ -135,9 +135,9 @@ pub fn enumerate_directory(
                 }
                 DeletedMode::DepthOfOne | DeletedMode::Enabled => {
                     spawn_enumerate_deleted();
-                    combined_vec
+                    combined_vec()
                 }
-                DeletedMode::Disabled => combined_vec,
+                DeletedMode::Disabled => combined_vec(),
             };
 
             // is_phantom is false because these are known live entries
