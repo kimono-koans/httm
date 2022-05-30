@@ -26,10 +26,10 @@ use crate::interactive::SelectionCandidate;
 use crate::lookup::get_versions;
 use crate::utility::httm_is_dir;
 use crate::{
-    BasicDirEntryInfo, Config, DeletedMode, ExecMode, HttmError, PathData, SnapPoint,
-    ZFS_HIDDEN_DIRECTORY,
+    BasicDirEntryInfo, Config, DeletedMode, ExecMode, HttmError, PathData, ZFS_HIDDEN_DIRECTORY,
 };
 
+// 8mb default stack size
 const DEFAULT_STACK_SIZE: usize = 8388608;
 
 pub fn display_recursive_wrapper(
@@ -107,25 +107,6 @@ fn enumerate_live_versions(
             })
             .partition(|entry| httm_is_dir(entry));
 
-    let spawn_enumerate_deleted = || {
-        let config_clone = config.clone();
-        let requested_dir_clone = requested_dir.to_path_buf();
-        let tx_item_clone = tx_item.clone();
-
-        if config.exec_mode == ExecMode::Interactive {
-            if let SnapPoint::Native(_) = config.snap_point {
-                // "spawn" a lighter weight rayon/greenish thread for enumerate_deleted
-                scope.spawn(move |_| {
-                    let _ = enumerate_deleted(config_clone, &requested_dir_clone, &tx_item_clone);
-                });
-                return;
-            }
-        }
-        // no join handles for these rayon threads, therefore we can't be certain when they
-        // are all done executing, therefore we turn them off in the non-interactive modes
-        let _ = enumerate_deleted(config_clone, &requested_dir_clone, &tx_item_clone);
-    };
-
     match config.exec_mode {
         ExecMode::Display => unreachable!(),
         ExecMode::DisplayRecursive => {
@@ -137,7 +118,9 @@ fn enumerate_live_versions(
                 DeletedMode::Disabled => unreachable!(),
                 // for all other non-disabled DeletedModes
                 DeletedMode::DepthOfOne | DeletedMode::Enabled | DeletedMode::Only => {
-                    spawn_enumerate_deleted();
+                    // no join handles for these rayon threads, therefore we can't be certain when they
+                    // are all done executing, therefore we turn them off in the non-interactive modes
+                    let _ = enumerate_deleted(config.clone(), &requested_dir, tx_item);
                 }
             }
         }
@@ -146,6 +129,18 @@ fn enumerate_live_versions(
                 let mut combined = vec_files;
                 combined.extend(vec_dirs.clone());
                 combined
+            };
+
+            // "spawn" a lighter weight rayon/greenish thread for enumerate_deleted
+            let spawn_enumerate_deleted = || {
+                // clone items because new thread needs ownership
+                let config_clone = config.clone();
+                let requested_dir_clone = requested_dir.to_path_buf();
+                let tx_item_clone = tx_item.clone();
+
+                scope.spawn(move |_| {
+                    let _ = enumerate_deleted(config_clone, &requested_dir_clone, &tx_item_clone);
+                });
             };
 
             // combine dirs and files into a vec and sort to display
