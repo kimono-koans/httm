@@ -17,8 +17,7 @@
 
 use std::{ffi::OsStr, fs::read_dir, io::Write, path::Path, sync::Arc};
 
-use itertools::Itertools;
-use rayon::{iter::Either, prelude::*};
+use rayon::prelude::*;
 use skim::prelude::*;
 
 use crate::deleted::get_unique_deleted;
@@ -82,13 +81,7 @@ pub fn enumerate_directory(
                 path: dir_entry.path(),
                 file_type: dir_entry.file_type().ok(),
             })
-            .partition_map(|entry| {
-                if httm_is_dir(&entry) {
-                    Either::Left(entry)
-                } else {
-                    Either::Right(entry)
-                }
-            });
+            .partition(|entry| httm_is_dir(entry));
 
     let spawn_enumerate_deleted = || {
         let config_clone = config.clone();
@@ -250,18 +243,12 @@ fn behind_deleted_dir(
         let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
             read_dir(&deleted_dir_on_snap)?
                 .flatten()
-                .partition_map(|dir_entry| {
-                    let res = BasicDirEntryInfo {
-                        file_name: dir_entry.file_name(),
-                        path: dir_entry.path(),
-                        file_type: dir_entry.file_type().ok(),
-                    };
-                    if httm_is_dir(&dir_entry) {
-                        Either::Left(res)
-                    } else {
-                        Either::Right(res)
-                    }
-                });
+                .map(|dir_entry| BasicDirEntryInfo {
+                    file_name: dir_entry.file_name(),
+                    path: dir_entry.path(),
+                    file_type: dir_entry.file_type().ok(),
+                })
+                .partition(|entry| httm_is_dir(entry));
 
         // partition above is needed as vec_files will be used later
         // to determine dirs to recurse, here, we recombine to obtain
