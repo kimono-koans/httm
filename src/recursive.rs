@@ -123,7 +123,7 @@ fn enumerate_live_versions(
                 DeletedMode::DepthOfOne | DeletedMode::Enabled | DeletedMode::Only => {
                     // no join handles for these rayon threads, therefore we can't be certain when they
                     // are all done executing, therefore we turn them off in the non-interactive modes
-                    let _ = enumerate_deleted(config.clone(), &requested_dir, tx_item);
+                    enumerate_deleted(config.clone(), &requested_dir, tx_item)?;
                 }
             }
         }
@@ -378,7 +378,7 @@ fn print_deleted_recursive(
 
     let mut out = std::io::stdout();
     let output_buf = display_exec(&config, snaps_and_live_set)?;
-    let _ = write!(out, "{}", output_buf);
+    write!(out, "{}", output_buf)?;
     out.flush()?;
 
     Ok(())

@@ -136,7 +136,7 @@ fn display_pretty(
                     display_date, display_padding, display_size, display_padding, display_path
                 );
             });
-            // reverse if in no-pretty mode
+
             if !config.opt_no_pretty && !pathdata_set_buffer.is_empty() {
                 pathdata_set_buffer += &format!("{}\n", fancy_border_string);
                 write_out_buffer += &pathdata_set_buffer;
