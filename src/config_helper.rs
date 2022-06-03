@@ -27,7 +27,7 @@ use rayon::prelude::*;
 use which::which;
 
 use crate::lookup::get_alt_replicated_dataset;
-use crate::{HttmError, ZFS_HIDDEN_SNAPSHOT_DIRECTORY};
+use crate::{HttmError, ZFS_HIDDEN_DIRECTORY};
 
 pub fn install_hot_keys() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     // get our home directory
@@ -170,11 +170,7 @@ pub fn precompute_alt_replicated(
 ) -> HashMap<PathBuf, Vec<(PathBuf, PathBuf)>> {
     mount_collection
         .par_iter()
-        .filter(|(mount, _dataset)| {
-            !mount
-                .to_string_lossy()
-                .contains(ZFS_HIDDEN_SNAPSHOT_DIRECTORY)
-        })
+        .filter(|(mount, _dataset)| !mount.to_string_lossy().contains(ZFS_HIDDEN_DIRECTORY))
         .filter_map(
             |(mount, _dataset)| match get_alt_replicated_dataset(mount, mount_collection) {
                 Ok(alt_dataset) => Some((mount.to_owned(), alt_dataset)),
