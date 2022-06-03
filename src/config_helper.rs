@@ -121,7 +121,9 @@ pub fn list_all_filesystems(
         // parse "mount" for filesystems and mountpoints
         let mount_collection: HashMap<PathBuf, String> = command_output
             .par_lines()
+            // want zfs 
             .filter(|line| line.contains("zfs"))
+            .filter(|line| !line.contains(ZFS_HIDDEN_DIRECTORY))
             .filter_map(|line|
                 // GNU Linux mount output
                 if line.contains("type") {
@@ -170,7 +172,6 @@ pub fn precompute_alt_replicated(
 ) -> HashMap<PathBuf, Vec<(PathBuf, PathBuf)>> {
     mount_collection
         .par_iter()
-        .filter(|(mount, _dataset)| !mount.to_string_lossy().contains(ZFS_HIDDEN_DIRECTORY))
         .filter_map(
             |(mount, _dataset)| match get_alt_replicated_dataset(mount, mount_collection) {
                 Ok(alt_dataset) => Some((mount.to_owned(), alt_dataset)),
