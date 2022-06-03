@@ -26,6 +26,7 @@ use fxhash::FxHashMap as HashMap;
 use rayon::prelude::*;
 use which::which;
 
+use crate::lookup::get_alt_replicated_dataset;
 use crate::HttmError;
 
 pub fn install_hot_keys() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
@@ -162,4 +163,18 @@ pub fn list_all_filesystems(
                 .into(),
         )
     }
+}
+
+pub fn precompute_all_alt_replicated(
+    mount_collection: &HashMap<PathBuf, String>,
+) -> HashMap<PathBuf, Vec<(PathBuf, PathBuf)>> {
+    mount_collection
+        .par_iter()
+        .filter_map(
+            |(mount, _dataset)| match get_alt_replicated_dataset(mount, mount_collection) {
+                Ok(alt_dataset) => Some((mount.to_owned(), alt_dataset)),
+                Err(_err) => None,
+            },
+        )
+        .collect()
 }

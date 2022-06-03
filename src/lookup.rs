@@ -120,15 +120,26 @@ pub fn get_search_dirs(
             defined_dirs.snap_dir.to_owned(),
             defined_dirs.snap_dir.to_owned(),
         )],
-        SnapPoint::Native(mount_collection) => {
-            let immediate_dataset_mount = get_immediate_dataset(file_pathdata, mount_collection)?;
+        SnapPoint::Native(native_datasets) => {
+            let immediate_dataset_mount =
+                get_immediate_dataset(file_pathdata, &native_datasets.mounts_and_datasets)?;
             match requested_dataset_type {
                 NativeDatasetType::MostImmediate => {
                     vec![(immediate_dataset_mount.clone(), immediate_dataset_mount)]
                 }
-                NativeDatasetType::AltReplicated => {
-                    get_alt_replicated_dataset(&immediate_dataset_mount, mount_collection)?
-                }
+                NativeDatasetType::AltReplicated => match &native_datasets.map_of_alts {
+                    Some(alt_collection) => match &alt_collection.get(&immediate_dataset_mount) {
+                        Some(alt_per_immediate) => alt_per_immediate.to_owned().to_owned(),
+                        None => get_alt_replicated_dataset(
+                            &immediate_dataset_mount,
+                            &native_datasets.mounts_and_datasets,
+                        )?,
+                    },
+                    None => get_alt_replicated_dataset(
+                        &immediate_dataset_mount,
+                        &native_datasets.mounts_and_datasets,
+                    )?,
+                },
             }
         }
     };
@@ -203,7 +214,7 @@ fn get_immediate_dataset(
     Ok(best_potential_mountpoint)
 }
 
-fn get_alt_replicated_dataset(
+pub fn get_alt_replicated_dataset(
     immediate_dataset_mount: &Path,
     mount_collection: &HashMap<PathBuf, String>,
 ) -> Result<Vec<(PathBuf, PathBuf)>, Box<dyn std::error::Error + Send + Sync + 'static>> {

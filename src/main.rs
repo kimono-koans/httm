@@ -28,7 +28,7 @@ use clap::{crate_name, crate_version, Arg, ArgMatches};
 use fxhash::FxHashMap as HashMap;
 use rayon::prelude::*;
 
-use crate::config_helper::{install_hot_keys, list_all_filesystems};
+use crate::config_helper::{install_hot_keys, list_all_filesystems, precompute_all_alt_replicated};
 use crate::display::display_exec;
 use crate::interactive::interactive_exec;
 use crate::lookup::get_versions;
@@ -181,8 +181,14 @@ enum DeletedMode {
 
 #[derive(Debug, Clone)]
 enum SnapPoint {
-    Native(HashMap<PathBuf, String>),
+    Native(NativeDatasets),
     UserDefined(UserDefinedDirs),
+}
+
+#[derive(Debug, Clone)]
+pub struct NativeDatasets {
+    mounts_and_datasets: HashMap<PathBuf, String>,
+    map_of_alts: Option<HashMap<PathBuf, Vec<(PathBuf, PathBuf)>>>,
 }
 
 #[derive(Debug, Clone)]
@@ -340,11 +346,24 @@ impl Config {
                     local_dir,
                 }),
             )
+        } else if matches.is_present("ALT_REPLICATED") && exec_mode != ExecMode::Display {
+            let mounts_and_datasets = list_all_filesystems()?;
+            let map_of_alts = Some(precompute_all_alt_replicated(&mounts_and_datasets));
+            (
+                true,
+                SnapPoint::Native(NativeDatasets {
+                    mounts_and_datasets,
+                    map_of_alts,
+                }),
+            )
         } else {
-            let mount_collection = list_all_filesystems()?;
+            let mounts_and_datasets = list_all_filesystems()?;
             (
                 matches.is_present("ALT_REPLICATED"),
-                SnapPoint::Native(mount_collection),
+                SnapPoint::Native(NativeDatasets {
+                    mounts_and_datasets,
+                    map_of_alts: None,
+                }),
             )
         };
 
