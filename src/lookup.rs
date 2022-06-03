@@ -128,8 +128,8 @@ pub fn get_search_dirs(
                     vec![(immediate_dataset_mount.clone(), immediate_dataset_mount)]
                 }
                 NativeDatasetType::AltReplicated => match &native_datasets.map_of_alts {
-                    Some(alt_collection) => match &alt_collection.get(&immediate_dataset_mount) {
-                        Some(alt_per_immediate) => alt_per_immediate.to_owned().to_owned(),
+                    Some(map_of_alts) => match &map_of_alts.get(&immediate_dataset_mount) {
+                        Some(alt_for_immediate) => alt_for_immediate.to_owned().to_owned(),
                         None => get_alt_replicated_dataset(
                             &immediate_dataset_mount,
                             &native_datasets.mounts_and_datasets,

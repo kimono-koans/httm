@@ -165,7 +165,7 @@ pub fn list_all_filesystems(
     }
 }
 
-pub fn precompute_all_alt_replicated(
+pub fn precompute_alt_replicated(
     mount_collection: &HashMap<PathBuf, String>,
 ) -> HashMap<PathBuf, Vec<(PathBuf, PathBuf)>> {
     mount_collection
