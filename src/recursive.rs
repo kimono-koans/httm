@@ -95,18 +95,6 @@ fn enumerate_live_versions(
     let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
         get_entries_partitioned(&requested_dir)?;
 
-    // "spawn" a lighter weight rayon/greenish thread for enumerate_deleted, if needed
-    let spawn_enumerate_deleted = || {
-        // clone items because new thread needs ownership
-        let config_clone = config.clone();
-        let requested_dir_clone = requested_dir.to_path_buf();
-        let tx_item_clone = tx_item.clone();
-
-        scope.spawn(move |_| {
-            let _ = enumerate_deleted(config_clone, &requested_dir_clone, &tx_item_clone);
-        });
-    };
-
     // check exec mode and deleted mode, we do something different for each
     match config.exec_mode {
         ExecMode::Display => unreachable!(),
@@ -122,7 +110,7 @@ fn enumerate_live_versions(
                     // no join handles for these rayon threads, therefore we can't be certain when they
                     // are all done executing, therefore we turn them off in the non-interactive modes
                     //enumerate_deleted(config.clone(), &requested_dir, tx_item)?;
-                    spawn_enumerate_deleted();
+                    spawn_enumerate_deleted(config.clone(), &requested_dir, &tx_item, &scope);
                 }
             }
         }
@@ -139,12 +127,12 @@ fn enumerate_live_versions(
                     // spawn_enumerate_deleted will send deleted files back to
                     // the main thread for us, so we can skip collecting deleted here
                     // and return an empty vec
-                    spawn_enumerate_deleted();
+                    spawn_enumerate_deleted(config.clone(), &requested_dir, &tx_item, &scope);
                     Vec::new()
                 }
                 DeletedMode::DepthOfOne | DeletedMode::Enabled => {
                     // DepthOfOne will be handled inside enumerate_deleted
-                    spawn_enumerate_deleted();
+                    spawn_enumerate_deleted(config.clone(), &requested_dir, &tx_item, &scope);
                     combined_vec()
                 }
                 DeletedMode::Disabled => combined_vec(),
@@ -167,6 +155,22 @@ fn enumerate_live_versions(
     Ok(())
 }
 
+// "spawn" a lighter weight rayon/greenish thread for enumerate_deleted, if needed
+fn spawn_enumerate_deleted(
+    config: Arc<Config>,
+    requested_dir: &Path,
+    tx_item: &SkimItemSender,
+    scope: &Scope,
+) {
+    // clone items because new thread needs ownership
+    let requested_dir_clone = requested_dir.to_path_buf();
+    let tx_item_clone = tx_item.clone();
+
+    scope.spawn(move |_| {
+        let _ = enumerate_deleted(config, &requested_dir_clone, &tx_item_clone);
+    });
+}
+
 // deleted file search for all modes
 fn enumerate_deleted(
     config: Arc<Config>,
@@ -183,7 +187,7 @@ fn enumerate_deleted(
 
     // disable behind deleted dirs with DepthOfOne,
     // otherwise recurse and find all those deleted files
-    if config.deleted_mode != DeletedMode::DepthOfOne {
+    if config.deleted_mode != DeletedMode::DepthOfOne && config.opt_recursive {
         let _ = &vec_dirs
             .iter()
             .map(|basic_dir_entry_info| basic_dir_entry_info.path.to_owned())
@@ -251,7 +255,7 @@ fn behind_deleted_dir(
         // know this is_phantom because we know it is deleted
         process_entries(config.clone(), pseudo_live_versions, true, tx_item)?;
 
-        // recurse!
+        // now recurse!
         vec_dirs.into_iter().for_each(|basic_dir_entry_info| {
             let _ = recurse_behind_deleted_dir(
                 config.clone(),
@@ -286,7 +290,7 @@ fn get_entries_partitioned(
     Box<dyn std::error::Error + Send + Sync + 'static>,
 > {
     //separates entries into dirs and files
-    let res = read_dir(&requested_dir)?
+    let (vec_dirs, vec_files) = read_dir(&requested_dir)?
         .flatten()
         .par_bridge()
         // never check the hidden snapshot directory for live files (duh)
@@ -302,7 +306,7 @@ fn get_entries_partitioned(
         })
         .partition(|entry| httm_is_dir(entry));
 
-    Ok(res)
+    Ok((vec_dirs, vec_files))
 }
 
 // this function creates dummy "live versions" values to match deleted files
