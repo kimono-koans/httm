@@ -99,25 +99,9 @@ fn enumerate_live_versions(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     // combined entries will be sent or printed, but we need the vec_dirs to recurse
     let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
-        read_dir(&requested_dir)?
-            .flatten()
-            .par_bridge()
-            // never check the hidden snapshot directory for live files (duh)
-            // didn't think this was possible until I saw a SMB share return
-            // a .zfs dir entry
-            .filter(|dir_entry| {
-                dir_entry.file_name().as_os_str() != OsStr::new(ZFS_HIDDEN_DIRECTORY)
-            })
-            // checking file_type on dir entries is always preferable
-            // as it is much faster than a metadata call on the path
-            .map(|dir_entry| BasicDirEntryInfo {
-                file_name: dir_entry.file_name(),
-                path: dir_entry.path(),
-                file_type: dir_entry.file_type().ok(),
-            })
-            .partition(|entry| httm_is_dir(entry));
+        get_entries_partitioned(&requested_dir)?;
 
-    // "spawn" a lighter weight rayon/greenish thread for enumerate_deleted
+    // "spawn" a lighter weight rayon/greenish thread for enumerate_deleted, if needed
     let spawn_enumerate_deleted = || {
         // clone items because new thread needs ownership
         let config_clone = config.clone();
@@ -129,6 +113,7 @@ fn enumerate_live_versions(
         });
     };
 
+    // check exec mode and deleted mode, we do something different for each
     match config.exec_mode {
         ExecMode::Display => unreachable!(),
         ExecMode::DisplayRecursive => {
@@ -230,18 +215,8 @@ fn enumerate_deleted(
     let pseudo_live_versions: Vec<BasicDirEntryInfo> =
         get_pseudo_live_versions(entries, requested_dir);
 
-    match config.exec_mode {
-        // know this is_phantom because we know it is deleted
-        ExecMode::Interactive => send_entries(config, pseudo_live_versions, true, tx_item)?,
-        ExecMode::DisplayRecursive => {
-            if !pseudo_live_versions.is_empty() {
-                print_deleted_recursive(config, pseudo_live_versions)?
-            } else if config.opt_recursive {
-                PROGRESS_BAR.tick();
-            }
-        }
-        _ => unreachable!(),
-    }
+    // know this is_phantom because we know it is deleted
+    process_entries(config, pseudo_live_versions, true, tx_item)?;
 
     Ok(())
 }
@@ -269,14 +244,7 @@ fn behind_deleted_dir(
         let pseudo_live_dir = &from_requested_dir.to_path_buf().join(&dir_name);
 
         let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
-            read_dir(&deleted_dir_on_snap)?
-                .flatten()
-                .map(|dir_entry| BasicDirEntryInfo {
-                    file_name: dir_entry.file_name(),
-                    path: dir_entry.path(),
-                    file_type: dir_entry.file_type().ok(),
-                })
-                .partition(|entry| httm_is_dir(entry));
+            get_entries_partitioned(deleted_dir_on_snap)?;
 
         // partition above is needed as vec_files will be used later
         // to determine dirs to recurse, here, we recombine to obtain
@@ -286,22 +254,10 @@ fn behind_deleted_dir(
         let pseudo_live_versions: Vec<BasicDirEntryInfo> =
             get_pseudo_live_versions(entries, pseudo_live_dir);
 
-        // send to the interactive view, or print directly, never return back
-        match config.exec_mode {
-            ExecMode::Interactive => {
-                // know this is_phantom because we know it is deleted
-                send_entries(config.clone(), pseudo_live_versions, true, tx_item)?
-            }
-            ExecMode::DisplayRecursive => {
-                if !pseudo_live_versions.is_empty() {
-                    print_deleted_recursive(config.clone(), pseudo_live_versions)?
-                } else if config.opt_recursive {
-                    PROGRESS_BAR.tick();
-                }
-            }
-            _ => unreachable!(),
-        }
+        // know this is_phantom because we know it is deleted
+        process_entries(config.clone(), pseudo_live_versions, true, tx_item)?;
 
+        // recurse!
         vec_dirs.into_iter().for_each(|basic_dir_entry_info| {
             let _ = recurse_behind_deleted_dir(
                 config.clone(),
@@ -329,6 +285,31 @@ fn behind_deleted_dir(
     Ok(())
 }
 
+fn get_entries_partitioned(
+    requested_dir: &Path,
+) -> Result<
+    (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>),
+    Box<dyn std::error::Error + Send + Sync + 'static>,
+> {
+    let res = read_dir(&requested_dir)?
+        .flatten()
+        .par_bridge()
+        // never check the hidden snapshot directory for live files (duh)
+        // didn't think this was possible until I saw a SMB share return
+        // a .zfs dir entry
+        .filter(|dir_entry| dir_entry.file_name().as_os_str() != OsStr::new(ZFS_HIDDEN_DIRECTORY))
+        // checking file_type on dir entries is always preferable
+        // as it is much faster than a metadata call on the path
+        .map(|dir_entry| BasicDirEntryInfo {
+            file_name: dir_entry.file_name(),
+            path: dir_entry.path(),
+            file_type: dir_entry.file_type().ok(),
+        })
+        .partition(|entry| httm_is_dir(entry));
+
+    Ok(res)
+}
+
 // this function creates dummy "live versions" values to match deleted files
 // which have been found on snapshots, we return to the user "the path that
 // once was" in their browse panel
@@ -344,6 +325,28 @@ fn get_pseudo_live_versions(
             file_type: basic_dir_entry_info.file_type,
         })
         .collect()
+}
+
+fn process_entries(
+    config: Arc<Config>,
+    entries: Vec<BasicDirEntryInfo>,
+    is_phantom: bool,
+    tx_item: &SkimItemSender,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    // send to the interactive view, or print directly, never return back
+    match config.exec_mode {
+        ExecMode::Interactive => send_entries(config, entries, is_phantom, tx_item)?,
+        ExecMode::DisplayRecursive => {
+            if !entries.is_empty() {
+                print_deleted_recursive(config.clone(), entries)?
+            } else if config.opt_recursive {
+                PROGRESS_BAR.tick();
+            }
+        }
+        _ => unreachable!(),
+    }
+
+    Ok(())
 }
 
 fn send_entries(
