@@ -34,8 +34,8 @@ use crate::{
 // here set at 8MB (the Linux default) to avoid a stack overflow with the Rayon default
 const DEFAULT_STACK_SIZE: usize = 8388608;
 
-// passing a progress bar through multiple functions is a pain,
-// here we just create a static global progress bar for Display Recursive mode
+// passing a progress bar through multiple functions is a pain, and since we only need a global,
+// here we just create a static progress bar for Display Recursive mode
 lazy_static! {
     static ref PROGRESS_BAR: ProgressBar = indicatif::ProgressBar::new_spinner();
 }
