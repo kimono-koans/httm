@@ -107,9 +107,7 @@ fn enumerate_live_versions(
                 DeletedMode::Disabled => unreachable!(),
                 // for all other non-disabled DeletedModes
                 DeletedMode::DepthOfOne | DeletedMode::Enabled | DeletedMode::Only => {
-                    // no join handles for these rayon threads, therefore we can't be certain when they
-                    // are all done executing, therefore we turn them off in the non-interactive modes
-                    //enumerate_deleted(config.clone(), &requested_dir, tx_item)?;
+                    // scope guarantees that all threads finish before we exit
                     spawn_enumerate_deleted(config.clone(), &requested_dir, tx_item, scope);
                 }
             }
