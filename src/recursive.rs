@@ -74,7 +74,8 @@ pub fn recursive_exec(
         .build()
         .unwrap();
 
-    // pass this thread pool's scope to enumerate_directory, and spawn threads from within this scope
+    // pass this thread_pool's scope to enumerate_directory, and spawn threads from within this scope
+    //
     // "in_place_scope" means don't spawn another thread, we already have a new system thread for this
     // scope
     thread_pool.in_place_scope(|scope| {
