@@ -368,9 +368,9 @@ fn send_entries(
 
 fn print_deleted_recursive(
     config: Arc<Config>,
-    path_buf_set: Vec<BasicDirEntryInfo>,
+    entries: Vec<BasicDirEntryInfo>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let pseudo_live_set: Vec<PathData> = path_buf_set
+    let pseudo_live_set: Vec<PathData> = entries
         .iter()
         .map(|basic_dir_entry_info| PathData::from(basic_dir_entry_info.path.as_path()))
         .collect();
