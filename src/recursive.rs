@@ -110,7 +110,7 @@ fn enumerate_live_versions(
                     // no join handles for these rayon threads, therefore we can't be certain when they
                     // are all done executing, therefore we turn them off in the non-interactive modes
                     //enumerate_deleted(config.clone(), &requested_dir, tx_item)?;
-                    spawn_enumerate_deleted(config.clone(), &requested_dir, &tx_item, &scope);
+                    spawn_enumerate_deleted(config.clone(), &requested_dir, tx_item, scope);
                 }
             }
         }
@@ -127,12 +127,12 @@ fn enumerate_live_versions(
                     // spawn_enumerate_deleted will send deleted files back to
                     // the main thread for us, so we can skip collecting deleted here
                     // and return an empty vec
-                    spawn_enumerate_deleted(config.clone(), &requested_dir, &tx_item, &scope);
+                    spawn_enumerate_deleted(config.clone(), &requested_dir, tx_item, scope);
                     Vec::new()
                 }
                 DeletedMode::DepthOfOne | DeletedMode::Enabled => {
                     // DepthOfOne will be handled inside enumerate_deleted
-                    spawn_enumerate_deleted(config.clone(), &requested_dir, &tx_item, &scope);
+                    spawn_enumerate_deleted(config.clone(), &requested_dir, tx_item, scope);
                     combined_vec()
                 }
                 DeletedMode::Disabled => combined_vec(),
