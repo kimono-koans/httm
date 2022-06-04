@@ -30,16 +30,6 @@ use crate::{
     BasicDirEntryInfo, Config, DeletedMode, ExecMode, HttmError, PathData, ZFS_HIDDEN_DIRECTORY,
 };
 
-// default stack size for rayon threads spawned to handle enumerate_deleted
-// here set at 8MB (the Linux default) to avoid a stack overflow with the Rayon default
-const DEFAULT_STACK_SIZE: usize = 8388608;
-
-// passing a progress bar through multiple functions is a pain, and since we only need a global,
-// here we just create a static progress bar for Display Recursive mode
-lazy_static! {
-    static ref PROGRESS_BAR: ProgressBar = indicatif::ProgressBar::new_spinner();
-}
-
 pub fn display_recursive_wrapper(
     config: &Config,
 ) -> Result<[Vec<PathData>; 2], Box<dyn std::error::Error + Send + Sync + 'static>> {
@@ -74,6 +64,10 @@ pub fn recursive_exec(
     tx_item: &SkimItemSender,
     requested_dir: PathBuf,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    // default stack size for rayon threads spawned to handle enumerate_deleted
+    // here set at 8MB (the Linux default) to avoid a stack overflow with the Rayon default
+    const DEFAULT_STACK_SIZE: usize = 8388608;
+
     // build thread pool with a stack size large enough to avoid a stack overflow
     let thread_pool = rayon::ThreadPoolBuilder::new()
         .stack_size(DEFAULT_STACK_SIZE)
@@ -157,7 +151,7 @@ fn enumerate_live_versions(
             };
 
             // is_phantom is false because these are known live entries
-            send_entries(config.clone(), entries, false, tx_item)?;
+            process_entries(config.clone(), entries, false, tx_item)?;
         }
     }
 
@@ -291,6 +285,7 @@ fn get_entries_partitioned(
     (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>),
     Box<dyn std::error::Error + Send + Sync + 'static>,
 > {
+    //separates entries into dirs and files
     let res = read_dir(&requested_dir)?
         .flatten()
         .par_bridge()
@@ -337,6 +332,12 @@ fn process_entries(
     match config.exec_mode {
         ExecMode::Interactive => send_entries(config, entries, is_phantom, tx_item)?,
         ExecMode::DisplayRecursive => {
+            // passing a progress bar through multiple functions is a pain, and since we only need a global,
+            // here we just create a static progress bar for Display Recursive mode
+            lazy_static! {
+                static ref PROGRESS_BAR: ProgressBar = indicatif::ProgressBar::new_spinner();
+            }
+
             if !entries.is_empty() {
                 print_deleted_recursive(config.clone(), entries)?
             } else if config.opt_recursive {
