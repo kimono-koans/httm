@@ -17,6 +17,7 @@
 
 use std::{ffi::OsStr, fs::read_dir, io::Write, path::Path, path::PathBuf, sync::Arc};
 
+use indicatif::ProgressBar;
 use rayon::{prelude::*, Scope};
 use skim::prelude::*;
 
@@ -32,6 +33,12 @@ use crate::{
 // default stack size for rayon threads spawned to handle enumerate_deleted
 // here set at 8MB (the Linux default) to avoid a stack overflow with the Rayon default
 const DEFAULT_STACK_SIZE: usize = 8388608;
+
+// passing a progress bar through multiple functions is a pain,
+// here we just create a static global progress bar for Display Recursive mode
+lazy_static! {
+    static ref PROGRESS_BAR: ProgressBar = indicatif::ProgressBar::new_spinner();
+}
 
 pub fn display_recursive_wrapper(
     config: &Config,
@@ -56,7 +63,6 @@ pub fn display_recursive_wrapper(
     // flush and exit successfully upon ending recursive search
     if config.opt_recursive {
         let mut out = std::io::stdout();
-        writeln!(out)?;
         out.flush()?;
     }
 
@@ -111,6 +117,18 @@ fn enumerate_live_versions(
             })
             .partition(|entry| httm_is_dir(entry));
 
+    // "spawn" a lighter weight rayon/greenish thread for enumerate_deleted
+    let spawn_enumerate_deleted = || {
+        // clone items because new thread needs ownership
+        let config_clone = config.clone();
+        let requested_dir_clone = requested_dir.to_path_buf();
+        let tx_item_clone = tx_item.clone();
+
+        scope.spawn(move |_| {
+            let _ = enumerate_deleted(config_clone, &requested_dir_clone, &tx_item_clone);
+        });
+    };
+
     match config.exec_mode {
         ExecMode::Display => unreachable!(),
         ExecMode::DisplayRecursive => {
@@ -124,7 +142,8 @@ fn enumerate_live_versions(
                 DeletedMode::DepthOfOne | DeletedMode::Enabled | DeletedMode::Only => {
                     // no join handles for these rayon threads, therefore we can't be certain when they
                     // are all done executing, therefore we turn them off in the non-interactive modes
-                    enumerate_deleted(config.clone(), &requested_dir, tx_item)?;
+                    //enumerate_deleted(config.clone(), &requested_dir, tx_item)?;
+                    spawn_enumerate_deleted();
                 }
             }
         }
@@ -133,18 +152,6 @@ fn enumerate_live_versions(
                 let mut combined = vec_files;
                 combined.extend(vec_dirs.clone());
                 combined
-            };
-
-            // "spawn" a lighter weight rayon/greenish thread for enumerate_deleted
-            let spawn_enumerate_deleted = || {
-                // clone items because new thread needs ownership
-                let config_clone = config.clone();
-                let requested_dir_clone = requested_dir.to_path_buf();
-                let tx_item_clone = tx_item.clone();
-
-                scope.spawn(move |_| {
-                    let _ = enumerate_deleted(config_clone, &requested_dir_clone, &tx_item_clone);
-                });
             };
 
             // combine dirs and files into a vec and sort to display
@@ -228,12 +235,9 @@ fn enumerate_deleted(
         ExecMode::Interactive => send_entries(config, pseudo_live_versions, true, tx_item)?,
         ExecMode::DisplayRecursive => {
             if !pseudo_live_versions.is_empty() {
-                if config.opt_recursive {
-                    eprintln!();
-                }
                 print_deleted_recursive(config, pseudo_live_versions)?
             } else if config.opt_recursive {
-                eprint!(".");
+                PROGRESS_BAR.tick();
             }
         }
         _ => unreachable!(),
@@ -290,12 +294,9 @@ fn behind_deleted_dir(
             }
             ExecMode::DisplayRecursive => {
                 if !pseudo_live_versions.is_empty() {
-                    if config.opt_recursive {
-                        eprintln!();
-                    }
                     print_deleted_recursive(config.clone(), pseudo_live_versions)?
                 } else if config.opt_recursive {
-                    eprint!(".");
+                    PROGRESS_BAR.tick();
                 }
             }
             _ => unreachable!(),
@@ -377,10 +378,8 @@ fn print_deleted_recursive(
 
     let snaps_and_live_set = get_versions(&config, &pseudo_live_set)?;
 
-    let mut out = std::io::stdout();
     let output_buf = display_exec(&config, snaps_and_live_set)?;
-    write!(out, "{}", output_buf)?;
-    out.flush()?;
+    println!("{}", output_buf);
 
     Ok(())
 }
