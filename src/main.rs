@@ -31,7 +31,7 @@ use clap::{crate_name, crate_version, Arg, ArgMatches};
 use fxhash::FxHashMap as HashMap;
 use rayon::prelude::*;
 
-use crate::config_helper::{install_hot_keys, list_all_filesystems, precompute_alt_replicated};
+use crate::config_helper::{get_filesystem_list, install_hot_keys, precompute_alt_replicated};
 use crate::display::display_exec;
 use crate::interactive::interactive_exec;
 use crate::lookup::get_versions;
@@ -350,7 +350,7 @@ impl Config {
                 }),
             )
         } else if matches.is_present("ALT_REPLICATED") && exec_mode != ExecMode::Display {
-            let mounts_and_datasets = list_all_filesystems()?;
+            let mounts_and_datasets = get_filesystem_list()?;
             let map_of_alts = Some(precompute_alt_replicated(&mounts_and_datasets));
             (
                 true,
@@ -360,7 +360,7 @@ impl Config {
                 }),
             )
         } else {
-            let mounts_and_datasets = list_all_filesystems()?;
+            let mounts_and_datasets = get_filesystem_list()?;
             let map_of_alts = None;
             (
                 matches.is_present("ALT_REPLICATED"),

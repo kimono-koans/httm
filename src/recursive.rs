@@ -153,6 +153,32 @@ fn enumerate_live_versions(
     Ok(())
 }
 
+fn get_entries_partitioned(
+    requested_dir: &Path,
+) -> Result<
+    (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>),
+    Box<dyn std::error::Error + Send + Sync + 'static>,
+> {
+    //separates entries into dirs and files
+    let (vec_dirs, vec_files) = read_dir(&requested_dir)?
+        .flatten()
+        .par_bridge()
+        // never check the hidden snapshot directory for live files (duh)
+        // didn't think this was possible until I saw a SMB share return
+        // a .zfs dir entry
+        .filter(|dir_entry| dir_entry.file_name().as_os_str() != OsStr::new(ZFS_HIDDEN_DIRECTORY))
+        // checking file_type on dir entries is always preferable
+        // as it is much faster than a metadata call on the path
+        .map(|dir_entry| BasicDirEntryInfo {
+            file_name: dir_entry.file_name(),
+            path: dir_entry.path(),
+            file_type: dir_entry.file_type().ok(),
+        })
+        .partition(|entry| httm_is_dir(entry));
+
+    Ok((vec_dirs, vec_files))
+}
+
 // "spawn" a lighter weight rayon/greenish thread for enumerate_deleted, if needed
 fn spawn_enumerate_deleted(
     config: Arc<Config>,
@@ -194,7 +220,7 @@ fn enumerate_deleted(
                 let requested_dir_clone = requested_dir.to_path_buf();
                 let tx_item_clone = tx_item.clone();
 
-                let _ = behind_deleted_dir(
+                let _ = get_entries_behind_deleted_dir(
                     config_clone,
                     &tx_item_clone,
                     &deleted_dir,
@@ -221,7 +247,7 @@ fn enumerate_deleted(
 // recurses over all dir entries and creates pseudo live versions
 // for them all, policy is to use the latest snapshot version before
 // deletion
-fn behind_deleted_dir(
+fn get_entries_behind_deleted_dir(
     config: Arc<Config>,
     tx_item: &SkimItemSender,
     deleted_dir: &Path,
@@ -279,32 +305,6 @@ fn behind_deleted_dir(
     }
 
     Ok(())
-}
-
-fn get_entries_partitioned(
-    requested_dir: &Path,
-) -> Result<
-    (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>),
-    Box<dyn std::error::Error + Send + Sync + 'static>,
-> {
-    //separates entries into dirs and files
-    let (vec_dirs, vec_files) = read_dir(&requested_dir)?
-        .flatten()
-        .par_bridge()
-        // never check the hidden snapshot directory for live files (duh)
-        // didn't think this was possible until I saw a SMB share return
-        // a .zfs dir entry
-        .filter(|dir_entry| dir_entry.file_name().as_os_str() != OsStr::new(ZFS_HIDDEN_DIRECTORY))
-        // checking file_type on dir entries is always preferable
-        // as it is much faster than a metadata call on the path
-        .map(|dir_entry| BasicDirEntryInfo {
-            file_name: dir_entry.file_name(),
-            path: dir_entry.path(),
-            file_type: dir_entry.file_type().ok(),
-        })
-        .partition(|entry| httm_is_dir(entry));
-
-    Ok((vec_dirs, vec_files))
 }
 
 // this function creates dummy "live versions" values to match deleted files

@@ -99,16 +99,14 @@ pub fn install_hot_keys() -> Result<(), Box<dyn std::error::Error + Send + Sync 
     std::process::exit(0)
 }
 
-pub fn list_all_filesystems(
+pub fn get_filesystem_list(
 ) -> Result<HashMap<PathBuf, String>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // read datasets from 'mount' if possible -- this is much faster than using zfs command
     // but I trust we've parsed it correctly less, because BSD and Linux output are different
-    let get_filesystems_and_mountpoints = |shell_command: &PathBuf,
-                                           mount_command: &PathBuf|
-     -> Result<
-        HashMap<PathBuf, String>,
-        Box<dyn std::error::Error + Send + Sync + 'static>,
-    > {
+    fn get_filesystems_and_mountpoints(
+        shell_command: &PathBuf,
+        mount_command: &PathBuf,
+    ) -> Result<HashMap<PathBuf, String>, Box<dyn std::error::Error + Send + Sync + 'static>> {
         let command_output = std::str::from_utf8(
             &ExecProcess::new(&shell_command)
                 .arg("-c")
@@ -146,7 +144,7 @@ pub fn list_all_filesystems(
         } else {
             Ok(mount_collection)
         }
-    };
+    }
 
     // do we have the necessary commands for search if user has not defined a snap point?
     // if so run the mount search, if not print some errors
