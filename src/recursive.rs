@@ -213,8 +213,9 @@ fn enumerate_deleted(
     // otherwise recurse and find all those deleted files
     if config.deleted_mode != DeletedMode::DepthOfOne && config.opt_recursive {
         let _ = &vec_dirs
-            .iter()
-            .map(|basic_dir_entry_info| basic_dir_entry_info.path.to_owned())
+            .clone()
+            .into_iter()
+            .map(|basic_dir_entry_info| basic_dir_entry_info.path)
             .for_each(|deleted_dir| {
                 let config_clone = config.clone();
                 let requested_dir_clone = requested_dir.to_path_buf();
