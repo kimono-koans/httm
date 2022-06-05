@@ -24,7 +24,7 @@ use std::{
 use fxhash::FxHashMap as HashMap;
 use rayon::prelude::*;
 
-use crate::{Config, HttmError, PathData, SnapPoint, ZFS_HIDDEN_SNAPSHOT_DIRECTORY};
+use crate::{Config, HttmError, PathData, SnapPoint};
 
 #[derive(Debug, Clone)]
 pub enum NativeDatasetType {
@@ -146,7 +146,7 @@ pub fn get_search_dirs(
 
     dataset_collection.par_iter().map( |(dataset_of_interest, immediate_dataset_snap_mount)| {
         // building the snapshot path from our dataset
-        let hidden_snapshot_dir: PathBuf = dataset_of_interest.join(ZFS_HIDDEN_SNAPSHOT_DIRECTORY);
+        let hidden_snapshot_dir: PathBuf = dataset_of_interest.join(config.clone().filesystem_info.snapshot_dir);
 
         // building our relative path by removing parent below the snap dir
         //
@@ -159,10 +159,10 @@ pub fn get_search_dirs(
             }
             SnapPoint::Native(_) => {
                 // this prefix removal is why we always need the immediate dataset name, even when we are searching an alternate replicated filesystem
-                file_pathdata.path_buf
+                    file_pathdata.path_buf
                     .strip_prefix(&immediate_dataset_snap_mount).map_err(|_| HttmError::new("Are you sure you're in the correct working directory?  Perhaps you need to set the SNAP_DIR and LOCAL_DIR values."))   
-                }
-            }?;
+            }
+        }?;
 
         Ok(
             SearchDirs {

@@ -26,8 +26,8 @@ use fxhash::FxHashMap as HashMap;
 use rayon::prelude::*;
 use which::which;
 
-use crate::lookup::get_alt_replicated_dataset;
-use crate::{HttmError, ZFS_HIDDEN_DIRECTORY};
+use crate::HttmError;
+use crate::{lookup::get_alt_replicated_dataset, FilesystemInfo};
 
 pub fn install_hot_keys() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     // get our home directory
@@ -100,10 +100,12 @@ pub fn install_hot_keys() -> Result<(), Box<dyn std::error::Error + Send + Sync 
 }
 
 pub fn get_filesystem_list(
+    filesystem_info: &FilesystemInfo,
 ) -> Result<HashMap<PathBuf, String>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // read datasets from 'mount' if possible -- this is much faster than using zfs command
     // but I trust we've parsed it correctly less, because BSD and Linux output are different
     fn get_filesystems_and_mountpoints(
+        filesystem_info: &FilesystemInfo,
         shell_command: &PathBuf,
         mount_command: &PathBuf,
     ) -> Result<HashMap<PathBuf, String>, Box<dyn std::error::Error + Send + Sync + 'static>> {
@@ -120,8 +122,9 @@ pub fn get_filesystem_list(
         let mount_collection: HashMap<PathBuf, String> = command_output
             .par_lines()
             // want zfs 
-            .filter(|line| line.contains("zfs"))
-            .filter(|line| !line.contains(ZFS_HIDDEN_DIRECTORY))
+            .filter(|line| line.contains(&filesystem_info.filesystem_name))
+            // but exclude snapshot mounts.  we want the raw filesystem names.
+            .filter(|line| !line.contains(&filesystem_info.snapshot_dir))
             .filter_map(|line|
                 // GNU Linux mount output
                 if line.contains("type") {
@@ -150,7 +153,7 @@ pub fn get_filesystem_list(
     // if so run the mount search, if not print some errors
     if let Ok(shell_command) = which("sh") {
         if let Ok(mount_command) = which("mount") {
-            get_filesystems_and_mountpoints(&shell_command, &mount_command)
+            get_filesystems_and_mountpoints(filesystem_info, &shell_command, &mount_command)
         } else {
             Err(HttmError::new(
                 "mount command not found. Make sure the command 'mount' is in your path.",

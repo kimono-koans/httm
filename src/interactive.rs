@@ -26,10 +26,7 @@ use crate::display::display_exec;
 use crate::lookup::get_versions;
 use crate::recursive::recursive_exec;
 use crate::utility::{copy_recursive, paint_string, timestamp_file};
-use crate::{
-    Config, DeletedMode, ExecMode, HttmError, InteractiveMode, PathData,
-    ZFS_HIDDEN_SNAPSHOT_DIRECTORY,
-};
+use crate::{Config, DeletedMode, ExecMode, HttmError, InteractiveMode, PathData};
 
 // these represent to items ready for selection and preview
 // contains everything needs to request preview and paint with
@@ -72,6 +69,7 @@ impl SelectionCandidate {
             opt_recursive: false,
             opt_no_live_vers: false,
             opt_exact: false,
+            filesystem_info: config.filesystem_info.to_owned(),
             exec_mode: ExecMode::Display,
             deleted_mode: DeletedMode::Disabled,
             interactive_mode: InteractiveMode::None,
@@ -319,7 +317,7 @@ fn interactive_restore(
     if !snap_pathdata
         .path_buf
         .to_string_lossy()
-        .contains(ZFS_HIDDEN_SNAPSHOT_DIRECTORY)
+        .contains(&config.filesystem_info.snapshot_dir)
     {
         return Err(HttmError::new("Path selected is not a 'snapshot version'.  httm will not restore from a non-'snapshot version'.  Quitting.").into());
     }

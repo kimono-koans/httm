@@ -26,9 +26,7 @@ use crate::display::display_exec;
 use crate::interactive::SelectionCandidate;
 use crate::lookup::get_versions;
 use crate::utility::httm_is_dir;
-use crate::{
-    BasicDirEntryInfo, Config, DeletedMode, ExecMode, HttmError, PathData, ZFS_HIDDEN_DIRECTORY,
-};
+use crate::{BasicDirEntryInfo, Config, DeletedMode, ExecMode, HttmError, PathData};
 
 pub fn display_recursive_wrapper(
     config: &Config,
@@ -92,7 +90,7 @@ fn enumerate_live_versions(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     // combined entries will be sent or printed, but we need the vec_dirs to recurse
     let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
-        get_entries_partitioned(requested_dir)?;
+        get_entries_partitioned(config.clone(), requested_dir)?;
 
     // check exec mode and deleted mode, we do something different for each
     match config.exec_mode {
@@ -153,6 +151,7 @@ fn enumerate_live_versions(
 }
 
 fn get_entries_partitioned(
+    config: Arc<Config>,
     requested_dir: &Path,
 ) -> Result<
     (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>),
@@ -165,7 +164,9 @@ fn get_entries_partitioned(
         // never check the hidden snapshot directory for live files (duh)
         // didn't think this was possible until I saw a SMB share return
         // a .zfs dir entry
-        .filter(|dir_entry| dir_entry.file_name().as_os_str() != OsStr::new(ZFS_HIDDEN_DIRECTORY))
+        .filter(|dir_entry| {
+            dir_entry.file_name().as_os_str() != OsStr::new(&config.filesystem_info.hidden_dir)
+        })
         // checking file_type on dir entries is always preferable
         // as it is much faster than a metadata call on the path
         .map(|dir_entry| BasicDirEntryInfo {
@@ -266,7 +267,7 @@ fn get_entries_behind_deleted_dir(
         let pseudo_live_dir = &from_requested_dir.to_path_buf().join(&dir_name);
 
         let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
-            get_entries_partitioned(deleted_dir_on_snap)?;
+            get_entries_partitioned(config.clone(), deleted_dir_on_snap)?;
 
         // partition above is needed as vec_files will be used later
         // to determine dirs to recurse, here, we recombine to obtain
