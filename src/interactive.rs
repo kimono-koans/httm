@@ -189,7 +189,7 @@ fn browse_view(
 
     // thread spawn fn enumerate_directory - permits recursion into dirs without blocking
     thread::spawn(move || {
-        let _ = recursive_exec(arc_config, &tx_item, requested_dir_clone);
+        let _ = recursive_exec(arc_config, &tx_item, &requested_dir_clone);
     });
 
     // create the skim component for previews
