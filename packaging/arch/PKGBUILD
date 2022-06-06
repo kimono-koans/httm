@@ -1,5 +1,5 @@
 pkgname=httm
-pkgver=0.10.10
+pkgver=0.11.1
 pkgrel=1
 pkgdesc="*The dream of a CLI ZFS Time Machine is still alive with httm.* httm prints the size, date and corresponding locations of available unique versions (deduplicated by modify time and size) of files residing on ZFS snapshots, but can also be used interactively to select and restore such files."
 arch=('x86_64')
@@ -9,7 +9,7 @@ groups=('utility')
 options=('!strip' '!emptydirs')
 makedepends=('cargo')
 source=("${pkgver}.tar.gz::https://static.crates.io/crates/$pkgname/$pkgname-$pkgver.crate")
-sha512sums=('f8aa73b6ba71d0b55ecabd66e16fcbf4724c1a302a347b4f0eb9f22c1c7019eeaf6b6ca4a14253d173e0c34841a1c13551a1c9ab082019cfe2a2f7ae578ea355')
+sha512sums=('3f3cc3d185eeec6d4c034c7a6e5a715b9f04af528c190d0f242b1cdfa2e560624c4f3bd7d53e94d9bde4065f400320c306fba95788cc4e2e33c645399442334b')
 
 prepare() {
 	cd "${srcdir}/${pkgname}-${pkgver}"
