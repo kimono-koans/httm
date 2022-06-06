@@ -286,15 +286,22 @@ fn get_versions_per_dataset(
         .flatten()
         .par_bridge()
         .map(|entry| entry.path())
-        .map(|path| match &config.filesystem_info.filesystem_type {
-            FilesystemType::Zfs => path.join(&search_dirs.relative_path),
+        .filter_map(|path| match &config.filesystem_info.filesystem_type {
+            FilesystemType::Zfs => Some(path.join(&search_dirs.relative_path)),
             // snapper includes an additional directory after the snapshot directory
-            FilesystemType::BtrfsSnapper => path
-                .join(BTRFS_SNAPPER_ADDITIONAL_SUB_DIRECTORY)
-                .join(&search_dirs.relative_path),
+            FilesystemType::BtrfsSnapper => {
+                let res = path
+                    .join(BTRFS_SNAPPER_ADDITIONAL_SUB_DIRECTORY)
+                    .join(&search_dirs.relative_path);
+                Some(res)
+            }
             // since time shift just keeps all the backups in a single directory,
             // we use absolute paths from that directory, e.g. <backup>/<snap>/usr/local/bin
-            FilesystemType::BtrfsTimeshift(_) => path.join(&search_dirs.absolute_path.strip_prefix("/").expect("Absolute path is empty!")),
+            FilesystemType::BtrfsTimeshift(_) => match &search_dirs.absolute_path.strip_prefix("/")
+            {
+                Ok(stripped) => Some(path.join(stripped)),
+                Err(_) => None,
+            },
         })
         .map(|path| PathData::from(path.as_path()))
         .filter(|pathdata| !pathdata.is_phantom)
