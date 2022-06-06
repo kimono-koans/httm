@@ -38,7 +38,6 @@ pub enum NativeDatasetType {
 pub struct SearchDirs {
     pub snapshot_dir: PathBuf,
     pub relative_path: PathBuf,
-    pub absolute_path: PathBuf,
 }
 
 pub fn get_versions(
@@ -158,30 +157,23 @@ pub fn get_search_dirs(
             //
             // for native searches the prefix is are the dirs below the most immediate dataset
             // for user specified dirs these are specified by the user
-            let (relative_path, absolute_path) = match &config.snap_point {
-                SnapPoint::UserDefined(defined_dirs) => {
-                    let relative_path = file_pathdata
-                        .path_buf
-                        .strip_prefix(&defined_dirs.local_dir)?
-                        .to_path_buf();
-                    let absolute_path = file_pathdata.path_buf.clone();
-                    (relative_path, absolute_path)
-                }
+            let relative_path = match &config.snap_point {
+                SnapPoint::UserDefined(defined_dirs) => file_pathdata
+                    .path_buf
+                    .strip_prefix(&defined_dirs.local_dir)?
+                    .to_path_buf(),
                 SnapPoint::Native(_) => {
                     // this prefix removal is why we always need the immediate dataset name, even when we are searching an alternate replicated filesystem
-                    let relative_path = file_pathdata
+                    file_pathdata
                         .path_buf
                         .strip_prefix(&immediate_dataset_snap_mount)?
-                        .to_path_buf();
-                    let absolute_path = file_pathdata.path_buf.clone();
-                    (relative_path, absolute_path)
+                        .to_path_buf()
                 }
             };
 
             Ok(SearchDirs {
                 snapshot_dir,
                 relative_path,
-                absolute_path,
             })
         })
         .collect()
@@ -274,24 +266,25 @@ fn get_versions_per_dataset(
     // snapshots, like so: .zfs/snapshots/<some snap name>/
     //
     // hashmap will then remove duplicates with the same system modify time and size/file len
-    let snapshot_dir = search_dirs.snapshot_dir.clone();
 
-    let unique_versions: HashMap<(SystemTime, u64), PathData> = read_dir(snapshot_dir)?
-        .flatten()
-        .par_bridge()
-        .map(|entry| entry.path())
-        .filter_map(|path| match &config.filesystem_info.filesystem_type {
-            FilesystemType::Zfs => Some(path.join(&search_dirs.relative_path)),
-            // snapper includes an additional directory after the snapshot directory
-            FilesystemType::BtrfsSnapper => Some(
-                path.join(BTRFS_SNAPPER_ADDITIONAL_SUB_DIRECTORY)
-                    .join(&search_dirs.relative_path),
-            ),
-        })
-        .map(|path| PathData::from(path.as_path()))
-        .filter(|pathdata| !pathdata.is_phantom)
-        .map(|pathdata| ((pathdata.system_time, pathdata.size), pathdata))
-        .collect();
+    let unique_versions: HashMap<(SystemTime, u64), PathData> =
+        read_dir(&search_dirs.snapshot_dir)?
+            .flatten()
+            .par_bridge()
+            .map(|entry| entry.path())
+            .map(|path| {
+                match &config.filesystem_info.filesystem_type {
+                    FilesystemType::Zfs => path.join(&search_dirs.relative_path),
+                    // snapper includes an additional directory after the snapshot directory
+                    FilesystemType::BtrfsSnapper => path
+                        .join(BTRFS_SNAPPER_ADDITIONAL_SUB_DIRECTORY)
+                        .join(&search_dirs.relative_path),
+                }
+            })
+            .map(|path| PathData::from(path.as_path()))
+            .filter(|pathdata| !pathdata.is_phantom)
+            .map(|pathdata| ((pathdata.system_time, pathdata.size), pathdata))
+            .collect();
 
     let mut vec_pathdata: Vec<PathData> = unique_versions.into_par_iter().map(|(_, v)| v).collect();
 

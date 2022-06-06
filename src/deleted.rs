@@ -21,7 +21,9 @@ use fxhash::FxHashMap as HashMap;
 use itertools::Itertools;
 
 use crate::lookup::{get_search_dirs, NativeDatasetType, SearchDirs};
-use crate::{BasicDirEntryInfo, Config, PathData};
+use crate::{
+    BasicDirEntryInfo, Config, FilesystemType, PathData, BTRFS_SNAPPER_ADDITIONAL_SUB_DIRECTORY,
+};
 
 pub fn get_unique_deleted(
     config: &Config,
@@ -55,7 +57,7 @@ pub fn get_unique_deleted(
         })
         .flatten()
         .flat_map(|search_dirs| {
-            get_deleted_per_dataset(&requested_dir_pathdata.path_buf, &search_dirs)
+            get_deleted_per_dataset(config, &requested_dir_pathdata.path_buf, &search_dirs)
         })
         .flatten()
         .filter_map(
@@ -87,6 +89,7 @@ pub fn get_unique_deleted(
 }
 
 pub fn get_deleted_per_dataset(
+    config: &Config,
     requested_dir: &Path,
     search_dirs: &SearchDirs,
 ) -> Result<Vec<BasicDirEntryInfo>, Box<dyn std::error::Error + Send + Sync + 'static>> {
@@ -113,7 +116,15 @@ pub fn get_deleted_per_dataset(
         read_dir(&search_dirs.snapshot_dir)?
             .flatten()
             .map(|entry| entry.path())
-            .map(|path| path.join(&search_dirs.relative_path))
+            .map(|path| {
+                match &config.filesystem_info.filesystem_type {
+                    FilesystemType::Zfs => path.join(&search_dirs.relative_path),
+                    // snapper includes an additional directory after the snapshot directory
+                    FilesystemType::BtrfsSnapper => path
+                        .join(BTRFS_SNAPPER_ADDITIONAL_SUB_DIRECTORY)
+                        .join(&search_dirs.relative_path),
+                }
+            })
             .flat_map(|path| read_dir(&path))
             .flatten()
             .flatten()
