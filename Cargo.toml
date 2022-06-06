@@ -3,7 +3,7 @@ name = "httm"
 version = "0.11.1"
 edition = "2021"
 keywords = ["zfs", "backup", "restore", "cli-utility", "snapshot"]
-description = "The dream of a CLI ZFS Time Machine is still alive with httm."
+description = "The dream of a CLI Time Machine is still alive with httm."
 repository = "https://github.com/kimono-koans/httm"
 readme = "README.md"
 categories = [ "command-line-utilities",  "os" ]
@@ -16,7 +16,7 @@ copyright = "2022, Robert Swinford <robert.swinford<...at...>gmail.com>"
 license-file = ["LICENSE", "4"]
 extended-description = """\
 httm prints the size, date and corresponding locations of available unique versions \
-(deduplicated by modify time and size) of files residing on ZFS snapshots, but can also \
+(deduplicated by modify time and size) of files residing on ZFS/btrfs snapshots, but can also \
 be used interactively to select and restore such files."""
 depends = "$auto"
 section = "utility"
