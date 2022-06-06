@@ -183,24 +183,14 @@ fn get_immediate_dataset(
     pathdata: &PathData,
     mount_collection: &HashMap<PathBuf, String>,
 ) -> Result<PathBuf, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    // search on dataset root when pathdata is dataset root,
-    // instead of using empty folder in parent dataset as most immediate dataset.
-    // also fixes problem of not finding deleted files when dataset root is the
-    // root of the search
+    // use pathdata as path
     let path = &pathdata.path_buf;
-
-    if let Some(_pathdata_is_a_dataset_root) = mount_collection.get(path) {
-        return Ok(path.to_owned());
-    }
-
-    // else... search on parent folder's path for its most immediate dataset
-    let parent_folder = path.parent().unwrap_or_else(|| Path::new("/"));
 
     // prune away most mount points by filtering - parent folder of file must contain relevant dataset
     let potential_mountpoints: Vec<&PathBuf> = mount_collection
         .par_iter()
         .map(|(mount, _dataset)| mount)
-        .filter(|line| parent_folder.starts_with(line))
+        .filter(|mount| path.starts_with(mount))
         .collect();
 
     // do we have any mount points left? if not print error
@@ -213,13 +203,13 @@ fn get_immediate_dataset(
     // so for /usr/bin, we would then prefer /usr/bin to /usr and /
     let best_potential_mountpoint = match potential_mountpoints
         .par_iter()
-        .max_by_key(|x| x.as_os_str().len())
+        .max_by_key(|potential_mountpoint| potential_mountpoint.as_os_str().len())
     {
         Some(some_bpmp) => PathBuf::from(some_bpmp),
         None => {
             let msg = format!(
                 "There is no best match for a ZFS dataset to use for path {:?}. Sorry!/Not sorry?)",
-                pathdata.path_buf
+                path
             );
             return Err(HttmError::new(&msg).into());
         }
