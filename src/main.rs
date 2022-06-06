@@ -57,12 +57,14 @@ pub const BTRFS_SNAPPER_ADDITIONAL_SUB_DIRECTORY: &str = "snapshot";
 
 pub const BTRFS_TIMESHIFT_HIDDEN_DIRECTORY: &str = "timeshift-btrfs";
 pub const BTRFS_TIMESHIFT_SNAPSHOT_DIRECTORY: &str = "timeshift-btrfs/snapshots";
-pub const BTRFS_TIMESHIFT_HOME_DIRECTORY: &str = "/run/timeshift/backup";
+pub const BTRFS_TIMESHIFT_DEFAULT_HOME_DIRECTORY: &str = "/run/timeshift/backup";
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum FilesystemType {
     Zfs,
+    // string is timeshift home directory
     BtrfsTimeshift(String),
+    // string is snapper additional sub directory
     BtrfsSnapper(String),
 }
 
@@ -309,7 +311,7 @@ impl Config {
                     if let Some(home_dir) = std::env::var_os("TIMESHIFT_HOME_DIR") {
                         home_dir.to_string_lossy().to_string()
                     } else {
-                        BTRFS_TIMESHIFT_HOME_DIRECTORY.to_string()
+                        BTRFS_TIMESHIFT_DEFAULT_HOME_DIRECTORY.to_string()
                     },
                 ),
                 filesystem_name: BTRFS_FILESYSTEM_NAME.to_string(),
