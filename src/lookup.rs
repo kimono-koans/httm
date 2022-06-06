@@ -294,7 +294,7 @@ fn get_versions_per_dataset(
                 .join(&search_dirs.relative_path),
             // since time shift just keeps all the backups in a single directory,
             // we use absolute paths from that directory, e.g. <backup>/<snap>/usr/local/bin
-            FilesystemType::BtrfsTimeshift(_) => path.join(&search_dirs.absolute_path),
+            FilesystemType::BtrfsTimeshift(_) => path.join(&search_dirs.absolute_path.strip_prefix("/").unwrap_or(Path::new("/"))),
         })
         .map(|path| PathData::from(path.as_path()))
         .filter(|pathdata| !pathdata.is_phantom)
