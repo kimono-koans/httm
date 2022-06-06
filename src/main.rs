@@ -64,8 +64,7 @@ pub enum FilesystemType {
     Zfs,
     // string is timeshift home directory
     BtrfsTimeshift(String),
-    // string is snapper additional sub directory
-    BtrfsSnapper(String),
+    BtrfsSnapper,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -299,9 +298,7 @@ impl Config {
                 snapshot_dir: ZFS_SNAPSHOT_DIRECTORY.to_string(),
             },
             Some("btrfs-snapper") => FilesystemInfo {
-                filesystem_type: FilesystemType::BtrfsSnapper(
-                    BTRFS_SNAPPER_ADDITIONAL_SUB_DIRECTORY.to_string(),
-                ),
+                filesystem_type: FilesystemType::BtrfsSnapper,
                 filesystem_name: BTRFS_FILESYSTEM_NAME.to_string(),
                 hidden_dir: BTRFS_SNAPPER_HIDDEN_DIRECTORY.to_string(),
                 snapshot_dir: BTRFS_SNAPPER_SNAPSHOT_DIRECTORY.to_string(),
