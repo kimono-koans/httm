@@ -110,7 +110,7 @@ pub fn get_deleted_per_dataset(
     // now create a collection of file names in the snap_dirs
     // create a list of unique filenames on snaps
     let unique_snap_filenames: HashMap<OsString, BasicDirEntryInfo> =
-        read_dir(&search_dirs.hidden_snapshot_dir)?
+        read_dir(&search_dirs.snapshot_dir)?
             .flatten()
             .map(|entry| entry.path())
             .map(|path| path.join(&search_dirs.relative_path))

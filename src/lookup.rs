@@ -24,7 +24,9 @@ use std::{
 use fxhash::FxHashMap as HashMap;
 use rayon::prelude::*;
 
-use crate::{Config, HttmError, PathData, SnapPoint, ZFS_HIDDEN_SNAPSHOT_DIRECTORY};
+use crate::{
+    Config, FilesystemType, HttmError, PathData, SnapPoint, BTRFS_SNAPPER_ADDITIONAL_SUB_DIRECTORY,
+};
 
 #[derive(Debug, Clone)]
 pub enum NativeDatasetType {
@@ -34,8 +36,9 @@ pub enum NativeDatasetType {
 
 #[derive(Debug, Clone)]
 pub struct SearchDirs {
-    pub hidden_snapshot_dir: PathBuf,
+    pub snapshot_dir: PathBuf,
     pub relative_path: PathBuf,
+    pub absolute_path: PathBuf,
 }
 
 pub fn get_versions(
@@ -90,7 +93,7 @@ fn get_all_snap_versions(
         })
         .flatten()
         .flatten()
-        .flat_map(|search_dirs| get_versions_per_dataset(&search_dirs))
+        .flat_map(|search_dirs| get_versions_per_dataset(config, &search_dirs))
         .flatten()
         .collect();
 
@@ -144,34 +147,44 @@ pub fn get_search_dirs(
         }
     };
 
-    dataset_collection.par_iter().map( |(dataset_of_interest, immediate_dataset_snap_mount)| {
-        // building the snapshot path from our dataset
-        let hidden_snapshot_dir: PathBuf = dataset_of_interest.join(ZFS_HIDDEN_SNAPSHOT_DIRECTORY);
+    dataset_collection
+        .par_iter()
+        .map(|(dataset_of_interest, immediate_dataset_snap_mount)| {
+            // building the snapshot path from our dataset
+            let snapshot_dir: PathBuf =
+                dataset_of_interest.join(config.clone().filesystem_info.snapshot_dir);
 
-        // building our relative path by removing parent below the snap dir
-        //
-        // for native searches the prefix is are the dirs below the most immediate dataset
-        // for user specified dirs these are specified by the user
-        let relative_path = match &config.snap_point {
-            SnapPoint::UserDefined(defined_dirs) => {
-                file_pathdata.path_buf
-                    .strip_prefix(&defined_dirs.local_dir).map_err(|_| HttmError::new("Are you sure you're in the correct working directory?  Perhaps you need to set the LOCAL_DIR value."))
-            }
-            SnapPoint::Native(_) => {
-                // this prefix removal is why we always need the immediate dataset name, even when we are searching an alternate replicated filesystem
-                file_pathdata.path_buf
-                    .strip_prefix(&immediate_dataset_snap_mount).map_err(|_| HttmError::new("Are you sure you're in the correct working directory?  Perhaps you need to set the SNAP_DIR and LOCAL_DIR values."))   
+            // building our relative path by removing parent below the snap dir
+            //
+            // for native searches the prefix is are the dirs below the most immediate dataset
+            // for user specified dirs these are specified by the user
+            let (relative_path, absolute_path) = match &config.snap_point {
+                SnapPoint::UserDefined(defined_dirs) => {
+                    let relative_path = file_pathdata
+                        .path_buf
+                        .strip_prefix(&defined_dirs.local_dir)?
+                        .to_path_buf();
+                    let absolute_path = file_pathdata.path_buf.clone();
+                    (relative_path, absolute_path)
                 }
-            }?;
+                SnapPoint::Native(_) => {
+                    // this prefix removal is why we always need the immediate dataset name, even when we are searching an alternate replicated filesystem
+                    let relative_path = file_pathdata
+                        .path_buf
+                        .strip_prefix(&immediate_dataset_snap_mount)?
+                        .to_path_buf();
+                    let absolute_path = file_pathdata.path_buf.clone();
+                    (relative_path, absolute_path)
+                }
+            };
 
-        Ok(
-            SearchDirs {
-                hidden_snapshot_dir,
-                relative_path: relative_path.to_path_buf(),
-            }
-        )
-
-    }).collect()
+            Ok(SearchDirs {
+                snapshot_dir,
+                relative_path,
+                absolute_path,
+            })
+        })
+        .collect()
 }
 
 fn get_immediate_dataset(
@@ -254,22 +267,31 @@ pub fn get_alt_replicated_dataset(
 }
 
 fn get_versions_per_dataset(
+    config: &Config,
     search_dirs: &SearchDirs,
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // get the DirEntry for our snapshot path which will have all our possible
     // snapshots, like so: .zfs/snapshots/<some snap name>/
     //
     // hashmap will then remove duplicates with the same system modify time and size/file len
-    let unique_versions: HashMap<(SystemTime, u64), PathData> =
-        read_dir(search_dirs.hidden_snapshot_dir.as_path())?
-            .flatten()
-            .par_bridge()
-            .map(|entry| entry.path())
-            .map(|path| path.join(&search_dirs.relative_path))
-            .map(|path| PathData::from(path.as_path()))
-            .filter(|pathdata| !pathdata.is_phantom)
-            .map(|pathdata| ((pathdata.system_time, pathdata.size), pathdata))
-            .collect();
+    let snapshot_dir = search_dirs.snapshot_dir.clone();
+
+    let unique_versions: HashMap<(SystemTime, u64), PathData> = read_dir(snapshot_dir)?
+        .flatten()
+        .par_bridge()
+        .map(|entry| entry.path())
+        .filter_map(|path| match &config.filesystem_info.filesystem_type {
+            FilesystemType::Zfs => Some(path.join(&search_dirs.relative_path)),
+            // snapper includes an additional directory after the snapshot directory
+            FilesystemType::BtrfsSnapper => Some(
+                path.join(BTRFS_SNAPPER_ADDITIONAL_SUB_DIRECTORY)
+                    .join(&search_dirs.relative_path),
+            ),
+        })
+        .map(|path| PathData::from(path.as_path()))
+        .filter(|pathdata| !pathdata.is_phantom)
+        .map(|pathdata| ((pathdata.system_time, pathdata.size), pathdata))
+        .collect();
 
     let mut vec_pathdata: Vec<PathData> = unique_versions.into_par_iter().map(|(_, v)| v).collect();
 
