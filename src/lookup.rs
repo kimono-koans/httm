@@ -273,29 +273,23 @@ fn get_versions_per_dataset(
     //
     // hashmap will then remove duplicates with the same system modify time and size/file len
 
+    //println!("{:?}", search_dirs.hidden_snapshot_dir.as_path());
+
     let unique_versions: HashMap<(SystemTime, u64), PathData> =
-        match &config.filesystem_info.filesystem_type {
-            FilesystemType::Zfs => read_dir(search_dirs.hidden_snapshot_dir.as_path())?
-                .flatten()
-                .par_bridge()
-                .map(|entry| entry.path())
-                .map(|path| path.join(&search_dirs.relative_path))
-                .map(|path| PathData::from(path.as_path()))
-                .filter(|pathdata| !pathdata.is_phantom)
-                .map(|pathdata| ((pathdata.system_time, pathdata.size), pathdata))
-                .collect(),
-            FilesystemType::BtrfsSnapper(additional_dir) => {
-                read_dir(search_dirs.hidden_snapshot_dir.as_path())?
-                    .flatten()
-                    .par_bridge()
-                    .map(|entry| entry.path())
-                    .map(|path| path.join(additional_dir).join(&search_dirs.relative_path))
-                    .map(|path| PathData::from(path.as_path()))
-                    .filter(|pathdata| !pathdata.is_phantom)
-                    .map(|pathdata| ((pathdata.system_time, pathdata.size), pathdata))
-                    .collect()
-            }
-        };
+        read_dir(search_dirs.hidden_snapshot_dir.as_path())?
+            .flatten()
+            .par_bridge()
+            .map(|entry| entry.path())
+            .map(|path| match &config.filesystem_info.filesystem_type {
+                FilesystemType::Zfs => path.join(&search_dirs.relative_path),
+                FilesystemType::BtrfsSnapper(additional_dir) => {
+                    path.join(additional_dir).join(&search_dirs.relative_path)
+                }
+            })
+            .map(|path| PathData::from(path.as_path()))
+            .filter(|pathdata| !pathdata.is_phantom)
+            .map(|pathdata| ((pathdata.system_time, pathdata.size), pathdata))
+            .collect();
 
     let mut vec_pathdata: Vec<PathData> = unique_versions.into_par_iter().map(|(_, v)| v).collect();
 
