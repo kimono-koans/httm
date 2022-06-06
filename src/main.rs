@@ -387,19 +387,29 @@ impl Config {
                     local_dir,
                 }),
             )
-        } else if matches.is_present("ALT_REPLICATED") && exec_mode != ExecMode::Display {
-            let mounts_and_datasets = get_filesystem_list(&filesystem_info)?;
-            let map_of_alts = Some(precompute_alt_replicated(&mounts_and_datasets));
-            (
-                true,
-                SnapPoint::Native(NativeDatasets {
-                    mounts_and_datasets,
-                    map_of_alts,
-                }),
-            )
         } else {
             let mounts_and_datasets = get_filesystem_list(&filesystem_info)?;
-            let map_of_alts = None;
+
+            // quick sanity check/test
+            if !mounts_and_datasets.iter().any(|(mount, _dataset)| {
+                PathBuf::from(mount)
+                    .join(&filesystem_info.snapshot_dir)
+                    .metadata()
+                    .is_ok()
+            }) {
+                return Err(HttmError::new(
+                    "System does not contain the not contain either the specified ZFS/btrfs hidden directory."
+                )
+                .into());
+            }
+
+            let map_of_alts =
+                if matches.is_present("ALT_REPLICATED") && exec_mode != ExecMode::Display {
+                    Some(precompute_alt_replicated(&mounts_and_datasets))
+                } else {
+                    None
+                };
+
             (
                 matches.is_present("ALT_REPLICATED"),
                 SnapPoint::Native(NativeDatasets {

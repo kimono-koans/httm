@@ -143,7 +143,7 @@ pub fn get_filesystem_list(
             .collect();
 
         if mount_collection.is_empty() {
-            Err(HttmError::new("httm could not find any valid ZFS datasets on the system.").into())
+            Err(HttmError::new("httm could not find any valid datasets on the system.").into())
         } else {
             Ok(mount_collection)
         }
