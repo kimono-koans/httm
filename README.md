@@ -11,6 +11,7 @@
 * Search for and recursively list all deleted files.  *Even browse files hidden behind deleted directories*.
 * List file snapshots from *all* local pools (`httm` automatically detects local snapshots *as well as* locally replicated snapshots)!
 * List file snapshots from remote backup pools (you may designate replicated remote snapshot directories).
+* Supports ZFS and btrfs (with snapper) snapshot layouts
 * For use with even `rsync`-ed non-ZFS/btrfs local datasets (like ext4, APFS, or NTFS), not just ZFS/btrfs.
 * Specify multiple files for lookup on different datasets
 * 3 native interactive modes: browse, select and restore

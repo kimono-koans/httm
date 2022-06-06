@@ -2,7 +2,7 @@
 name = "httm"
 version = "0.11.0"
 edition = "2021"
-keywords = ["zfs", "backup", "restore", "cli-utility", "snapshot"]
+keywords = ["zfs", "backup", "restore", "cli-utility", "snapshot", "btrfs"]
 description = "The dream of a CLI ZFS Time Machine is still alive with httm."
 repository = "https://github.com/kimono-koans/httm"
 readme = "README.md"
