@@ -2,16 +2,16 @@
 
 # `httm`
 
-*The dream of a CLI ZFS Time Machine is still alive with `httm`.*
+*The dream of a CLI Time Machine is still alive with `httm`.*
 
-`httm` prints the size, date and corresponding locations of available unique versions (deduplicated by modify time and size) of files residing on ZFS snapshots, but can also be used *interactively* to select and restore such files.  `httm` might change the way you use ZFS snapshots (because ZFS isn't designed for finding for unique file versions) or the Time Machine concept (because `httm` is very fast!).
+`httm` prints the size, date and corresponding locations of available unique versions (deduplicated by modify time and size) of files residing on snapshots, but can also be used *interactively* to select and restore such files.  `httm` might change the way you use snapshots (because ZFS/btrfs aren't designed for finding for unique file versions) or the Time Machine concept (because `httm` is very fast!).
 
 `httm` boasts an array of seductive features, like:
 
 * Search for and recursively list all deleted files.  *Even browse files hidden behind deleted directories*.
 * List file snapshots from *all* local pools (`httm` automatically detects local snapshots *as well as* locally replicated snapshots)!
 * List file snapshots from remote backup pools (you may designate replicated remote snapshot directories).
-* For use with even `rsync`-ed non-ZFS local datasets (like ext4, APFS, or NTFS), not just ZFS.
+* For use with even `rsync`-ed non-ZFS/btrfs local datasets (like ext4, APFS, or NTFS), not just ZFS/btrfs.
 * Specify multiple files for lookup on different datasets
 * 3 native interactive modes: browse, select and restore
 * ANSI `ls` colors from your environment
@@ -72,7 +72,7 @@ The `httm` project contains only a few components:
 
 ### Caveats
 
-Right now, you will need to use a Unix-ish-y Rust-supported platform to build and install (that is: Linux, Solaris/illumos, the BSDs, MacOS).  Note, your platform *does not* need to support ZFS to use `httm`.  And there is no fundamental reason a non-interactive Windows version of `httm` could not be built, as it once did build, but Windows platform support is not a priority for me right now.  Contributions from users are, of course, very welcome.
+Right now, you will need to use a Unix-ish-y Rust-supported platform to build and install (that is: Linux, Solaris/illumos, the BSDs, MacOS).  Note, your platform *does not* need to support ZFS/btrfs to use `httm`.  And there is no fundamental reason a non-interactive Windows version of `httm` could not be built, as it once did build, but Windows platform support is not a priority for me right now.  Contributions from users are, of course, very welcome.
 
 On FreeBSD, after a fresh minimal install, the interactive modes may not render properly, see the linked [issue](https://github.com/kimono-koans/httm/issues/20) for the fix.
 
@@ -100,7 +100,7 @@ Browse all files in your home directory, recursively, and view unique versions o
 ```bash
 httm -r -R ~
 ```
-Browse all files, recursively, in your MacOS home directory backed up via `rsync` to a ZFS remote share, shared via `smbd`, and view unique versions on remote snapshots:
+Browse all files, recursively, in your MacOS home directory backed up via `rsync` to a ZFS/btrfs remote share, shared via `smbd`, and view unique versions on remote snapshots:
 ```bash
 # mount the share
 open smb://<your name>@<your remote share>.local/Home
