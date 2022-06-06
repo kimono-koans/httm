@@ -587,7 +587,6 @@ fn parse_args() -> ArgMatches {
                 .takes_value(true)
                 .default_missing_value("all")
                 .possible_values(&["all", "single", "only"])
-                .hide_possible_values(true)
                 .help("show deleted files in interactive modes.  In non-interactive modes, do a search for all files deleted from a specified directory. \
                 If \"--deleted only\" is specified, then, in interactive modes, non-deleted files will be excluded from the search. \
                 If \"--deleted single\" is specified, then, deleted files behind deleted directories, \
