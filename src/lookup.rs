@@ -183,8 +183,8 @@ fn get_immediate_dataset(
     pathdata: &PathData,
     mount_collection: &HashMap<PathBuf, String>,
 ) -> Result<PathBuf, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    // search on dataset root, when pathdata is dataset root,
-    // instead of using empty folder in parent dataset as most immediate dataset
+    // search on dataset root when pathdata is dataset root,
+    // instead of using empty folder in parent dataset as most immediate dataset.
     // also fixes problem of not finding deleted files when dataset root is the
     // root of the search
     let path = &pathdata.path_buf;
@@ -193,8 +193,7 @@ fn get_immediate_dataset(
         return Ok(path.to_owned());
     }
 
-    // only possible None case is "parent is the '/' dir" because
-    // of previous work in the Pathdata new method
+    // else... search on parent folder's path for its most immediate dataset
     let parent_folder = path.parent().unwrap_or_else(|| Path::new("/"));
 
     // prune away most mount points by filtering - parent folder of file must contain relevant dataset
