@@ -299,7 +299,11 @@ fn get_versions_per_dataset(
                 // timeshift also has an additional sub dir!
                 let additional_sub_directory =
                     if search_dirs.absolute_path.to_str()?.contains("/home") {
-                        "@home"
+                        if path.join("@home").exists() {
+                            "@home"
+                        } else {
+                            "@"
+                        }
                     } else {
                         "@"
                     };
