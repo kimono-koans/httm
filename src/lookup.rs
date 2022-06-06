@@ -298,12 +298,10 @@ fn get_versions_per_dataset(
             FilesystemType::BtrfsTimeshift(_) => {
                 // timeshift also has an additional sub dir!
                 let additional_sub_directory =
-                    if search_dirs.absolute_path.to_str()?.contains("/home") {
-                        if path.join("@home").exists() {
-                            "@home"
-                        } else {
-                            "@"
-                        }
+                    if search_dirs.absolute_path.to_str()?.contains("/home")
+                        && path.join("@home").exists()
+                    {
+                        "@home"
                     } else {
                         "@"
                     };
