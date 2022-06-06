@@ -276,7 +276,6 @@ fn get_versions_per_dataset(
     // snapshots, like so: .zfs/snapshots/<some snap name>/
     //
     // hashmap will then remove duplicates with the same system modify time and size/file len
-
     let unique_versions: HashMap<(SystemTime, u64), PathData> =
         read_dir(&search_dirs.snapshot_dir)?
             .flatten()
