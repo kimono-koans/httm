@@ -351,7 +351,7 @@ impl Config {
                 path
             } else {
                 return Err(HttmError::new(
-                    "Manually set mountpoint does not contain a hidden ZFS directory.  Please mount a ZFS directory there or try another mountpoint.",
+                    "Manually set mountpoint does not contain a hidden snapshot directory.  Please mount a directory there or try another mountpoint.",
                 ).into());
             };
 
@@ -555,7 +555,7 @@ impl Config {
 
 fn parse_args() -> ArgMatches {
     clap::Command::new(crate_name!())
-        .about("\nby default, httm will display non-interactive information about unique file versions contained on ZFS snapshots.\n\n\
+        .about("\nby default, httm will display non-interactive information about unique file versions contained on snapshots.\n\n\
         You may also select from the various interactive modes below to browse for, select, and/or restore files.")
         .version(crate_version!())
         .arg(
@@ -631,7 +631,7 @@ fn parse_args() -> ArgMatches {
         .arg(
             Arg::new("SNAP_POINT")
                 .long("snap-point")
-                .help("ordinarily httm will automatically choose your ZFS dataset root directory (most immediate ancestor directory which contains \".zfs\"), \
+                .help("ordinarily httm will automatically choose your dataset root directory (most immediate ancestor directory which contains \".zfs\"), \
                 but here you may manually specify your own mount point for that directory, such as the local mount point for a remote share.  \
                 You can also set via the environment variable HTTM_SNAP_POINT.")
                 .takes_value(true)
@@ -640,7 +640,7 @@ fn parse_args() -> ArgMatches {
         .arg(
             Arg::new("LOCAL_DIR")
                 .long("local-dir")
-                .help("used with SNAP_POINT to determine where the corresponding live root filesystem of the ZFS dataset is.  \
+                .help("used with SNAP_POINT to determine where the corresponding live root filesystem of the dataset is.  \
                 Put more simply, the LOCAL_DIR is the directory you backup to your SNAP_POINT.  If not set, httm defaults to your current working directory.  \
                 You can also set via the environment variable HTTM_LOCAL_DIR.")
                 .requires("SNAP_POINT")
