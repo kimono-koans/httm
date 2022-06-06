@@ -24,7 +24,7 @@ use std::{
 use fxhash::FxHashMap as HashMap;
 use rayon::prelude::*;
 
-use crate::{Config, HttmError, PathData, SnapPoint};
+use crate::{Config, FilesystemType, HttmError, PathData, SnapPoint};
 
 #[derive(Debug, Clone)]
 pub enum NativeDatasetType {
@@ -90,7 +90,7 @@ fn get_all_snap_versions(
         })
         .flatten()
         .flatten()
-        .flat_map(|search_dirs| get_versions_per_dataset(&search_dirs))
+        .flat_map(|search_dirs| get_versions_per_dataset(config, &search_dirs))
         .flatten()
         .collect();
 
@@ -115,34 +115,8 @@ pub fn get_search_dirs(
     // will compare the most immediate dataset to our our canonical path and the difference
     // between ZFS mount point and the canonical path is the path we will use to search the
     // hidden snapshot dirs
-    let dataset_collection: Vec<(PathBuf, PathBuf)> = match &config.snap_point {
-        SnapPoint::UserDefined(defined_dirs) => vec![(
-            defined_dirs.snap_dir.to_owned(),
-            defined_dirs.snap_dir.to_owned(),
-        )],
-        SnapPoint::Native(native_datasets) => {
-            let immediate_dataset_mount =
-                get_immediate_dataset(file_pathdata, &native_datasets.mounts_and_datasets)?;
-            match requested_dataset_type {
-                NativeDatasetType::MostImmediate => {
-                    vec![(immediate_dataset_mount.clone(), immediate_dataset_mount)]
-                }
-                NativeDatasetType::AltReplicated => match &native_datasets.map_of_alts {
-                    Some(map_of_alts) => match &map_of_alts.get(&immediate_dataset_mount) {
-                        Some(alt_for_immediate) => alt_for_immediate.to_owned().to_owned(),
-                        None => get_alt_replicated_dataset(
-                            &immediate_dataset_mount,
-                            &native_datasets.mounts_and_datasets,
-                        )?,
-                    },
-                    None => get_alt_replicated_dataset(
-                        &immediate_dataset_mount,
-                        &native_datasets.mounts_and_datasets,
-                    )?,
-                },
-            }
-        }
-    };
+    let dataset_collection: Vec<(PathBuf, PathBuf)> =
+        get_dataset_collection(config, file_pathdata, requested_dataset_type)?;
 
     dataset_collection.par_iter().map( |(dataset_of_interest, immediate_dataset_snap_mount)| {
         // building the snapshot path from our dataset
@@ -172,6 +146,43 @@ pub fn get_search_dirs(
         )
 
     }).collect()
+}
+
+fn get_dataset_collection(
+    config: &Config,
+    file_pathdata: &PathData,
+    requested_dataset_type: &NativeDatasetType,
+) -> Result<Vec<(PathBuf, PathBuf)>, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    let res = match &config.snap_point {
+        SnapPoint::UserDefined(defined_dirs) => vec![(
+            defined_dirs.snap_dir.to_owned(),
+            defined_dirs.snap_dir.to_owned(),
+        )],
+        SnapPoint::Native(native_datasets) => {
+            let immediate_dataset_mount =
+                get_immediate_dataset(file_pathdata, &native_datasets.mounts_and_datasets)?;
+            match requested_dataset_type {
+                NativeDatasetType::MostImmediate => {
+                    vec![(immediate_dataset_mount.clone(), immediate_dataset_mount)]
+                }
+                NativeDatasetType::AltReplicated => match &native_datasets.map_of_alts {
+                    Some(map_of_alts) => match &map_of_alts.get(&immediate_dataset_mount) {
+                        Some(alt_for_immediate) => alt_for_immediate.to_owned().to_owned(),
+                        None => get_alt_replicated_dataset(
+                            &immediate_dataset_mount,
+                            &native_datasets.mounts_and_datasets,
+                        )?,
+                    },
+                    None => get_alt_replicated_dataset(
+                        &immediate_dataset_mount,
+                        &native_datasets.mounts_and_datasets,
+                    )?,
+                },
+            }
+        }
+    };
+
+    Ok(res)
 }
 
 fn get_immediate_dataset(
@@ -254,22 +265,37 @@ pub fn get_alt_replicated_dataset(
 }
 
 fn get_versions_per_dataset(
+    config: &Config,
     search_dirs: &SearchDirs,
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // get the DirEntry for our snapshot path which will have all our possible
     // snapshots, like so: .zfs/snapshots/<some snap name>/
     //
     // hashmap will then remove duplicates with the same system modify time and size/file len
+
     let unique_versions: HashMap<(SystemTime, u64), PathData> =
-        read_dir(search_dirs.hidden_snapshot_dir.as_path())?
-            .flatten()
-            .par_bridge()
-            .map(|entry| entry.path())
-            .map(|path| path.join(&search_dirs.relative_path))
-            .map(|path| PathData::from(path.as_path()))
-            .filter(|pathdata| !pathdata.is_phantom)
-            .map(|pathdata| ((pathdata.system_time, pathdata.size), pathdata))
-            .collect();
+        match &config.filesystem_info.filesystem_type {
+            FilesystemType::Zfs => read_dir(search_dirs.hidden_snapshot_dir.as_path())?
+                .flatten()
+                .par_bridge()
+                .map(|entry| entry.path())
+                .map(|path| path.join(&search_dirs.relative_path))
+                .map(|path| PathData::from(path.as_path()))
+                .filter(|pathdata| !pathdata.is_phantom)
+                .map(|pathdata| ((pathdata.system_time, pathdata.size), pathdata))
+                .collect(),
+            FilesystemType::BtrfsSnapper(additional_dir) => {
+                read_dir(search_dirs.hidden_snapshot_dir.as_path())?
+                    .flatten()
+                    .par_bridge()
+                    .map(|entry| entry.path())
+                    .map(|path| path.join(additional_dir).join(&search_dirs.relative_path))
+                    .map(|path| PathData::from(path.as_path()))
+                    .filter(|pathdata| !pathdata.is_phantom)
+                    .map(|pathdata| ((pathdata.system_time, pathdata.size), pathdata))
+                    .collect()
+            }
+        };
 
     let mut vec_pathdata: Vec<PathData> = unique_versions.into_par_iter().map(|(_, v)| v).collect();
 

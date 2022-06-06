@@ -52,16 +52,12 @@ pub const ZFS_SNAPSHOT_DIRECTORY: &str = ".zfs/snapshot";
 
 pub const BTRFS_FILESYSTEM_NAME: &str = "btrfs";
 pub const BTRFS_SNAPPER_HIDDEN_DIRECTORY: &str = ".snapshots";
-pub const BTRFS_SNAPPER_HIDDEN_SNAPSHOT_DIRECTORY: &str = ".snapshots";
+pub const BTRFS_SNAPPER_SNAPSHOT_DIRECTORY: &str = ".snapshots";
 pub const BTRFS_SNAPPER_ADDITIONAL_SUB_DIRECTORY: &str = "snapshot";
-
-pub const BTRFS_TIMESHIFT_HIDDEN_DIRECTORY: &str = "timeshift-btrfs";
-pub const BTRFS_TIMESHIFT_HIDDEN_SNAPSHOT_DIRECTORY: &str = "timeshift-btrfs/snapshots";
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum FilesystemType {
     Zfs,
-    Btrfs,
     BtrfsSnapper(String),
 }
 
@@ -269,13 +265,7 @@ impl Config {
                 ),
                 filesystem_name: BTRFS_FILESYSTEM_NAME.to_string(),
                 hidden_dir: BTRFS_SNAPPER_HIDDEN_DIRECTORY.to_string(),
-                snapshot_dir: BTRFS_SNAPPER_HIDDEN_SNAPSHOT_DIRECTORY.to_string(),
-            },
-            Some("btrfs-timeshift") => FilesystemInfo {
-                filesystem_type: FilesystemType::Btrfs,
-                filesystem_name: BTRFS_FILESYSTEM_NAME.to_string(),
-                hidden_dir: BTRFS_TIMESHIFT_HIDDEN_DIRECTORY.to_string(),
-                snapshot_dir: BTRFS_TIMESHIFT_HIDDEN_SNAPSHOT_DIRECTORY.to_string(),
+                snapshot_dir: BTRFS_SNAPPER_SNAPSHOT_DIRECTORY.to_string(),
             },
             // invalid value to not specify one of the above
             _ => unreachable!(),
@@ -652,9 +642,9 @@ fn parse_args() -> ArgMatches {
             Arg::new("FILESYSTEM_TYPE")
                 .short('f')
                 .long("file-system")
-                .help("EXPERIMENTAL/UNSTABLE OPTION: Used to determine which filesystem type to use (btrfs-snapper, btrfs-timeshift or zfs). Defaults to zfs.")
+                .help("EXPERIMENTAL/UNSTABLE OPTION: Used to determine which filesystem type to use (btrfs-snapper or zfs). Defaults to zfs.")
                 .default_missing_value("zfs")
-                .possible_values(&["zfs", "btrfs-snapper", "btrfs-timeshift"])
+                .possible_values(&["zfs", "btrfs-snapper"])
                 .takes_value(true)
                 .display_order(11)
         )
