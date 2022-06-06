@@ -55,9 +55,14 @@ pub const BTRFS_SNAPPER_HIDDEN_DIRECTORY: &str = ".snapshots";
 pub const BTRFS_SNAPPER_SNAPSHOT_DIRECTORY: &str = ".snapshots";
 pub const BTRFS_SNAPPER_ADDITIONAL_SUB_DIRECTORY: &str = "snapshot";
 
+pub const BTRFS_TIMESHIFT_HIDDEN_DIRECTORY: &str = "timeshift-btrfs";
+pub const BTRFS_TIMESHIFT_SNAPSHOT_DIRECTORY: &str = "timeshift-btrfs/snapshots";
+pub const BTRFS_TIMESHIFT_HOME_DIRECTORY: &str = "/run/timeshift/backup";
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum FilesystemType {
     Zfs,
+    BtrfsTimeshift(String),
     BtrfsSnapper(String),
 }
 
@@ -252,24 +257,6 @@ impl Config {
         let opt_no_live_vers = matches.is_present("NO_LIVE");
         let opt_recursive = matches.is_present("RECURSIVE");
         let opt_exact = matches.is_present("EXACT");
-        let filesystem_info = match matches.value_of("FILESYSTEM_TYPE") {
-            None | Some("") | Some("zfs") => FilesystemInfo {
-                filesystem_type: FilesystemType::Zfs,
-                filesystem_name: ZFS_FILESYSTEM_NAME.to_string(),
-                hidden_dir: ZFS_HIDDEN_DIRECTORY.to_string(),
-                snapshot_dir: ZFS_SNAPSHOT_DIRECTORY.to_string(),
-            },
-            Some("btrfs-snapper") => FilesystemInfo {
-                filesystem_type: FilesystemType::BtrfsSnapper(
-                    BTRFS_SNAPPER_ADDITIONAL_SUB_DIRECTORY.to_string(),
-                ),
-                filesystem_name: BTRFS_FILESYSTEM_NAME.to_string(),
-                hidden_dir: BTRFS_SNAPPER_HIDDEN_DIRECTORY.to_string(),
-                snapshot_dir: BTRFS_SNAPPER_SNAPSHOT_DIRECTORY.to_string(),
-            },
-            // invalid value to not specify one of the above
-            _ => unreachable!(),
-        };
         let mut deleted_mode = match matches.value_of("DELETED") {
             None => DeletedMode::Disabled,
             Some("") | Some("all") => DeletedMode::Enabled,
@@ -300,6 +287,37 @@ impl Config {
             InteractiveMode::Browse
         } else {
             InteractiveMode::None
+        };
+
+        let filesystem_info = match matches.value_of("FILESYSTEM_TYPE") {
+            None | Some("") | Some("zfs") => FilesystemInfo {
+                filesystem_type: FilesystemType::Zfs,
+                filesystem_name: ZFS_FILESYSTEM_NAME.to_string(),
+                hidden_dir: ZFS_HIDDEN_DIRECTORY.to_string(),
+                snapshot_dir: ZFS_SNAPSHOT_DIRECTORY.to_string(),
+            },
+            Some("btrfs-snapper") => FilesystemInfo {
+                filesystem_type: FilesystemType::BtrfsSnapper(
+                    BTRFS_SNAPPER_ADDITIONAL_SUB_DIRECTORY.to_string(),
+                ),
+                filesystem_name: BTRFS_FILESYSTEM_NAME.to_string(),
+                hidden_dir: BTRFS_SNAPPER_HIDDEN_DIRECTORY.to_string(),
+                snapshot_dir: BTRFS_SNAPPER_SNAPSHOT_DIRECTORY.to_string(),
+            },
+            Some("btrfs-timeshift") => FilesystemInfo {
+                filesystem_type: FilesystemType::BtrfsTimeshift(
+                    if let Some(home_dir) = std::env::var_os("TIMESHIFT_HOME_DIR") {
+                        home_dir.to_string_lossy().to_string()
+                    } else {
+                        BTRFS_TIMESHIFT_HOME_DIRECTORY.to_string()
+                    },
+                ),
+                filesystem_name: BTRFS_FILESYSTEM_NAME.to_string(),
+                hidden_dir: BTRFS_TIMESHIFT_HIDDEN_DIRECTORY.to_string(),
+                snapshot_dir: BTRFS_TIMESHIFT_SNAPSHOT_DIRECTORY.to_string(),
+            },
+            // invalid value to not specify one of the above
+            _ => unreachable!(),
         };
 
         if opt_recursive && exec_mode == ExecMode::Display {
@@ -642,9 +660,11 @@ fn parse_args() -> ArgMatches {
             Arg::new("FILESYSTEM_TYPE")
                 .short('f')
                 .long("file-system")
-                .help("EXPERIMENTAL/UNSTABLE OPTION: Used to determine which filesystem type to use (btrfs-snapper or zfs). Defaults to zfs.")
+                .help("EXPERIMENTAL/UNSTABLE OPTION: Used to determine which filesystem type to use (btrfs-snapper, btrfs-timeshift, or zfs). Defaults to zfs.  \
+                For Timeshift users, use the TIMESHIFT_HOME_DIR environment variable to set an alternate location for the Timeshift home directory.  \
+                Otherwise httm will search the default directory, \"/run/timeshift/backup\", for the path to \"timeshift-btrfs/snapshots\".")
                 .default_missing_value("zfs")
-                .possible_values(&["zfs", "btrfs-snapper"])
+                .possible_values(&["zfs", "btrfs-snapper", "btrfs-timeshift"])
                 .takes_value(true)
                 .display_order(11)
         )
