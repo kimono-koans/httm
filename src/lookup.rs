@@ -274,13 +274,7 @@ fn get_versions_per_dataset(
     // snapshots, like so: .zfs/snapshots/<some snap name>/
     //
     // hashmap will then remove duplicates with the same system modify time and size/file len
-    let snapshot_dir = match &config.filesystem_info.filesystem_type {
-        FilesystemType::Zfs | FilesystemType::BtrfsSnapper => search_dirs.snapshot_dir.clone(),
-        // timeshift just sticks all its backups in one directory
-        FilesystemType::BtrfsTimeshift(snap_home) => {
-            PathBuf::from(&snap_home).join(&config.filesystem_info.snapshot_dir)
-        }
-    };
+    let snapshot_dir = search_dirs.snapshot_dir.clone();
 
     let unique_versions: HashMap<(SystemTime, u64), PathData> = read_dir(snapshot_dir)?
         .flatten()
@@ -293,24 +287,6 @@ fn get_versions_per_dataset(
                 path.join(BTRFS_SNAPPER_ADDITIONAL_SUB_DIRECTORY)
                     .join(&search_dirs.relative_path),
             ),
-            // since time shift just keeps all the backups in a single directory,
-            // we use absolute paths from that directory, e.g. <backup>/<snap>/usr/local/bin
-            FilesystemType::BtrfsTimeshift(_) => {
-                // timeshift also has an additional sub dir!
-                let additional_sub_directory =
-                    if search_dirs.absolute_path.to_str()?.contains("/home")
-                        && path.join("@home").exists()
-                    {
-                        "@home"
-                    } else {
-                        "@"
-                    };
-
-                match &search_dirs.absolute_path.strip_prefix("/") {
-                    Ok(stripped) => Some(path.join(additional_sub_directory).join(stripped)),
-                    Err(_) => None,
-                }
-            }
         })
         .map(|path| PathData::from(path.as_path()))
         .filter(|pathdata| !pathdata.is_phantom)

@@ -55,15 +55,9 @@ pub const BTRFS_SNAPPER_HIDDEN_DIRECTORY: &str = ".snapshots";
 pub const BTRFS_SNAPPER_SNAPSHOT_DIRECTORY: &str = ".snapshots";
 pub const BTRFS_SNAPPER_ADDITIONAL_SUB_DIRECTORY: &str = "snapshot";
 
-pub const BTRFS_TIMESHIFT_HIDDEN_DIRECTORY: &str = "timeshift-btrfs";
-pub const BTRFS_TIMESHIFT_SNAPSHOT_DIRECTORY: &str = "timeshift-btrfs/snapshots";
-pub const BTRFS_TIMESHIFT_DEFAULT_HOME_DIRECTORY: &str = "/run/timeshift/backup";
-
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum FilesystemType {
     Zfs,
-    // string is timeshift home directory
-    BtrfsTimeshift(String),
     BtrfsSnapper,
 }
 
@@ -302,18 +296,6 @@ impl Config {
                 filesystem_name: BTRFS_FILESYSTEM_NAME.to_string(),
                 hidden_dir: BTRFS_SNAPPER_HIDDEN_DIRECTORY.to_string(),
                 snapshot_dir: BTRFS_SNAPPER_SNAPSHOT_DIRECTORY.to_string(),
-            },
-            Some("btrfs-timeshift") => FilesystemInfo {
-                filesystem_type: FilesystemType::BtrfsTimeshift(
-                    if let Some(home_dir) = std::env::var_os("TIMESHIFT_HOME_DIR") {
-                        home_dir.to_string_lossy().to_string()
-                    } else {
-                        BTRFS_TIMESHIFT_DEFAULT_HOME_DIRECTORY.to_string()
-                    },
-                ),
-                filesystem_name: BTRFS_FILESYSTEM_NAME.to_string(),
-                hidden_dir: BTRFS_TIMESHIFT_HIDDEN_DIRECTORY.to_string(),
-                snapshot_dir: BTRFS_TIMESHIFT_SNAPSHOT_DIRECTORY.to_string(),
             },
             // invalid value to not specify one of the above
             _ => unreachable!(),
@@ -658,12 +640,10 @@ fn parse_args() -> ArgMatches {
         .arg(
             Arg::new("FILESYSTEM_TYPE")
                 .short('f')
-                .long("file-system")
-                .help("EXPERIMENTAL/UNSTABLE OPTION: Used to determine which filesystem type to use (btrfs-snapper, btrfs-timeshift, or zfs). Defaults to zfs.  \
-                For Timeshift users, use the TIMESHIFT_HOME_DIR environment variable to set an alternate location for the Timeshift home directory.  \
-                Otherwise httm will search the default directory, \"/run/timeshift/backup\", for the path to \"timeshift-btrfs/snapshots\".")
+                .long("filesystem")
+                .help("EXPERIMENTAL/UNSTABLE OPTION: Used to determine which filesystem type to use (btrfs-snapper, or zfs). Defaults to zfs.")
                 .default_missing_value("zfs")
-                .possible_values(&["zfs", "btrfs-snapper", "btrfs-timeshift"])
+                .possible_values(&["zfs", "btrfs-snapper"])
                 .takes_value(true)
                 .display_order(11)
         )
