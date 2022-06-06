@@ -390,7 +390,7 @@ impl Config {
         } else {
             let mounts_and_datasets = get_filesystem_list(&filesystem_info)?;
 
-            // quick sanity check/test
+            // quick sanity check/test - need to know that at least one hidden directory exists
             if !mounts_and_datasets.iter().any(|(mount, _dataset)| {
                 PathBuf::from(mount)
                     .join(&filesystem_info.snapshot_dir)
@@ -398,7 +398,8 @@ impl Config {
                     .is_ok()
             }) {
                 return Err(HttmError::new(
-                    "System does not contain the not contain either the specified ZFS/btrfs hidden directory."
+                    "System does not contain the not contain a dataset with the specified (ZFS or btrfs) hidden snapshot directory. \
+                    Please mount another dataset which contains a hidden snapshot directory."
                 )
                 .into());
             }
