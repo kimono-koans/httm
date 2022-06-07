@@ -165,7 +165,9 @@ fn get_entries_partitioned(
         // didn't think this was possible until I saw a SMB share return
         // a .zfs dir entry
         .filter(|dir_entry| {
-            dir_entry.file_name().as_os_str() != OsStr::new(&config.filesystem_info.hidden_dir)
+            config.filesystem_info.hidden_dir.is_none()
+                || dir_entry.file_name().as_os_str()
+                    != OsStr::new(config.filesystem_info.hidden_dir.as_ref().unwrap())
         })
         // checking file_type on dir entries is always preferable
         // as it is much faster than a metadata call on the path

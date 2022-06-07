@@ -24,7 +24,7 @@ use crate::lookup::{
     create_path_from_layout, create_snapshot_dir_from_layout, get_search_dirs, NativeDatasetType,
     SearchDirs,
 };
-use crate::{BasicDirEntryInfo, Config, PathData};
+use crate::{BasicDirEntryInfo, Config, FilesystemLayout, PathData};
 
 pub fn get_unique_deleted(
     config: &Config,
@@ -118,24 +118,48 @@ pub fn get_deleted_per_dataset(
 
     // now create a collection of file names in the snap_dirs
     // create a list of unique filenames on snaps
-    let unique_snap_filenames: HashMap<OsString, BasicDirEntryInfo> = read_dir(&snapshot_dir)?
-        .flatten()
-        .map(|entry| entry.path())
-        .filter_map(|path| create_path_from_layout(config, search_dirs, &path))
-        .flat_map(|path| read_dir(&path))
-        .flatten()
-        .flatten()
-        .map(|dir_entry| {
-            (
-                dir_entry.file_name(),
-                BasicDirEntryInfo {
-                    file_name: dir_entry.file_name(),
-                    path: dir_entry.path(),
-                    file_type: dir_entry.file_type().ok(),
-                },
-            )
-        })
-        .collect();
+    let unique_snap_filenames: HashMap<OsString, BasicDirEntryInfo> =
+        if config.filesystem_info.layout != FilesystemLayout::Btrfs {
+            read_dir(&snapshot_dir)?
+                .flatten()
+                .map(|entry| entry.path())
+                .filter_map(|path| create_path_from_layout(config, search_dirs, &path))
+                .flat_map(|path| read_dir(&path))
+                .flatten()
+                .flatten()
+                .map(|dir_entry| {
+                    (
+                        dir_entry.file_name(),
+                        BasicDirEntryInfo {
+                            file_name: dir_entry.file_name(),
+                            path: dir_entry.path(),
+                            file_type: dir_entry.file_type().ok(),
+                        },
+                    )
+                })
+                .collect()
+        } else {
+            search_dirs
+                .btrfs_snapshot_mounts
+                .as_ref()
+                .unwrap()
+                .iter()
+                .filter_map(|path| create_path_from_layout(config, search_dirs, path))
+                .flat_map(|path| read_dir(&path))
+                .flatten()
+                .flatten()
+                .map(|dir_entry| {
+                    (
+                        dir_entry.file_name(),
+                        BasicDirEntryInfo {
+                            file_name: dir_entry.file_name(),
+                            path: dir_entry.path(),
+                            file_type: dir_entry.file_type().ok(),
+                        },
+                    )
+                })
+                .collect()
+        };
 
     // compare local filenames to all unique snap filenames - none values are unique here
     let all_deleted_versions: Vec<BasicDirEntryInfo> = unique_snap_filenames

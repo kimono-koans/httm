@@ -32,7 +32,10 @@ use clap::{crate_name, crate_version, Arg, ArgMatches};
 use fxhash::FxHashMap as HashMap;
 use rayon::prelude::*;
 
-use crate::config_helper::{get_filesystems_list, install_hot_keys, precompute_alt_replicated, precompute_btrfs_snapshot_mounts};
+use crate::config_helper::{
+    get_filesystems_list, install_hot_keys, precompute_alt_replicated,
+    precompute_btrfs_snapshot_mounts,
+};
 use crate::display::display_exec;
 use crate::interactive::interactive_exec;
 use crate::lookup::get_versions_set;
@@ -72,8 +75,8 @@ pub enum FilesystemLayout {
 pub struct FilesystemInfo {
     layout: FilesystemLayout,
     fstype: String,
-    hidden_dir: String,
-    snapshot_dir: String,
+    hidden_dir: Option<String>,
+    snapshot_dir: Option<String>,
 }
 
 #[derive(Debug)]
@@ -296,14 +299,14 @@ impl Config {
             None | Some("") | Some("zfs") => FilesystemInfo {
                 layout: FilesystemLayout::Zfs,
                 fstype: ZFS_FSTYPE.to_string(),
-                hidden_dir: ZFS_HIDDEN_DIRECTORY.to_string(),
-                snapshot_dir: ZFS_SNAPSHOT_DIRECTORY.to_string(),
+                hidden_dir: Some(ZFS_HIDDEN_DIRECTORY.to_string()),
+                snapshot_dir: Some(ZFS_SNAPSHOT_DIRECTORY.to_string()),
             },
             Some("btrfs-snapper") => FilesystemInfo {
                 layout: FilesystemLayout::BtrfsSnapper,
                 fstype: BTRFS_FSTYPE.to_string(),
-                hidden_dir: BTRFS_SNAPPER_HIDDEN_DIRECTORY.to_string(),
-                snapshot_dir: BTRFS_SNAPPER_SNAPSHOT_DIRECTORY.to_string(),
+                hidden_dir: Some(BTRFS_SNAPPER_HIDDEN_DIRECTORY.to_string()),
+                snapshot_dir: Some(BTRFS_SNAPPER_SNAPSHOT_DIRECTORY.to_string()),
             },
             Some("btrfs-timeshift") => FilesystemInfo {
                 layout: FilesystemLayout::BtrfsTimeshift(
@@ -314,14 +317,14 @@ impl Config {
                     },
                 ),
                 fstype: BTRFS_FSTYPE.to_string(),
-                hidden_dir: BTRFS_TIMESHIFT_HIDDEN_DIRECTORY.to_string(),
-                snapshot_dir: BTRFS_TIMESHIFT_SNAPSHOT_DIRECTORY.to_string(),
+                hidden_dir: Some(BTRFS_TIMESHIFT_HIDDEN_DIRECTORY.to_string()),
+                snapshot_dir: Some(BTRFS_TIMESHIFT_SNAPSHOT_DIRECTORY.to_string()),
             },
             Some("btrfs") => FilesystemInfo {
                 layout: FilesystemLayout::Btrfs,
                 fstype: BTRFS_FSTYPE.to_string(),
-                hidden_dir: "".to_string(),
-                snapshot_dir: "".to_string(),
+                hidden_dir: None,
+                snapshot_dir: None,
             },
             // invalid value to not specify one of the above
             _ => unreachable!(),
@@ -379,10 +382,14 @@ impl Config {
 
             // user defined dir exists?: check that path contains the hidden snapshot directory
             let path = PathBuf::from(raw_value);
-            let hidden_snap_dir = path.join(&filesystem_info.snapshot_dir);
 
             // little sanity check -- make sure the user defined snap dir exist
-            let snap_dir = if hidden_snap_dir.metadata().is_ok() {
+            let snap_dir = if filesystem_info.snapshot_dir.is_some()
+                && path
+                    .join(filesystem_info.snapshot_dir.as_ref().unwrap())
+                    .metadata()
+                    .is_ok()
+            {
                 path
             } else {
                 return Err(HttmError::new(
@@ -426,12 +433,14 @@ impl Config {
             let mounts_and_datasets = get_filesystems_list(&filesystem_info)?;
 
             // quick sanity check/test - need to know that at least one hidden directory exists
-            if !mounts_and_datasets.iter().any(|(mount, _dataset)| {
-                PathBuf::from(mount)
-                    .join(&filesystem_info.snapshot_dir)
-                    .metadata()
-                    .is_ok()
-            }) {
+            if filesystem_info.snapshot_dir.is_some()
+                && !mounts_and_datasets.iter().any(|(mount, _dataset)| {
+                    PathBuf::from(mount)
+                        .join(filesystem_info.snapshot_dir.as_ref().unwrap())
+                        .metadata()
+                        .is_ok()
+                })
+            {
                 return Err(HttmError::new(
                     "System does not contain the not contain a dataset with the specified (ZFS or btrfs) hidden snapshot directory. \
                     Please mount another dataset which contains a hidden snapshot directory."
@@ -447,7 +456,9 @@ impl Config {
                 };
 
             let map_of_snaps = if filesystem_info.layout != FilesystemLayout::Zfs {
-                Some(precompute_btrfs_snapshot_mounts(&mounts_and_datasets)?)
+                let res = precompute_btrfs_snapshot_mounts(&mounts_and_datasets)?;
+
+                Some(res)
             } else {
                 None
             };

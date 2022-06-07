@@ -314,10 +314,11 @@ fn interactive_restore(
     }
 
     // sanity check -- snap version is not actually a live copy?
-    if !snap_pathdata
-        .path_buf
-        .to_string_lossy()
-        .contains(&config.filesystem_info.snapshot_dir)
+    if config.filesystem_info.snapshot_dir.is_some()
+        && !snap_pathdata
+            .path_buf
+            .to_string_lossy()
+            .contains(config.filesystem_info.snapshot_dir.as_ref().unwrap())
     {
         return Err(HttmError::new("Path selected is not a 'snapshot version'.  httm will not restore from a non-'snapshot version'.  Quitting.").into());
     }
