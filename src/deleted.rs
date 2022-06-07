@@ -127,16 +127,20 @@ pub fn get_deleted_per_dataset(
     let unique_snap_filenames: HashMap<OsString, BasicDirEntryInfo> = read_dir(&snapshot_dir)?
         .flatten()
         .map(|entry| entry.path())
-        .map(|path| {
+        .filter_map(|path| {
             match &config.filesystem_info.filesystem_type {
-                FilesystemType::Zfs => path.join(&search_dirs.relative_path),
+                FilesystemType::Zfs => Some(path.join(&search_dirs.relative_path)),
                 // snapper includes an additional directory after the snapshot directory
-                FilesystemType::BtrfsSnapper => path
-                    .join(BTRFS_SNAPPER_ADDITIONAL_SUB_DIRECTORY)
-                    .join(&search_dirs.relative_path),
-                FilesystemType::BtrfsTimeshift(_) => path
-                    .join(BTRFS_SNAPPER_ADDITIONAL_SUB_DIRECTORY)
-                    .join(&search_dirs.relative_path),
+                FilesystemType::BtrfsSnapper => Some(
+                    path.join(BTRFS_SNAPPER_ADDITIONAL_SUB_DIRECTORY)
+                        .join(&search_dirs.relative_path),
+                ),
+                FilesystemType::BtrfsTimeshift(_) => {
+                    let additional_dir =
+                        search_dirs.opt_additional_dir.as_ref()?.strip_prefix('/')?;
+
+                    Some(path.join(additional_dir).join(&search_dirs.relative_path))
+                }
             }
         })
         .flat_map(|path| read_dir(&path))
