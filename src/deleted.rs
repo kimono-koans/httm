@@ -15,19 +15,16 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::{
-    ffi::OsString,
-    fs::read_dir,
-    path::{Path, PathBuf},
-};
+use std::{ffi::OsString, fs::read_dir, path::Path};
 
 use fxhash::FxHashMap as HashMap;
 use itertools::Itertools;
 
-use crate::lookup::{get_search_dirs, NativeDatasetType, SearchDirs};
-use crate::{
-    BasicDirEntryInfo, Config, FilesystemType, PathData, BTRFS_SNAPPER_ADDITIONAL_SUB_DIRECTORY,
+use crate::lookup::{
+    create_path_from_layout, create_snapshot_dir_from_layout, get_search_dirs, NativeDatasetType,
+    SearchDirs,
 };
+use crate::{BasicDirEntryInfo, Config, PathData};
 
 pub fn get_unique_deleted(
     config: &Config,
@@ -114,38 +111,14 @@ pub fn get_deleted_per_dataset(
         })
         .collect();
 
-    let snapshot_dir = match &config.filesystem_info.filesystem_type {
-        FilesystemType::Zfs | FilesystemType::BtrfsSnapper => search_dirs.snapshot_dir.clone(),
-        // timeshift just sticks all its backups in one directory
-        FilesystemType::BtrfsTimeshift(snap_home) => {
-            PathBuf::from(&snap_home).join(&config.filesystem_info.snapshot_dir)
-        }
-    };
+    let snapshot_dir = create_snapshot_dir_from_layout(config, search_dirs);
 
     // now create a collection of file names in the snap_dirs
     // create a list of unique filenames on snaps
     let unique_snap_filenames: HashMap<OsString, BasicDirEntryInfo> = read_dir(&snapshot_dir)?
         .flatten()
         .map(|entry| entry.path())
-        .filter_map(|path| {
-            match &config.filesystem_info.filesystem_type {
-                FilesystemType::Zfs => Some(path.join(&search_dirs.relative_path)),
-                // snapper includes an additional directory after the snapshot directory
-                FilesystemType::BtrfsSnapper => Some(
-                    path.join(BTRFS_SNAPPER_ADDITIONAL_SUB_DIRECTORY)
-                        .join(&search_dirs.relative_path),
-                ),
-                FilesystemType::BtrfsTimeshift(_) => {
-                    let additional_dir = search_dirs
-                        .opt_additional_dir
-                        .as_ref()?
-                        .strip_prefix('/')
-                        .unwrap_or(search_dirs.opt_additional_dir.as_ref()?);
-
-                    Some(path.join(additional_dir).join(&search_dirs.relative_path))
-                }
-            }
-        })
+        .filter_map(|path| create_path_from_layout(config, search_dirs, &path))
         .flat_map(|path| read_dir(&path))
         .flatten()
         .flatten()

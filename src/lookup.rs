@@ -277,38 +277,13 @@ fn get_versions_per_dataset(
     //
     // hashmap will then remove duplicates with the same system modify time and size/file len
 
-    let snapshot_dir = match &config.filesystem_info.filesystem_type {
-        FilesystemType::Zfs | FilesystemType::BtrfsSnapper => search_dirs.snapshot_dir.clone(),
-        // timeshift just sticks all its backups in one directory
-        FilesystemType::BtrfsTimeshift(snap_home) => {
-            PathBuf::from(&snap_home).join(&config.filesystem_info.snapshot_dir)
-        }
-    };
+    let snapshot_dir = create_snapshot_dir_from_layout(config, search_dirs);
 
     let unique_versions: HashMap<(SystemTime, u64), PathData> = read_dir(&snapshot_dir)?
         .flatten()
         .par_bridge()
         .map(|entry| entry.path())
-        .filter_map(|path| {
-            match &config.filesystem_info.filesystem_type {
-                FilesystemType::Zfs => Some(path.join(&search_dirs.relative_path)),
-                // snapper includes an additional directory after the snapshot directory
-                FilesystemType::BtrfsSnapper => Some(
-                    path.join(BTRFS_SNAPPER_ADDITIONAL_SUB_DIRECTORY)
-                        .join(&search_dirs.relative_path),
-                ),
-                FilesystemType::BtrfsTimeshift(_) => {
-                    // strip any leading "/"
-                    let additional_dir = search_dirs
-                        .opt_additional_dir
-                        .as_ref()?
-                        .strip_prefix('/')
-                        .unwrap_or(search_dirs.opt_additional_dir.as_ref()?);
-
-                    Some(path.join(additional_dir).join(&search_dirs.relative_path))
-                }
-            }
-        })
+        .filter_map(|path| create_path_from_layout(config, search_dirs, &path))
         .map(|path| PathData::from(path.as_path()))
         .filter(|pathdata| !pathdata.is_phantom)
         .map(|pathdata| ((pathdata.system_time, pathdata.size), pathdata))
@@ -319,4 +294,39 @@ fn get_versions_per_dataset(
     vec_pathdata.par_sort_unstable_by_key(|pathdata| pathdata.system_time);
 
     Ok(vec_pathdata)
+}
+
+pub fn create_path_from_layout(
+    config: &Config,
+    search_dirs: &SearchDirs,
+    path: &Path,
+) -> Option<PathBuf> {
+    match &config.filesystem_info.filesystem_type {
+        FilesystemType::Zfs => Some(path.join(&search_dirs.relative_path)),
+        // snapper includes an additional directory after the snapshot directory
+        FilesystemType::BtrfsSnapper => Some(
+            path.join(BTRFS_SNAPPER_ADDITIONAL_SUB_DIRECTORY)
+                .join(&search_dirs.relative_path),
+        ),
+        FilesystemType::BtrfsTimeshift(_) => {
+            // strip any leading "/"
+            let additional_dir = search_dirs
+                .opt_additional_dir
+                .as_ref()?
+                .strip_prefix('/')
+                .unwrap_or(search_dirs.opt_additional_dir.as_ref()?);
+
+            Some(path.join(additional_dir).join(&search_dirs.relative_path))
+        }
+    }
+}
+
+pub fn create_snapshot_dir_from_layout(config: &Config, search_dirs: &SearchDirs) -> PathBuf {
+    match &config.filesystem_info.filesystem_type {
+        FilesystemType::Zfs | FilesystemType::BtrfsSnapper => search_dirs.snapshot_dir.clone(),
+        // timeshift just sticks all its backups in one directory
+        FilesystemType::BtrfsTimeshift(snap_home) => {
+            PathBuf::from(&snap_home).join(&config.filesystem_info.snapshot_dir)
+        }
+    }
 }
