@@ -32,10 +32,7 @@ use clap::{crate_name, crate_version, Arg, ArgMatches};
 use fxhash::FxHashMap as HashMap;
 use rayon::prelude::*;
 
-use crate::config_helper::{
-    get_filesystems_list, install_hot_keys, precompute_alt_replicated,
-    precompute_btrfs_snapshot_mounts,
-};
+use crate::config_helper::{get_filesystems_list, install_hot_keys, precompute_alt_replicated};
 use crate::display::display_exec;
 use crate::interactive::interactive_exec;
 use crate::lookup::get_versions_set;
@@ -55,20 +52,11 @@ pub const ZFS_HIDDEN_DIRECTORY: &str = ".zfs";
 pub const ZFS_SNAPSHOT_DIRECTORY: &str = ".zfs/snapshot";
 
 pub const BTRFS_FSTYPE: &str = "btrfs";
-pub const BTRFS_SNAPPER_HIDDEN_DIRECTORY: &str = ".snapshots";
-pub const BTRFS_SNAPPER_SNAPSHOT_DIRECTORY: &str = ".snapshots";
-pub const BTRFS_SNAPPER_ADDITIONAL_SUB_DIRECTORY: &str = "snapshot";
-
-pub const BTRFS_TIMESHIFT_HIDDEN_DIRECTORY: &str = "timeshift-btrfs";
-pub const BTRFS_TIMESHIFT_SNAPSHOT_DIRECTORY: &str = "timeshift-btrfs/snapshots";
-pub const BTRFS_TIMESHIFT_DEFAULT_HOME_DIRECTORY: &str = "/run/timeshift/backup";
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum FilesystemLayout {
     Zfs,
     Btrfs,
-    BtrfsSnapper,
-    BtrfsTimeshift(String),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -302,24 +290,6 @@ impl Config {
                 hidden_dir: Some(ZFS_HIDDEN_DIRECTORY.to_string()),
                 snapshot_dir: Some(ZFS_SNAPSHOT_DIRECTORY.to_string()),
             },
-            Some("btrfs-snapper") => FilesystemInfo {
-                layout: FilesystemLayout::BtrfsSnapper,
-                fstype: BTRFS_FSTYPE.to_string(),
-                hidden_dir: Some(BTRFS_SNAPPER_HIDDEN_DIRECTORY.to_string()),
-                snapshot_dir: Some(BTRFS_SNAPPER_SNAPSHOT_DIRECTORY.to_string()),
-            },
-            Some("btrfs-timeshift") => FilesystemInfo {
-                layout: FilesystemLayout::BtrfsTimeshift(
-                    if let Some(home_dir) = std::env::var_os("TIMESHIFT_HOME_DIR") {
-                        home_dir.to_string_lossy().to_string()
-                    } else {
-                        BTRFS_TIMESHIFT_DEFAULT_HOME_DIRECTORY.to_string()
-                    },
-                ),
-                fstype: BTRFS_FSTYPE.to_string(),
-                hidden_dir: Some(BTRFS_TIMESHIFT_HIDDEN_DIRECTORY.to_string()),
-                snapshot_dir: Some(BTRFS_TIMESHIFT_SNAPSHOT_DIRECTORY.to_string()),
-            },
             Some("btrfs") => FilesystemInfo {
                 layout: FilesystemLayout::Btrfs,
                 fstype: BTRFS_FSTYPE.to_string(),
@@ -367,15 +337,6 @@ impl Config {
             if matches.is_present("ALT_REPLICATED") {
                 return Err(HttmError::new(
                     "Alternate replicated datasets are not available for search, when the user defines a snap point.",
-                )
-                .into());
-            }
-
-            // no way to make timeshift and snap points work together so error out here
-            if let FilesystemLayout::BtrfsTimeshift(_) = filesystem_info.layout {
-                return Err(HttmError::new(
-                    "Timeshift datasets are not available for search, when the user defines a snap point.  \
-                    However, a similar effect can be achieved by simply modifying the TIMESHIFT_HOME_DIR environment variable.",
                 )
                 .into());
             }
@@ -430,7 +391,7 @@ impl Config {
                 }),
             )
         } else {
-            let mounts_and_datasets = get_filesystems_list(&filesystem_info)?;
+            let (mounts_and_datasets, map_of_snaps) = get_filesystems_list(&filesystem_info)?;
 
             // quick sanity check/test - need to know that at least one hidden directory exists
             if filesystem_info.snapshot_dir.is_some()
@@ -454,14 +415,6 @@ impl Config {
                 } else {
                     None
                 };
-
-            let map_of_snaps = if filesystem_info.layout != FilesystemLayout::Zfs {
-                let res = precompute_btrfs_snapshot_mounts(&mounts_and_datasets)?;
-
-                Some(res)
-            } else {
-                None
-            };
 
             (
                 matches.is_present("ALT_REPLICATED"),

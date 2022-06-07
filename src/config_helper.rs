@@ -16,7 +16,7 @@
 // that was distributed with this source code.
 
 use std::{
-    fs::OpenOptions,
+    fs::{read_dir, OpenOptions},
     io::{Read, Write},
     path::Path,
     path::PathBuf,
@@ -28,8 +28,8 @@ use proc_mounts::MountIter;
 use rayon::prelude::*;
 use which::which;
 
-use crate::HttmError;
-use crate::{lookup::get_alt_replicated_dataset, FilesystemInfo, FilesystemLayout};
+use crate::{lookup::get_alt_replicated_dataset, FilesystemInfo};
+use crate::{HttmError, BTRFS_FSTYPE, ZFS_FSTYPE, ZFS_SNAPSHOT_DIRECTORY};
 
 pub fn install_hot_keys() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     // get our home directory
@@ -103,11 +103,17 @@ pub fn install_hot_keys() -> Result<(), Box<dyn std::error::Error + Send + Sync 
 
 pub fn get_filesystems_list(
     filesystem_info: &FilesystemInfo,
-) -> Result<HashMap<PathBuf, String>, Box<dyn std::error::Error + Send + Sync + 'static>> {
+) -> Result<
+    (
+        HashMap<PathBuf, String>,
+        Option<HashMap<PathBuf, Vec<PathBuf>>>,
+    ),
+    Box<dyn std::error::Error + Send + Sync + 'static>,
+> {
     let res = if cfg!(target_os = "linux") {
-        parse_from_proc_mounts(filesystem_info)?
+        parse_from_proc_mounts()?
     } else {
-        parse_from_mount_cmd(filesystem_info)?
+        (parse_from_mount_cmd(filesystem_info)?, None)
     };
 
     Ok(res)
@@ -116,32 +122,34 @@ pub fn get_filesystems_list(
 // both faster and necessary for certain btrfs features
 // allows us to read subvolumes
 fn parse_from_proc_mounts(
-    filesystem_info: &FilesystemInfo,
-) -> Result<HashMap<PathBuf, String>, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let mount_collection: HashMap<PathBuf, String> = MountIter::new()?
+) -> Result<
+    (
+        HashMap<PathBuf, String>,
+        Option<HashMap<PathBuf, Vec<PathBuf>>>,
+    ),
+    Box<dyn std::error::Error + Send + Sync + 'static>,
+> {
+    let mount_collection_plus_type: HashMap<PathBuf, (String, String)> = MountIter::new()?
         .into_iter()
         .par_bridge()
         .flatten()
-        .filter(|mount_info| mount_info.fstype.contains(&filesystem_info.fstype))
-        // but exclude snapshot mounts.  we want the raw filesystem names.
         .filter(|mount_info| {
-            filesystem_info.snapshot_dir.is_none()
-                || !mount_info
-                    .dest
-                    .to_string_lossy()
-                    .contains(filesystem_info.snapshot_dir.as_ref().unwrap())
+            mount_info.fstype.contains(BTRFS_FSTYPE) || mount_info.fstype.contains(ZFS_FSTYPE)
         })
-        .map(|mount_info| match filesystem_info.layout {
-            FilesystemLayout::Zfs => (
+        // but exclude snapshot mounts.  we want the raw filesystem names.
+        .filter(|mount_info| !mount_info.dest.to_string_lossy().contains(ZFS_SNAPSHOT_DIRECTORY))
+        .map(|mount_info| match &mount_info.fstype {
+            fs if fs == ZFS_FSTYPE  => (
                 mount_info.dest,
-                mount_info.source.to_string_lossy().to_string(),
+                (
+                    mount_info.source.to_string_lossy().to_string(),
+                    mount_info.fstype,
+                ),
             ),
-            FilesystemLayout::Btrfs
-            | FilesystemLayout::BtrfsSnapper
-            | FilesystemLayout::BtrfsTimeshift(_) => {
+            fs if fs == BTRFS_FSTYPE => {
                 let keyed_options: HashMap<String, String> = mount_info
                     .options
-                    .into_iter()
+                    .par_iter()
                     .filter(|line| line.contains('='))
                     .filter_map(|line| {
                         line.split_once(&"=")
@@ -153,17 +161,53 @@ fn parse_from_proc_mounts(
                     Some(subvol) => subvol.to_owned(),
                     None => mount_info.source.to_string_lossy().to_string(),
                 };
-                (mount_info.dest, subvol)
+                (mount_info.dest, (subvol, mount_info.fstype))
             }
+            _ => unreachable!(),
         })
-        .filter(|(mount, _dataset)| mount.exists())
+        .filter(|(mount, (_dataset, _fstype))| mount.exists())
+        .collect();
+
+    let map_of_snaps = precompute_snap_mounts(&mount_collection_plus_type).ok();
+
+    let mount_collection: HashMap<PathBuf, String> = mount_collection_plus_type
+        .par_iter()
+        .map(|(mount, (dataset, _fstype))| (mount.to_owned(), dataset.to_owned()))
         .collect();
 
     if mount_collection.is_empty() {
         Err(HttmError::new("httm could not find any valid datasets on the system.").into())
     } else {
-        Ok(mount_collection)
+        Ok((mount_collection, map_of_snaps))
     }
+}
+
+pub fn precompute_snap_mounts(
+    mount_collection: &HashMap<PathBuf, (String, String)>,
+) -> Result<HashMap<PathBuf, Vec<PathBuf>>, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    let map_of_snaps = mount_collection
+        .par_iter()
+        .filter_map(|(mount, (_dataset, fstype))| {
+            let snap_mounts = 
+            
+            match fstype {
+                fs if fs == ZFS_FSTYPE => precompute_zfs_snap_mounts(mount),
+                fs if fs == BTRFS_FSTYPE => precompute_btrfs_snap_mounts(mount),
+                _ => unreachable!(),
+            };
+
+            match snap_mounts {
+                Ok(snap_mounts) => Some((mount.to_owned(), snap_mounts)),
+                Err(_) => None,
+            }
+        })
+        .collect();
+
+    for i in &map_of_snaps {
+        println!("{:?}", i);
+    }
+
+    Ok(map_of_snaps)
 }
 
 fn parse_from_mount_cmd(
@@ -173,17 +217,10 @@ fn parse_from_mount_cmd(
     // but I trust we've parsed it correctly less, because BSD and Linux output are different
     fn get_filesystems_and_mountpoints(
         filesystem_info: &FilesystemInfo,
-        shell_command: &PathBuf,
         mount_command: &PathBuf,
     ) -> Result<HashMap<PathBuf, String>, Box<dyn std::error::Error + Send + Sync + 'static>> {
-        let command_output = std::str::from_utf8(
-            &ExecProcess::new(&shell_command)
-                .arg("-c")
-                .arg(mount_command)
-                .output()?
-                .stdout,
-        )?
-        .to_owned();
+        let command_output =
+            std::str::from_utf8(&ExecProcess::new(mount_command).output()?.stdout)?.to_owned();
 
         // parse "mount" for filesystems and mountpoints
         let mount_collection: HashMap<PathBuf, String> = command_output
@@ -191,9 +228,7 @@ fn parse_from_mount_cmd(
             // want zfs 
             .filter(|line| line.contains(&filesystem_info.fstype))
             // but exclude snapshot mounts.  we want the raw filesystem names.
-            .filter(|line|
-                filesystem_info.snapshot_dir.is_none() || !line.contains(filesystem_info.snapshot_dir.as_ref().unwrap())
-            )
+            .filter(|line| !line.contains(ZFS_SNAPSHOT_DIRECTORY))
             .filter_map(|line|
                 // GNU Linux mount output
                 if line.contains("type") {
@@ -220,20 +255,13 @@ fn parse_from_mount_cmd(
 
     // do we have the necessary commands for search if user has not defined a snap point?
     // if so run the mount search, if not print some errors
-    if let Ok(shell_command) = which("sh") {
-        if let Ok(mount_command) = which("mount") {
-            get_filesystems_and_mountpoints(filesystem_info, &shell_command, &mount_command)
-        } else {
-            Err(HttmError::new(
-                "mount command not found. Make sure the command 'mount' is in your path.",
-            )
-            .into())
-        }
+    if let Ok(mount_command) = which("mount") {
+        get_filesystems_and_mountpoints(filesystem_info, &mount_command)
     } else {
-        Err(
-            HttmError::new("sh command not found. Make sure the command 'sh' is in your path.")
-                .into(),
+        Err(HttmError::new(
+            "mount command not found. Make sure the command 'mount' is in your path.",
         )
+        .into())
     }
 }
 
@@ -251,21 +279,22 @@ pub fn precompute_alt_replicated(
         .collect()
 }
 
-pub fn precompute_btrfs_snapshot_mounts(
-    mount_collection: &HashMap<PathBuf, String>,
-) -> Result<HashMap<PathBuf, Vec<PathBuf>>, Box<dyn std::error::Error + Send + Sync + 'static>> {
+pub fn precompute_btrfs_snap_mounts(
+    mount_point_path: &Path,
+) -> Result<Vec<PathBuf>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // read datasets from 'mount' if possible -- this is much faster than using zfs command
     // but I trust we've parsed it correctly less, because BSD and Linux output are different
     fn parse(
         mount_point_path: &Path,
-        btrfs_command: &PathBuf,
+        btrfs_command: &Path,
     ) -> Result<Vec<PathBuf>, Box<dyn std::error::Error + Send + Sync + 'static>> {
         let exec_command = btrfs_command;
         let arg_path = mount_point_path.to_string_lossy();
         let args = vec!["subvolume", "list", "-s", &arg_path];
-        let process_result = ExecProcess::new(exec_command).args(&args).output()?;
 
-        let command_output = std::str::from_utf8(&process_result.stdout)?.to_owned();
+        let command_output =
+            std::str::from_utf8(&ExecProcess::new(exec_command).args(&args).output()?.stdout)?
+                .to_owned();
 
         // parse "mount" for filesystems and mountpoints
         let snapshot_locations: Vec<PathBuf> = command_output
@@ -275,7 +304,7 @@ pub fn precompute_btrfs_snapshot_mounts(
             .map(|snapshot_location| mount_point_path.to_path_buf().join(snapshot_location))
             .filter(|snapshot_location| snapshot_location.exists())
             .collect();
-            
+
         if snapshot_locations.is_empty() {
             Err(HttmError::new("httm could not find any valid datasets on the system.").into())
         } else {
@@ -284,21 +313,31 @@ pub fn precompute_btrfs_snapshot_mounts(
     }
 
     if let Ok(btrfs_command) = which("btrfs") {
-        let btrfs_snapshot_mounts = mount_collection
-            .iter()
-            .filter_map(
-                |(mount, _dataset)| match parse(mount.as_path(), &btrfs_command) {
-                    Ok(vec_snap_paths) => Some((mount.to_owned(), vec_snap_paths)),
-                    Err(_) => None,
-                },
-            )
-            .collect();
-
-        Ok(btrfs_snapshot_mounts)
+        let snapshot_locations = parse(mount_point_path, &btrfs_command)?;
+        Ok(snapshot_locations)
     } else {
         Err(HttmError::new(
             "btrfs command not found. Make sure the command 'btrfs' is in your path.",
         )
         .into())
+    }
+}
+
+pub fn precompute_zfs_snap_mounts(
+    mount_point_path: &Path,
+) -> Result<Vec<PathBuf>, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    let snap_path = mount_point_path.join(ZFS_SNAPSHOT_DIRECTORY);
+
+    let snapshot_locations: Vec<PathBuf> = read_dir(snap_path)?
+        .flatten()
+        .par_bridge()
+        .map(|entry| entry.path())
+        .filter(|path| path.exists())
+        .collect();
+
+    if snapshot_locations.is_empty() {
+        Err(HttmError::new("httm could not find any valid datasets on the system.").into())
+    } else {
+        Ok(snapshot_locations)
     }
 }
