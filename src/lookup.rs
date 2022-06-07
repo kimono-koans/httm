@@ -298,8 +298,12 @@ fn get_versions_per_dataset(
                         .join(&search_dirs.relative_path),
                 ),
                 FilesystemType::BtrfsTimeshift(_) => {
-                    let additional_dir =
-                        search_dirs.opt_additional_dir.as_ref()?.strip_prefix('/')?;
+                    // strip any leading "/"
+                    let additional_dir = search_dirs
+                        .opt_additional_dir
+                        .as_ref()?
+                        .strip_prefix('/')
+                        .unwrap_or(search_dirs.opt_additional_dir.as_ref()?);
 
                     Some(path.join(additional_dir).join(&search_dirs.relative_path))
                 }
