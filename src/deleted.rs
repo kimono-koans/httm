@@ -76,7 +76,9 @@ pub fn get_unique_deleted(
         // why? because this might be a folder that has been deleted and we need some policy
         // to give later functions an idea about which folder to choose when we want too look
         // behind deleted dirs, here we just choose latest in time
-        .group_by(|(_modify_time, basic_dir_entry_info)| basic_dir_entry_info.file_name.clone())
+        .into_group_map_by(|(_modify_time, basic_dir_entry_info)| {
+            basic_dir_entry_info.file_name.clone()
+        })
         .into_iter()
         .filter_map(|(_key, group)| {
             group
