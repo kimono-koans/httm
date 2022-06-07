@@ -15,7 +15,11 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::{ffi::OsString, fs::read_dir, path::Path};
+use std::{
+    ffi::OsString,
+    fs::read_dir,
+    path::{Path, PathBuf},
+};
 
 use fxhash::FxHashMap as HashMap;
 use itertools::Itertools;
@@ -110,35 +114,45 @@ pub fn get_deleted_per_dataset(
         })
         .collect();
 
+    let snapshot_dir = match &config.filesystem_info.filesystem_type {
+        FilesystemType::Zfs | FilesystemType::BtrfsSnapper => search_dirs.snapshot_dir.clone(),
+        // timeshift just sticks all its backups in one directory
+        FilesystemType::BtrfsTimeshift(snap_home) => {
+            PathBuf::from(&snap_home).join(&config.filesystem_info.snapshot_dir)
+        }
+    };
+
     // now create a collection of file names in the snap_dirs
     // create a list of unique filenames on snaps
-    let unique_snap_filenames: HashMap<OsString, BasicDirEntryInfo> =
-        read_dir(&search_dirs.snapshot_dir)?
-            .flatten()
-            .map(|entry| entry.path())
-            .map(|path| {
-                match &config.filesystem_info.filesystem_type {
-                    FilesystemType::Zfs => path.join(&search_dirs.relative_path),
-                    // snapper includes an additional directory after the snapshot directory
-                    FilesystemType::BtrfsSnapper => path
-                        .join(BTRFS_SNAPPER_ADDITIONAL_SUB_DIRECTORY)
-                        .join(&search_dirs.relative_path),
-                }
-            })
-            .flat_map(|path| read_dir(&path))
-            .flatten()
-            .flatten()
-            .map(|dir_entry| {
-                (
-                    dir_entry.file_name(),
-                    BasicDirEntryInfo {
-                        file_name: dir_entry.file_name(),
-                        path: dir_entry.path(),
-                        file_type: dir_entry.file_type().ok(),
-                    },
-                )
-            })
-            .collect();
+    let unique_snap_filenames: HashMap<OsString, BasicDirEntryInfo> = read_dir(&snapshot_dir)?
+        .flatten()
+        .map(|entry| entry.path())
+        .map(|path| {
+            match &config.filesystem_info.filesystem_type {
+                FilesystemType::Zfs => path.join(&search_dirs.relative_path),
+                // snapper includes an additional directory after the snapshot directory
+                FilesystemType::BtrfsSnapper => path
+                    .join(BTRFS_SNAPPER_ADDITIONAL_SUB_DIRECTORY)
+                    .join(&search_dirs.relative_path),
+                FilesystemType::BtrfsTimeshift(_) => path
+                    .join(BTRFS_SNAPPER_ADDITIONAL_SUB_DIRECTORY)
+                    .join(&search_dirs.relative_path),
+            }
+        })
+        .flat_map(|path| read_dir(&path))
+        .flatten()
+        .flatten()
+        .map(|dir_entry| {
+            (
+                dir_entry.file_name(),
+                BasicDirEntryInfo {
+                    file_name: dir_entry.file_name(),
+                    path: dir_entry.path(),
+                    file_type: dir_entry.file_type().ok(),
+                },
+            )
+        })
+        .collect();
 
     // compare local filenames to all unique snap filenames - none values are unique here
     let all_deleted_versions: Vec<BasicDirEntryInfo> = unique_snap_filenames

@@ -23,11 +23,12 @@ use std::{
 };
 
 use fxhash::FxHashMap as HashMap;
+use proc_mounts::MountIter;
 use rayon::prelude::*;
 use which::which;
 
 use crate::HttmError;
-use crate::{lookup::get_alt_replicated_dataset, FilesystemInfo};
+use crate::{lookup::get_alt_replicated_dataset, FilesystemInfo, FilesystemType};
 
 pub fn install_hot_keys() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     // get our home directory
@@ -99,7 +100,69 @@ pub fn install_hot_keys() -> Result<(), Box<dyn std::error::Error + Send + Sync 
     std::process::exit(0)
 }
 
-pub fn get_filesystem_list(
+pub fn get_filesystems_list(
+    filesystem_info: &FilesystemInfo,
+) -> Result<HashMap<PathBuf, String>, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    let res = if cfg!(target_os = "linux") {
+        get_filesystems_from_proc_mounts(filesystem_info)?
+    } else {
+        get_filesystems_from_mount(filesystem_info)?
+    };
+
+    Ok(res)
+}
+
+// both faster and necessary for certain btrfs features
+// allows us to read subvolumes
+fn get_filesystems_from_proc_mounts(
+    filesystem_info: &FilesystemInfo,
+) -> Result<HashMap<PathBuf, String>, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    let mount_collection: HashMap<PathBuf, String> = MountIter::new()?
+        .into_iter()
+        .par_bridge()
+        .flatten()
+        .filter(|mount_info| mount_info.fstype.contains(&filesystem_info.filesystem_name))
+        // but exclude snapshot mounts.  we want the raw filesystem names.
+        .filter(|mount_info| {
+            !mount_info
+                .dest
+                .to_string_lossy()
+                .contains(&filesystem_info.snapshot_dir)
+        })
+        .map(|mount_info| match filesystem_info.filesystem_type {
+            FilesystemType::Zfs => (
+                mount_info.dest,
+                mount_info.source.to_string_lossy().to_string(),
+            ),
+            FilesystemType::BtrfsSnapper | FilesystemType::BtrfsTimeshift(_) => {
+                let keyed_options: HashMap<String, String> = mount_info
+                    .options
+                    .into_iter()
+                    .filter(|line| line.contains('='))
+                    .filter_map(|line| {
+                        line.split_once(&"=")
+                            .map(|(key, value)| (key.to_owned(), value.to_owned()))
+                    })
+                    .collect();
+
+                let subvol = match keyed_options.get("subvol") {
+                    Some(subvol) => subvol.to_owned(),
+                    None => mount_info.source.to_string_lossy().to_string(),
+                };
+                (mount_info.dest, subvol)
+            }
+        })
+        .filter(|(mount, _dataset)| mount.exists())
+        .collect();
+
+    if mount_collection.is_empty() {
+        Err(HttmError::new("httm could not find any valid datasets on the system.").into())
+    } else {
+        Ok(mount_collection)
+    }
+}
+
+fn get_filesystems_from_mount(
     filesystem_info: &FilesystemInfo,
 ) -> Result<HashMap<PathBuf, String>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // read datasets from 'mount' if possible -- this is much faster than using zfs command
