@@ -104,9 +104,9 @@ pub fn get_filesystems_list(
     filesystem_info: &FilesystemInfo,
 ) -> Result<HashMap<PathBuf, String>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     let res = if cfg!(target_os = "linux") {
-        get_filesystems_from_proc_mounts(filesystem_info)?
+        parse_from_proc_mounts(filesystem_info)?
     } else {
-        get_filesystems_from_mount(filesystem_info)?
+        parse_from_mount_cmd(filesystem_info)?
     };
 
     Ok(res)
@@ -114,7 +114,7 @@ pub fn get_filesystems_list(
 
 // both faster and necessary for certain btrfs features
 // allows us to read subvolumes
-fn get_filesystems_from_proc_mounts(
+fn parse_from_proc_mounts(
     filesystem_info: &FilesystemInfo,
 ) -> Result<HashMap<PathBuf, String>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     let mount_collection: HashMap<PathBuf, String> = MountIter::new()?
@@ -162,7 +162,7 @@ fn get_filesystems_from_proc_mounts(
     }
 }
 
-fn get_filesystems_from_mount(
+fn parse_from_mount_cmd(
     filesystem_info: &FilesystemInfo,
 ) -> Result<HashMap<PathBuf, String>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // read datasets from 'mount' if possible -- this is much faster than using zfs command
