@@ -107,7 +107,7 @@ impl Error for HttmError {
 }
 
 // only the most basic data from a DirEntry
-// for use internally, never displayed
+// for use to display in browse window and internally
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct BasicDirEntryInfo {
     file_name: OsString,
@@ -115,7 +115,7 @@ pub struct BasicDirEntryInfo {
     file_type: Option<FileType>,
 }
 
-// detailed info required to display file versions
+// detailed info required to differentiate and display file versions
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct PathData {
     system_time: SystemTime,
