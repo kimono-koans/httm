@@ -32,7 +32,7 @@ use clap::{crate_name, crate_version, Arg, ArgMatches};
 use fxhash::FxHashMap as HashMap;
 use rayon::prelude::*;
 
-use crate::config_helper::{get_filesystems_list, install_hot_keys, precompute_alt_replicated};
+use crate::config_helper::{get_filesystems_list, install_hot_keys, precompute_alt_replicated, precompute_btrfs_snapshot_mounts};
 use crate::display::display_exec;
 use crate::interactive::interactive_exec;
 use crate::lookup::get_versions_set;
@@ -63,6 +63,7 @@ pub const BTRFS_TIMESHIFT_DEFAULT_HOME_DIRECTORY: &str = "/run/timeshift/backup"
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum FilesystemLayout {
     Zfs,
+    Btrfs,
     BtrfsSnapper,
     BtrfsTimeshift(String),
 }
@@ -218,6 +219,7 @@ enum SnapPoint {
 pub struct NativeDatasets {
     mounts_and_datasets: HashMap<PathBuf, String>,
     map_of_alts: Option<HashMap<PathBuf, Vec<(PathBuf, PathBuf)>>>,
+    map_of_snaps: Option<HashMap<PathBuf, Vec<PathBuf>>>,
 }
 
 #[derive(Debug, Clone)]
@@ -314,6 +316,12 @@ impl Config {
                 fstype: BTRFS_FSTYPE.to_string(),
                 hidden_dir: BTRFS_TIMESHIFT_HIDDEN_DIRECTORY.to_string(),
                 snapshot_dir: BTRFS_TIMESHIFT_SNAPSHOT_DIRECTORY.to_string(),
+            },
+            Some("btrfs") => FilesystemInfo {
+                layout: FilesystemLayout::Btrfs,
+                fstype: BTRFS_FSTYPE.to_string(),
+                hidden_dir: "".to_string(),
+                snapshot_dir: "".to_string(),
             },
             // invalid value to not specify one of the above
             _ => unreachable!(),
@@ -438,11 +446,18 @@ impl Config {
                     None
                 };
 
+            let map_of_snaps = if filesystem_info.layout != FilesystemLayout::Zfs {
+                Some(precompute_btrfs_snapshot_mounts(&mounts_and_datasets)?)
+            } else {
+                None
+            };
+
             (
                 matches.is_present("ALT_REPLICATED"),
                 SnapPoint::Native(NativeDatasets {
                     mounts_and_datasets,
                     map_of_alts,
+                    map_of_snaps,
                 }),
             )
         };
@@ -677,12 +692,12 @@ fn parse_args() -> ArgMatches {
         .arg(
             Arg::new("FILESYSTEM_LAYOUT")
                 .short('f')
-                .long("fslayout")
-                .help("EXPERIMENTAL/UNSTABLE OPTION: Used to determine which filesystem layout to use (btrfs-snapper, btrfs-timeshift, or zfs). Defaults to zfs.  \
+                .long("fs-layout")
+                .help("EXPERIMENTAL/UNSTABLE OPTION: Used to determine which filesystem layout to use (btrfs, btrfs-snapper, btrfs-timeshift, or zfs). Defaults to zfs.  \
                 For Timeshift users, use the TIMESHIFT_HOME_DIR environment variable to set an alternate location for the Timeshift home directory.  \
                 Otherwise httm will search the default directory, \"/run/timeshift/backup\", for the path to \"timeshift-btrfs/snapshots\".")
                 .default_missing_value("zfs")
-                .possible_values(&["zfs", "btrfs-snapper", "btrfs-timeshift"])
+                .possible_values(&["zfs", "btrfs", "btrfs-snapper", "btrfs-timeshift"])
                 .takes_value(true)
                 .display_order(11)
         )

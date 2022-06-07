@@ -19,6 +19,7 @@ use std::{
     fs::OpenOptions,
     io::{Read, Write},
     path::PathBuf,
+    path::Path,
     process::Command as ExecProcess,
 };
 
@@ -134,7 +135,7 @@ fn parse_from_proc_mounts(
                 mount_info.dest,
                 mount_info.source.to_string_lossy().to_string(),
             ),
-            FilesystemLayout::BtrfsSnapper | FilesystemLayout::BtrfsTimeshift(_) => {
+            FilesystemLayout::Btrfs |FilesystemLayout::BtrfsSnapper | FilesystemLayout::BtrfsTimeshift(_) => {
                 let keyed_options: HashMap<String, String> = mount_info
                     .options
                     .into_iter()
@@ -243,4 +244,75 @@ pub fn precompute_alt_replicated(
             },
         )
         .collect()
+}
+
+
+pub fn precompute_btrfs_snapshot_mounts(
+    mount_collection: &HashMap<PathBuf, String>,
+) -> Result<HashMap<PathBuf, Vec<PathBuf>>, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    // read datasets from 'mount' if possible -- this is much faster than using zfs command
+    // but I trust we've parsed it correctly less, because BSD and Linux output are different
+    fn parse(
+        mount_point_path: &Path,
+        shell_command: &PathBuf,
+        btrfs_command: &PathBuf,
+    ) -> Result<Vec<PathBuf>, Box<dyn std::error::Error + Send + Sync + 'static>> {
+
+        let exec_command: String = ["\"", &btrfs_command.as_os_str().to_string_lossy(), " subvolume list -s ", &mount_point_path.as_os_str().to_string_lossy(), "\""].into_iter().collect();
+
+        println!("{}", exec_command);
+                
+        let command_output = std::str::from_utf8(
+            &ExecProcess::new(&shell_command)
+                .arg("-c")
+                .arg(exec_command)
+                .output()?
+                .stdout,
+        )?
+        .to_owned();
+
+        println!("{}", command_output);
+
+        // parse "mount" for filesystems and mountpoints
+        let snapshot_locations: Vec<PathBuf> = command_output
+            .par_lines()
+            .filter_map(|line| line.split_once(&"path "))
+            .map(|(_first, last)| last )
+            .map(|snapshot_location| PathBuf::from(snapshot_location))
+            .map(|snapshot_location| mount_point_path.to_path_buf().join(snapshot_location))
+            .filter(| snapshot_location| snapshot_location.exists())
+            .collect();
+
+        if snapshot_locations.is_empty() {
+            Err(HttmError::new("httm could not find any valid datasets on the system.").into())
+        } else {
+            Ok(snapshot_locations)
+        }
+    }
+
+    if let Ok(shell_command) = which("sh") {
+        if let Ok(btrfs_command) = which("btrfs") {
+            let btrfs_snapshot_mounts = mount_collection
+                .iter()
+                .filter_map(|(mount, _dataset)| {
+                    match parse(mount.as_path(), &shell_command, &btrfs_command) {
+                        Ok(vec_snap_paths) => Some((mount.to_owned(), vec_snap_paths)),
+                        Err(_) => None,
+                    }
+                })
+                .collect();
+
+            Ok(btrfs_snapshot_mounts)
+        } else {
+            Err(HttmError::new(
+                "btrfs command not found. Make sure the command 'btrfs' is in your path.",
+            )
+            .into())
+        }
+    } else {
+        Err(
+            HttmError::new("sh command not found. Make sure the command 'sh' is in your path.")
+                .into(),
+        )
+    }
 }
