@@ -50,7 +50,7 @@ pub fn get_unique_deleted(
     // as these will be the filenames that populate our interactive views, so deduplicate
     // by filename and latest file version here
     let unique_deleted: Vec<BasicDirEntryInfo> = vec![&requested_dir_pathdata]
-        .into_iter()
+        .iter()
         .flat_map(|pathdata| {
             selected_datasets
                 .iter()
