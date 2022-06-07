@@ -38,7 +38,7 @@ pub enum NativeDatasetType {
 pub struct SearchDirs {
     pub snapshot_dir: PathBuf,
     pub relative_path: PathBuf,
-    pub opt_additional_dir: Option<String>,
+    pub timeshift_additional_sub_dir: Option<String>,
 }
 
 pub fn get_versions_set(
@@ -128,6 +128,7 @@ pub fn get_search_dirs(
                 get_immediate_dataset(file_pathdata, &native_datasets.mounts_and_datasets)?;
             match requested_dataset_type {
                 NativeDatasetType::MostImmediate => {
+                    // just return the same dataset when in most immediate mode
                     vec![(immediate_dataset_mount.clone(), immediate_dataset_mount)]
                 }
                 NativeDatasetType::AltReplicated => match &native_datasets.map_of_alts {
@@ -158,7 +159,7 @@ pub fn get_search_dirs(
             //
             // for native searches the prefix is are the dirs below the most immediate dataset
             // for user specified dirs these are specified by the user
-            let (relative_path, opt_additional_dir) = match &config.snap_point {
+            let (relative_path, timeshift_additional_sub_dir) = match &config.snap_point {
                 SnapPoint::UserDefined(defined_dirs) => (
                     file_pathdata
                         .path_buf
@@ -184,7 +185,7 @@ pub fn get_search_dirs(
             Ok(SearchDirs {
                 snapshot_dir,
                 relative_path,
-                opt_additional_dir,
+                timeshift_additional_sub_dir,
             })
         })
         .collect()
@@ -310,13 +311,16 @@ pub fn create_path_from_layout(
         ),
         FilesystemType::BtrfsTimeshift(_) => {
             // strip any leading "/"
-            let additional_dir = search_dirs
-                .opt_additional_dir
+            let timeshift_additional_sub_dir = search_dirs
+                .timeshift_additional_sub_dir
                 .as_ref()?
                 .strip_prefix('/')
-                .unwrap_or(search_dirs.opt_additional_dir.as_ref()?);
+                .unwrap_or(search_dirs.timeshift_additional_sub_dir.as_ref()?);
 
-            Some(path.join(additional_dir).join(&search_dirs.relative_path))
+            Some(
+                path.join(timeshift_additional_sub_dir)
+                    .join(&search_dirs.relative_path),
+            )
         }
     }
 }
