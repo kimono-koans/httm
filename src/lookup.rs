@@ -41,7 +41,7 @@ pub struct SearchDirs {
     pub opt_additional_dir: Option<String>,
 }
 
-pub fn get_versions(
+pub fn get_versions_set(
     config: &Config,
     pathdata: &Vec<PathData>,
 ) -> Result<[Vec<PathData>; 2], Box<dyn std::error::Error + Send + Sync + 'static>> {

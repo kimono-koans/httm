@@ -24,7 +24,7 @@ use skim::prelude::*;
 use crate::deleted::get_unique_deleted;
 use crate::display::display_exec;
 use crate::interactive::SelectionCandidate;
-use crate::lookup::get_versions;
+use crate::lookup::get_versions_set;
 use crate::utility::httm_is_dir;
 use crate::{BasicDirEntryInfo, Config, DeletedMode, ExecMode, HttmError, PathData};
 
@@ -383,7 +383,7 @@ fn print_deleted_recursive(
         .map(|basic_dir_entry_info| PathData::from(basic_dir_entry_info.path.as_path()))
         .collect();
 
-    let snaps_and_live_set = get_versions(&config, &pseudo_live_set)?;
+    let snaps_and_live_set = get_versions_set(&config, &pseudo_live_set)?;
 
     let output_buf = display_exec(&config, snaps_and_live_set)?;
     println!("{}", output_buf);
