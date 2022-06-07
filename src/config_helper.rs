@@ -28,7 +28,7 @@ use rayon::prelude::*;
 use which::which;
 
 use crate::HttmError;
-use crate::{lookup::get_alt_replicated_dataset, FilesystemInfo, FilesystemType};
+use crate::{lookup::get_alt_replicated_dataset, FilesystemInfo, FilesystemLayout};
 
 pub fn install_hot_keys() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     // get our home directory
@@ -121,7 +121,7 @@ fn parse_from_proc_mounts(
         .into_iter()
         .par_bridge()
         .flatten()
-        .filter(|mount_info| mount_info.fstype.contains(&filesystem_info.filesystem_name))
+        .filter(|mount_info| mount_info.fstype.contains(&filesystem_info.fstype))
         // but exclude snapshot mounts.  we want the raw filesystem names.
         .filter(|mount_info| {
             !mount_info
@@ -129,12 +129,12 @@ fn parse_from_proc_mounts(
                 .to_string_lossy()
                 .contains(&filesystem_info.snapshot_dir)
         })
-        .map(|mount_info| match filesystem_info.filesystem_type {
-            FilesystemType::Zfs => (
+        .map(|mount_info| match filesystem_info.layout {
+            FilesystemLayout::Zfs => (
                 mount_info.dest,
                 mount_info.source.to_string_lossy().to_string(),
             ),
-            FilesystemType::BtrfsSnapper | FilesystemType::BtrfsTimeshift(_) => {
+            FilesystemLayout::BtrfsSnapper | FilesystemLayout::BtrfsTimeshift(_) => {
                 let keyed_options: HashMap<String, String> = mount_info
                     .options
                     .into_iter()
@@ -185,7 +185,7 @@ fn parse_from_mount_cmd(
         let mount_collection: HashMap<PathBuf, String> = command_output
             .par_lines()
             // want zfs 
-            .filter(|line| line.contains(&filesystem_info.filesystem_name))
+            .filter(|line| line.contains(&filesystem_info.fstype))
             // but exclude snapshot mounts.  we want the raw filesystem names.
             .filter(|line| !line.contains(&filesystem_info.snapshot_dir))
             .filter_map(|line|

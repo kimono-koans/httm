@@ -47,11 +47,11 @@ mod lookup;
 mod recursive;
 mod utility;
 
-pub const ZFS_FILESYSTEM_NAME: &str = "zfs";
+pub const ZFS_FSTYPE: &str = "zfs";
 pub const ZFS_HIDDEN_DIRECTORY: &str = ".zfs";
 pub const ZFS_SNAPSHOT_DIRECTORY: &str = ".zfs/snapshot";
 
-pub const BTRFS_FILESYSTEM_NAME: &str = "btrfs";
+pub const BTRFS_FSTYPE: &str = "btrfs";
 pub const BTRFS_SNAPPER_HIDDEN_DIRECTORY: &str = ".snapshots";
 pub const BTRFS_SNAPPER_SNAPSHOT_DIRECTORY: &str = ".snapshots";
 pub const BTRFS_SNAPPER_ADDITIONAL_SUB_DIRECTORY: &str = "snapshot";
@@ -61,7 +61,7 @@ pub const BTRFS_TIMESHIFT_SNAPSHOT_DIRECTORY: &str = "timeshift-btrfs/snapshots"
 pub const BTRFS_TIMESHIFT_DEFAULT_HOME_DIRECTORY: &str = "/run/timeshift/backup";
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum FilesystemType {
+pub enum FilesystemLayout {
     Zfs,
     BtrfsSnapper,
     BtrfsTimeshift(String),
@@ -69,8 +69,8 @@ pub enum FilesystemType {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct FilesystemInfo {
-    filesystem_type: FilesystemType,
-    filesystem_name: String,
+    layout: FilesystemLayout,
+    fstype: String,
     hidden_dir: String,
     snapshot_dir: String,
 }
@@ -292,26 +292,26 @@ impl Config {
 
         let filesystem_info = match matches.value_of("FILESYSTEM_LAYOUT") {
             None | Some("") | Some("zfs") => FilesystemInfo {
-                filesystem_type: FilesystemType::Zfs,
-                filesystem_name: ZFS_FILESYSTEM_NAME.to_string(),
+                layout: FilesystemLayout::Zfs,
+                fstype: ZFS_FSTYPE.to_string(),
                 hidden_dir: ZFS_HIDDEN_DIRECTORY.to_string(),
                 snapshot_dir: ZFS_SNAPSHOT_DIRECTORY.to_string(),
             },
             Some("btrfs-snapper") => FilesystemInfo {
-                filesystem_type: FilesystemType::BtrfsSnapper,
-                filesystem_name: BTRFS_FILESYSTEM_NAME.to_string(),
+                layout: FilesystemLayout::BtrfsSnapper,
+                fstype: BTRFS_FSTYPE.to_string(),
                 hidden_dir: BTRFS_SNAPPER_HIDDEN_DIRECTORY.to_string(),
                 snapshot_dir: BTRFS_SNAPPER_SNAPSHOT_DIRECTORY.to_string(),
             },
             Some("btrfs-timeshift") => FilesystemInfo {
-                filesystem_type: FilesystemType::BtrfsTimeshift(
+                layout: FilesystemLayout::BtrfsTimeshift(
                     if let Some(home_dir) = std::env::var_os("TIMESHIFT_HOME_DIR") {
                         home_dir.to_string_lossy().to_string()
                     } else {
                         BTRFS_TIMESHIFT_DEFAULT_HOME_DIRECTORY.to_string()
                     },
                 ),
-                filesystem_name: BTRFS_FILESYSTEM_NAME.to_string(),
+                fstype: BTRFS_FSTYPE.to_string(),
                 hidden_dir: BTRFS_TIMESHIFT_HIDDEN_DIRECTORY.to_string(),
                 snapshot_dir: BTRFS_TIMESHIFT_SNAPSHOT_DIRECTORY.to_string(),
             },
@@ -361,7 +361,7 @@ impl Config {
             }
 
             // no way to make timeshift and snap points work together so error out here
-            if let FilesystemType::BtrfsTimeshift(_) = filesystem_info.filesystem_type {
+            if let FilesystemLayout::BtrfsTimeshift(_) = filesystem_info.layout {
                 return Err(HttmError::new(
                     "Timeshift datasets are not available for search, when the user defines a snap point.  \
                     However, a similar effect can be achieved by simply modifying the TIMESHIFT_HOME_DIR environment variable.",

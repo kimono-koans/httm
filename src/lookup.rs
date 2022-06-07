@@ -25,7 +25,8 @@ use fxhash::FxHashMap as HashMap;
 use rayon::prelude::*;
 
 use crate::{
-    Config, FilesystemType, HttmError, PathData, SnapPoint, BTRFS_SNAPPER_ADDITIONAL_SUB_DIRECTORY,
+    Config, FilesystemLayout, HttmError, PathData, SnapPoint,
+    BTRFS_SNAPPER_ADDITIONAL_SUB_DIRECTORY,
 };
 
 #[derive(Debug, Clone)]
@@ -302,14 +303,14 @@ pub fn create_path_from_layout(
     search_dirs: &SearchDirs,
     path: &Path,
 ) -> Option<PathBuf> {
-    match &config.filesystem_info.filesystem_type {
-        FilesystemType::Zfs => Some(path.join(&search_dirs.relative_path)),
+    match &config.filesystem_info.layout {
+        FilesystemLayout::Zfs => Some(path.join(&search_dirs.relative_path)),
         // snapper includes an additional directory after the snapshot directory
-        FilesystemType::BtrfsSnapper => Some(
+        FilesystemLayout::BtrfsSnapper => Some(
             path.join(BTRFS_SNAPPER_ADDITIONAL_SUB_DIRECTORY)
                 .join(&search_dirs.relative_path),
         ),
-        FilesystemType::BtrfsTimeshift(_) => {
+        FilesystemLayout::BtrfsTimeshift(_) => {
             // strip any leading "/"
             let timeshift_additional_sub_dir = search_dirs
                 .timeshift_additional_sub_dir
@@ -326,10 +327,10 @@ pub fn create_path_from_layout(
 }
 
 pub fn create_snapshot_dir_from_layout(config: &Config, search_dirs: &SearchDirs) -> PathBuf {
-    match &config.filesystem_info.filesystem_type {
-        FilesystemType::Zfs | FilesystemType::BtrfsSnapper => search_dirs.snapshot_dir.clone(),
+    match &config.filesystem_info.layout {
+        FilesystemLayout::Zfs | FilesystemLayout::BtrfsSnapper => search_dirs.snapshot_dir.clone(),
         // timeshift just sticks all its backups in one directory
-        FilesystemType::BtrfsTimeshift(snap_home) => {
+        FilesystemLayout::BtrfsTimeshift(snap_home) => {
             PathBuf::from(&snap_home).join(&config.filesystem_info.snapshot_dir)
         }
     }
