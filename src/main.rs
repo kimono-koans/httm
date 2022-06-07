@@ -290,7 +290,7 @@ impl Config {
             InteractiveMode::None
         };
 
-        let filesystem_info = match matches.value_of("FILESYSTEM_TYPE") {
+        let filesystem_info = match matches.value_of("FILESYSTEM_LAYOUT") {
             None | Some("") | Some("zfs") => FilesystemInfo {
                 filesystem_type: FilesystemType::Zfs,
                 filesystem_name: ZFS_FILESYSTEM_NAME.to_string(),
@@ -356,6 +356,15 @@ impl Config {
             if matches.is_present("ALT_REPLICATED") {
                 return Err(HttmError::new(
                     "Alternate replicated datasets are not available for search, when the user defines a snap point.",
+                )
+                .into());
+            }
+
+            // no way to make timeshift and snap points work together so error out here
+            if let FilesystemType::BtrfsTimeshift(_) = filesystem_info.filesystem_type {
+                return Err(HttmError::new(
+                    "Timeshift datasets are not available for search, when the user defines a snap point.  \
+                    However, a similar effect can be achieved by simply modifying the TIMESHIFT_HOME_DIR environment variable.",
                 )
                 .into());
             }
@@ -666,10 +675,10 @@ fn parse_args() -> ArgMatches {
                 .display_order(10)
         )
         .arg(
-            Arg::new("FILESYSTEM_TYPE")
+            Arg::new("FILESYSTEM_LAYOUT")
                 .short('f')
-                .long("fstype")
-                .help("EXPERIMENTAL/UNSTABLE OPTION: Used to determine which filesystem type to use (btrfs-snapper, btrfs-timeshift, or zfs). Defaults to zfs.  \
+                .long("fslayout")
+                .help("EXPERIMENTAL/UNSTABLE OPTION: Used to determine which filesystem layout to use (btrfs-snapper, btrfs-timeshift, or zfs). Defaults to zfs.  \
                 For Timeshift users, use the TIMESHIFT_HOME_DIR environment variable to set an alternate location for the Timeshift home directory.  \
                 Otherwise httm will search the default directory, \"/run/timeshift/backup\", for the path to \"timeshift-btrfs/snapshots\".")
                 .default_missing_value("zfs")
@@ -732,12 +741,14 @@ fn exec() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let arg_matches = parse_args();
     let config = Config::from(arg_matches)?;
 
+    // this handles the basic ExecMode::Display case, other process elsewhere
     let snaps_and_live_set = match config.exec_mode {
+        // ExecMode::Interactive might, and Display will, return back to this function to be printed
         // 1. Do our interactive lookup thing, or not, to obtain raw string paths
         // 2. Determine/lookup whether file matches any files on snapshots
         ExecMode::Interactive => get_versions_set(&config, &interactive_exec(&config)?)?,
         ExecMode::Display => get_versions_set(&config, &config.paths)?,
-        // display_recursive_exec is special as there is no need to run a lookup on files already on snapshots
+        // ExecMode::DisplayRecursive won't ever return back to this function
         ExecMode::DisplayRecursive => display_recursive_wrapper(&config)?,
     };
 
