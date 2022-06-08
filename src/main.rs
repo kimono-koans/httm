@@ -52,7 +52,6 @@ pub const BTRFS_FSTYPE: &str = "btrfs";
 pub const ZFS_HIDDEN_DIRECTORY: &str = ".zfs";
 pub const BTRFS_SNAPPER_HIDDEN_DIRECTORY: &str = ".snapshots";
 pub const ZFS_SNAPSHOT_DIRECTORY: &str = ".zfs/snapshot";
-pub const BTRFS_SNAPPER_HIDDEN_DIRECTORY: &str = ".snapshots";
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum FilesystemLayout {
