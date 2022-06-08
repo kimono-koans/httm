@@ -24,10 +24,7 @@ use std::{
 use fxhash::FxHashMap as HashMap;
 use rayon::prelude::*;
 
-use crate::{
-    Config, FilesystemLayout, HttmError, PathData, SnapPoint,
-    BTRFS_SNAPPER_ADDITIONAL_SUB_DIRECTORY,
-};
+use crate::{Config, FilesystemLayout, HttmError, PathData, SnapPoint, ZFS_SNAPSHOT_DIRECTORY};
 
 #[derive(Debug, Clone)]
 pub enum NativeDatasetType {
@@ -39,7 +36,7 @@ pub enum NativeDatasetType {
 pub struct SearchDirs {
     pub snapshot_dir: PathBuf,
     pub relative_path: PathBuf,
-    pub timeshift_additional_sub_dir: Option<String>,
+    pub snapshot_mounts: Option<Vec<PathBuf>>,
 }
 
 pub fn get_versions_set(
@@ -152,16 +149,13 @@ pub fn get_search_dirs(
     dataset_collection
         .par_iter()
         .map(|(dataset_of_interest, immediate_dataset_snap_mount)| {
-            // building the snapshot path from our dataset
-            let snapshot_dir: PathBuf =
-                dataset_of_interest.join(config.clone().filesystem_info.snapshot_dir);
-
             // building our relative path by removing parent below the snap dir
             //
             // for native searches the prefix is are the dirs below the most immediate dataset
             // for user specified dirs these are specified by the user
-            let (relative_path, timeshift_additional_sub_dir) = match &config.snap_point {
+            let (snapshot_dir, relative_path, snapshot_mounts) = match &config.snap_point {
                 SnapPoint::UserDefined(defined_dirs) => (
+                    dataset_of_interest.join(ZFS_SNAPSHOT_DIRECTORY),
                     file_pathdata
                         .path_buf
                         .strip_prefix(&defined_dirs.local_dir)?
@@ -171,14 +165,26 @@ pub fn get_search_dirs(
                 SnapPoint::Native(native_datasets) => {
                     // this prefix removal is why we always need the immediate dataset name, even when we are searching an alternate replicated filesystem
                     (
+                        // building the snapshot path from our dataset
+                        match &native_datasets.mounts_and_datasets.get(dataset_of_interest) {
+                            Some((_, fstype)) => match fstype {
+                                FilesystemLayout::Zfs => {
+                                    dataset_of_interest.join(ZFS_SNAPSHOT_DIRECTORY)
+                                }
+                                FilesystemLayout::Btrfs => dataset_of_interest.to_path_buf(),
+                            },
+                            None => dataset_of_interest.join(ZFS_SNAPSHOT_DIRECTORY),
+                        },
                         file_pathdata
                             .path_buf
                             .strip_prefix(&immediate_dataset_snap_mount)?
                             .to_path_buf(),
-                        native_datasets
-                            .mounts_and_datasets
-                            .get(immediate_dataset_snap_mount)
-                            .cloned(),
+                        match &native_datasets.map_of_snaps {
+                            Some(map_of_snaps) => {
+                                map_of_snaps.get(dataset_of_interest).map(|t| t.to_owned())
+                            }
+                            None => None,
+                        },
                     )
                 }
             };
@@ -186,7 +192,7 @@ pub fn get_search_dirs(
             Ok(SearchDirs {
                 snapshot_dir,
                 relative_path,
-                timeshift_additional_sub_dir,
+                snapshot_mounts,
             })
         })
         .collect()
@@ -194,7 +200,7 @@ pub fn get_search_dirs(
 
 fn get_immediate_dataset(
     pathdata: &PathData,
-    mount_collection: &HashMap<PathBuf, String>,
+    mount_collection: &HashMap<PathBuf, (String, FilesystemLayout)>,
 ) -> Result<PathBuf, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // use pathdata as path
     let path = &pathdata.path_buf;
@@ -233,10 +239,10 @@ fn get_immediate_dataset(
 
 pub fn get_alt_replicated_dataset(
     immediate_dataset_mount: &Path,
-    mount_collection: &HashMap<PathBuf, String>,
+    mount_collection: &HashMap<PathBuf, (String, FilesystemLayout)>,
 ) -> Result<Vec<(PathBuf, PathBuf)>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     let immediate_dataset_fs_name = match &mount_collection.get(immediate_dataset_mount) {
-        Some(immediate_dataset_fs_name) => immediate_dataset_fs_name.to_string(),
+        Some((immediate_dataset_fs_name, _)) => immediate_dataset_fs_name.to_string(),
         None => {
             return Err(HttmError::new("httm was unable to detect an alternate replicated mount point.  Perhaps the replicated filesystem is not mounted?").into());
         }
@@ -247,8 +253,10 @@ pub fn get_alt_replicated_dataset(
     // replicated to tank/rpool
     let mut alt_replicated_mounts: Vec<&PathBuf> = mount_collection
         .par_iter()
-        .filter(|(_mount, fs_name)| fs_name != &&immediate_dataset_fs_name)
-        .filter(|(_mount, fs_name)| fs_name.ends_with(immediate_dataset_fs_name.as_str()))
+        .filter(|(_mount, (fs_name, _fstype))| fs_name != &immediate_dataset_fs_name)
+        .filter(|(_mount, (fs_name, _fstype))| {
+            fs_name.ends_with(immediate_dataset_fs_name.as_str())
+        })
         .map(|(mount, _fs_name)| mount)
         .collect();
 
@@ -279,59 +287,50 @@ fn get_versions_per_dataset(
     //
     // hashmap will then remove duplicates with the same system modify time and size/file len
 
-    let snapshot_dir = create_snapshot_dir_from_layout(config, search_dirs);
+    let snapshot_dir = search_dirs.snapshot_dir.clone();
 
-    let unique_versions: HashMap<(SystemTime, u64), PathData> = read_dir(&snapshot_dir)?
-        .flatten()
-        .par_bridge()
-        .map(|entry| entry.path())
-        .filter_map(|path| create_path_from_layout(config, search_dirs, &path))
-        .map(|path| PathData::from(path.as_path()))
-        .filter(|pathdata| !pathdata.is_phantom)
-        .map(|pathdata| ((pathdata.system_time, pathdata.size), pathdata))
-        .collect();
+    fn read_dir_for_datasets(
+        snapshot_dir: &Path,
+        relative_path: &Path,
+    ) -> Result<
+        HashMap<(SystemTime, u64), PathData>,
+        Box<dyn std::error::Error + Send + Sync + 'static>,
+    > {
+        let unique_versions = read_dir(&snapshot_dir)?
+            .flatten()
+            .par_bridge()
+            .map(|entry| entry.path())
+            .map(|path| path.join(relative_path))
+            .map(|path| PathData::from(path.as_path()))
+            .filter(|pathdata| !pathdata.is_phantom)
+            .map(|pathdata| ((pathdata.system_time, pathdata.size), pathdata))
+            .collect();
+
+        Ok(unique_versions)
+    }
+
+    let unique_versions: HashMap<(SystemTime, u64), PathData> = match &config.snap_point {
+        SnapPoint::Native(native_datasets) => match native_datasets.map_of_snaps {
+            Some(_) => match search_dirs.snapshot_mounts.as_ref() {
+                Some(snap_mounts) => snap_mounts
+                    .iter()
+                    .map(|path| path.join(&search_dirs.relative_path))
+                    .map(|path| PathData::from(path.as_path()))
+                    .filter(|pathdata| !pathdata.is_phantom)
+                    .map(|pathdata| ((pathdata.system_time, pathdata.size), pathdata))
+                    .collect(),
+                None => read_dir_for_datasets(&snapshot_dir, &search_dirs.relative_path)?,
+            },
+            None => read_dir_for_datasets(&snapshot_dir, &search_dirs.relative_path)?,
+        },
+        SnapPoint::UserDefined(_) => {
+            read_dir_for_datasets(&snapshot_dir, &search_dirs.relative_path)?
+        }
+    };
 
     let mut vec_pathdata: Vec<PathData> = unique_versions.into_par_iter().map(|(_, v)| v).collect();
 
     vec_pathdata.par_sort_unstable_by_key(|pathdata| pathdata.system_time);
 
     Ok(vec_pathdata)
-}
-
-pub fn create_path_from_layout(
-    config: &Config,
-    search_dirs: &SearchDirs,
-    path: &Path,
-) -> Option<PathBuf> {
-    match &config.filesystem_info.layout {
-        FilesystemLayout::Zfs => Some(path.join(&search_dirs.relative_path)),
-        // snapper includes an additional directory after the snapshot directory
-        FilesystemLayout::BtrfsSnapper => Some(
-            path.join(BTRFS_SNAPPER_ADDITIONAL_SUB_DIRECTORY)
-                .join(&search_dirs.relative_path),
-        ),
-        FilesystemLayout::BtrfsTimeshift(_) => {
-            // strip any leading "/"
-            let timeshift_additional_sub_dir = search_dirs
-                .timeshift_additional_sub_dir
-                .as_ref()?
-                .strip_prefix('/')
-                .unwrap_or(search_dirs.timeshift_additional_sub_dir.as_ref()?);
-
-            Some(
-                path.join(timeshift_additional_sub_dir)
-                    .join(&search_dirs.relative_path),
-            )
-        }
-    }
-}
-
-pub fn create_snapshot_dir_from_layout(config: &Config, search_dirs: &SearchDirs) -> PathBuf {
-    match &config.filesystem_info.layout {
-        FilesystemLayout::Zfs | FilesystemLayout::BtrfsSnapper => search_dirs.snapshot_dir.clone(),
-        // timeshift just sticks all its backups in one directory
-        FilesystemLayout::BtrfsTimeshift(snap_home) => {
-            PathBuf::from(&snap_home).join(&config.filesystem_info.snapshot_dir)
-        }
-    }
 }

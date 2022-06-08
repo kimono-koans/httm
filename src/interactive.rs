@@ -69,7 +69,6 @@ impl SelectionCandidate {
             opt_recursive: false,
             opt_no_live_vers: false,
             opt_exact: false,
-            filesystem_info: config.filesystem_info.to_owned(),
             exec_mode: ExecMode::Display,
             deleted_mode: DeletedMode::Disabled,
             interactive_mode: InteractiveMode::None,
@@ -311,15 +310,6 @@ fn interactive_restore(
     // sanity check -- snap version has good metadata?
     if snap_pathdata.is_phantom {
         return Err(HttmError::new("Source location does not exist on disk. Quitting.").into());
-    }
-
-    // sanity check -- snap version is not actually a live copy?
-    if !snap_pathdata
-        .path_buf
-        .to_string_lossy()
-        .contains(&config.filesystem_info.snapshot_dir)
-    {
-        return Err(HttmError::new("Path selected is not a 'snapshot version'.  httm will not restore from a non-'snapshot version'.  Quitting.").into());
     }
 
     // build new place to send file

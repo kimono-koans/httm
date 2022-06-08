@@ -20,11 +20,8 @@ use std::{ffi::OsString, fs::read_dir, path::Path};
 use fxhash::FxHashMap as HashMap;
 use itertools::Itertools;
 
-use crate::lookup::{
-    create_path_from_layout, create_snapshot_dir_from_layout, get_search_dirs, NativeDatasetType,
-    SearchDirs,
-};
-use crate::{BasicDirEntryInfo, Config, PathData};
+use crate::lookup::{get_search_dirs, NativeDatasetType, SearchDirs};
+use crate::{BasicDirEntryInfo, Config, PathData, SnapPoint};
 
 pub fn get_unique_deleted(
     config: &Config,
@@ -114,28 +111,71 @@ pub fn get_deleted_per_dataset(
         })
         .collect();
 
-    let snapshot_dir = create_snapshot_dir_from_layout(config, search_dirs);
-
     // now create a collection of file names in the snap_dirs
     // create a list of unique filenames on snaps
-    let unique_snap_filenames: HashMap<OsString, BasicDirEntryInfo> = read_dir(&snapshot_dir)?
-        .flatten()
-        .map(|entry| entry.path())
-        .filter_map(|path| create_path_from_layout(config, search_dirs, &path))
-        .flat_map(|path| read_dir(&path))
-        .flatten()
-        .flatten()
-        .map(|dir_entry| {
-            (
-                dir_entry.file_name(),
-                BasicDirEntryInfo {
-                    file_name: dir_entry.file_name(),
-                    path: dir_entry.path(),
-                    file_type: dir_entry.file_type().ok(),
-                },
-            )
-        })
-        .collect();
+
+    fn read_dir_for_snap_filenames(
+        snapshot_dir: &Path,
+        relative_path: &Path,
+    ) -> Result<
+        HashMap<OsString, BasicDirEntryInfo>,
+        Box<dyn std::error::Error + Send + Sync + 'static>,
+    > {
+        let unique_snap_filenames = read_dir(&snapshot_dir)?
+            .flatten()
+            .map(|entry| entry.path())
+            .map(|path| path.join(relative_path))
+            .flat_map(|path| read_dir(&path))
+            .flatten()
+            .flatten()
+            .map(|dir_entry| {
+                (
+                    dir_entry.file_name(),
+                    BasicDirEntryInfo {
+                        file_name: dir_entry.file_name(),
+                        path: dir_entry.path(),
+                        file_type: dir_entry.file_type().ok(),
+                    },
+                )
+            })
+            .collect();
+
+        Ok(unique_snap_filenames)
+    }
+
+    let unique_snap_filenames: HashMap<OsString, BasicDirEntryInfo> = match &config.snap_point {
+        SnapPoint::Native(native_datasets) => match native_datasets.map_of_snaps {
+            Some(_) => match search_dirs.snapshot_mounts.as_ref() {
+                Some(snap_mounts) => snap_mounts
+                    .iter()
+                    .map(|path| path.join(&search_dirs.relative_path))
+                    .flat_map(|path| read_dir(&path))
+                    .flatten()
+                    .flatten()
+                    .map(|dir_entry| {
+                        (
+                            dir_entry.file_name(),
+                            BasicDirEntryInfo {
+                                file_name: dir_entry.file_name(),
+                                path: dir_entry.path(),
+                                file_type: dir_entry.file_type().ok(),
+                            },
+                        )
+                    })
+                    .collect(),
+                None => read_dir_for_snap_filenames(
+                    &search_dirs.snapshot_dir,
+                    &search_dirs.relative_path,
+                )?,
+            },
+            None => {
+                read_dir_for_snap_filenames(&search_dirs.snapshot_dir, &search_dirs.relative_path)?
+            }
+        },
+        SnapPoint::UserDefined(_) => {
+            read_dir_for_snap_filenames(&search_dirs.snapshot_dir, &search_dirs.relative_path)?
+        }
+    };
 
     // compare local filenames to all unique snap filenames - none values are unique here
     let all_deleted_versions: Vec<BasicDirEntryInfo> = unique_snap_filenames
