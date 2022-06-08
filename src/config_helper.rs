@@ -175,14 +175,7 @@ fn parse_from_proc_mounts() -> Result<
         .filter(|(mount, (_dataset, _fstype))| mount.exists())
         .collect();
 
-    let map_of_snaps = if mount_collection
-        .par_iter()
-        .any(|(_mount, (_dataset, fstype))| fstype == &FilesystemType::Btrfs)
-    {
-        precompute_snap_mounts(&mount_collection).ok()
-    } else {
-        None
-    };
+    let map_of_snaps = precompute_snap_mounts(&mount_collection).ok();
 
     if mount_collection.is_empty() {
         Err(HttmError::new("httm could not find any valid datasets on the system.").into())
@@ -337,7 +330,6 @@ pub fn precompute_zfs_snap_mounts(
         .flatten()
         .par_bridge()
         .map(|entry| entry.path())
-        .filter(|path| path.exists())
         .collect();
 
     if snapshot_locations.is_empty() {
