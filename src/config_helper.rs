@@ -101,7 +101,13 @@ pub fn install_hot_keys() -> Result<(), Box<dyn std::error::Error + Send + Sync 
     std::process::exit(0)
 }
 
-pub fn get_filesystems_list() -> Result<(HashMap<PathBuf, (String, FilesystemLayout)>, Option<HashMap<PathBuf, Vec<PathBuf>>>), Box<dyn std::error::Error + Send + Sync + 'static>> {
+pub fn get_filesystems_list() -> Result<
+    (
+        HashMap<PathBuf, (String, FilesystemLayout)>,
+        Option<HashMap<PathBuf, Vec<PathBuf>>>,
+    ),
+    Box<dyn std::error::Error + Send + Sync + 'static>,
+> {
     let res = if cfg!(target_os = "linux") {
         parse_from_proc_mounts()?
     } else {
