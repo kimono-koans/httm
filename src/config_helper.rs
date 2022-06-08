@@ -101,6 +101,7 @@ pub fn install_hot_keys() -> Result<(), Box<dyn std::error::Error + Send + Sync 
     std::process::exit(0)
 }
 
+#[allow(clippy::type_complexity)]
 pub fn get_filesystems_list() -> Result<
     (
         HashMap<PathBuf, (String, FilesystemLayout)>,
@@ -119,6 +120,7 @@ pub fn get_filesystems_list() -> Result<
 
 // both faster and necessary for certain btrfs features
 // allows us to read subvolumes
+#[allow(clippy::type_complexity)]
 fn parse_from_proc_mounts() -> Result<
     (
         HashMap<PathBuf, (String, FilesystemLayout)>,
