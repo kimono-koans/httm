@@ -169,7 +169,7 @@ fn get_entries_partitioned(
         // a .zfs dir entry
         .filter(|dir_entry| {
             dir_entry.file_name().as_os_str() != OsStr::new(ZFS_HIDDEN_DIRECTORY)
-                || dir_entry.file_name().as_os_str() != OsStr::new(BTRFS_SNAPPER_HIDDEN_DIRECTORY)
+                && dir_entry.file_name().as_os_str() != OsStr::new(BTRFS_SNAPPER_HIDDEN_DIRECTORY)
         })
         // checking file_type on dir entries is always preferable
         // as it is much faster than a metadata call on the path

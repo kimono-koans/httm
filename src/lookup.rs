@@ -33,7 +33,7 @@ pub enum NativeDatasetType {
 }
 
 #[derive(Debug, Clone)]
-pub struct SearchDirs {
+pub struct SearchBundle {
     pub snapshot_dir: PathBuf,
     pub relative_path: PathBuf,
     pub snapshot_mounts: Option<Vec<PathBuf>>,
@@ -102,7 +102,7 @@ pub fn get_search_dirs(
     config: &Config,
     file_pathdata: &PathData,
     requested_dataset_type: &NativeDatasetType,
-) -> Result<Vec<SearchDirs>, Box<dyn std::error::Error + Send + Sync + 'static>> {
+) -> Result<Vec<SearchBundle>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // here, we take our file path and get back possibly multiple ZFS dataset mountpoints
     // and our most immediate dataset mount point (which is always the same) for
     // a single file
@@ -189,7 +189,7 @@ pub fn get_search_dirs(
                 }
             };
 
-            Ok(SearchDirs {
+            Ok(SearchBundle {
                 snapshot_dir,
                 relative_path,
                 snapshot_mounts,
@@ -280,7 +280,7 @@ pub fn get_alt_replicated_dataset(
 
 fn get_versions_per_dataset(
     config: &Config,
-    search_dirs: &SearchDirs,
+    search_dirs: &SearchBundle,
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // get the DirEntry for our snapshot path which will have all our possible
     // snapshots, like so: .zfs/snapshots/<some snap name>/

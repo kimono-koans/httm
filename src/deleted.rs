@@ -20,7 +20,7 @@ use std::{ffi::OsString, fs::read_dir, path::Path};
 use fxhash::FxHashMap as HashMap;
 use itertools::Itertools;
 
-use crate::lookup::{get_search_dirs, NativeDatasetType, SearchDirs};
+use crate::lookup::{get_search_dirs, NativeDatasetType, SearchBundle};
 use crate::{BasicDirEntryInfo, Config, PathData, SnapPoint};
 
 pub fn get_unique_deleted(
@@ -92,7 +92,7 @@ pub fn get_unique_deleted(
 pub fn get_deleted_per_dataset(
     config: &Config,
     requested_dir: &Path,
-    search_dirs: &SearchDirs,
+    search_dirs: &SearchBundle,
 ) -> Result<Vec<BasicDirEntryInfo>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // get all local entries we need to compare against these to know
     // what is a deleted file
