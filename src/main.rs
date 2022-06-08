@@ -32,19 +32,19 @@ use clap::{crate_name, crate_version, Arg, ArgMatches};
 use fxhash::FxHashMap as HashMap;
 use rayon::prelude::*;
 
-use crate::config_helper::{get_filesystems_list, install_hot_keys, precompute_alt_replicated};
 use crate::display::display_exec;
 use crate::interactive::interactive_exec;
 use crate::lookup::get_versions_set;
-use crate::recursive::display_recursive_wrapper;
-use crate::utility::{httm_is_dir, read_stdin};
+use crate::parse_mounts::{get_filesystems_list, precompute_alt_replicated};
+use crate::process_dirs::display_recursive_wrapper;
+use crate::utility::{httm_is_dir, install_hot_keys, read_stdin};
 
-mod config_helper;
 mod deleted;
 mod display;
 mod interactive;
 mod lookup;
-mod recursive;
+mod parse_mounts;
+mod process_dirs;
 mod utility;
 
 pub const ZFS_FSTYPE: &str = "zfs";
