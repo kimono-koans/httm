@@ -24,7 +24,7 @@ use std::{
 use fxhash::FxHashMap as HashMap;
 use rayon::prelude::*;
 
-use crate::{Config, FilesystemLayout, HttmError, PathData, SnapPoint, ZFS_SNAPSHOT_DIRECTORY};
+use crate::{Config, FilesystemType, HttmError, PathData, SnapPoint, ZFS_SNAPSHOT_DIRECTORY};
 
 #[derive(Debug, Clone)]
 pub enum NativeDatasetType {
@@ -168,10 +168,10 @@ pub fn get_search_dirs(
                         // building the snapshot path from our dataset
                         match &native_datasets.mounts_and_datasets.get(dataset_of_interest) {
                             Some((_, fstype)) => match fstype {
-                                FilesystemLayout::Zfs => {
+                                FilesystemType::Zfs => {
                                     dataset_of_interest.join(ZFS_SNAPSHOT_DIRECTORY)
                                 }
-                                FilesystemLayout::Btrfs => dataset_of_interest.to_path_buf(),
+                                FilesystemType::Btrfs => dataset_of_interest.to_path_buf(),
                             },
                             None => dataset_of_interest.join(ZFS_SNAPSHOT_DIRECTORY),
                         },
@@ -200,7 +200,7 @@ pub fn get_search_dirs(
 
 fn get_immediate_dataset(
     pathdata: &PathData,
-    mount_collection: &HashMap<PathBuf, (String, FilesystemLayout)>,
+    mount_collection: &HashMap<PathBuf, (String, FilesystemType)>,
 ) -> Result<PathBuf, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // use pathdata as path
     let path = &pathdata.path_buf;
@@ -239,7 +239,7 @@ fn get_immediate_dataset(
 
 pub fn get_alt_replicated_dataset(
     immediate_dataset_mount: &Path,
-    mount_collection: &HashMap<PathBuf, (String, FilesystemLayout)>,
+    mount_collection: &HashMap<PathBuf, (String, FilesystemType)>,
 ) -> Result<Vec<(PathBuf, PathBuf)>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     let immediate_dataset_fs_name = match &mount_collection.get(immediate_dataset_mount) {
         Some((immediate_dataset_fs_name, _)) => immediate_dataset_fs_name.to_string(),

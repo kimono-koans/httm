@@ -54,17 +54,9 @@ pub const BTRFS_SNAPPER_HIDDEN_DIRECTORY: &str = ".snapshots";
 pub const ZFS_SNAPSHOT_DIRECTORY: &str = ".zfs/snapshot";
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum FilesystemLayout {
+pub enum FilesystemType {
     Zfs,
     Btrfs,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct FilesystemInfo {
-    layout: FilesystemLayout,
-    fstype: String,
-    hidden_dir: Option<String>,
-    snapshot_dir: Option<String>,
 }
 
 #[derive(Debug)]
@@ -208,7 +200,7 @@ enum SnapPoint {
 
 #[derive(Debug, Clone)]
 pub struct NativeDatasets {
-    mounts_and_datasets: HashMap<PathBuf, (String, FilesystemLayout)>,
+    mounts_and_datasets: HashMap<PathBuf, (String, FilesystemType)>,
     map_of_alts: Option<HashMap<PathBuf, Vec<(PathBuf, PathBuf)>>>,
     map_of_snaps: Option<HashMap<PathBuf, Vec<PathBuf>>>,
 }

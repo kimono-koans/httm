@@ -28,7 +28,7 @@ use proc_mounts::MountIter;
 use rayon::prelude::*;
 use which::which;
 
-use crate::{lookup::get_alt_replicated_dataset, FilesystemLayout};
+use crate::{lookup::get_alt_replicated_dataset, FilesystemType};
 use crate::{HttmError, BTRFS_FSTYPE, ZFS_FSTYPE, ZFS_SNAPSHOT_DIRECTORY};
 
 pub fn install_hot_keys() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
@@ -104,7 +104,7 @@ pub fn install_hot_keys() -> Result<(), Box<dyn std::error::Error + Send + Sync 
 #[allow(clippy::type_complexity)]
 pub fn get_filesystems_list() -> Result<
     (
-        HashMap<PathBuf, (String, FilesystemLayout)>,
+        HashMap<PathBuf, (String, FilesystemType)>,
         Option<HashMap<PathBuf, Vec<PathBuf>>>,
     ),
     Box<dyn std::error::Error + Send + Sync + 'static>,
@@ -123,12 +123,12 @@ pub fn get_filesystems_list() -> Result<
 #[allow(clippy::type_complexity)]
 fn parse_from_proc_mounts() -> Result<
     (
-        HashMap<PathBuf, (String, FilesystemLayout)>,
+        HashMap<PathBuf, (String, FilesystemType)>,
         Option<HashMap<PathBuf, Vec<PathBuf>>>,
     ),
     Box<dyn std::error::Error + Send + Sync + 'static>,
 > {
-    let mount_collection: HashMap<PathBuf, (String, FilesystemLayout)> = MountIter::new()?
+    let mount_collection: HashMap<PathBuf, (String, FilesystemType)> = MountIter::new()?
         .into_iter()
         .par_bridge()
         .flatten()
@@ -147,7 +147,7 @@ fn parse_from_proc_mounts() -> Result<
                 mount_info.dest,
                 (
                     mount_info.source.to_string_lossy().to_string(),
-                    FilesystemLayout::Zfs,
+                    FilesystemType::Zfs,
                 ),
             ),
             fs if fs == BTRFS_FSTYPE => {
@@ -166,7 +166,7 @@ fn parse_from_proc_mounts() -> Result<
                     None => mount_info.source.to_string_lossy().to_string(),
                 };
 
-                let fstype = FilesystemLayout::Btrfs;
+                let fstype = FilesystemType::Btrfs;
 
                 (mount_info.dest, (subvol, fstype))
             }
@@ -177,7 +177,7 @@ fn parse_from_proc_mounts() -> Result<
 
     let map_of_snaps = if mount_collection
         .par_iter()
-        .any(|(_mount, (_dataset, fstype))| fstype == &FilesystemLayout::Btrfs)
+        .any(|(_mount, (_dataset, fstype))| fstype == &FilesystemType::Btrfs)
     {
         precompute_snap_mounts(&mount_collection).ok()
     } else {
@@ -192,14 +192,14 @@ fn parse_from_proc_mounts() -> Result<
 }
 
 pub fn precompute_snap_mounts(
-    mount_collection: &HashMap<PathBuf, (String, FilesystemLayout)>,
+    mount_collection: &HashMap<PathBuf, (String, FilesystemType)>,
 ) -> Result<HashMap<PathBuf, Vec<PathBuf>>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     let map_of_snaps = mount_collection
         .par_iter()
         .filter_map(|(mount, (_dataset, fstype))| {
             let snap_mounts = match fstype {
-                FilesystemLayout::Zfs => precompute_zfs_snap_mounts(mount),
-                FilesystemLayout::Btrfs => precompute_btrfs_snap_mounts(mount),
+                FilesystemType::Zfs => precompute_zfs_snap_mounts(mount),
+                FilesystemType::Btrfs => precompute_btrfs_snap_mounts(mount),
             };
 
             match snap_mounts {
@@ -213,7 +213,7 @@ pub fn precompute_snap_mounts(
 }
 
 fn parse_from_mount_cmd() -> Result<
-    HashMap<PathBuf, (String, FilesystemLayout)>,
+    HashMap<PathBuf, (String, FilesystemType)>,
     Box<dyn std::error::Error + Send + Sync + 'static>,
 > {
     // read datasets from 'mount' if possible -- this is much faster than using zfs command
@@ -221,14 +221,14 @@ fn parse_from_mount_cmd() -> Result<
     fn get_filesystems_and_mountpoints(
         mount_command: &PathBuf,
     ) -> Result<
-        HashMap<PathBuf, (String, FilesystemLayout)>,
+        HashMap<PathBuf, (String, FilesystemType)>,
         Box<dyn std::error::Error + Send + Sync + 'static>,
     > {
         let command_output =
             std::str::from_utf8(&ExecProcess::new(mount_command).output()?.stdout)?.to_owned();
 
         // parse "mount" for filesystems and mountpoints
-        let mount_collection: HashMap<PathBuf, (String, FilesystemLayout)> = command_output
+        let mount_collection: HashMap<PathBuf, (String, FilesystemType)> = command_output
             .par_lines()
             // want zfs 
             .filter(|line| line.contains(ZFS_FSTYPE))
@@ -248,7 +248,7 @@ fn parse_from_mount_cmd() -> Result<
             // sanity check: does the filesystem exist? if not, filter it out
             .map(|(filesystem, mount)| (filesystem.to_owned(), PathBuf::from(mount)))
             .filter(|(_filesystem, mount)| mount.exists())
-            .map(|(filesystem, mount)| (mount, (filesystem, FilesystemLayout::Zfs)))
+            .map(|(filesystem, mount)| (mount, (filesystem, FilesystemType::Zfs)))
             .collect();
 
         if mount_collection.is_empty() {
@@ -271,7 +271,7 @@ fn parse_from_mount_cmd() -> Result<
 }
 
 pub fn precompute_alt_replicated(
-    mount_collection: &HashMap<PathBuf, (String, FilesystemLayout)>,
+    mount_collection: &HashMap<PathBuf, (String, FilesystemType)>,
 ) -> HashMap<PathBuf, Vec<(PathBuf, PathBuf)>> {
     mount_collection
         .par_iter()
