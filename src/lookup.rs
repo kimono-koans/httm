@@ -24,7 +24,7 @@ use std::{
 use fxhash::FxHashMap as HashMap;
 use rayon::prelude::*;
 
-use crate::{Config, HttmError, PathData, SnapPoint};
+use crate::{Config, FilesystemLayout, HttmError, PathData, SnapPoint, ZFS_SNAPSHOT_DIRECTORY};
 
 #[derive(Debug, Clone)]
 pub enum NativeDatasetType {
@@ -149,18 +149,13 @@ pub fn get_search_dirs(
     dataset_collection
         .par_iter()
         .map(|(dataset_of_interest, immediate_dataset_snap_mount)| {
-            // building the snapshot path from our dataset
-            let snapshot_dir: PathBuf = match &config.filesystem_info.snapshot_dir {
-                Some(snapshot_dir) => dataset_of_interest.join(snapshot_dir),
-                None => dataset_of_interest.to_path_buf(),
-            };
-
             // building our relative path by removing parent below the snap dir
             //
             // for native searches the prefix is are the dirs below the most immediate dataset
             // for user specified dirs these are specified by the user
-            let (relative_path, snapshot_mounts) = match &config.snap_point {
+            let (snapshot_dir, relative_path, snapshot_mounts) = match &config.snap_point {
                 SnapPoint::UserDefined(defined_dirs) => (
+                    dataset_of_interest.join(ZFS_SNAPSHOT_DIRECTORY),
                     file_pathdata
                         .path_buf
                         .strip_prefix(&defined_dirs.local_dir)?
@@ -170,14 +165,24 @@ pub fn get_search_dirs(
                 SnapPoint::Native(native_datasets) => {
                     // this prefix removal is why we always need the immediate dataset name, even when we are searching an alternate replicated filesystem
                     (
+                        // building the snapshot path from our dataset
+                        match &native_datasets.mounts_and_datasets.get(dataset_of_interest) {
+                            Some((_, fstype)) => match fstype {
+                                FilesystemLayout::Zfs => {
+                                    dataset_of_interest.join(ZFS_SNAPSHOT_DIRECTORY)
+                                }
+                                FilesystemLayout::Btrfs => dataset_of_interest.to_path_buf(),
+                            },
+                            None => dataset_of_interest.join(ZFS_SNAPSHOT_DIRECTORY),
+                        },
                         file_pathdata
                             .path_buf
                             .strip_prefix(&immediate_dataset_snap_mount)?
                             .to_path_buf(),
                         match &native_datasets.map_of_snaps {
-                            Some(map_of_snaps) => map_of_snaps
-                                .get(dataset_of_interest)
-                                .map(|t| t.to_owned()),
+                            Some(map_of_snaps) => {
+                                map_of_snaps.get(dataset_of_interest).map(|t| t.to_owned())
+                            }
                             None => None,
                         },
                     )
@@ -195,7 +200,7 @@ pub fn get_search_dirs(
 
 fn get_immediate_dataset(
     pathdata: &PathData,
-    mount_collection: &HashMap<PathBuf, String>,
+    mount_collection: &HashMap<PathBuf, (String, FilesystemLayout)>,
 ) -> Result<PathBuf, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // use pathdata as path
     let path = &pathdata.path_buf;
@@ -234,10 +239,10 @@ fn get_immediate_dataset(
 
 pub fn get_alt_replicated_dataset(
     immediate_dataset_mount: &Path,
-    mount_collection: &HashMap<PathBuf, String>,
+    mount_collection: &HashMap<PathBuf, (String, FilesystemLayout)>,
 ) -> Result<Vec<(PathBuf, PathBuf)>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     let immediate_dataset_fs_name = match &mount_collection.get(immediate_dataset_mount) {
-        Some(immediate_dataset_fs_name) => immediate_dataset_fs_name.to_string(),
+        Some((immediate_dataset_fs_name, _)) => immediate_dataset_fs_name.to_string(),
         None => {
             return Err(HttmError::new("httm was unable to detect an alternate replicated mount point.  Perhaps the replicated filesystem is not mounted?").into());
         }
@@ -248,8 +253,10 @@ pub fn get_alt_replicated_dataset(
     // replicated to tank/rpool
     let mut alt_replicated_mounts: Vec<&PathBuf> = mount_collection
         .par_iter()
-        .filter(|(_mount, fs_name)| fs_name != &&immediate_dataset_fs_name)
-        .filter(|(_mount, fs_name)| fs_name.ends_with(immediate_dataset_fs_name.as_str()))
+        .filter(|(_mount, (fs_name, _fstype))| fs_name != &immediate_dataset_fs_name)
+        .filter(|(_mount, (fs_name, _fstype))| {
+            fs_name.ends_with(immediate_dataset_fs_name.as_str())
+        })
         .map(|(mount, _fs_name)| mount)
         .collect();
 
@@ -304,17 +311,16 @@ fn get_versions_per_dataset(
 
     let unique_versions: HashMap<(SystemTime, u64), PathData> = match &config.snap_point {
         SnapPoint::Native(native_datasets) => match native_datasets.map_of_snaps {
-            Some(_) => {
-                match search_dirs.snapshot_mounts.as_ref() {
-                    Some(snap_mounts) => snap_mounts.iter()
-                        .map(|path| path.join(&search_dirs.relative_path))
-                        .map(|path| PathData::from(path.as_path()))
-                        .filter(|pathdata| !pathdata.is_phantom)
-                        .map(|pathdata| ((pathdata.system_time, pathdata.size), pathdata))
-                        .collect(),
-                    None => read_dir_for_datasets(&snapshot_dir, &search_dirs.relative_path)?,
-                }
-            }
+            Some(_) => match search_dirs.snapshot_mounts.as_ref() {
+                Some(snap_mounts) => snap_mounts
+                    .iter()
+                    .map(|path| path.join(&search_dirs.relative_path))
+                    .map(|path| PathData::from(path.as_path()))
+                    .filter(|pathdata| !pathdata.is_phantom)
+                    .map(|pathdata| ((pathdata.system_time, pathdata.size), pathdata))
+                    .collect(),
+                None => read_dir_for_datasets(&snapshot_dir, &search_dirs.relative_path)?,
+            },
             None => read_dir_for_datasets(&snapshot_dir, &search_dirs.relative_path)?,
         },
         SnapPoint::UserDefined(_) => {

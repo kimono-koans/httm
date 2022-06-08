@@ -21,7 +21,7 @@ use fxhash::FxHashMap as HashMap;
 use itertools::Itertools;
 
 use crate::lookup::{get_search_dirs, NativeDatasetType, SearchDirs};
-use crate::{BasicDirEntryInfo, Config, SnapPoint, PathData};
+use crate::{BasicDirEntryInfo, Config, PathData, SnapPoint};
 
 pub fn get_unique_deleted(
     config: &Config,
@@ -145,9 +145,9 @@ pub fn get_deleted_per_dataset(
 
     let unique_snap_filenames: HashMap<OsString, BasicDirEntryInfo> = match &config.snap_point {
         SnapPoint::Native(native_datasets) => match native_datasets.map_of_snaps {
-            Some(_) => {
-                match search_dirs.snapshot_mounts.as_ref() {
-                    Some(snap_mounts) => snap_mounts.iter()
+            Some(_) => match search_dirs.snapshot_mounts.as_ref() {
+                Some(snap_mounts) => snap_mounts
+                    .iter()
                     .map(|path| path.join(&search_dirs.relative_path))
                     .flat_map(|path| read_dir(&path))
                     .flatten()
@@ -163,10 +163,14 @@ pub fn get_deleted_per_dataset(
                         )
                     })
                     .collect(),
-                    None => read_dir_for_snap_filenames(&search_dirs.snapshot_dir, &search_dirs.relative_path)?,
-                }
+                None => read_dir_for_snap_filenames(
+                    &search_dirs.snapshot_dir,
+                    &search_dirs.relative_path,
+                )?,
+            },
+            None => {
+                read_dir_for_snap_filenames(&search_dirs.snapshot_dir, &search_dirs.relative_path)?
             }
-            None => read_dir_for_snap_filenames(&search_dirs.snapshot_dir, &search_dirs.relative_path)?,
         },
         SnapPoint::UserDefined(_) => {
             read_dir_for_snap_filenames(&search_dirs.snapshot_dir, &search_dirs.relative_path)?

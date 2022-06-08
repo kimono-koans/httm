@@ -48,10 +48,9 @@ mod recursive;
 mod utility;
 
 pub const ZFS_FSTYPE: &str = "zfs";
+pub const BTRFS_FSTYPE: &str = "btrfs";
 pub const ZFS_HIDDEN_DIRECTORY: &str = ".zfs";
 pub const ZFS_SNAPSHOT_DIRECTORY: &str = ".zfs/snapshot";
-
-pub const BTRFS_FSTYPE: &str = "btrfs";
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum FilesystemLayout {
@@ -208,7 +207,7 @@ enum SnapPoint {
 
 #[derive(Debug, Clone)]
 pub struct NativeDatasets {
-    mounts_and_datasets: HashMap<PathBuf, String>,
+    mounts_and_datasets: HashMap<PathBuf, (String, FilesystemLayout)>,
     map_of_alts: Option<HashMap<PathBuf, Vec<(PathBuf, PathBuf)>>>,
     map_of_snaps: Option<HashMap<PathBuf, Vec<PathBuf>>>,
 }
@@ -229,7 +228,6 @@ pub struct Config {
     opt_no_live_vers: bool,
     opt_recursive: bool,
     opt_exact: bool,
-    filesystem_info: FilesystemInfo,
     exec_mode: ExecMode,
     snap_point: SnapPoint,
     deleted_mode: DeletedMode,
@@ -283,23 +281,6 @@ impl Config {
             InteractiveMode::None
         };
 
-        let filesystem_info = match matches.value_of("FILESYSTEM_LAYOUT") {
-            None | Some("") | Some("zfs") => FilesystemInfo {
-                layout: FilesystemLayout::Zfs,
-                fstype: ZFS_FSTYPE.to_string(),
-                hidden_dir: Some(ZFS_HIDDEN_DIRECTORY.to_string()),
-                snapshot_dir: Some(ZFS_SNAPSHOT_DIRECTORY.to_string()),
-            },
-            Some("btrfs") => FilesystemInfo {
-                layout: FilesystemLayout::Btrfs,
-                fstype: BTRFS_FSTYPE.to_string(),
-                hidden_dir: None,
-                snapshot_dir: None,
-            },
-            // invalid value to not specify one of the above
-            _ => unreachable!(),
-        };
-
         if opt_recursive && exec_mode == ExecMode::Display {
             return Err(
                 HttmError::new("Recursive search feature only allowed in select modes.").into(),
@@ -345,12 +326,7 @@ impl Config {
             let path = PathBuf::from(raw_value);
 
             // little sanity check -- make sure the user defined snap dir exist
-            let snap_dir = if filesystem_info.snapshot_dir.is_some()
-                && path
-                    .join(filesystem_info.snapshot_dir.as_ref().unwrap())
-                    .metadata()
-                    .is_ok()
-            {
+            let snap_dir = if path.join(ZFS_SNAPSHOT_DIRECTORY).metadata().is_ok() {
                 path
             } else {
                 return Err(HttmError::new(
@@ -391,23 +367,7 @@ impl Config {
                 }),
             )
         } else {
-            let (mounts_and_datasets, map_of_snaps) = get_filesystems_list(&filesystem_info)?;
-
-            // quick sanity check/test - need to know that at least one hidden directory exists
-            if filesystem_info.snapshot_dir.is_some()
-                && !mounts_and_datasets.iter().any(|(mount, _dataset)| {
-                    PathBuf::from(mount)
-                        .join(filesystem_info.snapshot_dir.as_ref().unwrap())
-                        .metadata()
-                        .is_ok()
-                })
-            {
-                return Err(HttmError::new(
-                    "System does not contain the not contain a dataset with the specified (ZFS or btrfs) hidden snapshot directory. \
-                    Please mount another dataset which contains a hidden snapshot directory."
-                )
-                .into());
-            }
+            let (mounts_and_datasets, map_of_snaps) = get_filesystems_list()?;
 
             let map_of_alts =
                 if matches.is_present("ALT_REPLICATED") && exec_mode != ExecMode::Display {
@@ -546,7 +506,6 @@ impl Config {
             opt_no_live_vers,
             opt_recursive,
             opt_exact,
-            filesystem_info,
             snap_point,
             exec_mode,
             deleted_mode,
@@ -654,24 +613,12 @@ fn parse_args() -> ArgMatches {
                 .display_order(10)
         )
         .arg(
-            Arg::new("FILESYSTEM_LAYOUT")
-                .short('f')
-                .long("fs-layout")
-                .help("EXPERIMENTAL/UNSTABLE OPTION: Used to determine which filesystem layout to use (btrfs, btrfs-snapper, btrfs-timeshift, or zfs). Defaults to zfs.  \
-                For Timeshift users, use the TIMESHIFT_HOME_DIR environment variable to set an alternate location for the Timeshift home directory.  \
-                Otherwise httm will search the default directory, \"/run/timeshift/backup\", for the path to \"timeshift-btrfs/snapshots\".")
-                .default_missing_value("zfs")
-                .possible_values(&["zfs", "btrfs", "btrfs-snapper", "btrfs-timeshift"])
-                .takes_value(true)
-                .display_order(11)
-        )
-        .arg(
             Arg::new("RAW")
                 .short('n')
                 .long("raw")
                 .help("display the backup locations only, without extraneous information, delimited by a NEWLINE.")
                 .conflicts_with_all(&["ZEROS", "NOT_SO_PRETTY"])
-                .display_order(12)
+                .display_order(11)
         )
         .arg(
             Arg::new("ZEROS")
@@ -679,27 +626,27 @@ fn parse_args() -> ArgMatches {
                 .long("zero")
                 .help("display the backup locations only, without extraneous information, delimited by a NULL CHARACTER.")
                 .conflicts_with_all(&["RAW", "NOT_SO_PRETTY"])
-                .display_order(13)
+                .display_order(12)
         )
         .arg(
             Arg::new("NOT_SO_PRETTY")
                 .long("not-so-pretty")
                 .help("display the ordinary output, but tab delimited, without any pretty border lines.")
                 .conflicts_with_all(&["RAW", "ZEROS"])
-                .display_order(14)
+                .display_order(13)
         )
         .arg(
             Arg::new("NO_LIVE")
                 .long("no-live")
                 .help("only display information concerning snapshot versions, and no 'live' versions of files or directories.")
-                .display_order(15)
+                .display_order(14)
         )
         .arg(
             Arg::new("ZSH_HOT_KEYS")
                 .long("install-zsh-hot-keys")
                 .help("install zsh hot keys to the users home directory, and then exit")
                 .exclusive(true)
-                .display_order(16)
+                .display_order(15)
         )
         .get_matches()
 }

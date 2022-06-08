@@ -26,7 +26,9 @@ use crate::display::display_exec;
 use crate::interactive::SelectionCandidate;
 use crate::lookup::get_versions_set;
 use crate::utility::httm_is_dir;
-use crate::{BasicDirEntryInfo, Config, DeletedMode, ExecMode, HttmError, PathData};
+use crate::{
+    BasicDirEntryInfo, Config, DeletedMode, ExecMode, HttmError, PathData, ZFS_HIDDEN_DIRECTORY,
+};
 
 pub fn display_recursive_wrapper(
     config: &Config,
@@ -151,7 +153,7 @@ fn enumerate_live_versions(
 }
 
 fn get_entries_partitioned(
-    config: Arc<Config>,
+    _config: Arc<Config>,
     requested_dir: &Path,
 ) -> Result<
     (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>),
@@ -164,11 +166,7 @@ fn get_entries_partitioned(
         // never check the hidden snapshot directory for live files (duh)
         // didn't think this was possible until I saw a SMB share return
         // a .zfs dir entry
-        .filter(|dir_entry| {
-            config.filesystem_info.hidden_dir.is_none()
-                || dir_entry.file_name().as_os_str()
-                    != OsStr::new(config.filesystem_info.hidden_dir.as_ref().unwrap())
-        })
+        .filter(|dir_entry| dir_entry.file_name().as_os_str() != OsStr::new(ZFS_HIDDEN_DIRECTORY))
         // checking file_type on dir entries is always preferable
         // as it is much faster than a metadata call on the path
         .map(|dir_entry| BasicDirEntryInfo {
