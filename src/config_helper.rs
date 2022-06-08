@@ -109,13 +109,13 @@ pub fn get_filesystems_list() -> Result<
     ),
     Box<dyn std::error::Error + Send + Sync + 'static>,
 > {
-    let res = if cfg!(target_os = "linux") {
+    let (mount_collection, map_of_snaps) = if cfg!(target_os = "linux") {
         parse_from_proc_mounts()?
     } else {
         (parse_from_mount_cmd()?, None)
     };
 
-    Ok(res)
+    Ok((mount_collection, map_of_snaps))
 }
 
 // both faster and necessary for certain btrfs features
