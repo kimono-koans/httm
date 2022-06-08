@@ -224,9 +224,9 @@ pub fn precompute_btrfs_snap_mounts(
             .filter_map(|line| line.split_once(&"path "))
             .map(|(_first, last)| last)
             .map(|snapshot_location| {
-                let snap_path = PathBuf::from(snapshot_location);
+                let snap_path = Path::new(snapshot_location);
                 if snap_path.is_absolute() {
-                    snap_path
+                    snap_path.to_path_buf()
                 } else {
                     mount_point_path.to_path_buf().join(snap_path)
                 }
