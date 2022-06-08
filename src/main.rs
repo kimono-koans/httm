@@ -34,18 +34,18 @@ use rayon::prelude::*;
 
 use crate::display::display_exec;
 use crate::interactive::interactive_exec;
-use crate::lookup::get_versions_set;
 use crate::parse_mounts::{get_filesystems_list, precompute_alt_replicated};
 use crate::process_dirs::display_recursive_wrapper;
 use crate::utility::{httm_is_dir, install_hot_keys, read_stdin};
+use crate::versions_lookup::get_versions_set;
 
-mod deleted;
+mod deleted_lookup;
 mod display;
 mod interactive;
-mod lookup;
 mod parse_mounts;
 mod process_dirs;
 mod utility;
+mod versions_lookup;
 
 pub const ZFS_FSTYPE: &str = "zfs";
 pub const BTRFS_FSTYPE: &str = "btrfs";

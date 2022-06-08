@@ -23,9 +23,9 @@ use lscolors::Colorable;
 use skim::prelude::*;
 
 use crate::display::display_exec;
-use crate::lookup::get_versions_set;
 use crate::process_dirs::recursive_exec;
 use crate::utility::{copy_recursive, paint_string, timestamp_file};
+use crate::versions_lookup::get_versions_set;
 use crate::{Config, DeletedMode, ExecMode, HttmError, InteractiveMode, PathData};
 
 // these represent to items ready for selection and preview

@@ -20,7 +20,7 @@ use std::{ffi::OsString, fs::read_dir, path::Path};
 use fxhash::FxHashMap as HashMap;
 use itertools::Itertools;
 
-use crate::lookup::{get_search_bundle, NativeDatasetType, SearchBundle};
+use crate::versions_lookup::{get_search_bundle, NativeDatasetType, SearchBundle};
 use crate::{BasicDirEntryInfo, Config, PathData, SnapPoint};
 
 pub fn get_unique_deleted(
@@ -145,6 +145,8 @@ pub fn get_deleted_per_dataset(
 
     let unique_snap_filenames: HashMap<OsString, BasicDirEntryInfo> = match &config.snap_point {
         SnapPoint::Native(native_datasets) => match native_datasets.map_of_snaps {
+            // Do we have a map_of snaps? If so, get_search_bundle function has already prepared the ones
+            // we actually need for this dataset so we can skip the unwrap.
             Some(_) => match search_bundle.snapshot_mounts.as_ref() {
                 Some(snap_mounts) => snap_mounts
                     .iter()

@@ -311,6 +311,8 @@ fn get_versions_per_dataset(
 
     let unique_versions: HashMap<(SystemTime, u64), PathData> = match &config.snap_point {
         SnapPoint::Native(native_datasets) => match native_datasets.map_of_snaps {
+            // Do we have a map_of snaps? If so, get_search_bundle function has already prepared the ones
+            // we actually need for this dataset so we can skip the unwrap.
             Some(_) => match search_bundle.snapshot_mounts.as_ref() {
                 Some(snap_mounts) => snap_mounts
                     .iter()

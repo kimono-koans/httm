@@ -21,11 +21,11 @@ use indicatif::ProgressBar;
 use rayon::{prelude::*, Scope};
 use skim::prelude::*;
 
-use crate::deleted::get_unique_deleted;
+use crate::deleted_lookup::get_unique_deleted;
 use crate::display::display_exec;
 use crate::interactive::SelectionCandidate;
-use crate::lookup::get_versions_set;
 use crate::utility::httm_is_dir;
+use crate::versions_lookup::get_versions_set;
 use crate::{
     BasicDirEntryInfo, Config, DeletedMode, ExecMode, HttmError, PathData,
     BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_HIDDEN_DIRECTORY,
