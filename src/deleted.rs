@@ -20,7 +20,7 @@ use std::{ffi::OsString, fs::read_dir, path::Path};
 use fxhash::FxHashMap as HashMap;
 use itertools::Itertools;
 
-use crate::lookup::{get_search_dirs, NativeDatasetType, SearchBundle};
+use crate::lookup::{get_search_bundle, NativeDatasetType, SearchBundle};
 use crate::{BasicDirEntryInfo, Config, PathData, SnapPoint};
 
 pub fn get_unique_deleted(
@@ -51,11 +51,11 @@ pub fn get_unique_deleted(
         .flat_map(|pathdata| {
             selected_datasets
                 .iter()
-                .flat_map(|dataset_type| get_search_dirs(config, pathdata, dataset_type))
+                .flat_map(|dataset_type| get_search_bundle(config, pathdata, dataset_type))
         })
         .flatten()
-        .flat_map(|search_dirs| {
-            get_deleted_per_dataset(config, &requested_dir_pathdata.path_buf, &search_dirs)
+        .flat_map(|search_bundle| {
+            get_deleted_per_dataset(config, &requested_dir_pathdata.path_buf, &search_bundle)
         })
         .flatten()
         .filter_map(
@@ -92,7 +92,7 @@ pub fn get_unique_deleted(
 pub fn get_deleted_per_dataset(
     config: &Config,
     requested_dir: &Path,
-    search_dirs: &SearchBundle,
+    search_bundle: &SearchBundle,
 ) -> Result<Vec<BasicDirEntryInfo>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // get all local entries we need to compare against these to know
     // what is a deleted file
@@ -145,10 +145,10 @@ pub fn get_deleted_per_dataset(
 
     let unique_snap_filenames: HashMap<OsString, BasicDirEntryInfo> = match &config.snap_point {
         SnapPoint::Native(native_datasets) => match native_datasets.map_of_snaps {
-            Some(_) => match search_dirs.snapshot_mounts.as_ref() {
+            Some(_) => match search_bundle.snapshot_mounts.as_ref() {
                 Some(snap_mounts) => snap_mounts
                     .iter()
-                    .map(|path| path.join(&search_dirs.relative_path))
+                    .map(|path| path.join(&search_bundle.relative_path))
                     .flat_map(|path| read_dir(&path))
                     .flatten()
                     .flatten()
@@ -164,16 +164,17 @@ pub fn get_deleted_per_dataset(
                     })
                     .collect(),
                 None => read_dir_for_snap_filenames(
-                    &search_dirs.snapshot_dir,
-                    &search_dirs.relative_path,
+                    &search_bundle.snapshot_dir,
+                    &search_bundle.relative_path,
                 )?,
             },
-            None => {
-                read_dir_for_snap_filenames(&search_dirs.snapshot_dir, &search_dirs.relative_path)?
-            }
+            None => read_dir_for_snap_filenames(
+                &search_bundle.snapshot_dir,
+                &search_bundle.relative_path,
+            )?,
         },
         SnapPoint::UserDefined(_) => {
-            read_dir_for_snap_filenames(&search_dirs.snapshot_dir, &search_dirs.relative_path)?
+            read_dir_for_snap_filenames(&search_bundle.snapshot_dir, &search_bundle.relative_path)?
         }
     };
 

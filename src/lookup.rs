@@ -86,19 +86,19 @@ fn get_all_snap_versions(
         .map(|path_data| {
             selected_datasets
                 .par_iter()
-                .map(|dataset_type| get_search_dirs(config, path_data, dataset_type))
+                .map(|dataset_type| get_search_bundle(config, path_data, dataset_type))
                 .flatten()
         })
         .flatten()
         .flatten()
-        .flat_map(|search_dirs| get_versions_per_dataset(config, &search_dirs))
+        .flat_map(|search_bundle| get_versions_per_dataset(config, &search_bundle))
         .flatten()
         .collect();
 
     Ok(all_snap_versions)
 }
 
-pub fn get_search_dirs(
+pub fn get_search_bundle(
     config: &Config,
     file_pathdata: &PathData,
     requested_dataset_type: &NativeDatasetType,
@@ -280,14 +280,14 @@ pub fn get_alt_replicated_dataset(
 
 fn get_versions_per_dataset(
     config: &Config,
-    search_dirs: &SearchBundle,
+    search_bundle: &SearchBundle,
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // get the DirEntry for our snapshot path which will have all our possible
     // snapshots, like so: .zfs/snapshots/<some snap name>/
     //
     // hashmap will then remove duplicates with the same system modify time and size/file len
 
-    let snapshot_dir = search_dirs.snapshot_dir.clone();
+    let snapshot_dir = search_bundle.snapshot_dir.clone();
 
     fn read_dir_for_datasets(
         snapshot_dir: &Path,
@@ -311,20 +311,20 @@ fn get_versions_per_dataset(
 
     let unique_versions: HashMap<(SystemTime, u64), PathData> = match &config.snap_point {
         SnapPoint::Native(native_datasets) => match native_datasets.map_of_snaps {
-            Some(_) => match search_dirs.snapshot_mounts.as_ref() {
+            Some(_) => match search_bundle.snapshot_mounts.as_ref() {
                 Some(snap_mounts) => snap_mounts
                     .iter()
-                    .map(|path| path.join(&search_dirs.relative_path))
+                    .map(|path| path.join(&search_bundle.relative_path))
                     .map(|path| PathData::from(path.as_path()))
                     .filter(|pathdata| !pathdata.is_phantom)
                     .map(|pathdata| ((pathdata.system_time, pathdata.size), pathdata))
                     .collect(),
-                None => read_dir_for_datasets(&snapshot_dir, &search_dirs.relative_path)?,
+                None => read_dir_for_datasets(&snapshot_dir, &search_bundle.relative_path)?,
             },
-            None => read_dir_for_datasets(&snapshot_dir, &search_dirs.relative_path)?,
+            None => read_dir_for_datasets(&snapshot_dir, &search_bundle.relative_path)?,
         },
         SnapPoint::UserDefined(_) => {
-            read_dir_for_datasets(&snapshot_dir, &search_dirs.relative_path)?
+            read_dir_for_datasets(&snapshot_dir, &search_bundle.relative_path)?
         }
     };
 
