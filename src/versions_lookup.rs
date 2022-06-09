@@ -26,6 +26,11 @@ use rayon::prelude::*;
 
 use crate::{Config, FilesystemType, HttmError, PathData, SnapPoint, ZFS_SNAPSHOT_DIRECTORY};
 
+pub struct DatasetsForSearch {
+    pub immediate_dataset_mount: PathBuf,
+    pub datasets_of_interest: Vec<PathBuf>,
+}
+
 #[derive(Debug, Clone)]
 pub enum NativeDatasetType {
     MostImmediate,
@@ -116,30 +121,37 @@ pub fn get_search_bundle(
     // will compare the most immediate dataset to our our canonical path and the difference
     // between ZFS mount point and the canonical path is the path we will use to search the
     // hidden snapshot dirs
-    let dataset_collection: Vec<(PathBuf, PathBuf)> = match &config.snap_point {
-        SnapPoint::UserDefined(defined_dirs) => vec![(
-            defined_dirs.snap_dir.to_owned(),
-            defined_dirs.snap_dir.to_owned(),
-        )],
+
+    let dataset_collection: DatasetsForSearch = match &config.snap_point {
+        SnapPoint::UserDefined(defined_dirs) => DatasetsForSearch {
+            immediate_dataset_mount: defined_dirs.snap_dir.to_owned(),
+            datasets_of_interest: vec![defined_dirs.snap_dir.to_owned()],
+        },
         SnapPoint::Native(native_datasets) => {
             let immediate_dataset_mount =
-                get_immediate_dataset(file_pathdata, &native_datasets.mounts_and_datasets)?;
+                get_immediate_dataset(file_pathdata, &native_datasets.map_of_datasets)?;
             match requested_dataset_type {
                 NativeDatasetType::MostImmediate => {
                     // just return the same dataset when in most immediate mode
-                    vec![(immediate_dataset_mount.clone(), immediate_dataset_mount)]
+                    DatasetsForSearch {
+                        immediate_dataset_mount: immediate_dataset_mount.clone(),
+                        datasets_of_interest: vec![immediate_dataset_mount],
+                    }
                 }
                 NativeDatasetType::AltReplicated => match &native_datasets.map_of_alts {
-                    Some(map_of_alts) => match &map_of_alts.get(&immediate_dataset_mount) {
-                        Some(alt_for_immediate) => alt_for_immediate.to_owned().to_owned(),
-                        None => get_alt_replicated_dataset(
-                            &immediate_dataset_mount,
-                            &native_datasets.mounts_and_datasets,
+                    Some(map_of_alts) => match map_of_alts.get(&immediate_dataset_mount) {
+                        Some(alternate_mounts) => DatasetsForSearch {
+                            immediate_dataset_mount: immediate_dataset_mount.to_owned(),
+                            datasets_of_interest: alternate_mounts.to_owned(),
+                        },
+                        None => get_alt_replicated_datasets(
+                            immediate_dataset_mount.as_path(),
+                            &native_datasets.map_of_datasets,
                         )?,
                     },
-                    None => get_alt_replicated_dataset(
-                        &immediate_dataset_mount,
-                        &native_datasets.mounts_and_datasets,
+                    None => get_alt_replicated_datasets(
+                        immediate_dataset_mount.as_path(),
+                        &native_datasets.map_of_datasets,
                     )?,
                 },
             }
@@ -147,12 +159,16 @@ pub fn get_search_bundle(
     };
 
     dataset_collection
+        .datasets_of_interest
         .par_iter()
-        .map(|(dataset_of_interest, immediate_dataset_snap_mount)| {
+        .map(|dataset_of_interest| {
             // building our relative path by removing parent below the snap dir
             //
             // for native searches the prefix is are the dirs below the most immediate dataset
             // for user specified dirs these are specified by the user
+
+            let immediate_dataset_mount = &dataset_collection.immediate_dataset_mount;
+
             let (snapshot_dir, relative_path, snapshot_mounts) = match &config.snap_point {
                 SnapPoint::UserDefined(defined_dirs) => {
                     let snapshot_dir = match &defined_dirs.fstype {
@@ -174,7 +190,7 @@ pub fn get_search_bundle(
 
                     // building the snapshot path from our dataset
                     let snapshot_dir = match &native_datasets
-                        .mounts_and_datasets
+                        .map_of_datasets
                         .get(dataset_of_interest)
                     {
                         Some((_, fstype)) => match fstype {
@@ -186,7 +202,7 @@ pub fn get_search_bundle(
 
                     let relative_path = file_pathdata
                         .path_buf
-                        .strip_prefix(&immediate_dataset_snap_mount)?
+                        .strip_prefix(&immediate_dataset_mount)?
                         .to_path_buf();
 
                     let snapshot_mounts = match &native_datasets.map_of_snaps {
@@ -248,10 +264,10 @@ fn get_immediate_dataset(
     Ok(best_potential_mountpoint)
 }
 
-pub fn get_alt_replicated_dataset(
+pub fn get_alt_replicated_datasets(
     immediate_dataset_mount: &Path,
     mount_collection: &HashMap<PathBuf, (String, FilesystemType)>,
-) -> Result<Vec<(PathBuf, PathBuf)>, Box<dyn std::error::Error + Send + Sync + 'static>> {
+) -> Result<DatasetsForSearch, Box<dyn std::error::Error + Send + Sync + 'static>> {
     let immediate_dataset_fs_name = match &mount_collection.get(immediate_dataset_mount) {
         Some((immediate_dataset_fs_name, _)) => immediate_dataset_fs_name.to_string(),
         None => {
@@ -276,16 +292,14 @@ pub fn get_alt_replicated_dataset(
         Err(HttmError::new("httm was unable to detect an alternate replicated mount point.  Perhaps the replicated filesystem is not mounted?").into())
     } else {
         alt_replicated_mounts.sort_unstable_by_key(|path| path.as_os_str().len());
-        let res = alt_replicated_mounts
+        let datasets_of_interest = alt_replicated_mounts
             .into_iter()
-            .map(|alt_replicated_mount| {
-                (
-                    alt_replicated_mount.to_owned(),
-                    immediate_dataset_mount.to_path_buf(),
-                )
-            })
+            .map(|alt| alt.to_owned())
             .collect();
-        Ok(res)
+        Ok(DatasetsForSearch {
+            immediate_dataset_mount: immediate_dataset_mount.to_owned(),
+            datasets_of_interest,
+        })
     }
 }
 

@@ -200,8 +200,11 @@ enum SnapPoint {
 
 #[derive(Debug, Clone)]
 pub struct NativeDatasets {
-    mounts_and_datasets: HashMap<PathBuf, (String, FilesystemType)>,
-    map_of_alts: Option<HashMap<PathBuf, Vec<(PathBuf, PathBuf)>>>,
+    // key: mount, val: (dataset/subvol, fstype)
+    map_of_datasets: HashMap<PathBuf, (String, FilesystemType)>,
+    // key: mount, val: alt dataset
+    map_of_alts: Option<HashMap<PathBuf, Vec<PathBuf>>>,
+    // key: mount, val: snap locations on disk (e.g. /.zfs/snapshot/snap_8a86e4fc_prepApt/home)
     map_of_snaps: Option<HashMap<PathBuf, Vec<PathBuf>>>,
 }
 
@@ -360,11 +363,11 @@ impl Config {
                 }),
             )
         } else {
-            let (mounts_and_datasets, map_of_snaps) = get_filesystems_list()?;
+            let (map_of_datasets, map_of_snaps) = get_filesystems_list()?;
 
             let map_of_alts =
                 if matches.is_present("ALT_REPLICATED") && exec_mode != ExecMode::Display {
-                    Some(precompute_alt_replicated(&mounts_and_datasets))
+                    Some(precompute_alt_replicated(&map_of_datasets))
                 } else {
                     None
                 };
@@ -372,7 +375,7 @@ impl Config {
             (
                 matches.is_present("ALT_REPLICATED"),
                 SnapPoint::Native(NativeDatasets {
-                    mounts_and_datasets,
+                    map_of_datasets,
                     map_of_alts,
                     map_of_snaps,
                 }),

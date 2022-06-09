@@ -22,7 +22,7 @@ use proc_mounts::MountIter;
 use rayon::prelude::*;
 use which::which;
 
-use crate::versions_lookup::get_alt_replicated_dataset;
+use crate::versions_lookup::get_alt_replicated_datasets;
 use crate::{FilesystemType, HttmError, BTRFS_FSTYPE, ZFS_FSTYPE, ZFS_SNAPSHOT_DIRECTORY};
 
 #[allow(clippy::type_complexity)]
@@ -189,14 +189,17 @@ fn parse_from_mount_cmd() -> Result<
 
 pub fn precompute_alt_replicated(
     mount_collection: &HashMap<PathBuf, (String, FilesystemType)>,
-) -> HashMap<PathBuf, Vec<(PathBuf, PathBuf)>> {
+) -> HashMap<PathBuf, Vec<PathBuf>> {
     mount_collection
         .par_iter()
         .filter_map(|(mount, (_dataset, _fstype))| {
-            match get_alt_replicated_dataset(mount, mount_collection) {
-                Ok(alt_dataset) => Some((mount.to_owned(), alt_dataset)),
-                Err(_err) => None,
-            }
+            get_alt_replicated_datasets(mount, mount_collection).ok()
+        })
+        .map(|dataset_collection| {
+            (
+                dataset_collection.immediate_dataset_mount,
+                dataset_collection.datasets_of_interest,
+            )
         })
         .collect()
 }
