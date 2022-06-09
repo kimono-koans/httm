@@ -23,10 +23,7 @@ use rayon::prelude::*;
 use which::which;
 
 use crate::versions_lookup::get_alt_replicated_datasets;
-use crate::{
-    FilesystemType, HttmError, BTRFS_FSTYPE, ZFS_FSTYPE,
-    ZFS_SNAPSHOT_DIRECTORY,
-};
+use crate::{FilesystemType, HttmError, BTRFS_FSTYPE, ZFS_FSTYPE, ZFS_SNAPSHOT_DIRECTORY};
 
 #[allow(clippy::type_complexity)]
 pub fn get_filesystems_list() -> Result<

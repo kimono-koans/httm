@@ -340,7 +340,7 @@ fn get_versions_per_dataset(
             // we actually need for this dataset so we can skip the unwrap.
             Some(_) => match search_bundle.snapshot_mounts.as_ref() {
                 Some(snap_mounts) => snap_mounts
-                    .iter()
+                    .par_iter()
                     .map(|path| path.join(&search_bundle.relative_path))
                     .map(|path| PathData::from(path.as_path()))
                     .filter(|pathdata| !pathdata.is_phantom)
