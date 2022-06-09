@@ -10,6 +10,27 @@ categories = [ "command-line-utilities",  "os" ]
 license = "MPL-2.0"
 documentation = "https://github.com/kimono-koans/httm/blob/master/README.md"
 
+[badges]
+maintenance = { status = "actively-developed" }
+
+[profile.release]
+strip = true
+
+[dependencies]
+clap = { version = "3.1", features = ["cargo"]}
+chrono = "0.4.19"
+number_prefix = "0.4.0"
+fxhash = "0.2.1"
+skim = "0.9.4"
+lscolors = "0.10.0"
+terminal_size = "0.1.17"
+which = "4.2.4"
+rayon = "1.5.1"
+itertools = "0.10.3"
+indicatif = "0.16.2"
+lazy_static = "1.4.0"
+proc-mounts = "0.3.0"
+
 [package.metadata.deb]
 maintainer = "kimono koans <https://github.com/kimono-koans/>"
 copyright = "2022, Robert Swinford <robert.swinford<...at...>gmail.com>"
@@ -26,21 +47,3 @@ assets = [
     ["httm.1", "usr/share/man/man1/", "644"],
     ["README.md", "usr/share/doc/httm/README", "644"],
 ]
-
-[badges]
-maintenance = { status = "actively-developed" }
-
-[dependencies]
-clap = { version = "3.1", features = ["cargo"]}
-chrono = "0.4.19"
-number_prefix = "0.4.0"
-fxhash = "0.2.1"
-skim = "0.9.4"
-lscolors = "0.10.0"
-terminal_size = "0.1.17"
-which = "4.2.4"
-rayon = "1.5.1"
-itertools = "0.10.3"
-indicatif = "0.16.2"
-lazy_static = "1.4.0"
-proc-mounts = "0.3.0"
