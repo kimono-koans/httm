@@ -155,7 +155,10 @@ pub fn get_search_bundle(
             // for user specified dirs these are specified by the user
             let (snapshot_dir, relative_path, snapshot_mounts) = match &config.snap_point {
                 SnapPoint::UserDefined(defined_dirs) => (
-                    dataset_of_interest.join(ZFS_SNAPSHOT_DIRECTORY),
+                    match &defined_dirs.fstype {
+                        FilesystemType::Zfs => dataset_of_interest.join(ZFS_SNAPSHOT_DIRECTORY),
+                        FilesystemType::Btrfs => dataset_of_interest.to_path_buf(),
+                    },
                     file_pathdata
                         .path_buf
                         .strip_prefix(&defined_dirs.local_dir)?

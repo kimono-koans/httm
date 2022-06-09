@@ -209,6 +209,7 @@ pub struct NativeDatasets {
 pub struct UserDefinedDirs {
     snap_dir: PathBuf,
     local_dir: PathBuf,
+    fstype: FilesystemType,
 }
 
 #[derive(Debug, Clone)]
@@ -316,15 +317,13 @@ impl Config {
             }
 
             // user defined dir exists?: check that path contains the hidden snapshot directory
-            let path = PathBuf::from(raw_value);
+            let snap_dir = PathBuf::from(raw_value);
 
             // little sanity check -- make sure the user defined snap dir exist
-            let snap_dir = if path.join(ZFS_SNAPSHOT_DIRECTORY).metadata().is_ok() {
-                path
+            let fstype = if snap_dir.join(ZFS_SNAPSHOT_DIRECTORY).metadata().is_ok() {
+                FilesystemType::Zfs
             } else {
-                return Err(HttmError::new(
-                    "Manually set mountpoint does not contain a hidden snapshot directory.  Please mount a directory there or try another mountpoint.",
-                ).into());
+                FilesystemType::Btrfs
             };
 
             // has the user has defined a corresponding local relative directory?
@@ -357,6 +356,7 @@ impl Config {
                 SnapPoint::UserDefined(UserDefinedDirs {
                     snap_dir,
                     local_dir,
+                    fstype,
                 }),
             )
         } else {
