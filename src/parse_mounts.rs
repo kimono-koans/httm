@@ -23,7 +23,10 @@ use rayon::prelude::*;
 use which::which;
 
 use crate::versions_lookup::get_alt_replicated_datasets;
-use crate::{FilesystemType, HttmError, BTRFS_FSTYPE, ZFS_FSTYPE, ZFS_SNAPSHOT_DIRECTORY};
+use crate::{
+    FilesystemType, HttmError, BTRFS_FSTYPE, BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_FSTYPE,
+    ZFS_SNAPSHOT_DIRECTORY,
+};
 
 #[allow(clippy::type_complexity)]
 pub fn get_filesystems_list() -> Result<
@@ -65,6 +68,10 @@ fn parse_from_proc_mounts() -> Result<
                 .dest
                 .to_string_lossy()
                 .contains(ZFS_SNAPSHOT_DIRECTORY)
+                && !mount_info
+                    .dest
+                    .to_string_lossy()
+                    .contains(BTRFS_SNAPPER_HIDDEN_DIRECTORY)
         })
         .map(|mount_info| match &mount_info.fstype {
             fs if fs == ZFS_FSTYPE => (

@@ -121,7 +121,6 @@ pub fn get_search_bundle(
     // will compare the most immediate dataset to our our canonical path and the difference
     // between ZFS mount point and the canonical path is the path we will use to search the
     // hidden snapshot dirs
-
     let dataset_collection: DatasetsForSearch = match &config.snap_point {
         SnapPoint::UserDefined(defined_dirs) => DatasetsForSearch {
             immediate_dataset_mount: defined_dirs.snap_dir.to_owned(),
@@ -141,7 +140,7 @@ pub fn get_search_bundle(
                 NativeDatasetType::AltReplicated => match &native_datasets.map_of_alts {
                     Some(map_of_alts) => match map_of_alts.get(&immediate_dataset_mount) {
                         Some(alternate_mounts) => DatasetsForSearch {
-                            immediate_dataset_mount: immediate_dataset_mount.to_owned(),
+                            immediate_dataset_mount: immediate_dataset_mount.clone(),
                             datasets_of_interest: alternate_mounts.to_owned(),
                         },
                         None => get_alt_replicated_datasets(
@@ -314,6 +313,7 @@ fn get_versions_per_dataset(
 
     let snapshot_dir = search_bundle.snapshot_dir.clone();
 
+    // this is the fallback/non-Linux way of handling without a map_of_snaps
     fn read_dir_for_datasets(
         snapshot_dir: &Path,
         relative_path: &Path,
