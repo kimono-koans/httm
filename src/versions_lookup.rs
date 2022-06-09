@@ -154,41 +154,49 @@ pub fn get_search_bundle(
             // for native searches the prefix is are the dirs below the most immediate dataset
             // for user specified dirs these are specified by the user
             let (snapshot_dir, relative_path, snapshot_mounts) = match &config.snap_point {
-                SnapPoint::UserDefined(defined_dirs) => (
-                    match &defined_dirs.fstype {
+                SnapPoint::UserDefined(defined_dirs) => {
+                    let snapshot_dir = match &defined_dirs.fstype {
                         FilesystemType::Zfs => dataset_of_interest.join(ZFS_SNAPSHOT_DIRECTORY),
                         FilesystemType::Btrfs => dataset_of_interest.to_path_buf(),
-                    },
-                    file_pathdata
+                    };
+
+                    let relative_path = file_pathdata
                         .path_buf
                         .strip_prefix(&defined_dirs.local_dir)?
-                        .to_path_buf(),
-                    None,
-                ),
+                        .to_path_buf();
+
+                    let snapshot_mounts = None;
+
+                    (snapshot_dir, relative_path, snapshot_mounts)
+                }
                 SnapPoint::Native(native_datasets) => {
                     // this prefix removal is why we always need the immediate dataset name, even when we are searching an alternate replicated filesystem
-                    (
-                        // building the snapshot path from our dataset
-                        match &native_datasets.mounts_and_datasets.get(dataset_of_interest) {
-                            Some((_, fstype)) => match fstype {
-                                FilesystemType::Zfs => {
-                                    dataset_of_interest.join(ZFS_SNAPSHOT_DIRECTORY)
-                                }
-                                FilesystemType::Btrfs => dataset_of_interest.to_path_buf(),
-                            },
-                            None => dataset_of_interest.join(ZFS_SNAPSHOT_DIRECTORY),
+
+                    // building the snapshot path from our dataset
+                    let snapshot_dir = match &native_datasets
+                        .mounts_and_datasets
+                        .get(dataset_of_interest)
+                    {
+                        Some((_, fstype)) => match fstype {
+                            FilesystemType::Zfs => dataset_of_interest.join(ZFS_SNAPSHOT_DIRECTORY),
+                            FilesystemType::Btrfs => dataset_of_interest.to_path_buf(),
                         },
-                        file_pathdata
-                            .path_buf
-                            .strip_prefix(&immediate_dataset_snap_mount)?
-                            .to_path_buf(),
-                        match &native_datasets.map_of_snaps {
-                            Some(map_of_snaps) => {
-                                map_of_snaps.get(dataset_of_interest).map(|t| t.to_owned())
-                            }
-                            None => None,
-                        },
-                    )
+                        None => dataset_of_interest.join(ZFS_SNAPSHOT_DIRECTORY),
+                    };
+
+                    let relative_path = file_pathdata
+                        .path_buf
+                        .strip_prefix(&immediate_dataset_snap_mount)?
+                        .to_path_buf();
+
+                    let snapshot_mounts = match &native_datasets.map_of_snaps {
+                        Some(map_of_snaps) => {
+                            map_of_snaps.get(dataset_of_interest).map(|t| t.to_owned())
+                        }
+                        None => None,
+                    };
+
+                    (snapshot_dir, relative_path, snapshot_mounts)
                 }
             };
 
