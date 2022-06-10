@@ -226,14 +226,7 @@ pub fn precompute_btrfs_snap_mounts(
             .par_lines()
             .filter_map(|line| line.split_once(&"<FS_TREE>/"))
             .map(|(_first, last)| last)
-            .map(|snapshot_location| {
-                let snap_path = Path::new(snapshot_location);
-                if snap_path.is_absolute() {
-                    snap_path.to_path_buf()
-                } else {
-                    mount_point_path.to_path_buf().join(snap_path)
-                }
-            })
+            .map(|snapshot_location| mount_point_path.to_path_buf().join(snapshot_location))
             .filter(|snapshot_location| snapshot_location.exists())
             .collect();
 
