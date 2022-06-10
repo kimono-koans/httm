@@ -215,7 +215,7 @@ pub fn precompute_btrfs_snap_mounts(
     ) -> Result<Vec<PathBuf>, Box<dyn std::error::Error + Send + Sync + 'static>> {
         let exec_command = btrfs_command;
         let arg_path = mount_point_path.to_string_lossy();
-        let args = vec!["subvolume", "list", "-s", &arg_path];
+        let args = vec!["subvolume", "list", "-a", "-s", &arg_path];
 
         let command_output =
             std::str::from_utf8(&ExecProcess::new(exec_command).args(&args).output()?.stdout)?
@@ -224,7 +224,7 @@ pub fn precompute_btrfs_snap_mounts(
         // parse "mount" for filesystems and mountpoints
         let snapshot_locations: Vec<PathBuf> = command_output
             .par_lines()
-            .filter_map(|line| line.split_once(&"path "))
+            .filter_map(|line| line.split_once(&"<FS_TREE>/"))
             .map(|(_first, last)| last)
             .map(|snapshot_location| {
                 let snap_path = Path::new(snapshot_location);
