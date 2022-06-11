@@ -205,6 +205,6 @@ fn display_human_size(pathdata: &PathData) -> String {
 }
 
 fn display_date(system_time: &SystemTime) -> String {
-    let date_time: DateTime<Local> = system_time.to_owned().into();
+    let date_time: DateTime<Local> = (*system_time).into();
     format!("{}", date_time.format("%a %b %e %H:%M:%S %Y"))
 }

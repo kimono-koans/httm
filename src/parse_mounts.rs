@@ -120,7 +120,7 @@ pub fn precompute_snap_mounts(
             };
 
             match snap_mounts {
-                Ok(snap_mounts) => Some((mount.to_owned(), snap_mounts)),
+                Ok(snap_mounts) => Some((mount.clone(), snap_mounts)),
                 Err(_) => None,
             }
         })

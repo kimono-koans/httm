@@ -72,10 +72,10 @@ impl SelectionCandidate {
             exec_mode: ExecMode::Display,
             deleted_mode: DeletedMode::Disabled,
             interactive_mode: InteractiveMode::None,
-            opt_alt_replicated: config.opt_alt_replicated.to_owned(),
-            snap_point: config.snap_point.to_owned(),
-            pwd: config.pwd.to_owned(),
-            requested_dir: config.requested_dir.to_owned(),
+            opt_alt_replicated: config.opt_alt_replicated,
+            snap_point: config.snap_point.clone(),
+            pwd: config.pwd.clone(),
+            requested_dir: config.requested_dir.clone(),
         };
 
         // finally run search on those paths
@@ -89,10 +89,10 @@ impl SelectionCandidate {
 
 impl Colorable for &SelectionCandidate {
     fn path(&self) -> PathBuf {
-        self.path.to_owned()
+        self.path.clone()
     }
     fn file_name(&self) -> std::ffi::OsString {
-        self.file_name.to_owned()
+        self.file_name.clone()
     }
     fn file_type(&self) -> Option<FileType> {
         self.file_type
@@ -146,7 +146,7 @@ pub fn interactive_exec(
             // and we are in the appropriate mode Select or Restore, see struct Config
             match config.paths.get(0) {
                 Some(first_path) => {
-                    let selected_file = first_path.to_owned();
+                    let selected_file = first_path.clone();
                     interactive_select(config, &vec![selected_file])?;
                     // interactive select never returns so unreachable here
                     unreachable!()
