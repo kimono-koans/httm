@@ -63,7 +63,7 @@ pub fn get_versions_set(
 
     // create vec of live copies - unless user doesn't want it!
     let live_versions: Vec<PathData> = if !config.opt_no_live_vers {
-        pathdata.to_owned()
+        pathdata.clone()
     } else {
         Vec::new()
     };
@@ -123,8 +123,8 @@ pub fn get_search_bundle(
     // hidden snapshot dirs
     let dataset_collection: DatasetsForSearch = match &config.snap_point {
         SnapPoint::UserDefined(defined_dirs) => DatasetsForSearch {
-            immediate_dataset_mount: defined_dirs.snap_dir.to_owned(),
-            datasets_of_interest: vec![defined_dirs.snap_dir.to_owned()],
+            immediate_dataset_mount: defined_dirs.snap_dir.clone(),
+            datasets_of_interest: vec![defined_dirs.snap_dir.clone()],
         },
         SnapPoint::Native(native_datasets) => {
             let immediate_dataset_mount =
@@ -141,7 +141,7 @@ pub fn get_search_bundle(
                     Some(map_of_alts) => match map_of_alts.get(&immediate_dataset_mount) {
                         Some(alternate_mounts) => DatasetsForSearch {
                             immediate_dataset_mount: immediate_dataset_mount.clone(),
-                            datasets_of_interest: alternate_mounts.to_owned(),
+                            datasets_of_interest: alternate_mounts.clone(),
                         },
                         None => get_alt_replicated_datasets(
                             immediate_dataset_mount.as_path(),
@@ -291,7 +291,7 @@ pub fn get_alt_replicated_datasets(
         alt_replicated_mounts.sort_unstable_by_key(|path| path.as_os_str().len());
         let datasets_of_interest = alt_replicated_mounts.into_iter().cloned().collect();
         Ok(DatasetsForSearch {
-            immediate_dataset_mount: immediate_dataset_mount.to_owned(),
+            immediate_dataset_mount: immediate_dataset_mount.to_path_buf(),
             datasets_of_interest,
         })
     }

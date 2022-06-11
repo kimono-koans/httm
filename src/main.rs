@@ -429,7 +429,7 @@ impl Config {
                         Some(pathdata) => {
                             // use our bespoke is_dir fn for determining whether a dir here see pub httm_is_dir
                             if httm_is_dir(pathdata) {
-                                Some(pathdata.to_owned())
+                                Some(pathdata.clone())
                             // and then we take all comers here because may be a deleted file that DNE on a live version
                             } else {
                                 match interactive_mode {
@@ -468,7 +468,7 @@ impl Config {
                 match paths.len() {
                     0 => Some(pwd.clone()),
                     1 => match paths.get(0) {
-                        Some(pathdata) if httm_is_dir(pathdata) => Some(pathdata.to_owned()),
+                        Some(pathdata) if httm_is_dir(pathdata) => Some(pathdata.clone()),
                         _ => {
                             exec_mode = ExecMode::Display;
                             deleted_mode = DeletedMode::Disabled;

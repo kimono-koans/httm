@@ -31,7 +31,7 @@ use crate::interactive::SelectionCandidate;
 use crate::{BasicDirEntryInfo, HttmError, PathData};
 
 pub fn timestamp_file(system_time: &SystemTime) -> String {
-    let date_time: DateTime<Local> = system_time.to_owned().into();
+    let date_time: DateTime<Local> = (*system_time).into();
     format!("{}", date_time.format("%b-%d-%Y-%H:%M:%S"))
 }
 
@@ -118,7 +118,7 @@ impl HttmIsDir for PathData {
         Ok(self.path_buf.metadata()?.file_type())
     }
     fn get_path(&self) -> PathBuf {
-        self.path_buf.to_owned()
+        self.path_buf.clone()
     }
 }
 
@@ -140,7 +140,7 @@ impl HttmIsDir for BasicDirEntryInfo {
             .ok_or_else(|| io::Error::from(io::ErrorKind::NotFound))
     }
     fn get_path(&self) -> PathBuf {
-        self.path.to_owned()
+        self.path.clone()
     }
 }
 
@@ -172,7 +172,7 @@ impl PaintString for &PathData {
     fn get_ansi_style(&self) -> Option<lscolors::style::Style> {
         let ls_colors = LsColors::from_env().unwrap_or_default();
         let style = ls_colors.style_for_path(self.path_buf.as_path());
-        style.map(|style| style.to_owned())
+        style.cloned()
     }
     fn get_is_phantom(&self) -> bool {
         self.is_phantom
@@ -183,7 +183,7 @@ impl PaintString for &SelectionCandidate {
     fn get_ansi_style(&self) -> Option<lscolors::style::Style> {
         let ls_colors = LsColors::from_env().unwrap_or_default();
         let style = ls_colors.style_for(self);
-        style.map(|style| style.to_owned())
+        style.cloned()
     }
     fn get_is_phantom(&self) -> bool {
         self.is_phantom

@@ -86,7 +86,7 @@ fn parse_from_proc_mounts() -> Result<
                     .collect();
 
                 let subvol = match keyed_options.get("subvol") {
-                    Some(subvol) => subvol.to_owned(),
+                    Some(subvol) => subvol.clone(),
                     None => mount_info.source.to_string_lossy().to_string(),
                 };
 
