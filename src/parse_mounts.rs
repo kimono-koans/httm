@@ -228,7 +228,11 @@ pub fn precompute_btrfs_snap_mounts(
             .map(|(_first, last)| last)
             .filter_map(|snap_path| {
                 if snap_path.contains("<FS_TREE>/") {
-                    snap_path.split_once(&"<FS_TREE>/").map(|(_first, absolute_path)| mount_point_path.to_path_buf().join(absolute_path))
+                    snap_path
+                        .split_once(&"<FS_TREE>/")
+                        .map(|(_first, absolute_path)| {
+                            mount_point_path.to_path_buf().join(absolute_path)
+                        })
                 } else {
                     Some(mount_point_path.to_path_buf().join(snap_path))
                 }
