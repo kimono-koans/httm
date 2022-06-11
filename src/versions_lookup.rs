@@ -205,9 +205,7 @@ pub fn get_search_bundle(
                         .to_path_buf();
 
                     let snapshot_mounts = match &native_datasets.map_of_snaps {
-                        Some(map_of_snaps) => {
-                            map_of_snaps.get(dataset_of_interest).map(|t| t.to_owned())
-                        }
+                        Some(map_of_snaps) => map_of_snaps.get(dataset_of_interest).cloned(),
                         None => None,
                     };
 
@@ -291,10 +289,7 @@ pub fn get_alt_replicated_datasets(
         Err(HttmError::new("httm was unable to detect an alternate replicated mount point.  Perhaps the replicated filesystem is not mounted?").into())
     } else {
         alt_replicated_mounts.sort_unstable_by_key(|path| path.as_os_str().len());
-        let datasets_of_interest = alt_replicated_mounts
-            .into_iter()
-            .map(|alt| alt.to_owned())
-            .collect();
+        let datasets_of_interest = alt_replicated_mounts.into_iter().cloned().collect();
         Ok(DatasetsForSearch {
             immediate_dataset_mount: immediate_dataset_mount.to_owned(),
             datasets_of_interest,
