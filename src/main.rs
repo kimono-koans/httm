@@ -323,6 +323,14 @@ impl Config {
             let snap_dir = PathBuf::from(raw_value);
 
             // little sanity check -- make sure the user defined snap dir exist
+            if snap_dir.metadata().is_err() {
+                return Err(HttmError::new(
+                    "Manually set snap point directory does not exist.  Perhaps it is not already mounted?",
+                )
+                .into());
+            }
+
+            // set fstype, known by whether there is a ZFS hidden snapshot dir in the root dir
             let fstype = if snap_dir.join(ZFS_SNAPSHOT_DIRECTORY).metadata().is_ok() {
                 FilesystemType::Zfs
             } else {
