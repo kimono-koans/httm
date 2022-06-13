@@ -245,8 +245,8 @@ pub fn precompute_btrfs_snap_mounts(
                 if let Some(fs_tree_path) = snap_path.strip_prefix("<FS_TREE>/") {
                     Some(root_mount_path.join(fs_tree_path))
                 } else {
-                    let snap_path_parsed: PathBuf =
-                        Path::new(snap_path).components().skip(1).collect();
+
+                    let snap_path_parsed: PathBuf = Path::new(snap_path).components().skip(1).collect();
 
                     Some(
                         mount_point_path
