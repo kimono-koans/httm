@@ -11,7 +11,7 @@
 * Search for and recursively list all deleted files.  *Even browse files hidden behind deleted directories*.
 * List file snapshots from *all* local pools (`httm` automatically detects local snapshots *as well as* locally replicated snapshots)!
 * List file snapshots from remote backup pools (you may designate replicated remote snapshot directories).
-* Supports ZFS and btrfs (with snapper) snapshot layouts
+* Supports ZFS and btrfs snapshots
 * For use with even `rsync`-ed non-ZFS/btrfs local datasets (like ext4, APFS, or NTFS), not just ZFS/btrfs.
 * Specify multiple files for lookup on different datasets
 * 3 native interactive modes: browse, select and restore
@@ -80,6 +80,8 @@ On FreeBSD, after a fresh minimal install, the interactive modes may not render 
 On some Linux distributions, which include old versions of `libc`, `cargo` may require building with `musl` instead, see the linked [issue](https://github.com/kimono-koans/httm/issues/17).
 
 ## Example Usage
+
+Note: You may need to use `sudo` (or equivalent) to view versions on btrfs datasets. 
 
 Print all unique versions of your history file:
 ```bash
