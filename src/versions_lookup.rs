@@ -227,7 +227,7 @@ fn get_immediate_dataset(
     mount_collection: &HashMap<PathBuf, (String, FilesystemType)>,
 ) -> Result<PathBuf, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // use pathdata as path
-    let path = &pathdata.path_buf;
+    let path = pathdata.path_buf.as_path();
 
     // prune away most mount points by filtering - parent folder of file must contain relevant dataset
     let potential_mountpoints: Vec<&PathBuf> = mount_collection
