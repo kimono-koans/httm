@@ -117,7 +117,7 @@ pub fn precompute_snap_mounts(
             let snap_mounts = match fstype {
                 FilesystemType::Zfs => precompute_zfs_snap_mounts(mount),
                 FilesystemType::Btrfs => {
-                    let btrfs_root_mount_path = mount_collection
+                    let opt_root_mount_path = mount_collection
                         .iter()
                         .find_map(|(mount, (dataset, _fstype))| {
                             if dataset == &"/".to_owned() {
@@ -126,10 +126,9 @@ pub fn precompute_snap_mounts(
                                 None
                             }
                         })
-                        .cloned()
-                        .unwrap();
+                        .cloned();
 
-                    precompute_btrfs_snap_mounts(mount, btrfs_root_mount_path.as_path())
+                    precompute_btrfs_snap_mounts(mount, &opt_root_mount_path)
                 }
             };
 
@@ -220,13 +219,13 @@ pub fn precompute_alt_replicated(
 
 pub fn precompute_btrfs_snap_mounts(
     mount_point_path: &Path,
-    root_mount_path: &Path,
+    opt_root_mount_path: &Option<PathBuf>,
 ) -> Result<Vec<PathBuf>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // read datasets from 'mount' if possible -- this is much faster than using zfs command
     // but I trust we've parsed it correctly less, because BSD and Linux output are different
     fn parse(
         mount_point_path: &Path,
-        root_mount_path: &Path,
+        opt_root_mount_path: &Option<PathBuf>,
         btrfs_command: &Path,
     ) -> Result<Vec<PathBuf>, Box<dyn std::error::Error + Send + Sync + 'static>> {
         let exec_command = btrfs_command;
@@ -241,21 +240,24 @@ pub fn precompute_btrfs_snap_mounts(
         let snapshot_locations: Vec<PathBuf> = command_output
             .par_lines()
             .filter_map(|line| line.split_once(&"path "))
-            .filter_map(|(_first, snap_path)| {
-                if let Some(fs_tree_path) = snap_path.strip_prefix("<FS_TREE>/") {
-                    Some(root_mount_path.join(fs_tree_path))
-                } else {
+            .filter_map(
+                |(_first, snap_path)| match snap_path.strip_prefix("<FS_TREE>/") {
+                    Some(fs_tree_path) => {
+                        // "<FS_TREE>/" should be the root path
+                        opt_root_mount_path
+                            .as_ref()
+                            .map(|root_mount| root_mount.join(fs_tree_path))
+                    }
+                    None => {
+                        // btrfs sub list -a -s output includes the sub name (eg @home)
+                        // when that sub could be mounted anywhere, so we remove here
+                        let snap_path_parsed: PathBuf =
+                            Path::new(snap_path).components().skip(1).collect();
 
-                    let snap_path_parsed: PathBuf = Path::new(snap_path).components().skip(1).collect();
-
-                    Some(
-                        mount_point_path
-                            .parent()
-                            .unwrap_or_else(|| Path::new("/"))
-                            .join(snap_path_parsed),
-                    )
-                }
-            })
+                        Some(mount_point_path.join(snap_path_parsed))
+                    }
+                },
+            )
             .filter(|snapshot_location| snapshot_location.exists())
             .collect();
 
@@ -267,7 +269,7 @@ pub fn precompute_btrfs_snap_mounts(
     }
 
     if let Ok(btrfs_command) = which("btrfs") {
-        let snapshot_locations = parse(mount_point_path, root_mount_path, &btrfs_command)?;
+        let snapshot_locations = parse(mount_point_path, opt_root_mount_path, &btrfs_command)?;
         Ok(snapshot_locations)
     } else {
         Err(HttmError::new(
