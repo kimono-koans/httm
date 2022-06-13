@@ -241,18 +241,29 @@ pub fn precompute_btrfs_snap_mounts(
         let snapshot_locations: Vec<PathBuf> = command_output
             .par_lines()
             .filter_map(|line| line.split_once(&"path "))
-            .filter_map(|(_first, snap_path)| {
-                if let Some(fs_tree_path) = snap_path.strip_prefix("<FS_TREE>/") {
-                    Some(root_mount_path.join(fs_tree_path))
-                } else {
-                    Some(
-                        mount_point_path
-                            .parent()
-                            .unwrap_or_else(|| Path::new("/"))
-                            .join(snap_path),
-                    )
-                }
-            })
+            .filter_map(
+                |(_first, snap_path)| match snap_path.strip_prefix("<FS_TREE>/") {
+                    Some(fs_tree_path) => {
+                        if root_mount_path == mount_point_path {
+                            Some(root_mount_path.join(fs_tree_path))
+                        } else {
+                            None
+                        }
+                    }
+                    None => {
+                        if root_mount_path != mount_point_path {
+                            Some(
+                                mount_point_path
+                                    .parent()
+                                    .unwrap_or_else(|| Path::new("/"))
+                                    .join(snap_path),
+                            )
+                        } else {
+                            None
+                        }
+                    }
+                },
+            )
             .filter(|snapshot_location| snapshot_location.exists())
             .collect();
 
