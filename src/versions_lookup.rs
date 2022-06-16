@@ -226,39 +226,26 @@ fn get_immediate_dataset(
     pathdata: &PathData,
     mount_collection: &HashMap<PathBuf, (String, FilesystemType)>,
 ) -> Result<PathBuf, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    // use pathdata as path
-    let path = pathdata.path_buf.as_path();
-
-    // prune away most mount points by filtering - parent folder of file must contain relevant dataset
-    let potential_mountpoints: Vec<&PathBuf> = mount_collection
-        .par_iter()
-        .map(|(mount, _dataset)| mount)
-        .filter(|mount| path.starts_with(mount))
-        .collect();
-
-    // do we have any mount points left? if not print error
-    if potential_mountpoints.is_empty() {
-        let msg = "Could not identify any qualifying dataset.  Maybe consider specifying manually at SNAP_POINT?";
-        return Err(HttmError::new(msg).into());
-    };
-
     // select the best match for us: the longest, as we've already matched on the parent folder
     // so for /usr/bin, we would then prefer /usr/bin to /usr and /
-    let best_potential_mountpoint = match potential_mountpoints
-        .par_iter()
-        .max_by_key(|potential_mountpoint| potential_mountpoint.as_os_str().len())
-    {
-        Some(some_bpmp) => some_bpmp.to_path_buf(),
-        None => {
-            let msg = format!(
-                "There is no best match for a ZFS dataset to use for path {:?}. Sorry!/Not sorry?)",
-                path
-            );
-            return Err(HttmError::new(&msg).into());
-        }
-    };
+    let opt_best_potential_mountpoint: Option<PathBuf> = pathdata
+        .path_buf
+        .as_path()
+        .ancestors()
+        .find_map(|ancestor| {
+            mount_collection
+                .get(ancestor)
+                .map(|_| ancestor.to_path_buf())
+        });
 
-    Ok(best_potential_mountpoint)
+    // do we have any mount points left? if not print error
+    match opt_best_potential_mountpoint {
+        Some(best_potential_mountpoint) => Ok(best_potential_mountpoint),
+        None => {
+            let msg = "Could not identify any qualifying dataset.  Maybe consider specifying manually at SNAP_POINT?";
+            Err(HttmError::new(msg).into())
+        }
+    }
 }
 
 pub fn get_alt_replicated_datasets(
