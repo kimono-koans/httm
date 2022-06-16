@@ -291,8 +291,8 @@ fn get_versions_per_dataset(
     //
     // hashmap will then remove duplicates with the same system modify time and size/file len
 
-    let snapshot_dir = &search_bundle.snapshot_dir;
-    let relative_path = &search_bundle.relative_path;
+    let snapshot_dir = search_bundle.snapshot_dir.as_ref();
+    let relative_path = search_bundle.relative_path.as_ref();
 
     // this is the fallback/non-Linux way of handling without a map_of_snaps
     fn read_dir_for_datasets(

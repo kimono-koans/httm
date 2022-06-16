@@ -23,7 +23,10 @@ use rayon::prelude::*;
 use which::which;
 
 use crate::versions_lookup::get_alt_replicated_datasets;
-use crate::{FilesystemType, HttmError, BTRFS_FSTYPE, ZFS_FSTYPE, ZFS_SNAPSHOT_DIRECTORY};
+use crate::{
+    FilesystemType, HttmError, AFP_FSTYPE, BTRFS_FSTYPE, NFS_FSTYPE, SMB_FSTYPE, ZFS_FSTYPE,
+    ZFS_SNAPSHOT_DIRECTORY,
+};
 
 #[allow(clippy::type_complexity)]
 pub fn get_filesystems_list() -> Result<
@@ -57,7 +60,12 @@ fn parse_from_proc_mounts() -> Result<
         .par_bridge()
         .flatten()
         .filter(|mount_info| {
-            mount_info.fstype.contains(BTRFS_FSTYPE) || mount_info.fstype.contains(ZFS_FSTYPE)
+            mount_info.fstype.contains(BTRFS_FSTYPE)
+                || mount_info.fstype.contains(ZFS_FSTYPE)
+                || ((mount_info.fstype.contains(SMB_FSTYPE)
+                    || mount_info.fstype.contains(NFS_FSTYPE)
+                    || mount_info.fstype.contains(AFP_FSTYPE))
+                    && mount_info.dest.join(ZFS_SNAPSHOT_DIRECTORY).exists())
         })
         // but exclude snapshot mounts.  we want the raw filesystem names.
         .filter(|mount_info| {
@@ -67,7 +75,7 @@ fn parse_from_proc_mounts() -> Result<
                 .contains(ZFS_SNAPSHOT_DIRECTORY)
         })
         .map(|mount_info| match &mount_info.fstype {
-            fs if fs == ZFS_FSTYPE => (
+            fs if fs == ZFS_FSTYPE || fs == SMB_FSTYPE || fs == AFP_FSTYPE || fs == NFS_FSTYPE => (
                 mount_info.dest,
                 (
                     mount_info.source.to_string_lossy().to_string(),
@@ -161,7 +169,12 @@ fn parse_from_mount_cmd() -> Result<
         let map_of_datasets: HashMap<PathBuf, (String, FilesystemType)> = command_output
             .par_lines()
             // want zfs 
-            .filter(|line| line.contains(ZFS_FSTYPE))
+            .filter(|line| {
+                line.contains(ZFS_FSTYPE) ||
+                line.contains(SMB_FSTYPE) ||
+                line.contains(AFP_FSTYPE) ||
+                line.contains(NFS_FSTYPE)
+            })
             // but exclude snapshot mounts.  we want the raw filesystem names.
             .filter(|line| !line.contains(ZFS_SNAPSHOT_DIRECTORY))
             .filter_map(|line|

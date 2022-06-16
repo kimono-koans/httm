@@ -49,6 +49,10 @@ mod versions_lookup;
 
 pub const ZFS_FSTYPE: &str = "zfs";
 pub const BTRFS_FSTYPE: &str = "btrfs";
+pub const SMB_FSTYPE: &str = "smbfs";
+pub const NFS_FSTYPE: &str = "nfs";
+pub const AFP_FSTYPE: &str = "afpfs";
+
 pub const ZFS_HIDDEN_DIRECTORY: &str = ".zfs";
 pub const BTRFS_SNAPPER_HIDDEN_DIRECTORY: &str = ".snapshots";
 pub const ZFS_SNAPSHOT_DIRECTORY: &str = ".zfs/snapshot";
@@ -600,17 +604,18 @@ fn parse_args() -> ArgMatches {
         .arg(
             Arg::new("SNAP_POINT")
                 .long("snap-point")
-                .help("ordinarily httm will automatically choose your dataset root directory (most proximate ancestor directory which contains \".zfs\"), \
+                .help("ordinarily httm will automatically choose your dataset root directory (the most proximate ancestor directory which contains a \".zfs\" directory), \
                 but here you may manually specify your own mount point for that directory, such as the local mount point for a remote share.  \
-                You can also set via the environment variable HTTM_SNAP_POINT.")
+                You may also set via the HTTM_SNAP_POINT environment variable.  Note: Use of both \"snap-point\" and \"local-dir\" are not always necessary to view versions on remote shares.  \
+                httm can also automatically detect ZFS datasets mounted as AFP, SMB, and NFS remote shares.")
                 .takes_value(true)
                 .display_order(9)
         )
         .arg(
             Arg::new("LOCAL_DIR")
                 .long("local-dir")
-                .help("used with SNAP_POINT to determine where the corresponding live root filesystem of the dataset is.  \
-                Put more simply, the LOCAL_DIR is the directory you backup to your SNAP_POINT.  If not set, httm defaults to your current working directory.  \
+                .help("used with \"snap-point\" to determine where the corresponding live root filesystem of the dataset is.  \
+                Put more simply, the \"local-dir\" is the directory you backup to your \"snap-point\".  If not set, httm defaults to your current working directory.  \
                 You can also set via the environment variable HTTM_LOCAL_DIR.")
                 .requires("SNAP_POINT")
                 .takes_value(true)
