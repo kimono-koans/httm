@@ -291,7 +291,8 @@ fn get_versions_per_dataset(
     //
     // hashmap will then remove duplicates with the same system modify time and size/file len
 
-    let snapshot_dir = search_bundle.snapshot_dir.clone();
+    let snapshot_dir = &search_bundle.snapshot_dir;
+    let relative_path = &search_bundle.relative_path;
 
     // this is the fallback/non-Linux way of handling without a map_of_snaps
     fn read_dir_for_datasets(
@@ -336,16 +337,12 @@ fn get_versions_per_dataset(
             // Do we have a map_of snaps? If so, get_search_bundle function has already prepared the ones
             // we actually need for this dataset so we can skip the unwrap.
             Some(_) => match search_bundle.snapshot_mounts.as_ref() {
-                Some(snap_mounts) => {
-                    snap_mounts_for_datasets(snap_mounts, &search_bundle.relative_path)?
-                }
-                None => read_dir_for_datasets(&snapshot_dir, &search_bundle.relative_path)?,
+                Some(snap_mounts) => snap_mounts_for_datasets(snap_mounts, relative_path)?,
+                None => read_dir_for_datasets(snapshot_dir, relative_path)?,
             },
-            None => read_dir_for_datasets(&snapshot_dir, &search_bundle.relative_path)?,
+            None => read_dir_for_datasets(snapshot_dir, relative_path)?,
         },
-        SnapPoint::UserDefined(_) => {
-            read_dir_for_datasets(&snapshot_dir, &search_bundle.relative_path)?
-        }
+        SnapPoint::UserDefined(_) => read_dir_for_datasets(snapshot_dir, relative_path)?,
     };
 
     let mut vec_pathdata: Vec<PathData> = unique_versions.into_par_iter().map(|(_, v)| v).collect();

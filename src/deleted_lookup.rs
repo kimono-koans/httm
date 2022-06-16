@@ -117,7 +117,7 @@ pub fn get_deleted_per_dataset(
 
     // now create a collection of file names in the snap_dirs
     // create a list of unique filenames on snaps
-    fn read_dir_for_filenames(
+    fn read_dir_for_snap_filenames(
         snapshot_dir: &Path,
         relative_path: &Path,
     ) -> Result<
@@ -146,7 +146,7 @@ pub fn get_deleted_per_dataset(
         Ok(unique_snap_filenames)
     }
 
-    fn snap_mounts_for_filenames(
+    fn snap_mounts_for_snap_filenames(
         snap_mounts: &[PathBuf],
         relative_path: &Path,
     ) -> Result<
@@ -173,27 +173,21 @@ pub fn get_deleted_per_dataset(
         Ok(unique_snap_filenames)
     }
 
+    let snapshot_dir = &search_bundle.snapshot_dir;
+    let relative_path = &search_bundle.relative_path;
+
     let unique_snap_filenames: HashMap<OsString, BasicDirEntryInfo> = match &config.snap_point {
         SnapPoint::Native(native_datasets) => match native_datasets.map_of_snaps {
             // Do we have a map_of snaps? If so, get_search_bundle function has already prepared the ones
             // we actually need for this dataset so we can skip the unwrap.
             Some(_) => match search_bundle.snapshot_mounts.as_ref() {
-                Some(snap_mounts) => {
-                    snap_mounts_for_filenames(snap_mounts, &search_bundle.relative_path)?
-                }
+                Some(snap_mounts) => snap_mounts_for_snap_filenames(snap_mounts, relative_path)?,
 
-                None => read_dir_for_filenames(
-                    &search_bundle.snapshot_dir,
-                    &search_bundle.relative_path,
-                )?,
+                None => read_dir_for_snap_filenames(snapshot_dir, relative_path)?,
             },
-            None => {
-                read_dir_for_filenames(&search_bundle.snapshot_dir, &search_bundle.relative_path)?
-            }
+            None => read_dir_for_snap_filenames(snapshot_dir, relative_path)?,
         },
-        SnapPoint::UserDefined(_) => {
-            read_dir_for_filenames(&search_bundle.snapshot_dir, &search_bundle.relative_path)?
-        }
+        SnapPoint::UserDefined(_) => read_dir_for_snap_filenames(snapshot_dir, relative_path)?,
     };
 
     // compare local filenames to all unique snap filenames - none values are unique here
