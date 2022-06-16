@@ -140,10 +140,9 @@ pub fn precompute_snap_mounts(
                 }
             };
 
-            match snap_mounts {
-                Ok(snap_mounts) => Some((mount.clone(), snap_mounts)),
-                Err(_) => None,
-            }
+            snap_mounts
+                .ok()
+                .map(|snap_mounts| (mount.clone(), snap_mounts))
         })
         .collect();
 
