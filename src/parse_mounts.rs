@@ -59,13 +59,11 @@ fn parse_from_proc_mounts() -> Result<
         .into_iter()
         .par_bridge()
         .flatten()
-        .filter(|mount_info| {
-            mount_info.fstype.contains(BTRFS_FSTYPE)
-                || mount_info.fstype.contains(ZFS_FSTYPE)
-                || ((mount_info.fstype.contains(SMB_FSTYPE)
-                    || mount_info.fstype.contains(NFS_FSTYPE)
-                    || mount_info.fstype.contains(AFP_FSTYPE))
-                    && mount_info.dest.join(ZFS_SNAPSHOT_DIRECTORY).exists())
+        .filter(|mount_info| match &mount_info.fstype.as_ref() {
+            &ZFS_FSTYPE | &SMB_FSTYPE | &NFS_FSTYPE | &AFP_FSTYPE => {
+                mount_info.dest.join(ZFS_SNAPSHOT_DIRECTORY).exists()
+            }
+            _ => false,
         })
         // but exclude snapshot mounts.  we want the raw filesystem names.
         .filter(|mount_info| {
@@ -74,15 +72,15 @@ fn parse_from_proc_mounts() -> Result<
                 .to_string_lossy()
                 .contains(ZFS_SNAPSHOT_DIRECTORY)
         })
-        .map(|mount_info| match &mount_info.fstype {
-            fs if fs == ZFS_FSTYPE || fs == SMB_FSTYPE || fs == AFP_FSTYPE || fs == NFS_FSTYPE => (
+        .map(|mount_info| match &mount_info.fstype.as_str() {
+            &ZFS_FSTYPE | &SMB_FSTYPE | &AFP_FSTYPE | &NFS_FSTYPE => (
                 mount_info.dest,
                 (
                     mount_info.source.to_string_lossy().to_string(),
                     FilesystemType::Zfs,
                 ),
             ),
-            fs if fs == BTRFS_FSTYPE => {
+            &BTRFS_FSTYPE => {
                 let keyed_options: HashMap<String, String> = mount_info
                     .options
                     .par_iter()
