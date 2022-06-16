@@ -570,7 +570,6 @@ fn parse_args() -> ArgMatches {
                 .short('d')
                 .long("deleted")
                 .takes_value(true)
-                .value_parser(clap::builder::ValueParser::os_string())
                 .default_missing_value("all")
                 .possible_values(&["all", "single", "only"])
                 .help("show deleted files in interactive modes.  In non-interactive modes, do a search for all files deleted from a specified directory. \
@@ -611,7 +610,6 @@ fn parse_args() -> ArgMatches {
                 You may also set via the HTTM_SNAP_POINT environment variable.  Note: Use of both \"snap-point\" and \"local-dir\" are not always necessary to view versions on remote shares.  \
                 httm can also automatically detect ZFS datasets mounted as AFP, SMB, and NFS remote shares.")
                 .takes_value(true)
-                .value_parser(clap::builder::ValueParser::os_string())
                 .display_order(9)
         )
         .arg(
@@ -622,7 +620,6 @@ fn parse_args() -> ArgMatches {
                 You can also set via the environment variable HTTM_LOCAL_DIR.")
                 .requires("SNAP_POINT")
                 .takes_value(true)
-                .value_parser(clap::builder::ValueParser::os_string())
                 .display_order(10)
         )
         .arg(
