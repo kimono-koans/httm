@@ -228,11 +228,8 @@ fn get_immediate_dataset(
 ) -> Result<PathBuf, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // select the best match for us: the longest, as we've already matched on the parent folder
     // so for /usr/bin, we would then prefer /usr/bin to /usr and /
-    let opt_best_potential_mountpoint: Option<PathBuf> = pathdata
-        .path_buf
-        .as_path()
-        .ancestors()
-        .find_map(|ancestor| {
+    let opt_best_potential_mountpoint: Option<PathBuf> =
+        pathdata.path_buf.ancestors().find_map(|ancestor| {
             mount_collection
                 .get(ancestor)
                 .map(|_| ancestor.to_path_buf())
