@@ -33,13 +33,13 @@ pub fn get_filesystems_list() -> Result<
     ),
     Box<dyn std::error::Error + Send + Sync + 'static>,
 > {
-    let (mount_collection, map_of_snaps) = if cfg!(target_os = "linux") {
+    let (map_of_datasets, map_of_snaps) = if cfg!(target_os = "linux") {
         parse_from_proc_mounts()?
     } else {
         (parse_from_mount_cmd()?, None)
     };
 
-    Ok((mount_collection, map_of_snaps))
+    Ok((map_of_datasets, map_of_snaps))
 }
 
 // both faster and necessary for certain btrfs features
@@ -52,7 +52,7 @@ fn parse_from_proc_mounts() -> Result<
     ),
     Box<dyn std::error::Error + Send + Sync + 'static>,
 > {
-    let mount_collection: HashMap<PathBuf, (String, FilesystemType)> = MountIter::new()?
+    let map_of_datasets: HashMap<PathBuf, (String, FilesystemType)> = MountIter::new()?
         .into_iter()
         .par_bridge()
         .flatten()
@@ -99,25 +99,25 @@ fn parse_from_proc_mounts() -> Result<
         .filter(|(mount, (_dataset, _fstype))| mount.exists())
         .collect();
 
-    let map_of_snaps = precompute_snap_mounts(&mount_collection).ok();
+    let map_of_snaps = precompute_snap_mounts(&map_of_datasets).ok();
 
-    if mount_collection.is_empty() {
+    if map_of_datasets.is_empty() {
         Err(HttmError::new("httm could not find any valid datasets on the system.").into())
     } else {
-        Ok((mount_collection, map_of_snaps))
+        Ok((map_of_datasets, map_of_snaps))
     }
 }
 
 pub fn precompute_snap_mounts(
-    mount_collection: &HashMap<PathBuf, (String, FilesystemType)>,
+    map_of_datasets: &HashMap<PathBuf, (String, FilesystemType)>,
 ) -> Result<HashMap<PathBuf, Vec<PathBuf>>, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let map_of_snaps = mount_collection
+    let map_of_snaps = map_of_datasets
         .par_iter()
         .filter_map(|(mount, (_dataset, fstype))| {
             let snap_mounts = match fstype {
                 FilesystemType::Zfs => precompute_zfs_snap_mounts(mount),
                 FilesystemType::Btrfs => {
-                    let opt_root_mount_path = mount_collection
+                    let opt_root_mount_path = map_of_datasets
                         .iter()
                         .find_map(|(mount, (dataset, _fstype))| {
                             if dataset == &"/".to_owned() {
@@ -158,7 +158,7 @@ fn parse_from_mount_cmd() -> Result<
             std::str::from_utf8(&ExecProcess::new(mount_command).output()?.stdout)?.to_owned();
 
         // parse "mount" for filesystems and mountpoints
-        let mount_collection: HashMap<PathBuf, (String, FilesystemType)> = command_output
+        let map_of_datasets: HashMap<PathBuf, (String, FilesystemType)> = command_output
             .par_lines()
             // want zfs 
             .filter(|line| line.contains(ZFS_FSTYPE))
@@ -181,10 +181,10 @@ fn parse_from_mount_cmd() -> Result<
             .map(|(filesystem, mount)| (mount, (filesystem, FilesystemType::Zfs)))
             .collect();
 
-        if mount_collection.is_empty() {
+        if map_of_datasets.is_empty() {
             Err(HttmError::new("httm could not find any valid datasets on the system.").into())
         } else {
-            Ok(mount_collection)
+            Ok(map_of_datasets)
         }
     }
 
@@ -201,12 +201,12 @@ fn parse_from_mount_cmd() -> Result<
 }
 
 pub fn precompute_alt_replicated(
-    mount_collection: &HashMap<PathBuf, (String, FilesystemType)>,
+    map_of_datasets: &HashMap<PathBuf, (String, FilesystemType)>,
 ) -> HashMap<PathBuf, Vec<PathBuf>> {
-    mount_collection
+    map_of_datasets
         .par_iter()
         .filter_map(|(mount, (_dataset, _fstype))| {
-            get_alt_replicated_datasets(mount, mount_collection).ok()
+            get_alt_replicated_datasets(mount, map_of_datasets).ok()
         })
         .map(|dataset_collection| {
             (

@@ -224,14 +224,14 @@ pub fn get_search_bundle(
 
 fn get_proximate_dataset(
     pathdata: &PathData,
-    mount_collection: &HashMap<PathBuf, (String, FilesystemType)>,
+    map_of_datasets: &HashMap<PathBuf, (String, FilesystemType)>,
 ) -> Result<PathBuf, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // for /usr/bin, we prefer the most proximate: /usr/bin to /usr and /
     // ancestors() iterates in this top-down order, when a value: dataset/fstype is available
     // we map to return the key mount
     let opt_best_potential_mountpoint: Option<PathBuf> =
         pathdata.path_buf.ancestors().find_map(|ancestor| {
-            mount_collection
+            map_of_datasets
                 .get(ancestor)
                 .map(|_| ancestor.to_path_buf())
         });
@@ -248,9 +248,9 @@ fn get_proximate_dataset(
 
 pub fn get_alt_replicated_datasets(
     proximate_dataset_mount: &Path,
-    mount_collection: &HashMap<PathBuf, (String, FilesystemType)>,
+    map_of_datasets: &HashMap<PathBuf, (String, FilesystemType)>,
 ) -> Result<DatasetsForSearch, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let proximate_dataset_fs_name = match &mount_collection.get(proximate_dataset_mount) {
+    let proximate_dataset_fs_name = match &map_of_datasets.get(proximate_dataset_mount) {
         Some((proximate_dataset_fs_name, _)) => proximate_dataset_fs_name.to_string(),
         None => {
             return Err(HttmError::new("httm was unable to detect an alternate replicated mount point.  Perhaps the replicated filesystem is not mounted?").into());
@@ -260,7 +260,7 @@ pub fn get_alt_replicated_datasets(
     // find a filesystem that ends with our most local filesystem name
     // but which has a prefix, like a different pool name: rpool might be
     // replicated to tank/rpool
-    let mut alt_replicated_mounts: Vec<&PathBuf> = mount_collection
+    let mut alt_replicated_mounts: Vec<&PathBuf> = map_of_datasets
         .par_iter()
         .filter(|(_mount, (fs_name, _fstype))| fs_name != &proximate_dataset_fs_name)
         .filter(|(_mount, (fs_name, _fstype))| {
