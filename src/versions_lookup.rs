@@ -314,18 +314,31 @@ fn get_versions_per_dataset(
         Ok(unique_versions)
     }
 
+    fn snap_mounts_for_datasets(
+        snap_mounts: &[PathBuf],
+        relative_path: &Path,
+    ) -> Result<
+        HashMap<(SystemTime, u64), PathData>,
+        Box<dyn std::error::Error + Send + Sync + 'static>,
+    > {
+        let unique_versions = snap_mounts
+            .par_iter()
+            .map(|path| path.join(&relative_path))
+            .map(|path| PathData::from(path.as_path()))
+            .filter(|pathdata| !pathdata.is_phantom)
+            .map(|pathdata| ((pathdata.system_time, pathdata.size), pathdata))
+            .collect();
+        Ok(unique_versions)
+    }
+
     let unique_versions: HashMap<(SystemTime, u64), PathData> = match &config.snap_point {
         SnapPoint::Native(native_datasets) => match native_datasets.map_of_snaps {
             // Do we have a map_of snaps? If so, get_search_bundle function has already prepared the ones
             // we actually need for this dataset so we can skip the unwrap.
             Some(_) => match search_bundle.snapshot_mounts.as_ref() {
-                Some(snap_mounts) => snap_mounts
-                    .par_iter()
-                    .map(|path| path.join(&search_bundle.relative_path))
-                    .map(|path| PathData::from(path.as_path()))
-                    .filter(|pathdata| !pathdata.is_phantom)
-                    .map(|pathdata| ((pathdata.system_time, pathdata.size), pathdata))
-                    .collect(),
+                Some(snap_mounts) => {
+                    snap_mounts_for_datasets(snap_mounts, &search_bundle.relative_path)?
+                }
                 None => read_dir_for_datasets(&snapshot_dir, &search_bundle.relative_path)?,
             },
             None => read_dir_for_datasets(&snapshot_dir, &search_bundle.relative_path)?,
