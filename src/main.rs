@@ -600,7 +600,7 @@ fn parse_args() -> ArgMatches {
         .arg(
             Arg::new("SNAP_POINT")
                 .long("snap-point")
-                .help("ordinarily httm will automatically choose your dataset root directory (most immediate ancestor directory which contains \".zfs\"), \
+                .help("ordinarily httm will automatically choose your dataset root directory (most proximate ancestor directory which contains \".zfs\"), \
                 but here you may manually specify your own mount point for that directory, such as the local mount point for a remote share.  \
                 You can also set via the environment variable HTTM_SNAP_POINT.")
                 .takes_value(true)

@@ -210,7 +210,7 @@ pub fn precompute_alt_replicated(
         })
         .map(|dataset_collection| {
             (
-                dataset_collection.immediate_dataset_mount,
+                dataset_collection.proximate_dataset_mount,
                 dataset_collection.datasets_of_interest,
             )
         })

@@ -31,10 +31,10 @@ pub fn get_unique_deleted(
     let selected_datasets = if config.opt_alt_replicated {
         vec![
             NativeDatasetType::AltReplicated,
-            NativeDatasetType::MostImmediate,
+            NativeDatasetType::MostProximate,
         ]
     } else {
-        vec![NativeDatasetType::MostImmediate]
+        vec![NativeDatasetType::MostProximate]
     };
 
     // we always need a requesting dir because we are comparing the files in the

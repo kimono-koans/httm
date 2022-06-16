@@ -27,13 +27,13 @@ use rayon::prelude::*;
 use crate::{Config, FilesystemType, HttmError, PathData, SnapPoint, ZFS_SNAPSHOT_DIRECTORY};
 
 pub struct DatasetsForSearch {
-    pub immediate_dataset_mount: PathBuf,
+    pub proximate_dataset_mount: PathBuf,
     pub datasets_of_interest: Vec<PathBuf>,
 }
 
 #[derive(Debug, Clone)]
 pub enum NativeDatasetType {
-    MostImmediate,
+    MostProximate,
     AltReplicated,
 }
 
@@ -52,10 +52,10 @@ pub fn get_versions_set(
     let selected_datasets = if config.opt_alt_replicated {
         vec![
             NativeDatasetType::AltReplicated,
-            NativeDatasetType::MostImmediate,
+            NativeDatasetType::MostProximate,
         ]
     } else {
-        vec![NativeDatasetType::MostImmediate]
+        vec![NativeDatasetType::MostProximate]
     };
 
     let all_snap_versions: Vec<PathData> =
@@ -109,47 +109,47 @@ pub fn get_search_bundle(
     requested_dataset_type: &NativeDatasetType,
 ) -> Result<Vec<SearchBundle>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // here, we take our file path and get back possibly multiple ZFS dataset mountpoints
-    // and our most immediate dataset mount point (which is always the same) for
+    // and our most proximate dataset mount point (which is always the same) for
     // a single file
     //
     // we ask a few questions: has the location been user defined? if not, does
     // the user want all local datasets on the system, including replicated datasets?
-    // the most common case is: just use the most immediate dataset mount point as both
-    // the dataset of interest and most immediate ZFS dataset
+    // the most common case is: just use the most proximate dataset mount point as both
+    // the dataset of interest and most proximate ZFS dataset
     //
-    // why? we need both the dataset of interest and the most immediate dataset because we
-    // will compare the most immediate dataset to our our canonical path and the difference
+    // why? we need both the dataset of interest and the most proximate dataset because we
+    // will compare the most proximate dataset to our our canonical path and the difference
     // between ZFS mount point and the canonical path is the path we will use to search the
     // hidden snapshot dirs
     let dataset_collection: DatasetsForSearch = match &config.snap_point {
         SnapPoint::UserDefined(defined_dirs) => DatasetsForSearch {
-            immediate_dataset_mount: defined_dirs.snap_dir.clone(),
+            proximate_dataset_mount: defined_dirs.snap_dir.clone(),
             datasets_of_interest: vec![defined_dirs.snap_dir.clone()],
         },
         SnapPoint::Native(native_datasets) => {
-            let immediate_dataset_mount =
-                get_immediate_dataset(file_pathdata, &native_datasets.map_of_datasets)?;
+            let proximate_dataset_mount =
+                get_proximate_dataset(file_pathdata, &native_datasets.map_of_datasets)?;
             match requested_dataset_type {
-                NativeDatasetType::MostImmediate => {
-                    // just return the same dataset when in most immediate mode
+                NativeDatasetType::MostProximate => {
+                    // just return the same dataset when in most proximate mode
                     DatasetsForSearch {
-                        immediate_dataset_mount: immediate_dataset_mount.clone(),
-                        datasets_of_interest: vec![immediate_dataset_mount],
+                        proximate_dataset_mount: proximate_dataset_mount.clone(),
+                        datasets_of_interest: vec![proximate_dataset_mount],
                     }
                 }
                 NativeDatasetType::AltReplicated => match &native_datasets.map_of_alts {
-                    Some(map_of_alts) => match map_of_alts.get(&immediate_dataset_mount) {
+                    Some(map_of_alts) => match map_of_alts.get(&proximate_dataset_mount) {
                         Some(alternate_mounts) => DatasetsForSearch {
-                            immediate_dataset_mount: immediate_dataset_mount.clone(),
+                            proximate_dataset_mount: proximate_dataset_mount.clone(),
                             datasets_of_interest: alternate_mounts.clone(),
                         },
                         None => get_alt_replicated_datasets(
-                            immediate_dataset_mount.as_path(),
+                            proximate_dataset_mount.as_path(),
                             &native_datasets.map_of_datasets,
                         )?,
                     },
                     None => get_alt_replicated_datasets(
-                        immediate_dataset_mount.as_path(),
+                        proximate_dataset_mount.as_path(),
                         &native_datasets.map_of_datasets,
                     )?,
                 },
@@ -163,10 +163,10 @@ pub fn get_search_bundle(
         .map(|dataset_of_interest| {
             // building our relative path by removing parent below the snap dir
             //
-            // for native searches the prefix is are the dirs below the most immediate dataset
+            // for native searches the prefix is are the dirs below the most proximate dataset
             // for user specified dirs these are specified by the user
 
-            let immediate_dataset_mount = &dataset_collection.immediate_dataset_mount;
+            let proximate_dataset_mount = &dataset_collection.proximate_dataset_mount;
 
             let (snapshot_dir, relative_path, snapshot_mounts) = match &config.snap_point {
                 SnapPoint::UserDefined(defined_dirs) => {
@@ -185,7 +185,7 @@ pub fn get_search_bundle(
                     (snapshot_dir, relative_path, snapshot_mounts)
                 }
                 SnapPoint::Native(native_datasets) => {
-                    // this prefix removal is why we always need the immediate dataset name, even when we are searching an alternate replicated filesystem
+                    // this prefix removal is why we always need the proximate dataset name, even when we are searching an alternate replicated filesystem
 
                     // building the snapshot path from our dataset
                     let snapshot_dir = match &native_datasets
@@ -201,7 +201,7 @@ pub fn get_search_bundle(
 
                     let relative_path = file_pathdata
                         .path_buf
-                        .strip_prefix(&immediate_dataset_mount)?
+                        .strip_prefix(&proximate_dataset_mount)?
                         .to_path_buf();
 
                     let snapshot_mounts = match &native_datasets.map_of_snaps {
@@ -222,12 +222,13 @@ pub fn get_search_bundle(
         .collect()
 }
 
-fn get_immediate_dataset(
+fn get_proximate_dataset(
     pathdata: &PathData,
     mount_collection: &HashMap<PathBuf, (String, FilesystemType)>,
 ) -> Result<PathBuf, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    // select the best match for us: the longest, as we've already matched on the parent folder
-    // so for /usr/bin, we would then prefer /usr/bin to /usr and /
+    // for /usr/bin, we prefer the most proximate: /usr/bin to /usr and /
+    // ancestors() iterates in this top-down order, when a value: dataset/fstype is available
+    // we map to return the key mount
     let opt_best_potential_mountpoint: Option<PathBuf> =
         pathdata.path_buf.ancestors().find_map(|ancestor| {
             mount_collection
@@ -246,11 +247,11 @@ fn get_immediate_dataset(
 }
 
 pub fn get_alt_replicated_datasets(
-    immediate_dataset_mount: &Path,
+    proximate_dataset_mount: &Path,
     mount_collection: &HashMap<PathBuf, (String, FilesystemType)>,
 ) -> Result<DatasetsForSearch, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let immediate_dataset_fs_name = match &mount_collection.get(immediate_dataset_mount) {
-        Some((immediate_dataset_fs_name, _)) => immediate_dataset_fs_name.to_string(),
+    let proximate_dataset_fs_name = match &mount_collection.get(proximate_dataset_mount) {
+        Some((proximate_dataset_fs_name, _)) => proximate_dataset_fs_name.to_string(),
         None => {
             return Err(HttmError::new("httm was unable to detect an alternate replicated mount point.  Perhaps the replicated filesystem is not mounted?").into());
         }
@@ -261,9 +262,9 @@ pub fn get_alt_replicated_datasets(
     // replicated to tank/rpool
     let mut alt_replicated_mounts: Vec<&PathBuf> = mount_collection
         .par_iter()
-        .filter(|(_mount, (fs_name, _fstype))| fs_name != &immediate_dataset_fs_name)
+        .filter(|(_mount, (fs_name, _fstype))| fs_name != &proximate_dataset_fs_name)
         .filter(|(_mount, (fs_name, _fstype))| {
-            fs_name.ends_with(immediate_dataset_fs_name.as_str())
+            fs_name.ends_with(proximate_dataset_fs_name.as_str())
         })
         .map(|(mount, _fs_name)| mount)
         .collect();
@@ -275,7 +276,7 @@ pub fn get_alt_replicated_datasets(
         alt_replicated_mounts.sort_unstable_by_key(|path| path.as_os_str().len());
         let datasets_of_interest = alt_replicated_mounts.into_iter().cloned().collect();
         Ok(DatasetsForSearch {
-            immediate_dataset_mount: immediate_dataset_mount.to_path_buf(),
+            proximate_dataset_mount: proximate_dataset_mount.to_path_buf(),
             datasets_of_interest,
         })
     }
