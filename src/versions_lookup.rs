@@ -140,16 +140,16 @@ pub fn get_search_bundle(
                 NativeDatasetType::AltReplicated => match &native_datasets.map_of_alts {
                     Some(map_of_alts) => match map_of_alts.get(&proximate_dataset_mount) {
                         Some(alternate_mounts) => DatasetsForSearch {
-                            proximate_dataset_mount: proximate_dataset_mount.clone(),
+                            proximate_dataset_mount,
                             datasets_of_interest: alternate_mounts.clone(),
                         },
                         None => get_alt_replicated_datasets(
-                            proximate_dataset_mount.as_path(),
+                            &proximate_dataset_mount,
                             &native_datasets.map_of_datasets,
                         )?,
                     },
                     None => get_alt_replicated_datasets(
-                        proximate_dataset_mount.as_path(),
+                        &proximate_dataset_mount,
                         &native_datasets.map_of_datasets,
                     )?,
                 },
