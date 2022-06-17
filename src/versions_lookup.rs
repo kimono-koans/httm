@@ -46,7 +46,7 @@ pub struct SearchBundle {
 
 pub fn get_versions_set(
     config: &Config,
-    pathdata: &Vec<PathData>,
+    vec_pathdata: &Vec<PathData>,
 ) -> Result<[Vec<PathData>; 2], Box<dyn std::error::Error + Send + Sync + 'static>> {
     // prepare for local and replicated backups on alt replicated sets if necessary
     let selected_datasets = if config.opt_alt_replicated {
@@ -59,11 +59,11 @@ pub fn get_versions_set(
     };
 
     let all_snap_versions: Vec<PathData> =
-        get_all_snap_versions(config, pathdata, &selected_datasets)?;
+        get_all_snap_versions(config, vec_pathdata, &selected_datasets)?;
 
     // create vec of live copies - unless user doesn't want it!
     let live_versions: Vec<PathData> = if !config.opt_no_live_vers {
-        pathdata.clone()
+        vec_pathdata.clone()
     } else {
         Vec::new()
     };
@@ -82,11 +82,11 @@ pub fn get_versions_set(
 
 fn get_all_snap_versions(
     config: &Config,
-    pathdata: &Vec<PathData>,
+    vec_pathdata: &Vec<PathData>,
     selected_datasets: &Vec<NativeDatasetType>,
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // create vec of all local and replicated backups at once
-    let all_snap_versions: Vec<PathData> = pathdata
+    let all_snap_versions: Vec<PathData> = vec_pathdata
         .par_iter()
         .map(|path_data| {
             selected_datasets
@@ -105,7 +105,7 @@ fn get_all_snap_versions(
 
 pub fn get_search_bundle(
     config: &Config,
-    file_pathdata: &PathData,
+    pathdata: &PathData,
     requested_dataset_type: &NativeDatasetType,
 ) -> Result<Vec<SearchBundle>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // here, we take our file path and get back possibly multiple ZFS dataset mountpoints
@@ -128,7 +128,7 @@ pub fn get_search_bundle(
         },
         SnapPoint::Native(native_datasets) => {
             let proximate_dataset_mount =
-                get_proximate_dataset(file_pathdata, &native_datasets.map_of_datasets)?;
+                get_proximate_dataset(pathdata, &native_datasets.map_of_datasets)?;
             match requested_dataset_type {
                 NativeDatasetType::MostProximate => {
                     // just return the same dataset when in most proximate mode
@@ -175,7 +175,7 @@ pub fn get_search_bundle(
                         FilesystemType::Btrfs => dataset_of_interest.to_path_buf(),
                     };
 
-                    let relative_path = file_pathdata
+                    let relative_path = pathdata
                         .path_buf
                         .strip_prefix(&defined_dirs.local_dir)?
                         .to_path_buf();
@@ -199,7 +199,7 @@ pub fn get_search_bundle(
                         None => dataset_of_interest.join(ZFS_SNAPSHOT_DIRECTORY),
                     };
 
-                    let relative_path = file_pathdata
+                    let relative_path = pathdata
                         .path_buf
                         .strip_prefix(&proximate_dataset_mount)?
                         .to_path_buf();
@@ -253,8 +253,8 @@ pub fn get_alt_replicated_datasets(
     proximate_dataset_mount: &Path,
     map_of_datasets: &HashMap<PathBuf, (String, FilesystemType)>,
 ) -> Result<DatasetsForSearch, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let proximate_dataset_fs_name = match &map_of_datasets.get(proximate_dataset_mount) {
-        Some((proximate_dataset_fs_name, _)) => proximate_dataset_fs_name.to_string(),
+    let proximate_dataset_fsname = match &map_of_datasets.get(proximate_dataset_mount) {
+        Some((proximate_dataset_fsname, _)) => proximate_dataset_fsname.to_string(),
         None => {
             return Err(HttmError::new("httm was unable to detect an alternate replicated mount point.  Perhaps the replicated filesystem is not mounted?").into());
         }
@@ -265,11 +265,9 @@ pub fn get_alt_replicated_datasets(
     // replicated to tank/rpool
     let mut alt_replicated_mounts: Vec<&PathBuf> = map_of_datasets
         .par_iter()
-        .filter(|(_mount, (fs_name, _fstype))| fs_name != &proximate_dataset_fs_name)
-        .filter(|(_mount, (fs_name, _fstype))| {
-            fs_name.ends_with(proximate_dataset_fs_name.as_str())
-        })
-        .map(|(mount, _fs_name)| mount)
+        .filter(|(_mount, (fs_name, _fstype))| fs_name != &proximate_dataset_fsname)
+        .filter(|(_mount, (fs_name, _fstype))| fs_name.ends_with(proximate_dataset_fsname.as_str()))
+        .map(|(mount, _fsname)| mount)
         .collect();
 
     if alt_replicated_mounts.is_empty() {
