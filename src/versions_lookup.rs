@@ -229,10 +229,12 @@ fn get_proximate_dataset(
     // for /usr/bin, we prefer the most proximate: /usr/bin to /usr and /
     // ancestors() iterates in this top-down order, when a value: dataset/fstype is available
     // we map to return the key mount
+    let ancestors: Vec<_> = pathdata.path_buf.ancestors().collect();
+
     let opt_best_potential_mountpoint: Option<PathBuf> =
-        pathdata.path_buf.ancestors().find_map(|ancestor| {
+        ancestors.par_iter().find_map_first(|ancestor| {
             map_of_datasets
-                .get(ancestor)
+                .get(*ancestor)
                 .map(|_| ancestor.to_path_buf())
         });
 
