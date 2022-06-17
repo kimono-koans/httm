@@ -65,8 +65,8 @@ pub fn recursive_exec(
     requested_dir: &Path,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     // default stack size for rayon threads spawned to handle enumerate_deleted
-    // here set at 8MB (the Linux default) to avoid a stack overflow with the Rayon default
-    const DEFAULT_STACK_SIZE: usize = 8388608;
+    // here set at 1MB (the Linux default is 8MB) to avoid a stack overflow with the Rayon default
+    const DEFAULT_STACK_SIZE: usize = 1048576;
 
     // build thread pool with a stack size large enough to avoid a stack overflow
     let thread_pool = rayon::ThreadPoolBuilder::new()
