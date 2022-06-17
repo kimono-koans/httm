@@ -182,7 +182,6 @@ pub fn get_deleted_per_dataset(
             // we actually need for this dataset so we can skip the unwrap.
             Some(_) => match search_bundle.snapshot_mounts.as_ref() {
                 Some(snap_mounts) => snap_mounts_for_snap_filenames(snap_mounts, relative_path)?,
-
                 None => read_dir_for_snap_filenames(snapshot_dir, relative_path)?,
             },
             None => read_dir_for_snap_filenames(snapshot_dir, relative_path)?,

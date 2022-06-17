@@ -153,7 +153,7 @@ fn parse_from_mount_cmd() -> Result<
 > {
     // read datasets from 'mount' if possible -- this is much faster than using zfs command
     // but I trust we've parsed it correctly less, because BSD and Linux output are different
-    fn get_filesystems_and_mountpoints(
+    fn parse(
         mount_command: &PathBuf,
     ) -> Result<
         HashMap<PathBuf, (String, FilesystemType)>,
@@ -201,7 +201,7 @@ fn parse_from_mount_cmd() -> Result<
     // do we have the necessary commands for search if user has not defined a snap point?
     // if so run the mount search, if not print some errors
     if let Ok(mount_command) = which("mount") {
-        get_filesystems_and_mountpoints(&mount_command)
+        parse(&mount_command)
     } else {
         Err(HttmError::new(
             "mount command not found. Make sure the command 'mount' is in your path.",
