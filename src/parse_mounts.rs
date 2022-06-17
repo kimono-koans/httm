@@ -28,6 +28,8 @@ use crate::{
     ZFS_SNAPSHOT_DIRECTORY,
 };
 
+// divide by the type of system we are on
+// Linux allows us the read proc mounts
 #[allow(clippy::type_complexity)]
 pub fn get_filesystems_list() -> Result<
     (
@@ -46,7 +48,7 @@ pub fn get_filesystems_list() -> Result<
 }
 
 // both faster and necessary for certain btrfs features
-// allows us to read subvolumes
+// allows us to read subvolumes mounts, like "/@" or "/@home", for instance
 #[allow(clippy::type_complexity)]
 fn parse_from_proc_mounts() -> Result<
     (
@@ -65,7 +67,7 @@ fn parse_from_proc_mounts() -> Result<
             }
             _ => false,
         })
-        // but exclude snapshot mounts.  we want the raw filesystem names.
+        // but exclude snapshot mounts.  we want only the raw filesystems
         .filter(|mount_info| {
             !mount_info
                 .dest
@@ -165,7 +167,7 @@ fn parse_from_mount_cmd() -> Result<
         // parse "mount" for filesystems and mountpoints
         let map_of_datasets: HashMap<PathBuf, (String, FilesystemType)> = command_output
             .par_lines()
-            // want zfs 
+            // want zfs or network datasets which we can auto detest as ZFS
             .filter(|line| {
                 line.contains(ZFS_FSTYPE) ||
                 line.contains(SMB_FSTYPE) ||
@@ -174,6 +176,7 @@ fn parse_from_mount_cmd() -> Result<
             })
             // but exclude snapshot mounts.  we want the raw filesystem names.
             .filter(|line| !line.contains(ZFS_SNAPSHOT_DIRECTORY))
+            // where to split, to just have the src and dest of mounts
             .filter_map(|line|
                 // GNU Linux mount output
                 if line.contains("type") {
@@ -184,10 +187,12 @@ fn parse_from_mount_cmd() -> Result<
                 }
             )
             .map(|(filesystem_and_mount,_)| filesystem_and_mount )
+            // mount cmd includes and " on " between src and dest of mount
             .filter_map(|filesystem_and_mount| filesystem_and_mount.split_once(&" on "))
-            // sanity check: does the filesystem exist? if not, filter it out
             .map(|(filesystem, mount)| (filesystem.to_owned(), PathBuf::from(mount)))
+            // sanity check: does the filesystem exist and have a ZFS hidden dir? if not, filter it out
             .filter(|(_filesystem, mount)| mount.join(ZFS_SNAPSHOT_DIRECTORY).exists())
+            // flip around, mount is key
             .map(|(filesystem, mount)| (mount, (filesystem, FilesystemType::Zfs)))
             .collect();
 
@@ -231,8 +236,6 @@ pub fn precompute_btrfs_snap_mounts(
     mount_point_path: &Path,
     opt_root_mount_path: &Option<PathBuf>,
 ) -> Result<Vec<PathBuf>, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    // read datasets from 'mount' if possible -- this is much faster than using zfs command
-    // but I trust we've parsed it correctly less, because BSD and Linux output are different
     fn parse(
         mount_point_path: &Path,
         opt_root_mount_path: &Option<PathBuf>,
@@ -242,11 +245,11 @@ pub fn precompute_btrfs_snap_mounts(
         let arg_path = mount_point_path.to_string_lossy();
         let args = vec!["subvolume", "list", "-a", "-s", &arg_path];
 
+        // must exec for each mount, probably a better way by calling into a lib
         let command_output =
             std::str::from_utf8(&ExecProcess::new(exec_command).args(&args).output()?.stdout)?
                 .to_owned();
 
-        // parse "mount" for filesystems and mountpoints
         let snapshot_locations: Vec<PathBuf> = command_output
             .par_lines()
             .filter_map(|line| line.split_once(&"path "))
