@@ -190,7 +190,7 @@ pub fn get_deleted_per_dataset(
         SnapPoint::UserDefined(_) => read_dir_for_snap_filenames(snapshot_dir, relative_path)?,
     };
 
-    // compare local filenames to all unique snap filenames - none values are unique here
+    // compare local filenames to all unique snap filenames - none values are non-currently available, here
     let all_deleted_versions: Vec<BasicDirEntryInfo> = unique_snap_filenames
         .into_iter()
         .filter(|(file_name, _)| unique_local_filenames.get(file_name).is_none())
