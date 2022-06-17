@@ -263,11 +263,12 @@ pub fn get_alt_replicated_datasets(
     // find a filesystem that ends with our most local filesystem name
     // but which has a prefix, like a different pool name: rpool might be
     // replicated to tank/rpool
-    let mut alt_replicated_mounts: Vec<&PathBuf> = map_of_datasets
+    let mut alt_replicated_mounts: Vec<PathBuf> = map_of_datasets
         .par_iter()
         .filter(|(_mount, (fs_name, _fstype))| fs_name != &proximate_dataset_fsname)
         .filter(|(_mount, (fs_name, _fstype))| fs_name.ends_with(proximate_dataset_fsname.as_str()))
         .map(|(mount, _fsname)| mount)
+        .cloned()
         .collect();
 
     if alt_replicated_mounts.is_empty() {
@@ -275,10 +276,9 @@ pub fn get_alt_replicated_datasets(
         Err(HttmError::new("httm was unable to detect an alternate replicated mount point.  Perhaps the replicated filesystem is not mounted?").into())
     } else {
         alt_replicated_mounts.sort_unstable_by_key(|path| path.as_os_str().len());
-        let datasets_of_interest = alt_replicated_mounts.into_iter().cloned().collect();
         Ok(DatasetsForSearch {
             proximate_dataset_mount: proximate_dataset_mount.to_path_buf(),
-            datasets_of_interest,
+            datasets_of_interest: alt_replicated_mounts,
         })
     }
 }
