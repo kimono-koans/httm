@@ -187,7 +187,7 @@ fn parse_from_mount_cmd() -> Result<
             .filter_map(|filesystem_and_mount| filesystem_and_mount.split_once(&" on "))
             // sanity check: does the filesystem exist? if not, filter it out
             .map(|(filesystem, mount)| (filesystem.to_owned(), PathBuf::from(mount)))
-            .filter(|(_filesystem, mount)| mount.exists())
+            .filter(|(_filesystem, mount)| mount.join(ZFS_SNAPSHOT_DIRECTORY).exists())
             .map(|(filesystem, mount)| (mount, (filesystem, FilesystemType::Zfs)))
             .collect();
 
