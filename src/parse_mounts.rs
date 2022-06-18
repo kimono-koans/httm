@@ -65,6 +65,8 @@ fn parse_from_proc_mounts() -> Result<
             &ZFS_FSTYPE | &SMB_FSTYPE | &NFS_FSTYPE | &AFP_FSTYPE => {
                 mount_info.dest.join(ZFS_SNAPSHOT_DIRECTORY).exists()
             }
+            // for btrfs or else return true
+            &BTRFS_FSTYPE => true,
             _ => false,
         })
         // but exclude snapshot mounts.  we want only the raw filesystems

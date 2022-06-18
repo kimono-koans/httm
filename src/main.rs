@@ -377,6 +377,10 @@ impl Config {
         } else {
             let (map_of_datasets, map_of_snaps) = get_filesystems_list()?;
 
+            map_of_datasets
+                .iter()
+                .for_each(|dataset| println!("{:?}", dataset));
+
             let map_of_alts =
                 if matches.is_present("ALT_REPLICATED") && exec_mode != ExecMode::Display {
                     Some(precompute_alt_replicated(&map_of_datasets))
