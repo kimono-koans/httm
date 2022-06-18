@@ -265,21 +265,21 @@ where
     I: IntoIterator<Item = P>,
     P: AsRef<Path>,
 {
-    fn diff_common_components<A: AsRef<Path>, B: AsRef<Path>>(a: A, b: B) -> Option<PathBuf> {
-        let a = a.as_ref().components();
-        let b = b.as_ref().components();
-        let mut result_path = PathBuf::new();
-        let mut is_found = false;
-        for (one, two) in a.zip(b) {
-            if one == two {
-                result_path.push(one);
-                is_found = true;
-            } else {
-                break;
+    fn compare_components<A: AsRef<Path>, B: AsRef<Path>>(a: A, b: B) -> Option<PathBuf> {
+        let a_components = a.as_ref().components();
+        let b_components = b.as_ref().components();
+        let mut common_path = PathBuf::new();
+        let mut is_same = false;
+        
+        a_components.zip(b_components).for_each(|(a_path, b_path)| {
+            if a_path == b_path {
+                common_path.push(a_path);
+                is_same = true;
             }
-        }
-        if is_found {
-            Some(result_path)
+        });
+
+        if is_same {
+            Some(common_path)
         } else {
             None
         }
@@ -289,7 +289,7 @@ where
     let mut ret = iter.next()?.as_ref().to_path_buf();
 
     for path in iter {
-        if let Some(res) = diff_common_components(ret, path.as_ref()) {
+        if let Some(res) = compare_components(ret, path.as_ref()) {
             ret = res;
         } else {
             return None;
