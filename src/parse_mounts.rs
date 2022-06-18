@@ -322,7 +322,7 @@ pub fn get_system_type_and_common_snap_dir(
     {
         let vec_snaps: Vec<PathBuf> = map_of_snaps
             .clone()
-            .expect("map_of_snaps should always be available on a ZFS/btrfs system")
+            .expect("map_of_snaps should always be available on a system with btrfs mounts")
             .par_iter()
             .filter_map(|(mount, snaps)| match map_of_datasets.clone().get(mount) {
                 Some((_dataset, FilesystemType::Btrfs)) => Some(snaps),
