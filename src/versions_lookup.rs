@@ -24,7 +24,9 @@ use std::{
 use fxhash::FxHashMap as HashMap;
 use rayon::prelude::*;
 
-use crate::{Config, FilesystemType, HttmError, PathData, SnapPoint, ZFS_SNAPSHOT_DIRECTORY};
+use crate::{
+    Config, FilesystemType, HttmError, PathData, SnapPoint, SystemType, ZFS_SNAPSHOT_DIRECTORY,
+};
 
 pub struct DatasetsForSearch {
     pub proximate_dataset_mount: PathBuf,
@@ -170,9 +172,10 @@ pub fn get_search_bundle(
 
             let (snapshot_dir, relative_path, snapshot_mounts) = match &config.snap_point {
                 SnapPoint::UserDefined(defined_dirs) => {
-                    let snapshot_dir = match &defined_dirs.fstype {
-                        FilesystemType::Zfs => dataset_of_interest.join(ZFS_SNAPSHOT_DIRECTORY),
-                        FilesystemType::Btrfs => dataset_of_interest.to_path_buf(),
+                    let snapshot_dir = match &defined_dirs.system_type {
+                        SystemType::AllZfs => dataset_of_interest.join(ZFS_SNAPSHOT_DIRECTORY),
+                        SystemType::AllBtrfs => dataset_of_interest.to_path_buf(),
+                        SystemType::Mixed => unreachable!(),
                     };
 
                     let relative_path = pathdata

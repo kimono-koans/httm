@@ -63,6 +63,13 @@ pub enum FilesystemType {
     Btrfs,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum SystemType {
+    AllZfs,
+    AllBtrfs,
+    Mixed,
+}
+
 #[derive(Debug)]
 pub struct HttmError {
     details: String,
@@ -210,13 +217,14 @@ pub struct NativeDatasets {
     map_of_alts: Option<HashMap<PathBuf, Vec<PathBuf>>>,
     // key: mount, val: snap locations on disk (e.g. /.zfs/snapshot/snap_8a86e4fc_prepApt/home)
     map_of_snaps: Option<HashMap<PathBuf, Vec<PathBuf>>>,
+    system_type: SystemType,
 }
 
 #[derive(Debug, Clone)]
 pub struct UserDefinedDirs {
     snap_dir: PathBuf,
     local_dir: PathBuf,
-    fstype: FilesystemType,
+    system_type: SystemType,
 }
 
 #[derive(Debug, Clone)]
@@ -335,10 +343,10 @@ impl Config {
             }
 
             // set fstype, known by whether there is a ZFS hidden snapshot dir in the root dir
-            let fstype = if snap_dir.join(ZFS_SNAPSHOT_DIRECTORY).metadata().is_ok() {
-                FilesystemType::Zfs
+            let system_type = if snap_dir.join(ZFS_SNAPSHOT_DIRECTORY).metadata().is_ok() {
+                SystemType::AllZfs
             } else {
-                FilesystemType::Btrfs
+                SystemType::AllBtrfs
             };
 
             // has the user has defined a corresponding local relative directory?
@@ -371,18 +379,32 @@ impl Config {
                 SnapPoint::UserDefined(UserDefinedDirs {
                     snap_dir,
                     local_dir,
-                    fstype,
+                    system_type,
                 }),
             )
         } else {
             let (map_of_datasets, map_of_snaps) = get_filesystems_list()?;
 
-            let map_of_alts =
-                if matches.is_present("ALT_REPLICATED") && exec_mode != ExecMode::Display {
-                    Some(precompute_alt_replicated(&map_of_datasets))
-                } else {
-                    None
-                };
+            // why detect this here? to avoid the temptation of using in other places
+            let system_type = if map_of_datasets
+                .par_iter()
+                .all(|(_mount, (_dataset, fstype))| fstype == &FilesystemType::Zfs)
+            {
+                SystemType::AllZfs
+            } else if map_of_datasets
+                .par_iter()
+                .all(|(_mount, (_dataset, fstype))| fstype == &FilesystemType::Btrfs)
+            {
+                SystemType::AllBtrfs
+            } else {
+                SystemType::Mixed
+            };
+
+            let map_of_alts = if matches.is_present("ALT_REPLICATED") {
+                Some(precompute_alt_replicated(&map_of_datasets))
+            } else {
+                None
+            };
 
             (
                 matches.is_present("ALT_REPLICATED"),
@@ -390,6 +412,7 @@ impl Config {
                     map_of_datasets,
                     map_of_alts,
                     map_of_snaps,
+                    system_type,
                 }),
             )
         };

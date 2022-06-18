@@ -15,6 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
+use std::fs::DirEntry;
 use std::{ffi::OsStr, fs::read_dir, io::Write, path::Path, sync::Arc};
 
 use indicatif::ProgressBar;
@@ -27,7 +28,7 @@ use crate::interactive::SelectionCandidate;
 use crate::utility::httm_is_dir;
 use crate::versions_lookup::get_versions_set;
 use crate::{
-    BasicDirEntryInfo, Config, DeletedMode, ExecMode, HttmError, PathData,
+    BasicDirEntryInfo, Config, DeletedMode, ExecMode, HttmError, PathData, SnapPoint, SystemType,
     BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_HIDDEN_DIRECTORY,
 };
 
@@ -154,12 +155,19 @@ fn enumerate_live_versions(
 }
 
 fn get_entries_partitioned(
-    _config: Arc<Config>,
+    config: Arc<Config>,
     requested_dir: &Path,
 ) -> Result<
     (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>),
     Box<dyn std::error::Error + Send + Sync + 'static>,
 > {
+    // default dirs to filter (potential snapshot locations)
+    let default_filter_dirs = |dir_entry: &DirEntry| {
+        dir_entry.file_name().as_os_str() != OsStr::new(ZFS_HIDDEN_DIRECTORY)
+            && dir_entry.file_name().as_os_str()
+                != OsStr::new(BTRFS_SNAPPER_HIDDEN_DIRECTORY)
+    };
+
     //separates entries into dirs and files
     let (vec_dirs, vec_files) = read_dir(&requested_dir)?
         .flatten()
@@ -168,8 +176,27 @@ fn get_entries_partitioned(
         // didn't think this was possible until I saw a SMB share return
         // a .zfs dir entry
         .filter(|dir_entry| {
-            dir_entry.file_name().as_os_str() != OsStr::new(ZFS_HIDDEN_DIRECTORY)
-                && dir_entry.file_name().as_os_str() != OsStr::new(BTRFS_SNAPPER_HIDDEN_DIRECTORY)
+            match &config.snap_point {
+                SnapPoint::Native(native_dataset) => match native_dataset.system_type {
+                    SystemType::AllBtrfs | SystemType::Mixed => {
+                        match &native_dataset.map_of_snaps {
+                            Some(map_of_snaps) => 
+                            
+                            map_of_snaps
+                                .clone()
+                                .into_values()
+                                .flatten()
+                                .all(|snapshot_dir| {
+                                    eprintln!("{:?}{:?}", dir_entry, snapshot_dir);
+                                    dir_entry.path() != snapshot_dir
+                                }),
+                            None => default_filter_dirs(dir_entry),
+                        }
+                    }
+                    SystemType::AllZfs => dir_entry.file_name().as_os_str() != OsStr::new(ZFS_HIDDEN_DIRECTORY),
+                },
+                SnapPoint::UserDefined(_) => default_filter_dirs(dir_entry),
+            }
         })
         // checking file_type on dir entries is always preferable
         // as it is much faster than a metadata call on the path
