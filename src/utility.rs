@@ -265,33 +265,11 @@ where
     I: IntoIterator<Item = P>,
     P: AsRef<Path>,
 {
-    fn compare_components<A: AsRef<Path>, B: AsRef<Path>>(a: A, b: B) -> Option<PathBuf> {
-        let a_components = a.as_ref().components();
-        let b_components = b.as_ref().components();
-        let mut common_path = PathBuf::new();
-        let mut has_common_path = false;
+    let mut path_iter = paths.into_iter();
+    let mut ret = path_iter.next()?.as_ref().to_path_buf();
 
-        for (a_path, b_path) in a_components.zip(b_components) {
-            if a_path == b_path {
-                common_path.push(a_path);
-                has_common_path = true;
-            } else {
-                break;
-            }
-        }
-
-        if has_common_path {
-            Some(common_path)
-        } else {
-            None
-        }
-    }
-
-    let mut iter = paths.into_iter();
-    let mut ret = iter.next()?.as_ref().to_path_buf();
-
-    for path in iter {
-        if let Some(res) = compare_components(ret, path.as_ref()) {
+    for path in path_iter {
+        if let Some(res) = compare_path_components(ret, path.as_ref()) {
             ret = res;
         } else {
             return None;
@@ -299,4 +277,26 @@ where
     }
 
     Some(ret)
+}
+
+fn compare_path_components<A: AsRef<Path>, B: AsRef<Path>>(a: A, b: B) -> Option<PathBuf> {
+    let a_components = a.as_ref().components();
+    let b_components = b.as_ref().components();
+    let mut common_path = PathBuf::new();
+    let mut has_common_path = false;
+
+    for (a_path, b_path) in a_components.zip(b_components) {
+        if a_path == b_path {
+            common_path.push(a_path);
+            has_common_path = true;
+        } else {
+            break;
+        }
+    }
+
+    if has_common_path {
+        Some(common_path)
+    } else {
+        None
+    }
 }
