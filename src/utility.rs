@@ -269,16 +269,18 @@ where
         let a_components = a.as_ref().components();
         let b_components = b.as_ref().components();
         let mut common_path = PathBuf::new();
-        let mut is_same = false;
-        
-        a_components.zip(b_components).for_each(|(a_path, b_path)| {
+        let mut has_common_path = false;
+
+        for (a_path, b_path) in a_components.zip(b_components) {
             if a_path == b_path {
                 common_path.push(a_path);
-                is_same = true;
+                has_common_path = true;
+            } else {
+                break;
             }
-        });
+        }
 
-        if is_same {
+        if has_common_path {
             Some(common_path)
         } else {
             None
