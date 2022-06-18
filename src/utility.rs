@@ -20,7 +20,7 @@ use std::{
     fs::OpenOptions,
     fs::{copy, create_dir_all, read_dir, DirEntry, FileType},
     io::{self, Read, Write},
-    path::{Path, PathBuf},
+    path::{Component::RootDir, Path, PathBuf},
     time::SystemTime,
 };
 
@@ -280,6 +280,7 @@ where
 }
 
 fn compare_path_components<A: AsRef<Path>, B: AsRef<Path>>(a: A, b: B) -> Option<PathBuf> {
+    // skip the root dir,
     let a_components = a.as_ref().components();
     let b_components = b.as_ref().components();
     let mut common_path = PathBuf::new();
@@ -288,7 +289,9 @@ fn compare_path_components<A: AsRef<Path>, B: AsRef<Path>>(a: A, b: B) -> Option
     for (a_path, b_path) in a_components.zip(b_components) {
         if a_path == b_path {
             common_path.push(a_path);
-            has_common_path = true;
+            if a_path != RootDir {
+                has_common_path = true;
+            }
         } else {
             break;
         }

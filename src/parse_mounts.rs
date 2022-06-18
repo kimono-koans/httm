@@ -22,10 +22,11 @@ use proc_mounts::MountIter;
 use rayon::prelude::*;
 use which::which;
 
+use crate::utility::get_common_path;
 use crate::versions_lookup::get_alt_replicated_datasets;
 use crate::{
-    FilesystemType, HttmError, AFP_FSTYPE, BTRFS_FSTYPE, NFS_FSTYPE, SMB_FSTYPE, ZFS_FSTYPE,
-    ZFS_SNAPSHOT_DIRECTORY,
+    FilesystemType, HttmError, SystemType, AFP_FSTYPE, BTRFS_FSTYPE, NFS_FSTYPE, SMB_FSTYPE,
+    ZFS_FSTYPE, ZFS_SNAPSHOT_DIRECTORY,
 };
 
 // divide by the type of system we are on
@@ -309,4 +310,58 @@ pub fn precompute_zfs_snap_mounts(
     } else {
         Ok(snapshot_locations)
     }
+}
+
+pub fn get_system_type_and_common_snap_dir(
+    map_of_datasets: &HashMap<PathBuf, (String, FilesystemType)>,
+    map_of_snaps: &Option<HashMap<PathBuf, Vec<PathBuf>>>,
+) -> Result<(SystemType, Option<PathBuf>), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    let (system_type, opt_snapshot_dir) = if map_of_datasets
+        .par_iter()
+        .all(|(_mount, (_dataset, fstype))| fstype == &FilesystemType::Zfs)
+    {
+        (
+            SystemType::AllZfs,
+            // since snapshots reside on multiple datasets
+            // never have a common snap path
+            None,
+        )
+    } else if map_of_datasets
+        .par_iter()
+        .all(|(_mount, (_dataset, fstype))| fstype == &FilesystemType::Btrfs)
+    {
+        let vec_snaps: Vec<PathBuf> = map_of_snaps
+            .clone()
+            .expect("map_of_snaps should always be available on a btrfs system")
+            .into_values()
+            .flatten()
+            .collect();
+
+        let common_path = get_common_path(vec_snaps);
+
+        (SystemType::AllBtrfs, common_path)
+    } else {
+        let vec_snaps: Vec<PathBuf> = map_of_snaps
+            .clone()
+            .expect("map_of_snaps should always be available on a ZFS/btrfs system")
+            .par_iter()
+            .filter_map(|(mount, snaps)| match map_of_datasets.clone().get(mount) {
+                Some((_dataset, fstype)) => {
+                    if fstype == &FilesystemType::Btrfs {
+                        Some(snaps)
+                    } else {
+                        None
+                    }
+                }
+                None => None,
+            })
+            .flatten()
+            .cloned()
+            .collect();
+
+        let common_path = get_common_path(vec_snaps);
+
+        (SystemType::Mixed, common_path)
+    };
+    Ok((system_type, opt_snapshot_dir))
 }

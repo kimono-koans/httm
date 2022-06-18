@@ -177,7 +177,7 @@ fn get_entries_partitioned(
         .filter(|dir_entry| match &config.snap_point {
             SnapPoint::Native(native_dataset) => match native_dataset.system_type {
                 SystemType::AllBtrfs | SystemType::Mixed => {
-                    match &native_dataset.opt_snapshot_dir {
+                    match &native_dataset.opt_common_snap_dir {
                         Some(snapshot_dir) => {
                             default_filter_dirs(dir_entry) && &dir_entry.path() != snapshot_dir
                         }
@@ -189,7 +189,7 @@ fn get_entries_partitioned(
                 }
             },
             SnapPoint::UserDefined(user_defined_dirs) => {
-                match &user_defined_dirs.opt_snapshot_dir {
+                match &user_defined_dirs.opt_common_snap_dir {
                     Some(snapshot_dir) => &dir_entry.path() != snapshot_dir,
                     None => default_filter_dirs(dir_entry),
                 }

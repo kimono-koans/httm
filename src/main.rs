@@ -34,9 +34,11 @@ use rayon::prelude::*;
 
 use crate::display::display_exec;
 use crate::interactive::interactive_exec;
-use crate::parse_mounts::{get_filesystems_list, precompute_alt_replicated};
+use crate::parse_mounts::{
+    get_filesystems_list, get_system_type_and_common_snap_dir, precompute_alt_replicated,
+};
 use crate::process_dirs::display_recursive_wrapper;
-use crate::utility::{get_common_path, httm_is_dir, install_hot_keys, read_stdin};
+use crate::utility::{httm_is_dir, install_hot_keys, read_stdin};
 use crate::versions_lookup::get_versions_set;
 
 mod deleted_lookup;
@@ -218,7 +220,7 @@ pub struct NativeDatasets {
     // key: mount, val: snap locations on disk (e.g. /.zfs/snapshot/snap_8a86e4fc_prepApt/home)
     map_of_snaps: Option<HashMap<PathBuf, Vec<PathBuf>>>,
     system_type: SystemType,
-    opt_snapshot_dir: Option<PathBuf>,
+    opt_common_snap_dir: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone)]
@@ -226,7 +228,7 @@ pub struct UserDefinedDirs {
     snap_dir: PathBuf,
     local_dir: PathBuf,
     system_type: SystemType,
-    opt_snapshot_dir: Option<PathBuf>,
+    opt_common_snap_dir: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone)]
@@ -345,7 +347,7 @@ impl Config {
             }
 
             // set fstype, known by whether there is a ZFS hidden snapshot dir in the root dir
-            let (system_type, opt_snapshot_dir) =
+            let (system_type, opt_common_snap_dir) =
                 if snap_dir.join(ZFS_SNAPSHOT_DIRECTORY).metadata().is_ok() {
                     (SystemType::AllZfs, None)
                 } else {
@@ -383,59 +385,14 @@ impl Config {
                     snap_dir,
                     local_dir,
                     system_type,
-                    opt_snapshot_dir,
+                    opt_common_snap_dir,
                 }),
             )
         } else {
             let (map_of_datasets, map_of_snaps) = get_filesystems_list()?;
 
-            let (system_type, opt_snapshot_dir) = if map_of_datasets
-                .par_iter()
-                .all(|(_mount, (_dataset, fstype))| fstype == &FilesystemType::Zfs)
-            {
-                (
-                    SystemType::AllZfs,
-                    // since snapshots reside on multiple datasets
-                    // never have a common snap path
-                    None,
-                )
-            } else if map_of_datasets
-                .par_iter()
-                .all(|(_mount, (_dataset, fstype))| fstype == &FilesystemType::Btrfs)
-            {
-                let vec_snaps: Vec<PathBuf> = map_of_snaps
-                    .clone()
-                    .expect("map_of_snaps should always be available on a btrfs system")
-                    .into_values()
-                    .flatten()
-                    .collect();
-
-                let common_path = get_common_path(vec_snaps);
-
-                (SystemType::AllBtrfs, common_path)
-            } else {
-                let vec_snaps: Vec<PathBuf> = map_of_snaps
-                    .clone()
-                    .expect("map_of_snaps should always be available on a ZFS/btrfs system")
-                    .par_iter()
-                    .filter_map(|(mount, snaps)| match map_of_datasets.clone().get(mount) {
-                        Some((_dataset, fstype)) => {
-                            if fstype == &FilesystemType::Btrfs {
-                                Some(snaps)
-                            } else {
-                                None
-                            }
-                        }
-                        None => None,
-                    })
-                    .flatten()
-                    .cloned()
-                    .collect();
-
-                let common_path = get_common_path(vec_snaps);
-
-                (SystemType::Mixed, common_path)
-            };
+            let (system_type, opt_common_snap_dir) =
+                get_system_type_and_common_snap_dir(&map_of_datasets, &map_of_snaps)?;
 
             let map_of_alts = if matches.is_present("ALT_REPLICATED") {
                 Some(precompute_alt_replicated(&map_of_datasets))
@@ -450,7 +407,7 @@ impl Config {
                     map_of_alts,
                     map_of_snaps,
                     system_type,
-                    opt_snapshot_dir,
+                    opt_common_snap_dir,
                 }),
             )
         };
