@@ -176,16 +176,14 @@ fn get_entries_partitioned(
         // a .zfs dir entry
         .filter(|dir_entry| match &config.snap_point {
             SnapPoint::Native(native_dataset) => match native_dataset.system_type {
-                SystemType::AllBtrfs => match &native_dataset.opt_snapshot_dir {
-                    Some(snapshot_dir) => &dir_entry.path() != snapshot_dir,
-                    None => default_filter_dirs(dir_entry),
-                },
-                SystemType::Mixed => match &native_dataset.opt_snapshot_dir {
-                    Some(snapshot_dir) => {
-                        default_filter_dirs(dir_entry) && &dir_entry.path() != snapshot_dir
+                SystemType::AllBtrfs | SystemType::Mixed => {
+                    match &native_dataset.opt_snapshot_dir {
+                        Some(snapshot_dir) => {
+                            default_filter_dirs(dir_entry) && &dir_entry.path() != snapshot_dir
+                        }
+                        None => default_filter_dirs(dir_entry),
                     }
-                    None => default_filter_dirs(dir_entry),
-                },
+                }
                 SystemType::AllZfs => {
                     dir_entry.file_name().as_os_str() != OsStr::new(ZFS_HIDDEN_DIRECTORY)
                 }
