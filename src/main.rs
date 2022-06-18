@@ -347,10 +347,7 @@ impl Config {
             // set fstype, known by whether there is a ZFS hidden snapshot dir in the root dir
             let (system_type, opt_snapshot_dir) =
                 if snap_dir.join(ZFS_SNAPSHOT_DIRECTORY).metadata().is_ok() {
-                    (
-                        SystemType::AllZfs,
-                        Some(PathBuf::from(ZFS_HIDDEN_DIRECTORY)),
-                    )
+                    (SystemType::AllZfs, None)
                 } else {
                     (SystemType::AllBtrfs, None)
                 };
@@ -392,14 +389,15 @@ impl Config {
         } else {
             let (map_of_datasets, map_of_snaps) = get_filesystems_list()?;
 
-            // why detect this here? to avoid the temptation of using in other places
             let (system_type, opt_snapshot_dir) = if map_of_datasets
                 .par_iter()
                 .all(|(_mount, (_dataset, fstype))| fstype == &FilesystemType::Zfs)
             {
                 (
                     SystemType::AllZfs,
-                    Some(PathBuf::from(ZFS_HIDDEN_DIRECTORY)),
+                    // since snapshots reside on multiple datasets
+                    // never have a common snap path
+                    None,
                 )
             } else if map_of_datasets
                 .par_iter()
@@ -418,7 +416,7 @@ impl Config {
             } else {
                 let vec_snaps: Vec<PathBuf> = map_of_snaps
                     .clone()
-                    .expect("map_of_snaps should always be available on a btrfs system")
+                    .expect("map_of_snaps should always be available on a ZFS/btrfs system")
                     .par_iter()
                     .filter_map(|(mount, snaps)| match map_of_datasets.clone().get(mount) {
                         Some((_dataset, fstype)) => {

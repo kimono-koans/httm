@@ -268,18 +268,18 @@ where
     fn diff_common_components<A: AsRef<Path>, B: AsRef<Path>>(a: A, b: B) -> Option<PathBuf> {
         let a = a.as_ref().components();
         let b = b.as_ref().components();
-        let mut ret = PathBuf::new();
-        let mut found = false;
+        let mut result_path = PathBuf::new();
+        let mut is_found = false;
         for (one, two) in a.zip(b) {
             if one == two {
-                ret.push(one);
-                found = true;
+                result_path.push(one);
+                is_found = true;
             } else {
                 break;
             }
         }
-        if found {
-            Some(ret)
+        if is_found {
+            Some(result_path)
         } else {
             None
         }
@@ -287,12 +287,14 @@ where
 
     let mut iter = paths.into_iter();
     let mut ret = iter.next()?.as_ref().to_path_buf();
+
     for path in iter {
-        if let Some(r) = diff_common_components(ret, path.as_ref()) {
-            ret = r;
+        if let Some(res) = diff_common_components(ret, path.as_ref()) {
+            ret = res;
         } else {
             return None;
         }
     }
+
     Some(ret)
 }
