@@ -188,7 +188,9 @@ fn get_entries_partitioned(
             },
             SnapPoint::UserDefined(user_defined_dirs) => {
                 match &user_defined_dirs.opt_common_snap_dir {
-                    Some(snapshot_dir) => &dir_entry.path() != snapshot_dir,
+                    Some(snapshot_dir) => {
+                        default_filter_dirs(dir_entry) && &dir_entry.path() != snapshot_dir
+                    }
                     None => default_filter_dirs(dir_entry),
                 }
             }
