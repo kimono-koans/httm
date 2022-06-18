@@ -318,42 +318,15 @@ pub fn get_system_type_and_common_snap_dir(
 ) -> Result<(SystemType, Option<PathBuf>), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let (system_type, opt_snapshot_dir) = if map_of_datasets
         .par_iter()
-        .all(|(_mount, (_dataset, fstype))| fstype == &FilesystemType::Zfs)
+        .any(|(_mount, (_dataset, fstype))| fstype == &FilesystemType::Btrfs)
     {
-        (
-            SystemType::AllZfs,
-            // since snapshots reside on multiple datasets
-            // never have a common snap path
-            None,
-        )
-    } else if map_of_datasets
-        .par_iter()
-        .all(|(_mount, (_dataset, fstype))| fstype == &FilesystemType::Btrfs)
-    {
-        let vec_snaps: Vec<PathBuf> = map_of_snaps
-            .clone()
-            .expect("map_of_snaps should always be available on a btrfs system")
-            .into_values()
-            .flatten()
-            .collect();
-
-        let common_path = get_common_path(vec_snaps);
-
-        (SystemType::AllBtrfs, common_path)
-    } else {
         let vec_snaps: Vec<PathBuf> = map_of_snaps
             .clone()
             .expect("map_of_snaps should always be available on a ZFS/btrfs system")
             .par_iter()
             .filter_map(|(mount, snaps)| match map_of_datasets.clone().get(mount) {
-                Some((_dataset, fstype)) => {
-                    if fstype == &FilesystemType::Btrfs {
-                        Some(snaps)
-                    } else {
-                        None
-                    }
-                }
-                None => None,
+                Some((_dataset, FilesystemType::Btrfs)) => Some(snaps),
+                _ => None,
             })
             .flatten()
             .cloned()
@@ -361,7 +334,15 @@ pub fn get_system_type_and_common_snap_dir(
 
         let common_path = get_common_path(vec_snaps);
 
-        (SystemType::Mixed, common_path)
+        (SystemType::BtrfsOrMixed, common_path)
+    } else {
+        (
+            SystemType::AllZfs,
+            // since snapshots reside on multiple datasets
+            // never have a common snap path
+            None,
+        )
     };
+
     Ok((system_type, opt_snapshot_dir))
 }

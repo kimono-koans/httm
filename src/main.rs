@@ -68,8 +68,7 @@ pub enum FilesystemType {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum SystemType {
     AllZfs,
-    AllBtrfs,
-    Mixed,
+    BtrfsOrMixed,
 }
 
 #[derive(Debug)]
@@ -351,7 +350,7 @@ impl Config {
                 if snap_dir.join(ZFS_SNAPSHOT_DIRECTORY).metadata().is_ok() {
                     (SystemType::AllZfs, None)
                 } else {
-                    (SystemType::AllBtrfs, None)
+                    (SystemType::BtrfsOrMixed, None)
                 };
 
             // has the user has defined a corresponding local relative directory?

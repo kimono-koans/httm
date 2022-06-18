@@ -174,8 +174,7 @@ pub fn get_search_bundle(
                 SnapPoint::UserDefined(defined_dirs) => {
                     let snapshot_dir = match &defined_dirs.system_type {
                         SystemType::AllZfs => dataset_of_interest.join(ZFS_SNAPSHOT_DIRECTORY),
-                        SystemType::AllBtrfs => dataset_of_interest.to_path_buf(),
-                        SystemType::Mixed => unreachable!(),
+                        SystemType::BtrfsOrMixed => dataset_of_interest.to_path_buf(),
                     };
 
                     let relative_path = pathdata
