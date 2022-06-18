@@ -259,3 +259,40 @@ pub fn install_hot_keys() -> Result<(), Box<dyn std::error::Error + Send + Sync 
 
     std::process::exit(0)
 }
+
+pub fn get_common_path<I, P>(paths: I) -> Option<PathBuf>
+where
+    I: IntoIterator<Item = P>,
+    P: AsRef<Path>,
+{
+    fn diff_common_components<A: AsRef<Path>, B: AsRef<Path>>(a: A, b: B) -> Option<PathBuf> {
+        let a = a.as_ref().components();
+        let b = b.as_ref().components();
+        let mut ret = PathBuf::new();
+        let mut found = false;
+        for (one, two) in a.zip(b) {
+            if one == two {
+                ret.push(one);
+                found = true;
+            } else {
+                break;
+            }
+        }
+        if found {
+            Some(ret)
+        } else {
+            None
+        }
+    }
+
+    let mut iter = paths.into_iter();
+    let mut ret = iter.next()?.as_ref().to_path_buf();
+    for path in iter {
+        if let Some(r) = diff_common_components(ret, path.as_ref()) {
+            ret = r;
+        } else {
+            return None;
+        }
+    }
+    Some(ret)
+}
