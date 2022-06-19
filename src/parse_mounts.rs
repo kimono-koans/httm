@@ -219,9 +219,16 @@ fn parse_from_mount_cmd() -> Result<
             .filter_map(|filesystem_and_mount| filesystem_and_mount.split_once(&" on "))
             .map(|(filesystem, mount)| (filesystem.to_owned(), PathBuf::from(mount)))
             // sanity check: does the filesystem exist and have a ZFS hidden dir? if not, filter it out
-            .filter(|(_filesystem, mount)| mount.join(ZFS_SNAPSHOT_DIRECTORY).exists())
-            // flip around, mount is key
-            .map(|(filesystem, mount)| (mount, (filesystem, FilesystemType::Zfs)))
+            // and flip around, mount should key of key/value
+            .filter_map(|(filesystem, mount)|
+                if mount.join(ZFS_SNAPSHOT_DIRECTORY).exists() {
+                    Some((mount, (filesystem, FilesystemType::Zfs)))
+                } else if mount.join(BTRFS_SNAPPER_HIDDEN_DIRECTORY).exists() {
+                    Some((mount, (filesystem, FilesystemType::Btrfs)))
+                } else {
+                    None
+                }
+            )
             .collect();
 
         if map_of_datasets.is_empty() {
