@@ -191,7 +191,7 @@ pub fn get_deleted_per_dataset(
     let fs_type = &search_bundle.fs_type;
 
     let unique_snap_filenames: HashMap<OsString, BasicDirEntryInfo> = match &config.snap_point {
-        SnapPoint::Native(native_datasets) => match native_datasets.map_of_snaps {
+        SnapPoint::Native(native_datasets) => match native_datasets.opt_map_of_snaps {
             // Do we have a map_of snaps? If so, get_search_bundle function has already prepared the ones
             // we actually need for this dataset so we can skip the unwrap.
             Some(_) => match search_bundle.snapshot_mounts.as_ref() {

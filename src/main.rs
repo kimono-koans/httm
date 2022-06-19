@@ -210,9 +210,9 @@ pub struct NativeDatasets {
     // key: mount, val: (dataset/subvol, fstype)
     map_of_datasets: HashMap<PathBuf, (String, FilesystemType)>,
     // key: mount, val: alt dataset
-    map_of_alts: Option<HashMap<PathBuf, Vec<PathBuf>>>,
+    opt_map_of_alts: Option<HashMap<PathBuf, Vec<PathBuf>>>,
     // key: mount, val: snap locations on disk (e.g. /.zfs/snapshot/snap_8a86e4fc_prepApt/home)
-    map_of_snaps: Option<HashMap<PathBuf, Vec<PathBuf>>>,
+    opt_map_of_snaps: Option<HashMap<PathBuf, Vec<PathBuf>>>,
     opt_common_snap_dir: Option<PathBuf>,
 }
 
@@ -394,12 +394,14 @@ impl Config {
                 }),
             )
         } else {
-            let (map_of_datasets, map_of_snaps) = get_filesystems_list()?;
+            let (map_of_datasets, opt_map_of_snaps) = get_filesystems_list()?;
 
+            // for a collection of btrfs mounts, indicates a common snapshot directory to ignore
             let opt_common_snap_dir =
-                get_system_type_and_common_snap_dir(&map_of_datasets, &map_of_snaps)?;
+                get_system_type_and_common_snap_dir(&map_of_datasets, &opt_map_of_snaps)?;
 
-            let map_of_alts = if matches.is_present("ALT_REPLICATED") {
+            // only create a map of alts if necessary
+            let opt_map_of_alts = if matches.is_present("ALT_REPLICATED") {
                 Some(precompute_alt_replicated(&map_of_datasets))
             } else {
                 None
@@ -409,8 +411,8 @@ impl Config {
                 matches.is_present("ALT_REPLICATED"),
                 SnapPoint::Native(NativeDatasets {
                     map_of_datasets,
-                    map_of_alts,
-                    map_of_snaps,
+                    opt_map_of_alts,
+                    opt_map_of_snaps,
                     opt_common_snap_dir,
                 }),
             )

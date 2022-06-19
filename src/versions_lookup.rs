@@ -141,7 +141,7 @@ pub fn get_search_bundle(
                         datasets_of_interest: vec![proximate_dataset_mount],
                     }
                 }
-                NativeDatasetType::AltReplicated => match &native_datasets.map_of_alts {
+                NativeDatasetType::AltReplicated => match &native_datasets.opt_map_of_alts {
                     Some(map_of_alts) => match map_of_alts.get(&proximate_dataset_mount) {
                         Some(alternate_mounts) => DatasetsForSearch {
                             proximate_dataset_mount,
@@ -219,7 +219,7 @@ pub fn get_search_bundle(
                         .strip_prefix(&proximate_dataset_mount)?
                         .to_path_buf();
 
-                    let snapshot_mounts = match &native_datasets.map_of_snaps {
+                    let snapshot_mounts = match &native_datasets.opt_map_of_snaps {
                         Some(map_of_snaps) => map_of_snaps.get(dataset_of_interest).cloned(),
                         None => None,
                     };
@@ -360,7 +360,7 @@ fn get_versions_per_dataset(
     }
 
     let unique_versions: HashMap<(SystemTime, u64), PathData> = match &config.snap_point {
-        SnapPoint::Native(native_datasets) => match native_datasets.map_of_snaps {
+        SnapPoint::Native(native_datasets) => match native_datasets.opt_map_of_snaps {
             // Do we have a map_of snaps? If so, get_search_bundle function has already prepared the ones
             // we actually need for this dataset so we can skip the unwrap.
             Some(_) => match search_bundle.snapshot_mounts.as_ref() {
