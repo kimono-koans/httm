@@ -25,8 +25,8 @@ use which::which;
 use crate::utility::get_common_path;
 use crate::versions_lookup::get_alt_replicated_datasets;
 use crate::{
-    FilesystemType, HttmError, SystemType, AFP_FSTYPE, BTRFS_FSTYPE, NFS_FSTYPE, SMB_FSTYPE,
-    ZFS_FSTYPE, ZFS_SNAPSHOT_DIRECTORY,
+    FilesystemType, HttmError, SystemType, AFP_FSTYPE, BTRFS_FSTYPE,
+    BTRFS_SNAPPER_HIDDEN_DIRECTORY, NFS_FSTYPE, SMB_FSTYPE, ZFS_FSTYPE, ZFS_SNAPSHOT_DIRECTORY,
 };
 
 // divide by the type of system we are on
@@ -62,13 +62,6 @@ fn parse_from_proc_mounts() -> Result<
         .into_iter()
         .par_bridge()
         .flatten()
-        .filter(|mount_info| match &mount_info.fstype.as_ref() {
-            &ZFS_FSTYPE | &SMB_FSTYPE | &NFS_FSTYPE | &AFP_FSTYPE => {
-                mount_info.dest.join(ZFS_SNAPSHOT_DIRECTORY).exists()
-            }
-            &BTRFS_FSTYPE => true,
-            _ => false,
-        })
         // but exclude snapshot mounts.  we want only the raw filesystems
         .filter(|mount_info| {
             !mount_info
@@ -76,14 +69,39 @@ fn parse_from_proc_mounts() -> Result<
                 .to_string_lossy()
                 .contains(ZFS_SNAPSHOT_DIRECTORY)
         })
-        .map(|mount_info| match &mount_info.fstype.as_str() {
-            &ZFS_FSTYPE | &SMB_FSTYPE | &AFP_FSTYPE | &NFS_FSTYPE => (
+        .filter_map(|mount_info| match &mount_info.fstype.as_str() {
+            &ZFS_FSTYPE => Some((
                 mount_info.dest,
                 (
                     mount_info.source.to_string_lossy().to_string(),
                     FilesystemType::Zfs,
                 ),
-            ),
+            )),
+            &SMB_FSTYPE | &AFP_FSTYPE | &NFS_FSTYPE => {
+                if mount_info.dest.join(ZFS_SNAPSHOT_DIRECTORY).exists() {
+                    Some((
+                        mount_info.dest,
+                        (
+                            mount_info.source.to_string_lossy().to_string(),
+                            FilesystemType::Zfs,
+                        ),
+                    ))
+                } else if mount_info
+                    .dest
+                    .join(BTRFS_SNAPPER_HIDDEN_DIRECTORY)
+                    .exists()
+                {
+                    Some((
+                        mount_info.dest,
+                        (
+                            mount_info.source.to_string_lossy().to_string(),
+                            FilesystemType::Btrfs,
+                        ),
+                    ))
+                } else {
+                    None
+                }
+            }
             &BTRFS_FSTYPE => {
                 let keyed_options: HashMap<String, String> = mount_info
                     .options
@@ -102,14 +120,14 @@ fn parse_from_proc_mounts() -> Result<
 
                 let fstype = FilesystemType::Btrfs;
 
-                (mount_info.dest, (subvol, fstype))
+                Some((mount_info.dest, (subvol, fstype)))
             }
-            _ => unreachable!(),
+            _ => None,
         })
         .filter(|(mount, (_dataset, _fstype))| mount.exists())
         .collect();
 
-    let map_of_snaps = precompute_snap_mounts(&map_of_datasets).ok();
+    let map_of_snaps = precompute_snap_mounts(&map_of_datasets);
 
     if map_of_datasets.is_empty() {
         Err(HttmError::new("httm could not find any valid datasets on the system.").into())
@@ -121,12 +139,12 @@ fn parse_from_proc_mounts() -> Result<
 // fans out precompute of snap mounts to the appropriate function based on fstype
 pub fn precompute_snap_mounts(
     map_of_datasets: &HashMap<PathBuf, (String, FilesystemType)>,
-) -> Result<HashMap<PathBuf, Vec<PathBuf>>, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let map_of_snaps = map_of_datasets
+) -> Option<HashMap<PathBuf, Vec<PathBuf>>> {
+    let map_of_snaps: HashMap<PathBuf, Vec<PathBuf>> = map_of_datasets
         .par_iter()
         .filter_map(|(mount, (_dataset, fstype))| {
             let snap_mounts = match fstype {
-                FilesystemType::Zfs => precompute_zfs_snap_mounts(mount),
+                FilesystemType::Zfs => precompute_zfs_snap_mounts(mount).ok(),
                 FilesystemType::Btrfs => {
                     let opt_root_mount_path: Option<&PathBuf> =
                         map_of_datasets
@@ -139,17 +157,24 @@ pub fn precompute_snap_mounts(
                                 }
                             });
 
-                    precompute_btrfs_snap_mounts(mount, &opt_root_mount_path)
+                    match opt_root_mount_path {
+                        Some(root_mount_path) => {
+                            precompute_btrfs_snap_mounts(mount, root_mount_path).ok()
+                        }
+                        None => None,
+                    }
                 }
             };
 
-            snap_mounts
-                .ok()
-                .map(|snap_mounts| (mount.clone(), snap_mounts))
+            snap_mounts.map(|snap_mounts| (mount.clone(), snap_mounts))
         })
         .collect();
 
-    Ok(map_of_snaps)
+    if map_of_snaps.is_empty() {
+        None
+    } else {
+        Some(map_of_snaps)
+    }
 }
 
 // old fashioned parsing for non-Linux systems, nearly as fast, works everywhere with a mount command
@@ -239,11 +264,11 @@ pub fn precompute_alt_replicated(
 // build paths to all snap mounts
 pub fn precompute_btrfs_snap_mounts(
     mount_point_path: &Path,
-    opt_root_mount_path: &Option<&PathBuf>,
+    root_mount_path: &Path,
 ) -> Result<Vec<PathBuf>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     fn parse(
         mount_point_path: &Path,
-        opt_root_mount_path: &Option<&PathBuf>,
+        root_mount_path: &Path,
         btrfs_command: &Path,
     ) -> Result<Vec<PathBuf>, Box<dyn std::error::Error + Send + Sync + 'static>> {
         let exec_command = btrfs_command;
@@ -258,13 +283,11 @@ pub fn precompute_btrfs_snap_mounts(
         let snapshot_locations: Vec<PathBuf> = command_output
             .par_lines()
             .filter_map(|line| line.split_once(&"path "))
-            .filter_map(
+            .map(
                 |(_first, snap_path)| match snap_path.strip_prefix("<FS_TREE>/") {
                     Some(fs_tree_path) => {
                         // "<FS_TREE>/" should be the root path
-                        opt_root_mount_path
-                            .as_ref()
-                            .map(|root_mount| root_mount.join(fs_tree_path))
+                        root_mount_path.join(fs_tree_path)
                     }
                     None => {
                         // btrfs sub list -a -s output includes the sub name (eg @home)
@@ -272,7 +295,7 @@ pub fn precompute_btrfs_snap_mounts(
                         let snap_path_parsed: PathBuf =
                             Path::new(snap_path).components().skip(1).collect();
 
-                        Some(mount_point_path.join(snap_path_parsed))
+                        mount_point_path.join(snap_path_parsed)
                     }
                 },
             )
@@ -287,7 +310,7 @@ pub fn precompute_btrfs_snap_mounts(
     }
 
     if let Ok(btrfs_command) = which("btrfs") {
-        let snapshot_locations = parse(mount_point_path, opt_root_mount_path, &btrfs_command)?;
+        let snapshot_locations = parse(mount_point_path, root_mount_path, &btrfs_command)?;
         Ok(snapshot_locations)
     } else {
         Err(HttmError::new(
