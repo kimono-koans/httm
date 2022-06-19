@@ -127,16 +127,16 @@ pub fn precompute_snap_mounts(
             let snap_mounts = match fstype {
                 FilesystemType::Zfs => precompute_zfs_snap_mounts(mount),
                 FilesystemType::Btrfs => {
-                    let opt_root_mount_path = map_of_datasets
-                        .iter()
-                        .find_map(|(mount, (dataset, _fstype))| {
-                            if dataset == &"/".to_owned() {
-                                Some(mount)
-                            } else {
-                                None
-                            }
-                        })
-                        .cloned();
+                    let opt_root_mount_path: Option<&PathBuf> =
+                        map_of_datasets
+                            .iter()
+                            .find_map(|(mount, (dataset, _fstype))| {
+                                if dataset == &"/".to_owned() {
+                                    Some(mount)
+                                } else {
+                                    None
+                                }
+                            });
 
                     precompute_btrfs_snap_mounts(mount, &opt_root_mount_path)
                 }
@@ -236,11 +236,11 @@ pub fn precompute_alt_replicated(
 
 pub fn precompute_btrfs_snap_mounts(
     mount_point_path: &Path,
-    opt_root_mount_path: &Option<PathBuf>,
+    opt_root_mount_path: &Option<&PathBuf>,
 ) -> Result<Vec<PathBuf>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     fn parse(
         mount_point_path: &Path,
-        opt_root_mount_path: &Option<PathBuf>,
+        opt_root_mount_path: &Option<&PathBuf>,
         btrfs_command: &Path,
     ) -> Result<Vec<PathBuf>, Box<dyn std::error::Error + Send + Sync + 'static>> {
         let exec_command = btrfs_command;
@@ -320,16 +320,15 @@ pub fn get_system_type_and_common_snap_dir(
         .par_iter()
         .any(|(_mount, (_dataset, fstype))| fstype == &FilesystemType::Btrfs)
     {
-        let vec_snaps: Vec<PathBuf> = map_of_snaps
-            .clone()
+        let vec_snaps: Vec<&PathBuf> = map_of_snaps
+            .as_ref()
             .expect("map_of_snaps should always be available on a system with btrfs mounts")
             .par_iter()
-            .filter_map(|(mount, snaps)| match map_of_datasets.clone().get(mount) {
+            .filter_map(|(mount, snaps)| match map_of_datasets.get(mount) {
                 Some((_dataset, FilesystemType::Btrfs)) => Some(snaps),
                 _ => None,
             })
             .flatten()
-            .cloned()
             .collect();
 
         let common_path = get_common_path(vec_snaps);
