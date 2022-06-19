@@ -57,6 +57,7 @@ pub const AFP_FSTYPE: &str = "afpfs";
 
 pub const ZFS_HIDDEN_DIRECTORY: &str = ".zfs";
 pub const BTRFS_SNAPPER_HIDDEN_DIRECTORY: &str = ".snapshots";
+pub const BTRFS_SNAPPER_SUFFIX: &str = "snapshot";
 pub const ZFS_SNAPSHOT_DIRECTORY: &str = ".zfs/snapshot";
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -346,12 +347,24 @@ impl Config {
             }
 
             // set fstype, known by whether there is a ZFS hidden snapshot dir in the root dir
-            let (system_type, opt_common_snap_dir) =
-                if snap_dir.join(ZFS_SNAPSHOT_DIRECTORY).metadata().is_ok() {
-                    (SystemType::AllZfs, None)
-                } else {
-                    (SystemType::BtrfsOrMixed, None)
-                };
+            let (system_type, opt_common_snap_dir) = if snap_dir
+                .join(ZFS_SNAPSHOT_DIRECTORY)
+                .metadata()
+                .is_ok()
+            {
+                (SystemType::AllZfs, None)
+            } else if snap_dir
+                .join(BTRFS_SNAPPER_HIDDEN_DIRECTORY)
+                .metadata()
+                .is_ok()
+            {
+                (SystemType::BtrfsOrMixed, None)
+            } else {
+                return Err(HttmError::new(
+                        "User defined snap point is only available for ZFS datasets and btrfs datasets snapshot-ed via snapper.",
+                    )
+                    .into());
+            };
 
             // has the user has defined a corresponding local relative directory?
             let raw_local_var = if let Some(raw_value) = matches.value_of_os("LOCAL_DIR") {

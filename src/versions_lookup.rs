@@ -25,7 +25,8 @@ use fxhash::FxHashMap as HashMap;
 use rayon::prelude::*;
 
 use crate::{
-    Config, FilesystemType, HttmError, PathData, SnapPoint, SystemType, ZFS_SNAPSHOT_DIRECTORY,
+    Config, FilesystemType, HttmError, PathData, SnapPoint, SystemType,
+    BTRFS_SNAPPER_HIDDEN_DIRECTORY, BTRFS_SNAPPER_SUFFIX, ZFS_SNAPSHOT_DIRECTORY,
 };
 
 pub struct DatasetsForSearch {
@@ -174,7 +175,9 @@ pub fn get_search_bundle(
                 SnapPoint::UserDefined(defined_dirs) => {
                     let snapshot_dir = match &defined_dirs.system_type {
                         SystemType::AllZfs => dataset_of_interest.join(ZFS_SNAPSHOT_DIRECTORY),
-                        SystemType::BtrfsOrMixed => dataset_of_interest.to_path_buf(),
+                        SystemType::BtrfsOrMixed => {
+                            dataset_of_interest.join(BTRFS_SNAPPER_HIDDEN_DIRECTORY)
+                        }
                     };
 
                     let relative_path = pathdata
@@ -303,6 +306,7 @@ fn get_versions_per_dataset(
     fn read_dir_for_datasets(
         snapshot_dir: &Path,
         relative_path: &Path,
+        system_type: &SystemType,
     ) -> Result<
         HashMap<(SystemTime, u64), PathData>,
         Box<dyn std::error::Error + Send + Sync + 'static>,
@@ -310,7 +314,11 @@ fn get_versions_per_dataset(
         let unique_versions = read_dir(&snapshot_dir)?
             .flatten()
             .par_bridge()
-            .map(|entry| entry.path().join(relative_path))
+            .map(|entry| match system_type {
+                SystemType::BtrfsOrMixed => entry.path().join(BTRFS_SNAPPER_SUFFIX),
+                SystemType::AllZfs => entry.path(),
+            })
+            .map(|path| path.join(relative_path))
             .map(|path| PathData::from(path.as_path()))
             .filter(|pathdata| !pathdata.is_phantom)
             .map(|pathdata| ((pathdata.system_time, pathdata.size), pathdata))
@@ -342,11 +350,19 @@ fn get_versions_per_dataset(
             // we actually need for this dataset so we can skip the unwrap.
             Some(_) => match search_bundle.snapshot_mounts.as_ref() {
                 Some(snap_mounts) => snap_mounts_for_datasets(snap_mounts, relative_path)?,
-                None => read_dir_for_datasets(snapshot_dir, relative_path)?,
+                None => read_dir_for_datasets(
+                    snapshot_dir,
+                    relative_path,
+                    &native_datasets.system_type,
+                )?,
             },
-            None => read_dir_for_datasets(snapshot_dir, relative_path)?,
+            None => {
+                read_dir_for_datasets(snapshot_dir, relative_path, &native_datasets.system_type)?
+            }
         },
-        SnapPoint::UserDefined(_) => read_dir_for_datasets(snapshot_dir, relative_path)?,
+        SnapPoint::UserDefined(user_defined_dirs) => {
+            read_dir_for_datasets(snapshot_dir, relative_path, &user_defined_dirs.system_type)?
+        }
     };
 
     let mut vec_pathdata: Vec<PathData> = unique_versions.into_par_iter().map(|(_, v)| v).collect();
