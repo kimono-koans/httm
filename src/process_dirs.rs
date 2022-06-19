@@ -28,7 +28,7 @@ use crate::interactive::SelectionCandidate;
 use crate::utility::httm_is_dir;
 use crate::versions_lookup::get_versions_set;
 use crate::{
-    BasicDirEntryInfo, Config, DeletedMode, ExecMode, HttmError, PathData, SnapPoint, SystemType,
+    BasicDirEntryInfo, Config, DeletedMode, ExecMode, HttmError, PathData, SnapPoint,
     BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_HIDDEN_DIRECTORY,
 };
 
@@ -175,16 +175,11 @@ fn get_entries_partitioned(
         // didn't think this was possible until I saw a SMB share return
         // a .zfs dir entry
         .filter(|dir_entry| match &config.snap_point {
-            SnapPoint::Native(native_dataset) => match native_dataset.system_type {
-                SystemType::BtrfsOrMixed => match &native_dataset.opt_common_snap_dir {
-                    Some(snapshot_dir) => {
-                        default_filter_dirs(dir_entry) && &dir_entry.path() != snapshot_dir
-                    }
-                    None => default_filter_dirs(dir_entry),
-                },
-                SystemType::AllZfs => {
-                    dir_entry.file_name().as_os_str() != OsStr::new(ZFS_HIDDEN_DIRECTORY)
+            SnapPoint::Native(native_datasets) => match &native_datasets.opt_common_snap_dir {
+                Some(snapshot_dir) => {
+                    default_filter_dirs(dir_entry) && &dir_entry.path() != snapshot_dir
                 }
+                None => default_filter_dirs(dir_entry),
             },
             SnapPoint::UserDefined(user_defined_dirs) => {
                 match &user_defined_dirs.opt_common_snap_dir {

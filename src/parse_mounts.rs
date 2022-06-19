@@ -25,8 +25,8 @@ use which::which;
 use crate::utility::get_common_path;
 use crate::versions_lookup::get_alt_replicated_datasets;
 use crate::{
-    FilesystemType, HttmError, SystemType, AFP_FSTYPE, BTRFS_FSTYPE,
-    BTRFS_SNAPPER_HIDDEN_DIRECTORY, NFS_FSTYPE, SMB_FSTYPE, ZFS_FSTYPE, ZFS_SNAPSHOT_DIRECTORY,
+    FilesystemType, HttmError, AFP_FSTYPE, BTRFS_FSTYPE, BTRFS_SNAPPER_HIDDEN_DIRECTORY,
+    NFS_FSTYPE, SMB_FSTYPE, ZFS_FSTYPE, ZFS_SNAPSHOT_DIRECTORY,
 };
 
 // divide by the type of system we are on
@@ -352,8 +352,8 @@ pub fn precompute_zfs_snap_mounts(
 pub fn get_system_type_and_common_snap_dir(
     map_of_datasets: &HashMap<PathBuf, (String, FilesystemType)>,
     map_of_snaps: &Option<HashMap<PathBuf, Vec<PathBuf>>>,
-) -> Result<(SystemType, Option<PathBuf>), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let (system_type, opt_snapshot_dir) = if map_of_datasets
+) -> Result<Option<PathBuf>, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    let opt_snapshot_dir = if map_of_datasets
         .par_iter()
         .any(|(_mount, (_dataset, fstype))| fstype == &FilesystemType::Btrfs)
     {
@@ -366,20 +366,15 @@ pub fn get_system_type_and_common_snap_dir(
                 })
                 .flatten()
                 .collect(),
-            None => return Ok((SystemType::BtrfsOrMixed, None)),
+            None => return Ok(None),
         };
 
-        let common_path = get_common_path(vec_snaps);
-
-        (SystemType::BtrfsOrMixed, common_path)
+        get_common_path(vec_snaps)
     } else {
-        (
-            SystemType::AllZfs,
-            // since snapshots reside on multiple datasets
-            // never have a common snap path
-            None,
-        )
+        // since snapshots ZFS reside on multiple datasets
+        // never have a common snap path
+        None
     };
 
-    Ok((system_type, opt_snapshot_dir))
+    Ok(opt_snapshot_dir)
 }
