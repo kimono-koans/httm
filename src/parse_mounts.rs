@@ -48,8 +48,8 @@ pub fn get_filesystems_list() -> Result<
     Ok((map_of_datasets, map_of_snaps))
 }
 
-// both faster and necessary for certain btrfs features
-// allows us to read subvolumes mounts, like "/@" or "/@home", for instance
+// parsing from proc mounts is both faster and necessary for certain btrfs features
+// for instance, allows us to read subvolumes mounts, like "/@" or "/@home"
 #[allow(clippy::type_complexity)]
 fn parse_from_proc_mounts() -> Result<
     (
@@ -118,6 +118,7 @@ fn parse_from_proc_mounts() -> Result<
     }
 }
 
+// fans out precompute of snap mounts to the appropriate function based on fstype
 pub fn precompute_snap_mounts(
     map_of_datasets: &HashMap<PathBuf, (String, FilesystemType)>,
 ) -> Result<HashMap<PathBuf, Vec<PathBuf>>, Box<dyn std::error::Error + Send + Sync + 'static>> {
@@ -151,12 +152,12 @@ pub fn precompute_snap_mounts(
     Ok(map_of_snaps)
 }
 
+// old fashioned parsing for non-Linux systems, nearly as fast, works everywhere with a mount command
+// both methods are much faster than using zfs command
 fn parse_from_mount_cmd() -> Result<
     HashMap<PathBuf, (String, FilesystemType)>,
     Box<dyn std::error::Error + Send + Sync + 'static>,
 > {
-    // read datasets from 'mount' if possible -- this is much faster than using zfs command
-    // but I trust we've parsed it correctly less, because BSD and Linux output are different
     fn parse(
         mount_command: &PathBuf,
     ) -> Result<
@@ -217,6 +218,7 @@ fn parse_from_mount_cmd() -> Result<
     }
 }
 
+// instead of looking up, precompute possible alt replicated mounts before exec
 pub fn precompute_alt_replicated(
     map_of_datasets: &HashMap<PathBuf, (String, FilesystemType)>,
 ) -> HashMap<PathBuf, Vec<PathBuf>> {
@@ -234,6 +236,7 @@ pub fn precompute_alt_replicated(
         .collect()
 }
 
+// build paths to all snap mounts
 pub fn precompute_btrfs_snap_mounts(
     mount_point_path: &Path,
     opt_root_mount_path: &Option<&PathBuf>,
@@ -294,6 +297,7 @@ pub fn precompute_btrfs_snap_mounts(
     }
 }
 
+// similar to btrfs precompute, build paths to all snap mounts
 pub fn precompute_zfs_snap_mounts(
     mount_point_path: &Path,
 ) -> Result<Vec<PathBuf>, Box<dyn std::error::Error + Send + Sync + 'static>> {
@@ -312,6 +316,9 @@ pub fn precompute_zfs_snap_mounts(
     }
 }
 
+// ask what type of system are we on: all ZFS or do we have some btrfs mounts
+// if we have some btrfs mounts, we check to see if there is a snap directory in common
+// so we can hide that common path from searches later
 pub fn get_system_type_and_common_snap_dir(
     map_of_datasets: &HashMap<PathBuf, (String, FilesystemType)>,
     map_of_snaps: &Option<HashMap<PathBuf, Vec<PathBuf>>>,
