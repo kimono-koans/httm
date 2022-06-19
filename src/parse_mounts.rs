@@ -140,30 +140,31 @@ fn parse_from_proc_mounts() -> Result<
 pub fn precompute_snap_mounts(
     map_of_datasets: &HashMap<PathBuf, (String, FilesystemType)>,
 ) -> Option<HashMap<PathBuf, Vec<PathBuf>>> {
+    let opt_root_mount_path: Option<&PathBuf> =
+        map_of_datasets
+            .par_iter()
+            .find_map_first(|(mount, (dataset, fstype))| match fstype {
+                FilesystemType::Btrfs => {
+                    if dataset.as_str() == "/" {
+                        Some(mount)
+                    } else {
+                        None
+                    }
+                }
+                FilesystemType::Zfs => None,
+            });
+
     let map_of_snaps: HashMap<PathBuf, Vec<PathBuf>> = map_of_datasets
         .par_iter()
         .filter_map(|(mount, (_dataset, fstype))| {
             let snap_mounts = match fstype {
                 FilesystemType::Zfs => precompute_zfs_snap_mounts(mount).ok(),
-                FilesystemType::Btrfs => {
-                    let opt_root_mount_path: Option<&PathBuf> =
-                        map_of_datasets
-                            .iter()
-                            .find_map(|(mount, (dataset, _fstype))| {
-                                if dataset == &"/".to_owned() {
-                                    Some(mount)
-                                } else {
-                                    None
-                                }
-                            });
-
-                    match opt_root_mount_path {
-                        Some(root_mount_path) => {
-                            precompute_btrfs_snap_mounts(mount, root_mount_path).ok()
-                        }
-                        None => None,
+                FilesystemType::Btrfs => match opt_root_mount_path {
+                    Some(root_mount_path) => {
+                        precompute_btrfs_snap_mounts(mount, root_mount_path).ok()
                     }
-                }
+                    None => None,
+                },
             };
 
             snap_mounts.map(|snap_mounts| (mount.clone(), snap_mounts))
