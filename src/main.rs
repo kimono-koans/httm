@@ -56,9 +56,9 @@ pub const NFS_FSTYPE: &str = "nfs";
 pub const AFP_FSTYPE: &str = "afpfs";
 
 pub const ZFS_HIDDEN_DIRECTORY: &str = ".zfs";
+pub const ZFS_SNAPSHOT_DIRECTORY: &str = ".zfs/snapshot";
 pub const BTRFS_SNAPPER_HIDDEN_DIRECTORY: &str = ".snapshots";
 pub const BTRFS_SNAPPER_SUFFIX: &str = "snapshot";
-pub const ZFS_SNAPSHOT_DIRECTORY: &str = ".zfs/snapshot";
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum FilesystemType {
