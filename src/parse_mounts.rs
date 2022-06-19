@@ -220,7 +220,7 @@ fn parse_from_mount_cmd() -> Result<
             .map(|(filesystem, mount)| (filesystem.to_owned(), PathBuf::from(mount)))
             // sanity check: does the filesystem exist and have a ZFS hidden dir? if not, filter it out
             // and flip around, mount should key of key/value
-            .filter_map(|(filesystem, mount)|
+            .filter_map(|(filesystem, mount)| {
                 if mount.join(ZFS_SNAPSHOT_DIRECTORY).exists() {
                     Some((mount, (filesystem, FilesystemType::Zfs)))
                 } else if mount.join(BTRFS_SNAPPER_HIDDEN_DIRECTORY).exists() {
@@ -228,7 +228,7 @@ fn parse_from_mount_cmd() -> Result<
                 } else {
                     None
                 }
-            )
+            })
             .collect();
 
         if map_of_datasets.is_empty() {
@@ -357,16 +357,17 @@ pub fn get_system_type_and_common_snap_dir(
         .par_iter()
         .any(|(_mount, (_dataset, fstype))| fstype == &FilesystemType::Btrfs)
     {
-        let vec_snaps: Vec<&PathBuf> = map_of_snaps
-            .as_ref()
-            .expect("map_of_snaps should always be available on a system with btrfs mounts")
-            .par_iter()
-            .filter_map(|(mount, snaps)| match map_of_datasets.get(mount) {
-                Some((_dataset, FilesystemType::Btrfs)) => Some(snaps),
-                _ => None,
-            })
-            .flatten()
-            .collect();
+        let vec_snaps: Vec<&PathBuf> = match map_of_snaps {
+            Some(map_of_snaps) => map_of_snaps
+                .par_iter()
+                .filter_map(|(mount, snaps)| match map_of_datasets.get(mount) {
+                    Some((_dataset, FilesystemType::Btrfs)) => Some(snaps),
+                    _ => None,
+                })
+                .flatten()
+                .collect(),
+            None => return Ok((SystemType::BtrfsOrMixed, None)),
+        };
 
         let common_path = get_common_path(vec_snaps);
 

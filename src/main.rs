@@ -227,7 +227,7 @@ pub struct NativeDatasets {
 pub struct UserDefinedDirs {
     snap_dir: PathBuf,
     local_dir: PathBuf,
-    system_type: SystemType,
+    fs_type: FilesystemType,
     opt_common_snap_dir: Option<PathBuf>,
 }
 
@@ -347,18 +347,18 @@ impl Config {
             }
 
             // set fstype, known by whether there is a ZFS hidden snapshot dir in the root dir
-            let (system_type, opt_common_snap_dir) = if snap_dir
+            let (fs_type, opt_common_snap_dir) = if snap_dir
                 .join(ZFS_SNAPSHOT_DIRECTORY)
                 .metadata()
                 .is_ok()
             {
-                (SystemType::AllZfs, None)
+                (FilesystemType::Zfs, None)
             } else if snap_dir
                 .join(BTRFS_SNAPPER_HIDDEN_DIRECTORY)
                 .metadata()
                 .is_ok()
             {
-                (SystemType::BtrfsOrMixed, None)
+                (FilesystemType::Btrfs, None)
             } else {
                 return Err(HttmError::new(
                         "User defined snap point is only available for ZFS datasets and btrfs datasets snapshot-ed via snapper.",
@@ -396,7 +396,7 @@ impl Config {
                 SnapPoint::UserDefined(UserDefinedDirs {
                     snap_dir,
                     local_dir,
-                    system_type,
+                    fs_type,
                     opt_common_snap_dir,
                 }),
             )

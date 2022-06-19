@@ -25,8 +25,8 @@ use fxhash::FxHashMap as HashMap;
 use rayon::prelude::*;
 
 use crate::{
-    Config, FilesystemType, HttmError, PathData, SnapPoint, SystemType,
-    BTRFS_SNAPPER_HIDDEN_DIRECTORY, BTRFS_SNAPPER_SUFFIX, ZFS_SNAPSHOT_DIRECTORY,
+    Config, FilesystemType, HttmError, PathData, SnapPoint, BTRFS_SNAPPER_HIDDEN_DIRECTORY,
+    BTRFS_SNAPPER_SUFFIX, ZFS_SNAPSHOT_DIRECTORY,
 };
 
 pub struct DatasetsForSearch {
@@ -44,6 +44,7 @@ pub enum NativeDatasetType {
 pub struct SearchBundle {
     pub snapshot_dir: PathBuf,
     pub relative_path: PathBuf,
+    pub fs_type: FilesystemType,
     pub snapshot_mounts: Option<Vec<PathBuf>>,
 }
 
@@ -171,12 +172,15 @@ pub fn get_search_bundle(
 
             let proximate_dataset_mount = &dataset_collection.proximate_dataset_mount;
 
-            let (snapshot_dir, relative_path, snapshot_mounts) = match &config.snap_point {
+            let (snapshot_dir, relative_path, snapshot_mounts, fs_type) = match &config.snap_point {
                 SnapPoint::UserDefined(defined_dirs) => {
-                    let snapshot_dir = match &defined_dirs.system_type {
-                        SystemType::AllZfs => dataset_of_interest.join(ZFS_SNAPSHOT_DIRECTORY),
-                        SystemType::BtrfsOrMixed => {
-                            dataset_of_interest.join(BTRFS_SNAPPER_HIDDEN_DIRECTORY)
+                    let (snapshot_dir, fs_type) = match &defined_dirs.fs_type {
+                        FilesystemType::Zfs => (
+                            dataset_of_interest.join(ZFS_SNAPSHOT_DIRECTORY),
+                            FilesystemType::Zfs,
+                        ),
+                        FilesystemType::Btrfs => {
+                            (dataset_of_interest.to_path_buf(), FilesystemType::Btrfs)
                         }
                     };
 
@@ -187,22 +191,28 @@ pub fn get_search_bundle(
 
                     let snapshot_mounts = None;
 
-                    (snapshot_dir, relative_path, snapshot_mounts)
+                    (snapshot_dir, relative_path, snapshot_mounts, fs_type)
                 }
                 SnapPoint::Native(native_datasets) => {
                     // this prefix removal is why we always need the proximate dataset name, even when we are searching an alternate replicated filesystem
 
                     // building the snapshot path from our dataset
-                    let snapshot_dir = match &native_datasets
-                        .map_of_datasets
-                        .get(dataset_of_interest)
-                    {
-                        Some((_, fstype)) => match fstype {
-                            FilesystemType::Zfs => dataset_of_interest.join(ZFS_SNAPSHOT_DIRECTORY),
-                            FilesystemType::Btrfs => dataset_of_interest.to_path_buf(),
-                        },
-                        None => dataset_of_interest.join(ZFS_SNAPSHOT_DIRECTORY),
-                    };
+                    let (snapshot_dir, fs_type) =
+                        match &native_datasets.map_of_datasets.get(dataset_of_interest) {
+                            Some((_, fstype)) => match fstype {
+                                FilesystemType::Zfs => (
+                                    dataset_of_interest.join(ZFS_SNAPSHOT_DIRECTORY),
+                                    FilesystemType::Zfs,
+                                ),
+                                FilesystemType::Btrfs => {
+                                    (dataset_of_interest.to_path_buf(), FilesystemType::Btrfs)
+                                }
+                            },
+                            None => (
+                                dataset_of_interest.join(ZFS_SNAPSHOT_DIRECTORY),
+                                FilesystemType::Zfs,
+                            ),
+                        };
 
                     let relative_path = pathdata
                         .path_buf
@@ -214,7 +224,7 @@ pub fn get_search_bundle(
                         None => None,
                     };
 
-                    (snapshot_dir, relative_path, snapshot_mounts)
+                    (snapshot_dir, relative_path, snapshot_mounts, fs_type)
                 }
             };
 
@@ -222,6 +232,7 @@ pub fn get_search_bundle(
                 snapshot_dir,
                 relative_path,
                 snapshot_mounts,
+                fs_type,
             })
         })
         .collect()
@@ -301,28 +312,32 @@ fn get_versions_per_dataset(
 
     let snapshot_dir = search_bundle.snapshot_dir.as_ref();
     let relative_path = search_bundle.relative_path.as_ref();
+    let fs_type = &search_bundle.fs_type;
 
     // this is the fallback/non-Linux way of handling without a map_of_snaps
     fn read_dir_for_datasets(
         snapshot_dir: &Path,
         relative_path: &Path,
-        system_type: &SystemType,
+        fs_type: &FilesystemType,
     ) -> Result<
         HashMap<(SystemTime, u64), PathData>,
         Box<dyn std::error::Error + Send + Sync + 'static>,
     > {
-        let unique_versions = read_dir(&snapshot_dir)?
-            .flatten()
-            .par_bridge()
-            .map(|entry| match system_type {
-                SystemType::BtrfsOrMixed => entry.path().join(BTRFS_SNAPPER_SUFFIX),
-                SystemType::AllZfs => entry.path(),
-            })
-            .map(|path| path.join(relative_path))
-            .map(|path| PathData::from(path.as_path()))
-            .filter(|pathdata| !pathdata.is_phantom)
-            .map(|pathdata| ((pathdata.system_time, pathdata.size), pathdata))
-            .collect();
+        let unique_versions = read_dir(match fs_type {
+            FilesystemType::Btrfs => snapshot_dir.join(BTRFS_SNAPPER_HIDDEN_DIRECTORY),
+            FilesystemType::Zfs => snapshot_dir.to_path_buf(),
+        })?
+        .flatten()
+        .par_bridge()
+        .map(|entry| match fs_type {
+            FilesystemType::Btrfs => entry.path().join(BTRFS_SNAPPER_SUFFIX),
+            FilesystemType::Zfs => entry.path(),
+        })
+        .map(|path| path.join(relative_path))
+        .map(|path| PathData::from(path.as_path()))
+        .filter(|pathdata| !pathdata.is_phantom)
+        .map(|pathdata| ((pathdata.system_time, pathdata.size), pathdata))
+        .collect();
 
         Ok(unique_versions)
     }
@@ -350,18 +365,12 @@ fn get_versions_per_dataset(
             // we actually need for this dataset so we can skip the unwrap.
             Some(_) => match search_bundle.snapshot_mounts.as_ref() {
                 Some(snap_mounts) => snap_mounts_for_datasets(snap_mounts, relative_path)?,
-                None => read_dir_for_datasets(
-                    snapshot_dir,
-                    relative_path,
-                    &native_datasets.system_type,
-                )?,
+                None => read_dir_for_datasets(snapshot_dir, relative_path, fs_type)?,
             },
-            None => {
-                read_dir_for_datasets(snapshot_dir, relative_path, &native_datasets.system_type)?
-            }
+            None => read_dir_for_datasets(snapshot_dir, relative_path, fs_type)?,
         },
         SnapPoint::UserDefined(user_defined_dirs) => {
-            read_dir_for_datasets(snapshot_dir, relative_path, &user_defined_dirs.system_type)?
+            read_dir_for_datasets(snapshot_dir, relative_path, &user_defined_dirs.fs_type)?
         }
     };
 
