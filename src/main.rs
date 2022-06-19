@@ -636,8 +636,9 @@ fn parse_args() -> ArgMatches {
             Arg::new("SNAP_POINT")
                 .long("snap-point")
                 .help("ordinarily httm will automatically choose your dataset root directory (the most proximate ancestor directory which contains a \".zfs\" directory), \
-                but here you may manually specify your own mount point for that directory, such as the local mount point for a remote share.  \
-                You may also set via the HTTM_SNAP_POINT environment variable.  Note: Use of both \"snap-point\" and \"local-dir\" are not always necessary to view versions on remote shares.  \
+                but here you may manually specify that mount point for ZFS (directory which contains a \".zfs\" directory) or btrfs-snapper (directory which contains a \".snapshots\" directory), \
+                such as the local mount point for a remote share.  You may also set via the HTTM_SNAP_POINT environment variable.  \
+                Note: Use of both \"snap-point\" and \"local-dir\" are not always necessary to view versions on remote shares.  \
                 httm can also automatically detect ZFS datasets mounted as AFP, SMB, and NFS remote shares.")
                 .takes_value(true)
                 .display_order(9)
