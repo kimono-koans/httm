@@ -24,8 +24,14 @@ use std::{
 use fxhash::FxHashMap as HashMap;
 use itertools::Itertools;
 
-use crate::versions_lookup::{get_search_bundle, NativeDatasetType, SearchBundle};
-use crate::{BasicDirEntryInfo, Config, PathData, SnapPoint};
+use crate::{
+    versions_lookup::{get_search_bundle, NativeDatasetType, SearchBundle},
+    FilesystemType,
+};
+use crate::{
+    BasicDirEntryInfo, Config, PathData, SnapPoint, BTRFS_SNAPPER_HIDDEN_DIRECTORY,
+    BTRFS_SNAPPER_SUFFIX,
+};
 
 pub fn get_unique_deleted(
     config: &Config,
@@ -120,27 +126,35 @@ pub fn get_deleted_per_dataset(
     fn read_dir_for_snap_filenames(
         snapshot_dir: &Path,
         relative_path: &Path,
+        fs_type: &FilesystemType,
     ) -> Result<
         HashMap<OsString, BasicDirEntryInfo>,
         Box<dyn std::error::Error + Send + Sync + 'static>,
     > {
-        let unique_snap_filenames = read_dir(&snapshot_dir)?
-            .flatten()
-            .map(|entry| entry.path().join(relative_path))
-            .flat_map(|path| read_dir(&path))
-            .flatten()
-            .flatten()
-            .map(|dir_entry| {
-                (
-                    dir_entry.file_name(),
-                    BasicDirEntryInfo {
-                        file_name: dir_entry.file_name(),
-                        path: dir_entry.path(),
-                        file_type: dir_entry.file_type().ok(),
-                    },
-                )
-            })
-            .collect();
+        let unique_snap_filenames = read_dir(match fs_type {
+            FilesystemType::Btrfs => snapshot_dir.join(BTRFS_SNAPPER_HIDDEN_DIRECTORY),
+            FilesystemType::Zfs => snapshot_dir.to_path_buf(),
+        })?
+        .flatten()
+        .map(|entry| match fs_type {
+            FilesystemType::Btrfs => entry.path().join(BTRFS_SNAPPER_SUFFIX),
+            FilesystemType::Zfs => entry.path(),
+        })
+        .map(|path| path.join(relative_path))
+        .flat_map(|path| read_dir(&path))
+        .flatten()
+        .flatten()
+        .map(|dir_entry| {
+            (
+                dir_entry.file_name(),
+                BasicDirEntryInfo {
+                    file_name: dir_entry.file_name(),
+                    path: dir_entry.path(),
+                    file_type: dir_entry.file_type().ok(),
+                },
+            )
+        })
+        .collect();
 
         Ok(unique_snap_filenames)
     }
@@ -174,6 +188,7 @@ pub fn get_deleted_per_dataset(
 
     let snapshot_dir = &search_bundle.snapshot_dir;
     let relative_path = &search_bundle.relative_path;
+    let fs_type = &search_bundle.fs_type;
 
     let unique_snap_filenames: HashMap<OsString, BasicDirEntryInfo> = match &config.snap_point {
         SnapPoint::Native(native_datasets) => match native_datasets.map_of_snaps {
@@ -181,11 +196,13 @@ pub fn get_deleted_per_dataset(
             // we actually need for this dataset so we can skip the unwrap.
             Some(_) => match search_bundle.snapshot_mounts.as_ref() {
                 Some(snap_mounts) => snap_mounts_for_snap_filenames(snap_mounts, relative_path)?,
-                None => read_dir_for_snap_filenames(snapshot_dir, relative_path)?,
+                None => read_dir_for_snap_filenames(snapshot_dir, relative_path, fs_type)?,
             },
-            None => read_dir_for_snap_filenames(snapshot_dir, relative_path)?,
+            None => read_dir_for_snap_filenames(snapshot_dir, relative_path, fs_type)?,
         },
-        SnapPoint::UserDefined(_) => read_dir_for_snap_filenames(snapshot_dir, relative_path)?,
+        SnapPoint::UserDefined(_) => {
+            read_dir_for_snap_filenames(snapshot_dir, relative_path, fs_type)?
+        }
     };
 
     // compare local filenames to all unique snap filenames - none values are non-currently available, here
