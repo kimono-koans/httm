@@ -126,8 +126,7 @@ pub fn get_deleted_per_dataset(
     > {
         let unique_snap_filenames = read_dir(&snapshot_dir)?
             .flatten()
-            .map(|entry| entry.path())
-            .map(|path| path.join(relative_path))
+            .map(|entry| entry.path().join(relative_path))
             .flat_map(|path| read_dir(&path))
             .flatten()
             .flatten()

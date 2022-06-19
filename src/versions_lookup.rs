@@ -267,8 +267,10 @@ pub fn get_alt_replicated_datasets(
     // replicated to tank/rpool
     let mut alt_replicated_mounts: Vec<PathBuf> = map_of_datasets
         .par_iter()
-        .filter(|(_mount, (fs_name, _fstype))| fs_name != &proximate_dataset_fsname)
-        .filter(|(_mount, (fs_name, _fstype))| fs_name.ends_with(proximate_dataset_fsname.as_str()))
+        .filter(|(_mount, (fs_name, _fstype))| {
+            fs_name != &proximate_dataset_fsname
+                && fs_name.ends_with(proximate_dataset_fsname.as_str())
+        })
         .map(|(mount, _fsname)| mount)
         .cloned()
         .collect();
@@ -308,8 +310,7 @@ fn get_versions_per_dataset(
         let unique_versions = read_dir(&snapshot_dir)?
             .flatten()
             .par_bridge()
-            .map(|entry| entry.path())
-            .map(|path| path.join(relative_path))
+            .map(|entry| entry.path().join(relative_path))
             .map(|path| PathData::from(path.as_path()))
             .filter(|pathdata| !pathdata.is_phantom)
             .map(|pathdata| ((pathdata.system_time, pathdata.size), pathdata))
