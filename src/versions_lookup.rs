@@ -334,7 +334,7 @@ fn get_versions_per_dataset(
             FilesystemType::Zfs => entry.path(),
         })
         .map(|path| path.join(relative_path))
-        .map(|path| PathData::from(path.as_path()))
+        .map(|joined_path| PathData::from(joined_path.as_path()))
         .filter(|pathdata| !pathdata.is_phantom)
         .map(|pathdata| ((pathdata.system_time, pathdata.size), pathdata))
         .collect();
