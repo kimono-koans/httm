@@ -245,11 +245,8 @@ fn get_proximate_dataset(
     // for /usr/bin, we prefer the most proximate: /usr/bin to /usr and /
     // ancestors() iterates in this top-down order, when a value: dataset/fstype is available
     // we map to return the key mount
-    let opt_best_potential_mountpoint: Option<PathBuf> = pathdata
-        .path_buf
-        .ancestors()
-        .par_bridge()
-        .find_map_first(|ancestor| {
+    let opt_best_potential_mountpoint: Option<PathBuf> =
+        pathdata.path_buf.ancestors().find_map(|ancestor| {
             map_of_datasets
                 .get(ancestor)
                 .map(|_| ancestor.to_path_buf())
