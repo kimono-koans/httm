@@ -78,35 +78,35 @@ fn display_pretty(
             let pathdata_set_buffer: String = pathdata_set
                 .iter()
                 .map(|pathdata| {
-                    let pathdata_date = display_date(&pathdata.system_time);
-
                     // tab delimited if "no pretty", no border lines, and no colors
                     let (pathdata_size, display_path, display_padding) = if !config.opt_no_pretty {
-                        let pathdata_size = format!(
+                        let size = format!(
                             "{:>width$}",
                             display_human_size(pathdata),
                             width = size_padding_len
                         );
-                        let display_padding = PRETTY_FIXED_WIDTH_PADDING.to_owned();
+                        let padding = PRETTY_FIXED_WIDTH_PADDING.to_owned();
 
                         // paint the live strings with ls colors - idx == 1 is 2nd or live set
                         let file_path = &pathdata.path_buf;
-                        let painted_string = if idx == 1 {
+                        let painted_path = if idx == 1 {
                             paint_string(pathdata, file_path.to_str().unwrap_or_default())
                         } else {
                             file_path.to_string_lossy()
                         };
 
-                        let display_path =
-                            format!("\"{:<width$}\"", painted_string, width = size_padding_len);
+                        let path =
+                            format!("\"{:<width$}\"", painted_path, width = size_padding_len);
 
-                        (pathdata_size, display_path, display_padding)
+                        (size, path, padding)
                     } else {
-                        let pathdata_size = display_human_size(pathdata);
-                        let display_path = pathdata.path_buf.to_string_lossy().into_owned();
-                        let display_padding = NOT_SO_PRETTY_FIXED_WIDTH_PADDING.to_owned();
-                        (pathdata_size, display_path, display_padding)
+                        let size = display_human_size(pathdata);
+                        let path = pathdata.path_buf.to_string_lossy().into_owned();
+                        let padding = NOT_SO_PRETTY_FIXED_WIDTH_PADDING.to_owned();
+                        (size, path, padding)
                     };
+
+                    let pathdata_date = display_date(&pathdata.system_time);
 
                     // displays blanks for phantom values, equaling their dummy lens and dates.
                     //
