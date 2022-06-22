@@ -69,81 +69,81 @@ fn display_pretty(
     config: &Config,
     snaps_and_live_set: [Vec<PathData>; 2],
 ) -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let mut write_out_buffer = String::new();
-
     let (size_padding_len, fancy_border_string) = calculate_padding(&snaps_and_live_set);
 
-    // now display with all that beautiful padding
-    if !config.opt_no_pretty {
-        // only print one border to the top -- to write_out_buffer, not pathdata_set_buffer
-        write_out_buffer += &format!("{}\n", fancy_border_string);
-    }
-
-    snaps_and_live_set
+    let write_out_buffer = snaps_and_live_set
         .iter()
         .enumerate()
-        .for_each(|(idx, pathdata_set)| {
-            let mut pathdata_set_buffer = String::new();
+        .map(|(idx, pathdata_set)| {
+            let pathdata_set_buffer: String = pathdata_set
+                .iter()
+                .map(|pathdata| {
+                    let pathdata_date = display_date(&pathdata.system_time);
 
-            pathdata_set.iter().for_each(|pathdata| {
-                let pathdata_date = display_date(&pathdata.system_time);
+                    // tab delimited if "no pretty", no border lines, and no colors
+                    let (pathdata_size, display_path, display_padding) = if !config.opt_no_pretty {
+                        let pathdata_size = format!(
+                            "{:>width$}",
+                            display_human_size(pathdata),
+                            width = size_padding_len
+                        );
+                        let display_padding = PRETTY_FIXED_WIDTH_PADDING.to_owned();
 
-                // tab delimited if "no pretty", no border lines, and no colors
-                let (pathdata_size, display_path, display_padding) = if !config.opt_no_pretty {
-                    let pathdata_size = format!(
-                        "{:>width$}",
-                        display_human_size(pathdata),
-                        width = size_padding_len
-                    );
-                    let display_padding = PRETTY_FIXED_WIDTH_PADDING.to_owned();
+                        // paint the live strings with ls colors - idx == 1 is 2nd or live set
+                        let file_path = &pathdata.path_buf;
+                        let painted_string = if idx == 1 {
+                            paint_string(pathdata, file_path.to_str().unwrap_or_default())
+                        } else {
+                            file_path.to_string_lossy()
+                        };
 
-                    // paint the live strings with ls colors - idx == 1 is 2nd or live set
-                    let file_path = &pathdata.path_buf;
-                    let painted_string = if idx == 1 {
-                        paint_string(pathdata, file_path.to_str().unwrap_or_default())
+                        let display_path =
+                            format!("\"{:<width$}\"", painted_string, width = size_padding_len);
+
+                        (pathdata_size, display_path, display_padding)
                     } else {
-                        file_path.to_string_lossy()
+                        let pathdata_size = display_human_size(pathdata);
+                        let display_path = pathdata.path_buf.to_string_lossy().into_owned();
+                        let display_padding = NOT_SO_PRETTY_FIXED_WIDTH_PADDING.to_owned();
+                        (pathdata_size, display_path, display_padding)
                     };
 
-                    let display_path =
-                        format!("\"{:<width$}\"", painted_string, width = size_padding_len);
+                    // displays blanks for phantom values, equaling their dummy lens and dates.
+                    //
+                    // we use a dummy instead of a None value here.  Basically, sometimes, we want
+                    // to print the request even if a live file does not exist
+                    let (display_date, display_size) = if !pathdata.is_phantom {
+                        let date = pathdata_date;
+                        let size = pathdata_size;
+                        (date, size)
+                    } else {
+                        let date: String = (0..pathdata_date.len()).map(|_| " ").collect();
+                        let size: String = (0..pathdata_size.len()).map(|_| " ").collect();
+                        (date, size)
+                    };
 
-                    (pathdata_size, display_path, display_padding)
-                } else {
-                    let pathdata_size = display_human_size(pathdata);
-                    let display_path = pathdata.path_buf.to_string_lossy().into_owned();
-                    let display_padding = NOT_SO_PRETTY_FIXED_WIDTH_PADDING.to_owned();
-                    (pathdata_size, display_path, display_padding)
-                };
-
-                // displays blanks for phantom values, equaling their dummy lens and dates.
-                //
-                // we use a dummy instead of a None value here.  Basically, sometimes, we want
-                // to print the request even if a live file does not exist
-                let (display_date, display_size) = if !pathdata.is_phantom {
-                    let date = pathdata_date;
-                    let size = pathdata_size;
-                    (date, size)
-                } else {
-                    let date: String = (0..pathdata_date.len()).map(|_| " ").collect();
-                    let size: String = (0..pathdata_size.len()).map(|_| " ").collect();
-                    (date, size)
-                };
-
-                pathdata_set_buffer += &format!(
-                    // no quotation marks to path
-                    "{}{}{}{}{}\n",
-                    display_date, display_padding, display_size, display_padding, display_path
-                );
-            });
+                    format!(
+                        // no quotation marks to path
+                        "{}{}{}{}{}\n",
+                        display_date, display_padding, display_size, display_padding, display_path
+                    )
+                })
+                .collect();
 
             if !config.opt_no_pretty && !pathdata_set_buffer.is_empty() {
-                pathdata_set_buffer += &format!("{}\n", fancy_border_string);
-                write_out_buffer += &pathdata_set_buffer;
+                if idx == 0 {
+                    format!(
+                        "{}\n{}{}\n",
+                        fancy_border_string, &pathdata_set_buffer, fancy_border_string
+                    )
+                } else {
+                    format!("{}{}\n", &pathdata_set_buffer, fancy_border_string)
+                }
             } else {
-                write_out_buffer += &pathdata_set_buffer;
+                pathdata_set_buffer
             }
-        });
+        })
+        .collect();
 
     Ok(write_out_buffer)
 }
