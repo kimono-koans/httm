@@ -130,17 +130,23 @@ fn display_pretty(
                 })
                 .collect();
 
-            if !config.opt_no_pretty && !pathdata_set_buffer.is_empty() {
+            if !config.opt_no_pretty {
                 // if the first i
                 if idx == 0 {
-                    format!(
-                        "{fbs}\n{psb}{fbs}\n",
-                        fbs = fancy_border_string, psb = &pathdata_set_buffer
-                    )
+                    if !pathdata_set_buffer.is_empty() {
+                        format!(
+                            "{fbs}\n{psb}{fbs}\n",
+                            fbs = fancy_border_string,
+                            psb = &pathdata_set_buffer
+                        )
+                    } else {
+                        format!("{fbs}\n", fbs = fancy_border_string)
+                    }
                 } else {
                     format!(
                         "{psb}{fbs}\n",
-                        fbs = fancy_border_string, psb =&pathdata_set_buffer
+                        fbs = fancy_border_string,
+                        psb = &pathdata_set_buffer
                     )
                 }
             } else {
@@ -154,9 +160,9 @@ fn display_pretty(
 
 fn calculate_padding(snaps_and_live_set: &[Vec<PathData>]) -> (usize, String) {
     // calculate padding and borders for display later
-    let (size_padding_len, fancy_border_len) = snaps_and_live_set
-        .iter()
-        .fold((0usize, 0usize), |(mut size_padding_len, mut fancy_border_len), ver_set| {
+    let (size_padding_len, fancy_border_len) = snaps_and_live_set.iter().fold(
+        (0usize, 0usize),
+        |(mut size_padding_len, mut fancy_border_len), ver_set| {
             ver_set.iter().for_each(|pathdata| {
                 let display_date = display_date(&pathdata.system_time);
                 let display_size = format!(
@@ -177,7 +183,8 @@ fn calculate_padding(snaps_and_live_set: &[Vec<PathData>]) -> (usize, String) {
                 fancy_border_len = formatted_line_len.max(fancy_border_len);
             });
             (size_padding_len, fancy_border_len)
-        });
+        },
+    );
 
     // has to be a more idiomatic way to do this
     // if you know, let me know
