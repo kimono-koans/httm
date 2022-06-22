@@ -289,20 +289,14 @@ fn cmp_path<A: AsRef<Path>, B: AsRef<Path>>(a: A, b: B) -> Option<PathBuf> {
     // skip the root dir,
     let a_components = a.as_ref().components();
     let b_components = b.as_ref().components();
-    let mut common_path = PathBuf::new();
-    let mut has_common_path = false;
 
-    a_components
+    let common_path: PathBuf = a_components
         .zip(b_components)
         .take_while(|(a_path, b_path)| a_path == b_path)
-        .for_each(|(a_path, _b_path)| {
-            common_path.push(a_path);
-            if a_path != RootDir {
-                has_common_path = true;
-            }
-        });
+        .map(|(a_path, _b_path)| a_path)
+        .collect();
 
-    if has_common_path {
+    if common_path.as_os_str() != RootDir.as_os_str() && common_path.as_os_str().is_empty() {
         Some(common_path)
     } else {
         None
