@@ -268,34 +268,39 @@ where
     let mut path_iter = paths.into_iter();
     let mut ret = path_iter.next()?.as_ref().to_path_buf();
 
-    for path in path_iter {
-        if let Some(res) = compare_path_components(ret, path.as_ref()) {
+    let res = path_iter.try_for_each(|path| {
+        if let Some(res) = cmp_path(&ret, path.as_ref()) {
             ret = res;
+            Ok(())
         } else {
-            return None;
+            // should immediately stop the iter so we can return None
+            Err(HttmError::new("There is no common path!"))
         }
-    }
+    });
 
-    Some(ret)
+    if res.is_err() {
+        None
+    } else {
+        Some(ret)
+    }
 }
 
-fn compare_path_components<A: AsRef<Path>, B: AsRef<Path>>(a: A, b: B) -> Option<PathBuf> {
+fn cmp_path<A: AsRef<Path>, B: AsRef<Path>>(a: A, b: B) -> Option<PathBuf> {
     // skip the root dir,
     let a_components = a.as_ref().components();
     let b_components = b.as_ref().components();
     let mut common_path = PathBuf::new();
     let mut has_common_path = false;
 
-    for (a_path, b_path) in a_components.zip(b_components) {
-        if a_path == b_path {
+    a_components
+        .zip(b_components)
+        .take_while(|(a_path, b_path)| a_path == b_path)
+        .for_each(|(a_path, _b_path)| {
             common_path.push(a_path);
             if a_path != RootDir {
                 has_common_path = true;
             }
-        } else {
-            break;
-        }
-    }
+        });
 
     if has_common_path {
         Some(common_path)

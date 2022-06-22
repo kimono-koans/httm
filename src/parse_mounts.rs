@@ -350,7 +350,7 @@ pub fn precompute_zfs_snap_mounts(
 // ask what type of system are we on: all ZFS or do we have some btrfs mounts
 // if we have some btrfs mounts, we check to see if there is a snap directory in common
 // so we can hide that common path from searches later
-pub fn get_system_type_and_common_snap_dir(
+pub fn get_common_snap_dir(
     map_of_datasets: &HashMap<PathBuf, (String, FilesystemType)>,
     map_of_snaps: &Option<HashMap<PathBuf, Vec<PathBuf>>>,
 ) -> Result<Option<PathBuf>, Box<dyn std::error::Error + Send + Sync + 'static>> {

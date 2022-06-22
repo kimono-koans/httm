@@ -34,9 +34,7 @@ use rayon::prelude::*;
 
 use crate::display::display_exec;
 use crate::interactive::interactive_exec;
-use crate::parse_mounts::{
-    get_filesystems_list, get_system_type_and_common_snap_dir, precompute_alt_replicated,
-};
+use crate::parse_mounts::{get_common_snap_dir, get_filesystems_list, precompute_alt_replicated};
 use crate::process_dirs::display_recursive_wrapper;
 use crate::utility::{httm_is_dir, install_hot_keys, read_stdin};
 use crate::versions_lookup::get_versions_set;
@@ -397,8 +395,7 @@ impl Config {
             let (map_of_datasets, opt_map_of_snaps) = get_filesystems_list()?;
 
             // for a collection of btrfs mounts, indicates a common snapshot directory to ignore
-            let opt_common_snap_dir =
-                get_system_type_and_common_snap_dir(&map_of_datasets, &opt_map_of_snaps)?;
+            let opt_common_snap_dir = get_common_snap_dir(&map_of_datasets, &opt_map_of_snaps)?;
 
             // only create a map of alts if necessary
             let opt_map_of_alts = if matches.is_present("ALT_REPLICATED") {
