@@ -266,23 +266,9 @@ where
     P: AsRef<Path>,
 {
     let mut path_iter = paths.into_iter();
-    let mut ret = path_iter.next()?.as_ref().to_path_buf();
+    let initial_value = path_iter.next()?.as_ref().to_path_buf();
 
-    let res = path_iter.try_for_each(|path| {
-        if let Some(res) = cmp_path(&ret, path.as_ref()) {
-            ret = res;
-            Ok(())
-        } else {
-            // should immediately stop the iter so we can return None
-            Err(HttmError::new("There is no common path!"))
-        }
-    });
-
-    if res.is_err() {
-        None
-    } else {
-        Some(ret)
-    }
+    path_iter.try_fold(initial_value, |acc, path| cmp_path(acc, path))
 }
 
 fn cmp_path<A: AsRef<Path>, B: AsRef<Path>>(a: A, b: B) -> Option<PathBuf> {
