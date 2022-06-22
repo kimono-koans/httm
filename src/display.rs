@@ -131,13 +131,17 @@ fn display_pretty(
                 .collect();
 
             if !config.opt_no_pretty && !pathdata_set_buffer.is_empty() {
+                // if the first i
                 if idx == 0 {
                     format!(
-                        "{}\n{}{}\n",
-                        fancy_border_string, &pathdata_set_buffer, fancy_border_string
+                        "{fbs}\n{psb}{fbs}\n",
+                        fbs = fancy_border_string, psb = &pathdata_set_buffer
                     )
                 } else {
-                    format!("{}{}\n", &pathdata_set_buffer, fancy_border_string)
+                    format!(
+                        "{psb}{fbs}\n",
+                        fbs = fancy_border_string, psb =&pathdata_set_buffer
+                    )
                 }
             } else {
                 pathdata_set_buffer
@@ -149,31 +153,31 @@ fn display_pretty(
 }
 
 fn calculate_padding(snaps_and_live_set: &[Vec<PathData>]) -> (usize, String) {
-    let mut size_padding_len = 0usize;
-    let mut fancy_border_len = 0usize;
-
     // calculate padding and borders for display later
-    snaps_and_live_set.iter().for_each(|ver_set| {
-        ver_set.iter().for_each(|pathdata| {
-            let display_date = display_date(&pathdata.system_time);
-            let display_size = format!(
-                "{:>width$}",
-                display_human_size(pathdata),
-                width = size_padding_len
-            );
-            let display_path = &pathdata.path_buf.to_string_lossy();
+    let (size_padding_len, fancy_border_len) = snaps_and_live_set
+        .iter()
+        .fold((0usize, 0usize), |(mut size_padding_len, mut fancy_border_len), ver_set| {
+            ver_set.iter().for_each(|pathdata| {
+                let display_date = display_date(&pathdata.system_time);
+                let display_size = format!(
+                    "{:>width$}",
+                    display_human_size(pathdata),
+                    width = size_padding_len
+                );
+                let display_path = &pathdata.path_buf.to_string_lossy();
 
-            let display_size_len = display_human_size(pathdata).len();
-            let formatted_line_len = display_date.len()
-                + display_size.len()
-                + display_path.len()
-                + PRETTY_FIXED_WIDTH_PADDING_LEN_X2
-                + QUOTATION_MARKS_LEN;
+                let display_size_len = display_human_size(pathdata).len();
+                let formatted_line_len = display_date.len()
+                    + display_size.len()
+                    + display_path.len()
+                    + PRETTY_FIXED_WIDTH_PADDING_LEN_X2
+                    + QUOTATION_MARKS_LEN;
 
-            size_padding_len = display_size_len.max(size_padding_len);
-            fancy_border_len = formatted_line_len.max(fancy_border_len);
+                size_padding_len = display_size_len.max(size_padding_len);
+                fancy_border_len = formatted_line_len.max(fancy_border_len);
+            });
+            (size_padding_len, fancy_border_len)
         });
-    });
 
     // has to be a more idiomatic way to do this
     // if you know, let me know
