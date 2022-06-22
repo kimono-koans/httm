@@ -50,17 +50,17 @@ fn display_raw(
     config: &Config,
     snaps_and_live_set: [Vec<PathData>; 2],
 ) -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let mut write_out_buffer = String::new();
-
     let delimiter = if config.opt_zeros { '\0' } else { '\n' };
 
     // so easy!
-    snaps_and_live_set.iter().for_each(|version| {
-        version.iter().for_each(|pathdata| {
+    let write_out_buffer = snaps_and_live_set
+        .iter()
+        .flatten()
+        .map(|pathdata| {
             let display_path = pathdata.path_buf.display();
-            write_out_buffer += &format!("{}{}", display_path, delimiter);
-        });
-    });
+            format!("{}{}", display_path, delimiter)
+        })
+        .collect();
 
     Ok(write_out_buffer)
 }
