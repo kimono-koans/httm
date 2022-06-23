@@ -131,24 +131,18 @@ fn display_pretty(
                 .collect();
 
             if !config.opt_no_pretty {
-                // if the first i
+                let mut pretty_buffer = String::new();
                 if idx == 0 {
+                    pretty_buffer += &fancy_border_string;
                     if !pathdata_set_buffer.is_empty() {
-                        format!(
-                            "{fbs}\n{psb}{fbs}\n",
-                            fbs = fancy_border_string,
-                            psb = &pathdata_set_buffer
-                        )
-                    } else {
-                        format!("{fbs}\n", fbs = fancy_border_string)
+                        pretty_buffer += &pathdata_set_buffer;
+                        pretty_buffer += &fancy_border_string;
                     }
                 } else {
-                    format!(
-                        "{psb}{fbs}\n",
-                        fbs = fancy_border_string,
-                        psb = &pathdata_set_buffer
-                    )
+                    pretty_buffer += &pathdata_set_buffer;
+                    pretty_buffer += &fancy_border_string;
                 }
+                pretty_buffer
             } else {
                 pathdata_set_buffer
             }
@@ -189,12 +183,18 @@ fn calculate_padding(snaps_and_live_set: &[Vec<PathData>]) -> (usize, String) {
     let fancy_border_string: String = if let Some((Width(width), Height(_height))) = terminal_size()
     {
         if (width as usize) < fancy_border_len {
-            (0..width as usize).map(|_| "─").collect()
+            format!("{}\n", (0..width as usize).map(|_| "─").collect::<String>())
         } else {
-            (0..fancy_border_len).map(|_| "─").collect()
+            format!(
+                "{}\n",
+                (0..fancy_border_len).map(|_| "─").collect::<String>()
+            )
         }
     } else {
-        (0..fancy_border_len).map(|_| "─").collect()
+        format!(
+            "{}\n",
+            (0..fancy_border_len).map(|_| "─").collect::<String>()
+        )
     };
 
     (size_padding_len, fancy_border_string)
