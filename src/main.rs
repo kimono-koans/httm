@@ -395,7 +395,7 @@ impl Config {
             let (map_of_datasets, opt_map_of_snaps) = get_filesystems_list()?;
 
             // for a collection of btrfs mounts, indicates a common snapshot directory to ignore
-            let opt_common_snap_dir = get_common_snap_dir(&map_of_datasets, &opt_map_of_snaps)?;
+            let opt_common_snap_dir = get_common_snap_dir(&map_of_datasets, &opt_map_of_snaps);
 
             // only create a map of alts if necessary
             let opt_map_of_alts = if matches.is_present("ALT_REPLICATED") {

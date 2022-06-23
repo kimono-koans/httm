@@ -353,14 +353,14 @@ pub fn precompute_zfs_snap_mounts(
 pub fn get_common_snap_dir(
     map_of_datasets: &HashMap<PathBuf, (String, FilesystemType)>,
     map_of_snaps: &Option<HashMap<PathBuf, Vec<PathBuf>>>,
-) -> Result<Option<PathBuf>, Box<dyn std::error::Error + Send + Sync + 'static>> {
+) -> Option<PathBuf> {
     let opt_snapshot_dir = if map_of_datasets
         .par_iter()
         .any(|(_mount, (_dataset, fstype))| fstype == &FilesystemType::Btrfs)
     {
         let vec_snaps: Vec<&PathBuf> = match map_of_snaps {
             Some(map_of_snaps) => map_of_snaps.values().flatten().collect(),
-            None => return Ok(None),
+            None => return None,
         };
 
         get_common_path(vec_snaps)
@@ -370,5 +370,5 @@ pub fn get_common_snap_dir(
         None
     };
 
-    Ok(opt_snapshot_dir)
+    opt_snapshot_dir
 }
