@@ -307,10 +307,6 @@ fn get_versions_per_dataset(
     //
     // hashmap will then remove duplicates with the same system modify time and size/file len
 
-    let snapshot_dir = search_bundle.snapshot_dir.as_ref();
-    let relative_path = search_bundle.relative_path.as_ref();
-    let fs_type = &search_bundle.fs_type;
-
     // this is the fallback/non-Linux way of handling without a map_of_snaps
     fn read_dir_for_datasets(
         snapshot_dir: &Path,
@@ -355,6 +351,14 @@ fn get_versions_per_dataset(
             .collect();
         Ok(unique_versions)
     }
+
+    let (snapshot_dir, relative_path, fs_type) = {
+        (
+            &search_bundle.snapshot_dir,
+            &search_bundle.relative_path,
+            &search_bundle.fs_type,
+        )
+    };
 
     let unique_versions: HashMap<(SystemTime, u64), PathData> = match &config.snap_point {
         SnapPoint::Native(native_datasets) => match native_datasets.opt_map_of_snaps {

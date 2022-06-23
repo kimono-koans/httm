@@ -186,9 +186,13 @@ pub fn get_deleted_per_dataset(
         Ok(unique_snap_filenames)
     }
 
-    let snapshot_dir = &search_bundle.snapshot_dir;
-    let relative_path = &search_bundle.relative_path;
-    let fs_type = &search_bundle.fs_type;
+    let (snapshot_dir, relative_path, fs_type) = {
+        (
+            &search_bundle.snapshot_dir,
+            &search_bundle.relative_path,
+            &search_bundle.fs_type,
+        )
+    };
 
     let unique_snap_filenames: HashMap<OsString, BasicDirEntryInfo> = match &config.snap_point {
         SnapPoint::Native(native_datasets) => match native_datasets.opt_map_of_snaps {
