@@ -359,14 +359,7 @@ pub fn get_common_snap_dir(
         .any(|(_mount, (_dataset, fstype))| fstype == &FilesystemType::Btrfs)
     {
         let vec_snaps: Vec<&PathBuf> = match map_of_snaps {
-            Some(map_of_snaps) => map_of_snaps
-                .par_iter()
-                .filter_map(|(mount, snaps)| match map_of_datasets.get(mount) {
-                    Some((_dataset, FilesystemType::Btrfs)) => Some(snaps),
-                    _ => None,
-                })
-                .flatten()
-                .collect(),
+            Some(map_of_snaps) => map_of_snaps.values().flatten().collect(),
             None => return Ok(None),
         };
 
