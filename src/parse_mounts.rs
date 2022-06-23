@@ -362,9 +362,9 @@ pub fn get_common_snap_dir(
             Some(map_of_snaps) => {
                 let vec_snaps: Vec<&PathBuf> = map_of_snaps.values().flatten().collect();
                 get_common_path(vec_snaps)
-            },
+            }
             None => None,
-        }        
+        }
     } else {
         // since snapshots ZFS reside on multiple datasets
         // never have a common snap path
