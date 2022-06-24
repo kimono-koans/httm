@@ -183,7 +183,7 @@ pub fn get_deleted_per_dataset(
         }
     };
 
-    // compare local filenames to all unique snap filenames - none values are non-currently available, here
+    // compare local filenames to all unique snap filenames - none values are unique, here
     let all_deleted_versions: Vec<BasicDirEntryInfo> = unique_snap_filenames
         .into_iter()
         .filter(|(file_name, _)| unique_local_filenames.get(file_name).is_none())
