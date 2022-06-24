@@ -192,11 +192,7 @@ fn get_entries_partitioned(
         })
         // checking file_type on dir entries is always preferable
         // as it is much faster than a metadata call on the path
-        .map(|dir_entry| BasicDirEntryInfo {
-            file_name: dir_entry.file_name(),
-            path: dir_entry.path(),
-            file_type: dir_entry.file_type().ok(),
-        })
+        .map(|dir_entry| BasicDirEntryInfo::from(&dir_entry))
         .partition(|entry| httm_is_dir(entry));
 
     Ok((vec_dirs, vec_files))

@@ -109,16 +109,7 @@ pub fn get_deleted_per_dataset(
     // create a collection of local unique file names
     let unique_local_filenames: HashMap<OsString, BasicDirEntryInfo> = read_dir(&requested_dir)?
         .flatten()
-        .map(|dir_entry| {
-            (
-                dir_entry.file_name(),
-                BasicDirEntryInfo {
-                    file_name: dir_entry.file_name(),
-                    path: dir_entry.path(),
-                    file_type: dir_entry.file_type().ok(),
-                },
-            )
-        })
+        .map(|dir_entry| (dir_entry.file_name(), BasicDirEntryInfo::from(&dir_entry)))
         .collect();
 
     // now create a collection of file names in the snap_dirs
@@ -144,16 +135,7 @@ pub fn get_deleted_per_dataset(
         .flat_map(|joined_path| read_dir(&joined_path))
         .flatten()
         .flatten()
-        .map(|dir_entry| {
-            (
-                dir_entry.file_name(),
-                BasicDirEntryInfo {
-                    file_name: dir_entry.file_name(),
-                    path: dir_entry.path(),
-                    file_type: dir_entry.file_type().ok(),
-                },
-            )
-        })
+        .map(|dir_entry| (dir_entry.file_name(), BasicDirEntryInfo::from(&dir_entry)))
         .collect();
 
         Ok(unique_snap_filenames)
@@ -172,16 +154,7 @@ pub fn get_deleted_per_dataset(
             .flat_map(|path| read_dir(&path))
             .flatten()
             .flatten()
-            .map(|dir_entry| {
-                (
-                    dir_entry.file_name(),
-                    BasicDirEntryInfo {
-                        file_name: dir_entry.file_name(),
-                        path: dir_entry.path(),
-                        file_type: dir_entry.file_type().ok(),
-                    },
-                )
-            })
+            .map(|dir_entry| (dir_entry.file_name(), BasicDirEntryInfo::from(&dir_entry)))
             .collect();
         Ok(unique_snap_filenames)
     }

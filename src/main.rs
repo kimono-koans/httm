@@ -104,6 +104,16 @@ pub struct BasicDirEntryInfo {
     file_type: Option<FileType>,
 }
 
+impl From<&DirEntry> for BasicDirEntryInfo {
+    fn from(dir_entry: &DirEntry) -> Self {
+        BasicDirEntryInfo {
+            file_name: dir_entry.file_name(),
+            path: dir_entry.path(),
+            file_type: dir_entry.file_type().ok(),
+        }
+    }
+}
+
 // detailed info required to differentiate and display file versions
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct PathData {
