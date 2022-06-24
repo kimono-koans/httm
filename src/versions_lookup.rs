@@ -352,10 +352,11 @@ fn get_versions_per_dataset(
         Ok(unique_versions)
     }
 
-    let (snapshot_dir, relative_path, fs_type) = {
+    let (snapshot_dir, relative_path, snapshot_mounts, fs_type) = {
         (
             &search_bundle.snapshot_dir,
             &search_bundle.relative_path,
+            &search_bundle.snapshot_mounts,
             &search_bundle.fs_type,
         )
     };
@@ -364,7 +365,7 @@ fn get_versions_per_dataset(
         SnapPoint::Native(native_datasets) => match native_datasets.opt_map_of_snaps {
             // Do we have a map_of snaps? If so, get_search_bundle function has already prepared the ones
             // we actually need for this dataset so we can skip the unwrap.
-            Some(_) => match search_bundle.snapshot_mounts.as_ref() {
+            Some(_) => match snapshot_mounts {
                 Some(snap_mounts) => snap_mounts_for_datasets(snap_mounts, relative_path)?,
                 None => read_dir_for_datasets(snapshot_dir, relative_path, fs_type)?,
             },
