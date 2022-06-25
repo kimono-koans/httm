@@ -263,9 +263,9 @@ impl Config {
         let opt_no_pretty = matches.is_present("NOT_SO_PRETTY");
         let opt_recursive = matches.is_present("RECURSIVE");
         let opt_exact = matches.is_present("EXACT");
-        let opt_no_live_vers =
-            matches.is_present("NO_LIVE") || matches.is_present("MOUNT_FOR_FILE");
         let opt_mount_for_file = matches.is_present("MOUNT_FOR_FILE");
+        let opt_no_live_vers = matches.is_present("NO_LIVE") || opt_mount_for_file;
+
         let mut deleted_mode = match matches.value_of("DELETED") {
             None => DeletedMode::Disabled,
             Some("") | Some("all") => DeletedMode::Enabled,
@@ -286,6 +286,7 @@ impl Config {
             deleted_mode = DeletedMode::Disabled;
             ExecMode::Display
         };
+
         let env_snap_dir = std::env::var_os("HTTM_SNAP_POINT");
         let env_local_dir = std::env::var_os("HTTM_LOCAL_DIR");
         let interactive_mode = if matches.is_present("RESTORE") {
@@ -660,6 +661,7 @@ fn parse_args() -> ArgMatches {
         )
         .arg(
             Arg::new("MOUNT_FOR_FILE")
+                .short('m')
                 .long("mount-for-file")
                 .help("display the mount point/s of the dataset/s which contains the input file/s.")
                 .conflicts_with_all(&["INTERACTIVE", "SELECT", "RESTORE", "NOT_SO_PRETTY"])
