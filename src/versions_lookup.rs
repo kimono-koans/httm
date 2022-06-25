@@ -63,7 +63,14 @@ pub fn get_versions_set(
     };
 
     let all_snap_versions: Vec<PathData> = if config.opt_mount_for_file {
-        get_mounts_for_files(config, vec_pathdata, &selected_datasets)?
+        if vec_pathdata.par_iter().any(|pathdata| pathdata.is_phantom) {
+            return Err(HttmError::new(
+                "A mount location could not be found, because a live version of such a file does not appear to exist",
+            )
+            .into());
+        } else {
+            get_mounts_for_files(config, vec_pathdata, &selected_datasets)?
+        }
     } else {
         get_all_snap_versions(config, vec_pathdata, &selected_datasets)?
     };
