@@ -61,10 +61,9 @@ pub fn get_unique_deleted(
     let unique_deleted: Vec<BasicDirEntryInfo> = vec![&requested_dir_pathdata]
         .iter()
         .flat_map(|pathdata| {
-            selected_datasets.iter().filter_map(|dataset_type| {
-                let dataset_collection =
-                    get_datasets_for_search(config, pathdata, dataset_type).ok()?;
-                get_search_bundle(config, pathdata, &dataset_collection).ok()
+            selected_datasets.iter().flat_map(|dataset_type| {
+                let dataset_collection = get_datasets_for_search(config, pathdata, dataset_type)?;
+                get_search_bundle(config, pathdata, &dataset_collection)
             })
         })
         .flatten()

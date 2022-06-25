@@ -96,9 +96,9 @@ fn get_mounts_for_files(
     let mounts_for_files: Vec<PathData> = vec_pathdata
         .par_iter()
         .map(|pathdata| {
-            selected_datasets.par_iter().filter_map(|dataset_type| {
-                get_datasets_for_search(config, pathdata, dataset_type).ok()
-            })
+            selected_datasets
+                .par_iter()
+                .flat_map(|dataset_type| get_datasets_for_search(config, pathdata, dataset_type))
         })
         .flatten()
         .map(|datasets_for_search| datasets_for_search.datasets_of_interest)
@@ -118,10 +118,9 @@ fn get_all_snap_versions(
     let all_snap_versions: Vec<PathData> = vec_pathdata
         .par_iter()
         .map(|pathdata| {
-            selected_datasets.par_iter().filter_map(|dataset_type| {
-                let dataset_collection =
-                    get_datasets_for_search(config, pathdata, dataset_type).ok()?;
-                get_search_bundle(config, pathdata, &dataset_collection).ok()
+            selected_datasets.par_iter().flat_map(|dataset_type| {
+                let dataset_collection = get_datasets_for_search(config, pathdata, dataset_type)?;
+                get_search_bundle(config, pathdata, &dataset_collection)
             })
         })
         .flatten()
