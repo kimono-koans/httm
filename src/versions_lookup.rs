@@ -103,14 +103,14 @@ fn get_mounts_for_files(
 
     if !phantom_files.is_empty() {
         let msg = "Mount locations for the input files given could not be found, \
-        because the following files do not appear to exist:\n";
+        because the following files do not appear to exist: ";
 
-        let phantom_paths: String = phantom_files
+        let phantom_paths_string: String = phantom_files
             .par_iter()
-            .map(|pathdata| pathdata.path_buf.to_string_lossy())
+            .map(|pathdata| format!("\n{}", pathdata.path_buf.to_string_lossy()))
             .collect();
 
-        return Err(HttmError::new(format!("{}{}", msg, phantom_paths).as_str()).into());
+        return Err(HttmError::new(format!("{}{}", msg, phantom_paths_string).as_str()).into());
     }
 
     let mounts_for_files: Vec<PathData> = vec_pathdata
