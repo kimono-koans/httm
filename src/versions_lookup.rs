@@ -267,10 +267,10 @@ pub fn get_search_bundle(
                         .strip_prefix(&proximate_dataset_mount)?
                         .to_path_buf();
 
-                    let snapshot_mounts = match &native_datasets.opt_map_of_snaps {
-                        Some(map_of_snaps) => map_of_snaps.get(dataset_of_interest).cloned(),
-                        None => None,
-                    };
+                    let snapshot_mounts = native_datasets
+                        .map_of_snaps
+                        .get(dataset_of_interest)
+                        .cloned();
 
                     (snapshot_dir, relative_path, snapshot_mounts, fs_type)
                 }

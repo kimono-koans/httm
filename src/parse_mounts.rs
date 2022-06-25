@@ -35,7 +35,7 @@ use crate::{
 pub fn get_filesystems_list() -> Result<
     (
         HashMap<PathBuf, (String, FilesystemType)>,
-        Option<HashMap<PathBuf, Vec<PathBuf>>>,
+        HashMap<PathBuf, Vec<PathBuf>>,
     ),
     Box<dyn std::error::Error + Send + Sync + 'static>,
 > {
@@ -54,7 +54,7 @@ pub fn get_filesystems_list() -> Result<
 fn parse_from_proc_mounts() -> Result<
     (
         HashMap<PathBuf, (String, FilesystemType)>,
-        Option<HashMap<PathBuf, Vec<PathBuf>>>,
+        HashMap<PathBuf, Vec<PathBuf>>,
     ),
     Box<dyn std::error::Error + Send + Sync + 'static>,
 > {
@@ -139,7 +139,7 @@ fn parse_from_proc_mounts() -> Result<
 // fans out precompute of snap mounts to the appropriate function based on fstype
 pub fn precompute_snap_mounts(
     map_of_datasets: &HashMap<PathBuf, (String, FilesystemType)>,
-) -> Option<HashMap<PathBuf, Vec<PathBuf>>> {
+) -> HashMap<PathBuf, Vec<PathBuf>> {
     let opt_root_mount_path: Option<&PathBuf> =
         map_of_datasets
             .par_iter()
@@ -171,11 +171,7 @@ pub fn precompute_snap_mounts(
         })
         .collect();
 
-    if map_of_snaps.is_empty() {
-        None
-    } else {
-        Some(map_of_snaps)
-    }
+    map_of_snaps
 }
 
 // old fashioned parsing for non-Linux systems, nearly as fast, works everywhere with a mount command
@@ -184,7 +180,7 @@ pub fn precompute_snap_mounts(
 fn parse_from_mount_cmd() -> Result<
     (
         HashMap<PathBuf, (String, FilesystemType)>,
-        Option<HashMap<PathBuf, Vec<PathBuf>>>,
+        HashMap<PathBuf, Vec<PathBuf>>,
     ),
     Box<dyn std::error::Error + Send + Sync + 'static>,
 > {
@@ -193,7 +189,7 @@ fn parse_from_mount_cmd() -> Result<
     ) -> Result<
         (
             HashMap<PathBuf, (String, FilesystemType)>,
-            Option<HashMap<PathBuf, Vec<PathBuf>>>,
+            HashMap<PathBuf, Vec<PathBuf>>,
         ),
         Box<dyn std::error::Error + Send + Sync + 'static>,
     > {
@@ -361,19 +357,14 @@ pub fn precompute_zfs_snap_mounts(
 // so we can hide that common path from searches later
 pub fn get_common_snap_dir(
     map_of_datasets: &HashMap<PathBuf, (String, FilesystemType)>,
-    map_of_snaps: &Option<HashMap<PathBuf, Vec<PathBuf>>>,
+    map_of_snaps: &HashMap<PathBuf, Vec<PathBuf>>,
 ) -> Option<PathBuf> {
     let opt_snapshot_dir = if map_of_datasets
         .par_iter()
         .any(|(_mount, (_dataset, fstype))| fstype == &FilesystemType::Btrfs)
     {
-        match map_of_snaps {
-            Some(map_of_snaps) => {
-                let vec_snaps: Vec<&PathBuf> = map_of_snaps.values().flatten().collect();
-                get_common_path(vec_snaps)
-            }
-            None => None,
-        }
+        let vec_snaps: Vec<&PathBuf> = map_of_snaps.values().flatten().collect();
+        get_common_path(vec_snaps)
     } else {
         // since snapshots ZFS reside on multiple datasets
         // never have a common snap path
