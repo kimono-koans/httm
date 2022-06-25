@@ -63,23 +63,7 @@ pub fn get_versions_set(
     };
 
     let all_snap_versions: Vec<PathData> = if config.opt_mount_for_file {
-        let phantom_files: Vec<PathData> = vec_pathdata
-            .par_iter()
-            .filter(|pathdata| pathdata.is_phantom)
-            .cloned()
-            .collect();
-
-        if !phantom_files.is_empty() {
-            let msg = "A mount location could not be found, because the following files do not appear to exist:\n";
-            let phantom_paths: String = phantom_files
-                .par_iter()
-                .map(|pathdata| pathdata.path_buf.to_string_lossy())
-                .collect();
-
-            return Err(HttmError::new(format!("{}{}", msg, phantom_paths).as_str()).into());
-        } else {
-            get_mounts_for_files(config, vec_pathdata, &selected_datasets)?
-        }
+        get_mounts_for_files(config, vec_pathdata, &selected_datasets)?
     } else {
         get_all_snap_versions(config, vec_pathdata, &selected_datasets)?
     };
@@ -109,6 +93,26 @@ fn get_mounts_for_files(
     vec_pathdata: &Vec<PathData>,
     selected_datasets: &Vec<NativeDatasetType>,
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    // we only check for phantom files in mount for file mode because
+    // people should be able to search for deleted files in other modes
+    let phantom_files: Vec<PathData> = vec_pathdata
+        .par_iter()
+        .filter(|pathdata| pathdata.is_phantom)
+        .cloned()
+        .collect();
+
+    if !phantom_files.is_empty() {
+        let msg = "Mount locations for the input files given could not be found, \
+        because the following files do not appear to exist:\n";
+
+        let phantom_paths: String = phantom_files
+            .par_iter()
+            .map(|pathdata| pathdata.path_buf.to_string_lossy())
+            .collect();
+
+        return Err(HttmError::new(format!("{}{}", msg, phantom_paths).as_str()).into());
+    }
+
     let mounts_for_files: Vec<PathData> = vec_pathdata
         .par_iter()
         .map(|pathdata| {
