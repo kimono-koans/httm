@@ -37,7 +37,7 @@ pub fn display_exec(
     config: &Config,
     snaps_and_live_set: [Vec<PathData>; 2],
 ) -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let output_buffer = if config.opt_raw || config.opt_zeros {
+    let output_buffer = if config.opt_raw || config.opt_zeros || config.opt_mount_for_file {
         display_raw(config, snaps_and_live_set)?
     } else {
         display_pretty(config, snaps_and_live_set)?

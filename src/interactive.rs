@@ -69,6 +69,7 @@ impl SelectionCandidate {
             opt_recursive: false,
             opt_no_live_vers: false,
             opt_exact: false,
+            opt_mount_for_file: false,
             exec_mode: ExecMode::Display,
             deleted_mode: DeletedMode::Disabled,
             interactive_mode: InteractiveMode::None,
