@@ -93,7 +93,7 @@ fn get_mounts_for_files(
     vec_pathdata: &Vec<PathData>,
     selected_datasets: &Vec<NativeDatasetType>,
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    // we only check for phantom files in mount for file mode because
+    // we only check for phantom files in "mount for file" mode because
     // people should be able to search for deleted files in other modes
     let phantom_files: Vec<PathData> = vec_pathdata
         .par_iter()
