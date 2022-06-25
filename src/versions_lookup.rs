@@ -192,15 +192,11 @@ pub fn get_datasets_for_search(
                             proximate_dataset_mount,
                             datasets_of_interest: alternate_mounts.clone(),
                         },
-                        None => get_alt_replicated_datasets(
-                            &proximate_dataset_mount,
-                            &native_datasets.map_of_datasets,
-                        )?,
+                        None => return Err(HttmError::new("If you are here a map of alts is missing for a supplied mount, \
+                        this is fine as we should just flatten/ignore this error.").into()),
                     },
-                    None => get_alt_replicated_datasets(
-                        &proximate_dataset_mount,
-                        &native_datasets.map_of_datasets,
-                    )?,
+                    None => unreachable!("If config option alt-replicated is specified, then a map of alts should have been generated, \
+                    if you are here such a map is missing."),
                 },
             }
         }
