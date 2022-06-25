@@ -180,8 +180,8 @@ pub fn get_deleted_per_dataset(
                 Some(snap_mounts) => snap_mounts_for_snap_filenames(snap_mounts, relative_path)?,
                 None => {
                     return Err(HttmError::new(
-                        "If you are here, snap mounts is None, which means it is empty.  \
-                Iterator should just ignore/flatten the error",
+                        "If you are here, map of snap mounts is None, which means it is empty.  \
+                Iterator should just ignore/flatten the error.",
                     )
                     .into());
                 }

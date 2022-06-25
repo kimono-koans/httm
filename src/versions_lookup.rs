@@ -418,8 +418,8 @@ fn get_versions_per_dataset(
                 // snap mounts is empty
                 None => {
                     return Err(HttmError::new(
-                        "If you are here, snap mounts is None, which means it is empty.  \
-                    Iterator should just ignore/flatten the error",
+                        "If you are here, map of snap mounts is None, which means it is empty.  \
+                    Iterator should just ignore/flatten the error.",
                     )
                     .into());
                 }
