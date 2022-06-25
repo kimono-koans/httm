@@ -180,6 +180,7 @@ pub fn precompute_snap_mounts(
 
 // old fashioned parsing for non-Linux systems, nearly as fast, works everywhere with a mount command
 // both methods are much faster than using zfs command
+#[allow(clippy::type_complexity)]
 fn parse_from_mount_cmd() -> Result<
     (
         HashMap<PathBuf, (String, FilesystemType)>,
@@ -237,7 +238,7 @@ fn parse_from_mount_cmd() -> Result<
                 }
             })
             .collect();
-        
+
         let map_of_snaps = precompute_snap_mounts(&map_of_datasets);
 
         if map_of_datasets.is_empty() {

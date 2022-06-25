@@ -415,15 +415,17 @@ fn get_versions_per_dataset(
         SnapPoint::Native(_) => {
             match snapshot_mounts {
                 Some(snap_mounts) => snap_mounts_for_datasets(snap_mounts, relative_path)?,
-                // snap mounts is empty 
+                // snap mounts is empty
                 None => {
-                    return Err(HttmError::new("If you are here, snap mounts is None, which means it is empty.  Iterator should just ignore/flatten the error").into()); 
-                },
+                    return Err(HttmError::new(
+                        "If you are here, snap mounts is None, which means it is empty.  \
+                    Iterator should just ignore/flatten the error",
+                    )
+                    .into());
+                }
             }
-        },
-        SnapPoint::UserDefined(_) => {
-            read_dir_for_datasets(snapshot_dir, relative_path, fs_type)?
         }
+        SnapPoint::UserDefined(_) => read_dir_for_datasets(snapshot_dir, relative_path, fs_type)?,
     };
 
     let mut vec_pathdata: Vec<PathData> = unique_versions.into_par_iter().map(|(_, v)| v).collect();
