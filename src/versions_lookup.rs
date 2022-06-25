@@ -62,22 +62,23 @@ pub fn get_versions_set(
         vec![NativeDatasetType::MostProximate]
     };
 
-    let all_snap_versions: Vec<PathData> = if !config.opt_mount_for_file {
-        get_all_snap_versions(config, vec_pathdata, &selected_datasets)?
-    } else {
+    let all_snap_versions: Vec<PathData> = if config.opt_mount_for_file {
         get_mounts_for_files(config, vec_pathdata, &selected_datasets)?
+    } else {
+        get_all_snap_versions(config, vec_pathdata, &selected_datasets)?
     };
 
     // create vec of live copies - unless user doesn't want it!
-    let live_versions: Vec<PathData> = if !config.opt_no_live_vers {
-        vec_pathdata.clone()
-    } else {
+    let live_versions: Vec<PathData> = if config.opt_no_live_vers {
         Vec::new()
+    } else {
+        vec_pathdata.clone()
     };
 
     // check if all files (snap and live) do not exist, if this is true, then user probably messed up
     // and entered a file that never existed (that is, perhaps a wrong file name)?
-    if all_snap_versions.is_empty() && live_versions.par_iter().all(|i| i.is_phantom) {
+    if all_snap_versions.is_empty() && live_versions.par_iter().all(|pathdata| pathdata.is_phantom)
+    {
         return Err(HttmError::new(
             "Neither a live copy, nor a snapshot copy of such a file appears to exist, so, umm, 🤷? Please try another file.",
         )
@@ -94,9 +95,9 @@ fn get_mounts_for_files(
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     let mounts_for_files: Vec<PathData> = vec_pathdata
         .par_iter()
-        .map(|path_data| {
+        .map(|pathdata| {
             selected_datasets.par_iter().filter_map(|dataset_type| {
-                get_datasets_for_search(config, path_data, dataset_type).ok()
+                get_datasets_for_search(config, pathdata, dataset_type).ok()
             })
         })
         .flatten()
@@ -116,11 +117,11 @@ fn get_all_snap_versions(
     // create vec of all local and replicated backups at once
     let all_snap_versions: Vec<PathData> = vec_pathdata
         .par_iter()
-        .map(|path_data| {
+        .map(|pathdata| {
             selected_datasets.par_iter().filter_map(|dataset_type| {
                 let dataset_collection =
-                    get_datasets_for_search(config, path_data, dataset_type).ok()?;
-                get_search_bundle(config, path_data, &dataset_collection).ok()
+                    get_datasets_for_search(config, pathdata, dataset_type).ok()?;
+                get_search_bundle(config, pathdata, &dataset_collection).ok()
             })
         })
         .flatten()

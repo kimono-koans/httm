@@ -79,7 +79,13 @@ fn display_pretty(
                 .iter()
                 .map(|pathdata| {
                     // print with padding and pretty border lines and ls colors
-                    let (pathdata_size, display_path, display_padding) = if !config.opt_no_pretty {
+                    let (pathdata_size, display_path, display_padding) = if config.opt_no_pretty {
+                        let size = display_human_size(pathdata);
+                        let path = pathdata.path_buf.to_string_lossy().into_owned();
+                        let padding = NOT_SO_PRETTY_FIXED_WIDTH_PADDING.to_owned();
+                        (size, path, padding)
+                    // tab delimited if "no pretty", no border lines, and no colors
+                    } else {
                         let size = format!(
                             "{:>width$}",
                             display_human_size(pathdata),
@@ -98,12 +104,6 @@ fn display_pretty(
                         let path =
                             format!("\"{:<width$}\"", painted_path, width = size_padding_len);
 
-                        (size, path, padding)
-                    // tab delimited if "no pretty", no border lines, and no colors
-                    } else {
-                        let size = display_human_size(pathdata);
-                        let path = pathdata.path_buf.to_string_lossy().into_owned();
-                        let padding = NOT_SO_PRETTY_FIXED_WIDTH_PADDING.to_owned();
                         (size, path, padding)
                     };
 
@@ -131,7 +131,9 @@ fn display_pretty(
                 })
                 .collect();
 
-            if !config.opt_no_pretty {
+            if config.opt_no_pretty {
+                pathdata_set_buffer
+            } else {
                 let mut pretty_buffer = String::new();
                 if idx == 0 {
                     pretty_buffer += &fancy_border_string;
@@ -144,8 +146,6 @@ fn display_pretty(
                     pretty_buffer += &fancy_border_string;
                 }
                 pretty_buffer
-            } else {
-                pathdata_set_buffer
             }
         })
         .collect();
