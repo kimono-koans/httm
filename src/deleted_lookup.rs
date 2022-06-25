@@ -31,7 +31,7 @@ use crate::{
     FilesystemType,
 };
 use crate::{
-    BasicDirEntryInfo, Config, PathData, SnapPoint, BTRFS_SNAPPER_HIDDEN_DIRECTORY,
+    HttmError, BasicDirEntryInfo, Config, PathData, SnapPoint, BTRFS_SNAPPER_HIDDEN_DIRECTORY,
     BTRFS_SNAPPER_SUFFIX,
 };
 
@@ -172,14 +172,14 @@ pub fn get_deleted_per_dataset(
     };
 
     let unique_snap_filenames: HashMap<OsString, BasicDirEntryInfo> = match &config.snap_point {
-        SnapPoint::Native(native_datasets) => match native_datasets.opt_map_of_snaps {
+        SnapPoint::Native(_) =>
             // Do we have a map_of snaps? If so, get_search_bundle function has already prepared the ones
             // we actually need for this dataset so we can skip the unwrap.
-            Some(_) => match snapshot_mounts {
-                Some(snap_mounts) => snap_mounts_for_snap_filenames(snap_mounts, relative_path)?,
-                None => read_dir_for_snap_filenames(snapshot_dir, relative_path, fs_type)?,
-            },
-            None => read_dir_for_snap_filenames(snapshot_dir, relative_path, fs_type)?,
+        match snapshot_mounts {
+            Some(snap_mounts) => snap_mounts_for_snap_filenames(snap_mounts, relative_path)?,
+            None => {
+                return Err(HttmError::new("If you are here, snap mounts is None, which means it is empty.  Iterator should just ignore/flatten the error").into()); 
+            }
         },
         SnapPoint::UserDefined(_) => {
             read_dir_for_snap_filenames(snapshot_dir, relative_path, fs_type)?

@@ -42,7 +42,7 @@ pub fn get_filesystems_list() -> Result<
     let (map_of_datasets, map_of_snaps) = if cfg!(target_os = "linux") {
         parse_from_proc_mounts()?
     } else {
-        (parse_from_mount_cmd()?, None)
+        parse_from_mount_cmd()?
     };
 
     Ok((map_of_datasets, map_of_snaps))
@@ -181,13 +181,19 @@ pub fn precompute_snap_mounts(
 // old fashioned parsing for non-Linux systems, nearly as fast, works everywhere with a mount command
 // both methods are much faster than using zfs command
 fn parse_from_mount_cmd() -> Result<
-    HashMap<PathBuf, (String, FilesystemType)>,
+    (
+        HashMap<PathBuf, (String, FilesystemType)>,
+        Option<HashMap<PathBuf, Vec<PathBuf>>>,
+    ),
     Box<dyn std::error::Error + Send + Sync + 'static>,
 > {
     fn parse(
         mount_command: &PathBuf,
     ) -> Result<
-        HashMap<PathBuf, (String, FilesystemType)>,
+        (
+            HashMap<PathBuf, (String, FilesystemType)>,
+            Option<HashMap<PathBuf, Vec<PathBuf>>>,
+        ),
         Box<dyn std::error::Error + Send + Sync + 'static>,
     > {
         let command_output =
@@ -231,11 +237,13 @@ fn parse_from_mount_cmd() -> Result<
                 }
             })
             .collect();
+        
+        let map_of_snaps = precompute_snap_mounts(&map_of_datasets);
 
         if map_of_datasets.is_empty() {
             Err(HttmError::new("httm could not find any valid datasets on the system.").into())
         } else {
-            Ok(map_of_datasets)
+            Ok((map_of_datasets, map_of_snaps))
         }
     }
 

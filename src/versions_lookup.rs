@@ -410,17 +410,19 @@ fn get_versions_per_dataset(
     };
 
     let unique_versions: HashMap<(SystemTime, u64), PathData> = match &config.snap_point {
-        SnapPoint::Native(native_datasets) => match native_datasets.opt_map_of_snaps {
-            // Do we have a map_of snaps? If so, get_search_bundle function has already prepared the ones
-            // we actually need for this dataset so we can skip the unwrap.
-            Some(_) => match snapshot_mounts {
+        // Do we have a map_of snaps? If so, get_search_bundle function has already prepared the ones
+        // we actually need for this dataset so we can skip the unwrap.
+        SnapPoint::Native(_) => {
+            match snapshot_mounts {
                 Some(snap_mounts) => snap_mounts_for_datasets(snap_mounts, relative_path)?,
-                None => read_dir_for_datasets(snapshot_dir, relative_path, fs_type)?,
-            },
-            None => read_dir_for_datasets(snapshot_dir, relative_path, fs_type)?,
+                // snap mounts is empty 
+                None => {
+                    return Err(HttmError::new("If you are here, snap mounts is None, which means it is empty.  Iterator should just ignore/flatten the error").into()); 
+                },
+            }
         },
-        SnapPoint::UserDefined(user_defined_dirs) => {
-            read_dir_for_datasets(snapshot_dir, relative_path, &user_defined_dirs.fs_type)?
+        SnapPoint::UserDefined(_) => {
+            read_dir_for_datasets(snapshot_dir, relative_path, fs_type)?
         }
     };
 
