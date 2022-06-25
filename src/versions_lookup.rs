@@ -96,7 +96,7 @@ fn get_mounts_for_files(
         .par_iter()
         .map(|path_data| {
             selected_datasets.par_iter().filter_map(|dataset_type| {
-                get_dataset_collection(config, path_data, dataset_type).ok()
+                get_datasets_for_search(config, path_data, dataset_type).ok()
             })
         })
         .flatten()
@@ -119,7 +119,7 @@ fn get_all_snap_versions(
         .map(|path_data| {
             selected_datasets.par_iter().filter_map(|dataset_type| {
                 let dataset_collection =
-                    get_dataset_collection(config, path_data, dataset_type).ok()?;
+                    get_datasets_for_search(config, path_data, dataset_type).ok()?;
                 get_search_bundle(config, path_data, &dataset_collection).ok()
             })
         })
@@ -132,7 +132,7 @@ fn get_all_snap_versions(
     Ok(all_snap_versions)
 }
 
-pub fn get_dataset_collection(
+pub fn get_datasets_for_search(
     config: &Config,
     pathdata: &PathData,
     requested_dataset_type: &NativeDatasetType,
