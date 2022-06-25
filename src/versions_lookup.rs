@@ -62,8 +62,11 @@ pub fn get_versions_set(
         vec![NativeDatasetType::MostProximate]
     };
 
-    let all_snap_versions: Vec<PathData> =
-        get_all_snap_versions(config, vec_pathdata, &selected_datasets)?;
+    let all_snap_versions: Vec<PathData> = if !config.opt_mount_for_file {
+        get_all_snap_versions(config, vec_pathdata, &selected_datasets)?
+    } else {
+        get_mounts_for_files(config, vec_pathdata, &selected_datasets)?
+    };
 
     // create vec of live copies - unless user doesn't want it!
     let live_versions: Vec<PathData> = if !config.opt_no_live_vers {
@@ -84,6 +87,27 @@ pub fn get_versions_set(
     Ok([all_snap_versions, live_versions])
 }
 
+fn get_mounts_for_files(
+    config: &Config,
+    vec_pathdata: &Vec<PathData>,
+    selected_datasets: &Vec<NativeDatasetType>,
+) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    let mounts_for_files: Vec<PathData> = vec_pathdata
+        .par_iter()
+        .map(|path_data| {
+            selected_datasets.par_iter().filter_map(|dataset_type| {
+                get_dataset_collection(config, path_data, dataset_type).ok()
+            })
+        })
+        .flatten()
+        .map(|datasets_for_search| datasets_for_search.datasets_of_interest)
+        .flatten()
+        .map(|path| PathData::from(path.as_path()))
+        .collect();
+
+    Ok(mounts_for_files)
+}
+
 fn get_all_snap_versions(
     config: &Config,
     vec_pathdata: &Vec<PathData>,
@@ -93,10 +117,11 @@ fn get_all_snap_versions(
     let all_snap_versions: Vec<PathData> = vec_pathdata
         .par_iter()
         .map(|path_data| {
-            selected_datasets
-                .par_iter()
-                .map(|dataset_type| get_search_bundle(config, path_data, dataset_type))
-                .flatten()
+            selected_datasets.par_iter().filter_map(|dataset_type| {
+                let dataset_collection =
+                    get_dataset_collection(config, path_data, dataset_type).ok()?;
+                get_search_bundle(config, path_data, &dataset_collection).ok()
+            })
         })
         .flatten()
         .flatten()
@@ -107,11 +132,11 @@ fn get_all_snap_versions(
     Ok(all_snap_versions)
 }
 
-pub fn get_search_bundle(
+pub fn get_dataset_collection(
     config: &Config,
     pathdata: &PathData,
     requested_dataset_type: &NativeDatasetType,
-) -> Result<Vec<SearchBundle>, Box<dyn std::error::Error + Send + Sync + 'static>> {
+) -> Result<DatasetsForSearch, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // here, we take our file path and get back possibly multiple ZFS dataset mountpoints
     // and our most proximate dataset mount point (which is always the same) for
     // a single file
@@ -161,6 +186,14 @@ pub fn get_search_bundle(
         }
     };
 
+    Ok(dataset_collection)
+}
+
+pub fn get_search_bundle(
+    config: &Config,
+    pathdata: &PathData,
+    dataset_collection: &DatasetsForSearch,
+) -> Result<Vec<SearchBundle>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     dataset_collection
         .datasets_of_interest
         .par_iter()

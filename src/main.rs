@@ -242,6 +242,7 @@ pub struct Config {
     opt_no_live_vers: bool,
     opt_recursive: bool,
     opt_exact: bool,
+    opt_mount_for_file: bool,
     exec_mode: ExecMode,
     snap_point: SnapPoint,
     deleted_mode: DeletedMode,
@@ -260,9 +261,11 @@ impl Config {
         let opt_zeros = matches.is_present("ZEROS");
         let opt_raw = matches.is_present("RAW");
         let opt_no_pretty = matches.is_present("NOT_SO_PRETTY");
-        let opt_no_live_vers = matches.is_present("NO_LIVE");
         let opt_recursive = matches.is_present("RECURSIVE");
         let opt_exact = matches.is_present("EXACT");
+        let opt_no_live_vers =
+            matches.is_present("NO_LIVE") || matches.is_present("MOUNT_FOR_FILE");
+        let opt_mount_for_file = matches.is_present("MOUNT_FOR_FILE");
         let mut deleted_mode = match matches.value_of("DELETED") {
             None => DeletedMode::Disabled,
             Some("") | Some("all") => DeletedMode::Enabled,
@@ -545,6 +548,7 @@ impl Config {
             opt_no_live_vers,
             opt_recursive,
             opt_exact,
+            opt_mount_for_file,
             snap_point,
             exec_mode,
             deleted_mode,
@@ -655,12 +659,19 @@ fn parse_args() -> ArgMatches {
                 .display_order(10)
         )
         .arg(
+            Arg::new("MOUNT_FOR_FILE")
+                .long("mount-for-file")
+                .help("display the mount point/s of the dataset/s which contains the input file/s.")
+                .conflicts_with_all(&["INTERACTIVE", "SELECT", "RESTORE", "NOT_SO_PRETTY"])
+                .display_order(11)
+        )
+        .arg(
             Arg::new("RAW")
                 .short('n')
                 .long("raw")
                 .help("display the backup locations only, without extraneous information, delimited by a NEWLINE.")
                 .conflicts_with_all(&["ZEROS", "NOT_SO_PRETTY"])
-                .display_order(11)
+                .display_order(12)
         )
         .arg(
             Arg::new("ZEROS")
@@ -668,27 +679,27 @@ fn parse_args() -> ArgMatches {
                 .long("zero")
                 .help("display the backup locations only, without extraneous information, delimited by a NULL CHARACTER.")
                 .conflicts_with_all(&["RAW", "NOT_SO_PRETTY"])
-                .display_order(12)
+                .display_order(13)
         )
         .arg(
             Arg::new("NOT_SO_PRETTY")
                 .long("not-so-pretty")
                 .help("display the ordinary output, but tab delimited, without any pretty border lines.")
                 .conflicts_with_all(&["RAW", "ZEROS"])
-                .display_order(13)
+                .display_order(14)
         )
         .arg(
             Arg::new("NO_LIVE")
                 .long("no-live")
                 .help("only display information concerning snapshot versions, and no 'live' versions of files or directories.")
-                .display_order(14)
+                .display_order(15)
         )
         .arg(
             Arg::new("ZSH_HOT_KEYS")
                 .long("install-zsh-hot-keys")
                 .help("install zsh hot keys to the users home directory, and then exit")
                 .exclusive(true)
-                .display_order(15)
+                .display_order(16)
         )
         .get_matches()
 }

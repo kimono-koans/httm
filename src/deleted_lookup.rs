@@ -25,7 +25,7 @@ use fxhash::FxHashMap as HashMap;
 use itertools::Itertools;
 
 use crate::{
-    versions_lookup::{get_search_bundle, NativeDatasetType, SearchBundle},
+    versions_lookup::{get_dataset_collection, get_search_bundle, NativeDatasetType, SearchBundle},
     FilesystemType,
 };
 use crate::{
@@ -59,9 +59,11 @@ pub fn get_unique_deleted(
     let unique_deleted: Vec<BasicDirEntryInfo> = vec![&requested_dir_pathdata]
         .iter()
         .flat_map(|pathdata| {
-            selected_datasets
-                .iter()
-                .flat_map(|dataset_type| get_search_bundle(config, pathdata, dataset_type))
+            selected_datasets.iter().filter_map(|dataset_type| {
+                let dataset_collection =
+                    get_dataset_collection(config, pathdata, dataset_type).ok()?;
+                get_search_bundle(config, pathdata, &dataset_collection).ok()
+            })
         })
         .flatten()
         .flat_map(|search_bundle| {
