@@ -360,10 +360,10 @@ fn process_entries(
                 static ref PROGRESS_BAR: ProgressBar = indicatif::ProgressBar::new_spinner();
             }
 
-            if !entries.is_empty() {
-                print_deleted_recursive(config.clone(), entries)?
-            } else if config.opt_recursive {
+            if entries.is_empty() {
                 PROGRESS_BAR.tick();
+            } else {
+                print_deleted_recursive(config.clone(), entries)?;
             }
         }
         _ => unreachable!(),

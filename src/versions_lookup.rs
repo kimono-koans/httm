@@ -222,7 +222,6 @@ pub fn get_search_bundle(
             //
             // for native searches the prefix is are the dirs below the most proximate dataset
             // for user specified dirs these are specified by the user
-
             let proximate_dataset_mount = &dataset_collection.proximate_dataset_mount;
 
             let (snapshot_dir, relative_path, snapshot_mounts, fs_type) = match &config.snap_point {
