@@ -270,7 +270,7 @@ impl Config {
         let opt_mount_for_file = matches.is_present("MOUNT_FOR_FILE");
         let opt_no_live_vers = matches.is_present("NO_LIVE") || opt_mount_for_file;
 
-        let mut deleted_mode = match matches.value_of("DELETED") {
+        let mut deleted_mode = match matches.value_of("DELETED_MODE") {
             None => DeletedMode::Disabled,
             Some("") | Some("all") => DeletedMode::Enabled,
             Some("single") => DeletedMode::DepthOfOne,
@@ -618,7 +618,7 @@ fn parse_args() -> ArgMatches {
                 .display_order(4)
         )
         .arg(
-            Arg::new("DELETED")
+            Arg::new("DELETED_MODE")
                 .short('d')
                 .long("deleted")
                 .takes_value(true)
