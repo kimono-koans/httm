@@ -102,7 +102,7 @@ pub fn get_mounts_for_files(
         .collect();
 
     if !phantom_files.is_empty() {
-        let msg = "Mount locations for the input files given could not be found, \
+        let msg = "httm failed because mount locations for all the input files given could not be found, \
         because the following files do not appear to exist: ";
 
         let phantom_paths_string: String = phantom_files
