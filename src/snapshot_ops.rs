@@ -69,12 +69,11 @@ pub fn take_snapshot(
             let output = ExecProcess::new(zfs_command)
                 .args(&args)
                 .output()
-                .unwrap()
-                .stderr;
+                .unwrap();
 
             // fn seems to exec Ok unless command DNE, so unwrap is okay here
             let err = std::str::from_utf8(
-                &output,
+                &output.stderr,
             )
             .unwrap().trim();
 
