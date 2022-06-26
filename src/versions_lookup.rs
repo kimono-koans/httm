@@ -88,7 +88,7 @@ pub fn get_versions_set(
     Ok([all_snap_versions, live_versions])
 }
 
-fn get_mounts_for_files(
+pub fn get_mounts_for_files(
     config: &Config,
     vec_pathdata: &Vec<PathData>,
     selected_datasets: &Vec<NativeDatasetType>,
