@@ -580,8 +580,8 @@ impl Config {
 
 fn parse_args() -> ArgMatches {
     clap::Command::new(crate_name!())
-        .about("\nhttm displays information about unique file versions contained on snapshots.\n\n\
-        You may select from the various interactive modes below to browse for, select, and/or restore files.")
+        .about("\nhttm prints the size, date and corresponding locations of available unique versions of files residing on snapshots.\n\n\
+        httm can also be used interactively to select and restore from such versions, and even snapshot datasets which contain certain files.")
         .version(crate_version!())
         .arg(
             Arg::new("INPUT_FILES")
