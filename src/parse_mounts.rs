@@ -248,7 +248,7 @@ fn parse_from_mount_cmd() -> Result<
         parse(&mount_command)
     } else {
         Err(HttmError::new(
-            "mount command not found. Make sure the command 'mount' is in your path.",
+            "'mount' command not be found. Make sure the command 'mount' is in your path.",
         )
         .into())
     }
@@ -325,7 +325,7 @@ pub fn precompute_btrfs_snap_mounts(
         Ok(snapshot_locations)
     } else {
         Err(HttmError::new(
-            "btrfs command not found. Make sure the command 'btrfs' is in your path.",
+            "'btrfs' command not found. Make sure the command 'btrfs' is in your path.",
         )
         .into())
     }

@@ -48,7 +48,7 @@ pub fn take_snapshot(
                                 return Err(HttmError::new("httm does not currently support snapshot-ing non-ZFS filesystems."))
                             }
                         }
-                        None => return Err(HttmError::new("Unable to parse dataset from mount!")),
+                        None => return Err(HttmError::new("httm was unable to parse dataset from mount!")),
                     }
                 }
                 SnapPoint::UserDefined(_) => return Err(HttmError::new("httm does not currently support snapshot-ing user defined mount points.")),
@@ -96,7 +96,7 @@ pub fn take_snapshot(
         exec_zfs_snapshot(config, &zfs_command, &mounts_for_files)
     } else {
         Err(
-            HttmError::new("zfs command not found. Make sure the command 'zfs' is in your path.")
+            HttmError::new("'zfs' command not found. Make sure the command 'zfs' is in your path.")
                 .into(),
         )
     }

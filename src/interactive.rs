@@ -362,7 +362,7 @@ fn interactive_restore(
                 eprintln!("{}", result_buffer);
             }
             Err(err) => {
-                return Err(HttmError::with_context("httm restore failed", Box::new(err)).into());
+                return Err(HttmError::with_context("httm restore failed: ", Box::new(err)).into());
             }
         }
     } else {
