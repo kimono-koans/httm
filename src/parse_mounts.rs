@@ -156,14 +156,12 @@ pub fn precompute_snap_mounts(
 
     let map_of_snaps: HashMap<PathBuf, Vec<PathBuf>> = map_of_datasets
         .par_iter()
-        .filter_map(|(mount, (_dataset, fstype))| {
+        .flat_map(|(mount, (_dataset, fstype))| {
             let snap_mounts = match fstype {
-                FilesystemType::Zfs => precompute_zfs_snap_mounts(mount).ok(),
+                FilesystemType::Zfs => precompute_zfs_snap_mounts(mount),
                 FilesystemType::Btrfs => match opt_root_mount_path {
-                    Some(root_mount_path) => {
-                        precompute_btrfs_snap_mounts(mount, root_mount_path).ok()
-                    }
-                    None => None,
+                    Some(root_mount_path) => precompute_btrfs_snap_mounts(mount, root_mount_path),
+                    None => Err(HttmError::new("No btrfs root mount found on this system.").into()),
                 },
             };
 
@@ -262,8 +260,8 @@ pub fn precompute_alt_replicated(
 ) -> HashMap<PathBuf, Vec<PathBuf>> {
     map_of_datasets
         .par_iter()
-        .filter_map(|(mount, (_dataset, _fstype))| {
-            get_alt_replicated_datasets(mount, map_of_datasets).ok()
+        .flat_map(|(mount, (_dataset, _fstype))| {
+            get_alt_replicated_datasets(mount, map_of_datasets)
         })
         .map(|dataset_collection| {
             (
