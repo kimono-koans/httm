@@ -294,8 +294,14 @@ impl Config {
             ExecMode::Display
         };
 
-        let env_snap_dir = std::env::var_os("HTTM_SNAP_POINT");
+        let env_snap_dir = if std::env::var_os("HTTM_REMOTE_DIR").is_some() {
+            std::env::var_os("HTTM_REMOTE_DIR")
+        } else {
+            // legacy env var name
+            std::env::var_os("HTTM_SNAP_POINT")
+        };
         let env_local_dir = std::env::var_os("HTTM_LOCAL_DIR");
+
         let interactive_mode = if matches.is_present("RESTORE") {
             InteractiveMode::Restore
         } else if matches.is_present("SELECT") {
@@ -332,7 +338,7 @@ impl Config {
 
         // where is the hidden snapshot directory located?
         // just below we ask whether the user has defined that place
-        let raw_snap_var = if let Some(value) = matches.value_of_os("SNAP_POINT") {
+        let raw_snap_var = if let Some(value) = matches.value_of_os("REMOTE_DIR") {
             Some(value.to_os_string())
         } else {
             env_snap_dir
@@ -699,12 +705,12 @@ fn parse_args() -> ArgMatches {
                 .display_order(14)
         )
         .arg(
-            Arg::new("SNAP_POINT")
-                .long("remote")
-                .visible_alias("snap-point")
+            Arg::new("REMOTE_DIR")
+                .long("remote-dir")
+                .visible_aliases(&["remote", "snap-point"])
                 .help("ordinarily httm will automatically choose your dataset root directory (the most proximate ancestor directory which contains a snapshot directory), \
                 but here you may manually specify that mount point for ZFS (directory which contains a \".zfs\" directory) or btrfs-snapper (directory which contains a \".snapshots\" directory), \
-                such as the local mount point for a remote share.  You may also set via the HTTM_SNAP_POINT environment variable.  \
+                such as the local mount point for a remote share.  You may also set via the HTTM_REMOTE_DIR environment variable.  \
                 Note: Use of both \"remote\" and \"local\" are not always necessary to view versions on remote shares.  \
                 These options *are necessary* if you want to view snapshot versions from within the local directory you back up to your remote share, \
                 however, httm can also automatically detect ZFS and btrfs-snapper datasets mounted as AFP, SMB, and NFS remote shares, if you browse that remote share where it is locally mounted.")
@@ -713,8 +719,8 @@ fn parse_args() -> ArgMatches {
         )
         .arg(
             Arg::new("LOCAL_DIR")
-                .long("local")
-                .visible_alias("local-dir")
+                .long("local-dir")
+                .visible_alias("local")
                 .help("used with \"remote\" to determine where the corresponding live root filesystem of the dataset is.  \
                 Put more simply, the \"local\" is the directory you backup to your \"remote\".  If not set, httm defaults to your current working directory.  \
                 You may also set via the environment variable HTTM_LOCAL_DIR.")
