@@ -80,7 +80,8 @@ pub fn take_snapshot(
 
             if !err.is_empty() {
                 return Err(HttmError::new(&format!(
-                    "httm was unable to take a snapshot: {}",
+                    "httm was unable to take a snapshot. \
+                    The 'zfs' command issued the following error: {}",
                     err
                 )));
             } else {
