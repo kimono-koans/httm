@@ -86,6 +86,7 @@ pub fn take_snapshot(
         }
     }
 
+    // don't want to request alt replicated mounts, though we may in opt_mount_for_file mode
     let selected_datasets = vec![NativeDatasetType::MostProximate];
 
     let mounts_for_files: Vec<PathData> =
