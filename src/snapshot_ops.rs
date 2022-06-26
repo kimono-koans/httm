@@ -38,30 +38,25 @@ pub fn take_snapshot(
         zfs_command: &PathBuf,
         mounts_for_files: &[PathData],
     ) -> Result<[Vec<PathData>; 2], Box<dyn std::error::Error + Send + Sync + 'static>> {
-        let exec_command = zfs_command;
+        // all snapshots should have the same timestamp
         let now = SystemTime::now();
 
         let res: Result<(), HttmError> = mounts_for_files.iter().try_for_each(|mount| {
-            let opt_dataset = match &config.snap_point {
+            let dataset = match &config.snap_point {
                 SnapPoint::Native(native_datasets) => {
                     match native_datasets.map_of_datasets.get(&mount.path_buf) {
                         Some((dataset, fs_type)) => {
                             if let FilesystemType::Zfs = fs_type {
-                                Some(dataset)
+                                Ok(dataset)
                             } else {
-                                None
+                                return Err(HttmError::new("httm does not currently support snapshot-ing non-ZFS filesystems"))
                             }
                         }
-                        None => None,
+                        None => return Err(HttmError::new("Unable to parse dataset from mount!")),
                     }
                 }
-                SnapPoint::UserDefined(_) => None,
-            };
-
-            let dataset = match opt_dataset {
-                Some(dataset) => dataset,
-                None => unreachable!("Unable to parse dataset!"),
-            };
+                SnapPoint::UserDefined(_) => return Err(HttmError::new("httm does not currently support snapshot-ing user defined filesystems")),
+            }?;
 
             let snapshot_name = format!(
                 "{}@snap_{}_httmSnapFileMount",
@@ -71,14 +66,14 @@ pub fn take_snapshot(
 
             let args = vec!["snapshot", &snapshot_name];
 
-            let output = ExecProcess::new(exec_command)
+            let output = ExecProcess::new(zfs_command)
                 .args(&args)
                 .output()
                 .unwrap()
                 .stderr;
 
+            // fn seems to exec Ok unless command DNE, so unwrap is okay here
             let err = std::str::from_utf8(
-                // seems to exec Ok unless command DNE
                 &output,
             )
             .unwrap();
@@ -100,7 +95,7 @@ pub fn take_snapshot(
             Ok(_) => {
                 std::process::exit(0);
             }
-            Err(err) => Err(Box::new(err)),
+            Err(err) => Err(err.into()),
         }
     }
 
