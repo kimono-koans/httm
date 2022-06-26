@@ -37,7 +37,7 @@ pub fn take_snapshot(
         // all snapshots should have the same timestamp
         let now = SystemTime::now();
 
-        let vec_snaps: Result<Vec<String>, HttmError> = mounts_for_files.iter().map(|mount| {
+        let res_snapshot_names: Result<Vec<String>, HttmError> = mounts_for_files.iter().map(|mount| {
             let dataset: String = match &config.snap_point {
                 SnapPoint::Native(native_datasets) => {
                     match native_datasets.map_of_datasets.get(&mount.path_buf) {
@@ -63,15 +63,13 @@ pub fn take_snapshot(
             Ok(snapshot_name)
         }).collect::<Result<Vec<String>, HttmError>>();
 
-        let snap_names: Vec<String> = vec_snaps?.into_iter().dedup().collect();
+        let snapshot_names: Vec<String> = res_snapshot_names?.into_iter().dedup().collect();
 
-        let mut args = vec!["snapshot".to_owned()];
-        args.extend(snap_names.clone());
+        let mut process_args = vec!["snapshot".to_owned()];
+        process_args.extend(snapshot_names.clone());
 
-        let process_output = ExecProcess::new(zfs_command).args(&args).output().unwrap();
-
-        // fn seems to exec Ok unless command DNE, so unwrap is okay here
-        let err = std::str::from_utf8(&process_output.stderr).unwrap().trim();
+        let process_output = ExecProcess::new(zfs_command).args(&process_args).output()?;
+        let err = std::str::from_utf8(&process_output.stderr)?.trim();
 
         if !err.is_empty() {
             return Err(HttmError::new(&format!(
@@ -81,7 +79,7 @@ pub fn take_snapshot(
             ))
             .into());
         } else {
-            snap_names.iter().for_each(|snap_name| {
+            snapshot_names.iter().for_each(|snap_name| {
                 println!("httm took a snapshot named: {}", &snap_name);
             });
             std::process::exit(0);
