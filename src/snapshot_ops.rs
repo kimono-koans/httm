@@ -76,16 +76,15 @@ pub fn take_snapshot(
             let err = std::str::from_utf8(
                 &output,
             )
-            .unwrap();
+            .unwrap().trim();
 
             if !err.is_empty() {
                 return Err(HttmError::new(&format!(
-                    "httm was unable to take a snapshot.  \
-                    See the following context: {}",
+                    "httm was unable to take a snapshot: {}",
                     err
                 )));
             } else {
-                println!("httm took a snapshot at: {}", &snapshot_name)
+                println!("httm took a snapshot named: {}", &snapshot_name)
             }
 
             Ok(())
