@@ -80,7 +80,7 @@ pub fn get_versions_set(
     if all_snap_versions.is_empty() && live_versions.par_iter().all(|pathdata| pathdata.is_phantom)
     {
         return Err(HttmError::new(
-            "Neither a live copy, nor a snapshot copy of such a file appears to exist, so, umm, 🤷? Please try another file.",
+            "httm could not find either a live copy or a snapshot copy of any specified file, so, umm, 🤷? Please try another file.",
         )
         .into());
     }
@@ -304,7 +304,7 @@ fn get_proximate_dataset(
     match opt_best_potential_mountpoint {
         Some(best_potential_mountpoint) => Ok(best_potential_mountpoint),
         None => {
-            let msg = "Could not identify any qualifying dataset.  Maybe consider specifying manually at SNAP_POINT?";
+            let msg = "httm could not identify any qualifying dataset.  Maybe consider specifying manually at SNAP_POINT?";
             Err(HttmError::new(msg).into())
         }
     }
