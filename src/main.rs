@@ -646,6 +646,21 @@ fn parse_args() -> ArgMatches {
                 .display_order(8)
         )
         .arg(
+            Arg::new("MOUNT_FOR_FILE")
+                .short('m')
+                .long("mount-for-file")
+                .help("display the mount point/s of the dataset/s which contains the input file/s.")
+                .conflicts_with_all(&["INTERACTIVE", "SELECT", "RESTORE", "NOT_SO_PRETTY"])
+                .display_order(9)
+        )
+        .arg(
+            Arg::new("SNAP_FILE_MOUNT")
+                .long("snap-file-mount")
+                .help("snapshot the mount point/s of the dataset/s which contains the input file/s.")
+                .conflicts_with_all(&["INTERACTIVE", "SELECT", "RESTORE", "ALT_REPLICATED", "SNAP_POINT", "LOCAL_DIR"])
+                .display_order(10)
+        )
+        .arg(
             Arg::new("SNAP_POINT")
                 .long("snap-point")
                 .help("ordinarily httm will automatically choose your dataset root directory (the most proximate ancestor directory which contains a \".zfs\" directory), \
@@ -654,7 +669,7 @@ fn parse_args() -> ArgMatches {
                 Note: Use of both \"snap-point\" and \"local-dir\" are not always necessary to view versions on remote shares.  \
                 httm can also automatically detect ZFS and btrfs-snapper datasets mounted as AFP, SMB, and NFS remote shares.")
                 .takes_value(true)
-                .display_order(9)
+                .display_order(11)
         )
         .arg(
             Arg::new("LOCAL_DIR")
@@ -664,21 +679,6 @@ fn parse_args() -> ArgMatches {
                 You can also set via the environment variable HTTM_LOCAL_DIR.")
                 .requires("SNAP_POINT")
                 .takes_value(true)
-                .display_order(10)
-        )
-        .arg(
-            Arg::new("MOUNT_FOR_FILE")
-                .short('m')
-                .long("mount-for-file")
-                .help("display the mount point/s of the dataset/s which contains the input file/s.")
-                .conflicts_with_all(&["INTERACTIVE", "SELECT", "RESTORE", "NOT_SO_PRETTY"])
-                .display_order(11)
-        )
-        .arg(
-            Arg::new("SNAP_FILE_MOUNT")
-                .long("snap-file-mount")
-                .help("snapshot the mount point/s of the dataset/s which contains the input file/s.")
-                .conflicts_with_all(&["INTERACTIVE", "SELECT", "RESTORE", "ALT_REPLICATED", "SNAP_POINT", "LOCAL_DIR"])
                 .display_order(12)
         )
         .arg(
@@ -715,7 +715,7 @@ fn parse_args() -> ArgMatches {
                 .long("install-zsh-hot-keys")
                 .help("install zsh hot keys to the users home directory, and then exit")
                 .exclusive(true)
-                .display_order(16)
+                .display_order(17)
         )
         .get_matches()
 }
