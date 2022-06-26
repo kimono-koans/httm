@@ -354,7 +354,7 @@ impl Config {
         // setting pwd as the path, here, keeps us from waiting on stdin when in non-Display modes
         } else if exec_mode == ExecMode::Interactive || exec_mode == ExecMode::DisplayRecursive {
             vec![pwd.clone()]
-        } else if exec_mode == ExecMode::Display {
+        } else if exec_mode == ExecMode::Display || exec_mode == ExecMode::SnapFileMount {
             read_stdin()?
                 .iter()
                 .par_bridge()
