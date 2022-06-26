@@ -32,20 +32,22 @@ use clap::{crate_name, crate_version, Arg, ArgMatches};
 use fxhash::FxHashMap as HashMap;
 use rayon::prelude::*;
 
-use crate::display::display_exec;
-use crate::interactive::interactive_exec;
-use crate::parse_mounts::{get_common_snap_dir, get_filesystems_list, precompute_alt_replicated};
-use crate::process_dirs::display_recursive_wrapper;
-use crate::utility::{httm_is_dir, install_hot_keys, read_stdin, take_snapshot};
-use crate::versions_lookup::get_versions_set;
-
 mod deleted_lookup;
 mod display;
 mod interactive;
 mod parse_mounts;
 mod process_dirs;
+mod snapshot_ops;
 mod utility;
 mod versions_lookup;
+
+use crate::display::display_exec;
+use crate::interactive::interactive_exec;
+use crate::parse_mounts::{get_common_snap_dir, get_filesystems_list, precompute_alt_replicated};
+use crate::process_dirs::display_recursive_wrapper;
+use crate::snapshot_ops::take_snapshot;
+use crate::utility::{httm_is_dir, install_hot_keys, read_stdin};
+use crate::versions_lookup::get_versions_set;
 
 pub const ZFS_FSTYPE: &str = "zfs";
 pub const BTRFS_FSTYPE: &str = "btrfs";
