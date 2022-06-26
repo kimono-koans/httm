@@ -703,7 +703,7 @@ fn parse_args() -> ArgMatches {
                 such as the local mount point for a remote share.  You may also set via the HTTM_SNAP_POINT environment variable.  \
                 Note: Use of both \"snap-point\" and \"local-dir\" are not always necessary to view versions on remote shares.  \
                 The options *are necessary* if you want to view snapshot versions from within the local directory you back up to your remote share, \
-                but httm can also automatically detect ZFS and btrfs-snapper datasets mounted as AFP, SMB, and NFS remote shares, if you browse the remote share where it is mounted.")
+                however, httm can also automatically detect ZFS and btrfs-snapper datasets mounted as AFP, SMB, and NFS remote shares, if you browse that remote share where it is locally mounted.")
                 .takes_value(true)
                 .display_order(15)
         )
