@@ -574,7 +574,7 @@ impl Config {
 
 fn parse_args() -> ArgMatches {
     clap::Command::new(crate_name!())
-        .about("\nwithout options, httm will display non-interactive information about unique file versions contained on snapshots.\n\n\
+        .about("\nwithout additional options, httm will display non-interactive information about unique file versions contained on snapshots.\n\n\
         You may also select from the various interactive modes below to browse for, select, and/or restore files.")
         .version(crate_version!())
         .arg(
