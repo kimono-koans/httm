@@ -574,8 +574,8 @@ impl Config {
 
 fn parse_args() -> ArgMatches {
     clap::Command::new(crate_name!())
-        .about("\nwithout additional options, httm will display non-interactive information about unique file versions contained on snapshots.\n\n\
-        You may also select from the various interactive modes below to browse for, select, and/or restore files.")
+        .about("\nhttm displays information about unique file versions contained on snapshots.\n\n\
+        You may select from the various interactive modes below to browse for, select, and/or restore files.")
         .version(crate_version!())
         .arg(
             Arg::new("INPUT_FILES")
@@ -686,6 +686,7 @@ fn parse_args() -> ArgMatches {
         .arg(
             Arg::new("NOT_SO_PRETTY")
                 .long("not-so-pretty")
+                .visible_aliases(&["tabs", "plain-jane"])
                 .help("display the ordinary output, but tab delimited, without any pretty border lines.")
                 .conflicts_with_all(&["RAW", "ZEROS"])
                 .display_order(13)
