@@ -410,15 +410,13 @@ fn get_versions_per_dataset(
     };
 
     let unique_versions: HashMap<(SystemTime, u64), PathData> = match &config.snap_point {
-        // Do we have a map_of snaps? If so, get_search_bundle function has already prepared the ones
-        // we actually need for this dataset so we can skip the unwrap.
         SnapPoint::Native(_) => {
             match snapshot_mounts {
                 Some(snap_mounts) => snap_mounts_for_datasets(snap_mounts, relative_path)?,
                 // snap mounts is empty
                 None => {
                     return Err(HttmError::new(
-                        "If you are here, map of snap mounts is None, which means it is empty.  \
+                        "If you are here, precompute showed no snap mounts for dataset.  \
                     Iterator should just ignore/flatten the error.",
                     )
                     .into());

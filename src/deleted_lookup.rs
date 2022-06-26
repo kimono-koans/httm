@@ -172,21 +172,16 @@ pub fn get_deleted_per_dataset(
     };
 
     let unique_snap_filenames: HashMap<OsString, BasicDirEntryInfo> = match &config.snap_point {
-        SnapPoint::Native(_) =>
-        // Do we have a map_of snaps? If so, get_search_bundle function has already prepared the ones
-        // we actually need for this dataset so we can skip the unwrap.
-        {
-            match snapshot_mounts {
-                Some(snap_mounts) => snap_mounts_for_snap_filenames(snap_mounts, relative_path)?,
-                None => {
-                    return Err(HttmError::new(
-                        "If you are here, map of snap mounts is None, which means it is empty.  \
-                Iterator should just ignore/flatten the error.",
-                    )
-                    .into());
-                }
+        SnapPoint::Native(_) => match snapshot_mounts {
+            Some(snap_mounts) => snap_mounts_for_snap_filenames(snap_mounts, relative_path)?,
+            None => {
+                return Err(HttmError::new(
+                    "If you are here, precompute showed no snap mounts for dataset.  \
+                    Iterator should just ignore/flatten the error.",
+                )
+                .into());
             }
-        }
+        },
         SnapPoint::UserDefined(_) => {
             read_dir_for_snap_filenames(snapshot_dir, relative_path, fs_type)?
         }
