@@ -306,7 +306,8 @@ impl Config {
             InteractiveMode::None
         };
 
-        if opt_recursive && exec_mode == ExecMode::Display {
+        if opt_recursive && (exec_mode == ExecMode::Display || exec_mode == ExecMode::SnapFileMount)
+        {
             return Err(
                 HttmError::new("Recursive search feature only allowed in select modes.").into(),
             );
@@ -366,7 +367,9 @@ impl Config {
 
         // deduplicate pathdata and sort if in display mode --
         // so input of ./.z* and ./.zshrc will only print ./.zshrc once
-        paths = if exec_mode == ExecMode::Display && paths.len() > 1 {
+        paths = if paths.len() > 1
+            && (exec_mode == ExecMode::Display || exec_mode == ExecMode::SnapFileMount)
+        {
             paths.par_sort_by_key(|pathdata| pathdata.path_buf.clone());
             paths.dedup_by_key(|pathdata| pathdata.path_buf.clone());
 
