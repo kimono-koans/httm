@@ -39,13 +39,13 @@ pub fn get_filesystems_list() -> Result<
     ),
     Box<dyn std::error::Error + Send + Sync + 'static>,
 > {
-    let (map_of_datasets, map_of_snaps) = if cfg!(target_os = "linux") {
+    let maps_of_datasets_and_snaps = if cfg!(target_os = "linux") {
         parse_from_proc_mounts()?
     } else {
         parse_from_mount_cmd()?
     };
 
-    Ok((map_of_datasets, map_of_snaps))
+    Ok(maps_of_datasets_and_snaps)
 }
 
 // parsing from proc mounts is both faster and necessary for certain btrfs features
