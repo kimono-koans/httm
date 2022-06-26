@@ -705,7 +705,7 @@ fn parse_args() -> ArgMatches {
                 but here you may manually specify that mount point for ZFS (directory which contains a \".zfs\" directory) or btrfs-snapper (directory which contains a \".snapshots\" directory), \
                 such as the local mount point for a remote share.  You may also set via the HTTM_SNAP_POINT environment variable.  \
                 Note: Use of both \"remote\" and \"local\" are not always necessary to view versions on remote shares.  \
-                The options *are necessary* if you want to view snapshot versions from within the local directory you back up to your remote share, \
+                These options *are necessary* if you want to view snapshot versions from within the local directory you back up to your remote share, \
                 however, httm can also automatically detect ZFS and btrfs-snapper datasets mounted as AFP, SMB, and NFS remote shares, if you browse that remote share where it is locally mounted.")
                 .takes_value(true)
                 .display_order(15)
