@@ -651,8 +651,8 @@ fn parse_args() -> ArgMatches {
         .arg(
             Arg::new("SNAP_FILE_MOUNT")
                 .short('S')
-                .long("snap-file")
-                .visible_aliases(&["snap", "snapshot", "snap-file-mount"])
+                .long("snap")
+                .visible_aliases(&["snap-file", "snapshot", "snap-file-mount"])
                 .help("snapshot the mount point/s of the dataset/s which contains the input file/s. Note: This is a ZFS only option.")
                 .conflicts_with_all(&["INTERACTIVE", "SELECT", "RESTORE", "ALT_REPLICATED", "SNAP_POINT", "LOCAL_DIR"])
                 .display_order(9)
@@ -670,6 +670,7 @@ fn parse_args() -> ArgMatches {
             Arg::new("RAW")
                 .short('n')
                 .long("raw")
+                .visible_alias("newline")
                 .help("display the snapshot locations only, without extraneous information, delimited by a NEWLINE.")
                 .conflicts_with_all(&["ZEROS", "NOT_SO_PRETTY"])
                 .display_order(11)
@@ -692,17 +693,18 @@ fn parse_args() -> ArgMatches {
         .arg(
             Arg::new("NO_LIVE")
                 .long("no-live")
+                .visible_aliases(&["dead", "disco"])
                 .help("only display information concerning snapshot versions (display no information regarding 'live' versions of files or directories).")
                 .display_order(14)
         )
         .arg(
             Arg::new("SNAP_POINT")
-                .long("snap-point")
-                .visible_alias("point")
+                .long("remote")
+                .visible_alias("snap-point")
                 .help("ordinarily httm will automatically choose your dataset root directory (the most proximate ancestor directory which contains a \".zfs\" directory), \
                 but here you may manually specify that mount point for ZFS (directory which contains a snapshot directory) or btrfs-snapper (directory which contains a \".snapshots\" directory), \
                 such as the local mount point for a remote share.  You may also set via the HTTM_SNAP_POINT environment variable.  \
-                Note: Use of both \"snap-point\" and \"local-dir\" are not always necessary to view versions on remote shares.  \
+                Note: Use of both \"remote\" and \"local\" are not always necessary to view versions on remote shares.  \
                 The options *are necessary* if you want to view snapshot versions from within the local directory you back up to your remote share, \
                 however, httm can also automatically detect ZFS and btrfs-snapper datasets mounted as AFP, SMB, and NFS remote shares, if you browse that remote share where it is locally mounted.")
                 .takes_value(true)
@@ -710,10 +712,10 @@ fn parse_args() -> ArgMatches {
         )
         .arg(
             Arg::new("LOCAL_DIR")
-                .long("local-dir")
-                .visible_alias("local")
-                .help("used with \"snap-point\" to determine where the corresponding live root filesystem of the dataset is.  \
-                Put more simply, the \"local-dir\" is the directory you backup to your \"snap-point\".  If not set, httm defaults to your current working directory.  \
+                .long("local")
+                .visible_alias("local-dir")
+                .help("used with \"remote\" to determine where the corresponding live root filesystem of the dataset is.  \
+                Put more simply, the \"local\" is the directory you backup to your \"remote\".  If not set, httm defaults to your current working directory.  \
                 You may also set via the environment variable HTTM_LOCAL_DIR.")
                 .requires("SNAP_POINT")
                 .takes_value(true)
