@@ -32,20 +32,22 @@ use clap::{crate_name, crate_version, Arg, ArgMatches};
 use fxhash::FxHashMap as HashMap;
 use rayon::prelude::*;
 
-use crate::display::display_exec;
-use crate::interactive::interactive_exec;
-use crate::parse_mounts::{get_common_snap_dir, get_filesystems_list, precompute_alt_replicated};
-use crate::process_dirs::display_recursive_wrapper;
-use crate::utility::{httm_is_dir, install_hot_keys, read_stdin};
-use crate::versions_lookup::get_versions_set;
-
 mod deleted_lookup;
 mod display;
 mod interactive;
 mod parse_mounts;
 mod process_dirs;
+mod snapshot_ops;
 mod utility;
 mod versions_lookup;
+
+use crate::display::display_exec;
+use crate::interactive::interactive_exec;
+use crate::parse_mounts::{get_common_snap_dir, get_filesystems_list, precompute_alt_replicated};
+use crate::process_dirs::display_recursive_wrapper;
+use crate::snapshot_ops::take_snapshot;
+use crate::utility::{httm_is_dir, install_hot_keys, read_stdin};
+use crate::versions_lookup::get_versions_set;
 
 pub const ZFS_FSTYPE: &str = "zfs";
 pub const BTRFS_FSTYPE: &str = "btrfs";
@@ -189,6 +191,7 @@ enum ExecMode {
     Interactive,
     DisplayRecursive,
     Display,
+    SnapFileMount,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -258,6 +261,7 @@ impl Config {
         if matches.is_present("ZSH_HOT_KEYS") {
             install_hot_keys()?
         }
+
         let opt_zeros = matches.is_present("ZEROS");
         let opt_raw = matches.is_present("RAW");
         let opt_no_pretty = matches.is_present("NOT_SO_PRETTY");
@@ -274,7 +278,10 @@ impl Config {
             // invalid value to not specify one of the above
             _ => unreachable!(),
         };
-        let mut exec_mode = if matches.is_present("INTERACTIVE")
+
+        let mut exec_mode = if matches.is_present("SNAP_FILE_MOUNT") {
+            ExecMode::SnapFileMount
+        } else if matches.is_present("INTERACTIVE")
             || matches.is_present("RESTORE")
             || matches.is_present("SELECT")
         {
@@ -328,105 +335,6 @@ impl Config {
             Some(value.to_os_string())
         } else {
             env_snap_dir
-        };
-
-        // here we determine how we will obtain our snap point -- has the user defined it
-        // or will we find it by searching the native filesystem?
-        let (opt_alt_replicated, snap_point) = if let Some(raw_value) = raw_snap_var {
-            if matches.is_present("ALT_REPLICATED") {
-                return Err(HttmError::new(
-                    "Alternate replicated datasets are not available for search, when the user defines a snap point.",
-                )
-                .into());
-            }
-
-            // user defined dir exists?: check that path contains the hidden snapshot directory
-            let snap_dir = PathBuf::from(raw_value);
-
-            // little sanity check -- make sure the user defined snap dir exist
-            if snap_dir.metadata().is_err() {
-                return Err(HttmError::new(
-                    "Manually set snap point directory does not exist.  Perhaps it is not already mounted?",
-                )
-                .into());
-            }
-
-            // set fstype, known by whether there is a ZFS hidden snapshot dir in the root dir
-            let (fs_type, opt_common_snap_dir) = if snap_dir
-                .join(ZFS_SNAPSHOT_DIRECTORY)
-                .metadata()
-                .is_ok()
-            {
-                (FilesystemType::Zfs, None)
-            } else if snap_dir
-                .join(BTRFS_SNAPPER_HIDDEN_DIRECTORY)
-                .metadata()
-                .is_ok()
-            {
-                (FilesystemType::Btrfs, None)
-            } else {
-                return Err(HttmError::new(
-                        "User defined snap point is only available for ZFS datasets and btrfs datasets snapshot-ed via snapper.",
-                    )
-                    .into());
-            };
-
-            // has the user has defined a corresponding local relative directory?
-            let raw_local_var = if let Some(raw_value) = matches.value_of_os("LOCAL_DIR") {
-                Some(raw_value.to_os_string())
-            } else {
-                env_local_dir
-            };
-
-            // local relative dir can be set at cmdline or as an env var, but defaults to current working directory
-            let local_dir = if let Some(value) = raw_local_var {
-                let local_dir: PathBuf = PathBuf::from(value);
-
-                // little sanity check -- make sure the user defined local dir exist
-                if local_dir.metadata().is_ok() {
-                    local_dir
-                } else {
-                    return Err(HttmError::new(
-                        "Manually set local relative directory does not exist.  Please try another.",
-                    )
-                    .into());
-                }
-            } else {
-                pwd.path_buf.clone()
-            };
-
-            (
-                // always set opt_alt_replicated to false in UserDefinedDirs mode
-                false,
-                SnapPoint::UserDefined(UserDefinedDirs {
-                    snap_dir,
-                    local_dir,
-                    fs_type,
-                    opt_common_snap_dir,
-                }),
-            )
-        } else {
-            let (map_of_datasets, map_of_snaps) = get_filesystems_list()?;
-
-            // for a collection of btrfs mounts, indicates a common snapshot directory to ignore
-            let opt_common_snap_dir = get_common_snap_dir(&map_of_datasets, &map_of_snaps);
-
-            // only create a map of alts if necessary
-            let opt_map_of_alts = if matches.is_present("ALT_REPLICATED") {
-                Some(precompute_alt_replicated(&map_of_datasets))
-            } else {
-                None
-            };
-
-            (
-                matches.is_present("ALT_REPLICATED"),
-                SnapPoint::Native(NativeDatasets {
-                    map_of_datasets,
-                    map_of_snaps,
-                    opt_map_of_alts,
-                    opt_common_snap_dir,
-                }),
-            )
         };
 
         // paths are immediately converted to our PathData struct
@@ -533,11 +441,110 @@ impl Config {
                     }
                 }
             }
-            ExecMode::Display => {
+            ExecMode::Display | ExecMode::SnapFileMount => {
                 // in non-interactive mode / display mode, requested dir is just a file
                 // like every other file and pwd must be the requested working dir.
                 None
             }
+        };
+
+        // here we determine how we will obtain our snap point -- has the user defined it
+        // or will we find it by searching the native filesystem?
+        let (opt_alt_replicated, snap_point) = if let Some(raw_value) = raw_snap_var {
+            if matches.is_present("ALT_REPLICATED") {
+                return Err(HttmError::new(
+                    "Alternate replicated datasets are not available for search, when the user defines a snap point.",
+                )
+                .into());
+            }
+
+            // user defined dir exists?: check that path contains the hidden snapshot directory
+            let snap_dir = PathBuf::from(raw_value);
+
+            // little sanity check -- make sure the user defined snap dir exist
+            if snap_dir.metadata().is_err() {
+                return Err(HttmError::new(
+                    "Manually set snap point directory does not exist.  Perhaps it is not already mounted?",
+                )
+                .into());
+            }
+
+            // set fstype, known by whether there is a ZFS hidden snapshot dir in the root dir
+            let (fs_type, opt_common_snap_dir) = if snap_dir
+                .join(ZFS_SNAPSHOT_DIRECTORY)
+                .metadata()
+                .is_ok()
+            {
+                (FilesystemType::Zfs, None)
+            } else if snap_dir
+                .join(BTRFS_SNAPPER_HIDDEN_DIRECTORY)
+                .metadata()
+                .is_ok()
+            {
+                (FilesystemType::Btrfs, None)
+            } else {
+                return Err(HttmError::new(
+                        "User defined snap point is only available for ZFS datasets and btrfs datasets snapshot-ed via snapper.",
+                    )
+                    .into());
+            };
+
+            // has the user has defined a corresponding local relative directory?
+            let raw_local_var = if let Some(raw_value) = matches.value_of_os("LOCAL_DIR") {
+                Some(raw_value.to_os_string())
+            } else {
+                env_local_dir
+            };
+
+            // local relative dir can be set at cmdline or as an env var, but defaults to current working directory
+            let local_dir = if let Some(value) = raw_local_var {
+                let local_dir: PathBuf = PathBuf::from(value);
+
+                // little sanity check -- make sure the user defined local dir exist
+                if local_dir.metadata().is_ok() {
+                    local_dir
+                } else {
+                    return Err(HttmError::new(
+                        "Manually set local relative directory does not exist.  Please try another.",
+                    )
+                    .into());
+                }
+            } else {
+                pwd.path_buf.clone()
+            };
+
+            (
+                // always set opt_alt_replicated to false in UserDefinedDirs mode
+                false,
+                SnapPoint::UserDefined(UserDefinedDirs {
+                    snap_dir,
+                    local_dir,
+                    fs_type,
+                    opt_common_snap_dir,
+                }),
+            )
+        } else {
+            let (map_of_datasets, map_of_snaps) = get_filesystems_list()?;
+
+            // for a collection of btrfs mounts, indicates a common snapshot directory to ignore
+            let opt_common_snap_dir = get_common_snap_dir(&map_of_datasets, &map_of_snaps);
+
+            // only create a map of alts if necessary
+            let opt_map_of_alts = if matches.is_present("ALT_REPLICATED") {
+                Some(precompute_alt_replicated(&map_of_datasets))
+            } else {
+                None
+            };
+
+            (
+                matches.is_present("ALT_REPLICATED"),
+                SnapPoint::Native(NativeDatasets {
+                    map_of_datasets,
+                    map_of_snaps,
+                    opt_map_of_alts,
+                    opt_common_snap_dir,
+                }),
+            )
         };
 
         let config = Config {
@@ -668,12 +675,19 @@ fn parse_args() -> ArgMatches {
                 .display_order(11)
         )
         .arg(
+            Arg::new("SNAP_FILE_MOUNT")
+                .long("snap-file-mount")
+                .help("snapshot the mount point/s of the dataset/s which contains the input file/s.")
+                .conflicts_with_all(&["INTERACTIVE", "SELECT", "RESTORE", "ALT_REPLICATED", "SNAP_POINT", "LOCAL_DIR"])
+                .display_order(12)
+        )
+        .arg(
             Arg::new("RAW")
                 .short('n')
                 .long("raw")
                 .help("display the backup locations only, without extraneous information, delimited by a NEWLINE.")
                 .conflicts_with_all(&["ZEROS", "NOT_SO_PRETTY"])
-                .display_order(12)
+                .display_order(13)
         )
         .arg(
             Arg::new("ZEROS")
@@ -681,20 +695,20 @@ fn parse_args() -> ArgMatches {
                 .long("zero")
                 .help("display the backup locations only, without extraneous information, delimited by a NULL CHARACTER.")
                 .conflicts_with_all(&["RAW", "NOT_SO_PRETTY"])
-                .display_order(13)
+                .display_order(14)
         )
         .arg(
             Arg::new("NOT_SO_PRETTY")
                 .long("not-so-pretty")
                 .help("display the ordinary output, but tab delimited, without any pretty border lines.")
                 .conflicts_with_all(&["RAW", "ZEROS"])
-                .display_order(14)
+                .display_order(15)
         )
         .arg(
             Arg::new("NO_LIVE")
                 .long("no-live")
                 .help("only display information concerning snapshot versions, and no 'live' versions of files or directories.")
-                .display_order(15)
+                .display_order(16)
         )
         .arg(
             Arg::new("ZSH_HOT_KEYS")
@@ -731,6 +745,7 @@ fn exec() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         ExecMode::Display => get_versions_set(&config, &config.paths)?,
         // ExecMode::DisplayRecursive won't ever return back to this function
         ExecMode::DisplayRecursive => display_recursive_wrapper(&config)?,
+        ExecMode::SnapFileMount => take_snapshot(&config)?,
     };
 
     // and display
