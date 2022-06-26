@@ -22,18 +22,14 @@ use crate::versions_lookup::{get_mounts_for_files, NativeDatasetType};
 use crate::{Config, HttmError, PathData};
 use crate::{FilesystemType, SnapPoint};
 
+use itertools::Itertools;
 use std::process::Command as ExecProcess;
 use which::which;
 
 pub fn take_snapshot(
     config: &Config,
 ) -> Result<[Vec<PathData>; 2], Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let selected_datasets = vec![NativeDatasetType::MostProximate];
-
-    let mounts_for_files: Vec<PathData> =
-        get_mounts_for_files(config, &config.paths, &selected_datasets)?;
-
-    fn exec_snapshot(
+    fn exec_zfs_snapshot(
         config: &Config,
         zfs_command: &PathBuf,
         mounts_for_files: &[PathData],
@@ -41,13 +37,13 @@ pub fn take_snapshot(
         // all snapshots should have the same timestamp
         let now = SystemTime::now();
 
-        let res: Result<(), HttmError> = mounts_for_files.iter().try_for_each(|mount| {
-            let dataset = match &config.snap_point {
+        let vec_snaps: Result<Vec<String>, HttmError> = mounts_for_files.iter().map(|mount| {
+            let dataset: String = match &config.snap_point {
                 SnapPoint::Native(native_datasets) => {
                     match native_datasets.map_of_datasets.get(&mount.path_buf) {
                         Some((dataset, fs_type)) => {
                             if let FilesystemType::Zfs = fs_type {
-                                Ok(dataset)
+                                Ok(dataset.to_owned())
                             } else {
                                 return Err(HttmError::new("httm does not currently support snapshot-ing non-ZFS filesystems."))
                             }
@@ -64,42 +60,41 @@ pub fn take_snapshot(
                 timestamp_file(&now)
             );
 
-            let args = vec!["snapshot", &snapshot_name];
+            Ok(snapshot_name)
+        }).collect::<Result<Vec<String>, HttmError>>();
 
-            let output = ExecProcess::new(zfs_command)
-                .args(&args)
-                .output()
-                .unwrap();
+        let snap_names: Vec<String> = vec_snaps?.into_iter().dedup().collect();
 
-            // fn seems to exec Ok unless command DNE, so unwrap is okay here
-            let err = std::str::from_utf8(
-                &output.stderr,
-            )
-            .unwrap().trim();
+        let mut args = vec!["snapshot".to_owned()];
+        args.extend(snap_names.clone());
 
-            if !err.is_empty() {
-                return Err(HttmError::new(&format!(
-                    "httm was unable to take a snapshot. \
-                    The 'zfs' command issued the following error: {}",
-                    err
-                )));
-            } else {
-                println!("httm took a snapshot named: {}", &snapshot_name)
-            }
+        let process_output = ExecProcess::new(zfs_command).args(&args).output().unwrap();
 
-            Ok(())
-        });
+        // fn seems to exec Ok unless command DNE, so unwrap is okay here
+        let err = std::str::from_utf8(&process_output.stderr).unwrap().trim();
 
-        match res {
-            Ok(_) => {
-                std::process::exit(0);
-            }
-            Err(err) => Err(err.into()),
+        if !err.is_empty() {
+            return Err(HttmError::new(&format!(
+                "httm was unable to take a snapshot/s. \
+                The 'zfs' command issued the following error: {}",
+                err
+            ))
+            .into());
+        } else {
+            snap_names.iter().for_each(|snap_name| {
+                println!("httm took a snapshot named: {}", &snap_name);
+            });
+            std::process::exit(0);
         }
     }
 
+    let selected_datasets = vec![NativeDatasetType::MostProximate];
+
+    let mounts_for_files: Vec<PathData> =
+        get_mounts_for_files(config, &config.paths, &selected_datasets)?;
+
     if let Ok(zfs_command) = which("zfs") {
-        exec_snapshot(config, &zfs_command, &mounts_for_files)
+        exec_zfs_snapshot(config, &zfs_command, &mounts_for_files)
     } else {
         Err(
             HttmError::new("zfs command not found. Make sure the command 'zfs' is in your path.")
