@@ -49,13 +49,13 @@ pub fn take_snapshot(
                             if let FilesystemType::Zfs = fs_type {
                                 Ok(dataset)
                             } else {
-                                return Err(HttmError::new("httm does not currently support snapshot-ing non-ZFS filesystems"))
+                                return Err(HttmError::new("httm does not currently support snapshot-ing non-ZFS filesystems."))
                             }
                         }
                         None => return Err(HttmError::new("Unable to parse dataset from mount!")),
                     }
                 }
-                SnapPoint::UserDefined(_) => return Err(HttmError::new("httm does not currently support snapshot-ing user defined filesystems")),
+                SnapPoint::UserDefined(_) => return Err(HttmError::new("httm does not currently support snapshot-ing user defined mount points.")),
             }?;
 
             let snapshot_name = format!(
