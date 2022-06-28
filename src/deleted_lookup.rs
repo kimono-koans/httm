@@ -71,17 +71,15 @@ pub fn get_unique_deleted(
             get_deleted_per_dataset(config, &requested_dir_pathdata.path_buf, &search_bundle)
         })
         .flatten()
-        .filter_map(|basic_dir_entry_info| {
+        .flat_map(|basic_dir_entry_info| {
             basic_dir_entry_info
                 .path
                 .symlink_metadata()
                 .map(|md| (md, basic_dir_entry_info))
-                .ok()
         })
-        .filter_map(|(md, basic_dir_entry_info)| {
+        .flat_map(|(md, basic_dir_entry_info)| {
             md.modified()
                 .map(|modify_time| (modify_time, basic_dir_entry_info))
-                .ok()
         })
         // this part right here functions like a hashmap, separate into buckets/groups
         // by file name, then return the oldest deleted dir entry, or max by its modify time
