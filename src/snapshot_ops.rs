@@ -35,7 +35,7 @@ pub fn take_snapshot(
         mounts_for_files: &[PathData],
     ) -> Result<[Vec<PathData>; 2], Box<dyn std::error::Error + Send + Sync + 'static>> {
         // all snapshots should have the same timestamp
-        let now = SystemTime::now();
+        let timestamp = timestamp_file(&SystemTime::now());
 
         let res_snapshot_names: Result<Vec<String>, HttmError> = mounts_for_files.iter().map(|mount| {
             let dataset: String = match &config.snap_point {
@@ -57,7 +57,7 @@ pub fn take_snapshot(
             let snapshot_name = format!(
                 "{}@snap_{}_httmSnapFileMount",
                 dataset,
-                timestamp_file(&now)
+                timestamp,
             );
 
             Ok(snapshot_name)
@@ -69,13 +69,13 @@ pub fn take_snapshot(
         process_args.extend(snapshot_names.clone());
 
         let process_output = ExecProcess::new(zfs_command).args(&process_args).output()?;
-        let err = std::str::from_utf8(&process_output.stderr)?.trim();
+        let stderr = std::str::from_utf8(&process_output.stderr)?.trim();
 
-        if !err.is_empty() {
+        if !stderr.is_empty() {
             return Err(HttmError::new(&format!(
                 "httm was unable to take a snapshot/s. \
                 The 'zfs' command issued the following error: {}",
-                err
+                stderr
             ))
             .into());
         } else {
