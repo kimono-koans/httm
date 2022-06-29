@@ -761,7 +761,7 @@ fn exec() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         // 2. Determine/lookup whether file matches any files on snapshots
         ExecMode::Interactive => get_versions_set(&config, &interactive_exec(&config)?)?,
         ExecMode::Display => get_versions_set(&config, &config.paths)?,
-        // ExecMode::DisplayRecursive won't ever return back to this function
+        // ExecMode::DisplayRecursive and ExecMode::SnapFileMount won't ever return back to this function
         ExecMode::DisplayRecursive => display_recursive_wrapper(&config)?,
         ExecMode::SnapFileMount => take_snapshot(&config)?,
     };
