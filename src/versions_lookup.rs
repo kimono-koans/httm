@@ -18,7 +18,6 @@
 use std::{
     fs::read_dir,
     path::{Path, PathBuf},
-    rc::Rc,
     time::SystemTime,
 };
 
@@ -173,29 +172,27 @@ pub fn get_datasets_for_search(
     // hidden snapshot dirs
     let dataset_collection: DatasetsForSearch = match &config.snap_point {
         SnapPoint::UserDefined(defined_dirs) => {
-            let snap_dir = Rc::new(defined_dirs.snap_dir.to_path_buf());
+            let snap_dir = defined_dirs.snap_dir.to_path_buf();
             DatasetsForSearch {
-                proximate_dataset_mount: snap_dir.to_path_buf(),
-                datasets_of_interest: vec![snap_dir.to_path_buf()],
+                proximate_dataset_mount: snap_dir.clone(),
+                datasets_of_interest: vec![snap_dir],
             }
         }
         SnapPoint::Native(native_datasets) => {
-            let proximate_dataset_mount = Rc::new(get_proximate_dataset(
-                pathdata,
-                &native_datasets.map_of_datasets,
-            )?);
+            let proximate_dataset_mount =
+                get_proximate_dataset(pathdata, &native_datasets.map_of_datasets)?;
             match requested_dataset_type {
                 NativeDatasetType::MostProximate => {
                     // just return the same dataset when in most proximate mode
                     DatasetsForSearch {
-                        proximate_dataset_mount: proximate_dataset_mount.to_path_buf(),
-                        datasets_of_interest: vec![proximate_dataset_mount.to_path_buf()],
+                        proximate_dataset_mount: proximate_dataset_mount.clone(),
+                        datasets_of_interest: vec![proximate_dataset_mount],
                     }
                 }
                 NativeDatasetType::AltReplicated => match &native_datasets.opt_map_of_alts {
                     Some(map_of_alts) => match map_of_alts.get(proximate_dataset_mount.as_path()) {
                         Some(alternate_mounts) => DatasetsForSearch {
-                            proximate_dataset_mount: proximate_dataset_mount.to_path_buf(),
+                            proximate_dataset_mount,
                             datasets_of_interest: alternate_mounts.clone(),
                         },
                         None => return Err(HttmError::new("If you are here a map of alts is missing for a supplied mount, \
