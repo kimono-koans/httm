@@ -24,13 +24,15 @@ use std::{
     ffi::OsString,
     fmt,
     fs::{canonicalize, symlink_metadata, DirEntry, FileType, Metadata},
+    hash::BuildHasherDefault,
     path::{Path, PathBuf},
     time::SystemTime,
 };
 
 // so we may use AHashMap with Parallel Iterators!
+// impl of AHashMap as (K,V) instead of (K,V,S) so we
+// may use with collect() function, see rayon::FromParallelIterator
 use ahash::AHasher;
-use std::hash::BuildHasherDefault;
 pub type AHashBuildHasher = BuildHasherDefault<AHasher>;
 pub type AHashMapSpecial<K, V> = std::collections::HashMap<K, V, AHashBuildHasher>;
 use AHashMapSpecial as HashMap;
