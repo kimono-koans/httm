@@ -16,12 +16,12 @@
 // that was distributed with this source code.
 
 use std::{
+    collections::BTreeMap,
     ffi::OsString,
     fs::read_dir,
     path::{Path, PathBuf},
 };
 
-use fxhash::FxHashMap as HashMap;
 use itertools::Itertools;
 
 use crate::{
@@ -81,7 +81,7 @@ pub fn get_unique_deleted(
             md.modified()
                 .map(|modify_time| (modify_time, basic_dir_entry_info))
         })
-        // this part right here functions like a hashmap, separate into buckets/groups
+        // this functions like a hashmap, separate into buckets/groups
         // by file name, then return the oldest deleted dir entry, or max by its modify time
         // why? because this might be a folder that has been deleted and we need some policy
         // to give later functions an idea about which folder to choose when we want too look
@@ -110,7 +110,7 @@ pub fn get_deleted_per_dataset(
     // get all local entries we need to compare against these to know
     // what is a deleted file
     // create a collection of local unique file names
-    let unique_local_filenames: HashMap<OsString, BasicDirEntryInfo> = read_dir(&requested_dir)?
+    let unique_local_filenames: BTreeMap<OsString, BasicDirEntryInfo> = read_dir(&requested_dir)?
         .flatten()
         .map(|dir_entry| (dir_entry.file_name(), BasicDirEntryInfo::from(&dir_entry)))
         .collect();
@@ -122,7 +122,7 @@ pub fn get_deleted_per_dataset(
         relative_path: &Path,
         fs_type: &FilesystemType,
     ) -> Result<
-        HashMap<OsString, BasicDirEntryInfo>,
+        BTreeMap<OsString, BasicDirEntryInfo>,
         Box<dyn std::error::Error + Send + Sync + 'static>,
     > {
         let unique_snap_filenames = read_dir(match fs_type {
@@ -148,7 +148,7 @@ pub fn get_deleted_per_dataset(
         snap_mounts: &[PathBuf],
         relative_path: &Path,
     ) -> Result<
-        HashMap<OsString, BasicDirEntryInfo>,
+        BTreeMap<OsString, BasicDirEntryInfo>,
         Box<dyn std::error::Error + Send + Sync + 'static>,
     > {
         let unique_snap_filenames = snap_mounts
@@ -171,7 +171,7 @@ pub fn get_deleted_per_dataset(
         )
     };
 
-    let unique_snap_filenames: HashMap<OsString, BasicDirEntryInfo> = match &config.snap_point {
+    let unique_snap_filenames: BTreeMap<OsString, BasicDirEntryInfo> = match &config.snap_point {
         SnapPoint::Native(_) => match snapshot_mounts {
             Some(snap_mounts) => snap_mounts_for_snap_filenames(snap_mounts, relative_path)?,
             None => {

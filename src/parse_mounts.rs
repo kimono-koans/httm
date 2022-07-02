@@ -15,9 +15,10 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::{fs::read_dir, path::Path, path::PathBuf, process::Command as ExecProcess};
+use std::{
+    collections::BTreeMap, fs::read_dir, path::Path, path::PathBuf, process::Command as ExecProcess,
+};
 
-use fxhash::FxHashMap as HashMap;
 use proc_mounts::MountIter;
 use rayon::prelude::*;
 use which::which;
@@ -34,8 +35,8 @@ use crate::{
 #[allow(clippy::type_complexity)]
 pub fn get_filesystems_list() -> Result<
     (
-        HashMap<PathBuf, (String, FilesystemType)>,
-        HashMap<PathBuf, Vec<PathBuf>>,
+        BTreeMap<PathBuf, (String, FilesystemType)>,
+        BTreeMap<PathBuf, Vec<PathBuf>>,
     ),
     Box<dyn std::error::Error + Send + Sync + 'static>,
 > {
@@ -53,12 +54,12 @@ pub fn get_filesystems_list() -> Result<
 #[allow(clippy::type_complexity)]
 fn parse_from_proc_mounts() -> Result<
     (
-        HashMap<PathBuf, (String, FilesystemType)>,
-        HashMap<PathBuf, Vec<PathBuf>>,
+        BTreeMap<PathBuf, (String, FilesystemType)>,
+        BTreeMap<PathBuf, Vec<PathBuf>>,
     ),
     Box<dyn std::error::Error + Send + Sync + 'static>,
 > {
-    let map_of_datasets: HashMap<PathBuf, (String, FilesystemType)> = MountIter::new()?
+    let map_of_datasets: BTreeMap<PathBuf, (String, FilesystemType)> = MountIter::new()?
         .into_iter()
         .par_bridge()
         .flatten()
@@ -103,7 +104,7 @@ fn parse_from_proc_mounts() -> Result<
                 }
             }
             &BTRFS_FSTYPE => {
-                let keyed_options: HashMap<String, String> = mount_info
+                let keyed_options: BTreeMap<String, String> = mount_info
                     .options
                     .par_iter()
                     .filter(|line| line.contains('='))
@@ -138,8 +139,8 @@ fn parse_from_proc_mounts() -> Result<
 
 // fans out precompute of snap mounts to the appropriate function based on fstype
 pub fn precompute_snap_mounts(
-    map_of_datasets: &HashMap<PathBuf, (String, FilesystemType)>,
-) -> HashMap<PathBuf, Vec<PathBuf>> {
+    map_of_datasets: &BTreeMap<PathBuf, (String, FilesystemType)>,
+) -> BTreeMap<PathBuf, Vec<PathBuf>> {
     let opt_root_mount_path: Option<&PathBuf> =
         map_of_datasets
             .par_iter()
@@ -154,7 +155,7 @@ pub fn precompute_snap_mounts(
                 FilesystemType::Zfs => None,
             });
 
-    let map_of_snaps: HashMap<PathBuf, Vec<PathBuf>> = map_of_datasets
+    let map_of_snaps: BTreeMap<PathBuf, Vec<PathBuf>> = map_of_datasets
         .par_iter()
         .flat_map(|(mount, (_dataset, fstype))| {
             let snap_mounts = match fstype {
@@ -177,8 +178,8 @@ pub fn precompute_snap_mounts(
 #[allow(clippy::type_complexity)]
 fn parse_from_mount_cmd() -> Result<
     (
-        HashMap<PathBuf, (String, FilesystemType)>,
-        HashMap<PathBuf, Vec<PathBuf>>,
+        BTreeMap<PathBuf, (String, FilesystemType)>,
+        BTreeMap<PathBuf, Vec<PathBuf>>,
     ),
     Box<dyn std::error::Error + Send + Sync + 'static>,
 > {
@@ -186,8 +187,8 @@ fn parse_from_mount_cmd() -> Result<
         mount_command: &PathBuf,
     ) -> Result<
         (
-            HashMap<PathBuf, (String, FilesystemType)>,
-            HashMap<PathBuf, Vec<PathBuf>>,
+            BTreeMap<PathBuf, (String, FilesystemType)>,
+            BTreeMap<PathBuf, Vec<PathBuf>>,
         ),
         Box<dyn std::error::Error + Send + Sync + 'static>,
     > {
@@ -195,7 +196,7 @@ fn parse_from_mount_cmd() -> Result<
             std::str::from_utf8(&ExecProcess::new(mount_command).output()?.stdout)?.to_owned();
 
         // parse "mount" for filesystems and mountpoints
-        let map_of_datasets: HashMap<PathBuf, (String, FilesystemType)> = command_output
+        let map_of_datasets: BTreeMap<PathBuf, (String, FilesystemType)> = command_output
             .par_lines()
             // want zfs or network datasets which we can auto detest as ZFS
             .filter(|line| {
@@ -256,8 +257,8 @@ fn parse_from_mount_cmd() -> Result<
 
 // instead of looking up, precompute possible alt replicated mounts before exec
 pub fn precompute_alt_replicated(
-    map_of_datasets: &HashMap<PathBuf, (String, FilesystemType)>,
-) -> HashMap<PathBuf, Vec<PathBuf>> {
+    map_of_datasets: &BTreeMap<PathBuf, (String, FilesystemType)>,
+) -> BTreeMap<PathBuf, Vec<PathBuf>> {
     map_of_datasets
         .par_iter()
         .flat_map(|(mount, (_dataset, _fstype))| {
@@ -354,8 +355,8 @@ pub fn precompute_zfs_snap_mounts(
 // if we have some btrfs mounts, we check to see if there is a snap directory in common
 // so we can hide that common path from searches later
 pub fn get_common_snap_dir(
-    map_of_datasets: &HashMap<PathBuf, (String, FilesystemType)>,
-    map_of_snaps: &HashMap<PathBuf, Vec<PathBuf>>,
+    map_of_datasets: &BTreeMap<PathBuf, (String, FilesystemType)>,
+    map_of_snaps: &BTreeMap<PathBuf, Vec<PathBuf>>,
 ) -> Option<PathBuf> {
     let opt_snapshot_dir = if map_of_datasets
         .par_iter()

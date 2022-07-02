@@ -16,12 +16,12 @@
 // that was distributed with this source code.
 
 use std::{
+    collections::BTreeMap,
     fs::read_dir,
     path::{Path, PathBuf},
     time::SystemTime,
 };
 
-use fxhash::FxHashMap as HashMap;
 use rayon::prelude::*;
 
 use crate::{
@@ -291,7 +291,7 @@ pub fn get_search_bundle(
 
 fn get_proximate_dataset(
     pathdata: &PathData,
-    map_of_datasets: &HashMap<PathBuf, (String, FilesystemType)>,
+    map_of_datasets: &BTreeMap<PathBuf, (String, FilesystemType)>,
 ) -> Result<PathBuf, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // for /usr/bin, we prefer the most proximate: /usr/bin to /usr and /
     // ancestors() iterates in this top-down order, when a value: dataset/fstype is available
@@ -315,7 +315,7 @@ fn get_proximate_dataset(
 
 pub fn get_alt_replicated_datasets(
     proximate_dataset_mount: &Path,
-    map_of_datasets: &HashMap<PathBuf, (String, FilesystemType)>,
+    map_of_datasets: &BTreeMap<PathBuf, (String, FilesystemType)>,
 ) -> Result<DatasetsForSearch, Box<dyn std::error::Error + Send + Sync + 'static>> {
     let proximate_dataset_fsname = match &map_of_datasets.get(proximate_dataset_mount) {
         Some((proximate_dataset_fsname, _)) => proximate_dataset_fsname.to_string(),
@@ -364,7 +364,7 @@ fn get_versions_per_dataset(
         relative_path: &Path,
         fs_type: &FilesystemType,
     ) -> Result<
-        HashMap<(SystemTime, u64), PathData>,
+        BTreeMap<(SystemTime, u64), PathData>,
         Box<dyn std::error::Error + Send + Sync + 'static>,
     > {
         let unique_versions = read_dir(match fs_type {
@@ -390,7 +390,7 @@ fn get_versions_per_dataset(
         snap_mounts: &[PathBuf],
         relative_path: &Path,
     ) -> Result<
-        HashMap<(SystemTime, u64), PathData>,
+        BTreeMap<(SystemTime, u64), PathData>,
         Box<dyn std::error::Error + Send + Sync + 'static>,
     > {
         let unique_versions = snap_mounts
@@ -412,7 +412,7 @@ fn get_versions_per_dataset(
         )
     };
 
-    let unique_versions: HashMap<(SystemTime, u64), PathData> = match &config.snap_point {
+    let unique_versions: BTreeMap<(SystemTime, u64), PathData> = match &config.snap_point {
         SnapPoint::Native(_) => {
             match snapshot_mounts {
                 Some(snap_mounts) => snap_mounts_for_datasets(snap_mounts, relative_path)?,
