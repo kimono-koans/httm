@@ -24,8 +24,8 @@ use std::{
 use rayon::prelude::*;
 
 use crate::{
-    AHashMapSpecial as HashMap, Config, FilesystemType, HttmError, PathData, SnapPoint, BTRFS_SNAPPER_HIDDEN_DIRECTORY,
-    BTRFS_SNAPPER_SUFFIX, ZFS_SNAPSHOT_DIRECTORY,
+    AHashMapSpecial as HashMap, Config, FilesystemType, HttmError, PathData, SnapPoint,
+    BTRFS_SNAPPER_HIDDEN_DIRECTORY, BTRFS_SNAPPER_SUFFIX, ZFS_SNAPSHOT_DIRECTORY,
 };
 
 pub struct DatasetsForSearch {
@@ -295,10 +295,12 @@ fn get_proximate_dataset(
     // for /usr/bin, we prefer the most proximate: /usr/bin to /usr and /
     // ancestors() iterates in this top-down order, when a value: dataset/fstype is available
     // we map to return the key, instead of the value
+    let ancestors: Vec<&Path> = pathdata.path_buf.ancestors().collect();
+
     let opt_best_potential_mountpoint: Option<PathBuf> =
-        pathdata.path_buf.ancestors().find_map(|ancestor| {
+        ancestors.par_iter().find_map_first(|ancestor| {
             map_of_datasets
-                .get(ancestor)
+                .get(*ancestor)
                 .map(|_| ancestor.to_path_buf())
         });
 
@@ -371,6 +373,7 @@ fn get_versions_per_dataset(
             FilesystemType::Zfs => snapshot_dir.to_path_buf(),
         })?
         .flatten()
+        .par_bridge()
         .map(|entry| match fs_type {
             FilesystemType::Btrfs => entry.path().join(BTRFS_SNAPPER_SUFFIX),
             FilesystemType::Zfs => entry.path(),
@@ -392,7 +395,7 @@ fn get_versions_per_dataset(
         Box<dyn std::error::Error + Send + Sync + 'static>,
     > {
         let unique_versions = snap_mounts
-            .iter()
+            .par_iter()
             .map(|path| path.join(&relative_path))
             .map(|path| PathData::from(path.as_path()))
             .filter(|pathdata| !pathdata.is_phantom)
@@ -427,8 +430,6 @@ fn get_versions_per_dataset(
         SnapPoint::UserDefined(_) => read_dir_for_datasets(snapshot_dir, relative_path, fs_type)?,
     };
 
-    // no need to sort a BTreeMap as one would a HashMap, so just dump values
-    // faster into_par_iter() is faster than into_values()
     let mut vec_pathdata: Vec<PathData> = unique_versions.into_iter().map(|(_k, v)| v).collect();
 
     vec_pathdata.par_sort_unstable_by_key(|pathdata| pathdata.system_time);

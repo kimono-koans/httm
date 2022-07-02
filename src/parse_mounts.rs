@@ -24,9 +24,8 @@ use which::which;
 use crate::utility::get_common_path;
 use crate::versions_lookup::get_alt_replicated_datasets;
 use crate::{
-    AHashMapSpecial as HashMap,
-    FilesystemType, HttmError, AFP_FSTYPE, BTRFS_FSTYPE, BTRFS_SNAPPER_HIDDEN_DIRECTORY,
-    NFS_FSTYPE, SMB_FSTYPE, ZFS_FSTYPE, ZFS_SNAPSHOT_DIRECTORY,
+    AHashMapSpecial as HashMap, FilesystemType, HttmError, AFP_FSTYPE, BTRFS_FSTYPE,
+    BTRFS_SNAPPER_HIDDEN_DIRECTORY, NFS_FSTYPE, SMB_FSTYPE, ZFS_FSTYPE, ZFS_SNAPSHOT_DIRECTORY,
 };
 
 // divide by the type of system we are on
