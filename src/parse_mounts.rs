@@ -17,8 +17,6 @@
 
 use std::{fs::read_dir, path::Path, path::PathBuf, process::Command as ExecProcess};
 
-use ahash::AHashMap as HashMap;
-
 use proc_mounts::MountIter;
 use rayon::prelude::*;
 use which::which;
@@ -26,6 +24,7 @@ use which::which;
 use crate::utility::get_common_path;
 use crate::versions_lookup::get_alt_replicated_datasets;
 use crate::{
+    AHashMapSpecial as HashMap,
     FilesystemType, HttmError, AFP_FSTYPE, BTRFS_FSTYPE, BTRFS_SNAPPER_HIDDEN_DIRECTORY,
     NFS_FSTYPE, SMB_FSTYPE, ZFS_FSTYPE, ZFS_SNAPSHOT_DIRECTORY,
 };
@@ -60,7 +59,7 @@ fn parse_from_proc_mounts() -> Result<
     Box<dyn std::error::Error + Send + Sync + 'static>,
 > {
     let map_of_datasets: HashMap<PathBuf, (String, FilesystemType)> = MountIter::new()?
-        .into_iter()
+        .par_bridge()
         .flatten()
         // but exclude snapshot mounts.  we want only the raw filesystems
         .filter(|mount_info| {
@@ -105,7 +104,7 @@ fn parse_from_proc_mounts() -> Result<
             &BTRFS_FSTYPE => {
                 let keyed_options: HashMap<String, String> = mount_info
                     .options
-                    .iter()
+                    .par_iter()
                     .filter(|line| line.contains('='))
                     .filter_map(|line| {
                         line.split_once(&"=")
@@ -155,7 +154,7 @@ pub fn precompute_snap_mounts(
             });
 
     let map_of_snaps: HashMap<PathBuf, Vec<PathBuf>> = map_of_datasets
-        .iter()
+        .par_iter()
         .flat_map(|(mount, (_dataset, fstype))| {
             let snap_mounts = match fstype {
                 FilesystemType::Zfs => precompute_zfs_snap_mounts(mount),
@@ -196,7 +195,7 @@ fn parse_from_mount_cmd() -> Result<
 
         // parse "mount" for filesystems and mountpoints
         let map_of_datasets: HashMap<PathBuf, (String, FilesystemType)> = command_output
-            .lines()
+            .par_lines()
             // want zfs or network datasets which we can auto detest as ZFS
             .filter(|line| {
                 line.contains(ZFS_FSTYPE) ||
@@ -259,7 +258,7 @@ pub fn precompute_alt_replicated(
     map_of_datasets: &HashMap<PathBuf, (String, FilesystemType)>,
 ) -> HashMap<PathBuf, Vec<PathBuf>> {
     map_of_datasets
-        .iter()
+        .par_iter()
         .flat_map(|(mount, (_dataset, _fstype))| {
             get_alt_replicated_datasets(mount, map_of_datasets)
         })

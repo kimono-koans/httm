@@ -21,8 +21,6 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use ahash::AHashMap as HashMap;
-
 use itertools::Itertools;
 
 use crate::{
@@ -32,6 +30,7 @@ use crate::{
     FilesystemType,
 };
 use crate::{
+    AHashMapSpecial as HashMap,
     BasicDirEntryInfo, Config, HttmError, PathData, SnapPoint, BTRFS_SNAPPER_HIDDEN_DIRECTORY,
     BTRFS_SNAPPER_SUFFIX,
 };

@@ -28,7 +28,12 @@ use std::{
     time::SystemTime,
 };
 
-use ahash::AHashMap as HashMap;
+// so we may use AHashMap with Parallel Iterators!
+use ahash::AHasher;
+use std::hash::BuildHasherDefault;
+pub type AHashBuildHasher = BuildHasherDefault<AHasher>;
+pub type AHashMapSpecial<K, V> = std::collections::HashMap<K, V, AHashBuildHasher>;
+use AHashMapSpecial as HashMap;
 
 use clap::{crate_name, crate_version, Arg, ArgMatches};
 use rayon::prelude::*;

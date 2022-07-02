@@ -21,12 +21,10 @@ use std::{
     time::SystemTime,
 };
 
-use ahash::AHashMap as HashMap;
-
 use rayon::prelude::*;
 
 use crate::{
-    Config, FilesystemType, HttmError, PathData, SnapPoint, BTRFS_SNAPPER_HIDDEN_DIRECTORY,
+    AHashMapSpecial as HashMap, Config, FilesystemType, HttmError, PathData, SnapPoint, BTRFS_SNAPPER_HIDDEN_DIRECTORY,
     BTRFS_SNAPPER_SUFFIX, ZFS_SNAPSHOT_DIRECTORY,
 };
 
