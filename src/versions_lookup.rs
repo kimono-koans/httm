@@ -430,7 +430,8 @@ fn get_versions_per_dataset(
     };
 
     // no need to sort a BTreeMap as one would a HashMap, so just dump values
-    let vec_pathdata: Vec<PathData> = unique_versions.into_values().collect();
+    // faster into_par_iter() is faster than into_values()
+    let vec_pathdata: Vec<PathData> = unique_versions.into_iter().map(|(_k, v)| v).collect();
 
     Ok(vec_pathdata)
 }

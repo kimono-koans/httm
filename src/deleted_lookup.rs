@@ -109,11 +109,12 @@ pub fn get_deleted_per_dataset(
 ) -> Result<Vec<BasicDirEntryInfo>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // get all local entries we need to compare against these to know
     // what is a deleted file
-    // create a collection of local unique file names
-    let unique_local_filenames: BTreeMap<OsString, BasicDirEntryInfo> = read_dir(&requested_dir)?
+    //
+    // create a collection of local file names - avoid HashMap/BTreeMap, because names have to be different
+    // and check against other HashMap/BTreeMap at end of function would also sort out any non-unique values
+    let iter_local_filenames = read_dir(&requested_dir)?
         .flatten()
-        .map(|dir_entry| (dir_entry.file_name(), BasicDirEntryInfo::from(&dir_entry)))
-        .collect();
+        .map(|dir_entry| (dir_entry.file_name(), BasicDirEntryInfo::from(&dir_entry)));
 
     // now create a collection of file names in the snap_dirs
     // create a list of unique filenames on snaps
@@ -188,9 +189,8 @@ pub fn get_deleted_per_dataset(
     };
 
     // compare local filenames to all unique snap filenames - none values are unique, here
-    let all_deleted_versions: Vec<BasicDirEntryInfo> = unique_snap_filenames
-        .into_iter()
-        .filter(|(file_name, _)| unique_local_filenames.get(file_name).is_none())
+    let all_deleted_versions: Vec<BasicDirEntryInfo> = iter_local_filenames
+        .filter(|(file_name, _)| unique_snap_filenames.get(file_name).is_none())
         .map(|(_file_name, basic_dir_entry_info)| basic_dir_entry_info)
         .collect();
 
