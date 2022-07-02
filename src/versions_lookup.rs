@@ -429,9 +429,8 @@ fn get_versions_per_dataset(
         SnapPoint::UserDefined(_) => read_dir_for_datasets(snapshot_dir, relative_path, fs_type)?,
     };
 
-    let mut vec_pathdata: Vec<PathData> = unique_versions.into_par_iter().map(|(_, v)| v).collect();
-
-    vec_pathdata.par_sort_unstable_by_key(|pathdata| pathdata.system_time);
+    // no need to sort a BTreeMap as one would a HashMap, so just dump values
+    let vec_pathdata: Vec<PathData> = unique_versions.into_values().collect();
 
     Ok(vec_pathdata)
 }
