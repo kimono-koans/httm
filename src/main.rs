@@ -20,7 +20,6 @@ extern crate lazy_static;
 extern crate proc_mounts;
 
 use std::{
-    collections::BTreeMap,
     error::Error,
     ffi::OsString,
     fmt,
@@ -28,6 +27,8 @@ use std::{
     path::{Path, PathBuf},
     time::SystemTime,
 };
+
+use ahash::AHashMap as HashMap;
 
 use clap::{crate_name, crate_version, Arg, ArgMatches};
 use rayon::prelude::*;
@@ -219,11 +220,11 @@ enum SnapPoint {
 #[derive(Debug, Clone)]
 pub struct NativeDatasets {
     // key: mount, val: (dataset/subvol, fstype)
-    map_of_datasets: BTreeMap<PathBuf, (String, FilesystemType)>,
+    map_of_datasets: HashMap<PathBuf, (String, FilesystemType)>,
     // key: mount, val: snap locations on disk (e.g. /.zfs/snapshot/snap_8a86e4fc_prepApt/home)
-    map_of_snaps: BTreeMap<PathBuf, Vec<PathBuf>>,
+    map_of_snaps: HashMap<PathBuf, Vec<PathBuf>>,
     // key: mount, val: alt dataset
-    opt_map_of_alts: Option<BTreeMap<PathBuf, Vec<PathBuf>>>,
+    opt_map_of_alts: Option<HashMap<PathBuf, Vec<PathBuf>>>,
     opt_common_snap_dir: Option<PathBuf>,
 }
 

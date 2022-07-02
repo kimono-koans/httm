@@ -29,6 +29,7 @@ itertools = "0.10.3"
 indicatif = "0.16.2"
 lazy_static = "1.4.0"
 proc-mounts = "0.3.0"
+ahash = "0.7.6"
 
 [package.metadata.deb]
 maintainer = "kimono koans <https://github.com/kimono-koans/>"

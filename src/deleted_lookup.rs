@@ -16,11 +16,12 @@
 // that was distributed with this source code.
 
 use std::{
-    collections::BTreeMap,
     ffi::OsString,
     fs::read_dir,
     path::{Path, PathBuf},
 };
+
+use ahash::AHashMap as HashMap;
 
 use itertools::Itertools;
 
@@ -110,8 +111,8 @@ pub fn get_deleted_per_dataset(
     // get all local entries we need to compare against these to know
     // what is a deleted file
     //
-    // create a collection of local file names - avoid HashMap/BTreeMap, because names have to be different
-    // and check against other HashMap/BTreeMap at end of function would also sort out any non-unique values
+    // create a collection of local file names - avoid HashMap, because names have to be different
+    // and check against other HashMap at end of function would also sort out any non-unique values
     let iter_local_filenames = read_dir(&requested_dir)?
         .flatten()
         .map(|dir_entry| (dir_entry.file_name(), BasicDirEntryInfo::from(&dir_entry)));
@@ -123,7 +124,7 @@ pub fn get_deleted_per_dataset(
         relative_path: &Path,
         fs_type: &FilesystemType,
     ) -> Result<
-        BTreeMap<OsString, BasicDirEntryInfo>,
+        HashMap<OsString, BasicDirEntryInfo>,
         Box<dyn std::error::Error + Send + Sync + 'static>,
     > {
         let unique_snap_filenames = read_dir(match fs_type {
@@ -149,7 +150,7 @@ pub fn get_deleted_per_dataset(
         snap_mounts: &[PathBuf],
         relative_path: &Path,
     ) -> Result<
-        BTreeMap<OsString, BasicDirEntryInfo>,
+        HashMap<OsString, BasicDirEntryInfo>,
         Box<dyn std::error::Error + Send + Sync + 'static>,
     > {
         let unique_snap_filenames = snap_mounts
@@ -172,7 +173,7 @@ pub fn get_deleted_per_dataset(
         )
     };
 
-    let unique_snap_filenames: BTreeMap<OsString, BasicDirEntryInfo> = match &config.snap_point {
+    let unique_snap_filenames: HashMap<OsString, BasicDirEntryInfo> = match &config.snap_point {
         SnapPoint::Native(_) => match snapshot_mounts {
             Some(snap_mounts) => snap_mounts_for_snap_filenames(snap_mounts, relative_path)?,
             None => {

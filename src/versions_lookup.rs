@@ -16,11 +16,12 @@
 // that was distributed with this source code.
 
 use std::{
-    collections::BTreeMap,
     fs::read_dir,
     path::{Path, PathBuf},
     time::SystemTime,
 };
+
+use ahash::AHashMap as HashMap;
 
 use rayon::prelude::*;
 
@@ -291,7 +292,7 @@ pub fn get_search_bundle(
 
 fn get_proximate_dataset(
     pathdata: &PathData,
-    map_of_datasets: &BTreeMap<PathBuf, (String, FilesystemType)>,
+    map_of_datasets: &HashMap<PathBuf, (String, FilesystemType)>,
 ) -> Result<PathBuf, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // for /usr/bin, we prefer the most proximate: /usr/bin to /usr and /
     // ancestors() iterates in this top-down order, when a value: dataset/fstype is available
@@ -315,7 +316,7 @@ fn get_proximate_dataset(
 
 pub fn get_alt_replicated_datasets(
     proximate_dataset_mount: &Path,
-    map_of_datasets: &BTreeMap<PathBuf, (String, FilesystemType)>,
+    map_of_datasets: &HashMap<PathBuf, (String, FilesystemType)>,
 ) -> Result<DatasetsForSearch, Box<dyn std::error::Error + Send + Sync + 'static>> {
     let proximate_dataset_fsname = match &map_of_datasets.get(proximate_dataset_mount) {
         Some((proximate_dataset_fsname, _)) => proximate_dataset_fsname.to_string(),
@@ -364,7 +365,7 @@ fn get_versions_per_dataset(
         relative_path: &Path,
         fs_type: &FilesystemType,
     ) -> Result<
-        BTreeMap<(SystemTime, u64), PathData>,
+        HashMap<(SystemTime, u64), PathData>,
         Box<dyn std::error::Error + Send + Sync + 'static>,
     > {
         let unique_versions = read_dir(match fs_type {
@@ -372,7 +373,6 @@ fn get_versions_per_dataset(
             FilesystemType::Zfs => snapshot_dir.to_path_buf(),
         })?
         .flatten()
-        .par_bridge()
         .map(|entry| match fs_type {
             FilesystemType::Btrfs => entry.path().join(BTRFS_SNAPPER_SUFFIX),
             FilesystemType::Zfs => entry.path(),
@@ -390,11 +390,11 @@ fn get_versions_per_dataset(
         snap_mounts: &[PathBuf],
         relative_path: &Path,
     ) -> Result<
-        BTreeMap<(SystemTime, u64), PathData>,
+        HashMap<(SystemTime, u64), PathData>,
         Box<dyn std::error::Error + Send + Sync + 'static>,
     > {
         let unique_versions = snap_mounts
-            .par_iter()
+            .iter()
             .map(|path| path.join(&relative_path))
             .map(|path| PathData::from(path.as_path()))
             .filter(|pathdata| !pathdata.is_phantom)
@@ -412,7 +412,7 @@ fn get_versions_per_dataset(
         )
     };
 
-    let unique_versions: BTreeMap<(SystemTime, u64), PathData> = match &config.snap_point {
+    let unique_versions: HashMap<(SystemTime, u64), PathData> = match &config.snap_point {
         SnapPoint::Native(_) => {
             match snapshot_mounts {
                 Some(snap_mounts) => snap_mounts_for_datasets(snap_mounts, relative_path)?,
@@ -431,7 +431,9 @@ fn get_versions_per_dataset(
 
     // no need to sort a BTreeMap as one would a HashMap, so just dump values
     // faster into_par_iter() is faster than into_values()
-    let vec_pathdata: Vec<PathData> = unique_versions.into_iter().map(|(_k, v)| v).collect();
+    let mut vec_pathdata: Vec<PathData> = unique_versions.into_iter().map(|(_k, v)| v).collect();
+
+    vec_pathdata.par_sort_unstable_by_key(|pathdata| pathdata.system_time);
 
     Ok(vec_pathdata)
 }
