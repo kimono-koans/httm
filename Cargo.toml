@@ -20,7 +20,6 @@ strip = true
 clap = { version = "3.1", features = ["cargo"]}
 chrono = "0.4.19"
 number_prefix = "0.4.0"
-fxhash = "0.2.1"
 skim = "0.9.4"
 lscolors = "0.10.0"
 terminal_size = "0.1.17"
