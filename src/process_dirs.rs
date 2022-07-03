@@ -15,8 +15,13 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::fs::DirEntry;
-use std::{ffi::OsStr, fs::read_dir, io::Write, path::Path, sync::Arc};
+use std::{
+    ffi::OsStr,
+    fs::{read_dir, DirEntry},
+    io::Write,
+    path::Path,
+    sync::Arc,
+};
 
 use indicatif::ProgressBar;
 use rayon::{prelude::*, Scope};

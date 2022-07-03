@@ -17,8 +17,6 @@
 
 use std::{ffi::OsString, fs::FileType, io::Cursor, path::Path, path::PathBuf, thread, vec};
 
-extern crate skim;
-
 use lscolors::Colorable;
 use skim::prelude::*;
 

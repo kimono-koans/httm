@@ -17,14 +17,14 @@
 
 use std::{path::PathBuf, time::SystemTime};
 
+use itertools::Itertools;
+use std::process::Command as ExecProcess;
+use which::which;
+
 use crate::utility::timestamp_file;
 use crate::versions_lookup::{get_mounts_for_files, NativeDatasetType};
 use crate::{Config, HttmError, PathData};
 use crate::{FilesystemType, SnapPoint};
-
-use itertools::Itertools;
-use std::process::Command as ExecProcess;
-use which::which;
 
 pub fn take_snapshot(
     config: &Config,
