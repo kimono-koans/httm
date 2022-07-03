@@ -299,6 +299,8 @@ fn get_proximate_dataset(
     let ancestors: Vec<&Path> = pathdata.path_buf.ancestors().collect();
 
     let opt_best_potential_mountpoint: Option<PathBuf> =
+        // find_map_first should return the first seq result with a par_iter
+        // but not with a par_bridge
         ancestors.into_par_iter().find_map_first(|ancestor| {
             map_of_datasets
                 .get(ancestor)
