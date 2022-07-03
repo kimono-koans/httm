@@ -16,7 +16,6 @@
 // that was distributed with this source code.
 
 use std::{
-    collections::BTreeMap,
     fs::read_dir,
     path::{Path, PathBuf},
     time::SystemTime,
@@ -368,7 +367,7 @@ fn get_versions_per_dataset(
         relative_path: &Path,
         fs_type: &FilesystemType,
     ) -> Result<
-        BTreeMap<(SystemTime, u64), PathData>,
+        HashMap<(SystemTime, u64), PathData>,
         Box<dyn std::error::Error + Send + Sync + 'static>,
     > {
         let unique_versions = read_dir(match fs_type {
@@ -394,7 +393,7 @@ fn get_versions_per_dataset(
         snap_mounts: &[PathBuf],
         relative_path: &Path,
     ) -> Result<
-        BTreeMap<(SystemTime, u64), PathData>,
+        HashMap<(SystemTime, u64), PathData>,
         Box<dyn std::error::Error + Send + Sync + 'static>,
     > {
         let unique_versions = snap_mounts
@@ -416,7 +415,7 @@ fn get_versions_per_dataset(
         )
     };
 
-    let unique_versions: BTreeMap<(SystemTime, u64), PathData> = match &config.snap_point {
+    let unique_versions: HashMap<(SystemTime, u64), PathData> = match &config.snap_point {
         SnapPoint::Native(_) => {
             match snapshot_mounts {
                 Some(snap_mounts) => snap_mounts_for_datasets(snap_mounts, relative_path)?,
@@ -433,8 +432,10 @@ fn get_versions_per_dataset(
         SnapPoint::UserDefined(_) => read_dir_for_datasets(snapshot_dir, relative_path, fs_type)?,
     };
 
-    // Because with a BTreeMap we sort as we collect no need to sort here
-    let vec_pathdata: Vec<PathData> = unique_versions.into_iter().map(|(_k, v)| v).collect();
+    let mut vec_pathdata: Vec<PathData> =
+        unique_versions.into_par_iter().map(|(_k, v)| v).collect();
+
+    vec_pathdata.par_sort_unstable_by_key(|pathdata| pathdata.system_time);
 
     Ok(vec_pathdata)
 }
