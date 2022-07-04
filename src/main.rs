@@ -647,12 +647,16 @@ fn exec() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
 
     // this handles the basic ExecMode::Display case, other process elsewhere
     let snaps_and_live_set = match config.exec_mode {
-        // ExecMode::Interactive might, and Display will, return back to this function to be printed
-        // 1. Do our interactive lookup thing, or not, to obtain raw string paths
-        // 2. Determine/lookup whether file matches any files on snapshots
+        // ExecMode::Interactive may return back to this function to be printed
+        // from an interactive browse must get the paths to print to display, or continue
+        // to select or restore functions
+        //
+        // ExecMode::LastSnap will never return back, its a shortcut to select and restore themselves
         ExecMode::Interactive | ExecMode::LastSnap => {
-            get_versions_set(&config, &interactive_exec(&config)?)?
+            let browse_result = &interactive_exec(&config)?;
+            get_versions_set(&config, browse_result)?
         }
+        // ExecMode::Display will be just printed, we already know the paths
         ExecMode::Display => get_versions_set(&config, &config.paths)?,
         // ExecMode::DisplayRecursive and ExecMode::SnapFileMount won't ever return back to this function
         ExecMode::DisplayRecursive => display_recursive_wrapper(&config)?,
