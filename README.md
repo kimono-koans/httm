@@ -81,7 +81,7 @@ On some Linux distributions, which include old versions of `libc`, `cargo` may r
 
 ## Example Usage
 
-Note: You may need to use `sudo` (or equivalent) to view versions on btrfs datasets. 
+Note: btrfs users may need to use `sudo` (or equivalent) to view versions on btrfs datasets, as btrfs snapshot permissions may required root access in order to be visible. 
 
 Print all unique versions of your history file:
 ```bash
@@ -125,7 +125,7 @@ export HTTM_LOCAL_DIR="/Users/<your name>"
 # execute httm
 httm -i -R ~
 ```
-Browse all files, recursively, in folder backed up via `rsync` to a remote share, and view unique versions on remote snapshots (only available for btrfs-snapper and ZFS datasets).  Difference from above is here you're not browsing files in a live directory:
+Browse all files, recursively, in a folder backed up via `rsync` to a remote share, and view unique versions on remote snapshots directly (only available for btrfs-snapper and ZFS datasets).  Note: The difference from above is here you're not browsing files from a "live" directory:
 ```bash
 httm -i -R /Volumes/Home
 ```
