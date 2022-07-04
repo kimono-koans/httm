@@ -241,8 +241,8 @@ pub fn interactive_select(
                     .into())
                 }
             };
-            let parsed_str = pathdata.path_buf.to_string_lossy();
-            parsed_str.to_string()
+            let parsed_string = pathdata.path_buf.to_string_lossy();
+            parsed_string.to_string()
         }
         _ => {
             // same stuff we do at fn exec, snooze...
@@ -252,8 +252,8 @@ pub fn interactive_select(
             // ... we want everything between the quotes
             let broken_string: Vec<_> = requested_file_name.split_terminator('"').collect();
             // ... and the file is the 2nd item or the indexed "1" object
-            if let Some(parsed) = broken_string.get(1) {
-                parsed.to_string()
+            if let Some(parsed_string) = broken_string.get(1) {
+                parsed_string.to_string()
             } else {
                 return Err(HttmError::new("Invalid value selected. Quitting.").into());
             }

@@ -464,6 +464,8 @@ impl Config {
             ExecMode::Display | ExecMode::SnapFileMount | ExecMode::LastSnap => {
                 // in non-interactive mode / display mode, requested dir is just a file
                 // like every other file and pwd must be the requested working dir.
+                //
+                // "None" here also allows ExecMode::LastSnap to skip the browse phase of interactive_exec
                 None
             }
         };
