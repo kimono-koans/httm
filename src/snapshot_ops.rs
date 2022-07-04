@@ -21,9 +21,10 @@ use itertools::Itertools;
 use std::process::Command as ExecProcess;
 use which::which;
 
-use crate::utility::timestamp_file;
+use crate::utility::{timestamp_file, HttmError, PathData};
 use crate::versions_lookup::{get_mounts_for_files, NativeDatasetType};
-use crate::{Config, HttmError, PathData};
+use crate::Config;
+
 use crate::{FilesystemType, SnapPoint};
 
 pub fn take_snapshot(

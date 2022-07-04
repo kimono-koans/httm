@@ -23,12 +23,13 @@ use std::{
 
 use itertools::Itertools;
 
+use crate::utility::{BasicDirEntryInfo, HttmError, PathData};
 use crate::versions_lookup::{
     get_datasets_for_search, get_search_bundle, NativeDatasetType, SearchBundle,
 };
 use crate::{
-    AHashMapSpecial as HashMap, BasicDirEntryInfo, Config, FilesystemType, HttmError, PathData,
-    SnapPoint, BTRFS_SNAPPER_HIDDEN_DIRECTORY, BTRFS_SNAPPER_SUFFIX,
+    AHashMapSpecial as HashMap, Config, FilesystemType, SnapPoint, BTRFS_SNAPPER_HIDDEN_DIRECTORY,
+    BTRFS_SNAPPER_SUFFIX,
 };
 
 pub fn get_unique_deleted(

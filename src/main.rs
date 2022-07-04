@@ -20,13 +20,9 @@ extern crate lazy_static;
 extern crate proc_mounts;
 
 use std::{
-    error::Error,
-    ffi::OsString,
-    fmt,
-    fs::{canonicalize, symlink_metadata, DirEntry, FileType, Metadata},
+    fs::canonicalize,
     hash::BuildHasherDefault,
     path::{Path, PathBuf},
-    time::SystemTime,
 };
 
 // so we may use AHashMap with Parallel Iterators!
@@ -54,7 +50,7 @@ use crate::interactive::interactive_exec;
 use crate::parse_mounts::{get_common_snap_dir, get_filesystems_list, precompute_alt_replicated};
 use crate::process_dirs::display_recursive_wrapper;
 use crate::snapshot_ops::take_snapshot;
-use crate::utility::{httm_is_dir, install_hot_keys, read_stdin};
+use crate::utility::{httm_is_dir, install_hot_keys, read_stdin, HttmError, PathData};
 use crate::versions_lookup::get_versions_set;
 
 pub const ZFS_FSTYPE: &str = "zfs";
@@ -72,126 +68,6 @@ pub const BTRFS_SNAPPER_SUFFIX: &str = "snapshot";
 pub enum FilesystemType {
     Zfs,
     Btrfs,
-}
-
-#[derive(Debug)]
-pub struct HttmError {
-    details: String,
-}
-
-impl HttmError {
-    fn new(msg: &str) -> Self {
-        HttmError {
-            details: msg.to_owned(),
-        }
-    }
-    fn with_context(msg: &str, err: Box<dyn Error + 'static>) -> Self {
-        let msg_plus_context = format!("{} : {:?}", msg, err);
-        HttmError {
-            details: msg_plus_context,
-        }
-    }
-}
-
-impl fmt::Display for HttmError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.details)
-    }
-}
-
-impl Error for HttmError {
-    fn description(&self) -> &str {
-        &self.details
-    }
-}
-
-// only the most basic data from a DirEntry
-// for use to display in browse window and internally
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
-pub struct BasicDirEntryInfo {
-    file_name: OsString,
-    path: PathBuf,
-    file_type: Option<FileType>,
-}
-
-impl From<&DirEntry> for BasicDirEntryInfo {
-    fn from(dir_entry: &DirEntry) -> Self {
-        BasicDirEntryInfo {
-            file_name: dir_entry.file_name(),
-            path: dir_entry.path(),
-            file_type: dir_entry.file_type().ok(),
-        }
-    }
-}
-
-// detailed info required to differentiate and display file versions
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
-pub struct PathData {
-    system_time: SystemTime,
-    size: u64,
-    path_buf: PathBuf,
-    is_phantom: bool,
-}
-
-impl From<&Path> for PathData {
-    fn from(path: &Path) -> Self {
-        let metadata_res = symlink_metadata(path);
-        PathData::from_parts(path, metadata_res)
-    }
-}
-
-impl From<&DirEntry> for PathData {
-    fn from(dir_entry: &DirEntry) -> Self {
-        let metadata_res = dir_entry.metadata();
-        let path = dir_entry.path();
-        PathData::from_parts(&path, metadata_res)
-    }
-}
-
-impl PathData {
-    fn from_parts(path: &Path, metadata_res: Result<Metadata, std::io::Error>) -> Self {
-        let absolute_path: PathBuf = if path.is_relative() {
-            if let Ok(canonical_path) = path.canonicalize() {
-                canonical_path
-            } else {
-                // canonicalize() on any path that DNE will throw an error
-                //
-                // in general we handle those cases elsewhere, like the ingest
-                // of input files in Config::from for deleted relative paths, etc.
-                path.to_path_buf()
-            }
-        } else {
-            path.to_path_buf()
-        };
-
-        // call symlink_metadata, as we need to resolve symlinks to get non-"phantom" metadata
-        let (len, time, phantom) = match metadata_res {
-            Ok(md) => {
-                let len = md.len();
-                let time = md.modified().unwrap_or(SystemTime::UNIX_EPOCH);
-                let phantom = false;
-                (len, time, phantom)
-            }
-            // this seems like a perfect place for a None value, as the file has no metadata,
-            // however we will want certain iters to print the *request*, say for deleted files,
-            // so we set up a dummy Some value just so we can have the path names we entered
-            //
-            // if we get a spurious example of no metadata in snapshot directories, we just ignore later
-            Err(_) => {
-                let len = 0u64;
-                let time = SystemTime::UNIX_EPOCH;
-                let phantom = true;
-                (len, time, phantom)
-            }
-        };
-
-        PathData {
-            system_time: time,
-            size: len,
-            path_buf: absolute_path,
-            is_phantom: phantom,
-        }
-    }
 }
 
 #[derive(Debug, Clone, PartialEq)]

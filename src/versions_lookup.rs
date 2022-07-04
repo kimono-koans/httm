@@ -23,9 +23,10 @@ use std::{
 
 use rayon::prelude::*;
 
+use crate::utility::{HttmError, PathData};
 use crate::{
-    AHashMapSpecial as HashMap, Config, FilesystemType, HttmError, PathData, SnapPoint,
-    BTRFS_SNAPPER_HIDDEN_DIRECTORY, BTRFS_SNAPPER_SUFFIX, ZFS_SNAPSHOT_DIRECTORY,
+    AHashMapSpecial as HashMap, Config, FilesystemType, SnapPoint, BTRFS_SNAPPER_HIDDEN_DIRECTORY,
+    BTRFS_SNAPPER_SUFFIX, ZFS_SNAPSHOT_DIRECTORY,
 };
 
 pub struct DatasetsForSearch {

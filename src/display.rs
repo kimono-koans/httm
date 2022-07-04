@@ -21,8 +21,8 @@ use chrono::{DateTime, Local};
 use number_prefix::NumberPrefix;
 use terminal_size::{terminal_size, Height, Width};
 
-use crate::utility::paint_string;
-use crate::{Config, PathData};
+use crate::utility::{paint_string, PathData};
+use crate::Config;
 
 // 2 space wide padding - used between date and size, and size and path
 const PRETTY_FIXED_WIDTH_PADDING: &str = "  ";

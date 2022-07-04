@@ -21,10 +21,10 @@ use proc_mounts::MountIter;
 use rayon::prelude::*;
 use which::which;
 
-use crate::utility::get_common_path;
+use crate::utility::{get_common_path, HttmError};
 use crate::versions_lookup::get_alt_replicated_datasets;
 use crate::{
-    AHashMapSpecial as HashMap, FilesystemType, HttmError, AFP_FSTYPE, BTRFS_FSTYPE,
+    AHashMapSpecial as HashMap, FilesystemType, AFP_FSTYPE, BTRFS_FSTYPE,
     BTRFS_SNAPPER_HIDDEN_DIRECTORY, NFS_FSTYPE, SMB_FSTYPE, ZFS_FSTYPE, ZFS_SNAPSHOT_DIRECTORY,
 };
 

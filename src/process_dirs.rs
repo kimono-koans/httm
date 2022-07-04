@@ -30,11 +30,10 @@ use skim::prelude::*;
 use crate::deleted_lookup::get_unique_deleted;
 use crate::display::display_exec;
 use crate::interactive::SelectionCandidate;
-use crate::utility::httm_is_dir;
+use crate::utility::{httm_is_dir, BasicDirEntryInfo, HttmError, PathData};
 use crate::versions_lookup::get_versions_set;
 use crate::{
-    BasicDirEntryInfo, Config, DeletedMode, ExecMode, HttmError, PathData, SnapPoint,
-    BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_HIDDEN_DIRECTORY,
+    Config, DeletedMode, ExecMode, SnapPoint, BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_HIDDEN_DIRECTORY,
 };
 
 pub fn display_recursive_wrapper(
