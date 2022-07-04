@@ -140,9 +140,10 @@ pub fn interactive_exec(
             .into_iter()
             .map(|path_string| PathData::from(Path::new(&path_string)))
             .collect::<Vec<PathData>>(),
-        _ => {
+        None => {
             // go to interactive_select early if user has already requested a file
-            // and we are in the appropriate mode Select or Restore, see struct Config
+            // and we are in the appropriate mode Select or Restore, see struct Config,
+            // and None here is also used for LastSnap to skip browsing for a file
             match config.paths.get(0) {
                 Some(first_path) => {
                     let selected_file = first_path.clone();

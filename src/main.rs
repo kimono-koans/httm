@@ -371,6 +371,8 @@ impl Config {
         } else {
             match exec_mode {
                 // setting pwd as the path, here, keeps us from waiting on stdin when in certain modes
+                // LastSnap is more like Interactive and DisplayRecursive in this respect in requiring only one
+                // input, and waiting on one input from stdin is pretty silly
                 ExecMode::Interactive | ExecMode::DisplayRecursive | ExecMode::LastSnap => {
                     vec![pwd.clone()]
                 }
@@ -388,6 +390,7 @@ impl Config {
             && (exec_mode == ExecMode::Display || exec_mode == ExecMode::SnapFileMount)
         {
             paths.par_sort_by_key(|pathdata| pathdata.path_buf.clone());
+            // dedup needs to be sorted/ordered first to work (not like a HashMap)
             paths.dedup_by_key(|pathdata| pathdata.path_buf.clone());
 
             paths
