@@ -788,8 +788,10 @@ fn exec() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         ExecMode::DisplayRecursive => display_recursive_wrapper(&config)?,
         ExecMode::SnapFileMount => take_snapshot(&config)?,
         ExecMode::LastSnap => {
+            // skip interactive browse and go straight to selection
             interactive_select(&config, &config.paths)?;
-            unreachable!();
+            // will not be returning so unreachable
+            unreachable!("ExecMode::LastSnap should never return to fn main()");
         }
     };
 

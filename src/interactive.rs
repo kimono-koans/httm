@@ -22,7 +22,7 @@ use skim::prelude::*;
 
 use crate::display::display_exec;
 use crate::process_dirs::recursive_exec;
-use crate::utility::{copy_recursive, httm_is_dir, paint_string, timestamp_file};
+use crate::utility::{copy_recursive, paint_string, timestamp_file};
 use crate::versions_lookup::get_versions_set;
 use crate::{Config, DeletedMode, ExecMode, HttmError, InteractiveMode, PathData};
 
@@ -136,7 +136,7 @@ pub fn interactive_exec(
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     let vec_pathdata = match &config.requested_dir {
         // collect string paths from what we get from lookup_view
-        Some(requested_dir) if httm_is_dir(requested_dir) => browse_view(config, requested_dir)?
+        Some(requested_dir) => browse_view(config, requested_dir)?
             .into_iter()
             .map(|path_string| PathData::from(Path::new(&path_string)))
             .collect::<Vec<PathData>>(),
