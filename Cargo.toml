@@ -1,6 +1,6 @@
 [package]
 name = "httm"
-version = "0.12.6"
+version = "0.12.7"
 edition = "2021"
 keywords = ["zfs", "backup", "restore", "cli-utility", "snapshot"]
 description = "httm prints the size, date and corresponding locations of available unique versions of files residing on snapshots.  httm can also be used interactively to select and restore from such versions, and even snapshot datasets which contain certain files."
@@ -19,7 +19,7 @@ opt-level = "z"  # Optimize for size.
 lto = true
 
 [dependencies]
-clap = { version = "3.1", features = ["cargo"]}
+clap = { version = "3.2.8", features = ["cargo"]}
 chrono = "0.4.19"
 number_prefix = "0.4.0"
 skim = "0.9.4"

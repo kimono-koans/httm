@@ -397,65 +397,47 @@ impl Config {
 
         // for exec_modes in which we can only take a single directory, process how we handle those here
         let requested_dir: Option<PathData> = match exec_mode {
-            ExecMode::Interactive => {
+            ExecMode::Interactive | ExecMode::DisplayRecursive => {
                 match paths.len() {
                     0 => Some(pwd.clone()),
-                    1 => match paths.get(0) {
-                        Some(pathdata) => {
-                            // use our bespoke is_dir fn for determining whether a dir here see pub httm_is_dir
-                            if httm_is_dir(pathdata) {
-                                Some(pathdata.clone())
-                            // and then we take all comers here because may be a deleted file that DNE on a live version
-                            } else {
-                                match interactive_mode {
-                                    InteractiveMode::Browse | InteractiveMode::None => {
-                                        // doesn't make sense to have a non-dir in these modes
-                                        return Err(HttmError::new(
-                                                    "Path specified is not a directory, and therefore not suitable for browsing.",
-                                                )
-                                                .into());
-                                    }
-                                    InteractiveMode::Restore | InteractiveMode::Select => {
-                                        // non-dir file will just cause us to skip the lookup phase
-                                        None
+                    1 => {
+                        // safe to index as we know the paths len is 1
+                        let pathdata = &paths[0];
+
+                        // use our bespoke is_dir fn for determining whether a dir here see pub httm_is_dir
+                        if httm_is_dir(pathdata) {
+                            Some(pathdata.clone())
+                        // and then we take all comers here because may be a deleted file that DNE on a live version
+                        } else {
+                            match exec_mode {
+                                ExecMode::Interactive => {
+                                    match interactive_mode {
+                                        InteractiveMode::Browse | InteractiveMode::None => {
+                                            // doesn't make sense to have a non-dir in these modes
+                                            return Err(HttmError::new(
+                                                        "Path specified is not a directory, and therefore not suitable for browsing.",
+                                                    )
+                                                    .into());
+                                        }
+                                        InteractiveMode::Restore | InteractiveMode::Select => {
+                                            // non-dir file will just cause us to skip the lookup phase
+                                            None
+                                        }
                                     }
                                 }
+                                ExecMode::DisplayRecursive => {
+                                    exec_mode = ExecMode::Display;
+                                    deleted_mode = DeletedMode::Disabled;
+                                    None
+                                }
+                                _ => unreachable!(),
                             }
                         }
-                        _ => unreachable!(),
-                    },
-                    n if n > 1 => {
-                        return Err(HttmError::new(
-                            "May only specify one path in interactive mode.",
-                        )
-                        .into())
                     }
-                    _ => {
-                        unreachable!()
-                    }
-                }
-            }
-            ExecMode::DisplayRecursive => {
-                // paths should never be empty for ExecMode::DisplayRecursive
-                //
-                // we only want one dir for a ExecMode::DisplayRecursive run, else
-                // we should run in ExecMode::Display mode
-                match paths.len() {
-                    0 => Some(pwd.clone()),
-                    1 => match paths.get(0) {
-                        Some(pathdata) if httm_is_dir(pathdata) => Some(pathdata.clone()),
-                        _ => {
-                            exec_mode = ExecMode::Display;
-                            deleted_mode = DeletedMode::Disabled;
-                            None
-                        }
-                    },
-                    n if n > 1 => {
-                        return Err(HttmError::new(
-                            "May only specify one path in display recursive or last snap modes.",
-                        )
-                        .into())
-                    }
+                    n if n > 1 => return Err(HttmError::new(
+                        "May only specify one path in the display recursive or interactive modes.",
+                    )
+                    .into()),
                     _ => {
                         unreachable!()
                     }
@@ -466,7 +448,13 @@ impl Config {
                 // like every other file and pwd must be the requested working dir.
                 //
                 // "None" here also allows ExecMode::LastSnap to skip the browse phase of interactive_exec
-                None
+                if exec_mode == ExecMode::LastSnap && paths.len() > 1 {
+                    return Err(
+                        HttmError::new("May only specify one path in last snap mode.").into(),
+                    );
+                } else {
+                    None
+                }
             }
         };
 
@@ -688,8 +676,8 @@ fn parse_args() -> ArgMatches {
             Arg::new("LAST_SNAP")
                 .short('l')
                 .long("last-snap")
-                .help("automatically select and print the path of last snapshot version for the input file.  \
-                Can also be used to more quickly restore from such version with the \"--restore\", or \"-r\", flag.")
+                .help("automatically select and print the path of last-in-time unique snapshot version for the input file.  \
+                May also be used as a shortcut to restore from such last version when used with the \"--restore\", or \"-r\", flag.")
                 .conflicts_with_all(&["INTERACTIVE", "RECURSIVE", "EXACT", "SNAP_FILE_MOUNT", "MOUNT_FOR_FILE", "ALT_REPLICATED", "SNAP_POINT", "LOCAL_DIR", "NOT_SO_PRETTY", "ZEROS", "RAW"])
                 .display_order(11)
         )
