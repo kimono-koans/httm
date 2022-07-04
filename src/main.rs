@@ -49,13 +49,13 @@ mod snapshot_ops;
 mod utility;
 mod versions_lookup;
 
-use crate::display::display_exec;
 use crate::interactive::interactive_exec;
 use crate::parse_mounts::{get_common_snap_dir, get_filesystems_list, precompute_alt_replicated};
 use crate::process_dirs::display_recursive_wrapper;
 use crate::snapshot_ops::take_snapshot;
 use crate::utility::{httm_is_dir, install_hot_keys, read_stdin};
 use crate::versions_lookup::get_versions_set;
+use crate::{display::display_exec, interactive::interactive_select};
 
 pub const ZFS_FSTYPE: &str = "zfs";
 pub const BTRFS_FSTYPE: &str = "btrfs";
@@ -200,6 +200,7 @@ enum ExecMode {
     DisplayRecursive,
     Display,
     SnapFileMount,
+    LastSnap,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -287,7 +288,9 @@ impl Config {
             _ => unreachable!(),
         };
 
-        let mut exec_mode = if matches.is_present("SNAP_FILE_MOUNT") {
+        let mut exec_mode = if matches.is_present("LAST_SNAP") {
+            ExecMode::LastSnap
+        } else if matches.is_present("SNAP_FILE_MOUNT") {
             ExecMode::SnapFileMount
         } else if matches.is_present("INTERACTIVE")
             || matches.is_present("RESTORE")
@@ -432,24 +435,27 @@ impl Config {
                     }
                 }
             }
-            ExecMode::DisplayRecursive => {
+            ExecMode::DisplayRecursive | ExecMode::LastSnap => {
                 // paths should never be empty for ExecMode::DisplayRecursive
                 //
                 // we only want one dir for a ExecMode::DisplayRecursive run, else
                 // we should run in ExecMode::Display mode
                 match paths.len() {
                     0 => Some(pwd.clone()),
-                    1 => match paths.get(0) {
-                        Some(pathdata) if httm_is_dir(pathdata) => Some(pathdata.clone()),
-                        _ => {
-                            exec_mode = ExecMode::Display;
-                            deleted_mode = DeletedMode::Disabled;
-                            None
-                        }
+                    1 => match exec_mode {
+                        ExecMode::LastSnap => paths.get(0).cloned(),
+                        _ => match paths.get(0) {
+                            Some(pathdata) if httm_is_dir(pathdata) => Some(pathdata.clone()),
+                            _ => {
+                                exec_mode = ExecMode::Display;
+                                deleted_mode = DeletedMode::Disabled;
+                                None
+                            }
+                        },
                     },
                     n if n > 1 => {
                         return Err(HttmError::new(
-                            "May only specify one path in display recursive mode.",
+                            "May only specify one path in display recursive or last snap modes.",
                         )
                         .into())
                     }
@@ -681,13 +687,22 @@ fn parse_args() -> ArgMatches {
                 .display_order(10)
         )
         .arg(
+            Arg::new("LAST_SNAP")
+                .short('l')
+                .long("last-snap")
+                .help("automatically select and print the path of last snapshot version for the input file.  \
+                Can also be used to more quickly restore from such version with the \"--restore\", or \"-r\", flag.")
+                .conflicts_with_all(&["INTERACTIVE"])
+                .display_order(11)
+        )
+        .arg(
             Arg::new("RAW")
                 .short('n')
                 .long("raw")
                 .visible_alias("newline")
                 .help("display the snapshot locations only, without extraneous information, delimited by a NEWLINE.")
                 .conflicts_with_all(&["ZEROS", "NOT_SO_PRETTY"])
-                .display_order(11)
+                .display_order(12)
         )
         .arg(
             Arg::new("ZEROS")
@@ -695,7 +710,7 @@ fn parse_args() -> ArgMatches {
                 .long("zero")
                 .help("display the snapshot locations only, without extraneous information, delimited by a NULL CHARACTER.")
                 .conflicts_with_all(&["RAW", "NOT_SO_PRETTY"])
-                .display_order(12)
+                .display_order(13)
         )
         .arg(
             Arg::new("NOT_SO_PRETTY")
@@ -703,14 +718,14 @@ fn parse_args() -> ArgMatches {
                 .visible_aliases(&["tabs", "plain-jane"])
                 .help("display the ordinary output, but tab delimited, without any pretty border lines.")
                 .conflicts_with_all(&["RAW", "ZEROS"])
-                .display_order(13)
+                .display_order(14)
         )
         .arg(
             Arg::new("NO_LIVE")
                 .long("no-live")
                 .visible_aliases(&["dead", "disco"])
                 .help("only display information concerning snapshot versions (display no information regarding 'live' versions of files or directories).")
-                .display_order(14)
+                .display_order(15)
         )
         .arg(
             Arg::new("REMOTE_DIR")
@@ -723,7 +738,7 @@ fn parse_args() -> ArgMatches {
                 These options *are necessary* if you want to view snapshot versions from within the local directory you back up to your remote share, \
                 however, httm can also automatically detect ZFS and btrfs-snapper datasets mounted as AFP, SMB, and NFS remote shares, if you browse that remote share where it is locally mounted.")
                 .takes_value(true)
-                .display_order(15)
+                .display_order(16)
         )
         .arg(
             Arg::new("LOCAL_DIR")
@@ -734,14 +749,14 @@ fn parse_args() -> ArgMatches {
                 You may also set via the environment variable HTTM_LOCAL_DIR.")
                 .requires("SNAP_POINT")
                 .takes_value(true)
-                .display_order(16)
+                .display_order(17)
         )
         .arg(
             Arg::new("ZSH_HOT_KEYS")
                 .long("install-zsh-hot-keys")
                 .help("install zsh hot keys to the users home directory, and then exit")
                 .exclusive(true)
-                .display_order(17)
+                .display_order(18)
         )
         .get_matches()
 }
@@ -772,6 +787,10 @@ fn exec() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         // ExecMode::DisplayRecursive and ExecMode::SnapFileMount won't ever return back to this function
         ExecMode::DisplayRecursive => display_recursive_wrapper(&config)?,
         ExecMode::SnapFileMount => take_snapshot(&config)?,
+        ExecMode::LastSnap => {
+            interactive_select(&config, &config.paths)?;
+            unreachable!();
+        }
     };
 
     // and display
