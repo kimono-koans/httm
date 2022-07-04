@@ -103,6 +103,18 @@ Browse all files in your home directory, recursively, and view unique versions o
 ```bash
 httm -r -R ~
 ```
+View unique versions of a file for recovery (shortcut, no need to browse a directory):
+```bash
+httm -r /var/log/samba/log.smbd
+```
+Recover the last-in-time unique file version (shortcut, no need to browse a directory or select from among other unique versions):
+```bash
+httm -l -r /var/log/samba/log.smbd
+```
+Snapshot the dataset upon which `/etc/samba/smb.conf` is located:
+```bash
+sudo httm -S /etc/samba/smb.conf
+``` 
 Browse all files, recursively, in your MacOS home directory backed up via `rsync` to a ZFS/btrfs remote share, shared via `smbd`, and view unique versions on remote snapshots:
 ```bash
 # mount the share
@@ -112,6 +124,10 @@ export HTTM_SNAP_POINT="/Volumes/Home"
 export HTTM_LOCAL_DIR="/Users/<your name>"
 # execute httm
 httm -i -R ~
+```
+Browse all files, recursively, in folder backed up via `rsync` to a remote share, and view unique versions on remote snapshots (only available for btrfs-snapper and ZFS datasets).  Difference from above is here you're not browsing files in a live directory:
+```bash
+httm -i -R /Volumes/Home
 ```
 View the differences between each unique snapshot version of `.zshrc` and the live file:
 ```bash
