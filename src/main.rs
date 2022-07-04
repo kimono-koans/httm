@@ -49,13 +49,13 @@ mod snapshot_ops;
 mod utility;
 mod versions_lookup;
 
+use crate::display::display_exec;
 use crate::interactive::interactive_exec;
 use crate::parse_mounts::{get_common_snap_dir, get_filesystems_list, precompute_alt_replicated};
 use crate::process_dirs::display_recursive_wrapper;
 use crate::snapshot_ops::take_snapshot;
 use crate::utility::{httm_is_dir, install_hot_keys, read_stdin};
 use crate::versions_lookup::get_versions_set;
-use crate::{display::display_exec, interactive::interactive_select};
 
 pub const ZFS_FSTYPE: &str = "zfs";
 pub const BTRFS_FSTYPE: &str = "btrfs";
@@ -435,23 +435,20 @@ impl Config {
                     }
                 }
             }
-            ExecMode::DisplayRecursive | ExecMode::LastSnap => {
+            ExecMode::DisplayRecursive => {
                 // paths should never be empty for ExecMode::DisplayRecursive
                 //
                 // we only want one dir for a ExecMode::DisplayRecursive run, else
                 // we should run in ExecMode::Display mode
                 match paths.len() {
                     0 => Some(pwd.clone()),
-                    1 => match exec_mode {
-                        ExecMode::LastSnap => paths.get(0).cloned(),
-                        _ => match paths.get(0) {
-                            Some(pathdata) if httm_is_dir(pathdata) => Some(pathdata.clone()),
-                            _ => {
-                                exec_mode = ExecMode::Display;
-                                deleted_mode = DeletedMode::Disabled;
-                                None
-                            }
-                        },
+                    1 => match paths.get(0) {
+                        Some(pathdata) if httm_is_dir(pathdata) => Some(pathdata.clone()),
+                        _ => {
+                            exec_mode = ExecMode::Display;
+                            deleted_mode = DeletedMode::Disabled;
+                            None
+                        }
                     },
                     n if n > 1 => {
                         return Err(HttmError::new(
@@ -464,7 +461,7 @@ impl Config {
                     }
                 }
             }
-            ExecMode::Display | ExecMode::SnapFileMount => {
+            ExecMode::Display | ExecMode::SnapFileMount | ExecMode::LastSnap => {
                 // in non-interactive mode / display mode, requested dir is just a file
                 // like every other file and pwd must be the requested working dir.
                 None
@@ -782,17 +779,13 @@ fn exec() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         // ExecMode::Interactive might, and Display will, return back to this function to be printed
         // 1. Do our interactive lookup thing, or not, to obtain raw string paths
         // 2. Determine/lookup whether file matches any files on snapshots
-        ExecMode::Interactive => get_versions_set(&config, &interactive_exec(&config)?)?,
+        ExecMode::Interactive | ExecMode::LastSnap => {
+            get_versions_set(&config, &interactive_exec(&config)?)?
+        }
         ExecMode::Display => get_versions_set(&config, &config.paths)?,
         // ExecMode::DisplayRecursive and ExecMode::SnapFileMount won't ever return back to this function
         ExecMode::DisplayRecursive => display_recursive_wrapper(&config)?,
         ExecMode::SnapFileMount => take_snapshot(&config)?,
-        ExecMode::LastSnap => {
-            // skip interactive browse and go straight to selection
-            interactive_select(&config, &config.paths)?;
-            // will not be returning so unreachable
-            unreachable!("ExecMode::LastSnap should never return to fn main()");
-        }
     };
 
     // and display
