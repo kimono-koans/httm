@@ -37,7 +37,7 @@ pub type AHashBuildHasher = BuildHasherDefault<AHasher>;
 pub type AHashMapSpecial<K, V> = std::collections::HashMap<K, V, AHashBuildHasher>;
 use AHashMapSpecial as HashMap;
 
-use clap::{crate_name, crate_version, Arg, ArgMatches};
+use clap::{crate_description, crate_name, crate_version, Arg, ArgMatches};
 use rayon::prelude::*;
 
 mod deleted_lookup;
@@ -200,6 +200,7 @@ enum ExecMode {
     DisplayRecursive,
     Display,
     SnapFileMount,
+    LastSnap,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -287,7 +288,9 @@ impl Config {
             _ => unreachable!(),
         };
 
-        let mut exec_mode = if matches.is_present("SNAP_FILE_MOUNT") {
+        let mut exec_mode = if matches.is_present("LAST_SNAP") {
+            ExecMode::LastSnap
+        } else if matches.is_present("SNAP_FILE_MOUNT") {
             ExecMode::SnapFileMount
         } else if matches.is_present("INTERACTIVE")
             || matches.is_present("RESTORE")
@@ -449,7 +452,7 @@ impl Config {
                     },
                     n if n > 1 => {
                         return Err(HttmError::new(
-                            "May only specify one path in display recursive mode.",
+                            "May only specify one path in display recursive or last snap modes.",
                         )
                         .into())
                     }
@@ -458,9 +461,11 @@ impl Config {
                     }
                 }
             }
-            ExecMode::Display | ExecMode::SnapFileMount => {
+            ExecMode::Display | ExecMode::SnapFileMount | ExecMode::LastSnap => {
                 // in non-interactive mode / display mode, requested dir is just a file
                 // like every other file and pwd must be the requested working dir.
+                //
+                // "None" here also allows ExecMode::LastSnap to skip the browse phase of interactive_exec
                 None
             }
         };
@@ -588,8 +593,7 @@ impl Config {
 
 fn parse_args() -> ArgMatches {
     clap::Command::new(crate_name!())
-        .about("\nhttm prints the size, date and corresponding locations of available unique versions of files residing on snapshots.\n\n\
-        httm can also be used interactively to select and restore from such versions, and even snapshot datasets which contain certain files.")
+        .about(crate_description!())
         .version(crate_version!())
         .arg(
             Arg::new("INPUT_FILES")
@@ -681,21 +685,30 @@ fn parse_args() -> ArgMatches {
                 .display_order(10)
         )
         .arg(
+            Arg::new("LAST_SNAP")
+                .short('l')
+                .long("last-snap")
+                .help("automatically select and print the path of last snapshot version for the input file.  \
+                Can also be used to more quickly restore from such version with the \"--restore\", or \"-r\", flag.")
+                .conflicts_with_all(&["INTERACTIVE", "RECURSIVE", "EXACT", "SNAP_FILE_MOUNT", "MOUNT_FOR_FILE", "ALT_REPLICATED", "SNAP_POINT", "LOCAL_DIR", "NOT_SO_PRETTY", "ZEROS", "RAW"])
+                .display_order(11)
+        )
+        .arg(
             Arg::new("RAW")
                 .short('n')
                 .long("raw")
                 .visible_alias("newline")
-                .help("display the snapshot locations only, without extraneous information, delimited by a NEWLINE.")
+                .help("display the snapshot locations only, without extraneous information, delimited by a NEWLINE character.")
                 .conflicts_with_all(&["ZEROS", "NOT_SO_PRETTY"])
-                .display_order(11)
+                .display_order(12)
         )
         .arg(
             Arg::new("ZEROS")
                 .short('0')
                 .long("zero")
-                .help("display the snapshot locations only, without extraneous information, delimited by a NULL CHARACTER.")
+                .help("display the snapshot locations only, without extraneous information, delimited by a NULL character.")
                 .conflicts_with_all(&["RAW", "NOT_SO_PRETTY"])
-                .display_order(12)
+                .display_order(13)
         )
         .arg(
             Arg::new("NOT_SO_PRETTY")
@@ -703,14 +716,14 @@ fn parse_args() -> ArgMatches {
                 .visible_aliases(&["tabs", "plain-jane"])
                 .help("display the ordinary output, but tab delimited, without any pretty border lines.")
                 .conflicts_with_all(&["RAW", "ZEROS"])
-                .display_order(13)
+                .display_order(14)
         )
         .arg(
             Arg::new("NO_LIVE")
                 .long("no-live")
                 .visible_aliases(&["dead", "disco"])
                 .help("only display information concerning snapshot versions (display no information regarding 'live' versions of files or directories).")
-                .display_order(14)
+                .display_order(15)
         )
         .arg(
             Arg::new("REMOTE_DIR")
@@ -723,7 +736,7 @@ fn parse_args() -> ArgMatches {
                 These options *are necessary* if you want to view snapshot versions from within the local directory you back up to your remote share, \
                 however, httm can also automatically detect ZFS and btrfs-snapper datasets mounted as AFP, SMB, and NFS remote shares, if you browse that remote share where it is locally mounted.")
                 .takes_value(true)
-                .display_order(15)
+                .display_order(16)
         )
         .arg(
             Arg::new("LOCAL_DIR")
@@ -734,14 +747,14 @@ fn parse_args() -> ArgMatches {
                 You may also set via the environment variable HTTM_LOCAL_DIR.")
                 .requires("SNAP_POINT")
                 .takes_value(true)
-                .display_order(16)
+                .display_order(17)
         )
         .arg(
             Arg::new("ZSH_HOT_KEYS")
                 .long("install-zsh-hot-keys")
                 .help("install zsh hot keys to the users home directory, and then exit")
                 .exclusive(true)
-                .display_order(17)
+                .display_order(18)
         )
         .get_matches()
 }
@@ -767,7 +780,9 @@ fn exec() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         // ExecMode::Interactive might, and Display will, return back to this function to be printed
         // 1. Do our interactive lookup thing, or not, to obtain raw string paths
         // 2. Determine/lookup whether file matches any files on snapshots
-        ExecMode::Interactive => get_versions_set(&config, &interactive_exec(&config)?)?,
+        ExecMode::Interactive | ExecMode::LastSnap => {
+            get_versions_set(&config, &interactive_exec(&config)?)?
+        }
         ExecMode::Display => get_versions_set(&config, &config.paths)?,
         // ExecMode::DisplayRecursive and ExecMode::SnapFileMount won't ever return back to this function
         ExecMode::DisplayRecursive => display_recursive_wrapper(&config)?,

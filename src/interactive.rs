@@ -140,7 +140,7 @@ pub fn interactive_exec(
             .into_iter()
             .map(|path_string| PathData::from(Path::new(&path_string)))
             .collect::<Vec<PathData>>(),
-        None => {
+        _ => {
             // go to interactive_select early if user has already requested a file
             // and we are in the appropriate mode Select or Restore, see struct Config
             match config.paths.get(0) {
@@ -223,30 +223,48 @@ fn browse_view(
     Ok(res)
 }
 
-fn interactive_select(
+pub fn interactive_select(
     config: &Config,
     vec_paths: &Vec<PathData>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    // same stuff we do at fn exec, snooze...
     let snaps_and_live_set = get_versions_set(config, vec_paths)?;
-    let selection_buffer = display_exec(config, snaps_and_live_set)?;
 
-    // get the file name, and get ready to do some file ops!!
-    let requested_file_name = select_restore_view(selection_buffer, false)?;
-    // ... we want everything between the quotes
-    let broken_string: Vec<_> = requested_file_name.split_terminator('"').collect();
-    // ... and the file is the 2nd item or the indexed "1" object
-    let parsed_str = if let Some(parsed) = broken_string.get(1) {
-        parsed
-    } else {
-        return Err(HttmError::new("Invalid value selected. Quitting.").into());
+    let path_string = match config.exec_mode {
+        ExecMode::LastSnap => {
+            // index into first element of array of known len 2, to get the last element, and convert to path str
+            let pathdata = match snaps_and_live_set[0].last() {
+                Some(pathdata) => pathdata,
+                None => {
+                    return Err(HttmError::new(
+                        "No (last) snapshot for the requested input file exists.",
+                    )
+                    .into())
+                }
+            };
+            let path_string = pathdata.path_buf.to_string_lossy();
+            path_string.to_string()
+        }
+        _ => {
+            // same stuff we do at fn exec, snooze...
+            let selection_buffer = display_exec(config, snaps_and_live_set)?;
+            // get the file name, and get ready to do some file ops!!
+            let requested_file_name = select_restore_view(selection_buffer, false)?;
+            // ... we want everything between the quotes
+            let broken_string: Vec<_> = requested_file_name.split_terminator('"').collect();
+            // ... and the file is the 2nd item or the indexed "1" object
+            if let Some(path_string) = broken_string.get(1) {
+                path_string.to_string()
+            } else {
+                return Err(HttmError::new("Invalid value selected. Quitting.").into());
+            }
+        }
     };
 
     // continue to interactive_restore or print and exit here?
     if config.interactive_mode == InteractiveMode::Restore {
-        Ok(interactive_restore(config, parsed_str)?)
+        Ok(interactive_restore(config, &path_string)?)
     } else {
-        println!("\"{}\"", parsed_str);
+        println!("\"{}\"", &path_string);
         std::process::exit(0)
     }
 }
