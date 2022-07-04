@@ -368,18 +368,18 @@ impl Config {
                 .map(|path| canonicalize(path).unwrap_or_else(|_| pwd.clone().path_buf.join(path)))
                 .map(|path| PathData::from(path.as_path()))
                 .collect()
-
-        // setting pwd as the path, here, keeps us from waiting on stdin when in non-Display modes
-        } else if exec_mode == ExecMode::Interactive || exec_mode == ExecMode::DisplayRecursive {
-            vec![pwd.clone()]
-        } else if exec_mode == ExecMode::Display || exec_mode == ExecMode::SnapFileMount {
-            read_stdin()?
-                .iter()
-                .par_bridge()
-                .map(|string| PathData::from(Path::new(&string)))
-                .collect()
         } else {
-            unreachable!()
+            match exec_mode {
+                // setting pwd as the path, here, keeps us from waiting on stdin when in certain modes
+                ExecMode::Interactive | ExecMode::DisplayRecursive | ExecMode::LastSnap => {
+                    vec![pwd.clone()]
+                }
+                ExecMode::Display | ExecMode::SnapFileMount => read_stdin()?
+                    .iter()
+                    .par_bridge()
+                    .map(|string| PathData::from(Path::new(&string)))
+                    .collect(),
+            }
         };
 
         // deduplicate pathdata and sort if in display mode --
