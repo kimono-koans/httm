@@ -304,6 +304,8 @@ impl Config {
                                         }
                                     }
                                 }
+                                // silently disable DisplayRecursive when path given is not a directory
+                                // switch to a standard Display mode
                                 ExecMode::DisplayRecursive => {
                                     exec_mode = ExecMode::Display;
                                     deleted_mode = DeletedMode::Disabled;
