@@ -232,8 +232,7 @@ pub fn interactive_select(
     let parsed_str = match config.exec_mode {
         ExecMode::LastSnap => {
             // index into first element of array of known len 2, to get the last element, and convert to path str
-            let snap_set_len = snaps_and_live_set[0].len();
-            let pathdata = match snaps_and_live_set[0].get(snap_set_len - 1usize) {
+            let pathdata = match snaps_and_live_set[0].last() {
                 Some(pathdata) => pathdata,
                 None => {
                     return Err(HttmError::new(
