@@ -37,7 +37,7 @@ pub type AHashBuildHasher = BuildHasherDefault<AHasher>;
 pub type AHashMapSpecial<K, V> = std::collections::HashMap<K, V, AHashBuildHasher>;
 use AHashMapSpecial as HashMap;
 
-use clap::{crate_name, crate_version, Arg, ArgMatches};
+use clap::{crate_description, crate_name, crate_version, Arg, ArgMatches};
 use rayon::prelude::*;
 
 mod deleted_lookup;
@@ -593,8 +593,7 @@ impl Config {
 
 fn parse_args() -> ArgMatches {
     clap::Command::new(crate_name!())
-        .about("\nhttm prints the size, date and corresponding locations of available unique versions of files residing on snapshots.\n\n\
-        httm can also be used interactively to select and restore from such versions, and even snapshot datasets which contain certain files.")
+        .about(crate_description!())
         .version(crate_version!())
         .arg(
             Arg::new("INPUT_FILES")
@@ -691,7 +690,7 @@ fn parse_args() -> ArgMatches {
                 .long("last-snap")
                 .help("automatically select and print the path of last snapshot version for the input file.  \
                 Can also be used to more quickly restore from such version with the \"--restore\", or \"-r\", flag.")
-                .conflicts_with_all(&["INTERACTIVE"])
+                .conflicts_with_all(&["INTERACTIVE", "RECURSIVE", "EXACT", "SNAP_FILE_MOUNT", "MOUNT_FOR_FILE", "ALT_REPLICATED", "SNAP_POINT", "LOCAL_DIR", "NOT_SO_PRETTY", "ZEROS", "RAW"])
                 .display_order(11)
         )
         .arg(
@@ -699,7 +698,7 @@ fn parse_args() -> ArgMatches {
                 .short('n')
                 .long("raw")
                 .visible_alias("newline")
-                .help("display the snapshot locations only, without extraneous information, delimited by a NEWLINE.")
+                .help("display the snapshot locations only, without extraneous information, delimited by a NEWLINE character.")
                 .conflicts_with_all(&["ZEROS", "NOT_SO_PRETTY"])
                 .display_order(12)
         )
@@ -707,7 +706,7 @@ fn parse_args() -> ArgMatches {
             Arg::new("ZEROS")
                 .short('0')
                 .long("zero")
-                .help("display the snapshot locations only, without extraneous information, delimited by a NULL CHARACTER.")
+                .help("display the snapshot locations only, without extraneous information, delimited by a NULL character.")
                 .conflicts_with_all(&["RAW", "NOT_SO_PRETTY"])
                 .display_order(13)
         )
