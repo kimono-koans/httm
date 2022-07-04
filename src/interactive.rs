@@ -229,7 +229,7 @@ pub fn interactive_select(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let snaps_and_live_set = get_versions_set(config, vec_paths)?;
 
-    let parsed_str = match config.exec_mode {
+    let path_string = match config.exec_mode {
         ExecMode::LastSnap => {
             // index into first element of array of known len 2, to get the last element, and convert to path str
             let pathdata = match snaps_and_live_set[0].last() {
@@ -241,8 +241,8 @@ pub fn interactive_select(
                     .into())
                 }
             };
-            let parsed_string = pathdata.path_buf.to_string_lossy();
-            parsed_string.to_string()
+            let path_string = pathdata.path_buf.to_string_lossy();
+            path_string.to_string()
         }
         _ => {
             // same stuff we do at fn exec, snooze...
@@ -252,8 +252,8 @@ pub fn interactive_select(
             // ... we want everything between the quotes
             let broken_string: Vec<_> = requested_file_name.split_terminator('"').collect();
             // ... and the file is the 2nd item or the indexed "1" object
-            if let Some(parsed_string) = broken_string.get(1) {
-                parsed_string.to_string()
+            if let Some(path_string) = broken_string.get(1) {
+                path_string.to_string()
             } else {
                 return Err(HttmError::new("Invalid value selected. Quitting.").into());
             }
@@ -262,9 +262,9 @@ pub fn interactive_select(
 
     // continue to interactive_restore or print and exit here?
     if config.interactive_mode == InteractiveMode::Restore {
-        Ok(interactive_restore(config, &parsed_str)?)
+        Ok(interactive_restore(config, &path_string)?)
     } else {
-        println!("\"{}\"", &parsed_str);
+        println!("\"{}\"", &path_string);
         std::process::exit(0)
     }
 }
