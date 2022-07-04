@@ -1,9 +1,9 @@
 [package]
 name = "httm"
-version = "0.12.7"
+version = "0.12.8"
 edition = "2021"
 keywords = ["zfs", "backup", "restore", "cli-utility", "snapshot"]
-description = "httm prints the size, date and corresponding locations of available unique versions of files residing on snapshots.  httm can also be used interactively to select and restore from such versions, and even snapshot datasets which contain certain files."
+description = "httm is a CLI tool for viewing snapshot file versions on ZFS and btrfs datasets"
 repository = "https://github.com/kimono-koans/httm"
 readme = "README.md"
 categories = [ "command-line-utilities",  "os" ]
@@ -36,6 +36,11 @@ ahash = "0.7.6"
 [package.metadata.deb]
 maintainer = "kimono koans <https://github.com/kimono-koans/>"
 copyright = "2022, Robert Swinford <robert.swinford<...at...>gmail.com>"
+extended-description = """\
+httm prints the size, date and corresponding locations of available unique versions of files
+residing on snapshots.  May also be used interactively to select and restore from such
+versions, and even to snapshot datasets which contain certain files.
+"""
 license-file = ["LICENSE", "4"]
 depends = "$auto"
 section = "utility"

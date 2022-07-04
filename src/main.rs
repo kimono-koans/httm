@@ -37,7 +37,7 @@ pub type AHashBuildHasher = BuildHasherDefault<AHasher>;
 pub type AHashMapSpecial<K, V> = std::collections::HashMap<K, V, AHashBuildHasher>;
 use AHashMapSpecial as HashMap;
 
-use clap::{crate_description, crate_name, crate_version, Arg, ArgMatches};
+use clap::{crate_name, crate_version, Arg, ArgMatches};
 use rayon::prelude::*;
 
 mod deleted_lookup;
@@ -581,7 +581,8 @@ impl Config {
 
 fn parse_args() -> ArgMatches {
     clap::Command::new(crate_name!())
-        .about(crate_description!())
+        .about("httm prints the size, date and corresponding locations of available unique versions of files residing on snapshots.  \
+        May also be used interactively to select and restore from such versions, and even to snapshot datasets which contain certain files.")
         .version(crate_version!())
         .arg(
             Arg::new("INPUT_FILES")
