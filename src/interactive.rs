@@ -143,7 +143,7 @@ pub fn interactive_exec(
         None => {
             // go to interactive_select early if user has already requested a file
             // and we are in the appropriate mode Select or Restore, see struct Config,
-            // and None here is also used for LastSnap to skip browsing for a file
+            // and None here is also used for LastSnap to skip browsing for a file/dir
             match config.paths.get(0) {
                 Some(first_path) => {
                     let selected_file = first_path.clone();
@@ -242,8 +242,7 @@ pub fn interactive_select(
                     .into())
                 }
             };
-            let path_string = pathdata.path_buf.to_string_lossy();
-            path_string.to_string()
+            pathdata.path_buf.to_string_lossy().to_string()
         }
         _ => {
             // same stuff we do at fn exec, snooze...
