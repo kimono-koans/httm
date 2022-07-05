@@ -233,7 +233,9 @@ pub fn interactive_select(
     let path_string = match config.exec_mode {
         ExecMode::LastSnap(request_relative) => {
             // should be good to index into both, there is a known known 2nd vec,
-            let live_version = &vec_paths.get(0).expect("ExecMode::LiveSnap should always have exactly one path.");
+            let live_version = &vec_paths
+                .get(0)
+                .expect("ExecMode::LiveSnap should always have exactly one path.");
             let pathdata = match snaps_and_live_set[0]
                 .iter()
                 .filter(|snap_version| {
