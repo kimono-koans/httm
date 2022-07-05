@@ -228,7 +228,7 @@ fn parse_args() -> ArgMatches {
                 .help("automatically select and print the path of last-in-time unique snapshot version for the input file.  \
                 May also be used as a shortcut to restore from such last version when used with the \"--restore\", or \"-r\", flag.  \
                 Default is to return the absolute last-in-time but user may also request the last unique file version relative to the \"live\" version by appending \"relative\" to the flag.")
-                .conflicts_with_all(&["INTERACTIVE", "RECURSIVE", "EXACT", "SNAP_FILE_MOUNT", "MOUNT_FOR_FILE", "ALT_REPLICATED", "SNAP_POINT", "LOCAL_DIR", "NOT_SO_PRETTY", "ZEROS", "RAW"])
+                .conflicts_with_all(&["INTERACTIVE", "RECURSIVE", "EXACT", "SNAP_FILE_MOUNT", "MOUNT_FOR_FILE", "ALT_REPLICATED", "SNAP_POINT", "LOCAL_DIR", "NOT_SO_PRETTY", "ZEROS", "RAW", "NO_LIVE"])
                 .display_order(11)
         )
         .arg(
