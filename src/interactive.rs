@@ -238,7 +238,7 @@ pub fn interactive_select(
                 .iter()
                 .filter(|snap_version| {
                     if request_relative {
-                        snap_version != &live_version
+                        snap_version.system_time != live_version.system_time
                     } else {
                         true
                     }
