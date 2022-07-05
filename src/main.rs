@@ -379,7 +379,11 @@ impl Config {
             InteractiveMode::None
         };
 
-        if opt_recursive && (exec_mode == ExecMode::Display || exec_mode == ExecMode::SnapFileMount)
+        if opt_recursive
+            && matches!(
+                exec_mode,
+                ExecMode::Display | ExecMode::SnapFileMount | ExecMode::LastSnap(_)
+            )
         {
             return Err(
                 HttmError::new("Recursive search feature only allowed in select modes.").into(),
