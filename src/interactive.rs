@@ -231,13 +231,24 @@ pub fn interactive_select(
     let snaps_and_live_set = get_versions_set(config, vec_paths)?;
 
     let path_string = match config.exec_mode {
-        ExecMode::LastSnap => {
-            // index into first element of array of known len 2, to get the last element, and convert to path str
-            let pathdata = match snaps_and_live_set[0].last() {
+        ExecMode::LastSnap(request_relative) => {
+            // should be good to index into both, there is a known known 2nd vec,
+            let live_version = &vec_paths[0];
+            let pathdata = match snaps_and_live_set[0]
+                .iter()
+                .filter(|snap_version| {
+                    if request_relative {
+                        snap_version != &live_version
+                    } else {
+                        true
+                    }
+                })
+                .last()
+            {
                 Some(pathdata) => pathdata,
                 None => {
                     return Err(HttmError::new(
-                        "No (last) snapshot for the requested input file exists.",
+                        "No last snapshot for the requested input file exists.",
                     )
                     .into())
                 }

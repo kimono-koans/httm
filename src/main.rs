@@ -76,7 +76,7 @@ enum ExecMode {
     DisplayRecursive,
     Display,
     SnapFileMount,
-    LastSnap,
+    LastSnap(bool),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -120,6 +120,183 @@ pub struct UserDefinedDirs {
     opt_common_snap_dir: Option<PathBuf>,
 }
 
+fn parse_args() -> ArgMatches {
+    clap::Command::new(crate_name!())
+        .about("httm prints the size, date and corresponding locations of available unique versions of files residing on snapshots.  \
+        May also be used interactively to select and restore from such versions, and even to snapshot datasets which contain certain files.")
+        .version(crate_version!())
+        .arg(
+            Arg::new("INPUT_FILES")
+                .help("in any non-interactive mode, put requested files here.  If you enter no files, \
+                then httm will pause waiting for input on stdin(3). In any interactive mode, \
+                this is the directory search path. If no directory is entered, \
+                httm will use the current working directory.")
+                .takes_value(true)
+                .multiple_values(true)
+                .value_parser(clap::builder::ValueParser::os_string())
+                .display_order(1)
+        )
+        .arg(
+            Arg::new("INTERACTIVE")
+                .short('i')
+                .long("interactive")
+                .help("interactive browse and search a specified directory to display unique file versions.")
+                .display_order(2)
+        )
+        .arg(
+            Arg::new("SELECT")
+                .short('s')
+                .long("select")
+                .help("interactive browse and search a specified directory to display unique file versions.  Continue to another dialog to select a snapshot version to dump to stdout(3).")
+                .conflicts_with("RESTORE")
+                .display_order(3)
+        )
+        .arg(
+            Arg::new("RESTORE")
+                .short('r')
+                .long("restore")
+                .help("interactive browse and search a specified directory to display unique file versions.  Continue to another dialog to select a snapshot version to restore.")
+                .conflicts_with("SELECT")
+                .display_order(4)
+        )
+        .arg(
+            Arg::new("DELETED_MODE")
+                .short('d')
+                .long("deleted")
+                .takes_value(true)
+                .default_missing_value("all")
+                .possible_values(&["all", "single", "only"])
+                .min_values(0)
+                .require_equals(true)
+                .help("show deleted files in interactive modes.  In non-interactive modes, do a search for all files deleted from a specified directory. \
+                If \"--deleted only\" is specified, then, in interactive modes, non-deleted files will be excluded from the search. \
+                If \"--deleted single\" is specified, then, deleted files behind deleted directories, \
+                (files with a depth greater than one) will be ignored.")
+                .display_order(5)
+        )
+        .arg(
+            Arg::new("ALT_REPLICATED")
+                .short('a')
+                .long("alt-replicated")
+                .help("automatically discover locally replicated datasets and list their snapshots as well.  \
+                NOTE: Be certain such replicated datasets are mounted before use.  \
+                httm will silently ignore unmounted datasets in the interactive modes.")
+                .conflicts_with_all(&["SNAP_POINT", "LOCAL_DIR"])
+                .display_order(6)
+        )
+        .arg(
+            Arg::new("RECURSIVE")
+                .short('R')
+                .long("recursive")
+                .help("recurse into the selected directory to find more files. Only available in interactive and deleted file modes.")
+                .display_order(7)
+        )
+        .arg(
+            Arg::new("EXACT")
+                .short('e')
+                .long("exact")
+                .help("use exact pattern matching for searches in the interactive modes (in contrast to the default fuzzy-finder searching).")
+                .display_order(8)
+        )
+        .arg(
+            Arg::new("SNAP_FILE_MOUNT")
+                .short('S')
+                .long("snap")
+                .visible_aliases(&["snap-file", "snapshot", "snap-file-mount"])
+                .help("snapshot the mount point/s of the dataset/s which contains the input file/s. Note: This is a ZFS only option.")
+                .conflicts_with_all(&["INTERACTIVE", "SELECT", "RESTORE", "ALT_REPLICATED", "SNAP_POINT", "LOCAL_DIR"])
+                .display_order(9)
+        )
+        .arg(
+            Arg::new("MOUNT_FOR_FILE")
+                .short('m')
+                .long("mount-for-file")
+                .visible_alias("mount")
+                .help("display the mount point/s of the dataset/s which contains the input file/s.")
+                .conflicts_with_all(&["INTERACTIVE", "SELECT", "RESTORE", "NOT_SO_PRETTY"])
+                .display_order(10)
+        )
+        .arg(
+            Arg::new("LAST_SNAP")
+                .short('l')
+                .long("last-snap")
+                .takes_value(true)
+                .default_missing_value("abs")
+                .possible_values(&["abs", "absolute", "rel", "relative"])
+                .min_values(0)
+                .require_equals(true)
+                .help("automatically select and print the path of last-in-time unique snapshot version for the input file.  \
+                May also be used as a shortcut to restore from such last version when used with the \"--restore\", or \"-r\", flag.  \
+                Default is to return the absolute last-in-time but user may also request the last unique file version relative to the \"live\" version by appending \"relative\" to the flag.")
+                .conflicts_with_all(&["INTERACTIVE", "RECURSIVE", "EXACT", "SNAP_FILE_MOUNT", "MOUNT_FOR_FILE", "ALT_REPLICATED", "SNAP_POINT", "LOCAL_DIR", "NOT_SO_PRETTY", "ZEROS", "RAW"])
+                .display_order(11)
+        )
+        .arg(
+            Arg::new("RAW")
+                .short('n')
+                .long("raw")
+                .visible_alias("newline")
+                .help("display the snapshot locations only, without extraneous information, delimited by a NEWLINE character.")
+                .conflicts_with_all(&["ZEROS", "NOT_SO_PRETTY"])
+                .display_order(12)
+        )
+        .arg(
+            Arg::new("ZEROS")
+                .short('0')
+                .long("zero")
+                .help("display the snapshot locations only, without extraneous information, delimited by a NULL character.")
+                .conflicts_with_all(&["RAW", "NOT_SO_PRETTY"])
+                .display_order(13)
+        )
+        .arg(
+            Arg::new("NOT_SO_PRETTY")
+                .long("not-so-pretty")
+                .visible_aliases(&["tabs", "plain-jane"])
+                .help("display the ordinary output, but tab delimited, without any pretty border lines.")
+                .conflicts_with_all(&["RAW", "ZEROS"])
+                .display_order(14)
+        )
+        .arg(
+            Arg::new("NO_LIVE")
+                .long("no-live")
+                .visible_aliases(&["dead", "disco"])
+                .help("only display information concerning snapshot versions (display no information regarding 'live' versions of files or directories).")
+                .display_order(15)
+        )
+        .arg(
+            Arg::new("REMOTE_DIR")
+                .long("remote-dir")
+                .visible_aliases(&["remote", "snap-point"])
+                .help("ordinarily httm will automatically choose your dataset root directory (the most proximate ancestor directory which contains a snapshot directory), \
+                but here you may manually specify that mount point for ZFS (directory which contains a \".zfs\" directory) or btrfs-snapper (directory which contains a \".snapshots\" directory), \
+                such as the local mount point for a remote share.  You may also set via the HTTM_REMOTE_DIR environment variable.  \
+                Note: Use of both \"remote\" and \"local\" are not always necessary to view versions on remote shares.  \
+                These options *are necessary* if you want to view snapshot versions from within the local directory you back up to your remote share, \
+                however, httm can also automatically detect ZFS and btrfs-snapper datasets mounted as AFP, SMB, and NFS remote shares, if you browse that remote share where it is locally mounted.")
+                .takes_value(true)
+                .display_order(16)
+        )
+        .arg(
+            Arg::new("LOCAL_DIR")
+                .long("local-dir")
+                .visible_alias("local")
+                .help("used with \"remote\" to determine where the corresponding live root filesystem of the dataset is.  \
+                Put more simply, the \"local\" is the directory you backup to your \"remote\".  If not set, httm defaults to your current working directory.  \
+                You may also set via the environment variable HTTM_LOCAL_DIR.")
+                .requires("SNAP_POINT")
+                .takes_value(true)
+                .display_order(17)
+        )
+        .arg(
+            Arg::new("ZSH_HOT_KEYS")
+                .long("install-zsh-hot-keys")
+                .help("install zsh hot keys to the users home directory, and then exit")
+                .exclusive(true)
+                .display_order(18)
+        )
+        .get_matches()
+}
+
 #[derive(Debug, Clone)]
 pub struct Config {
     paths: Vec<PathData>,
@@ -156,16 +333,19 @@ impl Config {
         let opt_no_live_vers = matches.is_present("NO_LIVE") || opt_mount_for_file;
 
         let mut deleted_mode = match matches.value_of("DELETED_MODE") {
-            None => DeletedMode::Disabled,
             Some("") | Some("all") => DeletedMode::Enabled,
             Some("single") => DeletedMode::DepthOfOne,
             Some("only") => DeletedMode::Only,
-            // invalid value to not specify one of the above
-            _ => unreachable!(),
+            _ => DeletedMode::Disabled,
         };
 
         let mut exec_mode = if matches.is_present("LAST_SNAP") {
-            ExecMode::LastSnap
+            let request_relative = match matches.value_of("LAST_SNAP") {
+                Some("") | Some("abs") | Some("absolute") => false,
+                Some("rel") | Some("relative") => true,
+                _ => false,
+            };
+            ExecMode::LastSnap(request_relative)
         } else if matches.is_present("SNAP_FILE_MOUNT") {
             ExecMode::SnapFileMount
         } else if matches.is_present("INTERACTIVE")
@@ -249,7 +429,7 @@ impl Config {
                 // setting pwd as the path, here, keeps us from waiting on stdin when in certain modes
                 // LastSnap is more like Interactive and DisplayRecursive in this respect in requiring only one
                 // input, and waiting on one input from stdin is pretty silly
-                ExecMode::Interactive | ExecMode::DisplayRecursive | ExecMode::LastSnap => {
+                ExecMode::Interactive | ExecMode::DisplayRecursive | ExecMode::LastSnap(_) => {
                     vec![pwd.clone()]
                 }
                 ExecMode::Display | ExecMode::SnapFileMount => read_stdin()?
@@ -324,23 +504,26 @@ impl Config {
                     }
                 }
             }
-            ExecMode::Display | ExecMode::SnapFileMount | ExecMode::LastSnap => {
+            ExecMode::Display | ExecMode::SnapFileMount | ExecMode::LastSnap(_) => {
                 // in non-interactive mode / display mode, requested dir is just a file
                 // like every other file and pwd must be the requested working dir.
                 //
                 // "None" here also allows ExecMode::LastSnap to skip the browse phase of interactive_exec
-                if exec_mode == ExecMode::LastSnap && paths.len() > 1 {
-                    return Err(
-                        HttmError::new("May only specify one path in last snap mode.").into(),
-                    );
-                } else {
-                    None
+                match exec_mode {
+                    ExecMode::LastSnap(_) if paths.len() > 1 => {
+                        return Err(
+                            HttmError::new("May only specify one path in last snap mode.").into(),
+                        );
+                    }
+                    _ => None,
                 }
             }
         };
 
         // here we determine how we will obtain our snap point -- has the user defined it
-        // or will we find it by searching the native filesystem?
+        // or will we find it by searching the native filesystem? if searching a native filesystem,
+        // we will obtain a map of datasets, a map of snapshot directory, and possibly a map of
+        // alternate filesystems if the user request early to avoid looking up later.
         let (opt_alt_replicated, snap_point) = if let Some(raw_value) = raw_snap_var {
             if matches.is_present("ALT_REPLICATED") {
                 return Err(HttmError::new(
@@ -460,175 +643,6 @@ impl Config {
     }
 }
 
-fn parse_args() -> ArgMatches {
-    clap::Command::new(crate_name!())
-        .about("httm prints the size, date and corresponding locations of available unique versions of files residing on snapshots.  \
-        May also be used interactively to select and restore from such versions, and even to snapshot datasets which contain certain files.")
-        .version(crate_version!())
-        .arg(
-            Arg::new("INPUT_FILES")
-                .help("in any non-interactive mode, put requested files here.  If you enter no files, \
-                then httm will pause waiting for input on stdin(3). In any interactive mode, \
-                this is the directory search path. If no directory is entered, \
-                httm will use the current working directory.")
-                .takes_value(true)
-                .multiple_values(true)
-                .value_parser(clap::builder::ValueParser::os_string())
-                .display_order(1)
-        )
-        .arg(
-            Arg::new("INTERACTIVE")
-                .short('i')
-                .long("interactive")
-                .help("interactive browse and search a specified directory to display unique file versions.")
-                .display_order(2)
-        )
-        .arg(
-            Arg::new("SELECT")
-                .short('s')
-                .long("select")
-                .help("interactive browse and search a specified directory to display unique file versions.  Continue to another dialog to select a snapshot version to dump to stdout(3).")
-                .conflicts_with("RESTORE")
-                .display_order(3)
-        )
-        .arg(
-            Arg::new("RESTORE")
-                .short('r')
-                .long("restore")
-                .help("interactive browse and search a specified directory to display unique file versions.  Continue to another dialog to select a snapshot version to restore.")
-                .conflicts_with("SELECT")
-                .display_order(4)
-        )
-        .arg(
-            Arg::new("DELETED_MODE")
-                .short('d')
-                .long("deleted")
-                .takes_value(true)
-                .default_missing_value("all")
-                .possible_values(&["all", "single", "only"])
-                .help("show deleted files in interactive modes.  In non-interactive modes, do a search for all files deleted from a specified directory. \
-                If \"--deleted only\" is specified, then, in interactive modes, non-deleted files will be excluded from the search. \
-                If \"--deleted single\" is specified, then, deleted files behind deleted directories, \
-                (files with a depth greater than one) will be ignored.")
-                .display_order(5)
-        )
-        .arg(
-            Arg::new("ALT_REPLICATED")
-                .short('a')
-                .long("alt-replicated")
-                .help("automatically discover locally replicated datasets and list their snapshots as well.  \
-                NOTE: Be certain such replicated datasets are mounted before use.  \
-                httm will silently ignore unmounted datasets in the interactive modes.")
-                .conflicts_with_all(&["SNAP_POINT", "LOCAL_DIR"])
-                .display_order(6)
-        )
-        .arg(
-            Arg::new("RECURSIVE")
-                .short('R')
-                .long("recursive")
-                .help("recurse into the selected directory to find more files. Only available in interactive and deleted file modes.")
-                .display_order(7)
-        )
-        .arg(
-            Arg::new("EXACT")
-                .short('e')
-                .long("exact")
-                .help("use exact pattern matching for searches in the interactive modes (in contrast to the default fuzzy-finder searching).")
-                .display_order(8)
-        )
-        .arg(
-            Arg::new("SNAP_FILE_MOUNT")
-                .short('S')
-                .long("snap")
-                .visible_aliases(&["snap-file", "snapshot", "snap-file-mount"])
-                .help("snapshot the mount point/s of the dataset/s which contains the input file/s. Note: This is a ZFS only option.")
-                .conflicts_with_all(&["INTERACTIVE", "SELECT", "RESTORE", "ALT_REPLICATED", "SNAP_POINT", "LOCAL_DIR"])
-                .display_order(9)
-        )
-        .arg(
-            Arg::new("MOUNT_FOR_FILE")
-                .short('m')
-                .long("mount-for-file")
-                .visible_alias("mount")
-                .help("display the mount point/s of the dataset/s which contains the input file/s.")
-                .conflicts_with_all(&["INTERACTIVE", "SELECT", "RESTORE", "NOT_SO_PRETTY"])
-                .display_order(10)
-        )
-        .arg(
-            Arg::new("LAST_SNAP")
-                .short('l')
-                .long("last-snap")
-                .help("automatically select and print the path of last-in-time unique snapshot version for the input file.  \
-                May also be used as a shortcut to restore from such last version when used with the \"--restore\", or \"-r\", flag.")
-                .conflicts_with_all(&["INTERACTIVE", "RECURSIVE", "EXACT", "SNAP_FILE_MOUNT", "MOUNT_FOR_FILE", "ALT_REPLICATED", "SNAP_POINT", "LOCAL_DIR", "NOT_SO_PRETTY", "ZEROS", "RAW"])
-                .display_order(11)
-        )
-        .arg(
-            Arg::new("RAW")
-                .short('n')
-                .long("raw")
-                .visible_alias("newline")
-                .help("display the snapshot locations only, without extraneous information, delimited by a NEWLINE character.")
-                .conflicts_with_all(&["ZEROS", "NOT_SO_PRETTY"])
-                .display_order(12)
-        )
-        .arg(
-            Arg::new("ZEROS")
-                .short('0')
-                .long("zero")
-                .help("display the snapshot locations only, without extraneous information, delimited by a NULL character.")
-                .conflicts_with_all(&["RAW", "NOT_SO_PRETTY"])
-                .display_order(13)
-        )
-        .arg(
-            Arg::new("NOT_SO_PRETTY")
-                .long("not-so-pretty")
-                .visible_aliases(&["tabs", "plain-jane"])
-                .help("display the ordinary output, but tab delimited, without any pretty border lines.")
-                .conflicts_with_all(&["RAW", "ZEROS"])
-                .display_order(14)
-        )
-        .arg(
-            Arg::new("NO_LIVE")
-                .long("no-live")
-                .visible_aliases(&["dead", "disco"])
-                .help("only display information concerning snapshot versions (display no information regarding 'live' versions of files or directories).")
-                .display_order(15)
-        )
-        .arg(
-            Arg::new("REMOTE_DIR")
-                .long("remote-dir")
-                .visible_aliases(&["remote", "snap-point"])
-                .help("ordinarily httm will automatically choose your dataset root directory (the most proximate ancestor directory which contains a snapshot directory), \
-                but here you may manually specify that mount point for ZFS (directory which contains a \".zfs\" directory) or btrfs-snapper (directory which contains a \".snapshots\" directory), \
-                such as the local mount point for a remote share.  You may also set via the HTTM_REMOTE_DIR environment variable.  \
-                Note: Use of both \"remote\" and \"local\" are not always necessary to view versions on remote shares.  \
-                These options *are necessary* if you want to view snapshot versions from within the local directory you back up to your remote share, \
-                however, httm can also automatically detect ZFS and btrfs-snapper datasets mounted as AFP, SMB, and NFS remote shares, if you browse that remote share where it is locally mounted.")
-                .takes_value(true)
-                .display_order(16)
-        )
-        .arg(
-            Arg::new("LOCAL_DIR")
-                .long("local-dir")
-                .visible_alias("local")
-                .help("used with \"remote\" to determine where the corresponding live root filesystem of the dataset is.  \
-                Put more simply, the \"local\" is the directory you backup to your \"remote\".  If not set, httm defaults to your current working directory.  \
-                You may also set via the environment variable HTTM_LOCAL_DIR.")
-                .requires("SNAP_POINT")
-                .takes_value(true)
-                .display_order(17)
-        )
-        .arg(
-            Arg::new("ZSH_HOT_KEYS")
-                .long("install-zsh-hot-keys")
-                .help("install zsh hot keys to the users home directory, and then exit")
-                .exclusive(true)
-                .display_order(18)
-        )
-        .get_matches()
-}
-
 fn main() {
     match exec() {
         Ok(_) => std::process::exit(0),
@@ -652,7 +666,7 @@ fn exec() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         // to select or restore functions
         //
         // ExecMode::LastSnap will never return back, its a shortcut to select and restore themselves
-        ExecMode::Interactive | ExecMode::LastSnap => {
+        ExecMode::Interactive | ExecMode::LastSnap(_) => {
             let browse_result = &interactive_exec(&config)?;
             get_versions_set(&config, browse_result)?
         }
