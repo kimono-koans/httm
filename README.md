@@ -142,7 +142,7 @@ for version in $(httm -n $filename); do
     fi
 done
 ```
-View the differences between each unique snapshot version the `httm` man page and the each subsequent version:
+View the differences between each unique snapshot version the `httm` man page and each previous unique version:
 ```bash
 filename="./httm/httm.1"
 last_version=""
