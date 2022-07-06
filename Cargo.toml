@@ -19,7 +19,7 @@ opt-level = "z"  # Optimize for size.
 lto = true
 
 [dependencies]
-clap = { version = "3.2.8", features = ["cargo"]}
+clap = { version = "3.2.8", features = ["cargo"] }
 chrono = "0.4.19"
 number_prefix = "0.4.0"
 skim = "0.9.4"
@@ -31,7 +31,7 @@ itertools = "0.10.3"
 indicatif = "0.16.2"
 lazy_static = "1.4.0"
 proc-mounts = "0.3.0"
-ahash = "0.7.6"
+ahash = { version = "0.7.6", default-features = false }
 
 [package.metadata.deb]
 maintainer = "kimono koans <https://github.com/kimono-koans/>"
