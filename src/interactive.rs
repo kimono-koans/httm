@@ -224,7 +224,7 @@ fn browse_view(
     Ok(res)
 }
 
-pub fn interactive_select(
+fn interactive_select(
     config: &Config,
     vec_paths: &Vec<PathData>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {

@@ -135,7 +135,7 @@ fn parse_from_proc_mounts() -> Result<
 }
 
 // fans out precompute of snap mounts to the appropriate function based on fstype
-pub fn precompute_snap_mounts(
+fn precompute_snap_mounts(
     map_of_datasets: &HashMap<PathBuf, (String, FilesystemType)>,
 ) -> HashMap<PathBuf, Vec<PathBuf>> {
     let opt_root_mount_path: Option<&PathBuf> =
@@ -271,7 +271,7 @@ pub fn precompute_alt_replicated(
 }
 
 // build paths to all snap mounts
-pub fn precompute_btrfs_snap_mounts(
+fn precompute_btrfs_snap_mounts(
     mount_point_path: &Path,
     root_mount_path: &Path,
 ) -> Result<Vec<PathBuf>, Box<dyn std::error::Error + Send + Sync + 'static>> {
@@ -330,7 +330,7 @@ pub fn precompute_btrfs_snap_mounts(
 }
 
 // similar to btrfs precompute, build paths to all snap mounts
-pub fn precompute_zfs_snap_mounts(
+fn precompute_zfs_snap_mounts(
     mount_point_path: &Path,
 ) -> Result<Vec<PathBuf>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     let snap_path = mount_point_path.join(ZFS_SNAPSHOT_DIRECTORY);

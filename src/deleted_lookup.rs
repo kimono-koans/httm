@@ -99,7 +99,7 @@ pub fn get_unique_deleted(
     Ok(unique_deleted)
 }
 
-pub fn get_deleted_per_dataset(
+fn get_deleted_per_dataset(
     config: &Config,
     requested_dir: &Path,
     search_bundle: &SearchBundle,
