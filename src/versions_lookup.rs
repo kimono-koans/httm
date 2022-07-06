@@ -321,7 +321,7 @@ pub fn get_alt_replicated_datasets(
     map_of_datasets: &HashMap<PathBuf, (String, FilesystemType)>,
 ) -> Result<DatasetsForSearch, Box<dyn std::error::Error + Send + Sync + 'static>> {
     let proximate_dataset_fsname = match &map_of_datasets.get(proximate_dataset_mount) {
-        Some((proximate_dataset_fsname, _)) => proximate_dataset_fsname.to_string(),
+        Some((proximate_dataset_fsname, _)) => proximate_dataset_fsname.clone(),
         None => {
             return Err(HttmError::new("httm was unable to detect an alternate replicated mount point.  Perhaps the replicated filesystem is not mounted?").into());
         }

@@ -71,7 +71,7 @@ fn parse_from_proc_mounts() -> Result<
             &ZFS_FSTYPE => Some((
                 mount_info.dest,
                 (
-                    mount_info.source.to_string_lossy().to_string(),
+                    mount_info.source.to_string_lossy().into_owned(),
                     FilesystemType::Zfs,
                 ),
             )),
@@ -80,7 +80,7 @@ fn parse_from_proc_mounts() -> Result<
                     Some((
                         mount_info.dest,
                         (
-                            mount_info.source.to_string_lossy().to_string(),
+                            mount_info.source.to_string_lossy().into_owned(),
                             FilesystemType::Zfs,
                         ),
                     ))
@@ -92,7 +92,7 @@ fn parse_from_proc_mounts() -> Result<
                     Some((
                         mount_info.dest,
                         (
-                            mount_info.source.to_string_lossy().to_string(),
+                            mount_info.source.to_string_lossy().into_owned(),
                             FilesystemType::Btrfs,
                         ),
                     ))
@@ -113,7 +113,7 @@ fn parse_from_proc_mounts() -> Result<
 
                 let subvol = match keyed_options.get("subvol") {
                     Some(subvol) => subvol.clone(),
-                    None => mount_info.source.to_string_lossy().to_string(),
+                    None => mount_info.source.to_string_lossy().into_owned(),
                 };
 
                 let fstype = FilesystemType::Btrfs;

@@ -257,7 +257,7 @@ fn interactive_select(
                     .into())
                 }
             };
-            pathdata.path_buf.to_string_lossy().to_string()
+            pathdata.path_buf.to_string_lossy().into_owned()
         }
         _ => {
             // same stuff we do at fn exec, snooze...
