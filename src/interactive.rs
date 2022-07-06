@@ -201,7 +201,7 @@ fn browse_view(
         ))
         .multi(true)
         .build()
-        .unwrap();
+        .expect("Could not initialized skim options for browse_view");
 
     // run_with() reads and shows items from the thread stream created above
     let selected_items = if let Some(output) = Skim::run_with(&options, Some(rx_item)) {
@@ -299,7 +299,7 @@ fn select_restore_view(
                       ─────────────────────────────────────────────",
         ))
         .build()
-        .unwrap();
+        .expect("Could not initialized skim options for select_restore_view");
 
     let item_reader_opts = SkimItemReaderOption::default().ansi(true);
     let item_reader = SkimItemReader::new(item_reader_opts);
@@ -346,7 +346,7 @@ fn interactive_restore(
     let old_snap_filename = snap_pathdata
         .path_buf
         .file_name()
-        .unwrap()
+        .expect("Could not obtain a file name for the snap file version path given")
         .to_string_lossy()
         .into_owned();
     let new_snap_filename: String =

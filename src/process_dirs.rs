@@ -77,7 +77,7 @@ pub fn recursive_exec(
     let thread_pool = rayon::ThreadPoolBuilder::new()
         .stack_size(DEFAULT_STACK_SIZE)
         .build()
-        .unwrap();
+        .expect("Could not initialize rayon threadpool for recursive search");
 
     // pass this thread_pool's scope to enumerate_directory, and spawn threads from within this scope
     //
