@@ -81,7 +81,7 @@ On some Linux distributions, which include old versions of `libc`, `cargo` may r
 
 ## Example Usage
 
-Note: btrfs users may need to use `sudo` (or equivalent) to view versions on btrfs datasets, as btrfs snapshot permissions may required root access in order to be visible. 
+Note: Users may need to use `sudo` (or equivalent) to view versions on btrfs datasets, as btrfs snapshots may require root permissions in order to be visible.
 
 Print all unique versions of your history file:
 ```bash
@@ -142,17 +142,39 @@ for version in $(httm -n $filename); do
     fi
 done
 ```
+View the differences between each unique snapshot version the `httm` man page and the each subsequent version:
+```bash
+filename="./httm/httm.1"
+last_version=""
+for current_version in $(httm -n $filename); do
+    # check if initial "last_version" needs to be set
+    if [[ -z "$last_version"  ]]; then
+        last_version="$current_version"
+        continue
+    fi
+
+    # check whether files differ (e.g. snapshot version is identical to live file)
+    if [[ ! -z "$( diff -q  "$last_version" "$current_version" )" ]]; then
+        # print that version and file that differ
+        diff -q  "$last_version" "$current_version"
+        # print the difference between that version and file
+        diff "$last_version" "$current_version"
+    fi
+
+    # set current_version to last_version
+    last_version="$current_version"
+done
+```
 Create a simple `tar` archive of all unique versions of your `/var/log/syslog`:
 ```bash
 httm -n /var/log/syslog | tar -zcvf all-versions-syslog.tar.gz -T -
 ```
 Create a *kinda fancy* `tar` archive of all unique versions of your `/var/log/syslog`:
 ```bash
-# a slightly fancier GNU tar folder structure
 file="/var/log/syslog"
 dir_name="${$(dirname $file)/\//}"
 base_dir="$(basename $file)_all_versions"
-
+# squash extra directories by "transforming" them to simply snapshot names 
 httm -n "$file" | tar --transform="flags=r;s|$dir_name|$base_dir|" \
 --transform="flags=r;s|.zfs/snapshot/||" --show-transformed-names \
 -zcvf "all-versions-$(basename $file).tar.gz" -T  -
