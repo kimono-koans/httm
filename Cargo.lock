@@ -444,7 +444,7 @@ dependencies = [
 
 [[package]]
 name = "httm"
-version = "0.12.9"
+version = "0.12.10"
 dependencies = [
  "ahash",
  "chrono",
