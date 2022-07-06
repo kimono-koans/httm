@@ -201,6 +201,7 @@ fn browse_view(
                       ──────────────────────────────────────────────────────────────────────────────",
         ))
         .multi(true)
+        .regex(false)
         .build()
         .expect("Could not initialized skim options for browse_view");
 
@@ -294,6 +295,7 @@ fn select_restore_view(
         .tabstop(Some("4"))
         .exact(true)
         .multi(false)
+        .regex(false)
         .header(Some(
             "PAGE UP:    page up  | PAGE DOWN:  page down\n\
                       EXIT:       esc      | SELECT:     enter    \n\
