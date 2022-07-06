@@ -109,7 +109,6 @@ pub struct NativeDatasets {
     map_of_snaps: HashMap<PathBuf, Vec<PathBuf>>,
     // key: mount, val: alt dataset
     opt_map_of_alts: Option<HashMap<PathBuf, Vec<PathBuf>>>,
-    opt_common_snap_dir: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone)]
@@ -117,7 +116,6 @@ pub struct UserDefinedDirs {
     snap_dir: PathBuf,
     local_dir: PathBuf,
     fs_type: FilesystemType,
-    opt_common_snap_dir: Option<PathBuf>,
 }
 
 fn parse_args() -> ArgMatches {
@@ -308,6 +306,7 @@ pub struct Config {
     opt_recursive: bool,
     opt_exact: bool,
     opt_mount_for_file: bool,
+    opt_common_snap_dir: Option<PathBuf>,
     exec_mode: ExecMode,
     snap_point: SnapPoint,
     deleted_mode: DeletedMode,
@@ -528,7 +527,9 @@ impl Config {
         // or will we find it by searching the native filesystem? if searching a native filesystem,
         // we will obtain a map of datasets, a map of snapshot directory, and possibly a map of
         // alternate filesystems if the user request early to avoid looking up later.
-        let (opt_alt_replicated, snap_point) = if let Some(raw_value) = raw_snap_var {
+        let (opt_alt_replicated, opt_common_snap_dir, snap_point) = if let Some(raw_value) =
+            raw_snap_var
+        {
             if matches.is_present("ALT_REPLICATED") {
                 return Err(HttmError::new(
                     "Alternate replicated datasets are not available for search, when the user defines a snap point.",
@@ -594,11 +595,11 @@ impl Config {
             (
                 // always set opt_alt_replicated to false in UserDefinedDirs mode
                 false,
+                opt_common_snap_dir,
                 SnapPoint::UserDefined(UserDefinedDirs {
                     snap_dir,
                     local_dir,
                     fs_type,
-                    opt_common_snap_dir,
                 }),
             )
         } else {
@@ -616,11 +617,11 @@ impl Config {
 
             (
                 matches.is_present("ALT_REPLICATED"),
+                opt_common_snap_dir,
                 SnapPoint::Native(NativeDatasets {
                     map_of_datasets,
                     map_of_snaps,
                     opt_map_of_alts,
-                    opt_common_snap_dir,
                 }),
             )
         };
@@ -635,6 +636,7 @@ impl Config {
             opt_recursive,
             opt_exact,
             opt_mount_for_file,
+            opt_common_snap_dir,
             snap_point,
             exec_mode,
             deleted_mode,

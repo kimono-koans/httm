@@ -32,9 +32,7 @@ use crate::display::display_exec;
 use crate::interactive::SelectionCandidate;
 use crate::utility::{httm_is_dir, BasicDirEntryInfo, HttmError, PathData};
 use crate::versions_lookup::get_versions_set;
-use crate::{
-    Config, DeletedMode, ExecMode, SnapPoint, BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_HIDDEN_DIRECTORY,
-};
+use crate::{Config, DeletedMode, ExecMode, BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_HIDDEN_DIRECTORY};
 
 pub fn display_recursive_wrapper(
     config: &Config,
@@ -178,21 +176,11 @@ fn get_entries_partitioned(
         // never check the hidden snapshot directory for live files (duh)
         // didn't think this was possible until I saw a SMB share return
         // a .zfs dir entry
-        .filter(|dir_entry| match &config.snap_point {
-            SnapPoint::Native(native_datasets) => match &native_datasets.opt_common_snap_dir {
-                Some(snapshot_dir) => {
-                    default_filter_dirs(dir_entry) && &dir_entry.path() != snapshot_dir
-                }
-                None => default_filter_dirs(dir_entry),
-            },
-            SnapPoint::UserDefined(user_defined_dirs) => {
-                match &user_defined_dirs.opt_common_snap_dir {
-                    Some(snapshot_dir) => {
-                        default_filter_dirs(dir_entry) && &dir_entry.path() != snapshot_dir
-                    }
-                    None => default_filter_dirs(dir_entry),
-                }
+        .filter(|dir_entry| match &config.opt_common_snap_dir {
+            Some(snapshot_dir) => {
+                default_filter_dirs(dir_entry) && &dir_entry.path() != snapshot_dir
             }
+            None => default_filter_dirs(dir_entry),
         })
         // checking file_type on dir entries is always preferable
         // as it is much faster than a metadata call on the path
