@@ -223,7 +223,7 @@ fn enumerate_deleted(
     // disable behind deleted dirs with DepthOfOne,
     // otherwise recurse and find all those deleted files
     if config.deleted_mode != DeletedMode::DepthOfOne && config.opt_recursive {
-        let _ = &vec_dirs
+        vec_dirs
             .clone()
             .into_iter()
             .map(|basic_dir_entry_info| basic_dir_entry_info.path)
