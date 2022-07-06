@@ -86,14 +86,13 @@ pub fn get_unique_deleted(
         .into_group_map_by(|(_modify_time, basic_dir_entry_info)| {
             basic_dir_entry_info.file_name.clone()
         })
-        .iter()
+        .into_iter()
         .filter_map(|(_key, group)| {
             group
-                .iter()
+                .into_iter()
                 .max_by_key(|(modify_time, _basic_dir_entry_info)| *modify_time)
         })
         .map(|(_modify_time, basic_dir_entry_info)| basic_dir_entry_info)
-        .cloned()
         .collect();
 
     Ok(unique_deleted)
