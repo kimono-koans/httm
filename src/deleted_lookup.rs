@@ -86,13 +86,14 @@ pub fn get_unique_deleted(
         .into_group_map_by(|(_modify_time, basic_dir_entry_info)| {
             basic_dir_entry_info.file_name.clone()
         })
-        .into_iter()
+        .iter()
         .filter_map(|(_key, group)| {
             group
-                .into_iter()
+                .iter()
                 .max_by_key(|(modify_time, _basic_dir_entry_info)| *modify_time)
         })
         .map(|(_modify_time, basic_dir_entry_info)| basic_dir_entry_info)
+        .cloned()
         .collect();
 
     Ok(unique_deleted)
@@ -108,9 +109,10 @@ fn get_deleted_per_dataset(
     //
     // create a collection of local file names - avoid HashMap, because names have to be different
     // and check against other HashMap at end of function would also sort out any non-unique values
-    let iter_local_filenames = read_dir(&requested_dir)?
+    let local_filenames_map: HashMap<OsString, BasicDirEntryInfo> = read_dir(&requested_dir)?
         .flatten()
-        .map(|dir_entry| (dir_entry.file_name(), BasicDirEntryInfo::from(&dir_entry)));
+        .map(|dir_entry| (dir_entry.file_name(), BasicDirEntryInfo::from(&dir_entry)))
+        .collect();
 
     // now create a collection of file names in the snap_dirs
     // create a list of unique filenames on snaps
@@ -185,8 +187,9 @@ fn get_deleted_per_dataset(
     };
 
     // compare local filenames to all unique snap filenames - none values are unique, here
-    let all_deleted_versions: Vec<BasicDirEntryInfo> = iter_local_filenames
-        .filter(|(file_name, _)| unique_snap_filenames.get(file_name).is_none())
+    let all_deleted_versions: Vec<BasicDirEntryInfo> = unique_snap_filenames
+        .into_iter()
+        .filter(|(file_name, _)| local_filenames_map.get(file_name).is_none())
         .map(|(_file_name, basic_dir_entry_info)| basic_dir_entry_info)
         .collect();
 
