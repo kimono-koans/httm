@@ -106,8 +106,7 @@ fn get_deleted_per_dataset(
     // get all local entries we need to compare against these to know
     // what is a deleted file
     //
-    // create a collection of local file names - avoid HashMap, because names have to be different
-    // and check against other HashMap at end of function would also sort out any non-unique values
+    // create a collection of local file names
     let local_filenames_map: HashMap<OsString, BasicDirEntryInfo> = read_dir(&requested_dir)?
         .flatten()
         .map(|dir_entry| (dir_entry.file_name(), BasicDirEntryInfo::from(&dir_entry)))
@@ -115,6 +114,8 @@ fn get_deleted_per_dataset(
 
     // now create a collection of file names in the snap_dirs
     // create a list of unique filenames on snaps
+
+    // this is the fallback way of handling without a map_of_snaps, if all we have is user defined dirs
     fn read_dir_for_snap_filenames(
         snapshot_dir: &Path,
         relative_path: &Path,
@@ -142,6 +143,7 @@ fn get_deleted_per_dataset(
         Ok(unique_snap_filenames)
     }
 
+    // this is the optimal way to handle for native datasets, if you have a map_of_snaps
     fn snap_mounts_for_snap_filenames(
         snap_mounts: &[PathBuf],
         relative_path: &Path,

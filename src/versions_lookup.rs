@@ -361,7 +361,7 @@ fn get_versions_per_dataset(
     //
     // hashmap will then remove duplicates with the same system modify time and size/file len
 
-    // this is the fallback/non-Linux way of handling without a map_of_snaps
+    // this is the fallback way of handling without a map_of_snaps, if all we have is user defined dirs
     fn read_dir_for_datasets(
         snapshot_dir: &Path,
         relative_path: &Path,
@@ -389,6 +389,7 @@ fn get_versions_per_dataset(
         Ok(unique_versions)
     }
 
+    // this is the optimal way to handle for native datasets, if you have a map_of_snaps
     fn snap_mounts_for_datasets(
         snap_mounts: &[PathBuf],
         relative_path: &Path,
