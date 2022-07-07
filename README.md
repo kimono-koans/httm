@@ -129,28 +129,30 @@ Browse all files, recursively, in a folder backed up via `rsync` to a remote sha
 ```bash
 httm -i -R /Volumes/Home
 ```
-View the differences between each unique snapshot version of the `httm` man page and each previous unique version:
+View the differences between each unique snapshot version of the `httm` `man` page and each previous version:
 ```bash
 filename="./httm/httm.1"
-# empty string - will check if we need to set
-last_version=""
+# previous version is unset
+previous_version=""
 for current_version in $(httm -n $filename); do
     # check if initial "last_version" needs to be set
     if [[ -z "$last_version"  ]]; then
-        last_version="$current_version"
+        previous_version="$current_version"
         continue
     fi
 
-    # check whether files differ (e.g. snapshot version is identical to live file)
-    if [[ ! -z "$( diff -q  "$last_version" "$current_version" )" ]]; then
-        # print that version and file that differ
-        diff -q  "$last_version" "$current_version"
-        # print the difference between that version and file
-        diff "$last_version" "$current_version"
+    # check whether files differ (e.g. if current version is identical to previous version)
+    # this condition should only be relevant to the 'live' version, which could be the same as
+    # the version which is currently the latest snapshot version (see also the "--no-live" flag)
+    if [[ ! -z "$( diff -q  "$previous_version" "$current_version" )" ]]; then
+        # print that current version and previous version that differ
+        diff -q  "$previous_version" "$current_version"
+        # print the difference between that current version and previous_version
+        diff "$previous_version" "$current_version"
     fi
 
     # set current_version to last_version
-    last_version="$current_version"
+    previous_version="$current_version"
 done
 ```
 Create a simple `tar` archive of all unique versions of your `/var/log/syslog`:
