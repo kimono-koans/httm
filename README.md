@@ -129,22 +129,10 @@ Browse all files, recursively, in a folder backed up via `rsync` to a remote sha
 ```bash
 httm -i -R /Volumes/Home
 ```
-View the differences between each unique snapshot version of `.zshrc` and the live file:
-```bash
-filename="$HOME/.zshrc"
-for version in $(httm -n $filename); do
-    # check whether files differ (e.g. snapshot version is identical to live file)
-    if [[ ! -z "$( diff -q  "$version" "$filename" )" ]]; then
-        # print that version and file that differ
-        diff -q  "$version" "$filename"
-        # print the difference between that version and file
-        diff "$version" "$filename"
-    fi
-done
-```
-View the differences between each unique snapshot version the `httm` man page and each previous unique version:
+View the differences between each unique snapshot version of the `httm` man page and each previous unique version:
 ```bash
 filename="./httm/httm.1"
+# empty string - will check if we need to set
 last_version=""
 for current_version in $(httm -n $filename); do
     # check if initial "last_version" needs to be set
