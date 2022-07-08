@@ -347,13 +347,6 @@ fn interactive_restore(
         return Err(HttmError::new("Source location does not exist on disk. Quitting.").into());
     }
 
-    let snap_filename = snap_pathdata
-        .path_buf
-        .file_name()
-        .expect("Could not obtain a file name for the snap file version of path given")
-        .to_string_lossy()
-        .into_owned();
-
     // build new place to send file
     let new_file_path_buf = if config.opt_overwrite {
         // corner case: what if multiple selected paths had the same file name,
@@ -363,7 +356,7 @@ fn interactive_restore(
                 // safe to index into snaps, known len of 2 for set
                 Some(pathdata_set) => pathdata_set[0].iter().find_map(|pathdata| {
                     if pathdata == &snap_pathdata {
-                        // known len of 1 for request
+                        // safe to index into request, known len of 2 for set, known len of 1 for request
                         let og_pathdata = pathdata_set[1][0].to_owned();
                         Some(og_pathdata)
                     } else {
@@ -387,6 +380,13 @@ fn interactive_restore(
             }
         }
     } else {
+        let snap_filename = snap_pathdata
+            .path_buf
+            .file_name()
+            .expect("Could not obtain a file name for the snap file version of path given")
+            .to_string_lossy()
+            .into_owned();
+
         let new_filename =
             snap_filename + ".httm_restored." + &timestamp_file(&snap_pathdata.system_time);
         let new_file_dir = config.pwd.path_buf.clone();
