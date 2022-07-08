@@ -153,7 +153,13 @@ fn parse_args() -> ArgMatches {
             Arg::new("RESTORE")
                 .short('r')
                 .long("restore")
-                .help("interactive browse and search a specified directory to display unique file versions.  Continue to another dialog to select a snapshot version to restore.")
+                .takes_value(true)
+                .default_missing_value("copy")
+                .possible_values(&["copy", "overwrite", "yolo"])
+                .min_values(0)
+                .require_equals(true)
+                .help("interactive browse and search a specified directory to display unique file versions.  Continue to another dialog to select a snapshot version to restore.  \
+                Default is to \"copy\" to the current working directory with a new name, so as not to overwrite the a \"live\" file version.  User may specify \"overwrite\" to restore with same name.")
                 .conflicts_with("SELECT")
                 .display_order(4)
         )
@@ -306,6 +312,7 @@ pub struct Config {
     opt_recursive: bool,
     opt_exact: bool,
     opt_mount_for_file: bool,
+    opt_overwrite: bool,
     opt_common_snap_dir: Option<PathBuf>,
     exec_mode: ExecMode,
     snap_point: SnapPoint,
@@ -339,17 +346,16 @@ impl Config {
         };
 
         let mut exec_mode = if matches.is_present("LAST_SNAP") {
-            let request_relative = match matches.value_of("LAST_SNAP") {
-                Some("") | Some("abs") | Some("absolute") => false,
-                Some("rel") | Some("relative") => true,
-                _ => false,
-            };
+            let request_relative = matches!(
+                matches.value_of("LAST_SNAP"),
+                Some("rel") | Some("relative")
+            );
             ExecMode::LastSnap(request_relative)
         } else if matches.is_present("SNAP_FILE_MOUNT") {
             ExecMode::SnapFileMount
         } else if matches.is_present("INTERACTIVE")
-            || matches.is_present("RESTORE")
             || matches.is_present("SELECT")
+            || matches.is_present("RESTORE")
         {
             ExecMode::Interactive
         } else if deleted_mode != DeletedMode::Disabled {
@@ -359,6 +365,11 @@ impl Config {
             deleted_mode = DeletedMode::Disabled;
             ExecMode::Display
         };
+
+        let opt_overwrite = matches!(
+            matches.value_of("RESTORE"),
+            Some("overwrite") | Some("yolo")
+        );
 
         let env_snap_dir = if std::env::var_os("HTTM_REMOTE_DIR").is_some() {
             std::env::var_os("HTTM_REMOTE_DIR")
@@ -637,6 +648,7 @@ impl Config {
             opt_exact,
             opt_mount_for_file,
             opt_common_snap_dir,
+            opt_overwrite,
             snap_point,
             exec_mode,
             deleted_mode,

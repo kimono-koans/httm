@@ -68,6 +68,7 @@ impl SelectionCandidate {
             opt_no_live_vers: false,
             opt_exact: false,
             opt_mount_for_file: false,
+            opt_overwrite: false,
             opt_common_snap_dir: None,
             exec_mode: ExecMode::Display,
             deleted_mode: DeletedMode::Disabled,
@@ -352,8 +353,12 @@ fn interactive_restore(
         .expect("Could not obtain a file name for the snap file version path given")
         .to_string_lossy()
         .into_owned();
-    let new_snap_filename: String =
-        old_snap_filename + ".httm_restored." + &timestamp_file(&snap_pathdata.system_time);
+
+    let new_snap_filename: String = if config.opt_overwrite {
+        old_snap_filename
+    } else {
+        old_snap_filename + ".httm_restored." + &timestamp_file(&snap_pathdata.system_time)
+    };
 
     let new_file_dir = config.pwd.path_buf.clone();
     let new_file_path_buf: PathBuf = [new_file_dir, PathBuf::from(new_snap_filename)]
