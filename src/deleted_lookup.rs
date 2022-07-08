@@ -116,7 +116,7 @@ fn get_deleted_per_dataset(
     // create a list of unique filenames on snaps
 
     // this is the fallback way of handling without a map_of_snaps, if all we have is user defined dirs
-    fn read_dir_for_snap_filenames(
+    fn snap_filenames_from_read_dir(
         snapshot_dir: &Path,
         relative_path: &Path,
         fs_type: &FilesystemType,
@@ -144,7 +144,7 @@ fn get_deleted_per_dataset(
     }
 
     // this is the optimal way to handle for native datasets, if you have a map_of_snaps
-    fn snap_mounts_for_snap_filenames(
+    fn snap_filenames_from_snap_mounts(
         snap_mounts: &[PathBuf],
         relative_path: &Path,
     ) -> Result<
@@ -173,7 +173,7 @@ fn get_deleted_per_dataset(
 
     let unique_snap_filenames: HashMap<OsString, BasicDirEntryInfo> = match &config.snap_point {
         SnapPoint::Native(_) => match snapshot_mounts {
-            Some(snap_mounts) => snap_mounts_for_snap_filenames(snap_mounts, relative_path)?,
+            Some(snap_mounts) => snap_filenames_from_snap_mounts(snap_mounts, relative_path)?,
             None => {
                 return Err(HttmError::new(
                     "If you are here, precompute showed no snap mounts for dataset.  \
@@ -183,7 +183,7 @@ fn get_deleted_per_dataset(
             }
         },
         SnapPoint::UserDefined(_) => {
-            read_dir_for_snap_filenames(snapshot_dir, relative_path, fs_type)?
+            snap_filenames_from_read_dir(snapshot_dir, relative_path, fs_type)?
         }
     };
 

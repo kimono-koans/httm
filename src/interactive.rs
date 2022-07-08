@@ -278,7 +278,7 @@ fn interactive_select(
 
     // continue to interactive_restore or print and exit here?
     if config.interactive_mode == InteractiveMode::Restore {
-        Ok(interactive_restore(config, &path_string)?)
+        Ok(interactive_restore(config, &path_string, vec_paths)?)
     } else {
         println!("\"{}\"", &path_string);
         std::process::exit(0)
@@ -334,6 +334,7 @@ fn select_restore_view(
 fn interactive_restore(
     config: &Config,
     parsed_str: &str,
+    vec_paths: &[PathData],
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     // build pathdata from selection buffer parsed string
     //
@@ -346,30 +347,52 @@ fn interactive_restore(
         return Err(HttmError::new("Source location does not exist on disk. Quitting.").into());
     }
 
-    // build new place to send file
-    let old_snap_filename = snap_pathdata
+    let snap_filename = snap_pathdata
         .path_buf
         .file_name()
-        .expect("Could not obtain a file name for the snap file version path given")
+        .expect("Could not obtain a file name for the snap file version of path given")
         .to_string_lossy()
         .into_owned();
 
-    let new_snap_filename: String = if config.opt_overwrite {
-        old_snap_filename
+    // build new place to send file
+    let new_file_path_buf = if config.opt_overwrite {
+        // sanity check: what if multiple selected paths had the same file name,
+        // but were in different directories? let's make sure we have one match
+        //
+        // we could do another versions lookup here, and match the snap version
+        // to the live/original file but this is a pretty goofy/rare case
+        let vec_end_matches: Vec<&PathData> = vec_paths
+            .iter()
+            .filter(|pathdata| pathdata.path_buf.ends_with(&snap_filename))
+            .collect();
+
+        match vec_end_matches.len() {
+            1 => {
+                // safe to index because we know len
+                let pathdata = vec_end_matches[0];
+                pathdata.path_buf.clone()
+            }
+            _ => {
+                return Err(HttmError::new(
+                    "httm unable to determine original file path in overwrite mode.  Quitting.",
+                )
+                .into())
+            }
+        }
     } else {
-        old_snap_filename + ".httm_restored." + &timestamp_file(&snap_pathdata.system_time)
-    };
+        let new_filename =
+            snap_filename + ".httm_restored." + &timestamp_file(&snap_pathdata.system_time);
+        let new_file_dir = config.pwd.path_buf.clone();
+        let new_file_path_buf: PathBuf = new_file_dir.join(new_filename);
 
-    let new_file_dir = config.pwd.path_buf.clone();
-    let new_file_path_buf: PathBuf = [new_file_dir, PathBuf::from(new_snap_filename)]
-        .iter()
-        .collect();
-
-    // don't let the user rewrite one restore over another.
-    if new_file_path_buf.exists() {
-        return Err(
-            HttmError::new("httm will not restore to that file, as a file with the same path name already exists. Quitting.").into(),
-        );
+        // don't let the user rewrite one restore over another in non-overwrite mode
+        if new_file_path_buf.exists() {
+            return Err(
+                HttmError::new("httm will not restore to that file, as a file with the same path name already exists. Quitting.").into(),
+            );
+        } else {
+            new_file_path_buf
+        }
     };
 
     // tell the user what we're up to, and get consent

@@ -362,7 +362,7 @@ fn get_versions_per_dataset(
     // hashmap will then remove duplicates with the same system modify time and size/file len
 
     // this is the fallback way of handling without a map_of_snaps, if all we have is user defined dirs
-    fn read_dir_for_datasets(
+    fn versions_from_read_dir(
         snapshot_dir: &Path,
         relative_path: &Path,
         fs_type: &FilesystemType,
@@ -390,7 +390,7 @@ fn get_versions_per_dataset(
     }
 
     // this is the optimal way to handle for native datasets, if you have a map_of_snaps
-    fn snap_mounts_for_datasets(
+    fn versions_from_snap_mounts(
         snap_mounts: &[PathBuf],
         relative_path: &Path,
     ) -> Result<
@@ -419,7 +419,7 @@ fn get_versions_per_dataset(
     let unique_versions: HashMap<(SystemTime, u64), PathData> = match &config.snap_point {
         SnapPoint::Native(_) => {
             match snapshot_mounts {
-                Some(snap_mounts) => snap_mounts_for_datasets(snap_mounts, relative_path)?,
+                Some(snap_mounts) => versions_from_snap_mounts(snap_mounts, relative_path)?,
                 // snap mounts is empty
                 None => {
                     return Err(HttmError::new(
@@ -430,7 +430,7 @@ fn get_versions_per_dataset(
                 }
             }
         }
-        SnapPoint::UserDefined(_) => read_dir_for_datasets(snapshot_dir, relative_path, fs_type)?,
+        SnapPoint::UserDefined(_) => versions_from_read_dir(snapshot_dir, relative_path, fs_type)?,
     };
 
     let mut vec_pathdata: Vec<PathData> =
