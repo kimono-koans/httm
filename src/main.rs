@@ -159,7 +159,7 @@ fn parse_args() -> ArgMatches {
                 .min_values(0)
                 .require_equals(true)
                 .help("interactive browse and search a specified directory to display unique file versions.  Continue to another dialog to select a snapshot version to restore.  \
-                Default is to \"copy\" to the current working directory with a new name, so as not to overwrite the a \"live\" file version.  User may specify \"overwrite\" to restore with same name.")
+                Default is a non-destructive \"copy\" to the current working directory with a new name, so as not to overwrite any \"live\" file version.  However, user may specify \"overwrite\" to restore to the same file location.")
                 .conflicts_with("SELECT")
                 .display_order(4)
         )

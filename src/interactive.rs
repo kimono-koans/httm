@@ -356,23 +356,30 @@ fn interactive_restore(
 
     // build new place to send file
     let new_file_path_buf = if config.opt_overwrite {
-        // sanity check: what if multiple selected paths had the same file name,
-        // but were in different directories? let's make sure we have one match
-        //
-        // we could do another versions lookup here, and match the snap version
-        // to the live/original file but this is a pretty goofy/rare case
-        let vec_end_matches: Vec<&PathData> = vec_paths
-            .iter()
-            .filter(|pathdata| pathdata.path_buf.ends_with(&snap_filename))
-            .collect();
-
-        match vec_end_matches.len() {
-            1 => {
-                // safe to index because we know len
-                let pathdata = vec_end_matches[0];
-                pathdata.path_buf.clone()
+        // corner case: what if multiple selected paths had the same file name,
+        // but were in different directories? let's make sure we have only one match
+        let opt_og_pathdata = vec_paths.iter().find_map(|pathdata| {
+            match get_versions_set(config, &vec![pathdata.clone()]).ok() {
+                // safe to index into snaps, known len of 2 for set
+                Some(pathdata_set) => pathdata_set[0].iter().find_map(|pathdata| {
+                    if pathdata == &snap_pathdata {
+                        // known len of 1 for request
+                        let og_pathdata = pathdata_set[1][0].to_owned();
+                        Some(og_pathdata)
+                    } else {
+                        None
+                    }
+                }),
+                None => None,
             }
-            _ => {
+        });
+
+        match opt_og_pathdata {
+            Some(pathdata) => {
+                // safe to index because we know len
+                pathdata.path_buf
+            }
+            None => {
                 return Err(HttmError::new(
                     "httm unable to determine original file path in overwrite mode.  Quitting.",
                 )
