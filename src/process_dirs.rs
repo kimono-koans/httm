@@ -116,13 +116,13 @@ fn enumerate_live_versions(
             }
         }
         ExecMode::Interactive => {
+            // recombine dirs and files into a vec
             let combined_vec = || {
                 let mut combined = vec_files;
                 combined.extend(vec_dirs.clone());
                 combined
             };
 
-            // combine dirs and files into a vec and sort to display
             let entries: Vec<BasicDirEntryInfo> = match config.deleted_mode {
                 DeletedMode::Only => {
                     // spawn_enumerate_deleted will send deleted files back to
@@ -244,10 +244,11 @@ fn enumerate_deleted(
     // partition above is needed as vec_files will be used later
     // to determine dirs to recurse, here, we recombine to obtain
     // pseudo live versions of deleted files, files that once were
-    let mut entries = vec_files;
-    entries.extend(vec_dirs);
+    let mut combined_entries = vec_files;
+    // recombine our directories and files
+    combined_entries.extend(vec_dirs);
     let pseudo_live_versions: Vec<BasicDirEntryInfo> =
-        get_pseudo_live_versions(entries, requested_dir);
+        get_pseudo_live_versions(combined_entries, requested_dir);
 
     // know this is_phantom because we know it is deleted
     display_or_transmit(config, pseudo_live_versions, true, tx_item)?;
@@ -283,10 +284,11 @@ fn get_entries_behind_deleted_dir(
         // partition above is needed as vec_files will be used later
         // to determine dirs to recurse, here, we recombine to obtain
         // pseudo live versions of deleted files, files that once were
-        let mut entries = vec_files;
-        entries.extend(vec_dirs.clone());
+        let mut combined_entries = vec_files;
+        // recombine our directories and files
+        combined_entries.extend(vec_dirs.clone());
         let pseudo_live_versions: Vec<BasicDirEntryInfo> =
-            get_pseudo_live_versions(entries, pseudo_live_dir);
+            get_pseudo_live_versions(combined_entries, pseudo_live_dir);
 
         // know this is_phantom because we know it is deleted
         display_or_transmit(config.clone(), pseudo_live_versions, true, tx_item)?;
