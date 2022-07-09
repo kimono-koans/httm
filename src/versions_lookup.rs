@@ -370,21 +370,12 @@ fn get_versions_per_dataset(
         HashMap<(SystemTime, u64), PathData>,
         Box<dyn std::error::Error + Send + Sync + 'static>,
     > {
-        let unique_versions = read_dir(match fs_type {
-            FilesystemType::Btrfs => snapshot_dir.join(BTRFS_SNAPPER_HIDDEN_DIRECTORY),
-            FilesystemType::Zfs => snapshot_dir.to_path_buf(),
-        })?
-        .flatten()
-        .par_bridge()
-        .map(|entry| match fs_type {
-            FilesystemType::Btrfs => entry.path().join(BTRFS_SNAPPER_SUFFIX),
-            FilesystemType::Zfs => entry.path(),
-        })
-        .map(|path| path.join(relative_path))
-        .map(|joined_path| PathData::from(joined_path.as_path()))
-        .filter(|pathdata| !pathdata.is_phantom)
-        .map(|pathdata| ((pathdata.system_time, pathdata.size), pathdata))
-        .collect();
+        let unique_versions = prep_read_dir(snapshot_dir, relative_path, fs_type)?
+            .par_iter()
+            .map(|joined_path| PathData::from(joined_path.as_path()))
+            .filter(|pathdata| !pathdata.is_phantom)
+            .map(|pathdata| ((pathdata.system_time, pathdata.size), pathdata))
+            .collect();
 
         Ok(unique_versions)
     }
@@ -439,4 +430,25 @@ fn get_versions_per_dataset(
     vec_pathdata.par_sort_unstable_by_key(|pathdata| pathdata.system_time);
 
     Ok(vec_pathdata)
+}
+
+pub fn prep_read_dir(
+    snapshot_dir: &Path,
+    relative_path: &Path,
+    fs_type: &FilesystemType,
+) -> Result<Vec<PathBuf>, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    let paths = read_dir(match fs_type {
+        FilesystemType::Btrfs => snapshot_dir.join(BTRFS_SNAPPER_HIDDEN_DIRECTORY),
+        FilesystemType::Zfs => snapshot_dir.to_path_buf(),
+    })?
+    .flatten()
+    .par_bridge()
+    .map(|entry| match fs_type {
+        FilesystemType::Btrfs => entry.path().join(BTRFS_SNAPPER_SUFFIX),
+        FilesystemType::Zfs => entry.path(),
+    })
+    .map(|path| path.join(relative_path))
+    .collect();
+
+    Ok(paths)
 }

@@ -25,12 +25,9 @@ use itertools::Itertools;
 
 use crate::utility::{BasicDirEntryInfo, HttmError, PathData};
 use crate::versions_lookup::{
-    get_datasets_for_search, get_search_bundle, NativeDatasetType, SearchBundle,
+    get_datasets_for_search, get_search_bundle, prep_read_dir, NativeDatasetType, SearchBundle,
 };
-use crate::{
-    AHashMapSpecial as HashMap, Config, FilesystemType, SnapPoint, BTRFS_SNAPPER_HIDDEN_DIRECTORY,
-    BTRFS_SNAPPER_SUFFIX,
-};
+use crate::{AHashMapSpecial as HashMap, Config, FilesystemType, SnapPoint};
 
 pub fn get_unique_deleted(
     config: &Config,
@@ -124,21 +121,13 @@ fn get_deleted_per_dataset(
         HashMap<OsString, BasicDirEntryInfo>,
         Box<dyn std::error::Error + Send + Sync + 'static>,
     > {
-        let unique_snap_filenames = read_dir(match fs_type {
-            FilesystemType::Btrfs => snapshot_dir.join(BTRFS_SNAPPER_HIDDEN_DIRECTORY),
-            FilesystemType::Zfs => snapshot_dir.to_path_buf(),
-        })?
-        .flatten()
-        .map(|entry| match fs_type {
-            FilesystemType::Btrfs => entry.path().join(BTRFS_SNAPPER_SUFFIX),
-            FilesystemType::Zfs => entry.path(),
-        })
-        .map(|path| path.join(relative_path))
-        .flat_map(|joined_path| read_dir(&joined_path))
-        .flatten()
-        .flatten()
-        .map(|dir_entry| (dir_entry.file_name(), BasicDirEntryInfo::from(&dir_entry)))
-        .collect();
+        let unique_snap_filenames = prep_read_dir(snapshot_dir, relative_path, fs_type)?
+            .iter()
+            .flat_map(|joined_path| read_dir(&joined_path))
+            .flatten()
+            .flatten()
+            .map(|dir_entry| (dir_entry.file_name(), BasicDirEntryInfo::from(&dir_entry)))
+            .collect();
 
         Ok(unique_snap_filenames)
     }
