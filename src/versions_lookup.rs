@@ -25,8 +25,8 @@ use rayon::prelude::*;
 
 use crate::utility::{HttmError, PathData};
 use crate::{
-    AHashMapSpecial as HashMap, Config, FilesystemType, SnapPoint, BTRFS_SNAPPER_HIDDEN_DIRECTORY,
-    BTRFS_SNAPPER_SUFFIX, ZFS_SNAPSHOT_DIRECTORY,
+    AHashMapSpecial as HashMap, Config, FilesystemType, SnapCollection,
+    BTRFS_SNAPPER_HIDDEN_DIRECTORY, BTRFS_SNAPPER_SUFFIX, ZFS_SNAPSHOT_DIRECTORY,
 };
 
 pub struct DatasetsForSearch {
@@ -170,14 +170,14 @@ pub fn get_datasets_for_search(
     // between ZFS mount point and the canonical path is the path we will use to search the
     // hidden snapshot dirs
     let dataset_collection: DatasetsForSearch = match &config.snap_point {
-        SnapPoint::UserDefined(defined_dirs) => {
+        SnapCollection::UserDefined(defined_dirs) => {
             let snap_dir = defined_dirs.snap_dir.to_path_buf();
             DatasetsForSearch {
                 proximate_dataset_mount: snap_dir.clone(),
                 datasets_of_interest: vec![snap_dir],
             }
         }
-        SnapPoint::Native(native_datasets) => {
+        SnapCollection::Native(native_datasets) => {
             let proximate_dataset_mount =
                 get_proximate_dataset(pathdata, &native_datasets.map_of_datasets)?;
             match requested_dataset_type {
@@ -223,7 +223,7 @@ pub fn get_search_bundle(
             let proximate_dataset_mount = &dataset_collection.proximate_dataset_mount;
 
             let (snapshot_dir, relative_path, snapshot_mounts, fs_type) = match &config.snap_point {
-                SnapPoint::UserDefined(defined_dirs) => {
+                SnapCollection::UserDefined(defined_dirs) => {
                     let (snapshot_dir, fs_type) = match &defined_dirs.fs_type {
                         FilesystemType::Zfs => (
                             dataset_of_interest.join(ZFS_SNAPSHOT_DIRECTORY),
@@ -243,7 +243,7 @@ pub fn get_search_bundle(
 
                     (snapshot_dir, relative_path, snapshot_mounts, fs_type)
                 }
-                SnapPoint::Native(native_datasets) => {
+                SnapCollection::Native(native_datasets) => {
                     // this prefix removal is why we always need the proximate dataset name, even when we are searching an alternate replicated filesystem
 
                     // building the snapshot path from our dataset
@@ -408,7 +408,7 @@ fn get_versions_per_dataset(
     };
 
     let unique_versions: HashMap<(SystemTime, u64), PathData> = match &config.snap_point {
-        SnapPoint::Native(_) => {
+        SnapCollection::Native(_) => {
             match snapshot_mounts {
                 Some(snap_mounts) => versions_from_snap_mounts(snap_mounts, relative_path)?,
                 // snap mounts is empty
@@ -421,7 +421,9 @@ fn get_versions_per_dataset(
                 }
             }
         }
-        SnapPoint::UserDefined(_) => versions_from_read_dir(snapshot_dir, relative_path, fs_type)?,
+        SnapCollection::UserDefined(_) => {
+            versions_from_read_dir(snapshot_dir, relative_path, fs_type)?
+        }
     };
 
     let mut vec_pathdata: Vec<PathData> =

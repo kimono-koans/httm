@@ -25,7 +25,7 @@ use crate::utility::{timestamp_file, HttmError, PathData};
 use crate::versions_lookup::{get_mounts_for_files, NativeDatasetType};
 use crate::Config;
 
-use crate::{FilesystemType, SnapPoint};
+use crate::{FilesystemType, SnapCollection};
 
 pub fn take_snapshot(
     config: &Config,
@@ -40,7 +40,7 @@ pub fn take_snapshot(
 
         let res_snapshot_names: Result<Vec<String>, HttmError> = mounts_for_files.iter().map(|mount| {
             let dataset: String = match &config.snap_point {
-                SnapPoint::Native(native_datasets) => {
+                SnapCollection::Native(native_datasets) => {
                     match native_datasets.map_of_datasets.get(&mount.path_buf) {
                         Some((dataset, fs_type)) => {
                             if let FilesystemType::Zfs = fs_type {
@@ -52,7 +52,7 @@ pub fn take_snapshot(
                         None => return Err(HttmError::new("httm was unable to parse dataset from mount!")),
                     }
                 }
-                SnapPoint::UserDefined(_) => return Err(HttmError::new("httm does not currently support snapshot-ing user defined mount points.")),
+                SnapCollection::UserDefined(_) => return Err(HttmError::new("httm does not currently support snapshot-ing user defined mount points.")),
             }?;
 
             let snapshot_name = format!(

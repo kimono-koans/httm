@@ -28,7 +28,7 @@ use crate::versions_lookup::{
     get_datasets_for_search, get_search_bundle, prep_lookup_read_dir, NativeDatasetType,
     SearchBundle,
 };
-use crate::{AHashMapSpecial as HashMap, Config, FilesystemType, SnapPoint};
+use crate::{AHashMapSpecial as HashMap, Config, FilesystemType, SnapCollection};
 
 pub fn get_unique_deleted(
     config: &Config,
@@ -162,7 +162,7 @@ fn get_deleted_per_dataset(
     };
 
     let unique_snap_filenames: HashMap<OsString, BasicDirEntryInfo> = match &config.snap_point {
-        SnapPoint::Native(_) => match snapshot_mounts {
+        SnapCollection::Native(_) => match snapshot_mounts {
             Some(snap_mounts) => snap_filenames_from_snap_mounts(snap_mounts, relative_path)?,
             None => {
                 return Err(HttmError::new(
@@ -172,7 +172,7 @@ fn get_deleted_per_dataset(
                 .into());
             }
         },
-        SnapPoint::UserDefined(_) => {
+        SnapCollection::UserDefined(_) => {
             snap_filenames_from_read_dir(snapshot_dir, relative_path, fs_type)?
         }
     };

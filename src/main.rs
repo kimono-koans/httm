@@ -96,7 +96,7 @@ enum DeletedMode {
 }
 
 #[derive(Debug, Clone)]
-enum SnapPoint {
+enum SnapCollection {
     Native(NativeDatasets),
     UserDefined(UserDefinedDirs),
 }
@@ -315,7 +315,7 @@ pub struct Config {
     opt_overwrite: bool,
     opt_common_snap_dir: Option<PathBuf>,
     exec_mode: ExecMode,
-    snap_point: SnapPoint,
+    snap_point: SnapCollection,
     deleted_mode: DeletedMode,
     interactive_mode: InteractiveMode,
     pwd: PathData,
@@ -607,7 +607,7 @@ impl Config {
                 // always set opt_alt_replicated to false in UserDefinedDirs mode
                 false,
                 opt_common_snap_dir,
-                SnapPoint::UserDefined(UserDefinedDirs {
+                SnapCollection::UserDefined(UserDefinedDirs {
                     snap_dir,
                     local_dir,
                     fs_type,
@@ -629,7 +629,7 @@ impl Config {
             (
                 matches.is_present("ALT_REPLICATED"),
                 opt_common_snap_dir,
-                SnapPoint::Native(NativeDatasets {
+                SnapCollection::Native(NativeDatasets {
                     map_of_datasets,
                     map_of_snaps,
                     opt_map_of_alts,
