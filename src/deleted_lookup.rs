@@ -25,7 +25,8 @@ use itertools::Itertools;
 
 use crate::utility::{BasicDirEntryInfo, HttmError, PathData};
 use crate::versions_lookup::{
-    get_datasets_for_search, get_search_bundle, prep_read_dir, NativeDatasetType, SearchBundle,
+    get_datasets_for_search, get_search_bundle, prep_lookup_read_dir, NativeDatasetType,
+    SearchBundle,
 };
 use crate::{AHashMapSpecial as HashMap, Config, FilesystemType, SnapPoint};
 
@@ -121,7 +122,7 @@ fn get_deleted_per_dataset(
         HashMap<OsString, BasicDirEntryInfo>,
         Box<dyn std::error::Error + Send + Sync + 'static>,
     > {
-        let unique_snap_filenames = prep_read_dir(snapshot_dir, relative_path, fs_type)?
+        let unique_snap_filenames = prep_lookup_read_dir(snapshot_dir, relative_path, fs_type)?
             .iter()
             .flat_map(|joined_path| read_dir(&joined_path))
             .flatten()

@@ -370,7 +370,7 @@ fn get_versions_per_dataset(
         HashMap<(SystemTime, u64), PathData>,
         Box<dyn std::error::Error + Send + Sync + 'static>,
     > {
-        let unique_versions = prep_read_dir(snapshot_dir, relative_path, fs_type)?
+        let unique_versions = prep_lookup_read_dir(snapshot_dir, relative_path, fs_type)?
             .par_iter()
             .map(|joined_path| PathData::from(joined_path.as_path()))
             .filter(|pathdata| !pathdata.is_phantom)
@@ -432,7 +432,7 @@ fn get_versions_per_dataset(
     Ok(vec_pathdata)
 }
 
-pub fn prep_read_dir(
+pub fn prep_lookup_read_dir(
     snapshot_dir: &Path,
     relative_path: &Path,
     fs_type: &FilesystemType,
