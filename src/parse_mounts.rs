@@ -348,24 +348,30 @@ fn precompute_zfs_snap_mounts(
     }
 }
 
-// ask what type of system are we on: all ZFS or do we have some btrfs mounts
 // if we have some btrfs mounts, we check to see if there is a snap directory in common
 // so we can hide that common path from searches later
 pub fn get_common_snap_dir(
     map_of_datasets: &HashMap<PathBuf, (String, FilesystemType)>,
     map_of_snaps: &HashMap<PathBuf, Vec<PathBuf>>,
 ) -> Option<PathBuf> {
-    let opt_snapshot_dir = if map_of_datasets
+    let btrfs_datasets: Vec<&PathBuf> = map_of_datasets
         .par_iter()
-        .any(|(_mount, (_dataset, fstype))| fstype == &FilesystemType::Btrfs)
-    {
-        let vec_snaps: Vec<&PathBuf> = map_of_snaps.values().flatten().collect();
+        .filter(|(_mount, (_dataset, fstype))| fstype == &FilesystemType::Btrfs)
+        .map(|(mount, (_dataset, _fstype))| mount)
+        .collect();
+
+    if !btrfs_datasets.is_empty() {
+        let vec_snaps: Vec<&PathBuf> = btrfs_datasets
+            .into_par_iter()
+            .map(|mount| map_of_snaps.get(mount))
+            .flatten()
+            .flatten()
+            .collect();
+
         get_common_path(vec_snaps)
     } else {
         // since snapshots ZFS reside on multiple datasets
         // never have a common snap path
         None
-    };
-
-    opt_snapshot_dir
+    }
 }
