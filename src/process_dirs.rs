@@ -43,7 +43,7 @@ pub fn display_recursive_wrapper(
 
     match &config.requested_dir {
         Some(requested_dir) => {
-            recursive_exec(config_clone, &dummy_tx_item, &requested_dir.path_buf)?;
+            process_dirs_exec(config_clone, &dummy_tx_item, &requested_dir.path_buf)?;
         }
         None => {
             return Err(HttmError::new(
@@ -62,7 +62,7 @@ pub fn display_recursive_wrapper(
     std::process::exit(0)
 }
 
-pub fn recursive_exec(
+pub fn process_dirs_exec(
     config: Arc<Config>,
     tx_item: &SkimItemSender,
     requested_dir: &Path,
@@ -140,7 +140,7 @@ fn enumerate_live_versions(
             };
 
             // is_phantom is false because these are known live entries
-            process_entries(config.clone(), entries, false, tx_item)?;
+            display_or_transmit(config.clone(), entries, false, tx_item)?;
         }
     }
 
@@ -250,7 +250,7 @@ fn enumerate_deleted(
         get_pseudo_live_versions(entries, requested_dir);
 
     // know this is_phantom because we know it is deleted
-    process_entries(config, pseudo_live_versions, true, tx_item)?;
+    display_or_transmit(config, pseudo_live_versions, true, tx_item)?;
 
     Ok(())
 }
@@ -289,7 +289,7 @@ fn get_entries_behind_deleted_dir(
             get_pseudo_live_versions(entries, pseudo_live_dir);
 
         // know this is_phantom because we know it is deleted
-        process_entries(config.clone(), pseudo_live_versions, true, tx_item)?;
+        display_or_transmit(config.clone(), pseudo_live_versions, true, tx_item)?;
 
         // now recurse!
         vec_dirs.into_iter().for_each(|basic_dir_entry_info| {
@@ -336,7 +336,7 @@ fn get_pseudo_live_versions(
         .collect()
 }
 
-fn process_entries(
+fn display_or_transmit(
     config: Arc<Config>,
     entries: Vec<BasicDirEntryInfo>,
     is_phantom: bool,

@@ -21,7 +21,7 @@ use lscolors::Colorable;
 use skim::prelude::*;
 
 use crate::display::display_exec;
-use crate::process_dirs::recursive_exec;
+use crate::process_dirs::process_dirs_exec;
 use crate::utility::{copy_recursive, paint_string, timestamp_file, HttmError, PathData};
 use crate::versions_lookup::versions_lookup_exec;
 use crate::{Config, DeletedMode, ExecMode, InteractiveMode};
@@ -188,7 +188,7 @@ fn browse_view(
 
     // thread spawn fn enumerate_directory - permits recursion into dirs without blocking
     thread::spawn(move || {
-        let _ = recursive_exec(arc_config, &tx_item, &requested_dir_clone);
+        let _ = process_dirs_exec(arc_config, &tx_item, &requested_dir_clone);
     });
 
     // create the skim component for previews
