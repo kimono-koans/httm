@@ -264,7 +264,7 @@ fn interactive_select(
             // same stuff we do at fn exec, snooze...
             let selection_buffer = display_exec(config, snaps_and_live_set)?;
             // get the file name, and get ready to do some file ops!!
-            let requested_file_name = select_restore_view(selection_buffer, false)?;
+            let requested_file_name = select_restore_view(&selection_buffer, false)?;
             // ... we want everything between the quotes
             let broken_string: Vec<_> = requested_file_name.split_terminator('"').collect();
             // ... and the file is the 2nd item or the indexed "1" object
@@ -286,7 +286,7 @@ fn interactive_select(
 }
 
 fn select_restore_view(
-    preview_buffer: String,
+    preview_buffer: &String,
     reverse: bool,
 ) -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // build our browse view - less to do than before - no previews, looking through one 'lil buffer
@@ -308,7 +308,7 @@ fn select_restore_view(
     let item_reader_opts = SkimItemReaderOption::default().ansi(true);
     let item_reader = SkimItemReader::new(item_reader_opts);
 
-    let items = item_reader.of_bufread(Cursor::new(preview_buffer));
+    let items = item_reader.of_bufread(Cursor::new(preview_buffer.to_owned()));
 
     // run_with() reads and shows items from the thread stream created above
     let selected_items = if let Some(output) = Skim::run_with(&skim_opts, Some(items)) {
@@ -414,26 +414,38 @@ fn interactive_restore(
         snap_pathdata.path_buf, new_file_path_buf
     );
 
-    let user_consent = select_restore_view(preview_buffer, true)?;
+    let mut user_consent = select_restore_view(&preview_buffer, true)?;
 
-    if user_consent == "YES" {
-        match copy_recursive(&snap_pathdata.path_buf, &new_file_path_buf) {
-            Ok(_) => {
-                let result_buffer = format!(
-                    "httm copied a file from a ZFS snapshot:\n\n\
-                    \tfrom: {:?}\n\
-                    \tto:   {:?}\n\n\
-                    Restore completed successfully.",
-                    snap_pathdata.path_buf, new_file_path_buf
-                );
-                eprintln!("{}", result_buffer);
+    loop {
+        let user_consent_formatted = user_consent.to_ascii_uppercase();
+
+        if matches!(user_consent_formatted.as_ref(), "YES" | "Y") {
+            match copy_recursive(&snap_pathdata.path_buf, &new_file_path_buf) {
+                Ok(_) => {
+                    let result_buffer = format!(
+                        "httm copied a file from a ZFS snapshot:\n\n\
+                        \tfrom: {:?}\n\
+                        \tto:   {:?}\n\n\
+                        Restore completed successfully.",
+                        snap_pathdata.path_buf, new_file_path_buf
+                    );
+                    eprintln!("{}", result_buffer);
+                }
+                Err(err) => {
+                    return Err(HttmError::with_context(
+                        "httm restore failed for the following reason",
+                        Box::new(err),
+                    )
+                    .into());
+                }
             }
-            Err(err) => {
-                return Err(HttmError::with_context("httm restore failed: ", Box::new(err)).into());
-            }
+            break;
+        } else if matches!(user_consent_formatted.as_ref(), "NO" | "N") {
+            eprintln!("User declined restore.  No files were restored.");
+            break;
+        } else {
+            user_consent = select_restore_view(&preview_buffer, true)?;
         }
-    } else {
-        eprintln!("User declined.  No files were restored.");
     }
 
     std::process::exit(0)
