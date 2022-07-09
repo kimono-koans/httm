@@ -442,7 +442,6 @@ pub fn prep_lookup_read_dir(
         FilesystemType::Zfs => snapshot_dir.to_path_buf(),
     })?
     .flatten()
-    .par_bridge()
     .map(|entry| match fs_type {
         FilesystemType::Btrfs => entry.path().join(BTRFS_SNAPPER_SUFFIX),
         FilesystemType::Zfs => entry.path(),
