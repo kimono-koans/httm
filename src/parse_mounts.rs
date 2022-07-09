@@ -22,7 +22,7 @@ use rayon::prelude::*;
 use which::which;
 
 use crate::utility::{get_common_path, HttmError};
-use crate::versions_lookup::get_alt_replicated_datasets;
+use crate::versions_lookup::DatasetsForSearch;
 use crate::{
     AHashMapSpecial as HashMap, FilesystemType, AFP_FSTYPE, BTRFS_FSTYPE,
     BTRFS_SNAPPER_HIDDEN_DIRECTORY, NFS_FSTYPE, SMB_FSTYPE, ZFS_FSTYPE, ZFS_SNAPSHOT_DIRECTORY,
@@ -134,42 +134,6 @@ fn parse_from_proc_mounts() -> Result<
     }
 }
 
-// fans out precompute of snap mounts to the appropriate function based on fstype
-fn precompute_snap_mounts(
-    map_of_datasets: &HashMap<PathBuf, (String, FilesystemType)>,
-) -> HashMap<PathBuf, Vec<PathBuf>> {
-    let opt_root_mount_path: Option<&PathBuf> =
-        map_of_datasets
-            .par_iter()
-            .find_map_first(|(mount, (dataset, fstype))| match fstype {
-                FilesystemType::Btrfs => {
-                    if dataset.as_str() == "/" {
-                        Some(mount)
-                    } else {
-                        None
-                    }
-                }
-                FilesystemType::Zfs => None,
-            });
-
-    let map_of_snaps: HashMap<PathBuf, Vec<PathBuf>> = map_of_datasets
-        .par_iter()
-        .flat_map(|(mount, (_dataset, fstype))| {
-            let snap_mounts = match fstype {
-                FilesystemType::Zfs => precompute_zfs_snap_mounts(mount),
-                FilesystemType::Btrfs => match opt_root_mount_path {
-                    Some(root_mount_path) => precompute_btrfs_snap_mounts(mount, root_mount_path),
-                    None => Err(HttmError::new("No btrfs root mount found on this system.").into()),
-                },
-            };
-
-            snap_mounts.map(|snap_mounts| (mount.clone(), snap_mounts))
-        })
-        .collect();
-
-    map_of_snaps
-}
-
 // old fashioned parsing for non-Linux systems, nearly as fast, works everywhere with a mount command
 // both methods are much faster than using zfs command
 #[allow(clippy::type_complexity)]
@@ -252,6 +216,42 @@ fn parse_from_mount_cmd() -> Result<
     }
 }
 
+// fans out precompute of snap mounts to the appropriate function based on fstype
+fn precompute_snap_mounts(
+    map_of_datasets: &HashMap<PathBuf, (String, FilesystemType)>,
+) -> HashMap<PathBuf, Vec<PathBuf>> {
+    let opt_root_mount_path: Option<&PathBuf> =
+        map_of_datasets
+            .par_iter()
+            .find_map_first(|(mount, (dataset, fstype))| match fstype {
+                FilesystemType::Btrfs => {
+                    if dataset.as_str() == "/" {
+                        Some(mount)
+                    } else {
+                        None
+                    }
+                }
+                FilesystemType::Zfs => None,
+            });
+
+    let map_of_snaps: HashMap<PathBuf, Vec<PathBuf>> = map_of_datasets
+        .par_iter()
+        .flat_map(|(mount, (_dataset, fstype))| {
+            let snap_mounts = match fstype {
+                FilesystemType::Zfs => precompute_zfs_snap_mounts(mount),
+                FilesystemType::Btrfs => match opt_root_mount_path {
+                    Some(root_mount_path) => precompute_btrfs_snap_mounts(mount, root_mount_path),
+                    None => Err(HttmError::new("No btrfs root mount found on this system.").into()),
+                },
+            };
+
+            snap_mounts.map(|snap_mounts| (mount.clone(), snap_mounts))
+        })
+        .collect();
+
+    map_of_snaps
+}
+
 // instead of looking up, precompute possible alt replicated mounts before exec
 pub fn precompute_alt_replicated(
     map_of_datasets: &HashMap<PathBuf, (String, FilesystemType)>,
@@ -268,6 +268,42 @@ pub fn precompute_alt_replicated(
             )
         })
         .collect()
+}
+
+fn get_alt_replicated_datasets(
+    proximate_dataset_mount: &Path,
+    map_of_datasets: &HashMap<PathBuf, (String, FilesystemType)>,
+) -> Result<DatasetsForSearch, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    let proximate_dataset_fsname = match &map_of_datasets.get(proximate_dataset_mount) {
+        Some((proximate_dataset_fsname, _)) => proximate_dataset_fsname.clone(),
+        None => {
+            return Err(HttmError::new("httm was unable to detect an alternate replicated mount point.  Perhaps the replicated filesystem is not mounted?").into());
+        }
+    };
+
+    // find a filesystem that ends with our most local filesystem name
+    // but which has a prefix, like a different pool name: rpool might be
+    // replicated to tank/rpool
+    let mut alt_replicated_mounts: Vec<PathBuf> = map_of_datasets
+        .par_iter()
+        .filter(|(_mount, (fs_name, _fstype))| {
+            fs_name != &proximate_dataset_fsname
+                && fs_name.ends_with(proximate_dataset_fsname.as_str())
+        })
+        .map(|(mount, _fsname)| mount)
+        .cloned()
+        .collect();
+
+    if alt_replicated_mounts.is_empty() {
+        // could not find the any replicated mounts
+        Err(HttmError::new("httm was unable to detect an alternate replicated mount point.  Perhaps the replicated filesystem is not mounted?").into())
+    } else {
+        alt_replicated_mounts.sort_unstable_by_key(|path| path.as_os_str().len());
+        Ok(DatasetsForSearch {
+            proximate_dataset_mount: proximate_dataset_mount.to_path_buf(),
+            datasets_of_interest: alt_replicated_mounts,
+        })
+    }
 }
 
 // build paths to all snap mounts
