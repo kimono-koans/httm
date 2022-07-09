@@ -27,11 +27,11 @@ use indicatif::ProgressBar;
 use rayon::{prelude::*, Scope};
 use skim::prelude::*;
 
-use crate::deleted_lookup::get_unique_deleted;
+use crate::deleted_lookup::deleted_lookup_exec;
 use crate::display::display_exec;
 use crate::interactive::SelectionCandidate;
 use crate::utility::{httm_is_dir, BasicDirEntryInfo, HttmError, PathData};
-use crate::versions_lookup::get_versions_set;
+use crate::versions_lookup::versions_lookup_exec;
 use crate::{Config, DeletedMode, ExecMode, BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_HIDDEN_DIRECTORY};
 
 pub fn display_recursive_wrapper(
@@ -213,7 +213,7 @@ fn enumerate_deleted(
     tx_item: &SkimItemSender,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     // obtain all unique deleted, policy is one version for each file, latest in time
-    let deleted = get_unique_deleted(&config, requested_dir)?;
+    let deleted = deleted_lookup_exec(&config, requested_dir)?;
 
     // combined entries will be sent or printed, but we need the vec_dirs to recurse
     let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) = deleted
@@ -394,7 +394,7 @@ fn print_deleted_recursive(
         .map(|basic_dir_entry_info| PathData::from(basic_dir_entry_info.path.as_path()))
         .collect();
 
-    let snaps_and_live_set = get_versions_set(&config, &pseudo_live_set)?;
+    let snaps_and_live_set = versions_lookup_exec(&config, &pseudo_live_set)?;
 
     let output_buf = display_exec(&config, snaps_and_live_set)?;
     println!("{}", output_buf);

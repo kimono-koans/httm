@@ -31,7 +31,7 @@ use crate::{
 // divide by the type of system we are on
 // Linux allows us the read proc mounts
 #[allow(clippy::type_complexity)]
-pub fn get_filesystems_list() -> Result<
+pub fn parse_mounts_exec() -> Result<
     (
         HashMap<PathBuf, (String, FilesystemType)>,
         HashMap<PathBuf, Vec<PathBuf>>,

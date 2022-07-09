@@ -48,7 +48,7 @@ pub struct SearchBundle {
     pub snapshot_mounts: Option<Vec<PathBuf>>,
 }
 
-pub fn get_versions_set(
+pub fn versions_lookup_exec(
     config: &Config,
     vec_pathdata: &Vec<PathData>,
 ) -> Result<[Vec<PathData>; 2], Box<dyn std::error::Error + Send + Sync + 'static>> {

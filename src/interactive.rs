@@ -23,7 +23,7 @@ use skim::prelude::*;
 use crate::display::display_exec;
 use crate::process_dirs::recursive_exec;
 use crate::utility::{copy_recursive, paint_string, timestamp_file, HttmError, PathData};
-use crate::versions_lookup::get_versions_set;
+use crate::versions_lookup::versions_lookup_exec;
 use crate::{Config, DeletedMode, ExecMode, InteractiveMode};
 
 // these represent to items ready for selection and preview
@@ -80,7 +80,7 @@ impl SelectionCandidate {
         };
 
         // finally run search on those paths
-        let snaps_and_live_set = get_versions_set(&gen_config, &gen_config.paths)?;
+        let snaps_and_live_set = versions_lookup_exec(&gen_config, &gen_config.paths)?;
         // and display
         let output_buf = display_exec(&gen_config, snaps_and_live_set)?;
 
@@ -231,7 +231,7 @@ fn interactive_select(
     config: &Config,
     vec_paths: &Vec<PathData>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let snaps_and_live_set = get_versions_set(config, vec_paths)?;
+    let snaps_and_live_set = versions_lookup_exec(config, vec_paths)?;
 
     let path_string = match config.exec_mode {
         ExecMode::LastSnap(request_relative) => {
@@ -352,7 +352,7 @@ fn interactive_restore(
         // corner case: what if multiple selected paths had the same file name,
         // but were in different directories? let's make sure we have only one match
         let opt_og_pathdata = vec_paths.iter().find_map(|pathdata| {
-            match get_versions_set(config, &vec![pathdata.clone()]).ok() {
+            match versions_lookup_exec(config, &vec![pathdata.clone()]).ok() {
                 // safe to index into snaps, known len of 2 for set
                 Some(pathdata_set) => pathdata_set[0].iter().find_map(|pathdata| {
                     if pathdata == &snap_pathdata {

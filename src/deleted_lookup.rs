@@ -30,7 +30,7 @@ use crate::versions_lookup::{
 };
 use crate::{AHashMapSpecial as HashMap, Config, FilesystemType, SnapCollection};
 
-pub fn get_unique_deleted(
+pub fn deleted_lookup_exec(
     config: &Config,
     requested_dir: &Path,
 ) -> Result<Vec<BasicDirEntryInfo>, Box<dyn std::error::Error + Send + Sync + 'static>> {
