@@ -346,7 +346,7 @@ fn display_or_transmit(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     // send to the interactive view, or print directly, never return back
     match config.exec_mode {
-        ExecMode::Interactive => send_entries(config, entries, is_phantom, tx_item)?,
+        ExecMode::Interactive => transmit_entries(config, entries, is_phantom, tx_item)?,
         ExecMode::DisplayRecursive => {
             // passing a progress bar through multiple functions is a pain, and since we only need a global,
             // here we just create a static progress bar for Display Recursive mode
@@ -357,7 +357,7 @@ fn display_or_transmit(
             if entries.is_empty() {
                 PROGRESS_BAR.tick();
             } else {
-                print_deleted_recursive(config.clone(), entries)?;
+                print_display_recursive(config.clone(), entries)?;
             }
         }
         _ => unreachable!(),
@@ -366,7 +366,7 @@ fn display_or_transmit(
     Ok(())
 }
 
-fn send_entries(
+fn transmit_entries(
     config: Arc<Config>,
     entries: Vec<BasicDirEntryInfo>,
     is_phantom: bool,
@@ -387,7 +387,7 @@ fn send_entries(
     Ok(())
 }
 
-fn print_deleted_recursive(
+fn print_display_recursive(
     config: Arc<Config>,
     entries: Vec<BasicDirEntryInfo>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
