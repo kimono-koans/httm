@@ -82,7 +82,7 @@ impl SelectionCandidate {
         // finally run search on those paths
         let snaps_and_live_set = versions_lookup_exec(&gen_config, &gen_config.paths)?;
         // and display
-        let output_buf = display_exec(&gen_config, snaps_and_live_set)?;
+        let output_buf = display_exec(&gen_config, &snaps_and_live_set)?;
 
         Ok(output_buf)
     }
@@ -136,7 +136,7 @@ impl SkimItem for SelectionCandidate {
 pub fn interactive_exec(
     config: &Config,
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let vec_pathdata = match &config.requested_dir {
+    let mut vec_pathdata = match &config.requested_dir {
         // collect string paths from what we get from lookup_view
         Some(requested_dir) => browse_view(config, requested_dir)?
             .into_iter()
@@ -160,16 +160,30 @@ pub fn interactive_exec(
         }
     };
 
+    // loop until user selects a valid path
+    loop {
+        if vec_pathdata.is_empty() {
+            vec_pathdata = browse_view(
+                config,
+                config
+                    .requested_dir
+                    .as_ref()
+                    .expect("requested_dir should be known to be a Some value here"),
+            )?
+            .into_iter()
+            .map(|path_string| PathData::from(Path::new(&path_string)))
+            .collect::<Vec<PathData>>();
+        } else {
+            break;
+        }
+    }
+
     // do we return back to our main exec function to print,
     // or continue down the interactive rabbit hole?
     match config.interactive_mode {
         InteractiveMode::Restore | InteractiveMode::Select => {
-            if vec_pathdata.is_empty() {
-                Err(HttmError::new("Invalid value selected. Quitting.").into())
-            } else {
-                interactive_select(config, &vec_pathdata)?;
-                unreachable!()
-            }
+            interactive_select(config, &vec_pathdata)?;
+            unreachable!()
         }
         // InteractiveMode::Browse executes back through fn exec() in main.rs
         InteractiveMode::Browse => Ok(vec_pathdata),
@@ -262,17 +276,36 @@ fn interactive_select(
         }
         _ => {
             // same stuff we do at fn exec, snooze...
-            let selection_buffer = display_exec(config, snaps_and_live_set)?;
-            // get the file name, and get ready to do some file ops!!
-            let requested_file_name = select_restore_view(&selection_buffer, false)?;
-            // ... we want everything between the quotes
-            let broken_string: Vec<_> = requested_file_name.split_terminator('"').collect();
-            // ... and the file is the 2nd item or the indexed "1" object
-            if let Some(path_string) = broken_string.get(1) {
-                path_string.to_string()
-            } else {
-                return Err(HttmError::new("Invalid value selected. Quitting.").into());
+            let selection_buffer = display_exec(config, &snaps_and_live_set)?;
+            // get the file name
+            let mut requested_file_name = select_restore_view(&selection_buffer, false)?;
+            let res_path_string;
+
+            // loop until user selects snapshot version
+            loop {
+                // ... we want everything between the quotes
+                let broken_string: Vec<_> = requested_file_name.split_terminator('"').collect();
+                // ... and the file is the 2nd item or the indexed "1" object
+                match broken_string.get(1) {
+                    Some(path_from_string) => {
+                        if snaps_and_live_set[1].iter().any(|pathdata| {
+                            pathdata == &PathData::from(Path::new(path_from_string))
+                        }) {
+                            // Cannot select a 'live' version.  Select another value.
+                            requested_file_name = select_restore_view(&selection_buffer, false)?;
+                        } else {
+                            res_path_string = path_from_string.to_string();
+                            break;
+                        }
+                    }
+                    None => {
+                        // Invalid value selected. Select another value.
+                        requested_file_name = select_restore_view(&selection_buffer, false)?;
+                    }
+                }
             }
+
+            res_path_string
         }
     };
 
@@ -416,6 +449,7 @@ fn interactive_restore(
 
     let mut user_consent = select_restore_view(&preview_buffer, true)?;
 
+    // loop until user consents or doesn't
     loop {
         let user_consent_formatted = user_consent.to_ascii_uppercase();
 

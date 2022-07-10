@@ -398,7 +398,7 @@ fn print_display_recursive(
 
     let snaps_and_live_set = versions_lookup_exec(&config, &pseudo_live_set)?;
 
-    let output_buf = display_exec(&config, snaps_and_live_set)?;
+    let output_buf = display_exec(&config, &snaps_and_live_set)?;
     println!("{}", output_buf);
 
     Ok(())

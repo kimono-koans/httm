@@ -696,7 +696,7 @@ fn exec() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     };
 
     // and display
-    let output_buf = display_exec(&config, snaps_and_live_set)?;
+    let output_buf = display_exec(&config, &snaps_and_live_set)?;
     print!("{}", output_buf);
 
     Ok(())
