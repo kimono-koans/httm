@@ -279,11 +279,12 @@ fn interactive_select(
                 // ... and the file is the 2nd item or the indexed "1" object
                 match broken_string.get(1) {
                     Some(path_from_string) => {
+                        // Cannot select a 'live' version.  Select another value.
                         if snaps_and_live_set[1].iter().any(|pathdata| {
                             pathdata == &PathData::from(Path::new(path_from_string))
                         }) {
-                            // Cannot select a 'live' version.  Select another value.
                             requested_file_name = select_restore_view(&selection_buffer, false)?;
+                        // return valid value
                         } else {
                             res_path_string = path_from_string.to_string();
                             break;
