@@ -139,17 +139,17 @@ pub fn interactive_exec(
     let vec_pathdata = match &config.requested_dir {
         // collect string paths from what we get from lookup_view
         Some(requested_dir) => {
-            let mut vec_pathdata = Vec::new();
+            let mut res_pathdata = Vec::new();
 
             // loop until user selects a valid path
-            while vec_pathdata.is_empty() {
-                vec_pathdata = browse_view(config, requested_dir)?
+            while res_pathdata.is_empty() {
+                res_pathdata = browse_view(config, requested_dir)?
                     .into_iter()
                     .map(|path_string| PathData::from(Path::new(&path_string)))
                     .collect::<Vec<PathData>>();
             }
 
-            vec_pathdata
+            res_pathdata
         }
         None => {
             // go to interactive_select early if user has already requested a file
