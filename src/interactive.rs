@@ -136,12 +136,24 @@ impl SkimItem for SelectionCandidate {
 pub fn interactive_exec(
     config: &Config,
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let mut vec_pathdata = match &config.requested_dir {
+    let vec_pathdata = match &config.requested_dir {
         // collect string paths from what we get from lookup_view
-        Some(requested_dir) => browse_view(config, requested_dir)?
-            .into_iter()
-            .map(|path_string| PathData::from(Path::new(&path_string)))
-            .collect::<Vec<PathData>>(),
+        Some(requested_dir) => {
+            let mut vec_pathdata = Vec::new();
+
+            // loop until user selects a valid path
+            while vec_pathdata.is_empty() {
+                vec_pathdata = browse_view(
+                    config,
+                    requested_dir
+                )?
+                .into_iter()
+                .map(|path_string| PathData::from(Path::new(&path_string)))
+                .collect::<Vec<PathData>>();
+            }
+
+            vec_pathdata
+        },
         None => {
             // go to interactive_select early if user has already requested a file
             // and we are in the appropriate mode Select or Restore, see struct Config,
@@ -159,24 +171,6 @@ pub fn interactive_exec(
             }
         }
     };
-
-    // loop until user selects a valid path
-    loop {
-        if vec_pathdata.is_empty() {
-            vec_pathdata = browse_view(
-                config,
-                config
-                    .requested_dir
-                    .as_ref()
-                    .expect("requested_dir should be known to be a Some value here"),
-            )?
-            .into_iter()
-            .map(|path_string| PathData::from(Path::new(&path_string)))
-            .collect::<Vec<PathData>>();
-        } else {
-            break;
-        }
-    }
 
     // do we return back to our main exec function to print,
     // or continue down the interactive rabbit hole?
