@@ -143,17 +143,14 @@ pub fn interactive_exec(
 
             // loop until user selects a valid path
             while vec_pathdata.is_empty() {
-                vec_pathdata = browse_view(
-                    config,
-                    requested_dir
-                )?
-                .into_iter()
-                .map(|path_string| PathData::from(Path::new(&path_string)))
-                .collect::<Vec<PathData>>();
+                vec_pathdata = browse_view(config, requested_dir)?
+                    .into_iter()
+                    .map(|path_string| PathData::from(Path::new(&path_string)))
+                    .collect::<Vec<PathData>>();
             }
 
             vec_pathdata
-        },
+        }
         None => {
             // go to interactive_select early if user has already requested a file
             // and we are in the appropriate mode Select or Restore, see struct Config,
