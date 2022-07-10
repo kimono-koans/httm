@@ -24,7 +24,7 @@ use std::{
 };
 
 use indicatif::ProgressBar;
-use rayon::{prelude::*, Scope};
+use rayon::{prelude::*, Scope, ThreadPool};
 use skim::prelude::*;
 
 use crate::deleted_lookup::deleted_lookup_exec;
@@ -33,6 +33,19 @@ use crate::interactive::SelectionCandidate;
 use crate::utility::{httm_is_dir, BasicDirEntryInfo, HttmError, PathData};
 use crate::versions_lookup::versions_lookup_exec;
 use crate::{Config, DeletedMode, ExecMode, BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_HIDDEN_DIRECTORY};
+
+// default stack size for rayon threads spawned to handle enumerate_deleted
+// here set at 1MB (the Linux default is 8MB) to avoid a stack overflow with the Rayon default
+const DEFAULT_STACK_SIZE: usize = 1048576;
+
+// build thread pool with a stack size large enough to avoid a stack overflow
+// this will be our one threadpool for directory enumeration ops
+lazy_static! {
+    static ref THREAD_POOL: ThreadPool = rayon::ThreadPoolBuilder::new()
+        .stack_size(DEFAULT_STACK_SIZE)
+        .build()
+        .expect("Could not initialize rayon threadpool for recursive search");
+}
 
 pub fn display_recursive_wrapper(
     config: &Config,
@@ -67,22 +80,12 @@ pub fn process_dirs_exec(
     tx_item: &SkimItemSender,
     requested_dir: &Path,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    // default stack size for rayon threads spawned to handle enumerate_deleted
-    // here set at 1MB (the Linux default is 8MB) to avoid a stack overflow with the Rayon default
-    const DEFAULT_STACK_SIZE: usize = 1048576;
-
-    // build thread pool with a stack size large enough to avoid a stack overflow
-    let thread_pool = rayon::ThreadPoolBuilder::new()
-        .stack_size(DEFAULT_STACK_SIZE)
-        .build()
-        .expect("Could not initialize rayon threadpool for recursive search");
-
     // pass this thread_pool's scope to enumerate_directory, and spawn threads from within this scope
     //
     // "in_place_scope" means don't spawn another thread, we already have a new system thread for this
     // scope
-    thread_pool.in_place_scope(|scope| {
-        let _ = enumerate_live_versions(config, tx_item, requested_dir, scope);
+    THREAD_POOL.in_place_scope(|deleted_scope| {
+        let _ = enumerate_live_versions(config, tx_item, requested_dir, deleted_scope);
     });
 
     Ok(())
@@ -92,7 +95,7 @@ fn enumerate_live_versions(
     config: Arc<Config>,
     tx_item: &SkimItemSender,
     requested_dir: &Path,
-    scope: &Scope,
+    deleted_scope: &Scope,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     // combined entries will be sent or printed, but we need the vec_dirs to recurse
     let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
@@ -111,7 +114,7 @@ fn enumerate_live_versions(
                 // for all other non-disabled DeletedModes
                 DeletedMode::DepthOfOne | DeletedMode::Enabled | DeletedMode::Only => {
                     // scope guarantees that all threads finish before we exit
-                    spawn_enumerate_deleted(config.clone(), requested_dir, tx_item, scope);
+                    spawn_enumerate_deleted(config.clone(), requested_dir, tx_item, deleted_scope);
                 }
             }
         }
@@ -128,12 +131,12 @@ fn enumerate_live_versions(
                     // spawn_enumerate_deleted will send deleted files back to
                     // the main thread for us, so we can skip collecting deleted here
                     // and return an empty vec
-                    spawn_enumerate_deleted(config.clone(), requested_dir, tx_item, scope);
+                    spawn_enumerate_deleted(config.clone(), requested_dir, tx_item, deleted_scope);
                     Vec::new()
                 }
                 DeletedMode::DepthOfOne | DeletedMode::Enabled => {
                     // DepthOfOne will be handled inside enumerate_deleted
-                    spawn_enumerate_deleted(config.clone(), requested_dir, tx_item, scope);
+                    spawn_enumerate_deleted(config.clone(), requested_dir, tx_item, deleted_scope);
                     combined_vec()
                 }
                 DeletedMode::Disabled => combined_vec(),
@@ -149,7 +152,12 @@ fn enumerate_live_versions(
         // don't want a par_iter here because it will block and wait for all
         // results, instead of printing and recursing into the subsequent dirs
         vec_dirs.into_iter().for_each(move |requested_dir| {
-            let _ = enumerate_live_versions(config.clone(), tx_item, &requested_dir.path, scope);
+            let _ = enumerate_live_versions(
+                config.clone(),
+                tx_item,
+                &requested_dir.path,
+                deleted_scope,
+            );
         });
     }
 

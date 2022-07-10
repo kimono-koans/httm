@@ -15,7 +15,7 @@ maintenance = { status = "actively-developed" }
 
 [profile.release]
 strip = true
-opt-level = "z"  # Optimize for size.
+opt-level = "z"  # Aggressively optimize for size.
 lto = true
 
 [dependencies]
