@@ -139,17 +139,17 @@ pub fn interactive_exec(
     let vec_pathdata = match &config.requested_dir {
         // collect string paths from what we get from lookup_view
         Some(requested_dir) => {
-            let mut res_pathdata = Vec::new();
+            let mut res_vec = Vec::new();
 
             // loop until user selects a valid path
-            while res_pathdata.is_empty() {
-                res_pathdata = browse_view(config, requested_dir)?
+            while res_vec.is_empty() {
+                res_vec = browse_view(config, requested_dir)?
                     .into_iter()
                     .map(|path_string| PathData::from(Path::new(&path_string)))
                     .collect::<Vec<PathData>>();
             }
 
-            res_pathdata
+            res_vec
         }
         None => {
             // go to interactive_select early if user has already requested a file
@@ -278,7 +278,6 @@ fn interactive_select(
                 let broken_string: Vec<_> = requested_file_name.split_terminator('"').collect();
                 // ... and the file is the 2nd item or the indexed "1" object
                 match broken_string.get(1) {
-                    // return valid value
                     Some(path_from_string)
                         if !snaps_and_live_set[1].iter().any(|pathdata| {
                             pathdata == &PathData::from(Path::new(path_from_string))
@@ -390,10 +389,7 @@ fn interactive_restore(
         });
 
         match opt_og_pathdata {
-            Some(pathdata) => {
-                // safe to index because we know len
-                pathdata.path_buf
-            }
+            Some(pathdata) => pathdata.path_buf,
             None => {
                 return Err(HttmError::new(
                     "httm unable to determine original file path in overwrite mode.  Quitting.",
