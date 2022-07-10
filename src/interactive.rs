@@ -272,26 +272,23 @@ fn interactive_select(
             let mut requested_file_name = select_restore_view(&selection_buffer, false)?;
             let res_path_string;
 
-            // loop until user selects snapshot version
+            // loop until user selects a valid snapshot version
             loop {
                 // ... we want everything between the quotes
                 let broken_string: Vec<_> = requested_file_name.split_terminator('"').collect();
                 // ... and the file is the 2nd item or the indexed "1" object
                 match broken_string.get(1) {
-                    Some(path_from_string) => {
-                        // Cannot select a 'live' version.  Select another value.
-                        if snaps_and_live_set[1].iter().any(|pathdata| {
+                    // return valid value
+                    Some(path_from_string)
+                        if !snaps_and_live_set[1].iter().any(|pathdata| {
                             pathdata == &PathData::from(Path::new(path_from_string))
-                        }) {
-                            requested_file_name = select_restore_view(&selection_buffer, false)?;
-                        // return valid value
-                        } else {
-                            res_path_string = path_from_string.to_string();
-                            break;
-                        }
+                        }) =>
+                    {
+                        res_path_string = path_from_string.to_string();
+                        break;
                     }
-                    None => {
-                        // Invalid value selected. Select another value.
+                    // Cannot select a 'live' version or other invalid value.  Select another value.
+                    _ => {
                         requested_file_name = select_restore_view(&selection_buffer, false)?;
                     }
                 }
