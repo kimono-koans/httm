@@ -436,13 +436,11 @@ fn interactive_restore(
         snap_pathdata.path_buf, new_file_path_buf
     );
 
-    let mut user_consent = select_restore_view(&preview_buffer, true)?;
+    let mut user_consent = select_restore_view(&preview_buffer, true)?.to_ascii_uppercase();
 
     // loop until user consents or doesn't
     loop {
-        let user_consent_formatted = user_consent.to_ascii_uppercase();
-
-        match user_consent_formatted.as_ref() {
+        match user_consent.as_ref() {
             "YES" | "Y" => {
                 match copy_recursive(&snap_pathdata.path_buf, &new_file_path_buf) {
                     Ok(_) => {
@@ -470,7 +468,7 @@ fn interactive_restore(
                 break;
             }
             _ => {
-                user_consent = select_restore_view(&preview_buffer, true)?;
+                user_consent = select_restore_view(&preview_buffer, true)?.to_ascii_uppercase();
             }
         }
     }
