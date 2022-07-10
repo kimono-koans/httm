@@ -419,32 +419,36 @@ fn interactive_restore(
     loop {
         let user_consent_formatted = user_consent.to_ascii_uppercase();
 
-        if matches!(user_consent_formatted.as_ref(), "YES" | "Y") {
-            match copy_recursive(&snap_pathdata.path_buf, &new_file_path_buf) {
-                Ok(_) => {
-                    let result_buffer = format!(
-                        "httm copied a file from a ZFS snapshot:\n\n\
-                        \tfrom: {:?}\n\
-                        \tto:   {:?}\n\n\
-                        Restore completed successfully.",
-                        snap_pathdata.path_buf, new_file_path_buf
-                    );
-                    eprintln!("{}", result_buffer);
+        match user_consent_formatted.as_ref() {
+            "YES" | "Y" => {
+                match copy_recursive(&snap_pathdata.path_buf, &new_file_path_buf) {
+                    Ok(_) => {
+                        let result_buffer = format!(
+                            "httm copied a file from a ZFS snapshot:\n\n\
+                            \tfrom: {:?}\n\
+                            \tto:   {:?}\n\n\
+                            Restore completed successfully.",
+                            snap_pathdata.path_buf, new_file_path_buf
+                        );
+                        eprintln!("{}", result_buffer);
+                    }
+                    Err(err) => {
+                        return Err(HttmError::with_context(
+                            "httm restore failed for the following reason",
+                            Box::new(err),
+                        )
+                        .into());
+                    }
                 }
-                Err(err) => {
-                    return Err(HttmError::with_context(
-                        "httm restore failed for the following reason",
-                        Box::new(err),
-                    )
-                    .into());
-                }
+                break;
             }
-            break;
-        } else if matches!(user_consent_formatted.as_ref(), "NO" | "N") {
-            eprintln!("User declined restore.  No files were restored.");
-            break;
-        } else {
-            user_consent = select_restore_view(&preview_buffer, true)?;
+            "NO" | "N" => {
+                eprintln!("User declined restore.  No files were restored.");
+                break;
+            }
+            _ => {
+                user_consent = select_restore_view(&preview_buffer, true)?;
+            }
         }
     }
 
