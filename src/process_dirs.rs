@@ -34,19 +34,6 @@ use crate::utility::{httm_is_dir, BasicDirEntryInfo, HttmError, PathData};
 use crate::versions_lookup::versions_lookup_exec;
 use crate::{Config, DeletedMode, ExecMode, BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_HIDDEN_DIRECTORY};
 
-// default stack size for rayon threads spawned to handle enumerate_deleted
-// here set at 1MB (the Linux default is 8MB) to avoid a stack overflow with the Rayon default
-const DEFAULT_STACK_SIZE: usize = 1048576;
-
-// build thread pool with a stack size large enough to avoid a stack overflow
-// this will be our one threadpool for directory enumeration ops
-lazy_static! {
-    static ref THREAD_POOL: ThreadPool = rayon::ThreadPoolBuilder::new()
-        .stack_size(DEFAULT_STACK_SIZE)
-        .build()
-        .expect("Could not initialize rayon threadpool for recursive search");
-}
-
 pub fn display_recursive_wrapper(
     config: &Config,
 ) -> Result<[Vec<PathData>; 2], Box<dyn std::error::Error + Send + Sync + 'static>> {
@@ -84,6 +71,20 @@ pub fn process_dirs_exec(
     //
     // "in_place_scope" means don't spawn another thread, we already have a new system thread for this
     // scope
+
+    // default stack size for rayon threads spawned to handle enumerate_deleted
+    // here set at 1MB (the Linux default is 8MB) to avoid a stack overflow with the Rayon default
+    const DEFAULT_STACK_SIZE: usize = 1048576;
+
+    // build thread pool with a stack size large enough to avoid a stack overflow
+    // this will be our one threadpool for directory enumeration ops
+    lazy_static! {
+        static ref THREAD_POOL: ThreadPool = rayon::ThreadPoolBuilder::new()
+            .stack_size(DEFAULT_STACK_SIZE)
+            .build()
+            .expect("Could not initialize rayon threadpool for recursive search");
+    }
+
     THREAD_POOL.in_place_scope(|deleted_scope| {
         let _ = enumerate_live_versions(config, tx_item, requested_dir, deleted_scope);
     });
