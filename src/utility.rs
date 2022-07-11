@@ -340,21 +340,21 @@ pub struct PathData {
 
 impl From<&Path> for PathData {
     fn from(path: &Path) -> Self {
-        let metadata_res = symlink_metadata(path);
+        let metadata_res = symlink_metadata(path).ok();
         PathData::from_parts(path, metadata_res)
     }
 }
 
 impl From<&DirEntry> for PathData {
     fn from(dir_entry: &DirEntry) -> Self {
-        let metadata_res = dir_entry.metadata();
+        let metadata_res = dir_entry.metadata().ok();
         let path = dir_entry.path();
         PathData::from_parts(&path, metadata_res)
     }
 }
 
 impl PathData {
-    fn from_parts(path: &Path, metadata_res: Result<Metadata, std::io::Error>) -> Self {
+    fn from_parts(path: &Path, metadata_res: Option<Metadata>) -> Self {
         let absolute_path: PathBuf = if path.is_relative() {
             if let Ok(canonical_path) = path.canonicalize() {
                 canonical_path
@@ -371,7 +371,7 @@ impl PathData {
 
         // call symlink_metadata, as we need to resolve symlinks to get non-"phantom" metadata
         let (len, time, phantom) = match metadata_res {
-            Ok(md) => {
+            Some(md) => {
                 let len = md.len();
                 let time = md.modified().unwrap_or(SystemTime::UNIX_EPOCH);
                 let phantom = false;
@@ -382,7 +382,7 @@ impl PathData {
             // so we set up a dummy Some value just so we can have the path names we entered
             //
             // if we get a spurious example of no metadata in snapshot directories, we just ignore later
-            Err(_) => {
+            None => {
                 let len = 0u64;
                 let time = SystemTime::UNIX_EPOCH;
                 let phantom = true;
