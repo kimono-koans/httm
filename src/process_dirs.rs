@@ -203,13 +203,13 @@ fn spawn_enumerate_deleted(
     config: Arc<Config>,
     requested_dir: &Path,
     tx_item: &SkimItemSender,
-    scope: &Scope,
+    deleted_scope: &Scope,
 ) {
     // clone items because new thread needs ownership
     let requested_dir_clone = requested_dir.to_path_buf();
     let tx_item_clone = tx_item.clone();
 
-    scope.spawn(move |_| {
+    deleted_scope.spawn(move |_| {
         let _ = enumerate_deleted(config, &requested_dir_clone, &tx_item_clone);
     });
 }
