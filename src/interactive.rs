@@ -69,6 +69,7 @@ impl SelectionCandidate {
             opt_exact: false,
             opt_mount_for_file: false,
             opt_overwrite: false,
+            opt_no_filter: false,
             exec_mode: ExecMode::Display,
             deleted_mode: DeletedMode::Disabled,
             interactive_mode: InteractiveMode::None,

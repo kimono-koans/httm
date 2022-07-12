@@ -15,12 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::{
-    fs::{read_dir, DirEntry},
-    io::Write,
-    path::Path,
-    sync::Arc,
-};
+use std::{fs::read_dir, io::Write, path::Path, sync::Arc};
 
 use indicatif::ProgressBar;
 use rayon::{prelude::*, Scope, ThreadPool};
@@ -174,48 +169,48 @@ fn get_entries_partitioned(
     (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>),
     Box<dyn std::error::Error + Send + Sync + 'static>,
 > {
-    //separates entries into dirs and files
-    let (vec_dirs, vec_files) = read_dir(&requested_dir)?
-        .flatten()
-        .par_bridge()
-        // never check the hidden snapshot directory for live files (duh)
-        // didn't think this was possible until I saw a SMB share return
-        // a .zfs dir entry
-        .filter(|dir_entry| !is_filter_dir(&config, dir_entry))
-        // checking file_type on dir entries is always preferable
-        // as it is much faster than a metadata call on the path
-        .map(|dir_entry| BasicDirEntryInfo::from(&dir_entry))
-        .partition(|entry| httm_is_dir(entry));
+    let (vec_dirs, vec_files) = if !config.opt_no_filter && is_filter_dir(&config, requested_dir) {
+        return Err(HttmError::new("This directory is a directory which httm filters.").into());
+    } else {
+        //separates entries into dirs and files
+        read_dir(&requested_dir)?
+            .flatten()
+            .par_bridge()
+            // checking file_type on dir entries is always preferable
+            // as it is much faster than a metadata call on the path
+            .map(|dir_entry| BasicDirEntryInfo::from(&dir_entry))
+            .partition(|entry| httm_is_dir(entry))
+    };
 
     Ok((vec_dirs, vec_files))
 }
 
-// default dirs to filter (potential snapshot locations)
-fn is_filter_dir(config: &Config, dir_entry: &DirEntry) -> bool {
-    let path = match dir_entry.path().canonicalize() {
-        Ok(path) => path,
-        Err(_) => return true,
-    };
+fn is_filter_dir(config: &Config, path: &Path) -> bool {
+    // FYI path is always a relative path, but no need to canonicalize as
+    // partial eq for paths is comparison of components iter
 
-    let fallback = || {
+    let fallback = |path: &Path| {
         let proc = Path::new(PROC_DIRECTORY);
         let dev = Path::new(DEV_DIRECTORY);
         let sys = Path::new(SYS_DIRECTORY);
 
-        matches!(&path, n if n == proc || n == dev || n == sys)
+        matches!(&path, n if n == &proc || n == &dev || n == &sys)
     };
 
-    // is a snapshot dir
+    // never check the hidden snapshot directory for live files (duh)
+    // didn't think this was possible until I saw a SMB share return
+    // a .zfs dir entry
     if path.ends_with(ZFS_HIDDEN_DIRECTORY) || path.ends_with(BTRFS_SNAPPER_HIDDEN_DIRECTORY) {
         return true;
     }
 
+    // is a common path for btrfs or is a non-supported dataset
     match &config.dataset_collection {
         DatasetCollection::Native(native_datasets) => {
             // is a common btrfs snapshot dir
             match &native_datasets.opt_common_snap_dir {
                 Some(common_snap_dir) => {
-                    if &path == common_snap_dir {
+                    if path == *common_snap_dir {
                         return true;
                     }
                 }
@@ -223,13 +218,29 @@ fn is_filter_dir(config: &Config, dir_entry: &DirEntry) -> bool {
             }
             // is a non-supported dataset
             match &native_datasets.opt_vec_of_filter_dirs {
-                Some(vec_of_filter_dirs) => vec_of_filter_dirs
-                    .par_iter()
-                    .any(|filter_dir| path.starts_with(filter_dir)),
-                None => fallback(),
+                Some(vec_of_filter_dirs) => {
+                    let interactive_requested_dir = config
+                        .requested_dir
+                        .as_ref()
+                        .expect(
+                            "interactive_requested_dir must always be Some in any recursive mode",
+                        )
+                        .path_buf
+                        .as_path();
+
+                    // check whether user requested this dir specifically, then we will show
+                    if path == interactive_requested_dir {
+                        false
+                    } else {
+                        vec_of_filter_dirs
+                            .par_iter()
+                            .any(|filter_dir| path == *filter_dir)
+                    }
+                }
+                None => fallback(path),
             }
         }
-        DatasetCollection::UserDefined(_) => fallback(),
+        DatasetCollection::UserDefined(_) => fallback(path),
     }
 }
 

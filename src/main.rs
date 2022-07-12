@@ -242,13 +242,20 @@ fn parse_args() -> ArgMatches {
                 .display_order(11)
         )
         .arg(
+            Arg::new("NO_FILTER")
+                .long("no-filter")
+                .help("by default, in the interactive modes, httm will filter out results from non-supported datasets (like ext4, tmpfs, procfs, sysfs, or devtmpfs), and in common snapshot paths.  \
+                Here, one may select to disable such filtering.  httm, however, should always show the input path, and results from behind any input path.")
+                .display_order(12)
+        )
+        .arg(
             Arg::new("RAW")
                 .short('n')
                 .long("raw")
                 .visible_alias("newline")
                 .help("display the snapshot locations only, without extraneous information, delimited by a NEWLINE character.")
                 .conflicts_with_all(&["ZEROS", "NOT_SO_PRETTY"])
-                .display_order(12)
+                .display_order(13)
         )
         .arg(
             Arg::new("ZEROS")
@@ -256,7 +263,7 @@ fn parse_args() -> ArgMatches {
                 .long("zero")
                 .help("display the snapshot locations only, without extraneous information, delimited by a NULL character.")
                 .conflicts_with_all(&["RAW", "NOT_SO_PRETTY"])
-                .display_order(13)
+                .display_order(14)
         )
         .arg(
             Arg::new("NOT_SO_PRETTY")
@@ -264,14 +271,14 @@ fn parse_args() -> ArgMatches {
                 .visible_aliases(&["tabs", "plain-jane"])
                 .help("display the ordinary output, but tab delimited, without any pretty border lines.")
                 .conflicts_with_all(&["RAW", "ZEROS"])
-                .display_order(14)
+                .display_order(15)
         )
         .arg(
             Arg::new("NO_LIVE")
                 .long("no-live")
                 .visible_aliases(&["dead", "disco"])
                 .help("only display information concerning snapshot versions (display no information regarding 'live' versions of files or directories).")
-                .display_order(15)
+                .display_order(16)
         )
         .arg(
             Arg::new("REMOTE_DIR")
@@ -284,7 +291,7 @@ fn parse_args() -> ArgMatches {
                 These options *are necessary* if you want to view snapshot versions from within the local directory you back up to your remote share, \
                 however, httm can also automatically detect ZFS and btrfs-snapper datasets mounted as AFP, SMB, and NFS remote shares, if you browse that remote share where it is locally mounted.")
                 .takes_value(true)
-                .display_order(16)
+                .display_order(17)
         )
         .arg(
             Arg::new("LOCAL_DIR")
@@ -295,14 +302,14 @@ fn parse_args() -> ArgMatches {
                 You may also set via the environment variable HTTM_LOCAL_DIR.")
                 .requires("SNAP_POINT")
                 .takes_value(true)
-                .display_order(17)
+                .display_order(18)
         )
         .arg(
             Arg::new("ZSH_HOT_KEYS")
                 .long("install-zsh-hot-keys")
                 .help("install zsh hot keys to the users home directory, and then exit")
                 .exclusive(true)
-                .display_order(18)
+                .display_order(19)
         )
         .get_matches()
 }
@@ -319,6 +326,7 @@ pub struct Config {
     opt_exact: bool,
     opt_mount_for_file: bool,
     opt_overwrite: bool,
+    opt_no_filter: bool,
     exec_mode: ExecMode,
     dataset_collection: DatasetCollection,
     deleted_mode: DeletedMode,
@@ -342,6 +350,7 @@ impl Config {
         let opt_exact = matches.is_present("EXACT");
         let opt_mount_for_file = matches.is_present("MOUNT_FOR_FILE");
         let opt_no_live_vers = matches.is_present("NO_LIVE") || opt_mount_for_file;
+        let opt_no_filter = matches.is_present("NO_FILTER");
 
         let mut deleted_mode = match matches.value_of("DELETED_MODE") {
             Some("") | Some("all") => DeletedMode::Enabled,
@@ -647,6 +656,7 @@ impl Config {
             opt_exact,
             opt_mount_for_file,
             opt_overwrite,
+            opt_no_filter,
             dataset_collection,
             exec_mode,
             deleted_mode,
