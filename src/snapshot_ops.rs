@@ -39,7 +39,7 @@ pub fn take_snapshot(
         let timestamp = timestamp_file(&SystemTime::now());
 
         let res_snapshot_names: Result<Vec<String>, HttmError> = mounts_for_files.iter().map(|mount| {
-            let dataset: String = match &config.snap_collection {
+            let dataset: String = match &config.dataset_collection {
                 DatasetCollection::Native(native_datasets) => {
                     match native_datasets.map_of_datasets.get(&mount.path_buf) {
                         Some((dataset, fs_type)) => {

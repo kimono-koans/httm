@@ -161,22 +161,22 @@ fn get_deleted_per_dataset(
         )
     };
 
-    let unique_snap_filenames: HashMap<OsString, BasicDirEntryInfo> = match &config.snap_collection
-    {
-        DatasetCollection::Native(_) => match snapshot_mounts {
-            Some(snap_mounts) => snap_filenames_from_snap_mounts(snap_mounts, relative_path)?,
-            None => {
-                return Err(HttmError::new(
-                    "If you are here, precompute showed no snap mounts for dataset.  \
+    let unique_snap_filenames: HashMap<OsString, BasicDirEntryInfo> =
+        match &config.dataset_collection {
+            DatasetCollection::Native(_) => match snapshot_mounts {
+                Some(snap_mounts) => snap_filenames_from_snap_mounts(snap_mounts, relative_path)?,
+                None => {
+                    return Err(HttmError::new(
+                        "If you are here, precompute showed no snap mounts for dataset.  \
                     Iterator should just ignore/flatten the error.",
-                )
-                .into());
+                    )
+                    .into());
+                }
+            },
+            DatasetCollection::UserDefined(_) => {
+                snap_filenames_from_read_dir(snapshot_dir, relative_path, fs_type)?
             }
-        },
-        DatasetCollection::UserDefined(_) => {
-            snap_filenames_from_read_dir(snapshot_dir, relative_path, fs_type)?
-        }
-    };
+        };
 
     // compare local filenames to all unique snap filenames - none values are unique, here
     let all_deleted_versions: Vec<BasicDirEntryInfo> = unique_snap_filenames

@@ -69,12 +69,11 @@ impl SelectionCandidate {
             opt_exact: false,
             opt_mount_for_file: false,
             opt_overwrite: false,
-            opt_common_snap_dir: None,
             exec_mode: ExecMode::Display,
             deleted_mode: DeletedMode::Disabled,
             interactive_mode: InteractiveMode::None,
             opt_alt_replicated: config.opt_alt_replicated,
-            snap_collection: config.snap_collection.clone(),
+            dataset_collection: config.dataset_collection.clone(),
             pwd: config.pwd.clone(),
             requested_dir: config.requested_dir.clone(),
         };

@@ -16,7 +16,6 @@
 // that was distributed with this source code.
 
 use std::{
-    ffi::OsStr,
     fs::{read_dir, DirEntry},
     io::Write,
     path::Path,
@@ -32,7 +31,10 @@ use crate::interactive::SelectionCandidate;
 use crate::utility::{httm_is_dir, BasicDirEntryInfo, HttmError, PathData};
 use crate::versions_lookup::versions_lookup_exec;
 use crate::{deleted_lookup::deleted_lookup_exec, DEV_DIRECTORY, PROC_DIRECTORY, SYS_DIRECTORY};
-use crate::{Config, DeletedMode, ExecMode, BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_HIDDEN_DIRECTORY};
+use crate::{
+    Config, DatasetCollection, DeletedMode, ExecMode, BTRFS_SNAPPER_HIDDEN_DIRECTORY,
+    ZFS_HIDDEN_DIRECTORY,
+};
 
 pub fn display_recursive_wrapper(
     config: &Config,
@@ -172,26 +174,6 @@ fn get_entries_partitioned(
     (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>),
     Box<dyn std::error::Error + Send + Sync + 'static>,
 > {
-    // default dirs to filter (potential snapshot locations)
-    let default_filter_dirs = |dir_entry: &DirEntry| {
-        let path = dir_entry.path();
-        let mut components = path.components();
-
-        let proc = Path::new(PROC_DIRECTORY);
-        let dev = Path::new(DEV_DIRECTORY);
-        let sys = Path::new(SYS_DIRECTORY);
-
-        match path {
-            n if n == proc || n == dev || n == sys => return false,
-            _ => (),
-        }
-
-        !components.any(|component| {
-            component.as_os_str() == OsStr::new(BTRFS_SNAPPER_HIDDEN_DIRECTORY)
-                || component.as_os_str() == OsStr::new(ZFS_HIDDEN_DIRECTORY)
-        })
-    };
-
     //separates entries into dirs and files
     let (vec_dirs, vec_files) = read_dir(&requested_dir)?
         .flatten()
@@ -199,18 +181,56 @@ fn get_entries_partitioned(
         // never check the hidden snapshot directory for live files (duh)
         // didn't think this was possible until I saw a SMB share return
         // a .zfs dir entry
-        .filter(|dir_entry| match &config.opt_common_snap_dir {
-            Some(snapshot_dir) => {
-                default_filter_dirs(dir_entry) && &dir_entry.path() != snapshot_dir
-            }
-            None => default_filter_dirs(dir_entry),
-        })
+        .filter(|dir_entry| !is_filter_dir(&config, dir_entry))
         // checking file_type on dir entries is always preferable
         // as it is much faster than a metadata call on the path
         .map(|dir_entry| BasicDirEntryInfo::from(&dir_entry))
         .partition(|entry| httm_is_dir(entry));
 
     Ok((vec_dirs, vec_files))
+}
+
+// default dirs to filter (potential snapshot locations)
+fn is_filter_dir(config: &Config, dir_entry: &DirEntry) -> bool {
+    let path = match dir_entry.path().canonicalize() {
+        Ok(path) => path,
+        Err(_) => return true,
+    };
+
+    let fallback = || {
+        let proc = Path::new(PROC_DIRECTORY);
+        let dev = Path::new(DEV_DIRECTORY);
+        let sys = Path::new(SYS_DIRECTORY);
+
+        matches!(&path, n if n == proc || n == dev || n == sys)
+    };
+
+    // is a snapshot dir
+    if path.ends_with(ZFS_HIDDEN_DIRECTORY) || path.ends_with(BTRFS_SNAPPER_HIDDEN_DIRECTORY) {
+        return true;
+    }
+
+    match &config.dataset_collection {
+        DatasetCollection::Native(native_datasets) => {
+            // is a common btrfs snapshot dir
+            match &native_datasets.opt_common_snap_dir {
+                Some(common_snap_dir) => {
+                    if &path == common_snap_dir {
+                        return true;
+                    }
+                }
+                None => (),
+            }
+            // is a non-supported dataset
+            match &native_datasets.opt_vec_of_filter_dirs {
+                Some(vec_of_filter_dirs) => vec_of_filter_dirs
+                    .par_iter()
+                    .any(|filter_dir| path.starts_with(filter_dir)),
+                None => fallback(),
+            }
+        }
+        DatasetCollection::UserDefined(_) => fallback(),
+    }
 }
 
 // "spawn" a lighter weight rayon/greenish thread for enumerate_deleted, if needed

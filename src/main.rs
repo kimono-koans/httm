@@ -113,6 +113,8 @@ pub struct NativeDatasets {
     map_of_snaps: HashMap<PathBuf, Vec<PathBuf>>,
     // key: mount, val: alt dataset
     opt_map_of_alts: Option<HashMap<PathBuf, Vec<PathBuf>>>,
+    opt_vec_of_filter_dirs: Option<Vec<PathBuf>>,
+    opt_common_snap_dir: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone)]
@@ -317,9 +319,8 @@ pub struct Config {
     opt_exact: bool,
     opt_mount_for_file: bool,
     opt_overwrite: bool,
-    opt_common_snap_dir: Option<PathBuf>,
     exec_mode: ExecMode,
-    snap_collection: DatasetCollection,
+    dataset_collection: DatasetCollection,
     deleted_mode: DeletedMode,
     interactive_mode: InteractiveMode,
     pwd: PathData,
@@ -542,9 +543,7 @@ impl Config {
         // or will we find it by searching the native filesystem? if searching a native filesystem,
         // we will obtain a map of datasets, a map of snapshot directory, and possibly a map of
         // alternate filesystems if the user request early to avoid looking up later.
-        let (opt_alt_replicated, opt_common_snap_dir, snap_collection) = if let Some(raw_value) =
-            raw_snap_var
-        {
+        let (opt_alt_replicated, dataset_collection) = if let Some(raw_value) = raw_snap_var {
             if matches.is_present("ALT_REPLICATED") {
                 return Err(HttmError::new(
                     "Alternate replicated datasets are not available for search, when the user defines a snap point.",
@@ -564,18 +563,14 @@ impl Config {
             }
 
             // set fstype, known by whether there is a ZFS hidden snapshot dir in the root dir
-            let (fs_type, opt_common_snap_dir) = if snap_dir
-                .join(ZFS_SNAPSHOT_DIRECTORY)
-                .metadata()
-                .is_ok()
-            {
-                (FilesystemType::Zfs, None)
+            let fs_type = if snap_dir.join(ZFS_SNAPSHOT_DIRECTORY).metadata().is_ok() {
+                FilesystemType::Zfs
             } else if snap_dir
                 .join(BTRFS_SNAPPER_HIDDEN_DIRECTORY)
                 .metadata()
                 .is_ok()
             {
-                (FilesystemType::Btrfs, None)
+                FilesystemType::Btrfs
             } else {
                 return Err(HttmError::new(
                         "User defined snap point is only available for ZFS datasets and btrfs datasets snapshot-ed via snapper.",
@@ -610,7 +605,6 @@ impl Config {
             (
                 // always set opt_alt_replicated to false in UserDefinedDirs mode
                 false,
-                opt_common_snap_dir,
                 DatasetCollection::UserDefined(UserDefinedDirs {
                     snap_dir,
                     local_dir,
@@ -618,7 +612,7 @@ impl Config {
                 }),
             )
         } else {
-            let (map_of_datasets, map_of_snaps) = parse_mounts_exec()?;
+            let (map_of_datasets, map_of_snaps, opt_vec_of_filter_dirs) = parse_mounts_exec()?;
 
             // for a collection of btrfs mounts, indicates a common snapshot directory to ignore
             let opt_common_snap_dir = get_common_snap_dir(&map_of_datasets, &map_of_snaps);
@@ -632,11 +626,12 @@ impl Config {
 
             (
                 matches.is_present("ALT_REPLICATED"),
-                opt_common_snap_dir,
                 DatasetCollection::Native(NativeDatasets {
                     map_of_datasets,
                     map_of_snaps,
                     opt_map_of_alts,
+                    opt_vec_of_filter_dirs,
+                    opt_common_snap_dir,
                 }),
             )
         };
@@ -651,9 +646,8 @@ impl Config {
             opt_recursive,
             opt_exact,
             opt_mount_for_file,
-            opt_common_snap_dir,
             opt_overwrite,
-            snap_collection,
+            dataset_collection,
             exec_mode,
             deleted_mode,
             interactive_mode,

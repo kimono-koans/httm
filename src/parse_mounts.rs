@@ -17,7 +17,7 @@
 
 use std::{fs::read_dir, path::Path, path::PathBuf, process::Command as ExecProcess};
 
-use proc_mounts::MountIter;
+use proc_mounts::{MountInfo, MountIter};
 use rayon::prelude::*;
 use which::which;
 
@@ -35,6 +35,7 @@ pub fn parse_mounts_exec() -> Result<
     (
         HashMap<PathBuf, (String, FilesystemType)>,
         HashMap<PathBuf, Vec<PathBuf>>,
+        Option<Vec<PathBuf>>,
     ),
     Box<dyn std::error::Error + Send + Sync + 'static>,
 > {
@@ -54,12 +55,15 @@ fn parse_from_proc_mounts() -> Result<
     (
         HashMap<PathBuf, (String, FilesystemType)>,
         HashMap<PathBuf, Vec<PathBuf>>,
+        Option<Vec<PathBuf>>,
     ),
     Box<dyn std::error::Error + Send + Sync + 'static>,
 > {
-    let map_of_datasets: HashMap<PathBuf, (String, FilesystemType)> = MountIter::new()?
-        .par_bridge()
-        .flatten()
+    let vec_mount_info: Vec<MountInfo> = MountIter::new()?.par_bridge().flatten().collect();
+
+    let map_of_datasets: HashMap<PathBuf, (String, FilesystemType)> = vec_mount_info
+        .clone()
+        .into_par_iter()
         // but exclude snapshot mounts.  we want only the raw filesystems
         .filter(|mount_info| {
             !mount_info
@@ -127,10 +131,16 @@ fn parse_from_proc_mounts() -> Result<
 
     let map_of_snaps = precompute_snap_mounts(&map_of_datasets);
 
+    let vec_of_filter_dirs = vec_mount_info
+        .into_par_iter()
+        .filter(|mount_info| map_of_datasets.get(&mount_info.dest).is_none())
+        .map(|mount_info| mount_info.dest)
+        .collect();
+
     if map_of_datasets.is_empty() {
         Err(HttmError::new("httm could not find any valid datasets on the system.").into())
     } else {
-        Ok((map_of_datasets, map_of_snaps))
+        Ok((map_of_datasets, map_of_snaps, Some(vec_of_filter_dirs)))
     }
 }
 
@@ -141,6 +151,7 @@ fn parse_from_mount_cmd() -> Result<
     (
         HashMap<PathBuf, (String, FilesystemType)>,
         HashMap<PathBuf, Vec<PathBuf>>,
+        Option<Vec<PathBuf>>,
     ),
     Box<dyn std::error::Error + Send + Sync + 'static>,
 > {
@@ -150,6 +161,7 @@ fn parse_from_mount_cmd() -> Result<
         (
             HashMap<PathBuf, (String, FilesystemType)>,
             HashMap<PathBuf, Vec<PathBuf>>,
+            Option<Vec<PathBuf>>,
         ),
         Box<dyn std::error::Error + Send + Sync + 'static>,
     > {
@@ -197,10 +209,12 @@ fn parse_from_mount_cmd() -> Result<
 
         let map_of_snaps = precompute_snap_mounts(&map_of_datasets);
 
+        let vec_of_filter_dirs = None;
+
         if map_of_datasets.is_empty() {
             Err(HttmError::new("httm could not find any valid datasets on the system.").into())
         } else {
-            Ok((map_of_datasets, map_of_snaps))
+            Ok((map_of_datasets, map_of_snaps, vec_of_filter_dirs))
         }
     }
 

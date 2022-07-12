@@ -169,7 +169,7 @@ pub fn get_datasets_for_search(
     // will compare the most proximate dataset to our our canonical path and the difference
     // between ZFS mount point and the canonical path is the path we will use to search the
     // hidden snapshot dirs
-    let datasets_for_search: DatasetsForSearch = match &config.snap_collection {
+    let datasets_for_search: DatasetsForSearch = match &config.dataset_collection {
         DatasetCollection::UserDefined(defined_dirs) => {
             let snap_dir = defined_dirs.snap_dir.to_path_buf();
             DatasetsForSearch {
@@ -223,7 +223,7 @@ pub fn get_search_bundle(
             let proximate_dataset_mount = &datasets_for_search.proximate_dataset_mount;
 
             let (snapshot_dir, relative_path, snapshot_mounts, fs_type) =
-                match &config.snap_collection {
+                match &config.dataset_collection {
                     DatasetCollection::UserDefined(defined_dirs) => {
                         let (snapshot_dir, fs_type) = match &defined_dirs.fs_type {
                             FilesystemType::Zfs => (
@@ -372,7 +372,7 @@ fn get_versions_per_dataset(
         )
     };
 
-    let unique_versions: HashMap<(SystemTime, u64), PathData> = match &config.snap_collection {
+    let unique_versions: HashMap<(SystemTime, u64), PathData> = match &config.dataset_collection {
         DatasetCollection::Native(_) => {
             match snapshot_mounts {
                 Some(snap_mounts) => versions_from_snap_mounts(snap_mounts, relative_path)?,
