@@ -161,7 +161,8 @@ fn get_deleted_per_dataset(
         )
     };
 
-    let unique_snap_filenames: HashMap<OsString, BasicDirEntryInfo> = match &config.snap_point {
+    let unique_snap_filenames: HashMap<OsString, BasicDirEntryInfo> = match &config.snap_collection
+    {
         SnapCollection::Native(_) => match snapshot_mounts {
             Some(snap_mounts) => snap_filenames_from_snap_mounts(snap_mounts, relative_path)?,
             None => {

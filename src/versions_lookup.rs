@@ -169,7 +169,7 @@ pub fn get_datasets_for_search(
     // will compare the most proximate dataset to our our canonical path and the difference
     // between ZFS mount point and the canonical path is the path we will use to search the
     // hidden snapshot dirs
-    let dataset_collection: DatasetsForSearch = match &config.snap_point {
+    let dataset_collection: DatasetsForSearch = match &config.snap_collection {
         SnapCollection::UserDefined(defined_dirs) => {
             let snap_dir = defined_dirs.snap_dir.to_path_buf();
             DatasetsForSearch {
@@ -222,61 +222,62 @@ pub fn get_search_bundle(
             // for user specified dirs these are specified by the user
             let proximate_dataset_mount = &dataset_collection.proximate_dataset_mount;
 
-            let (snapshot_dir, relative_path, snapshot_mounts, fs_type) = match &config.snap_point {
-                SnapCollection::UserDefined(defined_dirs) => {
-                    let (snapshot_dir, fs_type) = match &defined_dirs.fs_type {
-                        FilesystemType::Zfs => (
-                            dataset_of_interest.join(ZFS_SNAPSHOT_DIRECTORY),
-                            FilesystemType::Zfs,
-                        ),
-                        FilesystemType::Btrfs => {
-                            (dataset_of_interest.to_path_buf(), FilesystemType::Btrfs)
-                        }
-                    };
-
-                    let relative_path = pathdata
-                        .path_buf
-                        .strip_prefix(&defined_dirs.local_dir)?
-                        .to_path_buf();
-
-                    let snapshot_mounts = None;
-
-                    (snapshot_dir, relative_path, snapshot_mounts, fs_type)
-                }
-                SnapCollection::Native(native_datasets) => {
-                    // this prefix removal is why we always need the proximate dataset name, even when we are searching an alternate replicated filesystem
-
-                    // building the snapshot path from our dataset
-                    let (snapshot_dir, fs_type) =
-                        match &native_datasets.map_of_datasets.get(dataset_of_interest) {
-                            Some((_, fstype)) => match fstype {
-                                FilesystemType::Zfs => (
-                                    dataset_of_interest.join(ZFS_SNAPSHOT_DIRECTORY),
-                                    FilesystemType::Zfs,
-                                ),
-                                FilesystemType::Btrfs => {
-                                    (dataset_of_interest.to_path_buf(), FilesystemType::Btrfs)
-                                }
-                            },
-                            None => (
+            let (snapshot_dir, relative_path, snapshot_mounts, fs_type) =
+                match &config.snap_collection {
+                    SnapCollection::UserDefined(defined_dirs) => {
+                        let (snapshot_dir, fs_type) = match &defined_dirs.fs_type {
+                            FilesystemType::Zfs => (
                                 dataset_of_interest.join(ZFS_SNAPSHOT_DIRECTORY),
                                 FilesystemType::Zfs,
                             ),
+                            FilesystemType::Btrfs => {
+                                (dataset_of_interest.to_path_buf(), FilesystemType::Btrfs)
+                            }
                         };
 
-                    let relative_path = pathdata
-                        .path_buf
-                        .strip_prefix(&proximate_dataset_mount)?
-                        .to_path_buf();
+                        let relative_path = pathdata
+                            .path_buf
+                            .strip_prefix(&defined_dirs.local_dir)?
+                            .to_path_buf();
 
-                    let snapshot_mounts = native_datasets
-                        .map_of_snaps
-                        .get(dataset_of_interest)
-                        .cloned();
+                        let snapshot_mounts = None;
 
-                    (snapshot_dir, relative_path, snapshot_mounts, fs_type)
-                }
-            };
+                        (snapshot_dir, relative_path, snapshot_mounts, fs_type)
+                    }
+                    SnapCollection::Native(native_datasets) => {
+                        // this prefix removal is why we always need the proximate dataset name, even when we are searching an alternate replicated filesystem
+
+                        // building the snapshot path from our dataset
+                        let (snapshot_dir, fs_type) =
+                            match &native_datasets.map_of_datasets.get(dataset_of_interest) {
+                                Some((_, fstype)) => match fstype {
+                                    FilesystemType::Zfs => (
+                                        dataset_of_interest.join(ZFS_SNAPSHOT_DIRECTORY),
+                                        FilesystemType::Zfs,
+                                    ),
+                                    FilesystemType::Btrfs => {
+                                        (dataset_of_interest.to_path_buf(), FilesystemType::Btrfs)
+                                    }
+                                },
+                                None => (
+                                    dataset_of_interest.join(ZFS_SNAPSHOT_DIRECTORY),
+                                    FilesystemType::Zfs,
+                                ),
+                            };
+
+                        let relative_path = pathdata
+                            .path_buf
+                            .strip_prefix(&proximate_dataset_mount)?
+                            .to_path_buf();
+
+                        let snapshot_mounts = native_datasets
+                            .map_of_snaps
+                            .get(dataset_of_interest)
+                            .cloned();
+
+                        (snapshot_dir, relative_path, snapshot_mounts, fs_type)
+                    }
+                };
 
             Ok(SearchBundle {
                 snapshot_dir,
@@ -371,7 +372,7 @@ fn get_versions_per_dataset(
         )
     };
 
-    let unique_versions: HashMap<(SystemTime, u64), PathData> = match &config.snap_point {
+    let unique_versions: HashMap<(SystemTime, u64), PathData> = match &config.snap_collection {
         SnapCollection::Native(_) => {
             match snapshot_mounts {
                 Some(snap_mounts) => versions_from_snap_mounts(snap_mounts, relative_path)?,

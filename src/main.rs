@@ -315,7 +315,7 @@ pub struct Config {
     opt_overwrite: bool,
     opt_common_snap_dir: Option<PathBuf>,
     exec_mode: ExecMode,
-    snap_point: SnapCollection,
+    snap_collection: SnapCollection,
     deleted_mode: DeletedMode,
     interactive_mode: InteractiveMode,
     pwd: PathData,
@@ -538,7 +538,7 @@ impl Config {
         // or will we find it by searching the native filesystem? if searching a native filesystem,
         // we will obtain a map of datasets, a map of snapshot directory, and possibly a map of
         // alternate filesystems if the user request early to avoid looking up later.
-        let (opt_alt_replicated, opt_common_snap_dir, snap_point) = if let Some(raw_value) =
+        let (opt_alt_replicated, opt_common_snap_dir, snap_collection) = if let Some(raw_value) =
             raw_snap_var
         {
             if matches.is_present("ALT_REPLICATED") {
@@ -649,7 +649,7 @@ impl Config {
             opt_mount_for_file,
             opt_common_snap_dir,
             opt_overwrite,
-            snap_point,
+            snap_collection,
             exec_mode,
             deleted_mode,
             interactive_mode,

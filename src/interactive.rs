@@ -74,7 +74,7 @@ impl SelectionCandidate {
             deleted_mode: DeletedMode::Disabled,
             interactive_mode: InteractiveMode::None,
             opt_alt_replicated: config.opt_alt_replicated,
-            snap_point: config.snap_point.clone(),
+            snap_collection: config.snap_collection.clone(),
             pwd: config.pwd.clone(),
             requested_dir: config.requested_dir.clone(),
         };
