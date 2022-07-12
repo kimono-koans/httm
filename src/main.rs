@@ -63,6 +63,10 @@ pub const ZFS_HIDDEN_DIRECTORY: &str = ".zfs";
 pub const ZFS_SNAPSHOT_DIRECTORY: &str = ".zfs/snapshot";
 pub const BTRFS_SNAPPER_HIDDEN_DIRECTORY: &str = ".snapshots";
 pub const BTRFS_SNAPPER_SUFFIX: &str = "snapshot";
+pub const ROOT_DIRECTORY: &str = "/";
+pub const PROC_DIRECTORY: &str = "/proc";
+pub const SYS_DIRECTORY: &str = "/sys";
+pub const DEV_DIRECTORY: &str = "/dev";
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum FilesystemType {
@@ -96,7 +100,7 @@ enum DeletedMode {
 }
 
 #[derive(Debug, Clone)]
-enum SnapCollection {
+enum DatasetCollection {
     Native(NativeDatasets),
     UserDefined(UserDefinedDirs),
 }
@@ -315,7 +319,7 @@ pub struct Config {
     opt_overwrite: bool,
     opt_common_snap_dir: Option<PathBuf>,
     exec_mode: ExecMode,
-    snap_collection: SnapCollection,
+    snap_collection: DatasetCollection,
     deleted_mode: DeletedMode,
     interactive_mode: InteractiveMode,
     pwd: PathData,
@@ -607,7 +611,7 @@ impl Config {
                 // always set opt_alt_replicated to false in UserDefinedDirs mode
                 false,
                 opt_common_snap_dir,
-                SnapCollection::UserDefined(UserDefinedDirs {
+                DatasetCollection::UserDefined(UserDefinedDirs {
                     snap_dir,
                     local_dir,
                     fs_type,
@@ -629,7 +633,7 @@ impl Config {
             (
                 matches.is_present("ALT_REPLICATED"),
                 opt_common_snap_dir,
-                SnapCollection::Native(NativeDatasets {
+                DatasetCollection::Native(NativeDatasets {
                     map_of_datasets,
                     map_of_snaps,
                     opt_map_of_alts,

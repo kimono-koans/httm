@@ -25,7 +25,7 @@ use rayon::prelude::*;
 
 use crate::utility::{HttmError, PathData};
 use crate::{
-    AHashMapSpecial as HashMap, Config, FilesystemType, SnapCollection,
+    AHashMapSpecial as HashMap, Config, DatasetCollection, FilesystemType,
     BTRFS_SNAPPER_HIDDEN_DIRECTORY, BTRFS_SNAPPER_SUFFIX, ZFS_SNAPSHOT_DIRECTORY,
 };
 
@@ -138,8 +138,8 @@ fn get_all_snap_versions(
         .par_iter()
         .map(|pathdata| {
             selected_datasets.par_iter().flat_map(|dataset_type| {
-                let dataset_collection = get_datasets_for_search(config, pathdata, dataset_type)?;
-                get_search_bundle(config, pathdata, &dataset_collection)
+                let dataset_for_search = get_datasets_for_search(config, pathdata, dataset_type)?;
+                get_search_bundle(config, pathdata, &dataset_for_search)
             })
         })
         .flatten()
@@ -169,15 +169,15 @@ pub fn get_datasets_for_search(
     // will compare the most proximate dataset to our our canonical path and the difference
     // between ZFS mount point and the canonical path is the path we will use to search the
     // hidden snapshot dirs
-    let dataset_collection: DatasetsForSearch = match &config.snap_collection {
-        SnapCollection::UserDefined(defined_dirs) => {
+    let datasets_for_search: DatasetsForSearch = match &config.snap_collection {
+        DatasetCollection::UserDefined(defined_dirs) => {
             let snap_dir = defined_dirs.snap_dir.to_path_buf();
             DatasetsForSearch {
                 proximate_dataset_mount: snap_dir.clone(),
                 datasets_of_interest: vec![snap_dir],
             }
         }
-        SnapCollection::Native(native_datasets) => {
+        DatasetCollection::Native(native_datasets) => {
             let proximate_dataset_mount =
                 get_proximate_dataset(pathdata, &native_datasets.map_of_datasets)?;
             match requested_dataset_type {
@@ -204,15 +204,15 @@ pub fn get_datasets_for_search(
         }
     };
 
-    Ok(dataset_collection)
+    Ok(datasets_for_search)
 }
 
 pub fn get_search_bundle(
     config: &Config,
     pathdata: &PathData,
-    dataset_collection: &DatasetsForSearch,
+    datasets_for_search: &DatasetsForSearch,
 ) -> Result<Vec<SearchBundle>, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    dataset_collection
+    datasets_for_search
         .datasets_of_interest
         .par_iter()
         .map(|dataset_of_interest| {
@@ -220,11 +220,11 @@ pub fn get_search_bundle(
             //
             // for native searches the prefix is are the dirs below the most proximate dataset
             // for user specified dirs these are specified by the user
-            let proximate_dataset_mount = &dataset_collection.proximate_dataset_mount;
+            let proximate_dataset_mount = &datasets_for_search.proximate_dataset_mount;
 
             let (snapshot_dir, relative_path, snapshot_mounts, fs_type) =
                 match &config.snap_collection {
-                    SnapCollection::UserDefined(defined_dirs) => {
+                    DatasetCollection::UserDefined(defined_dirs) => {
                         let (snapshot_dir, fs_type) = match &defined_dirs.fs_type {
                             FilesystemType::Zfs => (
                                 dataset_of_interest.join(ZFS_SNAPSHOT_DIRECTORY),
@@ -244,7 +244,7 @@ pub fn get_search_bundle(
 
                         (snapshot_dir, relative_path, snapshot_mounts, fs_type)
                     }
-                    SnapCollection::Native(native_datasets) => {
+                    DatasetCollection::Native(native_datasets) => {
                         // this prefix removal is why we always need the proximate dataset name, even when we are searching an alternate replicated filesystem
 
                         // building the snapshot path from our dataset
@@ -373,7 +373,7 @@ fn get_versions_per_dataset(
     };
 
     let unique_versions: HashMap<(SystemTime, u64), PathData> = match &config.snap_collection {
-        SnapCollection::Native(_) => {
+        DatasetCollection::Native(_) => {
             match snapshot_mounts {
                 Some(snap_mounts) => versions_from_snap_mounts(snap_mounts, relative_path)?,
                 // snap mounts is empty
@@ -386,7 +386,7 @@ fn get_versions_per_dataset(
                 }
             }
         }
-        SnapCollection::UserDefined(_) => {
+        DatasetCollection::UserDefined(_) => {
             versions_from_read_dir(snapshot_dir, relative_path, fs_type)?
         }
     };

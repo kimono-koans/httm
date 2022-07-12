@@ -27,11 +27,11 @@ use indicatif::ProgressBar;
 use rayon::{prelude::*, Scope, ThreadPool};
 use skim::prelude::*;
 
-use crate::deleted_lookup::deleted_lookup_exec;
 use crate::display::display_exec;
 use crate::interactive::SelectionCandidate;
 use crate::utility::{httm_is_dir, BasicDirEntryInfo, HttmError, PathData};
 use crate::versions_lookup::versions_lookup_exec;
+use crate::{deleted_lookup::deleted_lookup_exec, DEV_DIRECTORY, PROC_DIRECTORY, SYS_DIRECTORY};
 use crate::{Config, DeletedMode, ExecMode, BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_HIDDEN_DIRECTORY};
 
 pub fn display_recursive_wrapper(
@@ -174,8 +174,22 @@ fn get_entries_partitioned(
 > {
     // default dirs to filter (potential snapshot locations)
     let default_filter_dirs = |dir_entry: &DirEntry| {
-        dir_entry.file_name().as_os_str() != OsStr::new(ZFS_HIDDEN_DIRECTORY)
-            && dir_entry.file_name().as_os_str() != OsStr::new(BTRFS_SNAPPER_HIDDEN_DIRECTORY)
+        let path = dir_entry.path();
+        let mut components = path.components();
+
+        let proc = Path::new(PROC_DIRECTORY);
+        let dev = Path::new(DEV_DIRECTORY);
+        let sys = Path::new(SYS_DIRECTORY);
+
+        match path {
+            n if n == proc || n == dev || n == sys => return false,
+            _ => (),
+        }
+
+        !components.any(|component| {
+            component.as_os_str() == OsStr::new(BTRFS_SNAPPER_HIDDEN_DIRECTORY)
+                || component.as_os_str() == OsStr::new(ZFS_HIDDEN_DIRECTORY)
+        })
     };
 
     //separates entries into dirs and files

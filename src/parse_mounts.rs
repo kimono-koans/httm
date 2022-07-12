@@ -261,10 +261,10 @@ pub fn precompute_alt_replicated(
         .flat_map(|(mount, (_dataset, _fstype))| {
             get_alt_replicated_datasets(mount, map_of_datasets)
         })
-        .map(|dataset_collection| {
+        .map(|dataset_for_search| {
             (
-                dataset_collection.proximate_dataset_mount,
-                dataset_collection.datasets_of_interest,
+                dataset_for_search.proximate_dataset_mount,
+                dataset_for_search.datasets_of_interest,
             )
         })
         .collect()

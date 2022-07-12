@@ -28,7 +28,7 @@ use crate::versions_lookup::{
     get_datasets_for_search, get_search_bundle, prep_lookup_read_dir, NativeDatasetType,
     SearchBundle,
 };
-use crate::{AHashMapSpecial as HashMap, Config, FilesystemType, SnapCollection};
+use crate::{AHashMapSpecial as HashMap, Config, DatasetCollection, FilesystemType};
 
 pub fn deleted_lookup_exec(
     config: &Config,
@@ -57,8 +57,8 @@ pub fn deleted_lookup_exec(
         .iter()
         .flat_map(|pathdata| {
             selected_datasets.iter().flat_map(|dataset_type| {
-                let dataset_collection = get_datasets_for_search(config, pathdata, dataset_type)?;
-                get_search_bundle(config, pathdata, &dataset_collection)
+                let datasets_for_search = get_datasets_for_search(config, pathdata, dataset_type)?;
+                get_search_bundle(config, pathdata, &datasets_for_search)
             })
         })
         .flatten()
@@ -163,7 +163,7 @@ fn get_deleted_per_dataset(
 
     let unique_snap_filenames: HashMap<OsString, BasicDirEntryInfo> = match &config.snap_collection
     {
-        SnapCollection::Native(_) => match snapshot_mounts {
+        DatasetCollection::Native(_) => match snapshot_mounts {
             Some(snap_mounts) => snap_filenames_from_snap_mounts(snap_mounts, relative_path)?,
             None => {
                 return Err(HttmError::new(
@@ -173,7 +173,7 @@ fn get_deleted_per_dataset(
                 .into());
             }
         },
-        SnapCollection::UserDefined(_) => {
+        DatasetCollection::UserDefined(_) => {
             snap_filenames_from_read_dir(snapshot_dir, relative_path, fs_type)?
         }
     };
