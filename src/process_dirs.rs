@@ -51,12 +51,6 @@ pub fn display_recursive_wrapper(
         }
     }
 
-    // flush and exit successfully upon ending recursive search
-    if config.opt_recursive {
-        let mut out = std::io::stdout();
-        out.flush()?;
-    }
-
     std::process::exit(0)
 }
 
