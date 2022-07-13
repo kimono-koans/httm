@@ -446,7 +446,7 @@ fn print_display_recursive(
     entries: Vec<BasicDirEntryInfo>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let pseudo_live_set: Vec<PathData> = entries
-        .iter()
+        .par_iter()
         .map(|basic_dir_entry_info| PathData::from(basic_dir_entry_info.path.as_path()))
         .collect();
 
