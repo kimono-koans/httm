@@ -282,6 +282,16 @@ fn parse_args() -> ArgMatches {
                 .display_order(16)
         )
         .arg(
+            Arg::new("NO_SNAP")
+                .long("no-snap")
+                .visible_aliases(&["undead"])
+                .help("only display information concerning 'pseudo-live' versions in Display Recursive mode (in --deleted, --recursive, but non-interactive modes).  \
+                Useful for finding only the \"files that once were\" and displaying only those pseudo-live/undead files.")
+                .requires("RECURSIVE")
+                .conflicts_with_all(&["INTERACTIVE", "SELECT", "RESTORE", "SNAP_FILE_MOUNT", "LAST_SNAP", "NOT_SO_PRETTY"])
+                .display_order(17)
+        )
+        .arg(
             Arg::new("REMOTE_DIR")
                 .long("remote-dir")
                 .visible_aliases(&["remote", "snap-point"])
@@ -292,7 +302,7 @@ fn parse_args() -> ArgMatches {
                 These options *are necessary* if you want to view snapshot versions from within the local directory you back up to your remote share, \
                 however, httm can also automatically detect ZFS and btrfs-snapper datasets mounted as AFP, SMB, and NFS remote shares, if you browse that remote share where it is locally mounted.")
                 .takes_value(true)
-                .display_order(17)
+                .display_order(18)
         )
         .arg(
             Arg::new("LOCAL_DIR")
@@ -303,14 +313,14 @@ fn parse_args() -> ArgMatches {
                 You may also set via the environment variable HTTM_LOCAL_DIR.")
                 .requires("SNAP_POINT")
                 .takes_value(true)
-                .display_order(18)
+                .display_order(19)
         )
         .arg(
             Arg::new("ZSH_HOT_KEYS")
                 .long("install-zsh-hot-keys")
                 .help("install zsh hot keys to the users home directory, and then exit")
                 .exclusive(true)
-                .display_order(19)
+                .display_order(20)
         )
         .get_matches()
 }
@@ -322,12 +332,13 @@ pub struct Config {
     opt_raw: bool,
     opt_zeros: bool,
     opt_no_pretty: bool,
-    opt_no_live_vers: bool,
+    opt_no_live: bool,
     opt_recursive: bool,
     opt_exact: bool,
     opt_mount_for_file: bool,
     opt_overwrite: bool,
     opt_no_filter: bool,
+    opt_no_snap: bool,
     exec_mode: ExecMode,
     dataset_collection: DatasetCollection,
     deleted_mode: DeletedMode,
@@ -345,17 +356,22 @@ impl Config {
         }
 
         let opt_zeros = matches.is_present("ZEROS");
-        let opt_raw = matches.is_present("RAW");
+        let mut opt_raw = matches.is_present("RAW");
         let opt_no_pretty = matches.is_present("NOT_SO_PRETTY");
         let opt_recursive = matches.is_present("RECURSIVE");
         let opt_exact = matches.is_present("EXACT");
         let opt_mount_for_file = matches.is_present("MOUNT_FOR_FILE");
-        let opt_no_live_vers = matches.is_present("NO_LIVE") || opt_mount_for_file;
+        let opt_no_live = matches.is_present("NO_LIVE") || opt_mount_for_file;
         let opt_no_filter = matches.is_present("NO_FILTER");
+        let opt_no_snap = matches.is_present("NO_SNAP");
         let opt_overwrite = matches!(
             matches.value_of("RESTORE"),
             Some("overwrite") | Some("yolo")
         );
+
+        if opt_no_snap && !opt_raw && !opt_zeros {
+            opt_raw = true
+        }
 
         let mut deleted_mode = match matches.value_of("DELETED_MODE") {
             Some("") | Some("all") => DeletedMode::Enabled,
@@ -653,12 +669,13 @@ impl Config {
             opt_raw,
             opt_zeros,
             opt_no_pretty,
-            opt_no_live_vers,
+            opt_no_live,
             opt_recursive,
             opt_exact,
             opt_mount_for_file,
             opt_overwrite,
             opt_no_filter,
+            opt_no_snap,
             dataset_collection,
             exec_mode,
             deleted_mode,

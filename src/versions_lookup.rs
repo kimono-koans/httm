@@ -64,12 +64,14 @@ pub fn versions_lookup_exec(
 
     let all_snap_versions: Vec<PathData> = if config.opt_mount_for_file {
         get_mounts_for_files(config, vec_pathdata, &selected_datasets)?
+    } else if config.opt_no_snap {
+        Vec::new()
     } else {
         get_all_snap_versions(config, vec_pathdata, &selected_datasets)?
     };
 
     // create vec of live copies - unless user doesn't want it!
-    let live_versions: Vec<PathData> = if config.opt_no_live_vers {
+    let live_versions: Vec<PathData> = if config.opt_no_live {
         Vec::new()
     } else {
         vec_pathdata.clone()
@@ -77,7 +79,9 @@ pub fn versions_lookup_exec(
 
     // check if all files (snap and live) do not exist, if this is true, then user probably messed up
     // and entered a file that never existed (that is, perhaps a wrong file name)?
-    if all_snap_versions.is_empty() && live_versions.par_iter().all(|pathdata| pathdata.is_phantom)
+    if all_snap_versions.is_empty()
+        && live_versions.par_iter().all(|pathdata| pathdata.is_phantom)
+        && !config.opt_no_snap
     {
         return Err(HttmError::new(
             "httm could not find either a live copy or a snapshot copy of any specified file, so, umm, 🤷? Please try another file.",
