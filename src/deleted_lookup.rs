@@ -181,7 +181,7 @@ fn get_deleted_per_dataset(
     // compare local filenames to all unique snap filenames - none values are unique, here
     let all_deleted_versions: Vec<BasicDirEntryInfo> = unique_snap_filenames
         .into_iter()
-        .filter(|(file_name, _)| local_filenames_map.get(file_name).is_none())
+        .filter(|(file_name, _)| !local_filenames_map.contains_key(file_name))
         .map(|(_file_name, basic_dir_entry_info)| basic_dir_entry_info)
         .collect();
 

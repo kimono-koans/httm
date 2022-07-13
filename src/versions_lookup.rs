@@ -302,9 +302,12 @@ fn get_proximate_dataset(
         // find_map_first should return the first seq result with a par_iter
         // but not with a par_bridge
         ancestors.into_par_iter().find_map_first(|ancestor| {
-            map_of_datasets
-                .get(ancestor)
-                .map(|_| ancestor.to_path_buf())
+            if map_of_datasets
+                .contains_key(ancestor){
+                    Some(ancestor.to_path_buf())
+                } else {
+                    None
+                }
         });
 
     // do we have any mount points left? if not print error
