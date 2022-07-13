@@ -246,7 +246,7 @@ fn parse_args() -> ArgMatches {
             Arg::new("NO_FILTER")
                 .long("no-filter")
                 .help("by default, in the interactive modes, httm will filter out results from non-supported datasets (like ext4, tmpfs, procfs, sysfs, or devtmpfs), and in common snapshot paths.  \
-                Here, one may select to disable such filtering.  httm, however, should always show the mount point for any filtered path, the input path, and results from behind any input path when that path is searched.")
+                Here, one may select to disable such filtering.  httm, however, should always show the input path, and results from behind any input path when that path is searched.")
                 .display_order(12)
         )
         .arg(
