@@ -198,6 +198,7 @@ fn parse_args() -> ArgMatches {
             Arg::new("RECURSIVE")
                 .short('R')
                 .long("recursive")
+                .conflicts_with_all(&["SNAP_FILE_MOUNT", "LAST_SNAP"])
                 .help("recurse into the selected directory to find more files. Only available in interactive and deleted file modes.")
                 .display_order(7)
         )
@@ -351,6 +352,10 @@ impl Config {
         let opt_mount_for_file = matches.is_present("MOUNT_FOR_FILE");
         let opt_no_live_vers = matches.is_present("NO_LIVE") || opt_mount_for_file;
         let opt_no_filter = matches.is_present("NO_FILTER");
+        let opt_overwrite = matches!(
+            matches.value_of("RESTORE"),
+            Some("overwrite") | Some("yolo")
+        );
 
         let mut deleted_mode = match matches.value_of("DELETED_MODE") {
             Some("") | Some("all") => DeletedMode::Enabled,
@@ -380,11 +385,6 @@ impl Config {
             ExecMode::Display
         };
 
-        let opt_overwrite = matches!(
-            matches.value_of("RESTORE"),
-            Some("overwrite") | Some("yolo")
-        );
-
         let env_snap_dir = if std::env::var_os("HTTM_REMOTE_DIR").is_some() {
             std::env::var_os("HTTM_REMOTE_DIR")
         } else {
@@ -403,15 +403,17 @@ impl Config {
             InteractiveMode::None
         };
 
-        if opt_recursive
-            && matches!(
-                exec_mode,
-                ExecMode::Display | ExecMode::SnapFileMount | ExecMode::LastSnap(_)
+        if opt_recursive {
+            if matches!(exec_mode, ExecMode::Display) {
+                return Err(
+                    HttmError::new("Recursive search not available in Display Mode.").into(),
+                );
+            }
+        } else if opt_no_filter {
+            return Err(HttmError::new(
+                "No filter mode only available when recursive search is enabled.",
             )
-        {
-            return Err(
-                HttmError::new("Recursive search feature only allowed in select modes.").into(),
-            );
+            .into());
         }
 
         // current working directory will be helpful in a number of places
