@@ -66,7 +66,6 @@ pub fn versions_lookup_exec(
     };
 
     let all_snap_versions: Vec<PathData> = if config.opt_mount_for_file {
-        // doing this directly here avoids so hacky nonsense later
         let mounts_for_files = get_mounts_for_files(config, vec_pathdata, &selected_datasets)?;
         let output_buf = display_exec(config, &[mounts_for_files, Vec::new()])?;
         print_output_buf(output_buf)?;
