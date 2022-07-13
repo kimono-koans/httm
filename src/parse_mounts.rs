@@ -17,7 +17,8 @@
 
 use std::{fs::read_dir, path::Path, path::PathBuf, process::Command as ExecProcess};
 
-use proc_mounts::{MountInfo, MountIter};
+use proc_mounts::MountIter;
+use rayon::iter::Either;
 use rayon::prelude::*;
 use which::which;
 
@@ -35,35 +36,34 @@ pub fn parse_mounts_exec() -> Result<
     (
         HashMap<PathBuf, (String, FilesystemType)>,
         HashMap<PathBuf, Vec<PathBuf>>,
-        Option<Vec<PathBuf>>,
+        Vec<PathBuf>,
     ),
     Box<dyn std::error::Error + Send + Sync + 'static>,
 > {
-    let maps_of_datasets_and_snaps = if cfg!(target_os = "linux") {
+    let (map_of_datasets, vec_filter_dirs) = if cfg!(target_os = "linux") {
         parse_from_proc_mounts()?
     } else {
         parse_from_mount_cmd()?
     };
 
-    Ok(maps_of_datasets_and_snaps)
+    let map_of_snaps = precompute_snap_mounts(&map_of_datasets);
+
+    Ok((map_of_datasets, map_of_snaps, vec_filter_dirs))
 }
 
 // parsing from proc mounts is both faster and necessary for certain btrfs features
 // for instance, allows us to read subvolumes mounts, like "/@" or "/@home"
 #[allow(clippy::type_complexity)]
 fn parse_from_proc_mounts() -> Result<
-    (
-        HashMap<PathBuf, (String, FilesystemType)>,
-        HashMap<PathBuf, Vec<PathBuf>>,
-        Option<Vec<PathBuf>>,
-    ),
+    (HashMap<PathBuf, (String, FilesystemType)>, Vec<PathBuf>),
     Box<dyn std::error::Error + Send + Sync + 'static>,
 > {
-    let vec_mount_info: Vec<MountInfo> = MountIter::new()?.par_bridge().flatten().collect();
-
-    let map_of_datasets: HashMap<PathBuf, (String, FilesystemType)> = vec_mount_info
-        .clone()
-        .into_par_iter()
+    let (map_of_datasets, vec_of_filter_dirs): (
+        HashMap<PathBuf, (String, FilesystemType)>,
+        Vec<PathBuf>,
+    ) = MountIter::new()?
+        .par_bridge()
+        .flatten()
         // but exclude snapshot mounts.  we want only the raw filesystems
         .filter(|mount_info| {
             !mount_info
@@ -71,8 +71,8 @@ fn parse_from_proc_mounts() -> Result<
                 .to_string_lossy()
                 .contains(ZFS_SNAPSHOT_DIRECTORY)
         })
-        .filter_map(|mount_info| match &mount_info.fstype.as_str() {
-            &ZFS_FSTYPE => Some((
+        .partition_map(|mount_info| match &mount_info.fstype.as_str() {
+            &ZFS_FSTYPE => Either::Left((
                 mount_info.dest,
                 (
                     mount_info.source.to_string_lossy().into_owned(),
@@ -81,7 +81,7 @@ fn parse_from_proc_mounts() -> Result<
             )),
             &SMB_FSTYPE | &AFP_FSTYPE | &NFS_FSTYPE => {
                 if mount_info.dest.join(ZFS_SNAPSHOT_DIRECTORY).exists() {
-                    Some((
+                    Either::Left((
                         mount_info.dest,
                         (
                             mount_info.source.to_string_lossy().into_owned(),
@@ -93,7 +93,7 @@ fn parse_from_proc_mounts() -> Result<
                     .join(BTRFS_SNAPPER_HIDDEN_DIRECTORY)
                     .exists()
                 {
-                    Some((
+                    Either::Left((
                         mount_info.dest,
                         (
                             mount_info.source.to_string_lossy().into_owned(),
@@ -101,7 +101,7 @@ fn parse_from_proc_mounts() -> Result<
                         ),
                     ))
                 } else {
-                    None
+                    Either::Right(mount_info.dest)
                 }
             }
             &BTRFS_FSTYPE => {
@@ -122,25 +122,15 @@ fn parse_from_proc_mounts() -> Result<
 
                 let fstype = FilesystemType::Btrfs;
 
-                Some((mount_info.dest, (subvol, fstype)))
+                Either::Left((mount_info.dest, (subvol, fstype)))
             }
-            _ => None,
-        })
-        .filter(|(mount, (_dataset, _fstype))| mount.exists())
-        .collect();
-
-    let map_of_snaps = precompute_snap_mounts(&map_of_datasets);
-
-    let vec_of_filter_dirs = vec_mount_info
-        .into_par_iter()
-        .filter(|mount_info| map_of_datasets.get(&mount_info.dest).is_none())
-        .map(|mount_info| mount_info.dest)
-        .collect();
+            _ => Either::Right(mount_info.dest),
+        });
 
     if map_of_datasets.is_empty() {
         Err(HttmError::new("httm could not find any valid datasets on the system.").into())
     } else {
-        Ok((map_of_datasets, map_of_snaps, Some(vec_of_filter_dirs)))
+        Ok((map_of_datasets, vec_of_filter_dirs))
     }
 }
 
@@ -148,28 +138,23 @@ fn parse_from_proc_mounts() -> Result<
 // both methods are much faster than using zfs command
 #[allow(clippy::type_complexity)]
 fn parse_from_mount_cmd() -> Result<
-    (
-        HashMap<PathBuf, (String, FilesystemType)>,
-        HashMap<PathBuf, Vec<PathBuf>>,
-        Option<Vec<PathBuf>>,
-    ),
+    (HashMap<PathBuf, (String, FilesystemType)>, Vec<PathBuf>),
     Box<dyn std::error::Error + Send + Sync + 'static>,
 > {
     fn parse(
         mount_command: &PathBuf,
     ) -> Result<
-        (
-            HashMap<PathBuf, (String, FilesystemType)>,
-            HashMap<PathBuf, Vec<PathBuf>>,
-            Option<Vec<PathBuf>>,
-        ),
+        (HashMap<PathBuf, (String, FilesystemType)>, Vec<PathBuf>),
         Box<dyn std::error::Error + Send + Sync + 'static>,
     > {
         let command_output =
             std::str::from_utf8(&ExecProcess::new(mount_command).output()?.stdout)?.to_owned();
 
         // parse "mount" for filesystems and mountpoints
-        let map_of_datasets: HashMap<PathBuf, (String, FilesystemType)> = command_output
+        let (map_of_datasets, vec_of_filter_dirs): (
+            HashMap<PathBuf, (String, FilesystemType)>,
+            Vec<PathBuf>,
+        ) = command_output
             .par_lines()
             // want zfs or network datasets which we can auto detest as ZFS
             .filter(|line| {
@@ -196,25 +181,20 @@ fn parse_from_mount_cmd() -> Result<
             .map(|(filesystem, mount)| (filesystem.to_owned(), PathBuf::from(mount)))
             // sanity check: does the filesystem exist and have a ZFS hidden dir? if not, filter it out
             // and flip around, mount should key of key/value
-            .filter_map(|(filesystem, mount)| {
+            .partition_map(|(filesystem, mount)| {
                 if mount.join(ZFS_SNAPSHOT_DIRECTORY).exists() {
-                    Some((mount, (filesystem, FilesystemType::Zfs)))
+                    Either::Left((mount, (filesystem, FilesystemType::Zfs)))
                 } else if mount.join(BTRFS_SNAPPER_HIDDEN_DIRECTORY).exists() {
-                    Some((mount, (filesystem, FilesystemType::Btrfs)))
+                    Either::Left((mount, (filesystem, FilesystemType::Btrfs)))
                 } else {
-                    None
+                    Either::Right(mount)
                 }
-            })
-            .collect();
-
-        let map_of_snaps = precompute_snap_mounts(&map_of_datasets);
-
-        let vec_of_filter_dirs = None;
+            });
 
         if map_of_datasets.is_empty() {
             Err(HttmError::new("httm could not find any valid datasets on the system.").into())
         } else {
-            Ok((map_of_datasets, map_of_snaps, vec_of_filter_dirs))
+            Ok((map_of_datasets, vec_of_filter_dirs))
         }
     }
 

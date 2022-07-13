@@ -113,7 +113,7 @@ pub struct NativeDatasets {
     map_of_snaps: HashMap<PathBuf, Vec<PathBuf>>,
     // key: mount, val: alt dataset
     opt_map_of_alts: Option<HashMap<PathBuf, Vec<PathBuf>>>,
-    opt_vec_of_filter_dirs: Option<Vec<PathBuf>>,
+    vec_of_filter_dirs: Vec<PathBuf>,
     opt_common_snap_dir: Option<PathBuf>,
 }
 
@@ -621,7 +621,7 @@ impl Config {
                 }),
             )
         } else {
-            let (map_of_datasets, map_of_snaps, opt_vec_of_filter_dirs) = parse_mounts_exec()?;
+            let (map_of_datasets, map_of_snaps, vec_of_filter_dirs) = parse_mounts_exec()?;
 
             // for a collection of btrfs mounts, indicates a common snapshot directory to ignore
             let opt_common_snap_dir = get_common_snap_dir(&map_of_datasets, &map_of_snaps);
@@ -639,7 +639,7 @@ impl Config {
                     map_of_datasets,
                     map_of_snaps,
                     opt_map_of_alts,
-                    opt_vec_of_filter_dirs,
+                    vec_of_filter_dirs,
                     opt_common_snap_dir,
                 }),
             )

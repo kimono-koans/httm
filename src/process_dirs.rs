@@ -216,28 +216,23 @@ fn is_filter_dir(config: &Config, path: &Path) -> bool {
                 }
                 None => (),
             }
-            // is a non-supported dataset
-            match &native_datasets.opt_vec_of_filter_dirs {
-                Some(vec_of_filter_dirs) => {
-                    let interactive_requested_dir = config
-                        .requested_dir
-                        .as_ref()
-                        .expect(
-                            "interactive_requested_dir must always be Some in any recursive mode",
-                        )
-                        .path_buf
-                        .as_path();
 
-                    // check whether user requested this dir specifically, then we will show
-                    if path == interactive_requested_dir {
-                        false
-                    } else {
-                        vec_of_filter_dirs
-                            .par_iter()
-                            .any(|filter_dir| path == *filter_dir)
-                    }
-                }
-                None => fallback(path),
+            // check whether user requested this dir specifically, then we will show
+            let interactive_requested_dir = config
+                .requested_dir
+                .as_ref()
+                .expect("interactive_requested_dir must always be Some in any recursive mode")
+                .path_buf
+                .as_path();
+
+            // is a non-supported dataset
+            if path == interactive_requested_dir {
+                false
+            } else {
+                native_datasets
+                    .vec_of_filter_dirs
+                    .par_iter()
+                    .any(|filter_dir| path == *filter_dir)
             }
         }
         DatasetCollection::UserDefined(_) => fallback(path),
