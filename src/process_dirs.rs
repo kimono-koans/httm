@@ -15,6 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
+use std::fs::DirEntry;
 use std::{fs::read_dir, io::Write, path::Path, sync::Arc};
 
 use indicatif::ProgressBar;
@@ -169,25 +170,29 @@ fn get_entries_partitioned(
     (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>),
     Box<dyn std::error::Error + Send + Sync + 'static>,
 > {
-    let (vec_dirs, vec_files) = if !config.opt_no_filter && is_filter_dir(&config, requested_dir) {
-        return Err(HttmError::new("This directory is a directory which httm filters.").into());
-    } else {
-        //separates entries into dirs and files
-        read_dir(&requested_dir)?
-            .flatten()
-            .par_bridge()
-            // checking file_type on dir entries is always preferable
-            // as it is much faster than a metadata call on the path
-            .map(|dir_entry| BasicDirEntryInfo::from(&dir_entry))
-            .partition(|entry| httm_is_dir(entry))
-    };
+    //separates entries into dirs and files
+    let (vec_dirs, vec_files) = read_dir(&requested_dir)?
+        .flatten()
+        .par_bridge()
+        // checking file_type on dir entries is always preferable
+        // as it is much faster than a metadata call on the path
+        .filter(|dir_entry| {
+            if config.opt_no_filter {
+                true
+            } else {
+                !is_filter_dir(&config, dir_entry)
+            }
+        })
+        .map(|dir_entry| BasicDirEntryInfo::from(&dir_entry))
+        .partition(|entry| httm_is_dir(entry));
 
     Ok((vec_dirs, vec_files))
 }
 
-fn is_filter_dir(config: &Config, path: &Path) -> bool {
+fn is_filter_dir(config: &Config, dir_entry: &DirEntry) -> bool {
     // FYI path is always a relative path, but no need to canonicalize as
     // partial eq for paths is comparison of components iter
+    let path = dir_entry.path();
 
     let fallback = |path: &Path| {
         let proc = Path::new(PROC_DIRECTORY);
@@ -235,7 +240,7 @@ fn is_filter_dir(config: &Config, path: &Path) -> bool {
                     .any(|filter_dir| path == *filter_dir)
             }
         }
-        DatasetCollection::UserDefined(_) => fallback(path),
+        DatasetCollection::UserDefined(_) => fallback(&path),
     }
 }
 
