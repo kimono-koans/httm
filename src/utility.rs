@@ -279,6 +279,17 @@ fn cmp_path<A: AsRef<Path>, B: AsRef<Path>>(a: A, b: B) -> Option<PathBuf> {
     }
 }
 
+pub fn print_output_buf(
+    output_buf: String,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    // mutex keeps threads from writing over each other
+    let mut out_locked = std::io::stdout().lock();
+    writeln!(out_locked, "{}", output_buf)?;
+    out_locked.flush()?;
+
+    Ok(())
+}
+
 #[derive(Debug)]
 pub struct HttmError {
     pub details: String,

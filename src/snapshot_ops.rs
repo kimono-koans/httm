@@ -21,7 +21,7 @@ use itertools::Itertools;
 use std::process::Command as ExecProcess;
 use which::which;
 
-use crate::utility::{timestamp_file, HttmError, PathData};
+use crate::utility::{print_output_buf, timestamp_file, HttmError, PathData};
 use crate::versions_lookup::{get_mounts_for_files, NativeDatasetType};
 use crate::Config;
 
@@ -80,9 +80,11 @@ pub fn take_snapshot(
             ))
             .into());
         } else {
-            snapshot_names.iter().for_each(|snap_name| {
-                println!("httm took a snapshot named: {}", &snap_name);
-            });
+            let output_buf = snapshot_names
+                .iter()
+                .map(|snap_name| format!("httm took a snapshot named: {}\n", &snap_name))
+                .collect();
+            print_output_buf(output_buf)?;
             std::process::exit(0);
         }
     }

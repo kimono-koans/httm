@@ -22,7 +22,9 @@ use skim::prelude::*;
 
 use crate::display::display_exec;
 use crate::process_dirs::process_dirs_exec;
-use crate::utility::{copy_recursive, paint_string, timestamp_file, HttmError, PathData};
+use crate::utility::{
+    copy_recursive, paint_string, print_output_buf, timestamp_file, HttmError, PathData,
+};
 use crate::versions_lookup::versions_lookup_exec;
 use crate::{Config, DeletedMode, ExecMode, InteractiveMode};
 
@@ -301,7 +303,8 @@ fn interactive_select(
     if config.interactive_mode == InteractiveMode::Restore {
         Ok(interactive_restore(config, &path_string, vec_paths)?)
     } else {
-        println!("\"{}\"", &path_string);
+        let output_buf = format!("\"{}\"\n", &path_string);
+        print_output_buf(output_buf)?;
         std::process::exit(0)
     }
 }

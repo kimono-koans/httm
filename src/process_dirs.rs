@@ -16,7 +16,7 @@
 // that was distributed with this source code.
 
 use std::fs::DirEntry;
-use std::{fs::read_dir, io::Write, path::Path, sync::Arc};
+use std::{fs::read_dir, path::Path, sync::Arc};
 
 use indicatif::ProgressBar;
 use rayon::{prelude::*, Scope, ThreadPool};
@@ -24,7 +24,7 @@ use skim::prelude::*;
 
 use crate::display::display_exec;
 use crate::interactive::SelectionCandidate;
-use crate::utility::{httm_is_dir, BasicDirEntryInfo, HttmError, PathData};
+use crate::utility::{httm_is_dir, print_output_buf, BasicDirEntryInfo, HttmError, PathData};
 use crate::versions_lookup::versions_lookup_exec;
 use crate::{deleted_lookup::deleted_lookup_exec, DEV_DIRECTORY, PROC_DIRECTORY, SYS_DIRECTORY};
 use crate::{
@@ -448,10 +448,7 @@ fn print_display_recursive(
 
     let output_buf = display_exec(&config, &snaps_and_live_set)?;
 
-    // mutex keeps threads from writing over each other
-    let mut out_locked = std::io::stdout().lock();
-    writeln!(out_locked, "{}", output_buf)?;
-    out_locked.flush()?;
+    print_output_buf(output_buf)?;
 
     Ok(())
 }
