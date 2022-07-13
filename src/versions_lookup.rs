@@ -298,20 +298,20 @@ fn get_proximate_dataset(
     // we map to return the key, instead of the value
     let ancestors: Vec<&Path> = pathdata.path_buf.ancestors().collect();
 
-    let opt_best_potential_mountpoint: Option<PathBuf> =
+    let opt_best_potential_mountpoint: Option<&Path> =
         // find_map_first should return the first seq result with a par_iter
         // but not with a par_bridge
         ancestors.into_par_iter().find_map_first(|ancestor| {
             if map_of_datasets
                 .contains_key(ancestor){
-                    Some(ancestor.to_path_buf())
+                    Some(ancestor)
                 } else {
                     None
                 }
         });
 
     // do we have any mount points left? if not print error
-    match opt_best_potential_mountpoint {
+    match opt_best_potential_mountpoint.map(|path| path.to_path_buf()) {
         Some(best_potential_mountpoint) => Ok(best_potential_mountpoint),
         None => {
             let msg = "httm could not identify any qualifying dataset.  Maybe consider specifying manually at SNAP_POINT?";
