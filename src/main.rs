@@ -361,7 +361,7 @@ impl Config {
         let opt_recursive = matches.is_present("RECURSIVE");
         let opt_exact = matches.is_present("EXACT");
         let opt_mount_for_file = matches.is_present("MOUNT_FOR_FILE");
-        let opt_no_live = matches.is_present("NO_LIVE") || opt_mount_for_file;
+        let opt_no_live = matches.is_present("NO_LIVE");
         let opt_no_filter = matches.is_present("NO_FILTER");
         let opt_no_snap = matches.is_present("NO_SNAP");
         let opt_overwrite = matches!(
@@ -369,6 +369,7 @@ impl Config {
             Some("overwrite") | Some("yolo")
         );
 
+        // force a raw mode if one is not set for no_snap mode
         if opt_no_snap && !opt_raw && !opt_zeros {
             opt_raw = true
         }

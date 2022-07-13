@@ -284,7 +284,7 @@ pub fn print_output_buf(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     // mutex keeps threads from writing over each other
     let mut out_locked = std::io::stdout().lock();
-    writeln!(out_locked, "{}", output_buf)?;
+    write!(out_locked, "{}", output_buf)?;
     out_locked.flush()?;
 
     Ok(())

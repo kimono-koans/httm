@@ -23,7 +23,10 @@ use std::{
 
 use rayon::prelude::*;
 
-use crate::utility::{HttmError, PathData};
+use crate::{
+    display::display_exec,
+    utility::{print_output_buf, HttmError, PathData},
+};
 use crate::{
     AHashMapSpecial as HashMap, Config, DatasetCollection, FilesystemType,
     BTRFS_SNAPPER_HIDDEN_DIRECTORY, BTRFS_SNAPPER_SUFFIX, ZFS_SNAPSHOT_DIRECTORY,
@@ -63,7 +66,12 @@ pub fn versions_lookup_exec(
     };
 
     let all_snap_versions: Vec<PathData> = if config.opt_mount_for_file {
-        get_mounts_for_files(config, vec_pathdata, &selected_datasets)?
+        // doing this directly here avoids so hacky nonsense later
+        let mounts_for_files = get_mounts_for_files(config, vec_pathdata, &selected_datasets)?;
+        let output_buf = display_exec(config, &[mounts_for_files, Vec::new()])?;
+        print_output_buf(output_buf)?;
+
+        std::process::exit(0)
     } else if config.opt_no_snap {
         Vec::new()
     } else {
