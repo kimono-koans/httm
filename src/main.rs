@@ -35,6 +35,7 @@ use AHashMapSpecial as HashMap;
 
 use clap::{crate_name, crate_version, Arg, ArgMatches};
 use rayon::prelude::*;
+use utility::print_output_buf;
 
 mod deleted_lookup;
 mod display;
@@ -725,7 +726,7 @@ fn exec() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
 
     // and display
     let output_buf = display_exec(&config, &snaps_and_live_set)?;
-    print!("{}", output_buf);
+    print_output_buf(output_buf)?;
 
     Ok(())
 }
