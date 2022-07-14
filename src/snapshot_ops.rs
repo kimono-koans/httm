@@ -23,7 +23,7 @@ use which::which;
 
 use crate::utility::{print_output_buf, timestamp_file, HttmError, PathData};
 use crate::versions_lookup::{get_mounts_for_files, NativeDatasetType};
-use crate::Config;
+use crate::{AHashMapSpecial as HashMap, Config};
 
 use crate::{DatasetCollection, FilesystemType};
 
@@ -38,7 +38,7 @@ pub fn take_snapshot(
         // all snapshots should have the same timestamp
         let timestamp = timestamp_file(&SystemTime::now());
 
-        let res_snapshot_names: Result<Vec<String>, HttmError> = mounts_for_files.iter().map(|mount| {
+        let vec_snapshot_names: Vec<String> = mounts_for_files.iter().map(|mount| {
             let dataset: String = match &config.dataset_collection {
                 DatasetCollection::Native(native_datasets) => {
                     match native_datasets.map_of_datasets.get(&mount.path_buf) {
@@ -62,31 +62,51 @@ pub fn take_snapshot(
             );
 
             Ok(snapshot_name)
-        }).collect::<Result<Vec<String>, HttmError>>();
+        }).collect::<Result<Vec<String>, HttmError>>()?;
 
-        let snapshot_names: Vec<String> = res_snapshot_names?.into_iter().dedup().collect();
+        // okay why all this garbage with hashmaps, etc.? ZFS will not allow one to take snapshots
+        // with the same name, at the same time, across pools.  Since we don't really care, we break
+        // the snapshots into groups by pool name and then take snapshots for each pool
+        let map_snapshot_names: HashMap<String, Vec<String>> = vec_snapshot_names
+            .into_iter()
+            .into_group_map_by(|snapshot_name| {
+                let (pool_name, _rest) = snapshot_name
+                    .split_once('/')
+                    .unwrap_or((snapshot_name.as_ref(), snapshot_name.as_ref()));
+                pool_name.to_owned()
+            })
+            .iter_mut()
+            .map(|(key, group)| {
+                group.sort();
+                group.dedup();
+                (key.to_owned(), group.to_owned())
+            })
+            .collect();
 
-        let mut process_args = vec!["snapshot".to_owned()];
-        process_args.extend(snapshot_names.clone());
+        // I think this may be only traditional for loop in all of httm.  Iters are usually faster, allow for less mutation, etc.
+        // But this loop one broke me.  This loop is much more simple just because there are like 3ish error return types possible.
+        for (_pool_name, snapshot_names) in map_snapshot_names {
+            let mut process_args = vec!["snapshot".to_owned()];
+            process_args.extend(snapshot_names.clone());
 
-        let process_output = ExecProcess::new(zfs_command).args(&process_args).output()?;
-        let stderr = std::str::from_utf8(&process_output.stderr)?.trim();
+            let process_output = ExecProcess::new(zfs_command).args(&process_args).output()?;
+            let stderr = std::str::from_utf8(&process_output.stderr)?.trim();
 
-        if !stderr.is_empty() {
-            return Err(HttmError::new(&format!(
-                "httm was unable to take a snapshot/s. \
-                The 'zfs' command issued the following error: {}",
-                stderr
-            ))
-            .into());
-        } else {
-            let output_buf = snapshot_names
-                .iter()
-                .map(|snap_name| format!("httm took a snapshot named: {}\n", &snap_name))
-                .collect();
-            print_output_buf(output_buf)?;
-            std::process::exit(0);
+            if !stderr.is_empty() {
+                let httm_error = HttmError::new(
+                        &("httm was unable to take a snapshot/s. The 'zfs' command issued the following error: ".to_owned() + stderr
+                    ));
+                return Err(httm_error.into());
+            } else {
+                let output_buf = snapshot_names
+                    .iter()
+                    .map(|snap_name| format!("httm took a snapshot named: {}\n", &snap_name))
+                    .collect();
+                print_output_buf(output_buf)?;
+            }
         }
+
+        std::process::exit(0);
     }
 
     // don't want to request alt replicated mounts, though we may in opt_mount_for_file mode
