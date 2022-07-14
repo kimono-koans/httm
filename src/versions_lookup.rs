@@ -106,24 +106,22 @@ pub fn get_mounts_for_files(
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // we only check for phantom files in "mount for file" mode because
     // people should be able to search for deleted files in other modes
-    let phantom_files: Vec<&PathData> = vec_pathdata
+    let (phantom_files, non_phantom_files): (Vec<&PathData>, Vec<&PathData>) = vec_pathdata
         .par_iter()
-        .filter(|pathdata| pathdata.is_phantom)
-        .collect();
+        .partition(|pathdata| pathdata.is_phantom);
 
     if !phantom_files.is_empty() {
-        let msg = "httm was unable to determine mount locations for all input files, \
-        because the following files do not appear to exist: ";
+        eprintln!(
+            "httm was unable to determine mount locations for all input files, \
+        because the following files do not appear to exist: "
+        );
 
-        let phantom_paths_string: String = phantom_files
-            .par_iter()
-            .map(|pathdata| format!("\n{}", pathdata.path_buf.to_string_lossy()))
-            .collect();
-
-        return Err(HttmError::new(format!("{}{}", msg, phantom_paths_string).as_str()).into());
+        phantom_files
+            .iter()
+            .for_each(|pathdata| eprintln!("{}", pathdata.path_buf.to_string_lossy()));
     }
 
-    let mounts_for_files: Vec<PathData> = vec_pathdata
+    let mounts_for_files: Vec<PathData> = non_phantom_files
         .par_iter()
         .map(|pathdata| {
             selected_datasets

@@ -64,9 +64,9 @@ pub fn take_snapshot(
             Ok(snapshot_name)
         }).collect::<Result<Vec<String>, HttmError>>()?;
 
-        // okay why all this garbage with hashmaps, etc.? ZFS will not allow one to take snapshots
+        // why all this garbage with hashmaps, etc.? ZFS will not allow one to take snapshots
         // with the same name, at the same time, across pools.  Since we don't really care, we break
-        // the snapshots into groups by pool name and then take snapshots for each pool
+        // the snapshots into groups by pool name and then just take snapshots for each pool
         let map_snapshot_names: HashMap<String, Vec<String>> = vec_snapshot_names
             .into_iter()
             .into_group_map_by(|snapshot_name| {
@@ -83,20 +83,24 @@ pub fn take_snapshot(
             })
             .collect();
 
-        // I think this may be only traditional for loop in all of httm.  Iters are usually faster, allow for less mutation, etc.
-        // But this loop one broke me.  This loop is much more simple just because there are like 3ish error return types possible.
+        // This may be only traditional for loop in all of httm.  Iters are usually faster,
+        // allow for less mutation, can be parallelized more easily etc.  But this loop one broke me.
+        // This for loop is much more simple just because there are like 3ish error return types possible.
         for (_pool_name, snapshot_names) in map_snapshot_names {
             let mut process_args = vec!["snapshot".to_owned()];
             process_args.extend(snapshot_names.clone());
 
             let process_output = ExecProcess::new(zfs_command).args(&process_args).output()?;
-            let stderr = std::str::from_utf8(&process_output.stderr)?.trim();
+            let stderr_string = std::str::from_utf8(&process_output.stderr)?.trim();
 
-            if !stderr.is_empty() {
-                let httm_error = HttmError::new(
-                        &("httm was unable to take a snapshot/s. The 'zfs' command issued the following error: ".to_owned() + stderr
-                    ));
-                return Err(httm_error.into());
+            if !stderr_string.is_empty() {
+                let msg = if stderr_string.contains("cannot create snapshots : permission denied") {
+                    "httm must have root privileges to snapshot a filesystem".to_owned()
+                } else {
+                    "httm was unable to take snapshots. The 'zfs' command issued the following error: ".to_owned() + stderr_string
+                };
+
+                return Err(HttmError::new(&msg).into());
             } else {
                 let output_buf = snapshot_names
                     .iter()
