@@ -87,9 +87,16 @@ Print all unique versions of your history file:
 ```bash
 httm ~/.histfile
 ```
+Print all files on snapshots deleted from your home directory, recursive:
+```bash
+httm -d -R ~
+```
 Print all files on snapshots deleted from your home directory, recursive, newline delimited, piped to a `deleted-files.txt` file: 
 ```bash
-httm -d -n -R --no-live ~ > deleted-files.txt
+# pseudo live file versions
+httm -d -n -R --no-snap ~ > pseudo-live-versions.txt
+# unique snapshot versions
+httm -d -n -R --no-live ~ > deleted-unique-versions.txt
 ```
 Browse all files in your home directory, recursively, and view unique versions on local snapshots:
 ```bash
@@ -142,8 +149,6 @@ for current_version in $(httm -n $filename); do
     fi
 
     # check whether files differ (e.g. if current version is identical to previous version)
-    # this condition should only be relevant to the 'live' version, which could be the same as
-    # the version which is currently the latest snapshot version (see also the "--no-live" flag)
     if [[ ! -z "$( diff -q  "$previous_version" "$current_version" )" ]]; then
         # print that current version and previous version that differ
         diff -q  "$previous_version" "$current_version"
