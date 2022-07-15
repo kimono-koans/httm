@@ -15,7 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::{path::PathBuf, time::SystemTime};
+use std::{path::Path, time::SystemTime};
 
 use itertools::Itertools;
 use std::process::Command as ExecProcess;
@@ -32,7 +32,7 @@ pub fn take_snapshot(
 ) -> Result<[Vec<PathData>; 2], Box<dyn std::error::Error + Send + Sync + 'static>> {
     fn exec_zfs_snapshot(
         config: &Config,
-        zfs_command: &PathBuf,
+        zfs_command: &Path,
         mounts_for_files: &[PathData],
     ) -> Result<[Vec<PathData>; 2], Box<dyn std::error::Error + Send + Sync + 'static>> {
         // all snapshots should have the same timestamp

@@ -142,7 +142,7 @@ fn parse_from_mount_cmd() -> Result<
     Box<dyn std::error::Error + Send + Sync + 'static>,
 > {
     fn parse(
-        mount_command: &PathBuf,
+        mount_command: &Path,
     ) -> Result<
         (HashMap<PathBuf, (String, FilesystemType)>, Vec<PathBuf>),
         Box<dyn std::error::Error + Send + Sync + 'static>,

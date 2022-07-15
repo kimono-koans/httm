@@ -53,7 +53,7 @@ pub struct SearchBundle {
 
 pub fn versions_lookup_exec(
     config: &Config,
-    vec_pathdata: &Vec<PathData>,
+    vec_pathdata: &[PathData],
 ) -> Result<[Vec<PathData>; 2], Box<dyn std::error::Error + Send + Sync + 'static>> {
     // prepare for local and replicated backups on alt replicated sets if necessary
     let selected_datasets = if config.opt_alt_replicated {
@@ -81,7 +81,7 @@ pub fn versions_lookup_exec(
     let live_versions: Vec<PathData> = if config.opt_no_live {
         Vec::new()
     } else {
-        vec_pathdata.clone()
+        vec_pathdata.to_owned()
     };
 
     // check if all files (snap and live) do not exist, if this is true, then user probably messed up
@@ -101,8 +101,8 @@ pub fn versions_lookup_exec(
 
 pub fn get_mounts_for_files(
     config: &Config,
-    vec_pathdata: &Vec<PathData>,
-    selected_datasets: &Vec<NativeDatasetType>,
+    vec_pathdata: &[PathData],
+    selected_datasets: &[NativeDatasetType],
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // we only check for phantom files in "mount for file" mode because
     // people should be able to search for deleted files in other modes
@@ -139,8 +139,8 @@ pub fn get_mounts_for_files(
 
 fn get_all_snap_versions(
     config: &Config,
-    vec_pathdata: &Vec<PathData>,
-    selected_datasets: &Vec<NativeDatasetType>,
+    vec_pathdata: &[PathData],
+    selected_datasets: &[NativeDatasetType],
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // create vec of all local and replicated backups at once
     let all_snap_versions: Vec<PathData> = vec_pathdata

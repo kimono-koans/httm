@@ -161,7 +161,7 @@ pub fn interactive_exec(
             match config.paths.get(0) {
                 Some(first_path) => {
                     let selected_file = first_path.clone();
-                    interactive_select(config, &vec![selected_file])?;
+                    interactive_select(config, &[selected_file])?;
                     // interactive select never returns so unreachable here
                     unreachable!()
                 }
@@ -237,7 +237,7 @@ fn browse_view(
 
 fn interactive_select(
     config: &Config,
-    vec_paths: &Vec<PathData>,
+    vec_paths: &[PathData],
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let snaps_and_live_set = versions_lookup_exec(config, vec_paths)?;
 
@@ -311,7 +311,7 @@ fn interactive_select(
 }
 
 fn select_restore_view(
-    preview_buffer: &String,
+    preview_buffer: &str,
     reverse: bool,
 ) -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // build our browse view - less to do than before - no previews, looking through one 'lil buffer
@@ -377,7 +377,7 @@ fn interactive_restore(
         // corner case: what if multiple selected paths had the same file name,
         // but were in different directories? let's make sure we have only one match
         let opt_og_pathdata = vec_paths.iter().find_map(|pathdata| {
-            match versions_lookup_exec(config, &vec![pathdata.clone()]).ok() {
+            match versions_lookup_exec(config, &[pathdata.clone()]).ok() {
                 // safe to index into snaps, known len of 2 for set
                 Some(pathdata_set) => pathdata_set[0].iter().find_map(|pathdata| {
                     if pathdata == &snap_pathdata {
