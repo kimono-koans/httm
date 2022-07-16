@@ -74,7 +74,11 @@ pub fn versions_lookup_exec(
             display_exec(
                 config,
                 &[
-                    mounts_for_files.values().flatten().cloned().collect(),
+                    mounts_for_files
+                        .iter()
+                        .flat_map(|(_pathdata, datasets)| datasets)
+                        .cloned()
+                        .collect(),
                     Vec::new(),
                 ],
             )?
@@ -113,11 +117,12 @@ pub fn versions_lookup_exec(
     Ok([all_snap_versions, live_versions])
 }
 
+#[allow(clippy::type_complexity)]
 pub fn get_mounts_for_files(
     config: &Config,
     vec_pathdata: &[PathData],
     selected_datasets: &[SnapshotDatasetType],
-) -> Result<HashMap<PathData, Vec<PathData>>, Box<dyn std::error::Error + Send + Sync + 'static>> {
+) -> Result<Vec<(PathData, Vec<PathData>)>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // we only check for phantom files in "mount for file" mode because
     // people should be able to search for deleted files in other modes
     let (phantom_files, non_phantom_files): (Vec<&PathData>, Vec<&PathData>) = vec_pathdata
@@ -135,7 +140,7 @@ pub fn get_mounts_for_files(
             .for_each(|pathdata| eprintln!("{}", pathdata.path_buf.to_string_lossy()));
     }
 
-    let mounts_for_files: HashMap<PathData, Vec<PathData>> = non_phantom_files
+    let mut mounts_for_files: Vec<(PathData, Vec<PathData>)> = non_phantom_files
         .into_iter()
         .map(|pathdata| {
             let datasets: Vec<DatasetsForSearch> = selected_datasets
@@ -157,6 +162,8 @@ pub fn get_mounts_for_files(
             (pathdata.to_owned(), datasets)
         })
         .collect();
+
+    mounts_for_files.par_sort_unstable_by_key(|(pathdata, _datasets)| pathdata.path_buf.clone());
 
     Ok(mounts_for_files)
 }

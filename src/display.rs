@@ -22,7 +22,7 @@ use number_prefix::NumberPrefix;
 use terminal_size::{terminal_size, Height, Width};
 
 use crate::utility::{paint_string, PathData};
-use crate::{AHashMap as HashMap, Config};
+use crate::Config;
 
 // 2 space wide padding - used between date and size, and size and path
 const PRETTY_FIXED_WIDTH_PADDING: &str = "  ";
@@ -47,7 +47,7 @@ pub fn display_exec(
 }
 
 pub fn display_mount_map(
-    mount_map: &HashMap<PathData, Vec<PathData>>,
+    mount_map: &[(PathData, Vec<PathData>)],
 ) -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
     let padding = mount_map
         .iter()
