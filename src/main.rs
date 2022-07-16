@@ -481,8 +481,7 @@ impl Config {
                     vec![pwd.clone()]
                 }
                 ExecMode::Display | ExecMode::SnapFileMount => read_stdin()?
-                    .iter()
-                    .par_bridge()
+                    .par_iter()
                     .map(|string| PathData::from(Path::new(&string)))
                     .collect(),
             }
