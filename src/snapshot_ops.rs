@@ -115,7 +115,9 @@ pub fn take_snapshot(
     let selected_datasets = vec![SnapshotDatasetType::MostProximate];
 
     let mounts_for_files: HashMap<PathData, Vec<PathData>> =
-        get_mounts_for_files(config, &config.paths, &selected_datasets)?.into_iter().collect();
+        get_mounts_for_files(config, &config.paths, &selected_datasets)?
+            .into_iter()
+            .collect();
 
     if let Ok(zfs_command) = which("zfs") {
         exec_zfs_snapshot(config, &zfs_command, &mounts_for_files)

@@ -49,31 +49,36 @@ pub fn display_exec(
 pub fn display_mount_map(
     mount_map: &HashMap<PathData, Vec<PathData>>,
 ) -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    // so easy!
+
+    let padding = mount_map
+        .iter()
+        .map(|(key, _vec_values)| key )
+        .max_by_key(|key| key.path_buf.to_string_lossy().len())
+        .map_or_else(|| 0usize, |key| key.path_buf.to_string_lossy().len());
+
     let write_out_buffer = mount_map
         .iter()
-        .map(|(pathdata, vec)| {
-            let display_path = pathdata.path_buf.to_string_lossy();
-            let padding = format!(
-                "{}  ",
-                (0..display_path.len()).map(|_| " ").collect::<String>()
-            );            
+        .map(|(key, vec_values)| {
+            let display_path = key.path_buf.to_string_lossy();
 
-            let buffer: String = vec.iter().enumerate().map(|(idx, mount)| {
-                if idx == 0 {
-                    format!("{}: {}\n", display_path, mount.path_buf.display())
-                } else {
-                    format!("{}{}\n", padding, mount.path_buf.display())
-                }
-            }).collect();
-            
+            let buffer: String = vec_values
+                .iter()
+                .enumerate()
+                .map(|(idx, mount)| {
+                    if idx == 0 {
+                        format!("{}: {:>width$}\n", display_path, mount.path_buf.to_string_lossy(), width = padding)
+                    } else {
+                        format!("{:>width$}\n", mount.path_buf.to_string_lossy(), width = padding)
+                    }
+                })
+                .collect();
+
             buffer
         })
         .collect();
 
     Ok(write_out_buffer)
 }
-
 
 fn display_raw(
     config: &Config,

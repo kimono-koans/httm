@@ -21,6 +21,7 @@ use std::{
     time::SystemTime,
 };
 
+use itertools::Itertools;
 use rayon::prelude::*;
 
 use crate::{
@@ -32,6 +33,7 @@ use crate::{
     BTRFS_SNAPPER_SUFFIX, ZFS_SNAPSHOT_DIRECTORY,
 };
 
+#[derive(Debug, Clone)]
 pub struct DatasetsForSearch {
     pub proximate_dataset_mount: PathBuf,
     pub datasets_of_interest: Vec<PathBuf>,
@@ -67,13 +69,19 @@ pub fn versions_lookup_exec(
 
     let all_snap_versions: Vec<PathData> = if config.opt_mount_for_file {
         let mounts_for_files = get_mounts_for_files(config, vec_pathdata, &selected_datasets)?;
-                
+
         let output_buf = if config.opt_raw || config.opt_zeros {
-            display_exec(config, &[mounts_for_files.values().flatten().cloned().collect(), Vec::new()])?
+            display_exec(
+                config,
+                &[
+                    mounts_for_files.values().flatten().cloned().collect(),
+                    Vec::new(),
+                ],
+            )?
         } else {
             display_mount_map(&mounts_for_files)?
         };
-    
+
         print_output_buf(output_buf)?;
 
         std::process::exit(0)
@@ -128,26 +136,25 @@ pub fn get_mounts_for_files(
     }
 
     let mounts_for_files: HashMap<PathData, Vec<PathData>> = non_phantom_files
-        .par_iter()
-        .flat_map(|pathdata| {
-            selected_datasets
-                .par_iter()
-                .flat_map(|dataset_type| {
-                    get_datasets_for_search(config, pathdata, dataset_type));
-                    println!("{:?}", selected_datasets);
-                }
-                    
-                .map( |datasets_for_search| {
-                    (pathdata.to_owned(), datasets_for_search)
-                })
-                
+        .into_iter()
+        .map(|pathdata| {
+            let datasets: Vec<DatasetsForSearch> = selected_datasets
+                .iter()
+                .flat_map(|dataset_type| get_datasets_for_search(config, pathdata, dataset_type))
+                .collect();
+            (pathdata, datasets)
         })
-        .map(|(pathdata, datasets_for_search)| {
-            let vec = datasets_for_search
-                .datasets_of_interest
-                .par_iter()
-                .map(|path| PathData::from(path.as_path())).collect();
-            (pathdata.to_owned().to_owned(), vec)
+        .into_group_map_by(|(pathdata, _datasets_for_search)| pathdata.to_owned())
+        .into_iter()
+        .map(|(pathdata, vec_datasets_for_search)| {
+            let datasets: Vec<PathData> = vec_datasets_for_search
+                .into_iter()
+                .flat_map(|(_proximate_mount, datasets_for_search)| datasets_for_search)
+                .flat_map(|datasets_for_search| datasets_for_search.datasets_of_interest)
+                .map(|path| PathData::from(path.as_path()))
+                .rev()
+                .collect();
+            (pathdata.to_owned(), datasets)
         })
         .collect();
 
