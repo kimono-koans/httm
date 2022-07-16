@@ -83,16 +83,14 @@ pub fn take_snapshot(
             })
             .collect();
 
-        // This may be only traditional for loop in all of httm.  Iters are usually faster,
-        // allow for less mutation, can be parallelized more easily etc.  But this loop one broke me.
-        // This for loop is much more simple just because there are like 3ish error return types possible.
-        for (_pool_name, snapshot_names) in map_snapshot_names {
+        map_snapshot_names.iter().try_for_each( |(_pool_name, snapshot_names)| {
             let mut process_args = vec!["snapshot".to_owned()];
             process_args.extend(snapshot_names.clone());
 
             let process_output = ExecProcess::new(zfs_command).args(&process_args).output()?;
             let stderr_string = std::str::from_utf8(&process_output.stderr)?.trim();
 
+            // stderr_string is a string not an error, so here we build an err or output
             if !stderr_string.is_empty() {
                 let msg = if stderr_string.contains("cannot create snapshots : permission denied") {
                     "httm must have root privileges to snapshot a filesystem".to_owned()
@@ -100,17 +98,17 @@ pub fn take_snapshot(
                     "httm was unable to take snapshots. The 'zfs' command issued the following error: ".to_owned() + stderr_string
                 };
 
-                return Err(HttmError::new(&msg).into());
+                Err(HttmError::new(&msg).into())
             } else {
                 let output_buf = snapshot_names
                     .iter()
                     .map(|snap_name| format!("httm took a snapshot named: {}\n", &snap_name))
                     .collect();
-                print_output_buf(output_buf)?;
+                print_output_buf(output_buf)
             }
-        }
+        })?;
 
-        std::process::exit(0);
+        std::process::exit(0)
     }
 
     // don't want to request alt replicated mounts, though we may in opt_mount_for_file mode
