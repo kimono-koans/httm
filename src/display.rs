@@ -22,7 +22,7 @@ use number_prefix::NumberPrefix;
 use terminal_size::{terminal_size, Height, Width};
 
 use crate::utility::{paint_string, PathData};
-use crate::Config;
+use crate::{AHashMap as HashMap, Config};
 
 // 2 space wide padding - used between date and size, and size and path
 const PRETTY_FIXED_WIDTH_PADDING: &str = "  ";
@@ -37,7 +37,7 @@ pub fn display_exec(
     config: &Config,
     snaps_and_live_set: &[Vec<PathData>; 2],
 ) -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let output_buffer = if config.opt_raw || config.opt_zeros || config.opt_mount_for_file {
+    let output_buffer = if config.opt_raw || config.opt_zeros {
         display_raw(config, snaps_and_live_set)?
     } else {
         display_pretty(config, snaps_and_live_set)?
@@ -45,6 +45,35 @@ pub fn display_exec(
 
     Ok(output_buffer)
 }
+
+pub fn display_mount_map(
+    mount_map: &HashMap<PathData, Vec<PathData>>,
+) -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    // so easy!
+    let write_out_buffer = mount_map
+        .iter()
+        .map(|(pathdata, vec)| {
+            let display_path = pathdata.path_buf.to_string_lossy();
+            let padding = format!(
+                "{}  ",
+                (0..display_path.len()).map(|_| " ").collect::<String>()
+            );            
+
+            let buffer: String = vec.iter().enumerate().map(|(idx, mount)| {
+                if idx == 0 {
+                    format!("{}: {}\n", display_path, mount.path_buf.display())
+                } else {
+                    format!("{}{}\n", padding, mount.path_buf.display())
+                }
+            }).collect();
+            
+            buffer
+        })
+        .collect();
+
+    Ok(write_out_buffer)
+}
+
 
 fn display_raw(
     config: &Config,

@@ -33,12 +33,12 @@ pub fn take_snapshot(
     fn exec_zfs_snapshot(
         config: &Config,
         zfs_command: &Path,
-        mounts_for_files: &[PathData],
+        mounts_for_files: &HashMap<PathData, Vec<PathData>>,
     ) -> Result<[Vec<PathData>; 2], Box<dyn std::error::Error + Send + Sync + 'static>> {
         // all snapshots should have the same timestamp
         let timestamp = timestamp_file(&SystemTime::now());
 
-        let vec_snapshot_names: Vec<String> = mounts_for_files.iter().map(|mount| {
+        let vec_snapshot_names: Vec<String> = mounts_for_files.values().flatten().map(|mount| {
             let dataset: String = match &config.dataset_collection {
                 DatasetCollection::AutoDetect(detected_datasets) => {
                     match detected_datasets.map_of_datasets.get(&mount.path_buf) {
@@ -114,8 +114,8 @@ pub fn take_snapshot(
     // don't want to request alt replicated mounts, though we may in opt_mount_for_file mode
     let selected_datasets = vec![SnapshotDatasetType::MostProximate];
 
-    let mounts_for_files: Vec<PathData> =
-        get_mounts_for_files(config, &config.paths, &selected_datasets)?;
+    let mounts_for_files: HashMap<PathData, Vec<PathData>> =
+        get_mounts_for_files(config, &config.paths, &selected_datasets)?.into_iter().collect();
 
     if let Ok(zfs_command) = which("zfs") {
         exec_zfs_snapshot(config, &zfs_command, &mounts_for_files)
