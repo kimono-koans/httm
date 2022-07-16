@@ -49,31 +49,35 @@ pub fn display_exec(
 pub fn display_mount_map(
     mount_map: &HashMap<PathData, Vec<PathData>>,
 ) -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
-
     let padding = mount_map
         .iter()
-        .map(|(key, _vec_values)| key )
+        .map(|(key, _vec_values)| key)
         .max_by_key(|key| key.path_buf.to_string_lossy().len())
         .map_or_else(|| 0usize, |key| key.path_buf.to_string_lossy().len());
 
     let write_out_buffer = mount_map
         .iter()
         .map(|(key, vec_values)| {
-            let display_path = key.path_buf.to_string_lossy();
+            let display_file_path = key.path_buf.to_string_lossy();
 
-            let buffer: String = vec_values
+            vec_values
                 .iter()
                 .enumerate()
                 .map(|(idx, mount)| {
+                    let display_mount_path = mount.path_buf.to_string_lossy();
+
                     if idx == 0 {
-                        format!("{}: {:>width$}\n", display_path, mount.path_buf.to_string_lossy(), width = padding)
+                        format!(
+                            "{:<width$} : {}\n",
+                            display_file_path,
+                            display_mount_path,
+                            width = padding
+                        )
                     } else {
-                        format!("{:>width$}\n", mount.path_buf.to_string_lossy(), width = padding)
+                        format!("{:<width$} : {}\n", "", display_mount_path, width = padding)
                     }
                 })
-                .collect();
-
-            buffer
+                .collect::<String>()
         })
         .collect();
 
