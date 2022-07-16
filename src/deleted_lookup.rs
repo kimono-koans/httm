@@ -25,8 +25,8 @@ use itertools::Itertools;
 
 use crate::utility::{BasicDirEntryInfo, HttmError, PathData};
 use crate::versions_lookup::{
-    get_datasets_for_search, get_search_bundle, prep_lookup_read_dir, NativeDatasetType,
-    SearchBundle,
+    get_datasets_for_search, get_search_bundle, prep_lookup_read_dir, SearchBundle,
+    SnapshotDatasetType,
 };
 use crate::{AHashMap as HashMap, Config, DatasetCollection, FilesystemType};
 
@@ -37,11 +37,11 @@ pub fn deleted_lookup_exec(
     // prepare for local and replicated backups on alt replicated sets if necessary
     let selected_datasets = if config.opt_alt_replicated {
         vec![
-            NativeDatasetType::AltReplicated,
-            NativeDatasetType::MostProximate,
+            SnapshotDatasetType::AltReplicated,
+            SnapshotDatasetType::MostProximate,
         ]
     } else {
-        vec![NativeDatasetType::MostProximate]
+        vec![SnapshotDatasetType::MostProximate]
     };
 
     // we always need a requesting dir because we are comparing the files in the
@@ -163,7 +163,7 @@ fn get_deleted_per_dataset(
 
     let unique_snap_filenames: HashMap<OsString, BasicDirEntryInfo> =
         match &config.dataset_collection {
-            DatasetCollection::Native(_) => match snapshot_mounts {
+            DatasetCollection::AutoDetect(_) => match snapshot_mounts {
                 Some(snap_mounts) => snap_filenames_from_snap_mounts(snap_mounts, relative_path)?,
                 None => {
                     return Err(HttmError::new(

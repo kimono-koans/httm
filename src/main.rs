@@ -102,12 +102,12 @@ enum DeletedMode {
 
 #[derive(Debug, Clone)]
 enum DatasetCollection {
-    Native(NativeDatasets),
+    AutoDetect(AutoDetectDatasets),
     UserDefined(UserDefinedDirs),
 }
 
 #[derive(Debug, Clone)]
-pub struct NativeDatasets {
+pub struct AutoDetectDatasets {
     // key: mount, val: (dataset/subvol, fstype)
     map_of_datasets: HashMap<PathBuf, (String, FilesystemType)>,
     // key: mount, val: snap locations on disk (e.g. /.zfs/snapshot/snap_8a86e4fc_prepApt/home)
@@ -655,7 +655,7 @@ impl Config {
 
             (
                 matches.is_present("ALT_REPLICATED"),
-                DatasetCollection::Native(NativeDatasets {
+                DatasetCollection::AutoDetect(AutoDetectDatasets {
                     map_of_datasets,
                     map_of_snaps,
                     opt_map_of_alts,

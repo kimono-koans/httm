@@ -205,9 +205,9 @@ fn is_filter_dir(config: &Config, dir_entry: &DirEntry) -> bool {
 
     // is a common path for btrfs or is a non-supported dataset
     match &config.dataset_collection {
-        DatasetCollection::Native(native_datasets) => {
+        DatasetCollection::AutoDetect(detected_datasets) => {
             // is a common btrfs snapshot dir
-            match &native_datasets.opt_common_snap_dir {
+            match &detected_datasets.opt_common_snap_dir {
                 Some(common_snap_dir) => {
                     if path == *common_snap_dir {
                         return true;
@@ -228,7 +228,7 @@ fn is_filter_dir(config: &Config, dir_entry: &DirEntry) -> bool {
             if path == interactive_requested_dir {
                 false
             } else {
-                native_datasets
+                detected_datasets
                     .vec_of_filter_dirs
                     .par_iter()
                     .any(|filter_dir| path == *filter_dir)

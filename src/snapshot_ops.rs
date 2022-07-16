@@ -22,7 +22,7 @@ use std::process::Command as ExecProcess;
 use which::which;
 
 use crate::utility::{print_output_buf, timestamp_file, HttmError, PathData};
-use crate::versions_lookup::{get_mounts_for_files, NativeDatasetType};
+use crate::versions_lookup::{get_mounts_for_files, SnapshotDatasetType};
 use crate::{AHashMap as HashMap, Config};
 
 use crate::{DatasetCollection, FilesystemType};
@@ -40,8 +40,8 @@ pub fn take_snapshot(
 
         let vec_snapshot_names: Vec<String> = mounts_for_files.iter().map(|mount| {
             let dataset: String = match &config.dataset_collection {
-                DatasetCollection::Native(native_datasets) => {
-                    match native_datasets.map_of_datasets.get(&mount.path_buf) {
+                DatasetCollection::AutoDetect(detected_datasets) => {
+                    match detected_datasets.map_of_datasets.get(&mount.path_buf) {
                         Some((dataset, fs_type)) => {
                             if let FilesystemType::Zfs = fs_type {
                                 Ok(dataset.to_owned())
@@ -112,7 +112,7 @@ pub fn take_snapshot(
     }
 
     // don't want to request alt replicated mounts, though we may in opt_mount_for_file mode
-    let selected_datasets = vec![NativeDatasetType::MostProximate];
+    let selected_datasets = vec![SnapshotDatasetType::MostProximate];
 
     let mounts_for_files: Vec<PathData> =
         get_mounts_for_files(config, &config.paths, &selected_datasets)?;

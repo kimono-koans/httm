@@ -78,13 +78,13 @@ fn display_pretty(
             let pathdata_set_buffer: String = pathdata_set
                 .iter()
                 .map(|pathdata| {
-                    // print with padding and pretty border lines and ls colors
+                    // tab delimited if "no pretty", no border lines, and no colors
                     let (pathdata_size, display_path, display_padding) = if config.opt_no_pretty {
                         let size = display_human_size(pathdata);
                         let path = pathdata.path_buf.to_string_lossy().into_owned();
                         let padding = NOT_SO_PRETTY_FIXED_WIDTH_PADDING.to_owned();
                         (size, path, padding)
-                    // tab delimited if "no pretty", no border lines, and no colors
+                    // print with padding and pretty border lines and ls colors
                     } else {
                         let size = format!(
                             "{:>width$}",
@@ -124,7 +124,6 @@ fn display_pretty(
                     };
 
                     format!(
-                        // no quotation marks to path
                         "{}{}{}{}{}\n",
                         display_date, display_padding, display_size, display_padding, display_path
                     )

@@ -38,7 +38,7 @@ pub struct DatasetsForSearch {
 }
 
 #[derive(Debug, Clone)]
-pub enum NativeDatasetType {
+pub enum SnapshotDatasetType {
     MostProximate,
     AltReplicated,
 }
@@ -58,11 +58,11 @@ pub fn versions_lookup_exec(
     // prepare for local and replicated backups on alt replicated sets if necessary
     let selected_datasets = if config.opt_alt_replicated {
         vec![
-            NativeDatasetType::AltReplicated,
-            NativeDatasetType::MostProximate,
+            SnapshotDatasetType::AltReplicated,
+            SnapshotDatasetType::MostProximate,
         ]
     } else {
-        vec![NativeDatasetType::MostProximate]
+        vec![SnapshotDatasetType::MostProximate]
     };
 
     let all_snap_versions: Vec<PathData> = if config.opt_mount_for_file {
@@ -102,7 +102,7 @@ pub fn versions_lookup_exec(
 pub fn get_mounts_for_files(
     config: &Config,
     vec_pathdata: &[PathData],
-    selected_datasets: &[NativeDatasetType],
+    selected_datasets: &[SnapshotDatasetType],
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // we only check for phantom files in "mount for file" mode because
     // people should be able to search for deleted files in other modes
@@ -140,7 +140,7 @@ pub fn get_mounts_for_files(
 fn get_all_snap_versions(
     config: &Config,
     vec_pathdata: &[PathData],
-    selected_datasets: &[NativeDatasetType],
+    selected_datasets: &[SnapshotDatasetType],
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // create vec of all local and replicated backups at once
     let all_snap_versions: Vec<PathData> = vec_pathdata
@@ -163,7 +163,7 @@ fn get_all_snap_versions(
 pub fn get_datasets_for_search(
     config: &Config,
     pathdata: &PathData,
-    requested_dataset_type: &NativeDatasetType,
+    requested_dataset_type: &SnapshotDatasetType,
 ) -> Result<DatasetsForSearch, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // here, we take our file path and get back possibly multiple ZFS dataset mountpoints
     // and our most proximate dataset mount point (which is always the same) for
@@ -186,18 +186,18 @@ pub fn get_datasets_for_search(
                 datasets_of_interest: vec![snap_dir],
             }
         }
-        DatasetCollection::Native(native_datasets) => {
+        DatasetCollection::AutoDetect(detected_datasets) => {
             let proximate_dataset_mount =
-                get_proximate_dataset(pathdata, &native_datasets.map_of_datasets)?;
+                get_proximate_dataset(pathdata, &detected_datasets.map_of_datasets)?;
             match requested_dataset_type {
-                NativeDatasetType::MostProximate => {
+                SnapshotDatasetType::MostProximate => {
                     // just return the same dataset when in most proximate mode
                     DatasetsForSearch {
                         proximate_dataset_mount: proximate_dataset_mount.clone(),
                         datasets_of_interest: vec![proximate_dataset_mount],
                     }
                 }
-                NativeDatasetType::AltReplicated => match &native_datasets.opt_map_of_alts {
+                SnapshotDatasetType::AltReplicated => match &detected_datasets.opt_map_of_alts {
                     Some(map_of_alts) => match map_of_alts.get(proximate_dataset_mount.as_path()) {
                         Some(alternate_mounts) => DatasetsForSearch {
                             proximate_dataset_mount,
@@ -253,12 +253,12 @@ pub fn get_search_bundle(
 
                         (snapshot_dir, relative_path, snapshot_mounts, fs_type)
                     }
-                    DatasetCollection::Native(native_datasets) => {
+                    DatasetCollection::AutoDetect(detected_datasets) => {
                         // this prefix removal is why we always need the proximate dataset name, even when we are searching an alternate replicated filesystem
 
                         // building the snapshot path from our dataset
                         let (snapshot_dir, fs_type) =
-                            match &native_datasets.map_of_datasets.get(dataset_of_interest) {
+                            match &detected_datasets.map_of_datasets.get(dataset_of_interest) {
                                 Some((_, fstype)) => match fstype {
                                     FilesystemType::Zfs => (
                                         dataset_of_interest.join(ZFS_SNAPSHOT_DIRECTORY),
@@ -279,7 +279,7 @@ pub fn get_search_bundle(
                             .strip_prefix(&proximate_dataset_mount)?
                             .to_path_buf();
 
-                        let snapshot_mounts = native_datasets
+                        let snapshot_mounts = detected_datasets
                             .map_of_snaps
                             .get(dataset_of_interest)
                             .cloned();
@@ -385,7 +385,7 @@ fn get_versions_per_dataset(
     };
 
     let unique_versions: HashMap<(SystemTime, u64), PathData> = match &config.dataset_collection {
-        DatasetCollection::Native(_) => {
+        DatasetCollection::AutoDetect(_) => {
             match snapshot_mounts {
                 Some(snap_mounts) => versions_from_snap_mounts(snap_mounts, relative_path)?,
                 // snap mounts is empty
