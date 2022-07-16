@@ -23,7 +23,7 @@ use which::which;
 
 use crate::utility::{print_output_buf, timestamp_file, HttmError, PathData};
 use crate::versions_lookup::{get_mounts_for_files, NativeDatasetType};
-use crate::{AHashMapSpecial as HashMap, Config};
+use crate::{AHashMap as HashMap, Config};
 
 use crate::{DatasetCollection, FilesystemType};
 

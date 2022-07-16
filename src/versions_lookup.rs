@@ -28,8 +28,8 @@ use crate::{
     utility::{print_output_buf, HttmError, PathData},
 };
 use crate::{
-    AHashMapSpecial as HashMap, Config, DatasetCollection, FilesystemType,
-    BTRFS_SNAPPER_HIDDEN_DIRECTORY, BTRFS_SNAPPER_SUFFIX, ZFS_SNAPSHOT_DIRECTORY,
+    AHashMap as HashMap, Config, DatasetCollection, FilesystemType, BTRFS_SNAPPER_HIDDEN_DIRECTORY,
+    BTRFS_SNAPPER_SUFFIX, ZFS_SNAPSHOT_DIRECTORY,
 };
 
 pub struct DatasetsForSearch {

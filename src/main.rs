@@ -30,8 +30,8 @@ use std::{
 // may use with collect() function, see rayon::FromParallelIterator
 use ahash::AHasher;
 pub type AHashBuildHasher = BuildHasherDefault<AHasher>;
-pub type AHashMapSpecial<K, V> = std::collections::HashMap<K, V, AHashBuildHasher>;
-use AHashMapSpecial as HashMap;
+pub type AHashMap<K, V> = std::collections::HashMap<K, V, AHashBuildHasher>;
+use AHashMap as HashMap;
 
 use clap::{crate_name, crate_version, Arg, ArgMatches};
 use rayon::prelude::*;

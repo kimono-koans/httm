@@ -28,7 +28,7 @@ use crate::versions_lookup::{
     get_datasets_for_search, get_search_bundle, prep_lookup_read_dir, NativeDatasetType,
     SearchBundle,
 };
-use crate::{AHashMapSpecial as HashMap, Config, DatasetCollection, FilesystemType};
+use crate::{AHashMap as HashMap, Config, DatasetCollection, FilesystemType};
 
 pub fn deleted_lookup_exec(
     config: &Config,
