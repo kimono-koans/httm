@@ -55,28 +55,28 @@ pub fn deleted_lookup_exec(
             get_deleted_per_dataset(config, &requested_dir_pathdata.path_buf, &search_bundle)
         })
         .flatten()
-        .flat_map(|basic_dir_entry_info| {
-            basic_dir_entry_info
-                .path
-                .symlink_metadata()
-                .map(|md| (md, basic_dir_entry_info))
-        })
-        .flat_map(|(md, basic_dir_entry_info)| {
-            md.modified()
-                .map(|modify_time| (modify_time, basic_dir_entry_info))
-        })
         // this functions like a hashmap, separate into buckets/groups
         // by file name, then return the oldest deleted dir entry, or max by its modify time
         // why? because this might be a folder that has been deleted and we need some policy
         // to give later functions an idea about which folder to choose when we want too look
         // behind deleted dirs, here we just choose latest in time
-        .into_group_map_by(|(_modify_time, basic_dir_entry_info)| {
+        .into_group_map_by(|basic_dir_entry_info| {
             basic_dir_entry_info.file_name.clone()
         })
         .into_iter()
         .filter_map(|(_key, group)| {
             group
                 .into_iter()
+                .flat_map(|basic_dir_entry_info| {
+                    basic_dir_entry_info
+                        .path
+                        .symlink_metadata()
+                        .map(|md| (md, basic_dir_entry_info))
+                })
+                .flat_map(|(md, basic_dir_entry_info)| {
+                    md.modified()
+                        .map(|modify_time| (modify_time, basic_dir_entry_info))
+                })
                 .max_by_key(|(modify_time, _basic_dir_entry_info)| *modify_time)
         })
         .map(|(_modify_time, basic_dir_entry_info)| basic_dir_entry_info)
