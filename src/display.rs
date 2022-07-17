@@ -23,7 +23,7 @@ use number_prefix::NumberPrefix;
 use terminal_size::{terminal_size, Height, Width};
 
 use crate::utility::{paint_string, print_output_buf, PathData};
-use crate::versions_lookup::{get_mounts_for_files, SnapshotDatasetType};
+use crate::versions_lookup::get_mounts_for_files;
 use crate::Config;
 
 // 2 space wide padding - used between date and size, and size and path
@@ -215,10 +215,8 @@ fn calculate_padding(snaps_and_live_set: &[Vec<PathData>]) -> (usize, String) {
 
 pub fn display_mounts_for_files(
     config: &Config,
-    vec_pathdata: &[PathData],
-    selected_datasets: &[SnapshotDatasetType],
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let mounts_for_files = get_mounts_for_files(config, vec_pathdata, selected_datasets)?;
+    let mounts_for_files = get_mounts_for_files(config)?;
 
     let output_buf = if config.opt_raw || config.opt_zeros {
         display_exec(

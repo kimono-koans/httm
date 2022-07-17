@@ -26,24 +26,18 @@ use itertools::Itertools;
 use rayon::prelude::*;
 
 use crate::{
-    display::display_mounts_for_files,
     utility::{HttmError, PathData},
+    ExecMode,
 };
 use crate::{
-    AHashMap as HashMap, Config, DatasetCollection, FilesystemType, BTRFS_SNAPPER_HIDDEN_DIRECTORY,
-    BTRFS_SNAPPER_SUFFIX, ZFS_SNAPSHOT_DIRECTORY,
+    AHashMap as HashMap, Config, DatasetCollection, FilesystemType, SnapshotDatasetType,
+    BTRFS_SNAPPER_HIDDEN_DIRECTORY, BTRFS_SNAPPER_SUFFIX, ZFS_SNAPSHOT_DIRECTORY,
 };
 
 #[derive(Debug, Clone)]
 pub struct DatasetsForSearch {
     pub proximate_dataset_mount: PathBuf,
     pub datasets_of_interest: Vec<PathBuf>,
-}
-
-#[derive(Debug, Clone)]
-pub enum SnapshotDatasetType {
-    MostProximate,
-    AltReplicated,
 }
 
 #[derive(Debug, Clone)]
@@ -58,23 +52,10 @@ pub fn versions_lookup_exec(
     config: &Config,
     vec_pathdata: &[PathData],
 ) -> Result<[Vec<PathData>; 2], Box<dyn std::error::Error + Send + Sync + 'static>> {
-    // prepare for local and replicated backups on alt replicated sets if necessary
-    let selected_datasets = if config.opt_alt_replicated {
-        vec![
-            SnapshotDatasetType::AltReplicated,
-            SnapshotDatasetType::MostProximate,
-        ]
-    } else {
-        vec![SnapshotDatasetType::MostProximate]
-    };
-
-    let all_snap_versions: Vec<PathData> = if config.opt_mount_for_file {
-        display_mounts_for_files(config, vec_pathdata, &selected_datasets)?;
-        std::process::exit(0)
-    } else if config.opt_no_snap {
+    let all_snap_versions: Vec<PathData> = if config.opt_no_snap {
         Vec::new()
     } else {
-        get_all_snap_versions(config, vec_pathdata, &selected_datasets)?
+        get_all_snap_versions(config, vec_pathdata, &config.selected_datasets)?
     };
 
     // create vec of live copies - unless user doesn't want it!
@@ -102,12 +83,11 @@ pub fn versions_lookup_exec(
 #[allow(clippy::type_complexity)]
 pub fn get_mounts_for_files(
     config: &Config,
-    vec_pathdata: &[PathData],
-    selected_datasets: &[SnapshotDatasetType],
 ) -> Result<BTreeMap<PathData, Vec<PathData>>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // we only check for phantom files in "mount for file" mode because
     // people should be able to search for deleted files in other modes
-    let (phantom_files, non_phantom_files): (Vec<&PathData>, Vec<&PathData>) = vec_pathdata
+    let (phantom_files, non_phantom_files): (Vec<&PathData>, Vec<&PathData>) = config
+        .paths
         .par_iter()
         .partition(|pathdata| pathdata.is_phantom);
 
@@ -125,6 +105,13 @@ pub fn get_mounts_for_files(
     let mounts_for_files: BTreeMap<PathData, Vec<PathData>> = non_phantom_files
         .into_iter()
         .map(|pathdata| {
+            // don't want to request alt replicated mounts in snap mode, though we may in opt_mount_for_file mode
+            let selected_datasets = if config.exec_mode == ExecMode::SnapFileMount {
+                vec![SnapshotDatasetType::MostProximate]
+            } else {
+                config.selected_datasets.clone()
+            };
+
             let datasets: Vec<DatasetsForSearch> = selected_datasets
                 .iter()
                 .flat_map(|dataset_type| get_datasets_for_search(config, pathdata, dataset_type))

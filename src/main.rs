@@ -47,7 +47,7 @@ mod snapshot_ops;
 mod utility;
 mod versions_lookup;
 
-use crate::display::display_exec;
+use crate::display::{display_exec, display_mounts_for_files};
 use crate::interactive::interactive_exec;
 use crate::parse_mounts::{get_common_snap_dir, parse_mounts_exec, precompute_alt_replicated};
 use crate::process_dirs::display_recursive_wrapper;
@@ -86,6 +86,7 @@ enum ExecMode {
     Display,
     SnapFileMount,
     LastSnap(bool),
+    MountsForFiles,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -127,6 +128,12 @@ pub struct UserDefinedDirs {
     snap_dir: PathBuf,
     local_dir: PathBuf,
     fs_type: FilesystemType,
+}
+
+#[derive(Debug, Clone)]
+pub enum SnapshotDatasetType {
+    MostProximate,
+    AltReplicated,
 }
 
 fn parse_args() -> ArgMatches {
@@ -340,10 +347,10 @@ pub struct Config {
     opt_no_live: bool,
     opt_recursive: bool,
     opt_exact: bool,
-    opt_mount_for_file: bool,
     opt_overwrite: bool,
     opt_no_filter: bool,
     opt_no_snap: bool,
+    selected_datasets: Vec<SnapshotDatasetType>,
     exec_mode: ExecMode,
     dataset_collection: DatasetCollection,
     deleted_mode: DeletedMode,
@@ -365,7 +372,6 @@ impl Config {
         let opt_no_pretty = matches.is_present("NOT_SO_PRETTY");
         let opt_recursive = matches.is_present("RECURSIVE");
         let opt_exact = matches.is_present("EXACT");
-        let opt_mount_for_file = matches.is_present("MOUNT_FOR_FILE");
         let opt_no_live = matches.is_present("NO_LIVE");
         let opt_no_filter = matches.is_present("NO_FILTER");
         let opt_no_snap = matches.is_present("NO_SNAP");
@@ -392,6 +398,8 @@ impl Config {
                 Some("rel") | Some("relative")
             );
             ExecMode::LastSnap(request_relative)
+        } else if matches.is_present("MOUNT_FOR_FILE") {
+            ExecMode::MountsForFiles
         } else if matches.is_present("SNAP_FILE_MOUNT") {
             ExecMode::SnapFileMount
         } else if matches.is_present("INTERACTIVE")
@@ -484,10 +492,12 @@ impl Config {
                 ExecMode::Interactive | ExecMode::DisplayRecursive | ExecMode::LastSnap(_) => {
                     vec![pwd.clone()]
                 }
-                ExecMode::Display | ExecMode::SnapFileMount => read_stdin()?
-                    .par_iter()
-                    .map(|string| PathData::from(Path::new(&string)))
-                    .collect(),
+                ExecMode::Display | ExecMode::SnapFileMount | ExecMode::MountsForFiles => {
+                    read_stdin()?
+                        .par_iter()
+                        .map(|string| PathData::from(Path::new(&string)))
+                        .collect()
+                }
             }
         };
 
@@ -555,7 +565,10 @@ impl Config {
                     }
                 }
             }
-            ExecMode::Display | ExecMode::SnapFileMount | ExecMode::LastSnap(_) => {
+            ExecMode::Display
+            | ExecMode::SnapFileMount
+            | ExecMode::LastSnap(_)
+            | ExecMode::MountsForFiles => {
                 // in non-interactive mode / display mode, requested dir is just a file
                 // like every other file and pwd must be the requested working dir.
                 //
@@ -668,6 +681,16 @@ impl Config {
             )
         };
 
+        // prepare for local and replicated backups on alt replicated sets if necessary
+        let selected_datasets = if opt_alt_replicated {
+            vec![
+                SnapshotDatasetType::AltReplicated,
+                SnapshotDatasetType::MostProximate,
+            ]
+        } else {
+            vec![SnapshotDatasetType::MostProximate]
+        };
+
         let config = Config {
             paths,
             opt_alt_replicated,
@@ -677,10 +700,10 @@ impl Config {
             opt_no_live,
             opt_recursive,
             opt_exact,
-            opt_mount_for_file,
             opt_overwrite,
             opt_no_filter,
             opt_no_snap,
+            selected_datasets,
             dataset_collection,
             exec_mode,
             deleted_mode,
@@ -725,6 +748,11 @@ fn exec() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         // ExecMode::DisplayRecursive and ExecMode::SnapFileMount won't ever return back to this function
         ExecMode::DisplayRecursive => display_recursive_wrapper(&config)?,
         ExecMode::SnapFileMount => take_snapshot(&config)?,
+        // ExecMode::MountsForFiles will print it output elsewhere as it's different from normal display output
+        ExecMode::MountsForFiles => {
+            display_mounts_for_files(&config)?;
+            std::process::exit(0)
+        }
     };
 
     // and display

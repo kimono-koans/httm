@@ -26,7 +26,6 @@ use itertools::Itertools;
 use crate::utility::{BasicDirEntryInfo, HttmError, PathData};
 use crate::versions_lookup::{
     get_datasets_for_search, get_search_bundle, prep_lookup_read_dir, SearchBundle,
-    SnapshotDatasetType,
 };
 use crate::{AHashMap as HashMap, Config, DatasetCollection, FilesystemType};
 
@@ -34,16 +33,6 @@ pub fn deleted_lookup_exec(
     config: &Config,
     requested_dir: &Path,
 ) -> Result<Vec<BasicDirEntryInfo>, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    // prepare for local and replicated backups on alt replicated sets if necessary
-    let selected_datasets = if config.opt_alt_replicated {
-        vec![
-            SnapshotDatasetType::AltReplicated,
-            SnapshotDatasetType::MostProximate,
-        ]
-    } else {
-        vec![SnapshotDatasetType::MostProximate]
-    };
-
     // we always need a requesting dir because we are comparing the files in the
     // requesting dir to those of their relative dirs on snapshots
     let requested_dir_pathdata = PathData::from(requested_dir);
@@ -56,7 +45,7 @@ pub fn deleted_lookup_exec(
     let unique_deleted: Vec<BasicDirEntryInfo> = vec![&requested_dir_pathdata]
         .iter()
         .flat_map(|pathdata| {
-            selected_datasets.iter().flat_map(|dataset_type| {
+            config.selected_datasets.iter().flat_map(|dataset_type| {
                 let datasets_for_search = get_datasets_for_search(config, pathdata, dataset_type)?;
                 get_search_bundle(config, pathdata, &datasets_for_search)
             })

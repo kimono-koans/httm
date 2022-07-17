@@ -23,7 +23,7 @@ use std::process::Command as ExecProcess;
 use which::which;
 
 use crate::utility::{print_output_buf, timestamp_file, HttmError, PathData};
-use crate::versions_lookup::{get_mounts_for_files, SnapshotDatasetType};
+use crate::versions_lookup::get_mounts_for_files;
 use crate::{AHashMap as HashMap, Config};
 
 use crate::{DatasetCollection, FilesystemType};
@@ -115,11 +115,7 @@ pub fn take_snapshot(
         std::process::exit(0)
     }
 
-    // don't want to request alt replicated mounts, though we may in opt_mount_for_file mode
-    let selected_datasets = vec![SnapshotDatasetType::MostProximate];
-
-    let mounts_for_files: BTreeMap<PathData, Vec<PathData>> =
-        get_mounts_for_files(config, &config.paths, &selected_datasets)?;
+    let mounts_for_files: BTreeMap<PathData, Vec<PathData>> = get_mounts_for_files(config)?;
 
     if let Ok(zfs_command) = which("zfs") {
         exec_zfs_snapshot(config, &zfs_command, &mounts_for_files)

@@ -96,7 +96,10 @@ fn enumerate_live_versions(
 
     // check exec mode and deleted mode, we do something different for each
     match config.exec_mode {
-        ExecMode::Display | ExecMode::SnapFileMount | ExecMode::LastSnap(_) => unreachable!(),
+        ExecMode::Display
+        | ExecMode::SnapFileMount
+        | ExecMode::LastSnap(_)
+        | ExecMode::MountsForFiles => unreachable!(),
         ExecMode::DisplayRecursive => {
             match config.deleted_mode {
                 // display recursive in DeletedMode::Disabled may be
