@@ -225,7 +225,7 @@ fn calculate_padding(snaps_and_live_set: &[Vec<PathData>]) -> (usize, String) {
         let get_max_sized_border = || {
             // Active below is the most idiomatic Rust, but it maybe slower than the commented portion
             // (0..fancy_border_len).map(|_| "─").collect()
-            format!("{:─>width$}", "\n", width = fancy_border_len)
+            format!("{:─<width$}\n", "", width = fancy_border_len)
         };
 
         match terminal_size() {
@@ -233,7 +233,7 @@ fn calculate_padding(snaps_and_live_set: &[Vec<PathData>]) -> (usize, String) {
                 if (width as usize) < fancy_border_len {
                     // Active below is the most idiomatic Rust, but it maybe slower than the commented portion
                     // (0..width as usize).map(|_| "─").collect()
-                    format!("{:─>width$}", "\n", width = width as usize)
+                    format!("{:─<width$}\n", "", width = width as usize)
                 } else {
                     get_max_sized_border()
                 }
