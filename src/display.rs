@@ -19,7 +19,6 @@ use std::time::SystemTime;
 
 use chrono::{DateTime, Local};
 use number_prefix::NumberPrefix;
-use rayon::prelude::*;
 use terminal_size::{terminal_size, Height, Width};
 
 use crate::utility::{paint_string, PathData};
@@ -51,13 +50,13 @@ pub fn display_mount_map(
     mount_map: &[(PathData, Vec<PathData>)],
 ) -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
     let padding = mount_map
-        .par_iter()
+        .iter()
         .map(|(key, _vec_values)| key)
         .max_by_key(|key| key.path_buf.to_string_lossy().len())
         .map_or_else(|| 0usize, |key| key.path_buf.to_string_lossy().len());
 
     let write_out_buffer = mount_map
-        .par_iter()
+        .iter()
         .map(|(key, vec_values)| {
             let display_file_path = key.path_buf.to_string_lossy();
 
@@ -93,7 +92,7 @@ fn display_raw(
 
     // so easy!
     let write_out_buffer = snaps_and_live_set
-        .par_iter()
+        .iter()
         .flatten()
         .map(|pathdata| {
             let display_path = pathdata.path_buf.display();
@@ -111,11 +110,11 @@ fn display_pretty(
     let (size_padding_len, fancy_border_string) = calculate_padding(snaps_and_live_set);
 
     let write_out_buffer = snaps_and_live_set
-        .par_iter()
+        .iter()
         .enumerate()
         .map(|(idx, pathdata_set)| {
             let pathdata_set_buffer: String = pathdata_set
-                .par_iter()
+                .iter()
                 .map(|pathdata| {
                     // tab delimited if "no pretty", no border lines, and no colors
                     let (pathdata_size, display_path, display_padding) = if config.opt_no_pretty {
@@ -217,17 +216,19 @@ fn calculate_padding(snaps_and_live_set: &[Vec<PathData>]) -> (usize, String) {
         },
     );
 
-    let max_sized_border = || format!("{:─>width$}", "\n", width = fancy_border_len);
+    let fancy_border_string: String = {
+        let get_max_sized_border = || format!("{:─>width$}", "\n", width = fancy_border_len);
 
-    let fancy_border_string: String = match terminal_size() {
-        Some((Width(width), Height(_height))) => {
-            if (width as usize) < fancy_border_len {
-                format!("{:─>width$}", "\n", width = width as usize)
-            } else {
-                max_sized_border()
+        match terminal_size() {
+            Some((Width(width), Height(_height))) => {
+                if (width as usize) < fancy_border_len {
+                    format!("{:─>width$}", "\n", width = width as usize)
+                } else {
+                    get_max_sized_border()
+                }
             }
+            None => get_max_sized_border(),
         }
-        None => max_sized_border(),
     };
 
     (size_padding_len, fancy_border_string)
