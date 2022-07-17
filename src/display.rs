@@ -200,13 +200,17 @@ fn calculate_padding(snaps_and_live_set: &[Vec<PathData>]) -> (usize, String) {
     let (size_padding_len, fancy_border_len) = snaps_and_live_set.iter().flatten().fold(
         (0usize, 0usize),
         |(mut size_padding_len, mut fancy_border_len), pathdata| {
-            let display_date = display_date(&pathdata.system_time);
-            let display_size = format!(
-                "{:>width$}",
-                display_human_size(&pathdata.size),
-                width = size_padding_len
-            );
-            let display_path = &pathdata.path_buf.to_string_lossy();
+            let (display_date, display_size, display_path) = {
+                let date = display_date(&pathdata.system_time);
+                let size = format!(
+                    "{:>width$}",
+                    display_human_size(&pathdata.size),
+                    width = size_padding_len
+                );
+                let path = pathdata.path_buf.to_string_lossy();
+
+                (date, size, path)
+            };
 
             let display_size_len = display_human_size(&pathdata.size).len();
             let formatted_line_len = display_date.len()
