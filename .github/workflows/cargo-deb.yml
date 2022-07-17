@@ -3,13 +3,13 @@ name: Build Debian packages
 
 
 on:
-  push:
-    branches: [ "master" ]
-  pull_request:
-    branches: [ "master" ]
   # push:
-  #   paths:
-  #     - 'Cargo.toml'
+  #   branches: [ "master" ]
+  # pull_request:
+  #   branches: [ "master" ]
+  push:
+    paths:
+      - 'Cargo.toml'
 
 env:
   CARGO_TERM_COLOR: always
@@ -25,8 +25,13 @@ jobs:
       run: cargo install cargo-deb
     - name: Build package
       run: cargo deb
-    - name: Upload a Build Artifact
+    - name: Install alien
+      run: sudo apt-get install -y alien
+    - name: Convert deb to rpm
+      working-directory: target/debian
+      run: sudo alien --to-rpm httm_*.deb
+    - name: Upload a build artifacts
       uses: actions/upload-artifact@v3.1.0
       with:
         name: cargo-deb-upload
-        path: target/debian/httm_*_amd64.deb
+        path: target/debian/httm*.*
