@@ -95,12 +95,7 @@ pub fn display_ordered_map(
                                 width = padding
                             )
                         } else {
-                            format!(
-                                "{:<width$} : \"{}\"\n",
-                                "",
-                                value_string,
-                                width = padding
-                            )
+                            format!("{:<width$} : \"{}\"\n", "", value_string, width = padding)
                         }
                     })
                     .collect::<String>()
