@@ -1,5 +1,7 @@
 name: Build Debian packages
 
+
+
 on:
   push:
     branches: [ "master" ]
@@ -23,7 +25,8 @@ jobs:
       run: cargo install cargo-deb
     - name: Build package
       run: cargo deb
-    - uses: actions/upload-artifact@v3
+    - name: Upload a Build Artifact
+      uses: actions/upload-artifact@v3.1.0
         with:
           name: cargo-deb-upload
           path: target/debian/httm_*_amd64.deb
