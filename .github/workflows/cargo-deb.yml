@@ -27,6 +27,6 @@ jobs:
       run: cargo deb
     - name: Upload a Build Artifact
       uses: actions/upload-artifact@v3.1.0
-        with:
-          name: cargo-deb-upload
-          path: target/debian/httm_*_amd64.deb
+      with:
+        name: cargo-deb-upload
+        path: target/debian/httm_*_amd64.deb
