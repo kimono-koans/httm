@@ -340,7 +340,6 @@ fn parse_args() -> ArgMatches {
 #[derive(Debug, Clone)]
 pub struct Config {
     paths: Vec<PathData>,
-    opt_alt_replicated: bool,
     opt_raw: bool,
     opt_zeros: bool,
     opt_no_pretty: bool,
@@ -588,7 +587,7 @@ impl Config {
         // or will we find it by searching the native filesystem? if searching a native filesystem,
         // we will obtain a map of datasets, a map of snapshot directory, and possibly a map of
         // alternate filesystems if the user request early to avoid looking up later.
-        let (opt_alt_replicated, dataset_collection) = if let Some(raw_value) = raw_snap_var {
+        let (selected_datasets, dataset_collection) = if let Some(raw_value) = raw_snap_var {
             if matches.is_present("ALT_REPLICATED") {
                 return Err(HttmError::new(
                     "Alternate replicated datasets are not available for search, when the user defines a snap point.",
@@ -649,7 +648,7 @@ impl Config {
 
             (
                 // always set opt_alt_replicated to false in UserDefinedDirs mode
-                false,
+                vec![SnapshotDatasetType::MostProximate],
                 DatasetCollection::UserDefined(UserDefinedDirs {
                     snap_dir,
                     local_dir,
@@ -669,8 +668,17 @@ impl Config {
                 None
             };
 
+            let selected_datasets = if matches.is_present("ALT_REPLICATED") {
+                vec![
+                    SnapshotDatasetType::AltReplicated,
+                    SnapshotDatasetType::MostProximate,
+                ]
+            } else {
+                vec![SnapshotDatasetType::MostProximate]
+            };
+
             (
-                matches.is_present("ALT_REPLICATED"),
+                selected_datasets,
                 DatasetCollection::AutoDetect(AutoDetectDatasets {
                     map_of_datasets,
                     map_of_snaps,
@@ -681,19 +689,8 @@ impl Config {
             )
         };
 
-        // prepare for local and replicated backups on alt replicated sets if necessary
-        let selected_datasets = if opt_alt_replicated {
-            vec![
-                SnapshotDatasetType::AltReplicated,
-                SnapshotDatasetType::MostProximate,
-            ]
-        } else {
-            vec![SnapshotDatasetType::MostProximate]
-        };
-
         let config = Config {
             paths,
-            opt_alt_replicated,
             opt_raw,
             opt_zeros,
             opt_no_pretty,
