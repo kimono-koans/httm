@@ -1,15 +1,13 @@
-name: Build Debian packages
-
-
+name: Build Debian/Redhat packages
 
 on:
-  push:
-    branches: [ "master" ]
-  pull_request:
-    branches: [ "master" ]
   # push:
-  #   paths:
-  #     - 'Cargo.toml'
+  #   branches: [ "master" ]
+  # pull_request:
+  #   branches: [ "master" ]
+  push:
+    paths:
+      - 'Cargo.toml'
 
 env:
   CARGO_TERM_COLOR: always
