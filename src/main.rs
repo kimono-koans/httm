@@ -229,7 +229,7 @@ fn parse_args() -> ArgMatches {
                 .long("mount-for-file")
                 .visible_alias("mount")
                 .help("display the mount point/s of the dataset/s which contains the input file/s.")
-                .conflicts_with_all(&["INTERACTIVE", "SELECT", "RESTORE", "NOT_SO_PRETTY"])
+                .conflicts_with_all(&["INTERACTIVE", "SELECT", "RESTORE"])
                 .display_order(10)
         )
         .arg(

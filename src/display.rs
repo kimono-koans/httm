@@ -47,39 +47,67 @@ pub fn display_exec(
 }
 
 pub fn display_mount_map(
+    config: &Config,
     mount_map: &[(PathData, Vec<PathData>)],
 ) -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let padding = mount_map
-        .iter()
-        .map(|(key, _vec_values)| key)
-        .max_by_key(|key| key.path_buf.to_string_lossy().len())
-        .map_or_else(|| 0usize, |key| key.path_buf.to_string_lossy().len());
+    let write_out_buffer = if config.opt_no_pretty {
+        mount_map
+            .iter()
+            .map(|(file, mounts)| {
+                let file_string = file.path_buf.to_string_lossy().to_string();
 
-    let write_out_buffer = mount_map
-        .iter()
-        .map(|(key, vec_values)| {
-            let display_file_path = key.path_buf.to_string_lossy();
-
-            vec_values
-                .iter()
-                .enumerate()
-                .map(|(idx, mount)| {
-                    let display_mount_path = mount.path_buf.to_string_lossy();
-
-                    if idx == 0 {
+                let mount_string: String = mounts
+                    .iter()
+                    .map(|mount| {
                         format!(
-                            "{:<width$} : {}\n",
-                            display_file_path,
-                            display_mount_path,
-                            width = padding
+                            "{}\"{}\"",
+                            NOT_SO_PRETTY_FIXED_WIDTH_PADDING,
+                            mount.path_buf.to_string_lossy()
                         )
-                    } else {
-                        format!("{:<width$} : {}\n", "", display_mount_path, width = padding)
-                    }
-                })
-                .collect::<String>()
-        })
-        .collect();
+                    })
+                    .collect();
+
+                format!("{}:{}\n", file_string, mount_string)
+            })
+            .collect()
+    } else {
+        let padding = mount_map
+            .iter()
+            .map(|(key, _vec_values)| key)
+            .max_by_key(|key| key.path_buf.to_string_lossy().len())
+            .map_or_else(|| 0usize, |key| key.path_buf.to_string_lossy().len());
+
+        mount_map
+            .iter()
+            .map(|(key, vec_values)| {
+                let display_file_path = key.path_buf.to_string_lossy();
+
+                vec_values
+                    .iter()
+                    .enumerate()
+                    .map(|(idx, mount)| {
+                        let display_mount_path = mount.path_buf.to_string_lossy();
+
+                        if idx == 0 {
+                            format!(
+                                "{:<width$} : \"{}\"\n",
+                                display_file_path,
+                                display_mount_path,
+                                width = padding
+                            )
+                        } else {
+                            format!(
+                                "{:<width$} : \"{}\"\n",
+                                "",
+                                display_mount_path,
+                                width = padding
+                            )
+                        }
+                    })
+                    .collect::<String>()
+            })
+            .collect()
+    };
 
     Ok(write_out_buffer)
 }

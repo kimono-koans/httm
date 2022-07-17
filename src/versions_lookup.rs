@@ -83,7 +83,7 @@ pub fn versions_lookup_exec(
                 ],
             )?
         } else {
-            display_mount_map(&mounts_for_files)?
+            display_mount_map(config, &mounts_for_files)?
         };
 
         print_output_buf(output_buf)?;
