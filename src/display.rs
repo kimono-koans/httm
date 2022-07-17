@@ -117,7 +117,7 @@ fn display_pretty(
                 .iter()
                 .map(|pathdata| {
                     // tab delimited if "no pretty", no border lines, and no colors
-                    let (pathdata_size, display_path, display_padding) = if config.opt_no_pretty {
+                    let (fmt_size, display_path, display_padding) = if config.opt_no_pretty {
                         let size = display_human_size(&pathdata.size);
                         let path = pathdata.path_buf.to_string_lossy();
                         let padding = NOT_SO_PRETTY_FIXED_WIDTH_PADDING;
@@ -129,11 +129,10 @@ fn display_pretty(
                             display_human_size(&pathdata.size),
                             width = size_padding_len
                         );
-                        let padding = PRETTY_FIXED_WIDTH_PADDING;
 
                         let path = {
-                            // paint the live strings with ls colors - idx == 1 is 2nd or live set
                             let file_path = &pathdata.path_buf;
+                            // paint the live strings with ls colors - idx == 1 is 2nd or live set
                             let painted_path = if idx == 1 {
                                 paint_string(pathdata, file_path.to_str().unwrap_or_default())
                             } else {
@@ -146,22 +145,24 @@ fn display_pretty(
                             ))
                         };
 
+                        let padding = PRETTY_FIXED_WIDTH_PADDING;
+
                         (size, path, padding)
                     };
 
-                    let pathdata_date = display_date(&pathdata.system_time);
+                    let fmt_date = display_date(&pathdata.system_time);
 
                     // displays blanks for phantom values, equaling their dummy lens and dates.
                     //
                     // we use a dummy instead of a None value here.  Basically, sometimes, we want
                     // to print the request even if a live file does not exist
                     let (display_date, display_size) = if !pathdata.is_phantom {
-                        let date = pathdata_date;
-                        let size = pathdata_size;
+                        let date = fmt_date;
+                        let size = fmt_size;
                         (date, size)
                     } else {
-                        let date = format!("{:<width$}", "", width = pathdata_size.len());
-                        let size = format!("{:<width$}", "", width = pathdata_date.len());
+                        let date = format!("{:<width$}", "", width = fmt_size.len());
+                        let size = format!("{:<width$}", "", width = fmt_date.len());
                         (date, size)
                     };
 
