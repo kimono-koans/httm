@@ -22,7 +22,8 @@ use chrono::{DateTime, Local};
 use number_prefix::NumberPrefix;
 use terminal_size::{terminal_size, Height, Width};
 
-use crate::utility::{paint_string, PathData};
+use crate::utility::{paint_string, print_output_buf, PathData};
+use crate::versions_lookup::{get_mounts_for_files, SnapshotDatasetType};
 use crate::Config;
 
 // 2 space wide padding - used between date and size, and size and path
@@ -45,65 +46,6 @@ pub fn display_exec(
     };
 
     Ok(output_buffer)
-}
-
-pub fn display_ordered_map(
-    config: &Config,
-    map: &BTreeMap<PathData, Vec<PathData>>,
-) -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let write_out_buffer = if config.opt_no_pretty {
-        map.iter()
-            .map(|(key, values)| {
-                let key_string = key.path_buf.to_string_lossy().to_string();
-
-                let values_string: String = values
-                    .iter()
-                    .map(|value| {
-                        format!(
-                            "{}\"{}\"",
-                            NOT_SO_PRETTY_FIXED_WIDTH_PADDING,
-                            value.path_buf.to_string_lossy()
-                        )
-                    })
-                    .collect();
-
-                format!("{}:{}\n", key_string, values_string)
-            })
-            .collect()
-    } else {
-        let padding = map
-            .iter()
-            .map(|(key, _values)| key)
-            .max_by_key(|key| key.path_buf.to_string_lossy().len())
-            .map_or_else(|| 0usize, |key| key.path_buf.to_string_lossy().len());
-
-        map.iter()
-            .map(|(key, values)| {
-                let key_string = key.path_buf.to_string_lossy();
-
-                values
-                    .iter()
-                    .enumerate()
-                    .map(|(idx, value)| {
-                        let value_string = value.path_buf.to_string_lossy();
-
-                        if idx == 0 {
-                            format!(
-                                "{:<width$} : \"{}\"\n",
-                                key_string,
-                                value_string,
-                                width = padding
-                            )
-                        } else {
-                            format!("{:<width$} : \"{}\"\n", "", value_string, width = padding)
-                        }
-                    })
-                    .collect::<String>()
-            })
-            .collect()
-    };
-
-    Ok(write_out_buffer)
 }
 
 fn display_raw(
@@ -269,6 +211,89 @@ fn calculate_padding(snaps_and_live_set: &[Vec<PathData>]) -> (usize, String) {
     };
 
     (size_padding_len, fancy_border_string)
+}
+
+pub fn display_mounts_for_files(
+    config: &Config,
+    vec_pathdata: &[PathData],
+    selected_datasets: &[SnapshotDatasetType],
+) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    let mounts_for_files = get_mounts_for_files(config, vec_pathdata, selected_datasets)?;
+
+    let output_buf = if config.opt_raw || config.opt_zeros {
+        display_exec(
+            config,
+            &[
+                mounts_for_files.into_values().flatten().collect(),
+                Vec::new(),
+            ],
+        )?
+    } else {
+        display_ordered_map(config, &mounts_for_files)?
+    };
+
+    print_output_buf(output_buf)?;
+
+    Ok(())
+}
+
+fn display_ordered_map(
+    config: &Config,
+    map: &BTreeMap<PathData, Vec<PathData>>,
+) -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    let write_out_buffer = if config.opt_no_pretty {
+        map.iter()
+            .map(|(key, values)| {
+                let key_string = key.path_buf.to_string_lossy().to_string();
+
+                let values_string: String = values
+                    .iter()
+                    .map(|value| {
+                        format!(
+                            "{}\"{}\"",
+                            NOT_SO_PRETTY_FIXED_WIDTH_PADDING,
+                            value.path_buf.to_string_lossy()
+                        )
+                    })
+                    .collect();
+
+                format!("{}:{}\n", key_string, values_string)
+            })
+            .collect()
+    } else {
+        let padding = map
+            .iter()
+            .map(|(key, _values)| key)
+            .max_by_key(|key| key.path_buf.to_string_lossy().len())
+            .map_or_else(|| 0usize, |key| key.path_buf.to_string_lossy().len());
+
+        map.iter()
+            .map(|(key, values)| {
+                let key_string = key.path_buf.to_string_lossy();
+
+                values
+                    .iter()
+                    .enumerate()
+                    .map(|(idx, value)| {
+                        let value_string = value.path_buf.to_string_lossy();
+
+                        if idx == 0 {
+                            format!(
+                                "{:<width$} : \"{}\"\n",
+                                key_string,
+                                value_string,
+                                width = padding
+                            )
+                        } else {
+                            format!("{:<width$} : \"{}\"\n", "", value_string, width = padding)
+                        }
+                    })
+                    .collect::<String>()
+            })
+            .collect()
+    };
+
+    Ok(write_out_buffer)
 }
 
 fn display_human_size(size: &u64) -> String {

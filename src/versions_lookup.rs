@@ -26,8 +26,8 @@ use itertools::Itertools;
 use rayon::prelude::*;
 
 use crate::{
-    display::{display_exec, display_ordered_map},
-    utility::{print_output_buf, HttmError, PathData},
+    display::display_mounts_for_files,
+    utility::{HttmError, PathData},
 };
 use crate::{
     AHashMap as HashMap, Config, DatasetCollection, FilesystemType, BTRFS_SNAPPER_HIDDEN_DIRECTORY,
@@ -70,7 +70,7 @@ pub fn versions_lookup_exec(
 
     let all_snap_versions: Vec<PathData> = if config.opt_mount_for_file {
         display_mounts_for_files(config, vec_pathdata, &selected_datasets)?;
-        unreachable!("Should never return back from display_mounts_for_files")
+        std::process::exit(0)
     } else if config.opt_no_snap {
         Vec::new()
     } else {
@@ -97,30 +97,6 @@ pub fn versions_lookup_exec(
     }
 
     Ok([all_snap_versions, live_versions])
-}
-
-fn display_mounts_for_files(
-    config: &Config,
-    vec_pathdata: &[PathData],
-    selected_datasets: &[SnapshotDatasetType],
-) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let mounts_for_files = get_mounts_for_files(config, vec_pathdata, selected_datasets)?;
-
-    let output_buf = if config.opt_raw || config.opt_zeros {
-        display_exec(
-            config,
-            &[
-                mounts_for_files.into_values().flatten().collect(),
-                Vec::new(),
-            ],
-        )?
-    } else {
-        display_ordered_map(config, &mounts_for_files)?
-    };
-
-    print_output_buf(output_buf)?;
-
-    std::process::exit(0)
 }
 
 #[allow(clippy::type_complexity)]
