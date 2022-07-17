@@ -15,7 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::time::SystemTime;
+use std::{borrow::Cow, time::SystemTime};
 
 use chrono::{DateTime, Local};
 use number_prefix::NumberPrefix;
@@ -119,7 +119,7 @@ fn display_pretty(
                     // tab delimited if "no pretty", no border lines, and no colors
                     let (pathdata_size, display_path, display_padding) = if config.opt_no_pretty {
                         let size = display_human_size(&pathdata.size);
-                        let path = pathdata.path_buf.to_string_lossy().into_owned();
+                        let path = pathdata.path_buf.to_string_lossy();
                         let padding = NOT_SO_PRETTY_FIXED_WIDTH_PADDING;
                         (size, path, padding)
                     // print with padding and pretty border lines and ls colors
@@ -139,7 +139,11 @@ fn display_pretty(
                             } else {
                                 file_path.to_string_lossy()
                             };
-                            format!("\"{:<width$}\"", painted_path, width = size_padding_len)
+                            Cow::Owned(format!(
+                                "\"{:<width$}\"",
+                                painted_path,
+                                width = size_padding_len
+                            ))
                         };
 
                         (size, path, padding)
@@ -217,11 +221,17 @@ fn calculate_padding(snaps_and_live_set: &[Vec<PathData>]) -> (usize, String) {
     );
 
     let fancy_border_string: String = {
-        let get_max_sized_border = || format!("{:─>width$}", "\n", width = fancy_border_len);
+        let get_max_sized_border = || {
+            // Active below is the most idiomatic Rust, but it maybe slower than the commented portion
+            // (0..fancy_border_len).map(|_| "─").collect()
+            format!("{:─>width$}", "\n", width = fancy_border_len)
+        };
 
         match terminal_size() {
             Some((Width(width), Height(_height))) => {
                 if (width as usize) < fancy_border_len {
+                    // Active below is the most idiomatic Rust, but it maybe slower than the commented portion
+                    // (0..width as usize).map(|_| "─").collect()
                     format!("{:─>width$}", "\n", width = width as usize)
                 } else {
                     get_max_sized_border()
