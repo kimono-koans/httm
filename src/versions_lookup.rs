@@ -429,8 +429,7 @@ fn get_versions_per_dataset(
         }
     };
 
-    let mut vec_pathdata: Vec<PathData> =
-        unique_versions.into_par_iter().map(|(_k, v)| v).collect();
+    let mut vec_pathdata: Vec<PathData> = unique_versions.into_values().collect();
 
     vec_pathdata.par_sort_unstable_by_key(|pathdata| pathdata.system_time);
 
