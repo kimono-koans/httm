@@ -23,6 +23,7 @@ use std::{
     fs::canonicalize,
     hash::BuildHasherDefault,
     path::{Path, PathBuf},
+    time::SystemTime,
 };
 
 // so we may use AHashMap with Parallel Iterators!
@@ -68,6 +69,9 @@ pub const ROOT_DIRECTORY: &str = "/";
 pub const PROC_DIRECTORY: &str = "/proc";
 pub const SYS_DIRECTORY: &str = "/sys";
 pub const DEV_DIRECTORY: &str = "/dev";
+
+pub const PHANTOM_DATE: SystemTime = SystemTime::UNIX_EPOCH;
+pub const PHANTOM_SIZE: usize = 0usize;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum FilesystemType {

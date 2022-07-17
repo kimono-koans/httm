@@ -19,6 +19,7 @@ use std::time::SystemTime;
 
 use chrono::{DateTime, Local};
 use number_prefix::NumberPrefix;
+use rayon::prelude::*;
 use terminal_size::{terminal_size, Height, Width};
 
 use crate::utility::{paint_string, PathData};
@@ -50,13 +51,13 @@ pub fn display_mount_map(
     mount_map: &[(PathData, Vec<PathData>)],
 ) -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
     let padding = mount_map
-        .iter()
+        .par_iter()
         .map(|(key, _vec_values)| key)
         .max_by_key(|key| key.path_buf.to_string_lossy().len())
         .map_or_else(|| 0usize, |key| key.path_buf.to_string_lossy().len());
 
     let write_out_buffer = mount_map
-        .iter()
+        .par_iter()
         .map(|(key, vec_values)| {
             let display_file_path = key.path_buf.to_string_lossy();
 
@@ -92,7 +93,7 @@ fn display_raw(
 
     // so easy!
     let write_out_buffer = snaps_and_live_set
-        .iter()
+        .par_iter()
         .flatten()
         .map(|pathdata| {
             let display_path = pathdata.path_buf.display();
@@ -110,37 +111,37 @@ fn display_pretty(
     let (size_padding_len, fancy_border_string) = calculate_padding(snaps_and_live_set);
 
     let write_out_buffer = snaps_and_live_set
-        .iter()
+        .par_iter()
         .enumerate()
         .map(|(idx, pathdata_set)| {
             let pathdata_set_buffer: String = pathdata_set
-                .iter()
+                .par_iter()
                 .map(|pathdata| {
                     // tab delimited if "no pretty", no border lines, and no colors
                     let (pathdata_size, display_path, display_padding) = if config.opt_no_pretty {
-                        let size = display_human_size(pathdata);
+                        let size = display_human_size(&pathdata.size);
                         let path = pathdata.path_buf.to_string_lossy().into_owned();
-                        let padding = NOT_SO_PRETTY_FIXED_WIDTH_PADDING.to_owned();
+                        let padding = NOT_SO_PRETTY_FIXED_WIDTH_PADDING;
                         (size, path, padding)
                     // print with padding and pretty border lines and ls colors
                     } else {
                         let size = format!(
                             "{:>width$}",
-                            display_human_size(pathdata),
+                            display_human_size(&pathdata.size),
                             width = size_padding_len
                         );
-                        let padding = PRETTY_FIXED_WIDTH_PADDING.to_owned();
+                        let padding = PRETTY_FIXED_WIDTH_PADDING;
 
-                        // paint the live strings with ls colors - idx == 1 is 2nd or live set
-                        let file_path = &pathdata.path_buf;
-                        let painted_path = if idx == 1 {
-                            paint_string(pathdata, file_path.to_str().unwrap_or_default())
-                        } else {
-                            file_path.to_string_lossy()
+                        let path = {
+                            // paint the live strings with ls colors - idx == 1 is 2nd or live set
+                            let file_path = &pathdata.path_buf;
+                            let painted_path = if idx == 1 {
+                                paint_string(pathdata, file_path.to_str().unwrap_or_default())
+                            } else {
+                                file_path.to_string_lossy()
+                            };
+                            format!("\"{:<width$}\"", painted_path, width = size_padding_len)
                         };
-
-                        let path =
-                            format!("\"{:<width$}\"", painted_path, width = size_padding_len);
 
                         (size, path, padding)
                     };
@@ -156,8 +157,8 @@ fn display_pretty(
                         let size = pathdata_size;
                         (date, size)
                     } else {
-                        let date: String = (0..pathdata_date.len()).map(|_| " ").collect();
-                        let size: String = (0..pathdata_size.len()).map(|_| " ").collect();
+                        let date = format!("{:<width$}", "", width = pathdata_size.len());
+                        let size = format!("{:<width$}", "", width = pathdata_date.len());
                         (date, size)
                     };
 
@@ -198,12 +199,12 @@ fn calculate_padding(snaps_and_live_set: &[Vec<PathData>]) -> (usize, String) {
             let display_date = display_date(&pathdata.system_time);
             let display_size = format!(
                 "{:>width$}",
-                display_human_size(pathdata),
+                display_human_size(&pathdata.size),
                 width = size_padding_len
             );
             let display_path = &pathdata.path_buf.to_string_lossy();
 
-            let display_size_len = display_human_size(pathdata).len();
+            let display_size_len = display_human_size(&pathdata.size).len();
             let formatted_line_len = display_date.len()
                 + display_size.len()
                 + display_path.len()
@@ -216,30 +217,24 @@ fn calculate_padding(snaps_and_live_set: &[Vec<PathData>]) -> (usize, String) {
         },
     );
 
-    // has to be a more idiomatic way to do this
-    // if you know, let me know
-    let fancy_border_string: String = if let Some((Width(width), Height(_height))) = terminal_size()
-    {
-        if (width as usize) < fancy_border_len {
-            format!("{}\n", (0..width as usize).map(|_| "─").collect::<String>())
-        } else {
-            format!(
-                "{}\n",
-                (0..fancy_border_len).map(|_| "─").collect::<String>()
-            )
+    let max_sized_border = || format!("{:─>width$}", "\n", width = fancy_border_len);
+
+    let fancy_border_string: String = match terminal_size() {
+        Some((Width(width), Height(_height))) => {
+            if (width as usize) < fancy_border_len {
+                format!("{:─>width$}", "\n", width = width as usize)
+            } else {
+                max_sized_border()
+            }
         }
-    } else {
-        format!(
-            "{}\n",
-            (0..fancy_border_len).map(|_| "─").collect::<String>()
-        )
+        None => max_sized_border(),
     };
 
     (size_padding_len, fancy_border_string)
 }
 
-fn display_human_size(pathdata: &PathData) -> String {
-    let size = pathdata.size as f64;
+fn display_human_size(size: &u64) -> String {
+    let size = *size as f64;
 
     match NumberPrefix::binary(size) {
         NumberPrefix::Standalone(bytes) => {

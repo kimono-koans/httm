@@ -19,6 +19,7 @@ use chrono::{DateTime, Local};
 use lscolors::{LsColors, Style};
 
 use crate::interactive::SelectionCandidate;
+use crate::{PHANTOM_DATE, PHANTOM_SIZE};
 
 pub fn timestamp_file(system_time: &SystemTime) -> String {
     let date_time: DateTime<Local> = (*system_time).into();
@@ -395,8 +396,8 @@ impl PathData {
             //
             // if we get a spurious example of no metadata in snapshot directories, we just ignore later
             None => {
-                let len = 0u64;
-                let time = SystemTime::UNIX_EPOCH;
+                let len = PHANTOM_SIZE as u64;
+                let time = PHANTOM_DATE;
                 let phantom = true;
                 (len, time, phantom)
             }
