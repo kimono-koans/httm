@@ -1,7 +1,8 @@
 [package]
 name = "httm"
 version = "0.13.2"
-edition = "2021"
+edition = "2018"
+#edition = "2021"
 keywords = ["zfs", "backup", "restore", "cli-utility", "snapshot"]
 description = "A CLI tool for viewing snapshot file versions on ZFS and btrfs datasets"
 repository = "https://github.com/kimono-koans/httm"
