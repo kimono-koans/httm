@@ -55,7 +55,7 @@ pub fn versions_lookup_exec(
     let all_snap_versions: Vec<PathData> = if config.opt_no_snap {
         Vec::new()
     } else {
-        get_all_snap_versions(config, vec_pathdata, &config.selected_datasets)?
+        get_all_snap_versions(config, vec_pathdata)?
     };
 
     // create vec of live copies - unless user doesn't want it!
@@ -138,16 +138,19 @@ pub fn get_mounts_for_files(
 fn get_all_snap_versions(
     config: &Config,
     vec_pathdata: &[PathData],
-    selected_datasets: &[SnapshotDatasetType],
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // create vec of all local and replicated backups at once
     let all_snap_versions: Vec<PathData> = vec_pathdata
         .par_iter()
         .map(|pathdata| {
-            selected_datasets.par_iter().flat_map(|dataset_type| {
-                let dataset_for_search = get_datasets_for_search(config, pathdata, dataset_type)?;
-                get_search_bundle(config, pathdata, &dataset_for_search)
-            })
+            config
+                .selected_datasets
+                .par_iter()
+                .flat_map(|dataset_type| {
+                    let dataset_for_search =
+                        get_datasets_for_search(config, pathdata, dataset_type)?;
+                    get_search_bundle(config, pathdata, &dataset_for_search)
+                })
         })
         .flatten()
         .flatten()
