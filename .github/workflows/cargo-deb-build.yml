@@ -8,4 +8,4 @@ jobs:
     steps:
     - uses: actions/checkout@master
     - name: Deb Build
-      uses: ebbflow/cargo-deb-amd64-ubuntu@1.0
+      uses: ebbflow-io/cargo-deb-amd64-ubuntu@1.0
