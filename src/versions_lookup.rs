@@ -75,11 +75,7 @@ pub fn versions_lookup_exec(
             display_exec(
                 config,
                 &[
-                    mounts_for_files
-                        .iter()
-                        .flat_map(|(_pathdata, datasets)| datasets)
-                        .cloned()
-                        .collect(),
+                    mounts_for_files.into_values().flatten().collect(),
                     Vec::new(),
                 ],
             )?
