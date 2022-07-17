@@ -15,6 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
+use std::collections::BTreeMap;
 use std::{path::Path, time::SystemTime};
 
 use itertools::Itertools;
@@ -33,7 +34,7 @@ pub fn take_snapshot(
     fn exec_zfs_snapshot(
         config: &Config,
         zfs_command: &Path,
-        mounts_for_files: &[(PathData, Vec<PathData>)],
+        mounts_for_files: &BTreeMap<PathData, Vec<PathData>>,
     ) -> Result<[Vec<PathData>; 2], Box<dyn std::error::Error + Send + Sync + 'static>> {
         // all snapshots should have the same timestamp
         let timestamp = timestamp_file(&SystemTime::now());
@@ -117,7 +118,7 @@ pub fn take_snapshot(
     // don't want to request alt replicated mounts, though we may in opt_mount_for_file mode
     let selected_datasets = vec![SnapshotDatasetType::MostProximate];
 
-    let mounts_for_files: Vec<(PathData, Vec<PathData>)> =
+    let mounts_for_files: BTreeMap<PathData, Vec<PathData>> =
         get_mounts_for_files(config, &config.paths, &selected_datasets)?;
 
     if let Ok(zfs_command) = which("zfs") {

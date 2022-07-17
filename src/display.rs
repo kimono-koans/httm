@@ -15,6 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
+use std::collections::BTreeMap;
 use std::{borrow::Cow, time::SystemTime};
 
 use chrono::{DateTime, Local};
@@ -46,60 +47,58 @@ pub fn display_exec(
     Ok(output_buffer)
 }
 
-pub fn display_mount_map(
+pub fn display_ordered_map(
     config: &Config,
-    mount_map: &[(PathData, Vec<PathData>)],
+    map: &BTreeMap<PathData, Vec<PathData>>,
 ) -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
     let write_out_buffer = if config.opt_no_pretty {
-        mount_map
-            .iter()
-            .map(|(file, mounts)| {
-                let file_string = file.path_buf.to_string_lossy().to_string();
+        map.iter()
+            .map(|(key, values)| {
+                let key_string = key.path_buf.to_string_lossy().to_string();
 
-                let mount_string: String = mounts
+                let values_string: String = values
                     .iter()
-                    .map(|mount| {
+                    .map(|value| {
                         format!(
                             "{}\"{}\"",
                             NOT_SO_PRETTY_FIXED_WIDTH_PADDING,
-                            mount.path_buf.to_string_lossy()
+                            value.path_buf.to_string_lossy()
                         )
                     })
                     .collect();
 
-                format!("{}:{}\n", file_string, mount_string)
+                format!("{}:{}\n", key_string, values_string)
             })
             .collect()
     } else {
-        let padding = mount_map
+        let padding = map
             .iter()
-            .map(|(key, _vec_values)| key)
+            .map(|(key, _values)| key)
             .max_by_key(|key| key.path_buf.to_string_lossy().len())
             .map_or_else(|| 0usize, |key| key.path_buf.to_string_lossy().len());
 
-        mount_map
-            .iter()
-            .map(|(key, vec_values)| {
-                let display_file_path = key.path_buf.to_string_lossy();
+        map.iter()
+            .map(|(key, values)| {
+                let key_string = key.path_buf.to_string_lossy();
 
-                vec_values
+                values
                     .iter()
                     .enumerate()
-                    .map(|(idx, mount)| {
-                        let display_mount_path = mount.path_buf.to_string_lossy();
+                    .map(|(idx, value)| {
+                        let value_string = value.path_buf.to_string_lossy();
 
                         if idx == 0 {
                             format!(
                                 "{:<width$} : \"{}\"\n",
-                                display_file_path,
-                                display_mount_path,
+                                key_string,
+                                value_string,
                                 width = padding
                             )
                         } else {
                             format!(
                                 "{:<width$} : \"{}\"\n",
                                 "",
-                                display_mount_path,
+                                value_string,
                                 width = padding
                             )
                         }

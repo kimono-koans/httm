@@ -5,6 +5,7 @@
 
 use std::{
     borrow::Cow,
+    cmp,
     error::Error,
     ffi::OsString,
     fmt,
@@ -349,6 +350,20 @@ pub struct PathData {
     pub size: u64,
     pub path_buf: PathBuf,
     pub is_phantom: bool,
+}
+
+impl cmp::PartialOrd for PathData {
+    #[inline]
+    fn partial_cmp(&self, other: &PathData) -> Option<cmp::Ordering> {
+        Some(self.path_buf.cmp(&other.path_buf))
+    }
+}
+
+impl cmp::Ord for PathData {
+    #[inline]
+    fn cmp(&self, other: &PathData) -> cmp::Ordering {
+        self.path_buf.cmp(&other.path_buf)
+    }
 }
 
 impl From<&Path> for PathData {
