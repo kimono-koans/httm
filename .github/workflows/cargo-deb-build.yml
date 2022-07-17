@@ -1,0 +1,11 @@
+name: Deb Static Build
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@master
+    - name: Deb Build
+      uses: kimono-koans/cargo-deb-amd64-ubuntu@1.0
