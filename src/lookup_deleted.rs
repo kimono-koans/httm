@@ -27,7 +27,7 @@ use crate::lookup_versions::{
     get_datasets_for_search, get_search_bundle, prep_lookup_read_dir, FileSearchBundle,
 };
 use crate::utility::{BasicDirEntryInfo, HttmError, PathData};
-use crate::{AHashMap as HashMap, Config, DatasetCollection, FilesystemType};
+use crate::{AHashMap as HashMap, Config, DatasetCollection};
 
 pub fn deleted_lookup_exec(
     config: &Config,
@@ -100,37 +100,15 @@ fn get_deleted_per_dataset(
     // now create a collection of file names in the snap_dirs
     // create a list of unique filenames on snaps
 
-    // this is the fallback way of handling without a map_of_snaps, if all we have is user defined dirs
-    fn snap_filenames_from_read_dir(
-        snapshot_dir: &Path,
-        relative_path: &Path,
-        fs_type: &FilesystemType,
-    ) -> Result<
-        HashMap<OsString, BasicDirEntryInfo>,
-        Box<dyn std::error::Error + Send + Sync + 'static>,
-    > {
-        let unique_snap_filenames = prep_lookup_read_dir(snapshot_dir, relative_path, fs_type)?
-            .iter()
-            .flat_map(|joined_path| read_dir(&joined_path))
-            .flatten()
-            .flatten()
-            .map(|dir_entry| (dir_entry.file_name(), BasicDirEntryInfo::from(&dir_entry)))
-            .collect();
-
-        Ok(unique_snap_filenames)
-    }
-
     // this is the optimal way to handle for native datasets, if you have a map_of_snaps
-    fn snap_filenames_from_snap_mounts(
-        snap_mounts: &[PathBuf],
-        relative_path: &Path,
+    fn get_snap_filenames(
+        mounts: &[PathBuf],
     ) -> Result<
         HashMap<OsString, BasicDirEntryInfo>,
         Box<dyn std::error::Error + Send + Sync + 'static>,
     > {
-        let unique_snap_filenames = snap_mounts
+        let unique_snap_filenames = mounts
             .iter()
-            .map(|path| path.join(&relative_path))
             .flat_map(|path| read_dir(&path))
             .flatten()
             .flatten()
@@ -139,31 +117,36 @@ fn get_deleted_per_dataset(
         Ok(unique_snap_filenames)
     }
 
-    let (snapshot_dir, relative_path, snapshot_mounts, fs_type) = {
+    let (snapshot_dir, relative_path, opt_raw_snap_mounts, fs_type) = {
         (
             &search_bundle.snapshot_dir,
             &search_bundle.relative_path,
-            &search_bundle.snapshot_mounts,
+            &search_bundle.opt_raw_snap_mounts,
             &search_bundle.fs_type,
         )
     };
 
-    let unique_snap_filenames: HashMap<OsString, BasicDirEntryInfo> =
-        match &config.dataset_collection {
-            DatasetCollection::AutoDetect(_) => match snapshot_mounts {
-                Some(snap_mounts) => snap_filenames_from_snap_mounts(snap_mounts, relative_path)?,
-                None => {
-                    return Err(HttmError::new(
-                        "If you are here, precompute showed no snap mounts for dataset.  \
+    let snap_mounts: Vec<PathBuf> = match &config.dataset_collection {
+        DatasetCollection::AutoDetect(_) => match opt_raw_snap_mounts {
+            Some(raw_mounts) => raw_mounts
+                .iter()
+                .map(|path| path.join(&relative_path))
+                .collect::<Vec<PathBuf>>(),
+            None => {
+                return Err(HttmError::new(
+                    "If you are here, precompute showed no snap mounts for dataset.  \
                     Iterator should just ignore/flatten the error.",
-                    )
-                    .into());
-                }
-            },
-            DatasetCollection::UserDefined(_) => {
-                snap_filenames_from_read_dir(snapshot_dir, relative_path, fs_type)?
+                )
+                .into());
             }
-        };
+        },
+        DatasetCollection::UserDefined(_) => {
+            prep_lookup_read_dir(snapshot_dir, relative_path, fs_type)?
+        }
+    };
+
+    let unique_snap_filenames: HashMap<OsString, BasicDirEntryInfo> =
+        get_snap_filenames(&snap_mounts)?;
 
     // compare local filenames to all unique snap filenames - none values are unique, here
     let all_deleted_versions: Vec<BasicDirEntryInfo> = unique_snap_filenames

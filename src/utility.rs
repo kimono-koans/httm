@@ -382,7 +382,7 @@ impl From<&DirEntry> for PathData {
 }
 
 impl PathData {
-    fn from_parts(path: &Path, metadata_res: Option<Metadata>) -> Self {
+    pub fn from_parts(path: &Path, metadata_res: Option<Metadata>) -> Self {
         let absolute_path: PathBuf = if path.is_relative() {
             if let Ok(canonical_path) = path.canonicalize() {
                 canonical_path

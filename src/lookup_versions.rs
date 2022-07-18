@@ -45,7 +45,7 @@ pub struct FileSearchBundle {
     pub snapshot_dir: PathBuf,
     pub relative_path: PathBuf,
     pub fs_type: FilesystemType,
-    pub snapshot_mounts: Option<Vec<PathBuf>>,
+    pub opt_raw_snap_mounts: Option<Vec<PathBuf>>,
 }
 
 pub fn versions_lookup_exec(
@@ -232,7 +232,7 @@ pub fn get_search_bundle(
             // for user specified dirs these are specified by the user
             let proximate_dataset_mount = &datasets_for_search.proximate_dataset_mount;
 
-            let (snapshot_dir, relative_path, snapshot_mounts, fs_type) =
+            let (snapshot_dir, relative_path, opt_raw_snap_mounts, fs_type) =
                 match &config.dataset_collection {
                     DatasetCollection::UserDefined(defined_dirs) => {
                         let (snapshot_dir, fs_type) = match &defined_dirs.fs_type {
@@ -280,19 +280,19 @@ pub fn get_search_bundle(
                             .strip_prefix(&proximate_dataset_mount)?
                             .to_path_buf();
 
-                        let snapshot_mounts = detected_datasets
+                        let opt_raw_snap_mounts = detected_datasets
                             .map_of_snaps
                             .get(dataset_of_interest)
                             .cloned();
 
-                        (snapshot_dir, relative_path, snapshot_mounts, fs_type)
+                        (snapshot_dir, relative_path, opt_raw_snap_mounts, fs_type)
                     }
                 };
 
             Ok(FileSearchBundle {
                 snapshot_dir,
                 relative_path,
-                snapshot_mounts,
+                opt_raw_snap_mounts,
                 fs_type,
             })
         })
@@ -339,27 +339,7 @@ fn get_versions_per_dataset(
     //
     // hashmap will then remove duplicates with the same system modify time and size/file len
 
-    // this is the fallback way of handling without a map_of_snaps, if all we have is user defined dirs
-    fn versions_from_read_dir(
-        snapshot_dir: &Path,
-        relative_path: &Path,
-        fs_type: &FilesystemType,
-    ) -> Result<
-        HashMap<(SystemTime, u64), PathData>,
-        Box<dyn std::error::Error + Send + Sync + 'static>,
-    > {
-        let unique_versions = prep_lookup_read_dir(snapshot_dir, relative_path, fs_type)?
-            .par_iter()
-            .map(|joined_path| PathData::from(joined_path.as_path()))
-            .filter(|pathdata| !pathdata.is_phantom)
-            .map(|pathdata| ((pathdata.system_time, pathdata.size), pathdata))
-            .collect();
-
-        Ok(unique_versions)
-    }
-
-    // this is the optimal way to handle for native datasets, if you have a map_of_snaps
-    fn versions_from_snap_mounts(
+    fn get_versions(
         snap_mounts: &[PathBuf],
         relative_path: &Path,
     ) -> Result<
@@ -368,27 +348,31 @@ fn get_versions_per_dataset(
     > {
         let unique_versions = snap_mounts
             .par_iter()
-            .map(|path| path.join(&relative_path))
-            .map(|path| PathData::from(path.as_path()))
-            .filter(|pathdata| !pathdata.is_phantom)
+            .flat_map(|path| {
+                let path = path.join(&relative_path);
+                let opt_metadata = path.metadata().ok();
+
+                opt_metadata.map(|metadata| (path, Some(metadata)))
+            })
+            .map(|(path, opt_metadata)| PathData::from_parts(path.as_path(), opt_metadata))
             .map(|pathdata| ((pathdata.system_time, pathdata.size), pathdata))
             .collect();
         Ok(unique_versions)
     }
 
-    let (snapshot_dir, relative_path, snapshot_mounts, fs_type) = {
+    let (snapshot_dir, relative_path, opt_raw_snap_mounts, fs_type) = {
         (
             &search_bundle.snapshot_dir,
             &search_bundle.relative_path,
-            &search_bundle.snapshot_mounts,
+            &search_bundle.opt_raw_snap_mounts,
             &search_bundle.fs_type,
         )
     };
 
     let unique_versions: HashMap<(SystemTime, u64), PathData> = match &config.dataset_collection {
         DatasetCollection::AutoDetect(_) => {
-            match snapshot_mounts {
-                Some(snap_mounts) => versions_from_snap_mounts(snap_mounts, relative_path)?,
+            match opt_raw_snap_mounts {
+                Some(snap_mounts) => get_versions(snap_mounts, relative_path)?,
                 // snap mounts is empty
                 None => {
                     return Err(HttmError::new(
@@ -400,7 +384,8 @@ fn get_versions_per_dataset(
             }
         }
         DatasetCollection::UserDefined(_) => {
-            versions_from_read_dir(snapshot_dir, relative_path, fs_type)?
+            let snap_mounts = prep_lookup_read_dir(snapshot_dir, relative_path, fs_type)?;
+            get_versions(&snap_mounts, relative_path)?
         }
     };
 
