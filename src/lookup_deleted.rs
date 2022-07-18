@@ -62,8 +62,8 @@ pub fn deleted_lookup_exec(
         // behind deleted dirs, here we just choose latest in time
         .into_group_map_by(|basic_dir_entry_info| basic_dir_entry_info.file_name.clone())
         .into_iter()
-        .filter_map(|(_key, group)| {
-            group
+        .flat_map(|(_file_name, group_of_dir_entries)| {
+            group_of_dir_entries
                 .into_iter()
                 .flat_map(|basic_dir_entry_info| {
                     basic_dir_entry_info
@@ -114,7 +114,25 @@ fn get_deleted_per_dataset(
             .flat_map(|path| read_dir(&path))
             .flatten()
             .flatten()
-            .map(|dir_entry| (dir_entry.file_name(), BasicDirEntryInfo::from(&dir_entry)))
+            .map(|dir_entry| BasicDirEntryInfo::from(&dir_entry))
+            .into_group_map_by(|basic_dir_entry_info| basic_dir_entry_info.file_name.clone())
+            .into_iter()
+            .flat_map(|(file_name, group_of_dir_entries)| {
+                let latest_entry_in_time = group_of_dir_entries
+                    .into_iter()
+                    .flat_map(|basic_dir_entry_info| {
+                        basic_dir_entry_info
+                            .path
+                            .symlink_metadata()
+                            .map(|md| (md, basic_dir_entry_info))
+                    })
+                    .flat_map(|(md, basic_dir_entry_info)| {
+                        md.modified()
+                            .map(|modify_time| (modify_time, basic_dir_entry_info))
+                    })
+                    .max_by_key(|(modify_time, _basic_dir_entry_info)| *modify_time);
+                latest_entry_in_time.map(|latest_in_time| (file_name, latest_in_time.1))
+            })
             .collect();
         Ok(unique_snap_filenames)
     }
