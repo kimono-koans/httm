@@ -216,7 +216,7 @@ fn parse_args() -> ArgMatches {
             Arg::new("RECURSIVE")
                 .short('R')
                 .long("recursive")
-                .conflicts_with_all(&["SNAP_FILE_MOUNT", "LAST_SNAP"])
+                .conflicts_with_all(&["SNAP_FILE_MOUNT"])
                 .help("recurse into the selected directory to find more files. Only available in interactive and deleted file modes.")
                 .display_order(7)
         )
@@ -257,7 +257,7 @@ fn parse_args() -> ArgMatches {
                 .help("automatically select and print the path of last-in-time unique snapshot version for the input file.  \
                 May also be used as a shortcut to restore from such last version when used with the \"--restore\", or \"-r\", flag.  \
                 Default is to return the absolute last-in-time but user may also request the last unique file version relative to the \"live\" version by appending \"relative\" to the flag.")
-                .conflicts_with_all(&["INTERACTIVE", "RECURSIVE", "EXACT", "SNAP_FILE_MOUNT", "MOUNT_FOR_FILE", "ALT_REPLICATED", "SNAP_POINT", "LOCAL_DIR", "NOT_SO_PRETTY", "ZEROS", "RAW", "NO_LIVE"])
+                .conflicts_with_all(&["INTERACTIVE", "EXACT", "SNAP_FILE_MOUNT", "MOUNT_FOR_FILE", "ALT_REPLICATED", "SNAP_POINT", "LOCAL_DIR", "NOT_SO_PRETTY", "ZEROS", "RAW", "NO_LIVE"])
                 .display_order(11)
         )
         .arg(
@@ -496,7 +496,7 @@ impl Config {
         } else {
             match exec_mode {
                 // setting pwd as the path, here, keeps us from waiting on stdin when in certain modes
-                // LastSnap is more like Interactive and DisplayRecursive in this respect in requiring only one
+                //  is more like Interactive and DisplayRecursive in this respect in requiring only one
                 // input, and waiting on one input from stdin is pretty silly
                 ExecMode::Interactive | ExecMode::DisplayRecursive | ExecMode::LastSnap(_) => {
                     vec![pwd.clone()]
@@ -524,7 +524,7 @@ impl Config {
 
         // for exec_modes in which we can only take a single directory, process how we handle those here
         let requested_dir: Option<PathData> = match exec_mode {
-            ExecMode::Interactive | ExecMode::DisplayRecursive => {
+            ExecMode::Interactive | ExecMode::DisplayRecursive | ExecMode::LastSnap(_) => {
                 match paths.len() {
                     0 => Some(pwd.clone()),
                     1 => {
@@ -537,7 +537,7 @@ impl Config {
                         // and then we take all comers here because may be a deleted file that DNE on a live version
                         } else {
                             match exec_mode {
-                                ExecMode::Interactive => {
+                                ExecMode::Interactive | ExecMode::LastSnap(_) => {
                                     match interactive_mode {
                                         InteractiveMode::Browse | InteractiveMode::None => {
                                             // doesn't make sense to have a non-dir in these modes
@@ -572,22 +572,10 @@ impl Config {
                     }
                 }
             }
-            ExecMode::Display
-            | ExecMode::SnapFileMount
-            | ExecMode::LastSnap(_)
-            | ExecMode::MountsForFiles => {
+            ExecMode::Display | ExecMode::SnapFileMount | ExecMode::MountsForFiles => {
                 // in non-interactive mode / display mode, requested dir is just a file
                 // like every other file and pwd must be the requested working dir.
-                //
-                // "None" here also allows ExecMode::LastSnap to skip the browse phase of interactive_exec
-                match exec_mode {
-                    ExecMode::LastSnap(_) if paths.len() > 1 => {
-                        return Err(
-                            HttmError::new("May only specify one path in last snap mode.").into(),
-                        );
-                    }
-                    _ => None,
-                }
+                None
             }
         };
 

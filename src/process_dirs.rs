@@ -96,10 +96,7 @@ fn enumerate_live_versions(
 
     // check exec mode and deleted mode, we do something different for each
     match config.exec_mode {
-        ExecMode::Display
-        | ExecMode::SnapFileMount
-        | ExecMode::LastSnap(_)
-        | ExecMode::MountsForFiles => unreachable!(),
+        ExecMode::Display | ExecMode::SnapFileMount | ExecMode::MountsForFiles => unreachable!(),
         ExecMode::DisplayRecursive => {
             match config.deleted_mode {
                 // display recursive in DeletedMode::Disabled may be
@@ -114,7 +111,7 @@ fn enumerate_live_versions(
                 }
             }
         }
-        ExecMode::Interactive => {
+        ExecMode::Interactive | ExecMode::LastSnap(_) => {
             // recombine dirs and files into a vec
             let combined_vec = || {
                 let mut combined = vec_files;
@@ -397,7 +394,9 @@ fn display_or_transmit(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     // send to the interactive view, or print directly, never return back
     match config.exec_mode {
-        ExecMode::Interactive => transmit_entries(config, entries, is_phantom, tx_item)?,
+        ExecMode::Interactive | ExecMode::LastSnap(_) => {
+            transmit_entries(config, entries, is_phantom, tx_item)?
+        }
         ExecMode::DisplayRecursive => {
             // passing a progress bar through multiple functions is a pain, and since we only need a global,
             // here we just create a static progress bar for Display Recursive mode
