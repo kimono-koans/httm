@@ -41,7 +41,7 @@ pub struct DatasetsForSearch {
 }
 
 #[derive(Debug, Clone)]
-pub struct SearchBundle {
+pub struct FileSearchBundle {
     pub snapshot_dir: PathBuf,
     pub relative_path: PathBuf,
     pub fs_type: FilesystemType,
@@ -221,7 +221,7 @@ pub fn get_search_bundle(
     config: &Config,
     pathdata: &PathData,
     datasets_for_search: &DatasetsForSearch,
-) -> Result<Vec<SearchBundle>, Box<dyn std::error::Error + Send + Sync + 'static>> {
+) -> Result<Vec<FileSearchBundle>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     datasets_for_search
         .datasets_of_interest
         .par_iter()
@@ -289,7 +289,7 @@ pub fn get_search_bundle(
                     }
                 };
 
-            Ok(SearchBundle {
+            Ok(FileSearchBundle {
                 snapshot_dir,
                 relative_path,
                 snapshot_mounts,
@@ -332,7 +332,7 @@ fn get_proximate_dataset(
 
 fn get_versions_per_dataset(
     config: &Config,
-    search_bundle: &SearchBundle,
+    search_bundle: &FileSearchBundle,
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // get the DirEntry for our snapshot path which will have all our possible
     // snapshots, like so: .zfs/snapshots/<some snap name>/

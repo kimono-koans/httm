@@ -25,7 +25,7 @@ use itertools::Itertools;
 
 use crate::utility::{BasicDirEntryInfo, HttmError, PathData};
 use crate::versions_lookup::{
-    get_datasets_for_search, get_search_bundle, prep_lookup_read_dir, SearchBundle,
+    get_datasets_for_search, get_search_bundle, prep_lookup_read_dir, FileSearchBundle,
 };
 use crate::{AHashMap as HashMap, Config, DatasetCollection, FilesystemType};
 
@@ -86,7 +86,7 @@ pub fn deleted_lookup_exec(
 fn get_deleted_per_dataset(
     config: &Config,
     requested_dir: &Path,
-    search_bundle: &SearchBundle,
+    search_bundle: &FileSearchBundle,
 ) -> Result<Vec<BasicDirEntryInfo>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // get all local entries we need to compare against these to know
     // what is a deleted file
