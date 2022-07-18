@@ -58,7 +58,7 @@ pub fn deleted_lookup_exec(
         })
         .flatten();
 
-    let unique_deleted = get_latest_in_time(basic_dir_entry_info_iter)
+    let unique_deleted = get_latest_in_time_for_filename(basic_dir_entry_info_iter)
         .map(|(_file_name, latest_entry_in_time)| latest_entry_in_time.1)
         .collect();
 
@@ -70,7 +70,7 @@ pub fn deleted_lookup_exec(
 // why? because this might be a folder that has been deleted and we need some policy
 // to give later functions an idea about which folder to choose when we want too look
 // behind deleted dirs, here we just choose latest in time
-fn get_latest_in_time<I>(
+fn get_latest_in_time_for_filename<I>(
     basic_dir_entry_info_iter: I,
 ) -> impl Iterator<Item = (OsString, (SystemTime, BasicDirEntryInfo))>
 where
@@ -130,7 +130,7 @@ fn get_deleted_per_dataset(
             .flatten()
             .map(|dir_entry| BasicDirEntryInfo::from(&dir_entry));
 
-        let unique_snap_filenames = get_latest_in_time(basic_dir_entry_info_iter)
+        let unique_snap_filenames = get_latest_in_time_for_filename(basic_dir_entry_info_iter)
             .map(|(file_name, latest_entry_in_time)| (file_name, latest_entry_in_time.1))
             .collect();
         Ok(unique_snap_filenames)
