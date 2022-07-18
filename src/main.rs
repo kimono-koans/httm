@@ -85,7 +85,7 @@ enum ExecMode {
     DisplayRecursive,
     Display,
     SnapFileMount,
-    LastSnap(bool),
+    LastSnap(RequestRelative),
     MountsForFiles,
 }
 
@@ -105,13 +105,13 @@ enum DeletedMode {
     Only,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 enum DatasetCollection {
     AutoDetect(AutoDetectDatasets),
     UserDefined(UserDefinedDirs),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct AutoDetectDatasets {
     // key: mount, val: (dataset/subvol, fstype)
     map_of_datasets: HashMap<PathBuf, (String, FilesystemType)>,
@@ -123,17 +123,23 @@ pub struct AutoDetectDatasets {
     opt_common_snap_dir: Option<PathBuf>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct UserDefinedDirs {
     snap_dir: PathBuf,
     local_dir: PathBuf,
     fs_type: FilesystemType,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum SnapshotDatasetType {
     MostProximate,
     AltReplicated,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum RequestRelative {
+    Absolute,
+    Relative,
 }
 
 fn parse_args() -> ArgMatches {
@@ -392,10 +398,14 @@ impl Config {
         };
 
         let mut exec_mode = if matches.is_present("LAST_SNAP") {
-            let request_relative = matches!(
+            let request_relative = if matches!(
                 matches.value_of("LAST_SNAP"),
                 Some("rel") | Some("relative")
-            );
+            ) {
+                RequestRelative::Relative
+            } else {
+                RequestRelative::Absolute
+            };
             ExecMode::LastSnap(request_relative)
         } else if matches.is_present("MOUNT_FOR_FILE") {
             ExecMode::MountsForFiles
@@ -502,9 +512,7 @@ impl Config {
 
         // deduplicate pathdata and sort if in display mode --
         // so input of ./.z* and ./.zshrc will only print ./.zshrc once
-        paths = if paths.len() > 1
-            && (exec_mode == ExecMode::Display || exec_mode == ExecMode::SnapFileMount)
-        {
+        paths = if paths.len() > 1 {
             paths.par_sort_by_key(|pathdata| pathdata.path_buf.clone());
             // dedup needs to be sorted/ordered first to work (not like a HashMap)
             paths.dedup_by_key(|pathdata| pathdata.path_buf.clone());

@@ -26,7 +26,7 @@ use crate::utility::{
     copy_recursive, paint_string, print_output_buf, timestamp_file, HttmError, PathData,
 };
 use crate::versions_lookup::versions_lookup_exec;
-use crate::{Config, DeletedMode, ExecMode, InteractiveMode};
+use crate::{Config, DeletedMode, ExecMode, InteractiveMode, RequestRelative};
 
 // these represent to items ready for selection and preview
 // contains everything needs to request preview and paint with
@@ -240,7 +240,7 @@ fn interactive_select(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let snaps_and_live_set = versions_lookup_exec(config, vec_paths)?;
 
-    let path_string = match config.exec_mode {
+    let path_string = match &config.exec_mode {
         ExecMode::LastSnap(request_relative) => {
             // should be good to index into both, there is a known known 2nd vec,
             let live_version = &vec_paths
@@ -249,7 +249,7 @@ fn interactive_select(
             let pathdata = match snaps_and_live_set[0]
                 .iter()
                 .filter(|snap_version| {
-                    if request_relative {
+                    if matches!(request_relative, RequestRelative::Relative) {
                         snap_version.system_time != live_version.system_time
                     } else {
                         true
