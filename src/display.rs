@@ -71,7 +71,7 @@ fn display_pretty(
     config: &Config,
     snaps_and_live_set: &[Vec<PathData>; 2],
 ) -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let (size_padding_len, fancy_border_string) = calculate_padding(snaps_and_live_set);
+    let (size_padding_len, fancy_border_string) = calculate_pretty_padding(snaps_and_live_set);
 
     let write_out_buffer = snaps_and_live_set
         .iter()
@@ -159,7 +159,7 @@ fn display_pretty(
     Ok(write_out_buffer)
 }
 
-fn calculate_padding(snaps_and_live_set: &[Vec<PathData>]) -> (usize, String) {
+fn calculate_pretty_padding(snaps_and_live_set: &[Vec<PathData>]) -> (usize, String) {
     // calculate padding and borders for display later
     let (size_padding_len, fancy_border_len) = snaps_and_live_set.iter().flatten().fold(
         (0usize, 0usize),
