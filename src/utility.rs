@@ -18,6 +18,7 @@ use std::{
 
 use chrono::{DateTime, Local};
 use lscolors::{LsColors, Style};
+use once_cell::unsync::OnceCell;
 
 use crate::interactive::SelectionCandidate;
 use crate::{PHANTOM_DATE, PHANTOM_SIZE};
@@ -326,11 +327,22 @@ impl Error for HttmError {
 
 // only the most basic data from a DirEntry
 // for use to display in browse window and internally
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct BasicDirEntryInfo {
     pub file_name: OsString,
     pub path: PathBuf,
     pub file_type: Option<FileType>,
+    pub modify_time: OnceCell<Option<SystemTime>>,
+}
+
+impl BasicDirEntryInfo {
+    pub fn get_modify_time(&self) -> Option<SystemTime> {
+        *self.modify_time.get_or_init(|| {
+            self.path
+                .symlink_metadata()
+                .ok().and_then(|metadata| metadata.modified().ok())
+        })
+    }
 }
 
 impl From<&DirEntry> for BasicDirEntryInfo {
@@ -339,6 +351,7 @@ impl From<&DirEntry> for BasicDirEntryInfo {
             file_name: dir_entry.file_name(),
             path: dir_entry.path(),
             file_type: dir_entry.file_type().ok(),
+            modify_time: OnceCell::new(),
         }
     }
 }

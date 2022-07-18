@@ -84,12 +84,7 @@ where
                 .into_iter()
                 .flat_map(|basic_dir_entry_info| {
                     basic_dir_entry_info
-                        .path
-                        .symlink_metadata()
-                        .map(|md| (md, basic_dir_entry_info))
-                })
-                .flat_map(|(md, basic_dir_entry_info)| {
-                    md.modified()
+                        .get_modify_time()
                         .map(|modify_time| (modify_time, basic_dir_entry_info))
                 })
                 .max_by_key(|(modify_time, _basic_dir_entry_info)| *modify_time);

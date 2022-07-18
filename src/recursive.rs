@@ -19,6 +19,7 @@ use std::fs::DirEntry;
 use std::{fs::read_dir, path::Path, sync::Arc};
 
 use indicatif::ProgressBar;
+use once_cell::unsync::OnceCell;
 use rayon::{prelude::*, Scope, ThreadPool};
 use skim::prelude::*;
 
@@ -382,6 +383,7 @@ fn get_pseudo_live_versions(
             path: pseudo_live_dir.join(&basic_dir_entry_info.file_name),
             file_name: basic_dir_entry_info.file_name,
             file_type: basic_dir_entry_info.file_type,
+            modify_time: OnceCell::new(),
         })
         .collect()
 }
@@ -442,7 +444,7 @@ fn print_display_recursive(
     entries: Vec<BasicDirEntryInfo>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let pseudo_live_set: Vec<PathData> = entries
-        .par_iter()
+        .iter()
         .map(|basic_dir_entry_info| PathData::from(basic_dir_entry_info.path.as_path()))
         .collect();
 
