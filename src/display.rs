@@ -22,8 +22,8 @@ use chrono::{DateTime, Local};
 use number_prefix::NumberPrefix;
 use terminal_size::{terminal_size, Height, Width};
 
+use crate::lookup_versions::get_mounts_for_files;
 use crate::utility::{paint_string, print_output_buf, PathData};
-use crate::versions_lookup::get_mounts_for_files;
 use crate::Config;
 
 // 2 space wide padding - used between date and size, and size and path

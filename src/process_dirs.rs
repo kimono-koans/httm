@@ -24,9 +24,9 @@ use skim::prelude::*;
 
 use crate::display::display_exec;
 use crate::interactive::SelectionCandidate;
+use crate::lookup_versions::versions_lookup_exec;
 use crate::utility::{httm_is_dir, print_output_buf, BasicDirEntryInfo, HttmError, PathData};
-use crate::versions_lookup::versions_lookup_exec;
-use crate::{deleted_lookup::deleted_lookup_exec, DEV_DIRECTORY, PROC_DIRECTORY, SYS_DIRECTORY};
+use crate::{lookup_deleted::deleted_lookup_exec, DEV_DIRECTORY, PROC_DIRECTORY, SYS_DIRECTORY};
 use crate::{
     Config, DatasetCollection, DeletedMode, ExecMode, BTRFS_SNAPPER_HIDDEN_DIRECTORY,
     ZFS_HIDDEN_DIRECTORY,

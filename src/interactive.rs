@@ -21,11 +21,11 @@ use lscolors::Colorable;
 use skim::prelude::*;
 
 use crate::display::display_exec;
+use crate::lookup_versions::versions_lookup_exec;
 use crate::process_dirs::process_dirs_exec;
 use crate::utility::{
     copy_recursive, paint_string, print_output_buf, timestamp_file, HttmError, PathData,
 };
-use crate::versions_lookup::versions_lookup_exec;
 use crate::{Config, DeletedMode, ExecMode, InteractiveMode, RequestRelative};
 
 // these represent to items ready for selection and preview
@@ -250,12 +250,11 @@ fn interactive_select(
                 .expect("ExecMode::LiveSnap should always have exactly one path.");
             let pathdata = match snaps_and_live_set[0]
                 .iter()
-                .filter(|snap_version| {
-                    if matches!(request_relative, RequestRelative::Relative) {
+                .filter(|snap_version| match request_relative {
+                    RequestRelative::Relative => {
                         snap_version.system_time != live_version.system_time
-                    } else {
-                        true
                     }
+                    _ => true,
                 })
                 .last()
             {

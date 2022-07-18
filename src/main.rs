@@ -38,25 +38,25 @@ use clap::{crate_name, crate_version, Arg, ArgMatches};
 use rayon::prelude::*;
 use utility::print_output_buf;
 
-mod deleted_lookup;
 mod display;
 mod interactive;
+mod lookup_deleted;
+mod lookup_versions;
 mod parse_alts;
 mod parse_mounts;
 mod parse_snaps;
 mod process_dirs;
 mod snapshot_ops;
 mod utility;
-mod versions_lookup;
 
 use crate::display::{display_exec, display_mounts_for_files};
 use crate::interactive::interactive_exec;
+use crate::lookup_versions::versions_lookup_exec;
 use crate::parse_alts::precompute_alt_replicated;
 use crate::parse_mounts::{get_common_snap_dir, parse_mounts_exec};
 use crate::process_dirs::display_recursive_wrapper;
 use crate::snapshot_ops::take_snapshot;
 use crate::utility::{httm_is_dir, install_hot_keys, read_stdin, HttmError, PathData};
-use crate::versions_lookup::versions_lookup_exec;
 
 pub const ZFS_FSTYPE: &str = "zfs";
 pub const BTRFS_FSTYPE: &str = "btrfs";

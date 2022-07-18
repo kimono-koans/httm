@@ -19,8 +19,8 @@ use std::{path::Path, path::PathBuf};
 
 use rayon::prelude::*;
 
+use crate::lookup_versions::DatasetsForSearch;
 use crate::utility::HttmError;
-use crate::versions_lookup::DatasetsForSearch;
 use crate::{AHashMap as HashMap, FilesystemType};
 
 // instead of looking up, precompute possible alt replicated mounts before exec

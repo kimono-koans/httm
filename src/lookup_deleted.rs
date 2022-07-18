@@ -23,10 +23,10 @@ use std::{
 
 use itertools::Itertools;
 
-use crate::utility::{BasicDirEntryInfo, HttmError, PathData};
-use crate::versions_lookup::{
+use crate::lookup_versions::{
     get_datasets_for_search, get_search_bundle, prep_lookup_read_dir, FileSearchBundle,
 };
+use crate::utility::{BasicDirEntryInfo, HttmError, PathData};
 use crate::{AHashMap as HashMap, Config, DatasetCollection, FilesystemType};
 
 pub fn deleted_lookup_exec(
