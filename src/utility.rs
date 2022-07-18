@@ -340,7 +340,8 @@ impl BasicDirEntryInfo {
         *self.modify_time.get_or_init(|| {
             self.path
                 .symlink_metadata()
-                .ok().and_then(|metadata| metadata.modified().ok())
+                .ok()
+                .and_then(|metadata| metadata.modified().ok())
         })
     }
 }
