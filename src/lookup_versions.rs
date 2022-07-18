@@ -45,7 +45,7 @@ pub struct FileSearchBundle {
     pub snapshot_dir: PathBuf,
     pub relative_path: PathBuf,
     pub fs_type: FilesystemType,
-    pub opt_raw_snap_mounts: Option<Vec<PathBuf>>,
+    pub opt_snap_mounts: Option<Vec<PathBuf>>,
 }
 
 pub fn versions_lookup_exec(
@@ -232,7 +232,7 @@ pub fn get_search_bundle(
             // for user specified dirs these are specified by the user
             let proximate_dataset_mount = &datasets_for_search.proximate_dataset_mount;
 
-            let (snapshot_dir, relative_path, opt_raw_snap_mounts, fs_type) =
+            let (snapshot_dir, relative_path, opt_snap_mounts, fs_type) =
                 match &config.dataset_collection {
                     DatasetCollection::UserDefined(defined_dirs) => {
                         let (snapshot_dir, fs_type) = match &defined_dirs.fs_type {
@@ -280,19 +280,19 @@ pub fn get_search_bundle(
                             .strip_prefix(&proximate_dataset_mount)?
                             .to_path_buf();
 
-                        let opt_raw_snap_mounts = detected_datasets
+                        let opt_snap_mounts = detected_datasets
                             .map_of_snaps
                             .get(dataset_of_interest)
                             .cloned();
 
-                        (snapshot_dir, relative_path, opt_raw_snap_mounts, fs_type)
+                        (snapshot_dir, relative_path, opt_snap_mounts, fs_type)
                     }
                 };
 
             Ok(FileSearchBundle {
                 snapshot_dir,
                 relative_path,
-                opt_raw_snap_mounts,
+                opt_snap_mounts,
                 fs_type,
             })
         })
@@ -360,18 +360,18 @@ fn get_versions_per_dataset(
         Ok(unique_versions)
     }
 
-    let (snapshot_dir, relative_path, opt_raw_snap_mounts, fs_type) = {
+    let (snapshot_dir, relative_path, opt_snap_mounts, fs_type) = {
         (
             &search_bundle.snapshot_dir,
             &search_bundle.relative_path,
-            &search_bundle.opt_raw_snap_mounts,
+            &search_bundle.opt_snap_mounts,
             &search_bundle.fs_type,
         )
     };
 
     let snap_mounts = match config.dataset_collection {
         DatasetCollection::AutoDetect(_) => {
-            match opt_raw_snap_mounts {
+            match opt_snap_mounts {
                 Some(snap_mounts) => snap_mounts.clone(),
                 // snap mounts is empty
                 None => {

@@ -136,18 +136,18 @@ fn get_deleted_per_dataset(
         Ok(unique_snap_filenames)
     }
 
-    let (snapshot_dir, relative_path, opt_raw_snap_mounts, fs_type) = {
+    let (snapshot_dir, relative_path, opt_snap_mounts, fs_type) = {
         (
             &search_bundle.snapshot_dir,
             &search_bundle.relative_path,
-            &search_bundle.opt_raw_snap_mounts,
+            &search_bundle.opt_snap_mounts,
             &search_bundle.fs_type,
         )
     };
 
     let snap_mounts: Vec<PathBuf> = match &config.dataset_collection {
-        DatasetCollection::AutoDetect(_) => match opt_raw_snap_mounts {
-            Some(raw_mounts) => raw_mounts.clone(),
+        DatasetCollection::AutoDetect(_) => match opt_snap_mounts {
+            Some(snap_mounts) => snap_mounts.clone(),
             None => {
                 return Err(HttmError::new(
                     "If you are here, precompute showed no snap mounts for dataset.  \
