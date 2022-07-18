@@ -19,6 +19,7 @@ use std::{
     ffi::OsString,
     fs::read_dir,
     path::{Path, PathBuf},
+    time::SystemTime,
 };
 
 use itertools::Itertools;
@@ -36,13 +37,14 @@ pub fn deleted_lookup_exec(
     // we always need a requesting dir because we are comparing the files in the
     // requesting dir to those of their relative dirs on snapshots
     let requested_dir_pathdata = PathData::from(requested_dir);
+    let vec_requested_dir_pathdata = vec![requested_dir_pathdata.clone()];
 
     // create vec of all local and replicated backups at once
     //
     // we need to make certain that what we return from possibly multiple datasets are unique
     // as these will be the filenames that populate our interactive views, so deduplicate
     // by filename and latest file version here
-    let unique_deleted: Vec<BasicDirEntryInfo> = vec![&requested_dir_pathdata]
+    let basic_dir_entry_info_iter = vec_requested_dir_pathdata
         .iter()
         .flat_map(|pathdata| {
             config.selected_datasets.iter().flat_map(|dataset_type| {
@@ -54,16 +56,31 @@ pub fn deleted_lookup_exec(
         .flat_map(|search_bundle| {
             get_deleted_per_dataset(config, &requested_dir_pathdata.path_buf, &search_bundle)
         })
-        .flatten()
-        // this functions like a hashmap, separate into buckets/groups
-        // by file name, then return the oldest deleted dir entry, or max by its modify time
-        // why? because this might be a folder that has been deleted and we need some policy
-        // to give later functions an idea about which folder to choose when we want too look
-        // behind deleted dirs, here we just choose latest in time
+        .flatten();
+
+    let unique_deleted = get_latest_in_time(basic_dir_entry_info_iter)
+        .map(|(_file_name, latest_entry_in_time)| latest_entry_in_time.1)
+        .collect();
+
+    Ok(unique_deleted)
+}
+
+// this functions like a hashmap, separate into buckets/groups
+// by file name, then return the oldest deleted dir entry, or max by its modify time
+// why? because this might be a folder that has been deleted and we need some policy
+// to give later functions an idea about which folder to choose when we want too look
+// behind deleted dirs, here we just choose latest in time
+fn get_latest_in_time<I>(
+    basic_dir_entry_info_iter: I,
+) -> impl Iterator<Item = (OsString, (SystemTime, BasicDirEntryInfo))>
+where
+    I: Iterator<Item = BasicDirEntryInfo>,
+{
+    basic_dir_entry_info_iter
         .into_group_map_by(|basic_dir_entry_info| basic_dir_entry_info.file_name.clone())
         .into_iter()
-        .flat_map(|(_file_name, group_of_dir_entries)| {
-            group_of_dir_entries
+        .flat_map(|(file_name, group_of_dir_entries)| {
+            let latest_entry_in_time = group_of_dir_entries
                 .into_iter()
                 .flat_map(|basic_dir_entry_info| {
                     basic_dir_entry_info
@@ -75,12 +92,9 @@ pub fn deleted_lookup_exec(
                     md.modified()
                         .map(|modify_time| (modify_time, basic_dir_entry_info))
                 })
-                .max_by_key(|(modify_time, _basic_dir_entry_info)| *modify_time)
+                .max_by_key(|(modify_time, _basic_dir_entry_info)| *modify_time);
+            latest_entry_in_time.map(|latest_entry_in_time| (file_name, latest_entry_in_time))
         })
-        .map(|(_modify_time, basic_dir_entry_info)| basic_dir_entry_info)
-        .collect();
-
-    Ok(unique_deleted)
 }
 
 fn get_deleted_per_dataset(
@@ -108,31 +122,16 @@ fn get_deleted_per_dataset(
         HashMap<OsString, BasicDirEntryInfo>,
         Box<dyn std::error::Error + Send + Sync + 'static>,
     > {
-        let unique_snap_filenames = mounts
+        let basic_dir_entry_info_iter = mounts
             .iter()
             .map(|path| path.join(&relative_path))
             .flat_map(|path| read_dir(&path))
             .flatten()
             .flatten()
-            .map(|dir_entry| BasicDirEntryInfo::from(&dir_entry))
-            .into_group_map_by(|basic_dir_entry_info| basic_dir_entry_info.file_name.clone())
-            .into_iter()
-            .flat_map(|(file_name, group_of_dir_entries)| {
-                let latest_entry_in_time = group_of_dir_entries
-                    .into_iter()
-                    .flat_map(|basic_dir_entry_info| {
-                        basic_dir_entry_info
-                            .path
-                            .symlink_metadata()
-                            .map(|md| (md, basic_dir_entry_info))
-                    })
-                    .flat_map(|(md, basic_dir_entry_info)| {
-                        md.modified()
-                            .map(|modify_time| (modify_time, basic_dir_entry_info))
-                    })
-                    .max_by_key(|(modify_time, _basic_dir_entry_info)| *modify_time);
-                latest_entry_in_time.map(|latest_in_time| (file_name, latest_in_time.1))
-            })
+            .map(|dir_entry| BasicDirEntryInfo::from(&dir_entry));
+
+        let unique_snap_filenames = get_latest_in_time(basic_dir_entry_info_iter)
+            .map(|(file_name, latest_entry_in_time)| (file_name, latest_entry_in_time.1))
             .collect();
         Ok(unique_snap_filenames)
     }
