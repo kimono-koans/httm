@@ -198,6 +198,8 @@ fn browse_view(
         let _ = process_dirs_exec(arc_config, &tx_item, &requested_dir_clone);
     });
 
+    let opt_multi = !matches!(config.exec_mode, ExecMode::LastSnap(_));
+
     // create the skim component for previews
     let options = SkimOptionsBuilder::default()
         .preview_window(Some("up:50%"))
@@ -208,7 +210,7 @@ fn browse_view(
                       EXIT:       esc      | SELECT:       enter      | SELECT, MULTIPLE: shift+tab\n\
                       ──────────────────────────────────────────────────────────────────────────────",
         ))
-        .multi(true)
+        .multi(opt_multi)
         .regex(false)
         .build()
         .expect("Could not initialized skim options for browse_view");
