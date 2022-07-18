@@ -45,7 +45,7 @@ mod lookup_versions;
 mod parse_alts;
 mod parse_mounts;
 mod parse_snaps;
-mod process_dirs;
+mod recursive;
 mod snapshot_ops;
 mod utility;
 
@@ -54,7 +54,7 @@ use crate::interactive::interactive_exec;
 use crate::lookup_versions::versions_lookup_exec;
 use crate::parse_alts::precompute_alt_replicated;
 use crate::parse_mounts::{get_common_snap_dir, parse_mounts_exec};
-use crate::process_dirs::display_recursive_wrapper;
+use crate::recursive::display_recursive_wrapper;
 use crate::snapshot_ops::take_snapshot;
 use crate::utility::{httm_is_dir, install_hot_keys, read_stdin, HttmError, PathData};
 

@@ -41,7 +41,7 @@ pub fn display_recursive_wrapper(
 
     match &config.requested_dir {
         Some(requested_dir) => {
-            process_dirs_exec(config_clone, &dummy_tx_item, &requested_dir.path_buf)?;
+            recursive_exec(config_clone, &dummy_tx_item, &requested_dir.path_buf)?;
         }
         None => {
             return Err(HttmError::new(
@@ -54,7 +54,7 @@ pub fn display_recursive_wrapper(
     std::process::exit(0)
 }
 
-pub fn process_dirs_exec(
+pub fn recursive_exec(
     config: Arc<Config>,
     tx_item: &SkimItemSender,
     requested_dir: &Path,
