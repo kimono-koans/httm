@@ -59,7 +59,7 @@ pub fn deleted_lookup_exec(
         .flatten();
 
     let unique_deleted = get_latest_in_time_for_filename(basic_dir_entry_info_iter)
-        .map(|(_file_name, latest_entry_in_time)| latest_entry_in_time.1)
+        .map(|(_file_name, (_modify_time, basic_dir_entry_info))| basic_dir_entry_info)
         .collect();
 
     Ok(unique_deleted)
