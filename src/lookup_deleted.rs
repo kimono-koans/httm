@@ -37,7 +37,7 @@ pub fn deleted_lookup_exec(
     // we always need a requesting dir because we are comparing the files in the
     // requesting dir to those of their relative dirs on snapshots
     let requested_dir_pathdata = PathData::from(requested_dir);
-    let vec_requested_dir_pathdata = vec![requested_dir_pathdata.clone()];
+    let vec_requested_dir_pathdata = vec![&requested_dir_pathdata];
 
     // create vec of all local and replicated backups at once
     //
