@@ -337,11 +337,17 @@ fn parse_args() -> ArgMatches {
                 .display_order(19)
         )
         .arg(
+            Arg::new("DEBUG")
+                .long("debug")
+                .help("print configuration and debugging info")
+                .display_order(20)
+        )
+        .arg(
             Arg::new("ZSH_HOT_KEYS")
                 .long("install-zsh-hot-keys")
                 .help("install zsh hot keys to the users home directory, and then exit")
                 .exclusive(true)
-                .display_order(20)
+                .display_order(21)
         )
         .get_matches()
 }
@@ -358,6 +364,7 @@ pub struct Config {
     opt_overwrite: bool,
     opt_no_filter: bool,
     opt_no_snap: bool,
+    opt_debug: bool,
     selected_datasets: Vec<SnapshotDatasetType>,
     exec_mode: ExecMode,
     dataset_collection: DatasetCollection,
@@ -383,6 +390,7 @@ impl Config {
         let opt_no_live = matches.is_present("NO_LIVE");
         let opt_no_filter = matches.is_present("NO_FILTER");
         let opt_no_snap = matches.is_present("NO_SNAP");
+        let opt_debug = matches.is_present("DEBUG");
         let opt_overwrite = matches!(
             matches.value_of("RESTORE"),
             Some("overwrite") | Some("yolo")
@@ -699,6 +707,7 @@ impl Config {
             opt_overwrite,
             opt_no_filter,
             opt_no_snap,
+            opt_debug,
             selected_datasets,
             dataset_collection,
             exec_mode,
@@ -727,6 +736,10 @@ fn exec() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     // everywhere else
     let arg_matches = parse_args();
     let config = Config::from(arg_matches)?;
+
+    if config.opt_debug {
+        eprintln!("{:?}\n", config);
+    }
 
     // this handles the basic ExecMode::Display case, other process elsewhere
     let snaps_and_live_set = match config.exec_mode {

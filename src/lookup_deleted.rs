@@ -103,12 +103,14 @@ fn get_deleted_per_dataset(
     // this is the optimal way to handle for native datasets, if you have a map_of_snaps
     fn get_snap_filenames(
         mounts: &[PathBuf],
+        relative_path: &Path,
     ) -> Result<
         HashMap<OsString, BasicDirEntryInfo>,
         Box<dyn std::error::Error + Send + Sync + 'static>,
     > {
         let unique_snap_filenames = mounts
             .iter()
+            .map(|path| path.join(&relative_path))
             .flat_map(|path| read_dir(&path))
             .flatten()
             .flatten()
@@ -128,10 +130,7 @@ fn get_deleted_per_dataset(
 
     let snap_mounts: Vec<PathBuf> = match &config.dataset_collection {
         DatasetCollection::AutoDetect(_) => match opt_raw_snap_mounts {
-            Some(raw_mounts) => raw_mounts
-                .iter()
-                .map(|path| path.join(&relative_path))
-                .collect::<Vec<PathBuf>>(),
+            Some(raw_mounts) => raw_mounts.clone(),
             None => {
                 return Err(HttmError::new(
                     "If you are here, precompute showed no snap mounts for dataset.  \
@@ -140,13 +139,11 @@ fn get_deleted_per_dataset(
                 .into());
             }
         },
-        DatasetCollection::UserDefined(_) => {
-            prep_lookup_read_dir(snapshot_dir, relative_path, fs_type)?
-        }
+        DatasetCollection::UserDefined(_) => prep_lookup_read_dir(snapshot_dir, fs_type)?,
     };
 
     let unique_snap_filenames: HashMap<OsString, BasicDirEntryInfo> =
-        get_snap_filenames(&snap_mounts)?;
+        get_snap_filenames(&snap_mounts, relative_path)?;
 
     // compare local filenames to all unique snap filenames - none values are unique, here
     let all_deleted_versions: Vec<BasicDirEntryInfo> = unique_snap_filenames

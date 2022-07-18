@@ -369,10 +369,10 @@ fn get_versions_per_dataset(
         )
     };
 
-    let unique_versions: HashMap<(SystemTime, u64), PathData> = match &config.dataset_collection {
+    let snap_mounts = match config.dataset_collection {
         DatasetCollection::AutoDetect(_) => {
             match opt_raw_snap_mounts {
-                Some(snap_mounts) => get_versions(snap_mounts, relative_path)?,
+                Some(snap_mounts) => snap_mounts.clone(),
                 // snap mounts is empty
                 None => {
                     return Err(HttmError::new(
@@ -383,11 +383,11 @@ fn get_versions_per_dataset(
                 }
             }
         }
-        DatasetCollection::UserDefined(_) => {
-            let snap_mounts = prep_lookup_read_dir(snapshot_dir, relative_path, fs_type)?;
-            get_versions(&snap_mounts, relative_path)?
-        }
+        DatasetCollection::UserDefined(_) => prep_lookup_read_dir(snapshot_dir, fs_type)?,
     };
+
+    let unique_versions: HashMap<(SystemTime, u64), PathData> =
+        get_versions(&snap_mounts, relative_path)?;
 
     let mut vec_pathdata: Vec<PathData> = unique_versions.into_values().collect();
 
@@ -398,7 +398,6 @@ fn get_versions_per_dataset(
 
 pub fn prep_lookup_read_dir(
     snapshot_dir: &Path,
-    relative_path: &Path,
     fs_type: &FilesystemType,
 ) -> Result<Vec<PathBuf>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     let paths = read_dir(match fs_type {
@@ -410,7 +409,6 @@ pub fn prep_lookup_read_dir(
         FilesystemType::Btrfs => entry.path().join(BTRFS_SNAPPER_SUFFIX),
         FilesystemType::Zfs => entry.path(),
     })
-    .map(|path| path.join(relative_path))
     .collect();
 
     Ok(paths)
