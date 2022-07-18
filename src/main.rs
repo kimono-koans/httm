@@ -74,7 +74,7 @@ pub const SYS_DIRECTORY: &str = "/sys";
 pub const DEV_DIRECTORY: &str = "/dev";
 
 pub const PHANTOM_DATE: SystemTime = SystemTime::UNIX_EPOCH;
-pub const PHANTOM_SIZE: usize = 0usize;
+pub const PHANTOM_SIZE: u64 = 0u64;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum FilesystemType {

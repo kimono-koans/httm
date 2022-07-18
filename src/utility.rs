@@ -411,7 +411,7 @@ impl PathData {
             //
             // if we get a spurious example of no metadata in snapshot directories, we just ignore later
             None => {
-                let len = PHANTOM_SIZE as u64;
+                let len = PHANTOM_SIZE;
                 let time = PHANTOM_DATE;
                 let phantom = true;
                 (len, time, phantom)
