@@ -401,7 +401,7 @@ impl PathData {
         let (len, time, phantom) = match metadata_res {
             Some(md) => {
                 let len = md.len();
-                let time = md.modified().unwrap_or(SystemTime::UNIX_EPOCH);
+                let time = md.modified().unwrap_or(PHANTOM_DATE);
                 let phantom = false;
                 (len, time, phantom)
             }
