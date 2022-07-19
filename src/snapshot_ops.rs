@@ -26,7 +26,7 @@ use crate::lookup_versions::get_mounts_for_files;
 use crate::utility::{print_output_buf, timestamp_file, HttmError, PathData};
 use crate::{AHashMap as HashMap, Config};
 
-use crate::{DatasetCollection, FilesystemType};
+use crate::FilesystemType;
 
 pub fn take_snapshot(
     config: &Config,
@@ -43,9 +43,9 @@ pub fn take_snapshot(
             .iter()
             .flat_map(|(_pathdata, datasets)| datasets)
             .map(|mount| {
-            let dataset: String = match &config.dataset_collection {
-                DatasetCollection::AutoDetect(detected_datasets) => {
-                    match detected_datasets.map_of_datasets.get(&mount.path_buf) {
+            let dataset: String = match &config.dataset_collection.map_of_aliases {
+                None => {
+                    match config.dataset_collection.map_of_datasets.get(&mount.path_buf) {
                         Some((dataset, fs_type)) => {
                             if let FilesystemType::Zfs = fs_type {
                                 Ok(dataset.to_owned())
@@ -56,7 +56,7 @@ pub fn take_snapshot(
                         None => return Err(HttmError::new("httm was unable to parse dataset from mount!")),
                     }
                 }
-                DatasetCollection::UserDefined(_) => return Err(HttmError::new("httm does not currently support snapshot-ing user defined mount points.")),
+                Some(_) => return Err(HttmError::new("httm does not currently support snapshot-ing user defined mount points.")),
             }?;
 
             let snapshot_name = format!(

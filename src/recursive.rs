@@ -28,10 +28,7 @@ use crate::interactive::SelectionCandidate;
 use crate::lookup_versions::versions_lookup_exec;
 use crate::utility::{httm_is_dir, print_output_buf, BasicDirEntryInfo, HttmError, PathData};
 use crate::{lookup_deleted::deleted_lookup_exec, DEV_DIRECTORY, PROC_DIRECTORY, SYS_DIRECTORY};
-use crate::{
-    Config, DatasetCollection, DeletedMode, ExecMode, BTRFS_SNAPPER_HIDDEN_DIRECTORY,
-    ZFS_HIDDEN_DIRECTORY,
-};
+use crate::{Config, DeletedMode, ExecMode, BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_HIDDEN_DIRECTORY};
 
 pub fn display_recursive_wrapper(
     config: &Config,
@@ -205,10 +202,10 @@ fn is_filter_dir(config: &Config, dir_entry: &DirEntry) -> bool {
     }
 
     // is a common path for btrfs or is a non-supported dataset
-    match &config.dataset_collection {
-        DatasetCollection::AutoDetect(detected_datasets) => {
+    match &config.dataset_collection.map_of_aliases {
+        None => {
             // is a common btrfs snapshot dir
-            match &detected_datasets.opt_common_snap_dir {
+            match &config.dataset_collection.opt_common_snap_dir {
                 Some(common_snap_dir) => {
                     if path == *common_snap_dir {
                         return true;
@@ -229,13 +226,14 @@ fn is_filter_dir(config: &Config, dir_entry: &DirEntry) -> bool {
             if path == interactive_requested_dir {
                 false
             } else {
-                detected_datasets
+                config
+                    .dataset_collection
                     .vec_of_filter_dirs
                     .par_iter()
                     .any(|filter_dir| path == *filter_dir)
             }
         }
-        DatasetCollection::UserDefined(_) => fallback(&path),
+        Some(map_of_aliases) => fallback(&path),
     }
 }
 

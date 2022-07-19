@@ -28,7 +28,7 @@ use crate::lookup_versions::{
     get_datasets_for_search, get_search_bundle, prep_lookup_read_dir, FileSearchBundle,
 };
 use crate::utility::{BasicDirEntryInfo, HttmError, PathData};
-use crate::{AHashMap as HashMap, Config, DatasetCollection};
+use crate::{AHashMap as HashMap, Config};
 
 pub fn deleted_lookup_exec(
     config: &Config,
@@ -140,8 +140,8 @@ fn get_deleted_per_dataset(
         )
     };
 
-    let snap_mounts: Vec<PathBuf> = match &config.dataset_collection {
-        DatasetCollection::AutoDetect(_) => match opt_snap_mounts {
+    let snap_mounts: Vec<PathBuf> = match &config.dataset_collection.map_of_aliases {
+        None => match opt_snap_mounts {
             Some(snap_mounts) => snap_mounts.clone(),
             None => {
                 return Err(HttmError::new(
@@ -151,7 +151,7 @@ fn get_deleted_per_dataset(
                 .into());
             }
         },
-        DatasetCollection::UserDefined(_) => prep_lookup_read_dir(snapshot_dir, fs_type)?,
+        Some(map_of_aliases) => prep_lookup_read_dir(snapshot_dir, fs_type)?,
     };
 
     let unique_snap_filenames: HashMap<OsString, BasicDirEntryInfo> =

@@ -43,6 +43,7 @@ mod display;
 mod interactive;
 mod lookup_deleted;
 mod lookup_versions;
+mod parse_aliases;
 mod parse_alts;
 mod parse_mounts;
 mod parse_snaps;
@@ -53,6 +54,7 @@ mod utility;
 use crate::display::{display_exec, display_mounts_for_files};
 use crate::interactive::interactive_exec;
 use crate::lookup_versions::versions_lookup_exec;
+use crate::parse_aliases::parse_aliases;
 use crate::parse_alts::precompute_alt_replicated;
 use crate::parse_mounts::{get_common_snap_dir, parse_mounts_exec};
 use crate::recursive::display_recursive_wrapper;
@@ -110,28 +112,17 @@ enum DeletedMode {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-enum DatasetCollection {
-    AutoDetect(AutoDetectDatasets),
-    UserDefined(UserDefinedDirs),
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct AutoDetectDatasets {
+pub struct DatasetCollection {
     // key: mount, val: (dataset/subvol, fstype)
     map_of_datasets: HashMap<PathBuf, (String, FilesystemType)>,
     // key: mount, val: snap locations on disk (e.g. /.zfs/snapshot/snap_8a86e4fc_prepApt/home)
     map_of_snaps: HashMap<PathBuf, Vec<PathBuf>>,
     // key: mount, val: alt dataset
     opt_map_of_alts: Option<HashMap<PathBuf, DatasetsForSearch>>,
+    // key: mount, val: (local dir/remote dir, fstype)
+    map_of_aliases: Option<HashMap<PathBuf, (PathBuf, FilesystemType)>>,
     vec_of_filter_dirs: Vec<PathBuf>,
     opt_common_snap_dir: Option<PathBuf>,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct UserDefinedDirs {
-    snap_dir: PathBuf,
-    local_dir: PathBuf,
-    fs_type: FilesystemType,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -314,43 +305,49 @@ fn parse_args() -> ArgMatches {
                 .display_order(17)
         )
         .arg(
-            Arg::new("REMOTE_DIR")
-                .long("remote-dir")
-                .visible_aliases(&["remote", "snap-point"])
+            Arg::new("MAP_ALIASES")
+                .long("map-aliases")
                 .help("ordinarily httm will automatically choose your dataset root directory (the most proximate ancestor directory which contains a snapshot directory), \
                 but here you may manually specify that mount point for ZFS (directory which contains a \".zfs\" directory) or btrfs-snapper (directory which contains a \".snapshots\" directory), \
                 such as the local mount point for a remote share.  You may also set via the HTTM_REMOTE_DIR environment variable.  \
                 Note: Use of both \"remote\" and \"local\" are not always necessary to view versions on remote shares.  \
                 These options *are necessary* if you want to view snapshot versions from within the local directory you back up to your remote share, \
                 however, httm can also automatically detect ZFS and btrfs-snapper datasets mounted as AFP, SMB, and NFS remote shares, if you browse that remote share where it is locally mounted.")
-                .conflicts_with("ALT_REPLICATED")
+                .use_delimiter(true)
                 .takes_value(true)
                 .display_order(18)
+        )
+        .arg(
+            Arg::new("REMOTE_DIR")
+                .long("remote-dir")
+                .visible_aliases(&["remote", "snap-point"])
+                .help("Deprecated.  See MAP_ALIASES")
+                .conflicts_with("ALT_REPLICATED")
+                .takes_value(true)
+                .display_order(19)
         )
         .arg(
             Arg::new("LOCAL_DIR")
                 .long("local-dir")
                 .visible_alias("local")
-                .help("used with \"remote\" to determine where the corresponding live root filesystem of the dataset is.  \
-                Put more simply, the \"local\" is the directory you backup to your \"remote\".  If not set, httm defaults to your current working directory.  \
-                You may also set via the environment variable HTTM_LOCAL_DIR.")
+                .help("Deprecated.  See MAP_ALIASES")
                 .conflicts_with("ALT_REPLICATED")
-                .requires("SNAP_POINT")
+                .requires("REMOTE_DIR")
                 .takes_value(true)
-                .display_order(19)
+                .display_order(20)
         )
         .arg(
             Arg::new("DEBUG")
                 .long("debug")
                 .help("print configuration and debugging info")
-                .display_order(20)
+                .display_order(21)
         )
         .arg(
             Arg::new("ZSH_HOT_KEYS")
                 .long("install-zsh-hot-keys")
                 .help("install zsh hot keys to the users home directory, and then exit")
                 .exclusive(true)
-                .display_order(21)
+                .display_order(22)
         )
         .get_matches()
 }
@@ -457,6 +454,8 @@ impl Config {
         } else {
             env_local_dir
         };
+
+        let alias_values = matches.values_of_os("MAP_ALIASES");
 
         let interactive_mode = if matches.is_present("RESTORE") {
             InteractiveMode::Restore
@@ -601,61 +600,7 @@ impl Config {
         // or will we find it by searching the native filesystem? if searching a native filesystem,
         // we will obtain a map of datasets, a map of snapshot directory, and possibly a map of
         // alternate filesystems if the user request early to avoid looking up later.
-        let (datasets_of_interest, dataset_collection) = if let Some(raw_value) = raw_snap_dir {
-            // user defined dir exists?: check that path contains the hidden snapshot directory
-            let snap_dir = PathBuf::from(raw_value);
-
-            // little sanity check -- make sure the user defined snap dir exist
-            if snap_dir.metadata().is_err() {
-                return Err(HttmError::new(
-                    "Manually set snap point directory does not exist.  Perhaps it is not already mounted?",
-                )
-                .into());
-            }
-
-            // set fstype, known by whether there is a ZFS hidden snapshot dir in the root dir
-            let fs_type = if snap_dir.join(ZFS_SNAPSHOT_DIRECTORY).metadata().is_ok() {
-                FilesystemType::Zfs
-            } else if snap_dir
-                .join(BTRFS_SNAPPER_HIDDEN_DIRECTORY)
-                .metadata()
-                .is_ok()
-            {
-                FilesystemType::Btrfs
-            } else {
-                return Err(HttmError::new(
-                        "User defined snap point is only available for ZFS datasets and btrfs datasets snapshot-ed via snapper.",
-                    )
-                    .into());
-            };
-
-            // local relative dir can be set at cmdline or as an env var, but defaults to current working directory
-            let local_dir = if let Some(value) = raw_local_dir {
-                let local_dir: PathBuf = PathBuf::from(value);
-
-                // little sanity check -- make sure the user defined local dir exist
-                if local_dir.metadata().is_ok() {
-                    local_dir
-                } else {
-                    return Err(HttmError::new(
-                        "Manually set local relative directory does not exist.  Please try another.",
-                    )
-                    .into());
-                }
-            } else {
-                pwd.path_buf.clone()
-            };
-
-            (
-                // always ignore opt_alt_replicated in UserDefinedDirs mode
-                vec![SnapshotDatasetType::MostProximate],
-                DatasetCollection::UserDefined(UserDefinedDirs {
-                    snap_dir,
-                    local_dir,
-                    fs_type,
-                }),
-            )
-        } else {
+        let (datasets_of_interest, dataset_collection) = {
             let (map_of_datasets, map_of_snaps, vec_of_filter_dirs) = parse_mounts_exec()?;
 
             // for a collection of btrfs mounts, indicates a common snapshot directory to ignore
@@ -677,15 +622,27 @@ impl Config {
                 vec![SnapshotDatasetType::MostProximate]
             };
 
+            let map_of_aliases = if raw_snap_dir.is_some() || alias_values.is_some() {
+                Some(parse_aliases(
+                    raw_snap_dir,
+                    raw_local_dir,
+                    pwd.path_buf,
+                    alias_values,
+                )?)
+            } else {
+                None
+            };
+
             (
                 datasets_of_interest,
-                DatasetCollection::AutoDetect(AutoDetectDatasets {
+                DatasetCollection {
                     map_of_datasets,
                     map_of_snaps,
                     opt_map_of_alts,
                     vec_of_filter_dirs,
                     opt_common_snap_dir,
-                }),
+                    map_of_aliases,
+                },
             )
         };
 
