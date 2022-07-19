@@ -443,6 +443,18 @@ impl Config {
         };
         let env_local_dir = std::env::var_os("HTTM_LOCAL_DIR");
 
+        let raw_snap_dir = if let Some(value) = matches.value_of_os("REMOTE_DIR") {
+            Some(value.to_os_string())
+        } else {
+            env_snap_dir
+        };
+
+        let raw_local_dir = if let Some(value) = matches.value_of_os("LOCAL_DIR") {
+            Some(value.to_os_string())
+        } else {
+            env_local_dir
+        };
+
         let interactive_mode = if matches.is_present("RESTORE") {
             InteractiveMode::Restore
         } else if matches.is_present("SELECT") {
@@ -481,14 +493,6 @@ impl Config {
                 "Working directory does not exist or your do not have permissions to access it.",
             )
             .into());
-        };
-
-        // where is the hidden snapshot directory located?
-        // just below we ask whether the user has defined that place
-        let raw_snap_var = if let Some(value) = matches.value_of_os("REMOTE_DIR") {
-            Some(value.to_os_string())
-        } else {
-            env_snap_dir
         };
 
         // paths are immediately converted to our PathData struct
@@ -594,14 +598,7 @@ impl Config {
         // or will we find it by searching the native filesystem? if searching a native filesystem,
         // we will obtain a map of datasets, a map of snapshot directory, and possibly a map of
         // alternate filesystems if the user request early to avoid looking up later.
-        let (selected_datasets, dataset_collection) = if let Some(raw_value) = raw_snap_var {
-            if matches.is_present("ALT_REPLICATED") {
-                return Err(HttmError::new(
-                    "Alternate replicated datasets are not available for search, when the user defines a snap point.",
-                )
-                .into());
-            }
-
+        let (selected_datasets, dataset_collection) = if let Some(raw_value) = raw_snap_dir {
             // user defined dir exists?: check that path contains the hidden snapshot directory
             let snap_dir = PathBuf::from(raw_value);
 
@@ -629,15 +626,8 @@ impl Config {
                     .into());
             };
 
-            // has the user has defined a corresponding local relative directory?
-            let raw_local_var = if let Some(raw_value) = matches.value_of_os("LOCAL_DIR") {
-                Some(raw_value.to_os_string())
-            } else {
-                env_local_dir
-            };
-
             // local relative dir can be set at cmdline or as an env var, but defaults to current working directory
-            let local_dir = if let Some(value) = raw_local_var {
+            let local_dir = if let Some(value) = raw_local_dir {
                 let local_dir: PathBuf = PathBuf::from(value);
 
                 // little sanity check -- make sure the user defined local dir exist
