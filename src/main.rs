@@ -731,7 +731,7 @@ fn exec() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let config = Config::from(arg_matches)?;
 
     if config.opt_debug {
-        eprintln!("{:#x?}", config);
+        eprintln!("{:#?}", config);
     }
 
     // this handles the basic ExecMode::Display case, other process elsewhere
