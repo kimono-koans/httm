@@ -47,9 +47,9 @@ pub fn deleted_lookup_exec(
     let basic_dir_entry_info_iter = vec_requested_dir_pathdata
         .iter()
         .flat_map(|pathdata| {
-            config.selected_datasets.iter().flat_map(|dataset_type| {
-                let datasets_for_search = get_datasets_for_search(config, pathdata, dataset_type)?;
-                get_search_bundle(config, pathdata, &datasets_for_search)
+            config.datasets_of_interest.iter().flat_map(|dataset_type| {
+                let datasets_of_interest = get_datasets_for_search(config, pathdata, dataset_type)?;
+                get_search_bundle(config, pathdata, &datasets_of_interest)
             })
         })
         .flatten()

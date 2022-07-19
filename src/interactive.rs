@@ -76,7 +76,7 @@ impl SelectionCandidate {
             exec_mode: ExecMode::Display,
             deleted_mode: DeletedMode::Disabled,
             interactive_mode: InteractiveMode::None,
-            selected_datasets: config.selected_datasets.clone(),
+            datasets_of_interest: config.datasets_of_interest.clone(),
             dataset_collection: config.dataset_collection.clone(),
             pwd: config.pwd.clone(),
             requested_dir: config.requested_dir.clone(),

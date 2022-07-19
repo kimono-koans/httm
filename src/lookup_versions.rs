@@ -109,7 +109,7 @@ pub fn get_mounts_for_files(
             let selected_datasets = if config.exec_mode == ExecMode::SnapFileMount {
                 vec![SnapshotDatasetType::MostProximate]
             } else {
-                config.selected_datasets.clone()
+                config.datasets_of_interest.clone()
             };
 
             let datasets: Vec<DatasetsForSearch> = selected_datasets
@@ -144,7 +144,7 @@ fn get_all_snap_versions(
         .par_iter()
         .map(|pathdata| {
             config
-                .selected_datasets
+                .datasets_of_interest
                 .par_iter()
                 .flat_map(|dataset_type| {
                     let dataset_for_search =

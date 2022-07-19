@@ -367,7 +367,7 @@ pub struct Config {
     opt_no_filter: bool,
     opt_no_snap: bool,
     opt_debug: bool,
-    selected_datasets: Vec<SnapshotDatasetType>,
+    datasets_of_interest: Vec<SnapshotDatasetType>,
     exec_mode: ExecMode,
     dataset_collection: DatasetCollection,
     deleted_mode: DeletedMode,
@@ -600,7 +600,7 @@ impl Config {
         // or will we find it by searching the native filesystem? if searching a native filesystem,
         // we will obtain a map of datasets, a map of snapshot directory, and possibly a map of
         // alternate filesystems if the user request early to avoid looking up later.
-        let (selected_datasets, dataset_collection) = if let Some(raw_value) = raw_snap_dir {
+        let (datasets_of_interest, dataset_collection) = if let Some(raw_value) = raw_snap_dir {
             // user defined dir exists?: check that path contains the hidden snapshot directory
             let snap_dir = PathBuf::from(raw_value);
 
@@ -646,7 +646,7 @@ impl Config {
             };
 
             (
-                // always set opt_alt_replicated to false in UserDefinedDirs mode
+                // always ignore opt_alt_replicated in UserDefinedDirs mode
                 vec![SnapshotDatasetType::MostProximate],
                 DatasetCollection::UserDefined(UserDefinedDirs {
                     snap_dir,
@@ -667,7 +667,7 @@ impl Config {
                 None
             };
 
-            let selected_datasets = if matches.is_present("ALT_REPLICATED") {
+            let datasets_of_interest = if matches.is_present("ALT_REPLICATED") {
                 vec![
                     SnapshotDatasetType::AltReplicated,
                     SnapshotDatasetType::MostProximate,
@@ -677,7 +677,7 @@ impl Config {
             };
 
             (
-                selected_datasets,
+                datasets_of_interest,
                 DatasetCollection::AutoDetect(AutoDetectDatasets {
                     map_of_datasets,
                     map_of_snaps,
@@ -700,7 +700,7 @@ impl Config {
             opt_no_filter,
             opt_no_snap,
             opt_debug,
-            selected_datasets,
+            datasets_of_interest,
             dataset_collection,
             exec_mode,
             deleted_mode,
