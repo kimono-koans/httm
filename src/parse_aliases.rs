@@ -27,7 +27,7 @@ use crate::{
 pub fn parse_aliases(
     raw_local_dir: Option<OsString>,
     raw_snap_dir: Option<OsString>,
-    pwd: PathBuf,
+    pwd: &Path,
     opt_input_aliases: Option<OsValues>,
 ) -> Result<
     HashMap<PathBuf, (PathBuf, FilesystemType)>,
@@ -50,7 +50,7 @@ pub fn parse_aliases(
                 .into());
             }
         } else {
-            pwd.clone()
+            pwd.to_path_buf()
         };
 
         Some((snap_dir, local_dir))
@@ -67,16 +67,12 @@ pub fn parse_aliases(
                     .split_terminator(&['[', ']'][..]).map(|string| PathBuf::from(string)).collect();
                 
                 if parsed_string.len() == 2 {
-                    Some((parsed_string[0], parsed_string[1]))
+                    Some((parsed_string[0].clone(), parsed_string[1].clone()))
                 } else {
                     None
                 }
             }).collect(),
-        None => {
-            return Err(
-                HttmError::new("MAP_ALIASES could not be read from input.  Quitting").into(),
-            );
-        }
+        None => Vec::new(),
     };
 
     if let Some(value) = snap_point {

@@ -233,7 +233,7 @@ fn is_filter_dir(config: &Config, dir_entry: &DirEntry) -> bool {
                     .any(|filter_dir| path == *filter_dir)
             }
         }
-        Some(map_of_aliases) => fallback(&path),
+        Some(_) => fallback(&path),
     }
 }
 

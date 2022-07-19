@@ -179,38 +179,37 @@ pub fn get_datasets_for_search(
     // will compare the most proximate dataset to our our canonical path and the difference
     // between ZFS mount point and the canonical path is the path we will use to search the
     // hidden snapshot dirs
-    let datasets_for_search: DatasetsForSearch = match &config.dataset_collection.map_of_aliases {
-        Some(map_of_aliases) => {
-            let snap_dir = map_of_aliases.get(k).snap_dir.to_path_buf();
-            DatasetsForSearch {
-                proximate_dataset_mount: snap_dir.clone(),
-                datasets_of_interest: vec![snap_dir],
+    let datasets_for_search: DatasetsForSearch = {
+        let snap_dir = match &config.dataset_collection.map_of_aliases {
+            Some(map_of_aliases) => {
+                get_alias_dataset(pathdata, map_of_aliases)?
+        
             }
-        }
-        None => {
-            let proximate_dataset_mount =
-                get_proximate_dataset(pathdata, &config.dataset_collection.map_of_datasets)?;
-            match requested_dataset_type {
-                SnapshotDatasetType::MostProximate => {
-                    // just return the same dataset when in most proximate mode
-                    DatasetsForSearch {
-                        proximate_dataset_mount: proximate_dataset_mount.clone(),
-                        datasets_of_interest: vec![proximate_dataset_mount],
-                    }
+            None => {
+                get_proximate_dataset(pathdata, &config.dataset_collection.map_of_datasets)?
+            }
+        };
+    
+        match requested_dataset_type {
+            SnapshotDatasetType::MostProximate => {
+                // just return the same dataset when in most proximate mode
+                DatasetsForSearch {
+                    proximate_dataset_mount: snap_dir.clone(),
+                    datasets_of_interest: vec![snap_dir],
                 }
-                SnapshotDatasetType::AltReplicated => match &config.dataset_collection.opt_map_of_alts {
-                    Some(map_of_alts) => match map_of_alts.get(proximate_dataset_mount.as_path()) {
-                        Some(datasets_for_search) => datasets_for_search.clone(),
-                        None => return Err(HttmError::new("If you are here a map of alts is missing for a supplied mount, \
-                        this is fine as we should just flatten/ignore this error.").into()),
-                    },
-                    None => unreachable!("If config option alt-replicated is specified, then a map of alts should have been generated, \
-                    if you are here such a map is missing."),
-                },
             }
+            SnapshotDatasetType::AltReplicated => match &config.dataset_collection.opt_map_of_alts {
+                Some(map_of_alts) => match map_of_alts.get(snap_dir.as_path()) {
+                    Some(datasets_for_search) => datasets_for_search.clone(),
+                    None => return Err(HttmError::new("If you are here a map of alts is missing for a supplied mount, \
+                    this is fine as we should just flatten/ignore this error.").into()),
+                },
+                None => unreachable!("If config option alt-replicated is specified, then a map of alts should have been generated, \
+                if you are here such a map is missing."),
+            },
         }
     };
-
+    
     Ok(datasets_for_search)
 }
 
@@ -229,29 +228,7 @@ pub fn get_search_bundle(
             // for user specified dirs these are specified by the user
             let proximate_dataset_mount = &datasets_for_search.proximate_dataset_mount;
 
-            let (snapshot_dir, relative_path, opt_snap_mounts, fs_type) =
-                match &config.dataset_collection.map_of_aliases {
-                    Some(map_of_aliases) => {
-                        let (snapshot_dir, fs_type) = match &defined_dirs.fs_type {
-                            FilesystemType::Zfs => (
-                                dataset_of_interest.join(ZFS_SNAPSHOT_DIRECTORY),
-                                FilesystemType::Zfs,
-                            ),
-                            FilesystemType::Btrfs => {
-                                (dataset_of_interest.to_path_buf(), FilesystemType::Btrfs)
-                            }
-                        };
-
-                        let relative_path = pathdata
-                            .path_buf
-                            .strip_prefix(&defined_dirs.local_dir)?
-                            .to_path_buf();
-
-                        let snapshot_mounts = None;
-
-                        (snapshot_dir, relative_path, snapshot_mounts, fs_type)
-                    }
-                    None => {
+            let (snapshot_dir, relative_path, opt_snap_mounts, fs_type) = {
                         // this prefix removal is why we always need the proximate dataset name, even when we are searching an alternate replicated filesystem
 
                         // building the snapshot path from our dataset
@@ -287,8 +264,7 @@ pub fn get_search_bundle(
                             .cloned();
 
                         (snapshot_dir, relative_path, opt_snap_mounts, fs_type)
-                    }
-                };
+                    };
 
             Ok(FileSearchBundle {
                 snapshot_dir,
@@ -298,6 +274,29 @@ pub fn get_search_bundle(
             })
         })
         .collect()
+}
+
+fn get_alias_dataset(
+    pathdata: &PathData,
+    map_of_datasets: &HashMap<PathBuf, (PathBuf, FilesystemType)>,
+) -> Result<PathBuf, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    let ancestors: Vec<&Path> = pathdata.path_buf.ancestors().collect();
+
+    let opt_best_potential_alias: Option<&PathBuf> =
+        // find_map_first should return the first seq result with a par_iter
+        // but not with a par_bridge
+        ancestors.into_par_iter().find_map_first(|ancestor| {
+            let (snap_dir, _fs_type) = map_of_datasets.get(ancestor)?;
+            Some(snap_dir)
+        });
+
+    match opt_best_potential_alias.map(|path| path.to_owned()) {
+        Some(best_potential_alias) => Ok(best_potential_alias),
+        None => {
+            let msg = "httm could not identify any qualifying dataset.  Maybe consider specifying manually at SNAP_POINT?";
+            Err(HttmError::new(msg).into())
+        }
+    }
 }
 
 fn get_proximate_dataset(
@@ -332,7 +331,7 @@ fn get_proximate_dataset(
 }
 
 fn get_versions_per_dataset(
-    config: &Config,
+    _config: &Config,
     search_bundle: &FileSearchBundle,
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // get the DirEntry for our snapshot path which will have all our possible
@@ -361,7 +360,7 @@ fn get_versions_per_dataset(
         Ok(unique_versions)
     }
 
-    let (snapshot_dir, relative_path, opt_snap_mounts, fs_type) = {
+    let (_snapshot_dir, relative_path, opt_snap_mounts, _fs_type) = {
         (
             &search_bundle.snapshot_dir,
             &search_bundle.relative_path,
@@ -370,9 +369,7 @@ fn get_versions_per_dataset(
         )
     };
 
-    let snap_mounts = match config.dataset_collection.map_of_aliases {
-        None => {
-            match opt_snap_mounts {
+    let snap_mounts = match opt_snap_mounts {
                 Some(snap_mounts) => snap_mounts.clone(),
                 // snap mounts is empty
                 None => {
@@ -382,10 +379,7 @@ fn get_versions_per_dataset(
                     )
                     .into());
                 }
-            }
-        }
-        Some(map_of_aliases) => prep_lookup_read_dir(snapshot_dir, fs_type)?,
-    };
+            };
 
     let unique_versions: HashMap<(SystemTime, u64), PathData> =
         get_versions(&snap_mounts, relative_path)?;
@@ -397,7 +391,7 @@ fn get_versions_per_dataset(
     Ok(vec_pathdata)
 }
 
-pub fn prep_lookup_read_dir(
+pub fn _prep_lookup_read_dir(
     snapshot_dir: &Path,
     fs_type: &FilesystemType,
 ) -> Result<Vec<PathBuf>, Box<dyn std::error::Error + Send + Sync + 'static>> {

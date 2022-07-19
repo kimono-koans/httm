@@ -25,7 +25,7 @@ use std::{
 use itertools::Itertools;
 
 use crate::lookup_versions::{
-    get_datasets_for_search, get_search_bundle, prep_lookup_read_dir, FileSearchBundle,
+    get_datasets_for_search, get_search_bundle, FileSearchBundle,
 };
 use crate::utility::{BasicDirEntryInfo, HttmError, PathData};
 use crate::{AHashMap as HashMap, Config};
@@ -93,7 +93,7 @@ where
 }
 
 fn get_deleted_per_dataset(
-    config: &Config,
+    _config: &Config,
     requested_dir: &Path,
     search_bundle: &FileSearchBundle,
 ) -> Result<Vec<BasicDirEntryInfo>, Box<dyn std::error::Error + Send + Sync + 'static>> {
@@ -131,7 +131,7 @@ fn get_deleted_per_dataset(
         Ok(unique_snap_filenames)
     }
 
-    let (snapshot_dir, relative_path, opt_snap_mounts, fs_type) = {
+    let (_snapshot_dir, relative_path, opt_snap_mounts, _fs_type) = {
         (
             &search_bundle.snapshot_dir,
             &search_bundle.relative_path,
@@ -140,8 +140,7 @@ fn get_deleted_per_dataset(
         )
     };
 
-    let snap_mounts: Vec<PathBuf> = match &config.dataset_collection.map_of_aliases {
-        None => match opt_snap_mounts {
+    let snap_mounts: Vec<PathBuf> = match opt_snap_mounts {
             Some(snap_mounts) => snap_mounts.clone(),
             None => {
                 return Err(HttmError::new(
@@ -150,9 +149,7 @@ fn get_deleted_per_dataset(
                 )
                 .into());
             }
-        },
-        Some(map_of_aliases) => prep_lookup_read_dir(snapshot_dir, fs_type)?,
-    };
+        };
 
     let unique_snap_filenames: HashMap<OsString, BasicDirEntryInfo> =
         get_snap_filenames(&snap_mounts, relative_path)?;

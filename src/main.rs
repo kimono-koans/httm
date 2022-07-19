@@ -626,7 +626,7 @@ impl Config {
                 Some(parse_aliases(
                     raw_snap_dir,
                     raw_local_dir,
-                    pwd.path_buf,
+                    pwd.path_buf.as_path(),
                     alias_values,
                 )?)
             } else {
