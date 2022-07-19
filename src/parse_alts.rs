@@ -15,7 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::{path::Path, path::PathBuf};
+use std::{path::PathBuf, sync::Arc};
 
 use rayon::prelude::*;
 
@@ -26,26 +26,22 @@ use crate::{AHashMap as HashMap, FilesystemType};
 // instead of looking up, precompute possible alt replicated mounts before exec
 pub fn precompute_alt_replicated(
     map_of_datasets: &HashMap<PathBuf, (String, FilesystemType)>,
-) -> HashMap<PathBuf, Vec<PathBuf>> {
+) -> HashMap<Arc<PathBuf>, DatasetsForSearch> {
     map_of_datasets
         .par_iter()
         .flat_map(|(mount, (_dataset, _fstype))| {
-            get_alt_replicated_datasets(mount, map_of_datasets)
-        })
-        .map(|dataset_for_search| {
-            (
-                dataset_for_search.proximate_dataset_mount,
-                dataset_for_search.datasets_of_interest,
-            )
+            let arc_mount = Arc::new(mount.to_path_buf());
+            get_alt_replicated_datasets(arc_mount.clone(), map_of_datasets)
+                .map(|datasets_for_search| (arc_mount, datasets_for_search))
         })
         .collect()
 }
 
 fn get_alt_replicated_datasets(
-    proximate_dataset_mount: &Path,
+    proximate_dataset_mount: Arc<PathBuf>,
     map_of_datasets: &HashMap<PathBuf, (String, FilesystemType)>,
 ) -> Result<DatasetsForSearch, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let proximate_dataset_fsname = match &map_of_datasets.get(proximate_dataset_mount) {
+    let proximate_dataset_fsname = match &map_of_datasets.get(proximate_dataset_mount.as_ref()) {
         Some((proximate_dataset_fsname, _)) => proximate_dataset_fsname.clone(),
         None => {
             return Err(HttmError::new("httm was unable to detect an alternate replicated mount point.  Perhaps the replicated filesystem is not mounted?").into());
@@ -55,7 +51,7 @@ fn get_alt_replicated_datasets(
     // find a filesystem that ends with our most local filesystem name
     // but which has a prefix, like a different pool name: rpool might be
     // replicated to tank/rpool
-    let mut alt_replicated_mounts: Vec<PathBuf> = map_of_datasets
+    let mut alt_replicated_mounts: Vec<Arc<PathBuf>> = map_of_datasets
         .par_iter()
         .filter(|(_mount, (fs_name, _fstype))| {
             fs_name != &proximate_dataset_fsname
@@ -63,6 +59,7 @@ fn get_alt_replicated_datasets(
         })
         .map(|(mount, _fsname)| mount)
         .cloned()
+        .map(Arc::new)
         .collect();
 
     if alt_replicated_mounts.is_empty() {
@@ -71,7 +68,7 @@ fn get_alt_replicated_datasets(
     } else {
         alt_replicated_mounts.sort_unstable_by_key(|path| path.as_os_str().len());
         Ok(DatasetsForSearch {
-            proximate_dataset_mount: proximate_dataset_mount.to_path_buf(),
+            proximate_dataset_mount,
             datasets_of_interest: alt_replicated_mounts,
         })
     }
