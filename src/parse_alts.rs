@@ -26,17 +26,12 @@ use crate::{AHashMap as HashMap, FilesystemType};
 // instead of looking up, precompute possible alt replicated mounts before exec
 pub fn precompute_alt_replicated(
     map_of_datasets: &HashMap<PathBuf, (String, FilesystemType)>,
-) -> HashMap<PathBuf, Vec<PathBuf>> {
+) -> HashMap<PathBuf, DatasetsForSearch> {
     map_of_datasets
         .par_iter()
         .flat_map(|(mount, (_dataset, _fstype))| {
             get_alt_replicated_datasets(mount, map_of_datasets)
-        })
-        .map(|dataset_for_search| {
-            (
-                dataset_for_search.proximate_dataset_mount,
-                dataset_for_search.datasets_of_interest,
-            )
+                .map(|datasets| (mount.to_path_buf(), datasets))
         })
         .collect()
 }

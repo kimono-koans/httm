@@ -35,6 +35,7 @@ pub type AHashMap<K, V> = std::collections::HashMap<K, V, AHashBuildHasher>;
 use AHashMap as HashMap;
 
 use clap::{crate_name, crate_version, Arg, ArgMatches};
+use lookup_versions::DatasetsForSearch;
 use rayon::prelude::*;
 use utility::print_output_buf;
 
@@ -121,7 +122,7 @@ pub struct AutoDetectDatasets {
     // key: mount, val: snap locations on disk (e.g. /.zfs/snapshot/snap_8a86e4fc_prepApt/home)
     map_of_snaps: HashMap<PathBuf, Vec<PathBuf>>,
     // key: mount, val: alt dataset
-    opt_map_of_alts: Option<HashMap<PathBuf, Vec<PathBuf>>>,
+    opt_map_of_alts: Option<HashMap<PathBuf, DatasetsForSearch>>,
     vec_of_filter_dirs: Vec<PathBuf>,
     opt_common_snap_dir: Option<PathBuf>,
 }

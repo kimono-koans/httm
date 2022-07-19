@@ -34,7 +34,7 @@ use crate::{
     BTRFS_SNAPPER_HIDDEN_DIRECTORY, BTRFS_SNAPPER_SUFFIX, ZFS_SNAPSHOT_DIRECTORY,
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, PartialEq)]
 pub struct DatasetsForSearch {
     pub proximate_dataset_mount: PathBuf,
     pub datasets_of_interest: Vec<PathBuf>,
@@ -200,10 +200,7 @@ pub fn get_datasets_for_search(
                 }
                 SnapshotDatasetType::AltReplicated => match &detected_datasets.opt_map_of_alts {
                     Some(map_of_alts) => match map_of_alts.get(proximate_dataset_mount.as_path()) {
-                        Some(alternate_mounts) => DatasetsForSearch {
-                            proximate_dataset_mount,
-                            datasets_of_interest: alternate_mounts.clone(),
-                        },
+                        Some(datasets_for_search) => datasets_for_search.clone(),
                         None => return Err(HttmError::new("If you are here a map of alts is missing for a supplied mount, \
                         this is fine as we should just flatten/ignore this error.").into()),
                     },
