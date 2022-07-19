@@ -19,7 +19,6 @@ use std::{
     collections::BTreeMap,
     fs::read_dir,
     path::{Path, PathBuf},
-    sync::Arc,
     time::SystemTime,
 };
 
@@ -35,10 +34,10 @@ use crate::{
     BTRFS_SNAPPER_HIDDEN_DIRECTORY, BTRFS_SNAPPER_SUFFIX, ZFS_SNAPSHOT_DIRECTORY,
 };
 
-#[derive(Debug, Clone, PartialEq, Hash)]
+#[derive(Debug, Clone)]
 pub struct DatasetsForSearch {
-    pub proximate_dataset_mount: Arc<PathBuf>,
-    pub datasets_of_interest: Vec<Arc<PathBuf>>,
+    pub proximate_dataset_mount: PathBuf,
+    pub datasets_of_interest: Vec<PathBuf>,
 }
 
 #[derive(Debug, Clone)]
@@ -182,17 +181,15 @@ pub fn get_datasets_for_search(
     // hidden snapshot dirs
     let datasets_for_search: DatasetsForSearch = match &config.dataset_collection {
         DatasetCollection::UserDefined(defined_dirs) => {
-            let snap_dir = Arc::new(defined_dirs.snap_dir.to_path_buf());
+            let snap_dir = defined_dirs.snap_dir.to_path_buf();
             DatasetsForSearch {
                 proximate_dataset_mount: snap_dir.clone(),
                 datasets_of_interest: vec![snap_dir],
             }
         }
         DatasetCollection::AutoDetect(detected_datasets) => {
-            let proximate_dataset_mount = Arc::new(get_proximate_dataset(
-                pathdata,
-                &detected_datasets.map_of_datasets,
-            )?);
+            let proximate_dataset_mount =
+                get_proximate_dataset(pathdata, &detected_datasets.map_of_datasets)?;
             match requested_dataset_type {
                 SnapshotDatasetType::MostProximate => {
                     // just return the same dataset when in most proximate mode
@@ -202,8 +199,11 @@ pub fn get_datasets_for_search(
                     }
                 }
                 SnapshotDatasetType::AltReplicated => match &detected_datasets.opt_map_of_alts {
-                    Some(map_of_alts) => match map_of_alts.get(proximate_dataset_mount.as_ref()) {
-                        Some(datasets_of_interest) => datasets_of_interest.clone(),
+                    Some(map_of_alts) => match map_of_alts.get(proximate_dataset_mount.as_path()) {
+                        Some(alternate_mounts) => DatasetsForSearch {
+                            proximate_dataset_mount,
+                            datasets_of_interest: alternate_mounts.clone(),
+                        },
                         None => return Err(HttmError::new("If you are here a map of alts is missing for a supplied mount, \
                         this is fine as we should just flatten/ignore this error.").into()),
                     },
@@ -258,33 +258,31 @@ pub fn get_search_bundle(
                         // this prefix removal is why we always need the proximate dataset name, even when we are searching an alternate replicated filesystem
 
                         // building the snapshot path from our dataset
-                        let (snapshot_dir, fs_type) = match &detected_datasets
-                            .map_of_datasets
-                            .get(dataset_of_interest.as_ref())
-                        {
-                            Some((_, fstype)) => match fstype {
-                                FilesystemType::Zfs => (
+                        let (snapshot_dir, fs_type) =
+                            match &detected_datasets.map_of_datasets.get(dataset_of_interest) {
+                                Some((_, fstype)) => match fstype {
+                                    FilesystemType::Zfs => (
+                                        dataset_of_interest.join(ZFS_SNAPSHOT_DIRECTORY),
+                                        FilesystemType::Zfs,
+                                    ),
+                                    FilesystemType::Btrfs => {
+                                        (dataset_of_interest.to_path_buf(), FilesystemType::Btrfs)
+                                    }
+                                },
+                                None => (
                                     dataset_of_interest.join(ZFS_SNAPSHOT_DIRECTORY),
                                     FilesystemType::Zfs,
                                 ),
-                                FilesystemType::Btrfs => {
-                                    (dataset_of_interest.to_path_buf(), FilesystemType::Btrfs)
-                                }
-                            },
-                            None => (
-                                dataset_of_interest.join(ZFS_SNAPSHOT_DIRECTORY),
-                                FilesystemType::Zfs,
-                            ),
-                        };
+                            };
 
                         let relative_path = pathdata
                             .path_buf
-                            .strip_prefix(proximate_dataset_mount.as_ref())?
+                            .strip_prefix(&proximate_dataset_mount)?
                             .to_path_buf();
 
                         let opt_snap_mounts = detected_datasets
                             .map_of_snaps
-                            .get(dataset_of_interest.as_ref())
+                            .get(dataset_of_interest)
                             .cloned();
 
                         (snapshot_dir, relative_path, opt_snap_mounts, fs_type)
