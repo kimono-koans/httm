@@ -322,6 +322,7 @@ fn parse_args() -> ArgMatches {
                 Note: Use of both \"remote\" and \"local\" are not always necessary to view versions on remote shares.  \
                 These options *are necessary* if you want to view snapshot versions from within the local directory you back up to your remote share, \
                 however, httm can also automatically detect ZFS and btrfs-snapper datasets mounted as AFP, SMB, and NFS remote shares, if you browse that remote share where it is locally mounted.")
+                .conflicts_with("ALT_REPLICATED")
                 .takes_value(true)
                 .display_order(18)
         )
@@ -332,6 +333,7 @@ fn parse_args() -> ArgMatches {
                 .help("used with \"remote\" to determine where the corresponding live root filesystem of the dataset is.  \
                 Put more simply, the \"local\" is the directory you backup to your \"remote\".  If not set, httm defaults to your current working directory.  \
                 You may also set via the environment variable HTTM_LOCAL_DIR.")
+                .conflicts_with("ALT_REPLICATED")
                 .requires("SNAP_POINT")
                 .takes_value(true)
                 .display_order(19)
