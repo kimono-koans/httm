@@ -1,10 +1,6 @@
 name: Build Debian/Redhat packages
 
 on:
-  # push:
-  #   branches: [ "master" ]
-  # pull_request:
-  #   branches: [ "master" ]
   push:
     release:
       [created]
@@ -39,12 +35,11 @@ jobs:
 
     runs-on: ubuntu-18.04
   
-    steps:
-    - uses: actions/checkout@v3
     - name: cargo login
-      env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-      run: cargo login
+      uses: actions-rs/cargo@v1
+      with:
+        command: login
+        args: ${{ secrets.CRATES_TOKEN }}
     - name: cargo publish
       env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
