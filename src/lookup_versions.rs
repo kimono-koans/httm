@@ -223,11 +223,11 @@ pub fn get_search_bundle(
             let proximate_dataset_mount = &datasets_for_search.proximate_dataset_mount;
             // this prefix removal is why we always need the proximate dataset name, even when we are searching an alternate replicated filesystem
 
-            let default_strip_path = || pathdata.path_buf.strip_prefix(&proximate_dataset_mount);
+            let default_path_strip = || pathdata.path_buf.strip_prefix(&proximate_dataset_mount);
 
             let relative_path = match &config.dataset_collection.opt_map_of_aliases {
                 Some(map_of_aliases) => {
-                    let opt_local_dir = map_of_aliases
+                    let opt_aliased_local_dir = map_of_aliases
                         .par_iter()
                         // do a search for a key with a value
                         .find_map_first(|(local_dir, (snap_dir, _fs_type))| {
@@ -240,15 +240,15 @@ pub fn get_search_bundle(
 
                     // fallback if unable to find an alias or strip a prefix
                     // (each an indication we should not be trying aliases)
-                    match opt_local_dir {
+                    match opt_aliased_local_dir {
                         Some(local_dir) => match pathdata.path_buf.strip_prefix(&local_dir) {
-                            Ok(stripped_path) => stripped_path,
-                            Err(_) => default_strip_path()?,
+                            Ok(alias_stripped_path) => alias_stripped_path,
+                            Err(_) => default_path_strip()?,
                         },
-                        None => default_strip_path()?,
+                        None => default_path_strip()?,
                     }
                 }
-                None => default_strip_path()?,
+                None => default_path_strip()?,
             };
 
             let opt_snap_mounts = config
