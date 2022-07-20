@@ -202,7 +202,7 @@ fn is_filter_dir(config: &Config, dir_entry: &DirEntry) -> bool {
     }
 
     // is a common path for btrfs or is a non-supported dataset
-    match &config.dataset_collection.map_of_aliases {
+    match &config.dataset_collection.opt_map_of_aliases {
         None => {
             // is a common btrfs snapshot dir
             match &config.dataset_collection.opt_common_snap_dir {

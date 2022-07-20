@@ -120,7 +120,7 @@ pub struct DatasetCollection {
     // key: mount, val: alt dataset
     opt_map_of_alts: Option<HashMap<PathBuf, DatasetsForSearch>>,
     // key: mount, val: (local dir/remote dir, fstype)
-    map_of_aliases: Option<HashMap<PathBuf, (PathBuf, FilesystemType)>>,
+    opt_map_of_aliases: Option<HashMap<PathBuf, (PathBuf, FilesystemType)>>,
     vec_of_filter_dirs: Vec<PathBuf>,
     opt_common_snap_dir: Option<PathBuf>,
 }
@@ -313,8 +313,11 @@ fn parse_args() -> ArgMatches {
                 Note: Use of both \"remote\" and \"local\" are not always necessary to view versions on remote shares.  \
                 These options *are necessary* if you want to view snapshot versions from within the local directory you back up to your remote share, \
                 however, httm can also automatically detect ZFS and btrfs-snapper datasets mounted as AFP, SMB, and NFS remote shares, if you browse that remote share where it is locally mounted.")
-                .use_delimiter(true)
+                .value_names(&["LOCAL","REMOTE"])
+                .value_delimiter(':')
+                .require_delimiter(true)
                 .takes_value(true)
+                .multiple_occurrences(true)
                 .display_order(18)
         )
         .arg(
@@ -622,7 +625,7 @@ impl Config {
                 vec![SnapshotDatasetType::MostProximate]
             };
 
-            let map_of_aliases = if raw_snap_dir.is_some() || alias_values.is_some() {
+            let opt_map_of_aliases = if raw_snap_dir.is_some() || alias_values.is_some() {
                 Some(parse_aliases(
                     raw_snap_dir,
                     raw_local_dir,
@@ -641,7 +644,7 @@ impl Config {
                     opt_map_of_alts,
                     vec_of_filter_dirs,
                     opt_common_snap_dir,
-                    map_of_aliases,
+                    opt_map_of_aliases,
                 },
             )
         };

@@ -180,7 +180,7 @@ pub fn get_datasets_for_search(
     // between ZFS mount point and the canonical path is the path we will use to search the
     // hidden snapshot dirs
     let datasets_for_search: DatasetsForSearch = {
-        let snap_dir = match &config.dataset_collection.map_of_aliases {
+        let snap_dir = match &config.dataset_collection.opt_map_of_aliases {
             Some(map_of_aliases) => match get_alias_dataset(pathdata, map_of_aliases) {
                 Some(snap_dir) => snap_dir,
                 None => {
@@ -252,7 +252,7 @@ pub fn get_search_bundle(
                     ),
                 };
 
-                let relative_path = match &config.dataset_collection.map_of_aliases {
+                let relative_path = match &config.dataset_collection.opt_map_of_aliases {
                     Some(map_of_aliases) => {
                         let local_dir = map_of_aliases
                             .iter()

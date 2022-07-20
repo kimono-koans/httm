@@ -43,7 +43,7 @@ pub fn take_snapshot(
             .iter()
             .flat_map(|(_pathdata, datasets)| datasets)
             .map(|mount| {
-            let dataset: String = match &config.dataset_collection.map_of_aliases {
+            let dataset: String = match &config.dataset_collection.opt_map_of_aliases {
                 None => {
                     match config.dataset_collection.map_of_datasets.get(&mount.path_buf) {
                         Some((dataset, fs_type)) => {
