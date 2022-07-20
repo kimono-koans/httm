@@ -44,8 +44,10 @@ jobs:
     - name: cargo login
       env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-      run: cargo login "$CARGO_REGISTRY_TOKEN"
+      run: cargo login
     - name: cargo publish
+      env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       run: cargo publish --token "$CARGO_REGISTRY_TOKEN"
     - name: cargo logout
       run: cargo logout
