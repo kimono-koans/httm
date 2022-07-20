@@ -33,8 +33,9 @@ jobs:
     runs-on: ubuntu-18.04
     
     steps:
-    - name: cargo publish
+    - name: Checkout sources
       uses: actions/checkout@v3
+    - name: cargo publish
       env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       run: cargo publish --token "$CARGO_REGISTRY_TOKEN"
