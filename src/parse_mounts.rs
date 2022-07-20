@@ -23,10 +23,10 @@ use rayon::prelude::*;
 use which::which;
 
 use crate::parse_snaps::precompute_snap_mounts;
-use crate::utility::{get_common_path, HttmError};
+use crate::utility::{get_common_path, get_fs_type_from_hidden_dir, HttmError};
 use crate::{
-    AHashMap as HashMap, FilesystemType, AFP_FSTYPE, BTRFS_FSTYPE, BTRFS_SNAPPER_HIDDEN_DIRECTORY,
-    NFS_FSTYPE, SMB_FSTYPE, ZFS_FSTYPE, ZFS_SNAPSHOT_DIRECTORY,
+    AHashMap as HashMap, FilesystemType, AFP_FSTYPE, BTRFS_FSTYPE, NFS_FSTYPE, SMB_FSTYPE,
+    ZFS_FSTYPE, ZFS_SNAPSHOT_DIRECTORY,
 };
 
 // divide by the type of system we are on
@@ -80,28 +80,22 @@ fn parse_from_proc_mounts() -> Result<
                 ),
             )),
             &SMB_FSTYPE | &AFP_FSTYPE | &NFS_FSTYPE => {
-                if mount_info.dest.join(ZFS_SNAPSHOT_DIRECTORY).exists() {
-                    Either::Left((
+                match get_fs_type_from_hidden_dir(&mount_info.dest) {
+                    Ok(FilesystemType::Zfs) => Either::Left((
                         mount_info.dest,
                         (
                             mount_info.source.to_string_lossy().into_owned(),
                             FilesystemType::Zfs,
                         ),
-                    ))
-                } else if mount_info
-                    .dest
-                    .join(BTRFS_SNAPPER_HIDDEN_DIRECTORY)
-                    .exists()
-                {
-                    Either::Left((
+                    )),
+                    Ok(FilesystemType::Btrfs) => Either::Left((
                         mount_info.dest,
                         (
                             mount_info.source.to_string_lossy().into_owned(),
                             FilesystemType::Btrfs,
                         ),
-                    ))
-                } else {
-                    Either::Right(mount_info.dest)
+                    )),
+                    Err(_) => Either::Right(mount_info.dest),
                 }
             }
             &BTRFS_FSTYPE => {
@@ -156,13 +150,6 @@ fn parse_from_mount_cmd() -> Result<
             Vec<PathBuf>,
         ) = command_output
             .par_lines()
-            // want zfs or network datasets which we can auto detest as ZFS
-            .filter(|line| {
-                line.contains(ZFS_FSTYPE) ||
-                line.contains(SMB_FSTYPE) ||
-                line.contains(AFP_FSTYPE) ||
-                line.contains(NFS_FSTYPE)
-            })
             // but exclude snapshot mounts.  we want the raw filesystem names.
             .filter(|line| !line.contains(ZFS_SNAPSHOT_DIRECTORY))
             // where to split, to just have the src and dest of mounts
@@ -182,12 +169,16 @@ fn parse_from_mount_cmd() -> Result<
             // sanity check: does the filesystem exist and have a ZFS hidden dir? if not, filter it out
             // and flip around, mount should key of key/value
             .partition_map(|(filesystem, mount)| {
-                if mount.join(ZFS_SNAPSHOT_DIRECTORY).exists() {
-                    Either::Left((mount, (filesystem, FilesystemType::Zfs)))
-                } else if mount.join(BTRFS_SNAPPER_HIDDEN_DIRECTORY).exists() {
-                    Either::Left((mount, (filesystem, FilesystemType::Btrfs)))
-                } else {
-                    Either::Right(mount)
+                match get_fs_type_from_hidden_dir(&mount) {
+                    Ok(FilesystemType::Zfs) => {
+                        Either::Left((mount, (filesystem, FilesystemType::Zfs)))
+                    },
+                    Ok(FilesystemType::Btrfs) => {
+                        Either::Left((mount, (filesystem, FilesystemType::Btrfs)))
+                    },
+                    Err(_) => {
+                        Either::Right(mount)
+                    }
                 }
             });
 

@@ -21,7 +21,10 @@ use lscolors::{LsColors, Style};
 use once_cell::unsync::OnceCell;
 
 use crate::interactive::SelectionCandidate;
-use crate::{PHANTOM_DATE, PHANTOM_SIZE};
+use crate::{
+    FilesystemType, BTRFS_SNAPPER_HIDDEN_DIRECTORY, PHANTOM_DATE, PHANTOM_SIZE,
+    ZFS_SNAPSHOT_DIRECTORY,
+};
 
 pub fn timestamp_file(system_time: &SystemTime) -> String {
     let date_time: DateTime<Local> = (*system_time).into();
@@ -439,4 +442,30 @@ impl PathData {
             is_phantom: phantom,
         }
     }
+}
+
+pub fn get_fs_type_from_hidden_dir(
+    dataset_mount: &Path,
+) -> Result<FilesystemType, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    // set fstype, known by whether there is a ZFS hidden snapshot dir in the root dir
+    let fs_type = if dataset_mount
+        .join(ZFS_SNAPSHOT_DIRECTORY)
+        .metadata()
+        .is_ok()
+    {
+        FilesystemType::Zfs
+    } else if dataset_mount
+        .join(BTRFS_SNAPPER_HIDDEN_DIRECTORY)
+        .metadata()
+        .is_ok()
+    {
+        FilesystemType::Btrfs
+    } else {
+        return Err(HttmError::new(
+                "Requesting a filesystem type from path is only available for ZFS datasets and btrfs datasets snapshot-ed via snapper.",
+            )
+            .into());
+    };
+
+    Ok(fs_type)
 }

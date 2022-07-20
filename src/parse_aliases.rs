@@ -19,10 +19,8 @@ use std::{ffi::OsString, path::Path, path::PathBuf};
 
 use clap::OsValues;
 
-use crate::utility::HttmError;
-use crate::{
-    AHashMap as HashMap, FilesystemType, BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_SNAPSHOT_DIRECTORY,
-};
+use crate::utility::{get_fs_type_from_hidden_dir, HttmError};
+use crate::{AHashMap as HashMap, FilesystemType};
 
 pub fn parse_aliases(
     raw_local_dir: Option<OsString>,
@@ -71,7 +69,9 @@ pub fn parse_aliases(
                 .collect();
 
             match res.ok_or_else(|| {
-                HttmError::new("Must use specified delimiter (':') for MAP_ALIASES.")
+                HttmError::new(
+                    "Must use specified delimiter (':') between aliases for MAP_ALIASES.",
+                )
             }) {
                 Ok(res) => res,
                 Err(err) => return Err(err.into()),
@@ -87,33 +87,9 @@ pub fn parse_aliases(
     let res = aliases_iter
         .into_iter()
         .flat_map(|(local_dir, snap_dir)| {
-            get_alias_fs_type(&snap_dir)
-                .ok()
-                .map(|fs_type| (local_dir, (snap_dir, fs_type)))
+            get_fs_type_from_hidden_dir(&snap_dir).map(|fs_type| (local_dir, (snap_dir, fs_type)))
         })
         .collect();
 
     Ok(res)
-}
-
-fn get_alias_fs_type(
-    snap_dir: &Path,
-) -> Result<FilesystemType, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    // set fstype, known by whether there is a ZFS hidden snapshot dir in the root dir
-    let fs_type = if snap_dir.join(ZFS_SNAPSHOT_DIRECTORY).metadata().is_ok() {
-        FilesystemType::Zfs
-    } else if snap_dir
-        .join(BTRFS_SNAPPER_HIDDEN_DIRECTORY)
-        .metadata()
-        .is_ok()
-    {
-        FilesystemType::Btrfs
-    } else {
-        return Err(HttmError::new(
-                "User defined snap point is only available for ZFS datasets and btrfs datasets snapshot-ed via snapper.",
-            )
-            .into());
-    };
-
-    Ok(fs_type)
 }
