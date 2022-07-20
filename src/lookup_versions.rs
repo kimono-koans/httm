@@ -263,7 +263,7 @@ pub fn get_search_bundle(
                                     None
                                 }
                             })
-                            .unwrap_or(proximate_dataset_mount);
+                            .unwrap_or(&config.pwd.path_buf);
 
                         match pathdata.path_buf.strip_prefix(&local_dir) {
                             Ok(stripped_path) => stripped_path,
