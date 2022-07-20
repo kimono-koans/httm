@@ -122,19 +122,19 @@ Snapshot the dataset upon which `/etc/samba/smb.conf` is located:
 ```bash
 sudo httm -S /etc/samba/smb.conf
 ``` 
-Browse all files, recursively, in your MacOS home directory backed up via `rsync` to a ZFS/btrfs remote share, shared via `smbd`, and view unique versions on remote snapshots:
+Browse all files, recursively, in a folder backed up via `rsync` to a remote share, and view unique versions on remote snapshots directly (only available for btrfs-snapper and ZFS datasets).  
 ```bash
 # mount the share
 open smb://<your name>@<your remote share>.local/Home
-# set the location of you snapshot share point and local relative directory
-export HTTM_SNAP_POINT="/Volumes/Home"
-export HTTM_LOCAL_DIR="/Users/<your name>"
 # execute httm
-httm -i -R ~
-```
-Browse all files, recursively, in a folder backed up via `rsync` to a remote share, and view unique versions on remote snapshots directly (only available for btrfs-snapper and ZFS datasets).  Note: The difference from above is here you're not browsing files from a "live" directory:
-```bash
 httm -i -R /Volumes/Home
+```
+Browse all files, recursively, in your MacOS home directory backed up via `rsync` to a ZFS/btrfs remote share, shared via `smbd`, and view unique versions on remote snapshots. Note: The difference from above is, here, you're browsing files from a "live" directory:
+```bash
+# mount the share
+open smb://<your name>@<your remote share>.local/Home
+# execute httm
+httm -i -R --map-aliases /Users/<your name>:/Volumes/Home ~
 ```
 View the differences between each unique snapshot version of the `httm` `man` page and each previous version:
 ```bash
