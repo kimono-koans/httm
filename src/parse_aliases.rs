@@ -60,13 +60,23 @@ pub fn parse_aliases(
 
     let mut aliases_iter: Vec<(PathBuf, PathBuf)> = match opt_input_aliases {
         Some(input_aliases) => {
-            input_aliases
+            let res: Option<Vec<(PathBuf, PathBuf)>> = input_aliases
                 .into_iter()
                 .map(|os_str| os_str.to_string_lossy())
-                .flat_map(|os_string| {
-                    os_string.split_once(':').map(|(first, rest)| (PathBuf::from(first), PathBuf::from(rest)))
-                }).collect()
-        },
+                .map(|os_string| {
+                    os_string
+                        .split_once(':')
+                        .map(|(first, rest)| (PathBuf::from(first), PathBuf::from(rest)))
+                })
+                .collect();
+
+            match res.ok_or_else(|| {
+                HttmError::new("Must use specified delimiter (':') for MAP_ALIASES.")
+            }) {
+                Ok(res) => res,
+                Err(err) => return Err(err.into()),
+            }
+        }
         None => Vec::new(),
     };
 
