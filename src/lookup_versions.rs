@@ -28,9 +28,7 @@ use crate::{
     utility::{HttmError, PathData},
     ExecMode,
 };
-use crate::{
-    AHashMap as HashMap, Config, FilesystemType, SnapshotDatasetType, ZFS_SNAPSHOT_DIRECTORY,
-};
+use crate::{AHashMap as HashMap, Config, FilesystemType, SnapshotDatasetType};
 
 #[derive(Debug, Clone, Hash, PartialEq)]
 pub struct DatasetsForSearch {
@@ -40,9 +38,7 @@ pub struct DatasetsForSearch {
 
 #[derive(Debug, Clone)]
 pub struct FileSearchBundle {
-    pub snapshot_dir: PathBuf,
     pub relative_path: PathBuf,
-    pub fs_type: FilesystemType,
     pub opt_snap_mounts: Option<Vec<PathBuf>>,
 }
 
@@ -152,7 +148,7 @@ fn get_all_snap_versions(
         })
         .flatten()
         .flatten()
-        .flat_map(|search_bundle| get_versions_per_dataset(config, &search_bundle))
+        .flat_map(|search_bundle| get_versions_per_dataset(&search_bundle))
         .flatten()
         .collect();
 
@@ -226,30 +222,8 @@ pub fn get_search_bundle(
             // for user specified dirs these are specified by the user
             let proximate_dataset_mount = &datasets_for_search.proximate_dataset_mount;
 
-            let (snapshot_dir, relative_path, opt_snap_mounts, fs_type) = {
+            let (relative_path, opt_snap_mounts) = {
                 // this prefix removal is why we always need the proximate dataset name, even when we are searching an alternate replicated filesystem
-
-                // building the snapshot path from our dataset
-                let (snapshot_dir, fs_type) = match &config
-                    .dataset_collection
-                    .map_of_datasets
-                    .get(dataset_of_interest)
-                {
-                    Some((_, fstype)) => match fstype {
-                        FilesystemType::Zfs => (
-                            dataset_of_interest.join(ZFS_SNAPSHOT_DIRECTORY),
-                            FilesystemType::Zfs,
-                        ),
-                        FilesystemType::Btrfs => {
-                            (dataset_of_interest.to_path_buf(), FilesystemType::Btrfs)
-                        }
-                    },
-                    None => (
-                        dataset_of_interest.join(ZFS_SNAPSHOT_DIRECTORY),
-                        FilesystemType::Zfs,
-                    ),
-                };
-
                 let relative_path = match &config.dataset_collection.opt_map_of_aliases {
                     Some(map_of_aliases) => {
                         let local_dir = map_of_aliases
@@ -277,19 +251,12 @@ pub fn get_search_bundle(
                     .get(dataset_of_interest)
                     .cloned();
 
-                (
-                    snapshot_dir,
-                    relative_path.to_path_buf(),
-                    opt_snap_mounts,
-                    fs_type,
-                )
+                (relative_path.to_path_buf(), opt_snap_mounts)
             };
 
             Ok(FileSearchBundle {
-                snapshot_dir,
                 relative_path,
                 opt_snap_mounts,
-                fs_type,
             })
         })
         .collect()
@@ -343,7 +310,6 @@ fn get_proximate_dataset(
 }
 
 fn get_versions_per_dataset(
-    _config: &Config,
     search_bundle: &FileSearchBundle,
 ) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // get the DirEntry for our snapshot path which will have all our possible
@@ -372,21 +338,15 @@ fn get_versions_per_dataset(
         Ok(unique_versions)
     }
 
-    let (_snapshot_dir, relative_path, opt_snap_mounts, _fs_type) = {
-        (
-            &search_bundle.snapshot_dir,
-            &search_bundle.relative_path,
-            &search_bundle.opt_snap_mounts,
-            &search_bundle.fs_type,
-        )
-    };
+    let (relative_path, opt_snap_mounts) =
+        { (&search_bundle.relative_path, &search_bundle.opt_snap_mounts) };
 
     let snap_mounts = match opt_snap_mounts {
         Some(snap_mounts) => snap_mounts.clone(),
         // snap mounts is empty
         None => {
             return Err(HttmError::new(
-                "If you are here, precompute showed no snap mounts for dataset.  \
+                "If you are here, httm could find no snap mount for your files.  \
             Iterator should just ignore/flatten the error.",
             )
             .into());

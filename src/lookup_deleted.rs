@@ -129,14 +129,8 @@ fn get_deleted_per_dataset(
         Ok(unique_snap_filenames)
     }
 
-    let (_snapshot_dir, relative_path, opt_snap_mounts, _fs_type) = {
-        (
-            &search_bundle.snapshot_dir,
-            &search_bundle.relative_path,
-            &search_bundle.opt_snap_mounts,
-            &search_bundle.fs_type,
-        )
-    };
+    let (relative_path, opt_snap_mounts) =
+        { (&search_bundle.relative_path, &search_bundle.opt_snap_mounts) };
 
     let snap_mounts: Vec<PathBuf> = match opt_snap_mounts {
         Some(snap_mounts) => snap_mounts.clone(),
