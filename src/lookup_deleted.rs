@@ -136,8 +136,8 @@ fn get_deleted_per_dataset(
         Some(snap_mounts) => snap_mounts.clone(),
         None => {
             return Err(HttmError::new(
-                "If you are here, precompute showed no snap mounts for dataset.  \
-                    Iterator should just ignore/flatten the error.",
+                "If you are here, httm could find no snap mount for your files.  \
+            Iterator should just ignore/flatten the error.",
             )
             .into());
         }
