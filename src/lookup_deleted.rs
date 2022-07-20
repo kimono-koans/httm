@@ -24,9 +24,7 @@ use std::{
 
 use itertools::Itertools;
 
-use crate::lookup_versions::{
-    get_datasets_for_search, get_search_bundle, FileSearchBundle,
-};
+use crate::lookup_versions::{get_datasets_for_search, get_search_bundle, FileSearchBundle};
 use crate::utility::{BasicDirEntryInfo, HttmError, PathData};
 use crate::{AHashMap as HashMap, Config};
 
@@ -141,15 +139,15 @@ fn get_deleted_per_dataset(
     };
 
     let snap_mounts: Vec<PathBuf> = match opt_snap_mounts {
-            Some(snap_mounts) => snap_mounts.clone(),
-            None => {
-                return Err(HttmError::new(
-                    "If you are here, precompute showed no snap mounts for dataset.  \
+        Some(snap_mounts) => snap_mounts.clone(),
+        None => {
+            return Err(HttmError::new(
+                "If you are here, precompute showed no snap mounts for dataset.  \
                     Iterator should just ignore/flatten the error.",
-                )
-                .into());
-            }
-        };
+            )
+            .into());
+        }
+    };
 
     let unique_snap_filenames: HashMap<OsString, BasicDirEntryInfo> =
         get_snap_filenames(&snap_mounts, relative_path)?;

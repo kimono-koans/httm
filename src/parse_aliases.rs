@@ -15,11 +15,11 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::{ffi::OsString, path::PathBuf, path::Path};
+use std::{ffi::OsString, path::Path, path::PathBuf};
 
 use clap::OsValues;
 
-use crate::utility::{HttmError};
+use crate::utility::HttmError;
 use crate::{
     AHashMap as HashMap, FilesystemType, BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_SNAPSHOT_DIRECTORY,
 };
@@ -64,14 +64,17 @@ pub fn parse_aliases(
             .flat_map(|os_string| {
                 let parsed_string: Vec<PathBuf> = os_string
                     .to_string_lossy()
-                    .split_terminator(&['[', ']'][..]).map(|string| PathBuf::from(string)).collect();
-                
+                    .split_terminator(&[':'])
+                    .map(PathBuf::from)
+                    .collect();
+
                 if parsed_string.len() == 2 {
                     Some((parsed_string[0].clone(), parsed_string[1].clone()))
                 } else {
                     None
                 }
-            }).collect(),
+            })
+            .collect(),
         None => Vec::new(),
     };
 
@@ -82,16 +85,18 @@ pub fn parse_aliases(
     let res = aliases_iter
         .into_iter()
         .flat_map(|(local_dir, snap_dir)| {
-            get_alias_fs_type(&snap_dir).ok().map(|fs_type| (local_dir,(snap_dir, fs_type)))
-        }).collect();
+            get_alias_fs_type(&snap_dir)
+                .ok()
+                .map(|fs_type| (local_dir, (snap_dir, fs_type)))
+        })
+        .collect();
 
     Ok(res)
 }
 
 fn get_alias_fs_type(
-    snap_dir: &Path
-) -> Result<FilesystemType, Box<dyn std::error::Error + Send + Sync + 'static>>
-{
+    snap_dir: &Path,
+) -> Result<FilesystemType, Box<dyn std::error::Error + Send + Sync + 'static>> {
     // set fstype, known by whether there is a ZFS hidden snapshot dir in the root dir
     let fs_type = if snap_dir.join(ZFS_SNAPSHOT_DIRECTORY).metadata().is_ok() {
         FilesystemType::Zfs
