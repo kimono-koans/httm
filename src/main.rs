@@ -318,6 +318,7 @@ fn parse_args() -> ArgMatches {
                 .require_delimiter(true)
                 .takes_value(true)
                 .multiple_occurrences(true)
+                .value_parser(clap::builder::ValueParser::os_string())
                 .display_order(18)
         )
         .arg(
@@ -327,6 +328,7 @@ fn parse_args() -> ArgMatches {
                 .help("Deprecated.  See MAP_ALIASES")
                 .conflicts_with("ALT_REPLICATED")
                 .takes_value(true)
+                .value_parser(clap::builder::ValueParser::os_string())
                 .display_order(19)
         )
         .arg(
@@ -337,6 +339,7 @@ fn parse_args() -> ArgMatches {
                 .conflicts_with("ALT_REPLICATED")
                 .requires("REMOTE_DIR")
                 .takes_value(true)
+                .value_parser(clap::builder::ValueParser::os_string())
                 .display_order(20)
         )
         .arg(
