@@ -81,12 +81,20 @@ pub fn parse_aliases(
         aliases_iter.push(value)
     }
 
-    let res = aliases_iter
+    #[allow(clippy::type_complexity)]
+    let map_of_aliases = aliases_iter
         .into_iter()
         .flat_map(|(local_dir, snap_dir)| {
-            get_fs_type_from_hidden_dir(&snap_dir).map(|fs_type| (local_dir, (snap_dir, fs_type)))
+            if local_dir.exists() && snap_dir.exists() {
+                Some((local_dir, snap_dir))
+            } else {
+                eprintln!("Error: Invalid httm alias. At least one path specified, does not exist, or is not mounted: {:?}:{:?}", local_dir, snap_dir);
+                None
+            }
         })
-        .collect();
+        .flat_map(|(local_dir, snap_dir)| {
+            get_fs_type_from_hidden_dir(&snap_dir).ok().map(|fs_type| (local_dir, (snap_dir, fs_type)))
+        }).collect();
 
-    Ok(res)
+    Ok(map_of_aliases)
 }
