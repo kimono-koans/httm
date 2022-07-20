@@ -32,7 +32,7 @@ jobs:
         path: target/debian/httm*.*
   
   publish:
-
+  
     runs-on: ubuntu-18.04
   
     - name: cargo login
@@ -44,5 +44,3 @@ jobs:
       env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       run: cargo publish --token "$CARGO_REGISTRY_TOKEN"
-    - name: cargo logout
-      run: cargo logout
