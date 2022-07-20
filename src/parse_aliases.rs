@@ -17,8 +17,6 @@
 
 use std::{ffi::OsString, path::Path, path::PathBuf};
 
-use clap::OsValues;
-
 use crate::utility::{get_fs_type_from_hidden_dir, HttmError};
 use crate::{AHashMap as HashMap, FilesystemType};
 
@@ -26,7 +24,7 @@ pub fn parse_aliases(
     raw_local_dir: Option<OsString>,
     raw_snap_dir: Option<OsString>,
     pwd: &Path,
-    opt_input_aliases: Option<OsValues>,
+    opt_input_aliases: Option<Vec<String>>,
 ) -> Result<
     HashMap<PathBuf, (PathBuf, FilesystemType)>,
     Box<dyn std::error::Error + Send + Sync + 'static>,
@@ -60,9 +58,8 @@ pub fn parse_aliases(
         Some(input_aliases) => {
             let res: Option<Vec<(PathBuf, PathBuf)>> = input_aliases
                 .into_iter()
-                .map(|os_str| os_str.to_string_lossy())
-                .map(|os_string| {
-                    os_string
+                .map(|alias| {
+                    alias
                         .split_once(':')
                         .map(|(first, rest)| (PathBuf::from(first), PathBuf::from(rest)))
                 })

@@ -312,7 +312,7 @@ fn parse_args() -> ArgMatches {
                 such as the local mount point for a backup on a remote share (eg. \"/Volumes/Home\").  \
                 This option is useful if you wish to view snapshot versions from within the local directory you back up to your remote share.  \
                 Such map is delimited by a colon, ':', and specified as <LOCAL_DIR>:<REMOTE_DIR> (eg. --map-aliases /Users/<User Name>:/Volumes/Home).  \
-                Multiple maps may be specified delimited by a comma, ','.")
+                Multiple maps may be specified delimited by a comma, ','.  You may also set via the environment variable HTTM_MAP_ALIASES.")
                 .use_value_delimiter(true)
                 .takes_value(true)
                 .value_parser(clap::builder::ValueParser::os_string())
@@ -447,6 +447,24 @@ impl Config {
         };
         let env_local_dir = std::env::var_os("HTTM_LOCAL_DIR");
 
+        let alias_values: Option<Vec<String>> =
+            if let Some(env_map_aliases) = std::env::var_os("HTTM_MAP_ALIASES") {
+                Some(
+                    env_map_aliases
+                        .to_string_lossy()
+                        .split_terminator(',')
+                        .map(|str| str.to_owned())
+                        .collect(),
+                )
+            } else {
+                matches.values_of_os("MAP_ALIASES").map(|cmd_map_aliases| {
+                    cmd_map_aliases
+                        .into_iter()
+                        .map(|os_str| os_str.to_string_lossy().to_string())
+                        .collect()
+                })
+            };
+
         let raw_snap_dir = if let Some(value) = matches.value_of_os("REMOTE_DIR") {
             Some(value.to_os_string())
         } else {
@@ -458,8 +476,6 @@ impl Config {
         } else {
             env_local_dir
         };
-
-        let alias_values = matches.values_of_os("MAP_ALIASES");
 
         let interactive_mode = if matches.is_present("RESTORE") {
             InteractiveMode::Restore
