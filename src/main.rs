@@ -307,12 +307,11 @@ fn parse_args() -> ArgMatches {
         .arg(
             Arg::new("MAP_ALIASES")
                 .long("map-aliases")
-                .help("ordinarily httm will automatically choose your dataset root directory (the most proximate ancestor directory which contains a snapshot directory), \
-                but here you may manually specify that mount point for ZFS (directory which contains a \".zfs\" directory) or btrfs-snapper (directory which contains a \".snapshots\" directory), \
-                such as the local mount point for a remote share.  You may also set via the HTTM_REMOTE_DIR environment variable.  \
-                Note: Use of both \"remote\" and \"local\" are not always necessary to view versions on remote shares.  \
-                These options *are necessary* if you want to view snapshot versions from within the local directory you back up to your remote share, \
-                however, httm can also automatically detect ZFS and btrfs-snapper datasets mounted as AFP, SMB, and NFS remote shares, if you browse that remote share where it is locally mounted.")
+                .visible_aliases(&["aliases"])
+                .help("manually map a local directory (eg. \"/Users/<User Name>\") as an alias of a mount point for ZFS or btrfs, \
+                such as the local mount point for a backup on a remote share (eg. \"/Volumes/Home\").  \
+                This option is useful if you wish to view snapshot versions from within the local directory you back up to your remote share.  \
+                Such map is delimited by a colon ':' and specified as <LOCAL_DIR>:<REMOTE_DIR> (eg. --map-aliases /Users/<User Name>:/Volumes/Home)")
                 .use_value_delimiter(true)
                 .takes_value(true)
                 .value_parser(clap::builder::ValueParser::os_string())
@@ -322,8 +321,8 @@ fn parse_args() -> ArgMatches {
             Arg::new("REMOTE_DIR")
                 .long("remote-dir")
                 .visible_aliases(&["remote", "snap-point"])
-                .help("Deprecated.  See MAP_ALIASES")
-                .conflicts_with("ALT_REPLICATED")
+                .help("DEPRECATED.  Use MAP_ALIASES. Manually specify that mount point for ZFS (directory which contains a \".zfs\" directory) or btrfs-snapper \
+                (directory which contains a \".snapshots\" directory), such as the local mount point for a remote share.  You may also set via the HTTM_REMOTE_DIR environment variable.")
                 .takes_value(true)
                 .value_parser(clap::builder::ValueParser::os_string())
                 .display_order(19)
@@ -332,8 +331,9 @@ fn parse_args() -> ArgMatches {
             Arg::new("LOCAL_DIR")
                 .long("local-dir")
                 .visible_alias("local")
-                .help("Deprecated.  See MAP_ALIASES")
-                .conflicts_with("ALT_REPLICATED")
+                .help("DEPRECATED.  Use MAP_ALIASES.  Used with \"remote-dir\" to determine where the corresponding live root filesystem of the dataset is.  \
+                Put more simply, the \"local-dir\" is likely the directory you backup to your \"remote-dir\".  If not set, httm defaults to your current working directory.  \
+                You may also set via the environment variable HTTM_LOCAL_DIR.")
                 .requires("REMOTE_DIR")
                 .takes_value(true)
                 .value_parser(clap::builder::ValueParser::os_string())
