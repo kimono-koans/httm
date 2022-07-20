@@ -62,6 +62,7 @@ pub fn parse_aliases(
         Some(input_aliases) => {
             input_aliases
                 .into_iter()
+                .take(2)
                 .map(|os_str| os_str.to_string_lossy())
                 .flat_map(|os_string| {
                     println!("{:?}", os_string);
