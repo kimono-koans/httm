@@ -42,6 +42,10 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: cargo publish the new version
-      run: cargo publish --token "$CARGO_REGISTRY_TOKEN"
       env:
-        CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+      run: cargo login "$CARGO_REGISTRY_TOKEN"
+      run: cargo publish --token "$CARGO_REGISTRY_TOKEN"
+      run: cargo logout
+
+      
