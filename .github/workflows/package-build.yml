@@ -18,7 +18,8 @@ jobs:
     runs-on: ubuntu-18.04
 
     steps:
-    - uses: actions/checkout@v3
+    - name: Checkout sources
+      uses: actions/checkout@v3
     - name: Install cargo-deb
       run: cargo install cargo-deb
     - name: Build package with cargo-deb
@@ -41,7 +42,6 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: cargo publish the new version
-      shell: bash
+      run: cargo publish --token "$CARGO_REGISTRY_TOKEN"
       env:
         CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-      run: cargo publish --token "$CARGO_REGISTRY_TOKEN"
