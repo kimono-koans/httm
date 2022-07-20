@@ -226,20 +226,27 @@ pub fn get_search_bundle(
                 // this prefix removal is why we always need the proximate dataset name, even when we are searching an alternate replicated filesystem
                 let relative_path = match &config.dataset_collection.opt_map_of_aliases {
                     Some(map_of_aliases) => {
-                        let local_dir = map_of_aliases
+                        let opt_local_dir = map_of_aliases
                             .iter()
+                            // do a search for a key with a value
                             .find_map(|(local_dir, (snap_dir, _fs_type))| {
                                 if snap_dir == proximate_dataset_mount {
                                     Some(local_dir)
                                 } else {
                                     None
                                 }
-                            })
-                            .unwrap_or(&config.pwd.path_buf);
+                            });
 
-                        match pathdata.path_buf.strip_prefix(&local_dir) {
-                            Ok(stripped_path) => stripped_path,
-                            Err(_) => pathdata.path_buf.strip_prefix(&proximate_dataset_mount)?,
+                        // fallback if unable to find an alias or strip a prefix
+                        // (each an indication we should not be trying aliases)
+                        match opt_local_dir {
+                            Some(local_dir) => match pathdata.path_buf.strip_prefix(&local_dir) {
+                                Ok(stripped_path) => stripped_path,
+                                Err(_) => {
+                                    pathdata.path_buf.strip_prefix(&proximate_dataset_mount)?
+                                }
+                            },
+                            None => pathdata.path_buf.strip_prefix(&proximate_dataset_mount)?,
                         }
                     }
                     None => pathdata.path_buf.strip_prefix(&proximate_dataset_mount)?,
