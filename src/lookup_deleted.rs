@@ -45,11 +45,15 @@ pub fn deleted_lookup_exec(
     let basic_dir_entry_info_iter = vec_requested_dir_pathdata
         .iter()
         .flat_map(|pathdata| {
-            config.datasets_of_interest.iter().flat_map(|dataset_type| {
-                let datasets_of_interest = get_datasets_for_search(config, pathdata, dataset_type)?;
-                get_search_bundle(config, pathdata, &datasets_of_interest)
-            })
+            config
+                .datasets_of_interest
+                .iter()
+                .flat_map(|dataset_type| get_datasets_for_search(config, pathdata, dataset_type))
+                .map(|datasets_of_interest| {
+                    get_search_bundle(config, pathdata, &datasets_of_interest)
+                })
         })
+        .flatten()
         .flatten()
         .flat_map(|search_bundle| {
             get_deleted_per_dataset(config, &requested_dir_pathdata.path_buf, &search_bundle)
@@ -78,15 +82,15 @@ where
         .into_group_map_by(|basic_dir_entry_info| basic_dir_entry_info.file_name.clone())
         .into_iter()
         .flat_map(|(file_name, group_of_dir_entries)| {
-            let latest_entry_in_time = group_of_dir_entries
+            group_of_dir_entries
                 .into_iter()
                 .flat_map(|basic_dir_entry_info| {
                     basic_dir_entry_info
                         .get_modify_time()
                         .map(|modify_time| (modify_time, basic_dir_entry_info))
                 })
-                .max_by_key(|(modify_time, _basic_dir_entry_info)| *modify_time);
-            latest_entry_in_time.map(|latest_entry_in_time| (file_name, latest_entry_in_time))
+                .max_by_key(|(modify_time, _basic_dir_entry_info)| *modify_time)
+                .map(|latest_entry_in_time| (file_name, latest_entry_in_time))
         })
 }
 

@@ -96,16 +96,16 @@ pub fn get_mounts_for_files(
             .for_each(|pathdata| eprintln!("{}", pathdata.path_buf.to_string_lossy()));
     }
 
+    // don't want to request alt replicated mounts in snap mode, though we may in opt_mount_for_file mode
+    let selected_datasets = if config.exec_mode == ExecMode::SnapFileMount {
+        vec![SnapshotDatasetType::MostProximate]
+    } else {
+        config.datasets_of_interest.clone()
+    };
+
     let mounts_for_files: BTreeMap<PathData, Vec<PathData>> = non_phantom_files
         .into_iter()
         .map(|pathdata| {
-            // don't want to request alt replicated mounts in snap mode, though we may in opt_mount_for_file mode
-            let selected_datasets = if config.exec_mode == ExecMode::SnapFileMount {
-                vec![SnapshotDatasetType::MostProximate]
-            } else {
-                config.datasets_of_interest.clone()
-            };
-
             let datasets: Vec<DatasetsForSearch> = selected_datasets
                 .iter()
                 .flat_map(|dataset_type| get_datasets_for_search(config, pathdata, dataset_type))
@@ -140,12 +140,10 @@ fn get_all_snap_versions(
             config
                 .datasets_of_interest
                 .par_iter()
-                .flat_map(|dataset_type| {
-                    let dataset_for_search =
-                        get_datasets_for_search(config, pathdata, dataset_type)?;
-                    get_search_bundle(config, pathdata, &dataset_for_search)
-                })
+                .flat_map(|dataset_type| get_datasets_for_search(config, pathdata, dataset_type))
+                .map(|dataset_for_search| get_search_bundle(config, pathdata, &dataset_for_search))
         })
+        .flatten()
         .flatten()
         .flatten()
         .flat_map(|search_bundle| get_versions_per_dataset(&search_bundle))
