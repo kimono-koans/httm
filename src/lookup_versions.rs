@@ -174,7 +174,7 @@ pub fn get_datasets_for_search(
     // between ZFS mount point and the canonical path is the path we will use to search the
     // hidden snapshot dirs
     let datasets_for_search: DatasetsForSearch = {
-        let snap_dir = match &config.dataset_collection.opt_map_of_aliases {
+        let proximate_dataset_mount = match &config.dataset_collection.opt_map_of_aliases {
             Some(map_of_aliases) => match get_alias_dataset(pathdata, map_of_aliases) {
                 Some(snap_dir) => snap_dir,
                 None => {
@@ -188,12 +188,12 @@ pub fn get_datasets_for_search(
             SnapshotDatasetType::MostProximate => {
                 // just return the same dataset when in most proximate mode
                 DatasetsForSearch {
-                    proximate_dataset_mount: snap_dir.clone(),
-                    datasets_of_interest: vec![snap_dir],
+                    proximate_dataset_mount: proximate_dataset_mount.clone(),
+                    datasets_of_interest: vec![proximate_dataset_mount],
                 }
             }
             SnapshotDatasetType::AltReplicated => match &config.dataset_collection.opt_map_of_alts {
-                Some(map_of_alts) => match map_of_alts.get(snap_dir.as_path()) {
+                Some(map_of_alts) => match map_of_alts.get(proximate_dataset_mount.as_path()) {
                     Some(datasets_for_search) => datasets_for_search.clone(),
                     None => return Err(HttmError::new("If you are here a map of alts is missing for a supplied mount, \
                     this is fine as we should just flatten/ignore this error.").into()),
