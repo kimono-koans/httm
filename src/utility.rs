@@ -385,21 +385,21 @@ impl cmp::Ord for PathData {
 
 impl From<&Path> for PathData {
     fn from(path: &Path) -> Self {
-        let metadata_res = symlink_metadata(path).ok();
-        PathData::from_parts(path, metadata_res)
+        let opt_metadata = symlink_metadata(path).ok();
+        PathData::from_parts(path, opt_metadata)
     }
 }
 
 impl From<&DirEntry> for PathData {
     fn from(dir_entry: &DirEntry) -> Self {
-        let metadata_res = dir_entry.metadata().ok();
+        let opt_metadata = dir_entry.metadata().ok();
         let path = dir_entry.path();
-        PathData::from_parts(&path, metadata_res)
+        PathData::from_parts(&path, opt_metadata)
     }
 }
 
 impl PathData {
-    pub fn from_parts(path: &Path, metadata_res: Option<Metadata>) -> Self {
+    pub fn from_parts(path: &Path, opt_metadata: Option<Metadata>) -> Self {
         let absolute_path: PathBuf = if path.is_relative() {
             if let Ok(canonical_path) = path.canonicalize() {
                 canonical_path
@@ -415,7 +415,7 @@ impl PathData {
         };
 
         // call symlink_metadata, as we need to resolve symlinks to get non-"phantom" metadata
-        let (len, time, phantom) = match metadata_res {
+        let (len, time, phantom) = match opt_metadata {
             Some(md) => {
                 let len = md.len();
                 let time = md.modified().unwrap_or(PHANTOM_DATE);

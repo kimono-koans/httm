@@ -329,12 +329,13 @@ fn get_versions_per_dataset(
     > {
         let unique_versions = snap_mounts
             .par_iter()
-            .flat_map(|path| {
-                path.metadata()
+            .map(|path| path.join(&relative_path))
+            .flat_map(|joined_path| {
+                joined_path
+                    .symlink_metadata()
                     .ok()
-                    .map(|metadata| (path.join(&relative_path), Some(metadata)))
+                    .map(|metadata| (PathData::from_parts(&joined_path, Some(metadata))))
             })
-            .map(|(path, opt_metadata)| PathData::from_parts(path.as_path(), opt_metadata))
             .map(|pathdata| ((pathdata.system_time, pathdata.size), pathdata))
             .collect();
         Ok(unique_versions)
