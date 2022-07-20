@@ -62,13 +62,9 @@ pub fn parse_aliases(
         Some(input_aliases) => {
             input_aliases
                 .into_iter()
-                .take(2)
                 .map(|os_str| os_str.to_string_lossy())
                 .flat_map(|os_string| {
-                    println!("{:?}", os_string);
-                    let res = os_string.split_once(':').map(|(first, rest)| (PathBuf::from(first), PathBuf::from(rest)));
-                    println!("{:?}", res);
-                    res
+                    os_string.split_once(':').map(|(first, rest)| (PathBuf::from(first), PathBuf::from(rest)))
                 }).collect()
         },
         None => Vec::new(),
