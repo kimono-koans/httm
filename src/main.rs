@@ -316,8 +316,9 @@ fn parse_args() -> ArgMatches {
                 .value_names(&["LOCAL","REMOTE"])
                 .value_delimiter(':')
                 .require_delimiter(true)
+                .multiple_values(true)
                 .takes_value(true)
-                .multiple_occurrences(true)
+
                 .value_parser(clap::builder::ValueParser::os_string())
                 .display_order(18)
         )

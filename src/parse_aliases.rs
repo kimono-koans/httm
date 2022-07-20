@@ -59,22 +59,17 @@ pub fn parse_aliases(
     };
 
     let mut aliases_iter: Vec<(PathBuf, PathBuf)> = match opt_input_aliases {
-        Some(input_aliases) => input_aliases
-            .into_iter()
-            .flat_map(|os_string| {
-                let parsed_string: Vec<PathBuf> = os_string
-                    .to_string_lossy()
-                    .split_terminator(&[':'])
-                    .map(PathBuf::from)
-                    .collect();
-
-                if parsed_string.len() == 2 {
-                    Some((parsed_string[0].clone(), parsed_string[1].clone()))
-                } else {
-                    None
-                }
-            })
-            .collect(),
+        Some(input_aliases) => {
+            input_aliases
+                .into_iter()
+                .map(|os_str| os_str.to_string_lossy())
+                .flat_map(|os_string| {
+                    println!("{:?}", os_string);
+                    let res = os_string.split_once(':').map(|(first, rest)| (PathBuf::from(first), PathBuf::from(rest)));
+                    println!("{:?}", res);
+                    res
+                }).collect()
+        },
         None => Vec::new(),
     };
 
