@@ -221,48 +221,44 @@ pub fn get_search_bundle(
             // for native searches the prefix is are the dirs below the most proximate dataset
             // for user specified dirs these are specified by the user
             let proximate_dataset_mount = &datasets_for_search.proximate_dataset_mount;
+            // this prefix removal is why we always need the proximate dataset name, even when we are searching an alternate replicated filesystem
 
-            let (relative_path, opt_snap_mounts) = {
-                // this prefix removal is why we always need the proximate dataset name, even when we are searching an alternate replicated filesystem
-                let relative_path = match &config.dataset_collection.opt_map_of_aliases {
-                    Some(map_of_aliases) => {
-                        let opt_local_dir = map_of_aliases
-                            .iter()
-                            // do a search for a key with a value
-                            .find_map(|(local_dir, (snap_dir, _fs_type))| {
-                                if snap_dir == proximate_dataset_mount {
-                                    Some(local_dir)
-                                } else {
-                                    None
-                                }
-                            });
+            let default_strip_path = || pathdata.path_buf.strip_prefix(&proximate_dataset_mount);
 
-                        // fallback if unable to find an alias or strip a prefix
-                        // (each an indication we should not be trying aliases)
-                        match opt_local_dir {
-                            Some(local_dir) => match pathdata.path_buf.strip_prefix(&local_dir) {
-                                Ok(stripped_path) => stripped_path,
-                                Err(_) => {
-                                    pathdata.path_buf.strip_prefix(&proximate_dataset_mount)?
-                                }
-                            },
-                            None => pathdata.path_buf.strip_prefix(&proximate_dataset_mount)?,
-                        }
+            let relative_path = match &config.dataset_collection.opt_map_of_aliases {
+                Some(map_of_aliases) => {
+                    let opt_local_dir = map_of_aliases
+                        .iter()
+                        // do a search for a key with a value
+                        .find_map(|(local_dir, (snap_dir, _fs_type))| {
+                            if snap_dir == proximate_dataset_mount {
+                                Some(local_dir)
+                            } else {
+                                None
+                            }
+                        });
+
+                    // fallback if unable to find an alias or strip a prefix
+                    // (each an indication we should not be trying aliases)
+                    match opt_local_dir {
+                        Some(local_dir) => match pathdata.path_buf.strip_prefix(&local_dir) {
+                            Ok(stripped_path) => stripped_path,
+                            Err(_) => default_strip_path()?,
+                        },
+                        None => default_strip_path()?,
                     }
-                    None => pathdata.path_buf.strip_prefix(&proximate_dataset_mount)?,
-                };
-
-                let opt_snap_mounts = config
-                    .dataset_collection
-                    .map_of_snaps
-                    .get(dataset_of_interest)
-                    .cloned();
-
-                (relative_path.to_path_buf(), opt_snap_mounts)
+                }
+                None => default_strip_path()?,
             };
 
+            let opt_snap_mounts = config
+                .dataset_collection
+                .map_of_snaps
+                .get(dataset_of_interest)
+                .cloned();
+
             Ok(FileSearchBundle {
-                relative_path,
+                relative_path: relative_path.to_path_buf(),
                 opt_snap_mounts,
             })
         })
