@@ -17,7 +17,6 @@
 
 use std::{
     collections::BTreeMap,
-    fs::read_dir,
     path::{Path, PathBuf},
     time::SystemTime,
 };
@@ -30,8 +29,7 @@ use crate::{
     ExecMode,
 };
 use crate::{
-    AHashMap as HashMap, Config, FilesystemType, SnapshotDatasetType,
-    BTRFS_SNAPPER_HIDDEN_DIRECTORY, BTRFS_SNAPPER_SUFFIX, ZFS_SNAPSHOT_DIRECTORY,
+    AHashMap as HashMap, Config, FilesystemType, SnapshotDatasetType, ZFS_SNAPSHOT_DIRECTORY,
 };
 
 #[derive(Debug, Clone, Hash, PartialEq)]
@@ -403,22 +401,4 @@ fn get_versions_per_dataset(
     vec_pathdata.par_sort_unstable_by_key(|pathdata| pathdata.system_time);
 
     Ok(vec_pathdata)
-}
-
-pub fn _prep_lookup_read_dir(
-    snapshot_dir: &Path,
-    fs_type: &FilesystemType,
-) -> Result<Vec<PathBuf>, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let paths = read_dir(match fs_type {
-        FilesystemType::Btrfs => snapshot_dir.join(BTRFS_SNAPPER_HIDDEN_DIRECTORY),
-        FilesystemType::Zfs => snapshot_dir.to_path_buf(),
-    })?
-    .flatten()
-    .map(|entry| match fs_type {
-        FilesystemType::Btrfs => entry.path().join(BTRFS_SNAPPER_SUFFIX),
-        FilesystemType::Zfs => entry.path(),
-    })
-    .collect();
-
-    Ok(paths)
 }
