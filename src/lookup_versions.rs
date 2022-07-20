@@ -228,9 +228,9 @@ pub fn get_search_bundle(
             let relative_path = match &config.dataset_collection.opt_map_of_aliases {
                 Some(map_of_aliases) => {
                     let opt_local_dir = map_of_aliases
-                        .iter()
+                        .par_iter()
                         // do a search for a key with a value
-                        .find_map(|(local_dir, (snap_dir, _fs_type))| {
+                        .find_map_first(|(local_dir, (snap_dir, _fs_type))| {
                             if snap_dir == proximate_dataset_mount {
                                 Some(local_dir)
                             } else {
