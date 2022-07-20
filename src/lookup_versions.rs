@@ -182,8 +182,10 @@ pub fn get_datasets_for_search(
     let datasets_for_search: DatasetsForSearch = {
         let snap_dir = match &config.dataset_collection.map_of_aliases {
             Some(map_of_aliases) => {
-                get_alias_dataset(pathdata, map_of_aliases)?
-        
+                match get_alias_dataset(pathdata, map_of_aliases) {
+                    Some(snap_dir) => snap_dir,
+                    None => get_proximate_dataset(pathdata, &config.dataset_collection.map_of_datasets)?,
+                }
             }
             None => {
                 get_proximate_dataset(pathdata, &config.dataset_collection.map_of_datasets)?
@@ -279,24 +281,17 @@ pub fn get_search_bundle(
 fn get_alias_dataset(
     pathdata: &PathData,
     map_of_datasets: &HashMap<PathBuf, (PathBuf, FilesystemType)>,
-) -> Result<PathBuf, Box<dyn std::error::Error + Send + Sync + 'static>> {
+) -> Option<PathBuf> {
     let ancestors: Vec<&Path> = pathdata.path_buf.ancestors().collect();
 
     let opt_best_potential_alias: Option<&PathBuf> =
         // find_map_first should return the first seq result with a par_iter
         // but not with a par_bridge
         ancestors.into_par_iter().find_map_first(|ancestor| {
-            let (snap_dir, _fs_type) = map_of_datasets.get(ancestor)?;
-            Some(snap_dir)
+            map_of_datasets.get(ancestor).map(|(snap_dir, _fs_type)| snap_dir)
         });
 
-    match opt_best_potential_alias.map(|path| path.to_owned()) {
-        Some(best_potential_alias) => Ok(best_potential_alias),
-        None => {
-            let msg = "httm could not identify any qualifying dataset.  Maybe consider specifying manually at SNAP_POINT?";
-            Err(HttmError::new(msg).into())
-        }
-    }
+    opt_best_potential_alias.map(|path| path.to_owned())
 }
 
 fn get_proximate_dataset(
