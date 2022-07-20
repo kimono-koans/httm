@@ -33,7 +33,10 @@ jobs:
       with:
         name: cargo-deb-upload
         path: target/debian/httm*.*
-    
+  publish:
+
+    runs-on: ubuntu-18.04
+  
     steps:
     - name: cargo publish the new version
       uses: actions/checkout@v3
