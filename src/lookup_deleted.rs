@@ -24,11 +24,9 @@ use std::{
 
 use itertools::Itertools;
 
-use crate::lookup_versions::{
-    get_datasets_for_search, get_search_bundle, prep_lookup_read_dir, FileSearchBundle,
-};
+use crate::lookup_versions::{get_datasets_for_search, get_search_bundle, FileSearchBundle};
 use crate::utility::{BasicDirEntryInfo, HttmError, PathData};
-use crate::{AHashMap as HashMap, Config, DatasetCollection};
+use crate::{AHashMap as HashMap, Config};
 
 pub fn deleted_lookup_exec(
     config: &Config,
@@ -93,7 +91,7 @@ where
 }
 
 fn get_deleted_per_dataset(
-    config: &Config,
+    _config: &Config,
     requested_dir: &Path,
     search_bundle: &FileSearchBundle,
 ) -> Result<Vec<BasicDirEntryInfo>, Box<dyn std::error::Error + Send + Sync + 'static>> {
@@ -131,27 +129,18 @@ fn get_deleted_per_dataset(
         Ok(unique_snap_filenames)
     }
 
-    let (snapshot_dir, relative_path, opt_snap_mounts, fs_type) = {
-        (
-            &search_bundle.snapshot_dir,
-            &search_bundle.relative_path,
-            &search_bundle.opt_snap_mounts,
-            &search_bundle.fs_type,
-        )
-    };
+    let (relative_path, opt_snap_mounts) =
+        { (&search_bundle.relative_path, &search_bundle.opt_snap_mounts) };
 
-    let snap_mounts: Vec<PathBuf> = match &config.dataset_collection {
-        DatasetCollection::AutoDetect(_) => match opt_snap_mounts {
-            Some(snap_mounts) => snap_mounts.clone(),
-            None => {
-                return Err(HttmError::new(
-                    "If you are here, precompute showed no snap mounts for dataset.  \
+    let snap_mounts: Vec<PathBuf> = match opt_snap_mounts {
+        Some(snap_mounts) => snap_mounts.clone(),
+        None => {
+            return Err(HttmError::new(
+                "If you are here, precompute showed no snap mounts for dataset.  \
                     Iterator should just ignore/flatten the error.",
-                )
-                .into());
-            }
-        },
-        DatasetCollection::UserDefined(_) => prep_lookup_read_dir(snapshot_dir, fs_type)?,
+            )
+            .into());
+        }
     };
 
     let unique_snap_filenames: HashMap<OsString, BasicDirEntryInfo> =
