@@ -313,6 +313,7 @@ fn parse_args() -> ArgMatches {
                 Note: Use of both \"remote\" and \"local\" are not always necessary to view versions on remote shares.  \
                 These options *are necessary* if you want to view snapshot versions from within the local directory you back up to your remote share, \
                 however, httm can also automatically detect ZFS and btrfs-snapper datasets mounted as AFP, SMB, and NFS remote shares, if you browse that remote share where it is locally mounted.")
+                .use_value_delimiter(true)
                 .takes_value(true)
                 .value_parser(clap::builder::ValueParser::os_string())
                 .display_order(18)
