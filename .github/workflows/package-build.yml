@@ -29,16 +29,15 @@ jobs:
       with:
         name: cargo-deb-upload
         path: target/debian/httm*.*
-  
   publish:
-    runs-on: ubuntu-18.04
-  
-    - name: cargo login
-      uses: actions-rs/cargo@v1
-      with:
-        command: login
-        args: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-    - name: cargo publish
-      env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-      run: cargo publish --token "$CARGO_REGISTRY_TOKEN"
+      runs-on: ubuntu-18.04
+    
+      - name: cargo login
+        uses: actions-rs/cargo@v1
+        with:
+          command: login
+          args: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+      - name: cargo publish
+        env:
+            CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: cargo publish --token "$CARGO_REGISTRY_TOKEN"
