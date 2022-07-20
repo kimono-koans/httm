@@ -311,7 +311,8 @@ fn parse_args() -> ArgMatches {
                 .help("manually map a local directory (eg. \"/Users/<User Name>\") as an alias of a mount point for ZFS or btrfs, \
                 such as the local mount point for a backup on a remote share (eg. \"/Volumes/Home\").  \
                 This option is useful if you wish to view snapshot versions from within the local directory you back up to your remote share.  \
-                Such map is delimited by a colon ':' and specified as <LOCAL_DIR>:<REMOTE_DIR> (eg. --map-aliases /Users/<User Name>:/Volumes/Home)")
+                Such map is delimited by a colon, ':', and specified as <LOCAL_DIR>:<REMOTE_DIR> (eg. --map-aliases /Users/<User Name>:/Volumes/Home).  \
+                Multiple maps may be specified delimited by a comma, ','.")
                 .use_value_delimiter(true)
                 .takes_value(true)
                 .value_parser(clap::builder::ValueParser::os_string())
