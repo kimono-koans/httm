@@ -141,9 +141,10 @@ fn get_all_snap_versions(
                 .datasets_of_interest
                 .par_iter()
                 .flat_map(|dataset_type| get_datasets_for_search(config, pathdata, dataset_type))
-                .map(|dataset_for_search| get_search_bundle(config, pathdata, &dataset_for_search))
+                .flat_map(|dataset_for_search| {
+                    get_file_search_bundle(config, pathdata, &dataset_for_search)
+                })
         })
-        .flatten()
         .flatten()
         .flatten()
         .flat_map(|search_bundle| get_versions_per_dataset(&search_bundle))
@@ -205,7 +206,7 @@ pub fn get_datasets_for_search(
     Ok(datasets_for_search)
 }
 
-pub fn get_search_bundle(
+pub fn get_file_search_bundle(
     config: &Config,
     pathdata: &PathData,
     datasets_for_search: &DatasetsForSearch,
