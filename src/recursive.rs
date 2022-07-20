@@ -25,9 +25,9 @@ use skim::prelude::*;
 
 use crate::display::display_exec;
 use crate::interactive::SelectionCandidate;
+use crate::lookup_deleted::deleted_lookup_exec;
 use crate::lookup_versions::versions_lookup_exec;
 use crate::utility::{httm_is_dir, print_output_buf, BasicDirEntryInfo, HttmError, PathData};
-use crate::{lookup_deleted::deleted_lookup_exec, DEV_DIRECTORY, PROC_DIRECTORY, SYS_DIRECTORY};
 use crate::{Config, DeletedMode, ExecMode, BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_HIDDEN_DIRECTORY};
 
 pub fn display_recursive_wrapper(
@@ -186,14 +186,6 @@ fn is_filter_dir(config: &Config, dir_entry: &DirEntry) -> bool {
     // partial eq for paths is comparison of components iter
     let path = dir_entry.path();
 
-    let fallback = |path: &Path| {
-        let proc = Path::new(PROC_DIRECTORY);
-        let dev = Path::new(DEV_DIRECTORY);
-        let sys = Path::new(SYS_DIRECTORY);
-
-        matches!(&path, n if n == &proc || n == &dev || n == &sys)
-    };
-
     // never check the hidden snapshot directory for live files (duh)
     // didn't think this was possible until I saw a SMB share return
     // a .zfs dir entry
@@ -201,39 +193,35 @@ fn is_filter_dir(config: &Config, dir_entry: &DirEntry) -> bool {
         return true;
     }
 
-    // is a common path for btrfs or is a non-supported dataset
-    match &config.dataset_collection.opt_map_of_aliases {
-        None => {
-            // is a common btrfs snapshot dir
-            match &config.dataset_collection.opt_common_snap_dir {
-                Some(common_snap_dir) => {
-                    if path == *common_snap_dir {
-                        return true;
-                    }
-                }
-                None => (),
-            }
+    // is a common path for btrfs or is a non-supported dataset?
 
-            // check whether user requested this dir specifically, then we will show
-            let interactive_requested_dir = config
-                .requested_dir
-                .as_ref()
-                .expect("interactive_requested_dir must always be Some in any recursive mode")
-                .path_buf
-                .as_path();
-
-            // is a non-supported dataset
-            if path == interactive_requested_dir {
-                false
-            } else {
-                config
-                    .dataset_collection
-                    .vec_of_filter_dirs
-                    .par_iter()
-                    .any(|filter_dir| path == *filter_dir)
+    // is a common btrfs snapshot dir?
+    match &config.dataset_collection.opt_common_snap_dir {
+        Some(common_snap_dir) => {
+            if path == *common_snap_dir {
+                return true;
             }
         }
-        Some(_) => fallback(&path),
+        None => (),
+    }
+
+    let interactive_requested_dir = config
+        .requested_dir
+        .as_ref()
+        .expect("interactive_requested_dir must always be Some in any recursive mode")
+        .path_buf
+        .as_path();
+
+    // check whether user requested this dir specifically, then we will show
+    if path == interactive_requested_dir {
+        false
+    // else: is a non-supported dataset?
+    } else {
+        config
+            .dataset_collection
+            .vec_of_filter_dirs
+            .par_iter()
+            .any(|filter_dir| path == *filter_dir)
     }
 }
 

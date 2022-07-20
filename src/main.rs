@@ -71,10 +71,6 @@ pub const ZFS_HIDDEN_DIRECTORY: &str = ".zfs";
 pub const ZFS_SNAPSHOT_DIRECTORY: &str = ".zfs/snapshot";
 pub const BTRFS_SNAPPER_HIDDEN_DIRECTORY: &str = ".snapshots";
 pub const BTRFS_SNAPPER_SUFFIX: &str = "snapshot";
-pub const ROOT_DIRECTORY: &str = "/";
-pub const PROC_DIRECTORY: &str = "/proc";
-pub const SYS_DIRECTORY: &str = "/sys";
-pub const DEV_DIRECTORY: &str = "/dev";
 
 pub const PHANTOM_DATE: SystemTime = SystemTime::UNIX_EPOCH;
 pub const PHANTOM_SIZE: u64 = 0u64;
