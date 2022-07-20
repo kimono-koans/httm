@@ -196,13 +196,10 @@ fn is_filter_dir(config: &Config, dir_entry: &DirEntry) -> bool {
     // is a common path for btrfs or is a non-supported dataset?
 
     // is a common btrfs snapshot dir?
-    match &config.dataset_collection.opt_common_snap_dir {
-        Some(common_snap_dir) => {
-            if path == *common_snap_dir {
-                return true;
-            }
+    if let Some(common_snap_dir) = &config.dataset_collection.opt_common_snap_dir {
+        if path == *common_snap_dir {
+            return true;
         }
-        None => (),
     }
 
     let interactive_requested_dir = config
