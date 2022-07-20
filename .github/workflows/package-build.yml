@@ -39,7 +39,7 @@ jobs:
       uses: actions-rs/cargo@v1
       with:
         command: login
-        args: ${{ secrets.CRATES_TOKEN }}
+        args: ${{ secrets.CARGO_REGISTRY_TOKEN }}
     - name: cargo publish
       env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
