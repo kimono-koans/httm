@@ -84,7 +84,7 @@ pub fn parse_aliases(
             if local_dir.exists() && snap_dir.exists() {
                 Some((local_dir, snap_dir))
             } else {
-                eprintln!("Error: Invalid httm alias. At least one path specified, does not exist, or is not mounted: {:?}:{:?}", local_dir, snap_dir);
+                eprintln!("Warning: At least one alias path specified, does not exist, or is not mounted: {:?}:{:?}", local_dir, snap_dir);
                 None
             }
         })
