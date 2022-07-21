@@ -720,22 +720,22 @@ fn exec() -> HttmResult<()> {
         // ExecMode::LastSnap will never return back, its a shortcut to select and restore themselves
         ExecMode::Interactive | ExecMode::LastSnap(_) => {
             let browse_result = &interactive_exec(config.clone())?;
-            versions_lookup_exec(config.clone(), browse_result)?
+            versions_lookup_exec(config.as_ref(), browse_result)?
         }
         // ExecMode::Display will be just printed, we already know the paths
-        ExecMode::Display => versions_lookup_exec(config.clone(), &config.paths)?,
+        ExecMode::Display => versions_lookup_exec(config.as_ref(), &config.paths)?,
         // ExecMode::DisplayRecursive and ExecMode::SnapFileMount won't ever return back to this function
         ExecMode::DisplayRecursive => display_recursive_wrapper(config.clone())?,
         ExecMode::SnapFileMount => take_snapshot(config.clone())?,
         // ExecMode::MountsForFiles will print its output elsewhere, as it's different from normal display output
         ExecMode::MountsForFiles => {
-            display_mounts_for_files(config.clone())?;
+            display_mounts_for_files(config.as_ref())?;
             std::process::exit(0)
         }
     };
 
     // and display
-    let output_buf = display_exec(config, &snaps_and_live_set)?;
+    let output_buf = display_exec(config.as_ref(), &snaps_and_live_set)?;
     print_output_buf(output_buf)?;
 
     Ok(())

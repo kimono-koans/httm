@@ -19,7 +19,6 @@ use std::{
     ffi::OsString,
     fs::read_dir,
     path::{Path, PathBuf},
-    sync::Arc,
     time::SystemTime,
 };
 
@@ -30,7 +29,7 @@ use crate::utility::{BasicDirEntryInfo, HttmError, PathData};
 use crate::{AHashMap as HashMap, Config, HttmResult};
 
 pub fn deleted_lookup_exec(
-    config: Arc<Config>,
+    config: &Config,
     requested_dir: &Path,
 ) -> HttmResult<Vec<BasicDirEntryInfo>> {
     // we always need a requesting dir because we are comparing the files in the
@@ -49,11 +48,9 @@ pub fn deleted_lookup_exec(
             config
                 .datasets_of_interest
                 .iter()
-                .flat_map(|dataset_type| {
-                    get_datasets_for_search(config.clone(), pathdata, dataset_type)
-                })
+                .flat_map(|dataset_type| get_datasets_for_search(config, pathdata, dataset_type))
                 .flat_map(|datasets_of_interest| {
-                    get_file_search_bundle(config.clone(), pathdata, &datasets_of_interest)
+                    get_file_search_bundle(config, pathdata, &datasets_of_interest)
                 })
         })
         .flatten()

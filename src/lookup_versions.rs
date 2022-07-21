@@ -17,7 +17,6 @@
 
 use std::{
     path::{Path, PathBuf},
-    sync::Arc,
     time::SystemTime,
 };
 
@@ -39,13 +38,13 @@ pub struct FileSearchBundle {
 }
 
 pub fn versions_lookup_exec(
-    config: Arc<Config>,
+    config: &Config,
     vec_pathdata: &[PathData],
 ) -> HttmResult<[Vec<PathData>; 2]> {
     let all_snap_versions: Vec<PathData> = if config.opt_no_snap {
         Vec::new()
     } else {
-        get_all_snap_versions(config.clone(), vec_pathdata)?
+        get_all_snap_versions(config, vec_pathdata)?
     };
 
     // create vec of live copies - unless user doesn't want it!
@@ -70,23 +69,17 @@ pub fn versions_lookup_exec(
     Ok([all_snap_versions, live_versions])
 }
 
-fn get_all_snap_versions(
-    config: Arc<Config>,
-    vec_pathdata: &[PathData],
-) -> HttmResult<Vec<PathData>> {
+fn get_all_snap_versions(config: &Config, vec_pathdata: &[PathData]) -> HttmResult<Vec<PathData>> {
     // create vec of all local and replicated backups at once
     let all_snap_versions: Vec<PathData> = vec_pathdata
         .par_iter()
         .map(|pathdata| {
             config
-                .as_ref()
                 .datasets_of_interest
                 .par_iter()
-                .flat_map(|dataset_type| {
-                    get_datasets_for_search(config.clone(), pathdata, dataset_type)
-                })
+                .flat_map(|dataset_type| get_datasets_for_search(config, pathdata, dataset_type))
                 .flat_map(|dataset_for_search| {
-                    get_file_search_bundle(config.clone(), pathdata, &dataset_for_search)
+                    get_file_search_bundle(config, pathdata, &dataset_for_search)
                 })
         })
         .flatten()
@@ -99,7 +92,7 @@ fn get_all_snap_versions(
 }
 
 pub fn get_datasets_for_search(
-    config: Arc<Config>,
+    config: &Config,
     pathdata: &PathData,
     requested_dataset_type: &SnapshotDatasetType,
 ) -> HttmResult<DatasetsForSearch> {
@@ -151,7 +144,7 @@ pub fn get_datasets_for_search(
 }
 
 pub fn get_file_search_bundle(
-    config: Arc<Config>,
+    config: &Config,
     pathdata: &PathData,
     datasets_for_search: &DatasetsForSearch,
 ) -> HttmResult<Vec<FileSearchBundle>> {
@@ -166,8 +159,7 @@ pub fn get_file_search_bundle(
             let proximate_dataset_mount = &datasets_for_search.proximate_dataset_mount;
             // this prefix removal is why we always need the proximate dataset name, even when we are searching an alternate replicated filesystem
 
-            let relative_path =
-                get_relative_path(config.clone(), pathdata, proximate_dataset_mount)?;
+            let relative_path = get_relative_path(config, pathdata, proximate_dataset_mount)?;
 
             let opt_snap_mounts = config
                 .dataset_collection
@@ -184,7 +176,7 @@ pub fn get_file_search_bundle(
 }
 
 fn get_relative_path(
-    config: Arc<Config>,
+    config: &Config,
     pathdata: &PathData,
     proximate_dataset_mount: &Path,
 ) -> HttmResult<PathBuf> {

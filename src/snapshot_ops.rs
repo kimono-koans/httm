@@ -113,7 +113,8 @@ pub fn take_snapshot(config: Arc<Config>) -> HttmResult<[Vec<PathData>; 2]> {
         std::process::exit(0)
     }
 
-    let mounts_for_files: BTreeMap<PathData, Vec<PathData>> = get_mounts_for_files(config.clone())?;
+    let mounts_for_files: BTreeMap<PathData, Vec<PathData>> =
+        get_mounts_for_files(config.as_ref())?;
 
     if let Ok(zfs_command) = which("zfs") {
         exec_zfs_snapshot(config, &zfs_command, &mounts_for_files)

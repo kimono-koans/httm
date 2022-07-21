@@ -15,7 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::{borrow::Cow, collections::BTreeMap, sync::Arc, time::SystemTime};
+use std::{borrow::Cow, collections::BTreeMap, time::SystemTime};
 
 use chrono::{DateTime, Local};
 use number_prefix::NumberPrefix;
@@ -35,7 +35,7 @@ const NOT_SO_PRETTY_FIXED_WIDTH_PADDING: &str = "\t";
 const QUOTATION_MARKS_LEN: usize = 2;
 
 pub fn display_exec(
-    config: Arc<Config>,
+    config: &Config,
     snaps_and_live_set: &[Vec<PathData>; 2],
 ) -> HttmResult<String> {
     let output_buffer = if config.opt_raw || config.opt_zeros {
@@ -47,7 +47,7 @@ pub fn display_exec(
     Ok(output_buffer)
 }
 
-fn display_raw(config: Arc<Config>, snaps_and_live_set: &[Vec<PathData>; 2]) -> HttmResult<String> {
+fn display_raw(config: &Config, snaps_and_live_set: &[Vec<PathData>; 2]) -> HttmResult<String> {
     let delimiter = if config.opt_zeros { '\0' } else { '\n' };
 
     // so easy!
@@ -63,10 +63,7 @@ fn display_raw(config: Arc<Config>, snaps_and_live_set: &[Vec<PathData>; 2]) -> 
     Ok(write_out_buffer)
 }
 
-fn display_pretty(
-    config: Arc<Config>,
-    snaps_and_live_set: &[Vec<PathData>; 2],
-) -> HttmResult<String> {
+fn display_pretty(config: &Config, snaps_and_live_set: &[Vec<PathData>; 2]) -> HttmResult<String> {
     let (size_padding_len, fancy_border_string) = calculate_pretty_padding(snaps_and_live_set);
 
     let write_out_buffer = snaps_and_live_set
@@ -209,8 +206,8 @@ fn calculate_pretty_padding(snaps_and_live_set: &[Vec<PathData>]) -> (usize, Str
     (size_padding_len, fancy_border_string)
 }
 
-pub fn display_mounts_for_files(config: Arc<Config>) -> HttmResult<()> {
-    let mounts_for_files = get_mounts_for_files(config.clone())?;
+pub fn display_mounts_for_files(config: &Config) -> HttmResult<()> {
+    let mounts_for_files = get_mounts_for_files(config)?;
 
     let output_buf = if config.opt_raw || config.opt_zeros {
         display_exec(
@@ -230,7 +227,7 @@ pub fn display_mounts_for_files(config: Arc<Config>) -> HttmResult<()> {
 }
 
 fn display_ordered_map(
-    config: Arc<Config>,
+    config: &Config,
     map: &BTreeMap<PathData, Vec<PathData>>,
 ) -> HttmResult<String> {
     let write_out_buffer = if config.opt_no_pretty {

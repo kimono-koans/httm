@@ -242,7 +242,7 @@ fn enumerate_deleted(
     tx_item: &SkimItemSender,
 ) -> HttmResult<()> {
     // obtain all unique deleted, policy is one version for each file, latest in time
-    let deleted = deleted_lookup_exec(config.clone(), requested_dir)?;
+    let deleted = deleted_lookup_exec(config.as_ref(), requested_dir)?;
 
     // combined entries will be sent or printed, but we need the vec_dirs to recurse
     let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) = deleted
@@ -427,9 +427,9 @@ fn print_display_recursive(config: Arc<Config>, entries: Vec<BasicDirEntryInfo>)
         .map(|basic_dir_entry_info| PathData::from(basic_dir_entry_info.path.as_path()))
         .collect();
 
-    let snaps_and_live_set = versions_lookup_exec(config.clone(), &pseudo_live_set)?;
+    let snaps_and_live_set = versions_lookup_exec(config.as_ref(), &pseudo_live_set)?;
 
-    let output_buf = display_exec(config, &snaps_and_live_set)?;
+    let output_buf = display_exec(config.as_ref(), &snaps_and_live_set)?;
 
     print_output_buf(output_buf)?;
 

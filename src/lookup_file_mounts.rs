@@ -15,7 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::{collections::BTreeMap, sync::Arc};
+use std::collections::BTreeMap;
 
 use itertools::Itertools;
 use rayon::prelude::*;
@@ -28,7 +28,7 @@ use crate::{
 use crate::{Config, HttmResult, SnapshotDatasetType};
 
 #[allow(clippy::type_complexity)]
-pub fn get_mounts_for_files(config: Arc<Config>) -> HttmResult<BTreeMap<PathData, Vec<PathData>>> {
+pub fn get_mounts_for_files(config: &Config) -> HttmResult<BTreeMap<PathData, Vec<PathData>>> {
     // we only check for phantom files in "mount for file" mode because
     // people should be able to search for deleted files in other modes
     let (phantom_files, non_phantom_files): (Vec<&PathData>, Vec<&PathData>) = config
@@ -59,9 +59,7 @@ pub fn get_mounts_for_files(config: Arc<Config>) -> HttmResult<BTreeMap<PathData
         .map(|pathdata| {
             let datasets: Vec<DatasetsForSearch> = selected_datasets
                 .iter()
-                .flat_map(|dataset_type| {
-                    get_datasets_for_search(config.clone(), pathdata, dataset_type)
-                })
+                .flat_map(|dataset_type| get_datasets_for_search(config, pathdata, dataset_type))
                 .collect();
             (pathdata.clone(), datasets)
         })

@@ -83,9 +83,9 @@ impl SelectionCandidate {
         });
 
         // finally run search on those paths
-        let snaps_and_live_set = versions_lookup_exec(gen_config.clone(), &gen_config.paths)?;
+        let snaps_and_live_set = versions_lookup_exec(gen_config.as_ref(), &gen_config.paths)?;
         // and display
-        let output_buf = display_exec(gen_config, &snaps_and_live_set)?;
+        let output_buf = display_exec(gen_config.as_ref(), &snaps_and_live_set)?;
 
         Ok(output_buf)
     }
@@ -234,7 +234,7 @@ fn browse_view(config: Arc<Config>, requested_dir: &PathData) -> HttmResult<Vec<
 }
 
 fn interactive_select(config: Arc<Config>, vec_paths: &[PathData]) -> HttmResult<()> {
-    let snaps_and_live_set = versions_lookup_exec(config.clone(), vec_paths)?;
+    let snaps_and_live_set = versions_lookup_exec(config.as_ref(), vec_paths)?;
 
     let path_string = match &config.exec_mode {
         ExecMode::LastSnap(request_relative) => {
@@ -264,7 +264,7 @@ fn interactive_select(config: Arc<Config>, vec_paths: &[PathData]) -> HttmResult
         }
         _ => {
             // same stuff we do at fn exec, snooze...
-            let selection_buffer = display_exec(config.clone(), &snaps_and_live_set)?;
+            let selection_buffer = display_exec(config.as_ref(), &snaps_and_live_set)?;
             // get the file name
             let mut requested_file_name = select_restore_view(&selection_buffer, false)?;
             let res_path_string;
@@ -368,7 +368,7 @@ fn interactive_restore(
         // corner case: what if multiple selected paths had the same file name,
         // but were in different directories? let's make sure we have only one match
         let opt_og_pathdata = vec_paths.iter().find_map(|pathdata| {
-            match versions_lookup_exec(config.clone(), &[pathdata.clone()]).ok() {
+            match versions_lookup_exec(config.as_ref(), &[pathdata.clone()]).ok() {
                 // safe to index into snaps, known len of 2 for set
                 Some(pathdata_set) => pathdata_set[0].iter().find_map(|pathdata| {
                     if pathdata == &snap_pathdata {
