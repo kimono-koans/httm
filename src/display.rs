@@ -24,7 +24,7 @@ use terminal_size::{terminal_size, Height, Width};
 
 use crate::lookup_versions::get_mounts_for_files;
 use crate::utility::{paint_string, print_output_buf, PathData};
-use crate::Config;
+use crate::{Config, HttmResult};
 
 // 2 space wide padding - used between date and size, and size and path
 const PRETTY_FIXED_WIDTH_PADDING: &str = "  ";
@@ -38,7 +38,7 @@ const QUOTATION_MARKS_LEN: usize = 2;
 pub fn display_exec(
     config: &Config,
     snaps_and_live_set: &[Vec<PathData>; 2],
-) -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
+) -> HttmResult<String> {
     let output_buffer = if config.opt_raw || config.opt_zeros {
         display_raw(config, snaps_and_live_set)?
     } else {
@@ -48,10 +48,7 @@ pub fn display_exec(
     Ok(output_buffer)
 }
 
-fn display_raw(
-    config: &Config,
-    snaps_and_live_set: &[Vec<PathData>; 2],
-) -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
+fn display_raw(config: &Config, snaps_and_live_set: &[Vec<PathData>; 2]) -> HttmResult<String> {
     let delimiter = if config.opt_zeros { '\0' } else { '\n' };
 
     // so easy!
@@ -67,10 +64,7 @@ fn display_raw(
     Ok(write_out_buffer)
 }
 
-fn display_pretty(
-    config: &Config,
-    snaps_and_live_set: &[Vec<PathData>; 2],
-) -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
+fn display_pretty(config: &Config, snaps_and_live_set: &[Vec<PathData>; 2]) -> HttmResult<String> {
     let (size_padding_len, fancy_border_string) = calculate_pretty_padding(snaps_and_live_set);
 
     let write_out_buffer = snaps_and_live_set
@@ -213,9 +207,7 @@ fn calculate_pretty_padding(snaps_and_live_set: &[Vec<PathData>]) -> (usize, Str
     (size_padding_len, fancy_border_string)
 }
 
-pub fn display_mounts_for_files(
-    config: &Config,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+pub fn display_mounts_for_files(config: &Config) -> HttmResult<()> {
     let mounts_for_files = get_mounts_for_files(config)?;
 
     let output_buf = if config.opt_raw || config.opt_zeros {
@@ -238,7 +230,7 @@ pub fn display_mounts_for_files(
 fn display_ordered_map(
     config: &Config,
     map: &BTreeMap<PathData, Vec<PathData>>,
-) -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
+) -> HttmResult<String> {
     let write_out_buffer = if config.opt_no_pretty {
         map.iter()
             .map(|(key, values)| {

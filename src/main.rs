@@ -34,6 +34,10 @@ pub type AHashBuildHasher = BuildHasherDefault<AHasher>;
 pub type AHashMap<K, V> = std::collections::HashMap<K, V, AHashBuildHasher>;
 use AHashMap as HashMap;
 
+// wrap this complex looking error type, which is used everywhere,
+// into something more simple looking
+pub type HttmResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync + 'static>>;
+
 use clap::{crate_name, crate_version, Arg, ArgMatches};
 use lookup_versions::DatasetsForSearch;
 use rayon::prelude::*;
@@ -375,9 +379,7 @@ pub struct Config {
 }
 
 impl Config {
-    fn from(
-        matches: ArgMatches,
-    ) -> Result<Self, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    fn from(matches: ArgMatches) -> HttmResult<Self> {
         if matches.is_present("ZSH_HOT_KEYS") {
             install_hot_keys()?
         }
@@ -697,7 +699,7 @@ fn main() {
     }
 }
 
-fn exec() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+fn exec() -> HttmResult<()> {
     // get our program args and generate a config for use
     // everywhere else
     let arg_matches = parse_args();

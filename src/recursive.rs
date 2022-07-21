@@ -28,11 +28,11 @@ use crate::interactive::SelectionCandidate;
 use crate::lookup_deleted::deleted_lookup_exec;
 use crate::lookup_versions::versions_lookup_exec;
 use crate::utility::{httm_is_dir, print_output_buf, BasicDirEntryInfo, HttmError, PathData};
-use crate::{Config, DeletedMode, ExecMode, BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_HIDDEN_DIRECTORY};
+use crate::{
+    Config, DeletedMode, ExecMode, HttmResult, BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_HIDDEN_DIRECTORY,
+};
 
-pub fn display_recursive_wrapper(
-    config: &Config,
-) -> Result<[Vec<PathData>; 2], Box<dyn std::error::Error + Send + Sync + 'static>> {
+pub fn display_recursive_wrapper(config: &Config) -> HttmResult<[Vec<PathData>; 2]> {
     // won't be sending anything anywhere, this just allows us to reuse enumerate_directory
     let (dummy_tx_item, _): (SkimItemSender, SkimItemReceiver) = unbounded();
     let config_clone = Arc::new(config.clone());
@@ -56,7 +56,7 @@ pub fn recursive_exec(
     config: Arc<Config>,
     tx_item: &SkimItemSender,
     requested_dir: &Path,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+) -> HttmResult<()> {
     // pass this thread_pool's scope to enumerate_directory, and spawn threads from within this scope
     //
     // "in_place_scope" means don't spawn another thread, we already have a new system thread for this
@@ -87,7 +87,7 @@ fn enumerate_live_versions(
     tx_item: &SkimItemSender,
     requested_dir: &Path,
     deleted_scope: &Scope,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+) -> HttmResult<()> {
     // combined entries will be sent or printed, but we need the vec_dirs to recurse
     let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
         get_entries_partitioned(config.clone(), requested_dir)?;
@@ -158,10 +158,7 @@ fn enumerate_live_versions(
 fn get_entries_partitioned(
     config: Arc<Config>,
     requested_dir: &Path,
-) -> Result<
-    (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>),
-    Box<dyn std::error::Error + Send + Sync + 'static>,
-> {
+) -> HttmResult<(Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>)> {
     //separates entries into dirs and files
     let (vec_dirs, vec_files) = read_dir(&requested_dir)?
         .flatten()
@@ -243,7 +240,7 @@ fn enumerate_deleted(
     config: Arc<Config>,
     requested_dir: &Path,
     tx_item: &SkimItemSender,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+) -> HttmResult<()> {
     // obtain all unique deleted, policy is one version for each file, latest in time
     let deleted = deleted_lookup_exec(&config, requested_dir)?;
 
@@ -297,14 +294,14 @@ fn get_entries_behind_deleted_dir(
     tx_item: &SkimItemSender,
     deleted_dir: &Path,
     requested_dir: &Path,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+) -> HttmResult<()> {
     fn recurse_behind_deleted_dir(
         config: Arc<Config>,
         tx_item: &SkimItemSender,
         dir_name: &Path,
         from_deleted_dir: &Path,
         from_requested_dir: &Path,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    ) -> HttmResult<()> {
         // deleted_dir_on_snap is the path from the deleted dir on the snapshot
         // pseudo_live_dir is the path from the fake, deleted directory that once was
         let deleted_dir_on_snap = &from_deleted_dir.to_path_buf().join(&dir_name);
@@ -376,7 +373,7 @@ fn display_or_transmit(
     entries: Vec<BasicDirEntryInfo>,
     is_phantom: bool,
     tx_item: &SkimItemSender,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+) -> HttmResult<()> {
     // send to the interactive view, or print directly, never return back
     match config.exec_mode {
         ExecMode::Interactive | ExecMode::LastSnap(_) => {
@@ -406,7 +403,7 @@ fn transmit_entries(
     entries: Vec<BasicDirEntryInfo>,
     is_phantom: bool,
     tx_item: &SkimItemSender,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+) -> HttmResult<()> {
     // don't want a par_iter here because it will block and wait for all
     // results, instead of printing and recursing into the subsequent dirs
     entries.into_iter().for_each(|basic_dir_entry_info| {
@@ -422,10 +419,7 @@ fn transmit_entries(
     Ok(())
 }
 
-fn print_display_recursive(
-    config: Arc<Config>,
-    entries: Vec<BasicDirEntryInfo>,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+fn print_display_recursive(config: Arc<Config>, entries: Vec<BasicDirEntryInfo>) -> HttmResult<()> {
     let pseudo_live_set: Vec<PathData> = entries
         .iter()
         .map(|basic_dir_entry_info| PathData::from(basic_dir_entry_info.path.as_path()))

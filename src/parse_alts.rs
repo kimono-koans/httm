@@ -21,7 +21,7 @@ use rayon::prelude::*;
 
 use crate::lookup_versions::DatasetsForSearch;
 use crate::utility::HttmError;
-use crate::{AHashMap as HashMap, FilesystemType};
+use crate::{AHashMap as HashMap, FilesystemType, HttmResult};
 
 // instead of looking up, precompute possible alt replicated mounts before exec
 pub fn precompute_alt_replicated(
@@ -39,7 +39,7 @@ pub fn precompute_alt_replicated(
 fn get_alt_replicated_datasets(
     proximate_dataset_mount: &Path,
     map_of_datasets: &HashMap<PathBuf, (String, FilesystemType)>,
-) -> Result<DatasetsForSearch, Box<dyn std::error::Error + Send + Sync + 'static>> {
+) -> HttmResult<DatasetsForSearch> {
     let proximate_dataset_fsname = match &map_of_datasets.get(proximate_dataset_mount) {
         Some((proximate_dataset_fsname, _)) => proximate_dataset_fsname.clone(),
         None => {

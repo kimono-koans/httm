@@ -22,7 +22,7 @@ use once_cell::unsync::OnceCell;
 
 use crate::interactive::SelectionCandidate;
 use crate::{
-    FilesystemType, BTRFS_SNAPPER_HIDDEN_DIRECTORY, PHANTOM_DATE, PHANTOM_SIZE,
+    FilesystemType, HttmResult, BTRFS_SNAPPER_HIDDEN_DIRECTORY, PHANTOM_DATE, PHANTOM_SIZE,
     ZFS_SNAPSHOT_DIRECTORY,
 };
 
@@ -49,7 +49,7 @@ pub fn copy_recursive(src: &Path, dst: &Path) -> io::Result<()> {
     Ok(())
 }
 
-pub fn read_stdin() -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sync + 'static>> {
+pub fn read_stdin() -> HttmResult<Vec<String>> {
     let stdin = std::io::stdin();
     let mut stdin = stdin.lock();
     let mut buffer = Vec::new();
@@ -186,7 +186,7 @@ impl PaintString for &SelectionCandidate {
     }
 }
 
-pub fn install_hot_keys() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+pub fn install_hot_keys() -> HttmResult<()> {
     // get our home directory
     let home_dir = if let Ok(home) = std::env::var("HOME") {
         if let Ok(path) = PathBuf::from(&home).canonicalize() {
@@ -285,9 +285,7 @@ fn cmp_path<A: AsRef<Path>, B: AsRef<Path>>(a: A, b: B) -> Option<PathBuf> {
     }
 }
 
-pub fn print_output_buf(
-    output_buf: String,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+pub fn print_output_buf(output_buf: String) -> HttmResult<()> {
     // mutex keeps threads from writing over each other
     let out = std::io::stdout();
     let mut out_locked = out.lock();
@@ -444,9 +442,7 @@ impl PathData {
     }
 }
 
-pub fn get_fs_type_from_hidden_dir(
-    dataset_mount: &Path,
-) -> Result<FilesystemType, Box<dyn std::error::Error + Send + Sync + 'static>> {
+pub fn get_fs_type_from_hidden_dir(dataset_mount: &Path) -> HttmResult<FilesystemType> {
     // set fstype, known by whether there is a ZFS hidden snapshot dir in the root dir
     let fs_type = if dataset_mount
         .join(ZFS_SNAPSHOT_DIRECTORY)

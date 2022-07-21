@@ -26,12 +26,12 @@ use itertools::Itertools;
 
 use crate::lookup_versions::{get_datasets_for_search, get_file_search_bundle, FileSearchBundle};
 use crate::utility::{BasicDirEntryInfo, HttmError, PathData};
-use crate::{AHashMap as HashMap, Config};
+use crate::{AHashMap as HashMap, Config, HttmResult};
 
 pub fn deleted_lookup_exec(
     config: &Config,
     requested_dir: &Path,
-) -> Result<Vec<BasicDirEntryInfo>, Box<dyn std::error::Error + Send + Sync + 'static>> {
+) -> HttmResult<Vec<BasicDirEntryInfo>> {
     // we always need a requesting dir because we are comparing the files in the
     // requesting dir to those of their relative dirs on snapshots
     let requested_dir_pathdata = PathData::from(requested_dir);
@@ -97,7 +97,7 @@ fn get_deleted_per_dataset(
     _config: &Config,
     requested_dir: &Path,
     search_bundle: &FileSearchBundle,
-) -> Result<Vec<BasicDirEntryInfo>, Box<dyn std::error::Error + Send + Sync + 'static>> {
+) -> HttmResult<Vec<BasicDirEntryInfo>> {
     // get all local entries we need to compare against these to know
     // what is a deleted file
     //
@@ -114,10 +114,7 @@ fn get_deleted_per_dataset(
     fn get_snap_filenames(
         mounts: &[PathBuf],
         relative_path: &Path,
-    ) -> Result<
-        HashMap<OsString, BasicDirEntryInfo>,
-        Box<dyn std::error::Error + Send + Sync + 'static>,
-    > {
+    ) -> HttmResult<HashMap<OsString, BasicDirEntryInfo>> {
         let basic_dir_entry_info_iter = mounts
             .iter()
             .map(|path| path.join(&relative_path))

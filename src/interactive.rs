@@ -26,7 +26,7 @@ use crate::recursive::recursive_exec;
 use crate::utility::{
     copy_recursive, paint_string, print_output_buf, timestamp_file, HttmError, PathData,
 };
-use crate::{Config, DeletedMode, ExecMode, InteractiveMode, RequestRelative};
+use crate::{Config, DeletedMode, ExecMode, HttmResult, InteractiveMode, RequestRelative};
 
 // these represent to items ready for selection and preview
 // contains everything needs to request preview and paint with
@@ -57,7 +57,7 @@ impl SelectionCandidate {
         }
     }
 
-    fn preview_view(&self) -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    fn preview_view(&self) -> HttmResult<String> {
         let config = &self.config;
         let path = &self.path;
         // generate a config for a preview display only
@@ -136,9 +136,7 @@ impl SkimItem for SelectionCandidate {
     }
 }
 
-pub fn interactive_exec(
-    config: &Config,
-) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
+pub fn interactive_exec(config: &Config) -> HttmResult<Vec<PathData>> {
     let vec_pathdata = match &config.requested_dir {
         // collect string paths from what we get from lookup_view
         Some(requested_dir) => {
@@ -185,10 +183,7 @@ pub fn interactive_exec(
     }
 }
 
-fn browse_view(
-    config: &Config,
-    requested_dir: &PathData,
-) -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sync + 'static>> {
+fn browse_view(config: &Config, requested_dir: &PathData) -> HttmResult<Vec<String>> {
     // prep thread spawn
     let requested_dir_clone = requested_dir.path_buf.clone();
     let (tx_item, rx_item): (SkimItemSender, SkimItemReceiver) = unbounded();
@@ -237,10 +232,7 @@ fn browse_view(
     Ok(res)
 }
 
-fn interactive_select(
-    config: &Config,
-    vec_paths: &[PathData],
-) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+fn interactive_select(config: &Config, vec_paths: &[PathData]) -> HttmResult<()> {
     let snaps_and_live_set = versions_lookup_exec(config, vec_paths)?;
 
     let path_string = match &config.exec_mode {
@@ -311,10 +303,7 @@ fn interactive_select(
     }
 }
 
-fn select_restore_view(
-    preview_buffer: &str,
-    reverse: bool,
-) -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
+fn select_restore_view(preview_buffer: &str, reverse: bool) -> HttmResult<String> {
     // build our browse view - less to do than before - no previews, looking through one 'lil buffer
     let skim_opts = SkimOptionsBuilder::default()
         .tac(reverse)
@@ -361,7 +350,7 @@ fn interactive_restore(
     config: &Config,
     parsed_str: &str,
     vec_paths: &[PathData],
-) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+) -> HttmResult<()> {
     // build pathdata from selection buffer parsed string
     //
     // request is also sanity check for snap path exists below when we check

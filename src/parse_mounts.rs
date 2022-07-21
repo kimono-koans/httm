@@ -25,21 +25,18 @@ use which::which;
 use crate::parse_snaps::precompute_snap_mounts;
 use crate::utility::{get_common_path, get_fs_type_from_hidden_dir, HttmError};
 use crate::{
-    AHashMap as HashMap, FilesystemType, AFP_FSTYPE, BTRFS_FSTYPE, NFS_FSTYPE, SMB_FSTYPE,
-    ZFS_FSTYPE, ZFS_SNAPSHOT_DIRECTORY,
+    AHashMap as HashMap, FilesystemType, HttmResult, AFP_FSTYPE, BTRFS_FSTYPE, NFS_FSTYPE,
+    SMB_FSTYPE, ZFS_FSTYPE, ZFS_SNAPSHOT_DIRECTORY,
 };
 
 // divide by the type of system we are on
 // Linux allows us the read proc mounts
 #[allow(clippy::type_complexity)]
-pub fn parse_mounts_exec() -> Result<
-    (
-        HashMap<PathBuf, (String, FilesystemType)>,
-        HashMap<PathBuf, Vec<PathBuf>>,
-        Vec<PathBuf>,
-    ),
-    Box<dyn std::error::Error + Send + Sync + 'static>,
-> {
+pub fn parse_mounts_exec() -> HttmResult<(
+    HashMap<PathBuf, (String, FilesystemType)>,
+    HashMap<PathBuf, Vec<PathBuf>>,
+    Vec<PathBuf>,
+)> {
     let (map_of_datasets, vec_filter_dirs) = if cfg!(target_os = "linux") {
         parse_from_proc_mounts()?
     } else {
@@ -54,10 +51,8 @@ pub fn parse_mounts_exec() -> Result<
 // parsing from proc mounts is both faster and necessary for certain btrfs features
 // for instance, allows us to read subvolumes mounts, like "/@" or "/@home"
 #[allow(clippy::type_complexity)]
-fn parse_from_proc_mounts() -> Result<
-    (HashMap<PathBuf, (String, FilesystemType)>, Vec<PathBuf>),
-    Box<dyn std::error::Error + Send + Sync + 'static>,
-> {
+fn parse_from_proc_mounts() -> HttmResult<(HashMap<PathBuf, (String, FilesystemType)>, Vec<PathBuf>)>
+{
     let (map_of_datasets, vec_of_filter_dirs): (
         HashMap<PathBuf, (String, FilesystemType)>,
         Vec<PathBuf>,
@@ -131,16 +126,11 @@ fn parse_from_proc_mounts() -> Result<
 // old fashioned parsing for non-Linux systems, nearly as fast, works everywhere with a mount command
 // both methods are much faster than using zfs command
 #[allow(clippy::type_complexity)]
-fn parse_from_mount_cmd() -> Result<
-    (HashMap<PathBuf, (String, FilesystemType)>, Vec<PathBuf>),
-    Box<dyn std::error::Error + Send + Sync + 'static>,
-> {
+fn parse_from_mount_cmd() -> HttmResult<(HashMap<PathBuf, (String, FilesystemType)>, Vec<PathBuf>)>
+{
     fn parse(
         mount_command: &Path,
-    ) -> Result<
-        (HashMap<PathBuf, (String, FilesystemType)>, Vec<PathBuf>),
-        Box<dyn std::error::Error + Send + Sync + 'static>,
-    > {
+    ) -> HttmResult<(HashMap<PathBuf, (String, FilesystemType)>, Vec<PathBuf>)> {
         let command_output =
             std::str::from_utf8(&ExecProcess::new(mount_command).output()?.stdout)?.to_owned();
 

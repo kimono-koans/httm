@@ -18,17 +18,14 @@
 use std::{ffi::OsString, path::Path, path::PathBuf};
 
 use crate::utility::{get_fs_type_from_hidden_dir, HttmError};
-use crate::{AHashMap as HashMap, FilesystemType};
+use crate::{AHashMap as HashMap, FilesystemType, HttmResult};
 
 pub fn parse_aliases(
     raw_local_dir: Option<OsString>,
     raw_snap_dir: Option<OsString>,
     pwd: &Path,
     opt_input_aliases: Option<Vec<String>>,
-) -> Result<
-    HashMap<PathBuf, (PathBuf, FilesystemType)>,
-    Box<dyn std::error::Error + Send + Sync + 'static>,
-> {
+) -> HttmResult<HashMap<PathBuf, (PathBuf, FilesystemType)>> {
     // user defined dir exists?: check that path contains the hidden snapshot directory
     let snap_point = if let Some(value) = raw_snap_dir {
         let snap_dir = PathBuf::from(value);
@@ -81,7 +78,6 @@ pub fn parse_aliases(
         aliases_iter.push(value)
     }
 
-    #[allow(clippy::type_complexity)]
     let map_of_aliases = aliases_iter
         .into_iter()
         .flat_map(|(local_dir, snap_dir)| {

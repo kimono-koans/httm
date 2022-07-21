@@ -24,18 +24,16 @@ use which::which;
 
 use crate::lookup_versions::get_mounts_for_files;
 use crate::utility::{print_output_buf, timestamp_file, HttmError, PathData};
-use crate::{AHashMap as HashMap, Config};
+use crate::{AHashMap as HashMap, Config, HttmResult};
 
 use crate::FilesystemType;
 
-pub fn take_snapshot(
-    config: &Config,
-) -> Result<[Vec<PathData>; 2], Box<dyn std::error::Error + Send + Sync + 'static>> {
+pub fn take_snapshot(config: &Config) -> HttmResult<[Vec<PathData>; 2]> {
     fn exec_zfs_snapshot(
         config: &Config,
         zfs_command: &Path,
         mounts_for_files: &BTreeMap<PathData, Vec<PathData>>,
-    ) -> Result<[Vec<PathData>; 2], Box<dyn std::error::Error + Send + Sync + 'static>> {
+    ) -> HttmResult<[Vec<PathData>; 2]> {
         // all snapshots should have the same timestamp
         let timestamp = timestamp_file(&SystemTime::now());
 

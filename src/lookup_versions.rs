@@ -28,7 +28,7 @@ use crate::{
     utility::{HttmError, PathData},
     ExecMode,
 };
-use crate::{AHashMap as HashMap, Config, FilesystemType, SnapshotDatasetType};
+use crate::{AHashMap as HashMap, Config, FilesystemType, HttmResult, SnapshotDatasetType};
 
 #[derive(Debug, Clone, Hash, PartialEq)]
 pub struct DatasetsForSearch {
@@ -45,7 +45,7 @@ pub struct FileSearchBundle {
 pub fn versions_lookup_exec(
     config: &Config,
     vec_pathdata: &[PathData],
-) -> Result<[Vec<PathData>; 2], Box<dyn std::error::Error + Send + Sync + 'static>> {
+) -> HttmResult<[Vec<PathData>; 2]> {
     let all_snap_versions: Vec<PathData> = if config.opt_no_snap {
         Vec::new()
     } else {
@@ -75,9 +75,7 @@ pub fn versions_lookup_exec(
 }
 
 #[allow(clippy::type_complexity)]
-pub fn get_mounts_for_files(
-    config: &Config,
-) -> Result<BTreeMap<PathData, Vec<PathData>>, Box<dyn std::error::Error + Send + Sync + 'static>> {
+pub fn get_mounts_for_files(config: &Config) -> HttmResult<BTreeMap<PathData, Vec<PathData>>> {
     // we only check for phantom files in "mount for file" mode because
     // people should be able to search for deleted files in other modes
     let (phantom_files, non_phantom_files): (Vec<&PathData>, Vec<&PathData>) = config
@@ -110,9 +108,9 @@ pub fn get_mounts_for_files(
                 .iter()
                 .flat_map(|dataset_type| get_datasets_for_search(config, pathdata, dataset_type))
                 .collect();
-            (pathdata, datasets)
+            (pathdata.clone(), datasets)
         })
-        .into_group_map_by(|(pathdata, _datasets_for_search)| pathdata.to_owned())
+        .into_group_map_by(|(pathdata, _datasets_for_search)| pathdata.clone())
         .into_iter()
         .map(|(pathdata, vec_datasets_for_search)| {
             let datasets: Vec<PathData> = vec_datasets_for_search
@@ -122,17 +120,14 @@ pub fn get_mounts_for_files(
                 .map(|path| PathData::from(path.as_path()))
                 .rev()
                 .collect();
-            (pathdata.to_owned(), datasets)
+            (pathdata, datasets)
         })
         .collect();
 
     Ok(mounts_for_files)
 }
 
-fn get_all_snap_versions(
-    config: &Config,
-    vec_pathdata: &[PathData],
-) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
+fn get_all_snap_versions(config: &Config, vec_pathdata: &[PathData]) -> HttmResult<Vec<PathData>> {
     // create vec of all local and replicated backups at once
     let all_snap_versions: Vec<PathData> = vec_pathdata
         .par_iter()
@@ -158,7 +153,7 @@ pub fn get_datasets_for_search(
     config: &Config,
     pathdata: &PathData,
     requested_dataset_type: &SnapshotDatasetType,
-) -> Result<DatasetsForSearch, Box<dyn std::error::Error + Send + Sync + 'static>> {
+) -> HttmResult<DatasetsForSearch> {
     // here, we take our file path and get back possibly multiple ZFS dataset mountpoints
     // and our most proximate dataset mount point (which is always the same) for
     // a single file
@@ -210,7 +205,7 @@ pub fn get_file_search_bundle(
     config: &Config,
     pathdata: &PathData,
     datasets_for_search: &DatasetsForSearch,
-) -> Result<Vec<FileSearchBundle>, Box<dyn std::error::Error + Send + Sync + 'static>> {
+) -> HttmResult<Vec<FileSearchBundle>> {
     datasets_for_search
         .datasets_of_interest
         .par_iter()
@@ -242,7 +237,7 @@ fn get_relative_path(
     config: &Config,
     pathdata: &PathData,
     proximate_dataset_mount: &Path,
-) -> Result<PathBuf, Box<dyn std::error::Error + Send + Sync + 'static>> {
+) -> HttmResult<PathBuf> {
     let default_path_strip = || pathdata.path_buf.strip_prefix(&proximate_dataset_mount);
 
     let relative_path = match &config.dataset_collection.opt_map_of_aliases {
@@ -280,26 +275,28 @@ fn get_alias_dataset(
 ) -> Option<PathBuf> {
     let ancestors: Vec<&Path> = pathdata.path_buf.ancestors().collect();
 
-    let opt_best_potential_alias: Option<&PathBuf> =
-        // find_map_first should return the first seq result with a par_iter
-        // but not with a par_bridge
-        ancestors.into_par_iter().find_map_first(|ancestor| {
-            map_of_datasets.get(ancestor).map(|(snap_dir, _fs_type)| snap_dir)
-        });
-
-    opt_best_potential_alias.cloned()
+    // find_map_first should return the first seq result with a par_iter
+    // but not with a par_bridge
+    ancestors
+        .into_par_iter()
+        .find_map_first(|ancestor| {
+            map_of_datasets
+                .get(ancestor)
+                .map(|(snap_dir, _fs_type)| snap_dir)
+        })
+        .cloned()
 }
 
 fn get_proximate_dataset(
     pathdata: &PathData,
     map_of_datasets: &HashMap<PathBuf, (String, FilesystemType)>,
-) -> Result<PathBuf, Box<dyn std::error::Error + Send + Sync + 'static>> {
+) -> HttmResult<PathBuf> {
     // for /usr/bin, we prefer the most proximate: /usr/bin to /usr and /
     // ancestors() iterates in this top-down order, when a value: dataset/fstype is available
     // we map to return the key, instead of the value
     let ancestors: Vec<&Path> = pathdata.path_buf.ancestors().collect();
 
-    let opt_best_potential_mountpoint: Option<&Path> =
+    let opt_best_potential_mountpoint: Option<PathBuf> =
         // find_map_first should return the first seq result with a par_iter
         // but not with a par_bridge
         ancestors.into_par_iter().find_map_first(|ancestor| {
@@ -309,21 +306,19 @@ fn get_proximate_dataset(
                 } else {
                     None
                 }
-        });
+        }).map(|path| path.to_path_buf());
 
     // do we have any mount points left? if not print error
-    match opt_best_potential_mountpoint.map(|path| path.to_path_buf()) {
-        Some(best_potential_mountpoint) => Ok(best_potential_mountpoint),
-        None => {
-            let msg = "httm could not identify any qualifying dataset.  Maybe consider specifying manually at SNAP_POINT?";
-            Err(HttmError::new(msg).into())
-        }
-    }
+    opt_best_potential_mountpoint.ok_or_else(|| {
+        HttmError::new(
+            "httm could not identify any qualifying dataset.  \
+            Maybe consider specifying manually at SNAP_POINT?",
+        )
+        .into()
+    })
 }
 
-fn get_versions_per_dataset(
-    search_bundle: &FileSearchBundle,
-) -> Result<Vec<PathData>, Box<dyn std::error::Error + Send + Sync + 'static>> {
+fn get_versions_per_dataset(search_bundle: &FileSearchBundle) -> HttmResult<Vec<PathData>> {
     // get the DirEntry for our snapshot path which will have all our possible
     // snapshots, like so: .zfs/snapshots/<some snap name>/
     //
@@ -332,10 +327,7 @@ fn get_versions_per_dataset(
     fn get_versions(
         snap_mounts: &[PathBuf],
         relative_path: &Path,
-    ) -> Result<
-        HashMap<(SystemTime, u64), PathData>,
-        Box<dyn std::error::Error + Send + Sync + 'static>,
-    > {
+    ) -> HttmResult<HashMap<(SystemTime, u64), PathData>> {
         let unique_versions = snap_mounts
             .par_iter()
             .map(|path| path.join(&relative_path))

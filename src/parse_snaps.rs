@@ -21,7 +21,7 @@ use rayon::prelude::*;
 use which::which;
 
 use crate::utility::HttmError;
-use crate::{AHashMap as HashMap, FilesystemType, ZFS_SNAPSHOT_DIRECTORY};
+use crate::{AHashMap as HashMap, FilesystemType, HttmResult, ZFS_SNAPSHOT_DIRECTORY};
 
 // fans out precompute of snap mounts to the appropriate function based on fstype
 pub fn precompute_snap_mounts(
@@ -63,12 +63,12 @@ pub fn precompute_snap_mounts(
 fn precompute_btrfs_snap_mounts(
     mount_point_path: &Path,
     root_mount_path: &Path,
-) -> Result<Vec<PathBuf>, Box<dyn std::error::Error + Send + Sync + 'static>> {
+) -> HttmResult<Vec<PathBuf>> {
     fn parse(
         mount_point_path: &Path,
         root_mount_path: &Path,
         btrfs_command: &Path,
-    ) -> Result<Vec<PathBuf>, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    ) -> HttmResult<Vec<PathBuf>> {
         let exec_command = btrfs_command;
         let arg_path = mount_point_path.to_string_lossy();
         let args = vec!["subvolume", "list", "-a", "-s", &arg_path];
