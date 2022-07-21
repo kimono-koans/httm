@@ -36,7 +36,7 @@ use AHashMap as HashMap;
 
 // wrap this complex looking error type, which is used everywhere,
 // into something more simple looking. This error, FYI, is really easy to use with rayon.
-pub type HttmResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync + 'static>>;
+pub type HttmResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
 use clap::{crate_name, crate_version, Arg, ArgMatches};
 use lookup_versions::DatasetsForSearch;
