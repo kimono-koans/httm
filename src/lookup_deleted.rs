@@ -55,7 +55,7 @@ pub fn deleted_lookup_exec(
         })
         .flatten()
         .flat_map(|search_bundle| {
-            get_deleted_per_dataset(config, &requested_dir_pathdata.path_buf, &search_bundle)
+            get_deleted_per_dataset(&requested_dir_pathdata.path_buf, &search_bundle)
         })
         .flatten();
 
@@ -94,7 +94,6 @@ where
 }
 
 fn get_deleted_per_dataset(
-    _config: &Config,
     requested_dir: &Path,
     search_bundle: &FileSearchBundle,
 ) -> HttmResult<Vec<BasicDirEntryInfo>> {
