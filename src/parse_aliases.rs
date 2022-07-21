@@ -82,12 +82,15 @@ pub fn parse_aliases(
         .into_iter()
         .flat_map(|(local_dir, snap_dir)| {
             if !local_dir.exists() || !snap_dir.exists() {
-                [local_dir, snap_dir].into_iter().for_each(|dir| {
-                    eprintln!(
+                [local_dir, snap_dir]
+                    .into_iter()
+                    .filter(|dir| !dir.exists())
+                    .for_each(|dir| {
+                        eprintln!(
                         "Warning: An alias path specified does not exist, or is not mounted: {:?}",
                         dir
                     )
-                });
+                    });
                 None
             } else {
                 Some((local_dir, snap_dir))
