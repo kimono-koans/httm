@@ -35,7 +35,7 @@ pub type AHashMap<K, V> = std::collections::HashMap<K, V, AHashBuildHasher>;
 use AHashMap as HashMap;
 
 // wrap this complex looking error type, which is used everywhere,
-// into something more simple looking
+// into something more simple looking. This error, FYI, is really easy to use with rayon.
 pub type HttmResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync + 'static>>;
 
 use clap::{crate_name, crate_version, Arg, ArgMatches};
@@ -709,7 +709,7 @@ fn exec() -> HttmResult<()> {
         eprintln!("{:#?}", config);
     }
 
-    // this handles the basic ExecMode::Display case, other process elsewhere
+    // fn exec() handles the basic display cases, and sends other cases to be processed elsewhere
     let snaps_and_live_set = match config.exec_mode {
         // ExecMode::Interactive may return back to this function to be printed
         // from an interactive browse must get the paths to print to display, or continue
@@ -725,7 +725,7 @@ fn exec() -> HttmResult<()> {
         // ExecMode::DisplayRecursive and ExecMode::SnapFileMount won't ever return back to this function
         ExecMode::DisplayRecursive => display_recursive_wrapper(&config)?,
         ExecMode::SnapFileMount => take_snapshot(&config)?,
-        // ExecMode::MountsForFiles will print it output elsewhere as it's different from normal display output
+        // ExecMode::MountsForFiles will print its output elsewhere, as it's different from normal display output
         ExecMode::MountsForFiles => {
             display_mounts_for_files(&config)?;
             std::process::exit(0)
