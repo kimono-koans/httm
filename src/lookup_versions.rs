@@ -342,23 +342,19 @@ fn get_versions_per_dataset(search_bundle: &FileSearchBundle) -> HttmResult<Vec<
         Ok(unique_versions)
     }
 
-    let (relative_path, opt_snap_mounts) =
-        { (&search_bundle.relative_path, &search_bundle.opt_snap_mounts) };
-
-    let snap_mounts = match opt_snap_mounts {
-        Some(snap_mounts) => snap_mounts.clone(),
-        // snap mounts is empty
-        None => {
-            return Err(HttmError::new(
+    let snap_mounts: Vec<PathBuf> = search_bundle
+        .opt_snap_mounts
+        .as_ref()
+        .ok_or_else(|| {
+            HttmError::new(
                 "If you are here, httm could find no snap mount for your files.  \
-            Iterator should just ignore/flatten the error.",
+        Iterator should just ignore/flatten the error.",
             )
-            .into());
-        }
-    };
+        })?
+        .clone();
 
     let unique_versions: HashMap<(SystemTime, u64), PathData> =
-        get_versions(&snap_mounts, relative_path)?;
+        get_versions(&snap_mounts, &search_bundle.relative_path)?;
 
     let mut vec_pathdata: Vec<PathData> = unique_versions.into_values().collect();
 

@@ -128,22 +128,19 @@ fn get_deleted_per_dataset(
         Ok(unique_snap_filenames)
     }
 
-    let (relative_path, opt_snap_mounts) =
-        { (&search_bundle.relative_path, &search_bundle.opt_snap_mounts) };
-
-    let snap_mounts: Vec<PathBuf> = match opt_snap_mounts {
-        Some(snap_mounts) => snap_mounts.clone(),
-        None => {
-            return Err(HttmError::new(
+    let snap_mounts: Vec<PathBuf> = search_bundle
+        .opt_snap_mounts
+        .as_ref()
+        .ok_or_else(|| {
+            HttmError::new(
                 "If you are here, httm could find no snap mount for your files.  \
-            Iterator should just ignore/flatten the error.",
+        Iterator should just ignore/flatten the error.",
             )
-            .into());
-        }
-    };
+        })?
+        .clone();
 
     let unique_snap_filenames: HashMap<OsString, BasicDirEntryInfo> =
-        get_snap_filenames(&snap_mounts, relative_path)?;
+        get_snap_filenames(&snap_mounts, &search_bundle.relative_path)?;
 
     // compare local filenames to all unique snap filenames - none values are unique, here
     let all_deleted_versions: Vec<BasicDirEntryInfo> = unique_snap_filenames
