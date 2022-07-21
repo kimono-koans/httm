@@ -381,7 +381,12 @@ pub struct Config {
 }
 
 impl Config {
-    fn from(matches: ArgMatches) -> HttmResult<Self> {
+    fn new() -> HttmResult<Self> {
+        let arg_matches = parse_args();
+        Config::from_matches(arg_matches)
+    }
+
+    fn from_matches(matches: ArgMatches) -> HttmResult<Self> {
         if matches.is_present("ZSH_HOT_KEYS") {
             install_hot_keys()?
         }
@@ -704,8 +709,7 @@ fn main() {
 fn exec() -> HttmResult<()> {
     // get our program args and generate a config for use
     // everywhere else
-    let arg_matches = parse_args();
-    let config = Arc::new(Config::from(arg_matches)?);
+    let config = Arc::new(Config::new()?);
 
     if config.opt_debug {
         eprintln!("{:#?}", config);
