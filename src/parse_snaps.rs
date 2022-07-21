@@ -119,9 +119,7 @@ fn precompute_btrfs_snap_mounts(
 }
 
 // similar to btrfs precompute, build paths to all snap mounts
-fn precompute_zfs_snap_mounts(
-    mount_point_path: &Path,
-) -> Result<Vec<PathBuf>, Box<dyn std::error::Error + Send + Sync + 'static>> {
+fn precompute_zfs_snap_mounts(mount_point_path: &Path) -> HttmResult<Vec<PathBuf>> {
     let snap_path = mount_point_path.join(ZFS_SNAPSHOT_DIRECTORY);
 
     let snapshot_locations: Vec<PathBuf> = read_dir(snap_path)?
