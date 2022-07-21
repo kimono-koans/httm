@@ -27,29 +27,18 @@ pub fn parse_aliases(
     opt_input_aliases: &Option<Vec<String>>,
 ) -> HttmResult<HashMap<PathBuf, (PathBuf, FilesystemType)>> {
     // user defined dir exists?: check that path contains the hidden snapshot directory
-    let snap_point = if let Some(value) = raw_snap_dir {
+    let snap_point = raw_snap_dir.as_ref().map(|value| {
         let snap_dir = PathBuf::from(value);
-        // local relative dir can be set at cmdline or as an env var, but defaults to current working directory
-        let local_dir = if let Some(value) = raw_local_dir {
-            let local_dir: PathBuf = PathBuf::from(value);
 
-            // little sanity check -- make sure the user defined local dir exist
-            if local_dir.metadata().is_ok() {
-                local_dir
-            } else {
-                return Err(HttmError::new(
-                    "Manually set local relative directory does not exist.  Please try another.",
-                )
-                .into());
-            }
-        } else {
-            pwd.to_path_buf()
+        // local relative dir can be set at cmdline or as an env var,
+        // but defaults to current working directory if empty
+        let local_dir = match raw_local_dir {
+            Some(value) => PathBuf::from(value),
+            None => pwd.to_path_buf(),
         };
 
-        Some((snap_dir, local_dir))
-    } else {
-        None
-    };
+        (snap_dir, local_dir)
+    });
 
     let mut aliases_iter: Vec<(PathBuf, PathBuf)> = match opt_input_aliases {
         Some(input_aliases) => {
