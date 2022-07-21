@@ -160,12 +160,13 @@ pub fn interactive_exec(config: &Config) -> HttmResult<Vec<PathData>> {
                 Some(first_path) => {
                     let selected_file = first_path.clone();
                     interactive_select(config, &[selected_file])?;
-                    // interactive select never returns so unreachable here
-                    unreachable!()
+                    unreachable!("interactive select never returns so unreachable here")
                 }
                 // Config::from should never allow us to have an instance where we don't
                 // have at least one path to use
-                None => unreachable!("config.paths.get(0) should never be a None value"),
+                None => unreachable!(
+                    "config.paths.get(0) should never be a None value in Interactive Mode"
+                ),
             }
         }
     };
