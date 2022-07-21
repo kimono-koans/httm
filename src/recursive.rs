@@ -90,7 +90,7 @@ fn enumerate_live_versions(
 ) -> HttmResult<()> {
     // combined entries will be sent or printed, but we need the vec_dirs to recurse
     let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
-        get_entries_partitioned(config.clone(), requested_dir)?;
+        get_entries_partitioned(config.as_ref(), requested_dir)?;
 
     // check exec mode and deleted mode, we do something different for each
     match config.exec_mode {
@@ -156,7 +156,7 @@ fn enumerate_live_versions(
 }
 
 fn get_entries_partitioned(
-    config: Arc<Config>,
+    config: &Config,
     requested_dir: &Path,
 ) -> HttmResult<(Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>)> {
     //separates entries into dirs and files
@@ -169,7 +169,7 @@ fn get_entries_partitioned(
             if config.opt_no_filter {
                 true
             } else {
-                !is_filter_dir(config.clone(), dir_entry)
+                !is_filter_dir(config, dir_entry)
             }
         })
         .map(|dir_entry| BasicDirEntryInfo::from(&dir_entry))
@@ -178,7 +178,7 @@ fn get_entries_partitioned(
     Ok((vec_dirs, vec_files))
 }
 
-fn is_filter_dir(config: Arc<Config>, dir_entry: &DirEntry) -> bool {
+fn is_filter_dir(config: &Config, dir_entry: &DirEntry) -> bool {
     // FYI path is always a relative path, but no need to canonicalize as
     // partial eq for paths is comparison of components iter
     let path = dir_entry.path();
@@ -308,7 +308,7 @@ fn get_entries_behind_deleted_dir(
         let pseudo_live_dir = &from_requested_dir.to_path_buf().join(&dir_name);
 
         let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
-            get_entries_partitioned(config.clone(), deleted_dir_on_snap)?;
+            get_entries_partitioned(config.as_ref(), deleted_dir_on_snap)?;
 
         // partition above is needed as vec_files will be used later
         // to determine dirs to recurse, here, we recombine to obtain
@@ -377,7 +377,7 @@ fn display_or_transmit(
     // send to the interactive view, or print directly, never return back
     match config.exec_mode {
         ExecMode::Interactive | ExecMode::LastSnap(_) => {
-            transmit_entries(config, entries, is_phantom, tx_item)?
+            transmit_entries(config.clone(), entries, is_phantom, tx_item)?
         }
         ExecMode::DisplayRecursive => {
             // passing a progress bar through multiple functions is a pain, and since we only need a global,
@@ -389,7 +389,7 @@ fn display_or_transmit(
             if entries.is_empty() {
                 PROGRESS_BAR.tick();
             } else {
-                print_display_recursive(config.clone(), entries)?;
+                print_display_recursive(config.as_ref(), entries)?;
                 // keeps spinner from squashing last line of output
                 eprintln!();
             }
@@ -421,15 +421,15 @@ fn transmit_entries(
     Ok(())
 }
 
-fn print_display_recursive(config: Arc<Config>, entries: Vec<BasicDirEntryInfo>) -> HttmResult<()> {
+fn print_display_recursive(config: &Config, entries: Vec<BasicDirEntryInfo>) -> HttmResult<()> {
     let pseudo_live_set: Vec<PathData> = entries
         .iter()
         .map(|basic_dir_entry_info| PathData::from(basic_dir_entry_info.path.as_path()))
         .collect();
 
-    let snaps_and_live_set = versions_lookup_exec(config.as_ref(), &pseudo_live_set)?;
+    let snaps_and_live_set = versions_lookup_exec(config, &pseudo_live_set)?;
 
-    let output_buf = display_exec(config.as_ref(), &snaps_and_live_set)?;
+    let output_buf = display_exec(config, &snaps_and_live_set)?;
 
     print_output_buf(output_buf)?;
 
