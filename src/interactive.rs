@@ -296,11 +296,7 @@ fn interactive_select(config: Arc<Config>, vec_paths: &[PathData]) -> HttmResult
 
     // continue to interactive_restore or print and exit here?
     if config.interactive_mode == InteractiveMode::Restore {
-        Ok(interactive_restore(
-            config,
-            &path_string,
-            vec_paths,
-        )?)
+        Ok(interactive_restore(config, &path_string, vec_paths)?)
     } else {
         let output_buf = format!("\"{}\"\n", &path_string);
         print_output_buf(output_buf)?;

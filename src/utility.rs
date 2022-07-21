@@ -289,7 +289,7 @@ pub fn print_output_buf(output_buf: String) -> HttmResult<()> {
     // mutex keeps threads from writing over each other
     let out = std::io::stdout();
     let mut out_locked = out.lock();
-    write!(out_locked, "{}", output_buf)?;
+    out_locked.write_all(output_buf.as_bytes())?;
     out_locked.flush()?;
 
     Ok(())

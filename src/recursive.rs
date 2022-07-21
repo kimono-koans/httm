@@ -390,6 +390,8 @@ fn display_or_transmit(
                 PROGRESS_BAR.tick();
             } else {
                 print_display_recursive(config.clone(), entries)?;
+                // keeps spinner from squashing last line of output
+                eprintln!();
             }
         }
         _ => unreachable!(),
