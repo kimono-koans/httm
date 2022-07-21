@@ -21,10 +21,10 @@ use crate::utility::{get_fs_type_from_hidden_dir, HttmError};
 use crate::{AHashMap as HashMap, FilesystemType, HttmResult};
 
 pub fn parse_aliases(
-    raw_local_dir: Option<OsString>,
-    raw_snap_dir: Option<OsString>,
+    raw_local_dir: &Option<OsString>,
+    raw_snap_dir: &Option<OsString>,
     pwd: &Path,
-    opt_input_aliases: Option<Vec<String>>,
+    opt_input_aliases: &Option<Vec<String>>,
 ) -> HttmResult<HashMap<PathBuf, (PathBuf, FilesystemType)>> {
     // user defined dir exists?: check that path contains the hidden snapshot directory
     let snap_point = if let Some(value) = raw_snap_dir {
@@ -54,7 +54,7 @@ pub fn parse_aliases(
     let mut aliases_iter: Vec<(PathBuf, PathBuf)> = match opt_input_aliases {
         Some(input_aliases) => {
             let res: Option<Vec<(PathBuf, PathBuf)>> = input_aliases
-                .into_iter()
+                .iter()
                 .map(|alias| {
                     alias
                         .split_once(':')

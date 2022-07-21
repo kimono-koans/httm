@@ -642,10 +642,10 @@ impl Config {
 
             let opt_map_of_aliases = if raw_snap_dir.is_some() || alias_values.is_some() {
                 Some(parse_aliases(
-                    raw_snap_dir,
-                    raw_local_dir,
+                    &raw_snap_dir,
+                    &raw_local_dir,
                     pwd.path_buf.as_path(),
-                    alias_values,
+                    &alias_values,
                 )?)
             } else {
                 None
