@@ -23,6 +23,7 @@ use std::{
     fs::canonicalize,
     hash::BuildHasherDefault,
     path::{Path, PathBuf},
+    sync::Arc,
     time::SystemTime,
 };
 
@@ -704,7 +705,7 @@ fn exec() -> HttmResult<()> {
     // get our program args and generate a config for use
     // everywhere else
     let arg_matches = parse_args();
-    let config = Config::from(arg_matches)?;
+    let config = Arc::new(Config::from(arg_matches)?);
 
     if config.opt_debug {
         eprintln!("{:#?}", config);
@@ -718,23 +719,23 @@ fn exec() -> HttmResult<()> {
         //
         // ExecMode::LastSnap will never return back, its a shortcut to select and restore themselves
         ExecMode::Interactive | ExecMode::LastSnap(_) => {
-            let browse_result = &interactive_exec(&config)?;
-            versions_lookup_exec(&config, browse_result)?
+            let browse_result = &interactive_exec(config.clone())?;
+            versions_lookup_exec(config.clone(), browse_result)?
         }
         // ExecMode::Display will be just printed, we already know the paths
-        ExecMode::Display => versions_lookup_exec(&config, &config.paths)?,
+        ExecMode::Display => versions_lookup_exec(config.clone(), &config.paths)?,
         // ExecMode::DisplayRecursive and ExecMode::SnapFileMount won't ever return back to this function
-        ExecMode::DisplayRecursive => display_recursive_wrapper(&config)?,
-        ExecMode::SnapFileMount => take_snapshot(&config)?,
+        ExecMode::DisplayRecursive => display_recursive_wrapper(config.clone())?,
+        ExecMode::SnapFileMount => take_snapshot(config.clone())?,
         // ExecMode::MountsForFiles will print its output elsewhere, as it's different from normal display output
         ExecMode::MountsForFiles => {
-            display_mounts_for_files(&config)?;
+            display_mounts_for_files(config.clone())?;
             std::process::exit(0)
         }
     };
 
     // and display
-    let output_buf = display_exec(&config, &snaps_and_live_set)?;
+    let output_buf = display_exec(config, &snaps_and_live_set)?;
     print_output_buf(output_buf)?;
 
     Ok(())

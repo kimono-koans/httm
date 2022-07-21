@@ -61,7 +61,7 @@ impl SelectionCandidate {
         let config = &self.config;
         let path = &self.path;
         // generate a config for a preview display only
-        let gen_config = Config {
+        let gen_config = Arc::new(Config {
             paths: vec![PathData::from(path.as_path())],
             opt_raw: false,
             opt_zeros: false,
@@ -80,12 +80,12 @@ impl SelectionCandidate {
             dataset_collection: config.dataset_collection.clone(),
             pwd: config.pwd.clone(),
             requested_dir: config.requested_dir.clone(),
-        };
+        });
 
         // finally run search on those paths
-        let snaps_and_live_set = versions_lookup_exec(&gen_config, &gen_config.paths)?;
+        let snaps_and_live_set = versions_lookup_exec(gen_config.clone(), &gen_config.paths)?;
         // and display
-        let output_buf = display_exec(&gen_config, &snaps_and_live_set)?;
+        let output_buf = display_exec(gen_config, &snaps_and_live_set)?;
 
         Ok(output_buf)
     }
@@ -136,7 +136,7 @@ impl SkimItem for SelectionCandidate {
     }
 }
 
-pub fn interactive_exec(config: &Config) -> HttmResult<Vec<PathData>> {
+pub fn interactive_exec(config: Arc<Config>) -> HttmResult<Vec<PathData>> {
     let vec_pathdata = match &config.requested_dir {
         // collect string paths from what we get from lookup_view
         Some(requested_dir) => {
@@ -144,7 +144,7 @@ pub fn interactive_exec(config: &Config) -> HttmResult<Vec<PathData>> {
 
             // loop until user selects a valid path
             while res_vec.is_empty() {
-                res_vec = browse_view(config, requested_dir)?
+                res_vec = browse_view(config.clone(), requested_dir)?
                     .into_iter()
                     .map(|path_string| PathData::from(Path::new(&path_string)))
                     .collect::<Vec<PathData>>();
@@ -184,15 +184,15 @@ pub fn interactive_exec(config: &Config) -> HttmResult<Vec<PathData>> {
     }
 }
 
-fn browse_view(config: &Config, requested_dir: &PathData) -> HttmResult<Vec<String>> {
+fn browse_view(config: Arc<Config>, requested_dir: &PathData) -> HttmResult<Vec<String>> {
     // prep thread spawn
     let requested_dir_clone = requested_dir.path_buf.clone();
     let (tx_item, rx_item): (SkimItemSender, SkimItemReceiver) = unbounded();
-    let arc_config = Arc::new(config.clone());
+    let config_clone = config.clone();
 
     // thread spawn fn enumerate_directory - permits recursion into dirs without blocking
     thread::spawn(move || {
-        let _ = recursive_exec(arc_config, &tx_item, &requested_dir_clone);
+        let _ = recursive_exec(config_clone, &tx_item, &requested_dir_clone);
     });
 
     let opt_multi = !matches!(config.exec_mode, ExecMode::LastSnap(_));
@@ -233,8 +233,8 @@ fn browse_view(config: &Config, requested_dir: &PathData) -> HttmResult<Vec<Stri
     Ok(res)
 }
 
-fn interactive_select(config: &Config, vec_paths: &[PathData]) -> HttmResult<()> {
-    let snaps_and_live_set = versions_lookup_exec(config, vec_paths)?;
+fn interactive_select(config: Arc<Config>, vec_paths: &[PathData]) -> HttmResult<()> {
+    let snaps_and_live_set = versions_lookup_exec(config.clone(), vec_paths)?;
 
     let path_string = match &config.exec_mode {
         ExecMode::LastSnap(request_relative) => {
@@ -264,7 +264,7 @@ fn interactive_select(config: &Config, vec_paths: &[PathData]) -> HttmResult<()>
         }
         _ => {
             // same stuff we do at fn exec, snooze...
-            let selection_buffer = display_exec(config, &snaps_and_live_set)?;
+            let selection_buffer = display_exec(config.clone(), &snaps_and_live_set)?;
             // get the file name
             let mut requested_file_name = select_restore_view(&selection_buffer, false)?;
             let res_path_string;
@@ -296,7 +296,11 @@ fn interactive_select(config: &Config, vec_paths: &[PathData]) -> HttmResult<()>
 
     // continue to interactive_restore or print and exit here?
     if config.interactive_mode == InteractiveMode::Restore {
-        Ok(interactive_restore(config, &path_string, vec_paths)?)
+        Ok(interactive_restore(
+            config,
+            &path_string,
+            vec_paths,
+        )?)
     } else {
         let output_buf = format!("\"{}\"\n", &path_string);
         print_output_buf(output_buf)?;
@@ -348,7 +352,7 @@ fn select_restore_view(preview_buffer: &str, reverse: bool) -> HttmResult<String
 }
 
 fn interactive_restore(
-    config: &Config,
+    config: Arc<Config>,
     parsed_str: &str,
     vec_paths: &[PathData],
 ) -> HttmResult<()> {
@@ -368,7 +372,7 @@ fn interactive_restore(
         // corner case: what if multiple selected paths had the same file name,
         // but were in different directories? let's make sure we have only one match
         let opt_og_pathdata = vec_paths.iter().find_map(|pathdata| {
-            match versions_lookup_exec(config, &[pathdata.clone()]).ok() {
+            match versions_lookup_exec(config.clone(), &[pathdata.clone()]).ok() {
                 // safe to index into snaps, known len of 2 for set
                 Some(pathdata_set) => pathdata_set[0].iter().find_map(|pathdata| {
                     if pathdata == &snap_pathdata {

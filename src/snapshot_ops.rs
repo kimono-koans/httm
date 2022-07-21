@@ -16,7 +16,7 @@
 // that was distributed with this source code.
 
 use std::collections::BTreeMap;
-use std::{path::Path, time::SystemTime};
+use std::{path::Path, sync::Arc, time::SystemTime};
 
 use itertools::Itertools;
 use std::process::Command as ExecProcess;
@@ -28,9 +28,9 @@ use crate::{AHashMap as HashMap, Config, HttmResult};
 
 use crate::FilesystemType;
 
-pub fn take_snapshot(config: &Config) -> HttmResult<[Vec<PathData>; 2]> {
+pub fn take_snapshot(config: Arc<Config>) -> HttmResult<[Vec<PathData>; 2]> {
     fn exec_zfs_snapshot(
-        config: &Config,
+        config: Arc<Config>,
         zfs_command: &Path,
         mounts_for_files: &BTreeMap<PathData, Vec<PathData>>,
     ) -> HttmResult<[Vec<PathData>; 2]> {
@@ -113,7 +113,7 @@ pub fn take_snapshot(config: &Config) -> HttmResult<[Vec<PathData>; 2]> {
         std::process::exit(0)
     }
 
-    let mounts_for_files: BTreeMap<PathData, Vec<PathData>> = get_mounts_for_files(config)?;
+    let mounts_for_files: BTreeMap<PathData, Vec<PathData>> = get_mounts_for_files(config.clone())?;
 
     if let Ok(zfs_command) = which("zfs") {
         exec_zfs_snapshot(config, &zfs_command, &mounts_for_files)

@@ -32,10 +32,10 @@ use crate::{
     Config, DeletedMode, ExecMode, HttmResult, BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_HIDDEN_DIRECTORY,
 };
 
-pub fn display_recursive_wrapper(config: &Config) -> HttmResult<[Vec<PathData>; 2]> {
+pub fn display_recursive_wrapper(config: Arc<Config>) -> HttmResult<[Vec<PathData>; 2]> {
     // won't be sending anything anywhere, this just allows us to reuse enumerate_directory
     let (dummy_tx_item, _): (SkimItemSender, SkimItemReceiver) = unbounded();
-    let config_clone = Arc::new(config.clone());
+    let config_clone = config.clone();
 
     match &config.requested_dir {
         Some(requested_dir) => {
@@ -169,7 +169,7 @@ fn get_entries_partitioned(
             if config.opt_no_filter {
                 true
             } else {
-                !is_filter_dir(&config, dir_entry)
+                !is_filter_dir(config.clone(), dir_entry)
             }
         })
         .map(|dir_entry| BasicDirEntryInfo::from(&dir_entry))
@@ -178,7 +178,7 @@ fn get_entries_partitioned(
     Ok((vec_dirs, vec_files))
 }
 
-fn is_filter_dir(config: &Config, dir_entry: &DirEntry) -> bool {
+fn is_filter_dir(config: Arc<Config>, dir_entry: &DirEntry) -> bool {
     // FYI path is always a relative path, but no need to canonicalize as
     // partial eq for paths is comparison of components iter
     let path = dir_entry.path();
@@ -242,7 +242,7 @@ fn enumerate_deleted(
     tx_item: &SkimItemSender,
 ) -> HttmResult<()> {
     // obtain all unique deleted, policy is one version for each file, latest in time
-    let deleted = deleted_lookup_exec(&config, requested_dir)?;
+    let deleted = deleted_lookup_exec(config.clone(), requested_dir)?;
 
     // combined entries will be sent or printed, but we need the vec_dirs to recurse
     let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) = deleted
@@ -425,9 +425,9 @@ fn print_display_recursive(config: Arc<Config>, entries: Vec<BasicDirEntryInfo>)
         .map(|basic_dir_entry_info| PathData::from(basic_dir_entry_info.path.as_path()))
         .collect();
 
-    let snaps_and_live_set = versions_lookup_exec(&config, &pseudo_live_set)?;
+    let snaps_and_live_set = versions_lookup_exec(config.clone(), &pseudo_live_set)?;
 
-    let output_buf = display_exec(&config, &snaps_and_live_set)?;
+    let output_buf = display_exec(config, &snaps_and_live_set)?;
 
     print_output_buf(output_buf)?;
 
