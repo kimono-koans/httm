@@ -22,7 +22,7 @@ use chrono::{DateTime, Local};
 use number_prefix::NumberPrefix;
 use terminal_size::{terminal_size, Height, Width};
 
-use crate::lookup_versions::get_mounts_for_files;
+use crate::lookup_file_mounts::get_mounts_for_files;
 use crate::utility::{paint_string, print_output_buf, PathData};
 use crate::{Config, HttmResult};
 

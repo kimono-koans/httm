@@ -46,6 +46,7 @@ use utility::print_output_buf;
 mod display;
 mod interactive;
 mod lookup_deleted;
+mod lookup_file_mounts;
 mod lookup_versions;
 mod parse_aliases;
 mod parse_alts;
