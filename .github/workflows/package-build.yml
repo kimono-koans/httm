@@ -2,8 +2,10 @@ name: Build Debian/Redhat packages
 
 on:
   push:
-    release:
-      [created]
+    paths:
+      - Cargo.toml
+    # release:
+    #   [created]
 
 env:
   CARGO_TERM_COLOR: always

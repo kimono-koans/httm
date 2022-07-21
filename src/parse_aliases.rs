@@ -81,16 +81,24 @@ pub fn parse_aliases(
     let map_of_aliases = aliases_iter
         .into_iter()
         .flat_map(|(local_dir, snap_dir)| {
-            if local_dir.exists() && snap_dir.exists() {
-                Some((local_dir, snap_dir))
-            } else {
-                eprintln!("Warning: At least one alias path specified does not exist, or is not mounted: {:?}:{:?}", local_dir, snap_dir);
+            if !local_dir.exists() || !snap_dir.exists() {
+                [local_dir, snap_dir].into_iter().for_each(|dir| {
+                    eprintln!(
+                        "Warning: An alias path specified does not exist, or is not mounted: {:?}",
+                        dir
+                    )
+                });
                 None
+            } else {
+                Some((local_dir, snap_dir))
             }
         })
         .flat_map(|(local_dir, snap_dir)| {
-            get_fs_type_from_hidden_dir(&snap_dir).ok().map(|fs_type| (local_dir, (snap_dir, fs_type)))
-        }).collect();
+            get_fs_type_from_hidden_dir(&snap_dir)
+                .ok()
+                .map(|fs_type| (local_dir, (snap_dir, fs_type)))
+        })
+        .collect();
 
     Ok(map_of_aliases)
 }
