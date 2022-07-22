@@ -444,44 +444,6 @@ impl Config {
             ExecMode::Display
         };
 
-        let env_snap_dir = if std::env::var_os("HTTM_REMOTE_DIR").is_some() {
-            std::env::var_os("HTTM_REMOTE_DIR")
-        } else {
-            // legacy env var name
-            std::env::var_os("HTTM_SNAP_POINT")
-        };
-        let env_local_dir = std::env::var_os("HTTM_LOCAL_DIR");
-
-        let alias_values: Option<Vec<String>> =
-            if let Some(env_map_aliases) = std::env::var_os("HTTM_MAP_ALIASES") {
-                Some(
-                    env_map_aliases
-                        .to_string_lossy()
-                        .split_terminator(',')
-                        .map(|str| str.to_owned())
-                        .collect(),
-                )
-            } else {
-                matches.values_of_os("MAP_ALIASES").map(|cmd_map_aliases| {
-                    cmd_map_aliases
-                        .into_iter()
-                        .map(|os_str| os_str.to_string_lossy().to_string())
-                        .collect()
-                })
-            };
-
-        let raw_snap_dir = if let Some(value) = matches.value_of_os("REMOTE_DIR") {
-            Some(value.to_os_string())
-        } else {
-            env_snap_dir
-        };
-
-        let raw_local_dir = if let Some(value) = matches.value_of_os("LOCAL_DIR") {
-            Some(value.to_os_string())
-        } else {
-            env_local_dir
-        };
-
         let interactive_mode = if matches.is_present("RESTORE") {
             InteractiveMode::Restore
         } else if matches.is_present("SELECT") || matches!(exec_mode, ExecMode::LastSnap(_)) {
@@ -621,10 +583,8 @@ impl Config {
             }
         };
 
-        // here we determine how we will obtain our snap point -- has the user defined it
-        // or will we find it by searching the native filesystem? if searching a native filesystem,
-        // we will obtain a map of datasets, a map of snapshot directory, and possibly a map of
-        // alternate filesystems if the user request early to avoid looking up later.
+        // obtain a map of datasets, a map of snapshot directories, and possibly a map of
+        // alternate filesystems and map of aliases if the user requests
         let (datasets_of_interest, dataset_collection) = {
             let (map_of_datasets, map_of_snaps, vec_of_filter_dirs) = parse_mounts_exec()?;
 
@@ -647,7 +607,42 @@ impl Config {
                 vec![SnapshotDatasetType::MostProximate]
             };
 
+            let alias_values: Option<Vec<String>> =
+                if let Some(env_map_aliases) = std::env::var_os("HTTM_MAP_ALIASES") {
+                    Some(
+                        env_map_aliases
+                            .to_string_lossy()
+                            .split_terminator(',')
+                            .map(|str| str.to_owned())
+                            .collect(),
+                    )
+                } else {
+                    matches.values_of_os("MAP_ALIASES").map(|cmd_map_aliases| {
+                        cmd_map_aliases
+                            .into_iter()
+                            .map(|os_str| os_str.to_string_lossy().to_string())
+                            .collect()
+                    })
+                };
+
+            let raw_snap_dir = if let Some(value) = matches.value_of_os("REMOTE_DIR") {
+                Some(value.to_os_string())
+            } else if std::env::var_os("HTTM_REMOTE_DIR").is_some() {
+                std::env::var_os("HTTM_REMOTE_DIR")
+            } else {
+                // legacy env var name
+                std::env::var_os("HTTM_SNAP_POINT")
+            };
+
             let opt_map_of_aliases = if raw_snap_dir.is_some() || alias_values.is_some() {
+                let env_local_dir = std::env::var_os("HTTM_LOCAL_DIR");
+
+                let raw_local_dir = if let Some(value) = matches.value_of_os("LOCAL_DIR") {
+                    Some(value.to_os_string())
+                } else {
+                    env_local_dir
+                };
+
                 Some(parse_aliases(
                     &raw_snap_dir,
                     &raw_local_dir,
