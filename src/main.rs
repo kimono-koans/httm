@@ -598,15 +598,6 @@ impl Config {
                 None
             };
 
-            let datasets_of_interest = if matches.is_present("ALT_REPLICATED") {
-                vec![
-                    SnapshotDatasetType::AltReplicated,
-                    SnapshotDatasetType::MostProximate,
-                ]
-            } else {
-                vec![SnapshotDatasetType::MostProximate]
-            };
-
             let alias_values: Option<Vec<String>> =
                 if let Some(env_map_aliases) = std::env::var_os("HTTM_MAP_ALIASES") {
                     Some(
@@ -651,6 +642,15 @@ impl Config {
                 )?)
             } else {
                 None
+            };
+
+            let datasets_of_interest = if matches.is_present("ALT_REPLICATED") {
+                vec![
+                    SnapshotDatasetType::AltReplicated,
+                    SnapshotDatasetType::MostProximate,
+                ]
+            } else {
+                vec![SnapshotDatasetType::MostProximate]
             };
 
             (
