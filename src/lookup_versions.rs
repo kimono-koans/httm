@@ -112,7 +112,7 @@ pub fn get_datasets_for_search(
 
     let proximate_dataset_mount = match &config.dataset_collection.opt_map_of_aliases {
         Some(map_of_aliases) => match get_alias_dataset(pathdata, map_of_aliases) {
-            Some(snap_dir) => snap_dir,
+            Some(alias_snap_dir) => alias_snap_dir,
             None => get_proximate_dataset(pathdata, &config.dataset_collection.map_of_datasets)?,
         },
         None => get_proximate_dataset(pathdata, &config.dataset_collection.map_of_datasets)?,
