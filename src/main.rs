@@ -484,7 +484,7 @@ impl Config {
 
         let interactive_mode = if matches.is_present("RESTORE") {
             InteractiveMode::Restore
-        } else if matches.is_present("SELECT") {
+        } else if matches.is_present("SELECT") || matches!(exec_mode, ExecMode::LastSnap(_)) {
             InteractiveMode::Select
         } else if matches.is_present("INTERACTIVE") {
             InteractiveMode::Browse
