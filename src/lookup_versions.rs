@@ -20,10 +20,11 @@ use std::{
     time::SystemTime,
 };
 
+use hashbrown::HashMap;
 use rayon::prelude::*;
 
 use crate::utility::{HttmError, PathData};
-use crate::{AHashMap as HashMap, Config, FilesystemType, HttmResult, SnapshotDatasetType};
+use crate::{Config, FilesystemType, HttmResult, SnapshotDatasetType};
 
 #[derive(Debug, Clone, Hash, PartialEq)]
 pub struct DatasetsForSearch {

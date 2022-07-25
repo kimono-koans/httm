@@ -21,19 +21,15 @@ extern crate proc_mounts;
 
 use std::{
     fs::canonicalize,
-    hash::BuildHasherDefault,
     path::{Path, PathBuf},
     sync::Arc,
     time::SystemTime,
 };
 
-// so we may use AHashMap with Parallel Iterators!
+// so we may use any has with Parallel Iterators!
 // impl of AHashMap as (K,V) instead of (K,V,S) so we
 // may use with collect() function, see rayon::FromParallelIterator
-use ahash::AHasher;
-pub type AHashBuildHasher = BuildHasherDefault<AHasher>;
-pub type AHashMap<K, V> = std::collections::HashMap<K, V, AHashBuildHasher>;
-use AHashMap as HashMap;
+use hashbrown::HashMap;
 
 // wrap this complex looking error type, which is used everywhere,
 // into something more simple looking. This error, FYI, is really easy to use with rayon.

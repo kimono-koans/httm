@@ -18,13 +18,14 @@
 use std::collections::BTreeMap;
 use std::{path::Path, sync::Arc, time::SystemTime};
 
+use hashbrown::HashMap;
 use itertools::Itertools;
 use std::process::Command as ExecProcess;
 use which::which;
 
 use crate::lookup_file_mounts::get_mounts_for_files;
 use crate::utility::{print_output_buf, timestamp_file, HttmError, PathData};
-use crate::{AHashMap as HashMap, Config, HttmResult};
+use crate::{Config, HttmResult};
 
 use crate::FilesystemType;
 

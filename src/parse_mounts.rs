@@ -17,6 +17,7 @@
 
 use std::{path::Path, path::PathBuf, process::Command as ExecProcess};
 
+use hashbrown::HashMap;
 use proc_mounts::MountIter;
 use rayon::iter::Either;
 use rayon::prelude::*;
@@ -25,8 +26,8 @@ use which::which;
 use crate::parse_snaps::precompute_snap_mounts;
 use crate::utility::{get_common_path, get_fs_type_from_hidden_dir, HttmError};
 use crate::{
-    AHashMap as HashMap, FilesystemType, HttmResult, AFP_FSTYPE, BTRFS_FSTYPE, NFS_FSTYPE,
-    SMB_FSTYPE, ZFS_FSTYPE, ZFS_SNAPSHOT_DIRECTORY,
+    FilesystemType, HttmResult, AFP_FSTYPE, BTRFS_FSTYPE, NFS_FSTYPE, SMB_FSTYPE, ZFS_FSTYPE,
+    ZFS_SNAPSHOT_DIRECTORY,
 };
 
 // divide by the type of system we are on

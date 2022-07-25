@@ -17,11 +17,12 @@
 
 use std::{fs::read_dir, path::Path, path::PathBuf, process::Command as ExecProcess};
 
+use hashbrown::HashMap;
 use rayon::prelude::*;
 use which::which;
 
 use crate::utility::HttmError;
-use crate::{AHashMap as HashMap, FilesystemType, HttmResult, ZFS_SNAPSHOT_DIRECTORY};
+use crate::{FilesystemType, HttmResult, ZFS_SNAPSHOT_DIRECTORY};
 
 // fans out precompute of snap mounts to the appropriate function based on fstype
 pub fn precompute_snap_mounts(

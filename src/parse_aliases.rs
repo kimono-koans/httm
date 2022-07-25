@@ -17,8 +17,10 @@
 
 use std::{ffi::OsString, path::Path, path::PathBuf};
 
+use hashbrown::HashMap;
+
 use crate::utility::{get_fs_type_from_hidden_dir, HttmError};
-use crate::{AHashMap as HashMap, FilesystemType, HttmResult};
+use crate::{FilesystemType, HttmResult};
 
 pub fn parse_aliases(
     raw_local_dir: &Option<OsString>,

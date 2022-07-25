@@ -17,11 +17,12 @@
 
 use std::{path::Path, path::PathBuf};
 
+use hashbrown::HashMap;
 use rayon::prelude::*;
 
 use crate::lookup_versions::DatasetsForSearch;
 use crate::utility::HttmError;
-use crate::{AHashMap as HashMap, FilesystemType, HttmResult};
+use crate::{FilesystemType, HttmResult};
 
 // instead of looking up, precompute possible alt replicated mounts before exec
 pub fn precompute_alt_replicated(
