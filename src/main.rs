@@ -26,19 +26,14 @@ use std::{
     time::SystemTime,
 };
 
-// so we may use any has with Parallel Iterators!
-// impl of AHashMap as (K,V) instead of (K,V,S) so we
-// may use with collect() function, see rayon::FromParallelIterator
-use hashbrown::HashMap;
-
 // wrap this complex looking error type, which is used everywhere,
 // into something more simple looking. This error, FYI, is really easy to use with rayon.
 pub type HttmResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
 use clap::{crate_name, crate_version, Arg, ArgMatches};
+use hashbrown::HashMap;
 use lookup_versions::DatasetsForSearch;
 use rayon::prelude::*;
-use utility::print_output_buf;
 
 mod display;
 mod interactive;
@@ -61,7 +56,9 @@ use crate::parse_alts::precompute_alt_replicated;
 use crate::parse_mounts::{get_common_snap_dir, parse_mounts_exec};
 use crate::recursive::display_recursive_wrapper;
 use crate::snapshot_ops::take_snapshot;
-use crate::utility::{httm_is_dir, install_hot_keys, read_stdin, HttmError, PathData};
+use crate::utility::{
+    httm_is_dir, install_hot_keys, print_output_buf, read_stdin, HttmError, PathData,
+};
 
 pub const ZFS_FSTYPE: &str = "zfs";
 pub const BTRFS_FSTYPE: &str = "btrfs";
