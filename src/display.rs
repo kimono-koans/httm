@@ -17,9 +17,9 @@
 
 use std::{borrow::Cow, collections::BTreeMap, time::SystemTime};
 
-use chrono::{DateTime, Local};
 use number_prefix::NumberPrefix;
 use terminal_size::{terminal_size, Height, Width};
+use time::{OffsetDateTime, format_description};
 
 use crate::lookup_file_mounts::get_mounts_for_files;
 use crate::utility::{paint_string, print_output_buf, PathData};
@@ -299,6 +299,7 @@ fn display_human_size(size: &u64) -> String {
 }
 
 fn display_date(system_time: &SystemTime) -> String {
-    let date_time: DateTime<Local> = (*system_time).into();
-    format!("{}", date_time.format("%a %b %e %H:%M:%S %Y"))
+    let date_time: OffsetDateTime = (*system_time).into();
+    let format = format_description::parse("[weekday repr:short] [month repr:short] [day] [hour]:[minute]:[second] [year]").expect("display date format is invalid");
+    date_time.format(&format).expect("display date format could not be applied to the date supplied")
 }

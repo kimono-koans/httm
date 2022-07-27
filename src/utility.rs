@@ -16,9 +16,9 @@ use std::{
     time::SystemTime,
 };
 
-use chrono::{DateTime, Local};
 use lscolors::{LsColors, Style};
 use once_cell::unsync::OnceCell;
+use time::{OffsetDateTime, format_description};
 
 use crate::interactive::SelectionCandidate;
 use crate::{
@@ -27,8 +27,9 @@ use crate::{
 };
 
 pub fn timestamp_file(system_time: &SystemTime) -> String {
-    let date_time: DateTime<Local> = (*system_time).into();
-    format!("{}", date_time.format("%b-%d-%Y-%H:%M:%S"))
+    let date_time: OffsetDateTime = (*system_time).into();
+    let format = format_description::parse("[year]-[month]-[day]-[hour]:[minute]:[second]").expect("timestamp date format is invalid");
+    date_time.format(&format).expect("timestamp date format could not be applied to the date supplied")
 }
 
 pub fn copy_recursive(src: &Path, dst: &Path) -> io::Result<()> {

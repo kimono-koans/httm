@@ -20,14 +20,14 @@ lto = true
 
 [dependencies]
 clap = { version = "3.2.8", features = ["cargo"] }
-chrono = { version = "0.4.19", default-features = false }
+time = { version = "0.3.11", features = ["formatting"] }
 number_prefix = { version = "0.4.0",  default-features = false }
 skim = { version = "0.9.4", default-features = false }
 lscolors = { version = "0.10.0", features = ["ansi_term"] }
 terminal_size = { version = "0.2.0", default-features = false }
 which = { version = "4.2.4", default-features = false }
 rayon = { version = "1.5.1", default-features = false }
-itertools = "0.10.3" # use_std, use_alloc for into_group_map_by()
+itertools = { version = "0.10.3" } # use_std, use_alloc for into_group_map_by()
 indicatif =  { version = "0.16.2", default-features = false }
 lazy_static = { version = "1.4.0", default-features = false }
 proc-mounts = { version = "0.3.0", default-features = false }
