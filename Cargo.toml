@@ -31,9 +31,8 @@ itertools = "0.10.3" # use_std, use_alloc for into_group_map_by()
 indicatif =  { version = "0.16.2", default-features = false }
 lazy_static = { version = "1.4.0", default-features = false }
 proc-mounts = { version = "0.3.0", default-features = false }
-ahash = { version = "0.7.6", default-features = false }
 once_cell = { version = "1.13.0", default-features = false }
-hashbrown = { version = "0.12.3", features = ["rayon"] }
+hashbrown = { version = "0.12.3", features = ["rayon", "inline-more", "ahash", "ahash-compile-time-rng"] }
 
 [package.metadata.deb]
 maintainer = "kimono koans <https://github.com/kimono-koans/>"
