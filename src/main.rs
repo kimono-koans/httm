@@ -390,9 +390,8 @@ impl Config {
             install_hot_keys()?
         }
 
-        // this fn is surprisingly finicky, needs to be done when program is not
-        // multithreaded, can fail under all sorts of conditions, so we request here
-        // before we do much else
+        // this fn is surprisingly finicky, and needs to be done when program is not
+        // multithreaded.
         let local_utc_offset = UtcOffset::current_local_offset()?;
 
         let opt_zeros = matches.is_present("ZEROS");

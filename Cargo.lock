@@ -433,7 +433,7 @@ dependencies = [
 
 [[package]]
 name = "httm"
-version = "0.14.5"
+version = "0.14.6"
 dependencies = [
  "clap 3.2.8",
  "indicatif",
