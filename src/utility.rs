@@ -20,18 +20,21 @@ use lscolors::{LsColors, Style};
 use once_cell::unsync::OnceCell;
 use time::{format_description, OffsetDateTime};
 
-use crate::interactive::SelectionCandidate;
+use crate::{interactive::SelectionCandidate, Config, DATE_FORMAT_TIMESTAMP};
 use crate::{
     FilesystemType, HttmResult, BTRFS_SNAPPER_HIDDEN_DIRECTORY, PHANTOM_DATE, PHANTOM_SIZE,
     ZFS_SNAPSHOT_DIRECTORY,
 };
 
-pub fn timestamp_file(system_time: &SystemTime) -> String {
+pub fn timestamp_file(config: &Config, system_time: &SystemTime) -> String {
     let date_time: OffsetDateTime = (*system_time).into();
-    let format = format_description::parse("[year]-[month]-[day]-[hour]:[minute]:[second]")
-        .expect("timestamp date format is invalid");
+
+    let date_format =
+        format_description::parse(DATE_FORMAT_TIMESTAMP).expect("timestamp date format is invalid");
+
     date_time
-        .format(&format)
+        .to_offset(config.local_utc_offset)
+        .format(&date_format)
         .expect("timestamp date format could not be applied to the date supplied")
 }
 

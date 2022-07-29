@@ -34,6 +34,7 @@ pub type HttmResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
 use clap::{crate_name, crate_version, Arg, ArgMatches};
 use lookup_versions::DatasetsForSearch;
 use rayon::prelude::*;
+use time::UtcOffset;
 
 mod display;
 mod interactive;
@@ -73,6 +74,10 @@ pub const BTRFS_SNAPPER_SUFFIX: &str = "snapshot";
 
 pub const PHANTOM_DATE: SystemTime = SystemTime::UNIX_EPOCH;
 pub const PHANTOM_SIZE: u64 = 0u64;
+
+pub const DATE_FORMAT_DISPLAY: &str =
+    "[weekday repr:short] [month repr:short] [day] [hour]:[minute]:[second] [year]";
+pub const DATE_FORMAT_TIMESTAMP: &str = "[year]-[month]-[day]-[hour]:[minute]:[second]";
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum FilesystemType {
@@ -364,6 +369,7 @@ pub struct Config {
     opt_no_filter: bool,
     opt_no_snap: bool,
     opt_debug: bool,
+    local_utc_offset: UtcOffset,
     datasets_of_interest: Vec<SnapshotDatasetType>,
     exec_mode: ExecMode,
     dataset_collection: DatasetCollection,
@@ -659,6 +665,9 @@ impl Config {
             )
         };
 
+        let local_utc_offset =
+            UtcOffset::current_local_offset().expect("Could not determine local UTC offset");
+
         let config = Config {
             paths,
             opt_raw,
@@ -671,6 +680,7 @@ impl Config {
             opt_no_filter,
             opt_no_snap,
             opt_debug,
+            local_utc_offset,
             datasets_of_interest,
             dataset_collection,
             exec_mode,

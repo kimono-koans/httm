@@ -73,6 +73,7 @@ impl SelectionCandidate {
             opt_no_filter: false,
             opt_no_snap: false,
             opt_debug: false,
+            local_utc_offset: config.local_utc_offset,
             exec_mode: ExecMode::Display,
             deleted_mode: DeletedMode::Disabled,
             interactive_mode: InteractiveMode::None,
@@ -400,8 +401,9 @@ fn interactive_restore(
             .to_string_lossy()
             .into_owned();
 
-        let new_filename =
-            snap_filename + ".httm_restored." + &timestamp_file(&snap_pathdata.system_time);
+        let new_filename = snap_filename
+            + ".httm_restored."
+            + &timestamp_file(&config, &snap_pathdata.system_time);
         let new_file_dir = config.pwd.path_buf.clone();
         let new_file_path_buf: PathBuf = new_file_dir.join(new_filename);
 

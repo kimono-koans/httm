@@ -23,7 +23,7 @@ use time::{format_description, OffsetDateTime};
 
 use crate::lookup_file_mounts::get_mounts_for_files;
 use crate::utility::{paint_string, print_output_buf, PathData};
-use crate::{Config, HttmResult};
+use crate::{Config, HttmResult, DATE_FORMAT_DISPLAY};
 
 // 2 space wide padding - used between date and size, and size and path
 const PRETTY_FIXED_WIDTH_PADDING: &str = "  ";
@@ -64,7 +64,8 @@ fn display_raw(config: &Config, snaps_and_live_set: &[Vec<PathData>; 2]) -> Httm
 }
 
 fn display_pretty(config: &Config, snaps_and_live_set: &[Vec<PathData>; 2]) -> HttmResult<String> {
-    let (size_padding_len, fancy_border_string) = calculate_pretty_padding(snaps_and_live_set);
+    let (size_padding_len, fancy_border_string) =
+        calculate_pretty_padding(config, snaps_and_live_set);
 
     let write_out_buffer = snaps_and_live_set
         .iter()
@@ -107,7 +108,7 @@ fn display_pretty(config: &Config, snaps_and_live_set: &[Vec<PathData>; 2]) -> H
                         (size, path, padding)
                     };
 
-                    let fmt_date = display_date(&pathdata.system_time);
+                    let fmt_date = display_date(config, &pathdata.system_time);
 
                     // displays blanks for phantom values, equaling their dummy lens and dates.
                     //
@@ -152,13 +153,16 @@ fn display_pretty(config: &Config, snaps_and_live_set: &[Vec<PathData>; 2]) -> H
     Ok(write_out_buffer)
 }
 
-fn calculate_pretty_padding(snaps_and_live_set: &[Vec<PathData>]) -> (usize, String) {
+fn calculate_pretty_padding(
+    config: &Config,
+    snaps_and_live_set: &[Vec<PathData>],
+) -> (usize, String) {
     // calculate padding and borders for display later
     let (size_padding_len, fancy_border_len) = snaps_and_live_set.iter().flatten().fold(
         (0usize, 0usize),
         |(mut size_padding_len, mut fancy_border_len), pathdata| {
             let (display_date, display_size, display_path) = {
-                let date = display_date(&pathdata.system_time);
+                let date = display_date(config, &pathdata.system_time);
                 let size = format!(
                     "{:>width$}",
                     display_human_size(&pathdata.size),
@@ -298,13 +302,14 @@ fn display_human_size(size: &u64) -> String {
     }
 }
 
-fn display_date(system_time: &SystemTime) -> String {
+fn display_date(config: &Config, system_time: &SystemTime) -> String {
     let date_time: OffsetDateTime = (*system_time).into();
-    let format = format_description::parse(
-        "[weekday repr:short] [month repr:short] [day] [hour]:[minute]:[second] [year]",
-    )
-    .expect("display date format is invalid");
+
+    let date_format =
+        format_description::parse(DATE_FORMAT_DISPLAY).expect("display date format is invalid");
+
     date_time
-        .format(&format)
+        .to_offset(config.local_utc_offset)
+        .format(&date_format)
         .expect("display date format could not be applied to the date supplied")
 }

@@ -34,7 +34,7 @@ pub fn take_snapshot(config: Arc<Config>) -> HttmResult<[Vec<PathData>; 2]> {
         mounts_for_files: &BTreeMap<PathData, Vec<PathData>>,
     ) -> HttmResult<[Vec<PathData>; 2]> {
         // all snapshots should have the same timestamp
-        let timestamp = timestamp_file(&SystemTime::now());
+        let timestamp = timestamp_file(&config, &SystemTime::now());
 
         let vec_snapshot_names: Vec<String> = mounts_for_files
             .iter()
