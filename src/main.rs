@@ -390,6 +390,11 @@ impl Config {
             install_hot_keys()?
         }
 
+        // this fn is surprisingly finicky, needs to be done when program is not
+        // multithreaded, can fail under all sorts of conditions, so we request here
+        // before we do much else
+        let local_utc_offset = UtcOffset::current_local_offset()?;
+
         let opt_zeros = matches.is_present("ZEROS");
         let mut opt_raw = matches.is_present("RAW");
         let opt_no_pretty = matches.is_present("NOT_SO_PRETTY");
@@ -664,9 +669,6 @@ impl Config {
                 },
             )
         };
-
-        let local_utc_offset =
-            UtcOffset::current_local_offset().expect("Could not determine local UTC offset");
 
         let config = Config {
             paths,
