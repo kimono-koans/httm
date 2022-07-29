@@ -483,7 +483,7 @@ dependencies = [
 
 [[package]]
 name = "httm"
-version = "0.14.4"
+version = "0.14.5"
 dependencies = [
  "clap 3.2.8",
  "hashbrown 0.12.3",
