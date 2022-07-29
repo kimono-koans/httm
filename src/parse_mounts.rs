@@ -15,9 +15,8 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::{path::Path, path::PathBuf, process::Command as ExecProcess};
+use std::{collections::BTreeMap, path::Path, path::PathBuf, process::Command as ExecProcess};
 
-use hashbrown::HashMap;
 use proc_mounts::MountIter;
 use rayon::iter::Either;
 use rayon::prelude::*;
@@ -34,8 +33,8 @@ use crate::{
 // Linux allows us the read proc mounts
 #[allow(clippy::type_complexity)]
 pub fn parse_mounts_exec() -> HttmResult<(
-    HashMap<PathBuf, (String, FilesystemType)>,
-    HashMap<PathBuf, Vec<PathBuf>>,
+    BTreeMap<PathBuf, (String, FilesystemType)>,
+    BTreeMap<PathBuf, Vec<PathBuf>>,
     Vec<PathBuf>,
 )> {
     let (map_of_datasets, vec_filter_dirs) = if cfg!(target_os = "linux") {
@@ -52,10 +51,10 @@ pub fn parse_mounts_exec() -> HttmResult<(
 // parsing from proc mounts is both faster and necessary for certain btrfs features
 // for instance, allows us to read subvolumes mounts, like "/@" or "/@home"
 #[allow(clippy::type_complexity)]
-fn parse_from_proc_mounts() -> HttmResult<(HashMap<PathBuf, (String, FilesystemType)>, Vec<PathBuf>)>
-{
+fn parse_from_proc_mounts(
+) -> HttmResult<(BTreeMap<PathBuf, (String, FilesystemType)>, Vec<PathBuf>)> {
     let (map_of_datasets, vec_of_filter_dirs): (
-        HashMap<PathBuf, (String, FilesystemType)>,
+        BTreeMap<PathBuf, (String, FilesystemType)>,
         Vec<PathBuf>,
     ) = MountIter::new()?
         .par_bridge()
@@ -95,7 +94,7 @@ fn parse_from_proc_mounts() -> HttmResult<(HashMap<PathBuf, (String, FilesystemT
                 }
             }
             &BTRFS_FSTYPE => {
-                let keyed_options: HashMap<String, String> = mount_info
+                let keyed_options: BTreeMap<String, String> = mount_info
                     .options
                     .par_iter()
                     .filter(|line| line.contains('='))
@@ -127,17 +126,17 @@ fn parse_from_proc_mounts() -> HttmResult<(HashMap<PathBuf, (String, FilesystemT
 // old fashioned parsing for non-Linux systems, nearly as fast, works everywhere with a mount command
 // both methods are much faster than using zfs command
 #[allow(clippy::type_complexity)]
-fn parse_from_mount_cmd() -> HttmResult<(HashMap<PathBuf, (String, FilesystemType)>, Vec<PathBuf>)>
+fn parse_from_mount_cmd() -> HttmResult<(BTreeMap<PathBuf, (String, FilesystemType)>, Vec<PathBuf>)>
 {
     fn parse(
         mount_command: &Path,
-    ) -> HttmResult<(HashMap<PathBuf, (String, FilesystemType)>, Vec<PathBuf>)> {
+    ) -> HttmResult<(BTreeMap<PathBuf, (String, FilesystemType)>, Vec<PathBuf>)> {
         let command_output =
             std::str::from_utf8(&ExecProcess::new(mount_command).output()?.stdout)?.to_owned();
 
         // parse "mount" for filesystems and mountpoints
         let (map_of_datasets, vec_of_filter_dirs): (
-            HashMap<PathBuf, (String, FilesystemType)>,
+            BTreeMap<PathBuf, (String, FilesystemType)>,
             Vec<PathBuf>,
         ) = command_output
             .par_lines()
@@ -195,8 +194,8 @@ fn parse_from_mount_cmd() -> HttmResult<(HashMap<PathBuf, (String, FilesystemTyp
 // if we have some btrfs mounts, we check to see if there is a snap directory in common
 // so we can hide that common path from searches later
 pub fn get_common_snap_dir(
-    map_of_datasets: &HashMap<PathBuf, (String, FilesystemType)>,
-    map_of_snaps: &HashMap<PathBuf, Vec<PathBuf>>,
+    map_of_datasets: &BTreeMap<PathBuf, (String, FilesystemType)>,
+    map_of_snaps: &BTreeMap<PathBuf, Vec<PathBuf>>,
 ) -> Option<PathBuf> {
     let btrfs_datasets: Vec<&PathBuf> = map_of_datasets
         .par_iter()

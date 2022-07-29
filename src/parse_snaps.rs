@@ -15,9 +15,10 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::{fs::read_dir, path::Path, path::PathBuf, process::Command as ExecProcess};
+use std::{
+    collections::BTreeMap, fs::read_dir, path::Path, path::PathBuf, process::Command as ExecProcess,
+};
 
-use hashbrown::HashMap;
 use rayon::prelude::*;
 use which::which;
 
@@ -26,8 +27,8 @@ use crate::{FilesystemType, HttmResult, ZFS_SNAPSHOT_DIRECTORY};
 
 // fans out precompute of snap mounts to the appropriate function based on fstype
 pub fn precompute_snap_mounts(
-    map_of_datasets: &HashMap<PathBuf, (String, FilesystemType)>,
-) -> HashMap<PathBuf, Vec<PathBuf>> {
+    map_of_datasets: &BTreeMap<PathBuf, (String, FilesystemType)>,
+) -> BTreeMap<PathBuf, Vec<PathBuf>> {
     let opt_root_mount_path: Option<&PathBuf> =
         map_of_datasets
             .par_iter()
@@ -42,7 +43,7 @@ pub fn precompute_snap_mounts(
                 FilesystemType::Zfs => None,
             });
 
-    let map_of_snaps: HashMap<PathBuf, Vec<PathBuf>> = map_of_datasets
+    let map_of_snaps: BTreeMap<PathBuf, Vec<PathBuf>> = map_of_datasets
         .par_iter()
         .flat_map(|(mount, (_dataset, fstype))| {
             let snap_mounts = match fstype {

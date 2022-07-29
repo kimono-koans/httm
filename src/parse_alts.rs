@@ -15,9 +15,8 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::{path::Path, path::PathBuf};
+use std::{collections::BTreeMap, path::Path, path::PathBuf};
 
-use hashbrown::HashMap;
 use rayon::prelude::*;
 
 use crate::lookup_versions::DatasetsForSearch;
@@ -26,8 +25,8 @@ use crate::{FilesystemType, HttmResult};
 
 // instead of looking up, precompute possible alt replicated mounts before exec
 pub fn precompute_alt_replicated(
-    map_of_datasets: &HashMap<PathBuf, (String, FilesystemType)>,
-) -> HashMap<PathBuf, DatasetsForSearch> {
+    map_of_datasets: &BTreeMap<PathBuf, (String, FilesystemType)>,
+) -> BTreeMap<PathBuf, DatasetsForSearch> {
     map_of_datasets
         .par_iter()
         .flat_map(|(mount, (_dataset, _fstype))| {
@@ -39,7 +38,7 @@ pub fn precompute_alt_replicated(
 
 fn get_alt_replicated_datasets(
     proximate_dataset_mount: &Path,
-    map_of_datasets: &HashMap<PathBuf, (String, FilesystemType)>,
+    map_of_datasets: &BTreeMap<PathBuf, (String, FilesystemType)>,
 ) -> HttmResult<DatasetsForSearch> {
     let proximate_dataset_fsname = match &map_of_datasets.get(proximate_dataset_mount) {
         Some((proximate_dataset_fsname, _)) => proximate_dataset_fsname.clone(),

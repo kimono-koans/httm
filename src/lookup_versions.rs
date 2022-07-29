@@ -16,11 +16,11 @@
 // that was distributed with this source code.
 
 use std::{
+    collections::BTreeMap,
     path::{Path, PathBuf},
     time::SystemTime,
 };
 
-use hashbrown::HashMap;
 use rayon::prelude::*;
 
 use crate::utility::{HttmError, PathData};
@@ -211,7 +211,7 @@ fn get_relative_path(
 
 fn get_alias_dataset(
     pathdata: &PathData,
-    map_of_datasets: &HashMap<PathBuf, (PathBuf, FilesystemType)>,
+    map_of_datasets: &BTreeMap<PathBuf, (PathBuf, FilesystemType)>,
 ) -> Option<PathBuf> {
     let ancestors: Vec<&Path> = pathdata.path_buf.ancestors().collect();
 
@@ -229,7 +229,7 @@ fn get_alias_dataset(
 
 fn get_proximate_dataset(
     pathdata: &PathData,
-    map_of_datasets: &HashMap<PathBuf, (String, FilesystemType)>,
+    map_of_datasets: &BTreeMap<PathBuf, (String, FilesystemType)>,
 ) -> HttmResult<PathBuf> {
     // for /usr/bin, we prefer the most proximate: /usr/bin to /usr and /
     // ancestors() iterates in this top-down order, when a value: dataset/fstype is available
@@ -262,12 +262,12 @@ fn get_versions_per_dataset(search_bundle: &FileSearchBundle) -> HttmResult<Vec<
     // get the DirEntry for our snapshot path which will have all our possible
     // snapshots, like so: .zfs/snapshots/<some snap name>/
     //
-    // hashmap will then remove duplicates with the same system modify time and size/file len
+    // BTreeMap will then remove duplicates with the same system modify time and size/file len
 
     fn get_versions(
         snap_mounts: &[PathBuf],
         relative_path: &Path,
-    ) -> HttmResult<HashMap<(SystemTime, u64), PathData>> {
+    ) -> HttmResult<BTreeMap<(SystemTime, u64), PathData>> {
         let unique_versions = snap_mounts
             .par_iter()
             .map(|path| path.join(&relative_path))
@@ -293,12 +293,9 @@ fn get_versions_per_dataset(search_bundle: &FileSearchBundle) -> HttmResult<Vec<
         })?
         .clone();
 
-    let unique_versions: HashMap<(SystemTime, u64), PathData> =
-        get_versions(&snap_mounts, &search_bundle.relative_path)?;
+    let unique_versions: Vec<PathData> = get_versions(&snap_mounts, &search_bundle.relative_path)?
+        .into_values()
+        .collect();
 
-    let mut vec_pathdata: Vec<PathData> = unique_versions.into_values().collect();
-
-    vec_pathdata.par_sort_unstable_by_key(|pathdata| pathdata.system_time);
-
-    Ok(vec_pathdata)
+    Ok(unique_versions)
 }

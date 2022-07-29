@@ -20,6 +20,7 @@ extern crate lazy_static;
 extern crate proc_mounts;
 
 use std::{
+    collections::BTreeMap,
     fs::canonicalize,
     path::{Path, PathBuf},
     sync::Arc,
@@ -31,7 +32,6 @@ use std::{
 pub type HttmResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
 use clap::{crate_name, crate_version, Arg, ArgMatches};
-use hashbrown::HashMap;
 use lookup_versions::DatasetsForSearch;
 use rayon::prelude::*;
 
@@ -109,13 +109,13 @@ enum DeletedMode {
 #[derive(Debug, Clone, PartialEq)]
 pub struct DatasetCollection {
     // key: mount, val: (dataset/subvol, fstype)
-    map_of_datasets: HashMap<PathBuf, (String, FilesystemType)>,
+    map_of_datasets: BTreeMap<PathBuf, (String, FilesystemType)>,
     // key: mount, val: snap locations on disk (e.g. /.zfs/snapshot/snap_8a86e4fc_prepApt/home)
-    map_of_snaps: HashMap<PathBuf, Vec<PathBuf>>,
+    map_of_snaps: BTreeMap<PathBuf, Vec<PathBuf>>,
     // key: mount, val: alt dataset
-    opt_map_of_alts: Option<HashMap<PathBuf, DatasetsForSearch>>,
+    opt_map_of_alts: Option<BTreeMap<PathBuf, DatasetsForSearch>>,
     // key: mount, val: (local dir/remote dir, fstype)
-    opt_map_of_aliases: Option<HashMap<PathBuf, (PathBuf, FilesystemType)>>,
+    opt_map_of_aliases: Option<BTreeMap<PathBuf, (PathBuf, FilesystemType)>>,
     vec_of_filter_dirs: Vec<PathBuf>,
     opt_common_snap_dir: Option<PathBuf>,
 }
@@ -511,7 +511,7 @@ impl Config {
         // so input of ./.z* and ./.zshrc will only print ./.zshrc once
         paths = if paths.len() > 1 {
             paths.par_sort_by_key(|pathdata| pathdata.path_buf.clone());
-            // dedup needs to be sorted/ordered first to work (not like a HashMap)
+            // dedup needs to be sorted/ordered first to work (not like a BTreeMap)
             paths.dedup_by_key(|pathdata| pathdata.path_buf.clone());
 
             paths

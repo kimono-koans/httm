@@ -15,10 +15,8 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::collections::BTreeMap;
-use std::{path::Path, sync::Arc, time::SystemTime};
+use std::{collections::BTreeMap, path::Path, sync::Arc, time::SystemTime};
 
-use hashbrown::HashMap;
 use itertools::Itertools;
 use std::process::Command as ExecProcess;
 use which::which;
@@ -67,10 +65,10 @@ pub fn take_snapshot(config: Arc<Config>) -> HttmResult<[Vec<PathData>; 2]> {
             Ok(snapshot_name)
         }).collect::<Result<Vec<String>, HttmError>>()?;
 
-        // why all this garbage with hashmaps, etc.? ZFS will not allow one to take snapshots
+        // why all this garbage with BTreeMaps, etc.? ZFS will not allow one to take snapshots
         // with the same name, at the same time, across pools.  Since we don't really care, we break
         // the snapshots into groups by pool name and then just take snapshots for each pool
-        let map_snapshot_names: HashMap<String, Vec<String>> = vec_snapshot_names
+        let map_snapshot_names: BTreeMap<String, Vec<String>> = vec_snapshot_names
             .into_iter()
             .into_group_map_by(|snapshot_name| {
                 let (pool_name, _rest) = snapshot_name

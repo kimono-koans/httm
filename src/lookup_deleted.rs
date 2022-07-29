@@ -16,13 +16,13 @@
 // that was distributed with this source code.
 
 use std::{
+    collections::BTreeMap,
     ffi::OsString,
     fs::read_dir,
     path::{Path, PathBuf},
     time::SystemTime,
 };
 
-use hashbrown::HashMap;
 use itertools::Itertools;
 
 use crate::lookup_versions::{get_datasets_for_search, get_file_search_bundle, FileSearchBundle};
@@ -67,7 +67,7 @@ pub fn deleted_lookup_exec(
     Ok(unique_deleted)
 }
 
-// this functions like a hashmap, separate into buckets/groups
+// this functions like a BTreeMap, separate into buckets/groups
 // by file name, then return the oldest deleted dir entry, or max by its modify time
 // why? because this might be a folder that has been deleted and we need some policy
 // to give later functions an idea about which folder to choose when we want too look
@@ -102,7 +102,7 @@ fn get_deleted_per_dataset(
     // what is a deleted file
     //
     // create a collection of local file names
-    let local_filenames_map: HashMap<OsString, BasicDirEntryInfo> = read_dir(&requested_dir)?
+    let local_filenames_map: BTreeMap<OsString, BasicDirEntryInfo> = read_dir(&requested_dir)?
         .flatten()
         .map(|dir_entry| (dir_entry.file_name(), BasicDirEntryInfo::from(&dir_entry)))
         .collect();
@@ -114,7 +114,7 @@ fn get_deleted_per_dataset(
     fn get_snap_filenames(
         mounts: &[PathBuf],
         relative_path: &Path,
-    ) -> HttmResult<HashMap<OsString, BasicDirEntryInfo>> {
+    ) -> HttmResult<BTreeMap<OsString, BasicDirEntryInfo>> {
         let basic_dir_entry_info_iter = mounts
             .iter()
             .map(|path| path.join(&relative_path))
@@ -140,7 +140,7 @@ fn get_deleted_per_dataset(
         })?
         .clone();
 
-    let unique_snap_filenames: HashMap<OsString, BasicDirEntryInfo> =
+    let unique_snap_filenames: BTreeMap<OsString, BasicDirEntryInfo> =
         get_snap_filenames(&snap_mounts, &search_bundle.relative_path)?;
 
     // compare local filenames to all unique snap filenames - none values are unique, here
