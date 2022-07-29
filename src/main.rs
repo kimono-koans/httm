@@ -399,12 +399,12 @@ impl Config {
         let requested_utc_offset = if matches.is_present("UTC") {
             UtcOffset::UTC
         } else {
-            // this fn is surprisingly finicky. it needs to be done 
+            // this fn is surprisingly finicky. it needs to be done
             // when program is not multithreaded, and we don't even print and
             // error we just default to UTC
             UtcOffset::current_local_offset().unwrap_or(UtcOffset::UTC)
         };
-        
+
         let opt_zeros = matches.is_present("ZEROS");
         let mut opt_raw = matches.is_present("RAW");
         let opt_no_pretty = matches.is_present("NOT_SO_PRETTY");
