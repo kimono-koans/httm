@@ -341,17 +341,23 @@ fn parse_args() -> ArgMatches {
                 .display_order(20)
         )
         .arg(
+            Arg::new("UTC")
+                .long("utc")
+                .help("use utc for date display and timestamps")
+                .display_order(21)
+        )
+        .arg(
             Arg::new("DEBUG")
                 .long("debug")
                 .help("print configuration and debugging info")
-                .display_order(21)
+                .display_order(22)
         )
         .arg(
             Arg::new("ZSH_HOT_KEYS")
                 .long("install-zsh-hot-keys")
                 .help("install zsh hot keys to the users home directory, and then exit")
                 .exclusive(true)
-                .display_order(22)
+                .display_order(23)
         )
         .get_matches()
 }
@@ -369,7 +375,7 @@ pub struct Config {
     opt_no_filter: bool,
     opt_no_snap: bool,
     opt_debug: bool,
-    local_utc_offset: UtcOffset,
+    requested_utc_offset: UtcOffset,
     datasets_of_interest: Vec<SnapshotDatasetType>,
     exec_mode: ExecMode,
     dataset_collection: DatasetCollection,
@@ -390,10 +396,15 @@ impl Config {
             install_hot_keys()?
         }
 
-        // this fn is surprisingly finicky, and needs to be done when program is not
-        // multithreaded.
-        let local_utc_offset = UtcOffset::current_local_offset()?;
-
+        let requested_utc_offset = if matches.is_present("UTC") {
+            UtcOffset::UTC
+        } else {
+            // this fn is surprisingly finicky. it needs to be done 
+            // when program is not multithreaded, and we don't even print and
+            // error we just default to UTC
+            UtcOffset::current_local_offset().unwrap_or(UtcOffset::UTC)
+        };
+        
         let opt_zeros = matches.is_present("ZEROS");
         let mut opt_raw = matches.is_present("RAW");
         let opt_no_pretty = matches.is_present("NOT_SO_PRETTY");
@@ -681,7 +692,7 @@ impl Config {
             opt_no_filter,
             opt_no_snap,
             opt_debug,
-            local_utc_offset,
+            requested_utc_offset,
             datasets_of_interest,
             dataset_collection,
             exec_mode,

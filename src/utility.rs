@@ -33,7 +33,7 @@ pub fn timestamp_file(config: &Config, system_time: &SystemTime) -> String {
         format_description::parse(DATE_FORMAT_TIMESTAMP).expect("timestamp date format is invalid");
 
     date_time
-        .to_offset(config.local_utc_offset)
+        .to_offset(config.requested_utc_offset)
         .format(&date_format)
         .expect("timestamp date format could not be applied to the date supplied")
 }

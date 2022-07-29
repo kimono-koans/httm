@@ -73,7 +73,7 @@ impl SelectionCandidate {
             opt_no_filter: false,
             opt_no_snap: false,
             opt_debug: false,
-            local_utc_offset: config.local_utc_offset,
+            requested_utc_offset: config.requested_utc_offset,
             exec_mode: ExecMode::Display,
             deleted_mode: DeletedMode::Disabled,
             interactive_mode: InteractiveMode::None,
