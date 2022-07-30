@@ -26,7 +26,7 @@ use rayon::prelude::*;
 use crate::utility::{HttmError, PathData};
 use crate::{Config, FilesystemType, HttmResult, SnapshotDatasetType};
 
-#[derive(Debug, Clone, Hash, PartialEq)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct DatasetsForSearch {
     pub proximate_dataset_mount: PathBuf,
     pub datasets_of_interest: Vec<PathBuf>,

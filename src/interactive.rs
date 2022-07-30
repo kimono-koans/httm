@@ -24,9 +24,11 @@ use crate::display::display_exec;
 use crate::lookup_versions::versions_lookup_exec;
 use crate::recursive::recursive_exec;
 use crate::utility::{
-    copy_recursive, paint_string, print_output_buf, timestamp_file, HttmError, PathData,
+    copy_recursive, get_date, paint_string, print_output_buf, HttmError, PathData,
 };
-use crate::{Config, DeletedMode, ExecMode, HttmResult, InteractiveMode, RequestRelative};
+use crate::{
+    Config, DateFormat, DeletedMode, ExecMode, HttmResult, InteractiveMode, RequestRelative,
+};
 
 // these represent to items ready for selection and preview
 // contains everything needs to request preview and paint with
@@ -403,7 +405,7 @@ fn interactive_restore(
 
         let new_filename = snap_filename
             + ".httm_restored."
-            + &timestamp_file(&config, &snap_pathdata.system_time);
+            + &get_date(&config, &snap_pathdata.system_time, DateFormat::Timestamp);
         let new_file_dir = config.pwd.path_buf.clone();
         let new_file_path_buf: PathBuf = new_file_dir.join(new_filename);
 

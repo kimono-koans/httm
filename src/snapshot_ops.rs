@@ -22,8 +22,8 @@ use std::process::Command as ExecProcess;
 use which::which;
 
 use crate::lookup_file_mounts::get_mounts_for_files;
-use crate::utility::{print_output_buf, timestamp_file, HttmError, PathData};
-use crate::{Config, HttmResult};
+use crate::utility::{get_date, print_output_buf, HttmError, PathData};
+use crate::{Config, DateFormat, HttmResult};
 
 use crate::FilesystemType;
 
@@ -34,7 +34,7 @@ pub fn take_snapshot(config: Arc<Config>) -> HttmResult<[Vec<PathData>; 2]> {
         mounts_for_files: &BTreeMap<PathData, Vec<PathData>>,
     ) -> HttmResult<[Vec<PathData>; 2]> {
         // all snapshots should have the same timestamp
-        let timestamp = timestamp_file(&config, &SystemTime::now());
+        let timestamp = get_date(&config, &SystemTime::now(), DateFormat::Timestamp);
 
         let vec_snapshot_names: Vec<String> = mounts_for_files
             .iter()

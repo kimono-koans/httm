@@ -24,10 +24,13 @@ use which::which;
 
 use crate::parse_snaps::precompute_snap_mounts;
 use crate::utility::{get_common_path, get_fs_type_from_hidden_dir, HttmError};
-use crate::{
-    FilesystemType, HttmResult, AFP_FSTYPE, BTRFS_FSTYPE, NFS_FSTYPE, SMB_FSTYPE, ZFS_FSTYPE,
-    ZFS_SNAPSHOT_DIRECTORY,
-};
+use crate::{FilesystemType, HttmResult, ZFS_SNAPSHOT_DIRECTORY};
+
+pub const ZFS_FSTYPE: &str = "zfs";
+pub const BTRFS_FSTYPE: &str = "btrfs";
+pub const SMB_FSTYPE: &str = "smbfs";
+pub const NFS_FSTYPE: &str = "nfs";
+pub const AFP_FSTYPE: &str = "afpfs";
 
 // divide by the type of system we are on
 // Linux allows us the read proc mounts

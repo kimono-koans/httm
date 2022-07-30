@@ -15,15 +15,14 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::{borrow::Cow, collections::BTreeMap, time::SystemTime};
+use std::{borrow::Cow, collections::BTreeMap};
 
 use number_prefix::NumberPrefix;
 use terminal_size::{terminal_size, Height, Width};
-use time::{format_description, OffsetDateTime};
 
 use crate::lookup_file_mounts::get_mounts_for_files;
-use crate::utility::{paint_string, print_output_buf, PathData};
-use crate::{Config, HttmResult, DATE_FORMAT_DISPLAY};
+use crate::utility::{get_date, paint_string, print_output_buf, PathData};
+use crate::{Config, DateFormat, HttmResult};
 
 // 2 space wide padding - used between date and size, and size and path
 const PRETTY_FIXED_WIDTH_PADDING: &str = "  ";
@@ -108,7 +107,7 @@ fn display_pretty(config: &Config, snaps_and_live_set: &[Vec<PathData>; 2]) -> H
                         (size, path, padding)
                     };
 
-                    let fmt_date = display_date(config, &pathdata.system_time);
+                    let fmt_date = get_date(config, &pathdata.system_time, DateFormat::Display);
 
                     // displays blanks for phantom values, equaling their dummy lens and dates.
                     //
@@ -162,7 +161,7 @@ fn calculate_pretty_padding(
         (0usize, 0usize),
         |(mut size_padding_len, mut fancy_border_len), pathdata| {
             let (display_date, display_size, display_path) = {
-                let date = display_date(config, &pathdata.system_time);
+                let date = get_date(config, &pathdata.system_time, DateFormat::Display);
                 let size = format!(
                     "{:>width$}",
                     display_human_size(&pathdata.size),
@@ -300,16 +299,4 @@ fn display_human_size(size: &u64) -> String {
             format!("{:.1} {}B", n, prefix)
         }
     }
-}
-
-fn display_date(config: &Config, system_time: &SystemTime) -> String {
-    let date_time: OffsetDateTime = (*system_time).into();
-
-    let date_format =
-        format_description::parse(DATE_FORMAT_DISPLAY).expect("display date format is invalid");
-
-    date_time
-        .to_offset(config.requested_utc_offset)
-        .format(&date_format)
-        .expect("display date format could not be applied to the date supplied")
 }

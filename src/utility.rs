@@ -20,22 +20,33 @@ use lscolors::{LsColors, Style};
 use once_cell::unsync::OnceCell;
 use time::{format_description, OffsetDateTime};
 
-use crate::{interactive::SelectionCandidate, Config, DATE_FORMAT_TIMESTAMP};
-use crate::{
-    FilesystemType, HttmResult, BTRFS_SNAPPER_HIDDEN_DIRECTORY, PHANTOM_DATE, PHANTOM_SIZE,
-    ZFS_SNAPSHOT_DIRECTORY,
-};
+use crate::{interactive::SelectionCandidate, Config, DateFormat};
+use crate::{FilesystemType, HttmResult, BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_SNAPSHOT_DIRECTORY};
 
-pub fn timestamp_file(config: &Config, system_time: &SystemTime) -> String {
+pub const PHANTOM_DATE: SystemTime = SystemTime::UNIX_EPOCH;
+pub const PHANTOM_SIZE: u64 = 0u64;
+
+pub const DATE_FORMAT_DISPLAY: &str =
+    "[weekday repr:short] [month repr:short] [day] [hour]:[minute]:[second] [year]";
+pub const DATE_FORMAT_TIMESTAMP: &str = "[year]-[month]-[day]-[hour]:[minute]:[second]";
+
+pub fn get_date(config: &Config, system_time: &SystemTime, format: DateFormat) -> String {
     let date_time: OffsetDateTime = (*system_time).into();
 
-    let date_format =
-        format_description::parse(DATE_FORMAT_TIMESTAMP).expect("timestamp date format is invalid");
+    let date_format = format_description::parse(get_date_format(format))
+        .expect("timestamp date format is invalid");
 
     date_time
         .to_offset(config.requested_utc_offset)
         .format(&date_format)
         .expect("timestamp date format could not be applied to the date supplied")
+}
+
+pub fn get_date_format<'a>(format: DateFormat) -> &'a str {
+    match format {
+        DateFormat::Display => DATE_FORMAT_DISPLAY,
+        DateFormat::Timestamp => DATE_FORMAT_TIMESTAMP,
+    }
 }
 
 pub fn copy_recursive(src: &Path, dst: &Path) -> io::Result<()> {

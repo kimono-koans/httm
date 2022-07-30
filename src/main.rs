@@ -24,7 +24,6 @@ use std::{
     fs::canonicalize,
     path::{Path, PathBuf},
     sync::Arc,
-    time::SystemTime,
 };
 
 // wrap this complex looking error type, which is used everywhere,
@@ -61,23 +60,10 @@ use crate::utility::{
     httm_is_dir, install_hot_keys, print_output_buf, read_stdin, HttmError, PathData,
 };
 
-pub const ZFS_FSTYPE: &str = "zfs";
-pub const BTRFS_FSTYPE: &str = "btrfs";
-pub const SMB_FSTYPE: &str = "smbfs";
-pub const NFS_FSTYPE: &str = "nfs";
-pub const AFP_FSTYPE: &str = "afpfs";
-
 pub const ZFS_HIDDEN_DIRECTORY: &str = ".zfs";
 pub const ZFS_SNAPSHOT_DIRECTORY: &str = ".zfs/snapshot";
 pub const BTRFS_SNAPPER_HIDDEN_DIRECTORY: &str = ".snapshots";
 pub const BTRFS_SNAPPER_SUFFIX: &str = "snapshot";
-
-pub const PHANTOM_DATE: SystemTime = SystemTime::UNIX_EPOCH;
-pub const PHANTOM_SIZE: u64 = 0u64;
-
-pub const DATE_FORMAT_DISPLAY: &str =
-    "[weekday repr:short] [month repr:short] [day] [hour]:[minute]:[second] [year]";
-pub const DATE_FORMAT_TIMESTAMP: &str = "[year]-[month]-[day]-[hour]:[minute]:[second]";
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum FilesystemType {
@@ -111,7 +97,7 @@ enum DeletedMode {
     Only,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DatasetCollection {
     // key: mount, val: (dataset/subvol, fstype)
     map_of_datasets: BTreeMap<PathBuf, (String, FilesystemType)>,
@@ -125,16 +111,21 @@ pub struct DatasetCollection {
     opt_common_snap_dir: Option<PathBuf>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SnapshotDatasetType {
     MostProximate,
     AltReplicated,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RequestRelative {
     Absolute,
     Relative,
+}
+
+pub enum DateFormat {
+    Display,
+    Timestamp,
 }
 
 fn parse_args() -> ArgMatches {
