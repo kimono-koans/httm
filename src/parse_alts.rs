@@ -19,17 +19,16 @@ use std::{collections::BTreeMap, path::Path, path::PathBuf};
 
 use rayon::prelude::*;
 
-use crate::lookup_versions::DatasetsForSearch;
 use crate::utility::HttmError;
-use crate::{FilesystemType, HttmResult};
+use crate::{AltInfo, DatasetInfo, HttmResult};
 
 // instead of looking up, precompute possible alt replicated mounts before exec
 pub fn precompute_alt_replicated(
-    map_of_datasets: &BTreeMap<PathBuf, (String, FilesystemType)>,
-) -> BTreeMap<PathBuf, DatasetsForSearch> {
+    map_of_datasets: &BTreeMap<PathBuf, DatasetInfo>,
+) -> BTreeMap<PathBuf, AltInfo> {
     map_of_datasets
         .par_iter()
-        .flat_map(|(mount, (_dataset, _fstype))| {
+        .flat_map(|(mount, _dataset_info)| {
             get_alt_replicated_datasets(mount, map_of_datasets)
                 .map(|datasets| (mount.to_path_buf(), datasets))
         })
@@ -38,10 +37,10 @@ pub fn precompute_alt_replicated(
 
 fn get_alt_replicated_datasets(
     proximate_dataset_mount: &Path,
-    map_of_datasets: &BTreeMap<PathBuf, (String, FilesystemType)>,
-) -> HttmResult<DatasetsForSearch> {
-    let proximate_dataset_fsname = match &map_of_datasets.get(proximate_dataset_mount) {
-        Some((proximate_dataset_fsname, _)) => proximate_dataset_fsname.clone(),
+    map_of_datasets: &BTreeMap<PathBuf, DatasetInfo>,
+) -> HttmResult<AltInfo> {
+    let proximate_dataset_fs_name = match &map_of_datasets.get(proximate_dataset_mount) {
+        Some(dataset_info) => dataset_info.name.clone(),
         None => {
             return Err(HttmError::new("httm was unable to detect an alternate replicated mount point.  Perhaps the replicated filesystem is not mounted?").into());
         }
@@ -52,9 +51,11 @@ fn get_alt_replicated_datasets(
     // replicated to tank/rpool
     let mut alt_replicated_mounts: Vec<PathBuf> = map_of_datasets
         .par_iter()
-        .filter(|(_mount, (fs_name, _fstype))| {
-            fs_name != &proximate_dataset_fsname
-                && fs_name.ends_with(proximate_dataset_fsname.as_str())
+        .filter(|(_mount, dataset_info)| {
+            dataset_info.name != proximate_dataset_fs_name
+                && dataset_info
+                    .name
+                    .ends_with(proximate_dataset_fs_name.as_str())
         })
         .map(|(mount, _fsname)| mount)
         .cloned()
@@ -65,7 +66,7 @@ fn get_alt_replicated_datasets(
         Err(HttmError::new("httm was unable to detect an alternate replicated mount point.  Perhaps the replicated filesystem is not mounted?").into())
     } else {
         alt_replicated_mounts.sort_unstable_by_key(|path| path.as_os_str().len());
-        Ok(DatasetsForSearch {
+        Ok(AltInfo {
             proximate_dataset_mount: proximate_dataset_mount.to_path_buf(),
             datasets_of_interest: alt_replicated_mounts,
         })

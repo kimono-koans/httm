@@ -31,7 +31,6 @@ use std::{
 pub type HttmResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
 use clap::{crate_name, crate_version, Arg, ArgMatches};
-use lookup_versions::DatasetsForSearch;
 use rayon::prelude::*;
 use time::UtcOffset;
 
@@ -71,6 +70,12 @@ pub enum FilesystemType {
     Btrfs,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum MountType {
+    Local,
+    Network,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 enum ExecMode {
     Interactive,
@@ -98,16 +103,47 @@ enum DeletedMode {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DatasetInfo {
+    name: String,
+    fs_type: FilesystemType,
+    mount_type: MountType,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AliasInfo {
+    remote_dir: PathBuf,
+    fs_type: FilesystemType,
+}
+
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+pub struct AltInfo {
+    pub proximate_dataset_mount: PathBuf,
+    pub datasets_of_interest: Vec<PathBuf>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SnapInfo {
+    snaps: Vec<PathBuf>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FilterDirs {
+    filter_dirs: Vec<PathBuf>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DatasetCollection {
-    // key: mount, val: (dataset/subvol, fstype)
-    map_of_datasets: BTreeMap<PathBuf, (String, FilesystemType)>,
-    // key: mount, val: snap locations on disk (e.g. /.zfs/snapshot/snap_8a86e4fc_prepApt/home)
-    map_of_snaps: BTreeMap<PathBuf, Vec<PathBuf>>,
+    // key: mount, val: (dataset/subvol, fs_type, mount_type)
+    map_of_datasets: BTreeMap<PathBuf, DatasetInfo>,
+    // key: mount, val: vec snap locations on disk (e.g. /.zfs/snapshot/snap_8a86e4fc_prepApt/home)
+    map_of_snaps: BTreeMap<PathBuf, SnapInfo>,
     // key: mount, val: alt dataset
-    opt_map_of_alts: Option<BTreeMap<PathBuf, DatasetsForSearch>>,
-    // key: mount, val: (local dir/remote dir, fstype)
-    opt_map_of_aliases: Option<BTreeMap<PathBuf, (PathBuf, FilesystemType)>>,
-    vec_of_filter_dirs: Vec<PathBuf>,
+    opt_map_of_alts: Option<BTreeMap<PathBuf, AltInfo>>,
+    // key: local dir, val: (remote dir, fstype)
+    opt_map_of_aliases: Option<BTreeMap<PathBuf, AliasInfo>>,
+    // vec dirs to be filtered
+    vec_of_filter_dirs: FilterDirs,
+    // opt single dir to to be filtered re: btrfs common snap dir
     opt_common_snap_dir: Option<PathBuf>,
 }
 
@@ -335,7 +371,7 @@ fn parse_args() -> ArgMatches {
         .arg(
             Arg::new("UTC")
                 .long("utc")
-                .help("use utc for date display and timestamps")
+                .help("use UTC for date display and timestamps")
                 .display_order(21)
         )
         .arg(

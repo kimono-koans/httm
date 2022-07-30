@@ -23,19 +23,16 @@ use std::{
 
 use rayon::prelude::*;
 
-use crate::utility::{HttmError, PathData};
-use crate::{Config, FilesystemType, HttmResult, SnapshotDatasetType};
-
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
-pub struct DatasetsForSearch {
-    pub proximate_dataset_mount: PathBuf,
-    pub datasets_of_interest: Vec<PathBuf>,
-}
+use crate::{
+    utility::{HttmError, PathData},
+    AliasInfo, AltInfo, DatasetInfo, SnapInfo,
+};
+use crate::{Config, HttmResult, SnapshotDatasetType};
 
 #[derive(Debug, Clone)]
 pub struct FileSearchBundle {
     pub relative_path: PathBuf,
-    pub opt_snap_mounts: Option<Vec<PathBuf>>,
+    pub opt_snap_mounts: Option<SnapInfo>,
 }
 
 pub fn versions_lookup_exec(
@@ -96,7 +93,7 @@ pub fn get_datasets_for_search(
     config: &Config,
     pathdata: &PathData,
     requested_dataset_type: &SnapshotDatasetType,
-) -> HttmResult<DatasetsForSearch> {
+) -> HttmResult<AltInfo> {
     // here, we take our file path and get back possibly multiple ZFS dataset mountpoints
     // and our most proximate dataset mount point (which is always the same) for
     // a single file
@@ -119,10 +116,10 @@ pub fn get_datasets_for_search(
         None => get_proximate_dataset(pathdata, &config.dataset_collection.map_of_datasets)?,
     };
 
-    let datasets_for_search: DatasetsForSearch = match requested_dataset_type {
+    let datasets_for_search: AltInfo = match requested_dataset_type {
         SnapshotDatasetType::MostProximate => {
             // just return the same dataset when in most proximate mode
-            DatasetsForSearch {
+            AltInfo {
                 proximate_dataset_mount: proximate_dataset_mount.clone(),
                 datasets_of_interest: vec![proximate_dataset_mount],
             }
@@ -144,7 +141,7 @@ pub fn get_datasets_for_search(
 pub fn get_file_search_bundle(
     config: &Config,
     pathdata: &PathData,
-    datasets_for_search: &DatasetsForSearch,
+    datasets_for_search: &AltInfo,
 ) -> HttmResult<Vec<FileSearchBundle>> {
     datasets_for_search
         .datasets_of_interest
@@ -185,8 +182,8 @@ fn get_relative_path(
             let opt_aliased_local_dir = map_of_aliases
                 .par_iter()
                 // do a search for a key with a value
-                .find_map_first(|(local_dir, (snap_dir, _fs_type))| {
-                    if snap_dir == proximate_dataset_mount {
+                .find_map_first(|(local_dir, alias_info)| {
+                    if alias_info.remote_dir == proximate_dataset_mount {
                         Some(local_dir)
                     } else {
                         None
@@ -211,25 +208,22 @@ fn get_relative_path(
 
 fn get_alias_dataset(
     pathdata: &PathData,
-    map_of_datasets: &BTreeMap<PathBuf, (PathBuf, FilesystemType)>,
+    map_of_alias: &BTreeMap<PathBuf, AliasInfo>,
 ) -> Option<PathBuf> {
     let ancestors: Vec<&Path> = pathdata.path_buf.ancestors().collect();
 
     // find_map_first should return the first seq result with a par_iter
     // but not with a par_bridge
-    ancestors
-        .into_par_iter()
-        .find_map_first(|ancestor| {
-            map_of_datasets
-                .get(ancestor)
-                .map(|(snap_dir, _fs_type)| snap_dir)
-        })
-        .cloned()
+    ancestors.into_par_iter().find_map_first(|ancestor| {
+        map_of_alias
+            .get(ancestor)
+            .map(|alias_info| alias_info.remote_dir.clone())
+    })
 }
 
 fn get_proximate_dataset(
     pathdata: &PathData,
-    map_of_datasets: &BTreeMap<PathBuf, (String, FilesystemType)>,
+    map_of_datasets: &BTreeMap<PathBuf, DatasetInfo>,
 ) -> HttmResult<PathBuf> {
     // for /usr/bin, we prefer the most proximate: /usr/bin to /usr and /
     // ancestors() iterates in this top-down order, when a value: dataset/fstype is available
@@ -282,7 +276,7 @@ fn get_versions_per_dataset(search_bundle: &FileSearchBundle) -> HttmResult<Vec<
         Ok(unique_versions)
     }
 
-    let snap_mounts: Vec<PathBuf> = search_bundle
+    let snap_mounts: SnapInfo = search_bundle
         .opt_snap_mounts
         .as_ref()
         .ok_or_else(|| {
@@ -293,9 +287,10 @@ fn get_versions_per_dataset(search_bundle: &FileSearchBundle) -> HttmResult<Vec<
         })?
         .clone();
 
-    let unique_versions: Vec<PathData> = get_versions(&snap_mounts, &search_bundle.relative_path)?
-        .into_values()
-        .collect();
+    let unique_versions: Vec<PathData> =
+        get_versions(&snap_mounts.snaps, &search_bundle.relative_path)?
+            .into_values()
+            .collect();
 
     Ok(unique_versions)
 }

@@ -129,19 +129,15 @@ fn get_deleted_per_dataset(
         Ok(unique_snap_filenames)
     }
 
-    let snap_mounts: Vec<PathBuf> = search_bundle
-        .opt_snap_mounts
-        .as_ref()
-        .ok_or_else(|| {
-            HttmError::new(
-                "If you are here, httm could find no snap mount for your files.  \
+    let snap_mounts = search_bundle.opt_snap_mounts.as_ref().ok_or_else(|| {
+        HttmError::new(
+            "If you are here, httm could find no snap mount for your files.  \
         Iterator should just ignore/flatten the error.",
-            )
-        })?
-        .clone();
+        )
+    })?;
 
     let unique_snap_filenames: BTreeMap<OsString, BasicDirEntryInfo> =
-        get_snap_filenames(&snap_mounts, &search_bundle.relative_path)?;
+        get_snap_filenames(&snap_mounts.snaps, &search_bundle.relative_path)?;
 
     // compare local filenames to all unique snap filenames - none values are unique, here
     let all_deleted_versions: Vec<BasicDirEntryInfo> = unique_snap_filenames

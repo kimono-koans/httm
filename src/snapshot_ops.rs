@@ -43,9 +43,9 @@ pub fn take_snapshot(config: Arc<Config>) -> HttmResult<[Vec<PathData>; 2]> {
             let dataset: String = match &config.dataset_collection.opt_map_of_aliases {
                 None => {
                     match config.dataset_collection.map_of_datasets.get(&mount.path_buf) {
-                        Some((dataset, fs_type)) => {
-                            if let FilesystemType::Zfs = fs_type {
-                                Ok(dataset.to_owned())
+                        Some(dataset_info) => {
+                            if let FilesystemType::Zfs = dataset_info.fs_type {
+                                Ok(dataset_info.name.to_owned())
                             } else {
                                 return Err(HttmError::new("httm does not currently support snapshot-ing non-ZFS filesystems."))
                             }

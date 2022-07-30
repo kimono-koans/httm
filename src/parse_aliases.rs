@@ -18,14 +18,14 @@
 use std::{collections::BTreeMap, ffi::OsString, path::Path, path::PathBuf};
 
 use crate::utility::{get_fs_type_from_hidden_dir, HttmError};
-use crate::{FilesystemType, HttmResult};
+use crate::{AliasInfo, HttmResult};
 
 pub fn parse_aliases(
     raw_local_dir: &Option<OsString>,
     raw_snap_dir: &Option<OsString>,
     pwd: &Path,
     opt_input_aliases: &Option<Vec<String>>,
-) -> HttmResult<BTreeMap<PathBuf, (PathBuf, FilesystemType)>> {
+) -> HttmResult<BTreeMap<PathBuf, AliasInfo>> {
     // user defined dir exists?: check that path contains the hidden snapshot directory
     let snap_point = raw_snap_dir.as_ref().map(|value| {
         let snap_dir = PathBuf::from(value);
@@ -85,10 +85,18 @@ pub fn parse_aliases(
                 Some((local_dir, snap_dir))
             }
         })
-        .flat_map(|(local_dir, snap_dir)| {
-            get_fs_type_from_hidden_dir(&snap_dir)
+        .flat_map(|(local_dir, remote_dir)| {
+            get_fs_type_from_hidden_dir(&remote_dir)
                 .ok()
-                .map(|fs_type| (local_dir, (snap_dir, fs_type)))
+                .map(|fs_type| {
+                    (
+                        local_dir,
+                        AliasInfo {
+                            remote_dir,
+                            fs_type,
+                        },
+                    )
+                })
         })
         .collect();
 

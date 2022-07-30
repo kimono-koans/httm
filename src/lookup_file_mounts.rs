@@ -20,11 +20,7 @@ use std::collections::BTreeMap;
 use itertools::Itertools;
 use rayon::prelude::*;
 
-use crate::{
-    lookup_versions::{get_datasets_for_search, DatasetsForSearch},
-    utility::PathData,
-    ExecMode,
-};
+use crate::{lookup_versions::get_datasets_for_search, utility::PathData, AltInfo, ExecMode};
 use crate::{Config, HttmResult, SnapshotDatasetType};
 
 #[allow(clippy::type_complexity)]
@@ -57,7 +53,7 @@ pub fn get_mounts_for_files(config: &Config) -> HttmResult<BTreeMap<PathData, Ve
     let mounts_for_files: BTreeMap<PathData, Vec<PathData>> = non_phantom_files
         .into_iter()
         .map(|pathdata| {
-            let datasets: Vec<DatasetsForSearch> = selected_datasets
+            let datasets: Vec<AltInfo> = selected_datasets
                 .iter()
                 .flat_map(|dataset_type| get_datasets_for_search(config, pathdata, dataset_type))
                 .collect();
