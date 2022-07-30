@@ -25,8 +25,8 @@ use which::which;
 use crate::parse_snaps::precompute_snap_mounts;
 use crate::utility::{get_common_path, get_fs_type_from_hidden_dir, HttmError};
 use crate::{
-    DatasetInfo, FilesystemType, FilterDirs, HttmResult, MountType, SnapInfo,
-    ZFS_SNAPSHOT_DIRECTORY,
+    DatasetInfo, FilesystemType, FilterDirs, HttmResult, MapOfDatasets, MapOfSnaps, MountType,
+    OptBtrfsCommonSnapDir, ZFS_SNAPSHOT_DIRECTORY,
 };
 
 pub const ZFS_FSTYPE: &str = "zfs";
@@ -38,11 +38,7 @@ pub const AFP_FSTYPE: &str = "afpfs";
 // divide by the type of system we are on
 // Linux allows us the read proc mounts
 #[allow(clippy::type_complexity)]
-pub fn parse_mounts_exec() -> HttmResult<(
-    BTreeMap<PathBuf, DatasetInfo>,
-    BTreeMap<PathBuf, SnapInfo>,
-    FilterDirs,
-)> {
+pub fn parse_mounts_exec() -> HttmResult<(MapOfDatasets, MapOfSnaps, FilterDirs)> {
     let (map_of_datasets, vec_filter_dirs) = if cfg!(target_os = "linux") {
         parse_from_proc_mounts()?
     } else {
@@ -57,98 +53,96 @@ pub fn parse_mounts_exec() -> HttmResult<(
 // parsing from proc mounts is both faster and necessary for certain btrfs features
 // for instance, allows us to read subvolumes mounts, like "/@" or "/@home"
 #[allow(clippy::type_complexity)]
-fn parse_from_proc_mounts() -> HttmResult<(BTreeMap<PathBuf, DatasetInfo>, FilterDirs)> {
-    let (map_of_datasets, filter_dirs): (BTreeMap<PathBuf, DatasetInfo>, Vec<PathBuf>) =
-        MountIter::new()?
-            .par_bridge()
-            .flatten()
-            // but exclude snapshot mounts.  we want only the raw filesystems
-            .filter(|mount_info| {
-                !mount_info
-                    .dest
-                    .to_string_lossy()
-                    .contains(ZFS_SNAPSHOT_DIRECTORY)
-            })
-            .partition_map(|mount_info| match &mount_info.fstype.as_str() {
-                &ZFS_FSTYPE => Either::Left((
-                    mount_info.dest,
-                    DatasetInfo {
-                        name: mount_info.source.to_string_lossy().into_owned(),
-                        fs_type: FilesystemType::Zfs,
-                        mount_type: MountType::Local,
-                    },
-                )),
-                &SMB_FSTYPE | &AFP_FSTYPE | &NFS_FSTYPE => {
-                    match get_fs_type_from_hidden_dir(&mount_info.dest) {
-                        Ok(FilesystemType::Zfs) => Either::Left((
-                            mount_info.dest,
-                            DatasetInfo {
-                                name: mount_info.source.to_string_lossy().into_owned(),
-                                fs_type: FilesystemType::Zfs,
-                                mount_type: MountType::Network,
-                            },
-                        )),
-                        Ok(FilesystemType::Btrfs) => Either::Left((
-                            mount_info.dest,
-                            DatasetInfo {
-                                name: mount_info.source.to_string_lossy().into_owned(),
-                                fs_type: FilesystemType::Btrfs,
-                                mount_type: MountType::Network,
-                            },
-                        )),
-                        Err(_) => Either::Right(mount_info.dest),
-                    }
-                }
-                &BTRFS_FSTYPE => {
-                    let keyed_options: BTreeMap<String, String> = mount_info
-                        .options
-                        .par_iter()
-                        .filter(|line| line.contains('='))
-                        .filter_map(|line| {
-                            line.split_once(&"=")
-                                .map(|(key, value)| (key.to_owned(), value.to_owned()))
-                        })
-                        .collect();
-
-                    let name = match keyed_options.get("subvol") {
-                        Some(subvol) => subvol.clone(),
-                        None => mount_info.source.to_string_lossy().into_owned(),
-                    };
-
-                    let fs_type = FilesystemType::Btrfs;
-
-                    let mount_type = MountType::Local;
-
-                    Either::Left((
+fn parse_from_proc_mounts() -> HttmResult<(MapOfDatasets, FilterDirs)> {
+    let (map_of_datasets, filter_dirs): (MapOfDatasets, Vec<PathBuf>) = MountIter::new()?
+        .par_bridge()
+        .flatten()
+        // but exclude snapshot mounts.  we want only the raw filesystems
+        .filter(|mount_info| {
+            !mount_info
+                .dest
+                .to_string_lossy()
+                .contains(ZFS_SNAPSHOT_DIRECTORY)
+        })
+        .partition_map(|mount_info| match &mount_info.fstype.as_str() {
+            &ZFS_FSTYPE => Either::Left((
+                mount_info.dest,
+                DatasetInfo {
+                    name: mount_info.source.to_string_lossy().into_owned(),
+                    fs_type: FilesystemType::Zfs,
+                    mount_type: MountType::Local,
+                },
+            )),
+            &SMB_FSTYPE | &AFP_FSTYPE | &NFS_FSTYPE => {
+                match get_fs_type_from_hidden_dir(&mount_info.dest) {
+                    Ok(FilesystemType::Zfs) => Either::Left((
                         mount_info.dest,
                         DatasetInfo {
-                            name,
-                            fs_type,
-                            mount_type,
+                            name: mount_info.source.to_string_lossy().into_owned(),
+                            fs_type: FilesystemType::Zfs,
+                            mount_type: MountType::Network,
                         },
-                    ))
+                    )),
+                    Ok(FilesystemType::Btrfs) => Either::Left((
+                        mount_info.dest,
+                        DatasetInfo {
+                            name: mount_info.source.to_string_lossy().into_owned(),
+                            fs_type: FilesystemType::Btrfs,
+                            mount_type: MountType::Network,
+                        },
+                    )),
+                    Err(_) => Either::Right(mount_info.dest),
                 }
-                _ => Either::Right(mount_info.dest),
-            });
+            }
+            &BTRFS_FSTYPE => {
+                let keyed_options: BTreeMap<String, String> = mount_info
+                    .options
+                    .par_iter()
+                    .filter(|line| line.contains('='))
+                    .filter_map(|line| {
+                        line.split_once(&"=")
+                            .map(|(key, value)| (key.to_owned(), value.to_owned()))
+                    })
+                    .collect();
+
+                let name = match keyed_options.get("subvol") {
+                    Some(subvol) => subvol.clone(),
+                    None => mount_info.source.to_string_lossy().into_owned(),
+                };
+
+                let fs_type = FilesystemType::Btrfs;
+
+                let mount_type = MountType::Local;
+
+                Either::Left((
+                    mount_info.dest,
+                    DatasetInfo {
+                        name,
+                        fs_type,
+                        mount_type,
+                    },
+                ))
+            }
+            _ => Either::Right(mount_info.dest),
+        });
 
     if map_of_datasets.is_empty() {
         Err(HttmError::new("httm could not find any valid datasets on the system.").into())
     } else {
-        Ok((map_of_datasets, FilterDirs { filter_dirs }))
+        Ok((map_of_datasets, filter_dirs))
     }
 }
 
 // old fashioned parsing for non-Linux systems, nearly as fast, works everywhere with a mount command
 // both methods are much faster than using zfs command
 #[allow(clippy::type_complexity)]
-fn parse_from_mount_cmd() -> HttmResult<(BTreeMap<PathBuf, DatasetInfo>, FilterDirs)> {
-    fn parse(mount_command: &Path) -> HttmResult<(BTreeMap<PathBuf, DatasetInfo>, FilterDirs)> {
+fn parse_from_mount_cmd() -> HttmResult<(MapOfDatasets, FilterDirs)> {
+    fn parse(mount_command: &Path) -> HttmResult<(MapOfDatasets, FilterDirs)> {
         let command_output =
             std::str::from_utf8(&ExecProcess::new(mount_command).output()?.stdout)?.to_owned();
 
         // parse "mount" for filesystems and mountpoints
-        let (map_of_datasets, filter_dirs): (BTreeMap<PathBuf, DatasetInfo>, Vec<PathBuf>) =
-            command_output
+        let (map_of_datasets, filter_dirs): (MapOfDatasets, Vec<PathBuf>) = command_output
             .par_lines()
             // but exclude snapshot mounts.  we want the raw filesystem names.
             .filter(|line| !line.contains(ZFS_SNAPSHOT_DIRECTORY))
@@ -193,7 +187,7 @@ fn parse_from_mount_cmd() -> HttmResult<(BTreeMap<PathBuf, DatasetInfo>, FilterD
         if map_of_datasets.is_empty() {
             Err(HttmError::new("httm could not find any valid datasets on the system.").into())
         } else {
-            Ok((map_of_datasets, FilterDirs { filter_dirs }))
+            Ok((map_of_datasets, filter_dirs))
         }
     }
 
@@ -212,9 +206,9 @@ fn parse_from_mount_cmd() -> HttmResult<(BTreeMap<PathBuf, DatasetInfo>, FilterD
 // if we have some btrfs mounts, we check to see if there is a snap directory in common
 // so we can hide that common path from searches later
 pub fn get_common_snap_dir(
-    map_of_datasets: &BTreeMap<PathBuf, DatasetInfo>,
-    map_of_snaps: &BTreeMap<PathBuf, SnapInfo>,
-) -> Option<PathBuf> {
+    map_of_datasets: &MapOfDatasets,
+    map_of_snaps: &MapOfSnaps,
+) -> OptBtrfsCommonSnapDir {
     let btrfs_datasets: Vec<&PathBuf> = map_of_datasets
         .par_iter()
         .filter(|(_mount, dataset_info)| dataset_info.fs_type == FilesystemType::Btrfs)
@@ -225,7 +219,8 @@ pub fn get_common_snap_dir(
         let vec_snaps: Vec<PathBuf> = btrfs_datasets
             .into_par_iter()
             .flat_map(|mount| map_of_snaps.get(mount))
-            .flat_map(|snap_info| snap_info.snaps.clone())
+            .flat_map(|snap_info| snap_info)
+            .cloned()
             .collect();
 
         get_common_path(vec_snaps)

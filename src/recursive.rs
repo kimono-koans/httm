@@ -214,7 +214,6 @@ fn is_filter_dir(config: &Config, dir_entry: &DirEntry) -> bool {
         config
             .dataset_collection
             .vec_of_filter_dirs
-            .filter_dirs
             .par_iter()
             .any(|filter_dir| path == *filter_dir)
     }

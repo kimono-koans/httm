@@ -137,7 +137,7 @@ fn get_deleted_per_dataset(
     })?;
 
     let unique_snap_filenames: BTreeMap<OsString, BasicDirEntryInfo> =
-        get_snap_filenames(&snap_mounts.snaps, &search_bundle.relative_path)?;
+        get_snap_filenames(snap_mounts, &search_bundle.relative_path)?;
 
     // compare local filenames to all unique snap filenames - none values are unique, here
     let all_deleted_versions: Vec<BasicDirEntryInfo> = unique_snap_filenames

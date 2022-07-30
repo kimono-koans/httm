@@ -15,17 +15,15 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::{collections::BTreeMap, path::Path, path::PathBuf};
+use std::{path::Path, path::PathBuf};
 
 use rayon::prelude::*;
 
 use crate::utility::HttmError;
-use crate::{AltInfo, DatasetInfo, HttmResult};
+use crate::{AltInfo, HttmResult, MapOfAlts, MapOfDatasets};
 
 // instead of looking up, precompute possible alt replicated mounts before exec
-pub fn precompute_alt_replicated(
-    map_of_datasets: &BTreeMap<PathBuf, DatasetInfo>,
-) -> BTreeMap<PathBuf, AltInfo> {
+pub fn precompute_alt_replicated(map_of_datasets: &MapOfDatasets) -> MapOfAlts {
     map_of_datasets
         .par_iter()
         .flat_map(|(mount, _dataset_info)| {
@@ -37,7 +35,7 @@ pub fn precompute_alt_replicated(
 
 fn get_alt_replicated_datasets(
     proximate_dataset_mount: &Path,
-    map_of_datasets: &BTreeMap<PathBuf, DatasetInfo>,
+    map_of_datasets: &MapOfDatasets,
 ) -> HttmResult<AltInfo> {
     let proximate_dataset_fs_name = match &map_of_datasets.get(proximate_dataset_mount) {
         Some(dataset_info) => dataset_info.name.clone(),

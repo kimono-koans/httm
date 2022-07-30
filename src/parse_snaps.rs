@@ -15,23 +15,19 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::{
-    collections::BTreeMap, fs::read_dir, path::Path, path::PathBuf, process::Command as ExecProcess,
-};
+use std::{fs::read_dir, path::Path, path::PathBuf, process::Command as ExecProcess};
 
 use rayon::prelude::*;
 use which::which;
 
 use crate::utility::HttmError;
 use crate::{
-    DatasetInfo, FilesystemType, HttmResult, MountType, SnapInfo, BTRFS_SNAPPER_HIDDEN_DIRECTORY,
-    BTRFS_SNAPPER_SUFFIX, ZFS_SNAPSHOT_DIRECTORY,
+    FilesystemType, HttmResult, MapOfDatasets, MapOfSnaps, MountType, SnapInfo,
+    BTRFS_SNAPPER_HIDDEN_DIRECTORY, BTRFS_SNAPPER_SUFFIX, ZFS_SNAPSHOT_DIRECTORY,
 };
 
 // fans out precompute of snap mounts to the appropriate function based on fstype
-pub fn precompute_snap_mounts(
-    map_of_datasets: &BTreeMap<PathBuf, DatasetInfo>,
-) -> HttmResult<BTreeMap<PathBuf, SnapInfo>> {
+pub fn precompute_snap_mounts(map_of_datasets: &MapOfDatasets) -> HttmResult<MapOfSnaps> {
     let opt_root_mount_path: Option<&PathBuf> =
         map_of_datasets
             .par_iter()
@@ -46,7 +42,7 @@ pub fn precompute_snap_mounts(
                 FilesystemType::Zfs => None,
             });
 
-    let map_of_snaps: BTreeMap<PathBuf, SnapInfo> = map_of_datasets
+    let map_of_snaps: MapOfSnaps = map_of_datasets
         .par_iter()
         .flat_map(|(mount, dataset_info)| {
             let snap_mounts = match dataset_info.fs_type {
@@ -116,7 +112,7 @@ fn precompute_btrfs_snap_mounts_from_cmd(
             .filter(|snapshot_location| snapshot_location.exists())
             .collect();
 
-        Ok(SnapInfo { snaps })
+        Ok(snaps)
     }
 
     if let Ok(btrfs_command) = which("btrfs") {
@@ -148,5 +144,5 @@ fn precompute_defined_mounts(
             .collect(),
     };
 
-    Ok(SnapInfo { snaps })
+    Ok(snaps)
 }

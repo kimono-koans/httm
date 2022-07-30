@@ -121,30 +121,31 @@ pub struct AltInfo {
     pub datasets_of_interest: Vec<PathBuf>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SnapInfo {
-    snaps: Vec<PathBuf>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct FilterDirs {
-    filter_dirs: Vec<PathBuf>,
-}
+pub type MapOfDatasets = BTreeMap<PathBuf, DatasetInfo>;
+pub type MapOfSnaps = BTreeMap<PathBuf, SnapInfo>;
+pub type MapOfAlts = BTreeMap<PathBuf, AltInfo>;
+pub type MapOfAliases = BTreeMap<PathBuf, AliasInfo>;
+pub type BtrfsCommonSnapDir = PathBuf;
+pub type OptMapOfAlts = Option<MapOfAlts>;
+pub type OptMapOfAliases = Option<MapOfAliases>;
+pub type OptBtrfsCommonSnapDir = Option<BtrfsCommonSnapDir>;
+pub type FilterDirs = Vec<PathBuf>;
+pub type SnapInfo = Vec<PathBuf>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DatasetCollection {
     // key: mount, val: (dataset/subvol, fs_type, mount_type)
-    map_of_datasets: BTreeMap<PathBuf, DatasetInfo>,
+    map_of_datasets: MapOfDatasets,
     // key: mount, val: vec snap locations on disk (e.g. /.zfs/snapshot/snap_8a86e4fc_prepApt/home)
-    map_of_snaps: BTreeMap<PathBuf, SnapInfo>,
+    map_of_snaps: MapOfSnaps,
     // key: mount, val: alt dataset
-    opt_map_of_alts: Option<BTreeMap<PathBuf, AltInfo>>,
+    opt_map_of_alts: OptMapOfAlts,
     // key: local dir, val: (remote dir, fstype)
-    opt_map_of_aliases: Option<BTreeMap<PathBuf, AliasInfo>>,
+    opt_map_of_aliases: OptMapOfAliases,
     // vec dirs to be filtered
     vec_of_filter_dirs: FilterDirs,
     // opt single dir to to be filtered re: btrfs common snap dir
-    opt_common_snap_dir: Option<PathBuf>,
+    opt_common_snap_dir: OptBtrfsCommonSnapDir,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

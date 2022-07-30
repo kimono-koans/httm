@@ -25,7 +25,7 @@ use rayon::prelude::*;
 
 use crate::{
     utility::{HttmError, PathData},
-    AliasInfo, AltInfo, DatasetInfo, SnapInfo,
+    AltInfo, MapOfAliases, MapOfDatasets, SnapInfo,
 };
 use crate::{Config, HttmResult, SnapshotDatasetType};
 
@@ -206,10 +206,7 @@ fn get_relative_path(
     Ok(relative_path.to_path_buf())
 }
 
-fn get_alias_dataset(
-    pathdata: &PathData,
-    map_of_alias: &BTreeMap<PathBuf, AliasInfo>,
-) -> Option<PathBuf> {
+fn get_alias_dataset(pathdata: &PathData, map_of_alias: &MapOfAliases) -> Option<PathBuf> {
     let ancestors: Vec<&Path> = pathdata.path_buf.ancestors().collect();
 
     // find_map_first should return the first seq result with a par_iter
@@ -223,7 +220,7 @@ fn get_alias_dataset(
 
 fn get_proximate_dataset(
     pathdata: &PathData,
-    map_of_datasets: &BTreeMap<PathBuf, DatasetInfo>,
+    map_of_datasets: &MapOfDatasets,
 ) -> HttmResult<PathBuf> {
     // for /usr/bin, we prefer the most proximate: /usr/bin to /usr and /
     // ancestors() iterates in this top-down order, when a value: dataset/fstype is available
@@ -287,10 +284,9 @@ fn get_versions_per_dataset(search_bundle: &FileSearchBundle) -> HttmResult<Vec<
         })?
         .clone();
 
-    let unique_versions: Vec<PathData> =
-        get_versions(&snap_mounts.snaps, &search_bundle.relative_path)?
-            .into_values()
-            .collect();
+    let unique_versions: Vec<PathData> = get_versions(&snap_mounts, &search_bundle.relative_path)?
+        .into_values()
+        .collect();
 
     Ok(unique_versions)
 }

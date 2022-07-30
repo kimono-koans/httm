@@ -15,17 +15,17 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::{collections::BTreeMap, ffi::OsString, path::Path, path::PathBuf};
+use std::{ffi::OsString, path::Path, path::PathBuf};
 
 use crate::utility::{get_fs_type_from_hidden_dir, HttmError};
-use crate::{AliasInfo, HttmResult};
+use crate::{AliasInfo, HttmResult, MapOfAliases};
 
 pub fn parse_aliases(
     raw_local_dir: &Option<OsString>,
     raw_snap_dir: &Option<OsString>,
     pwd: &Path,
     opt_input_aliases: &Option<Vec<String>>,
-) -> HttmResult<BTreeMap<PathBuf, AliasInfo>> {
+) -> HttmResult<MapOfAliases> {
     // user defined dir exists?: check that path contains the hidden snapshot directory
     let snap_point = raw_snap_dir.as_ref().map(|value| {
         let snap_dir = PathBuf::from(value);
