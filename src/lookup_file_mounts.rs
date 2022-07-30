@@ -23,8 +23,10 @@ use rayon::prelude::*;
 use crate::{lookup_versions::get_datasets_for_search, utility::PathData, AltInfo, ExecMode};
 use crate::{Config, HttmResult, SnapshotDatasetType};
 
+pub type MountsForFiles = BTreeMap<PathData, Vec<PathData>>;
+
 #[allow(clippy::type_complexity)]
-pub fn get_mounts_for_files(config: &Config) -> HttmResult<BTreeMap<PathData, Vec<PathData>>> {
+pub fn get_mounts_for_files(config: &Config) -> HttmResult<MountsForFiles> {
     // we only check for phantom files in "mount for file" mode because
     // people should be able to search for deleted files in other modes
     let (phantom_files, non_phantom_files): (Vec<&PathData>, Vec<&PathData>) = config
@@ -50,7 +52,7 @@ pub fn get_mounts_for_files(config: &Config) -> HttmResult<BTreeMap<PathData, Ve
         config.datasets_of_interest.clone()
     };
 
-    let mounts_for_files: BTreeMap<PathData, Vec<PathData>> = non_phantom_files
+    let mounts_for_files: MountsForFiles = non_phantom_files
         .into_iter()
         .map(|pathdata| {
             let datasets: Vec<AltInfo> = selected_datasets

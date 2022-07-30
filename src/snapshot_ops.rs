@@ -21,7 +21,7 @@ use itertools::Itertools;
 use std::process::Command as ExecProcess;
 use which::which;
 
-use crate::lookup_file_mounts::get_mounts_for_files;
+use crate::lookup_file_mounts::{get_mounts_for_files, MountsForFiles};
 use crate::utility::{get_date, print_output_buf, HttmError, PathData};
 use crate::{Config, DateFormat, HttmResult};
 
@@ -31,7 +31,7 @@ pub fn take_snapshot(config: Arc<Config>) -> HttmResult<[Vec<PathData>; 2]> {
     fn exec_zfs_snapshot(
         config: Arc<Config>,
         zfs_command: &Path,
-        mounts_for_files: &BTreeMap<PathData, Vec<PathData>>,
+        mounts_for_files: &MountsForFiles,
     ) -> HttmResult<[Vec<PathData>; 2]> {
         // all snapshots should have the same timestamp
         let timestamp = get_date(&config, &SystemTime::now(), DateFormat::Timestamp);
@@ -112,8 +112,7 @@ pub fn take_snapshot(config: Arc<Config>) -> HttmResult<[Vec<PathData>; 2]> {
         std::process::exit(0)
     }
 
-    let mounts_for_files: BTreeMap<PathData, Vec<PathData>> =
-        get_mounts_for_files(config.as_ref())?;
+    let mounts_for_files: MountsForFiles = get_mounts_for_files(config.as_ref())?;
 
     if let Ok(zfs_command) = which("zfs") {
         exec_zfs_snapshot(config, &zfs_command, &mounts_for_files)

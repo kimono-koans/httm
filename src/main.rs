@@ -126,11 +126,11 @@ pub type MapOfSnaps = BTreeMap<PathBuf, SnapInfo>;
 pub type MapOfAlts = BTreeMap<PathBuf, AltInfo>;
 pub type MapOfAliases = BTreeMap<PathBuf, AliasInfo>;
 pub type BtrfsCommonSnapDir = PathBuf;
+pub type FilterDirs = Vec<PathBuf>;
+pub type SnapInfo = Vec<PathBuf>;
 pub type OptMapOfAlts = Option<MapOfAlts>;
 pub type OptMapOfAliases = Option<MapOfAliases>;
 pub type OptBtrfsCommonSnapDir = Option<BtrfsCommonSnapDir>;
-pub type FilterDirs = Vec<PathBuf>;
-pub type SnapInfo = Vec<PathBuf>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DatasetCollection {
