@@ -23,7 +23,10 @@ use rayon::prelude::*;
 use which::which;
 
 use crate::utility::HttmError;
-use crate::{FilesystemType, HttmResult, ZFS_SNAPSHOT_DIRECTORY};
+use crate::{
+    FilesystemType, HttmResult, BTRFS_SNAPPER_HIDDEN_DIRECTORY, BTRFS_SNAPPER_SUFFIX,
+    ZFS_SNAPSHOT_DIRECTORY,
+};
 
 // fans out precompute of snap mounts to the appropriate function based on fstype
 pub fn precompute_snap_mounts(
@@ -45,12 +48,15 @@ pub fn precompute_snap_mounts(
 
     let map_of_snaps: BTreeMap<PathBuf, Vec<PathBuf>> = map_of_datasets
         .par_iter()
-        .flat_map(|(mount, (_dataset, fstype))| {
-            let snap_mounts = match fstype {
-                FilesystemType::Zfs => precompute_zfs_snap_mounts(mount),
+        .flat_map(|(mount, (_dataset, fs_type))| {
+            let snap_mounts = match fs_type {
+                FilesystemType::Zfs => precompute_defined_mounts(mount, fs_type),
                 FilesystemType::Btrfs => match opt_root_mount_path {
-                    Some(root_mount_path) => precompute_btrfs_snap_mounts(mount, root_mount_path),
-                    None => Err(HttmError::new("No btrfs root mount found on this system.").into()),
+                    Some(root_mount_path) => {
+                        precompute_btrfs_snap_mounts_from_cmd(mount, root_mount_path)
+                            .or_else(|_| precompute_defined_mounts(mount, fs_type))
+                    }
+                    None => precompute_defined_mounts(mount, fs_type),
                 },
             };
 
@@ -62,7 +68,7 @@ pub fn precompute_snap_mounts(
 }
 
 // build paths to all snap mounts
-fn precompute_btrfs_snap_mounts(
+fn precompute_btrfs_snap_mounts_from_cmd(
     mount_point_path: &Path,
     root_mount_path: &Path,
 ) -> HttmResult<Vec<PathBuf>> {
@@ -120,15 +126,23 @@ fn precompute_btrfs_snap_mounts(
     }
 }
 
-// similar to btrfs precompute, build paths to all snap mounts
-fn precompute_zfs_snap_mounts(mount_point_path: &Path) -> HttmResult<Vec<PathBuf>> {
-    let snap_path = mount_point_path.join(ZFS_SNAPSHOT_DIRECTORY);
-
-    let snapshot_locations: Vec<PathBuf> = read_dir(snap_path)?
-        .flatten()
-        .par_bridge()
-        .map(|entry| entry.path())
-        .collect();
+// similar to btrfs precompute, build paths to all snap mounts for zfs (all) and btrfs snapper (for networked datasets only)
+fn precompute_defined_mounts(
+    mount_point_path: &Path,
+    fs_type: &FilesystemType,
+) -> HttmResult<Vec<PathBuf>> {
+    let snapshot_locations: Vec<PathBuf> = match fs_type {
+        FilesystemType::Btrfs => read_dir(mount_point_path.join(BTRFS_SNAPPER_HIDDEN_DIRECTORY))?
+            .flatten()
+            .par_bridge()
+            .map(|entry| entry.path().join(BTRFS_SNAPPER_SUFFIX))
+            .collect(),
+        FilesystemType::Zfs => read_dir(mount_point_path.join(ZFS_SNAPSHOT_DIRECTORY))?
+            .flatten()
+            .par_bridge()
+            .map(|entry| entry.path())
+            .collect(),
+    };
 
     if snapshot_locations.is_empty() {
         Err(HttmError::new("httm could not find any valid datasets on the system.").into())
