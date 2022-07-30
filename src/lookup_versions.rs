@@ -273,7 +273,7 @@ fn get_versions_per_dataset(search_bundle: &FileSearchBundle) -> HttmResult<Vec<
         Ok(unique_versions)
     }
 
-    let snap_mounts: SnapInfo = search_bundle
+    let snap_mounts: &SnapInfo = search_bundle
         .opt_snap_mounts
         .as_ref()
         .ok_or_else(|| {
@@ -281,8 +281,7 @@ fn get_versions_per_dataset(search_bundle: &FileSearchBundle) -> HttmResult<Vec<
                 "If you are here, httm could find no snap mount for your files.  \
         Iterator should just ignore/flatten the error.",
             )
-        })?
-        .clone();
+        })?;
 
     let unique_versions: Vec<PathData> = get_versions(&snap_mounts, &search_bundle.relative_path)?
         .into_values()
