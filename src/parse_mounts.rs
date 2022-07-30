@@ -46,7 +46,7 @@ pub fn parse_mounts_exec() -> HttmResult<(
         parse_from_mount_cmd()?
     };
 
-    let map_of_snaps = precompute_snap_mounts(&map_of_datasets);
+    let map_of_snaps = precompute_snap_mounts(&map_of_datasets)?;
 
     Ok((map_of_datasets, map_of_snaps, vec_filter_dirs))
 }

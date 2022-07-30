@@ -31,7 +31,7 @@ use crate::{
 // fans out precompute of snap mounts to the appropriate function based on fstype
 pub fn precompute_snap_mounts(
     map_of_datasets: &BTreeMap<PathBuf, (String, FilesystemType)>,
-) -> BTreeMap<PathBuf, Vec<PathBuf>> {
+) -> HttmResult<BTreeMap<PathBuf, Vec<PathBuf>>> {
     let opt_root_mount_path: Option<&PathBuf> =
         map_of_datasets
             .par_iter()
@@ -64,7 +64,11 @@ pub fn precompute_snap_mounts(
         })
         .collect();
 
-    map_of_snaps
+    if map_of_snaps.is_empty() {
+        Err(HttmError::new("httm could not find any valid datasets on the system.").into())
+    } else {
+        Ok(map_of_snaps)
+    }
 }
 
 // build paths to all snap mounts
@@ -108,11 +112,7 @@ fn precompute_btrfs_snap_mounts_from_cmd(
             .filter(|snapshot_location| snapshot_location.exists())
             .collect();
 
-        if snapshot_locations.is_empty() {
-            Err(HttmError::new("httm could not find any valid datasets on the system.").into())
-        } else {
-            Ok(snapshot_locations)
-        }
+        Ok(snapshot_locations)
     }
 
     if let Ok(btrfs_command) = which("btrfs") {
@@ -131,7 +131,7 @@ fn precompute_defined_mounts(
     mount_point_path: &Path,
     fs_type: &FilesystemType,
 ) -> HttmResult<Vec<PathBuf>> {
-    let snapshot_locations: Vec<PathBuf> = match fs_type {
+    let res = match fs_type {
         FilesystemType::Btrfs => read_dir(mount_point_path.join(BTRFS_SNAPPER_HIDDEN_DIRECTORY))?
             .flatten()
             .par_bridge()
@@ -144,9 +144,5 @@ fn precompute_defined_mounts(
             .collect(),
     };
 
-    if snapshot_locations.is_empty() {
-        Err(HttmError::new("httm could not find any valid datasets on the system.").into())
-    } else {
-        Ok(snapshot_locations)
-    }
+    Ok(res)
 }

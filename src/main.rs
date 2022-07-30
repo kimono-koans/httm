@@ -123,6 +123,7 @@ pub enum RequestRelative {
     Relative,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DateFormat {
     Display,
     Timestamp,
