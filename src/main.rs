@@ -400,8 +400,8 @@ impl Config {
             UtcOffset::UTC
         } else {
             // this fn is surprisingly finicky. it needs to be done
-            // when program is not multithreaded, and we don't even print and
-            // error we just default to UTC
+            // when program is not multithreaded, etc., so we don't even print an
+            // error and we just default to UTC if something fails
             UtcOffset::current_local_offset().unwrap_or(UtcOffset::UTC)
         };
 
