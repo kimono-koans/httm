@@ -144,7 +144,7 @@ pub fn get_file_search_bundle(
     pathdata: &PathData,
     snap_types_of_interest: &SnapDatasetsBundle,
 ) -> HttmResult<Vec<FileSearchBundle>> {
-    fn search_bundle_from_datasets<'a, I>(
+    fn search_bundle_from_datasets_of_interest<'a, I>(
         config: &Config,
         pathdata: &PathData,
         snap_types_of_interest: &SnapDatasetsBundle,
@@ -179,13 +179,13 @@ pub fn get_file_search_bundle(
     }
 
     match &snap_types_of_interest.opt_datasets_of_interest {
-        Some(datasets_of_interest) => search_bundle_from_datasets(
+        Some(datasets_of_interest) => search_bundle_from_datasets_of_interest(
             config,
             pathdata,
             snap_types_of_interest,
             datasets_of_interest.par_iter(),
         ),
-        None => search_bundle_from_datasets(
+        None => search_bundle_from_datasets_of_interest(
             config,
             pathdata,
             snap_types_of_interest,

@@ -109,7 +109,7 @@ enum DeletedMode {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct DatasetInfo {
+pub struct DatasetMetadata {
     name: String,
     fs_type: FilesystemType,
     mount_type: MountType,
@@ -133,7 +133,7 @@ pub enum SnapDatasetType {
     AltReplicated,
 }
 
-pub type MapOfDatasets = BTreeMap<PathBuf, DatasetInfo>;
+pub type MapOfDatasets = BTreeMap<PathBuf, DatasetMetadata>;
 pub type MapOfSnaps = BTreeMap<PathBuf, VecOfSnaps>;
 pub type MapOfAlts = BTreeMap<PathBuf, SnapDatasetsBundle>;
 pub type MapOfAliases = BTreeMap<PathBuf, AliasBundle>;

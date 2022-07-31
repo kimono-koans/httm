@@ -25,7 +25,7 @@ use which::which;
 use crate::parse_snaps::precompute_snap_mounts;
 use crate::utility::{get_common_path, get_fs_type_from_hidden_dir, HttmError};
 use crate::{
-    DatasetInfo, FilesystemType, HttmResult, MapOfDatasets, MapOfSnaps, MountType,
+    DatasetMetadata, FilesystemType, HttmResult, MapOfDatasets, MapOfSnaps, MountType,
     OptBtrfsCommonSnapDir, VecOfFilterDirs, ZFS_SNAPSHOT_DIRECTORY,
 };
 
@@ -67,7 +67,7 @@ fn parse_from_proc_mounts() -> HttmResult<(MapOfDatasets, VecOfFilterDirs)> {
         .partition_map(|mount_info| match &mount_info.fstype.as_str() {
             &ZFS_FSTYPE => Either::Left((
                 mount_info.dest,
-                DatasetInfo {
+                DatasetMetadata {
                     name: mount_info.source.to_string_lossy().into_owned(),
                     fs_type: FilesystemType::Zfs,
                     mount_type: MountType::Local,
@@ -77,7 +77,7 @@ fn parse_from_proc_mounts() -> HttmResult<(MapOfDatasets, VecOfFilterDirs)> {
                 match get_fs_type_from_hidden_dir(&mount_info.dest) {
                     Ok(FilesystemType::Zfs) => Either::Left((
                         mount_info.dest,
-                        DatasetInfo {
+                        DatasetMetadata {
                             name: mount_info.source.to_string_lossy().into_owned(),
                             fs_type: FilesystemType::Zfs,
                             mount_type: MountType::Network,
@@ -85,7 +85,7 @@ fn parse_from_proc_mounts() -> HttmResult<(MapOfDatasets, VecOfFilterDirs)> {
                     )),
                     Ok(FilesystemType::Btrfs) => Either::Left((
                         mount_info.dest,
-                        DatasetInfo {
+                        DatasetMetadata {
                             name: mount_info.source.to_string_lossy().into_owned(),
                             fs_type: FilesystemType::Btrfs,
                             mount_type: MountType::Network,
@@ -116,7 +116,7 @@ fn parse_from_proc_mounts() -> HttmResult<(MapOfDatasets, VecOfFilterDirs)> {
 
                 Either::Left((
                     mount_info.dest,
-                    DatasetInfo {
+                    DatasetMetadata {
                         name,
                         fs_type,
                         mount_type,
@@ -165,14 +165,14 @@ fn parse_from_mount_cmd() -> HttmResult<(MapOfDatasets, VecOfFilterDirs)> {
             .partition_map(|(filesystem, mount)| {
                 match get_fs_type_from_hidden_dir(&mount) {
                     Ok(FilesystemType::Zfs) => {
-                        Either::Left((mount, DatasetInfo {
+                        Either::Left((mount, DatasetMetadata {
                             name: filesystem,
                             fs_type: FilesystemType::Zfs,
                             mount_type: MountType::Local
                         }))
                     },
                     Ok(FilesystemType::Btrfs) => {
-                        Either::Left((mount, DatasetInfo{
+                        Either::Left((mount, DatasetMetadata{
                             name: filesystem,
                             fs_type: FilesystemType::Btrfs,
                             mount_type: MountType::Local
