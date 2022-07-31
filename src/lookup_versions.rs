@@ -32,7 +32,7 @@ use crate::{Config, HttmResult, SnapDatasetType};
 #[derive(Debug, Clone)]
 pub struct FileSearchBundle {
     pub relative_path: PathBuf,
-    pub opt_snap_mounts: Option<VecOfSnaps>,
+    pub snap_mounts: VecOfSnaps,
 }
 
 pub fn versions_lookup_exec(config: &Config, path_set: &PathSet) -> HttmResult<SnapsAndLiveSet> {
@@ -164,15 +164,21 @@ pub fn get_file_search_bundle(
 
                 let relative_path = get_relative_path(config, pathdata, proximate_dataset_mount)?;
 
-                let opt_snap_mounts = config
+                let snap_mounts = config
                     .dataset_collection
                     .map_of_snaps
                     .get(dataset_of_interest)
-                    .cloned();
+                    .cloned()
+                    .ok_or_else(|| {
+                        HttmError::new(
+                            "If you are here, httm could find no snap mount for your files.  \
+                        Iterator should just ignore/flatten the error.",
+                        )
+                    })?;
 
                 Ok(FileSearchBundle {
                     relative_path,
-                    opt_snap_mounts,
+                    snap_mounts,
                 })
             })
             .collect()
@@ -278,29 +284,10 @@ fn get_versions_from_snap_mounts(search_bundle: &FileSearchBundle) -> HttmResult
     // snapshots, like so: .zfs/snapshots/<some snap name>/
     //
     // BTreeMap will then remove duplicates with the same system modify time and size/file len
-
-    let snap_mounts: &VecOfSnaps = search_bundle.opt_snap_mounts.as_ref().ok_or_else(|| {
-        HttmError::new(
-            "If you are here, httm could find no snap mount for your files.  \
-        Iterator should just ignore/flatten the error.",
-        )
-    })?;
-
-    let sorted_versions: Vec<PathData> =
-        get_unique_versions(snap_mounts, &search_bundle.relative_path)?
-            .into_values()
-            .collect();
-
-    Ok(sorted_versions)
-}
-
-fn get_unique_versions(
-    snap_mounts: &[PathBuf],
-    relative_path: &Path,
-) -> HttmResult<BTreeMap<(SystemTime, u64), PathData>> {
-    let unique_versions = snap_mounts
+    let unique_versions: BTreeMap<(SystemTime, u64), PathData> = search_bundle
+        .snap_mounts
         .par_iter()
-        .map(|path| path.join(&relative_path))
+        .map(|path| path.join(&search_bundle.relative_path))
         .map(|joined_path| PathData::from(joined_path.as_path()))
         .filter_map(|pathdata| {
             pathdata
@@ -309,5 +296,7 @@ fn get_unique_versions(
         })
         .collect();
 
-    Ok(unique_versions)
+    let sorted_versions: Vec<PathData> = unique_versions.into_values().collect();
+
+    Ok(sorted_versions)
 }

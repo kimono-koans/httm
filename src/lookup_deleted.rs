@@ -28,7 +28,7 @@ use itertools::Itertools;
 use crate::lookup_versions::{
     get_file_search_bundle, get_snap_dataset_for_search_bundle, FileSearchBundle,
 };
-use crate::utility::{BasicDirEntryInfo, HttmError, PathData};
+use crate::utility::{BasicDirEntryInfo, PathData};
 use crate::{Config, HttmResult};
 
 pub fn deleted_lookup_exec(
@@ -112,15 +112,8 @@ fn get_deleted_from_snap_mounts(
         .map(|dir_entry| (dir_entry.file_name(), BasicDirEntryInfo::from(&dir_entry)))
         .collect();
 
-    let snap_mounts = search_bundle.opt_snap_mounts.as_ref().ok_or_else(|| {
-        HttmError::new(
-            "If you are here, httm could find no snap mount for your files.  \
-        Iterator should just ignore/flatten the error.",
-        )
-    })?;
-
     let unique_snap_filenames: BTreeMap<OsString, BasicDirEntryInfo> =
-        get_unique_snap_filenames(snap_mounts, &search_bundle.relative_path)?;
+        get_unique_snap_filenames(&search_bundle.snap_mounts, &search_bundle.relative_path)?;
 
     // compare local filenames to all unique snap filenames - none values are unique, here
     let all_deleted_versions: Vec<BasicDirEntryInfo> = unique_snap_filenames
