@@ -18,7 +18,7 @@
 use std::{ffi::OsString, path::Path, path::PathBuf};
 
 use crate::utility::{get_fs_type_from_hidden_dir, HttmError};
-use crate::{AliasInfo, HttmResult, MapOfAliases};
+use crate::{AliasBundle, HttmResult, MapOfAliases};
 
 pub fn parse_aliases(
     raw_local_dir: &Option<OsString>,
@@ -91,7 +91,7 @@ pub fn parse_aliases(
                 .map(|fs_type| {
                     (
                         local_dir,
-                        AliasInfo {
+                        AliasBundle {
                             remote_dir,
                             fs_type,
                         },

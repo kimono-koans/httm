@@ -116,31 +116,31 @@ pub struct DatasetInfo {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct AliasInfo {
+pub struct AliasBundle {
     remote_dir: PathBuf,
     fs_type: FilesystemType,
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
-pub struct SnapTypeInfo {
+pub struct SnapDatasetsBundle {
     pub proximate_dataset_mount: PathBuf,
     pub datasets_of_interest: Vec<PathBuf>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum SnapshotDatasetType {
+pub enum SnapDatasetType {
     MostProximate,
     AltReplicated,
 }
 
 pub type MapOfDatasets = BTreeMap<PathBuf, DatasetInfo>;
 pub type MapOfSnaps = BTreeMap<PathBuf, VecOfSnaps>;
-pub type MapOfAlts = BTreeMap<PathBuf, SnapTypeInfo>;
-pub type MapOfAliases = BTreeMap<PathBuf, AliasInfo>;
+pub type MapOfAlts = BTreeMap<PathBuf, SnapDatasetsBundle>;
+pub type MapOfAliases = BTreeMap<PathBuf, AliasBundle>;
 pub type BtrfsCommonSnapDir = PathBuf;
 pub type VecOfFilterDirs = Vec<PathBuf>;
 pub type VecOfSnaps = Vec<PathBuf>;
-pub type VecOfSnapDatasetType = Vec<SnapshotDatasetType>;
+pub type VecOfSnapDatasetType = Vec<SnapDatasetType>;
 pub type SnapsAndLiveSet = [Vec<PathData>; 2];
 pub type PathSet = Vec<PathData>;
 pub type OptMapOfAlts = Option<MapOfAlts>;
@@ -687,11 +687,11 @@ impl Config {
 
             let snaps_for_search = if matches.is_present("ALT_REPLICATED") {
                 vec![
-                    SnapshotDatasetType::AltReplicated,
-                    SnapshotDatasetType::MostProximate,
+                    SnapDatasetType::AltReplicated,
+                    SnapDatasetType::MostProximate,
                 ]
             } else {
-                vec![SnapshotDatasetType::MostProximate]
+                vec![SnapDatasetType::MostProximate]
             };
 
             DatasetCollection {

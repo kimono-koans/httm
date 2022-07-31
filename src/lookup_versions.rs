@@ -25,9 +25,9 @@ use rayon::prelude::*;
 
 use crate::{
     utility::{HttmError, PathData},
-    MapOfAliases, MapOfDatasets, PathSet, SnapTypeInfo, SnapsAndLiveSet, VecOfSnaps,
+    MapOfAliases, MapOfDatasets, PathSet, SnapDatasetsBundle, SnapsAndLiveSet, VecOfSnaps,
 };
-use crate::{Config, HttmResult, SnapshotDatasetType};
+use crate::{Config, HttmResult, SnapDatasetType};
 
 #[derive(Debug, Clone)]
 pub struct FileSearchBundle {
@@ -94,8 +94,8 @@ fn get_all_snap_versions(config: &Config, path_set: &[PathData]) -> HttmResult<V
 pub fn get_snap_dataset_for_search_bundle(
     config: &Config,
     pathdata: &PathData,
-    requested_dataset_type: &SnapshotDatasetType,
-) -> HttmResult<SnapTypeInfo> {
+    requested_dataset_type: &SnapDatasetType,
+) -> HttmResult<SnapDatasetsBundle> {
     // here, we take our file path and get back possibly multiple ZFS dataset mountpoints
     // and our most proximate dataset mount point (which is always the same) for
     // a single file
@@ -117,15 +117,15 @@ pub fn get_snap_dataset_for_search_bundle(
         None => get_proximate_dataset(pathdata, &config.dataset_collection.map_of_datasets)?,
     };
 
-    let snap_types_for_search: SnapTypeInfo = match requested_dataset_type {
-        SnapshotDatasetType::MostProximate => {
+    let snap_types_for_search: SnapDatasetsBundle = match requested_dataset_type {
+        SnapDatasetType::MostProximate => {
             // just return the same dataset when in most proximate mode
-            SnapTypeInfo {
+            SnapDatasetsBundle {
                 proximate_dataset_mount: proximate_dataset_mount.clone(),
                 datasets_of_interest: vec![proximate_dataset_mount],
             }
         }
-        SnapshotDatasetType::AltReplicated => match &config.dataset_collection.opt_map_of_alts {
+        SnapDatasetType::AltReplicated => match &config.dataset_collection.opt_map_of_alts {
             Some(map_of_alts) => match map_of_alts.get(proximate_dataset_mount.as_path()) {
                 Some(snap_types_for_search) => snap_types_for_search.to_owned(),
                 None => return Err(HttmError::new("If you are here a map of alts is missing for a supplied mount, \
@@ -142,7 +142,7 @@ pub fn get_snap_dataset_for_search_bundle(
 pub fn get_file_search_bundle(
     config: &Config,
     pathdata: &PathData,
-    snap_types_of_interest: &SnapTypeInfo,
+    snap_types_of_interest: &SnapDatasetsBundle,
 ) -> HttmResult<Vec<FileSearchBundle>> {
     snap_types_of_interest
         .datasets_of_interest
