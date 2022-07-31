@@ -749,12 +749,6 @@ fn exec() -> HttmResult<()> {
         eprintln!("{:#?}", config);
     }
 
-    let display_snaps_and_live_set = |snaps_and_live_set| -> HttmResult<()> {
-        let output_buf = display_exec(config.as_ref(), &snaps_and_live_set)?;
-        print_output_buf(output_buf)?;
-        Ok(())
-    };
-
     // fn exec() handles the basic display cases, and sends other cases to be processed elsewhere
     match config.exec_mode {
         // ExecMode::Interactive may return back to this function to be printed
@@ -765,12 +759,12 @@ fn exec() -> HttmResult<()> {
         ExecMode::Interactive | ExecMode::LastSnap(_) => {
             let browse_result = &interactive_exec(config.clone())?;
             let snaps_and_live_set = versions_lookup_exec(config.as_ref(), browse_result)?;
-            display_snaps_and_live_set(snaps_and_live_set)?
+            display_snaps_and_live_set(&config, &snaps_and_live_set)?
         }
         // ExecMode::Display will be just printed, we already know the paths
         ExecMode::Display => {
             let snaps_and_live_set = versions_lookup_exec(config.as_ref(), &config.paths)?;
-            display_snaps_and_live_set(snaps_and_live_set)?
+            display_snaps_and_live_set(&config, &snaps_and_live_set)?
         }
         // ExecMode::DisplayRecursive, ExecMode::SnapFileMount, and ExecMode::MountsForFiles will print their
         // output elsewhere
@@ -779,5 +773,11 @@ fn exec() -> HttmResult<()> {
         ExecMode::MountsForFiles => display_mounts_for_files(config.as_ref())?,
     };
 
+    Ok(())
+}
+
+fn display_snaps_and_live_set(config: &Config, snaps_and_live_set: &SnapsAndLiveSet) -> HttmResult<()> {
+    let output_buf = display_exec(config, &snaps_and_live_set)?;
+    print_output_buf(output_buf)?;
     Ok(())
 }
