@@ -248,12 +248,8 @@ fn interactive_select(config: Arc<Config>, vec_paths: &[PathData]) -> HttmResult
             let pathdata = match snaps_and_live_set[0]
                 .iter()
                 .filter(|snap_version| {
-                    if request_relative == &RequestRelative::Relative
-                        && snap_version.metadata.as_ref().is_some()
-                        && live_version.metadata.as_ref().is_some()
-                    {
-                        snap_version.metadata.as_ref().unwrap().modify_time
-                            != live_version.metadata.as_ref().unwrap().modify_time
+                    if request_relative == &RequestRelative::Relative {
+                        snap_version.md().modify_time != live_version.md().modify_time
                     } else {
                         true
                     }
