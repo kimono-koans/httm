@@ -171,8 +171,8 @@ pub fn get_file_search_bundle(
                     .cloned()
                     .ok_or_else(|| {
                         HttmError::new(
-                            "If you are here, httm could find no snap mount for your files.  \
-                        Iterator should just ignore/flatten the error.",
+                            "httm could find no snap mount for your files.  \
+                        Iterator should just ignore/flatten this error.",
                         )
                     })?;
 
