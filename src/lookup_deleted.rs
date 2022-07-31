@@ -57,7 +57,7 @@ pub fn deleted_lookup_exec(
         })
         .flatten()
         .flat_map(|search_bundle| {
-            get_deleted_per_dataset(&requested_dir_pathdata.path_buf, &search_bundle)
+            get_deleted_from_snap_mounts(&requested_dir_pathdata.path_buf, &search_bundle)
         })
         .flatten();
 
@@ -95,7 +95,7 @@ where
         })
 }
 
-fn get_deleted_per_dataset(
+fn get_deleted_from_snap_mounts(
     requested_dir: &Path,
     search_bundle: &FileSearchBundle,
 ) -> HttmResult<Vec<BasicDirEntryInfo>> {
@@ -108,28 +108,6 @@ fn get_deleted_per_dataset(
         .map(|dir_entry| (dir_entry.file_name(), BasicDirEntryInfo::from(&dir_entry)))
         .collect();
 
-    // now create a collection of file names in the snap_dirs
-    // create a list of unique filenames on snaps
-
-    // this is the optimal way to handle for native datasets, if you have a map_of_snaps
-    fn get_snap_filenames(
-        mounts: &[PathBuf],
-        relative_path: &Path,
-    ) -> HttmResult<BTreeMap<OsString, BasicDirEntryInfo>> {
-        let basic_dir_entry_info_iter = mounts
-            .iter()
-            .map(|path| path.join(&relative_path))
-            .flat_map(|path| read_dir(&path))
-            .flatten()
-            .flatten()
-            .map(|dir_entry| BasicDirEntryInfo::from(&dir_entry));
-
-        let unique_snap_filenames = get_latest_in_time_for_filename(basic_dir_entry_info_iter)
-            .map(|(file_name, latest_entry_in_time)| (file_name, latest_entry_in_time.1))
-            .collect();
-        Ok(unique_snap_filenames)
-    }
-
     let snap_mounts = search_bundle.opt_snap_mounts.as_ref().ok_or_else(|| {
         HttmError::new(
             "If you are here, httm could find no snap mount for your files.  \
@@ -138,7 +116,7 @@ fn get_deleted_per_dataset(
     })?;
 
     let unique_snap_filenames: BTreeMap<OsString, BasicDirEntryInfo> =
-        get_snap_filenames(snap_mounts, &search_bundle.relative_path)?;
+        get_unique_snap_filenames(snap_mounts, &search_bundle.relative_path)?;
 
     // compare local filenames to all unique snap filenames - none values are unique, here
     let all_deleted_versions: Vec<BasicDirEntryInfo> = unique_snap_filenames
@@ -148,4 +126,22 @@ fn get_deleted_per_dataset(
         .collect();
 
     Ok(all_deleted_versions)
+}
+
+fn get_unique_snap_filenames(
+    mounts: &[PathBuf],
+    relative_path: &Path,
+) -> HttmResult<BTreeMap<OsString, BasicDirEntryInfo>> {
+    let basic_dir_entry_info_iter = mounts
+        .iter()
+        .map(|path| path.join(&relative_path))
+        .flat_map(|path| read_dir(&path))
+        .flatten()
+        .flatten()
+        .map(|dir_entry| BasicDirEntryInfo::from(&dir_entry));
+
+    let unique_snap_filenames = get_latest_in_time_for_filename(basic_dir_entry_info_iter)
+        .map(|(file_name, latest_entry_in_time)| (file_name, latest_entry_in_time.1))
+        .collect();
+    Ok(unique_snap_filenames)
 }
