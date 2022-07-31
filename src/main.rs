@@ -128,6 +128,7 @@ pub type MapOfAliases = BTreeMap<PathBuf, AliasInfo>;
 pub type BtrfsCommonSnapDir = PathBuf;
 pub type FilterDirs = Vec<PathBuf>;
 pub type SnapInfo = Vec<PathBuf>;
+pub type DatasetsOfInterest = Vec<SnapshotDatasetType>;
 pub type OptMapOfAlts = Option<MapOfAlts>;
 pub type OptMapOfAliases = Option<MapOfAliases>;
 pub type OptBtrfsCommonSnapDir = Option<BtrfsCommonSnapDir>;
@@ -146,6 +147,8 @@ pub struct DatasetCollection {
     vec_of_filter_dirs: FilterDirs,
     // opt single dir to to be filtered re: btrfs common snap dir
     opt_common_snap_dir: OptBtrfsCommonSnapDir,
+    // vec of two enum variants - most proximate and alt replicated, or just most proximate
+    datasets_of_interest: Vec<SnapshotDatasetType>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -405,7 +408,6 @@ pub struct Config {
     opt_no_snap: bool,
     opt_debug: bool,
     requested_utc_offset: UtcOffset,
-    datasets_of_interest: Vec<SnapshotDatasetType>,
     exec_mode: ExecMode,
     dataset_collection: DatasetCollection,
     deleted_mode: DeletedMode,
@@ -560,7 +562,7 @@ impl Config {
         // deduplicate pathdata and sort if in display mode --
         // so input of ./.z* and ./.zshrc will only print ./.zshrc once
         paths = if paths.len() > 1 {
-            paths.par_sort_by_key(|pathdata| pathdata.path_buf.clone());
+            paths.sort_by_key(|pathdata| pathdata.path_buf.clone());
             // dedup needs to be sorted/ordered first to work (not like a BTreeMap)
             paths.dedup_by_key(|pathdata| pathdata.path_buf.clone());
 
@@ -628,7 +630,7 @@ impl Config {
 
         // obtain a map of datasets, a map of snapshot directories, and possibly a map of
         // alternate filesystems and map of aliases if the user requests
-        let (datasets_of_interest, dataset_collection) = {
+        let dataset_collection = {
             let (map_of_datasets, map_of_snaps, vec_of_filter_dirs) = parse_mounts_exec()?;
 
             // for a collection of btrfs mounts, indicates a common snapshot directory to ignore
@@ -696,17 +698,15 @@ impl Config {
                 vec![SnapshotDatasetType::MostProximate]
             };
 
-            (
+            DatasetCollection {
+                map_of_datasets,
+                map_of_snaps,
+                opt_map_of_alts,
+                vec_of_filter_dirs,
+                opt_common_snap_dir,
+                opt_map_of_aliases,
                 datasets_of_interest,
-                DatasetCollection {
-                    map_of_datasets,
-                    map_of_snaps,
-                    opt_map_of_alts,
-                    vec_of_filter_dirs,
-                    opt_common_snap_dir,
-                    opt_map_of_aliases,
-                },
-            )
+            }
         };
 
         let config = Config {
@@ -722,7 +722,6 @@ impl Config {
             opt_no_snap,
             opt_debug,
             requested_utc_offset,
-            datasets_of_interest,
             dataset_collection,
             exec_mode,
             deleted_mode,

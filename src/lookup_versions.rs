@@ -75,6 +75,7 @@ fn get_all_snap_versions(config: &Config, vec_pathdata: &[PathData]) -> HttmResu
         .par_iter()
         .map(|pathdata| {
             config
+                .dataset_collection
                 .datasets_of_interest
                 .par_iter()
                 .flat_map(|dataset_type| get_datasets_for_search(config, pathdata, dataset_type))
@@ -109,7 +110,6 @@ pub fn get_datasets_for_search(
     // will compare the most proximate dataset to our our canonical path and the difference
     // between ZFS mount point and the canonical path is the path we will use to search the
     // hidden snapshot dirs
-
     let proximate_dataset_mount = match &config.dataset_collection.opt_map_of_aliases {
         Some(map_of_aliases) => match get_alias_dataset(pathdata, map_of_aliases) {
             Some(alias_snap_dir) => alias_snap_dir,

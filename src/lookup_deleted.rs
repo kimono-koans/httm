@@ -47,6 +47,7 @@ pub fn deleted_lookup_exec(
         .iter()
         .flat_map(|pathdata| {
             config
+                .dataset_collection
                 .datasets_of_interest
                 .iter()
                 .flat_map(|dataset_type| get_datasets_for_search(config, pathdata, dataset_type))

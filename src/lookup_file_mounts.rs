@@ -49,7 +49,7 @@ pub fn get_mounts_for_files(config: &Config) -> HttmResult<MountsForFiles> {
     let selected_datasets = if config.exec_mode == ExecMode::SnapFileMount {
         vec![SnapshotDatasetType::MostProximate]
     } else {
-        config.datasets_of_interest.clone()
+        config.dataset_collection.datasets_of_interest.clone()
     };
 
     let mounts_for_files: MountsForFiles = non_phantom_files
