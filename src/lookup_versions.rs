@@ -25,14 +25,14 @@ use rayon::prelude::*;
 
 use crate::{
     utility::{HttmError, PathData},
-    MapOfAliases, MapOfDatasets, PathSet, SnapTypeInfo, SnapsAndLiveSet, VecOfSnapInfo,
+    MapOfAliases, MapOfDatasets, PathSet, SnapTypeInfo, SnapsAndLiveSet, VecOfSnaps,
 };
 use crate::{Config, HttmResult, SnapshotDatasetType};
 
 #[derive(Debug, Clone)]
 pub struct FileSearchBundle {
     pub relative_path: PathBuf,
-    pub opt_snap_mounts: Option<VecOfSnapInfo>,
+    pub opt_snap_mounts: Option<VecOfSnaps>,
 }
 
 pub fn versions_lookup_exec(config: &Config, path_set: &PathSet) -> HttmResult<SnapsAndLiveSet> {
@@ -256,7 +256,7 @@ fn get_versions_from_snap_mounts(search_bundle: &FileSearchBundle) -> HttmResult
     //
     // BTreeMap will then remove duplicates with the same system modify time and size/file len
 
-    let snap_mounts: &VecOfSnapInfo = search_bundle.opt_snap_mounts.as_ref().ok_or_else(|| {
+    let snap_mounts: &VecOfSnaps = search_bundle.opt_snap_mounts.as_ref().ok_or_else(|| {
         HttmError::new(
             "If you are here, httm could find no snap mount for your files.  \
         Iterator should just ignore/flatten the error.",

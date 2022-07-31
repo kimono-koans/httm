@@ -22,7 +22,7 @@ use which::which;
 
 use crate::utility::HttmError;
 use crate::{
-    FilesystemType, HttmResult, MapOfDatasets, MapOfSnaps, MountType, VecOfSnapInfo,
+    FilesystemType, HttmResult, MapOfDatasets, MapOfSnaps, MountType, VecOfSnaps,
     BTRFS_SNAPPER_HIDDEN_DIRECTORY, BTRFS_SNAPPER_SUFFIX, ZFS_SNAPSHOT_DIRECTORY,
 };
 
@@ -46,17 +46,15 @@ pub fn precompute_snap_mounts(map_of_datasets: &MapOfDatasets) -> HttmResult<Map
         .par_iter()
         .flat_map(|(mount, dataset_info)| {
             let snap_mounts = match dataset_info.fs_type {
-                FilesystemType::Zfs => precompute_defined_mounts(mount, &dataset_info.fs_type),
+                FilesystemType::Zfs => precompute_from_defined_mounts(mount, &dataset_info.fs_type),
                 FilesystemType::Btrfs => match opt_root_mount_path {
                     Some(root_mount_path) => match dataset_info.mount_type {
-                        MountType::Local => {
-                            precompute_btrfs_snap_mounts_from_cmd(mount, root_mount_path)
-                        }
+                        MountType::Local => precompute_from_btrfs_cmd(mount, root_mount_path),
                         MountType::Network => {
-                            precompute_defined_mounts(mount, &dataset_info.fs_type)
+                            precompute_from_defined_mounts(mount, &dataset_info.fs_type)
                         }
                     },
-                    None => precompute_defined_mounts(mount, &dataset_info.fs_type),
+                    None => precompute_from_defined_mounts(mount, &dataset_info.fs_type),
                 },
             };
 
@@ -72,15 +70,15 @@ pub fn precompute_snap_mounts(map_of_datasets: &MapOfDatasets) -> HttmResult<Map
 }
 
 // build paths to all snap mounts
-fn precompute_btrfs_snap_mounts_from_cmd(
+fn precompute_from_btrfs_cmd(
     mount_point_path: &Path,
     root_mount_path: &Path,
-) -> HttmResult<VecOfSnapInfo> {
+) -> HttmResult<VecOfSnaps> {
     fn parse(
         mount_point_path: &Path,
         root_mount_path: &Path,
         btrfs_command: &Path,
-    ) -> HttmResult<VecOfSnapInfo> {
+    ) -> HttmResult<VecOfSnaps> {
         let exec_command = btrfs_command;
         let arg_path = mount_point_path.to_string_lossy();
         let args = vec!["subvolume", "list", "-a", "-s", &arg_path];
@@ -127,10 +125,10 @@ fn precompute_btrfs_snap_mounts_from_cmd(
 }
 
 // similar to btrfs precompute, build paths to all snap mounts for zfs (all) and btrfs snapper (for networked datasets only)
-fn precompute_defined_mounts(
+fn precompute_from_defined_mounts(
     mount_point_path: &Path,
     fs_type: &FilesystemType,
-) -> HttmResult<VecOfSnapInfo> {
+) -> HttmResult<VecOfSnaps> {
     let snaps = match fs_type {
         FilesystemType::Btrfs => read_dir(mount_point_path.join(BTRFS_SNAPPER_HIDDEN_DIRECTORY))?
             .flatten()

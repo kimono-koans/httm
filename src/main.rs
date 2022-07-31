@@ -134,12 +134,12 @@ pub enum SnapshotDatasetType {
 }
 
 pub type MapOfDatasets = BTreeMap<PathBuf, DatasetInfo>;
-pub type MapOfSnaps = BTreeMap<PathBuf, VecOfSnapInfo>;
+pub type MapOfSnaps = BTreeMap<PathBuf, VecOfSnaps>;
 pub type MapOfAlts = BTreeMap<PathBuf, SnapTypeInfo>;
 pub type MapOfAliases = BTreeMap<PathBuf, AliasInfo>;
 pub type BtrfsCommonSnapDir = PathBuf;
 pub type VecOfFilterDirs = Vec<PathBuf>;
-pub type VecOfSnapInfo = Vec<PathBuf>;
+pub type VecOfSnaps = Vec<PathBuf>;
 pub type VecOfSnapDatasetType = Vec<SnapshotDatasetType>;
 pub type SnapsAndLiveSet = [Vec<PathData>; 2];
 pub type PathSet = Vec<PathData>;
