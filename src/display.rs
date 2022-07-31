@@ -21,7 +21,7 @@ use number_prefix::NumberPrefix;
 use terminal_size::{terminal_size, Height, Width};
 
 use crate::lookup_file_mounts::get_mounts_for_files;
-use crate::utility::{get_date, paint_string, print_output_buf, PathData};
+use crate::utility::{get_date, paint_string, print_output_buf, PathData, PHANTOM_PATH_METADATA};
 use crate::{Config, DateFormat, HttmResult};
 
 // 2 space wide padding - used between date and size, and size and path
@@ -73,9 +73,17 @@ fn display_pretty(config: &Config, snaps_and_live_set: &[Vec<PathData>; 2]) -> H
             let pathdata_set_buffer: String = pathdata_set
                 .iter()
                 .map(|pathdata| {
+                    let (pd_size, pd_time) = match &pathdata.metadata {
+                        Some(metadata) => (metadata.size, metadata.modify_time),
+                        None => (
+                            PHANTOM_PATH_METADATA.size,
+                            PHANTOM_PATH_METADATA.modify_time,
+                        ),
+                    };
+
                     // tab delimited if "no pretty", no border lines, and no colors
                     let (fmt_size, display_path, display_padding) = if config.opt_no_pretty {
-                        let size = display_human_size(&pathdata.size);
+                        let size = display_human_size(&pd_size);
                         let path = pathdata.path_buf.to_string_lossy();
                         let padding = NOT_SO_PRETTY_FIXED_WIDTH_PADDING;
                         (size, path, padding)
@@ -83,7 +91,7 @@ fn display_pretty(config: &Config, snaps_and_live_set: &[Vec<PathData>; 2]) -> H
                     } else {
                         let size = format!(
                             "{:>width$}",
-                            display_human_size(&pathdata.size),
+                            display_human_size(&pd_size),
                             width = size_padding_len
                         );
 
@@ -107,13 +115,13 @@ fn display_pretty(config: &Config, snaps_and_live_set: &[Vec<PathData>; 2]) -> H
                         (size, path, padding)
                     };
 
-                    let fmt_date = get_date(config, &pathdata.system_time, DateFormat::Display);
+                    let fmt_date = get_date(config, &pd_time, DateFormat::Display);
 
                     // displays blanks for phantom values, equaling their dummy lens and dates.
                     //
                     // we use a dummy instead of a None value here.  Basically, sometimes, we want
                     // to print the request even if a live file does not exist
-                    let (display_date, display_size) = if !pathdata.is_phantom {
+                    let (display_date, display_size) = if pathdata.metadata.is_some() {
                         let date = fmt_date;
                         let size = fmt_size;
                         (date, size)
@@ -160,11 +168,19 @@ fn calculate_pretty_padding(
     let (size_padding_len, fancy_border_len) = snaps_and_live_set.iter().flatten().fold(
         (0usize, 0usize),
         |(mut size_padding_len, mut fancy_border_len), pathdata| {
+            let (pd_size, pd_time) = match &pathdata.metadata {
+                Some(metadata) => (metadata.size, metadata.modify_time),
+                None => (
+                    PHANTOM_PATH_METADATA.size,
+                    PHANTOM_PATH_METADATA.modify_time,
+                ),
+            };
+
             let (display_date, display_size, display_path) = {
-                let date = get_date(config, &pathdata.system_time, DateFormat::Display);
+                let date = get_date(config, &pd_time, DateFormat::Display);
                 let size = format!(
                     "{:>width$}",
-                    display_human_size(&pathdata.size),
+                    display_human_size(&pd_size),
                     width = size_padding_len
                 );
                 let path = pathdata.path_buf.to_string_lossy();
@@ -172,7 +188,7 @@ fn calculate_pretty_padding(
                 (date, size, path)
             };
 
-            let display_size_len = display_human_size(&pathdata.size).len();
+            let display_size_len = display_human_size(&pd_size).len();
             let formatted_line_len = display_date.len()
                 + display_size.len()
                 + display_path.len()

@@ -55,7 +55,9 @@ pub fn versions_lookup_exec(
     // check if all files (snap and live) do not exist, if this is true, then user probably messed up
     // and entered a file that never existed (that is, perhaps a wrong file name)?
     if all_snap_versions.is_empty()
-        && live_versions.par_iter().all(|pathdata| pathdata.is_phantom)
+        && live_versions
+            .par_iter()
+            .all(|pathdata| pathdata.metadata.is_none())
         && !config.opt_no_snap
     {
         return Err(HttmError::new(
@@ -263,8 +265,13 @@ fn get_versions_per_dataset(search_bundle: &FileSearchBundle) -> HttmResult<Vec<
             .par_iter()
             .map(|path| path.join(&relative_path))
             .map(|joined_path| PathData::from(joined_path.as_path()))
-            .map(|pathdata| ((pathdata.system_time, pathdata.size), pathdata))
+            .filter_map(|pathdata| {
+                pathdata
+                    .metadata
+                    .map(|metadata| ((metadata.modify_time, metadata.size), pathdata))
+            })
             .collect();
+
         Ok(unique_versions)
     }
 
@@ -275,9 +282,9 @@ fn get_versions_per_dataset(search_bundle: &FileSearchBundle) -> HttmResult<Vec<
         )
     })?;
 
-    let unique_versions: Vec<PathData> = get_versions(snap_mounts, &search_bundle.relative_path)?
+    let sorted_versions: Vec<PathData> = get_versions(snap_mounts, &search_bundle.relative_path)?
         .into_values()
         .collect();
 
-    Ok(unique_versions)
+    Ok(sorted_versions)
 }

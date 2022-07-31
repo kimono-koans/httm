@@ -23,9 +23,6 @@ use time::{format_description, OffsetDateTime};
 use crate::{interactive::SelectionCandidate, Config, DateFormat};
 use crate::{FilesystemType, HttmResult, BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_SNAPSHOT_DIRECTORY};
 
-pub const PHANTOM_DATE: SystemTime = SystemTime::UNIX_EPOCH;
-pub const PHANTOM_SIZE: u64 = 0u64;
-
 pub const DATE_FORMAT_DISPLAY: &str =
     "[weekday repr:short] [month repr:short] [day] [hour]:[minute]:[second] [year]";
 pub const DATE_FORMAT_TIMESTAMP: &str = "[year]-[month]-[day]-[hour]:[minute]:[second]";
@@ -189,7 +186,7 @@ impl PaintString for &PathData {
         style.cloned()
     }
     fn get_is_phantom(&self) -> bool {
-        self.is_phantom
+        self.metadata.is_none()
     }
 }
 
@@ -379,11 +376,22 @@ impl From<&DirEntry> for BasicDirEntryInfo {
 // detailed info required to differentiate and display file versions
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct PathData {
-    pub system_time: SystemTime,
-    pub size: u64,
     pub path_buf: PathBuf,
-    pub is_phantom: bool,
+    pub metadata: Option<PathMetadata>,
 }
+
+#[derive(Copy, Clone, Debug, Eq, Hash, PartialEq)]
+pub struct PathMetadata {
+    pub size: u64,
+    pub modify_time: SystemTime,
+}
+
+const PHANTOM_DATE: SystemTime = SystemTime::UNIX_EPOCH;
+const PHANTOM_SIZE: u64 = 0u64;
+pub const PHANTOM_PATH_METADATA: PathMetadata = PathMetadata {
+    size: PHANTOM_SIZE,
+    modify_time: PHANTOM_DATE,
+};
 
 impl cmp::PartialOrd for PathData {
     #[inline]
@@ -431,31 +439,27 @@ impl PathData {
         };
 
         // call symlink_metadata, as we need to resolve symlinks to get non-"phantom" metadata
-        let (len, time, phantom) = match opt_metadata {
+        let metadata = match opt_metadata {
             Some(md) => {
                 let len = md.len();
+                // may fail on systems that don't collect a modify time
                 let time = md.modified().unwrap_or(PHANTOM_DATE);
-                let phantom = false;
-                (len, time, phantom)
+                Some(PathMetadata {
+                    size: len,
+                    modify_time: time,
+                })
             }
             // this seems like a perfect place for a None value, as the file has no metadata,
             // however we will want certain iters to print the *request*, say for deleted files,
             // so we set up a dummy Some value just so we can have the path names we entered
             //
             // if we get a spurious example of no metadata in snapshot directories, we just ignore later
-            None => {
-                let len = PHANTOM_SIZE;
-                let time = PHANTOM_DATE;
-                let phantom = true;
-                (len, time, phantom)
-            }
+            None => None,
         };
 
         PathData {
-            system_time: time,
-            size: len,
             path_buf: absolute_path,
-            is_phantom: phantom,
+            metadata,
         }
     }
 }

@@ -32,7 +32,7 @@ pub fn get_mounts_for_files(config: &Config) -> HttmResult<MountsForFiles> {
     let (phantom_files, non_phantom_files): (Vec<&PathData>, Vec<&PathData>) = config
         .paths
         .par_iter()
-        .partition(|pathdata| pathdata.is_phantom);
+        .partition(|pathdata| pathdata.metadata.is_none());
 
     if !phantom_files.is_empty() {
         eprintln!(

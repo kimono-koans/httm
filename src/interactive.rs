@@ -247,11 +247,16 @@ fn interactive_select(config: Arc<Config>, vec_paths: &[PathData]) -> HttmResult
                 .expect("ExecMode::LiveSnap should always have exactly one path.");
             let pathdata = match snaps_and_live_set[0]
                 .iter()
-                .filter(|snap_version| match request_relative {
-                    RequestRelative::Relative => {
-                        snap_version.system_time != live_version.system_time
+                .filter(|snap_version| {
+                    if request_relative == &RequestRelative::Relative
+                        && snap_version.metadata.as_ref().is_some()
+                        && live_version.metadata.as_ref().is_some()
+                    {
+                        snap_version.metadata.as_ref().unwrap().modify_time
+                            != live_version.metadata.as_ref().unwrap().modify_time
+                    } else {
+                        true
                     }
-                    _ => true,
                 })
                 .last()
             {
@@ -362,9 +367,12 @@ fn interactive_restore(
     let snap_pathdata = PathData::from(Path::new(&parsed_str));
 
     // sanity check -- snap version has good metadata?
-    if snap_pathdata.is_phantom {
-        return Err(HttmError::new("Source location does not exist on disk. Quitting.").into());
-    }
+    let snap_path_metadata = match snap_pathdata.metadata {
+        Some(metadata) => metadata,
+        None => {
+            return Err(HttmError::new("Source location does not exist on disk. Quitting.").into())
+        }
+    };
 
     // build new place to send file
     let new_file_path_buf = if config.opt_overwrite {
@@ -405,7 +413,11 @@ fn interactive_restore(
 
         let new_filename = snap_filename
             + ".httm_restored."
-            + &get_date(&config, &snap_pathdata.system_time, DateFormat::Timestamp);
+            + &get_date(
+                &config,
+                &snap_path_metadata.modify_time,
+                DateFormat::Timestamp,
+            );
         let new_file_dir = config.pwd.path_buf.clone();
         let new_file_path_buf: PathBuf = new_file_dir.join(new_filename);
 
