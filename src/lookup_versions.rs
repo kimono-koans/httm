@@ -121,13 +121,13 @@ pub fn get_snap_dataset_for_search_bundle(
         SnapDatasetType::MostProximate => {
             // just return the same dataset when in most proximate mode
             SnapDatasetsBundle {
-                proximate_dataset_mount: proximate_dataset_mount.clone(),
-                datasets_of_interest: vec![proximate_dataset_mount],
+                proximate_dataset_mount,
+                opt_datasets_of_interest: None,
             }
         }
         SnapDatasetType::AltReplicated => match &config.dataset_collection.opt_map_of_alts {
             Some(map_of_alts) => match map_of_alts.get(proximate_dataset_mount.as_path()) {
-                Some(snap_types_for_search) => snap_types_for_search.to_owned(),
+                Some(snap_types_for_search) => snap_types_for_search.clone(),
                 None => return Err(HttmError::new("If you are here a map of alts is missing for a supplied mount, \
                 this is fine as we should just flatten/ignore this error.").into()),
             },
@@ -144,31 +144,54 @@ pub fn get_file_search_bundle(
     pathdata: &PathData,
     snap_types_of_interest: &SnapDatasetsBundle,
 ) -> HttmResult<Vec<FileSearchBundle>> {
-    snap_types_of_interest
-        .datasets_of_interest
-        .par_iter()
-        .map(|dataset_of_interest| {
-            // building our relative path by removing parent below the snap dir
-            //
-            // for native searches the prefix is are the dirs below the most proximate dataset
-            // for user specified dirs these are specified by the user
-            let proximate_dataset_mount = &snap_types_of_interest.proximate_dataset_mount;
-            // this prefix removal is why we always need the proximate dataset name, even when we are searching an alternate replicated filesystem
+    fn search_bundle_from_datasets<'a, I>(
+        config: &Config,
+        pathdata: &PathData,
+        snap_types_of_interest: &SnapDatasetsBundle,
+        datasets_of_interest: I,
+    ) -> HttmResult<Vec<FileSearchBundle>>
+    where
+        I: ParallelIterator<Item = &'a PathBuf>,
+    {
+        datasets_of_interest
+            .map(|dataset_of_interest| {
+                // building our relative path by removing parent below the snap dir
+                //
+                // for native searches the prefix is are the dirs below the most proximate dataset
+                // for user specified dirs these are specified by the user
+                let proximate_dataset_mount = &snap_types_of_interest.proximate_dataset_mount;
+                // this prefix removal is why we always need the proximate dataset name, even when we are searching an alternate replicated filesystem
 
-            let relative_path = get_relative_path(config, pathdata, proximate_dataset_mount)?;
+                let relative_path = get_relative_path(config, pathdata, proximate_dataset_mount)?;
 
-            let opt_snap_mounts = config
-                .dataset_collection
-                .map_of_snaps
-                .get(dataset_of_interest)
-                .cloned();
+                let opt_snap_mounts = config
+                    .dataset_collection
+                    .map_of_snaps
+                    .get(dataset_of_interest)
+                    .cloned();
 
-            Ok(FileSearchBundle {
-                relative_path,
-                opt_snap_mounts,
+                Ok(FileSearchBundle {
+                    relative_path,
+                    opt_snap_mounts,
+                })
             })
-        })
-        .collect()
+            .collect()
+    }
+
+    match &snap_types_of_interest.opt_datasets_of_interest {
+        Some(datasets_of_interest) => search_bundle_from_datasets(
+            config,
+            pathdata,
+            snap_types_of_interest,
+            datasets_of_interest.par_iter(),
+        ),
+        None => search_bundle_from_datasets(
+            config,
+            pathdata,
+            snap_types_of_interest,
+            [&snap_types_of_interest.proximate_dataset_mount].into_par_iter(),
+        ),
+    }
 }
 
 fn get_relative_path(

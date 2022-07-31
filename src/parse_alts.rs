@@ -66,7 +66,7 @@ fn get_alt_replicated_datasets(
         alt_replicated_mounts.sort_unstable_by_key(|path| path.as_os_str().len());
         Ok(SnapDatasetsBundle {
             proximate_dataset_mount: proximate_dataset_mount.to_path_buf(),
-            datasets_of_interest: alt_replicated_mounts,
+            opt_datasets_of_interest: Some(alt_replicated_mounts),
         })
     }
 }

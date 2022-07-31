@@ -124,7 +124,7 @@ pub struct AliasBundle {
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct SnapDatasetsBundle {
     pub proximate_dataset_mount: PathBuf,
-    pub datasets_of_interest: Vec<PathBuf>,
+    pub opt_datasets_of_interest: Option<Vec<PathBuf>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
