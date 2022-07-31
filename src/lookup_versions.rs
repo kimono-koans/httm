@@ -35,21 +35,18 @@ pub struct FileSearchBundle {
     pub opt_snap_mounts: Option<VecOfSnapInfo>,
 }
 
-pub fn versions_lookup_exec(
-    config: &Config,
-    vec_pathdata: &PathSet,
-) -> HttmResult<SnapsAndLiveSet> {
+pub fn versions_lookup_exec(config: &Config, path_set: &PathSet) -> HttmResult<SnapsAndLiveSet> {
     let all_snap_versions: Vec<PathData> = if config.opt_no_snap {
         Vec::new()
     } else {
-        get_all_snap_versions(config, vec_pathdata)?
+        get_all_snap_versions(config, path_set)?
     };
 
     // create vec of live copies - unless user doesn't want it!
     let live_versions: Vec<PathData> = if config.opt_no_live {
         Vec::new()
     } else {
-        vec_pathdata.to_owned()
+        path_set.to_owned()
     };
 
     // check if all files (snap and live) do not exist, if this is true, then user probably messed up
@@ -69,9 +66,9 @@ pub fn versions_lookup_exec(
     Ok([all_snap_versions, live_versions])
 }
 
-fn get_all_snap_versions(config: &Config, vec_pathdata: &[PathData]) -> HttmResult<Vec<PathData>> {
+fn get_all_snap_versions(config: &Config, path_set: &[PathData]) -> HttmResult<Vec<PathData>> {
     // create vec of all local and replicated backups at once
-    let all_snap_versions: Vec<PathData> = vec_pathdata
+    let all_snap_versions: Vec<PathData> = path_set
         .par_iter()
         .map(|pathdata| {
             config

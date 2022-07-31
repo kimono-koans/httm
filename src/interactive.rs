@@ -137,7 +137,7 @@ impl SkimItem for SelectionCandidate {
 }
 
 pub fn interactive_exec(config: Arc<Config>) -> HttmResult<PathSet> {
-    let vec_pathdata = match &config.requested_dir {
+    let path_set = match &config.requested_dir {
         // collect string paths from what we get from lookup_view
         Some(requested_dir) => {
             let mut res_vec = Vec::new();
@@ -175,11 +175,11 @@ pub fn interactive_exec(config: Arc<Config>) -> HttmResult<PathSet> {
     // or continue down the interactive rabbit hole?
     match config.interactive_mode {
         InteractiveMode::Restore | InteractiveMode::Select => {
-            interactive_select(config, &vec_pathdata)?;
+            interactive_select(config, &path_set)?;
             unreachable!()
         }
         // InteractiveMode::Browse executes back through fn exec() in main.rs
-        InteractiveMode::Browse => Ok(vec_pathdata),
+        InteractiveMode::Browse => Ok(path_set),
         InteractiveMode::None => unreachable!(),
     }
 }
