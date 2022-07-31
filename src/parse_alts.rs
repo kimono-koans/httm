@@ -20,7 +20,7 @@ use std::{path::Path, path::PathBuf};
 use rayon::prelude::*;
 
 use crate::utility::HttmError;
-use crate::{AltInfo, HttmResult, MapOfAlts, MapOfDatasets};
+use crate::{HttmResult, MapOfAlts, MapOfDatasets, SnapTypeInfo};
 
 // instead of looking up, precompute possible alt replicated mounts before exec
 pub fn precompute_alt_replicated(map_of_datasets: &MapOfDatasets) -> MapOfAlts {
@@ -36,7 +36,7 @@ pub fn precompute_alt_replicated(map_of_datasets: &MapOfDatasets) -> MapOfAlts {
 fn get_alt_replicated_datasets(
     proximate_dataset_mount: &Path,
     map_of_datasets: &MapOfDatasets,
-) -> HttmResult<AltInfo> {
+) -> HttmResult<SnapTypeInfo> {
     let proximate_dataset_fs_name = match &map_of_datasets.get(proximate_dataset_mount) {
         Some(dataset_info) => dataset_info.name.clone(),
         None => {
@@ -64,7 +64,7 @@ fn get_alt_replicated_datasets(
         Err(HttmError::new("httm was unable to detect an alternate replicated mount point.  Perhaps the replicated filesystem is not mounted?").into())
     } else {
         alt_replicated_mounts.sort_unstable_by_key(|path| path.as_os_str().len());
-        Ok(AltInfo {
+        Ok(SnapTypeInfo {
             proximate_dataset_mount: proximate_dataset_mount.to_path_buf(),
             datasets_of_interest: alt_replicated_mounts,
         })

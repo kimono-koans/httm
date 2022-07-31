@@ -21,7 +21,7 @@ use itertools::Itertools;
 use rayon::prelude::*;
 
 use crate::{
-    lookup_versions::get_snap_dataset_for_file_bundle, utility::PathData, AltInfo, ExecMode,
+    lookup_versions::get_snap_dataset_for_search_bundle, utility::PathData, ExecMode, SnapTypeInfo,
 };
 use crate::{Config, HttmResult, SnapshotDatasetType};
 
@@ -57,21 +57,21 @@ pub fn get_mounts_for_files(config: &Config) -> HttmResult<MountsForFiles> {
     let mounts_for_files: MountsForFiles = non_phantom_files
         .into_iter()
         .map(|pathdata| {
-            let datasets: Vec<AltInfo> = selected_datasets
+            let datasets: Vec<SnapTypeInfo> = selected_datasets
                 .iter()
                 .flat_map(|dataset_type| {
-                    get_snap_dataset_for_file_bundle(config, pathdata, dataset_type)
+                    get_snap_dataset_for_search_bundle(config, pathdata, dataset_type)
                 })
                 .collect();
             (pathdata.clone(), datasets)
         })
-        .into_group_map_by(|(pathdata, _datasets_for_search)| pathdata.clone())
+        .into_group_map_by(|(pathdata, _snap_types_for_search)| pathdata.clone())
         .into_iter()
-        .map(|(pathdata, vec_datasets_for_search)| {
-            let datasets: Vec<PathData> = vec_datasets_for_search
+        .map(|(pathdata, vec_snap_types_for_search)| {
+            let datasets: Vec<PathData> = vec_snap_types_for_search
                 .into_iter()
-                .flat_map(|(_proximate_mount, datasets_for_search)| datasets_for_search)
-                .flat_map(|datasets_for_search| datasets_for_search.datasets_of_interest)
+                .flat_map(|(_proximate_mount, snap_types_for_search)| snap_types_for_search)
+                .flat_map(|snap_types_for_search| snap_types_for_search.datasets_of_interest)
                 .map(|path| PathData::from(path.as_path()))
                 .rev()
                 .collect();

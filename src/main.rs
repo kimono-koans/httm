@@ -116,14 +116,14 @@ pub struct AliasInfo {
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
-pub struct AltInfo {
+pub struct SnapTypeInfo {
     pub proximate_dataset_mount: PathBuf,
     pub datasets_of_interest: Vec<PathBuf>,
 }
 
 pub type MapOfDatasets = BTreeMap<PathBuf, DatasetInfo>;
 pub type MapOfSnaps = BTreeMap<PathBuf, VecOfSnapInfo>;
-pub type MapOfAlts = BTreeMap<PathBuf, AltInfo>;
+pub type MapOfAlts = BTreeMap<PathBuf, SnapTypeInfo>;
 pub type MapOfAliases = BTreeMap<PathBuf, AliasInfo>;
 pub type BtrfsCommonSnapDir = PathBuf;
 pub type VecOfFilterDirs = Vec<PathBuf>;

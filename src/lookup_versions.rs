@@ -25,7 +25,7 @@ use rayon::prelude::*;
 
 use crate::{
     utility::{HttmError, PathData},
-    AltInfo, MapOfAliases, MapOfDatasets, PathSet, SnapsAndLiveSet, VecOfSnapInfo,
+    MapOfAliases, MapOfDatasets, PathSet, SnapTypeInfo, SnapsAndLiveSet, VecOfSnapInfo,
 };
 use crate::{Config, HttmResult, SnapshotDatasetType};
 
@@ -76,7 +76,7 @@ fn get_all_snap_versions(config: &Config, path_set: &[PathData]) -> HttmResult<V
                 .snaps_for_search
                 .par_iter()
                 .flat_map(|dataset_type| {
-                    get_snap_dataset_for_file_bundle(config, pathdata, dataset_type)
+                    get_snap_dataset_for_search_bundle(config, pathdata, dataset_type)
                 })
                 .flat_map(|dataset_for_search| {
                     get_file_search_bundle(config, pathdata, &dataset_for_search)
@@ -91,11 +91,11 @@ fn get_all_snap_versions(config: &Config, path_set: &[PathData]) -> HttmResult<V
     Ok(all_snap_versions)
 }
 
-pub fn get_snap_dataset_for_file_bundle(
+pub fn get_snap_dataset_for_search_bundle(
     config: &Config,
     pathdata: &PathData,
     requested_dataset_type: &SnapshotDatasetType,
-) -> HttmResult<AltInfo> {
+) -> HttmResult<SnapTypeInfo> {
     // here, we take our file path and get back possibly multiple ZFS dataset mountpoints
     // and our most proximate dataset mount point (which is always the same) for
     // a single file
@@ -117,17 +117,17 @@ pub fn get_snap_dataset_for_file_bundle(
         None => get_proximate_dataset(pathdata, &config.dataset_collection.map_of_datasets)?,
     };
 
-    let datasets_for_search: AltInfo = match requested_dataset_type {
+    let snap_types_for_search: SnapTypeInfo = match requested_dataset_type {
         SnapshotDatasetType::MostProximate => {
             // just return the same dataset when in most proximate mode
-            AltInfo {
+            SnapTypeInfo {
                 proximate_dataset_mount: proximate_dataset_mount.clone(),
                 datasets_of_interest: vec![proximate_dataset_mount],
             }
         }
         SnapshotDatasetType::AltReplicated => match &config.dataset_collection.opt_map_of_alts {
             Some(map_of_alts) => match map_of_alts.get(proximate_dataset_mount.as_path()) {
-                Some(datasets_for_search) => datasets_for_search.to_owned(),
+                Some(snap_types_for_search) => snap_types_for_search.to_owned(),
                 None => return Err(HttmError::new("If you are here a map of alts is missing for a supplied mount, \
                 this is fine as we should just flatten/ignore this error.").into()),
             },
@@ -136,15 +136,15 @@ pub fn get_snap_dataset_for_file_bundle(
         },
     };
 
-    Ok(datasets_for_search)
+    Ok(snap_types_for_search)
 }
 
 pub fn get_file_search_bundle(
     config: &Config,
     pathdata: &PathData,
-    snapshots_of_interest: &AltInfo,
+    snap_types_of_interest: &SnapTypeInfo,
 ) -> HttmResult<Vec<FileSearchBundle>> {
-    snapshots_of_interest
+    snap_types_of_interest
         .datasets_of_interest
         .par_iter()
         .map(|dataset_of_interest| {
@@ -152,7 +152,7 @@ pub fn get_file_search_bundle(
             //
             // for native searches the prefix is are the dirs below the most proximate dataset
             // for user specified dirs these are specified by the user
-            let proximate_dataset_mount = &snapshots_of_interest.proximate_dataset_mount;
+            let proximate_dataset_mount = &snap_types_of_interest.proximate_dataset_mount;
             // this prefix removal is why we always need the proximate dataset name, even when we are searching an alternate replicated filesystem
 
             let relative_path = get_relative_path(config, pathdata, proximate_dataset_mount)?;
