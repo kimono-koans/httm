@@ -25,7 +25,9 @@ use std::{
 
 use itertools::Itertools;
 
-use crate::lookup_versions::{get_datasets_for_search, get_file_search_bundle, FileSearchBundle};
+use crate::lookup_versions::{
+    get_file_search_bundle, get_snap_dataset_for_file_bundle, FileSearchBundle,
+};
 use crate::utility::{BasicDirEntryInfo, HttmError, PathData};
 use crate::{Config, HttmResult};
 
@@ -48,9 +50,11 @@ pub fn deleted_lookup_exec(
         .flat_map(|pathdata| {
             config
                 .dataset_collection
-                .datasets_of_interest
+                .snaps_for_search
                 .iter()
-                .flat_map(|dataset_type| get_datasets_for_search(config, pathdata, dataset_type))
+                .flat_map(|dataset_type| {
+                    get_snap_dataset_for_file_bundle(config, pathdata, dataset_type)
+                })
                 .flat_map(|datasets_of_interest| {
                     get_file_search_bundle(config, pathdata, &datasets_of_interest)
                 })

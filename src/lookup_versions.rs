@@ -73,9 +73,11 @@ fn get_all_snap_versions(config: &Config, path_set: &[PathData]) -> HttmResult<V
         .map(|pathdata| {
             config
                 .dataset_collection
-                .datasets_of_interest
+                .snaps_for_search
                 .par_iter()
-                .flat_map(|dataset_type| get_datasets_for_search(config, pathdata, dataset_type))
+                .flat_map(|dataset_type| {
+                    get_snap_dataset_for_file_bundle(config, pathdata, dataset_type)
+                })
                 .flat_map(|dataset_for_search| {
                     get_file_search_bundle(config, pathdata, &dataset_for_search)
                 })
@@ -89,7 +91,7 @@ fn get_all_snap_versions(config: &Config, path_set: &[PathData]) -> HttmResult<V
     Ok(all_snap_versions)
 }
 
-pub fn get_datasets_for_search(
+pub fn get_snap_dataset_for_file_bundle(
     config: &Config,
     pathdata: &PathData,
     requested_dataset_type: &SnapshotDatasetType,
@@ -140,9 +142,9 @@ pub fn get_datasets_for_search(
 pub fn get_file_search_bundle(
     config: &Config,
     pathdata: &PathData,
-    datasets_for_search: &AltInfo,
+    snapshots_of_interest: &AltInfo,
 ) -> HttmResult<Vec<FileSearchBundle>> {
-    datasets_for_search
+    snapshots_of_interest
         .datasets_of_interest
         .par_iter()
         .map(|dataset_of_interest| {
@@ -150,7 +152,7 @@ pub fn get_file_search_bundle(
             //
             // for native searches the prefix is are the dirs below the most proximate dataset
             // for user specified dirs these are specified by the user
-            let proximate_dataset_mount = &datasets_for_search.proximate_dataset_mount;
+            let proximate_dataset_mount = &snapshots_of_interest.proximate_dataset_mount;
             // this prefix removal is why we always need the proximate dataset name, even when we are searching an alternate replicated filesystem
 
             let relative_path = get_relative_path(config, pathdata, proximate_dataset_mount)?;

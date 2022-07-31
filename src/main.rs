@@ -150,7 +150,7 @@ pub struct DatasetCollection {
     // opt single dir to to be filtered re: btrfs common snap dir
     opt_common_snap_dir: OptBtrfsCommonSnapDir,
     // vec of two enum variants - most proximate and alt replicated, or just most proximate
-    datasets_of_interest: VecOfSnapDatasetType,
+    snaps_for_search: VecOfSnapDatasetType,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -685,7 +685,7 @@ impl Config {
                 None
             };
 
-            let datasets_of_interest = if matches.is_present("ALT_REPLICATED") {
+            let snaps_for_search = if matches.is_present("ALT_REPLICATED") {
                 vec![
                     SnapshotDatasetType::AltReplicated,
                     SnapshotDatasetType::MostProximate,
@@ -701,7 +701,7 @@ impl Config {
                 vec_of_filter_dirs,
                 opt_common_snap_dir,
                 opt_map_of_aliases,
-                datasets_of_interest,
+                snaps_for_search,
             }
         };
 

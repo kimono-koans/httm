@@ -20,7 +20,9 @@ use std::collections::BTreeMap;
 use itertools::Itertools;
 use rayon::prelude::*;
 
-use crate::{lookup_versions::get_datasets_for_search, utility::PathData, AltInfo, ExecMode};
+use crate::{
+    lookup_versions::get_snap_dataset_for_file_bundle, utility::PathData, AltInfo, ExecMode,
+};
 use crate::{Config, HttmResult, SnapshotDatasetType};
 
 pub type MountsForFiles = BTreeMap<PathData, Vec<PathData>>;
@@ -49,7 +51,7 @@ pub fn get_mounts_for_files(config: &Config) -> HttmResult<MountsForFiles> {
     let selected_datasets = if config.exec_mode == ExecMode::SnapFileMount {
         vec![SnapshotDatasetType::MostProximate]
     } else {
-        config.dataset_collection.datasets_of_interest.clone()
+        config.dataset_collection.snaps_for_search.clone()
     };
 
     let mounts_for_files: MountsForFiles = non_phantom_files
@@ -57,7 +59,9 @@ pub fn get_mounts_for_files(config: &Config) -> HttmResult<MountsForFiles> {
         .map(|pathdata| {
             let datasets: Vec<AltInfo> = selected_datasets
                 .iter()
-                .flat_map(|dataset_type| get_datasets_for_search(config, pathdata, dataset_type))
+                .flat_map(|dataset_type| {
+                    get_snap_dataset_for_file_bundle(config, pathdata, dataset_type)
+                })
                 .collect();
             (pathdata.clone(), datasets)
         })
