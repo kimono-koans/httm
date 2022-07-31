@@ -29,10 +29,10 @@ pub type MountsForFiles = BTreeMap<PathData, Vec<PathData>>;
 pub fn get_mounts_for_files(config: &Config) -> HttmResult<MountsForFiles> {
     // we only check for phantom files in "mount for file" mode because
     // people should be able to search for deleted files in other modes
-    let (phantom_files, non_phantom_files): (Vec<&PathData>, Vec<&PathData>) = config
+    let (non_phantom_files, phantom_files): (Vec<&PathData>, Vec<&PathData>) = config
         .paths
         .par_iter()
-        .partition(|pathdata| pathdata.metadata.is_none());
+        .partition(|pathdata| pathdata.metadata.is_some());
 
     if !phantom_files.is_empty() {
         eprintln!(

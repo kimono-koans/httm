@@ -439,23 +439,15 @@ impl PathData {
         };
 
         // call symlink_metadata, as we need to resolve symlinks to get non-"phantom" metadata
-        let metadata = match opt_metadata {
-            Some(md) => {
-                let len = md.len();
-                // may fail on systems that don't collect a modify time
-                let time = md.modified().unwrap_or(PHANTOM_DATE);
-                Some(PathMetadata {
-                    size: len,
-                    modify_time: time,
-                })
+        let metadata = opt_metadata.map(|md| {
+            let len = md.len();
+            // may fail on systems that don't collect a modify time
+            let time = md.modified().unwrap_or(PHANTOM_DATE);
+            PathMetadata {
+                size: len,
+                modify_time: time,
             }
-            // this seems like a perfect place for a None value, as the file has no metadata,
-            // however we will want certain iters to print the *request*, say for deleted files,
-            // so we set up a dummy Some value just so we can have the path names we entered
-            //
-            // if we get a spurious example of no metadata in snapshot directories, we just ignore later
-            None => None,
-        };
+        });
 
         PathData {
             path_buf: absolute_path,
