@@ -759,25 +759,28 @@ fn exec() -> HttmResult<()> {
         ExecMode::Interactive | ExecMode::LastSnap(_) => {
             let browse_result = &interactive_exec(config.clone())?;
             let snaps_and_live_set = versions_lookup_exec(config.as_ref(), browse_result)?;
-            display_snaps_and_live_set(&config, &snaps_and_live_set)?
+            print_snaps_and_live_set(&config, &snaps_and_live_set)?
         }
         // ExecMode::Display will be just printed, we already know the paths
         ExecMode::Display => {
             let snaps_and_live_set = versions_lookup_exec(config.as_ref(), &config.paths)?;
-            display_snaps_and_live_set(&config, &snaps_and_live_set)?
+            print_snaps_and_live_set(&config, &snaps_and_live_set)?
         }
         // ExecMode::DisplayRecursive, ExecMode::SnapFileMount, and ExecMode::MountsForFiles will print their
         // output elsewhere
         ExecMode::DisplayRecursive => display_recursive_wrapper(config.clone())?,
         ExecMode::SnapFileMount => take_snapshot(config.clone())?,
         ExecMode::MountsForFiles => display_mounts_for_files(config.as_ref())?,
-    };
+    }
 
     Ok(())
 }
 
-fn display_snaps_and_live_set(config: &Config, snaps_and_live_set: &SnapsAndLiveSet) -> HttmResult<()> {
-    let output_buf = display_exec(config, &snaps_and_live_set)?;
+fn print_snaps_and_live_set(
+    config: &Config,
+    snaps_and_live_set: &SnapsAndLiveSet,
+) -> HttmResult<()> {
+    let output_buf = display_exec(config, snaps_and_live_set)?;
     print_output_buf(output_buf)?;
     Ok(())
 }
