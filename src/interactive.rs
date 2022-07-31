@@ -236,6 +236,19 @@ fn browse_view(config: Arc<Config>, requested_dir: &PathData) -> HttmResult<Vec<
 fn interactive_select(config: Arc<Config>, vec_paths: &PathSet) -> HttmResult<()> {
     let snaps_and_live_set = versions_lookup_exec(config.as_ref(), vec_paths)?;
 
+    // snap and live set has no snaps
+    if snaps_and_live_set[0].is_empty() {
+        let paths: Vec<String> = vec_paths
+            .iter()
+            .map(|path| path.path_buf.to_string_lossy().to_string())
+            .collect();
+        let msg = format!(
+            "{}{:?}",
+            "Cannot select or restore from the following paths as they have no snapshots:\n", paths
+        );
+        return Err(HttmError::new(&msg).into());
+    }
+
     let path_string = match &config.exec_mode {
         ExecMode::LastSnap(request_relative) => {
             // should be good to index into both, there is a known known 2nd vec,
