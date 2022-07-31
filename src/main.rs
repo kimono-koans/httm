@@ -163,12 +163,6 @@ pub enum RequestRelative {
     Relative,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum DateFormat {
-    Display,
-    Timestamp,
-}
-
 fn parse_args() -> ArgMatches {
     clap::Command::new(crate_name!())
         .about("httm prints the size, date and corresponding locations of available unique versions of files residing on snapshots.  \
