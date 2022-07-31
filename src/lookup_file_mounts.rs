@@ -71,12 +71,7 @@ pub fn get_mounts_for_files(config: &Config) -> HttmResult<MountsForFiles> {
         .map(|(pathdata, vec_snap_types_for_search)| {
             let datasets: Vec<PathData> = vec_snap_types_for_search
                 .into_iter()
-                .flat_map(|(_proximate_mount, snap_types_for_search)| snap_types_for_search)
-                .flat_map(|snap_types_for_search| {
-                    snap_types_for_search
-                        .opt_datasets_of_interest
-                        .unwrap_or_else(|| vec![snap_types_for_search.proximate_dataset_mount])
-                })
+                .flat_map(|(_proximate_mount, snap_types_for_search)| snap_types_for_search).flat_map(|snap_types_for_search| snap_types_for_search.get_datasets_of_interest())
                 .map(|path| PathData::from(path.as_path()))
                 .rev()
                 .collect();

@@ -127,6 +127,13 @@ pub struct SnapDatasetsBundle {
     pub opt_datasets_of_interest: Option<Vec<PathBuf>>,
 }
 
+impl SnapDatasetsBundle {
+    pub fn get_datasets_of_interest(self) -> Vec<PathBuf> {
+        self.opt_datasets_of_interest
+            .unwrap_or_else(|| vec![self.proximate_dataset_mount])
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SnapDatasetType {
     MostProximate,
