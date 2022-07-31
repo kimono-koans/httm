@@ -749,8 +749,14 @@ fn exec() -> HttmResult<()> {
         eprintln!("{:#?}", config);
     }
 
+    let display_snaps_and_live_set = |snaps_and_live_set| -> HttmResult<()> {
+        let output_buf = display_exec(config.as_ref(), &snaps_and_live_set)?;
+        print_output_buf(output_buf)?;
+        Ok(())
+    };
+
     // fn exec() handles the basic display cases, and sends other cases to be processed elsewhere
-    let snaps_and_live_set = match config.exec_mode {
+    match config.exec_mode {
         // ExecMode::Interactive may return back to this function to be printed
         // from an interactive browse must get the paths to print to display, or continue
         // to select or restore functions
@@ -758,29 +764,20 @@ fn exec() -> HttmResult<()> {
         // ExecMode::LastSnap will never return back, its a shortcut to select and restore themselves
         ExecMode::Interactive | ExecMode::LastSnap(_) => {
             let browse_result = &interactive_exec(config.clone())?;
-            versions_lookup_exec(config.as_ref(), browse_result)?
+            let snaps_and_live_set = versions_lookup_exec(config.as_ref(), browse_result)?;
+            display_snaps_and_live_set(snaps_and_live_set)?
         }
         // ExecMode::Display will be just printed, we already know the paths
-        ExecMode::Display => versions_lookup_exec(config.as_ref(), &config.paths)?,
+        ExecMode::Display => {
+            let snaps_and_live_set = versions_lookup_exec(config.as_ref(), &config.paths)?;
+            display_snaps_and_live_set(snaps_and_live_set)?
+        }
         // ExecMode::DisplayRecursive, ExecMode::SnapFileMount, and ExecMode::MountsForFiles will print their
         // output elsewhere
-        ExecMode::DisplayRecursive => {
-            display_recursive_wrapper(config.clone())?;
-            std::process::exit(0)
-        }
-        ExecMode::SnapFileMount => {
-            take_snapshot(config.clone())?;
-            std::process::exit(0)
-        }
-        ExecMode::MountsForFiles => {
-            display_mounts_for_files(config.as_ref())?;
-            std::process::exit(0)
-        }
+        ExecMode::DisplayRecursive => display_recursive_wrapper(config.clone())?,
+        ExecMode::SnapFileMount => take_snapshot(config.clone())?,
+        ExecMode::MountsForFiles => display_mounts_for_files(config.as_ref())?,
     };
-
-    // and display
-    let output_buf = display_exec(config.as_ref(), &snaps_and_live_set)?;
-    print_output_buf(output_buf)?;
 
     Ok(())
 }
