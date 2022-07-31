@@ -22,7 +22,7 @@ use which::which;
 
 use crate::utility::HttmError;
 use crate::{
-    FilesystemType, HttmResult, MapOfDatasets, MapOfSnaps, MountType, SnapInfo,
+    FilesystemType, HttmResult, MapOfDatasets, MapOfSnaps, MountType, VecOfSnapInfo,
     BTRFS_SNAPPER_HIDDEN_DIRECTORY, BTRFS_SNAPPER_SUFFIX, ZFS_SNAPSHOT_DIRECTORY,
 };
 
@@ -75,12 +75,12 @@ pub fn precompute_snap_mounts(map_of_datasets: &MapOfDatasets) -> HttmResult<Map
 fn precompute_btrfs_snap_mounts_from_cmd(
     mount_point_path: &Path,
     root_mount_path: &Path,
-) -> HttmResult<SnapInfo> {
+) -> HttmResult<VecOfSnapInfo> {
     fn parse(
         mount_point_path: &Path,
         root_mount_path: &Path,
         btrfs_command: &Path,
-    ) -> HttmResult<SnapInfo> {
+    ) -> HttmResult<VecOfSnapInfo> {
         let exec_command = btrfs_command;
         let arg_path = mount_point_path.to_string_lossy();
         let args = vec!["subvolume", "list", "-a", "-s", &arg_path];
@@ -130,7 +130,7 @@ fn precompute_btrfs_snap_mounts_from_cmd(
 fn precompute_defined_mounts(
     mount_point_path: &Path,
     fs_type: &FilesystemType,
-) -> HttmResult<SnapInfo> {
+) -> HttmResult<VecOfSnapInfo> {
     let snaps = match fs_type {
         FilesystemType::Btrfs => read_dir(mount_point_path.join(BTRFS_SNAPPER_HIDDEN_DIRECTORY))?
             .flatten()

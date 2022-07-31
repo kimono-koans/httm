@@ -122,13 +122,13 @@ pub struct AltInfo {
 }
 
 pub type MapOfDatasets = BTreeMap<PathBuf, DatasetInfo>;
-pub type MapOfSnaps = BTreeMap<PathBuf, SnapInfo>;
+pub type MapOfSnaps = BTreeMap<PathBuf, VecOfSnapInfo>;
 pub type MapOfAlts = BTreeMap<PathBuf, AltInfo>;
 pub type MapOfAliases = BTreeMap<PathBuf, AliasInfo>;
 pub type BtrfsCommonSnapDir = PathBuf;
-pub type FilterDirs = Vec<PathBuf>;
-pub type SnapInfo = Vec<PathBuf>;
-pub type DatasetsOfInterest = Vec<SnapshotDatasetType>;
+pub type VecOfFilterDirs = Vec<PathBuf>;
+pub type VecOfSnapInfo = Vec<PathBuf>;
+pub type VecOfSnapDatasetType = Vec<SnapshotDatasetType>;
 pub type OptMapOfAlts = Option<MapOfAlts>;
 pub type OptMapOfAliases = Option<MapOfAliases>;
 pub type OptBtrfsCommonSnapDir = Option<BtrfsCommonSnapDir>;
@@ -144,11 +144,11 @@ pub struct DatasetCollection {
     // key: local dir, val: (remote dir, fstype)
     opt_map_of_aliases: OptMapOfAliases,
     // vec dirs to be filtered
-    vec_of_filter_dirs: FilterDirs,
+    vec_of_filter_dirs: VecOfFilterDirs,
     // opt single dir to to be filtered re: btrfs common snap dir
     opt_common_snap_dir: OptBtrfsCommonSnapDir,
     // vec of two enum variants - most proximate and alt replicated, or just most proximate
-    datasets_of_interest: Vec<SnapshotDatasetType>,
+    datasets_of_interest: VecOfSnapDatasetType,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

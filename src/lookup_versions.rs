@@ -25,14 +25,14 @@ use rayon::prelude::*;
 
 use crate::{
     utility::{HttmError, PathData},
-    AltInfo, MapOfAliases, MapOfDatasets, SnapInfo,
+    AltInfo, MapOfAliases, MapOfDatasets, VecOfSnapInfo,
 };
 use crate::{Config, HttmResult, SnapshotDatasetType};
 
 #[derive(Debug, Clone)]
 pub struct FileSearchBundle {
     pub relative_path: PathBuf,
-    pub opt_snap_mounts: Option<SnapInfo>,
+    pub opt_snap_mounts: Option<VecOfSnapInfo>,
 }
 
 pub fn versions_lookup_exec(
@@ -275,7 +275,7 @@ fn get_versions_per_dataset(search_bundle: &FileSearchBundle) -> HttmResult<Vec<
         Ok(unique_versions)
     }
 
-    let snap_mounts: &SnapInfo = search_bundle.opt_snap_mounts.as_ref().ok_or_else(|| {
+    let snap_mounts: &VecOfSnapInfo = search_bundle.opt_snap_mounts.as_ref().ok_or_else(|| {
         HttmError::new(
             "If you are here, httm could find no snap mount for your files.  \
         Iterator should just ignore/flatten the error.",
