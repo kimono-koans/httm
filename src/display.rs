@@ -22,7 +22,7 @@ use terminal_size::{terminal_size, Height, Width};
 
 use crate::lookup_file_mounts::get_mounts_for_files;
 use crate::utility::{get_date, paint_string, print_output_buf, DateFormat, PathData};
-use crate::{Config, HttmResult};
+use crate::{Config, HttmResult, SnapsAndLiveSet};
 
 // 2 space wide padding - used between date and size, and size and path
 const PRETTY_FIXED_WIDTH_PADDING: &str = "  ";
@@ -33,10 +33,7 @@ const NOT_SO_PRETTY_FIXED_WIDTH_PADDING: &str = "\t";
 // and we add 2 quotation marks to the path when we format
 const QUOTATION_MARKS_LEN: usize = 2;
 
-pub fn display_exec(
-    config: &Config,
-    snaps_and_live_set: &[Vec<PathData>; 2],
-) -> HttmResult<String> {
+pub fn display_exec(config: &Config, snaps_and_live_set: &SnapsAndLiveSet) -> HttmResult<String> {
     let output_buffer = if config.opt_raw || config.opt_zeros {
         display_raw(config, snaps_and_live_set)?
     } else {
@@ -46,7 +43,7 @@ pub fn display_exec(
     Ok(output_buffer)
 }
 
-fn display_raw(config: &Config, snaps_and_live_set: &[Vec<PathData>; 2]) -> HttmResult<String> {
+fn display_raw(config: &Config, snaps_and_live_set: &SnapsAndLiveSet) -> HttmResult<String> {
     let delimiter = if config.opt_zeros { '\0' } else { '\n' };
 
     // so easy!
@@ -62,7 +59,7 @@ fn display_raw(config: &Config, snaps_and_live_set: &[Vec<PathData>; 2]) -> Httm
     Ok(write_out_buffer)
 }
 
-fn display_pretty(config: &Config, snaps_and_live_set: &[Vec<PathData>; 2]) -> HttmResult<String> {
+fn display_pretty(config: &Config, snaps_and_live_set: &SnapsAndLiveSet) -> HttmResult<String> {
     let (size_padding_len, fancy_border_string) =
         calculate_pretty_padding(config, snaps_and_live_set);
 
@@ -157,7 +154,7 @@ fn display_pretty(config: &Config, snaps_and_live_set: &[Vec<PathData>; 2]) -> H
 
 fn calculate_pretty_padding(
     config: &Config,
-    snaps_and_live_set: &[Vec<PathData>],
+    snaps_and_live_set: &SnapsAndLiveSet,
 ) -> (usize, String) {
     // calculate padding and borders for display later
     let (size_padding_len, fancy_border_len) = snaps_and_live_set.iter().flatten().fold(

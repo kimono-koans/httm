@@ -132,6 +132,7 @@ pub type VecOfSnapDatasetType = Vec<SnapshotDatasetType>;
 pub type OptMapOfAlts = Option<MapOfAlts>;
 pub type OptMapOfAliases = Option<MapOfAliases>;
 pub type OptBtrfsCommonSnapDir = Option<BtrfsCommonSnapDir>;
+pub type SnapsAndLiveSet = [Vec<PathData>; 2];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DatasetCollection {
