@@ -86,6 +86,12 @@ enum ExecMode {
     MountsForFiles,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RequestRelative {
+    Absolute,
+    Relative,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 enum InteractiveMode {
     None,
@@ -121,6 +127,12 @@ pub struct SnapTypeInfo {
     pub datasets_of_interest: Vec<PathBuf>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SnapshotDatasetType {
+    MostProximate,
+    AltReplicated,
+}
+
 pub type MapOfDatasets = BTreeMap<PathBuf, DatasetInfo>;
 pub type MapOfSnaps = BTreeMap<PathBuf, VecOfSnapInfo>;
 pub type MapOfAlts = BTreeMap<PathBuf, SnapTypeInfo>;
@@ -129,11 +141,11 @@ pub type BtrfsCommonSnapDir = PathBuf;
 pub type VecOfFilterDirs = Vec<PathBuf>;
 pub type VecOfSnapInfo = Vec<PathBuf>;
 pub type VecOfSnapDatasetType = Vec<SnapshotDatasetType>;
+pub type SnapsAndLiveSet = [Vec<PathData>; 2];
+pub type PathSet = Vec<PathData>;
 pub type OptMapOfAlts = Option<MapOfAlts>;
 pub type OptMapOfAliases = Option<MapOfAliases>;
 pub type OptBtrfsCommonSnapDir = Option<BtrfsCommonSnapDir>;
-pub type SnapsAndLiveSet = [Vec<PathData>; 2];
-pub type PathSet = Vec<PathData>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DatasetCollection {
@@ -151,18 +163,6 @@ pub struct DatasetCollection {
     opt_common_snap_dir: OptBtrfsCommonSnapDir,
     // vec of two enum variants - most proximate and alt replicated, or just most proximate
     snaps_for_search: VecOfSnapDatasetType,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum SnapshotDatasetType {
-    MostProximate,
-    AltReplicated,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum RequestRelative {
-    Absolute,
-    Relative,
 }
 
 fn parse_args() -> ArgMatches {
