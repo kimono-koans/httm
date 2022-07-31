@@ -25,7 +25,7 @@ use rayon::prelude::*;
 
 use crate::{
     utility::{HttmError, PathData},
-    AltInfo, MapOfAliases, MapOfDatasets, SnapsAndLiveSet, VecOfSnapInfo,
+    AltInfo, MapOfAliases, MapOfDatasets, PathSet, SnapsAndLiveSet, VecOfSnapInfo,
 };
 use crate::{Config, HttmResult, SnapshotDatasetType};
 
@@ -37,7 +37,7 @@ pub struct FileSearchBundle {
 
 pub fn versions_lookup_exec(
     config: &Config,
-    vec_pathdata: &[PathData],
+    vec_pathdata: &PathSet,
 ) -> HttmResult<SnapsAndLiveSet> {
     let all_snap_versions: Vec<PathData> = if config.opt_no_snap {
         Vec::new()

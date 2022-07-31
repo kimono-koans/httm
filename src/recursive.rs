@@ -29,10 +29,11 @@ use crate::lookup_deleted::deleted_lookup_exec;
 use crate::lookup_versions::versions_lookup_exec;
 use crate::utility::{httm_is_dir, print_output_buf, BasicDirEntryInfo, HttmError, PathData};
 use crate::{
-    Config, DeletedMode, ExecMode, HttmResult, BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_HIDDEN_DIRECTORY,
+    Config, DeletedMode, ExecMode, HttmResult, SnapsAndLiveSet, BTRFS_SNAPPER_HIDDEN_DIRECTORY,
+    ZFS_HIDDEN_DIRECTORY,
 };
 
-pub fn display_recursive_wrapper(config: Arc<Config>) -> HttmResult<[Vec<PathData>; 2]> {
+pub fn display_recursive_wrapper(config: Arc<Config>) -> HttmResult<SnapsAndLiveSet> {
     // won't be sending anything anywhere, this just allows us to reuse enumerate_directory
     let (dummy_tx_item, _): (SkimItemSender, SkimItemReceiver) = unbounded();
     let config_clone = config.clone();

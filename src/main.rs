@@ -133,6 +133,7 @@ pub type OptMapOfAlts = Option<MapOfAlts>;
 pub type OptMapOfAliases = Option<MapOfAliases>;
 pub type OptBtrfsCommonSnapDir = Option<BtrfsCommonSnapDir>;
 pub type SnapsAndLiveSet = [Vec<PathData>; 2];
+pub type PathSet = Vec<PathData>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DatasetCollection {
@@ -391,7 +392,7 @@ fn parse_args() -> ArgMatches {
 
 #[derive(Debug, Clone)]
 pub struct Config {
-    paths: Vec<PathData>,
+    paths: PathSet,
     opt_raw: bool,
     opt_zeros: bool,
     opt_no_pretty: bool,
