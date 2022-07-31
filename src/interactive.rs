@@ -367,12 +367,9 @@ fn interactive_restore(
     let snap_pathdata = PathData::from(Path::new(&parsed_str));
 
     // sanity check -- snap version has good metadata?
-    let snap_path_metadata = match snap_pathdata.metadata {
-        Some(metadata) => metadata,
-        None => {
-            return Err(HttmError::new("Source location does not exist on disk. Quitting.").into())
-        }
-    };
+    let snap_path_metadata = snap_pathdata
+        .metadata
+        .ok_or_else(|| HttmError::new("Source location does not exist on disk. Quitting."))?;
 
     // build new place to send file
     let new_file_path_buf = if config.opt_overwrite {

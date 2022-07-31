@@ -23,29 +23,6 @@ use time::{format_description, OffsetDateTime};
 use crate::{interactive::SelectionCandidate, Config, DateFormat};
 use crate::{FilesystemType, HttmResult, BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_SNAPSHOT_DIRECTORY};
 
-pub const DATE_FORMAT_DISPLAY: &str =
-    "[weekday repr:short] [month repr:short] [day] [hour]:[minute]:[second] [year]";
-pub const DATE_FORMAT_TIMESTAMP: &str = "[year]-[month]-[day]-[hour]:[minute]:[second]";
-
-pub fn get_date(config: &Config, system_time: &SystemTime, format: DateFormat) -> String {
-    let date_time: OffsetDateTime = (*system_time).into();
-
-    let date_format = format_description::parse(get_date_format(format))
-        .expect("timestamp date format is invalid");
-
-    date_time
-        .to_offset(config.requested_utc_offset)
-        .format(&date_format)
-        .expect("timestamp date format could not be applied to the date supplied")
-}
-
-pub fn get_date_format<'a>(format: DateFormat) -> &'a str {
-    match format {
-        DateFormat::Display => DATE_FORMAT_DISPLAY,
-        DateFormat::Timestamp => DATE_FORMAT_TIMESTAMP,
-    }
-}
-
 pub fn copy_recursive(src: &Path, dst: &Path) -> io::Result<()> {
     if PathBuf::from(src).is_dir() {
         create_dir_all(&dst)?;
@@ -454,6 +431,9 @@ impl PathData {
             metadata,
         }
     }
+    pub fn path_md(&self) -> PathMetadata {
+        self.metadata.unwrap_or(PHANTOM_PATH_METADATA)
+    }
 }
 
 pub fn get_fs_type_from_hidden_dir(dataset_mount: &Path) -> HttmResult<FilesystemType> {
@@ -478,4 +458,27 @@ pub fn get_fs_type_from_hidden_dir(dataset_mount: &Path) -> HttmResult<Filesyste
     };
 
     Ok(fs_type)
+}
+
+pub const DATE_FORMAT_DISPLAY: &str =
+    "[weekday repr:short] [month repr:short] [day] [hour]:[minute]:[second] [year]";
+pub const DATE_FORMAT_TIMESTAMP: &str = "[year]-[month]-[day]-[hour]:[minute]:[second]";
+
+pub fn get_date(config: &Config, system_time: &SystemTime, format: DateFormat) -> String {
+    let date_time: OffsetDateTime = (*system_time).into();
+
+    let date_format = format_description::parse(get_date_format(format))
+        .expect("timestamp date format is invalid");
+
+    date_time
+        .to_offset(config.requested_utc_offset)
+        .format(&date_format)
+        .expect("timestamp date format could not be applied to the date supplied")
+}
+
+pub fn get_date_format<'a>(format: DateFormat) -> &'a str {
+    match format {
+        DateFormat::Display => DATE_FORMAT_DISPLAY,
+        DateFormat::Timestamp => DATE_FORMAT_TIMESTAMP,
+    }
 }

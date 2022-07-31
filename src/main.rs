@@ -528,34 +528,33 @@ impl Config {
         };
 
         // paths are immediately converted to our PathData struct
-        let mut paths: Vec<PathData> = if let Some(input_files) =
-            matches.values_of_os("INPUT_FILES")
-        {
-            input_files
-                .par_bridge()
-                .map(Path::new)
-                // canonicalize() on a deleted relative path will not exist,
-                // so we have to join with the pwd to make a path that
-                // will exist on a snapshot
-                .map(|path| canonicalize(path).unwrap_or_else(|_| pwd.clone().path_buf.join(path)))
-                .map(|path| PathData::from(path.as_path()))
-                .collect()
-        } else {
-            match exec_mode {
-                // setting pwd as the path, here, keeps us from waiting on stdin when in certain modes
-                //  is more like Interactive and DisplayRecursive in this respect in requiring only one
-                // input, and waiting on one input from stdin is pretty silly
-                ExecMode::Interactive | ExecMode::DisplayRecursive | ExecMode::LastSnap(_) => {
-                    vec![pwd.clone()]
+        let mut paths: Vec<PathData> =
+            if let Some(input_files) = matches.values_of_os("INPUT_FILES") {
+                input_files
+                    .par_bridge()
+                    .map(Path::new)
+                    // canonicalize() on a deleted relative path will not exist,
+                    // so we have to join with the pwd to make a path that
+                    // will exist on a snapshot
+                    .map(|path| canonicalize(path).unwrap_or_else(|_| pwd.clone().path_buf.join(path)))
+                    .map(|path| PathData::from(path.as_path()))
+                    .collect()
+            } else {
+                match exec_mode {
+                    // setting pwd as the path, here, keeps us from waiting on stdin when in certain modes
+                    //  is more like Interactive and DisplayRecursive in this respect in requiring only one
+                    // input, and waiting on one input from stdin is pretty silly
+                    ExecMode::Interactive | ExecMode::DisplayRecursive | ExecMode::LastSnap(_) => {
+                        vec![pwd.clone()]
+                    }
+                    ExecMode::Display | ExecMode::SnapFileMount | ExecMode::MountsForFiles => {
+                        read_stdin()?
+                            .par_iter()
+                            .map(|string| PathData::from(Path::new(&string)))
+                            .collect()
+                    }
                 }
-                ExecMode::Display | ExecMode::SnapFileMount | ExecMode::MountsForFiles => {
-                    read_stdin()?
-                        .par_iter()
-                        .map(|string| PathData::from(Path::new(&string)))
-                        .collect()
-                }
-            }
-        };
+            };
 
         // deduplicate pathdata and sort if in display mode --
         // so input of ./.z* and ./.zshrc will only print ./.zshrc once
