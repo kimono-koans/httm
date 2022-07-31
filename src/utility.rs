@@ -431,7 +431,7 @@ impl PathData {
             metadata,
         }
     }
-    pub fn path_md(&self) -> PathMetadata {
+    pub fn md(&self) -> PathMetadata {
         self.metadata.unwrap_or(PHANTOM_PATH_METADATA)
     }
 }

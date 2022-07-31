@@ -73,7 +73,7 @@ fn display_pretty(config: &Config, snaps_and_live_set: &[Vec<PathData>; 2]) -> H
             let pathdata_set_buffer: String = pathdata_set
                 .iter()
                 .map(|pathdata| {
-                    let path_metadata = pathdata.path_md();
+                    let path_metadata = pathdata.md();
 
                     // tab delimited if "no pretty", no border lines, and no colors
                     let (fmt_size, display_path, display_padding) = if config.opt_no_pretty {
@@ -163,7 +163,7 @@ fn calculate_pretty_padding(
     let (size_padding_len, fancy_border_len) = snaps_and_live_set.iter().flatten().fold(
         (0usize, 0usize),
         |(mut size_padding_len, mut fancy_border_len), pathdata| {
-            let path_metadata = pathdata.path_md();
+            let path_metadata = pathdata.md();
 
             let (display_date, display_size, display_path) = {
                 let date = get_date(config, &path_metadata.modify_time, DateFormat::Display);
