@@ -762,10 +762,16 @@ fn exec() -> HttmResult<()> {
         }
         // ExecMode::Display will be just printed, we already know the paths
         ExecMode::Display => versions_lookup_exec(config.as_ref(), &config.paths)?,
-        // ExecMode::DisplayRecursive and ExecMode::SnapFileMount won't ever return back to this function
-        ExecMode::DisplayRecursive => display_recursive_wrapper(config.clone())?,
-        ExecMode::SnapFileMount => take_snapshot(config.clone())?,
-        // ExecMode::MountsForFiles will print its output elsewhere, as it's different from normal display output
+        // ExecMode::DisplayRecursive, ExecMode::SnapFileMount, and ExecMode::MountsForFiles will print their
+        // output elsewhere
+        ExecMode::DisplayRecursive => {
+            display_recursive_wrapper(config.clone())?;
+            std::process::exit(0)
+        }
+        ExecMode::SnapFileMount => {
+            take_snapshot(config.clone())?;
+            std::process::exit(0)
+        }
         ExecMode::MountsForFiles => {
             display_mounts_for_files(config.as_ref())?;
             std::process::exit(0)
