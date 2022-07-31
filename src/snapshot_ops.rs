@@ -22,8 +22,8 @@ use std::process::Command as ExecProcess;
 use which::which;
 
 use crate::lookup_file_mounts::{get_mounts_for_files, MountsForFiles};
-use crate::utility::{get_date, print_output_buf, HttmError, PathData};
-use crate::{Config, DateFormat, HttmResult};
+use crate::utility::{get_date, print_output_buf, DateFormat, HttmError, PathData};
+use crate::{Config, HttmResult};
 
 use crate::FilesystemType;
 

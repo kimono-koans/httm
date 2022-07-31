@@ -24,11 +24,9 @@ use crate::display::display_exec;
 use crate::lookup_versions::versions_lookup_exec;
 use crate::recursive::recursive_exec;
 use crate::utility::{
-    copy_recursive, get_date, paint_string, print_output_buf, HttmError, PathData,
+    copy_recursive, get_date, paint_string, print_output_buf, DateFormat, HttmError, PathData,
 };
-use crate::{
-    Config, DateFormat, DeletedMode, ExecMode, HttmResult, InteractiveMode, RequestRelative,
-};
+use crate::{Config, DeletedMode, ExecMode, HttmResult, InteractiveMode, RequestRelative};
 
 // these represent to items ready for selection and preview
 // contains everything needs to request preview and paint with
