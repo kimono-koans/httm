@@ -20,8 +20,10 @@ use lscolors::{LsColors, Style};
 use once_cell::unsync::OnceCell;
 use time::{format_description, OffsetDateTime};
 
-use crate::{interactive::SelectionCandidate, Config};
-use crate::{FilesystemType, HttmResult, BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_SNAPSHOT_DIRECTORY};
+use crate::interactive::SelectionCandidate;
+use crate::{
+    Config, FilesystemType, HttmResult, BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_SNAPSHOT_DIRECTORY,
+};
 
 pub fn copy_recursive(src: &Path, dst: &Path) -> io::Result<()> {
     if PathBuf::from(src).is_dir() {

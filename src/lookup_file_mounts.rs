@@ -20,11 +20,9 @@ use std::collections::BTreeMap;
 use itertools::Itertools;
 use rayon::prelude::*;
 
-use crate::{
-    lookup_versions::get_snap_dataset_for_search_bundle, utility::PathData, ExecMode,
-    SnapDatasetsBundle,
-};
-use crate::{Config, HttmResult, SnapDatasetType};
+use crate::lookup_versions::get_snap_dataset_for_search_bundle;
+use crate::utility::PathData;
+use crate::{Config, ExecMode, HttmResult, SnapDatasetType, SnapDatasetsBundle};
 
 pub type MountsForFiles = BTreeMap<PathData, Vec<PathData>>;
 

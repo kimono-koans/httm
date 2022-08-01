@@ -23,11 +23,11 @@ use std::{
 
 use rayon::prelude::*;
 
+use crate::utility::{HttmError, PathData};
 use crate::{
-    utility::{HttmError, PathData},
-    MapOfAliases, MapOfDatasets, PathSet, SnapDatasetsBundle, SnapsAndLiveSet, VecOfSnaps,
+    Config, HttmResult, MapOfAliases, MapOfDatasets, PathSet, SnapDatasetType, SnapDatasetsBundle,
+    SnapsAndLiveSet, VecOfSnaps,
 };
-use crate::{Config, HttmResult, SnapDatasetType};
 
 #[derive(Debug, Clone)]
 pub struct FileSearchBundle {
