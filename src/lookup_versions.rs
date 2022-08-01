@@ -53,7 +53,7 @@ pub fn versions_lookup_exec(config: &Config, path_set: &PathSet) -> HttmResult<S
     // and entered a file that never existed (that is, perhaps a wrong file name)?
     if all_snap_versions.is_empty()
         && live_versions
-            .par_iter()
+            .iter()
             .all(|pathdata| pathdata.metadata.is_none())
         && !config.opt_no_snap
     {
@@ -151,7 +151,7 @@ pub fn get_file_search_bundle(
         datasets_of_interest: I,
     ) -> HttmResult<Vec<FileSearchBundle>>
     where
-        I: ParallelIterator<Item = &'a PathBuf>,
+        I: Iterator<Item = &'a PathBuf>,
     {
         datasets_of_interest
             .map(|dataset_of_interest| {
@@ -189,13 +189,13 @@ pub fn get_file_search_bundle(
             config,
             pathdata,
             snap_types_of_interest,
-            datasets_of_interest.par_iter(),
+            datasets_of_interest.iter(),
         ),
         None => search_bundle_from_datasets_of_interest(
             config,
             pathdata,
             snap_types_of_interest,
-            [&snap_types_of_interest.proximate_dataset_mount].into_par_iter(),
+            [&snap_types_of_interest.proximate_dataset_mount].into_iter(),
         ),
     }
 }
@@ -210,9 +210,9 @@ fn get_relative_path(
     let relative_path = match &config.dataset_collection.opt_map_of_aliases {
         Some(map_of_aliases) => {
             let opt_aliased_local_dir = map_of_aliases
-                .par_iter()
+                .iter()
                 // do a search for a key with a value
-                .find_map_first(|(local_dir, alias_info)| {
+                .find_map(|(local_dir, alias_info)| {
                     if alias_info.remote_dir == proximate_dataset_mount {
                         Some(local_dir)
                     } else {
@@ -237,11 +237,9 @@ fn get_relative_path(
 }
 
 fn get_alias_dataset(pathdata: &PathData, map_of_alias: &MapOfAliases) -> Option<PathBuf> {
-    let ancestors: Vec<&Path> = pathdata.path_buf.ancestors().collect();
-
     // find_map_first should return the first seq result with a par_iter
     // but not with a par_bridge
-    ancestors.into_par_iter().find_map_first(|ancestor| {
+    pathdata.path_buf.ancestors().find_map(|ancestor| {
         map_of_alias
             .get(ancestor)
             .map(|alias_info| alias_info.remote_dir.clone())
@@ -255,28 +253,24 @@ fn get_proximate_dataset(
     // for /usr/bin, we prefer the most proximate: /usr/bin to /usr and /
     // ancestors() iterates in this top-down order, when a value: dataset/fstype is available
     // we map to return the key, instead of the value
-    let ancestors: Vec<&Path> = pathdata.path_buf.ancestors().collect();
-
-    let opt_best_potential_mountpoint: Option<PathBuf> =
-        // find_map_first should return the first seq result with a par_iter
-        // but not with a par_bridge
-        ancestors.into_par_iter().find_map_first(|ancestor| {
-            if map_of_datasets
-                .contains_key(ancestor){
-                    Some(ancestor)
-                } else {
-                    None
-                }
-        }).map(|path| path.to_path_buf());
-
-    // do we have any mount points left? if not print error
-    opt_best_potential_mountpoint.ok_or_else(|| {
-        HttmError::new(
-            "httm could not identify any qualifying dataset.  \
-            Maybe consider specifying manually at SNAP_POINT?",
-        )
-        .into()
-    })
+    pathdata
+        .path_buf
+        .ancestors()
+        .find_map(|ancestor| {
+            if map_of_datasets.contains_key(ancestor) {
+                Some(ancestor)
+            } else {
+                None
+            }
+        })
+        .map(|path| path.to_path_buf())
+        .ok_or_else(|| {
+            HttmError::new(
+                "httm could not identify any qualifying dataset.  \
+                Maybe consider specifying manually at SNAP_POINT?",
+            )
+            .into()
+        })
 }
 
 fn get_versions_from_snap_mounts(search_bundle: &FileSearchBundle) -> HttmResult<Vec<PathData>> {
