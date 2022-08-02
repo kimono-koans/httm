@@ -565,9 +565,9 @@ impl Config {
         // deduplicate pathdata and sort if in display mode --
         // so input of ./.z* and ./.zshrc will only print ./.zshrc once
         paths = if paths.len() > 1 {
-            paths.sort_by_key(|pathdata| pathdata.path_buf.clone());
+            paths.sort_unstable();
             // dedup needs to be sorted/ordered first to work (not like a BTreeMap)
-            paths.dedup_by_key(|pathdata| pathdata.path_buf.clone());
+            paths.dedup();
 
             paths
         } else {
