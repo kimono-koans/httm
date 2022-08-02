@@ -281,7 +281,6 @@ fn interactive_select(config: Arc<Config>, vec_paths: &PathSet) -> HttmResult<()
             let selection_buffer = display_exec(config.as_ref(), &snaps_and_live_set)?;
             // get the file name
             let mut requested_file_name = select_restore_view(&selection_buffer, false)?;
-            let res_path_string;
 
             // loop until user selects a valid snapshot version
             loop {
@@ -294,8 +293,8 @@ fn interactive_select(config: Arc<Config>, vec_paths: &PathSet) -> HttmResult<()
                             pathdata == &PathData::from(Path::new(path_from_string))
                         }) =>
                     {
-                        res_path_string = path_from_string.to_string();
-                        break;
+                        // return string from the loop
+                        break path_from_string.to_string();
                     }
                     // Cannot select a 'live' version or other invalid value.  Select another value.
                     _ => {
@@ -303,8 +302,6 @@ fn interactive_select(config: Arc<Config>, vec_paths: &PathSet) -> HttmResult<()
                     }
                 }
             }
-
-            res_path_string
         }
     };
 
@@ -461,7 +458,7 @@ fn interactive_restore(
                             Restore completed successfully.",
                             snap_pathdata.path_buf, new_file_path_buf
                         );
-                        eprintln!("{}", result_buffer);
+                        eprintln!("{}", result_buffer)
                     }
                     Err(err) => {
                         return Err(HttmError::with_context(
@@ -473,10 +470,7 @@ fn interactive_restore(
                 }
                 break;
             }
-            "NO" | "N" => {
-                eprintln!("User declined restore.  No files were restored.");
-                break;
-            }
+            "NO" | "N" => break eprintln!("User declined restore.  No files were restored."),
             _ => {
                 user_consent = select_restore_view(&preview_buffer, true)?.to_ascii_uppercase();
             }
