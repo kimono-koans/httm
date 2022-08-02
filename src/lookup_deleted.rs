@@ -16,7 +16,7 @@
 // that was distributed with this source code.
 
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, BTreeSet},
     ffi::OsString,
     fs::read_dir,
     path::{Path, PathBuf},
@@ -107,9 +107,9 @@ fn get_deleted_from_snap_mounts(
     // what is a deleted file
     //
     // create a collection of local file names
-    let local_filenames_map: BTreeMap<OsString, BasicDirEntryInfo> = read_dir(&requested_dir)?
+    let local_filenames_map: BTreeSet<OsString> = read_dir(&requested_dir)?
         .flatten()
-        .map(|dir_entry| (dir_entry.file_name(), BasicDirEntryInfo::from(&dir_entry)))
+        .map(|dir_entry| dir_entry.file_name())
         .collect();
 
     let unique_snap_filenames: BTreeMap<OsString, BasicDirEntryInfo> =
@@ -118,7 +118,7 @@ fn get_deleted_from_snap_mounts(
     // compare local filenames to all unique snap filenames - none values are unique, here
     let all_deleted_versions: Vec<BasicDirEntryInfo> = unique_snap_filenames
         .into_iter()
-        .filter(|(file_name, _)| !local_filenames_map.contains_key(file_name))
+        .filter(|(file_name, _)| !local_filenames_map.contains(file_name))
         .map(|(_file_name, basic_dir_entry_info)| basic_dir_entry_info)
         .collect();
 
