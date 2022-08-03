@@ -286,17 +286,14 @@ fn interactive_select(config: Arc<Config>, vec_paths: &[PathData]) -> HttmResult
                 // ... we want everything between the quotes
                 let broken_string: Vec<_> = requested_file_name.split_terminator('"').collect();
                 // ... and the file is the 2nd item or the indexed "1" object
-                match broken_string.get(1) {
-                    Some(path_from_string)
-                        // Cannot select a 'live' version or other invalid value.
-                        if snaps_and_live_set[1].iter().all(|live_version| {
-                            Path::new(path_from_string) != live_version.path_buf.as_path()
-                        }) =>
-                    {
+                if let Some(path_from_string) = broken_string.get(1) {
+                    // and cannot select a 'live' version or other invalid value.
+                    if snaps_and_live_set[1].iter().all(|live_version| {
+                        Path::new(path_from_string) != live_version.path_buf.as_path()
+                    }) {
                         // return string from the loop
-                        break path_from_string.to_string()
+                        break path_from_string.to_string();
                     }
-                    _ => continue,
                 }
             }
         }
@@ -465,6 +462,7 @@ fn interactive_restore(
                 }
             },
             "NO" | "N" => break eprintln!("User declined restore.  No files were restored."),
+            // if not yes or no, then continue to the next iter of loop
             _ => continue,
         }
     }
