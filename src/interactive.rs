@@ -140,17 +140,16 @@ pub fn interactive_exec(config: Arc<Config>) -> HttmResult<Vec<PathData>> {
     let path_set = match &config.requested_dir {
         // collect string paths from what we get from lookup_view
         Some(requested_dir) => {
-            let mut res_vec = Vec::new();
-
             // loop until user selects a valid path
-            while res_vec.is_empty() {
-                res_vec = browse_view(config.clone(), requested_dir)?
+            loop {
+                let res_vec = browse_view(config.clone(), requested_dir)?
                     .into_iter()
                     .map(|path_string| PathData::from(Path::new(&path_string)))
                     .collect::<Vec<PathData>>();
+                if !res_vec.is_empty() {
+                    break res_vec;
+                }
             }
-
-            res_vec
         }
         None => {
             // go to interactive_select early if user has already requested a file
@@ -279,27 +278,25 @@ fn interactive_select(config: Arc<Config>, vec_paths: &[PathData]) -> HttmResult
         _ => {
             // same stuff we do at fn exec, snooze...
             let selection_buffer = display_exec(config.as_ref(), &snaps_and_live_set)?;
-            // get the file name
-            let mut requested_file_name = select_restore_view(&selection_buffer, false)?;
 
             // loop until user selects a valid snapshot version
             loop {
+                // get the file name
+                let requested_file_name = select_restore_view(&selection_buffer, false)?;
                 // ... we want everything between the quotes
                 let broken_string: Vec<_> = requested_file_name.split_terminator('"').collect();
                 // ... and the file is the 2nd item or the indexed "1" object
                 match broken_string.get(1) {
                     Some(path_from_string)
-                        if !snaps_and_live_set[1].iter().any(|pathdata| {
-                            pathdata == &PathData::from(Path::new(path_from_string))
+                        // Cannot select a 'live' version or other invalid value.
+                        if snaps_and_live_set[1].iter().all(|live_version| {
+                            Path::new(path_from_string) != live_version.path_buf.as_path()
                         }) =>
                     {
                         // return string from the loop
-                        break path_from_string.to_string();
+                        break path_from_string.to_string()
                     }
-                    // Cannot select a 'live' version or other invalid value.  Select another value.
-                    _ => {
-                        requested_file_name = select_restore_view(&selection_buffer, false)?;
-                    }
+                    _ => continue,
                 }
             }
         }
@@ -443,37 +440,32 @@ fn interactive_restore(
         snap_pathdata.path_buf, new_file_path_buf
     );
 
-    let mut user_consent = select_restore_view(&preview_buffer, true)?.to_ascii_uppercase();
-
     // loop until user consents or doesn't
     loop {
+        let user_consent = select_restore_view(&preview_buffer, true)?.to_ascii_uppercase();
+
         match user_consent.as_ref() {
-            "YES" | "Y" => {
-                match copy_recursive(&snap_pathdata.path_buf, &new_file_path_buf) {
-                    Ok(_) => {
-                        let result_buffer = format!(
-                            "httm copied a file from a ZFS snapshot:\n\n\
+            "YES" | "Y" => match copy_recursive(&snap_pathdata.path_buf, &new_file_path_buf) {
+                Ok(_) => {
+                    let result_buffer = format!(
+                        "httm copied a file from a ZFS snapshot:\n\n\
                             \tfrom: {:?}\n\
                             \tto:   {:?}\n\n\
                             Restore completed successfully.",
-                            snap_pathdata.path_buf, new_file_path_buf
-                        );
-                        eprintln!("{}", result_buffer)
-                    }
-                    Err(err) => {
-                        return Err(HttmError::with_context(
-                            "httm restore failed for the following reason",
-                            Box::new(err),
-                        )
-                        .into());
-                    }
+                        snap_pathdata.path_buf, new_file_path_buf
+                    );
+                    break eprintln!("{}", result_buffer);
                 }
-                break;
-            }
+                Err(err) => {
+                    return Err(HttmError::with_context(
+                        "httm restore failed for the following reason",
+                        Box::new(err),
+                    )
+                    .into());
+                }
+            },
             "NO" | "N" => break eprintln!("User declined restore.  No files were restored."),
-            _ => {
-                user_consent = select_restore_view(&preview_buffer, true)?.to_ascii_uppercase();
-            }
+            _ => continue,
         }
     }
 
