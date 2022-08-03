@@ -462,8 +462,8 @@ fn interactive_restore(
                 }
             },
             "NO" | "N" => break eprintln!("User declined restore.  No files were restored."),
-            // if not yes or no, then continue to the next iter of loop
-            _ => continue,
+            // if not yes or no, then noop and continue to the next iter of loop
+            _ => {}
         }
     }
 
