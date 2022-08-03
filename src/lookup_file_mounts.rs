@@ -20,7 +20,7 @@ use std::collections::BTreeMap;
 use itertools::Itertools;
 use rayon::prelude::*;
 
-use crate::lookup_versions::get_snap_dataset_for_search_bundle;
+use crate::lookup_versions::get_snap_dataset_for_search;
 use crate::utility::PathData;
 use crate::{Config, ExecMode, HttmResult, SnapDatasetType, SnapDatasetsBundle};
 
@@ -59,7 +59,7 @@ pub fn get_mounts_for_files(config: &Config) -> HttmResult<MountsForFiles> {
             let datasets: Vec<SnapDatasetsBundle> = selected_datasets
                 .iter()
                 .flat_map(|dataset_type| {
-                    get_snap_dataset_for_search_bundle(config, pathdata, dataset_type)
+                    get_snap_dataset_for_search(config, pathdata, dataset_type)
                 })
                 .collect();
             (pathdata.clone(), datasets)

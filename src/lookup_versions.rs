@@ -36,10 +36,10 @@ pub struct FileSearchBundle {
 }
 
 pub fn versions_lookup_exec(config: &Config, path_set: &[PathData]) -> HttmResult<SnapsAndLiveSet> {
-    let all_snap_versions: Vec<PathData> = if config.opt_no_snap {
+    let snap_versions: Vec<PathData> = if config.opt_no_snap {
         Vec::new()
     } else {
-        get_all_snap_versions(config, path_set)?
+        get_snap_versions(config, path_set)?
     };
 
     // create vec of live copies - unless user doesn't want it!
@@ -51,7 +51,7 @@ pub fn versions_lookup_exec(config: &Config, path_set: &[PathData]) -> HttmResul
 
     // check if all files (snap and live) do not exist, if this is true, then user probably messed up
     // and entered a file that never existed (that is, perhaps a wrong file name)?
-    if all_snap_versions.is_empty()
+    if snap_versions.is_empty()
         && live_versions
             .iter()
             .all(|pathdata| pathdata.metadata.is_none())
@@ -63,10 +63,10 @@ pub fn versions_lookup_exec(config: &Config, path_set: &[PathData]) -> HttmResul
         .into());
     }
 
-    Ok([all_snap_versions, live_versions])
+    Ok([snap_versions, live_versions])
 }
 
-fn get_all_snap_versions(config: &Config, path_set: &[PathData]) -> HttmResult<Vec<PathData>> {
+fn get_snap_versions(config: &Config, path_set: &[PathData]) -> HttmResult<Vec<PathData>> {
     // create vec of all local and replicated backups at once
     let all_snap_versions: Vec<PathData> = path_set
         .par_iter()
@@ -76,7 +76,7 @@ fn get_all_snap_versions(config: &Config, path_set: &[PathData]) -> HttmResult<V
                 .snaps_for_search
                 .par_iter()
                 .flat_map(|dataset_type| {
-                    get_snap_dataset_for_search_bundle(config, pathdata, dataset_type)
+                    get_snap_dataset_for_search(config, pathdata, dataset_type)
                 })
                 .flat_map(|dataset_for_search| {
                     get_file_search_bundle(config, pathdata, &dataset_for_search)
@@ -91,7 +91,7 @@ fn get_all_snap_versions(config: &Config, path_set: &[PathData]) -> HttmResult<V
     Ok(all_snap_versions)
 }
 
-pub fn get_snap_dataset_for_search_bundle(
+pub fn get_snap_dataset_for_search(
     config: &Config,
     pathdata: &PathData,
     requested_dataset_type: &SnapDatasetType,

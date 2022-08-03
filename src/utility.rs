@@ -70,6 +70,45 @@ pub fn read_stdin() -> HttmResult<Vec<String>> {
     Ok(broken_string)
 }
 
+pub fn get_common_path<I, P>(paths: I) -> Option<PathBuf>
+where
+    I: IntoIterator<Item = P>,
+    P: AsRef<Path>,
+{
+    let mut path_iter = paths.into_iter();
+    let initial_value = path_iter.next()?.as_ref().to_path_buf();
+
+    path_iter.try_fold(initial_value, |acc, path| cmp_path(acc, path))
+}
+
+fn cmp_path<A: AsRef<Path>, B: AsRef<Path>>(a: A, b: B) -> Option<PathBuf> {
+    // skip the root dir,
+    let a_components = a.as_ref().components();
+    let b_components = b.as_ref().components();
+
+    let common_path: PathBuf = a_components
+        .zip(b_components)
+        .take_while(|(a_path, b_path)| a_path == b_path)
+        .map(|(a_path, _b_path)| a_path)
+        .collect();
+
+    if !common_path.as_os_str().is_empty() && common_path.as_os_str() != RootDir.as_os_str() {
+        Some(common_path)
+    } else {
+        None
+    }
+}
+
+pub fn print_output_buf(output_buf: String) -> HttmResult<()> {
+    // mutex keeps threads from writing over each other
+    let out = std::io::stdout();
+    let mut out_locked = out.lock();
+    out_locked.write_all(output_buf.as_bytes())?;
+    out_locked.flush()?;
+
+    Ok(())
+}
+
 // is this path/dir_entry something we should count as a directory for our purposes?
 pub fn httm_is_dir<T>(entry: &T) -> bool
 where
@@ -260,45 +299,6 @@ pub fn install_hot_keys() -> HttmResult<()> {
     }
 
     std::process::exit(0)
-}
-
-pub fn get_common_path<I, P>(paths: I) -> Option<PathBuf>
-where
-    I: IntoIterator<Item = P>,
-    P: AsRef<Path>,
-{
-    let mut path_iter = paths.into_iter();
-    let initial_value = path_iter.next()?.as_ref().to_path_buf();
-
-    path_iter.try_fold(initial_value, |acc, path| cmp_path(acc, path))
-}
-
-fn cmp_path<A: AsRef<Path>, B: AsRef<Path>>(a: A, b: B) -> Option<PathBuf> {
-    // skip the root dir,
-    let a_components = a.as_ref().components();
-    let b_components = b.as_ref().components();
-
-    let common_path: PathBuf = a_components
-        .zip(b_components)
-        .take_while(|(a_path, b_path)| a_path == b_path)
-        .map(|(a_path, _b_path)| a_path)
-        .collect();
-
-    if !common_path.as_os_str().is_empty() && common_path.as_os_str() != RootDir.as_os_str() {
-        Some(common_path)
-    } else {
-        None
-    }
-}
-
-pub fn print_output_buf(output_buf: String) -> HttmResult<()> {
-    // mutex keeps threads from writing over each other
-    let out = std::io::stdout();
-    let mut out_locked = out.lock();
-    out_locked.write_all(output_buf.as_bytes())?;
-    out_locked.flush()?;
-
-    Ok(())
 }
 
 #[derive(Debug)]
