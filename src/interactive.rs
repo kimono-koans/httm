@@ -26,7 +26,7 @@ use crate::recursive::recursive_exec;
 use crate::utility::{
     copy_recursive, get_date, paint_string, print_output_buf, DateFormat, HttmError, PathData,
 };
-use crate::{Config, DeletedMode, ExecMode, HttmResult, InteractiveMode, PathSet, RequestRelative};
+use crate::{Config, DeletedMode, ExecMode, HttmResult, InteractiveMode, RequestRelative};
 
 // these represent to items ready for selection and preview
 // contains everything needs to request preview and paint with
@@ -136,7 +136,7 @@ impl SkimItem for SelectionCandidate {
     }
 }
 
-pub fn interactive_exec(config: Arc<Config>) -> HttmResult<PathSet> {
+pub fn interactive_exec(config: Arc<Config>) -> HttmResult<Vec<PathData>> {
     let path_set = match &config.requested_dir {
         // collect string paths from what we get from lookup_view
         Some(requested_dir) => {
@@ -159,7 +159,7 @@ pub fn interactive_exec(config: Arc<Config>) -> HttmResult<PathSet> {
             match config.paths.get(0) {
                 Some(first_path) => {
                     let selected_file = first_path.clone();
-                    interactive_select(config, &vec![selected_file])?;
+                    interactive_select(config, &[selected_file])?;
                     unreachable!("interactive select never returns so unreachable here")
                 }
                 // Config::from should never allow us to have an instance where we don't
@@ -233,7 +233,7 @@ fn browse_view(config: Arc<Config>, requested_dir: &PathData) -> HttmResult<Vec<
     Ok(res)
 }
 
-fn interactive_select(config: Arc<Config>, vec_paths: &PathSet) -> HttmResult<()> {
+fn interactive_select(config: Arc<Config>, vec_paths: &[PathData]) -> HttmResult<()> {
     let snaps_and_live_set = versions_lookup_exec(config.as_ref(), vec_paths)?;
 
     // snap and live set has no snaps
@@ -379,7 +379,7 @@ fn interactive_restore(
         // corner case: what if multiple selected paths had the same file name,
         // but were in different directories? let's make sure we have only one match
         let opt_og_pathdata = vec_paths.iter().find_map(|pathdata| {
-            match versions_lookup_exec(config.as_ref(), &vec![pathdata.clone()]).ok() {
+            match versions_lookup_exec(config.as_ref(), &[pathdata.clone()]).ok() {
                 // safe to index into snaps, known len of 2 for set
                 Some(pathdata_set) => pathdata_set[0].iter().find_map(|pathdata| {
                     if pathdata == &snap_pathdata {

@@ -149,7 +149,6 @@ pub type VecOfFilterDirs = Vec<PathBuf>;
 pub type VecOfSnaps = Vec<PathBuf>;
 pub type VecOfSnapDatasetType = Vec<SnapDatasetType>;
 pub type SnapsAndLiveSet = [Vec<PathData>; 2];
-pub type PathSet = Vec<PathData>;
 pub type OptMapOfAlts = Option<MapOfAlts>;
 pub type OptMapOfAliases = Option<MapOfAliases>;
 pub type OptBtrfsCommonSnapDir = Option<BtrfsCommonSnapDir>;
@@ -399,7 +398,7 @@ fn parse_args() -> ArgMatches {
 
 #[derive(Debug, Clone)]
 pub struct Config {
-    paths: PathSet,
+    paths: Vec<PathData>,
     opt_raw: bool,
     opt_zeros: bool,
     opt_no_pretty: bool,
