@@ -60,7 +60,7 @@ impl SelectionCandidate {
         let config = &self.config;
         let path = &self.path;
         // generate a config for a preview display only
-        let gen_config = Arc::new(Config {
+        let gen_config = Config {
             paths: vec![PathData::from(path.as_path())],
             opt_raw: false,
             opt_zeros: false,
@@ -79,12 +79,12 @@ impl SelectionCandidate {
             dataset_collection: config.dataset_collection.clone(),
             pwd: config.pwd.clone(),
             requested_dir: config.requested_dir.clone(),
-        });
+        };
 
         // finally run search on those paths
-        let snaps_and_live_set = versions_lookup_exec(gen_config.as_ref(), &gen_config.paths)?;
+        let snaps_and_live_set = versions_lookup_exec(&gen_config, &gen_config.paths)?;
         // and display
-        let output_buf = display_exec(gen_config.as_ref(), &snaps_and_live_set)?;
+        let output_buf = display_exec(&gen_config, &snaps_and_live_set)?;
 
         Ok(output_buf)
     }
