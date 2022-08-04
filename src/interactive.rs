@@ -136,7 +136,7 @@ impl SkimItem for SelectionCandidate {
 }
 
 pub fn interactive_exec(config: Arc<Config>) -> HttmResult<Vec<PathData>> {
-    let path_set = match &config.requested_dir {
+    let paths_selected_in_browse = match &config.requested_dir {
         // collect string paths from what we get from lookup_view
         Some(requested_dir) => {
             // loop until user selects a valid path
@@ -173,11 +173,11 @@ pub fn interactive_exec(config: Arc<Config>) -> HttmResult<Vec<PathData>> {
     // or continue down the interactive rabbit hole?
     match config.interactive_mode {
         InteractiveMode::Restore | InteractiveMode::Select => {
-            interactive_select(config, &path_set)?;
+            interactive_select(config, &paths_selected_in_browse)?;
             unreachable!()
         }
         // InteractiveMode::Browse executes back through fn exec() in main.rs
-        InteractiveMode::Browse => Ok(path_set),
+        InteractiveMode::Browse => Ok(paths_selected_in_browse),
         InteractiveMode::None => unreachable!(),
     }
 }
@@ -301,6 +301,9 @@ fn interactive_select(
 
     // continue to interactive_restore or print and exit here?
     if config.interactive_mode == InteractiveMode::Restore {
+        // one only allow one to select one path string during select
+        // but we retain paths_selected_in_browse because we may need
+        // it later during restore if opt_overwrite is selected
         Ok(interactive_restore(
             config,
             &path_string,
