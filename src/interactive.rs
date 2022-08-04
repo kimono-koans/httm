@@ -107,7 +107,7 @@ impl Colorable for &SelectionCandidate {
 
 impl SkimItem for SelectionCandidate {
     fn text(&self) -> Cow<str> {
-        self.path.file_name().unwrap_or_default().to_string_lossy()
+        self.path.to_string_lossy()
     }
     fn display<'a>(&'a self, _context: DisplayContext<'a>) -> AnsiString<'a> {
         AnsiString::parse(&paint_string(
@@ -127,7 +127,7 @@ impl SkimItem for SelectionCandidate {
         ))
     }
     fn output(&self) -> Cow<str> {
-        self.path.to_string_lossy()
+        self.text()
     }
     fn preview(&self, _: PreviewContext<'_>) -> skim::ItemPreview {
         let res = self.preview_view().unwrap_or_default();
