@@ -158,9 +158,8 @@ pub fn get_file_search_bundle(
                 // building our relative path by removing parent below the snap dir
                 //
                 // for native searches the prefix is are the dirs below the most proximate dataset
-                // for user specified dirs these are specified by the user
+                // for user specified dirs/aliases these are specified by the user
                 let proximate_dataset_mount = &snap_types_of_interest.proximate_dataset_mount;
-                // this prefix removal is why we always need the proximate dataset name, even when we are searching an alternate replicated filesystem
 
                 let relative_path = get_relative_path(config, pathdata, proximate_dataset_mount)?;
 

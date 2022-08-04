@@ -204,6 +204,10 @@ where
     }
 }
 
+lazy_static! {
+    static ref ENV_LS_COLORS: LsColors = LsColors::from_env().unwrap_or_default();
+}
+
 pub trait PaintString {
     fn get_ansi_style(&self) -> Option<lscolors::style::Style>;
     fn get_is_phantom(&self) -> bool;
@@ -211,8 +215,7 @@ pub trait PaintString {
 
 impl PaintString for &PathData {
     fn get_ansi_style(&self) -> Option<lscolors::style::Style> {
-        let ls_colors = LsColors::from_env().unwrap_or_default();
-        let style = ls_colors.style_for_path(self.path_buf.as_path());
+        let style = ENV_LS_COLORS.style_for_path(self.path_buf.as_path());
         style.cloned()
     }
     fn get_is_phantom(&self) -> bool {
@@ -222,8 +225,7 @@ impl PaintString for &PathData {
 
 impl PaintString for &SelectionCandidate {
     fn get_ansi_style(&self) -> Option<lscolors::style::Style> {
-        let ls_colors = LsColors::from_env().unwrap_or_default();
-        let style = ls_colors.style_for(self);
+        let style = ENV_LS_COLORS.style_for(self);
         style.cloned()
     }
     fn get_is_phantom(&self) -> bool {
