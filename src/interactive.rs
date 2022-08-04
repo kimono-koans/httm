@@ -130,8 +130,8 @@ impl SkimItem for SelectionCandidate {
         self.text()
     }
     fn preview(&self, _: PreviewContext<'_>) -> skim::ItemPreview {
-        let res = self.preview_view().unwrap_or_default();
-        skim::ItemPreview::AnsiText(res)
+        let preview_output = self.preview_view().unwrap_or_default();
+        skim::ItemPreview::AnsiText(preview_output)
     }
 }
 
@@ -141,12 +141,12 @@ pub fn interactive_exec(config: Arc<Config>) -> HttmResult<Vec<PathData>> {
         Some(requested_dir) => {
             // loop until user selects a valid path
             loop {
-                let res_vec = browse_view(config.clone(), requested_dir)?
+                let selected_pathdata = browse_view(config.clone(), requested_dir)?
                     .into_iter()
                     .map(|path_string| PathData::from(Path::new(&path_string)))
                     .collect::<Vec<PathData>>();
-                if !res_vec.is_empty() {
-                    break res_vec;
+                if !selected_pathdata.is_empty() {
+                    break selected_pathdata;
                 }
             }
         }
@@ -223,12 +223,12 @@ fn browse_view(config: Arc<Config>, requested_dir: &PathData) -> HttmResult<Vec<
     };
 
     // output() converts the filename/raw path to a absolute path string for use elsewhere
-    let res: Vec<String> = selected_items
+    let output: Vec<String> = selected_items
         .iter()
         .map(|i| i.output().into_owned())
         .collect();
 
-    Ok(res)
+    Ok(output)
 }
 
 fn interactive_select(config: Arc<Config>, vec_paths: &[PathData]) -> HttmResult<()> {
@@ -341,12 +341,12 @@ fn select_restore_view(preview_buffer: &str, reverse: bool) -> HttmResult<String
     };
 
     // output() converts the filename/raw path to a absolute path string for use elsewhere
-    let res = selected_items
+    let output = selected_items
         .iter()
         .map(|i| i.output().into_owned())
         .collect();
 
-    Ok(res)
+    Ok(output)
 }
 
 fn interactive_restore(
