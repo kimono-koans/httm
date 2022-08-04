@@ -231,12 +231,15 @@ fn browse_view(config: Arc<Config>, requested_dir: &PathData) -> HttmResult<Vec<
     Ok(output)
 }
 
-fn interactive_select(config: Arc<Config>, vec_paths: &[PathData]) -> HttmResult<()> {
-    let snaps_and_live_set = versions_lookup_exec(config.as_ref(), vec_paths)?;
+fn interactive_select(
+    config: Arc<Config>,
+    paths_selected_in_browse: &[PathData],
+) -> HttmResult<()> {
+    let snaps_and_live_set = versions_lookup_exec(config.as_ref(), paths_selected_in_browse)?;
 
     // snap and live set has no snaps
     if snaps_and_live_set[0].is_empty() {
-        let paths: Vec<String> = vec_paths
+        let paths: Vec<String> = paths_selected_in_browse
             .iter()
             .map(|path| path.path_buf.to_string_lossy().to_string())
             .collect();
@@ -250,7 +253,7 @@ fn interactive_select(config: Arc<Config>, vec_paths: &[PathData]) -> HttmResult
     let path_string = match &config.exec_mode {
         ExecMode::LastSnap(request_relative) => {
             // should be good to index into both, there is a known known 2nd vec,
-            let live_version = &vec_paths
+            let live_version = &paths_selected_in_browse
                 .get(0)
                 .expect("ExecMode::LiveSnap should always have exactly one path.");
             let path_string = snaps_and_live_set[0]
@@ -298,7 +301,11 @@ fn interactive_select(config: Arc<Config>, vec_paths: &[PathData]) -> HttmResult
 
     // continue to interactive_restore or print and exit here?
     if config.interactive_mode == InteractiveMode::Restore {
-        Ok(interactive_restore(config, &path_string, vec_paths)?)
+        Ok(interactive_restore(
+            config,
+            &path_string,
+            paths_selected_in_browse,
+        )?)
     } else {
         let output_buf = format!("\"{}\"\n", &path_string);
         print_output_buf(output_buf)?;
@@ -352,7 +359,7 @@ fn select_restore_view(preview_buffer: &str, reverse: bool) -> HttmResult<String
 fn interactive_restore(
     config: Arc<Config>,
     parsed_str: &str,
-    vec_paths: &[PathData],
+    paths_selected_in_browse: &[PathData],
 ) -> HttmResult<()> {
     // build pathdata from selection buffer parsed string
     //
@@ -367,16 +374,18 @@ fn interactive_restore(
 
     // build new place to send file
     let new_file_path_buf = if config.opt_overwrite {
-        // corner case: what if multiple selected paths had the same file name,
-        // but were in different directories? let's make sure we have only one match
-        let opt_og_pathdata = vec_paths.iter().find_map(|pathdata| {
+        // instead of just not naming the new file with extra info (date plus "httm_restored") and shoving that new file
+        // into the pwd, here, we actually look for the original location of the file to make sure we overwrite it.
+        // so, if you were in /etc and wanted to restore /etc/samba/smb.conf, httm will make certain to overwrite
+        // at /etc/samba/smb.conf, not just avoid the rename
+        let opt_original_live_pathdata = paths_selected_in_browse.iter().find_map(|pathdata| {
             match versions_lookup_exec(config.as_ref(), &[pathdata.clone()]).ok() {
                 // safe to index into snaps, known len of 2 for set
                 Some(pathdata_set) => pathdata_set[0].iter().find_map(|pathdata| {
                     if pathdata == &snap_pathdata {
                         // safe to index into request, known len of 2 for set, known len of 1 for request
-                        let og_pathdata = pathdata_set[1][0].to_owned();
-                        Some(og_pathdata)
+                        let original_live_pathdata = pathdata_set[1][0].to_owned();
+                        Some(original_live_pathdata)
                     } else {
                         None
                     }
@@ -385,7 +394,7 @@ fn interactive_restore(
             }
         });
 
-        match opt_og_pathdata {
+        match opt_original_live_pathdata {
             Some(pathdata) => pathdata.path_buf,
             None => {
                 return Err(HttmError::new(
