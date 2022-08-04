@@ -204,9 +204,18 @@ fn get_relative_path(
     pathdata: &PathData,
     proximate_dataset_mount: &Path,
 ) -> HttmResult<PathBuf> {
-    let default_path_strip = || pathdata.path_buf.strip_prefix(&proximate_dataset_mount);
+    fn default_path_strip<'a>(
+        pathdata: &'a PathData,
+        proximate_dataset_mount: &'a Path,
+    ) -> HttmResult<PathBuf> {
+        pathdata
+            .path_buf
+            .strip_prefix(&proximate_dataset_mount)
+            .map(|path| path.to_path_buf())
+            .map_err(|err| err.into())
+    }
 
-    let relative_path = match &config.dataset_collection.opt_map_of_aliases {
+    match &config.dataset_collection.opt_map_of_aliases {
         Some(map_of_aliases) => {
             let opt_aliased_local_dir = map_of_aliases
                 .iter()
@@ -223,16 +232,14 @@ fn get_relative_path(
             // (each an indication we should not be trying aliases)
             match opt_aliased_local_dir {
                 Some(local_dir) => match pathdata.path_buf.strip_prefix(&local_dir) {
-                    Ok(alias_stripped_path) => alias_stripped_path,
-                    Err(_) => default_path_strip()?,
+                    Ok(alias_stripped_path) => Ok(alias_stripped_path.to_path_buf()),
+                    Err(_) => default_path_strip(pathdata, proximate_dataset_mount),
                 },
-                None => default_path_strip()?,
+                None => default_path_strip(pathdata, proximate_dataset_mount),
             }
         }
-        None => default_path_strip()?,
-    };
-
-    Ok(relative_path.to_path_buf())
+        None => default_path_strip(pathdata, proximate_dataset_mount),
+    }
 }
 
 fn get_alias_dataset(pathdata: &PathData, map_of_alias: &MapOfAliases) -> Option<PathBuf> {
