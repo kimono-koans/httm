@@ -63,13 +63,13 @@ fn display_pretty(config: &Config, snaps_and_live_set: &SnapsAndLiveSet) -> Httm
     let (size_padding_len, fancy_border_string) =
         calculate_pretty_padding(config, snaps_and_live_set);
 
-    let write_out_buffer = snaps_and_live_set
-        .iter()
-        .enumerate()
-        .map(|(idx, pathdata_set)| {
+    let write_out_buffer = snaps_and_live_set.iter().enumerate().fold(
+        String::new(),
+        |mut write_out_buffer, (idx, pathdata_set)| {
             let pathdata_set_buffer: String = pathdata_set
                 .iter()
                 .map(|pathdata| {
+                    // obtain metadata for timestamp and size
                     let path_metadata = pathdata.md_infallible();
 
                     // tab delimited if "no pretty", no border lines, and no colors
@@ -131,23 +131,20 @@ fn display_pretty(config: &Config, snaps_and_live_set: &SnapsAndLiveSet) -> Httm
                 .collect();
 
             if config.opt_no_pretty {
-                pathdata_set_buffer
-            } else {
-                let mut pretty_buffer = String::new();
-                if idx == 0 {
-                    pretty_buffer += &fancy_border_string;
-                    if !pathdata_set_buffer.is_empty() {
-                        pretty_buffer += &pathdata_set_buffer;
-                        pretty_buffer += &fancy_border_string;
-                    }
-                } else {
-                    pretty_buffer += &pathdata_set_buffer;
-                    pretty_buffer += &fancy_border_string;
+                write_out_buffer += &pathdata_set_buffer;
+            } else if idx == 0 {
+                write_out_buffer += &fancy_border_string;
+                if !pathdata_set_buffer.is_empty() {
+                    write_out_buffer += &pathdata_set_buffer;
+                    write_out_buffer += &fancy_border_string;
                 }
-                pretty_buffer
+            } else {
+                write_out_buffer += &pathdata_set_buffer;
+                write_out_buffer += &fancy_border_string;
             }
-        })
-        .collect();
+            write_out_buffer
+        },
+    );
 
     Ok(write_out_buffer)
 }
