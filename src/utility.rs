@@ -185,17 +185,22 @@ impl HttmIsDir for BasicDirEntryInfo {
     }
 }
 
+lazy_static! {
+    static ref PHANTOM_STYLE: Style =
+        Style::from_ansi_sequence("38;2;250;200;200;1;0").unwrap_or_default();
+    static ref ENV_LS_COLORS: LsColors = LsColors::from_env().unwrap_or_default();
+}
+
 pub fn paint_string<T>(path: T, display_name: &str) -> Cow<str>
 where
     T: PaintString,
 {
     if path.get_is_phantom() {
-        let style = &Style::from_ansi_sequence("38;2;250;200;200;1;0").unwrap_or_default();
         // paint all other phantoms/deleted files the same color, light pink
-        let ansi_style = &Style::to_ansi_term_style(style);
+        let ansi_style = &Style::to_ansi_term_style(&PHANTOM_STYLE);
         Cow::Owned(ansi_style.paint(display_name).to_string())
     } else if let Some(style) = path.get_ansi_style() {
-        let ansi_style = &Style::to_ansi_term_style(&style);
+        let ansi_style = &Style::to_ansi_term_style(style);
         Cow::Owned(ansi_style.paint(display_name).to_string())
     } else {
         // if a non-phantom file that should not be colored (sometimes -- your regular files)
@@ -204,19 +209,14 @@ where
     }
 }
 
-lazy_static! {
-    static ref ENV_LS_COLORS: LsColors = LsColors::from_env().unwrap_or_default();
-}
-
 pub trait PaintString {
-    fn get_ansi_style(&self) -> Option<lscolors::style::Style>;
+    fn get_ansi_style(&self) -> Option<&'_ lscolors::style::Style>;
     fn get_is_phantom(&self) -> bool;
 }
 
 impl PaintString for &PathData {
-    fn get_ansi_style(&self) -> Option<lscolors::style::Style> {
-        let style = ENV_LS_COLORS.style_for_path(self.path_buf.as_path());
-        style.cloned()
+    fn get_ansi_style(&self) -> Option<&lscolors::style::Style> {
+        ENV_LS_COLORS.style_for_path(self.path_buf.as_path())
     }
     fn get_is_phantom(&self) -> bool {
         self.metadata.is_none()
@@ -224,9 +224,8 @@ impl PaintString for &PathData {
 }
 
 impl PaintString for &SelectionCandidate {
-    fn get_ansi_style(&self) -> Option<lscolors::style::Style> {
-        let style = ENV_LS_COLORS.style_for(self);
-        style.cloned()
+    fn get_ansi_style(&self) -> Option<&lscolors::style::Style> {
+        ENV_LS_COLORS.style_for(self)
     }
     fn get_is_phantom(&self) -> bool {
         self.is_phantom
@@ -418,15 +417,11 @@ impl From<&DirEntry> for PathData {
 impl PathData {
     pub fn from_parts(path: &Path, opt_metadata: Option<Metadata>) -> Self {
         let absolute_path: PathBuf = if path.is_relative() {
-            if let Ok(canonical_path) = path.canonicalize() {
-                canonical_path
-            } else {
-                // canonicalize() on any path that DNE will throw an error
-                //
-                // in general we handle those cases elsewhere, like the ingest
-                // of input files in Config::from for deleted relative paths, etc.
-                path.to_path_buf()
-            }
+            // canonicalize() on any path that DNE will throw an error
+            //
+            // in general we handle those cases elsewhere, like the ingest
+            // of input files in Config::from for deleted relative paths, etc.
+            path.canonicalize().unwrap_or_else(|_| path.to_path_buf())
         } else {
             path.to_path_buf()
         };
