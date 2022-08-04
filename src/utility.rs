@@ -199,7 +199,7 @@ where
         // paint all other phantoms/deleted files the same color, light pink
         let ansi_style = &Style::to_ansi_term_style(&PHANTOM_STYLE);
         Cow::Owned(ansi_style.paint(display_name).to_string())
-    } else if let Some(style) = path.get_ansi_style() {
+    } else if let Some(style) = path.get_ls_style() {
         let ansi_style = &Style::to_ansi_term_style(style);
         Cow::Owned(ansi_style.paint(display_name).to_string())
     } else {
@@ -210,12 +210,12 @@ where
 }
 
 pub trait PaintString {
-    fn get_ansi_style(&self) -> Option<&'_ lscolors::style::Style>;
+    fn get_ls_style(&self) -> Option<&'_ lscolors::style::Style>;
     fn get_is_phantom(&self) -> bool;
 }
 
 impl PaintString for &PathData {
-    fn get_ansi_style(&self) -> Option<&lscolors::style::Style> {
+    fn get_ls_style(&self) -> Option<&lscolors::style::Style> {
         ENV_LS_COLORS.style_for_path(self.path_buf.as_path())
     }
     fn get_is_phantom(&self) -> bool {
@@ -224,7 +224,7 @@ impl PaintString for &PathData {
 }
 
 impl PaintString for &SelectionCandidate {
-    fn get_ansi_style(&self) -> Option<&lscolors::style::Style> {
+    fn get_ls_style(&self) -> Option<&lscolors::style::Style> {
         ENV_LS_COLORS.style_for(self)
     }
     fn get_is_phantom(&self) -> bool {
