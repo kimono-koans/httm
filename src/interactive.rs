@@ -24,7 +24,8 @@ use crate::display::display_exec;
 use crate::lookup_versions::versions_lookup_exec;
 use crate::recursive::recursive_exec;
 use crate::utility::{
-    copy_recursive, get_date, paint_string, print_output_buf, DateFormat, HttmError, PathData,
+    copy_recursive, get_date, paint_string, print_output_buf, BasicDirEntryInfo, DateFormat,
+    HttmError, PathData,
 };
 use crate::{Config, DeletedMode, ExecMode, HttmResult, InteractiveMode, RequestRelative};
 
@@ -43,16 +44,14 @@ pub struct SelectionCandidate {
 impl SelectionCandidate {
     pub fn new(
         config: Arc<Config>,
-        file_name: OsString,
-        path: PathBuf,
-        file_type: Option<FileType>,
+        basic_dir_entry_info: BasicDirEntryInfo,
         is_phantom: bool,
     ) -> Self {
         SelectionCandidate {
             config,
-            file_name,
-            path,
-            file_type,
+            file_name: basic_dir_entry_info.file_name,
+            path: basic_dir_entry_info.path,
+            file_type: basic_dir_entry_info.file_type,
             is_phantom,
         }
     }

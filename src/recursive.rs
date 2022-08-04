@@ -411,9 +411,7 @@ fn transmit_entries(
     entries.into_iter().for_each(|basic_dir_entry_info| {
         let _ = tx_item.send(Arc::new(SelectionCandidate::new(
             config.clone(),
-            basic_dir_entry_info.file_name,
-            basic_dir_entry_info.path,
-            basic_dir_entry_info.file_type,
+            basic_dir_entry_info,
             is_phantom,
         )));
     });
