@@ -439,23 +439,19 @@ impl Config {
         };
 
         let opt_zeros = matches.is_present("ZEROS");
-        let mut opt_raw = matches.is_present("RAW");
+        let opt_no_snap = matches.is_present("NO_SNAP");
+        // force a raw mode if one is not set for no_snap mode
+        let opt_raw = matches.is_present("RAW") || opt_no_snap && !opt_zeros;
         let opt_no_pretty = matches.is_present("NOT_SO_PRETTY");
         let opt_recursive = matches.is_present("RECURSIVE");
         let opt_exact = matches.is_present("EXACT");
         let opt_no_live = matches.is_present("NO_LIVE");
         let opt_no_filter = matches.is_present("NO_FILTER");
-        let opt_no_snap = matches.is_present("NO_SNAP");
         let opt_debug = matches.is_present("DEBUG");
         let opt_overwrite = matches!(
             matches.value_of("RESTORE"),
             Some("overwrite") | Some("yolo")
         );
-
-        // force a raw mode if one is not set for no_snap mode
-        if opt_no_snap && !opt_raw && !opt_zeros {
-            opt_raw = true
-        }
 
         let mut deleted_mode = match matches.value_of("DELETED_MODE") {
             Some("") | Some("all") => DeletedMode::Enabled,
