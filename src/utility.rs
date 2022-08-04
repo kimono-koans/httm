@@ -442,7 +442,7 @@ impl PathData {
             metadata,
         }
     }
-    pub fn md(&self) -> PathMetadata {
+    pub fn md_infallible(&self) -> PathMetadata {
         self.metadata.unwrap_or(PHANTOM_PATH_METADATA)
     }
 }

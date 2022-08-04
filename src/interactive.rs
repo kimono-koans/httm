@@ -253,26 +253,24 @@ fn interactive_select(config: Arc<Config>, vec_paths: &[PathData]) -> HttmResult
             let live_version = &vec_paths
                 .get(0)
                 .expect("ExecMode::LiveSnap should always have exactly one path.");
-            let pathdata = match snaps_and_live_set[0]
+            let path_string = snaps_and_live_set[0]
                 .iter()
                 .filter(|snap_version| {
                     if request_relative == &RequestRelative::Relative {
-                        snap_version.md().modify_time != live_version.md().modify_time
+                        snap_version.md_infallible().modify_time
+                            != live_version.md_infallible().modify_time
                     } else {
                         true
                     }
                 })
                 .last()
-            {
-                Some(pathdata) => pathdata,
-                None => {
-                    return Err(HttmError::new(
-                        "No last snapshot for the requested input file exists.",
-                    )
-                    .into())
-                }
-            };
-            pathdata.path_buf.to_string_lossy().into_owned()
+                .ok_or_else(|| {
+                    HttmError::new("No last snapshot for the requested input file exists.")
+                })?
+                .path_buf
+                .to_string_lossy()
+                .into_owned();
+            path_string
         }
         _ => {
             // same stuff we do at fn exec, snooze...
@@ -285,13 +283,13 @@ fn interactive_select(config: Arc<Config>, vec_paths: &[PathData]) -> HttmResult
                 // ... we want everything between the quotes
                 let broken_string: Vec<_> = requested_file_name.split_terminator('"').collect();
                 // ... and the file is the 2nd item or the indexed "1" object
-                if let Some(path_from_string) = broken_string.get(1) {
+                if let Some(path_string) = broken_string.get(1) {
                     // and cannot select a 'live' version or other invalid value.
                     if snaps_and_live_set[1].iter().all(|live_version| {
-                        Path::new(path_from_string) != live_version.path_buf.as_path()
+                        Path::new(path_string) != live_version.path_buf.as_path()
                     }) {
                         // return string from the loop
-                        break path_from_string.to_string();
+                        break path_string.to_string();
                     }
                 }
             }
