@@ -68,9 +68,10 @@ fn display_pretty(config: &Config, snaps_and_live_set: &SnapsAndLiveSet) -> Httm
     let write_out_buffer = snaps_and_live_set.iter().enumerate().fold(
         String::new(),
         |mut write_out_buffer, (idx, pathdata_set)| {
-            // SnapsAndLiveSet is an array of 2 - 0 are the snaps, 1 is the live versions
+            // a SnapsAndLiveSet is an array of 2 - idx 0 are the snaps, 1 is the live versions
             let is_live_set = idx == 1;
 
+            // get the display buffer for each set snaps and live
             let pathdata_set_buffer = get_pathdata_set_buffer(
                 config,
                 pathdata_set,
@@ -80,6 +81,7 @@ fn display_pretty(config: &Config, snaps_and_live_set: &SnapsAndLiveSet) -> Httm
                 &phantom_size_pad_str,
             );
 
+            // add each buffer to the set - print fancy border string above, below and between sets
             if config.opt_no_pretty {
                 write_out_buffer += &pathdata_set_buffer;
             } else if idx == 0 {
@@ -138,16 +140,16 @@ fn get_pathdata_set_buffer(
                     format!("{:>width$}", size, width = size_padding_len)
                 };
                 let path = {
-                    let file_path = &pathdata.path_buf;
+                    let path_buf = &pathdata.path_buf;
                     // paint the live strings with ls colors - idx == 1 is 2nd or live set
-                    let painted_path = if is_live_set {
-                        paint_string(pathdata, file_path.to_str().unwrap_or_default())
+                    let painted_path_str = if is_live_set {
+                        paint_string(pathdata, path_buf.to_str().unwrap_or_default())
                     } else {
-                        file_path.to_string_lossy()
+                        path_buf.to_string_lossy()
                     };
                     Cow::Owned(format!(
                         "\"{:<width$}\"",
-                        painted_path,
+                        painted_path_str,
                         width = size_padding_len
                     ))
                 };
