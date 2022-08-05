@@ -150,7 +150,7 @@ fn enter_live_directory(
             // recombine dirs and files into a vec
             let combined_vec = || {
                 let mut combined = vec_files;
-                combined.extend(vec_dirs.clone());
+                combined.extend_from_slice(&vec_dirs);
                 combined
             };
 
@@ -332,7 +332,7 @@ fn enter_deleted_directory(
     // pseudo live versions of deleted files, files that once were
     let mut combined_entries = vec_files;
     // recombine our directories and files
-    combined_entries.extend(vec_dirs.clone());
+    combined_entries.extend_from_slice(&vec_dirs);
     let pseudo_live_versions: Vec<BasicDirEntryInfo> =
         get_pseudo_live_versions(combined_entries, requested_dir);
 
@@ -361,28 +361,28 @@ fn recurse_behind_deleted_dir(
 ) -> HttmResult<DirsBehindDeletedDir> {
     // deleted_dir_on_snap is the path from the deleted dir on the snapshot
     // pseudo_live_dir is the path from the fake, deleted directory that once was
-    let deleted_dir_on_snap = &from_deleted_dir.to_path_buf().join(&dir_name);
-    let pseudo_live_dir = &from_requested_dir.to_path_buf().join(&dir_name);
+    let deleted_dir_on_snap = from_deleted_dir.to_path_buf().join(&dir_name);
+    let pseudo_live_dir = from_requested_dir.to_path_buf().join(&dir_name);
 
     let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
-        get_entries_partitioned(config.as_ref(), deleted_dir_on_snap)?;
+        get_entries_partitioned(config.as_ref(), &deleted_dir_on_snap)?;
 
     // partition above is needed as vec_files will be used later
     // to determine dirs to recurse, here, we recombine to obtain
     // pseudo live versions of deleted files, files that once were
     let mut combined_entries = vec_files;
     // recombine our directories and files
-    combined_entries.extend(vec_dirs.clone());
+    combined_entries.extend_from_slice(&vec_dirs);
     let pseudo_live_versions: Vec<BasicDirEntryInfo> =
-        get_pseudo_live_versions(combined_entries, pseudo_live_dir);
+        get_pseudo_live_versions(combined_entries, &pseudo_live_dir);
 
     // know this is_phantom because we know it is deleted
     display_or_transmit(config, pseudo_live_versions, true, tx_item)?;
 
     Ok(DirsBehindDeletedDir {
         vec_dirs,
-        deleted_dir_on_snap: deleted_dir_on_snap.to_path_buf(),
-        pseudo_live_dir: pseudo_live_dir.to_path_buf(),
+        deleted_dir_on_snap,
+        pseudo_live_dir,
     })
 }
 
