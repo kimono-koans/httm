@@ -76,8 +76,42 @@ pub fn recursive_exec(
     }
 
     THREAD_POOL.in_place_scope(|deleted_scope| {
-        let _ = enumerate_live_versions(config, tx_item, requested_dir, deleted_scope);
+        let _ = iterative_enumeration(config, tx_item, requested_dir, deleted_scope);
     });
+
+    Ok(())
+}
+
+// and iterative approach seems to be *way faster* and less CPU intensive vs. recursive with Rust
+fn iterative_enumeration(
+    config: Arc<Config>,
+    tx_item: &SkimItemSender,
+    requested_dir: &Path,
+    deleted_scope: &Scope,
+) -> HttmResult<()> {
+    let initial_vec_dirs =
+        enumerate_live_versions(config.clone(), tx_item, requested_dir, deleted_scope)?;
+
+    if config.opt_recursive {
+        let mut recursive_vec_dirs = initial_vec_dirs;
+
+        while !recursive_vec_dirs.is_empty() {
+            // don't want a par_iter here because it will block and wait for all
+            // results, instead of printing and recursing into the subsequent dirs
+            recursive_vec_dirs = recursive_vec_dirs
+                .into_iter()
+                .flat_map(|requested_dir| {
+                    enumerate_live_versions(
+                        config.clone(),
+                        tx_item,
+                        &requested_dir.path,
+                        deleted_scope,
+                    )
+                })
+                .flatten()
+                .collect();
+        }
+    }
 
     Ok(())
 }
@@ -87,7 +121,7 @@ fn enumerate_live_versions(
     tx_item: &SkimItemSender,
     requested_dir: &Path,
     deleted_scope: &Scope,
-) -> HttmResult<()> {
+) -> HttmResult<Vec<BasicDirEntryInfo>> {
     // combined entries will be sent or printed, but we need the vec_dirs to recurse
     let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
         get_entries_partitioned(config.as_ref(), requested_dir)?;
@@ -138,21 +172,7 @@ fn enumerate_live_versions(
         }
     }
 
-    // now recurse into dirs, if requested
-    if config.opt_recursive {
-        // don't want a par_iter here because it will block and wait for all
-        // results, instead of printing and recursing into the subsequent dirs
-        vec_dirs.into_iter().for_each(move |requested_dir| {
-            let _ = enumerate_live_versions(
-                config.clone(),
-                tx_item,
-                &requested_dir.path,
-                deleted_scope,
-            );
-        });
-    }
-
-    Ok(())
+    Ok(vec_dirs)
 }
 
 fn get_entries_partitioned(
