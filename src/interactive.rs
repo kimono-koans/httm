@@ -190,7 +190,11 @@ fn browse_view(config: Arc<Config>, requested_dir: &PathData) -> HttmResult<Vec<
 
     // thread spawn fn enumerate_directory - permits recursion into dirs without blocking
     thread::spawn(move || {
-        let _ = recursive_exec(config_clone, &tx_item, &requested_dir_clone);
+        // no way to propagate error from closure so exit and explain error here
+        recursive_exec(config_clone, &tx_item, &requested_dir_clone).unwrap_or_else(|error| {
+            eprintln!("Error: {}", error);
+            std::process::exit(1)
+        })
     });
 
     let opt_multi = !matches!(config.exec_mode, ExecMode::LastSnap(_));
