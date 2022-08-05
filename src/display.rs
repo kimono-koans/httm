@@ -46,7 +46,7 @@ pub fn display_exec(config: &Config, snaps_and_live_set: &SnapsAndLiveSet) -> Ht
     let output_buffer = if config.opt_raw || config.opt_zeros {
         display_raw(config, snaps_and_live_set)?
     } else {
-        display_pretty(config, snaps_and_live_set)?
+        display_formatted(config, snaps_and_live_set)?
     };
 
     Ok(output_buffer)
@@ -68,7 +68,7 @@ fn display_raw(config: &Config, snaps_and_live_set: &SnapsAndLiveSet) -> HttmRes
     Ok(write_out_buffer)
 }
 
-fn display_pretty(config: &Config, snaps_and_live_set: &SnapsAndLiveSet) -> HttmResult<String> {
+fn display_formatted(config: &Config, snaps_and_live_set: &SnapsAndLiveSet) -> HttmResult<String> {
     let padding_collection = calculate_pretty_padding(config, snaps_and_live_set);
 
     let write_out_buffer = snaps_and_live_set.iter().enumerate().fold(
