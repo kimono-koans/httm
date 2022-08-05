@@ -68,10 +68,13 @@ fn display_pretty(config: &Config, snaps_and_live_set: &SnapsAndLiveSet) -> Httm
     let write_out_buffer = snaps_and_live_set.iter().enumerate().fold(
         String::new(),
         |mut write_out_buffer, (idx, pathdata_set)| {
+            // SnapsAndLiveSet is an array of 2 - 0 are the snaps, 1 is the live versions
+            let is_live_set = idx == 1;
+
             let pathdata_set_buffer = get_pathdata_set_buffer(
                 config,
                 pathdata_set,
-                idx,
+                is_live_set,
                 size_padding_len,
                 &phantom_date_pad_str,
                 &phantom_size_pad_str,
@@ -99,7 +102,7 @@ fn display_pretty(config: &Config, snaps_and_live_set: &SnapsAndLiveSet) -> Httm
 fn get_pathdata_set_buffer(
     config: &Config,
     pathdata_set: &[PathData],
-    idx: usize,
+    is_live_set: bool,
     size_padding_len: usize,
     phantom_date_pad_str: &str,
     phantom_size_pad_str: &str,
@@ -137,7 +140,7 @@ fn get_pathdata_set_buffer(
                 let path = {
                     let file_path = &pathdata.path_buf;
                     // paint the live strings with ls colors - idx == 1 is 2nd or live set
-                    let painted_path = if idx == 1 {
+                    let painted_path = if is_live_set {
                         paint_string(pathdata, file_path.to_str().unwrap_or_default())
                     } else {
                         file_path.to_string_lossy()
