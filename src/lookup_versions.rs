@@ -144,58 +144,51 @@ pub fn get_file_search_bundle(
     pathdata: &PathData,
     snap_types_of_interest: &SnapDatasetsBundle,
 ) -> HttmResult<Vec<FileSearchBundle>> {
-    fn search_bundle_from_datasets_of_interest<'a, I>(
+    fn search_bundle_from_dataset(
         config: &Config,
         pathdata: &PathData,
-        snap_types_of_interest: &SnapDatasetsBundle,
-        datasets_of_interest: I,
-    ) -> HttmResult<Vec<FileSearchBundle>>
-    where
-        I: Iterator<Item = &'a PathBuf>,
-    {
-        datasets_of_interest
-            .map(|dataset_of_interest| {
-                // building our relative path by removing parent below the snap dir
-                //
-                // for native searches the prefix is are the dirs below the most proximate dataset
-                // for user specified dirs/aliases these are specified by the user
-                let proximate_dataset_mount = &snap_types_of_interest.proximate_dataset_mount;
+        proximate_dataset_mount: &Path,
+        dataset: &Path,
+    ) -> HttmResult<FileSearchBundle> {
+        // building our relative path by removing parent below the snap dir
+        //
+        // for native searches the prefix is are the dirs below the most proximate dataset
+        // for user specified dirs/aliases these are specified by the user
+        let relative_path = get_relative_path(config, pathdata, proximate_dataset_mount)?;
 
-                let relative_path = get_relative_path(config, pathdata, proximate_dataset_mount)?;
+        let snap_mounts = config
+            .dataset_collection
+            .map_of_snaps
+            .get(dataset)
+            .cloned()
+            .ok_or_else(|| {
+                HttmError::new(
+                    "httm could find no snap mount for your files.  \
+                Iterator should just ignore/flatten this error.",
+                )
+            })?;
 
-                let snap_mounts = config
-                    .dataset_collection
-                    .map_of_snaps
-                    .get(dataset_of_interest)
-                    .cloned()
-                    .ok_or_else(|| {
-                        HttmError::new(
-                            "httm could find no snap mount for your files.  \
-                        Iterator should just ignore/flatten this error.",
-                        )
-                    })?;
-
-                Ok(FileSearchBundle {
-                    relative_path,
-                    snap_mounts,
-                })
-            })
-            .collect()
+        Ok(FileSearchBundle {
+            relative_path,
+            snap_mounts,
+        })
     }
 
+    let proximate_dataset_mount = &snap_types_of_interest.proximate_dataset_mount;
+
     match &snap_types_of_interest.opt_datasets_of_interest {
-        Some(datasets_of_interest) => search_bundle_from_datasets_of_interest(
-            config,
-            pathdata,
-            snap_types_of_interest,
-            datasets_of_interest.iter(),
-        ),
-        None => search_bundle_from_datasets_of_interest(
-            config,
-            pathdata,
-            snap_types_of_interest,
-            [&snap_types_of_interest.proximate_dataset_mount].into_iter(),
-        ),
+        Some(datasets_of_interest) => datasets_of_interest
+            .iter()
+            .map(|dataset| {
+                search_bundle_from_dataset(config, pathdata, proximate_dataset_mount, dataset)
+            })
+            .collect(),
+        None => [proximate_dataset_mount]
+            .into_iter()
+            .map(|dataset| {
+                search_bundle_from_dataset(config, pathdata, proximate_dataset_mount, dataset)
+            })
+            .collect(),
     }
 }
 
