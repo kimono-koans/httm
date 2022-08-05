@@ -121,8 +121,7 @@ impl SkimItem for SelectionCandidate {
                         .as_ref()
                         .expect("requested_dir should never be None in Interactive Browse mode")
                         .path_buf,
-                )
-                .unwrap_or_else(|_| Path::new(&self.file_name))
+                ).unwrap_or(&self.path)
                 .to_string_lossy(),
         ))
     }
