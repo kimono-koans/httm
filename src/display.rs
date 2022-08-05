@@ -35,6 +35,13 @@ const NOT_SO_PRETTY_FIXED_WIDTH_PADDING: &str = "\t";
 // and we add 2 quotation marks to the path when we format
 const QUOTATION_MARKS_LEN: usize = 2;
 
+struct PaddingCollection {
+    size_padding_len: usize,
+    fancy_border_string: String,
+    phantom_date_pad_str: String,
+    phantom_size_pad_str: String,
+}
+
 pub fn display_exec(config: &Config, snaps_and_live_set: &SnapsAndLiveSet) -> HttmResult<String> {
     let output_buffer = if config.opt_raw || config.opt_zeros {
         display_raw(config, snaps_and_live_set)?
@@ -62,8 +69,7 @@ fn display_raw(config: &Config, snaps_and_live_set: &SnapsAndLiveSet) -> HttmRes
 }
 
 fn display_pretty(config: &Config, snaps_and_live_set: &SnapsAndLiveSet) -> HttmResult<String> {
-    let (size_padding_len, fancy_border_string, phantom_date_pad_str, phantom_size_pad_str) =
-        calculate_pretty_padding(config, snaps_and_live_set);
+    let padding_collection = calculate_pretty_padding(config, snaps_and_live_set);
 
     let write_out_buffer = snaps_and_live_set.iter().enumerate().fold(
         String::new(),
@@ -72,27 +78,21 @@ fn display_pretty(config: &Config, snaps_and_live_set: &SnapsAndLiveSet) -> Httm
             let is_live_set = idx == 1;
 
             // get the display buffer for each set snaps and live
-            let pathdata_set_buffer = get_pathdata_set_buffer(
-                config,
-                pathdata_set,
-                is_live_set,
-                size_padding_len,
-                &phantom_date_pad_str,
-                &phantom_size_pad_str,
-            );
+            let pathdata_set_buffer =
+                get_pathdata_set_buffer(config, pathdata_set, is_live_set, &padding_collection);
 
             // add each buffer to the set - print fancy border string above, below and between sets
             if config.opt_no_pretty {
                 write_out_buffer += &pathdata_set_buffer;
             } else if idx == 0 {
-                write_out_buffer += &fancy_border_string;
+                write_out_buffer += &padding_collection.fancy_border_string;
                 if !pathdata_set_buffer.is_empty() {
                     write_out_buffer += &pathdata_set_buffer;
-                    write_out_buffer += &fancy_border_string;
+                    write_out_buffer += &padding_collection.fancy_border_string;
                 }
             } else {
                 write_out_buffer += &pathdata_set_buffer;
-                write_out_buffer += &fancy_border_string;
+                write_out_buffer += &padding_collection.fancy_border_string;
             }
             write_out_buffer
         },
@@ -105,9 +105,7 @@ fn get_pathdata_set_buffer(
     config: &Config,
     pathdata_set: &[PathData],
     is_live_set: bool,
-    size_padding_len: usize,
-    phantom_date_pad_str: &str,
-    phantom_size_pad_str: &str,
+    padding_collection: &PaddingCollection,
 ) -> String {
     pathdata_set
         .iter()
@@ -124,7 +122,7 @@ fn get_pathdata_set_buffer(
                 let size = if pathdata.metadata.is_some() {
                     display_human_size(&path_metadata.size)
                 } else {
-                    phantom_size_pad_str.to_owned()
+                    padding_collection.phantom_size_pad_str.to_owned()
                 };
                 let path = pathdata.path_buf.to_string_lossy();
                 let padding = NOT_SO_PRETTY_FIXED_WIDTH_PADDING;
@@ -135,9 +133,13 @@ fn get_pathdata_set_buffer(
                     let size = if pathdata.metadata.is_some() {
                         display_human_size(&path_metadata.size)
                     } else {
-                        phantom_size_pad_str.to_owned()
+                        padding_collection.phantom_size_pad_str.to_owned()
                     };
-                    format!("{:>width$}", size, width = size_padding_len)
+                    format!(
+                        "{:>width$}",
+                        size,
+                        width = padding_collection.size_padding_len
+                    )
                 };
                 let path = {
                     let path_buf = &pathdata.path_buf;
@@ -150,7 +152,7 @@ fn get_pathdata_set_buffer(
                     Cow::Owned(format!(
                         "\"{:<width$}\"",
                         painted_path_str,
-                        width = size_padding_len
+                        width = padding_collection.size_padding_len
                     ))
                 };
                 // displays blanks for phantom values, equaling their dummy lens and dates.
@@ -161,7 +163,7 @@ fn get_pathdata_set_buffer(
             let display_date = if pathdata.metadata.is_some() {
                 get_date(config, &path_metadata.modify_time, DateFormat::Display)
             } else {
-                phantom_date_pad_str.to_owned()
+                padding_collection.phantom_date_pad_str.to_owned()
             };
 
             format!(
@@ -175,7 +177,7 @@ fn get_pathdata_set_buffer(
 fn calculate_pretty_padding(
     config: &Config,
     snaps_and_live_set: &SnapsAndLiveSet,
-) -> (usize, String, String, String) {
+) -> PaddingCollection {
     // calculate padding and borders for display later
     let (size_padding_len, fancy_border_len) = snaps_and_live_set.iter().flatten().fold(
         (0usize, 0usize),
@@ -239,12 +241,12 @@ fn calculate_pretty_padding(
         width = display_human_size(&PHANTOM_SIZE).len()
     );
 
-    (
+    PaddingCollection {
         size_padding_len,
         fancy_border_string,
         phantom_date_pad_str,
         phantom_size_pad_str,
-    )
+    }
 }
 
 pub fn display_mounts_for_files(config: &Config) -> HttmResult<()> {
