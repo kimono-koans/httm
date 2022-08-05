@@ -46,7 +46,7 @@ pub fn display_exec(config: &Config, snaps_and_live_set: &SnapsAndLiveSet) -> Ht
     let output_buffer = if config.opt_raw || config.opt_zeros {
         display_raw(config, snaps_and_live_set)?
     } else {
-        display_pretty(config, snaps_and_live_set)?
+        display_formatted(config, snaps_and_live_set)?
     };
 
     Ok(output_buffer)
@@ -68,7 +68,7 @@ fn display_raw(config: &Config, snaps_and_live_set: &SnapsAndLiveSet) -> HttmRes
     Ok(write_out_buffer)
 }
 
-fn display_pretty(config: &Config, snaps_and_live_set: &SnapsAndLiveSet) -> HttmResult<String> {
+fn display_formatted(config: &Config, snaps_and_live_set: &SnapsAndLiveSet) -> HttmResult<String> {
     let padding_collection = calculate_pretty_padding(config, snaps_and_live_set);
 
     let write_out_buffer = snaps_and_live_set.iter().enumerate().fold(
@@ -78,8 +78,12 @@ fn display_pretty(config: &Config, snaps_and_live_set: &SnapsAndLiveSet) -> Httm
             let is_live_set = idx == 1;
 
             // get the display buffer for each set snaps and live
-            let pathdata_set_buffer =
-                get_pathdata_set_buffer(config, pathdata_set, is_live_set, &padding_collection);
+            let pathdata_set_buffer: String = pathdata_set
+                .iter()
+                .map(|pathdata| {
+                    display_pathdata(config, pathdata, is_live_set, &padding_collection)
+                })
+                .collect();
 
             // add each buffer to the set - print fancy border string above, below and between sets
             if config.opt_no_pretty {
@@ -101,77 +105,72 @@ fn display_pretty(config: &Config, snaps_and_live_set: &SnapsAndLiveSet) -> Httm
     Ok(write_out_buffer)
 }
 
-fn get_pathdata_set_buffer(
+fn display_pathdata(
     config: &Config,
-    pathdata_set: &[PathData],
+    pathdata: &PathData,
     is_live_set: bool,
     padding_collection: &PaddingCollection,
 ) -> String {
-    pathdata_set
-        .iter()
-        .map(|pathdata| {
-            // obtain metadata for timestamp and size
-            let path_metadata = pathdata.md_infallible();
+    // obtain metadata for timestamp and size
+    let path_metadata = pathdata.md_infallible();
 
-            // tab delimited if "no pretty", no border lines, and no colors
-            let (display_size, display_path, display_padding) = if config.opt_no_pretty {
-                // displays blanks for phantom values, equaling their dummy lens and dates.
-                //
-                // we use a dummy instead of a None value here.  Basically, sometimes, we want
-                // to print the request even if a live file does not exist
-                let size = if pathdata.metadata.is_some() {
-                    display_human_size(&path_metadata.size)
-                } else {
-                    padding_collection.phantom_size_pad_str.to_owned()
-                };
-                let path = pathdata.path_buf.to_string_lossy();
-                let padding = NOT_SO_PRETTY_FIXED_WIDTH_PADDING;
-                (size, path, padding)
-            // print with padding and pretty border lines and ls colors
+    // tab delimited if "no pretty", no border lines, and no colors
+    let (display_size, display_path, display_padding) = if config.opt_no_pretty {
+        // displays blanks for phantom values, equaling their dummy lens and dates.
+        //
+        // we use a dummy instead of a None value here.  Basically, sometimes, we want
+        // to print the request even if a live file does not exist
+        let size = if pathdata.metadata.is_some() {
+            display_human_size(&path_metadata.size)
+        } else {
+            padding_collection.phantom_size_pad_str.to_owned()
+        };
+        let path = pathdata.path_buf.to_string_lossy();
+        let padding = NOT_SO_PRETTY_FIXED_WIDTH_PADDING;
+        (size, path, padding)
+    // print with padding and pretty border lines and ls colors
+    } else {
+        let size = {
+            let size = if pathdata.metadata.is_some() {
+                display_human_size(&path_metadata.size)
             } else {
-                let size = {
-                    let size = if pathdata.metadata.is_some() {
-                        display_human_size(&path_metadata.size)
-                    } else {
-                        padding_collection.phantom_size_pad_str.to_owned()
-                    };
-                    format!(
-                        "{:>width$}",
-                        size,
-                        width = padding_collection.size_padding_len
-                    )
-                };
-                let path = {
-                    let path_buf = &pathdata.path_buf;
-                    // paint the live strings with ls colors - idx == 1 is 2nd or live set
-                    let painted_path_str = if is_live_set {
-                        paint_string(pathdata, path_buf.to_str().unwrap_or_default())
-                    } else {
-                        path_buf.to_string_lossy()
-                    };
-                    Cow::Owned(format!(
-                        "\"{:<width$}\"",
-                        painted_path_str,
-                        width = padding_collection.size_padding_len
-                    ))
-                };
-                // displays blanks for phantom values, equaling their dummy lens and dates.
-                let padding = PRETTY_FIXED_WIDTH_PADDING;
-                (size, path, padding)
+                padding_collection.phantom_size_pad_str.to_owned()
             };
-
-            let display_date = if pathdata.metadata.is_some() {
-                get_date(config, &path_metadata.modify_time, DateFormat::Display)
-            } else {
-                padding_collection.phantom_date_pad_str.to_owned()
-            };
-
             format!(
-                "{}{}{}{}{}\n",
-                display_date, display_padding, display_size, display_padding, display_path
+                "{:>width$}",
+                size,
+                width = padding_collection.size_padding_len
             )
-        })
-        .collect()
+        };
+        let path = {
+            let path_buf = &pathdata.path_buf;
+            // paint the live strings with ls colors - idx == 1 is 2nd or live set
+            let painted_path_str = if is_live_set {
+                paint_string(pathdata, path_buf.to_str().unwrap_or_default())
+            } else {
+                path_buf.to_string_lossy()
+            };
+            Cow::Owned(format!(
+                "\"{:<width$}\"",
+                painted_path_str,
+                width = padding_collection.size_padding_len
+            ))
+        };
+        // displays blanks for phantom values, equaling their dummy lens and dates.
+        let padding = PRETTY_FIXED_WIDTH_PADDING;
+        (size, path, padding)
+    };
+
+    let display_date = if pathdata.metadata.is_some() {
+        get_date(config, &path_metadata.modify_time, DateFormat::Display)
+    } else {
+        padding_collection.phantom_date_pad_str.to_owned()
+    };
+
+    format!(
+        "{}{}{}{}{}\n",
+        display_date, display_padding, display_size, display_padding, display_path
+    )
 }
 
 fn calculate_pretty_padding(
