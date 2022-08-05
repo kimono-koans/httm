@@ -378,8 +378,9 @@ pub struct PathMetadata {
     pub modify_time: SystemTime,
 }
 
-const PHANTOM_DATE: SystemTime = SystemTime::UNIX_EPOCH;
-const PHANTOM_SIZE: u64 = 0u64;
+pub const PHANTOM_DATE: SystemTime = SystemTime::UNIX_EPOCH;
+pub const PHANTOM_SIZE: u64 = 0u64;
+
 pub const PHANTOM_PATH_METADATA: PathMetadata = PathMetadata {
     size: PHANTOM_SIZE,
     modify_time: PHANTOM_DATE,

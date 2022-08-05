@@ -21,7 +21,9 @@ use number_prefix::NumberPrefix;
 use terminal_size::{terminal_size, Height, Width};
 
 use crate::lookup_file_mounts::get_mounts_for_files;
-use crate::utility::{get_date, paint_string, print_output_buf, DateFormat, PathData};
+use crate::utility::{
+    get_date, paint_string, print_output_buf, DateFormat, PathData, PHANTOM_DATE, PHANTOM_SIZE,
+};
 use crate::{Config, HttmResult, SnapsAndLiveSet};
 
 // 2 space wide padding - used between date and size, and size and path
@@ -60,75 +62,20 @@ fn display_raw(config: &Config, snaps_and_live_set: &SnapsAndLiveSet) -> HttmRes
 }
 
 fn display_pretty(config: &Config, snaps_and_live_set: &SnapsAndLiveSet) -> HttmResult<String> {
-    let (size_padding_len, fancy_border_string) =
+    let (size_padding_len, fancy_border_string, phantom_date_pad_str, phantom_size_pad_str) =
         calculate_pretty_padding(config, snaps_and_live_set);
 
     let write_out_buffer = snaps_and_live_set.iter().enumerate().fold(
         String::new(),
         |mut write_out_buffer, (idx, pathdata_set)| {
-            let pathdata_set_buffer: String = pathdata_set
-                .iter()
-                .map(|pathdata| {
-                    // obtain metadata for timestamp and size
-                    let path_metadata = pathdata.md_infallible();
-
-                    // tab delimited if "no pretty", no border lines, and no colors
-                    let (fmt_size, display_path, display_padding) = if config.opt_no_pretty {
-                        let size = display_human_size(&path_metadata.size);
-                        let path = pathdata.path_buf.to_string_lossy();
-                        let padding = NOT_SO_PRETTY_FIXED_WIDTH_PADDING;
-                        (size, path, padding)
-                    // print with padding and pretty border lines and ls colors
-                    } else {
-                        let size = format!(
-                            "{:>width$}",
-                            display_human_size(&path_metadata.size),
-                            width = size_padding_len
-                        );
-
-                        let path = {
-                            let file_path = &pathdata.path_buf;
-                            // paint the live strings with ls colors - idx == 1 is 2nd or live set
-                            let painted_path = if idx == 1 {
-                                paint_string(pathdata, file_path.to_str().unwrap_or_default())
-                            } else {
-                                file_path.to_string_lossy()
-                            };
-                            Cow::Owned(format!(
-                                "\"{:<width$}\"",
-                                painted_path,
-                                width = size_padding_len
-                            ))
-                        };
-
-                        let padding = PRETTY_FIXED_WIDTH_PADDING;
-
-                        (size, path, padding)
-                    };
-
-                    let fmt_date =
-                        get_date(config, &path_metadata.modify_time, DateFormat::Display);
-
-                    // displays blanks for phantom values, equaling their dummy lens and dates.
-                    //
-                    // we use a dummy instead of a None value here.  Basically, sometimes, we want
-                    // to print the request even if a live file does not exist
-                    let (display_date, display_size) = if pathdata.metadata.is_some() {
-                        let date = fmt_date;
-                        let size = fmt_size;
-                        (date, size)
-                    } else {
-                        let date = format!("{:<width$}", "", width = fmt_size.len());
-                        let size = format!("{:<width$}", "", width = fmt_date.len());
-                        (date, size)
-                    };
-
-                    format!(
-                        "{}{}{}{}{}\n",
-                        display_date, display_padding, display_size, display_padding, display_path
-                    )
-                })
-                .collect();
+            let pathdata_set_buffer = get_pathdata_set_buffer(
+                config,
+                pathdata_set,
+                idx,
+                size_padding_len,
+                &phantom_date_pad_str,
+                &phantom_size_pad_str,
+            );
 
             if config.opt_no_pretty {
                 write_out_buffer += &pathdata_set_buffer;
@@ -149,10 +96,81 @@ fn display_pretty(config: &Config, snaps_and_live_set: &SnapsAndLiveSet) -> Httm
     Ok(write_out_buffer)
 }
 
+fn get_pathdata_set_buffer(
+    config: &Config,
+    pathdata_set: &[PathData],
+    idx: usize,
+    size_padding_len: usize,
+    phantom_date_pad_str: &str,
+    phantom_size_pad_str: &str,
+) -> String {
+    pathdata_set
+        .iter()
+        .map(|pathdata| {
+            // obtain metadata for timestamp and size
+            let path_metadata = pathdata.md_infallible();
+
+            // tab delimited if "no pretty", no border lines, and no colors
+            let (display_size, display_path, display_padding) = if config.opt_no_pretty {
+                // displays blanks for phantom values, equaling their dummy lens and dates.
+                //
+                // we use a dummy instead of a None value here.  Basically, sometimes, we want
+                // to print the request even if a live file does not exist
+                let size = if pathdata.metadata.is_some() {
+                    display_human_size(&path_metadata.size)
+                } else {
+                    phantom_size_pad_str.to_owned()
+                };
+                let path = pathdata.path_buf.to_string_lossy();
+                let padding = NOT_SO_PRETTY_FIXED_WIDTH_PADDING;
+                (size, path, padding)
+            // print with padding and pretty border lines and ls colors
+            } else {
+                let size = {
+                    let size = if pathdata.metadata.is_some() {
+                        display_human_size(&path_metadata.size)
+                    } else {
+                        phantom_size_pad_str.to_owned()
+                    };
+                    format!("{:>width$}", size, width = size_padding_len)
+                };
+                let path = {
+                    let file_path = &pathdata.path_buf;
+                    // paint the live strings with ls colors - idx == 1 is 2nd or live set
+                    let painted_path = if idx == 1 {
+                        paint_string(pathdata, file_path.to_str().unwrap_or_default())
+                    } else {
+                        file_path.to_string_lossy()
+                    };
+                    Cow::Owned(format!(
+                        "\"{:<width$}\"",
+                        painted_path,
+                        width = size_padding_len
+                    ))
+                };
+                // displays blanks for phantom values, equaling their dummy lens and dates.
+                let padding = PRETTY_FIXED_WIDTH_PADDING;
+                (size, path, padding)
+            };
+
+            let display_date = if pathdata.metadata.is_some() {
+                get_date(config, &path_metadata.modify_time, DateFormat::Display)
+            } else {
+                phantom_date_pad_str.to_owned()
+            };
+
+            format!(
+                "{}{}{}{}{}\n",
+                display_date, display_padding, display_size, display_padding, display_path
+            )
+        })
+        .collect()
+}
+
 fn calculate_pretty_padding(
     config: &Config,
     snaps_and_live_set: &SnapsAndLiveSet,
-) -> (usize, String) {
+) -> (usize, String, String, String) {
     // calculate padding and borders for display later
     let (size_padding_len, fancy_border_len) = snaps_and_live_set.iter().flatten().fold(
         (0usize, 0usize),
@@ -205,7 +223,23 @@ fn calculate_pretty_padding(
         }
     };
 
-    (size_padding_len, fancy_border_string)
+    let phantom_date_pad_str = format!(
+        "{:<width$}",
+        "",
+        width = get_date(config, &PHANTOM_DATE, DateFormat::Display).len()
+    );
+    let phantom_size_pad_str = format!(
+        "{:<width$}",
+        "",
+        width = display_human_size(&PHANTOM_SIZE).len()
+    );
+
+    (
+        size_padding_len,
+        fancy_border_string,
+        phantom_date_pad_str,
+        phantom_size_pad_str,
+    )
 }
 
 pub fn display_mounts_for_files(config: &Config) -> HttmResult<()> {
