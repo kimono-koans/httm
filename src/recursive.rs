@@ -21,7 +21,7 @@ use std::{fs::read_dir, path::Path, sync::Arc};
 
 use indicatif::ProgressBar;
 use once_cell::unsync::OnceCell;
-use rayon::{prelude::*, ThreadPool};
+use rayon::{prelude::*, Scope, ThreadPool};
 use skim::prelude::*;
 
 use crate::display::display_exec;
@@ -53,13 +53,44 @@ pub fn display_recursive_wrapper(config: Arc<Config>) -> HttmResult<()> {
     Ok(())
 }
 
-// and iterative approach seems to be *way faster* and less CPU intensive vs. recursive with Rust
 pub fn recursive_exec(
     config: Arc<Config>,
     tx_item: &SkimItemSender,
     requested_dir: &Path,
 ) -> HttmResult<()> {
-    let initial_vec_dirs = enter_live_directory(config.clone(), tx_item, requested_dir)?;
+    // default stack size for rayon threads spawned to handle enumerate_deleted
+    // here set at 1MB (the Linux default is 8MB) to avoid a stack overflow with the Rayon default
+    const DEFAULT_STACK_SIZE: usize = 1048576;
+
+    // build thread pool with a stack size large enough to avoid a stack overflow
+    // this will be our one threadpool for directory enumeration ops
+    lazy_static! {
+        static ref THREAD_POOL: ThreadPool = rayon::ThreadPoolBuilder::new()
+            .stack_size(DEFAULT_STACK_SIZE)
+            .build()
+            .expect("Could not initialize rayon threadpool for recursive search");
+    }
+
+    THREAD_POOL.in_place_scope(|deleted_scope| {
+        iterate_over_live_directories(config.clone(), tx_item, requested_dir, deleted_scope)
+            .unwrap_or_else(|error| {
+                eprintln!("Error: {}", error);
+                std::process::exit(1)
+            })
+    });
+
+    Ok(())
+}
+
+// and iterative approach seems to be *way faster* and less CPU intensive vs. recursive with Rust
+fn iterate_over_live_directories(
+    config: Arc<Config>,
+    tx_item: &SkimItemSender,
+    requested_dir: &Path,
+    deleted_scope: &Scope,
+) -> HttmResult<()> {
+    let initial_vec_dirs =
+        enter_live_directory(config.clone(), tx_item, requested_dir, deleted_scope)?;
 
     if config.opt_recursive {
         let mut recursive_vec_dirs = initial_vec_dirs;
@@ -73,7 +104,12 @@ pub fn recursive_exec(
                 // on bad permissions error for a recursive directory) so
                 // should fail on /root but on stop exec on /
                 .flat_map(|requested_dir| {
-                    enter_live_directory(config.clone(), tx_item, &requested_dir.path)
+                    enter_live_directory(
+                        config.clone(),
+                        tx_item,
+                        &requested_dir.path,
+                        deleted_scope,
+                    )
                 })
                 .flatten()
                 .collect();
@@ -87,6 +123,7 @@ fn enter_live_directory(
     config: Arc<Config>,
     tx_item: &SkimItemSender,
     requested_dir: &Path,
+    deleted_scope: &Scope,
 ) -> HttmResult<Vec<BasicDirEntryInfo>> {
     // combined entries will be sent or printed, but we need the vec_dirs to recurse
     let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
@@ -105,7 +142,7 @@ fn enter_live_directory(
                 // for all other non-disabled DeletedModes
                 DeletedMode::DepthOfOne | DeletedMode::Enabled | DeletedMode::Only => {
                     // scope guarantees that all threads finish before we exit
-                    spawn_enumerate_deleted(config.clone(), requested_dir, tx_item);
+                    spawn_enumerate_deleted(config.clone(), requested_dir, tx_item, deleted_scope);
                 }
             }
         }
@@ -122,12 +159,12 @@ fn enter_live_directory(
                     // spawn_enumerate_deleted will send deleted files back to
                     // the main thread for us, so we can skip collecting deleted here
                     // and return an empty vec
-                    spawn_enumerate_deleted(config.clone(), requested_dir, tx_item);
+                    spawn_enumerate_deleted(config.clone(), requested_dir, tx_item, deleted_scope);
                     Vec::new()
                 }
                 DeletedMode::DepthOfOne | DeletedMode::Enabled => {
                     // DepthOfOne will be handled inside enumerate_deleted
-                    spawn_enumerate_deleted(config.clone(), requested_dir, tx_item);
+                    spawn_enumerate_deleted(config.clone(), requested_dir, tx_item, deleted_scope);
                     combined_vec()
                 }
                 DeletedMode::Disabled => combined_vec(),
@@ -206,29 +243,18 @@ fn is_filter_dir(config: &Config, dir_entry: &DirEntry) -> bool {
 }
 
 // "spawn" a lighter weight rayon/greenish thread for enumerate_deleted, if needed
-fn spawn_enumerate_deleted(config: Arc<Config>, requested_dir: &Path, tx_item: &SkimItemSender) {
-    // default stack size for rayon threads spawned to handle enumerate_deleted
-    // here set at 1MB (the Linux default is 8MB) to avoid a stack overflow with the Rayon default
-    const DEFAULT_STACK_SIZE: usize = 1048576;
-
-    // build thread pool with a stack size large enough to avoid a stack overflow
-    // this will be our one threadpool for directory enumeration ops
-    lazy_static! {
-        static ref THREAD_POOL: ThreadPool = rayon::ThreadPoolBuilder::new()
-            .stack_size(DEFAULT_STACK_SIZE)
-            .build()
-            .expect("Could not initialize rayon threadpool for recursive search");
-    }
-
+fn spawn_enumerate_deleted(
+    config: Arc<Config>,
+    requested_dir: &Path,
+    tx_item: &SkimItemSender,
+    deleted_scope: &Scope,
+) {
     // clone items because new thread needs ownership
     let requested_dir_clone = requested_dir.to_path_buf();
     let tx_item_clone = tx_item.clone();
 
-    THREAD_POOL.scope(|deleted_scope| {
-        deleted_scope.spawn(move |_| {
-            let _ =
-                enumerate_deleted_directories(config.clone(), &requested_dir_clone, &tx_item_clone);
-        });
+    deleted_scope.spawn(move |_| {
+        let _ = enumerate_deleted_directories(config.clone(), &requested_dir_clone, &tx_item_clone);
     });
 }
 
