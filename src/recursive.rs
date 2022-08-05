@@ -67,6 +67,8 @@ pub fn recursive_exec(
     lazy_static! {
         static ref THREAD_POOL: ThreadPool = rayon::ThreadPoolBuilder::new()
             .stack_size(DEFAULT_STACK_SIZE)
+            // limit # of threads available for deleted search
+            .num_threads(3usize)
             .build()
             .expect("Could not initialize rayon threadpool for recursive search");
     }
@@ -254,12 +256,13 @@ fn spawn_enumerate_deleted(
     let tx_item_clone = tx_item.clone();
 
     deleted_scope.spawn(move |_| {
-        let _ = enumerate_deleted_directories(config.clone(), &requested_dir_clone, &tx_item_clone);
+        let _ =
+            iterate_over_deleted_directory(config.clone(), &requested_dir_clone, &tx_item_clone);
     });
 }
 
 // and iterative approach seems to be *way faster* and less CPU intensive vs. recursive with Rust
-fn enumerate_deleted_directories(
+fn iterate_over_deleted_directory(
     config: Arc<Config>,
     requested_dir: &Path,
     tx_item: &SkimItemSender,
