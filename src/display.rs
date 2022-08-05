@@ -90,7 +90,7 @@ fn display_pretty(config: &Config, snaps_and_live_set: &SnapsAndLiveSet) -> Httm
                     write_out_buffer += &pathdata_set_buffer;
                     write_out_buffer += &padding_collection.fancy_border_string;
                 }
-            } else {
+            } else if !pathdata_set.is_empty() {
                 write_out_buffer += &pathdata_set_buffer;
                 write_out_buffer += &padding_collection.fancy_border_string;
             }
