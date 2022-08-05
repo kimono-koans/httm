@@ -14,7 +14,6 @@
 //
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
-
 use std::fs::DirEntry;
 use std::path::PathBuf;
 use std::{fs::read_dir, path::Path, sync::Arc};
@@ -65,10 +64,16 @@ pub fn recursive_exec(
     // build thread pool with a stack size large enough to avoid a stack overflow
     // this will be our one threadpool for directory enumeration ops
     lazy_static! {
+        static ref DELETED_THREADS: usize = {
+            let threads = rayon::max_num_threads() / 2;
+
+            if threads > 0 { threads } else { 1 }
+        };
+
         static ref THREAD_POOL: ThreadPool = rayon::ThreadPoolBuilder::new()
             .stack_size(DEFAULT_STACK_SIZE)
             // limit # of threads available for deleted search
-            .num_threads(3usize)
+            .num_threads(*DELETED_THREADS)
             .build()
             .expect("Could not initialize rayon threadpool for recursive search");
     }
