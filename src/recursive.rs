@@ -14,11 +14,9 @@
 //
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
-use std::{
-    fs::{read_dir, DirEntry},
-    path::Path,
-    sync::Arc,
-};
+
+use std::fs::DirEntry;
+use std::{fs::read_dir, path::{Path, PathBuf}, sync::Arc};
 
 use indicatif::ProgressBar;
 use once_cell::unsync::OnceCell;
@@ -59,20 +57,18 @@ pub fn recursive_exec(
     tx_item: &SkimItemSender,
     requested_dir: &Path,
 ) -> HttmResult<()> {
-    // pass this thread_pool's scope to enumerate_directory, and spawn threads from within this scope
-    //
-    // "in_place_scope" means don't spawn another thread, we already have a new system thread for this
-    // scope
-
     // default stack size for rayon threads spawned to handle enumerate_deleted
     // here set at 1MB (the Linux default is 8MB) to avoid a stack overflow with the Rayon default
     const DEFAULT_STACK_SIZE: usize = 1048576;
+    const DEFAULT_NUM_THREADS: usize = 2;
 
     // build thread pool with a stack size large enough to avoid a stack overflow
     // this will be our one threadpool for directory enumeration ops
     lazy_static! {
         static ref THREAD_POOL: ThreadPool = rayon::ThreadPoolBuilder::new()
             .stack_size(DEFAULT_STACK_SIZE)
+            // limit # of threads available for deleted search
+            .num_threads(DEFAULT_NUM_THREADS)
             .build()
             .expect("Could not initialize rayon threadpool for recursive search");
     }
@@ -260,123 +256,137 @@ fn spawn_enumerate_deleted(
     let tx_item_clone = tx_item.clone();
 
     deleted_scope.spawn(move |_| {
-        let _ = enumerate_deleted(config, &requested_dir_clone, &tx_item_clone);
+        let _ =
+            iterate_over_deleted_directory(config.clone(), &requested_dir_clone, &tx_item_clone);
     });
 }
 
-// deleted file search for all modes
-fn enumerate_deleted(
+// and iterative approach seems to be *way faster* and less CPU intensive vs. recursive with Rust
+fn iterate_over_deleted_directory(
     config: Arc<Config>,
     requested_dir: &Path,
     tx_item: &SkimItemSender,
 ) -> HttmResult<()> {
+    let initial_vec_dirs = enter_deleted_directory(config.clone(), requested_dir, tx_item)?;
+
+    if config.deleted_mode != DeletedMode::DepthOfOne && config.opt_recursive {
+        let mut recurse_dirs: Vec<DirsBehindDeletedDir> = initial_vec_dirs
+            .into_iter()
+            .flat_map(|basic_dir_entry_info| {
+                recurse_behind_deleted_dir(
+                    config.clone(),
+                    &tx_item.clone(),
+                    Path::new(&basic_dir_entry_info.file_name),
+                    basic_dir_entry_info
+                        .path
+                        .parent()
+                        .unwrap_or_else(|| Path::new("/")),
+                    requested_dir,
+                )
+            })
+            .collect();
+
+        while !recurse_dirs.is_empty() {
+            // don't want a par_iter here because it will block and wait for all
+            // results, instead of printing and recursing into the subsequent dirs
+            recurse_dirs = recurse_dirs
+                .into_iter()
+                // flatten errors here (e.g. just not worth it to exit
+                // on bad permissions error for a recursive directory) so
+                // should fail on /root but on stop exec on /
+                .flat_map(|dirs_behind_deleted_dir| {
+                    dirs_behind_deleted_dir
+                        .vec_dirs
+                        .into_iter()
+                        .flat_map(|basic_dir_entry_info| {
+                            recurse_behind_deleted_dir(
+                                config.clone(),
+                                tx_item,
+                                &PathBuf::from(&basic_dir_entry_info.file_name),
+                                &dirs_behind_deleted_dir.deleted_dir_on_snap,
+                                &dirs_behind_deleted_dir.pseudo_live_dir,
+                            )
+                        })
+                        .collect::<Vec<DirsBehindDeletedDir>>()
+                })
+                .collect();
+        }
+    }
+
+    Ok(())
+}
+
+// deleted file search for all modes
+fn enter_deleted_directory(
+    config: Arc<Config>,
+    requested_dir: &Path,
+    tx_item: &SkimItemSender,
+) -> HttmResult<Vec<BasicDirEntryInfo>> {
     // obtain all unique deleted, policy is one version for each file, latest in time
-    let deleted = deleted_lookup_exec(config.as_ref(), requested_dir)?;
+    let deleted = deleted_lookup_exec(&config, requested_dir)?;
 
     // combined entries will be sent or printed, but we need the vec_dirs to recurse
     let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) = deleted
         .into_iter()
         .partition(|basic_dir_entry_info| httm_is_dir(basic_dir_entry_info));
 
-    // disable behind deleted dirs with DepthOfOne,
-    // otherwise recurse and find all those deleted files
-    if config.deleted_mode != DeletedMode::DepthOfOne && config.opt_recursive {
-        vec_dirs
-            .clone()
-            .into_iter()
-            .map(|basic_dir_entry_info| basic_dir_entry_info.path)
-            .for_each(|deleted_dir| {
-                let config_clone = config.clone();
-                let requested_dir_clone = requested_dir.to_path_buf();
-                let tx_item_clone = tx_item.clone();
-
-                let _ = get_entries_behind_deleted_dir(
-                    config_clone,
-                    &tx_item_clone,
-                    &deleted_dir,
-                    &requested_dir_clone,
-                );
-            });
-    }
-
     // partition above is needed as vec_files will be used later
     // to determine dirs to recurse, here, we recombine to obtain
     // pseudo live versions of deleted files, files that once were
     let mut combined_entries = vec_files;
     // recombine our directories and files
-    combined_entries.extend(vec_dirs);
+    combined_entries.extend_from_slice(&vec_dirs);
     let pseudo_live_versions: Vec<BasicDirEntryInfo> =
         get_pseudo_live_versions(combined_entries, requested_dir);
 
     // know this is_phantom because we know it is deleted
     display_or_transmit(config, pseudo_live_versions, true, tx_item)?;
 
-    Ok(())
+    Ok(vec_dirs)
+}
+
+struct DirsBehindDeletedDir {
+    vec_dirs: Vec<BasicDirEntryInfo>,
+    deleted_dir_on_snap: PathBuf,
+    pseudo_live_dir: PathBuf,
 }
 
 // searches for all files behind the dirs that have been deleted
 // recurses over all dir entries and creates pseudo live versions
 // for them all, policy is to use the latest snapshot version before
 // deletion
-fn get_entries_behind_deleted_dir(
+fn recurse_behind_deleted_dir(
     config: Arc<Config>,
     tx_item: &SkimItemSender,
-    deleted_dir: &Path,
-    requested_dir: &Path,
-) -> HttmResult<()> {
-    fn recurse_behind_deleted_dir(
-        config: Arc<Config>,
-        tx_item: &SkimItemSender,
-        dir_name: &Path,
-        from_deleted_dir: &Path,
-        from_requested_dir: &Path,
-    ) -> HttmResult<()> {
-        // deleted_dir_on_snap is the path from the deleted dir on the snapshot
-        // pseudo_live_dir is the path from the fake, deleted directory that once was
-        let deleted_dir_on_snap = &from_deleted_dir.to_path_buf().join(&dir_name);
-        let pseudo_live_dir = &from_requested_dir.to_path_buf().join(&dir_name);
+    dir_name: &Path,
+    from_deleted_dir: &Path,
+    from_requested_dir: &Path,
+) -> HttmResult<DirsBehindDeletedDir> {
+    // deleted_dir_on_snap is the path from the deleted dir on the snapshot
+    // pseudo_live_dir is the path from the fake, deleted directory that once was
+    let deleted_dir_on_snap = from_deleted_dir.to_path_buf().join(&dir_name);
+    let pseudo_live_dir = from_requested_dir.to_path_buf().join(&dir_name);
 
-        let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
-            get_entries_partitioned(config.as_ref(), deleted_dir_on_snap)?;
+    let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
+        get_entries_partitioned(config.as_ref(), &deleted_dir_on_snap)?;
 
-        // partition above is needed as vec_files will be used later
-        // to determine dirs to recurse, here, we recombine to obtain
-        // pseudo live versions of deleted files, files that once were
-        let mut combined_entries = vec_files;
-        // recombine our directories and files
-        combined_entries.extend(vec_dirs.clone());
-        let pseudo_live_versions: Vec<BasicDirEntryInfo> =
-            get_pseudo_live_versions(combined_entries, pseudo_live_dir);
+    // partition above is needed as vec_files will be used later
+    // to determine dirs to recurse, here, we recombine to obtain
+    // pseudo live versions of deleted files, files that once were
+    let mut combined_entries = vec_files;
+    // recombine our directories and files
+    combined_entries.extend_from_slice(&vec_dirs);
+    let pseudo_live_versions: Vec<BasicDirEntryInfo> =
+        get_pseudo_live_versions(combined_entries, &pseudo_live_dir);
 
-        // know this is_phantom because we know it is deleted
-        display_or_transmit(config.clone(), pseudo_live_versions, true, tx_item)?;
+    // know this is_phantom because we know it is deleted
+    display_or_transmit(config, pseudo_live_versions, true, tx_item)?;
 
-        // now recurse!
-        vec_dirs.into_iter().for_each(|basic_dir_entry_info| {
-            let _ = recurse_behind_deleted_dir(
-                config.clone(),
-                tx_item,
-                Path::new(&basic_dir_entry_info.file_name),
-                deleted_dir_on_snap,
-                pseudo_live_dir,
-            );
-        });
-
-        Ok(())
-    }
-
-    match &deleted_dir.file_name() {
-        Some(dir_name) => recurse_behind_deleted_dir(
-            config,
-            tx_item,
-            Path::new(dir_name),
-            deleted_dir.parent().unwrap_or_else(|| Path::new("/")),
-            requested_dir,
-        )?,
-        None => return Err(HttmError::new("Not a valid file!").into()),
-    }
-
-    Ok(())
+    Ok(DirsBehindDeletedDir {
+        vec_dirs,
+        deleted_dir_on_snap,
+        pseudo_live_dir,
+    })
 }
 
 // this function creates dummy "live versions" values to match deleted files
