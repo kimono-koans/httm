@@ -66,7 +66,6 @@ pub fn recursive_exec(
     // build thread pool with a stack size large enough to avoid a stack overflow
     // this will be our one threadpool for directory enumeration ops
     lazy_static! {
-
         static ref THREAD_POOL: ThreadPool = rayon::ThreadPoolBuilder::new()
             .stack_size(DEFAULT_STACK_SIZE)
             // limit # of threads available for deleted search
