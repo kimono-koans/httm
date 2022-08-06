@@ -86,7 +86,7 @@ pub fn take_snapshot(config: Arc<Config>) -> HttmResult<()> {
 
         map_snapshot_names.iter().try_for_each( |(_pool_name, snapshot_names)| {
             let mut process_args = vec!["snapshot".to_owned()];
-            process_args.extend(snapshot_names.clone());
+            process_args.extend_from_slice(snapshot_names);
 
             let process_output = ExecProcess::new(zfs_command).args(&process_args).output()?;
             let stderr_string = std::str::from_utf8(&process_output.stderr)?.trim();
