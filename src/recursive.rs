@@ -14,9 +14,11 @@
 //
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
-
-use std::fs::DirEntry;
-use std::{fs::read_dir, path::Path, sync::Arc};
+use std::{
+    fs::{read_dir, DirEntry},
+    path::Path,
+    sync::Arc,
+};
 
 use indicatif::ProgressBar;
 use once_cell::unsync::OnceCell;
@@ -76,21 +78,25 @@ pub fn recursive_exec(
     }
 
     THREAD_POOL.in_place_scope(|deleted_scope| {
-        let _ = iterative_enumeration(config, tx_item, requested_dir, deleted_scope);
+        iterate_over_live_directories(config.clone(), tx_item, requested_dir, deleted_scope)
+            .unwrap_or_else(|error| {
+                eprintln!("Error: {}", error);
+                std::process::exit(1)
+            })
     });
 
     Ok(())
 }
 
 // and iterative approach seems to be *way faster* and less CPU intensive vs. recursive with Rust
-fn iterative_enumeration(
+fn iterate_over_live_directories(
     config: Arc<Config>,
     tx_item: &SkimItemSender,
     requested_dir: &Path,
     deleted_scope: &Scope,
 ) -> HttmResult<()> {
     let initial_vec_dirs =
-        enumerate_live_versions(config.clone(), tx_item, requested_dir, deleted_scope)?;
+        enter_live_directory(config.clone(), tx_item, requested_dir, deleted_scope)?;
 
     if config.opt_recursive {
         let mut recursive_vec_dirs = initial_vec_dirs;
@@ -100,8 +106,11 @@ fn iterative_enumeration(
             // results, instead of printing and recursing into the subsequent dirs
             recursive_vec_dirs = recursive_vec_dirs
                 .into_iter()
+                // flatten errors here (e.g. just not worth it to exit
+                // on bad permissions error for a recursive directory) so
+                // should fail on /root but on stop exec on /
                 .flat_map(|requested_dir| {
-                    enumerate_live_versions(
+                    enter_live_directory(
                         config.clone(),
                         tx_item,
                         &requested_dir.path,
@@ -116,7 +125,7 @@ fn iterative_enumeration(
     Ok(())
 }
 
-fn enumerate_live_versions(
+fn enter_live_directory(
     config: Arc<Config>,
     tx_item: &SkimItemSender,
     requested_dir: &Path,
@@ -147,7 +156,7 @@ fn enumerate_live_versions(
             // recombine dirs and files into a vec
             let combined_vec = || {
                 let mut combined = vec_files;
-                combined.extend(vec_dirs.clone());
+                combined.extend_from_slice(&vec_dirs);
                 combined
             };
 
