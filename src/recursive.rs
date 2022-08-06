@@ -250,11 +250,22 @@ fn enumerate_deleted_per_dir(
         .into_iter()
         .partition(|basic_dir_entry_info| httm_is_dir(basic_dir_entry_info));
 
+    // partition above is needed as vec_files will be used later
+    // to determine dirs to recurse, here, we recombine to obtain
+    // pseudo live versions of deleted files, files that once were
+    let mut combined_entries = vec_files;
+    // recombine our directories and files
+    combined_entries.extend_from_slice(&vec_dirs);
+    let pseudo_live_versions: Vec<BasicDirEntryInfo> =
+        get_pseudo_live_versions(combined_entries, requested_dir);
+
+    // know this is_phantom because we know it is deleted
+    display_or_transmit(config.clone(), pseudo_live_versions, true, tx_item)?;
+
     // disable behind deleted dirs with DepthOfOne,
     // otherwise recurse and find all those deleted files
     if config.deleted_mode != DeletedMode::DepthOfOne && config.opt_recursive {
         vec_dirs
-            .clone()
             .into_iter()
             .map(|basic_dir_entry_info| basic_dir_entry_info.path)
             .for_each(|deleted_dir| {
@@ -270,18 +281,6 @@ fn enumerate_deleted_per_dir(
                 );
             });
     }
-
-    // partition above is needed as vec_files will be used later
-    // to determine dirs to recurse, here, we recombine to obtain
-    // pseudo live versions of deleted files, files that once were
-    let mut combined_entries = vec_files;
-    // recombine our directories and files
-    combined_entries.extend(vec_dirs);
-    let pseudo_live_versions: Vec<BasicDirEntryInfo> =
-        get_pseudo_live_versions(combined_entries, requested_dir);
-
-    // know this is_phantom because we know it is deleted
-    display_or_transmit(config, pseudo_live_versions, true, tx_item)?;
 
     Ok(())
 }
@@ -316,7 +315,7 @@ fn get_entries_behind_deleted_dir(
         // pseudo live versions of deleted files, files that once were
         let mut combined_entries = vec_files;
         // recombine our directories and files
-        combined_entries.extend(vec_dirs.clone());
+        combined_entries.extend_from_slice(&vec_dirs);
         let pseudo_live_versions: Vec<BasicDirEntryInfo> =
             get_pseudo_live_versions(combined_entries, pseudo_live_dir);
 
