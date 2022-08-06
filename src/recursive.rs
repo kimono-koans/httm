@@ -62,6 +62,7 @@ pub fn recursive_exec(
     // default stack size for rayon threads spawned to handle enumerate_deleted
     // here set at 1MB (the Linux default is 8MB) to avoid a stack overflow with the Rayon default
     const DEFAULT_STACK_SIZE: usize = 1048576;
+    const DEFAULT_NUM_THREADS: usize = 2;
 
     // build thread pool with a stack size large enough to avoid a stack overflow
     // this will be our one threadpool for directory enumeration ops
@@ -69,7 +70,7 @@ pub fn recursive_exec(
         static ref THREAD_POOL: ThreadPool = rayon::ThreadPoolBuilder::new()
             .stack_size(DEFAULT_STACK_SIZE)
             // limit # of threads available for deleted search
-            .num_threads(2usize)
+            .num_threads(DEFAULT_NUM_THREADS)
             .build()
             .expect("Could not initialize rayon threadpool for recursive search");
     }
