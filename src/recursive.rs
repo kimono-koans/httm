@@ -71,7 +71,7 @@ pub fn recursive_exec(
     }
 
     THREAD_POOL.in_place_scope(|deleted_scope| {
-        enter_live_directory(config.clone(), tx_item, requested_dir, deleted_scope).unwrap_or_else(
+        enumerate_live_files(config.clone(), tx_item, requested_dir, deleted_scope).unwrap_or_else(
             |error| {
                 eprintln!("Error: {}", error);
                 std::process::exit(1)
@@ -82,7 +82,7 @@ pub fn recursive_exec(
     Ok(())
 }
 
-fn enter_live_directory(
+fn enumerate_live_files(
     config: Arc<Config>,
     tx_item: &SkimItemSender,
     requested_dir: &Path,
@@ -149,7 +149,7 @@ fn enter_live_directory(
             .map(|basic_dir_entry_info| basic_dir_entry_info.path)
             .for_each(|requested_dir| {
                 let _ =
-                    enter_live_directory(config.clone(), tx_item, &requested_dir, deleted_scope);
+                    enumerate_live_files(config.clone(), tx_item, &requested_dir, deleted_scope);
             });
     }
 
@@ -232,12 +232,12 @@ fn spawn_enumerate_deleted(
     let tx_item_clone = tx_item.clone();
 
     deleted_scope.spawn(move |_| {
-        let _ = enumerate_deleted(config, &requested_dir_clone, &tx_item_clone);
+        let _ = enumerate_deleted_per_dir(config, &requested_dir_clone, &tx_item_clone);
     });
 }
 
 // deleted file search for all modes
-fn enumerate_deleted(
+fn enumerate_deleted_per_dir(
     config: Arc<Config>,
     requested_dir: &Path,
     tx_item: &SkimItemSender,
