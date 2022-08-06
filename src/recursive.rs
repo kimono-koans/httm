@@ -16,11 +16,7 @@
 // that was distributed with this source code.
 
 use std::fs::DirEntry;
-use std::{
-    fs::read_dir,
-    path::Path,
-    sync::Arc,
-};
+use std::{fs::read_dir, path::Path, sync::Arc};
 
 use indicatif::ProgressBar;
 use once_cell::unsync::OnceCell;
@@ -75,7 +71,7 @@ pub fn recursive_exec(
     }
 
     THREAD_POOL.in_place_scope(|deleted_scope| {
-        iterate_over_live_directories(config.clone(), tx_item, requested_dir, deleted_scope)
+        recurse_live_directory(config.clone(), tx_item, requested_dir, deleted_scope)
             .unwrap_or_else(|error| {
                 eprintln!("Error: {}", error);
                 std::process::exit(1)
@@ -85,49 +81,12 @@ pub fn recursive_exec(
     Ok(())
 }
 
-// and iterative approach seems to be *way faster* and less CPU intensive vs. recursive with Rust
-fn iterate_over_live_directories(
+fn recurse_live_directory(
     config: Arc<Config>,
     tx_item: &SkimItemSender,
     requested_dir: &Path,
     deleted_scope: &Scope,
 ) -> HttmResult<()> {
-    let initial_vec_dirs =
-        enter_live_directory(config.clone(), tx_item, requested_dir, deleted_scope)?;
-
-    if config.opt_recursive {
-        let mut recursive_vec_dirs = initial_vec_dirs;
-
-        while !recursive_vec_dirs.is_empty() {
-            // don't want a par_iter here because it will block and wait for all
-            // results, instead of printing and recursing into the subsequent dirs
-            recursive_vec_dirs = recursive_vec_dirs
-                .into_iter()
-                // flatten errors here (e.g. just not worth it to exit
-                // on bad permissions error for a recursive directory) so
-                // should fail on /root but on stop exec on /
-                .flat_map(|requested_dir| {
-                    enter_live_directory(
-                        config.clone(),
-                        tx_item,
-                        &requested_dir.path,
-                        deleted_scope,
-                    )
-                })
-                .flatten()
-                .collect();
-        }
-    }
-
-    Ok(())
-}
-
-fn enter_live_directory(
-    config: Arc<Config>,
-    tx_item: &SkimItemSender,
-    requested_dir: &Path,
-    deleted_scope: &Scope,
-) -> HttmResult<Vec<BasicDirEntryInfo>> {
     // combined entries will be sent or printed, but we need the vec_dirs to recurse
     let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
         get_entries_partitioned(config.as_ref(), requested_dir)?;
@@ -178,7 +137,25 @@ fn enter_live_directory(
         }
     }
 
-    Ok(vec_dirs)
+    if config.opt_recursive {
+        // don't want a par_iter here because it will block and wait for all
+        // results, instead of printing and recursing into the subsequent dirs
+        vec_dirs
+            .into_iter()
+            // flatten errors here (e.g. just not worth it to exit
+            // on bad permissions error for a recursive directory) so
+            // should fail on /root but on stop exec on /
+            .for_each(|requested_dir| {
+                let _ = recurse_live_directory(
+                    config.clone(),
+                    tx_item,
+                    &requested_dir.path,
+                    deleted_scope,
+                );
+            });
+    }
+
+    Ok(())
 }
 
 fn get_entries_partitioned(
