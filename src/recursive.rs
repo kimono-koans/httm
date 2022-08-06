@@ -71,17 +71,18 @@ pub fn recursive_exec(
     }
 
     THREAD_POOL.in_place_scope(|deleted_scope| {
-        recurse_live_directory(config.clone(), tx_item, requested_dir, deleted_scope)
-            .unwrap_or_else(|error| {
+        enter_live_directory(config.clone(), tx_item, requested_dir, deleted_scope).unwrap_or_else(
+            |error| {
                 eprintln!("Error: {}", error);
                 std::process::exit(1)
-            })
+            },
+        )
     });
 
     Ok(())
 }
 
-fn recurse_live_directory(
+fn enter_live_directory(
     config: Arc<Config>,
     tx_item: &SkimItemSender,
     requested_dir: &Path,
@@ -145,13 +146,10 @@ fn recurse_live_directory(
             // flatten errors here (e.g. just not worth it to exit
             // on bad permissions error for a recursive directory) so
             // should fail on /root but on stop exec on /
+            .map(|basic_dir_entry_info| basic_dir_entry_info.path)
             .for_each(|requested_dir| {
-                let _ = recurse_live_directory(
-                    config.clone(),
-                    tx_item,
-                    &requested_dir.path,
-                    deleted_scope,
-                );
+                let _ =
+                    enter_live_directory(config.clone(), tx_item, &requested_dir, deleted_scope);
             });
     }
 
