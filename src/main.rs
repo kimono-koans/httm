@@ -116,7 +116,7 @@ pub struct DatasetMetadata {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct AliasBundle {
+pub struct RemotePathAndFsType {
     remote_dir: PathBuf,
     fs_type: FilesystemType,
 }
@@ -165,7 +165,7 @@ impl SnapsSelectedForSearch {
 pub type MapOfDatasets = BTreeMap<PathBuf, DatasetMetadata>;
 pub type MapOfSnaps = BTreeMap<PathBuf, VecOfSnaps>;
 pub type MapOfAlts = BTreeMap<PathBuf, MostProximateAndOptAlts>;
-pub type MapOfAliases = BTreeMap<PathBuf, AliasBundle>;
+pub type MapOfAliases = BTreeMap<PathBuf, RemotePathAndFsType>;
 pub type BtrfsCommonSnapDir = PathBuf;
 pub type VecOfFilterDirs = Vec<PathBuf>;
 pub type VecOfSnaps = Vec<PathBuf>;
