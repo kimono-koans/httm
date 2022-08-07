@@ -49,7 +49,7 @@ pub fn deleted_lookup_exec(
             config
                 .dataset_collection
                 .snaps_selected_for_search
-                .get_selected_snaps()
+                .value()
                 .iter()
                 .flat_map(|dataset_type| select_search_datasets(config, pathdata, dataset_type))
                 .flat_map(|datasets_of_interest| {

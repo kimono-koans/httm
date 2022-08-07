@@ -147,7 +147,7 @@ pub enum SnapsSelectedForSearch {
 }
 
 impl SnapsSelectedForSearch {
-    pub fn get_selected_snaps(&self) -> &[SnapDatasetType] {
+    pub fn value(&self) -> &[SnapDatasetType] {
         const INCLUDE_ALTS: &[SnapDatasetType] = [
             SnapDatasetType::MostProximate,
             SnapDatasetType::AltReplicated,
