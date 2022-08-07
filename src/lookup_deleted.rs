@@ -25,9 +25,7 @@ use std::{
 
 use itertools::Itertools;
 
-use crate::lookup_versions::{
-    get_file_search_bundle, get_snap_dataset_for_search, FileSearchBundle,
-};
+use crate::lookup_versions::{prepare_search_bundles, select_search_datasets, FileSearchBundle};
 use crate::utility::{BasicDirEntryInfo, PathData};
 use crate::{Config, HttmResult};
 
@@ -53,16 +51,14 @@ pub fn deleted_lookup_exec(
                 .snaps_selected_for_search
                 .get_selected_snaps()
                 .iter()
-                .flat_map(|dataset_type| {
-                    get_snap_dataset_for_search(config, pathdata, dataset_type)
-                })
+                .flat_map(|dataset_type| select_search_datasets(config, pathdata, dataset_type))
                 .flat_map(|datasets_of_interest| {
-                    get_file_search_bundle(config, pathdata, &datasets_of_interest)
+                    prepare_search_bundles(config, pathdata, &datasets_of_interest)
                 })
         })
         .flatten()
         .flat_map(|search_bundle| {
-            get_deleted_from_snap_mounts(&requested_dir_pathdata.path_buf, &search_bundle)
+            find_unique_deleted(&requested_dir_pathdata.path_buf, &search_bundle)
         })
         .flatten();
 
@@ -100,7 +96,7 @@ where
         })
 }
 
-fn get_deleted_from_snap_mounts(
+fn find_unique_deleted(
     requested_dir: &Path,
     search_bundle: &FileSearchBundle,
 ) -> HttmResult<Vec<BasicDirEntryInfo>> {

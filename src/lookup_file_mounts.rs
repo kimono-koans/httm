@@ -20,7 +20,7 @@ use std::collections::BTreeMap;
 use itertools::Itertools;
 use rayon::prelude::*;
 
-use crate::lookup_versions::get_snap_dataset_for_search;
+use crate::lookup_versions::select_search_datasets;
 use crate::utility::PathData;
 use crate::{Config, HttmResult, MostProximateAndOptAlts};
 
@@ -54,9 +54,7 @@ pub fn get_mounts_for_files(config: &Config) -> HttmResult<MountsForFiles> {
                 .snaps_selected_for_search
                 .get_selected_snaps()
                 .iter()
-                .flat_map(|dataset_type| {
-                    get_snap_dataset_for_search(config, pathdata, dataset_type)
-                })
+                .flat_map(|dataset_type| select_search_datasets(config, pathdata, dataset_type))
                 .collect();
             (pathdata.clone(), datasets)
         })

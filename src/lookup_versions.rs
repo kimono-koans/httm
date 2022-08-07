@@ -25,7 +25,7 @@ use rayon::prelude::*;
 
 use crate::utility::{HttmError, PathData};
 use crate::{
-    Config, HttmResult, MapOfAliases, MapOfDatasets, SnapDatasetType, MostProximateAndOptAlts,
+    Config, HttmResult, MapOfAliases, MapOfDatasets, MostProximateAndOptAlts, SnapDatasetType,
     SnapsAndLiveSet, VecOfSnaps,
 };
 
@@ -76,23 +76,21 @@ fn get_snap_versions(config: &Config, path_set: &[PathData]) -> HttmResult<Vec<P
                 .snaps_selected_for_search
                 .get_selected_snaps()
                 .par_iter()
-                .flat_map(|dataset_type| {
-                    get_snap_dataset_for_search(config, pathdata, dataset_type)
-                })
+                .flat_map(|dataset_type| select_search_datasets(config, pathdata, dataset_type))
                 .flat_map(|dataset_for_search| {
-                    get_file_search_bundle(config, pathdata, &dataset_for_search)
+                    prepare_search_bundles(config, pathdata, &dataset_for_search)
                 })
         })
         .flatten()
         .flatten()
-        .flat_map(|search_bundle| get_versions_from_snap_mounts(&search_bundle))
+        .flat_map(|search_bundle| get_versions(&search_bundle))
         .flatten()
         .collect();
 
     Ok(all_snap_versions)
 }
 
-pub fn get_snap_dataset_for_search(
+pub fn select_search_datasets(
     config: &Config,
     pathdata: &PathData,
     requested_dataset_type: &SnapDatasetType,
@@ -140,48 +138,18 @@ pub fn get_snap_dataset_for_search(
     Ok(snap_types_for_search)
 }
 
-pub fn get_file_search_bundle(
+pub fn prepare_search_bundles(
     config: &Config,
     pathdata: &PathData,
     snap_types_of_interest: &MostProximateAndOptAlts,
 ) -> HttmResult<Vec<FileSearchBundle>> {
-    fn search_bundle_from_dataset(
-        config: &Config,
-        pathdata: &PathData,
-        proximate_dataset_mount: &Path,
-        dataset_of_interest: &Path,
-    ) -> HttmResult<FileSearchBundle> {
-        // building our relative path by removing parent below the snap dir
-        //
-        // for native searches the prefix is are the dirs below the most proximate dataset
-        // for user specified dirs/aliases these are specified by the user
-        let relative_path = get_relative_path(config, pathdata, proximate_dataset_mount)?;
-
-        let snap_mounts = config
-            .dataset_collection
-            .map_of_snaps
-            .get(dataset_of_interest)
-            .ok_or_else(|| {
-                HttmError::new(
-                    "httm could find no snap mount for your files.  \
-                Iterator should just ignore/flatten this error.",
-                )
-            })
-            .cloned()?;
-
-        Ok(FileSearchBundle {
-            relative_path,
-            snap_mounts,
-        })
-    }
-
     let proximate_dataset_mount = &snap_types_of_interest.proximate_dataset_mount;
 
     match &snap_types_of_interest.opt_datasets_of_interest {
         Some(datasets_of_interest) => datasets_of_interest
             .iter()
             .map(|dataset_of_interest| {
-                search_bundle_from_dataset(
+                get_search_bundle_for_dataset(
                     config,
                     pathdata,
                     proximate_dataset_mount,
@@ -192,7 +160,7 @@ pub fn get_file_search_bundle(
         None => [proximate_dataset_mount]
             .into_iter()
             .map(|dataset_of_interest| {
-                search_bundle_from_dataset(
+                get_search_bundle_for_dataset(
                     config,
                     pathdata,
                     proximate_dataset_mount,
@@ -201,6 +169,36 @@ pub fn get_file_search_bundle(
             })
             .collect(),
     }
+}
+
+fn get_search_bundle_for_dataset(
+    config: &Config,
+    pathdata: &PathData,
+    proximate_dataset_mount: &Path,
+    dataset_of_interest: &Path,
+) -> HttmResult<FileSearchBundle> {
+    // building our relative path by removing parent below the snap dir
+    //
+    // for native searches the prefix is are the dirs below the most proximate dataset
+    // for user specified dirs/aliases these are specified by the user
+    let relative_path = get_relative_path(config, pathdata, proximate_dataset_mount)?;
+
+    let snap_mounts = config
+        .dataset_collection
+        .map_of_snaps
+        .get(dataset_of_interest)
+        .ok_or_else(|| {
+            HttmError::new(
+                "httm could find no snap mount for your files.  \
+            Iterator should just ignore/flatten this error.",
+            )
+        })
+        .cloned()?;
+
+    Ok(FileSearchBundle {
+        relative_path,
+        snap_mounts,
+    })
 }
 
 fn get_relative_path(
@@ -283,7 +281,7 @@ fn get_proximate_dataset(
         })
 }
 
-fn get_versions_from_snap_mounts(search_bundle: &FileSearchBundle) -> HttmResult<Vec<PathData>> {
+fn get_versions(search_bundle: &FileSearchBundle) -> HttmResult<Vec<PathData>> {
     // get the DirEntry for our snapshot path which will have all our possible
     // snapshots, like so: .zfs/snapshots/<some snap name>/
     //
