@@ -60,7 +60,7 @@ pub fn deleted_lookup_exec(
         })
         .flatten()
         .flat_map(|search_bundle| {
-            find_unique_deleted(&requested_dir_pathdata.path_buf, &search_bundle)
+            get_unique_deleted_for_dir(&requested_dir_pathdata.path_buf, &search_bundle)
         })
         .flatten();
 
@@ -98,7 +98,7 @@ where
         })
 }
 
-fn find_unique_deleted(
+fn get_unique_deleted_for_dir(
     requested_dir: &Path,
     search_bundle: &RelativePathAndSnapMounts,
 ) -> HttmResult<Vec<BasicDirEntryInfo>> {
@@ -136,6 +136,8 @@ fn get_unique_snap_filenames(
         .flatten()
         .map(|dir_entry| BasicDirEntryInfo::from(&dir_entry));
 
+    // why do we care to check whether the dir entry is latest in time here as well as above?  because if we miss it here
+    // the policy of latest in time would make no sense.  read_dir call could return mounts in no temporal order. 
     let unique_snap_filenames = get_latest_in_time_for_filename(basic_dir_entry_info_iter)
         .map(|(file_name, latest_entry_in_time)| (file_name, latest_entry_in_time.1))
         .collect();
