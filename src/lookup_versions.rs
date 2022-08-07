@@ -73,7 +73,8 @@ fn get_snap_versions(config: &Config, path_set: &[PathData]) -> HttmResult<Vec<P
         .map(|pathdata| {
             config
                 .dataset_collection
-                .snaps_for_search
+                .snaps_selected_for_search
+                .get_selected_snaps()
                 .par_iter()
                 .flat_map(|dataset_type| {
                     get_snap_dataset_for_search(config, pathdata, dataset_type)

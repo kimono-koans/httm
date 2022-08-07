@@ -50,7 +50,8 @@ pub fn deleted_lookup_exec(
         .flat_map(|pathdata| {
             config
                 .dataset_collection
-                .snaps_for_search
+                .snaps_selected_for_search
+                .get_selected_snaps()
                 .iter()
                 .flat_map(|dataset_type| {
                     get_snap_dataset_for_search(config, pathdata, dataset_type)

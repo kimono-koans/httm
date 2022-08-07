@@ -22,7 +22,7 @@ use rayon::prelude::*;
 
 use crate::lookup_versions::get_snap_dataset_for_search;
 use crate::utility::PathData;
-use crate::{Config, ExecMode, HttmResult, SnapDatasetType, SnapDatasetsBundle};
+use crate::{Config, HttmResult, SnapDatasetsBundle};
 
 pub type MountsForFiles = BTreeMap<PathData, Vec<PathData>>;
 
@@ -46,17 +46,13 @@ pub fn get_mounts_for_files(config: &Config) -> HttmResult<MountsForFiles> {
             .for_each(|pathdata| eprintln!("{}", pathdata.path_buf.to_string_lossy()));
     }
 
-    // don't want to request alt replicated mounts in snap mode, though we may in opt_mount_for_file mode
-    let selected_datasets = if config.exec_mode == ExecMode::SnapFileMount {
-        vec![SnapDatasetType::MostProximate]
-    } else {
-        config.dataset_collection.snaps_for_search.clone()
-    };
-
     let mounts_for_files: MountsForFiles = non_phantom_files
         .into_iter()
         .map(|pathdata| {
-            let datasets: Vec<SnapDatasetsBundle> = selected_datasets
+            let datasets: Vec<SnapDatasetsBundle> = config
+                .dataset_collection
+                .snaps_selected_for_search
+                .get_selected_snaps()
                 .iter()
                 .flat_map(|dataset_type| {
                     get_snap_dataset_for_search(config, pathdata, dataset_type)

@@ -134,10 +134,31 @@ impl SnapDatasetsBundle {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Copy, Debug, Clone, PartialEq, Eq)]
 pub enum SnapDatasetType {
     MostProximate,
     AltReplicated,
+}
+
+const INCLUDE_ALTS: [SnapDatasetType; 2] = [
+    SnapDatasetType::MostProximate,
+    SnapDatasetType::AltReplicated,
+];
+const ONLY_PROXIMATE: [SnapDatasetType; 1] = [SnapDatasetType::MostProximate];
+
+#[derive(Copy, Debug, Clone, PartialEq, Eq)]
+pub enum SnapsSelectedForSearch {
+    MostProximateOnly,
+    IncludeAltReplicated,
+}
+
+impl SnapsSelectedForSearch {
+    pub fn get_selected_snaps(&self) -> &[SnapDatasetType] {
+        match self {
+            SnapsSelectedForSearch::IncludeAltReplicated => &INCLUDE_ALTS,
+            SnapsSelectedForSearch::MostProximateOnly => &ONLY_PROXIMATE,
+        }
+    }
 }
 
 pub type MapOfDatasets = BTreeMap<PathBuf, DatasetMetadata>;
@@ -168,7 +189,7 @@ pub struct DatasetCollection {
     // opt single dir to to be filtered re: btrfs common snap dir
     opt_common_snap_dir: OptBtrfsCommonSnapDir,
     // vec of two enum variants - most proximate and alt replicated, or just most proximate
-    snaps_for_search: VecOfSnapDatasetType,
+    snaps_selected_for_search: SnapsSelectedForSearch,
 }
 
 fn parse_args() -> ArgMatches {
@@ -687,14 +708,13 @@ impl Config {
                 None
             };
 
-            let snaps_for_search = if matches.is_present("ALT_REPLICATED") {
-                vec![
-                    SnapDatasetType::AltReplicated,
-                    SnapDatasetType::MostProximate,
-                ]
-            } else {
-                vec![SnapDatasetType::MostProximate]
-            };
+            // don't want to request alt replicated mounts in snap mode
+            let snaps_selected_for_search =
+                if matches.is_present("ALT_REPLICATED") && exec_mode != ExecMode::SnapFileMount {
+                    SnapsSelectedForSearch::IncludeAltReplicated
+                } else {
+                    SnapsSelectedForSearch::MostProximateOnly
+                };
 
             DatasetCollection {
                 map_of_datasets,
@@ -703,7 +723,7 @@ impl Config {
                 vec_of_filter_dirs,
                 opt_common_snap_dir,
                 opt_map_of_aliases,
-                snaps_for_search,
+                snaps_selected_for_search,
             }
         };
 
