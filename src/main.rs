@@ -64,18 +64,6 @@ pub const ZFS_SNAPSHOT_DIRECTORY: &str = ".zfs/snapshot";
 pub const BTRFS_SNAPPER_HIDDEN_DIRECTORY: &str = ".snapshots";
 pub const BTRFS_SNAPPER_SUFFIX: &str = "snapshot";
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum FilesystemType {
-    Zfs,
-    Btrfs,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum MountType {
-    Local,
-    Network,
-}
-
 #[derive(Debug, Clone, PartialEq)]
 enum ExecMode {
     Interactive,
@@ -108,6 +96,18 @@ enum DeletedMode {
     Only,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum FilesystemType {
+    Zfs,
+    Btrfs,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum MountType {
+    Local,
+    Network,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DatasetMetadata {
     name: String,
@@ -122,12 +122,12 @@ pub struct AliasBundle {
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
-pub struct SnapDatasetsBundle {
+pub struct MostProximateAndOptAlts {
     pub proximate_dataset_mount: PathBuf,
     pub opt_datasets_of_interest: Option<Vec<PathBuf>>,
 }
 
-impl SnapDatasetsBundle {
+impl MostProximateAndOptAlts {
     pub fn get_datasets_of_interest(self) -> Vec<PathBuf> {
         self.opt_datasets_of_interest
             .unwrap_or_else(|| vec![self.proximate_dataset_mount])
@@ -163,12 +163,11 @@ impl SnapsSelectedForSearch {
 
 pub type MapOfDatasets = BTreeMap<PathBuf, DatasetMetadata>;
 pub type MapOfSnaps = BTreeMap<PathBuf, VecOfSnaps>;
-pub type MapOfAlts = BTreeMap<PathBuf, SnapDatasetsBundle>;
+pub type MapOfAlts = BTreeMap<PathBuf, MostProximateAndOptAlts>;
 pub type MapOfAliases = BTreeMap<PathBuf, AliasBundle>;
 pub type BtrfsCommonSnapDir = PathBuf;
 pub type VecOfFilterDirs = Vec<PathBuf>;
 pub type VecOfSnaps = Vec<PathBuf>;
-pub type VecOfSnapDatasetType = Vec<SnapDatasetType>;
 pub type SnapsAndLiveSet = [Vec<PathData>; 2];
 pub type OptMapOfAlts = Option<MapOfAlts>;
 pub type OptMapOfAliases = Option<MapOfAliases>;

@@ -22,7 +22,7 @@ use rayon::prelude::*;
 
 use crate::lookup_versions::get_snap_dataset_for_search;
 use crate::utility::PathData;
-use crate::{Config, HttmResult, SnapDatasetsBundle};
+use crate::{Config, HttmResult, MostProximateAndOptAlts};
 
 pub type MountsForFiles = BTreeMap<PathData, Vec<PathData>>;
 
@@ -49,7 +49,7 @@ pub fn get_mounts_for_files(config: &Config) -> HttmResult<MountsForFiles> {
     let mounts_for_files: MountsForFiles = non_phantom_files
         .into_iter()
         .map(|pathdata| {
-            let datasets: Vec<SnapDatasetsBundle> = config
+            let datasets: Vec<MostProximateAndOptAlts> = config
                 .dataset_collection
                 .snaps_selected_for_search
                 .get_selected_snaps()

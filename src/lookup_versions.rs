@@ -25,7 +25,7 @@ use rayon::prelude::*;
 
 use crate::utility::{HttmError, PathData};
 use crate::{
-    Config, HttmResult, MapOfAliases, MapOfDatasets, SnapDatasetType, SnapDatasetsBundle,
+    Config, HttmResult, MapOfAliases, MapOfDatasets, SnapDatasetType, MostProximateAndOptAlts,
     SnapsAndLiveSet, VecOfSnaps,
 };
 
@@ -96,7 +96,7 @@ pub fn get_snap_dataset_for_search(
     config: &Config,
     pathdata: &PathData,
     requested_dataset_type: &SnapDatasetType,
-) -> HttmResult<SnapDatasetsBundle> {
+) -> HttmResult<MostProximateAndOptAlts> {
     // here, we take our file path and get back possibly multiple ZFS dataset mountpoints
     // and our most proximate dataset mount point (which is always the same) for
     // a single file
@@ -118,10 +118,10 @@ pub fn get_snap_dataset_for_search(
         None => get_proximate_dataset(pathdata, &config.dataset_collection.map_of_datasets)?,
     };
 
-    let snap_types_for_search: SnapDatasetsBundle = match requested_dataset_type {
+    let snap_types_for_search: MostProximateAndOptAlts = match requested_dataset_type {
         SnapDatasetType::MostProximate => {
             // just return the same dataset when in most proximate mode
-            SnapDatasetsBundle {
+            MostProximateAndOptAlts {
                 proximate_dataset_mount,
                 opt_datasets_of_interest: None,
             }
@@ -143,7 +143,7 @@ pub fn get_snap_dataset_for_search(
 pub fn get_file_search_bundle(
     config: &Config,
     pathdata: &PathData,
-    snap_types_of_interest: &SnapDatasetsBundle,
+    snap_types_of_interest: &MostProximateAndOptAlts,
 ) -> HttmResult<Vec<FileSearchBundle>> {
     fn search_bundle_from_dataset(
         config: &Config,
