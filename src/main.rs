@@ -140,12 +140,6 @@ pub enum SnapDatasetType {
     AltReplicated,
 }
 
-const INCLUDE_ALTS: [SnapDatasetType; 2] = [
-    SnapDatasetType::MostProximate,
-    SnapDatasetType::AltReplicated,
-];
-const ONLY_PROXIMATE: [SnapDatasetType; 1] = [SnapDatasetType::MostProximate];
-
 #[derive(Copy, Debug, Clone, PartialEq, Eq)]
 pub enum SnapsSelectedForSearch {
     MostProximateOnly,
@@ -154,6 +148,12 @@ pub enum SnapsSelectedForSearch {
 
 impl SnapsSelectedForSearch {
     pub fn get_selected_snaps(&self) -> &[SnapDatasetType] {
+        const INCLUDE_ALTS: [SnapDatasetType; 2] = [
+            SnapDatasetType::MostProximate,
+            SnapDatasetType::AltReplicated,
+        ];
+        const ONLY_PROXIMATE: [SnapDatasetType; 1] = [SnapDatasetType::MostProximate];
+
         match self {
             SnapsSelectedForSearch::IncludeAltReplicated => &INCLUDE_ALTS,
             SnapsSelectedForSearch::MostProximateOnly => &ONLY_PROXIMATE,
