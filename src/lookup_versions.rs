@@ -30,7 +30,7 @@ use crate::{
 };
 
 #[derive(Debug, Clone)]
-pub struct FileSearchBundle {
+pub struct RelativePathAndSnapMounts {
     pub relative_path: PathBuf,
     pub snap_mounts: VecOfSnaps,
 }
@@ -142,7 +142,7 @@ pub fn prepare_search_bundles(
     config: &Config,
     pathdata: &PathData,
     snap_types_of_interest: &MostProximateAndOptAlts,
-) -> HttmResult<Vec<FileSearchBundle>> {
+) -> HttmResult<Vec<RelativePathAndSnapMounts>> {
     let proximate_dataset_mount = &snap_types_of_interest.proximate_dataset_mount;
 
     match &snap_types_of_interest.opt_datasets_of_interest {
@@ -176,7 +176,7 @@ fn get_search_bundle_for_dataset(
     pathdata: &PathData,
     proximate_dataset_mount: &Path,
     dataset_of_interest: &Path,
-) -> HttmResult<FileSearchBundle> {
+) -> HttmResult<RelativePathAndSnapMounts> {
     // building our relative path by removing parent below the snap dir
     //
     // for native searches the prefix is are the dirs below the most proximate dataset
@@ -195,7 +195,7 @@ fn get_search_bundle_for_dataset(
         })
         .cloned()?;
 
-    Ok(FileSearchBundle {
+    Ok(RelativePathAndSnapMounts {
         relative_path,
         snap_mounts,
     })
@@ -281,7 +281,7 @@ fn get_proximate_dataset(
         })
 }
 
-fn get_versions(search_bundle: &FileSearchBundle) -> HttmResult<Vec<PathData>> {
+fn get_versions(search_bundle: &RelativePathAndSnapMounts) -> HttmResult<Vec<PathData>> {
     // get the DirEntry for our snapshot path which will have all our possible
     // snapshots, like so: .zfs/snapshots/<some snap name>/
     //

@@ -25,7 +25,9 @@ use std::{
 
 use itertools::Itertools;
 
-use crate::lookup_versions::{prepare_search_bundles, select_search_datasets, FileSearchBundle};
+use crate::lookup_versions::{
+    prepare_search_bundles, select_search_datasets, RelativePathAndSnapMounts,
+};
 use crate::utility::{BasicDirEntryInfo, PathData};
 use crate::{Config, HttmResult};
 
@@ -98,7 +100,7 @@ where
 
 fn find_unique_deleted(
     requested_dir: &Path,
-    search_bundle: &FileSearchBundle,
+    search_bundle: &RelativePathAndSnapMounts,
 ) -> HttmResult<Vec<BasicDirEntryInfo>> {
     // get all local entries we need to compare against these to know
     // what is a deleted file
