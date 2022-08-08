@@ -75,7 +75,7 @@ enum ExecMode {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum RequestRelative {
+enum RequestRelative {
     Absolute,
     Relative,
 }
@@ -103,7 +103,7 @@ pub enum FilesystemType {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum MountType {
+enum MountType {
     Local,
     Network,
 }
@@ -146,15 +146,17 @@ pub enum SnapsSelectedForSearch {
     IncludeAltReplicated,
 }
 
+const INCLUDE_ALTS: &[SnapDatasetType] =
+    [
+        SnapDatasetType::MostProximate,
+        SnapDatasetType::AltReplicated,
+    ]
+    .as_slice();
+const ONLY_PROXIMATE: &[SnapDatasetType] = 
+    [SnapDatasetType::MostProximate].as_slice();
+
 impl SnapsSelectedForSearch {
     pub fn value(&self) -> &[SnapDatasetType] {
-        const INCLUDE_ALTS: &[SnapDatasetType] = [
-            SnapDatasetType::MostProximate,
-            SnapDatasetType::AltReplicated,
-        ]
-        .as_slice();
-        const ONLY_PROXIMATE: &[SnapDatasetType] = [SnapDatasetType::MostProximate].as_slice();
-
         match self {
             SnapsSelectedForSearch::IncludeAltReplicated => INCLUDE_ALTS,
             SnapsSelectedForSearch::MostProximateOnly => ONLY_PROXIMATE,
