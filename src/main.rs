@@ -146,9 +146,11 @@ pub enum SnapsSelectedForSearch {
     IncludeAltReplicated,
 }
 
+// alt replicated should come first,
+// so as to be at the top of results
 const INCLUDE_ALTS: &[SnapDatasetType] = [
-    SnapDatasetType::MostProximate,
     SnapDatasetType::AltReplicated,
+    SnapDatasetType::MostProximate,
 ]
 .as_slice();
 const ONLY_PROXIMATE: &[SnapDatasetType] = [SnapDatasetType::MostProximate].as_slice();
