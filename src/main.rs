@@ -35,6 +35,7 @@ use rayon::prelude::*;
 use time::UtcOffset;
 
 mod display;
+mod install_hot_keys;
 mod interactive;
 mod lookup_deleted;
 mod lookup_file_mounts;
@@ -48,6 +49,7 @@ mod snapshot_ops;
 mod utility;
 
 use crate::display::{display_exec, display_mounts_for_files};
+use crate::install_hot_keys::install_hot_keys;
 use crate::interactive::interactive_exec;
 use crate::lookup_versions::versions_lookup_exec;
 use crate::parse_aliases::parse_aliases;
@@ -55,9 +57,7 @@ use crate::parse_alts::precompute_alt_replicated;
 use crate::parse_mounts::{get_common_snap_dir, parse_mounts_exec};
 use crate::recursive::display_recursive_wrapper;
 use crate::snapshot_ops::take_snapshot;
-use crate::utility::{
-    httm_is_dir, install_hot_keys, print_output_buf, read_stdin, HttmError, PathData,
-};
+use crate::utility::{httm_is_dir, print_output_buf, read_stdin, HttmError, PathData};
 
 pub const ZFS_HIDDEN_DIRECTORY: &str = ".zfs";
 pub const ZFS_SNAPSHOT_DIRECTORY: &str = ".zfs/snapshot";
