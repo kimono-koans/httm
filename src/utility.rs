@@ -407,9 +407,9 @@ pub enum DateFormat {
     Timestamp,
 }
 
-pub const DATE_FORMAT_DISPLAY: &str =
+const DATE_FORMAT_DISPLAY: &str =
     "[weekday repr:short] [month repr:short] [day] [hour]:[minute]:[second] [year]";
-pub const DATE_FORMAT_TIMESTAMP: &str = "[year]-[month]-[day]-[hour]:[minute]:[second]";
+const DATE_FORMAT_TIMESTAMP: &str = "[year]-[month]-[day]-[hour]:[minute]:[second]";
 
 pub fn get_date(config: &Config, system_time: &SystemTime, format: DateFormat) -> String {
     let date_time: OffsetDateTime = (*system_time).into();
@@ -423,7 +423,7 @@ pub fn get_date(config: &Config, system_time: &SystemTime, format: DateFormat) -
         .expect("timestamp date format could not be applied to the date supplied")
 }
 
-pub fn get_date_format<'a>(format: DateFormat) -> &'a str {
+fn get_date_format<'a>(format: DateFormat) -> &'a str {
     match format {
         DateFormat::Display => DATE_FORMAT_DISPLAY,
         DateFormat::Timestamp => DATE_FORMAT_TIMESTAMP,
