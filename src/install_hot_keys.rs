@@ -71,13 +71,16 @@ pub fn install_hot_keys() -> HttmResult<()> {
             .collect();
         // creates script file in user's home dir or will fail if file already exists
         if let Ok(mut zsh_script_file) = OpenOptions::new()
+            // should overwrite the file always
             .write(true)
-            .create_new(true)
+            // create_new() will only create if DNE
+            // create on a file that exists just opens
+            .create(true)
             .open(zsh_script_path)
         {
             zsh_script_file.write_all(zsh_hot_key_script.as_bytes())?;
         } else {
-            eprintln!("httm: .httm-key-bindings.zsh is already present in user's home directory.");
+            eprintln!("httm: could not write .httm-key-bindings.zsh to user's home directory.");
         }
 
         // append "source ~/.httm-key-bindings.zsh" to zshrc
