@@ -4,7 +4,7 @@
 httm-lookup-widget() {
 
   echo
-  command httm -i -R
+  command httm -r -R
 
   local ret=$?
   zle reset-prompt
