@@ -32,6 +32,7 @@ pub type HttmResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
 use clap::{crate_name, crate_version, Arg, ArgMatches};
 use rayon::prelude::*;
+use skim::prelude::*;
 use time::UtcOffset;
 
 mod display;
@@ -64,14 +65,19 @@ pub const ZFS_SNAPSHOT_DIRECTORY: &str = ".zfs/snapshot";
 pub const BTRFS_SNAPPER_HIDDEN_DIRECTORY: &str = ".snapshots";
 pub const BTRFS_SNAPPER_SUFFIX: &str = "snapshot";
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 enum ExecMode {
-    Interactive,
+    Interactive(InteractiveChannel),
     DisplayRecursive,
     Display,
     SnapFileMount,
-    LastSnap(RequestRelative),
     MountsForFiles,
+}
+
+#[derive(Debug, Clone)]
+struct InteractiveChannel {
+    rx_item: SkimItemReceiver,
+    tx_item: SkimItemSender,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -85,6 +91,7 @@ enum InteractiveMode {
     None,
     Browse,
     Select,
+    LastSnap(RequestRelative),
     Restore,
 }
 
@@ -483,25 +490,17 @@ impl Config {
             _ => DeletedMode::Disabled,
         };
 
-        let mut exec_mode = if matches.is_present("LAST_SNAP") {
-            let request_relative = if matches!(
-                matches.value_of("LAST_SNAP"),
-                Some("rel") | Some("relative")
-            ) {
-                RequestRelative::Relative
-            } else {
-                RequestRelative::Absolute
-            };
-            ExecMode::LastSnap(request_relative)
-        } else if matches.is_present("MOUNT_FOR_FILE") {
+        let mut exec_mode = if matches.is_present("MOUNT_FOR_FILE") {
             ExecMode::MountsForFiles
         } else if matches.is_present("SNAP_FILE_MOUNT") {
             ExecMode::SnapFileMount
         } else if matches.is_present("INTERACTIVE")
             || matches.is_present("SELECT")
             || matches.is_present("RESTORE")
+            || matches.is_present("LAST_SNAP")
         {
-            ExecMode::Interactive
+            let (tx_item, rx_item): (SkimItemSender, SkimItemReceiver) = unbounded();
+            ExecMode::Interactive(InteractiveChannel { rx_item, tx_item })
         } else if deleted_mode != DeletedMode::Disabled {
             ExecMode::DisplayRecursive
         } else {
@@ -510,9 +509,19 @@ impl Config {
             ExecMode::Display
         };
 
-        let interactive_mode = if matches.is_present("RESTORE") {
+        let interactive_mode = if matches.is_present("LAST_SNAP") {
+            let request_relative = if matches!(
+                matches.value_of("LAST_SNAP"),
+                Some("rel") | Some("relative")
+            ) {
+                RequestRelative::Relative
+            } else {
+                RequestRelative::Absolute
+            };
+            InteractiveMode::LastSnap(request_relative)
+        } else if matches.is_present("RESTORE") {
             InteractiveMode::Restore
-        } else if matches.is_present("SELECT") || matches!(exec_mode, ExecMode::LastSnap(_)) {
+        } else if matches.is_present("SELECT") {
             InteractiveMode::Select
         } else if matches.is_present("INTERACTIVE") {
             InteractiveMode::Browse
@@ -568,7 +577,7 @@ impl Config {
                 // setting pwd as the path, here, keeps us from waiting on stdin when in certain modes
                 //  is more like Interactive and DisplayRecursive in this respect in requiring only one
                 // input, and waiting on one input from stdin is pretty silly
-                ExecMode::Interactive | ExecMode::DisplayRecursive | ExecMode::LastSnap(_) => {
+                ExecMode::Interactive(_) | ExecMode::DisplayRecursive => {
                     vec![pwd.clone()]
                 }
                 ExecMode::Display | ExecMode::SnapFileMount | ExecMode::MountsForFiles => {
@@ -594,7 +603,7 @@ impl Config {
 
         // for exec_modes in which we can only take a single directory, process how we handle those here
         let requested_dir: Option<PathData> = match exec_mode {
-            ExecMode::Interactive | ExecMode::DisplayRecursive | ExecMode::LastSnap(_) => {
+            ExecMode::Interactive(_) | ExecMode::DisplayRecursive => {
                 match paths.len() {
                     0 => Some(pwd.clone()),
                     1 => {
@@ -607,7 +616,7 @@ impl Config {
                         // and then we take all comers here because may be a deleted file that DNE on a live version
                         } else {
                             match exec_mode {
-                                ExecMode::Interactive | ExecMode::LastSnap(_) => {
+                                ExecMode::Interactive(_) => {
                                     match interactive_mode {
                                         InteractiveMode::Browse | InteractiveMode::None => {
                                             // doesn't make sense to have a non-dir in these modes
@@ -616,7 +625,9 @@ impl Config {
                                                     )
                                                     .into());
                                         }
-                                        InteractiveMode::Restore | InteractiveMode::Select => {
+                                        InteractiveMode::LastSnap(_)
+                                        | InteractiveMode::Restore
+                                        | InteractiveMode::Select => {
                                             // non-dir file will just cause us to skip the lookup phase
                                             None
                                         }
@@ -711,12 +722,13 @@ impl Config {
             };
 
             // don't want to request alt replicated mounts in snap mode
-            let snaps_selected_for_search =
-                if matches.is_present("ALT_REPLICATED") && exec_mode != ExecMode::SnapFileMount {
-                    SnapsSelectedForSearch::IncludeAltReplicated
-                } else {
-                    SnapsSelectedForSearch::MostProximateOnly
-                };
+            let snaps_selected_for_search = if matches.is_present("ALT_REPLICATED")
+                && matches!(exec_mode, ExecMode::SnapFileMount)
+            {
+                SnapsSelectedForSearch::IncludeAltReplicated
+            } else {
+                SnapsSelectedForSearch::MostProximateOnly
+            };
 
             DatasetCollection {
                 map_of_datasets,
@@ -780,7 +792,7 @@ fn exec() -> HttmResult<()> {
         // to select or restore functions
         //
         // ExecMode::LastSnap will never return back, its a shortcut to select and restore themselves
-        ExecMode::Interactive | ExecMode::LastSnap(_) => {
+        ExecMode::Interactive(_) => {
             let browse_result = &interactive_exec(config.clone())?;
             let snaps_and_live_set = versions_lookup_exec(config.as_ref(), browse_result)?;
             print_snaps_and_live_set(&config, &snaps_and_live_set)?

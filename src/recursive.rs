@@ -34,12 +34,11 @@ use crate::{
 
 pub fn display_recursive_wrapper(config: Arc<Config>) -> HttmResult<()> {
     // won't be sending anything anywhere, this just allows us to reuse enumerate_directory
-    let (dummy_tx_item, _): (SkimItemSender, SkimItemReceiver) = unbounded();
     let config_clone = config.clone();
 
     match &config.requested_dir {
         Some(requested_dir) => {
-            recursive_exec(config_clone, &dummy_tx_item, &requested_dir.path_buf)?;
+            recursive_exec(config_clone, &requested_dir.path_buf)?;
         }
         None => {
             return Err(HttmError::new(
@@ -52,11 +51,7 @@ pub fn display_recursive_wrapper(config: Arc<Config>) -> HttmResult<()> {
     Ok(())
 }
 
-pub fn recursive_exec(
-    config: Arc<Config>,
-    tx_item: &SkimItemSender,
-    requested_dir: &Path,
-) -> HttmResult<()> {
+pub fn recursive_exec(config: Arc<Config>, requested_dir: &Path) -> HttmResult<()> {
     // default stack size for rayon threads spawned to handle enumerate_deleted
     // here set at 1MB (the Linux default is 8MB) to avoid a stack overflow with the Rayon default
     const DEFAULT_STACK_SIZE: usize = 1048576;
@@ -71,12 +66,10 @@ pub fn recursive_exec(
     }
 
     THREAD_POOL.in_place_scope(|deleted_scope| {
-        enumerate_live_files(config.clone(), tx_item, requested_dir, deleted_scope).unwrap_or_else(
-            |error| {
-                eprintln!("Error: {}", error);
-                std::process::exit(1)
-            },
-        )
+        enumerate_live_files(config.clone(), requested_dir, deleted_scope).unwrap_or_else(|error| {
+            eprintln!("Error: {}", error);
+            std::process::exit(1)
+        })
     });
 
     Ok(())
@@ -84,7 +77,6 @@ pub fn recursive_exec(
 
 fn enumerate_live_files(
     config: Arc<Config>,
-    tx_item: &SkimItemSender,
     requested_dir: &Path,
     deleted_scope: &Scope,
 ) -> HttmResult<()> {
@@ -105,11 +97,11 @@ fn enumerate_live_files(
                 // for all other non-disabled DeletedModes
                 DeletedMode::DepthOfOne | DeletedMode::Enabled | DeletedMode::Only => {
                     // scope guarantees that all threads finish before we exit
-                    spawn_enumerate_deleted(config.clone(), requested_dir, tx_item, deleted_scope);
+                    spawn_enumerate_deleted(config.clone(), requested_dir, deleted_scope);
                 }
             }
         }
-        ExecMode::Interactive | ExecMode::LastSnap(_) => {
+        ExecMode::Interactive(_) => {
             // recombine dirs and files into a vec
             let combined_vec = || {
                 let mut combined = vec_files;
@@ -122,19 +114,19 @@ fn enumerate_live_files(
                     // spawn_enumerate_deleted will send deleted files back to
                     // the main thread for us, so we can skip collecting deleted here
                     // and return an empty vec
-                    spawn_enumerate_deleted(config.clone(), requested_dir, tx_item, deleted_scope);
+                    spawn_enumerate_deleted(config.clone(), requested_dir, deleted_scope);
                     Vec::new()
                 }
                 DeletedMode::DepthOfOne | DeletedMode::Enabled => {
                     // DepthOfOne will be handled inside enumerate_deleted
-                    spawn_enumerate_deleted(config.clone(), requested_dir, tx_item, deleted_scope);
+                    spawn_enumerate_deleted(config.clone(), requested_dir, deleted_scope);
                     combined_vec()
                 }
                 DeletedMode::Disabled => combined_vec(),
             };
 
             // is_phantom is false because these are known live entries
-            display_or_transmit(config.clone(), entries, false, tx_item)?;
+            display_or_transmit(config.clone(), entries, false)?;
         }
     }
 
@@ -148,8 +140,7 @@ fn enumerate_live_files(
             // should fail on /root but on stop exec on /
             .map(|basic_dir_entry_info| basic_dir_entry_info.path)
             .for_each(|requested_dir| {
-                let _ =
-                    enumerate_live_files(config.clone(), tx_item, &requested_dir, deleted_scope);
+                let _ = enumerate_live_files(config.clone(), &requested_dir, deleted_scope);
             });
     }
 
@@ -221,27 +212,17 @@ fn is_filter_dir(config: &Config, dir_entry: &DirEntry) -> bool {
 }
 
 // "spawn" a lighter weight rayon/greenish thread for enumerate_deleted, if needed
-fn spawn_enumerate_deleted(
-    config: Arc<Config>,
-    requested_dir: &Path,
-    tx_item: &SkimItemSender,
-    deleted_scope: &Scope,
-) {
+fn spawn_enumerate_deleted(config: Arc<Config>, requested_dir: &Path, deleted_scope: &Scope) {
     // clone items because new thread needs ownership
     let requested_dir_clone = requested_dir.to_path_buf();
-    let tx_item_clone = tx_item.clone();
 
     deleted_scope.spawn(move |_| {
-        let _ = enumerate_deleted_per_dir(config, &requested_dir_clone, &tx_item_clone);
+        let _ = enumerate_deleted_per_dir(config, &requested_dir_clone);
     });
 }
 
 // deleted file search for all modes
-fn enumerate_deleted_per_dir(
-    config: Arc<Config>,
-    requested_dir: &Path,
-    tx_item: &SkimItemSender,
-) -> HttmResult<()> {
+fn enumerate_deleted_per_dir(config: Arc<Config>, requested_dir: &Path) -> HttmResult<()> {
     // obtain all unique deleted, policy is one version for each file, latest in time
     let deleted = deleted_lookup_exec(config.as_ref(), requested_dir)?;
 
@@ -260,7 +241,7 @@ fn enumerate_deleted_per_dir(
         get_pseudo_live_versions(combined_entries, requested_dir);
 
     // know this is_phantom because we know it is deleted
-    display_or_transmit(config.clone(), pseudo_live_versions, true, tx_item)?;
+    display_or_transmit(config.clone(), pseudo_live_versions, true)?;
 
     // disable behind deleted dirs with DepthOfOne,
     // otherwise recurse and find all those deleted files
@@ -271,11 +252,9 @@ fn enumerate_deleted_per_dir(
             .for_each(|deleted_dir| {
                 let config_clone = config.clone();
                 let requested_dir_clone = requested_dir.to_path_buf();
-                let tx_item_clone = tx_item.clone();
 
                 let _ = get_entries_behind_deleted_dir(
                     config_clone,
-                    &tx_item_clone,
                     &deleted_dir,
                     &requested_dir_clone,
                 );
@@ -291,13 +270,11 @@ fn enumerate_deleted_per_dir(
 // deletion
 fn get_entries_behind_deleted_dir(
     config: Arc<Config>,
-    tx_item: &SkimItemSender,
     deleted_dir: &Path,
     requested_dir: &Path,
 ) -> HttmResult<()> {
     fn recurse_behind_deleted_dir(
         config: Arc<Config>,
-        tx_item: &SkimItemSender,
         dir_name: &Path,
         from_deleted_dir: &Path,
         from_requested_dir: &Path,
@@ -320,13 +297,12 @@ fn get_entries_behind_deleted_dir(
             get_pseudo_live_versions(combined_entries, pseudo_live_dir);
 
         // know this is_phantom because we know it is deleted
-        display_or_transmit(config.clone(), pseudo_live_versions, true, tx_item)?;
+        display_or_transmit(config.clone(), pseudo_live_versions, true)?;
 
         // now recurse!
         vec_dirs.into_iter().for_each(|basic_dir_entry_info| {
             let _ = recurse_behind_deleted_dir(
                 config.clone(),
-                tx_item,
                 Path::new(&basic_dir_entry_info.file_name),
                 deleted_dir_on_snap,
                 pseudo_live_dir,
@@ -339,7 +315,6 @@ fn get_entries_behind_deleted_dir(
     match &deleted_dir.file_name() {
         Some(dir_name) => recurse_behind_deleted_dir(
             config,
-            tx_item,
             Path::new(dir_name),
             deleted_dir.parent().unwrap_or_else(|| Path::new("/")),
             requested_dir,
@@ -372,13 +347,15 @@ fn display_or_transmit(
     config: Arc<Config>,
     entries: Vec<BasicDirEntryInfo>,
     is_phantom: bool,
-    tx_item: &SkimItemSender,
 ) -> HttmResult<()> {
     // send to the interactive view, or print directly, never return back
-    match config.exec_mode {
-        ExecMode::Interactive | ExecMode::LastSnap(_) => {
-            transmit_entries(config.clone(), entries, is_phantom, tx_item)?
-        }
+    match &config.exec_mode {
+        ExecMode::Interactive(interactive_channel) => transmit_entries(
+            config.clone(),
+            entries,
+            is_phantom,
+            &interactive_channel.tx_item,
+        )?,
         ExecMode::DisplayRecursive => {
             // passing a progress bar through multiple functions is a pain, and since we only need a global,
             // here we just create a static progress bar for Display Recursive mode

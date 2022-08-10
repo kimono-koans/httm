@@ -172,7 +172,7 @@ pub fn interactive_exec(config: Arc<Config>) -> HttmResult<Vec<PathData>> {
     // do we return back to our main exec function to print,
     // or continue down the interactive rabbit hole?
     match config.interactive_mode {
-        InteractiveMode::Restore | InteractiveMode::Select => {
+        InteractiveMode::LastSnap(_) | InteractiveMode::Restore | InteractiveMode::Select => {
             interactive_select(config, &paths_selected_in_browse)?;
             unreachable!()
         }
@@ -185,19 +185,18 @@ pub fn interactive_exec(config: Arc<Config>) -> HttmResult<Vec<PathData>> {
 fn browse_view(config: Arc<Config>, requested_dir: &PathData) -> HttmResult<Vec<String>> {
     // prep thread spawn
     let requested_dir_clone = requested_dir.path_buf.clone();
-    let (tx_item, rx_item): (SkimItemSender, SkimItemReceiver) = unbounded();
     let config_clone = config.clone();
 
     // thread spawn fn enumerate_directory - permits recursion into dirs without blocking
     thread::spawn(move || {
         // no way to propagate error from closure so exit and explain error here
-        recursive_exec(config_clone, &tx_item, &requested_dir_clone).unwrap_or_else(|error| {
+        recursive_exec(config_clone, &requested_dir_clone).unwrap_or_else(|error| {
             eprintln!("Error: {}", error);
             std::process::exit(1)
         })
     });
 
-    let opt_multi = !matches!(config.exec_mode, ExecMode::LastSnap(_));
+    let opt_multi = !matches!(config.interactive_mode, InteractiveMode::LastSnap(_));
 
     // create the skim component for previews
     let options = SkimOptionsBuilder::default()
@@ -215,15 +214,26 @@ fn browse_view(config: Arc<Config>, requested_dir: &PathData) -> HttmResult<Vec<
         .expect("Could not initialized skim options for browse_view");
 
     // run_with() reads and shows items from the thread stream created above
-    let selected_items = if let Some(output) = Skim::run_with(&options, Some(rx_item)) {
-        if output.is_abort {
-            eprintln!("httm interactive file browse session was aborted.  Quitting.");
-            std::process::exit(0)
-        } else {
-            output.selected_items
+    let selected_items = match &config.exec_mode {
+        ExecMode::Interactive(interactive_channel) => {
+            if let Some(output) =
+                Skim::run_with(&options, Some(interactive_channel.rx_item.clone()))
+            {
+                if output.is_abort {
+                    eprintln!("httm interactive file browse session was aborted.  Quitting.");
+                    std::process::exit(0)
+                } else {
+                    output.selected_items
+                }
+            } else {
+                return Err(HttmError::new("httm interactive file browse session failed.").into());
+            }
         }
-    } else {
-        return Err(HttmError::new("httm interactive file browse session failed.").into());
+        _ => {
+            return Err(
+                HttmError::new("httm interactive crossbeam tx and rx items not present.").into(),
+            )
+        }
     };
 
     // output() converts the filename/raw path to a absolute path string for use elsewhere
@@ -254,8 +264,8 @@ fn interactive_select(
         return Err(HttmError::new(&msg).into());
     }
 
-    let path_string = match &config.exec_mode {
-        ExecMode::LastSnap(request_relative) => {
+    let path_string = match &config.interactive_mode {
+        InteractiveMode::LastSnap(request_relative) => {
             // should be good to index into both, there is a known known 2nd vec,
             let live_version = &paths_selected_in_browse
                 .get(0)
