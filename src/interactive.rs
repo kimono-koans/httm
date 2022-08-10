@@ -227,7 +227,7 @@ fn browse_view(config: Arc<Config>, requested_dir: &PathData) -> HttmResult<Vec<
                 return Err(HttmError::new("httm interactive file browse session failed.").into());
             }
         }
-        _ => unreachable!("ExecMode should not be Interactive in an Interactive mode."),
+        _ => unreachable!("ExecMode should never be non-Interactive in an Interactive mode."),
     };
 
     // output() converts the filename/raw path to a absolute path string for use elsewhere
