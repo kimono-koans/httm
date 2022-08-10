@@ -76,8 +76,8 @@ enum ExecMode {
 
 #[derive(Debug, Clone)]
 struct InteractiveChannel {
-    rx_item: SkimItemReceiver,
     tx_item: SkimItemSender,
+    rx_item: SkimItemReceiver,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -500,7 +500,7 @@ impl Config {
             || matches.is_present("LAST_SNAP")
         {
             let (tx_item, rx_item): (SkimItemSender, SkimItemReceiver) = unbounded();
-            ExecMode::Interactive(InteractiveChannel { rx_item, tx_item })
+            ExecMode::Interactive(InteractiveChannel { tx_item, rx_item })
         } else if deleted_mode != DeletedMode::Disabled {
             ExecMode::DisplayRecursive
         } else {
