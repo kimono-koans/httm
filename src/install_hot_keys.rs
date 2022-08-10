@@ -72,6 +72,7 @@ pub fn install_hot_keys() -> HttmResult<()> {
         // creates script file in user's home dir or will fail if file already exists
         if let Ok(mut zsh_script_file) = OpenOptions::new()
             // should overwrite the file always
+            // FYI append() is for adding to the file
             .write(true)
             // create_new() will only create if DNE
             // create on a file that exists just opens
