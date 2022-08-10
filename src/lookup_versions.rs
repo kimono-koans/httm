@@ -39,7 +39,7 @@ pub fn versions_lookup_exec(config: &Config, path_set: &[PathData]) -> HttmResul
     let snap_versions: Vec<PathData> = if config.opt_no_snap {
         Vec::new()
     } else {
-        get_snap_versions(config, path_set)?
+        get_all_versions_for_path_set(config, path_set)?
     };
 
     // create vec of live copies - unless user doesn't want it!
@@ -66,7 +66,10 @@ pub fn versions_lookup_exec(config: &Config, path_set: &[PathData]) -> HttmResul
     Ok([snap_versions, live_versions])
 }
 
-fn get_snap_versions(config: &Config, path_set: &[PathData]) -> HttmResult<Vec<PathData>> {
+fn get_all_versions_for_path_set(
+    config: &Config,
+    path_set: &[PathData],
+) -> HttmResult<Vec<PathData>> {
     // create vec of all local and replicated backups at once
     let all_snap_versions: Vec<PathData> = path_set
         .par_iter()
