@@ -75,10 +75,10 @@ impl SelectionCandidate {
             requested_utc_offset: config.requested_utc_offset,
             exec_mode: ExecMode::Display,
             deleted_mode: DeletedMode::Disabled,
-            interactive_mode: InteractiveMode::None,
             dataset_collection: config.dataset_collection.clone(),
             pwd: config.pwd.clone(),
-            requested_dir: config.requested_dir.clone(),
+            opt_interactive_mode: None,
+            opt_requested_dir: config.opt_requested_dir.clone(),
         };
 
         // finally run search on those paths
@@ -117,7 +117,7 @@ impl SkimItem for SelectionCandidate {
                 .strip_prefix(
                     &self
                         .config
-                        .requested_dir
+                        .opt_requested_dir
                         .as_ref()
                         .expect("requested_dir should never be None in Interactive Browse mode")
                         .path_buf,
@@ -136,7 +136,7 @@ impl SkimItem for SelectionCandidate {
 }
 
 pub fn interactive_exec(config: Arc<Config>) -> HttmResult<Vec<PathData>> {
-    let paths_selected_in_browse = match &config.requested_dir {
+    let paths_selected_in_browse = match &config.opt_requested_dir {
         // collect string paths from what we get from lookup_view
         Some(requested_dir) => {
             // loop until user selects a valid path
@@ -171,14 +171,17 @@ pub fn interactive_exec(config: Arc<Config>) -> HttmResult<Vec<PathData>> {
 
     // do we return back to our main exec function to print,
     // or continue down the interactive rabbit hole?
-    match config.interactive_mode {
+    match config
+        .opt_interactive_mode
+        .as_ref()
+        .expect("InteractiveMode must be Some in ExecMode::Interactive")
+    {
         InteractiveMode::LastSnap(_) | InteractiveMode::Restore | InteractiveMode::Select => {
             interactive_select(config, &paths_selected_in_browse)?;
             unreachable!()
         }
         // InteractiveMode::Browse executes back through fn exec() in main.rs
         InteractiveMode::Browse => Ok(paths_selected_in_browse),
-        InteractiveMode::None => unreachable!(),
     }
 }
 
@@ -196,7 +199,10 @@ fn browse_view(config: Arc<Config>, requested_dir: &PathData) -> HttmResult<Vec<
         })
     });
 
-    let opt_multi = !matches!(config.interactive_mode, InteractiveMode::LastSnap(_));
+    let opt_multi = !matches!(
+        config.opt_interactive_mode,
+        Some(InteractiveMode::LastSnap(_))
+    );
 
     // create the skim component for previews
     let options = SkimOptionsBuilder::default()
@@ -258,7 +264,11 @@ fn interactive_select(
         return Err(HttmError::new(&msg).into());
     }
 
-    let path_string = match &config.interactive_mode {
+    let path_string = match &config
+        .opt_interactive_mode
+        .as_ref()
+        .expect("InteractiveMode must be Some in ExecMode::Interactive")
+    {
         InteractiveMode::LastSnap(request_relative) => {
             // should be good to index into both, there is a known known 2nd vec,
             let live_version = &paths_selected_in_browse
@@ -308,7 +318,7 @@ fn interactive_select(
     };
 
     // continue to interactive_restore or print and exit here?
-    if config.interactive_mode == InteractiveMode::Restore {
+    if matches!(config.opt_interactive_mode, Some(InteractiveMode::Restore)) {
         // one only allow one to select one path string during select
         // but we retain paths_selected_in_browse because we may need
         // it later during restore if opt_overwrite is selected

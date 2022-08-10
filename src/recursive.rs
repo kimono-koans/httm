@@ -35,7 +35,7 @@ pub fn display_recursive_wrapper(config: Arc<Config>) -> HttmResult<()> {
     // won't be sending anything anywhere, this just allows us to reuse enumerate_directory
     let config_clone = config.clone();
 
-    match &config.requested_dir {
+    match &config.opt_requested_dir {
         Some(requested_dir) => {
             recursive_exec(config_clone, &requested_dir.path_buf)?;
         }
@@ -191,7 +191,7 @@ fn is_filter_dir(config: &Config, dir_entry: &DirEntry) -> bool {
     }
 
     let interactive_requested_dir = config
-        .requested_dir
+        .opt_requested_dir
         .as_ref()
         .expect("interactive_requested_dir must always be Some in any recursive mode")
         .path_buf

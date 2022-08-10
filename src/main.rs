@@ -83,7 +83,6 @@ enum RequestRelative {
 
 #[derive(Debug, Clone, PartialEq)]
 enum InteractiveMode {
-    None,
     Browse,
     Select,
     LastSnap(RequestRelative),
@@ -438,9 +437,9 @@ pub struct Config {
     exec_mode: ExecMode,
     dataset_collection: DatasetCollection,
     deleted_mode: DeletedMode,
-    interactive_mode: InteractiveMode,
     pwd: PathData,
-    requested_dir: Option<PathData>,
+    opt_interactive_mode: Option<InteractiveMode>,
+    opt_requested_dir: Option<PathData>,
 }
 
 impl Config {
@@ -505,7 +504,7 @@ impl Config {
             ExecMode::Display
         };
 
-        let interactive_mode = if matches.is_present("LAST_SNAP") {
+        let opt_interactive_mode = if matches.is_present("LAST_SNAP") {
             let request_relative = if matches!(
                 matches.value_of("LAST_SNAP"),
                 Some("rel") | Some("relative")
@@ -514,15 +513,15 @@ impl Config {
             } else {
                 RequestRelative::Absolute
             };
-            InteractiveMode::LastSnap(request_relative)
+            Some(InteractiveMode::LastSnap(request_relative))
         } else if matches.is_present("RESTORE") {
-            InteractiveMode::Restore
+            Some(InteractiveMode::Restore)
         } else if matches.is_present("SELECT") {
-            InteractiveMode::Select
+            Some(InteractiveMode::Select)
         } else if matches.is_present("INTERACTIVE") {
-            InteractiveMode::Browse
+            Some(InteractiveMode::Browse)
         } else {
-            InteractiveMode::None
+            None
         };
 
         if opt_recursive {
@@ -598,7 +597,7 @@ impl Config {
         };
 
         // for exec_modes in which we can only take a single directory, process how we handle those here
-        let requested_dir: Option<PathData> = match exec_mode {
+        let opt_requested_dir: Option<PathData> = match exec_mode {
             ExecMode::Interactive(_) | ExecMode::DisplayRecursive(_) => {
                 match paths.len() {
                     0 => Some(pwd.clone()),
@@ -613,8 +612,10 @@ impl Config {
                         } else {
                             match exec_mode {
                                 ExecMode::Interactive(_) => {
-                                    match interactive_mode {
-                                        InteractiveMode::Browse | InteractiveMode::None => {
+                                    match opt_interactive_mode.as_ref().expect(
+                                        "InteractiveMode must be Some in ExecMode::Interactive",
+                                    ) {
+                                        InteractiveMode::Browse => {
                                             // doesn't make sense to have a non-dir in these modes
                                             return Err(HttmError::new(
                                                         "Path specified is not a directory, and therefore not suitable for browsing.",
@@ -753,9 +754,9 @@ impl Config {
             dataset_collection,
             exec_mode,
             deleted_mode,
-            interactive_mode,
+            opt_interactive_mode,
             pwd,
-            requested_dir,
+            opt_requested_dir,
         };
 
         Ok(config)
