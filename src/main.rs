@@ -31,6 +31,7 @@ use std::{
 pub type HttmResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
 use clap::{crate_name, crate_version, Arg, ArgMatches};
+use indicatif::ProgressBar;
 use rayon::prelude::*;
 use skim::prelude::*;
 use time::UtcOffset;
@@ -67,17 +68,11 @@ pub const BTRFS_SNAPPER_SUFFIX: &str = "snapshot";
 
 #[derive(Debug, Clone)]
 enum ExecMode {
-    Interactive(InteractiveChannel),
-    DisplayRecursive,
+    Interactive((SkimItemSender, SkimItemReceiver)),
+    DisplayRecursive(ProgressBar),
     Display,
     SnapFileMount,
     MountsForFiles,
-}
-
-#[derive(Debug, Clone)]
-struct InteractiveChannel {
-    tx_item: SkimItemSender,
-    rx_item: SkimItemReceiver,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -500,9 +495,10 @@ impl Config {
             || matches.is_present("LAST_SNAP")
         {
             let (tx_item, rx_item): (SkimItemSender, SkimItemReceiver) = unbounded();
-            ExecMode::Interactive(InteractiveChannel { tx_item, rx_item })
+            ExecMode::Interactive((tx_item, rx_item))
         } else if deleted_mode != DeletedMode::Disabled {
-            ExecMode::DisplayRecursive
+            let progress_bar: ProgressBar = indicatif::ProgressBar::new_spinner();
+            ExecMode::DisplayRecursive(progress_bar)
         } else {
             // no need for deleted file modes in a non-interactive/display recursive setting
             deleted_mode = DeletedMode::Disabled;
@@ -577,7 +573,7 @@ impl Config {
                 // setting pwd as the path, here, keeps us from waiting on stdin when in certain modes
                 //  is more like Interactive and DisplayRecursive in this respect in requiring only one
                 // input, and waiting on one input from stdin is pretty silly
-                ExecMode::Interactive(_) | ExecMode::DisplayRecursive => {
+                ExecMode::Interactive(_) | ExecMode::DisplayRecursive(_) => {
                     vec![pwd.clone()]
                 }
                 ExecMode::Display | ExecMode::SnapFileMount | ExecMode::MountsForFiles => {
@@ -603,7 +599,7 @@ impl Config {
 
         // for exec_modes in which we can only take a single directory, process how we handle those here
         let requested_dir: Option<PathData> = match exec_mode {
-            ExecMode::Interactive(_) | ExecMode::DisplayRecursive => {
+            ExecMode::Interactive(_) | ExecMode::DisplayRecursive(_) => {
                 match paths.len() {
                     0 => Some(pwd.clone()),
                     1 => {
@@ -635,7 +631,7 @@ impl Config {
                                 }
                                 // silently disable DisplayRecursive when path given is not a directory
                                 // switch to a standard Display mode
-                                ExecMode::DisplayRecursive => {
+                                ExecMode::DisplayRecursive(_) => {
                                     exec_mode = ExecMode::Display;
                                     deleted_mode = DeletedMode::Disabled;
                                     None
@@ -804,7 +800,7 @@ fn exec() -> HttmResult<()> {
         }
         // ExecMode::DisplayRecursive, ExecMode::SnapFileMount, and ExecMode::MountsForFiles will print their
         // output elsewhere
-        ExecMode::DisplayRecursive => display_recursive_wrapper(config.clone())?,
+        ExecMode::DisplayRecursive(_) => display_recursive_wrapper(config.clone())?,
         ExecMode::SnapFileMount => take_snapshot(config.clone())?,
         ExecMode::MountsForFiles => display_mounts_for_files(config.as_ref())?,
     }

@@ -215,10 +215,8 @@ fn browse_view(config: Arc<Config>, requested_dir: &PathData) -> HttmResult<Vec<
 
     // run_with() reads and shows items from the thread stream created above
     let selected_items = match &config.exec_mode {
-        ExecMode::Interactive(interactive_channel) => {
-            if let Some(output) =
-                Skim::run_with(&options, Some(interactive_channel.rx_item.clone()))
-            {
+        ExecMode::Interactive((_, rx_item)) => {
+            if let Some(output) = Skim::run_with(&options, Some(rx_item.clone())) {
                 if output.is_abort {
                     eprintln!("httm interactive file browse session was aborted.  Quitting.");
                     std::process::exit(0)
@@ -229,11 +227,7 @@ fn browse_view(config: Arc<Config>, requested_dir: &PathData) -> HttmResult<Vec<
                 return Err(HttmError::new("httm interactive file browse session failed.").into());
             }
         }
-        _ => {
-            return Err(
-                HttmError::new("httm interactive crossbeam tx and rx items not present.").into(),
-            )
-        }
+        _ => unreachable!("ExecMode should not be Interactive in an Interactive mode."),
     };
 
     // output() converts the filename/raw path to a absolute path string for use elsewhere

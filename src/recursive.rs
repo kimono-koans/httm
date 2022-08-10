@@ -18,7 +18,6 @@
 use std::fs::DirEntry;
 use std::{fs::read_dir, path::Path, sync::Arc};
 
-use indicatif::ProgressBar;
 use once_cell::unsync::OnceCell;
 use rayon::{prelude::*, Scope, ThreadPool};
 use skim::prelude::*;
@@ -87,7 +86,7 @@ fn enumerate_live_files(
     // check exec mode and deleted mode, we do something different for each
     match config.exec_mode {
         ExecMode::Display | ExecMode::SnapFileMount | ExecMode::MountsForFiles => unreachable!(),
-        ExecMode::DisplayRecursive => {
+        ExecMode::DisplayRecursive(_) => {
             match config.deleted_mode {
                 // display recursive in DeletedMode::Disabled may be
                 // something to implement in the future but I'm not sure
@@ -350,21 +349,12 @@ fn display_or_transmit(
 ) -> HttmResult<()> {
     // send to the interactive view, or print directly, never return back
     match &config.exec_mode {
-        ExecMode::Interactive(interactive_channel) => transmit_entries(
-            config.clone(),
-            entries,
-            is_phantom,
-            &interactive_channel.tx_item,
-        )?,
-        ExecMode::DisplayRecursive => {
-            // passing a progress bar through multiple functions is a pain, and since we only need a global,
-            // here we just create a static progress bar for Display Recursive mode
-            lazy_static! {
-                static ref PROGRESS_BAR: ProgressBar = indicatif::ProgressBar::new_spinner();
-            }
-
+        ExecMode::Interactive((tx_item, _)) => {
+            transmit_entries(config.clone(), entries, is_phantom, tx_item)?
+        }
+        ExecMode::DisplayRecursive(progress_bar) => {
             if entries.is_empty() {
-                PROGRESS_BAR.tick();
+                progress_bar.tick();
             } else {
                 print_display_recursive(config.as_ref(), entries)?;
                 // keeps spinner from squashing last line of output
