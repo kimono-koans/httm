@@ -27,7 +27,9 @@ use crate::utility::{
     copy_recursive, get_date, paint_string, print_output_buf, BasicDirEntryInfo, DateFormat,
     HttmError, PathData,
 };
-use crate::{Config, DeletedMode, ExecMode, HttmResult, InteractiveMode, RequestRelative};
+use crate::{
+    Config, DeletedMode, ExecMode, HttmResult, InteractiveConfig, InteractiveMode, RequestRelative,
+};
 
 // these represent to items ready for selection and preview
 // contains everything needs to request preview and paint with
@@ -77,7 +79,6 @@ impl SelectionCandidate {
             deleted_mode: DeletedMode::Disabled,
             dataset_collection: config.dataset_collection.clone(),
             pwd: config.pwd.clone(),
-            opt_interactive_mode: None,
             opt_requested_dir: config.opt_requested_dir.clone(),
         };
 
@@ -135,16 +136,20 @@ impl SkimItem for SelectionCandidate {
     }
 }
 
-pub fn interactive_exec(config: Arc<Config>) -> HttmResult<Vec<PathData>> {
+pub fn interactive_exec(
+    config: Arc<Config>,
+    interactive_config: &InteractiveConfig,
+) -> HttmResult<Vec<PathData>> {
     let paths_selected_in_browse = match &config.opt_requested_dir {
         // collect string paths from what we get from lookup_view
         Some(requested_dir) => {
             // loop until user selects a valid path
             loop {
-                let selected_pathdata = browse_view(config.clone(), requested_dir)?
-                    .into_iter()
-                    .map(|path_string| PathData::from(Path::new(&path_string)))
-                    .collect::<Vec<PathData>>();
+                let selected_pathdata =
+                    browse_view(config.clone(), requested_dir, interactive_config)?
+                        .into_iter()
+                        .map(|path_string| PathData::from(Path::new(&path_string)))
+                        .collect::<Vec<PathData>>();
                 if !selected_pathdata.is_empty() {
                     break selected_pathdata;
                 }
@@ -157,7 +162,7 @@ pub fn interactive_exec(config: Arc<Config>) -> HttmResult<Vec<PathData>> {
             match config.paths.get(0) {
                 Some(first_path) => {
                     let selected_file = first_path.clone();
-                    interactive_select(config, &[selected_file])?;
+                    interactive_select(config, &[selected_file], interactive_config)?;
                     unreachable!("interactive select never returns so unreachable here")
                 }
                 // Config::from should never allow us to have an instance where we don't
@@ -171,13 +176,9 @@ pub fn interactive_exec(config: Arc<Config>) -> HttmResult<Vec<PathData>> {
 
     // do we return back to our main exec function to print,
     // or continue down the interactive rabbit hole?
-    match config
-        .opt_interactive_mode
-        .as_ref()
-        .expect("InteractiveMode must be Some in ExecMode::Interactive")
-    {
+    match interactive_config.interactive_mode {
         InteractiveMode::LastSnap(_) | InteractiveMode::Restore | InteractiveMode::Select => {
-            interactive_select(config, &paths_selected_in_browse)?;
+            interactive_select(config, &paths_selected_in_browse, interactive_config)?;
             unreachable!()
         }
         // InteractiveMode::Browse executes back through fn exec() in main.rs
@@ -185,7 +186,11 @@ pub fn interactive_exec(config: Arc<Config>) -> HttmResult<Vec<PathData>> {
     }
 }
 
-fn browse_view(config: Arc<Config>, requested_dir: &PathData) -> HttmResult<Vec<String>> {
+fn browse_view(
+    config: Arc<Config>,
+    requested_dir: &PathData,
+    interactive_config: &InteractiveConfig,
+) -> HttmResult<Vec<String>> {
     // prep thread spawn
     let requested_dir_clone = requested_dir.path_buf.clone();
     let config_clone = config.clone();
@@ -200,8 +205,8 @@ fn browse_view(config: Arc<Config>, requested_dir: &PathData) -> HttmResult<Vec<
     });
 
     let opt_multi = !matches!(
-        config.opt_interactive_mode,
-        Some(InteractiveMode::LastSnap(_))
+        interactive_config.interactive_mode,
+        InteractiveMode::LastSnap(_)
     );
 
     // create the skim component for previews
@@ -220,22 +225,17 @@ fn browse_view(config: Arc<Config>, requested_dir: &PathData) -> HttmResult<Vec<
         .expect("Could not initialized skim options for browse_view");
 
     // run_with() reads and shows items from the thread stream created above
-    let selected_items = match &config.exec_mode {
-        ExecMode::Interactive((_, rx_item)) => {
-            if let Some(output) = Skim::run_with(&options, Some(rx_item.clone())) {
-                if output.is_abort {
-                    eprintln!("httm interactive file browse session was aborted.  Quitting.");
-                    std::process::exit(0)
-                } else {
-                    output.selected_items
-                }
+    let selected_items =
+        if let Some(output) = Skim::run_with(&options, Some(interactive_config.rx_item.clone())) {
+            if output.is_abort {
+                eprintln!("httm interactive file browse session was aborted.  Quitting.");
+                std::process::exit(0)
             } else {
-                return Err(HttmError::new("httm interactive file browse session failed.").into());
+                output.selected_items
             }
-        }
-        _ => unreachable!("ExecMode should never be non-Interactive in an Interactive mode."),
-    };
-
+        } else {
+            return Err(HttmError::new("httm interactive file browse session failed.").into());
+        };
     // output() converts the filename/raw path to a absolute path string for use elsewhere
     let output: Vec<String> = selected_items
         .iter()
@@ -248,6 +248,7 @@ fn browse_view(config: Arc<Config>, requested_dir: &PathData) -> HttmResult<Vec<
 fn interactive_select(
     config: Arc<Config>,
     paths_selected_in_browse: &[PathData],
+    interactive_config: &InteractiveConfig,
 ) -> HttmResult<()> {
     let snaps_and_live_set = versions_lookup_exec(config.as_ref(), paths_selected_in_browse)?;
 
@@ -264,11 +265,7 @@ fn interactive_select(
         return Err(HttmError::new(&msg).into());
     }
 
-    let path_string = match &config
-        .opt_interactive_mode
-        .as_ref()
-        .expect("InteractiveMode must be Some in ExecMode::Interactive")
-    {
+    let path_string = match &interactive_config.interactive_mode {
         InteractiveMode::LastSnap(request_relative) => {
             // should be good to index into both, there is a known known 2nd vec,
             let live_version = &paths_selected_in_browse
@@ -318,7 +315,10 @@ fn interactive_select(
     };
 
     // continue to interactive_restore or print and exit here?
-    if matches!(config.opt_interactive_mode, Some(InteractiveMode::Restore)) {
+    if matches!(
+        interactive_config.interactive_mode,
+        InteractiveMode::Restore
+    ) {
         // one only allow one to select one path string during select
         // but we retain paths_selected_in_browse because we may need
         // it later during restore if opt_overwrite is selected

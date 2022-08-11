@@ -349,12 +349,15 @@ fn display_or_transmit(
 ) -> HttmResult<()> {
     // send to the interactive view, or print directly, never return back
     match &config.exec_mode {
-        ExecMode::Interactive((tx_item, _)) => {
-            transmit_entries(config.clone(), entries, is_phantom, tx_item)?
-        }
-        ExecMode::DisplayRecursive(progress_bar) => {
+        ExecMode::Interactive(interactive_config) => transmit_entries(
+            config.clone(),
+            entries,
+            is_phantom,
+            &interactive_config.tx_item,
+        )?,
+        ExecMode::DisplayRecursive(display_recursive_config) => {
             if entries.is_empty() {
-                progress_bar.tick();
+                display_recursive_config.progress_bar.tick();
             } else {
                 print_display_recursive(config.as_ref(), entries)?;
                 // keeps spinner from squashing last line of output

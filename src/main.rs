@@ -68,11 +68,23 @@ pub const BTRFS_SNAPPER_SUFFIX: &str = "snapshot";
 
 #[derive(Debug, Clone)]
 enum ExecMode {
-    Interactive((SkimItemSender, SkimItemReceiver)),
-    DisplayRecursive(ProgressBar),
+    Interactive(InteractiveConfig),
+    DisplayRecursive(DisplayRecursiveConfig),
     Display,
     SnapFileMount,
     MountsForFiles,
+}
+
+#[derive(Debug, Clone)]
+pub struct DisplayRecursiveConfig {
+    progress_bar: ProgressBar,
+}
+
+#[derive(Debug, Clone)]
+pub struct InteractiveConfig {
+    tx_item: SkimItemSender,
+    rx_item: SkimItemReceiver,
+    interactive_mode: InteractiveMode,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -438,7 +450,6 @@ pub struct Config {
     dataset_collection: DatasetCollection,
     deleted_mode: DeletedMode,
     pwd: PathData,
-    opt_interactive_mode: Option<InteractiveMode>,
     opt_requested_dir: Option<PathData>,
 }
 
@@ -484,26 +495,6 @@ impl Config {
             _ => DeletedMode::Disabled,
         };
 
-        let mut exec_mode = if matches.is_present("MOUNT_FOR_FILE") {
-            ExecMode::MountsForFiles
-        } else if matches.is_present("SNAP_FILE_MOUNT") {
-            ExecMode::SnapFileMount
-        } else if matches.is_present("INTERACTIVE")
-            || matches.is_present("SELECT")
-            || matches.is_present("RESTORE")
-            || matches.is_present("LAST_SNAP")
-        {
-            let (tx_item, rx_item): (SkimItemSender, SkimItemReceiver) = unbounded();
-            ExecMode::Interactive((tx_item, rx_item))
-        } else if deleted_mode != DeletedMode::Disabled {
-            let progress_bar: ProgressBar = indicatif::ProgressBar::new_spinner();
-            ExecMode::DisplayRecursive(progress_bar)
-        } else {
-            // no need for deleted file modes in a non-interactive/display recursive setting
-            deleted_mode = DeletedMode::Disabled;
-            ExecMode::Display
-        };
-
         let opt_interactive_mode = if matches.is_present("LAST_SNAP") {
             let request_relative = if matches!(
                 matches.value_of("LAST_SNAP"),
@@ -522,6 +513,27 @@ impl Config {
             Some(InteractiveMode::Browse)
         } else {
             None
+        };
+
+        let mut exec_mode = if matches.is_present("MOUNT_FOR_FILE") {
+            ExecMode::MountsForFiles
+        } else if matches.is_present("SNAP_FILE_MOUNT") {
+            ExecMode::SnapFileMount
+        } else if let Some(interactive_mode) = opt_interactive_mode {
+            let (tx_item, rx_item): (SkimItemSender, SkimItemReceiver) = unbounded();
+
+            ExecMode::Interactive(InteractiveConfig {
+                tx_item,
+                rx_item,
+                interactive_mode,
+            })
+        } else if deleted_mode != DeletedMode::Disabled {
+            let progress_bar: ProgressBar = indicatif::ProgressBar::new_spinner();
+            ExecMode::DisplayRecursive(DisplayRecursiveConfig { progress_bar })
+        } else {
+            // no need for deleted file modes in a non-interactive/display recursive setting
+            deleted_mode = DeletedMode::Disabled;
+            ExecMode::Display
         };
 
         if opt_recursive {
@@ -611,10 +623,8 @@ impl Config {
                         // and then we take all comers here because may be a deleted file that DNE on a live version
                         } else {
                             match exec_mode {
-                                ExecMode::Interactive(_) => {
-                                    match opt_interactive_mode.as_ref().expect(
-                                        "InteractiveMode must be Some in ExecMode::Interactive",
-                                    ) {
+                                ExecMode::Interactive(ref interactive_config) => {
+                                    match interactive_config.interactive_mode {
                                         InteractiveMode::Browse => {
                                             // doesn't make sense to have a non-dir in these modes
                                             return Err(HttmError::new(
@@ -720,7 +730,7 @@ impl Config {
 
             // don't want to request alt replicated mounts in snap mode
             let snaps_selected_for_search = if matches.is_present("ALT_REPLICATED")
-                && matches!(exec_mode, ExecMode::SnapFileMount)
+                && !matches!(exec_mode, ExecMode::SnapFileMount)
             {
                 SnapsSelectedForSearch::IncludeAltReplicated
             } else {
@@ -754,7 +764,6 @@ impl Config {
             dataset_collection,
             exec_mode,
             deleted_mode,
-            opt_interactive_mode,
             pwd,
             opt_requested_dir,
         };
@@ -783,14 +792,14 @@ fn exec() -> HttmResult<()> {
     }
 
     // fn exec() handles the basic display cases, and sends other cases to be processed elsewhere
-    match config.exec_mode {
+    match &config.exec_mode {
         // ExecMode::Interactive may return back to this function to be printed
         // from an interactive browse must get the paths to print to display, or continue
         // to select or restore functions
         //
         // ExecMode::LastSnap will never return back, its a shortcut to select and restore themselves
-        ExecMode::Interactive(_) => {
-            let browse_result = &interactive_exec(config.clone())?;
+        ExecMode::Interactive(interactive_config) => {
+            let browse_result = &interactive_exec(config.clone(), interactive_config)?;
             let snaps_and_live_set = versions_lookup_exec(config.as_ref(), browse_result)?;
             print_snaps_and_live_set(&config, &snaps_and_live_set)?
         }
