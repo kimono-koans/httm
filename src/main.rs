@@ -33,7 +33,6 @@ pub type HttmResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
 use clap::{crate_name, crate_version, Arg, ArgMatches};
 use indicatif::ProgressBar;
 use rayon::prelude::*;
-use skim::prelude::*;
 use time::UtcOffset;
 
 mod display;
@@ -68,33 +67,21 @@ pub const BTRFS_SNAPPER_SUFFIX: &str = "snapshot";
 
 #[derive(Debug, Clone)]
 enum ExecMode {
-    Interactive(InteractiveConfig),
-    DisplayRecursive(DisplayRecursiveConfig),
+    Interactive(InteractiveMode),
+    DisplayRecursive(ProgressBar),
     Display,
     SnapFileMount,
     MountsForFiles,
 }
 
-#[derive(Debug, Clone)]
-pub struct DisplayRecursiveConfig {
-    progress_bar: ProgressBar,
-}
-
-#[derive(Debug, Clone)]
-pub struct InteractiveConfig {
-    tx_item: SkimItemSender,
-    rx_item: SkimItemReceiver,
-    interactive_mode: InteractiveMode,
-}
-
 #[derive(Debug, Clone, PartialEq, Eq)]
-enum RequestRelative {
+pub enum RequestRelative {
     Absolute,
     Relative,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-enum InteractiveMode {
+pub enum InteractiveMode {
     Browse,
     Select,
     LastSnap(RequestRelative),
@@ -520,16 +507,10 @@ impl Config {
         } else if matches.is_present("SNAP_FILE_MOUNT") {
             ExecMode::SnapFileMount
         } else if let Some(interactive_mode) = opt_interactive_mode {
-            let (tx_item, rx_item): (SkimItemSender, SkimItemReceiver) = unbounded();
-
-            ExecMode::Interactive(InteractiveConfig {
-                tx_item,
-                rx_item,
-                interactive_mode,
-            })
+            ExecMode::Interactive(interactive_mode)
         } else if deleted_mode != DeletedMode::Disabled {
             let progress_bar: ProgressBar = indicatif::ProgressBar::new_spinner();
-            ExecMode::DisplayRecursive(DisplayRecursiveConfig { progress_bar })
+            ExecMode::DisplayRecursive(progress_bar)
         } else {
             // no need for deleted file modes in a non-interactive/display recursive setting
             deleted_mode = DeletedMode::Disabled;
@@ -623,8 +604,8 @@ impl Config {
                         // and then we take all comers here because may be a deleted file that DNE on a live version
                         } else {
                             match exec_mode {
-                                ExecMode::Interactive(ref interactive_config) => {
-                                    match interactive_config.interactive_mode {
+                                ExecMode::Interactive(ref interactive_mode) => {
+                                    match interactive_mode {
                                         InteractiveMode::Browse => {
                                             // doesn't make sense to have a non-dir in these modes
                                             return Err(HttmError::new(
@@ -798,8 +779,8 @@ fn exec() -> HttmResult<()> {
         // to select or restore functions
         //
         // ExecMode::LastSnap will never return back, its a shortcut to select and restore themselves
-        ExecMode::Interactive(interactive_config) => {
-            let browse_result = &interactive_exec(config.clone(), interactive_config)?;
+        ExecMode::Interactive(interactive_mode) => {
+            let browse_result = &interactive_exec(config.clone(), interactive_mode)?;
             let snaps_and_live_set = versions_lookup_exec(config.as_ref(), browse_result)?;
             print_snaps_and_live_set(&config, &snaps_and_live_set)?
         }
