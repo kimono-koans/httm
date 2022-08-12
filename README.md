@@ -197,7 +197,10 @@ git log --stat
 ## I know what you're thinking, but slow your roll.
 
 ![To be clear, httm is *not*...](https://i.pinimg.com/originals/23/7f/2a/237f2ab8765663c721325366406197b7.gif)
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fkimono-koans%2Fhttm.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fkimono-koans%2Fhttm?ref=badge_shield)
 
 ## License
 
 httm is licensed under the MPL 2.0 License - see the LICENSE file for more details.
+
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fkimono-koans%2Fhttm.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fkimono-koans%2Fhttm?ref=badge_large)
