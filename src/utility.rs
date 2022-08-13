@@ -407,9 +407,9 @@ pub enum DateFormat {
     Timestamp,
 }
 
-const DATE_FORMAT_DISPLAY: &str =
+static DATE_FORMAT_DISPLAY: &str =
     "[weekday repr:short] [month repr:short] [day] [hour]:[minute]:[second] [year]";
-const DATE_FORMAT_TIMESTAMP: &str = "[year]-[month]-[day]-[hour]:[minute]:[second]";
+static DATE_FORMAT_TIMESTAMP: &str = "[year]-[month]-[day]-[hour]:[minute]:[second]";
 
 pub fn get_date(config: &Config, system_time: &SystemTime, format: DateFormat) -> String {
     let date_time: OffsetDateTime = (*system_time).into();
