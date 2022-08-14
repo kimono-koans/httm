@@ -211,9 +211,11 @@ fn parse_args() -> ArgMatches {
                 .display_order(1)
         )
         .arg(
-            Arg::new("INTERACTIVE")
-                .short('i')
-                .long("interactive")
+            Arg::new("BROWSE")
+                .short('b')
+                .short_alias('i')
+                .long("browse")
+                .visible_alias("interactive")
                 .help("interactive browse and search a specified directory to display unique file versions.")
                 .display_order(2)
         )
@@ -313,20 +315,13 @@ fn parse_args() -> ArgMatches {
                 .display_order(11)
         )
         .arg(
-            Arg::new("NO_FILTER")
-                .long("no-filter")
-                .help("by default, in the interactive modes, httm will filter out results from non-supported datasets (like ext4, tmpfs, procfs, sysfs, or devtmpfs), and in common snapshot paths.  \
-                Here, one may select to disable such filtering.  httm, however, should always show the input path, and results from behind any input path when that path is searched.")
-                .display_order(12)
-        )
-        .arg(
             Arg::new("RAW")
                 .short('n')
                 .long("raw")
                 .visible_alias("newline")
                 .help("display the snapshot locations only, without extraneous information, delimited by a NEWLINE character.")
                 .conflicts_with_all(&["ZEROS", "NOT_SO_PRETTY"])
-                .display_order(13)
+                .display_order(12)
         )
         .arg(
             Arg::new("ZEROS")
@@ -334,6 +329,13 @@ fn parse_args() -> ArgMatches {
                 .long("zero")
                 .help("display the snapshot locations only, without extraneous information, delimited by a NULL character.")
                 .conflicts_with_all(&["RAW", "NOT_SO_PRETTY"])
+                .display_order(13)
+        )
+        .arg(
+            Arg::new("NO_FILTER")
+                .long("no-filter")
+                .help("by default, in the interactive modes, httm will filter out results from non-supported datasets (like ext4, tmpfs, procfs, sysfs, or devtmpfs), and in common snapshot paths.  \
+                Here, one may select to disable such filtering.  httm, however, should always show the input path, and results from behind any input path when that path is searched.")
                 .display_order(14)
         )
         .arg(
@@ -496,7 +498,7 @@ impl Config {
             Some(InteractiveMode::Restore)
         } else if matches.is_present("SELECT") {
             Some(InteractiveMode::Select)
-        } else if matches.is_present("INTERACTIVE") {
+        } else if matches.is_present("BROWSE") {
             Some(InteractiveMode::Browse)
         } else {
             None
