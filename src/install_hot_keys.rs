@@ -74,6 +74,7 @@ pub fn install_hot_keys() -> HttmResult<()> {
             // should overwrite the file always
             // FYI append() is for adding to the file
             .write(true)
+            .truncate(true)
             // create_new() will only create if DNE
             // create on a file that exists just opens
             .create(true)
