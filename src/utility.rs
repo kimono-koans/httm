@@ -60,24 +60,31 @@ pub fn read_stdin() -> HttmResult<Vec<String>> {
     let mut buffer = Vec::new();
     stdin.read_to_end(&mut buffer)?;
 
-    let broken_string: Vec<String> = std::str::from_utf8(&buffer)?
-        // always split on newline or null char
-        .split(&['\n', '\0'])
-        .into_iter().flat_map(|s| {
-            // hacky quote parsing is better than nothing?
-            if s.contains('\"') {
-                s.split('\"')
-                    // unquoted paths should have excess whitespace trimmed
-                    .map(|s| s.trim())
-                    // remove any empty strings
-                    .filter(|s| !s.is_empty())
-                    .collect::<Vec<&str>>()
-            } else {
-                s.split_ascii_whitespace().collect::<Vec<&str>>()
-            }
-        })
-        .map(|i| i.to_owned())
-        .collect();
+    let buffer_string = std::str::from_utf8(&buffer)?;
+
+    let broken_string: Vec<String> = if buffer_string.contains(&['\n', '\0']) {
+        // always split on newline or null char, if available
+        buffer_string
+            .split(&['\n', '\0'])
+            .filter(|s| !s.is_empty())
+            .map(|s| s.to_owned())
+            .collect()
+    } else if buffer_string.contains('\"') {
+        buffer_string
+            .split('\"')
+            // unquoted paths should have excess whitespace trimmed
+            .map(|s| s.trim())
+            // remove any empty strings
+            .filter(|s| !s.is_empty())
+            .map(|s| s.to_owned())
+            .collect::<Vec<String>>()
+    } else {
+        buffer_string
+            .split_ascii_whitespace()
+            .filter(|s| !s.is_empty())
+            .map(|s| s.to_owned())
+            .collect()
+    };
 
     Ok(broken_string)
 }
