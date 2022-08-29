@@ -24,6 +24,9 @@ use std::{
 use crate::utility::{make_tmp_path, HttmError};
 use crate::HttmResult;
 
+const HTTM_SCRIPT_PATH: &str = ".httm-key-bindings.zsh";
+const ZSHRC_PATH: &str = ".zshrc";
+
 pub fn install_hot_keys() -> HttmResult<()> {
     // get our home directory
     let home_dir = if let Ok(home) = std::env::var("HOME") {
@@ -42,7 +45,7 @@ pub fn install_hot_keys() -> HttmResult<()> {
     // check whether httm-key-bindings.zsh is already sourced
     // and, if not, open ~/.zshrc append only for sourcing the httm-key-bindings.zsh
     let mut buffer = String::new();
-    let zshrc_path: PathBuf = home_dir.join(".zshrc");
+    let zshrc_path: PathBuf = home_dir.join(ZSHRC_PATH);
     let mut zshrc_file = if let Ok(file) = OpenOptions::new()
         .read(true)
         .write(true)
@@ -69,34 +72,35 @@ pub fn install_hot_keys() -> HttmResult<()> {
         zshrc_file.write_all(
             "\n# httm: zsh hot keys script\nsource ~/.httm-key-bindings.zsh\n".as_bytes(),
         )?;
-        eprintln!("httm: zsh hot keys were installed successfully.");
     } else {
-        eprintln!("httm: zsh hot keys appear to already be sourced in the user's ~/.zshrc.");
+        return Err(HttmError::new(
+            "httm: zsh hot keys appear to already be sourced in the user's ~/.zshrc.",
+        )
+        .into());
     }
 
     // create key binding file -- done at compile time
     let zsh_hot_key_script = include_str!("../scripts/httm-key-bindings.zsh");
 
     // create paths to use
-    let zsh_script_path: PathBuf = [&home_dir, &PathBuf::from(".httm-key-bindings.zsh")]
+    let zsh_script_path: PathBuf = [&home_dir, &PathBuf::from(HTTM_SCRIPT_PATH)]
         .iter()
         .collect();
     let zsh_script_tmp_path = make_tmp_path(zsh_script_path.as_path());
 
     // create tmp file in user's home dir or will fail if file already exists
     if let Ok(mut zsh_script_file) = OpenOptions::new()
-        // should overwrite the file always
-        // FYI append() is for adding to the file
         .write(true)
-        .truncate(true)
-        // create_new() will only create if DNE
-        // create on a file that exists just opens
         .create_new(true)
         .open(&zsh_script_tmp_path)
     {
+        // write the byte string
         zsh_script_file.write_all(zsh_hot_key_script.as_bytes())?;
 
-        // then move to the final location
+        // close the file
+        drop(zsh_script_file);
+
+        // then move tmp file to the final location
         std::fs::rename(
             zsh_script_tmp_path,
             zsh_script_path,
@@ -109,6 +113,8 @@ pub fn install_hot_keys() -> HttmResult<()> {
         )
         .into());
     }
+
+    eprintln!("httm: zsh hot keys were installed successfully.");
 
     std::process::exit(0)
 }
