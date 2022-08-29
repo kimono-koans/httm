@@ -74,7 +74,7 @@ pub fn install_hot_keys() -> HttmResult<()> {
         )?;
     } else {
         return Err(HttmError::new(
-            "httm: zsh hot keys appear to already be sourced in the user's ~/.zshrc.",
+            "httm: zsh hot keys appear to already be sourced in the user's ~/.zshrc. Quitting. ",
         )
         .into());
     }
