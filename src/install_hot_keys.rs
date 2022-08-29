@@ -21,7 +21,7 @@ use std::{
     path::PathBuf,
 };
 
-use crate::utility::HttmError;
+use crate::utility::{make_tmp_path, HttmError};
 use crate::HttmResult;
 
 pub fn install_hot_keys() -> HttmResult<()> {
@@ -56,6 +56,7 @@ pub fn install_hot_keys() -> HttmResult<()> {
             )
             .into());
     };
+
     zshrc_file.read_to_string(&mut buffer)?;
 
     // check that there are not lines in the zshrc that contain "source" and "httm-key-bindings.zsh"
@@ -64,36 +65,49 @@ pub fn install_hot_keys() -> HttmResult<()> {
         .filter(|line| !line.starts_with('#'))
         .any(|line| line.contains("source") && line.contains("httm-key-bindings.zsh"))
     {
-        // create key binding file -- done at compile time
-        let zsh_hot_key_script = include_str!("../scripts/httm-key-bindings.zsh");
-        let zsh_script_path: PathBuf = [&home_dir, &PathBuf::from(".httm-key-bindings.zsh")]
-            .iter()
-            .collect();
-        // creates script file in user's home dir or will fail if file already exists
-        if let Ok(mut zsh_script_file) = OpenOptions::new()
-            // should overwrite the file always
-            // FYI append() is for adding to the file
-            .write(true)
-            .truncate(true)
-            // create_new() will only create if DNE
-            // create on a file that exists just opens
-            .create(true)
-            .open(zsh_script_path)
-        {
-            zsh_script_file.write_all(zsh_hot_key_script.as_bytes())?;
-        } else {
-            eprintln!("httm: could not write .httm-key-bindings.zsh to user's home directory.");
-        }
-
         // append "source ~/.httm-key-bindings.zsh" to zshrc
         zshrc_file.write_all(
             "\n# httm: zsh hot keys script\nsource ~/.httm-key-bindings.zsh\n".as_bytes(),
         )?;
         eprintln!("httm: zsh hot keys were installed successfully.");
     } else {
-        eprintln!(
-            "httm: zsh hot keys appear to already be sourced in the user's ~/.zshrc. Quitting."
-        );
+        eprintln!("httm: zsh hot keys appear to already be sourced in the user's ~/.zshrc.");
+    }
+
+    // create key binding file -- done at compile time
+    let zsh_hot_key_script = include_str!("../scripts/httm-key-bindings.zsh");
+
+    // create paths to use
+    let zsh_script_path: PathBuf = [&home_dir, &PathBuf::from(".httm-key-bindings.zsh")]
+        .iter()
+        .collect();
+    let zsh_script_tmp_path = make_tmp_path(zsh_script_path.as_path());
+
+    // create tmp file in user's home dir or will fail if file already exists
+    if let Ok(mut zsh_script_file) = OpenOptions::new()
+        // should overwrite the file always
+        // FYI append() is for adding to the file
+        .write(true)
+        .truncate(true)
+        // create_new() will only create if DNE
+        // create on a file that exists just opens
+        .create_new(true)
+        .open(&zsh_script_tmp_path)
+    {
+        zsh_script_file.write_all(zsh_hot_key_script.as_bytes())?;
+
+        // then move to the final location
+        std::fs::rename(
+            zsh_script_tmp_path,
+            zsh_script_path,
+        ).map_err(|err| {
+            HttmError::with_context("httm: could not move .httm-key-bindings.zsh.tmp to .httm-key-bindings.zsh for the following reason: ", err.into())
+        })?;
+    } else {
+        return Err(HttmError::new(
+            "httm: could not create .httm-key-bindings.zsh.tmp in user's home directory.",
+        )
+        .into());
     }
 
     std::process::exit(0)

@@ -36,6 +36,14 @@ use crate::{
     Config, FilesystemType, HttmResult, BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_SNAPSHOT_DIRECTORY,
 };
 
+const TMP_SUFFIX: &str = ".tmp";
+
+pub fn make_tmp_path(path: &Path) -> PathBuf {
+    let path_string = path.to_string_lossy().to_string();
+    let res = path_string + TMP_SUFFIX;
+    PathBuf::from(res)
+}
+
 pub fn copy_recursive(src: &Path, dst: &Path) -> io::Result<()> {
     if PathBuf::from(src).is_dir() {
         create_dir_all(&dst)?;
