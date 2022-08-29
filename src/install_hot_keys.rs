@@ -113,15 +113,11 @@ pub fn install_hot_keys() -> HttmResult<()> {
                     Err(HttmError::with_context("httm: could not move .httm-key-bindings.zsh.tmp to .httm-key-bindings.zsh for the following reason: ", err.into()).into())
                 }
             }
-        },
-        Err(err) => {
-            Err(HttmError::with_context(
-                "Opening ~/.httm-key-bindings.zsh.tmp file failed for the following reason: ",
-                err.into(),
-            )
-            .into())
         }
+        Err(err) => Err(HttmError::with_context(
+            "Opening ~/.httm-key-bindings.zsh.tmp file failed for the following reason: ",
+            err.into(),
+        )
+        .into()),
     }
-
-    
 }
