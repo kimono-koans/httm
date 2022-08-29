@@ -101,23 +101,27 @@ pub fn install_hot_keys() -> HttmResult<()> {
             drop(zsh_script_file);
 
             // then move tmp file to the final location
-            std::fs::rename(
-                    zsh_script_tmp_path,
-                    zsh_script_path,
-                ).map_err(|err| {
-                    HttmError::with_context("httm: could not move .httm-key-bindings.zsh.tmp to .httm-key-bindings.zsh for the following reason: ", err.into())
-                })?;
-        }
+            match std::fs::rename(
+                zsh_script_tmp_path,
+                zsh_script_path,
+            ) {
+                Ok(_) => {
+                    eprintln!("httm: zsh hot keys were installed successfully.");
+                    std::process::exit(0)
+                }
+                Err(err) => {
+                    Err(HttmError::with_context("httm: could not move .httm-key-bindings.zsh.tmp to .httm-key-bindings.zsh for the following reason: ", err.into()).into())
+                }
+            }
+        },
         Err(err) => {
-            return Err(HttmError::with_context(
+            Err(HttmError::with_context(
                 "Opening ~/.httm-key-bindings.zsh.tmp file failed for the following reason: ",
                 err.into(),
             )
-            .into());
+            .into())
         }
     }
 
-    eprintln!("httm: zsh hot keys were installed successfully.");
-
-    std::process::exit(0)
+    
 }
