@@ -46,20 +46,19 @@ pub fn install_hot_keys() -> HttmResult<()> {
     // and, if not, open ~/.zshrc append only for sourcing the httm-key-bindings.zsh
     let mut buffer = String::new();
     let zshrc_path: PathBuf = home_dir.join(ZSHRC_PATH);
-    let mut zshrc_file = if let Ok(file) = OpenOptions::new()
+    let mut zshrc_file = OpenOptions::new()
         .read(true)
         .write(true)
         .append(true)
         .open(zshrc_path)
-    {
-        file
-    } else {
-        return Err(HttmError::new(
-                "Either your ~/.zshrc file does not exist or you do not have the permissions to access it.",
+        .map_err(|err| {
+            HttmError::with_context(
+                "Opening user's ~/.zshrc file failed for the following reason: ",
+                err.into(),
             )
-            .into());
-    };
+        })?;
 
+    // read current zshrc to string buffer
     zshrc_file.read_to_string(&mut buffer)?;
 
     // check that there are not lines in the zshrc that contain "source" and "httm-key-bindings.zsh"
@@ -89,29 +88,33 @@ pub fn install_hot_keys() -> HttmResult<()> {
     let zsh_script_tmp_path = make_tmp_path(zsh_script_path.as_path());
 
     // create tmp file in user's home dir or will fail if file already exists
-    if let Ok(mut zsh_script_file) = OpenOptions::new()
+    match OpenOptions::new()
         .write(true)
         .create_new(true)
         .open(&zsh_script_tmp_path)
     {
-        // write the byte string
-        zsh_script_file.write_all(zsh_hot_key_script.as_bytes())?;
+        Ok(mut zsh_script_file) => {
+            // write the byte string
+            zsh_script_file.write_all(zsh_hot_key_script.as_bytes())?;
 
-        // close the file
-        drop(zsh_script_file);
+            // close the file
+            drop(zsh_script_file);
 
-        // then move tmp file to the final location
-        std::fs::rename(
-            zsh_script_tmp_path,
-            zsh_script_path,
-        ).map_err(|err| {
-            HttmError::with_context("httm: could not move .httm-key-bindings.zsh.tmp to .httm-key-bindings.zsh for the following reason: ", err.into())
-        })?;
-    } else {
-        return Err(HttmError::new(
-            "httm: could not create .httm-key-bindings.zsh.tmp in user's home directory.",
-        )
-        .into());
+            // then move tmp file to the final location
+            std::fs::rename(
+                    zsh_script_tmp_path,
+                    zsh_script_path,
+                ).map_err(|err| {
+                    HttmError::with_context("httm: could not move .httm-key-bindings.zsh.tmp to .httm-key-bindings.zsh for the following reason: ", err.into())
+                })?;
+        }
+        Err(err) => {
+            return Err(HttmError::with_context(
+                "Opening ~/.httm-key-bindings.zsh.tmp file failed for the following reason: ",
+                err.into(),
+            )
+            .into());
+        }
     }
 
     eprintln!("httm: zsh hot keys were installed successfully.");
