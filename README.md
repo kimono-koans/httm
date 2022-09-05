@@ -25,7 +25,7 @@ Inspired by the [findoid](https://github.com/jimsalterjrs/sanoid) script, [fzf](
 
 ## Install via Native Packages
 
-For Debian-based and Redhat-based Linux distributions (like, Ubuntu or Fedora, etc.), check the [tagged releases](https://github.com/kimono-koans/httm/tags) for native packages for your distribution.  
+For Debian-based and Redhat-based Linux distributions (like, Ubuntu or Fedora, etc.), check the [tagged releases](https://github.com/kimono-koans/httm/tags) for native packages for your distribution.  For Redhat-based Linux distributions, you may need to use the `--replacefiles` option when installing via `rpm -i`, see the linked [issue](https://github.com/kimono-koans/httm/issues/51).
 
 You may also create and install your own native package from the latest sources, like so:
 
@@ -39,7 +39,7 @@ dpkg -i ./target/debian/httm_*.deb
 # or convert to RPM 
 alien -r ./target/debian/httm_*.deb
 # and install on a Redhat-based system
-rpm -i ./httm_*.rpm
+rpm -i --replacefiles ./httm_*.rpm
 ```
 
 For Arch-based Linux distributions, you can create and install your own native package from the latest sources, like so:
