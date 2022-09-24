@@ -149,9 +149,10 @@ for current_version in $(httm -n $filename); do
     fi
 
     # check whether files differ (e.g. if current version is identical to previous version)
-    if [[ ! -z "$( diff -q  "$previous_version" "$current_version" )" ]]; then
+    files_differ="$( diff -q  "$previous_version" "$current_version" )"
+    if [[ ! -z  "$files_differ" ]]; then
         # print that current version and previous version that differ
-        diff -q  "$previous_version" "$current_version"
+        echo "$files_differ"
         # print the difference between that current version and previous_version
         diff "$previous_version" "$current_version"
     fi
