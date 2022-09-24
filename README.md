@@ -142,8 +142,8 @@ filename="./httm/httm.1"
 # previous version is unset
 previous_version=""
 for current_version in $(httm -n $filename); do
-    # check if initial "last_version" needs to be set
-    if [[ -z "$last_version"  ]]; then
+    # check if initial "previous_version" needs to be set
+    if [[ -z "$previous_version"  ]]; then
         previous_version="$current_version"
         continue
     fi
@@ -157,7 +157,7 @@ for current_version in $(httm -n $filename); do
         diff "$previous_version" "$current_version"
     fi
 
-    # set current_version to last_version
+    # set current_version to previous_version
     previous_version="$current_version"
 done
 ```
