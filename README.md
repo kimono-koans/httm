@@ -171,8 +171,11 @@ file="/var/log/syslog"
 dir_name="${$(dirname $file)/\//}"
 base_dir="$(basename $file)_all_versions"
 # squash extra directories by "transforming" them to simply snapshot names 
-httm -n "$file" | tar --transform="flags=r;s|$dir_name|$base_dir|" \
---transform="flags=r;s|.zfs/snapshot/||" --show-transformed-names \
+httm -n "$file" | \
+tar \
+--transform="flags=r;s|$dir_name|$base_dir|" \
+--transform="flags=r;s|.zfs/snapshot/||" \
+--show-transformed-names \
 -zcvf "all-versions-$(basename $file).tar.gz" -T  -
 ```
 Create a *super fancy* `git` archive of all unique versions of `/var/log/syslog`:
@@ -186,7 +189,9 @@ for version in $(httm -n $file); do
     cp "$version" ./
     git add "./$(basename $version)"
     # modify commit date to match snapshot modify date-time
-    git commit -m "httm commit from ZFS snapshot" --date "$(date -d "$(stat -c %y $version)")"
+    git commit \
+    -m "httm commit from ZFS snapshot" \
+    --date "$(date -d "$(stat -c %y $version)")"
 done
 # create git tar.gz archive
 tar -zcvf "../all-versions-$(basename $file).tar.gz" "./"
