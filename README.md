@@ -184,9 +184,8 @@ mkdir ./archive-git; cd ./archive-git; git init
 for version in $(httm -n $file); do
     cp "$version" ./
     git add "./$(basename $version)"
-    git commit -m "httm commit from ZFS snapshot"
-    # amend commit date to match snapshot modify time
-    git commit --amend --no-edit --date "$(date -d "$(stat -c %y $version)")"
+    # modify commit date to match snapshot modify date-time
+    git commit -m "httm commit from ZFS snapshot" --date "$(date -d "$(stat -c %y $version)")"
 done
 # create git tar.gz archive
 tar -zcvf "../all-versions-$(basename $file).tar.gz" "./"
