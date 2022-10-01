@@ -81,7 +81,7 @@ fn get_all_versions_for_path_set(
                 .par_iter()
                 .flat_map(|dataset_type| select_search_datasets(config, pathdata, dataset_type))
                 .flat_map(|dataset_for_search| {
-                    prepare_search_bundles(config, pathdata, &dataset_for_search)
+                    get_relative_path_and_snap_mounts(config, pathdata, &dataset_for_search)
                 })
         })
         .flatten()
@@ -141,7 +141,7 @@ pub fn select_search_datasets(
     Ok(snap_types_for_search)
 }
 
-pub fn prepare_search_bundles(
+pub fn get_relative_path_and_snap_mounts(
     config: &Config,
     pathdata: &PathData,
     snap_types_of_interest: &MostProximateAndOptAlts,
@@ -152,7 +152,7 @@ pub fn prepare_search_bundles(
         Some(datasets_of_interest) => datasets_of_interest
             .iter()
             .map(|dataset_of_interest| {
-                get_search_bundle_for_dataset(
+                get_relative_path_and_snap_mounts_for_dataset(
                     config,
                     pathdata,
                     proximate_dataset_mount,
@@ -163,7 +163,7 @@ pub fn prepare_search_bundles(
         None => [proximate_dataset_mount]
             .into_iter()
             .map(|dataset_of_interest| {
-                get_search_bundle_for_dataset(
+                get_relative_path_and_snap_mounts_for_dataset(
                     config,
                     pathdata,
                     proximate_dataset_mount,
@@ -174,7 +174,7 @@ pub fn prepare_search_bundles(
     }
 }
 
-fn get_search_bundle_for_dataset(
+fn get_relative_path_and_snap_mounts_for_dataset(
     config: &Config,
     pathdata: &PathData,
     proximate_dataset_mount: &Path,
