@@ -186,8 +186,6 @@ fn get_entries_partitioned(
     let (vec_dirs, vec_files) = read_dir(&requested_dir)?
         .flatten()
         .par_bridge()
-        // checking file_type on dir entries is always preferable
-        // as it is much faster than a metadata call on the path
         .filter(|dir_entry| {
             if config.opt_no_filter {
                 true
@@ -195,6 +193,8 @@ fn get_entries_partitioned(
                 !is_filter_dir(config, dir_entry)
             }
         })
+        // checking file_type on dir entries is always preferable
+        // as it is much faster than a metadata call on the path
         .map(|dir_entry| BasicDirEntryInfo::from(&dir_entry))
         .partition(|entry| httm_is_dir(entry));
 

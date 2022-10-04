@@ -43,7 +43,7 @@ pub fn get_mounts_for_files(config: &Config) -> HttmResult<MountsForFiles> {
 
         phantom_files
             .iter()
-            .for_each(|pathdata| eprintln!("{}", pathdata.path_buf.to_string_lossy()));
+            .for_each(|pathdata| eprintln!("{:?}", pathdata.path_buf));
     }
 
     let mounts_for_files: MountsForFiles = non_phantom_files
