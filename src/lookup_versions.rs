@@ -209,9 +209,9 @@ fn get_relative_path(
     pathdata: &PathData,
     proximate_dataset_mount: &Path,
 ) -> HttmResult<PathBuf> {
-    fn default_path_strip<'a>(
-        pathdata: &'a PathData,
-        proximate_dataset_mount: &'a Path,
+    fn default_path_strip(
+        pathdata: &PathData,
+        proximate_dataset_mount: &Path,
     ) -> HttmResult<PathBuf> {
         pathdata
             .path_buf
@@ -269,12 +269,11 @@ fn get_proximate_dataset(
         .ancestors()
         .find_map(|ancestor| {
             if map_of_datasets.contains_key(ancestor) {
-                Some(ancestor)
+                Some(ancestor.to_path_buf())
             } else {
                 None
             }
         })
-        .map(|path| path.to_path_buf())
         .ok_or_else(|| {
             HttmError::new(
                 "httm could not identify any qualifying dataset.  \
