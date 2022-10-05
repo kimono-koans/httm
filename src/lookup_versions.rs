@@ -71,13 +71,16 @@ fn get_all_versions_for_path_set(
     path_set: &[PathData],
 ) -> HttmResult<Vec<PathData>> {
     // create vec of all local and replicated backups at once
-    let snaps_selected_for_search = config.dataset_collection.snaps_selected_for_search.value();
-
+    let snaps_selected_for_search = config
+        .dataset_collection
+        .snaps_selected_for_search
+        .value();
+    
     let all_snap_versions: Vec<PathData> = path_set
         .par_iter()
         .map(|pathdata| {
             snaps_selected_for_search
-                .par_iter()
+                .par_iter() 
                 .flat_map(|dataset_type| select_search_datasets(config, pathdata, dataset_type))
                 .flat_map(|dataset_for_search| {
                     get_version_search_bundles(config, pathdata, &dataset_for_search)
