@@ -38,25 +38,22 @@ pub fn deleted_lookup_exec(
     // we always need a requesting dir because we are comparing the files in the
     // requesting dir to those of their relative dirs on snapshots
     let requested_dir_pathdata = PathData::from(requested_dir);
-    let vec_requested_dir_pathdata = vec![&requested_dir_pathdata];
 
     // create vec of all local and replicated backups at once
     //
     // we need to make certain that what we return from possibly multiple datasets are unique
     // as these will be the filenames that populate our interactive views, so deduplicate
     // by filename and latest file version here
-    let basic_dir_entry_info_iter = vec_requested_dir_pathdata
+    let basic_dir_entry_info_iter = config
+        .dataset_collection
+        .snaps_selected_for_search
+        .value()
         .iter()
-        .flat_map(|pathdata| {
-            config
-                .dataset_collection
-                .snaps_selected_for_search
-                .value()
-                .iter()
-                .flat_map(|dataset_type| select_search_datasets(config, pathdata, dataset_type))
-                .flat_map(|datasets_of_interest| {
-                    get_version_search_bundles(config, pathdata, &datasets_of_interest)
-                })
+        .flat_map(|dataset_type| {
+            select_search_datasets(config, &requested_dir_pathdata, dataset_type)
+        })
+        .flat_map(|datasets_of_interest| {
+            get_version_search_bundles(config, &requested_dir_pathdata, &datasets_of_interest)
         })
         .flatten()
         .flat_map(|search_bundle| {
