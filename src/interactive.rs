@@ -15,7 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::{ffi::OsString, fs::FileType, io::Cursor, path::Path, path::PathBuf, thread, vec};
+use std::{fs::FileType, io::Cursor, path::Path, path::PathBuf, thread, vec};
 
 use lscolors::Colorable;
 use skim::prelude::*;
@@ -35,7 +35,6 @@ use crate::{Config, DeletedMode, ExecMode, HttmResult, InteractiveMode, RequestR
 // and impl Colorable for how we paint the path strings
 pub struct SelectionCandidate {
     config: Arc<Config>,
-    file_name: OsString,
     path: PathBuf,
     file_type: Option<FileType>,
     pub is_phantom: bool,
@@ -49,7 +48,6 @@ impl SelectionCandidate {
     ) -> Self {
         SelectionCandidate {
             config,
-            file_name: basic_dir_entry_info.file_name,
             path: basic_dir_entry_info.path,
             file_type: basic_dir_entry_info.file_type,
             is_phantom,
@@ -91,10 +89,10 @@ impl SelectionCandidate {
 
 impl Colorable for &SelectionCandidate {
     fn path(&self) -> PathBuf {
-        self.path.clone()
+        self.path.to_owned()
     }
     fn file_name(&self) -> std::ffi::OsString {
-        self.file_name.clone()
+        self.path.file_name().unwrap_or_default().to_owned()
     }
     fn file_type(&self) -> Option<FileType> {
         self.file_type
