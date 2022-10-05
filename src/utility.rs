@@ -152,7 +152,7 @@ where
                         // First, read_link() will check symlink is pointing to a directory
                         //
                         // Next, check ancestors() against the read_link() will reduce/remove
-                        // infinitely recursive paths, like /usr/bin/X11 pointing to /usr/X11
+                        // infinitely recursive paths, like /usr/bin/X11 pointing to /usr/bin
                         link_target.is_dir()
                             && path.ancestors().all(|ancestor| ancestor != link_target)
                     }
