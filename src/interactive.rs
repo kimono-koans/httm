@@ -89,10 +89,10 @@ impl SelectionCandidate {
 
 impl Colorable for &SelectionCandidate {
     fn path(&self) -> PathBuf {
-        self.path.to_owned()
+        self.path.to_path_buf()
     }
     fn file_name(&self) -> std::ffi::OsString {
-        self.path.file_name().unwrap_or_default().to_owned()
+        self.path.file_name().unwrap_or_default().to_os_string()
     }
     fn file_type(&self) -> Option<FileType> {
         self.file_type
