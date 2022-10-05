@@ -85,10 +85,10 @@ where
     basic_dir_entry_info_iter
         .into_group_map_by(|basic_dir_entry_info| basic_dir_entry_info.file_name.clone())
         .into_iter()
-        .flat_map(|(file_name, group_of_dir_entries)| {
+        .filter_map(|(file_name, group_of_dir_entries)| {
             group_of_dir_entries
                 .into_iter()
-                .flat_map(|basic_dir_entry_info| {
+                .filter_map(|basic_dir_entry_info| {
                     basic_dir_entry_info
                         .get_modify_time()
                         .map(|modify_time| (modify_time, basic_dir_entry_info))
@@ -106,7 +106,7 @@ fn get_unique_deleted_for_dir(
     // what is a deleted file
     //
     // create a collection of local file names
-    let local_filenames_map: BTreeSet<OsString> = read_dir(&requested_dir)?
+    let local_filenames_set: BTreeSet<OsString> = read_dir(&requested_dir)?
         .flatten()
         .map(|dir_entry| dir_entry.file_name())
         .collect();
@@ -117,8 +117,13 @@ fn get_unique_deleted_for_dir(
     // compare local filenames to all unique snap filenames - none values are unique, here
     let all_deleted_versions: Vec<BasicDirEntryInfo> = unique_snap_filenames
         .into_iter()
-        .filter(|(file_name, _)| !local_filenames_map.contains(file_name))
-        .map(|(_file_name, basic_dir_entry_info)| basic_dir_entry_info)
+        .filter_map(|(file_name, basic_dir_entry_info)| {
+            if !local_filenames_set.contains(&file_name) {
+                Some(basic_dir_entry_info)
+            } else {
+                None
+            }
+        })
         .collect();
 
     Ok(all_deleted_versions)

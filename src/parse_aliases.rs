@@ -69,7 +69,7 @@ pub fn parse_aliases(
 
     let map_of_aliases = aliases_iter
         .into_iter()
-        .flat_map(|(local_dir, snap_dir)| {
+        .filter_map(|(local_dir, snap_dir)| {
             if !local_dir.exists() || !snap_dir.exists() {
                 [local_dir, snap_dir]
                     .into_iter()
@@ -85,7 +85,7 @@ pub fn parse_aliases(
                 Some((local_dir, snap_dir))
             }
         })
-        .flat_map(|(local_dir, remote_dir)| {
+        .filter_map(|(local_dir, remote_dir)| {
             get_fs_type_from_hidden_dir(&remote_dir)
                 .ok()
                 .map(|fs_type| {

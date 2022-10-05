@@ -218,7 +218,7 @@ pub fn get_common_snap_dir(
     if !btrfs_datasets.is_empty() {
         let vec_snaps: Vec<&PathBuf> = btrfs_datasets
             .into_par_iter()
-            .flat_map(|mount| map_of_snaps.get(mount))
+            .filter_map(|mount| map_of_snaps.get(mount))
             .flat_map(|snap_info| snap_info)
             .collect();
 
