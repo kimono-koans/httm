@@ -37,7 +37,6 @@ pub struct SelectionCandidate {
     config: Arc<Config>,
     path: PathBuf,
     file_type: Option<FileType>,
-    pub is_phantom: bool,
 }
 
 impl SelectionCandidate {
@@ -49,8 +48,20 @@ impl SelectionCandidate {
         SelectionCandidate {
             config,
             path: basic_dir_entry_info.path,
-            file_type: basic_dir_entry_info.file_type,
-            is_phantom,
+            // here save space of bool/padding instead of an "is_phantom: bool"
+            //
+            // issue: conflate not have a file_type as phantom
+            // for purposes of coloring the file_name/path only
+            //
+            // std lib docs don't give much indication as to
+            // when file_type() fails?  Doesn't seem to be a problem?
+            file_type: {
+                if is_phantom {
+                    None
+                } else {
+                    basic_dir_entry_info.file_type
+                }
+            },
         }
     }
 

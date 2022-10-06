@@ -27,7 +27,7 @@ use std::{
     time::SystemTime,
 };
 
-use lscolors::{LsColors, Style};
+use lscolors::{Colorable, LsColors, Style};
 use once_cell::unsync::OnceCell;
 use time::{format_description, OffsetDateTime};
 
@@ -250,7 +250,7 @@ impl PaintString for &SelectionCandidate {
         ENV_LS_COLORS.style_for(self)
     }
     fn get_is_phantom(&self) -> bool {
-        self.is_phantom
+        self.file_type().is_none()
     }
 }
 
