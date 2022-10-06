@@ -50,7 +50,7 @@ impl SelectionCandidate {
             path: basic_dir_entry_info.path,
             // here save space of bool/padding instead of an "is_phantom: bool"
             //
-            // issue: conflate not have a file_type as phantom
+            // issue: conflate not having a file_type as phantom
             // for purposes of coloring the file_name/path only?
             //
             // std lib docs don't give much indication as to
