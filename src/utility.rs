@@ -147,15 +147,10 @@ where
             file_type if file_type.is_dir() => true,
             file_type if file_type.is_file() => false,
             file_type if file_type.is_symlink() => {
-                match path.read_link() {
+                // canonicalize will read_link/resolve the link for us
+                match path.canonicalize() {
                     Ok(link_target) if !link_target.is_dir() => false,
-                    Ok(link_target) => {
-                        // Check ancestors() against the read_link() will reduce/remove
-                        // infinitely recursive paths, like /usr/bin/X11 pointing to /usr/bin
-                        path.ancestors().all(|ancestor| {
-                            ancestor != link_target.canonicalize().unwrap_or_default()
-                        })
-                    }
+                    Ok(link_target) => path.ancestors().all(|ancestor| ancestor != link_target),
                     // we get an error? still pass the path on, as we get a good path from the dir entry
                     _ => false,
                 }
