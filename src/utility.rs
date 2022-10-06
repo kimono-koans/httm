@@ -152,13 +152,6 @@ where
                     Ok(link_target) => {
                         // Check ancestors() against the read_link() will reduce/remove
                         // infinitely recursive paths, like /usr/bin/X11 pointing to /usr/bin
-                        path.ancestors().for_each(|ancestor| {
-                            println!(
-                                "{:?}{:?}",
-                                ancestor,
-                                link_target.canonicalize().unwrap_or_default()
-                            )
-                        });
                         path.ancestors().all(|ancestor| {
                             ancestor != link_target.canonicalize().unwrap_or_default()
                         })
