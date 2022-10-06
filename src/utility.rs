@@ -148,22 +148,29 @@ where
             file_type if file_type.is_file() => false,
             file_type if file_type.is_symlink() => {
                 match path.read_link() {
+                    Ok(link_target) if !link_target.is_dir() => false,
                     Ok(link_target) => {
-                        // First, read_link() will check symlink is pointing to a directory
-                        //
-                        // Next, check ancestors() against the read_link() will reduce/remove
+                        // Check ancestors() against the read_link() will reduce/remove
                         // infinitely recursive paths, like /usr/bin/X11 pointing to /usr/bin
-                        link_target.is_dir()
-                            && path.ancestors().all(|ancestor| ancestor != link_target)
+                        path.ancestors().for_each(|ancestor| {
+                            println!(
+                                "{:?}{:?}",
+                                ancestor,
+                                link_target.canonicalize().unwrap_or_default()
+                            )
+                        });
+                        path.ancestors().all(|ancestor| {
+                            ancestor != link_target.canonicalize().unwrap_or_default()
+                        })
                     }
                     // we get an error? still pass the path on, as we get a good path from the dir entry
-                    Err(_) => false,
+                    _ => false,
                 }
             }
             // char, block, etc devices(?), None/Errs are not dirs, and we have a good path to pass on, so false
             _ => false,
         },
-        Err(_) => false,
+        _ => false,
     }
 }
 
