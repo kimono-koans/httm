@@ -29,8 +29,8 @@ use crate::utility::{
 };
 use crate::{Config, DeletedMode, ExecMode, HttmResult, InteractiveMode, RequestRelative};
 
-// these represent to items ready for selection and preview
-// contains everything needs to request preview and paint with
+// these represent the items ready for selection and preview
+// contains everything one needs to request preview and paint with
 // LsColors -- see preview_view, preview for how preview is done
 // and impl Colorable for how we paint the path strings
 pub struct SelectionCandidate {
@@ -51,7 +51,7 @@ impl SelectionCandidate {
             // here save space of bool/padding instead of an "is_phantom: bool"
             //
             // issue: conflate not have a file_type as phantom
-            // for purposes of coloring the file_name/path only
+            // for purposes of coloring the file_name/path only?
             //
             // std lib docs don't give much indication as to
             // when file_type() fails?  Doesn't seem to be a problem?
