@@ -16,7 +16,7 @@
 // that was distributed with this source code.
 
 use std::fs::DirEntry;
-use std::{fs::read_dir, path::Path, path::PathBuf, sync::Arc};
+use std::{fs::read_dir, path::Path, sync::Arc};
 
 use once_cell::unsync::OnceCell;
 use rayon::{prelude::*, Scope, ThreadPool};
@@ -184,10 +184,6 @@ fn get_entries_partitioned(
     config: &Config,
     requested_dir: &Path,
 ) -> HttmResult<(Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>)> {
-    lazy_static! {
-        static ref ROOT_DIR: PathBuf = PathBuf::from("/");
-    };
-
     //separates entries into dirs and files
     let (vec_dirs, vec_files) = read_dir(&requested_dir)?
         .flatten()
@@ -203,17 +199,12 @@ fn get_entries_partitioned(
         // as it is much faster than a metadata call on the path
         .map(|dir_entry| BasicDirEntryInfo::from(&dir_entry))
         .partition(|entry| {
-            let user_requested_dir = config
-                .opt_requested_dir
-                .as_ref()
-                .expect("opt_requested_dir must always be Some in any recursive mode");
-
             // doesn't make sense to follow symlinks when you're searching the whole system,
             // so we disable our bespoke "when to traverse symlinks" algo here.  This keeps
             // us from exhausting memory by traversing recursive symlinks
             //
             // must do is_dir() look up on file type as look up on path will traverse links!
-            if user_requested_dir.path_buf == ROOT_DIR.as_path() {
+            if config.opt_no_traverse {
                 if let Ok(file_type) = entry.get_filetype() {
                     return file_type.is_dir();
                 }
@@ -245,7 +236,7 @@ fn is_filter_dir(config: &Config, dir_entry: &DirEntry) -> bool {
         }
     }
 
-    let interactive_requested_dir = config
+    let user_requested_dir = config
         .opt_requested_dir
         .as_ref()
         .expect("opt_requested_dir must always be Some in any recursive mode")
@@ -253,7 +244,7 @@ fn is_filter_dir(config: &Config, dir_entry: &DirEntry) -> bool {
         .as_path();
 
     // check whether user requested this dir specifically, then we will show
-    if path == interactive_requested_dir {
+    if path == user_requested_dir {
         false
     // else: is a non-supported dataset?
     } else {

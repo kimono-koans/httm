@@ -64,6 +64,7 @@ pub const ZFS_HIDDEN_DIRECTORY: &str = ".zfs";
 pub const ZFS_SNAPSHOT_DIRECTORY: &str = ".zfs/snapshot";
 pub const BTRFS_SNAPPER_HIDDEN_DIRECTORY: &str = ".snapshots";
 pub const BTRFS_SNAPPER_SUFFIX: &str = "snapshot";
+pub const ROOT_DIRECTORY: &str = "/";
 
 #[derive(Debug, Clone)]
 enum ExecMode {
@@ -339,19 +340,27 @@ fn parse_args() -> ArgMatches {
                 .display_order(14)
         )
         .arg(
+            Arg::new("NO_TRAVERSE")
+                .long("no-traverse")
+                .help("in recursive mode, don't traverse symlinks.  Although httm does its best to prevent searching recursive symlink-ed paths, \
+                it is still possible to exhaust memory by searching a particularly pathological symlink-ed path.  Here, you may disable symlink traversal completely.  \
+                httm also never traverses symlinks when a recursive search is on the root/base directory.")
+                .display_order(15)
+        )
+        .arg(
             Arg::new("NOT_SO_PRETTY")
                 .long("not-so-pretty")
                 .visible_aliases(&["tabs", "plain-jane"])
                 .help("display the ordinary output, but tab delimited, without any pretty border lines.")
                 .conflicts_with_all(&["RAW", "ZEROS"])
-                .display_order(15)
+                .display_order(16)
         )
         .arg(
             Arg::new("NO_LIVE")
                 .long("no-live")
                 .visible_aliases(&["dead", "disco"])
                 .help("only display information concerning snapshot versions (display no information regarding 'live' versions of files or directories).")
-                .display_order(16)
+                .display_order(17)
         )
         .arg(
             Arg::new("NO_SNAP")
@@ -361,7 +370,7 @@ fn parse_args() -> ArgMatches {
                 Useful for finding only the \"files that once were\" and displaying only those pseudo-live/undead files.")
                 .requires("RECURSIVE")
                 .conflicts_with_all(&["INTERACTIVE", "SELECT", "RESTORE", "SNAP_FILE_MOUNT", "LAST_SNAP", "NOT_SO_PRETTY"])
-                .display_order(17)
+                .display_order(18)
         )
         .arg(
             Arg::new("MAP_ALIASES")
@@ -375,7 +384,7 @@ fn parse_args() -> ArgMatches {
                 .use_value_delimiter(true)
                 .takes_value(true)
                 .value_parser(clap::builder::ValueParser::os_string())
-                .display_order(18)
+                .display_order(19)
         )
         .arg(
             Arg::new("REMOTE_DIR")
@@ -385,7 +394,7 @@ fn parse_args() -> ArgMatches {
                 (directory which contains a \".snapshots\" directory), such as the local mount point for a remote share.  You may also set via the HTTM_REMOTE_DIR environment variable.")
                 .takes_value(true)
                 .value_parser(clap::builder::ValueParser::os_string())
-                .display_order(19)
+                .display_order(20)
         )
         .arg(
             Arg::new("LOCAL_DIR")
@@ -397,26 +406,26 @@ fn parse_args() -> ArgMatches {
                 .requires("REMOTE_DIR")
                 .takes_value(true)
                 .value_parser(clap::builder::ValueParser::os_string())
-                .display_order(20)
+                .display_order(21)
         )
         .arg(
             Arg::new("UTC")
                 .long("utc")
                 .help("use UTC for date display and timestamps")
-                .display_order(21)
+                .display_order(22)
         )
         .arg(
             Arg::new("DEBUG")
                 .long("debug")
                 .help("print configuration and debugging info")
-                .display_order(22)
+                .display_order(23)
         )
         .arg(
             Arg::new("ZSH_HOT_KEYS")
                 .long("install-zsh-hot-keys")
                 .help("install zsh hot keys to the users home directory, and then exit")
                 .exclusive(true)
-                .display_order(23)
+                .display_order(24)
         )
         .get_matches()
 }
@@ -434,6 +443,7 @@ pub struct Config {
     opt_no_filter: bool,
     opt_no_snap: bool,
     opt_debug: bool,
+    opt_no_traverse: bool,
     requested_utc_offset: UtcOffset,
     exec_mode: ExecMode,
     dataset_collection: DatasetCollection,
@@ -650,6 +660,14 @@ impl Config {
             }
         };
 
+        let opt_no_traverse = matches.is_present("NO_TRAVERSE") || {
+            if let Some(user_requested_dir) = opt_requested_dir.as_ref() {
+                user_requested_dir.path_buf == Path::new(ROOT_DIRECTORY)
+            } else {
+                false
+            }
+        };
+
         // obtain a map of datasets, a map of snapshot directories, and possibly a map of
         // alternate filesystems and map of aliases if the user requests
         let dataset_collection = {
@@ -743,6 +761,7 @@ impl Config {
             opt_no_filter,
             opt_no_snap,
             opt_debug,
+            opt_no_traverse,
             requested_utc_offset,
             dataset_collection,
             exec_mode,
