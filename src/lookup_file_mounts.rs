@@ -52,7 +52,7 @@ pub fn get_mounts_for_files(config: &Config) -> HttmResult<MountsForFiles> {
             let datasets: Vec<MostProximateAndOptAlts> = config
                 .dataset_collection
                 .snaps_selected_for_search
-                .value()
+                .get_value()
                 .iter()
                 .flat_map(|dataset_type| select_search_datasets(config, pathdata, dataset_type))
                 .collect();

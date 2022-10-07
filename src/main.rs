@@ -156,7 +156,7 @@ static INCLUDE_ALTS: &[SnapDatasetType] = [
 static ONLY_PROXIMATE: &[SnapDatasetType] = [SnapDatasetType::MostProximate].as_slice();
 
 impl SnapsSelectedForSearch {
-    pub fn value(&self) -> &[SnapDatasetType] {
+    pub fn get_value(&self) -> &[SnapDatasetType] {
         match self {
             SnapsSelectedForSearch::IncludeAltReplicated => INCLUDE_ALTS,
             SnapsSelectedForSearch::MostProximateOnly => ONLY_PROXIMATE,

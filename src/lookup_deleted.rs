@@ -47,7 +47,7 @@ pub fn deleted_lookup_exec(
     let basic_dir_entry_info_iter = config
         .dataset_collection
         .snaps_selected_for_search
-        .value()
+        .get_value()
         .iter()
         .flat_map(|dataset_type| {
             select_search_datasets(config, &requested_dir_pathdata, dataset_type)
