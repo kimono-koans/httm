@@ -660,6 +660,8 @@ impl Config {
             }
         };
 
+        // doesn't make sense to follow symlinks when you're searching the whole system,
+        // so we disable our bespoke "when to traverse symlinks" algo here, or if requested.
         let opt_no_traverse = matches.is_present("NO_TRAVERSE") || {
             if let Some(user_requested_dir) = opt_requested_dir.as_ref() {
                 user_requested_dir.path_buf == Path::new(ROOT_DIRECTORY)

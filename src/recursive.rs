@@ -199,10 +199,6 @@ fn get_entries_partitioned(
         // as it is much faster than a metadata call on the path
         .map(|dir_entry| BasicDirEntryInfo::from(&dir_entry))
         .partition(|entry| {
-            // doesn't make sense to follow symlinks when you're searching the whole system,
-            // so we disable our bespoke "when to traverse symlinks" algo here.  This keeps
-            // us from exhausting memory by traversing recursive symlinks
-            //
             // must do is_dir() look up on file type as look up on path will traverse links!
             if config.opt_no_traverse {
                 if let Ok(file_type) = entry.get_filetype() {
