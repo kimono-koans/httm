@@ -25,11 +25,12 @@ use std::{
 
 use itertools::Itertools;
 
+use crate::config::Config;
 use crate::lookup_versions::{
     get_version_search_bundles, select_search_datasets, RelativePathAndSnapMounts,
 };
 use crate::utility::{BasicDirEntryInfo, PathData};
-use crate::{Config, HttmResult};
+use crate::HttmResult;
 
 pub fn deleted_lookup_exec(
     config: &Config,

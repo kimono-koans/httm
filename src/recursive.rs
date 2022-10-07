@@ -22,6 +22,7 @@ use once_cell::unsync::OnceCell;
 use rayon::{prelude::*, Scope, ThreadPool};
 use skim::prelude::*;
 
+use crate::config::{Config, DeletedMode, ExecMode};
 use crate::display::display_exec;
 use crate::interactive::SelectionCandidate;
 use crate::lookup_deleted::deleted_lookup_exec;
@@ -29,9 +30,7 @@ use crate::lookup_versions::versions_lookup_exec;
 use crate::utility::{
     httm_is_dir, print_output_buf, BasicDirEntryInfo, HttmError, HttmIsDir, PathData,
 };
-use crate::{
-    Config, DeletedMode, ExecMode, HttmResult, BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_HIDDEN_DIRECTORY,
-};
+use crate::{HttmResult, BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_HIDDEN_DIRECTORY};
 
 pub fn display_recursive_wrapper(config: Arc<Config>) -> HttmResult<()> {
     // won't be sending anything anywhere, this just allows us to reuse enumerate_directory

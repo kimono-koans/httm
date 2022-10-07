@@ -20,9 +20,10 @@ use std::collections::BTreeMap;
 use itertools::Itertools;
 use rayon::prelude::*;
 
+use crate::config::Config;
 use crate::lookup_versions::select_search_datasets;
 use crate::utility::PathData;
-use crate::{Config, HttmResult, MostProximateAndOptAlts};
+use crate::{HttmResult, MostProximateAndOptAlts};
 
 pub type MountsForFiles = BTreeMap<PathData, Vec<PathData>>;
 

@@ -20,6 +20,7 @@ use std::{fs::FileType, io::Cursor, path::Path, path::PathBuf, thread, vec};
 use lscolors::Colorable;
 use skim::prelude::*;
 
+use crate::config::{Config, DeletedMode, ExecMode, InteractiveMode, RequestRelative};
 use crate::display::display_exec;
 use crate::lookup_versions::versions_lookup_exec;
 use crate::recursive::recursive_exec;
@@ -27,7 +28,7 @@ use crate::utility::{
     copy_recursive, get_date, paint_string, print_output_buf, BasicDirEntryInfo, DateFormat,
     HttmError, PathData,
 };
-use crate::{Config, DeletedMode, ExecMode, HttmResult, InteractiveMode, RequestRelative};
+use crate::HttmResult;
 
 // these represent the items ready for selection and preview
 // contains everything one needs to request preview and paint with

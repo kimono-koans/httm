@@ -23,11 +23,42 @@ use std::{
 
 use rayon::prelude::*;
 
+use crate::config::Config;
 use crate::utility::{HttmError, PathData};
 use crate::{
-    Config, HttmResult, MapOfAliases, MapOfDatasets, MostProximateAndOptAlts, SnapDatasetType,
-    SnapsAndLiveSet, VecOfSnaps,
+    HttmResult, MapOfAliases, MapOfDatasets, MostProximateAndOptAlts, SnapsAndLiveSet, VecOfSnaps,
 };
+
+#[derive(Copy, Debug, Clone, PartialEq, Eq)]
+pub enum SnapDatasetType {
+    MostProximate,
+    AltReplicated,
+}
+
+#[derive(Copy, Debug, Clone, PartialEq, Eq)]
+pub enum SnapsSelectedForSearch {
+    MostProximateOnly,
+    IncludeAltReplicated,
+}
+
+// alt replicated should come first,
+// so as to be at the top of results
+pub const INCLUDE_ALTS: &[SnapDatasetType] = [
+    SnapDatasetType::AltReplicated,
+    SnapDatasetType::MostProximate,
+]
+.as_slice();
+
+pub const ONLY_PROXIMATE: &[SnapDatasetType] = [SnapDatasetType::MostProximate].as_slice();
+
+impl SnapsSelectedForSearch {
+    pub fn get_value(&self) -> &[SnapDatasetType] {
+        match self {
+            SnapsSelectedForSearch::IncludeAltReplicated => INCLUDE_ALTS,
+            SnapsSelectedForSearch::MostProximateOnly => ONLY_PROXIMATE,
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct RelativePathAndSnapMounts {

@@ -31,9 +31,12 @@ use lscolors::{Colorable, LsColors, Style};
 use once_cell::unsync::OnceCell;
 use time::{format_description, OffsetDateTime};
 
+use crate::config::Config;
+use crate::display::display_exec;
 use crate::interactive::SelectionCandidate;
 use crate::{
-    Config, FilesystemType, HttmResult, BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_SNAPSHOT_DIRECTORY,
+    FilesystemType, HttmResult, SnapsAndLiveSet, BTRFS_SNAPPER_HIDDEN_DIRECTORY,
+    ZFS_SNAPSHOT_DIRECTORY,
 };
 
 const TMP_SUFFIX: &str = ".tmp";
@@ -42,6 +45,15 @@ pub fn make_tmp_path(path: &Path) -> PathBuf {
     let path_string = path.to_string_lossy().to_string();
     let res = path_string + TMP_SUFFIX;
     PathBuf::from(res)
+}
+
+pub fn print_snaps_and_live_set(
+    config: &Config,
+    snaps_and_live_set: &SnapsAndLiveSet,
+) -> HttmResult<()> {
+    let output_buf = display_exec(config, snaps_and_live_set)?;
+    print_output_buf(output_buf)?;
+    Ok(())
 }
 
 pub fn copy_recursive(src: &Path, dst: &Path) -> io::Result<()> {

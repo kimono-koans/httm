@@ -25,8 +25,8 @@ use which::which;
 use crate::parse_snaps::precompute_snap_mounts;
 use crate::utility::{get_common_path, get_fs_type_from_hidden_dir, HttmError};
 use crate::{
-    DatasetMetadata, FilesystemType, HttmResult, MapOfDatasets, MapOfSnaps, MountType,
-    OptBtrfsCommonSnapDir, VecOfFilterDirs, ZFS_SNAPSHOT_DIRECTORY,
+    HttmResult, MapOfDatasets, MapOfSnaps, OptBtrfsCommonSnapDir, VecOfFilterDirs,
+    ZFS_SNAPSHOT_DIRECTORY,
 };
 
 pub const ZFS_FSTYPE: &str = "zfs";
@@ -34,6 +34,25 @@ pub const BTRFS_FSTYPE: &str = "btrfs";
 pub const SMB_FSTYPE: &str = "smbfs";
 pub const NFS_FSTYPE: &str = "nfs";
 pub const AFP_FSTYPE: &str = "afpfs";
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum FilesystemType {
+    Zfs,
+    Btrfs,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum MountType {
+    Local,
+    Network,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DatasetMetadata {
+    pub name: String,
+    pub fs_type: FilesystemType,
+    pub mount_type: MountType,
+}
 
 // divide by the type of system we are on
 // Linux allows us the read proc mounts

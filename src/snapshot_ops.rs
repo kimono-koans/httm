@@ -21,9 +21,10 @@ use itertools::Itertools;
 use std::process::Command as ExecProcess;
 use which::which;
 
+use crate::config::Config;
 use crate::lookup_file_mounts::{get_mounts_for_files, MountsForFiles};
 use crate::utility::{get_date, print_output_buf, DateFormat, HttmError};
-use crate::{Config, HttmResult};
+use crate::HttmResult;
 
 use crate::FilesystemType;
 
