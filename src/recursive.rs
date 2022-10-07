@@ -211,6 +211,8 @@ fn get_entries_partitioned(
             // doesn't make sense to follow symlinks when you're searching the whole system,
             // so we disable our bespoke "when to traverse symlinks" algo here.  This keeps
             // us from exhausting memory by traversing recursive symlinks
+            //
+            // must do is_dir() look up on file type as look up on path will traverse links!
             if user_requested_dir.path_buf == ROOT_DIR.as_path() {
                 if let Ok(file_type) = entry.get_filetype() {
                     return file_type.is_dir();
