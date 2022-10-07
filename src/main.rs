@@ -343,8 +343,8 @@ fn parse_args() -> ArgMatches {
             Arg::new("NO_TRAVERSE")
                 .long("no-traverse")
                 .help("in recursive mode, don't traverse symlinks.  Although httm does its best to prevent searching pathologically recursive symlink-ed paths, \
-                it is still possible to exhaust memory by searching certain paths.  Here, you may disable symlink traversal completely.  \
-                NOTE: httm will never traverse symlinks when a recursive search is on the root/base directory.")
+                it may still be possible to exhaust memory by searching certain paths.  Here, you may disable symlink traversal completely.  \
+                NOTE: httm will never traverse symlinks when a requested recursive search is on the root/base directory.")
                 .display_order(15)
         )
         .arg(
@@ -365,7 +365,7 @@ fn parse_args() -> ArgMatches {
         .arg(
             Arg::new("NO_SNAP")
                 .long("no-snap")
-                .visible_aliases(&["undead"])
+                .visible_aliases(&["undead", "zombie"])
                 .help("only display information concerning 'pseudo-live' versions in Display Recursive mode (in --deleted, --recursive, but non-interactive modes).  \
                 Useful for finding only the \"files that once were\" and displaying only those pseudo-live/undead files.")
                 .requires("RECURSIVE")
