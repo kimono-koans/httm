@@ -16,7 +16,7 @@
 // that was distributed with this source code.
 
 use std::fs::DirEntry;
-use std::{fs::read_dir, path::Path, sync::Arc};
+use std::{fs::read_dir, path::Path, path::PathBuf, sync::Arc};
 
 use once_cell::unsync::OnceCell;
 use rayon::{prelude::*, Scope, ThreadPool};
@@ -26,7 +26,9 @@ use crate::display::display_exec;
 use crate::interactive::SelectionCandidate;
 use crate::lookup_deleted::deleted_lookup_exec;
 use crate::lookup_versions::versions_lookup_exec;
-use crate::utility::{httm_is_dir, print_output_buf, BasicDirEntryInfo, HttmError, PathData};
+use crate::utility::{
+    httm_is_dir, print_output_buf, BasicDirEntryInfo, HttmError, HttmIsDir, PathData,
+};
 use crate::{
     Config, DeletedMode, ExecMode, HttmResult, BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_HIDDEN_DIRECTORY,
 };
@@ -182,6 +184,10 @@ fn get_entries_partitioned(
     config: &Config,
     requested_dir: &Path,
 ) -> HttmResult<(Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>)> {
+    lazy_static! {
+        static ref ROOT_DIR: PathBuf = PathBuf::from("/");
+    };
+
     //separates entries into dirs and files
     let (vec_dirs, vec_files) = read_dir(&requested_dir)?
         .flatten()
@@ -196,7 +202,22 @@ fn get_entries_partitioned(
         // checking file_type on dir entries is always preferable
         // as it is much faster than a metadata call on the path
         .map(|dir_entry| BasicDirEntryInfo::from(&dir_entry))
-        .partition(|entry| httm_is_dir(entry));
+        .partition(|entry| {
+            let user_requested_dir = config
+                .opt_requested_dir
+                .as_ref()
+                .expect("opt_requested_dir must always be Some in any recursive mode");
+
+            // doesn't make sense to follow symlinks when you're searching the whole system,
+            // so we disable our bespoke "when to traverse symlinks" algo here.  This keeps
+            // us from exhausting memory by traversing recursive symlinks
+            if user_requested_dir.path_buf == ROOT_DIR.as_path() {
+                if let Ok(file_type) = entry.get_filetype() {
+                    return file_type.is_dir();
+                }
+            }
+            httm_is_dir(entry)
+        });
 
     Ok((vec_dirs, vec_files))
 }
@@ -213,7 +234,7 @@ fn is_filter_dir(config: &Config, dir_entry: &DirEntry) -> bool {
         return true;
     }
 
-    // is a common path for btrfs or is a non-supported dataset?
+    // is 1) a common snapshot path for btrfs, or 2) is a non-supported (non-ZFS, non-btrfs) dataset?
 
     // is a common btrfs snapshot dir?
     if let Some(common_snap_dir) = &config.dataset_collection.opt_common_snap_dir {
@@ -225,7 +246,7 @@ fn is_filter_dir(config: &Config, dir_entry: &DirEntry) -> bool {
     let interactive_requested_dir = config
         .opt_requested_dir
         .as_ref()
-        .expect("interactive_requested_dir must always be Some in any recursive mode")
+        .expect("opt_requested_dir must always be Some in any recursive mode")
         .path_buf
         .as_path();
 
