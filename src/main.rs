@@ -17,7 +17,6 @@
 
 #[macro_use]
 extern crate lazy_static;
-extern crate proc_mounts;
 
 use std::{collections::BTreeMap, path::PathBuf, sync::Arc};
 
