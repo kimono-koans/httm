@@ -43,13 +43,13 @@ pub enum SnapsSelectedForSearch {
 
 // alt replicated should come first,
 // so as to be at the top of results
-pub const INCLUDE_ALTS: &[SnapDatasetType] = [
+static INCLUDE_ALTS: &[SnapDatasetType] = [
     SnapDatasetType::AltReplicated,
     SnapDatasetType::MostProximate,
 ]
 .as_slice();
 
-pub const ONLY_PROXIMATE: &[SnapDatasetType] = [SnapDatasetType::MostProximate].as_slice();
+static ONLY_PROXIMATE: &[SnapDatasetType] = [SnapDatasetType::MostProximate].as_slice();
 
 impl SnapsSelectedForSearch {
     pub fn get_value(&self) -> &[SnapDatasetType] {

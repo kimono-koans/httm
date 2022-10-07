@@ -21,10 +21,6 @@ extern crate proc_mounts;
 
 use std::{collections::BTreeMap, path::PathBuf, sync::Arc};
 
-// wrap this complex looking error type, which is used everywhere,
-// into something more simple looking. This error, FYI, is really easy to use with rayon.
-pub type HttmResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
-
 mod config;
 mod display;
 mod install_hot_keys;
@@ -56,6 +52,10 @@ pub const ZFS_SNAPSHOT_DIRECTORY: &str = ".zfs/snapshot";
 pub const BTRFS_SNAPPER_HIDDEN_DIRECTORY: &str = ".snapshots";
 pub const BTRFS_SNAPPER_SUFFIX: &str = "snapshot";
 pub const ROOT_DIRECTORY: &str = "/";
+
+// wrap this complex looking error type, which is used everywhere,
+// into something more simple looking. This error, FYI, is really easy to use with rayon.
+pub type HttmResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
 pub type MapOfDatasets = BTreeMap<PathBuf, DatasetMetadata>;
 pub type MapOfSnaps = BTreeMap<PathBuf, VecOfSnaps>;
