@@ -20,12 +20,34 @@ extern crate lazy_static;
 
 use std::sync::Arc;
 
-mod data;
-mod exec;
-mod init;
-mod library;
-mod lookup;
-mod parse;
+mod data {
+    pub mod configure;
+    pub mod path_info;
+}
+mod exec {
+    pub mod display;
+    pub mod interactive;
+    pub mod recursive;
+    pub mod snapshot_ops;
+}
+mod init {
+    pub mod config;
+    pub mod install_hot_keys;
+}
+mod library {
+    pub mod utility;
+}
+mod lookup {
+    pub mod deleted;
+    pub mod file_mounts;
+    pub mod versions;
+}
+mod parse {
+    pub mod aliases;
+    pub mod alts;
+    pub mod mounts;
+    pub mod snaps;
+}
 
 use crate::data::configure::{
     ExecMode, FilesystemType, MapOfDatasets, MapOfSnaps, MostProximateAndOptAlts,
