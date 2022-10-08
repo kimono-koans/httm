@@ -374,7 +374,7 @@ impl Config {
             Some("overwrite") | Some("yolo")
         );
         let opt_omit_identical = matches.is_present("OMIT_IDENTICAL");
-        let opt_unique = matches.is_present("UNIQUE");
+        let opt_unique = matches.is_present("IS_UNIQUE");
 
         let mut deleted_mode = match matches.value_of("DELETED_MODE") {
             Some("") | Some("all") => DeletedMode::Enabled,
