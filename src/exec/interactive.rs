@@ -26,8 +26,7 @@ use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::exec::display::display_exec;
 use crate::exec::recursive::recursive_exec;
 use crate::library::utility::{
-    copy_recursive, get_date, map_to_display_set, paint_string, print_output_buf, DateFormat,
-    HttmError, HttmResult,
+    copy_recursive, get_date, paint_string, print_output_buf, DateFormat, HttmError, HttmResult,
 };
 use crate::lookup::versions::versions_lookup_exec;
 
@@ -412,12 +411,11 @@ fn interactive_restore(
             match versions_lookup_exec(config.as_ref(), &[pathdata.clone()]).ok() {
                 // safe to index into snaps, known len of 2 for set
                 Some(map_live_to_snaps) => {
-                    let display_set = map_to_display_set(&config, &map_live_to_snaps);
-
-                    display_set[0].iter().find_map(|pathdata| {
+                    map_live_to_snaps.values().flatten().find_map(|pathdata| {
                         if pathdata == &snap_pathdata {
-                            // safe to index into request, known len of 2 for set, known len of 1 for request
-                            let original_live_pathdata = display_set[1][0].to_owned();
+                            // safe to index into request, known len of 2 for set, keys and values, known len of 1 for request
+                            let original_live_pathdata =
+                                map_live_to_snaps.keys().next().unwrap().to_owned();
                             Some(original_live_pathdata)
                         } else {
                             None
