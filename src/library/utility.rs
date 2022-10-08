@@ -47,8 +47,6 @@ pub fn map_to_snaps_live_set(
         .clone()
         .into_iter().flat_map(|(live_version, snaps)| {
             if config.opt_omit_identical {
-                
-
                 snaps
                     .into_iter()
                     .filter(|snap_version| snap_version != &live_version)
