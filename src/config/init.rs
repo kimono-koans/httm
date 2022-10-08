@@ -283,7 +283,7 @@ fn parse_args() -> ArgMatches {
             Arg::new("IS_UNIQUE")
                 .long("is_unique")
                 .help("detect and display if live version is unique (either snapshot versions exist, and are all identical to live version, or no snapshot version exists).")
-                .conflicts_with_all(&["INTERACTIVE", "SELECT", "RESTORE", "RECURSIVE", "SNAP_FILE_MOUNT", "LAST_SNAP", "NOT_SO_PRETTY", "NO_LIVE", "NO_SNAP"])
+                .conflicts_with_all(&["INTERACTIVE", "SELECT", "RESTORE", "RECURSIVE", "SNAP_FILE_MOUNT", "LAST_SNAP", "NOT_SO_PRETTY", "NO_LIVE", "NO_SNAP", "OMIT_IDENTICAL"])
                 .display_order(22)
         )
         .arg(
