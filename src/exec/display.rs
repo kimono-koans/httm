@@ -61,19 +61,26 @@ fn display_raw(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> HttmResul
             .iter()
             .map(|(live_version, snaps)| {
                 let display_path = live_version.path_buf.display();
-                let display_is_unique = {
-                    if (snaps.is_empty() && live_version.metadata.is_some())
-                        || snaps.iter().all(|snap_version| {
-                            live_version.metadata.is_some()
-                                && live_version.metadata == snap_version.metadata
-                        })
+                let display_is_only_version = {
+                    if live_version.metadata.is_none() {
+                        unreachable!(
+                            "Live version metadata should never be None in --is-only-version mode."
+                        )
+                    } else if snaps.is_empty()
+                        || (snaps.len() == 1
+                            && snaps
+                                .iter()
+                                .all(|snap_version| live_version.metadata == snap_version.metadata))
                     {
                         "SINGLE VERSION AVAILABLE"
                     } else {
                         "MULTIPLE VERSIONS AVAILABLE"
                     }
                 };
-                format!("\"{}\" : {}{}", display_path, display_is_unique, delimiter)
+                format!(
+                    "\"{}\" : {}{}",
+                    display_path, display_is_only_version, delimiter
+                )
             })
             .collect()
     } else {
