@@ -262,7 +262,7 @@ fn interactive_select(
     interactive_mode: &InteractiveMode,
 ) -> HttmResult<()> {
     let map_live_to_snaps = versions_lookup_exec(config.as_ref(), paths_selected_in_browse)?;
-    let snaps_and_live_set = map_to_snaps_live_set(&map_live_to_snaps);
+    let snaps_and_live_set = map_to_snaps_live_set(&config, &map_live_to_snaps);
 
     // snap and live set has no snaps
     if snaps_and_live_set[0].is_empty() {
@@ -412,7 +412,7 @@ fn interactive_restore(
             match versions_lookup_exec(config.as_ref(), &[pathdata.clone()]).ok() {
                 // safe to index into snaps, known len of 2 for set
                 Some(map_live_to_snaps) => {
-                    let snaps_and_live_set = map_to_snaps_live_set(&map_live_to_snaps);
+                    let snaps_and_live_set = map_to_snaps_live_set(&config, &map_live_to_snaps);
 
                     snaps_and_live_set[0].iter().find_map(|pathdata| {
                         if pathdata == &snap_pathdata {

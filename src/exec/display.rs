@@ -44,15 +44,43 @@ struct PaddingCollection {
 }
 
 pub fn display_exec(config: &Config, map_live_to_snaps: MapLiveToSnaps) -> HttmResult<String> {
-    let output_buffer = if config.opt_raw || config.opt_zeros {
-        let snaps_and_live_set = map_to_snaps_live_set(&map_live_to_snaps);
+    let output_buffer = if config.opt_unique {
+        display_unique(&map_live_to_snaps)?
+    } else if config.opt_raw || config.opt_zeros {
+        let snaps_and_live_set = map_to_snaps_live_set(config, &map_live_to_snaps);
         display_raw(config, &snaps_and_live_set)?
     } else {
-        let snaps_and_live_set = map_to_snaps_live_set(&map_live_to_snaps);
+        let snaps_and_live_set = map_to_snaps_live_set(config, &map_live_to_snaps);
         display_formatted(config, &snaps_and_live_set)?
     };
 
     Ok(output_buffer)
+}
+
+fn display_unique(map_live_to_snaps: &MapLiveToSnaps) -> HttmResult<String> {
+    // so easy!
+    let write_out_buffer = map_live_to_snaps
+        .iter()
+        .map(|(live_version, snaps)| {
+            let display_path = live_version.path_buf.display();
+            let display_is_unique = {
+                if (snaps.is_empty() && live_version.metadata.is_some())
+                    || snaps.iter().all(|snap_version| {
+                        live_version.metadata.is_some()
+                            && snap_version.metadata.is_some()
+                            && live_version.metadata == snap_version.metadata
+                    })
+                {
+                    "UNIQUE"
+                } else {
+                    "MULTIPLE VERSIONS AVAILABLE"
+                }
+            };
+            format!("{} : {}\n", display_path, display_is_unique)
+        })
+        .collect();
+
+    Ok(write_out_buffer)
 }
 
 fn display_raw(config: &Config, snaps_and_live_set: &SnapsAndLiveSet) -> HttmResult<String> {

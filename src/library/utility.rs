@@ -39,8 +39,25 @@ use crate::{FilesystemType, BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_SNAPSHOT_DIRECTO
 // into something more simple looking. This error, FYI, is really easy to use with rayon.
 pub type HttmResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
-pub fn map_to_snaps_live_set(map_live_to_snaps: &MapLiveToSnaps) -> SnapsAndLiveSet {
-    let vec_snaps = map_live_to_snaps.clone().into_values().flatten().collect();
+pub fn map_to_snaps_live_set(
+    config: &Config,
+    map_live_to_snaps: &MapLiveToSnaps,
+) -> SnapsAndLiveSet {
+    let vec_snaps = map_live_to_snaps
+        .clone()
+        .into_iter().flat_map(|(live_version, snaps)| {
+            if config.opt_omit_identical {
+                
+
+                snaps
+                    .into_iter()
+                    .filter(|snap_version| snap_version != &live_version)
+                    .collect()
+            } else {
+                snaps
+            }
+        })
+        .collect();
     let vec_live = map_live_to_snaps.clone().into_keys().collect();
     [vec_snaps, vec_live]
 }
