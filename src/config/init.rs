@@ -26,12 +26,12 @@ use indicatif::ProgressBar;
 use rayon::prelude::*;
 use time::UtcOffset;
 
-use crate::data::configure::{
+use crate::config::install_hot_keys::install_hot_keys;
+use crate::data::paths::PathData;
+use crate::data::precompute::{
     DatasetCollection, DeletedMode, ExecMode, InteractiveMode, RequestRelative,
     SnapsSelectedForSearch,
 };
-use crate::data::path_info::PathData;
-use crate::init::install_hot_keys::install_hot_keys;
 use crate::library::utility::{httm_is_dir, read_stdin, HttmError};
 use crate::parse::aliases::parse_aliases;
 use crate::parse::alts::precompute_alt_replicated;

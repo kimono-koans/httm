@@ -28,11 +28,11 @@ use std::{
 use lscolors::{Colorable, LsColors, Style};
 use time::{format_description, OffsetDateTime};
 
-use crate::data::configure::SnapsAndLiveSet;
-use crate::data::path_info::{BasicDirEntryInfo, PathData};
+use crate::config::init::Config;
+use crate::data::paths::{BasicDirEntryInfo, PathData};
+use crate::data::precompute::SnapsAndLiveSet;
 use crate::exec::display::display_exec;
 use crate::exec::interactive::SelectionCandidate;
-use crate::init::config::Config;
 use crate::{FilesystemType, BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_SNAPSHOT_DIRECTORY};
 
 // wrap this complex looking error type, which is used everywhere,

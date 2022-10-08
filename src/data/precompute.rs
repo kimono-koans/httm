@@ -15,7 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::data::path_info::PathData;
+use crate::data::paths::PathData;
 use std::{collections::BTreeMap, path::PathBuf};
 
 #[derive(Debug, Clone)]

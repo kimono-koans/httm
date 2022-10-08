@@ -20,7 +20,7 @@ use std::{fs::read_dir, path::Path, path::PathBuf, process::Command as ExecProce
 use rayon::prelude::*;
 use which::which;
 
-use crate::data::configure::{FilesystemType, MountType, VecOfSnaps};
+use crate::data::precompute::{FilesystemType, MountType, VecOfSnaps};
 use crate::library::utility::{HttmError, HttmResult};
 use crate::{
     MapOfDatasets, MapOfSnaps, BTRFS_SNAPPER_HIDDEN_DIRECTORY, BTRFS_SNAPPER_SUFFIX,

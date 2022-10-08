@@ -20,8 +20,8 @@ use std::collections::BTreeMap;
 use itertools::Itertools;
 use rayon::prelude::*;
 
-use crate::data::path_info::PathData;
-use crate::init::config::Config;
+use crate::config::init::Config;
+use crate::data::paths::PathData;
 use crate::lookup::versions::select_search_datasets;
 use crate::{HttmResult, MostProximateAndOptAlts};
 

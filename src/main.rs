@@ -21,17 +21,17 @@ extern crate lazy_static;
 use std::sync::Arc;
 
 mod data {
-    pub mod configure;
-    pub mod path_info;
+    pub mod paths;
+    pub mod precompute;
 }
 mod exec {
     pub mod display;
     pub mod interactive;
     pub mod recursive;
-    pub mod snapshot_ops;
+    pub mod snapshot;
 }
-mod init {
-    pub mod config;
+mod config {
+    pub mod init;
     pub mod install_hot_keys;
 }
 mod library {
@@ -49,15 +49,15 @@ mod parse {
     pub mod snaps;
 }
 
-use crate::data::configure::{
+use crate::config::init::Config;
+use crate::data::precompute::{
     ExecMode, FilesystemType, MapOfDatasets, MapOfSnaps, MostProximateAndOptAlts,
     OptBtrfsCommonSnapDir, VecOfFilterDirs,
 };
 use crate::exec::display::display_mounts_for_files;
 use crate::exec::interactive::interactive_exec;
 use crate::exec::recursive::display_recursive_wrapper;
-use crate::exec::snapshot_ops::take_snapshot;
-use crate::init::config::Config;
+use crate::exec::snapshot::take_snapshot;
 use crate::library::utility::{print_snaps_and_live_set, HttmResult};
 use crate::lookup::versions::versions_lookup_exec;
 
