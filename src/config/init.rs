@@ -28,15 +28,43 @@ use time::UtcOffset;
 
 use crate::config::install_hot_keys::install_hot_keys;
 use crate::data::paths::PathData;
-use crate::data::precompute::{
-    DatasetCollection, DeletedMode, ExecMode, InteractiveMode, RequestRelative,
-    SnapsSelectedForSearch,
-};
+use crate::data::system_map::{DatasetCollection, SnapsSelectedForSearch};
 use crate::library::utility::{httm_is_dir, read_stdin, HttmError};
 use crate::parse::aliases::parse_aliases;
 use crate::parse::alts::precompute_alt_replicated;
 use crate::parse::mounts::{get_common_snap_dir, parse_mounts_exec};
 use crate::{HttmResult, ROOT_DIRECTORY};
+
+#[derive(Debug, Clone)]
+pub enum ExecMode {
+    Interactive(InteractiveMode),
+    DisplayRecursive(indicatif::ProgressBar),
+    Display,
+    SnapFileMount,
+    MountsForFiles,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RequestRelative {
+    Absolute,
+    Relative,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum InteractiveMode {
+    Browse,
+    Select,
+    LastSnap(RequestRelative),
+    Restore,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum DeletedMode {
+    Disabled,
+    DepthOfOne,
+    Enabled,
+    Only,
+}
 
 fn parse_args() -> ArgMatches {
     clap::Command::new(crate_name!())

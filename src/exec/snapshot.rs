@@ -22,7 +22,7 @@ use std::process::Command as ExecProcess;
 use which::which;
 
 use crate::config::init::Config;
-use crate::data::precompute::FilesystemType;
+use crate::data::system_map::FilesystemType;
 use crate::library::utility::{get_date, print_output_buf, DateFormat, HttmError, HttmResult};
 use crate::lookup::file_mounts::{get_mounts_for_files, MountsForFiles};
 

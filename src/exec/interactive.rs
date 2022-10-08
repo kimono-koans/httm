@@ -21,8 +21,8 @@ use lscolors::Colorable;
 use skim::prelude::*;
 
 use crate::config::init::Config;
+use crate::config::init::{DeletedMode, ExecMode, InteractiveMode, RequestRelative};
 use crate::data::paths::{BasicDirEntryInfo, PathData};
-use crate::data::precompute::{DeletedMode, ExecMode, InteractiveMode, RequestRelative};
 use crate::exec::display::display_exec;
 use crate::exec::recursive::recursive_exec;
 use crate::library::utility::{

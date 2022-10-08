@@ -22,7 +22,7 @@ use terminal_size::{terminal_size, Height, Width};
 
 use crate::config::init::Config;
 use crate::data::paths::{PathData, PHANTOM_DATE, PHANTOM_SIZE};
-use crate::data::precompute::SnapsAndLiveSet;
+use crate::data::system_map::SnapsAndLiveSet;
 use crate::library::utility::{get_date, paint_string, print_output_buf, DateFormat, HttmResult};
 use crate::lookup::file_mounts::get_mounts_for_files;
 

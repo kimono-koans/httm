@@ -25,7 +25,7 @@ use rayon::prelude::*;
 
 use crate::config::init::Config;
 use crate::data::paths::PathData;
-use crate::data::precompute::{
+use crate::data::system_map::{
     MapOfAliases, MapOfDatasets, MostProximateAndOptAlts, SnapDatasetType, SnapsAndLiveSet,
     VecOfSnaps,
 };

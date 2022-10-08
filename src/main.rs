@@ -22,7 +22,7 @@ use std::sync::Arc;
 
 mod data {
     pub mod paths;
-    pub mod precompute;
+    pub mod system_map;
 }
 mod exec {
     pub mod display;
@@ -49,11 +49,12 @@ mod parse {
     pub mod snaps;
 }
 
-use crate::config::init::Config;
-use crate::data::precompute::{
-    ExecMode, FilesystemType, MapOfDatasets, MapOfSnaps, MostProximateAndOptAlts,
-    OptBtrfsCommonSnapDir, VecOfFilterDirs,
+use crate::config::init::{Config, ExecMode};
+use crate::data::system_map::{
+    FilesystemType, MapOfDatasets, MapOfSnaps, MostProximateAndOptAlts, OptBtrfsCommonSnapDir,
+    VecOfFilterDirs,
 };
+
 use crate::exec::display::display_mounts_for_files;
 use crate::exec::interactive::interactive_exec;
 use crate::exec::recursive::display_recursive_wrapper;

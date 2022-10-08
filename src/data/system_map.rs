@@ -18,37 +18,6 @@
 use crate::data::paths::PathData;
 use std::{collections::BTreeMap, path::PathBuf};
 
-#[derive(Debug, Clone)]
-pub enum ExecMode {
-    Interactive(InteractiveMode),
-    DisplayRecursive(indicatif::ProgressBar),
-    Display,
-    SnapFileMount,
-    MountsForFiles,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum RequestRelative {
-    Absolute,
-    Relative,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum InteractiveMode {
-    Browse,
-    Select,
-    LastSnap(RequestRelative),
-    Restore,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum DeletedMode {
-    Disabled,
-    DepthOfOne,
-    Enabled,
-    Only,
-}
-
 pub type MapOfDatasets = BTreeMap<PathBuf, DatasetMetadata>;
 pub type MapOfSnaps = BTreeMap<PathBuf, VecOfSnaps>;
 pub type MapOfAlts = BTreeMap<PathBuf, MostProximateAndOptAlts>;

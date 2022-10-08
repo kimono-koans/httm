@@ -19,7 +19,7 @@ use std::{path::Path, path::PathBuf};
 
 use rayon::prelude::*;
 
-use crate::data::precompute::{MapOfAlts, MostProximateAndOptAlts};
+use crate::data::system_map::{MapOfAlts, MostProximateAndOptAlts};
 use crate::library::utility::HttmError;
 use crate::{HttmResult, MapOfDatasets};
 

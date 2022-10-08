@@ -22,7 +22,7 @@ use rayon::iter::Either;
 use rayon::prelude::*;
 use which::which;
 
-use crate::data::precompute::{DatasetMetadata, FilesystemType, MountType};
+use crate::data::system_map::{DatasetMetadata, FilesystemType, MountType};
 use crate::library::utility::{get_common_path, get_fs_type_from_hidden_dir, HttmError};
 use crate::parse::snaps::precompute_snap_mounts;
 use crate::{

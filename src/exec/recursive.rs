@@ -23,8 +23,8 @@ use rayon::{prelude::*, Scope, ThreadPool};
 use skim::prelude::*;
 
 use crate::config::init::Config;
+use crate::config::init::{DeletedMode, ExecMode};
 use crate::data::paths::{BasicDirEntryInfo, PathData};
-use crate::data::precompute::{DeletedMode, ExecMode};
 use crate::exec::display::display_exec;
 use crate::exec::interactive::SelectionCandidate;
 use crate::library::utility::{httm_is_dir, print_output_buf, HttmError, HttmIsDir};
