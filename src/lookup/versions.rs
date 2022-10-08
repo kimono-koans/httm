@@ -92,6 +92,13 @@ fn get_all_versions_for_path_set(
         .flatten()
         .flat_map(|search_bundle| get_versions(&search_bundle))
         .flatten()
+        .filter(|snap_version| {
+            if config.opt_omit_identical {
+                !path_set.iter().any(|live_version| live_version == snap_version)
+            } else {
+                true
+            }
+        })
         .collect();
 
     Ok(all_snap_versions)

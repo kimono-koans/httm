@@ -83,6 +83,8 @@ impl SelectionCandidate {
             opt_no_snap: false,
             opt_debug: false,
             opt_no_traverse: false,
+            opt_unique: false,
+            opt_omit_identical: config.opt_omit_identical,
             requested_utc_offset: config.requested_utc_offset,
             exec_mode: ExecMode::Display,
             deleted_mode: DeletedMode::Disabled,

@@ -280,23 +280,37 @@ fn parse_args() -> ArgMatches {
                 .display_order(21)
         )
         .arg(
+            Arg::new("IS_UNIQUE")
+                .long("is_unique")
+                .help("detect and display if live version is unique (either snapshot versions exist, and are all identical to live version, or no snapshot version exists).")
+                .conflicts_with_all(&["INTERACTIVE", "SELECT", "RESTORE", "RECURSIVE", "SNAP_FILE_MOUNT", "LAST_SNAP", "NOT_SO_PRETTY", "NO_LIVE", "NO_SNAP"])
+                .display_order(22)
+        )
+        .arg(
+            Arg::new("OMIT_IDENTICAL")
+                .long("omit-identical")
+                .help("omit display of snapshot versions which are identical to the live version.")
+                .conflicts_with_all(&["UNIQUE"])
+                .display_order(23)
+        )
+        .arg(
             Arg::new("UTC")
                 .long("utc")
                 .help("use UTC for date display and timestamps")
-                .display_order(22)
+                .display_order(24)
         )
         .arg(
             Arg::new("DEBUG")
                 .long("debug")
                 .help("print configuration and debugging info")
-                .display_order(23)
+                .display_order(25)
         )
         .arg(
             Arg::new("ZSH_HOT_KEYS")
                 .long("install-zsh-hot-keys")
                 .help("install zsh hot keys to the users home directory, and then exit")
                 .exclusive(true)
-                .display_order(24)
+                .display_order(26)
         )
         .get_matches()
 }
@@ -315,6 +329,8 @@ pub struct Config {
     pub opt_no_snap: bool,
     pub opt_debug: bool,
     pub opt_no_traverse: bool,
+    pub opt_omit_identical: bool,
+    pub opt_unique: bool,
     pub requested_utc_offset: UtcOffset,
     pub exec_mode: ExecMode,
     pub dataset_collection: DatasetCollection,
@@ -357,6 +373,8 @@ impl Config {
             matches.value_of("RESTORE"),
             Some("overwrite") | Some("yolo")
         );
+        let opt_omit_identical = matches.is_present("OMIT_IDENTICAL");
+        let opt_unique = matches.is_present("UNIQUE");
 
         let mut deleted_mode = match matches.value_of("DELETED_MODE") {
             Some("") | Some("all") => DeletedMode::Enabled,
@@ -458,6 +476,8 @@ impl Config {
             opt_no_snap,
             opt_debug,
             opt_no_traverse,
+            opt_omit_identical,
+            opt_unique,
             requested_utc_offset,
             dataset_collection,
             exec_mode,
