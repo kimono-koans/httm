@@ -29,8 +29,8 @@ use lscolors::{Colorable, LsColors, Style};
 use time::{format_description, OffsetDateTime};
 
 use crate::config::init::Config;
+use crate::data::filesystem_map::SnapsAndLiveSet;
 use crate::data::paths::{BasicDirEntryInfo, PathData};
-use crate::data::system_map::SnapsAndLiveSet;
 use crate::exec::display::display_exec;
 use crate::exec::interactive::SelectionCandidate;
 use crate::{FilesystemType, BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_SNAPSHOT_DIRECTORY};

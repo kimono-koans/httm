@@ -21,8 +21,8 @@ extern crate lazy_static;
 use std::sync::Arc;
 
 mod data {
+    pub mod filesystem_map;
     pub mod paths;
-    pub mod system_map;
 }
 mod exec {
     pub mod display;
@@ -50,7 +50,7 @@ mod parse {
 }
 
 use crate::config::init::{Config, ExecMode};
-use crate::data::system_map::{
+use crate::data::filesystem_map::{
     FilesystemType, MapOfDatasets, MapOfSnaps, MostProximateAndOptAlts, OptBtrfsCommonSnapDir,
     VecOfFilterDirs,
 };

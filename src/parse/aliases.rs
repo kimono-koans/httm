@@ -17,7 +17,7 @@
 
 use std::{ffi::OsString, path::Path, path::PathBuf};
 
-use crate::data::system_map::{MapOfAliases, RemotePathAndFsType};
+use crate::data::filesystem_map::{MapOfAliases, RemotePathAndFsType};
 use crate::library::utility::{get_fs_type_from_hidden_dir, HttmError, HttmResult};
 
 pub fn parse_aliases(

@@ -24,11 +24,11 @@ use std::{
 use rayon::prelude::*;
 
 use crate::config::init::Config;
-use crate::data::paths::PathData;
-use crate::data::system_map::{
+use crate::data::filesystem_map::{
     MapOfAliases, MapOfDatasets, MostProximateAndOptAlts, SnapDatasetType, SnapsAndLiveSet,
     VecOfSnaps,
 };
+use crate::data::paths::PathData;
 use crate::library::utility::{HttmError, HttmResult};
 
 #[derive(Debug, Clone)]

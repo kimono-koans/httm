@@ -27,8 +27,8 @@ use rayon::prelude::*;
 use time::UtcOffset;
 
 use crate::config::install_hot_keys::install_hot_keys;
+use crate::data::filesystem_map::{DatasetCollection, SnapsSelectedForSearch};
 use crate::data::paths::PathData;
-use crate::data::system_map::{DatasetCollection, SnapsSelectedForSearch};
 use crate::library::utility::{httm_is_dir, read_stdin, HttmError};
 use crate::parse::aliases::parse_aliases;
 use crate::parse::alts::precompute_alt_replicated;
