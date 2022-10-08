@@ -97,12 +97,12 @@ fn exec() -> HttmResult<()> {
         ExecMode::Interactive(interactive_mode) => {
             let browse_result = &interactive_exec(config.clone(), interactive_mode)?;
             let snaps_and_live_set = versions_lookup_exec(config.as_ref(), browse_result)?;
-            print_snaps_and_live_set(&config, &snaps_and_live_set)?
+            print_snaps_and_live_set(&config, snaps_and_live_set)?
         }
         // ExecMode::Display will be just printed, we already know the paths
         ExecMode::Display => {
             let snaps_and_live_set = versions_lookup_exec(config.as_ref(), &config.paths)?;
-            print_snaps_and_live_set(&config, &snaps_and_live_set)?
+            print_snaps_and_live_set(&config, snaps_and_live_set)?
         }
         // ExecMode::DisplayRecursive, ExecMode::SnapFileMount, and ExecMode::MountsForFiles will print their
         // output elsewhere

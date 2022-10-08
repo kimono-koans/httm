@@ -28,16 +28,22 @@ use std::{
 use lscolors::{Colorable, LsColors, Style};
 use time::{format_description, OffsetDateTime};
 
-use crate::config::init::Config;
 use crate::data::filesystem_map::SnapsAndLiveSet;
 use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::exec::display::display_exec;
 use crate::exec::interactive::SelectionCandidate;
+use crate::{config::init::Config, data::filesystem_map::MapLiveToSnaps};
 use crate::{FilesystemType, BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_SNAPSHOT_DIRECTORY};
 
 // wrap this complex looking error type, which is used everywhere,
 // into something more simple looking. This error, FYI, is really easy to use with rayon.
 pub type HttmResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
+
+pub fn map_to_snaps_live_set(map_live_to_snaps: &MapLiveToSnaps) -> SnapsAndLiveSet {
+    let vec_snaps = map_live_to_snaps.clone().into_values().flatten().collect();
+    let vec_live = map_live_to_snaps.clone().into_keys().collect();
+    [vec_snaps, vec_live]
+}
 
 const TMP_SUFFIX: &str = ".tmp";
 
@@ -49,9 +55,9 @@ pub fn make_tmp_path(path: &Path) -> PathBuf {
 
 pub fn print_snaps_and_live_set(
     config: &Config,
-    snaps_and_live_set: &SnapsAndLiveSet,
+    map_live_to_snaps: MapLiveToSnaps,
 ) -> HttmResult<()> {
-    let output_buf = display_exec(config, snaps_and_live_set)?;
+    let output_buf = display_exec(config, map_live_to_snaps)?;
     print_output_buf(output_buf)?;
     Ok(())
 }

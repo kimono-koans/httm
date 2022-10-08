@@ -26,7 +26,8 @@ use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::exec::display::display_exec;
 use crate::exec::recursive::recursive_exec;
 use crate::library::utility::{
-    copy_recursive, get_date, paint_string, print_output_buf, DateFormat, HttmError, HttmResult,
+    copy_recursive, get_date, map_to_snaps_live_set, paint_string, print_output_buf, DateFormat,
+    HttmError, HttmResult,
 };
 use crate::lookup::versions::versions_lookup_exec;
 
@@ -94,9 +95,9 @@ impl SelectionCandidate {
         };
 
         // finally run search on those paths
-        let snaps_and_live_set = versions_lookup_exec(&gen_config, &gen_config.paths)?;
+        let map_live_to_snaps = versions_lookup_exec(&gen_config, &gen_config.paths)?;
         // and display
-        let output_buf = display_exec(&gen_config, &snaps_and_live_set)?;
+        let output_buf = display_exec(&gen_config, map_live_to_snaps)?;
 
         Ok(output_buf)
     }
@@ -260,7 +261,8 @@ fn interactive_select(
     paths_selected_in_browse: &[PathData],
     interactive_mode: &InteractiveMode,
 ) -> HttmResult<()> {
-    let snaps_and_live_set = versions_lookup_exec(config.as_ref(), paths_selected_in_browse)?;
+    let map_live_to_snaps = versions_lookup_exec(config.as_ref(), paths_selected_in_browse)?;
+    let snaps_and_live_set = map_to_snaps_live_set(&map_live_to_snaps);
 
     // snap and live set has no snaps
     if snaps_and_live_set[0].is_empty() {
@@ -302,7 +304,7 @@ fn interactive_select(
         }
         _ => {
             // same stuff we do at fn exec, snooze...
-            let selection_buffer = display_exec(config.as_ref(), &snaps_and_live_set)?;
+            let selection_buffer = display_exec(config.as_ref(), map_live_to_snaps)?;
 
             // loop until user selects a valid snapshot version
             loop {
@@ -409,15 +411,19 @@ fn interactive_restore(
         let opt_original_live_pathdata = paths_selected_in_browse.iter().find_map(|pathdata| {
             match versions_lookup_exec(config.as_ref(), &[pathdata.clone()]).ok() {
                 // safe to index into snaps, known len of 2 for set
-                Some(pathdata_set) => pathdata_set[0].iter().find_map(|pathdata| {
-                    if pathdata == &snap_pathdata {
-                        // safe to index into request, known len of 2 for set, known len of 1 for request
-                        let original_live_pathdata = pathdata_set[1][0].to_owned();
-                        Some(original_live_pathdata)
-                    } else {
-                        None
-                    }
-                }),
+                Some(map_live_to_snaps) => {
+                    let snaps_and_live_set = map_to_snaps_live_set(&map_live_to_snaps);
+
+                    snaps_and_live_set[0].iter().find_map(|pathdata| {
+                        if pathdata == &snap_pathdata {
+                            // safe to index into request, known len of 2 for set, known len of 1 for request
+                            let original_live_pathdata = snaps_and_live_set[1][0].to_owned();
+                            Some(original_live_pathdata)
+                        } else {
+                            None
+                        }
+                    })
+                }
                 None => None,
             }
         });

@@ -21,8 +21,9 @@ use number_prefix::NumberPrefix;
 use terminal_size::{terminal_size, Height, Width};
 
 use crate::config::init::Config;
-use crate::data::filesystem_map::SnapsAndLiveSet;
+use crate::data::filesystem_map::{MapLiveToSnaps, SnapsAndLiveSet};
 use crate::data::paths::{PathData, PHANTOM_DATE, PHANTOM_SIZE};
+use crate::library::utility::map_to_snaps_live_set;
 use crate::library::utility::{get_date, paint_string, print_output_buf, DateFormat, HttmResult};
 use crate::lookup::file_mounts::get_mounts_for_files;
 
@@ -42,11 +43,13 @@ struct PaddingCollection {
     phantom_size_pad_str: String,
 }
 
-pub fn display_exec(config: &Config, snaps_and_live_set: &SnapsAndLiveSet) -> HttmResult<String> {
+pub fn display_exec(config: &Config, map_live_to_snaps: MapLiveToSnaps) -> HttmResult<String> {
     let output_buffer = if config.opt_raw || config.opt_zeros {
-        display_raw(config, snaps_and_live_set)?
+        let snaps_and_live_set = map_to_snaps_live_set(&map_live_to_snaps);
+        display_raw(config, &snaps_and_live_set)?
     } else {
-        display_formatted(config, snaps_and_live_set)?
+        let snaps_and_live_set = map_to_snaps_live_set(&map_live_to_snaps);
+        display_formatted(config, &snaps_and_live_set)?
     };
 
     Ok(output_buffer)
