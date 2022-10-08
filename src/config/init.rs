@@ -281,8 +281,8 @@ fn parse_args() -> ArgMatches {
         )
         .arg(
             Arg::new("ONLY_VERSION")
-                .long("only-version")
-                .help("detect and display if live version is the only version (either snapshot versions exist, and are all identical to live version, or no snapshot version exists).")
+                .long("is-only-version")
+                .help("detect and display if live version is the only version available (either snapshot versions exist, and are all identical to live version, or no snapshot version exists).")
                 .conflicts_with_all(&["INTERACTIVE", "SELECT", "RESTORE", "RECURSIVE", "SNAP_FILE_MOUNT", "LAST_SNAP", "NOT_SO_PRETTY", "NO_LIVE", "NO_SNAP", "OMIT_IDENTICAL"])
                 .display_order(22)
         )

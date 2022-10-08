@@ -68,7 +68,7 @@ fn display_raw(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> HttmResul
                                 && live_version.metadata == snap_version.metadata
                         })
                     {
-                        "ONLY VERSION"
+                        "SINGLE VERSION AVAILABLE"
                     } else {
                         "MULTIPLE VERSIONS AVAILABLE"
                     }
