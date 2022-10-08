@@ -43,7 +43,7 @@ struct PaddingCollection {
     phantom_size_pad_str: String,
 }
 
-pub fn display_exec(config: &Config, map_live_to_snaps: MapLiveToSnaps) -> HttmResult<String> {
+pub fn display_exec(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> HttmResult<String> {
     let output_buffer = if config.opt_unique {
         display_unique(&map_live_to_snaps)?
     } else if config.opt_raw || config.opt_zeros {

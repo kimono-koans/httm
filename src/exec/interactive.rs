@@ -97,7 +97,7 @@ impl SelectionCandidate {
         // finally run search on those paths
         let map_live_to_snaps = versions_lookup_exec(&gen_config, &gen_config.paths)?;
         // and display
-        let output_buf = display_exec(&gen_config, map_live_to_snaps)?;
+        let output_buf = display_exec(&gen_config, &map_live_to_snaps)?;
 
         Ok(output_buf)
     }
@@ -262,10 +262,9 @@ fn interactive_select(
     interactive_mode: &InteractiveMode,
 ) -> HttmResult<()> {
     let map_live_to_snaps = versions_lookup_exec(config.as_ref(), paths_selected_in_browse)?;
-    let display_set = map_to_display_set(&config, &map_live_to_snaps);
 
     // snap and live set has no snaps
-    if display_set[0].is_empty() {
+    if map_live_to_snaps.len() != 0 {
         let paths: Vec<String> = paths_selected_in_browse
             .iter()
             .map(|path| path.path_buf.to_string_lossy().to_string())
@@ -283,8 +282,9 @@ fn interactive_select(
             let live_version = &paths_selected_in_browse
                 .get(0)
                 .expect("ExecMode::LiveSnap should always have exactly one path.");
-            let path_string = display_set[0]
-                .iter()
+            let path_string = map_live_to_snaps
+                .values()
+                .flatten()
                 .filter(|snap_version| {
                     if request_relative == &RequestRelative::Relative {
                         snap_version.md_infallible().modify_time
@@ -304,7 +304,7 @@ fn interactive_select(
         }
         _ => {
             // same stuff we do at fn exec, snooze...
-            let selection_buffer = display_exec(config.as_ref(), map_live_to_snaps)?;
+            let selection_buffer = display_exec(config.as_ref(), &map_live_to_snaps)?;
 
             // loop until user selects a valid snapshot version
             loop {
@@ -315,7 +315,7 @@ fn interactive_select(
                 // ... and the file is the 2nd item or the indexed "1" object
                 if let Some(path_string) = broken_string.get(1) {
                     // and cannot select a 'live' version or other invalid value.
-                    if display_set[1].iter().all(|live_version| {
+                    if map_live_to_snaps.iter().all(|(live_version, _snaps)| {
                         Path::new(path_string) != live_version.path_buf.as_path()
                     }) {
                         // return string from the loop

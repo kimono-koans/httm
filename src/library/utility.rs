@@ -47,7 +47,10 @@ pub fn map_to_display_set(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -
             if config.opt_omit_identical {
                 snaps
                     .into_iter()
-                    .filter(|snap_version| snap_version.metadata.is_some() && snap_version.metadata != live_version.metadata)
+                    .filter(|snap_version| {
+                        snap_version.metadata.is_some()
+                            && snap_version.metadata != live_version.metadata
+                    })
                     .collect()
             } else {
                 snaps
@@ -67,7 +70,7 @@ pub fn make_tmp_path(path: &Path) -> PathBuf {
 }
 
 pub fn print_display_set(config: &Config, map_live_to_snaps: MapLiveToSnaps) -> HttmResult<()> {
-    let output_buf = display_exec(config, map_live_to_snaps)?;
+    let output_buf = display_exec(config, &map_live_to_snaps)?;
     print_output_buf(output_buf)?;
     Ok(())
 }
