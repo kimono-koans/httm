@@ -47,7 +47,7 @@ pub fn map_to_display_set(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -
             if config.opt_omit_identical {
                 snaps
                     .into_iter()
-                    .filter(|snap_version| snap_version != &live_version)
+                    .filter(|snap_version| snap_version.metadata.is_some() && snap_version.metadata != live_version.metadata)
                     .collect()
             } else {
                 snaps
