@@ -280,9 +280,9 @@ fn parse_args() -> ArgMatches {
                 .display_order(21)
         )
         .arg(
-            Arg::new("IS_UNIQUE")
-                .long("is_unique")
-                .help("detect and display if live version is unique (either snapshot versions exist, and are all identical to live version, or no snapshot version exists).")
+            Arg::new("ONLY_VERSION")
+                .long("only-version")
+                .help("detect and display if live version is the only version (either snapshot versions exist, and are all identical to live version, or no snapshot version exists).")
                 .conflicts_with_all(&["INTERACTIVE", "SELECT", "RESTORE", "RECURSIVE", "SNAP_FILE_MOUNT", "LAST_SNAP", "NOT_SO_PRETTY", "NO_LIVE", "NO_SNAP", "OMIT_IDENTICAL"])
                 .display_order(22)
         )
@@ -330,7 +330,7 @@ pub struct Config {
     pub opt_debug: bool,
     pub opt_no_traverse: bool,
     pub opt_omit_identical: bool,
-    pub opt_unique: bool,
+    pub opt_only_version: bool,
     pub requested_utc_offset: UtcOffset,
     pub exec_mode: ExecMode,
     pub dataset_collection: DatasetCollection,
@@ -374,7 +374,7 @@ impl Config {
             Some("overwrite") | Some("yolo")
         );
         let opt_omit_identical = matches.is_present("OMIT_IDENTICAL_SNAPS");
-        let opt_unique = matches.is_present("IS_UNIQUE");
+        let opt_only_version = matches.is_present("ONLY_VERSION");
 
         let mut deleted_mode = match matches.value_of("DELETED_MODE") {
             Some("") | Some("all") => DeletedMode::Enabled,
@@ -477,7 +477,7 @@ impl Config {
             opt_debug,
             opt_no_traverse,
             opt_omit_identical,
-            opt_unique,
+            opt_only_version,
             requested_utc_offset,
             dataset_collection,
             exec_mode,

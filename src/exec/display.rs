@@ -43,7 +43,7 @@ struct PaddingCollection {
 }
 
 pub fn display_exec(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> HttmResult<String> {
-    let output_buffer = if config.opt_unique || config.opt_raw || config.opt_zeros {
+    let output_buffer = if config.opt_only_version || config.opt_raw || config.opt_zeros {
         display_raw(config, map_live_to_snaps)?
     } else {
         let display_set = map_to_display_set(config, map_live_to_snaps);
@@ -56,7 +56,7 @@ pub fn display_exec(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> Httm
 fn display_raw(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> HttmResult<String> {
     let delimiter = if config.opt_zeros { '\0' } else { '\n' };
 
-    let write_out_buffer = if config.opt_unique {
+    let write_out_buffer = if config.opt_only_version {
         map_live_to_snaps
             .iter()
             .map(|(live_version, snaps)| {
