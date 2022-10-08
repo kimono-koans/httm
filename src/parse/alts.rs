@@ -19,21 +19,9 @@ use std::{path::Path, path::PathBuf};
 
 use rayon::prelude::*;
 
-use crate::utility::HttmError;
-use crate::{HttmResult, MapOfAlts, MapOfDatasets};
-
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
-pub struct MostProximateAndOptAlts {
-    pub proximate_dataset_mount: PathBuf,
-    pub opt_datasets_of_interest: Option<Vec<PathBuf>>,
-}
-
-impl MostProximateAndOptAlts {
-    pub fn get_datasets_of_interest(self) -> Vec<PathBuf> {
-        self.opt_datasets_of_interest
-            .unwrap_or_else(|| vec![self.proximate_dataset_mount])
-    }
-}
+use crate::data::configure::{MapOfAlts, MostProximateAndOptAlts};
+use crate::library::utility::HttmError;
+use crate::{HttmResult, MapOfDatasets};
 
 // instead of looking up, precompute possible alt replicated mounts before exec
 pub fn precompute_alt_replicated(map_of_datasets: &MapOfDatasets) -> MapOfAlts {

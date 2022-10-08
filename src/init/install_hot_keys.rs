@@ -21,8 +21,7 @@ use std::{
     path::PathBuf,
 };
 
-use crate::utility::{make_tmp_path, HttmError};
-use crate::HttmResult;
+use crate::library::utility::{make_tmp_path, HttmError, HttmResult};
 
 const HTTM_SCRIPT_PATH: &str = ".httm-key-bindings.zsh";
 const ZSHRC_PATH: &str = ".zshrc";
@@ -79,7 +78,7 @@ pub fn install_hot_keys() -> HttmResult<()> {
     }
 
     // create key binding file -- done at compile time
-    let zsh_hot_key_script = include_str!("../scripts/httm-key-bindings.zsh");
+    let zsh_hot_key_script = include_str!("../../scripts/httm-key-bindings.zsh");
 
     // create paths to use
     let zsh_script_path: PathBuf = [&home_dir, &PathBuf::from(HTTM_SCRIPT_PATH)]

@@ -20,12 +20,11 @@ use std::{borrow::Cow, collections::BTreeMap};
 use number_prefix::NumberPrefix;
 use terminal_size::{terminal_size, Height, Width};
 
-use crate::config::Config;
-use crate::lookup_file_mounts::get_mounts_for_files;
-use crate::utility::{
-    get_date, paint_string, print_output_buf, DateFormat, PathData, PHANTOM_DATE, PHANTOM_SIZE,
-};
-use crate::{HttmResult, SnapsAndLiveSet};
+use crate::data::configure::SnapsAndLiveSet;
+use crate::data::path_info::{PathData, PHANTOM_DATE, PHANTOM_SIZE};
+use crate::init::args::Config;
+use crate::library::utility::{get_date, paint_string, print_output_buf, DateFormat, HttmResult};
+use crate::lookup::file_mounts::get_mounts_for_files;
 
 // 2 space wide padding - used between date and size, and size and path
 const PRETTY_FIXED_WIDTH_PADDING: &str = "  ";

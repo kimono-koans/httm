@@ -26,65 +26,17 @@ use indicatif::ProgressBar;
 use rayon::prelude::*;
 use time::UtcOffset;
 
-use crate::install_hot_keys::install_hot_keys;
-use crate::lookup_versions::SnapsSelectedForSearch;
-use crate::parse_aliases::parse_aliases;
-use crate::parse_alts::precompute_alt_replicated;
-use crate::parse_mounts::{get_common_snap_dir, parse_mounts_exec};
-use crate::utility::{httm_is_dir, read_stdin, HttmError, PathData};
-use crate::{
-    HttmResult, MapOfDatasets, MapOfSnaps, OptBtrfsCommonSnapDir, OptMapOfAliases, OptMapOfAlts,
-    VecOfFilterDirs, ROOT_DIRECTORY,
+use crate::data::configure::{
+    DatasetCollection, DeletedMode, ExecMode, InteractiveMode, RequestRelative,
+    SnapsSelectedForSearch,
 };
-
-#[derive(Debug, Clone)]
-pub enum ExecMode {
-    Interactive(InteractiveMode),
-    DisplayRecursive(indicatif::ProgressBar),
-    Display,
-    SnapFileMount,
-    MountsForFiles,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum RequestRelative {
-    Absolute,
-    Relative,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum InteractiveMode {
-    Browse,
-    Select,
-    LastSnap(RequestRelative),
-    Restore,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum DeletedMode {
-    Disabled,
-    DepthOfOne,
-    Enabled,
-    Only,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct DatasetCollection {
-    // key: mount, val: (dataset/subvol, fs_type, mount_type)
-    pub map_of_datasets: MapOfDatasets,
-    // key: mount, val: vec snap locations on disk (e.g. /.zfs/snapshot/snap_8a86e4fc_prepApt/home)
-    pub map_of_snaps: MapOfSnaps,
-    // key: mount, val: alt dataset
-    pub opt_map_of_alts: OptMapOfAlts,
-    // key: local dir, val: (remote dir, fstype)
-    pub opt_map_of_aliases: OptMapOfAliases,
-    // vec dirs to be filtered
-    pub vec_of_filter_dirs: VecOfFilterDirs,
-    // opt single dir to to be filtered re: btrfs common snap dir
-    pub opt_common_snap_dir: OptBtrfsCommonSnapDir,
-    // vec of two enum variants - most proximate and alt replicated, or just most proximate
-    pub snaps_selected_for_search: SnapsSelectedForSearch,
-}
+use crate::data::path_info::PathData;
+use crate::init::install_hot_keys::install_hot_keys;
+use crate::library::utility::{httm_is_dir, read_stdin, HttmError};
+use crate::parse::aliases::parse_aliases;
+use crate::parse::alts::precompute_alt_replicated;
+use crate::parse::mounts::{get_common_snap_dir, parse_mounts_exec};
+use crate::{HttmResult, ROOT_DIRECTORY};
 
 fn parse_args() -> ArgMatches {
     clap::Command::new(crate_name!())

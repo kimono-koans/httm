@@ -18,55 +18,32 @@
 #[macro_use]
 extern crate lazy_static;
 
-use std::{collections::BTreeMap, path::PathBuf, sync::Arc};
+use std::sync::Arc;
 
-mod config;
-mod display;
-mod install_hot_keys;
-mod interactive;
-mod lookup_deleted;
-mod lookup_file_mounts;
-mod lookup_versions;
-mod parse_aliases;
-mod parse_alts;
-mod parse_mounts;
-mod parse_snaps;
-mod recursive;
-mod snapshot_ops;
-mod utility;
+mod data;
+mod exec;
+mod init;
+mod library;
+mod lookup;
+mod parse;
 
-use crate::config::{Config, ExecMode};
-use crate::display::display_mounts_for_files;
-use crate::interactive::interactive_exec;
-use crate::lookup_versions::versions_lookup_exec;
-use crate::parse_aliases::RemotePathAndFsType;
-use crate::parse_alts::MostProximateAndOptAlts;
-use crate::parse_mounts::{DatasetMetadata, FilesystemType, MountType};
-use crate::recursive::display_recursive_wrapper;
-use crate::snapshot_ops::take_snapshot;
-use crate::utility::{print_snaps_and_live_set, PathData};
+use crate::data::configure::{
+    ExecMode, FilesystemType, MapOfDatasets, MapOfSnaps, MostProximateAndOptAlts,
+    OptBtrfsCommonSnapDir, VecOfFilterDirs,
+};
+use crate::exec::display::display_mounts_for_files;
+use crate::exec::interactive::interactive_exec;
+use crate::exec::recursive::display_recursive_wrapper;
+use crate::exec::snapshot_ops::take_snapshot;
+use crate::init::args::Config;
+use crate::library::utility::{print_snaps_and_live_set, HttmResult};
+use crate::lookup::versions::versions_lookup_exec;
 
 pub const ZFS_HIDDEN_DIRECTORY: &str = ".zfs";
 pub const ZFS_SNAPSHOT_DIRECTORY: &str = ".zfs/snapshot";
 pub const BTRFS_SNAPPER_HIDDEN_DIRECTORY: &str = ".snapshots";
 pub const BTRFS_SNAPPER_SUFFIX: &str = "snapshot";
 pub const ROOT_DIRECTORY: &str = "/";
-
-// wrap this complex looking error type, which is used everywhere,
-// into something more simple looking. This error, FYI, is really easy to use with rayon.
-pub type HttmResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
-
-pub type MapOfDatasets = BTreeMap<PathBuf, DatasetMetadata>;
-pub type MapOfSnaps = BTreeMap<PathBuf, VecOfSnaps>;
-pub type MapOfAlts = BTreeMap<PathBuf, MostProximateAndOptAlts>;
-pub type MapOfAliases = BTreeMap<PathBuf, RemotePathAndFsType>;
-pub type BtrfsCommonSnapDir = PathBuf;
-pub type VecOfFilterDirs = Vec<PathBuf>;
-pub type VecOfSnaps = Vec<PathBuf>;
-pub type SnapsAndLiveSet = [Vec<PathData>; 2];
-pub type OptMapOfAlts = Option<MapOfAlts>;
-pub type OptMapOfAliases = Option<MapOfAliases>;
-pub type OptBtrfsCommonSnapDir = Option<BtrfsCommonSnapDir>;
 
 fn main() {
     match exec() {

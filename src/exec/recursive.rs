@@ -22,14 +22,14 @@ use once_cell::unsync::OnceCell;
 use rayon::{prelude::*, Scope, ThreadPool};
 use skim::prelude::*;
 
-use crate::config::{Config, DeletedMode, ExecMode};
-use crate::display::display_exec;
-use crate::interactive::SelectionCandidate;
-use crate::lookup_deleted::deleted_lookup_exec;
-use crate::lookup_versions::versions_lookup_exec;
-use crate::utility::{
-    httm_is_dir, print_output_buf, BasicDirEntryInfo, HttmError, HttmIsDir, PathData,
-};
+use crate::data::configure::{DeletedMode, ExecMode};
+use crate::data::path_info::{BasicDirEntryInfo, PathData};
+use crate::exec::display::display_exec;
+use crate::exec::interactive::SelectionCandidate;
+use crate::init::args::Config;
+use crate::library::utility::{httm_is_dir, print_output_buf, HttmError, HttmIsDir};
+use crate::lookup::deleted::deleted_lookup_exec;
+use crate::lookup::versions::versions_lookup_exec;
 use crate::{HttmResult, BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_HIDDEN_DIRECTORY};
 
 pub fn display_recursive_wrapper(config: Arc<Config>) -> HttmResult<()> {
@@ -246,8 +246,8 @@ fn is_filter_dir(config: &Config, dir_entry: &DirEntry) -> bool {
         config
             .dataset_collection
             .vec_of_filter_dirs
-            .par_iter()
-            .any(|filter_dir| path == *filter_dir)
+            .iter()
+            .any(|filter_dir| path.as_path() == filter_dir)
     }
 }
 

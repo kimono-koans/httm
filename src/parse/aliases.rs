@@ -17,14 +17,8 @@
 
 use std::{ffi::OsString, path::Path, path::PathBuf};
 
-use crate::utility::{get_fs_type_from_hidden_dir, HttmError};
-use crate::{FilesystemType, HttmResult, MapOfAliases};
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct RemotePathAndFsType {
-    pub remote_dir: PathBuf,
-    pub fs_type: FilesystemType,
-}
+use crate::data::configure::{MapOfAliases, RemotePathAndFsType};
+use crate::library::utility::{get_fs_type_from_hidden_dir, HttmError, HttmResult};
 
 pub fn parse_aliases(
     raw_local_dir: &Option<OsString>,

@@ -20,10 +20,11 @@ use std::{fs::read_dir, path::Path, path::PathBuf, process::Command as ExecProce
 use rayon::prelude::*;
 use which::which;
 
-use crate::utility::HttmError;
+use crate::data::configure::{FilesystemType, MountType, VecOfSnaps};
+use crate::library::utility::{HttmError, HttmResult};
 use crate::{
-    FilesystemType, HttmResult, MapOfDatasets, MapOfSnaps, MountType, VecOfSnaps,
-    BTRFS_SNAPPER_HIDDEN_DIRECTORY, BTRFS_SNAPPER_SUFFIX, ZFS_SNAPSHOT_DIRECTORY,
+    MapOfDatasets, MapOfSnaps, BTRFS_SNAPPER_HIDDEN_DIRECTORY, BTRFS_SNAPPER_SUFFIX,
+    ZFS_SNAPSHOT_DIRECTORY,
 };
 
 // fans out precompute of snap mounts to the appropriate function based on fstype

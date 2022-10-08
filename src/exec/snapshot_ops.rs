@@ -21,12 +21,10 @@ use itertools::Itertools;
 use std::process::Command as ExecProcess;
 use which::which;
 
-use crate::config::Config;
-use crate::lookup_file_mounts::{get_mounts_for_files, MountsForFiles};
-use crate::utility::{get_date, print_output_buf, DateFormat, HttmError};
-use crate::HttmResult;
-
-use crate::FilesystemType;
+use crate::data::configure::FilesystemType;
+use crate::init::args::Config;
+use crate::library::utility::{get_date, print_output_buf, DateFormat, HttmError, HttmResult};
+use crate::lookup::file_mounts::{get_mounts_for_files, MountsForFiles};
 
 pub fn take_snapshot(config: Arc<Config>) -> HttmResult<()> {
     fn exec_zfs_snapshot(
