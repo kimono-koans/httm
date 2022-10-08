@@ -21,7 +21,7 @@ use itertools::Itertools;
 use rayon::prelude::*;
 
 use crate::data::path_info::PathData;
-use crate::init::args::Config;
+use crate::init::config::Config;
 use crate::lookup::versions::select_search_datasets;
 use crate::{HttmResult, MostProximateAndOptAlts};
 

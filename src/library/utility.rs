@@ -32,7 +32,7 @@ use crate::data::configure::SnapsAndLiveSet;
 use crate::data::path_info::{BasicDirEntryInfo, PathData};
 use crate::exec::display::display_exec;
 use crate::exec::interactive::SelectionCandidate;
-use crate::init::args::Config;
+use crate::init::config::Config;
 use crate::{FilesystemType, BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_SNAPSHOT_DIRECTORY};
 
 // wrap this complex looking error type, which is used everywhere,

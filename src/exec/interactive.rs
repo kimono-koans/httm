@@ -24,7 +24,7 @@ use crate::data::configure::{DeletedMode, ExecMode, InteractiveMode, RequestRela
 use crate::data::path_info::{BasicDirEntryInfo, PathData};
 use crate::exec::display::display_exec;
 use crate::exec::recursive::recursive_exec;
-use crate::init::args::Config;
+use crate::init::config::Config;
 use crate::library::utility::{
     copy_recursive, get_date, paint_string, print_output_buf, DateFormat, HttmError, HttmResult,
 };

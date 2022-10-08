@@ -26,7 +26,7 @@ use std::{
 use itertools::Itertools;
 
 use crate::data::path_info::{BasicDirEntryInfo, PathData};
-use crate::init::args::Config;
+use crate::init::config::Config;
 use crate::library::utility::HttmResult;
 use crate::lookup::versions::{
     get_version_search_bundles, select_search_datasets, RelativePathAndSnapMounts,

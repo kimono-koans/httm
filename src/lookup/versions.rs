@@ -28,7 +28,7 @@ use crate::data::configure::{
     VecOfSnaps,
 };
 use crate::data::path_info::PathData;
-use crate::init::args::Config;
+use crate::init::config::Config;
 use crate::library::utility::{HttmError, HttmResult};
 
 #[derive(Debug, Clone)]

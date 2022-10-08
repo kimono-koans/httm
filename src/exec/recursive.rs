@@ -26,7 +26,7 @@ use crate::data::configure::{DeletedMode, ExecMode};
 use crate::data::path_info::{BasicDirEntryInfo, PathData};
 use crate::exec::display::display_exec;
 use crate::exec::interactive::SelectionCandidate;
-use crate::init::args::Config;
+use crate::init::config::Config;
 use crate::library::utility::{httm_is_dir, print_output_buf, HttmError, HttmIsDir};
 use crate::lookup::deleted::deleted_lookup_exec;
 use crate::lookup::versions::versions_lookup_exec;
