@@ -21,9 +21,9 @@ use number_prefix::NumberPrefix;
 use terminal_size::{terminal_size, Height, Width};
 
 use crate::config::init::Config;
-use crate::data::filesystem_map::{MapLiveToSnaps, SnapsAndLiveSet};
+use crate::data::filesystem_map::{DisplaySet, MapLiveToSnaps};
 use crate::data::paths::{PathData, PHANTOM_DATE, PHANTOM_SIZE};
-use crate::library::utility::map_to_snaps_live_set;
+use crate::library::utility::map_to_display_set;
 use crate::library::utility::{get_date, paint_string, print_output_buf, DateFormat, HttmResult};
 use crate::lookup::file_mounts::get_mounts_for_files;
 
@@ -47,11 +47,11 @@ pub fn display_exec(config: &Config, map_live_to_snaps: MapLiveToSnaps) -> HttmR
     let output_buffer = if config.opt_unique {
         display_unique(&map_live_to_snaps)?
     } else if config.opt_raw || config.opt_zeros {
-        let snaps_and_live_set = map_to_snaps_live_set(config, &map_live_to_snaps);
-        display_raw(config, &snaps_and_live_set)?
+        let display_set = map_to_display_set(config, &map_live_to_snaps);
+        display_raw(config, &display_set)?
     } else {
-        let snaps_and_live_set = map_to_snaps_live_set(config, &map_live_to_snaps);
-        display_formatted(config, &snaps_and_live_set)?
+        let display_set = map_to_display_set(config, &map_live_to_snaps);
+        display_formatted(config, &display_set)?
     };
 
     Ok(output_buffer)
@@ -67,7 +67,6 @@ fn display_unique(map_live_to_snaps: &MapLiveToSnaps) -> HttmResult<String> {
                 if (snaps.is_empty() && live_version.metadata.is_some())
                     || snaps.iter().all(|snap_version| {
                         live_version.metadata.is_some()
-                            && snap_version.metadata.is_some()
                             && live_version.metadata == snap_version.metadata
                     })
                 {
@@ -83,11 +82,11 @@ fn display_unique(map_live_to_snaps: &MapLiveToSnaps) -> HttmResult<String> {
     Ok(write_out_buffer)
 }
 
-fn display_raw(config: &Config, snaps_and_live_set: &SnapsAndLiveSet) -> HttmResult<String> {
+fn display_raw(config: &Config, display_set: &DisplaySet) -> HttmResult<String> {
     let delimiter = if config.opt_zeros { '\0' } else { '\n' };
 
     // so easy!
-    let write_out_buffer = snaps_and_live_set
+    let write_out_buffer = display_set
         .iter()
         .flatten()
         .map(|pathdata| {
@@ -99,13 +98,13 @@ fn display_raw(config: &Config, snaps_and_live_set: &SnapsAndLiveSet) -> HttmRes
     Ok(write_out_buffer)
 }
 
-fn display_formatted(config: &Config, snaps_and_live_set: &SnapsAndLiveSet) -> HttmResult<String> {
-    let padding_collection = calculate_pretty_padding(config, snaps_and_live_set);
+fn display_formatted(config: &Config, display_set: &DisplaySet) -> HttmResult<String> {
+    let padding_collection = calculate_pretty_padding(config, display_set);
 
-    let write_out_buffer = snaps_and_live_set.iter().enumerate().fold(
+    let write_out_buffer = display_set.iter().enumerate().fold(
         String::new(),
         |mut write_out_buffer, (idx, pathdata_set)| {
-            // a SnapsAndLiveSet is an array of 2 - idx 0 are the snaps, 1 is the live versions
+            // a DisplaySet is an array of 2 - idx 0 are the snaps, 1 is the live versions
             let is_live_set = idx == 1;
 
             // get the display buffer for each set snaps and live
@@ -204,12 +203,9 @@ fn display_pathdata(
     )
 }
 
-fn calculate_pretty_padding(
-    config: &Config,
-    snaps_and_live_set: &SnapsAndLiveSet,
-) -> PaddingCollection {
+fn calculate_pretty_padding(config: &Config, display_set: &DisplaySet) -> PaddingCollection {
     // calculate padding and borders for display later
-    let (size_padding_len, fancy_border_len) = snaps_and_live_set.iter().flatten().fold(
+    let (size_padding_len, fancy_border_len) = display_set.iter().flatten().fold(
         (0usize, 0usize),
         |(mut size_padding_len, mut fancy_border_len), pathdata| {
             let path_metadata = pathdata.md_infallible();
