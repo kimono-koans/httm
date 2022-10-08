@@ -264,7 +264,7 @@ fn interactive_select(
     let map_live_to_snaps = versions_lookup_exec(config.as_ref(), paths_selected_in_browse)?;
 
     // snap and live set has no snaps
-    if map_live_to_snaps.len() != 0 {
+    if !map_live_to_snaps.is_empty() {
         let paths: Vec<String> = paths_selected_in_browse
             .iter()
             .map(|path| path.path_buf.to_string_lossy().to_string())

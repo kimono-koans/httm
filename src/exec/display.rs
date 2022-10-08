@@ -45,12 +45,12 @@ struct PaddingCollection {
 
 pub fn display_exec(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> HttmResult<String> {
     let output_buffer = if config.opt_unique {
-        display_unique(&map_live_to_snaps)?
+        display_unique(map_live_to_snaps)?
     } else if config.opt_raw || config.opt_zeros {
-        let display_set = map_to_display_set(config, &map_live_to_snaps);
+        let display_set = map_to_display_set(config, map_live_to_snaps);
         display_raw(config, &display_set)?
     } else {
-        let display_set = map_to_display_set(config, &map_live_to_snaps);
+        let display_set = map_to_display_set(config, map_live_to_snaps);
         display_formatted(config, &display_set)?
     };
 
