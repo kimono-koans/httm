@@ -20,10 +20,9 @@ use std::{borrow::Cow, collections::BTreeMap};
 use number_prefix::NumberPrefix;
 use terminal_size::{terminal_size, Height, Width};
 
-use crate::config::init::Config;
+use crate::config::init::{Config, ExecMode};
 use crate::data::filesystem_map::{DisplaySet, MapLiveToSnaps};
 use crate::data::paths::{PathData, PHANTOM_DATE, PHANTOM_SIZE};
-use crate::library::utility::map_to_display_set;
 use crate::library::utility::{get_date, paint_string, print_output_buf, DateFormat, HttmResult};
 use crate::lookup::file_mounts::get_mounts_for_files;
 
@@ -44,11 +43,8 @@ struct PaddingCollection {
 }
 
 pub fn display_exec(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> HttmResult<String> {
-    let output_buffer = if config.opt_unique {
-        display_unique(map_live_to_snaps)?
-    } else if config.opt_raw || config.opt_zeros {
-        let display_set = map_to_display_set(config, map_live_to_snaps);
-        display_raw(config, &display_set)?
+    let output_buffer = if config.opt_unique || config.opt_raw || config.opt_zeros {
+        display_raw(config, map_live_to_snaps)?
     } else {
         let display_set = map_to_display_set(config, map_live_to_snaps);
         display_formatted(config, &display_set)?
@@ -57,43 +53,41 @@ pub fn display_exec(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> Httm
     Ok(output_buffer)
 }
 
-fn display_unique(map_live_to_snaps: &MapLiveToSnaps) -> HttmResult<String> {
-    // so easy!
-    let write_out_buffer = map_live_to_snaps
-        .iter()
-        .map(|(live_version, snaps)| {
-            let display_path = live_version.path_buf.display();
-            let display_is_unique = {
-                if (snaps.is_empty() && live_version.metadata.is_some())
-                    || snaps.iter().all(|snap_version| {
-                        live_version.metadata.is_some()
-                            && live_version.metadata == snap_version.metadata
-                    })
-                {
-                    "UNIQUE"
-                } else {
-                    "MULTIPLE VERSIONS AVAILABLE"
-                }
-            };
-            format!("{} : {}\n", display_path, display_is_unique)
-        })
-        .collect();
-
-    Ok(write_out_buffer)
-}
-
-fn display_raw(config: &Config, display_set: &DisplaySet) -> HttmResult<String> {
+fn display_raw(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> HttmResult<String> {
     let delimiter = if config.opt_zeros { '\0' } else { '\n' };
 
-    // so easy!
-    let write_out_buffer = display_set
-        .iter()
-        .flatten()
-        .map(|pathdata| {
-            let display_path = pathdata.path_buf.display();
-            format!("{}{}", display_path, delimiter)
-        })
-        .collect();
+    let write_out_buffer = if config.opt_unique {
+        map_live_to_snaps
+            .iter()
+            .map(|(live_version, snaps)| {
+                let display_path = live_version.path_buf.display();
+                let display_is_unique = {
+                    if (snaps.is_empty() && live_version.metadata.is_some())
+                        || snaps.iter().all(|snap_version| {
+                            live_version.metadata.is_some()
+                                && live_version.metadata == snap_version.metadata
+                        })
+                    {
+                        "UNIQUE"
+                    } else {
+                        "MULTIPLE VERSIONS AVAILABLE"
+                    }
+                };
+                format!("\"{}\" : {}{}", display_path, display_is_unique, delimiter)
+            })
+            .collect()
+    } else {
+        let display_set = map_to_display_set(config, map_live_to_snaps);
+
+        display_set
+            .iter()
+            .flatten()
+            .map(|pathdata| {
+                let display_path = pathdata.path_buf.display();
+                format!("{}{}", display_path, delimiter)
+            })
+            .collect()
+    };
 
     Ok(write_out_buffer)
 }
@@ -279,13 +273,7 @@ pub fn display_mounts_for_files(config: &Config) -> HttmResult<()> {
     let mounts_for_files = get_mounts_for_files(config)?;
 
     let output_buf = if config.opt_raw || config.opt_zeros {
-        display_raw(
-            config,
-            &[
-                mounts_for_files.into_values().flatten().collect(),
-                Vec::new(),
-            ],
-        )?
+        display_raw(config, &mounts_for_files)?
     } else {
         display_ordered_map(config, &mounts_for_files)?
     };
@@ -352,6 +340,38 @@ fn display_ordered_map(
     };
 
     Ok(write_out_buffer)
+}
+
+fn map_to_display_set(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> DisplaySet {
+    let vec_snaps = if config.opt_no_snap {
+        Vec::new()
+    } else {
+        map_live_to_snaps
+            .clone()
+            .into_iter()
+            .flat_map(|(live_version, snaps)| {
+                if config.opt_omit_identical {
+                    snaps
+                        .into_iter()
+                        .filter(|snap_version| {
+                            snap_version.metadata.is_some()
+                                && snap_version.metadata != live_version.metadata
+                        })
+                        .collect()
+                } else {
+                    snaps
+                }
+            })
+            .collect()
+    };
+
+    let vec_live = if config.opt_no_live || matches!(config.exec_mode, ExecMode::MountsForFiles) {
+        Vec::new()
+    } else {
+        map_live_to_snaps.clone().into_keys().collect()
+    };
+
+    [vec_snaps, vec_live]
 }
 
 fn display_human_size(size: &u64) -> String {
