@@ -63,55 +63,7 @@ fn display_raw(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> HttmResul
         map_live_to_snaps
             .iter()
             .filter_map(|(live_version, snaps)| {
-                if live_version.metadata.is_none() {
-                    unreachable!(
-                        "Live version metadata should never be None in --is-only-version mode."
-                    )
-                }
-
-                let is_live_redundant = snaps.len() == 1
-                    || snaps
-                        .iter()
-                        .all(|snap_version| live_version.metadata == snap_version.metadata);
-
-                let display_path = live_version.path_buf.display();
-
-                match config.opt_num_versions {
-                    NumVersionsMode::All => {
-                        let num_versions = if is_live_redundant {
-                            snaps.len() - 1
-                        } else {
-                            snaps.len()
-                        };
-
-                        Some(format!(
-                            "\"{}\" : {} Versions available.{}",
-                            display_path, num_versions, delimiter
-                        ))
-                    }
-                    NumVersionsMode::Multiple | NumVersionsMode::Single => {
-                        let is_only_version = snaps.is_empty() || is_live_redundant;
-
-                        match config.opt_num_versions {
-                            NumVersionsMode::Multiple => {
-                                if is_only_version {
-                                    None
-                                } else {
-                                    Some(format!("\"{}\"{}", display_path, delimiter))
-                                }
-                            }
-                            NumVersionsMode::Single => {
-                                if is_only_version {
-                                    Some(format!("\"{}\"{}", display_path, delimiter))
-                                } else {
-                                    None
-                                }
-                            }
-                            _ => unreachable!(),
-                        }
-                    }
-                    _ => unreachable!(),
-                }
+                parse_num_versions(config, delimiter, live_version, snaps)
             })
             .collect()
     } else {
@@ -128,6 +80,61 @@ fn display_raw(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> HttmResul
     };
 
     Ok(write_out_buffer)
+}
+
+fn parse_num_versions(
+    config: &Config,
+    delimiter: char,
+    live_version: &PathData,
+    snaps: &[PathData],
+) -> Option<String> {
+    if live_version.metadata.is_none() {
+        unreachable!("Live version metadata should never be None in NumVersions mode.")
+    }
+
+    let is_live_redundant = snaps.len() == 1
+        || snaps
+            .iter()
+            .all(|snap_version| live_version.metadata == snap_version.metadata);
+
+    let display_path = live_version.path_buf.display();
+
+    match config.opt_num_versions {
+        NumVersionsMode::All => {
+            let num_versions = if !is_live_redundant {
+                snaps.len() - 1
+            } else {
+                snaps.len()
+            };
+
+            Some(format!(
+                "\"{}\" : {} Versions available.{}",
+                display_path, num_versions, delimiter
+            ))
+        }
+        NumVersionsMode::Multiple | NumVersionsMode::Single => {
+            let is_only_version = snaps.is_empty() || is_live_redundant;
+
+            match config.opt_num_versions {
+                NumVersionsMode::Multiple => {
+                    if is_only_version {
+                        None
+                    } else {
+                        Some(format!("\"{}\"{}", display_path, delimiter))
+                    }
+                }
+                NumVersionsMode::Single => {
+                    if is_only_version {
+                        Some(format!("\"{}\"{}", display_path, delimiter))
+                    } else {
+                        None
+                    }
+                }
+                _ => unreachable!(),
+            }
+        }
+        _ => unreachable!(),
+    }
 }
 
 fn display_formatted(config: &Config, display_set: &DisplaySet) -> HttmResult<String> {
