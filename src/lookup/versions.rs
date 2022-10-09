@@ -29,7 +29,7 @@ use crate::data::filesystem_map::{
     VecOfSnaps,
 };
 use crate::data::paths::PathData;
-use crate::library::utility::{HttmError, HttmResult};
+use crate::library::results::{HttmError, HttmResult};
 
 #[derive(Debug, Clone)]
 pub struct RelativePathAndSnapMounts {

@@ -29,11 +29,12 @@ use time::UtcOffset;
 use crate::config::install_hot_keys::install_hot_keys;
 use crate::data::filesystem_map::{DatasetCollection, SnapsSelectedForSearch};
 use crate::data::paths::PathData;
-use crate::library::utility::{httm_is_dir, read_stdin, HttmError};
+use crate::library::results::{HttmError, HttmResult};
+use crate::library::utility::{httm_is_dir, read_stdin};
 use crate::parse::aliases::parse_aliases;
 use crate::parse::alts::precompute_alt_replicated;
 use crate::parse::mounts::{get_common_snap_dir, parse_mounts_exec};
-use crate::{HttmResult, ROOT_DIRECTORY};
+use crate::ROOT_DIRECTORY;
 
 #[derive(Debug, Clone)]
 pub enum ExecMode {

@@ -35,6 +35,7 @@ mod config {
     pub mod install_hot_keys;
 }
 mod library {
+    pub mod results;
     pub mod utility;
 }
 mod lookup {

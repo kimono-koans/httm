@@ -21,7 +21,7 @@ use rayon::prelude::*;
 use which::which;
 
 use crate::data::filesystem_map::{FilesystemType, MountType, VecOfSnaps};
-use crate::library::utility::{HttmError, HttmResult};
+use crate::library::results::{HttmError, HttmResult};
 use crate::{
     MapOfDatasets, MapOfSnaps, BTRFS_SNAPPER_HIDDEN_DIRECTORY, BTRFS_SNAPPER_SUFFIX,
     ZFS_SNAPSHOT_DIRECTORY,

@@ -21,7 +21,8 @@ use std::{
     path::PathBuf,
 };
 
-use crate::library::utility::{make_tmp_path, HttmError, HttmResult};
+use crate::library::results::{HttmError, HttmResult};
+use crate::library::utility::make_tmp_path;
 
 const HTTM_SCRIPT_PATH: &str = ".httm-key-bindings.zsh";
 const ZSHRC_PATH: &str = ".zshrc";

@@ -23,11 +23,11 @@ use rayon::prelude::*;
 use which::which;
 
 use crate::data::filesystem_map::{DatasetMetadata, FilesystemType, MountType};
-use crate::library::utility::{get_common_path, get_fs_type_from_hidden_dir, HttmError};
+use crate::library::results::{HttmError, HttmResult};
+use crate::library::utility::{get_common_path, get_fs_type_from_hidden_dir};
 use crate::parse::snaps::precompute_snap_mounts;
 use crate::{
-    HttmResult, MapOfDatasets, MapOfSnaps, OptBtrfsCommonSnapDir, VecOfFilterDirs,
-    ZFS_SNAPSHOT_DIRECTORY,
+    MapOfDatasets, MapOfSnaps, OptBtrfsCommonSnapDir, VecOfFilterDirs, ZFS_SNAPSHOT_DIRECTORY,
 };
 
 pub const ZFS_FSTYPE: &str = "zfs";

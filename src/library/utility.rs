@@ -17,8 +17,6 @@
 
 use std::{
     borrow::Cow,
-    error::Error,
-    fmt,
     fs::{copy, create_dir_all, read_dir, DirEntry, FileType},
     io::{self, Read, Write},
     path::{Component::RootDir, Path, PathBuf},
@@ -28,15 +26,12 @@ use std::{
 use lscolors::{Colorable, LsColors, Style};
 use time::{format_description, OffsetDateTime};
 
+use crate::library::results::HttmError;
 use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::exec::display::display_exec;
 use crate::exec::interactive::SelectionCandidate;
 use crate::{config::init::Config, data::filesystem_map::MapLiveToSnaps};
 use crate::{FilesystemType, BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_SNAPSHOT_DIRECTORY};
-
-// wrap this complex looking error type, which is used everywhere,
-// into something more simple looking. This error, FYI, is really easy to use with rayon.
-pub type HttmResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
 const TMP_SUFFIX: &str = ".tmp";
 
@@ -259,37 +254,6 @@ impl PaintString for &SelectionCandidate {
     }
     fn get_is_phantom(&self) -> bool {
         self.file_type().is_none()
-    }
-}
-
-#[derive(Debug)]
-pub struct HttmError {
-    pub details: String,
-}
-
-impl HttmError {
-    pub fn new(msg: &str) -> Self {
-        HttmError {
-            details: msg.to_owned(),
-        }
-    }
-    pub fn with_context(msg: &str, err: Box<dyn Error + Send + Sync>) -> Self {
-        let msg_plus_context = format!("{} : {:?}", msg, err);
-        HttmError {
-            details: msg_plus_context,
-        }
-    }
-}
-
-impl fmt::Display for HttmError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.details)
-    }
-}
-
-impl Error for HttmError {
-    fn description(&self) -> &str {
-        &self.details
     }
 }
 

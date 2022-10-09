@@ -23,7 +23,8 @@ use which::which;
 
 use crate::config::init::Config;
 use crate::data::filesystem_map::FilesystemType;
-use crate::library::utility::{get_date, print_output_buf, DateFormat, HttmError, HttmResult};
+use crate::library::results::{HttmError, HttmResult};
+use crate::library::utility::{get_date, print_output_buf, DateFormat};
 use crate::lookup::file_mounts::{get_mounts_for_files, MountsForFiles};
 
 pub fn take_snapshot(config: Arc<Config>) -> HttmResult<()> {

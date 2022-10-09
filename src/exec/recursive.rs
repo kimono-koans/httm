@@ -27,10 +27,11 @@ use crate::config::init::{DeletedMode, ExecMode};
 use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::exec::display::display_exec;
 use crate::exec::interactive::SelectionCandidate;
-use crate::library::utility::{httm_is_dir, print_output_buf, HttmError, HttmIsDir};
+use crate::library::results::{HttmError, HttmResult};
+use crate::library::utility::{httm_is_dir, print_output_buf, HttmIsDir};
 use crate::lookup::deleted::deleted_lookup_exec;
 use crate::lookup::versions::versions_lookup_exec;
-use crate::{HttmResult, BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_HIDDEN_DIRECTORY};
+use crate::{BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_HIDDEN_DIRECTORY};
 
 pub fn display_recursive_wrapper(config: Arc<Config>) -> HttmResult<()> {
     // won't be sending anything anywhere, this just allows us to reuse enumerate_directory
