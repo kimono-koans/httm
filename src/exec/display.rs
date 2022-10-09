@@ -88,16 +88,19 @@ fn parse_num_versions(
     live_version: &PathData,
     snaps: &[PathData],
 ) -> Option<String> {
+    let display_path = live_version.path_buf.display();
+
     if live_version.metadata.is_none() {
-        unreachable!("Live version metadata should never be None in NumVersions mode.")
+        return Some(format!(
+            "\"{}\" : Path does not exist.{}",
+            display_path, delimiter
+        ));
     }
 
     let is_live_redundant = snaps.len() == 1
         || snaps
             .iter()
             .all(|snap_version| live_version.metadata == snap_version.metadata);
-
-    let display_path = live_version.path_buf.display();
 
     match config.opt_num_versions {
         NumVersionsMode::All => {
