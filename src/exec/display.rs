@@ -98,7 +98,7 @@ fn parse_num_versions(
     }
 
     let is_live_redundant = snaps.len() == 1
-        || snaps
+        && snaps
             .iter()
             .all(|snap_version| live_version.metadata == snap_version.metadata);
 
