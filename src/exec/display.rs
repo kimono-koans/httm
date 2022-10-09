@@ -23,7 +23,9 @@ use terminal_size::{terminal_size, Height, Width};
 use crate::config::init::{Config, ExecMode, NumVersionsMode};
 use crate::data::filesystem_map::{DisplaySet, MapLiveToSnaps};
 use crate::data::paths::{PathData, PHANTOM_DATE, PHANTOM_SIZE};
-use crate::library::utility::{get_date, paint_string, print_output_buf, DateFormat, HttmResult};
+use crate::library::utility::{
+    get_date, paint_string, print_output_buf, DateFormat, HttmError, HttmResult,
+};
 use crate::lookup::file_mounts::get_mounts_for_files;
 
 // 2 space wide padding - used between date and size, and size and path
@@ -60,12 +62,24 @@ fn display_raw(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> HttmResul
     let delimiter = if config.opt_zeros { '\0' } else { '\n' };
 
     let write_out_buffer = if !matches!(config.opt_num_versions, NumVersionsMode::Disabled) {
-        map_live_to_snaps
+        let buffer: String = map_live_to_snaps
             .iter()
             .filter_map(|(live_version, snaps)| {
                 parse_num_versions(config, delimiter, live_version, snaps)
             })
-            .collect()
+            .collect();
+
+        if buffer.is_empty() {
+            let msg = match config.opt_num_versions {
+                NumVersionsMode::Multiple => "No paths which have multiple versions exist.",
+                NumVersionsMode::Single => "No paths which have only a single version exist.",
+                // NumVersionsMode::All empty should be dealt with earlier at lookup_exec
+                _ => unreachable!(),
+            };
+            return Err(HttmError::new(msg).into());
+        }
+
+        buffer
     } else {
         let display_set = map_to_display_set(config, map_live_to_snaps);
 
@@ -98,8 +112,8 @@ fn parse_num_versions(
     }
 
     let is_live_redundant = snaps
-            .iter()
-            .any(|snap_version| live_version.metadata == snap_version.metadata);
+        .iter()
+        .any(|snap_version| live_version.metadata == snap_version.metadata);
 
     match config.opt_num_versions {
         NumVersionsMode::All => {
