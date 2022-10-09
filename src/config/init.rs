@@ -302,10 +302,10 @@ fn parse_args() -> ArgMatches {
                 .display_order(22)
         )
         .arg(
-            Arg::new("OMIT_IDENTICAL_SNAPS")
-                .long("omit-identical-snaps")
-                .help("omit display of snapshot versions which are identical to the live version.")
-                .conflicts_with_all(&["UNIQUE"])
+            Arg::new("OMIT_IDENTICAL")
+                .long("omit-identical")
+                .help("omit display of snapshot version which is identical to the live version.")
+                .conflicts_with_all(&["NUM_VERSIONS"])
                 .display_order(23)
         )
         .arg(
@@ -388,7 +388,7 @@ impl Config {
             matches.value_of("RESTORE"),
             Some("overwrite") | Some("yolo")
         );
-        let opt_omit_identical = matches.is_present("OMIT_IDENTICAL_SNAPS");
+        let opt_omit_identical = matches.is_present("OMIT_IDENTICAL");
 
         let opt_num_versions = match matches.value_of("NUM_VERSIONS") {
             Some("") | Some("all") => NumVersionsMode::All,
