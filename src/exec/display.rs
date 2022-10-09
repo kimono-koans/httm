@@ -398,13 +398,14 @@ fn parse_num_versions(
         ));
     }
 
-    let is_live_redundant = snaps
+    let is_live_redundant = || { snaps
         .iter()
-        .any(|snap_version| live_version.metadata == snap_version.metadata);
+        .any(|snap_version| live_version.metadata == snap_version.metadata)
+    };
 
     match config.opt_num_versions {
         NumVersionsMode::All => {
-            let num_versions = if is_live_redundant {
+            let num_versions = if is_live_redundant() {
                 snaps.len()
             } else {
                 snaps.len() + 1
@@ -427,14 +428,14 @@ fn parse_num_versions(
         | NumVersionsMode::SingleNoSnap
         | NumVersionsMode::SingleWithSnap => match config.opt_num_versions {
             NumVersionsMode::Multiple => {
-                if snaps.is_empty() || (snaps.len() == 1 && is_live_redundant) {
+                if snaps.is_empty() || (snaps.len() == 1 && is_live_redundant()) {
                     None
                 } else {
                     Some(format!("\"{}\"{}", display_path, delimiter))
                 }
             }
             NumVersionsMode::SingleAll => {
-                if snaps.is_empty() || (snaps.len() == 1 && is_live_redundant) {
+                if snaps.is_empty() || (snaps.len() == 1 && is_live_redundant()) {
                     Some(format!("\"{}\"{}", display_path, delimiter))
                 } else {
                     None
@@ -448,7 +449,7 @@ fn parse_num_versions(
                 }
             }
             NumVersionsMode::SingleWithSnap => {
-                if !snaps.is_empty() && is_live_redundant {
+                if !snaps.is_empty() && is_live_redundant() {
                     Some(format!("\"{}\"{}", display_path, delimiter))
                 } else {
                     None
