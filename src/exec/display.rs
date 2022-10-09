@@ -23,9 +23,7 @@ use terminal_size::{terminal_size, Height, Width};
 use crate::config::init::{Config, ExecMode, NumVersionsMode};
 use crate::data::filesystem_map::{DisplaySet, MapLiveToSnaps};
 use crate::data::paths::{PathData, PHANTOM_DATE, PHANTOM_SIZE};
-use crate::library::utility::{
-    get_date, paint_string, print_output_buf, DateFormat, HttmError, HttmResult,
-};
+use crate::library::utility::{get_date, paint_string, print_output_buf, DateFormat, HttmResult};
 use crate::lookup::file_mounts::get_mounts_for_files;
 
 // 2 space wide padding - used between date and size, and size and path
@@ -71,12 +69,16 @@ fn display_raw(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> HttmResul
 
         if buffer.is_empty() {
             let msg = match config.opt_num_versions {
-                NumVersionsMode::Multiple => "No paths which have multiple versions exist.",
-                NumVersionsMode::Single => "No paths which have only a single version exist.",
+                NumVersionsMode::Multiple => {
+                    "Notification: No paths which have multiple versions exist."
+                }
+                NumVersionsMode::Single => {
+                    "Notification: No paths which have only a single version exist."
+                }
                 // NumVersionsMode::All empty should be dealt with earlier at lookup_exec
                 _ => unreachable!(),
             };
-            return Err(HttmError::new(msg).into());
+            eprintln!("{}", msg);
         }
 
         buffer
