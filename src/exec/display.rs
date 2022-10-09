@@ -101,83 +101,6 @@ fn display_raw(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> HttmResul
     Ok(write_out_buffer)
 }
 
-fn parse_num_versions(
-    config: &Config,
-    delimiter: char,
-    live_version: &PathData,
-    snaps: &[PathData],
-) -> Option<String> {
-    let display_path = live_version.path_buf.display();
-
-    if live_version.metadata.is_none() {
-        return Some(format!(
-            "\"{}\" : Path does not exist.{}",
-            display_path, delimiter
-        ));
-    }
-
-    let is_live_redundant = snaps
-        .iter()
-        .any(|snap_version| live_version.metadata == snap_version.metadata);
-
-    match config.opt_num_versions {
-        NumVersionsMode::All => {
-            let num_versions = if is_live_redundant {
-                snaps.len()
-            } else {
-                snaps.len() + 1
-            };
-
-            if num_versions == 1 {
-                Some(format!(
-                    "\"{}\" : 1 Version available.{}",
-                    display_path, delimiter
-                ))
-            } else {
-                Some(format!(
-                    "\"{}\" : {} Versions available.{}",
-                    display_path, num_versions, delimiter
-                ))
-            }
-        }
-        NumVersionsMode::Multiple
-        | NumVersionsMode::SingleAll
-        | NumVersionsMode::SingleNoSnap
-        | NumVersionsMode::SingleWithSnap => match config.opt_num_versions {
-            NumVersionsMode::Multiple => {
-                if snaps.is_empty() || (snaps.len() == 1 && is_live_redundant) {
-                    None
-                } else {
-                    Some(format!("\"{}\"{}", display_path, delimiter))
-                }
-            }
-            NumVersionsMode::SingleAll => {
-                if snaps.is_empty() || (snaps.len() == 1 && is_live_redundant) {
-                    Some(format!("\"{}\"{}", display_path, delimiter))
-                } else {
-                    None
-                }
-            }
-            NumVersionsMode::SingleNoSnap => {
-                if snaps.is_empty() {
-                    Some(format!("\"{}\"{}", display_path, delimiter))
-                } else {
-                    None
-                }
-            }
-            NumVersionsMode::SingleWithSnap => {
-                if !snaps.is_empty() && is_live_redundant {
-                    Some(format!("\"{}\"{}", display_path, delimiter))
-                } else {
-                    None
-                }
-            }
-            _ => unreachable!(),
-        },
-        _ => unreachable!(),
-    }
-}
-
 fn display_formatted(config: &Config, display_set: &DisplaySet) -> HttmResult<String> {
     let padding_collection = calculate_pretty_padding(config, display_set);
 
@@ -458,6 +381,83 @@ fn map_to_display_set(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> Di
     };
 
     [vec_snaps, vec_live]
+}
+
+fn parse_num_versions(
+    config: &Config,
+    delimiter: char,
+    live_version: &PathData,
+    snaps: &[PathData],
+) -> Option<String> {
+    let display_path = live_version.path_buf.display();
+
+    if live_version.metadata.is_none() {
+        return Some(format!(
+            "\"{}\" : Path does not exist.{}",
+            display_path, delimiter
+        ));
+    }
+
+    let is_live_redundant = snaps
+        .iter()
+        .any(|snap_version| live_version.metadata == snap_version.metadata);
+
+    match config.opt_num_versions {
+        NumVersionsMode::All => {
+            let num_versions = if is_live_redundant {
+                snaps.len()
+            } else {
+                snaps.len() + 1
+            };
+
+            if num_versions == 1 {
+                Some(format!(
+                    "\"{}\" : 1 Version available.{}",
+                    display_path, delimiter
+                ))
+            } else {
+                Some(format!(
+                    "\"{}\" : {} Versions available.{}",
+                    display_path, num_versions, delimiter
+                ))
+            }
+        }
+        NumVersionsMode::Multiple
+        | NumVersionsMode::SingleAll
+        | NumVersionsMode::SingleNoSnap
+        | NumVersionsMode::SingleWithSnap => match config.opt_num_versions {
+            NumVersionsMode::Multiple => {
+                if snaps.is_empty() || (snaps.len() == 1 && is_live_redundant) {
+                    None
+                } else {
+                    Some(format!("\"{}\"{}", display_path, delimiter))
+                }
+            }
+            NumVersionsMode::SingleAll => {
+                if snaps.is_empty() || (snaps.len() == 1 && is_live_redundant) {
+                    Some(format!("\"{}\"{}", display_path, delimiter))
+                } else {
+                    None
+                }
+            }
+            NumVersionsMode::SingleNoSnap => {
+                if snaps.is_empty() {
+                    Some(format!("\"{}\"{}", display_path, delimiter))
+                } else {
+                    None
+                }
+            }
+            NumVersionsMode::SingleWithSnap => {
+                if !snaps.is_empty() && is_live_redundant {
+                    Some(format!("\"{}\"{}", display_path, delimiter))
+                } else {
+                    None
+                }
+            }
+            _ => unreachable!(),
+        },
+        _ => unreachable!(),
+    }
 }
 
 fn display_human_size(size: &u64) -> String {
