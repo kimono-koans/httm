@@ -73,7 +73,9 @@ fn display_raw(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> HttmResul
                 NumVersionsMode::Multiple => {
                     "Notification: No paths which have multiple versions exist."
                 }
-                NumVersionsMode::Single => {
+                NumVersionsMode::SingleAll
+                | NumVersionsMode::SingleNoSnap
+                | NumVersionsMode::SingleWithSnap => {
                     "Notification: No paths which have only a single version exist."
                 }
                 // NumVersionsMode::All empty should be dealt with earlier at lookup_exec
@@ -138,27 +140,40 @@ fn parse_num_versions(
                 ))
             }
         }
-        NumVersionsMode::Multiple | NumVersionsMode::Single => {
-            let is_only_version = snaps.is_empty() || (snaps.len() == 1 && is_live_redundant);
-
-            match config.opt_num_versions {
-                NumVersionsMode::Multiple => {
-                    if is_only_version {
-                        None
-                    } else {
-                        Some(format!("\"{}\"{}", display_path, delimiter))
-                    }
+        NumVersionsMode::Multiple
+        | NumVersionsMode::SingleAll
+        | NumVersionsMode::SingleNoSnap
+        | NumVersionsMode::SingleWithSnap => match config.opt_num_versions {
+            NumVersionsMode::Multiple => {
+                if snaps.is_empty() || (snaps.len() == 1 && is_live_redundant) {
+                    None
+                } else {
+                    Some(format!("\"{}\"{}", display_path, delimiter))
                 }
-                NumVersionsMode::Single => {
-                    if is_only_version {
-                        Some(format!("\"{}\"{}", display_path, delimiter))
-                    } else {
-                        None
-                    }
-                }
-                _ => unreachable!(),
             }
-        }
+            NumVersionsMode::SingleAll => {
+                if snaps.is_empty() || (snaps.len() == 1 && is_live_redundant) {
+                    Some(format!("\"{}\"{}", display_path, delimiter))
+                } else {
+                    None
+                }
+            }
+            NumVersionsMode::SingleNoSnap => {
+                if snaps.is_empty() && (snaps.len() == 1 && is_live_redundant) {
+                    Some(format!("\"{}\"{}", display_path, delimiter))
+                } else {
+                    None
+                }
+            }
+            NumVersionsMode::SingleWithSnap => {
+                if !snaps.is_empty() && (snaps.len() == 1 && is_live_redundant) {
+                    Some(format!("\"{}\"{}", display_path, delimiter))
+                } else {
+                    None
+                }
+            }
+            _ => unreachable!(),
+        },
         _ => unreachable!(),
     }
 }

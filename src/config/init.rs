@@ -71,7 +71,9 @@ pub enum DeletedMode {
 pub enum NumVersionsMode {
     Disabled,
     All,
-    Single,
+    SingleAll,
+    SingleNoSnap,
+    SingleWithSnap,
     Multiple,
 }
 
@@ -292,7 +294,7 @@ fn parse_args() -> ArgMatches {
             Arg::new("NUM_VERSIONS")
                 .long("num-versions")
                 .default_missing_value("all")
-                .possible_values(&["all", "single", "multiple"])
+                .possible_values(&["all", "single", "single-no-snap", "single-with-snap", "multiple"])
                 .min_values(0)
                 .require_equals(true)
                 .help("detect and display the number of versions available (e.g. one, \"1\", \
@@ -393,7 +395,9 @@ impl Config {
 
         let opt_num_versions = match matches.value_of("NUM_VERSIONS") {
             Some("") | Some("all") => NumVersionsMode::All,
-            Some("single") => NumVersionsMode::Single,
+            Some("single") => NumVersionsMode::SingleAll,
+            Some("single-no-snap") => NumVersionsMode::SingleNoSnap,
+            Some("single-with-snap") => NumVersionsMode::SingleWithSnap,
             Some("multiple") => NumVersionsMode::Multiple,
             _ => NumVersionsMode::Disabled,
         };
