@@ -60,7 +60,7 @@ use crate::exec::display::display_mounts_for_files;
 use crate::exec::interactive::interactive_exec;
 use crate::exec::recursive::display_recursive_wrapper;
 use crate::exec::snapshot::take_snapshot;
-use crate::library::results::{HttmResult};
+use crate::library::results::HttmResult;
 use crate::library::utility::print_display_set;
 use crate::lookup::versions::versions_lookup_exec;
 
