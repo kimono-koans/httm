@@ -66,6 +66,14 @@ pub enum DeletedMode {
     Only,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum NumVersionsMode {
+    Disabled,
+    All,
+    Single,
+    Multiple,
+}
+
 fn parse_args() -> ArgMatches {
     clap::Command::new(crate_name!())
         .about("httm prints the size, date and corresponding locations of available unique versions of files residing on snapshots.  \
@@ -280,23 +288,44 @@ fn parse_args() -> ArgMatches {
                 .display_order(21)
         )
         .arg(
+            Arg::new("NUM_VERSIONS")
+                .long("num-versions")
+                .default_missing_value("all")
+                .possible_values(&["all", "single", "multiple"])
+                .min_values(0)
+                .require_equals(true)
+                .help("detect and display the number of versions available (e.g. one, \"1\", \
+                version is available if either a snapshot version exists, and is identical to live version, or only a live version exists).  \
+                This option takes a value: \"all\" will print the filename and number of versions, \"solo\" will print only filenames which only have one version, \
+                and \"multi\" will print only filenames which only have multiple versions.")
+                .conflicts_with_all(&["INTERACTIVE", "SELECT", "RESTORE", "RECURSIVE", "SNAP_FILE_MOUNT", "LAST_SNAP", "NOT_SO_PRETTY", "NO_LIVE", "NO_SNAP", "OMIT_IDENTICAL"])
+                .display_order(22)
+        )
+        .arg(
+            Arg::new("OMIT_IDENTICAL")
+                .long("omit-identical")
+                .help("omit display of snapshot version which is identical to the live version.")
+                .conflicts_with_all(&["NUM_VERSIONS"])
+                .display_order(23)
+        )
+        .arg(
             Arg::new("UTC")
                 .long("utc")
                 .help("use UTC for date display and timestamps")
-                .display_order(22)
+                .display_order(24)
         )
         .arg(
             Arg::new("DEBUG")
                 .long("debug")
                 .help("print configuration and debugging info")
-                .display_order(23)
+                .display_order(25)
         )
         .arg(
             Arg::new("ZSH_HOT_KEYS")
                 .long("install-zsh-hot-keys")
                 .help("install zsh hot keys to the users home directory, and then exit")
                 .exclusive(true)
-                .display_order(24)
+                .display_order(26)
         )
         .get_matches()
 }
@@ -315,6 +344,8 @@ pub struct Config {
     pub opt_no_snap: bool,
     pub opt_debug: bool,
     pub opt_no_traverse: bool,
+    pub opt_omit_identical: bool,
+    pub opt_num_versions: NumVersionsMode,
     pub requested_utc_offset: UtcOffset,
     pub exec_mode: ExecMode,
     pub dataset_collection: DatasetCollection,
@@ -357,6 +388,14 @@ impl Config {
             matches.value_of("RESTORE"),
             Some("overwrite") | Some("yolo")
         );
+        let opt_omit_identical = matches.is_present("OMIT_IDENTICAL");
+
+        let opt_num_versions = match matches.value_of("NUM_VERSIONS") {
+            Some("") | Some("all") => NumVersionsMode::All,
+            Some("single") => NumVersionsMode::Single,
+            Some("multiple") => NumVersionsMode::Multiple,
+            _ => NumVersionsMode::Disabled,
+        };
 
         let mut deleted_mode = match matches.value_of("DELETED_MODE") {
             Some("") | Some("all") => DeletedMode::Enabled,
@@ -458,6 +497,8 @@ impl Config {
             opt_no_snap,
             opt_debug,
             opt_no_traverse,
+            opt_omit_identical,
+            opt_num_versions,
             requested_utc_offset,
             dataset_collection,
             exec_mode,

@@ -446,9 +446,9 @@ fn print_display_recursive(config: &Config, entries: Vec<BasicDirEntryInfo>) -> 
         .map(|basic_dir_entry_info| PathData::from(basic_dir_entry_info.path.as_path()))
         .collect();
 
-    let snaps_and_live_set = versions_lookup_exec(config, &pseudo_live_set)?;
+    let map_live_to_snaps = versions_lookup_exec(config, &pseudo_live_set)?;
 
-    let output_buf = display_exec(config, &snaps_and_live_set)?;
+    let output_buf = display_exec(config, &map_live_to_snaps)?;
 
     print_output_buf(output_buf)?;
 

@@ -20,8 +20,8 @@ use std::{borrow::Cow, collections::BTreeMap};
 use number_prefix::NumberPrefix;
 use terminal_size::{terminal_size, Height, Width};
 
-use crate::config::init::Config;
-use crate::data::filesystem_map::SnapsAndLiveSet;
+use crate::config::init::{Config, ExecMode, NumVersionsMode};
+use crate::data::filesystem_map::{DisplaySet, MapLiveToSnaps};
 use crate::data::paths::{PathData, PHANTOM_DATE, PHANTOM_SIZE};
 use crate::library::utility::{get_date, paint_string, print_output_buf, DateFormat, HttmResult};
 use crate::lookup::file_mounts::get_mounts_for_files;
@@ -42,39 +42,108 @@ struct PaddingCollection {
     phantom_size_pad_str: String,
 }
 
-pub fn display_exec(config: &Config, snaps_and_live_set: &SnapsAndLiveSet) -> HttmResult<String> {
-    let output_buffer = if config.opt_raw || config.opt_zeros {
-        display_raw(config, snaps_and_live_set)?
+pub fn display_exec(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> HttmResult<String> {
+    let output_buffer = if !matches!(config.opt_num_versions, NumVersionsMode::Disabled)
+        || config.opt_raw
+        || config.opt_zeros
+    {
+        display_raw(config, map_live_to_snaps)?
     } else {
-        display_formatted(config, snaps_and_live_set)?
+        let display_set = map_to_display_set(config, map_live_to_snaps);
+        display_formatted(config, &display_set)?
     };
 
     Ok(output_buffer)
 }
 
-fn display_raw(config: &Config, snaps_and_live_set: &SnapsAndLiveSet) -> HttmResult<String> {
+fn display_raw(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> HttmResult<String> {
     let delimiter = if config.opt_zeros { '\0' } else { '\n' };
 
-    // so easy!
-    let write_out_buffer = snaps_and_live_set
-        .iter()
-        .flatten()
-        .map(|pathdata| {
-            let display_path = pathdata.path_buf.display();
-            format!("{}{}", display_path, delimiter)
-        })
-        .collect();
+    let write_out_buffer = if !matches!(config.opt_num_versions, NumVersionsMode::Disabled) {
+        map_live_to_snaps
+            .iter()
+            .filter_map(|(live_version, snaps)| {
+                parse_num_versions(config, delimiter, live_version, snaps)
+            })
+            .collect()
+    } else {
+        let display_set = map_to_display_set(config, map_live_to_snaps);
+
+        display_set
+            .iter()
+            .flatten()
+            .map(|pathdata| {
+                let display_path = pathdata.path_buf.display();
+                format!("\"{}\"{}", display_path, delimiter)
+            })
+            .collect()
+    };
 
     Ok(write_out_buffer)
 }
 
-fn display_formatted(config: &Config, snaps_and_live_set: &SnapsAndLiveSet) -> HttmResult<String> {
-    let padding_collection = calculate_pretty_padding(config, snaps_and_live_set);
+fn parse_num_versions(
+    config: &Config,
+    delimiter: char,
+    live_version: &PathData,
+    snaps: &[PathData],
+) -> Option<String> {
+    if live_version.metadata.is_none() {
+        unreachable!("Live version metadata should never be None in NumVersions mode.")
+    }
 
-    let write_out_buffer = snaps_and_live_set.iter().enumerate().fold(
+    let is_live_redundant = snaps.len() == 1
+        || snaps
+            .iter()
+            .all(|snap_version| live_version.metadata == snap_version.metadata);
+
+    let display_path = live_version.path_buf.display();
+
+    match config.opt_num_versions {
+        NumVersionsMode::All => {
+            let num_versions = if !is_live_redundant {
+                snaps.len() - 1
+            } else {
+                snaps.len()
+            };
+
+            Some(format!(
+                "\"{}\" : {} Versions available.{}",
+                display_path, num_versions, delimiter
+            ))
+        }
+        NumVersionsMode::Multiple | NumVersionsMode::Single => {
+            let is_only_version = snaps.is_empty() || is_live_redundant;
+
+            match config.opt_num_versions {
+                NumVersionsMode::Multiple => {
+                    if is_only_version {
+                        None
+                    } else {
+                        Some(format!("\"{}\"{}", display_path, delimiter))
+                    }
+                }
+                NumVersionsMode::Single => {
+                    if is_only_version {
+                        Some(format!("\"{}\"{}", display_path, delimiter))
+                    } else {
+                        None
+                    }
+                }
+                _ => unreachable!(),
+            }
+        }
+        _ => unreachable!(),
+    }
+}
+
+fn display_formatted(config: &Config, display_set: &DisplaySet) -> HttmResult<String> {
+    let padding_collection = calculate_pretty_padding(config, display_set);
+
+    let write_out_buffer = display_set.iter().enumerate().fold(
         String::new(),
         |mut write_out_buffer, (idx, pathdata_set)| {
-            // a SnapsAndLiveSet is an array of 2 - idx 0 are the snaps, 1 is the live versions
+            // a DisplaySet is an array of 2 - idx 0 are the snaps, 1 is the live versions
             let is_live_set = idx == 1;
 
             // get the display buffer for each set snaps and live
@@ -173,12 +242,9 @@ fn display_pathdata(
     )
 }
 
-fn calculate_pretty_padding(
-    config: &Config,
-    snaps_and_live_set: &SnapsAndLiveSet,
-) -> PaddingCollection {
+fn calculate_pretty_padding(config: &Config, display_set: &DisplaySet) -> PaddingCollection {
     // calculate padding and borders for display later
-    let (size_padding_len, fancy_border_len) = snaps_and_live_set.iter().flatten().fold(
+    let (size_padding_len, fancy_border_len) = display_set.iter().flatten().fold(
         (0usize, 0usize),
         |(mut size_padding_len, mut fancy_border_len), pathdata| {
             let path_metadata = pathdata.md_infallible();
@@ -252,13 +318,7 @@ pub fn display_mounts_for_files(config: &Config) -> HttmResult<()> {
     let mounts_for_files = get_mounts_for_files(config)?;
 
     let output_buf = if config.opt_raw || config.opt_zeros {
-        display_raw(
-            config,
-            &[
-                mounts_for_files.into_values().flatten().collect(),
-                Vec::new(),
-            ],
-        )?
+        display_raw(config, &mounts_for_files)?
     } else {
         display_ordered_map(config, &mounts_for_files)?
     };
@@ -325,6 +385,38 @@ fn display_ordered_map(
     };
 
     Ok(write_out_buffer)
+}
+
+fn map_to_display_set(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> DisplaySet {
+    let vec_snaps = if config.opt_no_snap {
+        Vec::new()
+    } else {
+        map_live_to_snaps
+            .clone()
+            .into_iter()
+            .flat_map(|(live_version, snaps)| {
+                if config.opt_omit_identical {
+                    snaps
+                        .into_iter()
+                        .filter(|snap_version| {
+                            snap_version.metadata.is_some()
+                                && snap_version.metadata != live_version.metadata
+                        })
+                        .collect()
+                } else {
+                    snaps
+                }
+            })
+            .collect()
+    };
+
+    let vec_live = if config.opt_no_live || matches!(config.exec_mode, ExecMode::MountsForFiles) {
+        Vec::new()
+    } else {
+        map_live_to_snaps.clone().into_keys().collect()
+    };
+
+    [vec_snaps, vec_live]
 }
 
 fn display_human_size(size: &u64) -> String {

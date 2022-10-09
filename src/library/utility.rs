@@ -28,11 +28,10 @@ use std::{
 use lscolors::{Colorable, LsColors, Style};
 use time::{format_description, OffsetDateTime};
 
-use crate::config::init::Config;
-use crate::data::filesystem_map::SnapsAndLiveSet;
 use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::exec::display::display_exec;
 use crate::exec::interactive::SelectionCandidate;
+use crate::{config::init::Config, data::filesystem_map::MapLiveToSnaps};
 use crate::{FilesystemType, BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_SNAPSHOT_DIRECTORY};
 
 // wrap this complex looking error type, which is used everywhere,
@@ -47,11 +46,8 @@ pub fn make_tmp_path(path: &Path) -> PathBuf {
     PathBuf::from(res)
 }
 
-pub fn print_snaps_and_live_set(
-    config: &Config,
-    snaps_and_live_set: &SnapsAndLiveSet,
-) -> HttmResult<()> {
-    let output_buf = display_exec(config, snaps_and_live_set)?;
+pub fn print_display_set(config: &Config, map_live_to_snaps: MapLiveToSnaps) -> HttmResult<()> {
+    let output_buf = display_exec(config, &map_live_to_snaps)?;
     print_output_buf(output_buf)?;
     Ok(())
 }

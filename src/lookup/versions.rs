@@ -25,7 +25,7 @@ use rayon::prelude::*;
 
 use crate::config::init::Config;
 use crate::data::filesystem_map::{
-    MapOfAliases, MapOfDatasets, MostProximateAndOptAlts, SnapDatasetType, SnapsAndLiveSet,
+    MapLiveToSnaps, MapOfAliases, MapOfDatasets, MostProximateAndOptAlts, SnapDatasetType,
     VecOfSnaps,
 };
 use crate::data::paths::PathData;
@@ -37,25 +37,16 @@ pub struct RelativePathAndSnapMounts {
     pub snap_mounts: VecOfSnaps,
 }
 
-pub fn versions_lookup_exec(config: &Config, path_set: &[PathData]) -> HttmResult<SnapsAndLiveSet> {
-    let snap_versions: Vec<PathData> = if config.opt_no_snap {
-        Vec::new()
-    } else {
-        get_all_versions_for_path_set(config, path_set)?
-    };
-
-    // create vec of live copies - unless user doesn't want it!
-    let live_versions: Vec<PathData> = if config.opt_no_live {
-        Vec::new()
-    } else {
-        path_set.to_owned()
-    };
+pub fn versions_lookup_exec(config: &Config, path_set: &[PathData]) -> HttmResult<MapLiveToSnaps> {
+    let map_live_to_snaps = get_all_versions_for_path_set(config, path_set)?;
 
     // check if all files (snap and live) do not exist, if this is true, then user probably messed up
     // and entered a file that never existed (that is, perhaps a wrong file name)?
-    if snap_versions.is_empty()
-        && live_versions
-            .iter()
+    if map_live_to_snaps
+        .values()
+        .all(|pathdata| pathdata.is_empty())
+        && map_live_to_snaps
+            .keys()
             .all(|pathdata| pathdata.metadata.is_none())
         && !config.opt_no_snap
     {
@@ -65,33 +56,34 @@ pub fn versions_lookup_exec(config: &Config, path_set: &[PathData]) -> HttmResul
         .into());
     }
 
-    Ok([snap_versions, live_versions])
+    Ok(map_live_to_snaps)
 }
 
 fn get_all_versions_for_path_set(
     config: &Config,
     path_set: &[PathData],
-) -> HttmResult<Vec<PathData>> {
+) -> HttmResult<BTreeMap<PathData, Vec<PathData>>> {
     // create vec of all local and replicated backups at once
     let snaps_selected_for_search = config
         .dataset_collection
         .snaps_selected_for_search
         .get_value();
 
-    let all_snap_versions: Vec<PathData> = path_set
+    let all_snap_versions: BTreeMap<PathData, Vec<PathData>> = path_set
         .par_iter()
         .map(|pathdata| {
-            snaps_selected_for_search
+            let value: Vec<PathData> = snaps_selected_for_search
                 .par_iter()
                 .flat_map(|dataset_type| select_search_datasets(config, pathdata, dataset_type))
                 .flat_map(|dataset_for_search| {
                     get_version_search_bundles(config, pathdata, &dataset_for_search)
                 })
+                .flatten()
+                .flat_map(|search_bundle| get_versions(&search_bundle))
+                .flatten()
+                .collect();
+            (pathdata.to_owned(), value)
         })
-        .flatten()
-        .flatten()
-        .flat_map(|search_bundle| get_versions(&search_bundle))
-        .flatten()
         .collect();
 
     Ok(all_snap_versions)
