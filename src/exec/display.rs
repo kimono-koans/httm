@@ -20,7 +20,7 @@ use std::{borrow::Cow, collections::BTreeMap};
 use number_prefix::NumberPrefix;
 use terminal_size::{terminal_size, Height, Width};
 
-use crate::config::init::{Config, ExecMode};
+use crate::config::init::{Config, ExecMode, NumVersionsMode};
 use crate::data::filesystem_map::{DisplaySet, MapLiveToSnaps};
 use crate::data::paths::{PathData, PHANTOM_DATE, PHANTOM_SIZE};
 use crate::library::utility::{get_date, paint_string, print_output_buf, DateFormat, HttmResult};
@@ -43,7 +43,10 @@ struct PaddingCollection {
 }
 
 pub fn display_exec(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> HttmResult<String> {
-    let output_buffer = if config.opt_only_version || config.opt_raw || config.opt_zeros {
+    let output_buffer = if !matches!(config.opt_num_versions, NumVersionsMode::Disabled)
+        || config.opt_raw
+        || config.opt_zeros
+    {
         display_raw(config, map_live_to_snaps)?
     } else {
         let display_set = map_to_display_set(config, map_live_to_snaps);
@@ -56,31 +59,59 @@ pub fn display_exec(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> Httm
 fn display_raw(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> HttmResult<String> {
     let delimiter = if config.opt_zeros { '\0' } else { '\n' };
 
-    let write_out_buffer = if config.opt_only_version {
+    let write_out_buffer = if !matches!(config.opt_num_versions, NumVersionsMode::Disabled) {
         map_live_to_snaps
             .iter()
-            .map(|(live_version, snaps)| {
+            .filter_map(|(live_version, snaps)| {
+                if live_version.metadata.is_none() {
+                    unreachable!(
+                        "Live version metadata should never be None in --is-only-version mode."
+                    )
+                }
+
+                let is_live_redundant = snaps.len() == 1
+                    || snaps
+                        .iter()
+                        .all(|snap_version| live_version.metadata == snap_version.metadata);
+
                 let display_path = live_version.path_buf.display();
-                let display_is_only_version = {
-                    if live_version.metadata.is_none() {
-                        unreachable!(
-                            "Live version metadata should never be None in --is-only-version mode."
-                        )
-                    } else if snaps.is_empty()
-                        || (snaps.len() == 1
-                            && snaps
-                                .iter()
-                                .all(|snap_version| live_version.metadata == snap_version.metadata))
-                    {
-                        "SINGLE VERSION AVAILABLE"
-                    } else {
-                        "MULTIPLE VERSIONS AVAILABLE"
+
+                match config.opt_num_versions {
+                    NumVersionsMode::All => {
+                        let num_versions = if is_live_redundant {
+                            snaps.len() - 1
+                        } else {
+                            snaps.len()
+                        };
+
+                        Some(format!(
+                            "\"{}\" : {} Versions available.{}",
+                            display_path, num_versions, delimiter
+                        ))
                     }
-                };
-                format!(
-                    "\"{}\" : {}{}",
-                    display_path, display_is_only_version, delimiter
-                )
+                    NumVersionsMode::Multiple | NumVersionsMode::Single => {
+                        let is_only_version = snaps.is_empty() || is_live_redundant;
+
+                        match config.opt_num_versions {
+                            NumVersionsMode::Multiple => {
+                                if is_only_version {
+                                    None
+                                } else {
+                                    Some(format!("\"{}\"{}", display_path, delimiter))
+                                }
+                            }
+                            NumVersionsMode::Single => {
+                                if is_only_version {
+                                    Some(format!("\"{}\"{}", display_path, delimiter))
+                                } else {
+                                    None
+                                }
+                            }
+                            _ => unreachable!(),
+                        }
+                    }
+                    _ => unreachable!(),
+                }
             })
             .collect()
     } else {
@@ -91,7 +122,7 @@ fn display_raw(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> HttmResul
             .flatten()
             .map(|pathdata| {
                 let display_path = pathdata.path_buf.display();
-                format!("{}{}", display_path, delimiter)
+                format!("\"{}\"{}", display_path, delimiter)
             })
             .collect()
     };

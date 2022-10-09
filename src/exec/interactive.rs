@@ -20,7 +20,7 @@ use std::{fs::FileType, io::Cursor, path::Path, path::PathBuf, thread, vec};
 use lscolors::Colorable;
 use skim::prelude::*;
 
-use crate::config::init::Config;
+use crate::config::init::{Config, NumVersionsMode};
 use crate::config::init::{DeletedMode, ExecMode, InteractiveMode, RequestRelative};
 use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::exec::display::display_exec;
@@ -83,7 +83,7 @@ impl SelectionCandidate {
             opt_no_snap: false,
             opt_debug: false,
             opt_no_traverse: false,
-            opt_only_version: false,
+            opt_num_versions: NumVersionsMode::Disabled,
             opt_omit_identical: config.opt_omit_identical,
             requested_utc_offset: config.requested_utc_offset,
             exec_mode: ExecMode::Display,

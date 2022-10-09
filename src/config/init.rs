@@ -66,6 +66,14 @@ pub enum DeletedMode {
     Only,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum NumVersionsMode {
+    Disabled,
+    All,
+    Single,
+    Multiple,
+}
+
 fn parse_args() -> ArgMatches {
     clap::Command::new(crate_name!())
         .about("httm prints the size, date and corresponding locations of available unique versions of files residing on snapshots.  \
@@ -280,9 +288,16 @@ fn parse_args() -> ArgMatches {
                 .display_order(21)
         )
         .arg(
-            Arg::new("ONLY_VERSION")
-                .long("is-only-version")
-                .help("detect and display if live version is the only version available (either snapshot versions exist, and are all identical to live version, or no snapshot version exists).")
+            Arg::new("NUM_VERSIONS")
+                .long("num-versions")
+                .default_missing_value("all")
+                .possible_values(&["all", "single", "multiple"])
+                .min_values(0)
+                .require_equals(true)
+                .help("detect and display the number of versions available (e.g. one, \"1\", \
+                version is available if either a snapshot version exists, and is identical to live version, or only a live version exists).  \
+                This option takes a value: \"all\" will print the filename and number of versions, \"solo\" will print only filenames which only have one version, \
+                and \"multi\" will print only filenames which only have multiple versions.")
                 .conflicts_with_all(&["INTERACTIVE", "SELECT", "RESTORE", "RECURSIVE", "SNAP_FILE_MOUNT", "LAST_SNAP", "NOT_SO_PRETTY", "NO_LIVE", "NO_SNAP", "OMIT_IDENTICAL"])
                 .display_order(22)
         )
@@ -330,7 +345,7 @@ pub struct Config {
     pub opt_debug: bool,
     pub opt_no_traverse: bool,
     pub opt_omit_identical: bool,
-    pub opt_only_version: bool,
+    pub opt_num_versions: NumVersionsMode,
     pub requested_utc_offset: UtcOffset,
     pub exec_mode: ExecMode,
     pub dataset_collection: DatasetCollection,
@@ -374,7 +389,13 @@ impl Config {
             Some("overwrite") | Some("yolo")
         );
         let opt_omit_identical = matches.is_present("OMIT_IDENTICAL_SNAPS");
-        let opt_only_version = matches.is_present("ONLY_VERSION");
+
+        let opt_num_versions = match matches.value_of("NUM_VERSIONS") {
+            Some("") | Some("all") => NumVersionsMode::All,
+            Some("single") => NumVersionsMode::Single,
+            Some("multiple") => NumVersionsMode::Multiple,
+            _ => NumVersionsMode::Disabled,
+        };
 
         let mut deleted_mode = match matches.value_of("DELETED_MODE") {
             Some("") | Some("all") => DeletedMode::Enabled,
@@ -477,7 +498,7 @@ impl Config {
             opt_debug,
             opt_no_traverse,
             opt_omit_identical,
-            opt_only_version,
+            opt_num_versions,
             requested_utc_offset,
             dataset_collection,
             exec_mode,
