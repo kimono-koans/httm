@@ -104,10 +104,10 @@ fn parse_num_versions(
 
     match config.opt_num_versions {
         NumVersionsMode::All => {
-            let num_versions = if !is_live_redundant {
-                snaps.len() - 1
-            } else {
+            let num_versions = if is_live_redundant {
                 snaps.len()
+            } else {
+                snaps.len() + 1
             };
 
             Some(format!(
