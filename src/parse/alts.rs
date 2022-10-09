@@ -20,8 +20,8 @@ use std::{path::Path, path::PathBuf};
 use rayon::prelude::*;
 
 use crate::data::filesystem_map::{MapOfAlts, MostProximateAndOptAlts};
-use crate::library::results::HttmError;
-use crate::{HttmResult, MapOfDatasets};
+use crate::library::results::{HttmError, HttmResult};
+use crate::{MapOfDatasets};
 
 // instead of looking up, precompute possible alt replicated mounts before exec
 pub fn precompute_alt_replicated(map_of_datasets: &MapOfDatasets) -> MapOfAlts {

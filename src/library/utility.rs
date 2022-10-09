@@ -26,7 +26,7 @@ use std::{
 use lscolors::{Colorable, LsColors, Style};
 use time::{format_description, OffsetDateTime};
 
-use crate::library::results::HttmError;
+use crate::library::results::{HttmError, HttmResult};
 use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::exec::display::display_exec;
 use crate::exec::interactive::SelectionCandidate;

@@ -23,7 +23,8 @@ use rayon::prelude::*;
 use crate::config::init::Config;
 use crate::data::paths::PathData;
 use crate::lookup::versions::select_search_datasets;
-use crate::{HttmResult, MostProximateAndOptAlts};
+use crate::library::results::{HttmResult};
+use crate::{MostProximateAndOptAlts};
 
 pub type MountsForFiles = BTreeMap<PathData, Vec<PathData>>;
 
