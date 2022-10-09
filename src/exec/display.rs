@@ -125,10 +125,17 @@ fn parse_num_versions(
                 snaps.len() + 1
             };
 
-            Some(format!(
-                "\"{}\" : {} Versions available.{}",
-                display_path, num_versions, delimiter
-            ))
+            if num_versions == 1 {
+                Some(format!(
+                    "\"{}\" : 1 Version available.{}",
+                    display_path, delimiter
+                ))
+            } else {
+                Some(format!(
+                    "\"{}\" : {} Versions available.{}",
+                    display_path, num_versions, delimiter
+                ))
+            }
         }
         NumVersionsMode::Multiple | NumVersionsMode::Single => {
             let is_only_version = snaps.is_empty() || (snaps.len() == 1 && is_live_redundant);
