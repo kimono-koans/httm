@@ -115,7 +115,7 @@ fn parse_num_versions(
             ))
         }
         NumVersionsMode::Multiple | NumVersionsMode::Single => {
-            let is_only_version = snaps.is_empty() || is_live_redundant;
+            let is_only_version = snaps.is_empty() || (snaps.len() == 1 && is_live_redundant);
 
             match config.opt_num_versions {
                 NumVersionsMode::Multiple => {
