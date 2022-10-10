@@ -360,7 +360,7 @@ fn get_padding_for_map(
         .iter()
         .map(|(key, _values)| key)
         .max_by_key(|key| key.path_buf.to_string_lossy().len() + QUOTATION_MARKS_LEN)
-        .map_or_else(|| 0usize, |key| key.path_buf.to_string_lossy().len())
+        .map_or_else(|| QUOTATION_MARKS_LEN, |key| key.path_buf.to_string_lossy().len() + QUOTATION_MARKS_LEN)
 }
 
 fn map_to_display_set(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> DisplaySet {
