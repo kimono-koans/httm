@@ -61,10 +61,12 @@ fn display_raw(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> HttmResul
     let delimiter = if config.opt_zeros { '\0' } else { '\n' };
 
     let write_out_buffer = if !matches!(config.opt_num_versions, NumVersionsMode::Disabled) {
+
         let buffer: String = map_live_to_snaps
             .iter()
             .filter_map(|(live_version, snaps)| {
-                parse_num_versions(config, delimiter, live_version, snaps)
+                let padding = get_padding_for_map(map_live_to_snaps);
+                parse_num_versions(config, delimiter, live_version, snaps, padding)
             })
             .collect();
 
@@ -299,7 +301,7 @@ fn display_ordered_map(
     let write_out_buffer = if config.opt_no_pretty {
         map.iter()
             .map(|(key, values)| {
-                let key_string = key.path_buf.to_string_lossy().to_string();
+                let display_path = format!("\"{}\"", key.path_buf.to_string_lossy().to_string());
 
                 let values_string: String = values
                     .iter()
@@ -312,15 +314,11 @@ fn display_ordered_map(
                     })
                     .collect();
 
-                format!("{}:{}\n", key_string, values_string)
+                format!("{}:{}\n", display_path, values_string)
             })
             .collect()
     } else {
-        let padding = map
-            .iter()
-            .map(|(key, _values)| key)
-            .max_by_key(|key| key.path_buf.to_string_lossy().len())
-            .map_or_else(|| 0usize, |key| key.path_buf.to_string_lossy().len());
+        let padding = get_padding_for_map(map);
 
         map.iter()
             .map(|(key, values)| {
@@ -349,6 +347,16 @@ fn display_ordered_map(
     };
 
     Ok(write_out_buffer)
+}
+
+fn get_padding_for_map(
+    map: &BTreeMap<PathData, Vec<PathData>>
+) -> usize {
+    map
+        .iter()
+        .map(|(key, _values)| key)
+        .max_by_key(|key| key.path_buf.to_string_lossy().len() + QUOTATION_MARKS_LEN)
+        .map_or_else(|| 0usize, |key| key.path_buf.to_string_lossy().len())
 }
 
 fn map_to_display_set(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> DisplaySet {
@@ -386,12 +394,13 @@ fn parse_num_versions(
     delimiter: char,
     live_version: &PathData,
     snaps: &[PathData],
+    padding: usize,
 ) -> Option<String> {
-    let display_path = live_version.path_buf.display();
+    let display_path = format!("\"{}\"", live_version.path_buf.display());
 
     if live_version.metadata.is_none() {
         return Some(format!(
-            "\"{}\" : Path does not exist.{}",
+            "{} : Path does not exist.{}",
             display_path, delimiter
         ));
     }
@@ -411,15 +420,9 @@ fn parse_num_versions(
             };
 
             if num_versions == 1 {
-                Some(format!(
-                    "\"{}\" : 1 Version available.{}",
-                    display_path, delimiter
-                ))
+                Some(format!("{:<width$} : 1 Version available.{}", display_path, delimiter, width = padding))
             } else {
-                Some(format!(
-                    "\"{}\" : {} Versions available.{}",
-                    display_path, num_versions, delimiter
-                ))
+                Some(format!("{:<width$} : {} Version available.{}", display_path, num_versions, delimiter, width = padding))
             }
         }
         NumVersionsMode::Multiple
@@ -430,26 +433,26 @@ fn parse_num_versions(
                 if snaps.is_empty() || (snaps.len() == 1 && is_live_redundant()) {
                     None
                 } else {
-                    Some(format!("\"{}\"{}", display_path, delimiter))
+                    Some(format!("{}{}", display_path, delimiter))
                 }
             }
             NumVersionsMode::SingleAll => {
                 if snaps.is_empty() || (snaps.len() == 1 && is_live_redundant()) {
-                    Some(format!("\"{}\"{}", display_path, delimiter))
+                    Some(format!("{}{}", display_path, delimiter))
                 } else {
                     None
                 }
             }
             NumVersionsMode::SingleNoSnap => {
                 if snaps.is_empty() {
-                    Some(format!("\"{}\"{}", display_path, delimiter))
+                    Some(format!("{}{}", display_path, delimiter))
                 } else {
                     None
                 }
             }
             NumVersionsMode::SingleWithSnap => {
                 if !snaps.is_empty() && (snaps.len() == 1 && is_live_redundant()) {
-                    Some(format!("\"{}\"{}", display_path, delimiter))
+                    Some(format!("{}{}", display_path, delimiter))
                 } else {
                     None
                 }
