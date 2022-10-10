@@ -276,28 +276,6 @@ fn parse_args() -> ArgMatches {
                 .display_order(20)
         )
         .arg(
-            Arg::new("REMOTE_DIR")
-                .long("remote-dir")
-                .visible_aliases(&["remote", "snap-point"])
-                .help("DEPRECATED.  Use MAP_ALIASES. Manually specify that mount point for ZFS (directory which contains a \".zfs\" directory) or btrfs-snapper \
-                (directory which contains a \".snapshots\" directory), such as the local mount point for a remote share.  You may also set via the HTTM_REMOTE_DIR environment variable.")
-                .takes_value(true)
-                .value_parser(clap::builder::ValueParser::os_string())
-                .display_order(21)
-        )
-        .arg(
-            Arg::new("LOCAL_DIR")
-                .long("local-dir")
-                .visible_alias("local")
-                .help("DEPRECATED.  Use MAP_ALIASES.  Used with \"remote-dir\" to determine where the corresponding live root filesystem of the dataset is.  \
-                Put more simply, the \"local-dir\" is likely the directory you backup to your \"remote-dir\".  If not set, httm defaults to your current working directory.  \
-                You may also set via the environment variable HTTM_LOCAL_DIR.")
-                .requires("REMOTE_DIR")
-                .takes_value(true)
-                .value_parser(clap::builder::ValueParser::os_string())
-                .display_order(22)
-        )
-        .arg(
             Arg::new("NUM_VERSIONS")
                 .long("num-versions")
                 .default_missing_value("all")
@@ -311,6 +289,28 @@ fn parse_args() -> ArgMatches {
                 (and \"single-no-snap\" will print those without a snap taken, and \"single-with-snap\" will print those with a snap taken), \
                 and \"multiple\" will print only filenames which only have multiple versions.")
                 .conflicts_with_all(&["INTERACTIVE", "SELECT", "RESTORE", "RECURSIVE", "SNAP_FILE_MOUNT", "LAST_SNAP", "NOT_SO_PRETTY", "NO_LIVE", "NO_SNAP", "OMIT_IDENTICAL"])
+                .display_order(21)
+        )
+        .arg(
+            Arg::new("REMOTE_DIR")
+                .long("remote-dir")
+                .visible_aliases(&["remote", "snap-point"])
+                .help("DEPRECATED.  Use MAP_ALIASES. Manually specify that mount point for ZFS (directory which contains a \".zfs\" directory) or btrfs-snapper \
+                (directory which contains a \".snapshots\" directory), such as the local mount point for a remote share.  You may also set via the HTTM_REMOTE_DIR environment variable.")
+                .takes_value(true)
+                .value_parser(clap::builder::ValueParser::os_string())
+                .display_order(22)
+        )
+        .arg(
+            Arg::new("LOCAL_DIR")
+                .long("local-dir")
+                .visible_alias("local")
+                .help("DEPRECATED.  Use MAP_ALIASES.  Used with \"remote-dir\" to determine where the corresponding live root filesystem of the dataset is.  \
+                Put more simply, the \"local-dir\" is likely the directory you backup to your \"remote-dir\".  If not set, httm defaults to your current working directory.  \
+                You may also set via the environment variable HTTM_LOCAL_DIR.")
+                .requires("REMOTE_DIR")
+                .takes_value(true)
+                .value_parser(clap::builder::ValueParser::os_string())
                 .display_order(23)
         )
         .arg(
