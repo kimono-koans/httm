@@ -359,7 +359,7 @@ fn map_to_display_set(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> Di
             .clone()
             .into_iter()
             .flat_map(|(live_version, snaps)| {
-                if config.opt_omit_identical {
+                if config.opt_omit_ditto {
                     snaps
                         .into_iter()
                         .filter(|snap_version| {

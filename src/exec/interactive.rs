@@ -85,7 +85,7 @@ impl SelectionCandidate {
             opt_debug: false,
             opt_no_traverse: false,
             opt_num_versions: NumVersionsMode::Disabled,
-            opt_omit_identical: config.opt_omit_identical,
+            opt_omit_ditto: config.opt_omit_ditto,
             requested_utc_offset: config.requested_utc_offset,
             exec_mode: ExecMode::Display,
             deleted_mode: DeletedMode::Disabled,

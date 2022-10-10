@@ -238,11 +238,18 @@ fn parse_args() -> ArgMatches {
                 .display_order(16)
         )
         .arg(
+            Arg::new("OMIT_DITTO")
+                .long("omit-ditto")
+                .help("omit display of the snapshot version which may be identical to the live version (`httm` ordinarily displays *all* snapshot versions and the live version).")
+                .conflicts_with_all(&["NUM_VERSIONS"])
+                .display_order(17)
+        )
+        .arg(
             Arg::new("NO_LIVE")
                 .long("no-live")
                 .visible_aliases(&["dead", "disco"])
                 .help("only display information concerning snapshot versions (display no information regarding 'live' versions of files or directories).")
-                .display_order(17)
+                .display_order(18)
         )
         .arg(
             Arg::new("NO_SNAP")
@@ -252,7 +259,7 @@ fn parse_args() -> ArgMatches {
                 Useful for finding only the \"files that once were\" and displaying only those pseudo-live/undead files.")
                 .requires("RECURSIVE")
                 .conflicts_with_all(&["INTERACTIVE", "SELECT", "RESTORE", "SNAP_FILE_MOUNT", "LAST_SNAP", "NOT_SO_PRETTY"])
-                .display_order(18)
+                .display_order(19)
         )
         .arg(
             Arg::new("MAP_ALIASES")
@@ -266,7 +273,7 @@ fn parse_args() -> ArgMatches {
                 .use_value_delimiter(true)
                 .takes_value(true)
                 .value_parser(clap::builder::ValueParser::os_string())
-                .display_order(19)
+                .display_order(20)
         )
         .arg(
             Arg::new("REMOTE_DIR")
@@ -276,7 +283,7 @@ fn parse_args() -> ArgMatches {
                 (directory which contains a \".snapshots\" directory), such as the local mount point for a remote share.  You may also set via the HTTM_REMOTE_DIR environment variable.")
                 .takes_value(true)
                 .value_parser(clap::builder::ValueParser::os_string())
-                .display_order(20)
+                .display_order(21)
         )
         .arg(
             Arg::new("LOCAL_DIR")
@@ -288,7 +295,7 @@ fn parse_args() -> ArgMatches {
                 .requires("REMOTE_DIR")
                 .takes_value(true)
                 .value_parser(clap::builder::ValueParser::os_string())
-                .display_order(21)
+                .display_order(22)
         )
         .arg(
             Arg::new("NUM_VERSIONS")
@@ -304,13 +311,6 @@ fn parse_args() -> ArgMatches {
                 (and \"single-no-snap\" will print those without a snap taken, and \"single-with-snap\" will print those with a snap taken), \
                 and \"multiple\" will print only filenames which only have multiple versions.")
                 .conflicts_with_all(&["INTERACTIVE", "SELECT", "RESTORE", "RECURSIVE", "SNAP_FILE_MOUNT", "LAST_SNAP", "NOT_SO_PRETTY", "NO_LIVE", "NO_SNAP", "OMIT_IDENTICAL"])
-                .display_order(22)
-        )
-        .arg(
-            Arg::new("OMIT_IDENTICAL")
-                .long("omit-identical")
-                .help("omit display of the snapshot version which is identical to the live version (`httm` ordinarily displays *all* snapshot versions and the live version).")
-                .conflicts_with_all(&["NUM_VERSIONS"])
                 .display_order(23)
         )
         .arg(
@@ -349,7 +349,7 @@ pub struct Config {
     pub opt_no_snap: bool,
     pub opt_debug: bool,
     pub opt_no_traverse: bool,
-    pub opt_omit_identical: bool,
+    pub opt_omit_ditto: bool,
     pub opt_num_versions: NumVersionsMode,
     pub requested_utc_offset: UtcOffset,
     pub exec_mode: ExecMode,
@@ -469,10 +469,10 @@ impl Config {
         let opt_requested_dir: Option<PathData> =
             Config::get_opt_requested_dir(&mut exec_mode, &mut deleted_mode, &paths, &pwd)?;
 
-        let opt_omit_identical = matches.is_present("OMIT_IDENTICAL");
+        let opt_omit_ditto = matches.is_present("OMIT_DITTO");
 
         // opt_omit_identical doesn't make sense in Display Recursive mode as no live files will exists?
-        if opt_omit_identical && matches!(exec_mode, ExecMode::DisplayRecursive(_)) {
+        if opt_omit_ditto && matches!(exec_mode, ExecMode::DisplayRecursive(_)) {
             return Err(HttmError::new("Omit identical mode not available when a deleted recursive search is specified.  Quitting.").into());
         }
 
@@ -510,7 +510,7 @@ impl Config {
             opt_no_snap,
             opt_debug,
             opt_no_traverse,
-            opt_omit_identical,
+            opt_omit_ditto,
             opt_num_versions,
             requested_utc_offset,
             dataset_collection,
