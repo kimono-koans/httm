@@ -448,7 +448,7 @@ fn parse_num_versions(
                 }
             }
             NumVersionsMode::SingleWithSnap => {
-                if !snaps.is_empty() && is_live_redundant() {
+                if !snaps.is_empty() && (snaps.len() == 1 && is_live_redundant()) {
                     Some(format!("\"{}\"{}", display_path, delimiter))
                 } else {
                     None
