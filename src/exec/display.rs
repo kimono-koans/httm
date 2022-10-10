@@ -356,20 +356,19 @@ fn map_to_display_set(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> Di
         Vec::new()
     } else {
         map_live_to_snaps
-            .clone()
-            .into_iter()
+            .iter()
             .flat_map(|(live_version, snaps)| {
-                if config.opt_omit_ditto {
-                    snaps
-                        .into_iter()
-                        .filter(|snap_version| {
+                snaps
+                    .iter()
+                    .filter(|snap_version| {
+                        if config.opt_omit_ditto {
                             snap_version.metadata.is_some()
                                 && snap_version.metadata != live_version.metadata
-                        })
-                        .collect()
-                } else {
-                    snaps
-                }
+                        } else {
+                            true
+                        }
+                    })
+                    .cloned()
             })
             .collect()
     };
@@ -377,7 +376,7 @@ fn map_to_display_set(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> Di
     let vec_live = if config.opt_no_live || matches!(config.exec_mode, ExecMode::MountsForFiles) {
         Vec::new()
     } else {
-        map_live_to_snaps.clone().into_keys().collect()
+        map_live_to_snaps.keys().cloned().collect()
     };
 
     [vec_snaps, vec_live]
