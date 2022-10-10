@@ -65,8 +65,12 @@ fn display_raw(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> HttmResul
         let buffer: String = map_live_to_snaps
             .iter()
             .filter_map(|(live_version, snaps)| {
-                let padding = get_padding_for_map(map_live_to_snaps);
-                parse_num_versions(config, delimiter, live_version, snaps, padding)
+                let map_padding = if matches!(config.opt_num_versions, NumVersionsMode::All) {
+                    get_padding_for_map(map_live_to_snaps)
+                } else {
+                    0usize
+                };
+                parse_num_versions(config, delimiter, live_version, snaps, map_padding)
             })
             .collect();
 
@@ -322,7 +326,7 @@ fn display_ordered_map(
 
         map.iter()
             .map(|(key, values)| {
-                let key_string = key.path_buf.to_string_lossy();
+                let display_path = format!("\"{}\"", key.path_buf.to_string_lossy().to_string());
 
                 values
                     .iter()
@@ -333,7 +337,7 @@ fn display_ordered_map(
                         if idx == 0 {
                             format!(
                                 "{:<width$} : \"{}\"\n",
-                                key_string,
+                                display_path,
                                 value_string,
                                 width = padding
                             )
