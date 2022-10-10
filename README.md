@@ -143,13 +143,13 @@ filename="./httm/httm.1"
 previous_version=""
 for current_version in $(httm -n --omit-identical $filename); do
     # check if initial "previous_version" needs to be set
-    if [[ -z "$previous_version"  ]]; then
+    if [[ -z "$previous_version" ]]; then
         previous_version="$current_version"
         continue
     fi
 
     # print that current version and previous version differ
-    diff -q  "$previous_version" "$current_version"
+    diff -q "$previous_version" "$current_version"
     # print the difference between that current version and previous_version
     diff "$previous_version" "$current_version"
 
@@ -185,8 +185,7 @@ for version in $(httm -n --omit-identical $file); do
     cp "$version" ./
     git add "./$(basename $version)"
     # modify commit date to match snapshot modify date-time
-    git commit \
-    -m "httm commit from ZFS snapshot" \
+    git commit -m "httm commit from ZFS snapshot" \
     --date "$(date -d "$(stat -c %y $version)")"
 done
 # create git tar.gz archive
