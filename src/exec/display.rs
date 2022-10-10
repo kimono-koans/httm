@@ -362,8 +362,7 @@ fn map_to_display_set(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> Di
                     .iter()
                     .filter(|snap_version| {
                         if config.opt_omit_ditto {
-                            snap_version.metadata.is_some()
-                                && snap_version.metadata != live_version.metadata
+                            snap_version.metadata != live_version.metadata
                         } else {
                             true
                         }
