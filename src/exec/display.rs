@@ -398,9 +398,10 @@ fn parse_num_versions(
         ));
     }
 
-    let is_live_redundant = || { snaps
-        .iter()
-        .any(|snap_version| live_version.metadata == snap_version.metadata)
+    let is_live_redundant = || {
+        snaps
+            .iter()
+            .any(|snap_version| live_version.metadata == snap_version.metadata)
     };
 
     match config.opt_num_versions {

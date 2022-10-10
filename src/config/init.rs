@@ -391,7 +391,6 @@ impl Config {
             matches.value_of("RESTORE"),
             Some("overwrite") | Some("yolo")
         );
-        let opt_omit_identical = matches.is_present("OMIT_IDENTICAL");
 
         let opt_num_versions = match matches.value_of("NUM_VERSIONS") {
             Some("") | Some("all") => NumVersionsMode::All,
@@ -467,6 +466,13 @@ impl Config {
         // for exec_modes in which we can only take a single directory, process how we handle those here
         let opt_requested_dir: Option<PathData> =
             Config::get_opt_requested_dir(&mut exec_mode, &mut deleted_mode, &paths, &pwd)?;
+
+        let opt_omit_identical = matches.is_present("OMIT_IDENTICAL");
+
+        // opt_omit_identical doesn't make sense in Display Recursive mode as no live files will exists?
+        if opt_omit_identical && matches!(exec_mode, ExecMode::DisplayRecursive(_)) {
+            return Err(HttmError::new("Omit identical mode not available when a deleted recursive search is specified.  Quitting.").into());
+        }
 
         // doesn't make sense to follow symlinks when you're searching the whole system,
         // so we disable our bespoke "when to traverse symlinks" algo here, or if requested.
