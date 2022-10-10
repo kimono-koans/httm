@@ -141,21 +141,17 @@ View the differences between each unique snapshot version of the `httm` `man` pa
 filename="./httm/httm.1"
 # previous version is unset
 previous_version=""
-for current_version in $(httm -n $filename); do
+for current_version in $(httm -n --omit-identical $filename); do
     # check if initial "previous_version" needs to be set
     if [[ -z "$previous_version"  ]]; then
         previous_version="$current_version"
         continue
     fi
 
-    # check whether files differ (e.g. if current version is identical to previous version)
-    check_files_differ="$( diff -q  "$previous_version" "$current_version" )"
-    if [[ ! -z  "$check_files_differ" ]]; then
-        # print that current version and previous version differ
-        echo "$check_files_differ"
-        # print the difference between that current version and previous_version
-        diff "$previous_version" "$current_version"
-    fi
+    # print that current version and previous version differ
+    diff -q  "$previous_version" "$current_version"
+    # print the difference between that current version and previous_version
+    diff "$previous_version" "$current_version"
 
     # set current_version to previous_version
     previous_version="$current_version"
@@ -163,7 +159,7 @@ done
 ```
 Create a simple `tar` archive of all unique versions of your `/var/log/syslog`:
 ```bash
-httm -n /var/log/syslog | tar -zcvf all-versions-syslog.tar.gz -T -
+httm -n --omit-identical /var/log/syslog | tar -zcvf all-versions-syslog.tar.gz -T -
 ```
 Create a *kinda fancy* `tar` archive of all unique versions of your `/var/log/syslog`:
 ```bash
@@ -171,7 +167,7 @@ file="/var/log/syslog"
 dir_name="${$(dirname $file)/\//}"
 base_dir="$(basename $file)_all_versions"
 # squash extra directories by "transforming" them to simply snapshot names 
-httm -n "$file" | \
+httm -n --omit-identical "$file" | \
 tar \
 --transform="flags=r;s|$dir_name|$base_dir|" \
 --transform="flags=r;s|.zfs/snapshot/||" \
@@ -185,7 +181,7 @@ file="/var/log/syslog"
 # create git repo
 mkdir ./archive-git; cd ./archive-git; git init
 # copy each version to repo and commit after each copy
-for version in $(httm -n $file); do
+for version in $(httm -n --omit-identical $file); do
     cp "$version" ./
     git add "./$(basename $version)"
     # modify commit date to match snapshot modify date-time

@@ -299,15 +299,17 @@ fn parse_args() -> ArgMatches {
                 .require_equals(true)
                 .help("detect and display the number of versions available (e.g. one, \"1\", \
                 version is available if either a snapshot version exists, and is identical to live version, or only a live version exists).  \
-                This option takes a value: \"all\" will print the filename and number of versions, \"solo\" will print only filenames which only have one version, \
-                and \"multi\" will print only filenames which only have multiple versions.")
+                This option takes a value: \"all\" will print the filename and number of versions, \
+                \"single\" will print only filenames which only have one version, \
+                (and \"single-no-snap\" will print those without a snap taken, and \"single-with-snap\" will print those with a snap taken), \
+                and \"multiple\" will print only filenames which only have multiple versions.")
                 .conflicts_with_all(&["INTERACTIVE", "SELECT", "RESTORE", "RECURSIVE", "SNAP_FILE_MOUNT", "LAST_SNAP", "NOT_SO_PRETTY", "NO_LIVE", "NO_SNAP", "OMIT_IDENTICAL"])
                 .display_order(22)
         )
         .arg(
             Arg::new("OMIT_IDENTICAL")
                 .long("omit-identical")
-                .help("omit display of snapshot version which is identical to the live version.")
+                .help("omit display of the snapshot version which is identical to the live version (`httm` ordinarily displays *all* snapshot versions and the live version).")
                 .conflicts_with_all(&["NUM_VERSIONS"])
                 .display_order(23)
         )
