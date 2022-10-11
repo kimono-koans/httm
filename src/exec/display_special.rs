@@ -144,7 +144,7 @@ pub fn display_ordered_map(
 fn get_padding_for_map(map: &BTreeMap<PathData, Vec<PathData>>) -> usize {
     map.iter()
         .map(|(key, _values)| key)
-        .max_by_key(|key| key.path_buf.to_string_lossy().len() + QUOTATION_MARKS_LEN)
+        .max_by_key(|key| key.path_buf.to_string_lossy().len())
         .map_or_else(
             || QUOTATION_MARKS_LEN,
             |key| key.path_buf.to_string_lossy().len() + QUOTATION_MARKS_LEN,
