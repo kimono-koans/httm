@@ -19,7 +19,6 @@ use std::borrow::Cow;
 
 use number_prefix::NumberPrefix;
 use terminal_size::{terminal_size, Height, Width};
-use time::UtcOffset;
 
 use crate::config::init::{Config, ExecMode};
 use crate::data::filesystem_map::{DisplaySet, MapLiveToSnaps};
@@ -91,13 +90,7 @@ fn display_formatted(config: &Config, display_set: &DisplaySet) -> HttmResult<St
             let pathdata_set_buffer: String = pathdata_set
                 .iter()
                 .map(|pathdata| {
-                    display_pathdata(
-                        config.requested_utc_offset,
-                        pathdata,
-                        is_live_set,
-                        config.opt_no_pretty,
-                        &padding_collection,
-                    )
+                    display_pathdata(config, pathdata, is_live_set, &padding_collection)
                 })
                 .collect();
 
@@ -122,17 +115,16 @@ fn display_formatted(config: &Config, display_set: &DisplaySet) -> HttmResult<St
 }
 
 fn display_pathdata(
-    requested_utc_offset: UtcOffset,
+    config: &Config,
     pathdata: &PathData,
     is_live_set: bool,
-    opt_no_pretty: bool,
     padding_collection: &PaddingCollection,
 ) -> String {
     // obtain metadata for timestamp and size
     let path_metadata = pathdata.md_infallible();
 
     // tab delimited if "no pretty", no border lines, and no colors
-    let (display_size, display_path, display_padding) = if opt_no_pretty {
+    let (display_size, display_path, display_padding) = if config.opt_no_pretty {
         // displays blanks for phantom values, equaling their dummy lens and dates.
         //
         // we use a dummy instead of a None value here.  Basically, sometimes, we want
@@ -179,11 +171,7 @@ fn display_pathdata(
     };
 
     let display_date = if pathdata.metadata.is_some() {
-        get_date(
-            requested_utc_offset,
-            &path_metadata.modify_time,
-            DateFormat::Display,
-        )
+        get_date(config, &path_metadata.modify_time, DateFormat::Display)
     } else {
         padding_collection.phantom_date_pad_str.to_owned()
     };
@@ -202,11 +190,7 @@ fn calculate_pretty_padding(config: &Config, display_set: &DisplaySet) -> Paddin
             let path_metadata = pathdata.md_infallible();
 
             let (display_date, display_size, display_path) = {
-                let date = get_date(
-                    config.requested_utc_offset,
-                    &path_metadata.modify_time,
-                    DateFormat::Display,
-                );
+                let date = get_date(config, &path_metadata.modify_time, DateFormat::Display);
                 let size = format!(
                     "{:>width$}",
                     display_human_size(&path_metadata.size),
@@ -254,12 +238,7 @@ fn calculate_pretty_padding(config: &Config, display_set: &DisplaySet) -> Paddin
     let phantom_date_pad_str = format!(
         "{:<width$}",
         "",
-        width = get_date(
-            config.requested_utc_offset,
-            &PHANTOM_DATE,
-            DateFormat::Display
-        )
-        .len()
+        width = get_date(config, &PHANTOM_DATE, DateFormat::Display).len()
     );
     let phantom_size_pad_str = format!(
         "{:<width$}",
@@ -282,15 +261,13 @@ pub fn map_to_display_set(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -
         map_live_to_snaps
             .iter()
             .flat_map(|(live_version, snaps)| {
-                snaps
-                    .iter()
-                    .filter(|snap_version| {
-                        if config.opt_omit_ditto {
-                            snap_version.metadata != live_version.metadata
-                        } else {
-                            true
-                        }
-                    })
+                snaps.iter().filter(|snap_version| {
+                    if config.opt_omit_ditto {
+                        snap_version.metadata != live_version.metadata
+                    } else {
+                        true
+                    }
+                })
             })
             .cloned()
             .collect()

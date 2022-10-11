@@ -34,11 +34,7 @@ pub fn take_snapshot(config: Arc<Config>) -> HttmResult<()> {
         mounts_for_files: &MountsForFiles,
     ) -> HttmResult<()> {
         // all snapshots should have the same timestamp
-        let timestamp = get_date(
-            config.requested_utc_offset,
-            &SystemTime::now(),
-            DateFormat::Timestamp,
-        );
+        let timestamp = get_date(&config, &SystemTime::now(), DateFormat::Timestamp);
 
         let vec_snapshot_names: Vec<String> = mounts_for_files
             .iter()
