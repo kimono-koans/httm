@@ -291,8 +291,8 @@ pub fn map_to_display_set(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -
                             true
                         }
                     })
-                    .cloned()
             })
+            .cloned()
             .collect()
     };
 
