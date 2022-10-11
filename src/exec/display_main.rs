@@ -50,11 +50,12 @@ pub fn display_exec(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> Httm
             display_num_versions(delimiter, num_versions_mode, map_live_to_snaps)?
         }
         _ => {
+            let display_set = map_to_display_set(config, map_live_to_snaps);
+
             if config.opt_raw || config.opt_zeros {
                 let delimiter = if config.opt_zeros { '\0' } else { '\n' };
-                display_raw(config, delimiter, map_live_to_snaps)?
+                display_raw(&display_set, delimiter)?
             } else {
-                let display_set = map_to_display_set(config, map_live_to_snaps);
                 display_formatted(config, &display_set)?
             }
         }
@@ -63,23 +64,15 @@ pub fn display_exec(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> Httm
     Ok(output_buffer)
 }
 
-pub fn display_raw(
-    config: &Config,
-    delimiter: char,
-    map_live_to_snaps: &MapLiveToSnaps,
-) -> HttmResult<String> {
-    let write_out_buffer = {
-        let display_set = map_to_display_set(config, map_live_to_snaps);
-
-        display_set
-            .iter()
-            .flatten()
-            .map(|pathdata| {
-                let display_path = pathdata.path_buf.display();
-                format!("\"{}\"{}", display_path, delimiter)
-            })
-            .collect()
-    };
+pub fn display_raw(display_set: &DisplaySet, delimiter: char) -> HttmResult<String> {
+    let write_out_buffer = display_set
+        .iter()
+        .flatten()
+        .map(|pathdata| {
+            let display_path = pathdata.path_buf.display();
+            format!("\"{}\"{}", display_path, delimiter)
+        })
+        .collect();
 
     Ok(write_out_buffer)
 }
@@ -261,7 +254,7 @@ fn calculate_pretty_padding(config: &Config, display_set: &DisplaySet) -> Paddin
     }
 }
 
-fn map_to_display_set(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> DisplaySet {
+pub fn map_to_display_set(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> DisplaySet {
     let vec_snaps = if config.opt_no_snap {
         Vec::new()
     } else {
