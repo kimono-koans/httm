@@ -160,13 +160,6 @@ fn parse_num_versions(
 ) -> Option<String> {
     let display_path = format!("\"{}\"", live_version.path_buf.display());
 
-    if live_version.metadata.is_none() {
-        return Some(format!(
-            "{} : Path does not exist.{}",
-            display_path, delimiter
-        ));
-    }
-
     let is_live_redundant = || {
         snaps
             .iter()
@@ -180,6 +173,13 @@ fn parse_num_versions(
             } else {
                 snaps.len() + 1
             };
+
+            if live_version.metadata.is_none() {
+                return Some(format!(
+                    "{:<width$} : Path does not exist.{}",
+                    display_path, delimiter, width = padding
+                ));
+            }
 
             if num_versions == 1 {
                 Some(format!(
@@ -201,36 +201,45 @@ fn parse_num_versions(
         NumVersionsMode::Multiple
         | NumVersionsMode::SingleAll
         | NumVersionsMode::SingleNoSnap
-        | NumVersionsMode::SingleWithSnap => match num_versions_mode {
-            NumVersionsMode::Multiple => {
-                if snaps.is_empty() || (snaps.len() == 1 && is_live_redundant()) {
-                    None
-                } else {
-                    Some(format!("{}{}", display_path, delimiter))
-                }
+        | NumVersionsMode::SingleWithSnap => {
+            if live_version.metadata.is_none() {
+                return Some(format!(
+                    "{} : Path does not exist.{}",
+                    display_path, delimiter
+                ));
             }
-            NumVersionsMode::SingleAll => {
-                if snaps.is_empty() || (snaps.len() == 1 && is_live_redundant()) {
-                    Some(format!("{}{}", display_path, delimiter))
-                } else {
-                    None
+
+            match num_versions_mode {
+                NumVersionsMode::Multiple => {
+                    if snaps.is_empty() || (snaps.len() == 1 && is_live_redundant()) {
+                        None
+                    } else {
+                        Some(format!("{}{}", display_path, delimiter))
+                    }
                 }
-            }
-            NumVersionsMode::SingleNoSnap => {
-                if snaps.is_empty() {
-                    Some(format!("{}{}", display_path, delimiter))
-                } else {
-                    None
+                NumVersionsMode::SingleAll => {
+                    if snaps.is_empty() || (snaps.len() == 1 && is_live_redundant()) {
+                        Some(format!("{}{}", display_path, delimiter))
+                    } else {
+                        None
+                    }
                 }
-            }
-            NumVersionsMode::SingleWithSnap => {
-                if !snaps.is_empty() && (snaps.len() == 1 && is_live_redundant()) {
-                    Some(format!("{}{}", display_path, delimiter))
-                } else {
-                    None
+                NumVersionsMode::SingleNoSnap => {
+                    if snaps.is_empty() {
+                        Some(format!("{}{}", display_path, delimiter))
+                    } else {
+                        None
+                    }
                 }
+                NumVersionsMode::SingleWithSnap => {
+                    if !snaps.is_empty() && (snaps.len() == 1 && is_live_redundant()) {
+                        Some(format!("{}{}", display_path, delimiter))
+                    } else {
+                        None
+                    }
+                }
+                _ => unreachable!(),
             }
-            _ => unreachable!(),
         },
         _ => unreachable!(),
     }
