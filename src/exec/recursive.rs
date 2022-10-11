@@ -25,7 +25,7 @@ use skim::prelude::*;
 use crate::config::init::Config;
 use crate::config::init::{DeletedMode, ExecMode};
 use crate::data::paths::{BasicDirEntryInfo, PathData};
-use crate::exec::display::display_exec;
+use crate::exec::display_main::display_exec;
 use crate::exec::interactive::SelectionCandidate;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{httm_is_dir, print_output_buf, HttmIsDir};
@@ -99,7 +99,10 @@ fn enumerate_live_files(
 
     // check exec mode and deleted mode, we do something different for each
     match config.exec_mode {
-        ExecMode::Display | ExecMode::SnapFileMount | ExecMode::MountsForFiles => unreachable!(),
+        ExecMode::Display
+        | ExecMode::SnapFileMount
+        | ExecMode::MountsForFiles
+        | ExecMode::NumVersions(_) => unreachable!(),
         ExecMode::DisplayRecursive(_) => {
             match config.deleted_mode {
                 // display recursive in DeletedMode::Disabled may be

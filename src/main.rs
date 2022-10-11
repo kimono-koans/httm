@@ -25,7 +25,8 @@ mod data {
     pub mod paths;
 }
 mod exec {
-    pub mod display;
+    pub mod display_main;
+    pub mod display_special;
     pub mod interactive;
     pub mod recursive;
     pub mod snapshot;
@@ -56,7 +57,7 @@ use crate::data::filesystem_map::{
     VecOfFilterDirs,
 };
 
-use crate::exec::display::display_mounts_for_files;
+use crate::exec::display_special::display_mounts_for_files;
 use crate::exec::interactive::interactive_exec;
 use crate::exec::recursive::display_recursive_wrapper;
 use crate::exec::snapshot::take_snapshot;
@@ -102,7 +103,7 @@ fn exec() -> HttmResult<()> {
             print_display_set(&config, display_set)?
         }
         // ExecMode::Display will be just printed, we already know the paths
-        ExecMode::Display => {
+        ExecMode::Display | ExecMode::NumVersions(_) => {
             let display_set = versions_lookup_exec(config.as_ref(), &config.paths)?;
             print_display_set(&config, display_set)?
         }

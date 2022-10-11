@@ -15,26 +15,26 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::{borrow::Cow, collections::BTreeMap};
+use std::borrow::Cow;
 
 use number_prefix::NumberPrefix;
 use terminal_size::{terminal_size, Height, Width};
 
-use crate::config::init::{Config, ExecMode, NumVersionsMode};
+use crate::config::init::{Config, ExecMode};
 use crate::data::filesystem_map::{DisplaySet, MapLiveToSnaps};
 use crate::data::paths::{PathData, PHANTOM_DATE, PHANTOM_SIZE};
+use crate::exec::display_special::display_num_versions;
 use crate::library::results::HttmResult;
-use crate::library::utility::{get_date, paint_string, print_output_buf, DateFormat};
-use crate::lookup::file_mounts::get_mounts_for_files;
+use crate::library::utility::{get_date, paint_string, DateFormat};
 
 // 2 space wide padding - used between date and size, and size and path
-const PRETTY_FIXED_WIDTH_PADDING: &str = "  ";
+pub const PRETTY_FIXED_WIDTH_PADDING: &str = "  ";
 // our FIXED_WIDTH_PADDING is used twice
-const PRETTY_FIXED_WIDTH_PADDING_LEN_X2: usize = PRETTY_FIXED_WIDTH_PADDING.len() * 2;
+pub const PRETTY_FIXED_WIDTH_PADDING_LEN_X2: usize = PRETTY_FIXED_WIDTH_PADDING.len() * 2;
 // tab padding used in not so pretty
-const NOT_SO_PRETTY_FIXED_WIDTH_PADDING: &str = "\t";
+pub const NOT_SO_PRETTY_FIXED_WIDTH_PADDING: &str = "\t";
 // and we add 2 quotation marks to the path when we format
-const QUOTATION_MARKS_LEN: usize = 2;
+pub const QUOTATION_MARKS_LEN: usize = 2;
 
 struct PaddingCollection {
     size_padding_len: usize,
@@ -44,54 +44,28 @@ struct PaddingCollection {
 }
 
 pub fn display_exec(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> HttmResult<String> {
-    let output_buffer = if !matches!(config.opt_num_versions, NumVersionsMode::Disabled)
-        || config.opt_raw
-        || config.opt_zeros
-    {
-        display_raw(config, map_live_to_snaps)?
-    } else {
-        let display_set = map_to_display_set(config, map_live_to_snaps);
-        display_formatted(config, &display_set)?
+    let output_buffer = match &config.exec_mode {
+        ExecMode::NumVersions(num_versions_mode) => {
+            let delimiter = if config.opt_zeros { '\0' } else { '\n' };
+            display_num_versions(delimiter, num_versions_mode, map_live_to_snaps)?
+        }
+        _ => {
+            if config.opt_raw || config.opt_zeros {
+                display_raw(config, map_live_to_snaps)?
+            } else {
+                let display_set = map_to_display_set(config, map_live_to_snaps);
+                display_formatted(config, &display_set)?
+            }
+        }
     };
 
     Ok(output_buffer)
 }
 
-fn display_raw(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> HttmResult<String> {
+pub fn display_raw(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> HttmResult<String> {
     let delimiter = if config.opt_zeros { '\0' } else { '\n' };
 
-    let write_out_buffer = if !matches!(config.opt_num_versions, NumVersionsMode::Disabled) {
-
-        let buffer: String = map_live_to_snaps
-            .iter()
-            .filter_map(|(live_version, snaps)| {
-                let map_padding = if matches!(config.opt_num_versions, NumVersionsMode::All) {
-                    get_padding_for_map(map_live_to_snaps)
-                } else {
-                    0usize
-                };
-                parse_num_versions(config, delimiter, live_version, snaps, map_padding)
-            })
-            .collect();
-
-        if buffer.is_empty() {
-            let msg = match config.opt_num_versions {
-                NumVersionsMode::Multiple => {
-                    "Notification: No paths which have multiple versions exist."
-                }
-                NumVersionsMode::SingleAll
-                | NumVersionsMode::SingleNoSnap
-                | NumVersionsMode::SingleWithSnap => {
-                    "Notification: No paths which have only a single version exist."
-                }
-                // NumVersionsMode::All empty should be dealt with earlier at lookup_exec
-                _ => unreachable!(),
-            };
-            eprintln!("{}", msg);
-        }
-
-        buffer
-    } else {
+    let write_out_buffer = {
         let display_set = map_to_display_set(config, map_live_to_snaps);
 
         display_set
@@ -284,85 +258,6 @@ fn calculate_pretty_padding(config: &Config, display_set: &DisplaySet) -> Paddin
     }
 }
 
-pub fn display_mounts_for_files(config: &Config) -> HttmResult<()> {
-    let mounts_for_files = get_mounts_for_files(config)?;
-
-    let output_buf = if config.opt_raw || config.opt_zeros {
-        display_raw(config, &mounts_for_files)?
-    } else {
-        display_ordered_map(config, &mounts_for_files)?
-    };
-
-    print_output_buf(output_buf)?;
-
-    Ok(())
-}
-
-fn display_ordered_map(
-    config: &Config,
-    map: &BTreeMap<PathData, Vec<PathData>>,
-) -> HttmResult<String> {
-    let write_out_buffer = if config.opt_no_pretty {
-        map.iter()
-            .map(|(key, values)| {
-                let display_path = format!("\"{}\"", key.path_buf.to_string_lossy().to_string());
-
-                let values_string: String = values
-                    .iter()
-                    .map(|value| {
-                        format!(
-                            "{}\"{}\"",
-                            NOT_SO_PRETTY_FIXED_WIDTH_PADDING,
-                            value.path_buf.to_string_lossy()
-                        )
-                    })
-                    .collect();
-
-                format!("{}:{}\n", display_path, values_string)
-            })
-            .collect()
-    } else {
-        let padding = get_padding_for_map(map);
-
-        map.iter()
-            .map(|(key, values)| {
-                let display_path = format!("\"{}\"", key.path_buf.to_string_lossy().to_string());
-
-                values
-                    .iter()
-                    .enumerate()
-                    .map(|(idx, value)| {
-                        let value_string = value.path_buf.to_string_lossy();
-
-                        if idx == 0 {
-                            format!(
-                                "{:<width$} : \"{}\"\n",
-                                display_path,
-                                value_string,
-                                width = padding
-                            )
-                        } else {
-                            format!("{:<width$} : \"{}\"\n", "", value_string, width = padding)
-                        }
-                    })
-                    .collect::<String>()
-            })
-            .collect()
-    };
-
-    Ok(write_out_buffer)
-}
-
-fn get_padding_for_map(
-    map: &BTreeMap<PathData, Vec<PathData>>
-) -> usize {
-    map
-        .iter()
-        .map(|(key, _values)| key)
-        .max_by_key(|key| key.path_buf.to_string_lossy().len() + QUOTATION_MARKS_LEN)
-        .map_or_else(|| QUOTATION_MARKS_LEN, |key| key.path_buf.to_string_lossy().len() + QUOTATION_MARKS_LEN)
-}
-
 fn map_to_display_set(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> DisplaySet {
     let vec_snaps = if config.opt_no_snap {
         Vec::new()
@@ -391,80 +286,6 @@ fn map_to_display_set(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> Di
     };
 
     [vec_snaps, vec_live]
-}
-
-fn parse_num_versions(
-    config: &Config,
-    delimiter: char,
-    live_version: &PathData,
-    snaps: &[PathData],
-    padding: usize,
-) -> Option<String> {
-    let display_path = format!("\"{}\"", live_version.path_buf.display());
-
-    if live_version.metadata.is_none() {
-        return Some(format!(
-            "{} : Path does not exist.{}",
-            display_path, delimiter
-        ));
-    }
-
-    let is_live_redundant = || {
-        snaps
-            .iter()
-            .any(|snap_version| live_version.metadata == snap_version.metadata)
-    };
-
-    match config.opt_num_versions {
-        NumVersionsMode::All => {
-            let num_versions = if is_live_redundant() {
-                snaps.len()
-            } else {
-                snaps.len() + 1
-            };
-
-            if num_versions == 1 {
-                Some(format!("{:<width$} : 1 Version available.{}", display_path, delimiter, width = padding))
-            } else {
-                Some(format!("{:<width$} : {} Version available.{}", display_path, num_versions, delimiter, width = padding))
-            }
-        }
-        NumVersionsMode::Multiple
-        | NumVersionsMode::SingleAll
-        | NumVersionsMode::SingleNoSnap
-        | NumVersionsMode::SingleWithSnap => match config.opt_num_versions {
-            NumVersionsMode::Multiple => {
-                if snaps.is_empty() || (snaps.len() == 1 && is_live_redundant()) {
-                    None
-                } else {
-                    Some(format!("{}{}", display_path, delimiter))
-                }
-            }
-            NumVersionsMode::SingleAll => {
-                if snaps.is_empty() || (snaps.len() == 1 && is_live_redundant()) {
-                    Some(format!("{}{}", display_path, delimiter))
-                } else {
-                    None
-                }
-            }
-            NumVersionsMode::SingleNoSnap => {
-                if snaps.is_empty() {
-                    Some(format!("{}{}", display_path, delimiter))
-                } else {
-                    None
-                }
-            }
-            NumVersionsMode::SingleWithSnap => {
-                if !snaps.is_empty() && (snaps.len() == 1 && is_live_redundant()) {
-                    Some(format!("{}{}", display_path, delimiter))
-                } else {
-                    None
-                }
-            }
-            _ => unreachable!(),
-        },
-        _ => unreachable!(),
-    }
 }
 
 fn display_human_size(size: &u64) -> String {

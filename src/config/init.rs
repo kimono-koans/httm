@@ -43,6 +43,7 @@ pub enum ExecMode {
     Display,
     SnapFileMount,
     MountsForFiles,
+    NumVersions(NumVersionsMode),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -350,7 +351,6 @@ pub struct Config {
     pub opt_debug: bool,
     pub opt_no_traverse: bool,
     pub opt_omit_ditto: bool,
-    pub opt_num_versions: NumVersionsMode,
     pub requested_utc_offset: UtcOffset,
     pub exec_mode: ExecMode,
     pub dataset_collection: DatasetCollection,
@@ -395,12 +395,12 @@ impl Config {
         );
 
         let opt_num_versions = match matches.value_of("NUM_VERSIONS") {
-            Some("") | Some("all") => NumVersionsMode::All,
-            Some("single") => NumVersionsMode::SingleAll,
-            Some("single-no-snap") => NumVersionsMode::SingleNoSnap,
-            Some("single-with-snap") => NumVersionsMode::SingleWithSnap,
-            Some("multiple") => NumVersionsMode::Multiple,
-            _ => NumVersionsMode::Disabled,
+            Some("") | Some("all") => Some(NumVersionsMode::All),
+            Some("single") => Some(NumVersionsMode::SingleAll),
+            Some("single-no-snap") => Some(NumVersionsMode::SingleNoSnap),
+            Some("single-with-snap") => Some(NumVersionsMode::SingleWithSnap),
+            Some("multiple") => Some(NumVersionsMode::Multiple),
+            _ => None,
         };
 
         let mut deleted_mode = match matches.value_of("DELETED_MODE") {
@@ -430,7 +430,9 @@ impl Config {
             None
         };
 
-        let mut exec_mode = if matches.is_present("MOUNT_FOR_FILE") {
+        let mut exec_mode = if let Some(num_versions_mode) = opt_num_versions {
+            ExecMode::NumVersions(num_versions_mode)
+        } else if matches.is_present("MOUNT_FOR_FILE") {
             ExecMode::MountsForFiles
         } else if matches.is_present("SNAP_FILE_MOUNT") {
             ExecMode::SnapFileMount
@@ -511,7 +513,6 @@ impl Config {
             opt_debug,
             opt_no_traverse,
             opt_omit_ditto,
-            opt_num_versions,
             requested_utc_offset,
             dataset_collection,
             exec_mode,
@@ -564,12 +565,13 @@ impl Config {
                 ExecMode::Interactive(_) | ExecMode::DisplayRecursive(_) => {
                     vec![pwd.clone()]
                 }
-                ExecMode::Display | ExecMode::SnapFileMount | ExecMode::MountsForFiles => {
-                    read_stdin()?
-                        .par_iter()
-                        .map(|string| PathData::from(Path::new(&string)))
-                        .collect()
-                }
+                ExecMode::Display
+                | ExecMode::SnapFileMount
+                | ExecMode::MountsForFiles
+                | ExecMode::NumVersions(_) => read_stdin()?
+                    .par_iter()
+                    .map(|string| PathData::from(Path::new(&string)))
+                    .collect(),
             }
         };
 
@@ -645,7 +647,10 @@ impl Config {
                     }
                 }
             }
-            ExecMode::Display | ExecMode::SnapFileMount | ExecMode::MountsForFiles => {
+            ExecMode::Display
+            | ExecMode::SnapFileMount
+            | ExecMode::MountsForFiles
+            | ExecMode::NumVersions(_) => {
                 // in non-interactive mode / display mode, requested dir is just a file
                 // like every other file and pwd must be the requested working dir.
                 None
