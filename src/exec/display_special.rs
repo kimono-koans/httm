@@ -32,43 +32,39 @@ pub fn display_num_versions(
     num_versions_mode: &NumVersionsMode,
     map_live_to_snaps: &MapLiveToSnaps,
 ) -> HttmResult<String> {
-    let write_out_buffer = {
-        let buffer: String = map_live_to_snaps
-            .iter()
-            .filter_map(|(live_version, snaps)| {
-                let map_padding = if matches!(num_versions_mode, NumVersionsMode::All) {
-                    get_padding_for_map(map_live_to_snaps)
-                } else {
-                    0usize
-                };
-                parse_num_versions(
-                    num_versions_mode,
-                    delimiter,
-                    live_version,
-                    snaps,
-                    map_padding,
-                )
-            })
-            .collect();
-
-        if buffer.is_empty() {
-            let msg = match num_versions_mode {
-                NumVersionsMode::Multiple => {
-                    "Notification: No paths which have multiple versions exist."
-                }
-                NumVersionsMode::SingleAll
-                | NumVersionsMode::SingleNoSnap
-                | NumVersionsMode::SingleWithSnap => {
-                    "Notification: No paths which have only a single version exist."
-                }
-                // NumVersionsMode::All empty should be dealt with earlier at lookup_exec
-                _ => unreachable!(),
+    let write_out_buffer: String = map_live_to_snaps
+        .iter()
+        .filter_map(|(live_version, snaps)| {
+            let map_padding = if matches!(num_versions_mode, NumVersionsMode::All) {
+                get_padding_for_map(map_live_to_snaps)
+            } else {
+                0usize
             };
-            eprintln!("{}", msg);
-        }
+            parse_num_versions(
+                num_versions_mode,
+                delimiter,
+                live_version,
+                snaps,
+                map_padding,
+            )
+        })
+        .collect();
 
-        buffer
-    };
+    if write_out_buffer.is_empty() {
+        let msg = match num_versions_mode {
+            NumVersionsMode::Multiple => {
+                "Notification: No paths which have multiple versions exist."
+            }
+            NumVersionsMode::SingleAll
+            | NumVersionsMode::SingleNoSnap
+            | NumVersionsMode::SingleWithSnap => {
+                "Notification: No paths which have only a single version exist."
+            }
+            // NumVersionsMode::All empty should be dealt with earlier at lookup_exec
+            _ => unreachable!(),
+        };
+        eprintln!("{}", msg);
+    }
 
     Ok(write_out_buffer)
 }
@@ -77,7 +73,8 @@ pub fn display_mounts_for_files(config: &Config) -> HttmResult<()> {
     let mounts_for_files = get_mounts_for_files(config)?;
 
     let output_buf = if config.opt_raw || config.opt_zeros {
-        display_raw(config, &mounts_for_files)?
+        let delimiter = if config.opt_zeros { '\0' } else { '\n' };
+        display_raw(config, delimiter, &mounts_for_files)?
     } else {
         display_ordered_map(config, &mounts_for_files)?
     };
