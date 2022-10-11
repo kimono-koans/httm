@@ -24,7 +24,7 @@ use std::{
 };
 
 use lscolors::{Colorable, LsColors, Style};
-use time::{format_description, OffsetDateTime};
+use time::{format_description, OffsetDateTime, UtcOffset};
 
 use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::exec::display_main::display_exec;
@@ -291,14 +291,18 @@ static DATE_FORMAT_DISPLAY: &str =
     "[weekday repr:short] [month repr:short] [day] [hour]:[minute]:[second] [year]";
 static DATE_FORMAT_TIMESTAMP: &str = "[year]-[month]-[day]-[hour]:[minute]:[second]";
 
-pub fn get_date(config: &Config, system_time: &SystemTime, format: DateFormat) -> String {
+pub fn get_date(
+    requested_utc_offset: UtcOffset,
+    system_time: &SystemTime,
+    format: DateFormat,
+) -> String {
     let date_time: OffsetDateTime = (*system_time).into();
 
     let date_format = format_description::parse(get_date_format(format))
         .expect("timestamp date format is invalid");
 
     date_time
-        .to_offset(config.requested_utc_offset)
+        .to_offset(requested_utc_offset)
         .format(&date_format)
         .expect("timestamp date format could not be applied to the date supplied")
 }

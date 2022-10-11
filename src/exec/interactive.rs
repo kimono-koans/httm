@@ -446,7 +446,7 @@ fn interactive_restore(
         let new_filename = snap_filename
             + ".httm_restored."
             + &get_date(
-                &config,
+                config.requested_utc_offset,
                 &snap_path_metadata.modify_time,
                 DateFormat::Timestamp,
             );
