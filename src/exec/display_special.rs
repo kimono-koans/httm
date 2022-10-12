@@ -21,7 +21,7 @@ use crate::config::init::{Config, NumVersionsMode};
 use crate::data::filesystem_map::MapLiveToSnaps;
 use crate::data::paths::PathData;
 use crate::exec::display_main::{
-    display_raw, map_to_display_set, NOT_SO_PRETTY_FIXED_WIDTH_PADDING, QUOTATION_MARKS_LEN,
+    display_raw, NOT_SO_PRETTY_FIXED_WIDTH_PADDING, QUOTATION_MARKS_LEN,
 };
 use crate::library::results::HttmResult;
 use crate::library::utility::print_output_buf;
@@ -180,9 +180,8 @@ pub fn display_mounts_for_files(config: &Config) -> HttmResult<()> {
 
     let output_buf = if config.opt_raw || config.opt_zeros {
         let delimiter = if config.opt_zeros { '\0' } else { '\n' };
-        let display_set = map_to_display_set(config, &mounts_for_files);
 
-        display_raw(&display_set, delimiter)?
+        display_raw(config, &mounts_for_files, delimiter)?
     } else {
         display_mounts_fancy(config, &mounts_for_files)?
     };

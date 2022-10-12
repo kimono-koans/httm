@@ -52,9 +52,8 @@ pub fn display_exec(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> Httm
         }
         _ => {
             if config.opt_raw || config.opt_zeros {
-                let global_display_set = map_to_display_set(config, map_live_to_snaps);
                 let delimiter = if config.opt_zeros { '\0' } else { '\n' };
-                display_raw(&global_display_set, delimiter)?
+                display_raw(&config, &map_live_to_snaps, delimiter)?
             } else {
                 display_formatted(config, map_live_to_snaps)?
             }
@@ -64,13 +63,29 @@ pub fn display_exec(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> Httm
     Ok(output_buffer)
 }
 
-pub fn display_raw(display_set: &DisplaySet, delimiter: char) -> HttmResult<String> {
-    let write_out_buffer = display_set
+pub fn display_raw(config: &Config, map_live_to_snaps: &MapLiveToSnaps, delimiter: char) -> HttmResult<String> {
+    let global_display_set = map_to_display_set(config, &map_live_to_snaps);
+
+    let write_out_buffer = map_live_to_snaps
         .iter()
-        .flatten()
-        .map(|pathdata| {
-            let display_path = pathdata.path_buf.display();
-            format!("\"{}\"{}", display_path, delimiter)
+        .map(|(live_version, snaps)| {
+            let instance_display_set = if global_display_set[1].len() == 1 {
+                global_display_set.clone()
+            } else {
+                let instance_map: BTreeMap<PathData, Vec<PathData>> =
+                    BTreeMap::from([(live_version.to_owned(), snaps.to_owned())]);
+                map_to_display_set(config, &instance_map)
+            };
+
+            let res: String = instance_display_set
+                .iter()
+                .flatten()
+                .map(|pathdata| {
+                    let display_path = pathdata.path_buf.display();
+                    format!("\"{}\"{}", display_path, delimiter)
+                })
+                .collect();
+            res
         })
         .collect();
 
@@ -82,7 +97,7 @@ fn display_formatted(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> Htt
     let padding_collection = calculate_pretty_padding(config, &global_display_set);
 
     let write_out_buffer = map_live_to_snaps
-        .into_iter()
+        .iter()
         .map(|(live_version, snaps)| {
             let instance_display_set = if global_display_set[1].len() == 1 {
                 global_display_set.clone()
