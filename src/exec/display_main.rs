@@ -53,7 +53,7 @@ pub fn display_exec(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> Httm
         _ => {
             if config.opt_raw || config.opt_zeros {
                 let delimiter = if config.opt_zeros { '\0' } else { '\n' };
-                display_raw(&config, &map_live_to_snaps, delimiter)?
+                display_raw(config, map_live_to_snaps, delimiter)?
             } else {
                 display_formatted(config, map_live_to_snaps)?
             }
@@ -63,8 +63,12 @@ pub fn display_exec(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> Httm
     Ok(output_buffer)
 }
 
-pub fn display_raw(config: &Config, map_live_to_snaps: &MapLiveToSnaps, delimiter: char) -> HttmResult<String> {
-    let global_display_set = map_to_display_set(config, &map_live_to_snaps);
+pub fn display_raw(
+    config: &Config,
+    map_live_to_snaps: &MapLiveToSnaps,
+    delimiter: char,
+) -> HttmResult<String> {
+    let global_display_set = map_to_display_set(config, map_live_to_snaps);
 
     let write_out_buffer = map_live_to_snaps
         .iter()
