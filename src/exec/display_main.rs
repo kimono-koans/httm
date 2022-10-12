@@ -16,7 +16,6 @@
 // that was distributed with this source code.
 
 use std::borrow::Cow;
-use std::collections::BTreeMap;
 
 use number_prefix::NumberPrefix;
 use terminal_size::{terminal_size, Height, Width};
@@ -68,7 +67,8 @@ pub fn display_raw(
     map_live_to_snaps: &MapLiveToSnaps,
     delimiter: char,
 ) -> HttmResult<String> {
-    let global_display_set = map_to_display_set(config, map_live_to_snaps);
+    let drained_map: Vec<(&PathData, &Vec<PathData>)> = map_live_to_snaps.iter().collect();
+    let global_display_set = get_display_set(config, &drained_map);
 
     let write_out_buffer = map_live_to_snaps
         .iter()
@@ -76,9 +76,8 @@ pub fn display_raw(
             let instance_display_set = if global_display_set[1].len() == 1 {
                 global_display_set.clone()
             } else {
-                let instance_map: BTreeMap<PathData, Vec<PathData>> =
-                    BTreeMap::from([(live_version.to_owned(), snaps.to_owned())]);
-                map_to_display_set(config, &instance_map)
+                let instance_set = vec![(live_version, snaps)];
+                get_display_set(config, &instance_set)
             };
 
             instance_display_set
@@ -96,7 +95,9 @@ pub fn display_raw(
 }
 
 fn display_formatted(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> HttmResult<String> {
-    let global_display_set = map_to_display_set(config, map_live_to_snaps);
+    let drained_map: Vec<(&PathData, &Vec<PathData>)> = map_live_to_snaps.iter().collect();
+
+    let global_display_set = get_display_set(config, &drained_map);
     let global_padding_collection = calculate_pretty_padding(config, &global_display_set);
 
     let write_out_buffer = map_live_to_snaps
@@ -105,9 +106,8 @@ fn display_formatted(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> Htt
             let instance_display_set = if global_display_set[1].len() == 1 {
                 global_display_set.clone()
             } else {
-                let instance_map: BTreeMap<PathData, Vec<PathData>> =
-                    BTreeMap::from([(live_version.to_owned(), snaps.to_owned())]);
-                map_to_display_set(config, &instance_map)
+                let instance_set = vec![(live_version, snaps)];
+                get_display_set(config, &instance_set)
             };
 
             instance_display_set.iter().enumerate().fold(
@@ -120,7 +120,12 @@ fn display_formatted(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> Htt
                     let pathdata_set_buffer: String = pathdata_set
                         .iter()
                         .map(|pathdata| {
-                            display_pathdata(config, pathdata, is_live_set, &global_padding_collection)
+                            display_pathdata(
+                                config,
+                                pathdata,
+                                is_live_set,
+                                &global_padding_collection,
+                            )
                         })
                         .collect();
 
@@ -286,7 +291,10 @@ fn calculate_pretty_padding(config: &Config, display_set: &DisplaySet) -> Paddin
     }
 }
 
-pub fn map_to_display_set(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> DisplaySet {
+pub fn get_display_set(
+    config: &Config,
+    map_live_to_snaps: &[(&PathData, &Vec<PathData>)],
+) -> DisplaySet {
     let vec_snaps = if config.opt_no_snap {
         Vec::new()
     } else {
@@ -308,7 +316,11 @@ pub fn map_to_display_set(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -
     let vec_live = if config.opt_no_live || matches!(config.exec_mode, ExecMode::MountsForFiles) {
         Vec::new()
     } else {
-        map_live_to_snaps.keys().cloned().collect()
+        map_live_to_snaps
+            .iter()
+            .map(|(live_version, _snaps)| *live_version)
+            .cloned()
+            .collect()
     };
 
     [vec_snaps, vec_live]
