@@ -62,7 +62,7 @@ use crate::exec::interactive::interactive_exec;
 use crate::exec::recursive::display_recursive_wrapper;
 use crate::exec::snapshot::take_snapshot;
 use crate::library::results::HttmResult;
-use crate::library::utility::print_display_set;
+use crate::library::utility::print_display_map;
 use crate::lookup::versions::versions_lookup_exec;
 
 pub const ZFS_HIDDEN_DIRECTORY: &str = ".zfs";
@@ -99,13 +99,13 @@ fn exec() -> HttmResult<()> {
         // ExecMode::LastSnap will never return back, its a shortcut to select and restore themselves
         ExecMode::Interactive(interactive_mode) => {
             let browse_result = &interactive_exec(config.clone(), interactive_mode)?;
-            let display_set = versions_lookup_exec(config.as_ref(), browse_result)?;
-            print_display_set(&config, display_set)?
+            let map_to_live_snaps = versions_lookup_exec(config.as_ref(), browse_result)?;
+            print_display_map(&config, map_to_live_snaps)?
         }
         // ExecMode::Display will be just printed, we already know the paths
         ExecMode::Display | ExecMode::NumVersions(_) => {
-            let display_set = versions_lookup_exec(config.as_ref(), &config.paths)?;
-            print_display_set(&config, display_set)?
+            let map_to_live_snaps = versions_lookup_exec(config.as_ref(), &config.paths)?;
+            print_display_map(&config, map_to_live_snaps)?
         }
         // ExecMode::DisplayRecursive, ExecMode::SnapFileMount, and ExecMode::MountsForFiles will print their
         // output elsewhere

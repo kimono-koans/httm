@@ -41,7 +41,7 @@ pub fn make_tmp_path(path: &Path) -> PathBuf {
     PathBuf::from(res)
 }
 
-pub fn print_display_set(config: &Config, map_live_to_snaps: MapLiveToSnaps) -> HttmResult<()> {
+pub fn print_display_map(config: &Config, map_live_to_snaps: MapLiveToSnaps) -> HttmResult<()> {
     let output_buf = display_exec(config, &map_live_to_snaps)?;
     print_output_buf(output_buf)?;
     Ok(())
