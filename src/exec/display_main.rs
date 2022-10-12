@@ -50,11 +50,13 @@ pub fn display_exec(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> Httm
             display_num_versions(delimiter, num_versions_mode, map_live_to_snaps)?
         }
         _ => {
+            let drained_map: Vec<(&PathData, &Vec<PathData>)> = map_live_to_snaps.iter().collect();
+
             if config.opt_raw || config.opt_zeros {
                 let delimiter = if config.opt_zeros { '\0' } else { '\n' };
-                display_raw(config, map_live_to_snaps, delimiter)?
+                display_raw(config, &drained_map, delimiter)?
             } else {
-                display_formatted(config, map_live_to_snaps)?
+                display_formatted(config, &drained_map)?
             }
         }
     };
@@ -64,19 +66,18 @@ pub fn display_exec(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> Httm
 
 pub fn display_raw(
     config: &Config,
-    map_live_to_snaps: &MapLiveToSnaps,
+    drained_map: &Vec<(&PathData, &Vec<PathData>)>,
     delimiter: char,
 ) -> HttmResult<String> {
-    let drained_map: Vec<(&PathData, &Vec<PathData>)> = map_live_to_snaps.iter().collect();
     let global_display_set = get_display_set(config, &drained_map);
 
-    let write_out_buffer = map_live_to_snaps
+    let write_out_buffer = drained_map
         .iter()
         .map(|(live_version, snaps)| {
             let instance_display_set = if global_display_set[1].len() == 1 {
                 global_display_set.clone()
             } else {
-                let instance_set = vec![(live_version, snaps)];
+                let instance_set = [(*live_version, *snaps)];
                 get_display_set(config, &instance_set)
             };
 
@@ -94,19 +95,17 @@ pub fn display_raw(
     Ok(write_out_buffer)
 }
 
-fn display_formatted(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> HttmResult<String> {
-    let drained_map: Vec<(&PathData, &Vec<PathData>)> = map_live_to_snaps.iter().collect();
-
+fn display_formatted(config: &Config, drained_map: &Vec<(&PathData, &Vec<PathData>)>) -> HttmResult<String> {
     let global_display_set = get_display_set(config, &drained_map);
     let global_padding_collection = calculate_pretty_padding(config, &global_display_set);
 
-    let write_out_buffer = map_live_to_snaps
+    let write_out_buffer = drained_map
         .iter()
         .map(|(live_version, snaps)| {
             let instance_display_set = if global_display_set[1].len() == 1 {
                 global_display_set.clone()
             } else {
-                let instance_set = vec![(live_version, snaps)];
+                let instance_set = [(*live_version, *snaps)];
                 get_display_set(config, &instance_set)
             };
 
@@ -293,12 +292,12 @@ fn calculate_pretty_padding(config: &Config, display_set: &DisplaySet) -> Paddin
 
 pub fn get_display_set(
     config: &Config,
-    map_live_to_snaps: &[(&PathData, &Vec<PathData>)],
+    drained_map: &[(&PathData, &Vec<PathData>)],
 ) -> DisplaySet {
     let vec_snaps = if config.opt_no_snap {
         Vec::new()
     } else {
-        map_live_to_snaps
+        drained_map
             .iter()
             .flat_map(|(live_version, snaps)| {
                 snaps.iter().filter(|snap_version| {
@@ -316,7 +315,7 @@ pub fn get_display_set(
     let vec_live = if config.opt_no_live || matches!(config.exec_mode, ExecMode::MountsForFiles) {
         Vec::new()
     } else {
-        map_live_to_snaps
+        drained_map
             .iter()
             .map(|(live_version, _snaps)| *live_version)
             .cloned()
