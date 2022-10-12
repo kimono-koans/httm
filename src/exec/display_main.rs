@@ -69,18 +69,11 @@ pub fn display_raw(
     drained_map: &[(&PathData, &Vec<PathData>)],
     delimiter: char,
 ) -> HttmResult<String> {
-    let global_display_set = get_display_set(config, drained_map);
-
     let write_out_buffer = drained_map
         .iter()
         .map(|(live_version, snaps)| {
             // indexing safety: array has known len of 2
-            let instance_display_set = if global_display_set[1].len() == 1 {
-                global_display_set.clone()
-            } else {
-                let instance_set = [(*live_version, *snaps)];
-                get_display_set(config, &instance_set)
-            };
+            let instance_display_set = get_display_set(config, &[(*live_version, *snaps)]);
 
             instance_display_set
                 .iter()
