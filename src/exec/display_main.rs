@@ -81,15 +81,14 @@ pub fn display_raw(
                 map_to_display_set(config, &instance_map)
             };
 
-            let res: String = instance_display_set
+            instance_display_set
                 .iter()
                 .flatten()
                 .map(|pathdata| {
                     let display_path = pathdata.path_buf.display();
                     format!("\"{}\"{}", display_path, delimiter)
                 })
-                .collect();
-            res
+                .collect::<String>()
         })
         .collect();
 
