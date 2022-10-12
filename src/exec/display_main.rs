@@ -127,11 +127,8 @@ fn display_formatted(
                         buffer += &pathdata_set_buffer;
                         buffer += &global_padding_collection.fancy_border_string;
                     }
-                } else if idx == 1 {
-                    if !pathdata_set_buffer.is_empty() {
-                        buffer += &pathdata_set_buffer;
-                        buffer += &global_padding_collection.fancy_border_string;
-                    }
+                } else if !pathdata_set.is_empty() {
+                    buffer += &pathdata_set_buffer;
                     buffer += &global_padding_collection.fancy_border_string;
                 }
                 buffer
