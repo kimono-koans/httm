@@ -66,14 +66,15 @@ pub fn display_exec(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> Httm
 
 pub fn display_raw(
     config: &Config,
-    drained_map: &Vec<(&PathData, &Vec<PathData>)>,
+    drained_map: &[(&PathData, &Vec<PathData>)],
     delimiter: char,
 ) -> HttmResult<String> {
-    let global_display_set = get_display_set(config, &drained_map);
+    let global_display_set = get_display_set(config, drained_map);
 
     let write_out_buffer = drained_map
         .iter()
         .map(|(live_version, snaps)| {
+            // indexing safety: array has known len of 2
             let instance_display_set = if global_display_set[1].len() == 1 {
                 global_display_set.clone()
             } else {
@@ -95,13 +96,17 @@ pub fn display_raw(
     Ok(write_out_buffer)
 }
 
-fn display_formatted(config: &Config, drained_map: &Vec<(&PathData, &Vec<PathData>)>) -> HttmResult<String> {
-    let global_display_set = get_display_set(config, &drained_map);
+fn display_formatted(
+    config: &Config,
+    drained_map: &[(&PathData, &Vec<PathData>)],
+) -> HttmResult<String> {
+    let global_display_set = get_display_set(config, drained_map);
     let global_padding_collection = calculate_pretty_padding(config, &global_display_set);
 
     let write_out_buffer = drained_map
         .iter()
         .map(|(live_version, snaps)| {
+            // indexing safety: array has known len of 2
             let instance_display_set = if global_display_set[1].len() == 1 {
                 global_display_set.clone()
             } else {
@@ -290,10 +295,7 @@ fn calculate_pretty_padding(config: &Config, display_set: &DisplaySet) -> Paddin
     }
 }
 
-pub fn get_display_set(
-    config: &Config,
-    drained_map: &[(&PathData, &Vec<PathData>)],
-) -> DisplaySet {
+pub fn get_display_set(config: &Config, drained_map: &[(&PathData, &Vec<PathData>)]) -> DisplaySet {
     let vec_snaps = if config.opt_no_snap {
         Vec::new()
     } else {
