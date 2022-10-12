@@ -96,8 +96,7 @@ fn display_formatted(
     let write_out_buffer = drained_map
         .iter()
         .map(|(live_version, snaps)| {
-            // indexing safety: array has known len of 2
-            if global_display_set[1].len() == 1 {
+            if global_display_set.get(1).is_some() {
                 global_display_set.clone()
             } else {
                 let raw_instance_set = [(*live_version, *snaps)];
