@@ -69,6 +69,112 @@ pub fn display_num_versions(
     Ok(write_out_buffer)
 }
 
+fn get_padding_for_map(map: &BTreeMap<PathData, Vec<PathData>>) -> usize {
+    map.iter()
+        .map(|(key, _values)| key)
+        .max_by_key(|key| key.path_buf.to_string_lossy().len())
+        .map_or_else(
+            || QUOTATION_MARKS_LEN,
+            |key| key.path_buf.to_string_lossy().len() + QUOTATION_MARKS_LEN,
+        )
+}
+
+fn parse_num_versions(
+    num_versions_mode: &NumVersionsMode,
+    delimiter: char,
+    live_version: &PathData,
+    snaps: &[PathData],
+    padding: usize,
+) -> Option<String> {
+    let display_path = format!("\"{}\"", live_version.path_buf.display());
+
+    let is_live_redundant = || {
+        snaps
+            .iter()
+            .any(|snap_version| live_version.metadata == snap_version.metadata)
+    };
+
+    match num_versions_mode {
+        NumVersionsMode::All => {
+            let num_versions = if is_live_redundant() {
+                snaps.len()
+            } else {
+                snaps.len() + 1
+            };
+
+            if live_version.metadata.is_none() {
+                return Some(format!(
+                    "{:<width$} : Path does not exist.{}",
+                    display_path,
+                    delimiter,
+                    width = padding
+                ));
+            }
+
+            if num_versions == 1 {
+                Some(format!(
+                    "{:<width$} : 1 Version available.{}",
+                    display_path,
+                    delimiter,
+                    width = padding
+                ))
+            } else {
+                Some(format!(
+                    "{:<width$} : {} Version available.{}",
+                    display_path,
+                    num_versions,
+                    delimiter,
+                    width = padding
+                ))
+            }
+        }
+        NumVersionsMode::Multiple
+        | NumVersionsMode::SingleAll
+        | NumVersionsMode::SingleNoSnap
+        | NumVersionsMode::SingleWithSnap => {
+            if live_version.metadata.is_none() {
+                return Some(format!(
+                    "{} : Path does not exist.{}",
+                    display_path, delimiter
+                ));
+            }
+
+            match num_versions_mode {
+                NumVersionsMode::Multiple => {
+                    if snaps.is_empty() || (snaps.len() == 1 && is_live_redundant()) {
+                        None
+                    } else {
+                        Some(format!("{}{}", display_path, delimiter))
+                    }
+                }
+                NumVersionsMode::SingleAll => {
+                    if snaps.is_empty() || (snaps.len() == 1 && is_live_redundant()) {
+                        Some(format!("{}{}", display_path, delimiter))
+                    } else {
+                        None
+                    }
+                }
+                NumVersionsMode::SingleNoSnap => {
+                    if snaps.is_empty() {
+                        Some(format!("{}{}", display_path, delimiter))
+                    } else {
+                        None
+                    }
+                }
+                NumVersionsMode::SingleWithSnap => {
+                    if !snaps.is_empty() && (snaps.len() == 1 && is_live_redundant()) {
+                        Some(format!("{}{}", display_path, delimiter))
+                    } else {
+                        None
+                    }
+                }
+                _ => unreachable!(),
+            }
+        }
+        _ => unreachable!(),
+    }
+}
+
 pub fn display_mounts_for_files(config: &Config) -> HttmResult<()> {
     let mounts_for_files = get_mounts_for_files(config)?;
 
@@ -139,108 +245,4 @@ pub fn display_mounts_fancy(
     };
 
     Ok(write_out_buffer)
-}
-
-fn get_padding_for_map(map: &BTreeMap<PathData, Vec<PathData>>) -> usize {
-    map.iter()
-        .map(|(key, _values)| key)
-        .max_by_key(|key| key.path_buf.to_string_lossy().len())
-        .map_or_else(
-            || QUOTATION_MARKS_LEN,
-            |key| key.path_buf.to_string_lossy().len() + QUOTATION_MARKS_LEN,
-        )
-}
-
-fn parse_num_versions(
-    num_versions_mode: &NumVersionsMode,
-    delimiter: char,
-    live_version: &PathData,
-    snaps: &[PathData],
-    padding: usize,
-) -> Option<String> {
-    let display_path = format!("\"{}\"", live_version.path_buf.display());
-
-    let is_live_redundant = || {
-        snaps
-            .iter()
-            .any(|snap_version| live_version.metadata == snap_version.metadata)
-    };
-
-    match num_versions_mode {
-        NumVersionsMode::All => {
-            let num_versions = if is_live_redundant() {
-                snaps.len()
-            } else {
-                snaps.len() + 1
-            };
-
-            if live_version.metadata.is_none() {
-                return Some(format!(
-                    "{:<width$} : Path does not exist.{}",
-                    display_path, delimiter, width = padding
-                ));
-            }
-
-            if num_versions == 1 {
-                Some(format!(
-                    "{:<width$} : 1 Version available.{}",
-                    display_path,
-                    delimiter,
-                    width = padding
-                ))
-            } else {
-                Some(format!(
-                    "{:<width$} : {} Version available.{}",
-                    display_path,
-                    num_versions,
-                    delimiter,
-                    width = padding
-                ))
-            }
-        }
-        NumVersionsMode::Multiple
-        | NumVersionsMode::SingleAll
-        | NumVersionsMode::SingleNoSnap
-        | NumVersionsMode::SingleWithSnap => {
-            if live_version.metadata.is_none() {
-                return Some(format!(
-                    "{} : Path does not exist.{}",
-                    display_path, delimiter
-                ));
-            }
-
-            match num_versions_mode {
-                NumVersionsMode::Multiple => {
-                    if snaps.is_empty() || (snaps.len() == 1 && is_live_redundant()) {
-                        None
-                    } else {
-                        Some(format!("{}{}", display_path, delimiter))
-                    }
-                }
-                NumVersionsMode::SingleAll => {
-                    if snaps.is_empty() || (snaps.len() == 1 && is_live_redundant()) {
-                        Some(format!("{}{}", display_path, delimiter))
-                    } else {
-                        None
-                    }
-                }
-                NumVersionsMode::SingleNoSnap => {
-                    if snaps.is_empty() {
-                        Some(format!("{}{}", display_path, delimiter))
-                    } else {
-                        None
-                    }
-                }
-                NumVersionsMode::SingleWithSnap => {
-                    if !snaps.is_empty() && (snaps.len() == 1 && is_live_redundant()) {
-                        Some(format!("{}{}", display_path, delimiter))
-                    } else {
-                        None
-                    }
-                }
-                _ => unreachable!(),
-            }
-        },
-        _ => unreachable!(),
-    }
 }
