@@ -16,6 +16,7 @@
 // that was distributed with this source code.
 
 use std::borrow::Cow;
+use std::collections::BTreeMap;
 
 use number_prefix::NumberPrefix;
 use terminal_size::{terminal_size, Height, Width};
@@ -50,13 +51,12 @@ pub fn display_exec(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> Httm
             display_num_versions(delimiter, num_versions_mode, map_live_to_snaps)?
         }
         _ => {
-            let display_set = map_to_display_set(config, map_live_to_snaps);
-
             if config.opt_raw || config.opt_zeros {
+                let global_display_set = map_to_display_set(config, map_live_to_snaps);
                 let delimiter = if config.opt_zeros { '\0' } else { '\n' };
-                display_raw(&display_set, delimiter)?
+                display_raw(&global_display_set, delimiter)?
             } else {
-                display_formatted(config, &display_set)?
+                display_formatted(config, map_live_to_snaps)?
             }
         }
     };
@@ -77,39 +77,53 @@ pub fn display_raw(display_set: &DisplaySet, delimiter: char) -> HttmResult<Stri
     Ok(write_out_buffer)
 }
 
-fn display_formatted(config: &Config, display_set: &DisplaySet) -> HttmResult<String> {
-    let padding_collection = calculate_pretty_padding(config, display_set);
+fn display_formatted(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> HttmResult<String> {
+    let global_display_set = map_to_display_set(config, map_live_to_snaps);
+    let padding_collection = calculate_pretty_padding(config, &global_display_set);
 
-    let write_out_buffer = display_set.iter().enumerate().fold(
-        String::new(),
-        |mut write_out_buffer, (idx, pathdata_set)| {
-            // a DisplaySet is an array of 2 - idx 0 are the snaps, 1 is the live versions
-            let is_live_set = idx == 1;
+    let write_out_buffer = map_live_to_snaps
+        .into_iter()
+        .map(|(live_version, snaps)| {
+            let instance_display_set = if global_display_set[1].len() == 1 {
+                global_display_set.clone()
+            } else {
+                let instance_map: BTreeMap<PathData, Vec<PathData>> =
+                    BTreeMap::from([(live_version.to_owned(), snaps.to_owned())]);
+                map_to_display_set(config, &instance_map)
+            };
 
-            // get the display buffer for each set snaps and live
-            let pathdata_set_buffer: String = pathdata_set
-                .iter()
-                .map(|pathdata| {
-                    display_pathdata(config, pathdata, is_live_set, &padding_collection)
-                })
-                .collect();
+            instance_display_set.iter().enumerate().fold(
+                String::new(),
+                |mut write_out_buffer, (idx, pathdata_set)| {
+                    // a DisplaySet is an array of 2 - idx 0 are the snaps, 1 is the live versions
+                    let is_live_set = idx == 1;
 
-            // add each buffer to the set - print fancy border string above, below and between sets
-            if config.opt_no_pretty {
-                write_out_buffer += &pathdata_set_buffer;
-            } else if idx == 0 {
-                write_out_buffer += &padding_collection.fancy_border_string;
-                if !pathdata_set_buffer.is_empty() {
-                    write_out_buffer += &pathdata_set_buffer;
-                    write_out_buffer += &padding_collection.fancy_border_string;
-                }
-            } else if !pathdata_set.is_empty() {
-                write_out_buffer += &pathdata_set_buffer;
-                write_out_buffer += &padding_collection.fancy_border_string;
-            }
-            write_out_buffer
-        },
-    );
+                    // get the display buffer for each set snaps and live
+                    let pathdata_set_buffer: String = pathdata_set
+                        .iter()
+                        .map(|pathdata| {
+                            display_pathdata(config, pathdata, is_live_set, &padding_collection)
+                        })
+                        .collect();
+
+                    // add each buffer to the set - print fancy border string above, below and between sets
+                    if config.opt_no_pretty {
+                        write_out_buffer += &pathdata_set_buffer;
+                    } else if idx == 0 {
+                        write_out_buffer += &padding_collection.fancy_border_string;
+                        if !pathdata_set_buffer.is_empty() {
+                            write_out_buffer += &pathdata_set_buffer;
+                            write_out_buffer += &padding_collection.fancy_border_string;
+                        }
+                    } else if !pathdata_set.is_empty() {
+                        write_out_buffer += &pathdata_set_buffer;
+                        write_out_buffer += &padding_collection.fancy_border_string;
+                    }
+                    write_out_buffer
+                },
+            )
+        })
+        .collect();
 
     Ok(write_out_buffer)
 }
