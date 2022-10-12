@@ -97,7 +97,7 @@ pub fn display_raw(
 
 fn display_formatted(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> HttmResult<String> {
     let global_display_set = map_to_display_set(config, map_live_to_snaps);
-    let padding_collection = calculate_pretty_padding(config, &global_display_set);
+    let global_padding_collection = calculate_pretty_padding(config, &global_display_set);
 
     let write_out_buffer = map_live_to_snaps
         .iter()
@@ -120,7 +120,7 @@ fn display_formatted(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> Htt
                     let pathdata_set_buffer: String = pathdata_set
                         .iter()
                         .map(|pathdata| {
-                            display_pathdata(config, pathdata, is_live_set, &padding_collection)
+                            display_pathdata(config, pathdata, is_live_set, &global_padding_collection)
                         })
                         .collect();
 
@@ -128,14 +128,14 @@ fn display_formatted(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> Htt
                     if config.opt_no_pretty {
                         write_out_buffer += &pathdata_set_buffer;
                     } else if idx == 0 {
-                        write_out_buffer += &padding_collection.fancy_border_string;
+                        write_out_buffer += &global_padding_collection.fancy_border_string;
                         if !pathdata_set_buffer.is_empty() {
                             write_out_buffer += &pathdata_set_buffer;
-                            write_out_buffer += &padding_collection.fancy_border_string;
+                            write_out_buffer += &global_padding_collection.fancy_border_string;
                         }
                     } else if !pathdata_set.is_empty() {
                         write_out_buffer += &pathdata_set_buffer;
-                        write_out_buffer += &padding_collection.fancy_border_string;
+                        write_out_buffer += &global_padding_collection.fancy_border_string;
                     }
                     write_out_buffer
                 },
