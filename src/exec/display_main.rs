@@ -94,7 +94,8 @@ fn display_formatted(
     let global_padding_collection = calculate_pretty_padding(config, &global_display_set);
 
     let write_out_buffer = drained_map
-        .iter().flat_map(|(live_version, snaps)| {
+        .iter()
+        .map(|(live_version, snaps)| {
             // indexing safety: array has known len of 2
             if global_display_set[1].len() == 1 {
                 global_display_set.clone()
@@ -103,37 +104,45 @@ fn display_formatted(
                 get_display_set(config, &raw_instance_set)
             }
         })
-        .enumerate()
-        .fold(
-            String::new(),
-            |mut buffer, (idx, pathdata_set)| {
-                // a DisplaySet is an array of 2 - idx 0 are the snaps, 1 is the live versions
-                let is_live_set = idx == 1;
+        .map(|display_set| {
+            // get the display buffer for each set snaps and live
+            display_set.iter().enumerate().fold(
+                String::new(),
+                |mut display_set_buffer, (idx, snap_or_live_set)| {
+                    // a DisplaySet is an array of 2 - idx 0 are the snaps, 1 is the live versions
+                    let is_snap_set = idx == 0;
+                    let is_live_set = idx == 1;
 
-                // get the display buffer for each set snaps and live
-                let pathdata_set_buffer: String = pathdata_set
-                    .iter()
-                    .map(|pathdata| {
-                        display_pathdata(config, pathdata, is_live_set, &global_padding_collection)
-                    })
-                    .collect();
+                    let component_buffer: String = snap_or_live_set
+                        .iter()
+                        .map(|pathdata| {
+                            display_pathdata(
+                                config,
+                                pathdata,
+                                is_live_set,
+                                &global_padding_collection,
+                            )
+                        })
+                        .collect();
 
-                // add each buffer to the set - print fancy border string above, below and between sets
-                if config.opt_no_pretty {
-                    buffer += &pathdata_set_buffer;
-                } else if idx == 0 {
-                    buffer += &global_padding_collection.fancy_border_string;
-                    if !pathdata_set_buffer.is_empty() {
-                        buffer += &pathdata_set_buffer;
-                        buffer += &global_padding_collection.fancy_border_string;
+                    // add each buffer to the set - print fancy border string above, below and between sets
+                    if config.opt_no_pretty {
+                        display_set_buffer += &component_buffer;
+                    } else if is_snap_set {
+                        display_set_buffer += &global_padding_collection.fancy_border_string;
+                        if !component_buffer.is_empty() {
+                            display_set_buffer += &component_buffer;
+                            display_set_buffer += &global_padding_collection.fancy_border_string;
+                        }
+                    } else if !display_set_buffer.is_empty() {
+                        display_set_buffer += &component_buffer;
+                        display_set_buffer += &global_padding_collection.fancy_border_string;
                     }
-                } else if !pathdata_set.is_empty() {
-                    buffer += &pathdata_set_buffer;
-                    buffer += &global_padding_collection.fancy_border_string;
-                }
-                buffer
-            },
-        );
+                    display_set_buffer
+                },
+            )
+        })
+        .collect();
 
     Ok(write_out_buffer)
 }
