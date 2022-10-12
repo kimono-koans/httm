@@ -78,7 +78,7 @@ pub fn display_mounts_for_files(config: &Config) -> HttmResult<()> {
 
         display_raw(&display_set, delimiter)?
     } else {
-        display_ordered_map(config, &mounts_for_files)?
+        display_mounts_fancy(config, &mounts_for_files)?
     };
 
     print_output_buf(output_buf)?;
@@ -86,7 +86,7 @@ pub fn display_mounts_for_files(config: &Config) -> HttmResult<()> {
     Ok(())
 }
 
-pub fn display_ordered_map(
+pub fn display_mounts_fancy(
     config: &Config,
     map: &BTreeMap<PathData, Vec<PathData>>,
 ) -> HttmResult<String> {
