@@ -103,8 +103,8 @@ fn display_formatted(
             let instance_display_set = if global_display_set[1].len() == 1 {
                 global_display_set.clone()
             } else {
-                let instance_set = [(*live_version, *snaps)];
-                get_display_set(config, &instance_set)
+                let raw_instance_set = [(*live_version, *snaps)];
+                get_display_set(config, &raw_instance_set)
             };
 
             instance_display_set.iter().enumerate().fold(
