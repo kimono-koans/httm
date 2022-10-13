@@ -28,7 +28,6 @@ use crate::MostProximateAndOptAlts;
 
 pub type MountsForFiles = BTreeMap<PathData, Vec<PathData>>;
 
-#[allow(clippy::type_complexity)]
 pub fn get_mounts_for_files(config: &Config) -> HttmResult<MountsForFiles> {
     // we only check for phantom files in "mount for file" mode because
     // people should be able to search for deleted files in other modes

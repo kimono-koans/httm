@@ -38,7 +38,6 @@ pub const AFP_FSTYPE: &str = "afpfs";
 
 // divide by the type of system we are on
 // Linux allows us the read proc mounts
-#[allow(clippy::type_complexity)]
 pub fn parse_mounts_exec() -> HttmResult<(MapOfDatasets, MapOfSnaps, VecOfFilterDirs)> {
     let (map_of_datasets, vec_filter_dirs) = if cfg!(target_os = "linux") {
         parse_from_proc_mounts()?
@@ -53,7 +52,6 @@ pub fn parse_mounts_exec() -> HttmResult<(MapOfDatasets, MapOfSnaps, VecOfFilter
 
 // parsing from proc mounts is both faster and necessary for certain btrfs features
 // for instance, allows us to read subvolumes mounts, like "/@" or "/@home"
-#[allow(clippy::type_complexity)]
 fn parse_from_proc_mounts() -> HttmResult<(MapOfDatasets, VecOfFilterDirs)> {
     let (map_of_datasets, filter_dirs): (MapOfDatasets, Vec<PathBuf>) = MountIter::new()?
         .par_bridge()
@@ -136,7 +134,6 @@ fn parse_from_proc_mounts() -> HttmResult<(MapOfDatasets, VecOfFilterDirs)> {
 
 // old fashioned parsing for non-Linux systems, nearly as fast, works everywhere with a mount command
 // both methods are much faster than using zfs command
-#[allow(clippy::type_complexity)]
 fn parse_from_mount_cmd() -> HttmResult<(MapOfDatasets, VecOfFilterDirs)> {
     fn parse(mount_command: &Path) -> HttmResult<(MapOfDatasets, VecOfFilterDirs)> {
         let command_output =
