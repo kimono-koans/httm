@@ -133,7 +133,7 @@ fn display_formatted(
                             display_set_buffer += &component_buffer;
                             display_set_buffer += &global_padding_collection.fancy_border_string;
                         }
-                    } else if !display_set.is_empty() {
+                    } else if !component_buffer.is_empty() {
                         display_set_buffer += &component_buffer;
                         display_set_buffer += &global_padding_collection.fancy_border_string;
                     }
