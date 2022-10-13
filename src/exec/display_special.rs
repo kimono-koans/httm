@@ -175,14 +175,14 @@ fn parse_num_versions(
     }
 }
 
-pub fn display_mounts_for_files(config: &Config) -> HttmResult<()> {
+pub fn display_mounts(config: &Config) -> HttmResult<()> {
     let mounts_for_files = get_mounts_for_files(config)?;
 
     let output_buf = if config.opt_raw || config.opt_zeros {
         let drained_map: Vec<(&PathData, &Vec<PathData>)> = mounts_for_files.iter().collect();
         display_raw(config, &drained_map)?
     } else {
-        display_mounts_fancy(config, &mounts_for_files)?
+        display_mounts_formatted(config, &mounts_for_files)?
     };
 
     print_output_buf(output_buf)?;
@@ -190,57 +190,45 @@ pub fn display_mounts_for_files(config: &Config) -> HttmResult<()> {
     Ok(())
 }
 
-pub fn display_mounts_fancy(
+pub fn display_mounts_formatted(
     config: &Config,
     map: &BTreeMap<PathData, Vec<PathData>>,
 ) -> HttmResult<String> {
-    let write_out_buffer = if config.opt_no_pretty {
-        map.iter()
-            .map(|(key, values)| {
-                let display_path = format!("\"{}\"", key.path_buf.to_string_lossy());
+    let padding = get_padding_for_map(map);
 
-                let values_string: String = values
-                    .iter()
-                    .map(|value| {
+    let write_out_buffer = map
+        .iter()
+        .map(|(key, values)| {
+            let display_path = format!("\"{}\"", key.path_buf.to_string_lossy());
+
+            let values_string: String = values
+                .iter()
+                .enumerate()
+                .map(|(idx, value)| {
+                    let value_string = value.path_buf.to_string_lossy();
+
+                    if config.opt_no_pretty {
+                        format!("{}\"{}\"", NOT_SO_PRETTY_FIXED_WIDTH_PADDING, value_string)
+                    } else if idx == 0 {
                         format!(
-                            "{}\"{}\"",
-                            NOT_SO_PRETTY_FIXED_WIDTH_PADDING,
-                            value.path_buf.to_string_lossy()
+                            "{:<width$} : \"{}\"\n",
+                            display_path,
+                            value_string,
+                            width = padding
                         )
-                    })
-                    .collect();
+                    } else {
+                        format!("{:<width$} : \"{}\"\n", "", value_string, width = padding)
+                    }
+                })
+                .collect::<String>();
 
+            if config.opt_no_pretty {
                 format!("{}:{}\n", display_path, values_string)
-            })
-            .collect()
-    } else {
-        let padding = get_padding_for_map(map);
-
-        map.iter()
-            .map(|(key, values)| {
-                let display_path = format!("\"{}\"", key.path_buf.to_string_lossy());
-
-                values
-                    .iter()
-                    .enumerate()
-                    .map(|(idx, value)| {
-                        let value_string = value.path_buf.to_string_lossy();
-
-                        if idx == 0 {
-                            format!(
-                                "{:<width$} : \"{}\"\n",
-                                display_path,
-                                value_string,
-                                width = padding
-                            )
-                        } else {
-                            format!("{:<width$} : \"{}\"\n", "", value_string, width = padding)
-                        }
-                    })
-                    .collect::<String>()
-            })
-            .collect()
-    };
+            } else {
+                values_string
+            }
+        })
+        .collect();
 
     Ok(write_out_buffer)
 }

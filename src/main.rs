@@ -57,7 +57,7 @@ use crate::data::filesystem_map::{
     VecOfFilterDirs,
 };
 
-use crate::exec::display_special::display_mounts_for_files;
+use crate::exec::display_special::display_mounts;
 use crate::exec::interactive::interactive_exec;
 use crate::exec::recursive::display_recursive_wrapper;
 use crate::exec::snapshot::take_snapshot;
@@ -111,7 +111,7 @@ fn exec() -> HttmResult<()> {
         // output elsewhere
         ExecMode::DisplayRecursive(_) => display_recursive_wrapper(config.clone())?,
         ExecMode::SnapFileMount => take_snapshot(config.clone())?,
-        ExecMode::MountsForFiles => display_mounts_for_files(config.as_ref())?,
+        ExecMode::MountsForFiles => display_mounts(config.as_ref())?,
     }
 
     Ok(())
