@@ -53,8 +53,7 @@ pub fn display_exec(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> Httm
             let drained_map: Vec<(&PathData, &Vec<PathData>)> = map_live_to_snaps.iter().collect();
 
             if config.opt_raw || config.opt_zeros {
-                let delimiter = if config.opt_zeros { '\0' } else { '\n' };
-                display_raw(config, &drained_map, delimiter)?
+                display_raw(config, &drained_map)?
             } else {
                 display_formatted(config, &drained_map)?
             }
@@ -67,8 +66,9 @@ pub fn display_exec(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> Httm
 pub fn display_raw(
     config: &Config,
     drained_map: &[(&PathData, &Vec<PathData>)],
-    delimiter: char,
 ) -> HttmResult<String> {
+    let delimiter = if config.opt_zeros { '\0' } else { '\n' };
+
     let write_out_buffer = drained_map
         .iter()
         .map(|(live_version, snaps)| {
@@ -134,7 +134,7 @@ fn display_formatted(
                             display_set_buffer += &component_buffer;
                             display_set_buffer += &global_padding_collection.fancy_border_string;
                         }
-                    } else {
+                    } else if !display_set_buffer.is_empty() {
                         display_set_buffer += &component_buffer;
                         display_set_buffer += &global_padding_collection.fancy_border_string;
                     }

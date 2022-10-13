@@ -179,10 +179,8 @@ pub fn display_mounts_for_files(config: &Config) -> HttmResult<()> {
     let mounts_for_files = get_mounts_for_files(config)?;
 
     let output_buf = if config.opt_raw || config.opt_zeros {
-        let delimiter = if config.opt_zeros { '\0' } else { '\n' };
         let drained_map: Vec<(&PathData, &Vec<PathData>)> = mounts_for_files.iter().collect();
-
-        display_raw(config, &drained_map, delimiter)?
+        display_raw(config, &drained_map)?
     } else {
         display_mounts_fancy(config, &mounts_for_files)?
     };
