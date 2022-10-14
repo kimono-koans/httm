@@ -46,8 +46,7 @@ struct PaddingCollection {
 pub fn display_exec(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> HttmResult<String> {
     let output_buffer = match &config.exec_mode {
         ExecMode::NumVersions(num_versions_mode) => {
-            let delimiter = if config.opt_zeros { '\0' } else { '\n' };
-            display_num_versions(delimiter, num_versions_mode, map_live_to_snaps)?
+            display_num_versions(config, num_versions_mode, map_live_to_snaps)?
         }
         _ => {
             let drained_map: Vec<(&PathData, &Vec<PathData>)> = map_live_to_snaps.iter().collect();

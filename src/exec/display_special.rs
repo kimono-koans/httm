@@ -28,10 +28,12 @@ use crate::library::utility::print_output_buf;
 use crate::lookup::file_mounts::get_mounts_for_files;
 
 pub fn display_num_versions(
-    delimiter: char,
+    config: &Config,
     num_versions_mode: &NumVersionsMode,
     map_live_to_snaps: &MapLiveToSnaps,
 ) -> HttmResult<String> {
+    let delimiter = if config.opt_zeros { '\0' } else { '\n' };
+
     let write_out_buffer: String = map_live_to_snaps
         .iter()
         .filter_map(|(live_version, snaps)| {
