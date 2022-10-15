@@ -291,6 +291,7 @@ fn enumerate_deleted_per_dir(
     // combined entries will be sent or printed, but we need the vec_dirs to recurse
     let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
         deleted.into_iter().partition(|entry| {
+            // no need to traverse symlinks in deleted search
             if let Some(file_type) = entry.file_type {
                 file_type.is_dir()
             } else {
