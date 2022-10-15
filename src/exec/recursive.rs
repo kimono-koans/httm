@@ -15,6 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
+use std::collections::VecDeque;
 use std::{fs::read_dir, path::Path, sync::Arc};
 
 use once_cell::unsync::OnceCell;
@@ -93,35 +94,23 @@ fn iterative_enumeration(
     recursive_scope: &Scope,
     skim_tx_item: &SkimItemSender,
 ) -> HttmResult<()> {
-    let (enumerate_tx_item, enumerate_rx_item): (
-        Sender<BasicDirEntryInfo>,
-        Receiver<BasicDirEntryInfo>,
-    ) = unbounded();
-
     // runs once for non-recursive but also "primes the pump"
     // for recursive to have items available
-    enumerate_live_files(
-        config.clone(),
-        requested_dir,
-        recursive_scope,
-        skim_tx_item,
-        &enumerate_tx_item,
-    )?;
+    let mut queue: VecDeque<BasicDirEntryInfo> =
+        enumerate_live_files(config.clone(), requested_dir, recursive_scope, skim_tx_item)?.into();
 
     if config.opt_recursive {
-        // disconnect is not possible because original tx item cannot be dropped
-        // try_recv is a little sleazy, but exiting on channel empty is the right behavior
-        // because there should only ever be once ref to the tx item, we aren't spawning threads, etc.
-        while let Ok(item) = enumerate_rx_item.try_recv() {
-            // no errors will be propagated in recursive mode
-            // far too likely to run into a dir we don't have permissions to view
-            let _ = enumerate_live_files(
-                config.clone(),
-                &item.path,
-                recursive_scope,
-                skim_tx_item,
-                &enumerate_tx_item,
-            );
+        // pop_back makes this a LIFO queue which is supposedly better for caches
+        while let Some(item) = queue.pop_back() {
+            if let Ok(vec_dirs) =
+                enumerate_live_files(config.clone(), &item.path, recursive_scope, skim_tx_item)
+            {
+                queue.extend(vec_dirs.into_iter())
+            } else {
+                // no errors will be propagated in recursive mode
+                // far too likely to run into a dir we don't have permissions to view
+                continue;
+            }
         }
     }
 
@@ -133,8 +122,7 @@ fn enumerate_live_files(
     requested_dir: &Path,
     recursive_scope: &Scope,
     skim_tx_item: &SkimItemSender,
-    enumerate_tx_item: &Sender<BasicDirEntryInfo>,
-) -> HttmResult<()> {
+) -> HttmResult<Vec<BasicDirEntryInfo>> {
     // combined entries will be sent or printed, but we need the vec_dirs to recurse
     let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
         get_entries_partitioned(config.as_ref(), requested_dir)?;
@@ -203,11 +191,7 @@ fn enumerate_live_files(
         }
     }
 
-    vec_dirs.into_iter().for_each(|basic_dir_entry_info| {
-        let _ = enumerate_tx_item.send(basic_dir_entry_info);
-    });
-
-    Ok(())
+    Ok(vec_dirs)
 }
 
 fn get_entries_partitioned(
