@@ -291,12 +291,11 @@ fn enumerate_deleted_per_dir(
     // combined entries will be sent or printed, but we need the vec_dirs to recurse
     let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
         deleted.into_iter().partition(|entry| {
-            if config.opt_no_traverse {
-                if let Ok(file_type) = entry.get_filetype() {
-                    return file_type.is_dir();
-                }
+            if let Some(file_type) = entry.file_type {
+                file_type.is_dir()
+            } else {
+                false
             }
-            httm_is_dir(entry)
         });
 
     // partition above is needed as vec_files will be used later
