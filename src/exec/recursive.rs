@@ -109,7 +109,10 @@ fn iterative_enumeration(
     )?;
 
     if config.opt_recursive {
-        while let Ok(item) = enumerate_rx_item.recv() {
+        // disconnect is not possible because original tx item cannot be dropped
+        // try_recv is a little sleazy, but exiting on channel empty is the right behavior
+        // because there should only ever be once ref to the tx item, we aren't spawning threads, etc.
+        while let Ok(item) = enumerate_rx_item.try_recv() {
             // no errors will be propagated in recursive mode
             // far too likely to run into a dir we don't have permissions to view
             let _ = enumerate_live_files(
