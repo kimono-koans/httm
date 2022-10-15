@@ -72,17 +72,44 @@ pub fn recursive_exec(
     }
 
     THREAD_POOL.in_place_scope(|deleted_scope| {
-        enumerate_live_files(
-            config.clone(),
-            requested_dir,
-            deleted_scope,
-            tx_item.clone(),
-        )
-        .unwrap_or_else(|error| {
-            eprintln!("Error: {}", error);
-            std::process::exit(1)
-        })
+        iterative_enumeration(config.clone(), requested_dir, deleted_scope, &tx_item)
+            .unwrap_or_else(|error| {
+                eprintln!("Error: {}", error);
+                std::process::exit(1)
+            })
     });
+
+    Ok(())
+}
+
+// and iterative approach seems to be *way faster* and less CPU intensive vs. recursive with Rust
+fn iterative_enumeration(
+    config: Arc<Config>,
+    requested_dir: &Path,
+    deleted_scope: &Scope,
+    tx_item: &SkimItemSender,
+) -> HttmResult<()> {
+    let initial_vec_dirs =
+        enumerate_live_files(config.clone(), requested_dir, deleted_scope, tx_item)?;
+
+    if config.opt_recursive {
+        let mut recursive_vec_dirs: Vec<BasicDirEntryInfo> = initial_vec_dirs;
+
+        while !recursive_vec_dirs.is_empty() {
+            recursive_vec_dirs = recursive_vec_dirs
+                .into_iter()
+                .flat_map(|requested_dir| {
+                    enumerate_live_files(
+                        config.clone(),
+                        &requested_dir.path,
+                        deleted_scope,
+                        tx_item,
+                    )
+                })
+                .flatten()
+                .collect();
+        }
+    }
 
     Ok(())
 }
@@ -91,8 +118,8 @@ fn enumerate_live_files(
     config: Arc<Config>,
     requested_dir: &Path,
     deleted_scope: &Scope,
-    tx_item: SkimItemSender,
-) -> HttmResult<()> {
+    tx_item: &SkimItemSender,
+) -> HttmResult<Vec<BasicDirEntryInfo>> {
     // combined entries will be sent or printed, but we need the vec_dirs to recurse
     let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
         get_entries_partitioned(config.as_ref(), requested_dir)?;
@@ -157,30 +184,11 @@ fn enumerate_live_files(
             };
 
             // is_phantom is false because these are known live entries
-            display_or_transmit(config.clone(), entries, false, &tx_item)?;
+            display_or_transmit(config.clone(), entries, false, tx_item)?;
         }
     }
 
-    if config.opt_recursive {
-        // don't want a par_iter here because it will block and wait for all
-        // results, instead of printing and recursing into the subsequent dirs
-        vec_dirs
-            .into_iter()
-            // flatten errors here (e.g. just not worth it to exit
-            // on bad permissions error for a recursive directory) so
-            // should fail on /root but on stop exec on /
-            .map(|basic_dir_entry_info| basic_dir_entry_info.path)
-            .for_each(|requested_dir| {
-                let _ = enumerate_live_files(
-                    config.clone(),
-                    &requested_dir,
-                    deleted_scope,
-                    tx_item.clone(),
-                );
-            });
-    }
-
-    Ok(())
+    Ok(vec_dirs)
 }
 
 fn get_entries_partitioned(
