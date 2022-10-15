@@ -198,7 +198,6 @@ fn get_entries_partitioned(
     //separates entries into dirs and files
     let (vec_dirs, vec_files) = read_dir(&requested_dir)?
         .flatten()
-        .par_bridge()
         .filter(|dir_entry| {
             if config.opt_no_filter {
                 true
