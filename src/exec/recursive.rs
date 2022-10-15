@@ -289,9 +289,15 @@ fn enumerate_deleted_per_dir(
     let deleted = deleted_lookup_exec(config.as_ref(), requested_dir)?;
 
     // combined entries will be sent or printed, but we need the vec_dirs to recurse
-    let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) = deleted
-        .into_iter()
-        .partition(|basic_dir_entry_info| httm_is_dir(basic_dir_entry_info));
+    let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
+        deleted.into_iter().partition(|entry| {
+            if config.opt_no_traverse {
+                if let Ok(file_type) = entry.get_filetype() {
+                    return file_type.is_dir();
+                }
+            }
+            httm_is_dir(entry)
+        });
 
     // partition above is needed as vec_files will be used later
     // to determine dirs to recurse, here, we recombine to obtain
