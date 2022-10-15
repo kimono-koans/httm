@@ -102,14 +102,12 @@ fn iterative_enumeration(
     if config.opt_recursive {
         // pop_back makes this a LIFO queue which is supposedly better for caches
         while let Some(item) = queue.pop_back() {
+            // no errors will be propagated in recursive mode
+            // far too likely to run into a dir we don't have permissions to view
             if let Ok(vec_dirs) =
                 enumerate_live_files(config.clone(), &item.path, recursive_scope, skim_tx_item)
             {
                 queue.extend(vec_dirs.into_iter())
-            } else {
-                // no errors will be propagated in recursive mode
-                // far too likely to run into a dir we don't have permissions to view
-                continue;
             }
         }
     }
