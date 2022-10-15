@@ -200,10 +200,13 @@ fn get_entries_partitioned(
         .flatten()
         .filter(|dir_entry| {
             if config.opt_no_filter {
-                true
-            } else {
-                !is_filter_dir(config, dir_entry)
+                return true;
+            } else if let Ok(file_type) = dir_entry.file_type() {
+                if file_type.is_dir() {
+                    return !is_filter_dir(config, dir_entry);
+                }
             }
+            true
         })
         // checking file_type on dir entries is always preferable
         // as it is much faster than a metadata call on the path
