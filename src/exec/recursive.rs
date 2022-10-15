@@ -15,7 +15,6 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::fs::DirEntry;
 use std::{fs::read_dir, path::Path, sync::Arc};
 
 use once_cell::unsync::OnceCell;
@@ -198,19 +197,19 @@ fn get_entries_partitioned(
     //separates entries into dirs and files
     let (vec_dirs, vec_files) = read_dir(&requested_dir)?
         .flatten()
-        .filter(|dir_entry| {
+        // checking file_type on dir entries is always preferable
+        // as it is much faster than a metadata call on the path
+        .map(|dir_entry| BasicDirEntryInfo::from(&dir_entry))
+        .filter(|entry| {
             if config.opt_no_filter {
                 return true;
-            } else if let Ok(file_type) = dir_entry.file_type() {
+            } else if let Ok(file_type) = entry.get_filetype() {
                 if file_type.is_dir() {
-                    return !is_filter_dir(config, dir_entry);
+                    return !is_filter_dir(config, entry);
                 }
             }
             true
         })
-        // checking file_type on dir entries is always preferable
-        // as it is much faster than a metadata call on the path
-        .map(|dir_entry| BasicDirEntryInfo::from(&dir_entry))
         .partition(|entry| {
             // must do is_dir() look up on file type as look up on path will traverse links!
             if config.opt_no_traverse {
@@ -224,10 +223,10 @@ fn get_entries_partitioned(
     Ok((vec_dirs, vec_files))
 }
 
-fn is_filter_dir(config: &Config, dir_entry: &DirEntry) -> bool {
+fn is_filter_dir(config: &Config, entry: &BasicDirEntryInfo) -> bool {
     // FYI path is always a relative path, but no need to canonicalize as
     // partial eq for paths is comparison of components iter
-    let path = dir_entry.path();
+    let path = entry.path.as_path();
 
     // never check the hidden snapshot directory for live files (duh)
     // didn't think this was possible until I saw a SMB share return
@@ -261,7 +260,7 @@ fn is_filter_dir(config: &Config, dir_entry: &DirEntry) -> bool {
             .dataset_collection
             .vec_of_filter_dirs
             .par_iter()
-            .any(|filter_dir| path.as_path() == filter_dir)
+            .any(|filter_dir| path == filter_dir)
     }
 }
 
