@@ -72,14 +72,12 @@ pub fn recursive_exec(
 
     // build thread pool with a stack size large enough to avoid a stack overflow
     // this will be our one threadpool for directory enumeration ops
-    lazy_static! {
-        static ref THREAD_POOL: ThreadPool = rayon::ThreadPoolBuilder::new()
-            .stack_size(DEFAULT_STACK_SIZE)
-            .build()
-            .expect("Could not initialize rayon threadpool for recursive search");
-    }
+    let pool: ThreadPool = rayon::ThreadPoolBuilder::new()
+        .stack_size(DEFAULT_STACK_SIZE)
+        .build()
+        .expect("Could not initialize rayon threadpool for recursive deleted search");
 
-    THREAD_POOL.in_place_scope(|recursive_scope| {
+    pool.in_place_scope(|recursive_scope| {
         iterative_enumeration(
             config.clone(),
             requested_dir,
@@ -90,13 +88,16 @@ pub fn recursive_exec(
         .unwrap_or_else(|error| {
             eprintln!("Error: {}", error);
             std::process::exit(1)
-        })
+        });
     });
+
+    // this would implicitly dropped but want to be clear what we are doing
+    // when a threadpool is dropped it signals the remaining threads to shut down
+    drop(pool);
 
     Ok(())
 }
 
-// and iterative approach seems to be *way faster* and less CPU intensive vs. recursive with Rust
 fn iterative_enumeration(
     config: Arc<Config>,
     requested_dir: &Path,
