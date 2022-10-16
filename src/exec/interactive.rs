@@ -17,6 +17,7 @@
 
 use std::{fs::FileType, io::Cursor, path::Path, path::PathBuf, thread, vec};
 
+use crossbeam::channel::unbounded;
 use lscolors::Colorable;
 use skim::prelude::*;
 
@@ -206,16 +207,21 @@ fn browse_view(
     let requested_dir_clone = requested_dir.path_buf.clone();
     let config_clone = config.clone();
     let (tx_item, rx_item): (SkimItemSender, SkimItemReceiver) = unbounded();
+    let (hangup_tx, hangup_rx): (Sender<()>, Receiver<()>) = unbounded();
 
     // thread spawn fn enumerate_directory - permits recursion into dirs without blocking
     thread::spawn(move || {
         // no way to propagate error from closure so exit and explain error here
-        recursive_exec(config_clone, &requested_dir_clone, tx_item.clone()).unwrap_or_else(
-            |error| {
-                eprintln!("Error: {}", error);
-                std::process::exit(1)
-            },
+        recursive_exec(
+            config_clone,
+            &requested_dir_clone,
+            tx_item.clone(),
+            hangup_rx.clone(),
         )
+        .unwrap_or_else(|error| {
+            eprintln!("Error: {}", error);
+            std::process::exit(1)
+        })
     });
 
     let opt_multi = !matches!(interactive_mode, InteractiveMode::LastSnap(_));
@@ -246,6 +252,11 @@ fn browse_view(
     } else {
         return Err(HttmError::new("httm interactive file browse session failed.").into());
     };
+
+    // hangup enumeration thread when done with search
+    // threads in flight (deleted searches) will continue
+    hangup_tx.send(())?;
+
     // output() converts the filename/raw path to a absolute path string for use elsewhere
     let output: Vec<String> = selected_items
         .iter()
