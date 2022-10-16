@@ -1,6 +1,6 @@
 [package]
 name = "httm"
-version = "0.15.6"
+version = "0.15.7"
 edition = "2021"
 keywords = ["zfs", "backup", "restore", "cli-utility", "snapshot"]
 description = "A CLI tool for viewing snapshot file versions on ZFS and btrfs datasets"
@@ -14,7 +14,9 @@ documentation = "https://github.com/kimono-koans/httm/blob/master/README.md"
 maintenance = { status = "actively-developed" }
 
 [profile.release]
-debug = true
+strip = true
+opt-level = "z"  # Aggressively optimize for size.
+lto = true
 
 [dependencies]
 clap = { version = "3.2.8", features = ["cargo"] }
