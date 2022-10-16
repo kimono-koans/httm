@@ -110,8 +110,9 @@ fn iterative_enumeration(
         enumerate_live_files(config.clone(), requested_dir, recursive_scope, skim_tx_item)?.into();
 
     if config.opt_recursive {
-        // pop_back makes this a LIFO queue which is supposedly better for caches
+        // condition kills iter when user has made a selection
         while let Err(TryRecvError::Empty) = hangup_rx.try_recv() {
+            // pop_back makes this a LIFO queue which is supposedly better for caches
             if let Some(item) = queue.pop_back() {
                 // no errors will be propagated in recursive mode
                 // far too likely to run into a dir we don't have permissions to view
