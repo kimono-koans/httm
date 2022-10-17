@@ -60,7 +60,7 @@ pub fn recursive_exec(
 ) -> HttmResult<()> {
     // default stack size for rayon threads spawned to handle enumerate_deleted
     // here set at 1MB (the Linux default is 8MB) to avoid a stack overflow with the Rayon default
-    const DEFAULT_STACK_SIZE: usize = 1048576;
+    const DEFAULT_STACK_SIZE: usize = 1_048_576;
 
     // build thread pool with a stack size large enough to avoid a stack overflow
     // this will be our one threadpool for directory enumeration ops
@@ -127,6 +127,73 @@ fn enumerate_live_files(
     let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
         get_entries_partitioned(config.as_ref(), requested_dir)?;
 
+    combine_and_send_entries(
+        config.clone(),
+        vec_files,
+        &vec_dirs,
+        false,
+        requested_dir,
+        skim_tx_item,
+    )?;
+
+    spawn_enumerate_deleted(config, requested_dir, recursive_scope, skim_tx_item);
+
+    Ok(vec_dirs)
+}
+
+fn combine_and_send_entries(
+    config: Arc<Config>,
+    vec_files: Vec<BasicDirEntryInfo>,
+    vec_dirs: &[BasicDirEntryInfo],
+    is_phantom: bool,
+    requested_dir: &Path,
+    skim_tx_item: &SkimItemSender,
+) -> HttmResult<()> {
+    let mut combined = vec_files;
+    combined.extend_from_slice(vec_dirs);
+
+    let entries = if is_phantom {
+        get_pseudo_live_versions(combined, requested_dir)
+    } else {
+        match config.deleted_mode {
+            DeletedMode::Only => {
+                // spawn_enumerate_deleted will send deleted files back to
+                // the main thread for us, so we can skip collecting deleted here
+                // and return an empty vec
+                Vec::new()
+            }
+            DeletedMode::DepthOfOne | DeletedMode::Enabled | DeletedMode::Disabled => {
+                // DepthOfOne will be handled inside enumerate_deleted
+                combined
+            }
+        }
+    };
+
+    // is_phantom is false because these are known live entries
+    display_or_transmit(config, entries, is_phantom, skim_tx_item)?;
+
+    Ok(())
+}
+
+// "spawn" a lighter weight rayon/greenish thread for enumerate_deleted, if needed
+fn spawn_enumerate_deleted(
+    config: Arc<Config>,
+    requested_dir: &Path,
+    recursive_scope: &Scope,
+    skim_tx_item: &SkimItemSender,
+) {
+    let spawn = || {
+        // clone items because new thread needs ownership
+        let requested_dir_clone = requested_dir.to_path_buf();
+        let config_clone = config.clone();
+        let skim_tx_item_clone = skim_tx_item.clone();
+
+        recursive_scope.spawn(move |_| {
+            let _ =
+                enumerate_deleted_per_dir(config_clone, &requested_dir_clone, &skim_tx_item_clone);
+        });
+    };
+
     // check exec mode and deleted mode, we do something different for each
     match config.exec_mode {
         ExecMode::Display
@@ -143,55 +210,22 @@ fn enumerate_live_files(
                 // for all other non-disabled DeletedModes
                 DeletedMode::DepthOfOne | DeletedMode::Enabled | DeletedMode::Only => {
                     // scope guarantees that all threads finish before we exit
-                    spawn_enumerate_deleted(
-                        config.clone(),
-                        requested_dir,
-                        recursive_scope,
-                        skim_tx_item.clone(),
-                    );
+                    spawn()
                 }
             }
         }
         ExecMode::Interactive(_) => {
-            // recombine dirs and files into a vec
-            let combined_vec = || {
-                let mut combined = vec_files;
-                combined.extend_from_slice(&vec_dirs);
-                combined
-            };
-
-            let entries: Vec<BasicDirEntryInfo> = match config.deleted_mode {
-                DeletedMode::Only => {
+            match config.deleted_mode {
+                DeletedMode::Only | DeletedMode::DepthOfOne | DeletedMode::Enabled => {
                     // spawn_enumerate_deleted will send deleted files back to
                     // the main thread for us, so we can skip collecting deleted here
                     // and return an empty vec
-                    spawn_enumerate_deleted(
-                        config.clone(),
-                        requested_dir,
-                        recursive_scope,
-                        skim_tx_item.clone(),
-                    );
-                    Vec::new()
+                    spawn()
                 }
-                DeletedMode::DepthOfOne | DeletedMode::Enabled => {
-                    // DepthOfOne will be handled inside enumerate_deleted
-                    spawn_enumerate_deleted(
-                        config.clone(),
-                        requested_dir,
-                        recursive_scope,
-                        skim_tx_item.clone(),
-                    );
-                    combined_vec()
-                }
-                DeletedMode::Disabled => combined_vec(),
-            };
-
-            // is_phantom is false because these are known live entries
-            display_or_transmit(config.clone(), entries, false, skim_tx_item)?;
+                DeletedMode::Disabled => (),
+            }
         }
     }
-
-    Ok(vec_dirs)
 }
 
 fn get_entries_partitioned(
@@ -268,26 +302,11 @@ fn is_filter_dir(config: &Config, entry: &BasicDirEntryInfo) -> bool {
     }
 }
 
-// "spawn" a lighter weight rayon/greenish thread for enumerate_deleted, if needed
-fn spawn_enumerate_deleted(
-    config: Arc<Config>,
-    requested_dir: &Path,
-    recursive_scope: &Scope,
-    skim_tx_item: SkimItemSender,
-) {
-    // clone items because new thread needs ownership
-    let requested_dir_clone = requested_dir.to_path_buf();
-
-    recursive_scope.spawn(move |_| {
-        let _ = enumerate_deleted_per_dir(config, &requested_dir_clone, skim_tx_item);
-    });
-}
-
 // deleted file search for all modes
 fn enumerate_deleted_per_dir(
     config: Arc<Config>,
     requested_dir: &Path,
-    skim_tx_item: SkimItemSender,
+    skim_tx_item: &SkimItemSender,
 ) -> HttmResult<()> {
     // obtain all unique deleted, policy is one version for each file, latest in time
     let deleted = deleted_lookup_exec(config.as_ref(), requested_dir)?;
@@ -303,17 +322,14 @@ fn enumerate_deleted_per_dir(
             }
         });
 
-    // partition above is needed as vec_files will be used later
-    // to determine dirs to recurse, here, we recombine to obtain
-    // pseudo live versions of deleted files, files that once were
-    let mut combined_entries = vec_files;
-    // recombine our directories and files
-    combined_entries.extend_from_slice(&vec_dirs);
-    let pseudo_live_versions: Vec<BasicDirEntryInfo> =
-        get_pseudo_live_versions(combined_entries, requested_dir);
-
-    // know this is_phantom because we know it is deleted
-    display_or_transmit(config.clone(), pseudo_live_versions, true, &skim_tx_item)?;
+    combine_and_send_entries(
+        config.clone(),
+        vec_files,
+        &vec_dirs,
+        true,
+        requested_dir,
+        skim_tx_item,
+    )?;
 
     // disable behind deleted dirs with DepthOfOne,
     // otherwise recurse and find all those deleted files
@@ -332,9 +348,10 @@ fn enumerate_deleted_per_dir(
                     config_clone,
                     &deleted_dir,
                     &requested_dir_clone,
-                    &skim_tx_item,
+                    skim_tx_item,
                 )
-            }).map_err(|err| err.into())
+            })
+            .map_err(|err| err)
     } else {
         Ok(())
     }
@@ -365,17 +382,14 @@ fn get_entries_behind_deleted_dir(
         let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
             get_entries_partitioned(config.as_ref(), deleted_dir_on_snap)?;
 
-        // partition above is needed as vec_files will be used later
-        // to determine dirs to recurse, here, we recombine to obtain
-        // pseudo live versions of deleted files, files that once were
-        let mut combined_entries = vec_files;
-        // recombine our directories and files
-        combined_entries.extend_from_slice(&vec_dirs);
-        let pseudo_live_versions: Vec<BasicDirEntryInfo> =
-            get_pseudo_live_versions(combined_entries, pseudo_live_dir);
-
-        // know this is_phantom because we know it is deleted
-        display_or_transmit(config.clone(), pseudo_live_versions, true, skim_tx_item)?;
+        combine_and_send_entries(
+            config.clone(),
+            vec_files,
+            &vec_dirs,
+            true,
+            pseudo_live_dir,
+            skim_tx_item,
+        )?;
 
         // now recurse!
         // don't propagate errors, errors we are most concerned about
@@ -388,7 +402,7 @@ fn get_entries_behind_deleted_dir(
                 pseudo_live_dir,
                 skim_tx_item,
             )
-        }).map_err(|err| err.into())
+        })
     }
 
     match &deleted_dir.file_name() {
@@ -399,7 +413,7 @@ fn get_entries_behind_deleted_dir(
             requested_dir,
             skim_tx_item,
         )?,
-        None => return Err(HttmError::new("Not a valid file!").into()),
+        None => return Err(HttmError::new("Not a valid file name!").into()),
     }
 
     Ok(())
