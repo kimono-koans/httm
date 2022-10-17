@@ -207,7 +207,7 @@ fn browse_view(
     let requested_dir_clone = requested_dir.path_buf.clone();
     let config_clone = config.clone();
     let (tx_item, rx_item): (SkimItemSender, SkimItemReceiver) = unbounded();
-    let (hangup_tx, hangup_rx): (Sender<()>, Receiver<()>) = unbounded();
+    let (_hangup_tx, hangup_rx): (Sender<()>, Receiver<()>) = unbounded();
 
     // thread spawn fn enumerate_directory - permits recursion into dirs without blocking
     thread::spawn(move || {
@@ -243,6 +243,10 @@ fn browse_view(
 
     // run_with() reads and shows items from the thread stream created above
     let selected_items = if let Some(output) = Skim::run_with(&options, Some(rx_item)) {
+        // hangup enumeration thread when done with search
+        // threads in flight (deleted searches) will continue
+        //hangup_tx.send(())?;
+        
         if output.is_abort {
             eprintln!("httm interactive file browse session was aborted.  Quitting.");
             std::process::exit(0)
@@ -259,9 +263,7 @@ fn browse_view(
         .map(|i| i.output().into_owned())
         .collect();
 
-    // hangup enumeration thread when done with search
-    // threads in flight (deleted searches) will continue
-    hangup_tx.send(())?;
+    
 
     Ok(output)
 }
