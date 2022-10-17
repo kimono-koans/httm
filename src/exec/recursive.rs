@@ -332,6 +332,9 @@ fn enumerate_deleted_per_dir(
 
     // disable behind deleted dirs with DepthOfOne,
     // otherwise recurse and find all those deleted files
+    //
+    // don't propagate errors, errors we are most concerned about
+    // are transmission errors, which are handled elsewhere
     if config.deleted_mode != DeletedMode::DepthOfOne && config.opt_recursive {
         vec_dirs
             .into_iter()
@@ -390,6 +393,8 @@ fn get_entries_behind_deleted_dir(
         display_or_transmit(config.clone(), pseudo_live_versions, true, skim_tx_item)?;
 
         // now recurse!
+        // don't propagate errors, errors we are most concerned about
+        // are transmission errors, which are handled elsewhere
         vec_dirs.into_iter().for_each(|basic_dir_entry_info| {
             let _ = recurse_behind_deleted_dir(
                 config.clone(),
@@ -471,14 +476,14 @@ fn transmit_entries(
     // results, instead of printing and recursing into the subsequent dirs
     entries
         .into_iter()
-        .for_each(|basic_dir_entry_info| {
-            let _ = skim_tx_item.send(Arc::new(SelectionCandidate::new(
+        .try_for_each(|basic_dir_entry_info| {
+            skim_tx_item.try_send(Arc::new(SelectionCandidate::new(
                 config.clone(),
                 basic_dir_entry_info,
                 is_phantom,
-            )));
-        });
-    Ok(())
+            )))
+        })
+        .map_err(|err| err.into())
 }
 
 fn print_display_recursive(config: &Config, entries: Vec<BasicDirEntryInfo>) -> HttmResult<()> {
