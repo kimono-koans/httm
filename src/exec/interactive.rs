@@ -238,10 +238,6 @@ fn browse_view(
 
     // run_with() reads and shows items from the thread stream created above
     let selected_items = if let Some(output) = Skim::run_with(&options, Some(rx_item)) {
-        // hangup enumeration thread when done with search
-        // threads in flight (deleted searches) will continue
-        //hangup_tx.send(())?;
-
         if output.is_abort {
             eprintln!("httm interactive file browse session was aborted.  Quitting.");
             std::process::exit(0)
