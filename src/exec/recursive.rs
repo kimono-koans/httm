@@ -351,7 +351,6 @@ fn enumerate_deleted_per_dir(
                     skim_tx_item,
                 )
             })
-            .map_err(|err| err)
     } else {
         Ok(())
     }
