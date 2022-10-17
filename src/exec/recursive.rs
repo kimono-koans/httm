@@ -18,8 +18,6 @@
 use std::collections::VecDeque;
 use std::{fs::read_dir, path::Path, sync::Arc};
 
-use crossbeam::channel::TryRecvError;
-
 use core::ops::Deref;
 use once_cell::unsync::OnceCell;
 use rayon::{prelude::*, Scope, ThreadPool};
@@ -42,17 +40,11 @@ pub fn display_recursive_wrapper(config: Arc<Config>) -> HttmResult<()> {
     let (dummy_skim_tx_item, _): (SkimItemSender, SkimItemReceiver) = unbounded();
     // zombie tx item/some var is required otherwise the channel is born disconnected
     // just wow that this is possible, and requires this!!
-    let (zombie_tx_item, dummy_skim_rx_item): (Sender<()>, Receiver<()>) = unbounded();
     let config_clone = config.clone();
 
     match &config.opt_requested_dir {
         Some(requested_dir) => {
-            recursive_exec(
-                config_clone,
-                &requested_dir.path_buf,
-                dummy_skim_tx_item,
-                dummy_skim_rx_item,
-            )?;
+            recursive_exec(config_clone, &requested_dir.path_buf, dummy_skim_tx_item)?;
         }
         None => {
             return Err(HttmError::new(
@@ -69,7 +61,6 @@ pub fn recursive_exec(
     config: Arc<Config>,
     requested_dir: &Path,
     skim_tx_item: SkimItemSender,
-    hangup_rx: Receiver<()>,
 ) -> HttmResult<()> {
     // default stack size for rayon threads spawned to handle enumerate_deleted
     // here set at 1MB (the Linux default is 8MB) to avoid a stack overflow with the Rayon default
@@ -88,7 +79,6 @@ pub fn recursive_exec(
             requested_dir,
             recursive_scope,
             &skim_tx_item,
-            &hangup_rx,
         )
         .unwrap_or_else(|error| {
             eprintln!("Error: {}", error);
@@ -108,7 +98,6 @@ fn iterative_enumeration(
     requested_dir: &Path,
     recursive_scope: &Scope,
     skim_tx_item: &SkimItemSender,
-    hangup_rx: &Receiver<()>,
 ) -> HttmResult<()> {
     // runs once for non-recursive but also "primes the pump"
     // for recursive to have items available
@@ -117,16 +106,14 @@ fn iterative_enumeration(
 
     if config.opt_recursive {
         // condition kills iter when user has made a selection
-        while let Err(TryRecvError::Empty) = hangup_rx.try_recv() {
-            // pop_back makes this a LIFO queue which is supposedly better for caches
-            if let Some(item) = queue.pop_back() {
-                // no errors will be propagated in recursive mode
-                // far too likely to run into a dir we don't have permissions to view
-                if let Ok(vec_dirs) =
-                    enumerate_live_files(config.clone(), &item.path, recursive_scope, skim_tx_item)
-                {
-                    queue.extend(vec_dirs.into_iter())
-                }
+        // pop_back makes this a LIFO queue which is supposedly better for caches
+        while let Some(item) = queue.pop_back() {
+            // no errors will be propagated in recursive mode
+            // far too likely to run into a dir we don't have permissions to view
+            if let Ok(vec_dirs) =
+                enumerate_live_files(config.clone(), &item.path, recursive_scope, skim_tx_item)
+            {
+                queue.extend(vec_dirs.into_iter())
             }
         }
     }
