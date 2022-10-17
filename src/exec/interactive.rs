@@ -253,15 +253,15 @@ fn browse_view(
         return Err(HttmError::new("httm interactive file browse session failed.").into());
     };
 
-    // hangup enumeration thread when done with search
-    // threads in flight (deleted searches) will continue
-    hangup_tx.send(())?;
-
     // output() converts the filename/raw path to a absolute path string for use elsewhere
     let output: Vec<String> = selected_items
         .iter()
         .map(|i| i.output().into_owned())
         .collect();
+
+    // hangup enumeration thread when done with search
+    // threads in flight (deleted searches) will continue
+    hangup_tx.send(())?;
 
     Ok(output)
 }
