@@ -38,8 +38,6 @@ use crate::{BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_HIDDEN_DIRECTORY};
 pub fn display_recursive_wrapper(config: Arc<Config>) -> HttmResult<()> {
     // won't be sending anything anywhere, this just allows us to reuse enumerate_directory
     let (dummy_skim_tx_item, _): (SkimItemSender, SkimItemReceiver) = unbounded();
-    // zombie tx item/some var is required otherwise the channel is born disconnected
-    // just wow that this is possible, and requires this!!
     let config_clone = config.clone();
 
     match &config.opt_requested_dir {
