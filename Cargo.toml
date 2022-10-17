@@ -21,6 +21,7 @@ lto = true
 [dependencies]
 clap = { version = "3.2.8", features = ["cargo"] }
 crossbeam = { version = "0.8.2", default-features = false }
+crossbeam-channel = { version = "0.5.5", default-features = false }
 time = { version = "0.3.11", features = ["formatting", "local-offset"] }
 number_prefix = { version = "0.4.0",  default-features = false }
 skim = { version = "0.9.4", default-features = false }

@@ -19,6 +19,8 @@ use std::collections::VecDeque;
 use std::{fs::read_dir, path::Path, sync::Arc};
 
 use crossbeam::channel::TryRecvError;
+
+use core::ops::Deref;
 use once_cell::unsync::OnceCell;
 use rayon::{prelude::*, Scope, ThreadPool};
 use skim::prelude::*;
@@ -39,7 +41,7 @@ pub fn display_recursive_wrapper(config: Arc<Config>) -> HttmResult<()> {
     // won't be sending anything anywhere, this just allows us to reuse enumerate_directory
     let (dummy_skim_tx_item, _): (SkimItemSender, SkimItemReceiver) = unbounded();
     // zombie tx item/some var is required otherwise the channel is born disconnected
-    // just wow that this is possible and requires this!!
+    // just wow that this is possible, and requires this!!
     let (zombie_tx_item, dummy_skim_rx_item): (Sender<()>, Receiver<()>) = unbounded();
     let config_clone = config.clone();
 
@@ -336,20 +338,30 @@ fn enumerate_deleted_per_dir(
     // don't propagate errors, errors we are most concerned about
     // are transmission errors, which are handled elsewhere
     if config.deleted_mode != DeletedMode::DepthOfOne && config.opt_recursive {
-        vec_dirs
+        match vec_dirs
             .into_iter()
             .map(|basic_dir_entry_info| basic_dir_entry_info.path)
-            .for_each(|deleted_dir| {
+            .try_for_each(|deleted_dir| {
                 let config_clone = config.clone();
                 let requested_dir_clone = requested_dir.to_path_buf();
 
-                let _ = get_entries_behind_deleted_dir(
+                get_entries_behind_deleted_dir(
                     config_clone,
                     &deleted_dir,
                     &requested_dir_clone,
                     &skim_tx_item,
-                );
-            });
+                )
+            }) {
+            Err(err)
+                if err
+                    .deref()
+                    .is::<crossbeam_channel::TrySendError<Arc<dyn SkimItem>>>() =>
+            {
+                eprintln!("{}", err);
+                return Err(err);
+            }
+            _ => (),
+        }
     }
 
     Ok(())
@@ -395,17 +407,25 @@ fn get_entries_behind_deleted_dir(
         // now recurse!
         // don't propagate errors, errors we are most concerned about
         // are transmission errors, which are handled elsewhere
-        vec_dirs.into_iter().for_each(|basic_dir_entry_info| {
-            let _ = recurse_behind_deleted_dir(
+        match vec_dirs.into_iter().try_for_each(|basic_dir_entry_info| {
+            recurse_behind_deleted_dir(
                 config.clone(),
                 Path::new(&basic_dir_entry_info.file_name),
                 deleted_dir_on_snap,
                 pseudo_live_dir,
                 skim_tx_item,
-            );
-        });
-
-        Ok(())
+            )
+        }) {
+            Err(err)
+                if err
+                    .deref()
+                    .is::<crossbeam_channel::TrySendError<Arc<dyn SkimItem>>>() =>
+            {
+                eprintln!("{}", err);
+                Err(err)
+            }
+            _ => Ok(()),
+        }
     }
 
     match &deleted_dir.file_name() {
