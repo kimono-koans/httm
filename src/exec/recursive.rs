@@ -69,17 +69,12 @@ pub fn recursive_exec(
         .build()
         .expect("Could not initialize rayon threadpool for recursive deleted search");
 
-    pool.in_place_scope(|recursive_scope| {
-        iterative_enumeration(
-            config.clone(),
-            requested_dir,
-            recursive_scope,
-            &skim_tx_item,
-        )
-        .unwrap_or_else(|error| {
-            eprintln!("Error: {}", error);
-            std::process::exit(1)
-        });
+    pool.in_place_scope(|deleted_scope| {
+        iterative_enumeration(config.clone(), requested_dir, deleted_scope, &skim_tx_item)
+            .unwrap_or_else(|error| {
+                eprintln!("Error: {}", error);
+                std::process::exit(1)
+            });
     });
 
     // this would implicitly dropped but want to be clear what we are doing
@@ -92,13 +87,13 @@ pub fn recursive_exec(
 fn iterative_enumeration(
     config: Arc<Config>,
     requested_dir: &Path,
-    recursive_scope: &Scope,
+    deleted_scope: &Scope,
     skim_tx_item: &SkimItemSender,
 ) -> HttmResult<()> {
     // runs once for non-recursive but also "primes the pump"
     // for recursive to have items available
     let mut queue: VecDeque<BasicDirEntryInfo> =
-        enumerate_live_files(config.clone(), requested_dir, recursive_scope, skim_tx_item)?.into();
+        enumerate_live(config.clone(), requested_dir, deleted_scope, skim_tx_item)?.into();
 
     if config.opt_recursive {
         // condition kills iter when user has made a selection
@@ -107,7 +102,7 @@ fn iterative_enumeration(
             // no errors will be propagated in recursive mode
             // far too likely to run into a dir we don't have permissions to view
             if let Ok(vec_dirs) =
-                enumerate_live_files(config.clone(), &item.path, recursive_scope, skim_tx_item)
+                enumerate_live(config.clone(), &item.path, deleted_scope, skim_tx_item)
             {
                 queue.extend(vec_dirs.into_iter())
             }
@@ -117,10 +112,10 @@ fn iterative_enumeration(
     Ok(())
 }
 
-fn enumerate_live_files(
+fn enumerate_live(
     config: Arc<Config>,
     requested_dir: &Path,
-    recursive_scope: &Scope,
+    deleted_scope: &Scope,
     skim_tx_item: &SkimItemSender,
 ) -> HttmResult<Vec<BasicDirEntryInfo>> {
     // combined entries will be sent or printed, but we need the vec_dirs to recurse
@@ -136,7 +131,7 @@ fn enumerate_live_files(
         skim_tx_item,
     )?;
 
-    spawn_enumerate_deleted(config, requested_dir, recursive_scope, skim_tx_item);
+    spawn_deleted(config, requested_dir, deleted_scope, skim_tx_item);
 
     Ok(vec_dirs)
 }
@@ -176,10 +171,10 @@ fn combine_and_send_entries(
 }
 
 // "spawn" a lighter weight rayon/greenish thread for enumerate_deleted, if needed
-fn spawn_enumerate_deleted(
+fn spawn_deleted(
     config: Arc<Config>,
     requested_dir: &Path,
-    recursive_scope: &Scope,
+    deleted_scope: &Scope,
     skim_tx_item: &SkimItemSender,
 ) {
     let spawn = || {
@@ -188,9 +183,8 @@ fn spawn_enumerate_deleted(
         let config_clone = config.clone();
         let skim_tx_item_clone = skim_tx_item.clone();
 
-        recursive_scope.spawn(move |_| {
-            let _ =
-                enumerate_deleted_per_dir(config_clone, &requested_dir_clone, &skim_tx_item_clone);
+        deleted_scope.spawn(move |_| {
+            let _ = enumerate_deleted(config_clone, &requested_dir_clone, &skim_tx_item_clone);
         });
     };
 
@@ -303,7 +297,7 @@ fn is_filter_dir(config: &Config, entry: &BasicDirEntryInfo) -> bool {
 }
 
 // deleted file search for all modes
-fn enumerate_deleted_per_dir(
+fn enumerate_deleted(
     config: Arc<Config>,
     requested_dir: &Path,
     skim_tx_item: &SkimItemSender,
