@@ -468,14 +468,14 @@ fn transmit_entries(
     // results, instead of printing and recursing into the subsequent dirs
     entries
         .into_iter()
-        .try_for_each(|basic_dir_entry_info| {
-            skim_tx_item.try_send(Arc::new(SelectionCandidate::new(
+        .for_each(|basic_dir_entry_info| {
+            let _ = skim_tx_item.try_send(Arc::new(SelectionCandidate::new(
                 config.clone(),
                 basic_dir_entry_info,
                 is_phantom,
-            )))
-        })
-        .map_err(|err| err.into())
+            )));
+        });
+    Ok(())
 }
 
 fn print_display_recursive(config: &Config, entries: Vec<BasicDirEntryInfo>) -> HttmResult<()> {
