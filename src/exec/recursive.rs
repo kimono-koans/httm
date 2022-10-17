@@ -34,10 +34,13 @@ use crate::lookup::deleted::deleted_lookup_exec;
 use crate::lookup::versions::versions_lookup_exec;
 use crate::{BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_HIDDEN_DIRECTORY};
 
+#[allow(unused_variables)]
 pub fn display_recursive_wrapper(config: Arc<Config>) -> HttmResult<()> {
     // won't be sending anything anywhere, this just allows us to reuse enumerate_directory
     let (dummy_skim_tx_item, _): (SkimItemSender, SkimItemReceiver) = unbounded();
-    let (_, dummy_skim_rx_item): (Sender<()>, Receiver<()>) = unbounded();
+    // zombie tx item/some var is required otherwise the channel is born disconnected
+    // just wow that this is possible and requires this!!
+    let (zombie_tx_item, dummy_skim_rx_item): (Sender<()>, Receiver<()>) = unbounded();
     let config_clone = config.clone();
 
     match &config.opt_requested_dir {
@@ -469,7 +472,7 @@ fn transmit_entries(
     entries
         .into_iter()
         .for_each(|basic_dir_entry_info| {
-            let _ = skim_tx_item.try_send(Arc::new(SelectionCandidate::new(
+            let _ = skim_tx_item.send(Arc::new(SelectionCandidate::new(
                 config.clone(),
                 basic_dir_entry_info,
                 is_phantom,
