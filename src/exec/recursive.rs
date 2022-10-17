@@ -177,48 +177,19 @@ fn spawn_deleted(
     deleted_scope: &Scope,
     skim_tx_item: &SkimItemSender,
 ) {
-    let spawn = || {
-        // clone items because new thread needs ownership
-        let requested_dir_clone = requested_dir.to_path_buf();
-        let config_clone = config.clone();
-        let skim_tx_item_clone = skim_tx_item.clone();
+    match config.deleted_mode {
+        DeletedMode::Only | DeletedMode::DepthOfOne | DeletedMode::Enabled => {
+            // spawn_enumerate_deleted will send deleted files back to
+            // the main thread for us, so we can skip collecting deleted here
+            // and return an empty vec
+            let requested_dir_clone = requested_dir.to_path_buf();
+            let skim_tx_item_clone = skim_tx_item.clone();
 
-        deleted_scope.spawn(move |_| {
-            let _ = enumerate_deleted(config_clone, &requested_dir_clone, &skim_tx_item_clone);
-        });
-    };
-
-    // check exec mode and deleted mode, we do something different for each
-    match config.exec_mode {
-        ExecMode::Display
-        | ExecMode::SnapFileMount
-        | ExecMode::MountsForFiles
-        | ExecMode::NumVersions(_) => unreachable!(),
-        ExecMode::DisplayRecursive(_) => {
-            match config.deleted_mode {
-                // display recursive in DeletedMode::Disabled may be
-                // something to implement in the future but I'm not sure
-                // it really makes sense, as it's only really good for a
-                // small subset of files
-                DeletedMode::Disabled => unreachable!(),
-                // for all other non-disabled DeletedModes
-                DeletedMode::DepthOfOne | DeletedMode::Enabled | DeletedMode::Only => {
-                    // scope guarantees that all threads finish before we exit
-                    spawn()
-                }
-            }
+            deleted_scope.spawn(move |_| {
+                let _ = enumerate_deleted(config, &requested_dir_clone, &skim_tx_item_clone);
+            });
         }
-        ExecMode::Interactive(_) => {
-            match config.deleted_mode {
-                DeletedMode::Only | DeletedMode::DepthOfOne | DeletedMode::Enabled => {
-                    // spawn_enumerate_deleted will send deleted files back to
-                    // the main thread for us, so we can skip collecting deleted here
-                    // and return an empty vec
-                    spawn()
-                }
-                DeletedMode::Disabled => (),
-            }
-        }
+        DeletedMode::Disabled => (),
     }
 }
 
