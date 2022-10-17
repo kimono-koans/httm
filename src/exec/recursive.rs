@@ -148,23 +148,25 @@ fn combine_and_send_entries(
     combined.extend_from_slice(vec_dirs);
 
     let entries = if is_phantom {
+        // deleted - phantom
         get_pseudo_live_versions(combined, requested_dir)
     } else {
+        // live - not phantom
         match config.deleted_mode {
             DeletedMode::Only => {
-                // spawn_enumerate_deleted will send deleted files back to
-                // the main thread for us, so we can skip collecting deleted here
-                // and return an empty vec
                 Vec::new()
             }
             DeletedMode::DepthOfOne | DeletedMode::Enabled | DeletedMode::Disabled => {
-                // DepthOfOne will be handled inside enumerate_deleted
-                combined
+                // never show live files is display recursive/deleted only file mode
+                if matches!(config.exec_mode, ExecMode::DisplayRecursive(_)) {
+                    Vec::new()
+                } else {
+                    combined
+                }
             }
         }
     };
 
-    // is_phantom is false because these are known live entries
     display_or_transmit(config, entries, is_phantom, skim_tx_item)?;
 
     Ok(())
