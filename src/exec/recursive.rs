@@ -153,9 +153,7 @@ fn combine_and_send_entries(
     } else {
         // live - not phantom
         match config.deleted_mode {
-            DeletedMode::Only => {
-                Vec::new()
-            }
+            DeletedMode::Only => Vec::new(),
             DeletedMode::DepthOfOne | DeletedMode::Enabled | DeletedMode::Disabled => {
                 // never show live files is display recursive/deleted only file mode
                 if matches!(config.exec_mode, ExecMode::DisplayRecursive(_)) {
@@ -215,17 +213,19 @@ fn get_entries_partitioned(
             }
             true
         })
-        .partition(|entry| {
-            // must do is_dir() look up on file type as look up on path will traverse links!
-            if config.opt_no_traverse {
-                if let Ok(file_type) = entry.get_filetype() {
-                    return file_type.is_dir();
-                }
-            }
-            httm_is_dir(entry)
-        });
+        .partition(|entry| recursive_is_entry_dir(config, entry));
 
     Ok((vec_dirs, vec_files))
+}
+
+fn recursive_is_entry_dir(config: &Config, entry: &BasicDirEntryInfo) -> bool {
+    // must do is_dir() look up on file type as look up on path will traverse links!
+    if config.opt_no_traverse {
+        if let Ok(file_type) = entry.get_filetype() {
+            return file_type.is_dir();
+        }
+    }
+    httm_is_dir(entry)
 }
 
 fn is_filter_dir(config: &Config, entry: &BasicDirEntryInfo) -> bool {
@@ -276,17 +276,13 @@ fn enumerate_deleted(
     skim_tx_item: &SkimItemSender,
 ) -> HttmResult<()> {
     // obtain all unique deleted, policy is one version for each file, latest in time
-    let deleted = deleted_lookup_exec(config.as_ref(), requested_dir)?;
+    let vec_deleted = deleted_lookup_exec(config.as_ref(), requested_dir)?;
 
     // combined entries will be sent or printed, but we need the vec_dirs to recurse
     let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
-        deleted.into_iter().partition(|entry| {
+        vec_deleted.into_iter().partition(|entry| {
             // no need to traverse symlinks in deleted search
-            if let Some(file_type) = entry.file_type {
-                file_type.is_dir()
-            } else {
-                false
-            }
+            recursive_is_entry_dir(config.as_ref(), entry)
         });
 
     combine_and_send_entries(
