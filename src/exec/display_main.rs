@@ -295,7 +295,7 @@ pub fn get_display_set(config: &Config, drained_map: &[(&PathData, &Vec<PathData
     let vec_snaps = if config.opt_no_snap {
         Vec::new()
     } else {
-        let map_iter = drained_map.iter().flat_map(|(live_version, snaps)| {
+        let drained_iter = drained_map.iter().flat_map(|(live_version, snaps)| {
             snaps.iter().filter(|snap_version| {
                 if config.opt_omit_ditto {
                     snap_version.md_infallible() != live_version.md_infallible()
@@ -306,13 +306,13 @@ pub fn get_display_set(config: &Config, drained_map: &[(&PathData, &Vec<PathData
         });
 
         if config.opt_last_snap {
-            if let Some(last) = map_iter.last() {
+            if let Some(last) = drained_iter.last() {
                 vec![last.clone()]
             } else {
                 Vec::new()
             }
         } else {
-            map_iter.cloned().collect()
+            drained_iter.cloned().collect()
         }
     };
 
