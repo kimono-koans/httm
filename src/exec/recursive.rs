@@ -221,7 +221,7 @@ fn spawn_deleted(
                     config,
                     &requested_dir_clone,
                     &skim_tx_item_clone,
-                    hangup_rx_clone,
+                    &hangup_rx_clone,
                 );
             });
         }
@@ -310,12 +310,12 @@ fn enumerate_deleted(
     config: Arc<Config>,
     requested_dir: &Path,
     skim_tx_item: &SkimItemSender,
-    hangup_rx: Receiver<Never>,
+    hangup_rx: &Receiver<Never>,
 ) -> HttmResult<()> {
     // check -- should deleted threads keep working?
     // exit/error on disconnected channel, which closes
     // at end of browse scope
-    if is_channel_closed(&hangup_rx) {
+    if is_channel_closed(hangup_rx) {
         return Err(HttmError::new("Thread requested to quit.  Quitting.").into());
     }
 
@@ -356,6 +356,7 @@ fn enumerate_deleted(
                     &deleted_dir,
                     &requested_dir_clone,
                     skim_tx_item,
+                    hangup_rx,
                 )
             })
     } else {
@@ -372,6 +373,7 @@ fn get_entries_behind_deleted_dir(
     deleted_dir: &Path,
     requested_dir: &Path,
     skim_tx_item: &SkimItemSender,
+    hangup_rx: &Receiver<Never>,
 ) -> HttmResult<()> {
     fn recurse_behind_deleted_dir(
         config: Arc<Config>,
@@ -379,7 +381,15 @@ fn get_entries_behind_deleted_dir(
         from_deleted_dir: &Path,
         from_requested_dir: &Path,
         skim_tx_item: &SkimItemSender,
+        hangup_rx: &Receiver<Never>,
     ) -> HttmResult<()> {
+        // check -- should deleted threads keep working?
+        // exit/error on disconnected channel, which closes
+        // at end of browse scope
+        if is_channel_closed(hangup_rx) {
+            return Err(HttmError::new("Thread requested to quit.  Quitting.").into());
+        }
+
         // deleted_dir_on_snap is the path from the deleted dir on the snapshot
         // pseudo_live_dir is the path from the fake, deleted directory that once was
         let deleted_dir_on_snap = &from_deleted_dir.to_path_buf().join(&dir_name);
@@ -407,6 +417,7 @@ fn get_entries_behind_deleted_dir(
                 deleted_dir_on_snap,
                 pseudo_live_dir,
                 skim_tx_item,
+                hangup_rx,
             )
         })
     }
@@ -418,6 +429,7 @@ fn get_entries_behind_deleted_dir(
             deleted_dir.parent().unwrap_or_else(|| Path::new("/")),
             requested_dir,
             skim_tx_item,
+            hangup_rx,
         )?,
         None => return Err(HttmError::new("Not a valid file name!").into()),
     }
