@@ -276,7 +276,7 @@ fn interactive_select(
         let live_version = &paths_selected_in_browse
             .get(0)
             .expect("ExecMode::LiveSnap should always have exactly one path.");
-        let path_string = map_live_to_snaps
+        map_live_to_snaps
             .values()
             .flatten()
             .filter(|snap_version| {
@@ -291,8 +291,7 @@ fn interactive_select(
             .ok_or_else(|| HttmError::new("No last snapshot for the requested input file exists."))?
             .path_buf
             .to_string_lossy()
-            .into_owned();
-        path_string
+            .into_owned()
     } else {
         // same stuff we do at fn exec, snooze...
         let selection_buffer = display_exec(config.as_ref(), &map_live_to_snaps)?;

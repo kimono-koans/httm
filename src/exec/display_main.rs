@@ -82,6 +82,14 @@ pub fn display_raw(
         .map(|(live_version, snaps)| {
             get_display_set(config, &[(live_version, &snaps)])
                 .iter()
+                .enumerate()
+                .filter_map(|(idx, display_set)| {
+                    if config.opt_last_snap && idx == 1 {
+                        None
+                    } else {
+                        Some(display_set)
+                    }
+                })
                 .flatten()
                 .map(|pathdata| {
                     let display_path = pathdata.path_buf.display();
@@ -304,7 +312,7 @@ pub fn get_display_set(config: &Config, drained_map: &[(&PathData, &Vec<PathData
             .flat_map(|(live_version, snaps)| {
                 snaps.iter().filter(|snap_version| {
                     if config.opt_omit_ditto {
-                        snap_version.metadata != live_version.metadata
+                        snap_version.md_infallible() != live_version.md_infallible()
                     } else {
                         true
                     }
