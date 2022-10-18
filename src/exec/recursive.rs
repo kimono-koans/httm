@@ -91,10 +91,6 @@ pub fn recursive_exec(
         });
     });
 
-    // this would implicitly dropped but want to be clear what we are doing
-    // when a threadpool is dropped it signals the remaining threads to shut down
-    drop(pool);
-
     Ok(())
 }
 
@@ -106,7 +102,8 @@ fn iterative_enumeration(
     hangup_rx: &Receiver<Never>,
 ) -> HttmResult<()> {
     // runs once for non-recursive but also "primes the pump"
-    // for recursive to have items available
+    // for recursive to have items available, also only place an
+    // error can stop execution
     let mut queue: VecDeque<BasicDirEntryInfo> = enumerate_live(
         config.clone(),
         requested_dir,
