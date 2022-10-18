@@ -82,7 +82,7 @@ pub fn display_raw(
                     }
                 })
                 .flatten()
-                .map(|pathdata| format!("\"{}\"{}", pathdata.path_buf.display(), delimiter))
+                .map(|pathdata| format!("{}{}", pathdata.path_buf.display(), delimiter))
                 .collect::<String>()
         })
         .collect();
