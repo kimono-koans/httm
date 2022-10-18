@@ -198,16 +198,18 @@ pub fn interactive_exec(
     }
 }
 
+#[allow(unused_variables)]
 fn browse_view(config: Arc<Config>, requested_dir: &PathData) -> HttmResult<Vec<String>> {
     // prep thread spawn
     let requested_dir_clone = requested_dir.path_buf.clone();
     let config_clone = config.clone();
     let (tx_item, rx_item): (SkimItemSender, SkimItemReceiver) = unbounded();
+    let (hangup_tx, hangup_rx): (Sender<()>, Receiver<()>) = bounded(0);
 
     // thread spawn fn enumerate_directory - permits recursion into dirs without blocking
     thread::spawn(move || {
         // no way to propagate error from closure so exit and explain error here
-        recursive_exec(config_clone, &requested_dir_clone, tx_item.clone()).unwrap_or_else(
+        recursive_exec(config_clone, &requested_dir_clone, tx_item.clone(), hangup_tx.clone()).unwrap_or_else(
             |error| {
                 eprintln!("Error: {}", error);
                 std::process::exit(1)

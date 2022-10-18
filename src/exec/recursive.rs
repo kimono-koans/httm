@@ -33,14 +33,16 @@ use crate::lookup::deleted::deleted_lookup_exec;
 use crate::lookup::versions::versions_lookup_exec;
 use crate::{BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_HIDDEN_DIRECTORY};
 
+#[allow(unused_variables)]
 pub fn display_recursive_wrapper(config: Arc<Config>) -> HttmResult<()> {
     // won't be sending anything anywhere, this just allows us to reuse enumerate_directory
     let (dummy_skim_tx_item, _): (SkimItemSender, SkimItemReceiver) = unbounded();
+    let (hangup_tx, hangup_rx): (Sender<()>, Receiver<()>) = bounded(0);
     let config_clone = config.clone();
 
     match &config.opt_requested_dir {
         Some(requested_dir) => {
-            recursive_exec(config_clone, &requested_dir.path_buf, dummy_skim_tx_item)?;
+            recursive_exec(config_clone, &requested_dir.path_buf, dummy_skim_tx_item, hangup_tx)?;
         }
         None => {
             return Err(HttmError::new(
@@ -57,6 +59,7 @@ pub fn recursive_exec(
     config: Arc<Config>,
     requested_dir: &Path,
     skim_tx_item: SkimItemSender,
+    hangup_tx: Sender<()>,
 ) -> HttmResult<()> {
     // default stack size for rayon threads spawned to handle enumerate_deleted
     // here set at 1MB (the Linux default is 8MB) to avoid a stack overflow with the Rayon default
@@ -70,7 +73,7 @@ pub fn recursive_exec(
         .expect("Could not initialize rayon threadpool for recursive deleted search");
 
     pool.in_place_scope(|deleted_scope| {
-        iterative_enumeration(config.clone(), requested_dir, deleted_scope, &skim_tx_item)
+        iterative_enumeration(config.clone(), requested_dir, deleted_scope, &skim_tx_item, &hangup_tx)
             .unwrap_or_else(|error| {
                 eprintln!("Error: {}", error);
                 std::process::exit(1)
@@ -89,11 +92,12 @@ fn iterative_enumeration(
     requested_dir: &Path,
     deleted_scope: &Scope,
     skim_tx_item: &SkimItemSender,
+    hangup_tx: &Sender<()>,
 ) -> HttmResult<()> {
     // runs once for non-recursive but also "primes the pump"
     // for recursive to have items available
     let mut queue: VecDeque<BasicDirEntryInfo> =
-        enumerate_live(config.clone(), requested_dir, deleted_scope, skim_tx_item)?.into();
+        enumerate_live(config.clone(), requested_dir, deleted_scope, skim_tx_item, hangup_tx)?.into();
 
     if config.opt_recursive {
         // condition kills iter when user has made a selection
@@ -102,7 +106,7 @@ fn iterative_enumeration(
             // no errors will be propagated in recursive mode
             // far too likely to run into a dir we don't have permissions to view
             if let Ok(vec_dirs) =
-                enumerate_live(config.clone(), &item.path, deleted_scope, skim_tx_item)
+                enumerate_live(config.clone(), &item.path, deleted_scope, skim_tx_item, hangup_tx)
             {
                 queue.extend(vec_dirs.into_iter())
             }
@@ -117,6 +121,7 @@ fn enumerate_live(
     requested_dir: &Path,
     deleted_scope: &Scope,
     skim_tx_item: &SkimItemSender,
+    hangup_tx: &Sender<()>,
 ) -> HttmResult<Vec<BasicDirEntryInfo>> {
     // combined entries will be sent or printed, but we need the vec_dirs to recurse
     let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
@@ -131,7 +136,7 @@ fn enumerate_live(
         skim_tx_item,
     )?;
 
-    spawn_deleted(config, requested_dir, deleted_scope, skim_tx_item);
+    spawn_deleted(config, requested_dir, deleted_scope, skim_tx_item, hangup_tx);
 
     Ok(vec_dirs)
 }
@@ -176,6 +181,7 @@ fn spawn_deleted(
     requested_dir: &Path,
     deleted_scope: &Scope,
     skim_tx_item: &SkimItemSender,
+    hangup_tx: &Sender<()>,
 ) {
     match config.deleted_mode {
         DeletedMode::Only | DeletedMode::DepthOfOne | DeletedMode::Enabled => {
@@ -184,9 +190,10 @@ fn spawn_deleted(
             // and return an empty vec
             let requested_dir_clone = requested_dir.to_path_buf();
             let skim_tx_item_clone = skim_tx_item.clone();
+            let hangup_tx_clone = hangup_tx.clone();
 
             deleted_scope.spawn(move |_| {
-                let _ = enumerate_deleted(config, &requested_dir_clone, &skim_tx_item_clone);
+                let _ = enumerate_deleted(config, &requested_dir_clone, &skim_tx_item_clone, hangup_tx_clone);
             });
         }
         DeletedMode::Disabled => (),
@@ -274,7 +281,14 @@ fn enumerate_deleted(
     config: Arc<Config>,
     requested_dir: &Path,
     skim_tx_item: &SkimItemSender,
+    hangup_tx: Sender<()>,
 ) -> HttmResult<()> {
+
+    // check -- should deleted threads keep working? 
+    // exit/error on disconnected channel, which closes
+    // at end of browse scope 
+    hangup_tx.try_send(())?;
+
     // obtain all unique deleted, policy is one version for each file, latest in time
     let vec_deleted = deleted_lookup_exec(config.as_ref(), requested_dir)?;
 
