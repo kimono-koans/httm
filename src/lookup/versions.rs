@@ -205,42 +205,33 @@ fn get_relative_path(
     pathdata: &PathData,
     proximate_dataset_mount: &Path,
 ) -> HttmResult<PathBuf> {
-    fn default_path_strip(
-        pathdata: &PathData,
-        proximate_dataset_mount: &Path,
-    ) -> HttmResult<PathBuf> {
-        pathdata
-            .path_buf
-            .strip_prefix(&proximate_dataset_mount)
-            .map(|path| path.to_path_buf())
-            .map_err(|err| err.into())
-    }
+    // path strip, if aliased
+    if let Some(map_of_aliases) = &config.dataset_collection.opt_map_of_aliases {
+        let opt_aliased_local_dir = map_of_aliases
+            .iter()
+            // do a search for a key with a value
+            .find_map(|(local_dir, alias_info)| {
+                if alias_info.remote_dir == proximate_dataset_mount {
+                    Some(local_dir)
+                } else {
+                    None
+                }
+            });
 
-    match &config.dataset_collection.opt_map_of_aliases {
-        Some(map_of_aliases) => {
-            let opt_aliased_local_dir = map_of_aliases
-                .iter()
-                // do a search for a key with a value
-                .find_map(|(local_dir, alias_info)| {
-                    if alias_info.remote_dir == proximate_dataset_mount {
-                        Some(local_dir)
-                    } else {
-                        None
-                    }
-                });
-
-            // fallback if unable to find an alias or strip a prefix
-            // (each an indication we should not be trying aliases)
-            match opt_aliased_local_dir {
-                Some(local_dir) => match pathdata.path_buf.strip_prefix(&local_dir) {
-                    Ok(alias_stripped_path) => Ok(alias_stripped_path.to_path_buf()),
-                    Err(_) => default_path_strip(pathdata, proximate_dataset_mount),
-                },
-                None => default_path_strip(pathdata, proximate_dataset_mount),
+        // fallback if unable to find an alias or strip a prefix
+        // (each an indication we should not be trying aliases)
+        if let Some(local_dir) = opt_aliased_local_dir {
+            if let Ok(alias_stripped_path) = pathdata.path_buf.strip_prefix(&local_dir) {
+                return Ok(alias_stripped_path.to_path_buf());
             }
         }
-        None => default_path_strip(pathdata, proximate_dataset_mount),
     }
+    // default path strip
+    pathdata
+        .path_buf
+        .strip_prefix(&proximate_dataset_mount)
+        .map(|path| path.to_path_buf())
+        .map_err(|err| err.into())
 }
 
 fn get_alias_dataset(pathdata: &PathData, map_of_alias: &MapOfAliases) -> Option<PathBuf> {
