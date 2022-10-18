@@ -449,18 +449,17 @@ impl Config {
         let opt_requested_dir: Option<PathData> =
             Config::get_opt_requested_dir(&mut exec_mode, &mut deleted_mode, &paths, &pwd)?;
 
-        if opt_last_snap && matches!(exec_mode, ExecMode::Display) {
-            return Err(HttmError::new(
-                "Last snap is not available in Display Recursive Mode.",
-            )
-            .into());
-        }
-
         let opt_omit_ditto = matches.is_present("OMIT_DITTO");
 
         // opt_omit_identical doesn't make sense in Display Recursive mode as no live files will exists?
         if opt_omit_ditto && matches!(exec_mode, ExecMode::DisplayRecursive(_)) {
             return Err(HttmError::new("Omit identical mode not available when a deleted recursive search is specified.  Quitting.").into());
+        }
+
+        if opt_last_snap && matches!(exec_mode, ExecMode::DisplayRecursive(_)) {
+            return Err(
+                HttmError::new("Last snap is not available in Display Recursive Mode.").into(),
+            );
         }
 
         // doesn't make sense to follow symlinks when you're searching the whole system,
