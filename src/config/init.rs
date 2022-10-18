@@ -416,7 +416,7 @@ impl Config {
             ExecMode::SnapFileMount
         } else if let Some(interactive_mode) = opt_interactive_mode {
             ExecMode::Interactive(interactive_mode)
-        } else if deleted_mode != DeletedMode::Disabled {
+        } else if deleted_mode != DeletedMode::Disabled && opt_recursive {
             let progress_bar: ProgressBar = indicatif::ProgressBar::new_spinner();
             ExecMode::DisplayRecursive(progress_bar)
         } else {
