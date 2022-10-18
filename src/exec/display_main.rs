@@ -70,17 +70,8 @@ pub fn display_raw(
 
     let write_out_buffer = drained_map
         .iter()
-        .cloned()
         .map(|(live_version, snaps)| {
-            if config.opt_last_snap {
-                if let Some(last) = snaps.last() {
-                    return (live_version, vec![last.to_owned()]);
-                }
-            }
-            (live_version, snaps.to_owned())
-        })
-        .map(|(live_version, snaps)| {
-            get_display_set(config, &[(live_version, &snaps)])
+            get_display_set(config, &[(live_version, snaps)])
                 .iter()
                 .enumerate()
                 .filter_map(|(idx, display_set)| {
