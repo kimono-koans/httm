@@ -46,17 +46,10 @@ pub enum ExecMode {
     NumVersions(NumVersionsMode),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum RequestRelative {
-    Absolute,
-    Relative,
-}
-
 #[derive(Debug, Clone, PartialEq)]
 pub enum InteractiveMode {
     Browse,
     Select,
-    LastSnap(RequestRelative),
     Restore,
 }
 
@@ -187,15 +180,8 @@ fn parse_args() -> ArgMatches {
             Arg::new("LAST_SNAP")
                 .short('l')
                 .long("last-snap")
-                .takes_value(true)
-                .default_missing_value("abs")
-                .possible_values(&["abs", "absolute", "rel", "relative"])
-                .min_values(0)
-                .require_equals(true)
-                .help("automatically select and print the path of last-in-time unique snapshot version for the input file.  \
-                May also be used as a shortcut to restore from such last version when used with the \"--restore\", or \"-r\", flag.  \
-                Default is to return the absolute last-in-time but user may also request the last unique file version relative to the \"live\" version by appending \"relative\" to the flag.")
-                .conflicts_with_all(&["SNAP_FILE_MOUNT", "MOUNT_FOR_FILE", "ALT_REPLICATED", "SNAP_POINT", "LOCAL_DIR", "NOT_SO_PRETTY"])
+                .help("automatically select and print the path of last-in-time unique snapshot version for the input file.")
+                .conflicts_with_all(&["NUM_VERSIONS", "SNAP_FILE_MOUNT", "MOUNT_FOR_FILE", "ALT_REPLICATED", "SNAP_POINT", "LOCAL_DIR", "NOT_SO_PRETTY"])
                 .display_order(11)
         )
         .arg(
@@ -289,7 +275,7 @@ fn parse_args() -> ArgMatches {
                 \"single\" will print only filenames which only have one version, \
                 (and \"single-no-snap\" will print those without a snap taken, and \"single-with-snap\" will print those with a snap taken), \
                 and \"multiple\" will print only filenames which only have multiple versions.")
-                .conflicts_with_all(&["INTERACTIVE", "SELECT", "RESTORE", "RECURSIVE", "SNAP_FILE_MOUNT", "LAST_SNAP", "NOT_SO_PRETTY", "NO_LIVE", "NO_SNAP", "OMIT_IDENTICAL"])
+                .conflicts_with_all(&["LAST_SNAP", "INTERACTIVE", "SELECT", "RESTORE", "RECURSIVE", "SNAP_FILE_MOUNT", "LAST_SNAP", "NOT_SO_PRETTY", "NO_LIVE", "NO_SNAP", "OMIT_IDENTICAL"])
                 .display_order(21)
         )
         .arg(
@@ -351,6 +337,7 @@ pub struct Config {
     pub opt_debug: bool,
     pub opt_no_traverse: bool,
     pub opt_omit_ditto: bool,
+    pub opt_last_snap: bool,
     pub requested_utc_offset: UtcOffset,
     pub exec_mode: ExecMode,
     pub dataset_collection: DatasetCollection,
@@ -393,6 +380,7 @@ impl Config {
             matches.value_of("RESTORE"),
             Some("overwrite") | Some("yolo")
         );
+        let opt_last_snap = matches.is_present("LAST_SNAP");
 
         let opt_num_versions = match matches.value_of("NUM_VERSIONS") {
             Some("") | Some("all") => Some(NumVersionsMode::All),
@@ -410,17 +398,7 @@ impl Config {
             _ => DeletedMode::Disabled,
         };
 
-        let opt_interactive_mode = if matches.is_present("LAST_SNAP") {
-            let request_relative = if matches!(
-                matches.value_of("LAST_SNAP"),
-                Some("rel") | Some("relative")
-            ) {
-                RequestRelative::Relative
-            } else {
-                RequestRelative::Absolute
-            };
-            Some(InteractiveMode::LastSnap(request_relative))
-        } else if matches.is_present("RESTORE") {
+        let opt_interactive_mode = if matches.is_present("RESTORE") {
             Some(InteractiveMode::Restore)
         } else if matches.is_present("SELECT") {
             Some(InteractiveMode::Select)
@@ -471,6 +449,13 @@ impl Config {
         let opt_requested_dir: Option<PathData> =
             Config::get_opt_requested_dir(&mut exec_mode, &mut deleted_mode, &paths, &pwd)?;
 
+        if opt_last_snap && matches!(exec_mode, ExecMode::Display) {
+            return Err(HttmError::new(
+                "Last snap is not available in Display Recursive Mode.",
+            )
+            .into());
+        }
+
         let opt_omit_ditto = matches.is_present("OMIT_DITTO");
 
         // opt_omit_identical doesn't make sense in Display Recursive mode as no live files will exists?
@@ -513,6 +498,7 @@ impl Config {
             opt_debug,
             opt_no_traverse,
             opt_omit_ditto,
+            opt_last_snap,
             requested_utc_offset,
             dataset_collection,
             exec_mode,
@@ -619,9 +605,7 @@ impl Config {
                                                     )
                                                     .into());
                                         }
-                                        InteractiveMode::LastSnap(_)
-                                        | InteractiveMode::Restore
-                                        | InteractiveMode::Select => {
+                                        InteractiveMode::Restore | InteractiveMode::Select => {
                                             // non-dir file will just cause us to skip the lookup phase
                                             None
                                         }

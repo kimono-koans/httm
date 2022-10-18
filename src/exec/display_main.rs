@@ -51,7 +51,7 @@ pub fn display_exec(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> Httm
         _ => {
             let drained_map: Vec<(&PathData, &Vec<PathData>)> = map_live_to_snaps.iter().collect();
 
-            if config.opt_raw || config.opt_zeros {
+            if config.opt_raw || config.opt_zeros || config.opt_last_snap {
                 display_raw(config, &drained_map)?
             } else {
                 display_formatted(config, &drained_map)?
@@ -70,8 +70,17 @@ pub fn display_raw(
 
     let write_out_buffer = drained_map
         .iter()
+        .cloned()
         .map(|(live_version, snaps)| {
-            get_display_set(config, &[(*live_version, *snaps)])
+            if config.opt_last_snap {
+                if let Some(last) = snaps.last() {
+                    return (live_version, vec![last.to_owned()]);
+                }
+            }
+            (live_version, snaps.to_owned())
+        })
+        .map(|(live_version, snaps)| {
+            get_display_set(config, &[(live_version, &snaps)])
                 .iter()
                 .flatten()
                 .map(|pathdata| {

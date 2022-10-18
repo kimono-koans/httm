@@ -22,7 +22,7 @@ use lscolors::Colorable;
 use skim::prelude::*;
 
 use crate::config::init::Config;
-use crate::config::init::{DeletedMode, ExecMode, InteractiveMode, RequestRelative};
+use crate::config::init::{DeletedMode, ExecMode, InteractiveMode};
 use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::exec::display_main::display_exec;
 use crate::exec::recursive::recursive_exec;
@@ -85,6 +85,7 @@ impl SelectionCandidate {
             opt_no_snap: false,
             opt_debug: false,
             opt_no_traverse: false,
+            opt_last_snap: false,
             opt_omit_ditto: config.opt_omit_ditto,
             requested_utc_offset: config.requested_utc_offset,
             exec_mode: ExecMode::Display,
@@ -157,11 +158,10 @@ pub fn interactive_exec(
         Some(requested_dir) => {
             // loop until user selects a valid path
             loop {
-                let selected_pathdata =
-                    browse_view(config.clone(), requested_dir, interactive_mode)?
-                        .into_iter()
-                        .map(|path_string| PathData::from(Path::new(&path_string)))
-                        .collect::<Vec<PathData>>();
+                let selected_pathdata = browse_view(config.clone(), requested_dir)?
+                    .into_iter()
+                    .map(|path_string| PathData::from(Path::new(&path_string)))
+                    .collect::<Vec<PathData>>();
                 if !selected_pathdata.is_empty() {
                     break selected_pathdata;
                 }
@@ -189,7 +189,7 @@ pub fn interactive_exec(
     // do we return back to our main exec function to print,
     // or continue down the interactive rabbit hole?
     match interactive_mode {
-        InteractiveMode::LastSnap(_) | InteractiveMode::Restore | InteractiveMode::Select => {
+        InteractiveMode::Restore | InteractiveMode::Select => {
             interactive_select(config, &paths_selected_in_browse, interactive_mode)?;
             unreachable!()
         }
@@ -198,11 +198,7 @@ pub fn interactive_exec(
     }
 }
 
-fn browse_view(
-    config: Arc<Config>,
-    requested_dir: &PathData,
-    interactive_mode: &InteractiveMode,
-) -> HttmResult<Vec<String>> {
+fn browse_view(config: Arc<Config>, requested_dir: &PathData) -> HttmResult<Vec<String>> {
     // prep thread spawn
     let requested_dir_clone = requested_dir.path_buf.clone();
     let config_clone = config.clone();
@@ -219,8 +215,6 @@ fn browse_view(
         )
     });
 
-    let opt_multi = !matches!(interactive_mode, InteractiveMode::LastSnap(_));
-
     // create the skim component for previews
     let options = SkimOptionsBuilder::default()
         .preview_window(Some("up:50%"))
@@ -231,7 +225,7 @@ fn browse_view(
                       EXIT:       esc      | SELECT:       enter      | SELECT, MULTIPLE: shift+tab\n\
                       ──────────────────────────────────────────────────────────────────────────────",
         ))
-        .multi(opt_multi)
+        .multi(config.opt_last_snap)
         .regex(false)
         .build()
         .expect("Could not initialized skim options for browse_view");
@@ -277,51 +271,46 @@ fn interactive_select(
         return Err(HttmError::new(&msg).into());
     }
 
-    let path_string = match &interactive_mode {
-        InteractiveMode::LastSnap(request_relative) => {
-            // should be good to index into both, there is a known known 2nd vec,
-            let live_version = &paths_selected_in_browse
-                .get(0)
-                .expect("ExecMode::LiveSnap should always have exactly one path.");
-            let path_string = map_live_to_snaps
-                .values()
-                .flatten()
-                .filter(|snap_version| {
-                    if request_relative == &RequestRelative::Relative {
-                        snap_version.md_infallible().modify_time
-                            != live_version.md_infallible().modify_time
-                    } else {
-                        true
-                    }
-                })
-                .last()
-                .ok_or_else(|| {
-                    HttmError::new("No last snapshot for the requested input file exists.")
-                })?
-                .path_buf
-                .to_string_lossy()
-                .into_owned();
-            path_string
-        }
-        _ => {
-            // same stuff we do at fn exec, snooze...
-            let selection_buffer = display_exec(config.as_ref(), &map_live_to_snaps)?;
+    let path_string = if config.opt_last_snap {
+        // should be good to index into both, there is a known known 2nd vec,
+        let live_version = &paths_selected_in_browse
+            .get(0)
+            .expect("ExecMode::LiveSnap should always have exactly one path.");
+        let path_string = map_live_to_snaps
+            .values()
+            .flatten()
+            .filter(|snap_version| {
+                if config.opt_omit_ditto {
+                    snap_version.md_infallible().modify_time
+                        != live_version.md_infallible().modify_time
+                } else {
+                    true
+                }
+            })
+            .last()
+            .ok_or_else(|| HttmError::new("No last snapshot for the requested input file exists."))?
+            .path_buf
+            .to_string_lossy()
+            .into_owned();
+        path_string
+    } else {
+        // same stuff we do at fn exec, snooze...
+        let selection_buffer = display_exec(config.as_ref(), &map_live_to_snaps)?;
 
-            // loop until user selects a valid snapshot version
-            loop {
-                // get the file name
-                let requested_file_name = select_restore_view(&selection_buffer, false)?;
-                // ... we want everything between the quotes
-                let broken_string: Vec<_> = requested_file_name.split_terminator('"').collect();
-                // ... and the file is the 2nd item or the indexed "1" object
-                if let Some(path_string) = broken_string.get(1) {
-                    // and cannot select a 'live' version or other invalid value.
-                    if map_live_to_snaps.iter().all(|(live_version, _snaps)| {
-                        Path::new(path_string) != live_version.path_buf.as_path()
-                    }) {
-                        // return string from the loop
-                        break path_string.to_string();
-                    }
+        // loop until user selects a valid snapshot version
+        loop {
+            // get the file name
+            let requested_file_name = select_restore_view(&selection_buffer, false)?;
+            // ... we want everything between the quotes
+            let broken_string: Vec<_> = requested_file_name.split_terminator('"').collect();
+            // ... and the file is the 2nd item or the indexed "1" object
+            if let Some(path_string) = broken_string.get(1) {
+                // and cannot select a 'live' version or other invalid value.
+                if map_live_to_snaps.iter().all(|(live_version, _snaps)| {
+                    Path::new(path_string) != live_version.path_buf.as_path()
+                }) {
+                    // return string from the loop
+                    break path_string.to_string();
                 }
             }
         }
