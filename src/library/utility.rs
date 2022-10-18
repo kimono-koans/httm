@@ -23,6 +23,7 @@ use std::{
     time::SystemTime,
 };
 
+use crossbeam::channel::{Receiver, TryRecvError};
 use lscolors::{Colorable, LsColors, Style};
 use time::{format_description, OffsetDateTime};
 
@@ -32,6 +33,16 @@ use crate::exec::interactive::SelectionCandidate;
 use crate::library::results::{HttmError, HttmResult};
 use crate::{config::init::Config, data::filesystem_map::MapLiveToSnaps};
 use crate::{FilesystemType, BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_SNAPSHOT_DIRECTORY};
+
+pub enum Never {}
+
+pub fn is_channel_closed(chan: &Receiver<Never>) -> bool {
+    match chan.try_recv() {
+        Ok(never) => match never {},
+        Err(TryRecvError::Disconnected) => true,
+        Err(TryRecvError::Empty) => false,
+    }
+}
 
 const TMP_SUFFIX: &str = ".tmp";
 

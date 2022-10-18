@@ -28,7 +28,7 @@ use crate::exec::display_main::display_exec;
 use crate::exec::recursive::recursive_exec;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{
-    copy_recursive, get_date, paint_string, print_output_buf, DateFormat,
+    copy_recursive, get_date, paint_string, print_output_buf, DateFormat, Never,
 };
 use crate::lookup::versions::versions_lookup_exec;
 
@@ -204,17 +204,21 @@ fn browse_view(config: Arc<Config>, requested_dir: &PathData) -> HttmResult<Vec<
     let requested_dir_clone = requested_dir.path_buf.clone();
     let config_clone = config.clone();
     let (tx_item, rx_item): (SkimItemSender, SkimItemReceiver) = unbounded();
-    let (hangup_tx, hangup_rx): (Sender<()>, Receiver<()>) = bounded(0);
+    let (hangup_tx, hangup_rx): (Sender<Never>, Receiver<Never>) = bounded(0);
 
     // thread spawn fn enumerate_directory - permits recursion into dirs without blocking
     thread::spawn(move || {
         // no way to propagate error from closure so exit and explain error here
-        recursive_exec(config_clone, &requested_dir_clone, tx_item.clone(), hangup_tx.clone()).unwrap_or_else(
-            |error| {
-                eprintln!("Error: {}", error);
-                std::process::exit(1)
-            },
+        recursive_exec(
+            config_clone,
+            &requested_dir_clone,
+            tx_item.clone(),
+            hangup_rx.clone(),
         )
+        .unwrap_or_else(|error| {
+            eprintln!("Error: {}", error);
+            std::process::exit(1)
+        })
     });
 
     // create the skim component for previews
