@@ -281,6 +281,7 @@ fn parse_args() -> ArgMatches {
         .arg(
             Arg::new("REMOTE_DIR")
                 .long("remote-dir")
+                .hide(true)
                 .visible_aliases(&["remote", "snap-point"])
                 .help("DEPRECATED.  Use MAP_ALIASES. Manually specify that mount point for ZFS (directory which contains a \".zfs\" directory) or btrfs-snapper \
                 (directory which contains a \".snapshots\" directory), such as the local mount point for a remote share.  You may also set via the HTTM_REMOTE_DIR environment variable.")
@@ -291,6 +292,7 @@ fn parse_args() -> ArgMatches {
         .arg(
             Arg::new("LOCAL_DIR")
                 .long("local-dir")
+                .hide(true)
                 .visible_alias("local")
                 .help("DEPRECATED.  Use MAP_ALIASES.  Used with \"remote-dir\" to determine where the corresponding live root filesystem of the dataset is.  \
                 Put more simply, the \"local-dir\" is likely the directory you backup to your \"remote-dir\".  If not set, httm defaults to your current working directory.  \
