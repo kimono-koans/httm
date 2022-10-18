@@ -307,19 +307,25 @@ pub fn get_display_set(config: &Config, drained_map: &[(&PathData, &Vec<PathData
     let vec_snaps = if config.opt_no_snap {
         Vec::new()
     } else {
-        drained_map
-            .iter()
-            .flat_map(|(live_version, snaps)| {
-                snaps.iter().filter(|snap_version| {
-                    if config.opt_omit_ditto {
-                        snap_version.md_infallible() != live_version.md_infallible()
-                    } else {
-                        true
-                    }
-                })
+        let map_iter = drained_map.iter().flat_map(|(live_version, snaps)| {
+            snaps.iter().filter(|snap_version| {
+                if config.opt_omit_ditto {
+                    snap_version.md_infallible() != live_version.md_infallible()
+                } else {
+                    true
+                }
             })
-            .cloned()
-            .collect()
+        });
+
+        if config.opt_last_snap {
+            if let Some(last) = map_iter.last() {
+                vec![last.clone()]
+            } else {
+                Vec::new()
+            }
+        } else {
+            map_iter.cloned().collect()
+        }
     };
 
     let vec_live = if config.opt_no_live || matches!(config.exec_mode, ExecMode::MountsForFiles) {
