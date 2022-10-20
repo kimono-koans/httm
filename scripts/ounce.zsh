@@ -10,7 +10,6 @@ function print_err_exit {
 
 function prep_exec {
     [[ -n "$( command -v httm )" ]] || print_err_exit "'httm' is required to execute 'ounce'.  Please check that 'httm' is in your path."
-    [[ -n "$( command -v stat )" ]] || print_err_exit "'stat' is required to execute 'ounce'.  Please check that 'stat' is in your path."
     [[ -n "$( command -v sudo )" ]] || print_err_exit "'sudo' is required to execute 'ounce'.  Please check that 'sudo' is in your path."
     [[ -n "$( command -v zfs )" ]] || print_err_exit "'zfs' is required to execute 'ounce'.  Please check that 'zfs' is in your path."
 }
@@ -45,15 +44,10 @@ function ounce_of_prevention {
         fi
 
         # get last snap version of the live file?
-        local LAST_SNAP="$(httm -l "$LIVE_FILE")"
+        local LAST_SNAP="$(httm --last-snap=ditto "$LIVE_FILE")"
 
         # check whether to take snap - do we have a snap of the live file?
-        # 1 - if empty, live file does not have a snapshot, then take snap
-        # 2 - if live file is not the same as the last snap, then take snap
-        if [[ -z "$LAST_SNAP" ]] || \
-           [[ ! -z "$LAST_SNAP" && \
-	   "$(stat -c '%Y %s %i %f' "$LIVE_FILE")" != "$(stat -c '%Y %s %i %f' "$LAST_SNAP")" ]]
-        then
+        if [[ -z "$LAST_SNAP" ]] then
            FILENAMES_ARRAY+=($( echo "$LIVE_FILE" ))
         fi
     done
