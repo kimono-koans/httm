@@ -72,7 +72,7 @@ fn get_all_versions_for_path_set(
     let all_snap_versions: BTreeMap<PathData, Vec<PathData>> = path_set
         .par_iter()
         .map(|pathdata| {
-            let value: Vec<PathData> = snaps_selected_for_search
+            let snaps: Vec<PathData> = snaps_selected_for_search
                 .par_iter()
                 .flat_map(|dataset_type| select_search_datasets(config, pathdata, dataset_type))
                 .flat_map(|dataset_for_search| {
@@ -83,38 +83,37 @@ fn get_all_versions_for_path_set(
                 .flatten()
                 .collect();
 
-            let value = match &config.opt_last_snap {
+            match &config.opt_last_snap {
                 Some(last_snap_mode) => {
-                    if let Some(last) = value.last() {
-                        match last_snap_mode {
-                            LastSnapMode::Any => vec![last.clone()],
-                            LastSnapMode::DittoOnly => {
-                                if pathdata == last {
-                                    vec![last.clone()]
-                                } else {
-                                    Vec::new()
-                                }
-                            }
-                            LastSnapMode::NoDitto => {
-                                if pathdata != last {
-                                    vec![last.clone()]
-                                } else {
-                                    Vec::new()
-                                }
-                            }
-                        }
-                    } else {
-                        Vec::new()
-                    }
+                    let vec_last_snap = get_last_snap(last_snap_mode, pathdata, snaps);
+                    (pathdata.to_owned(), vec_last_snap)
                 }
-                None => value,
-            };
-
-            (pathdata.to_owned(), value)
+                None => (pathdata.to_owned(), snaps),
+            }
         })
         .collect();
 
     Ok(all_snap_versions)
+}
+
+fn get_last_snap(
+    last_snap_mode: &LastSnapMode,
+    pathdata: &PathData,
+    snaps: Vec<PathData>,
+) -> Vec<PathData> {
+    match snaps.last() {
+        Some(last) => match last_snap_mode {
+            LastSnapMode::Any => vec![last.clone()],
+            LastSnapMode::DittoOnly if pathdata.md_infallible() == last.md_infallible() => {
+                vec![last.clone()]
+            }
+            LastSnapMode::NoDitto if pathdata.md_infallible() != last.md_infallible() => {
+                vec![last.clone()]
+            }
+            _ => Vec::new(),
+        },
+        None => Vec::new(),
+    }
 }
 
 pub fn select_search_datasets(
