@@ -34,6 +34,14 @@ use crate::library::results::{HttmError, HttmResult};
 use crate::{config::init::Config, data::filesystem_map::MapLiveToSnaps};
 use crate::{FilesystemType, BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_SNAPSHOT_DIRECTORY};
 
+pub fn get_delimiter(config: &Config) -> char {
+    if config.opt_zeros {
+        '\0'
+    } else {
+        '\n'
+    }
+}
+
 pub enum Never {}
 
 pub fn is_channel_closed(chan: &Receiver<Never>) -> bool {

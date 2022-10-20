@@ -24,7 +24,7 @@ use crate::exec::display_main::{
     display_raw, NOT_SO_PRETTY_FIXED_WIDTH_PADDING, QUOTATION_MARKS_LEN,
 };
 use crate::library::results::HttmResult;
-use crate::library::utility::print_output_buf;
+use crate::library::utility::{get_delimiter, print_output_buf};
 use crate::lookup::file_mounts::get_mounts_for_files;
 
 pub fn display_num_versions(
@@ -32,7 +32,7 @@ pub fn display_num_versions(
     num_versions_mode: &NumVersionsMode,
     map_live_to_snaps: &MapLiveToSnaps,
 ) -> HttmResult<String> {
-    let delimiter = if config.opt_zeros { '\0' } else { '\n' };
+    let delimiter = get_delimiter(config);
 
     let write_out_buffer: String = map_live_to_snaps
         .iter()

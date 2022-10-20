@@ -25,7 +25,7 @@ use crate::data::filesystem_map::{DisplaySet, MapLiveToSnaps};
 use crate::data::paths::{PathData, PHANTOM_DATE, PHANTOM_SIZE};
 use crate::exec::display_special::display_num_versions;
 use crate::library::results::HttmResult;
-use crate::library::utility::{get_date, paint_string, DateFormat};
+use crate::library::utility::{get_date, get_delimiter, paint_string, DateFormat};
 
 // 2 space wide padding - used between date and size, and size and path
 pub const PRETTY_FIXED_WIDTH_PADDING: &str = "  ";
@@ -66,7 +66,7 @@ pub fn display_raw(
     config: &Config,
     drained_map: &[(&PathData, &Vec<PathData>)],
 ) -> HttmResult<String> {
-    let delimiter = if config.opt_zeros { '\0' } else { '\n' };
+    let delimiter = get_delimiter(config);
 
     let write_out_buffer = drained_map
         .iter()

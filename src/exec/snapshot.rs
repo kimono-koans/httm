@@ -24,7 +24,7 @@ use which::which;
 use crate::config::init::Config;
 use crate::data::filesystem_map::FilesystemType;
 use crate::library::results::{HttmError, HttmResult};
-use crate::library::utility::{get_date, print_output_buf, DateFormat};
+use crate::library::utility::{get_date, get_delimiter, print_output_buf, DateFormat};
 use crate::lookup::file_mounts::{get_mounts_for_files, MountsForFiles};
 
 pub fn take_snapshot(config: Arc<Config>) -> HttmResult<()> {
@@ -103,7 +103,14 @@ pub fn take_snapshot(config: Arc<Config>) -> HttmResult<()> {
             } else {
                 let output_buf = snapshot_names
                     .iter()
-                    .map(|snap_name| format!("httm took a snapshot named: {}\n", &snap_name))
+                    .map(|snap_name| {
+                        if config.opt_raw || config.opt_zeros {
+                            let delimiter = get_delimiter(&config);
+                            format!("{}{}", &snap_name, delimiter)
+                        } else {
+                            format!("httm took a snapshot named: {}\n", &snap_name)
+                        }
+                    })
                     .collect();
                 print_output_buf(output_buf)
             }
