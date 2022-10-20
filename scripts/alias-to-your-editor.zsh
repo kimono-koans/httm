@@ -1,4 +1,8 @@
 #!/bin/zsh
+
+# for the bible tells us so
+set -euf -o pipefail
+
 function ounce_of_prevention {
     for a; do
         # is the argument a file?
