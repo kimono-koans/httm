@@ -173,7 +173,6 @@ fn parse_num_versions(
                 _ => unreachable!(),
             }
         }
-        _ => unreachable!(),
     }
 }
 

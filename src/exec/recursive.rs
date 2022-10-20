@@ -182,8 +182,8 @@ fn combine_and_send_entries(
     } else {
         // live - not phantom
         match config.deleted_mode {
-            DeletedMode::Only => Vec::new(),
-            DeletedMode::DepthOfOne | DeletedMode::Enabled | DeletedMode::Disabled => {
+            Some(DeletedMode::Only) => Vec::new(),
+            Some(DeletedMode::DepthOfOne) | Some(DeletedMode::Enabled) | None => {
                 // never show live files is display recursive/deleted only file mode
                 if matches!(config.exec_mode, ExecMode::DisplayRecursive(_)) {
                     Vec::new()
@@ -208,7 +208,7 @@ fn spawn_deleted(
     hangup_rx: &Receiver<Never>,
 ) {
     match config.deleted_mode {
-        DeletedMode::Only | DeletedMode::DepthOfOne | DeletedMode::Enabled => {
+        Some(_) => {
             // spawn_enumerate_deleted will send deleted files back to
             // the main thread for us, so we can skip collecting deleted here
             // and return an empty vec
@@ -225,7 +225,7 @@ fn spawn_deleted(
                 );
             });
         }
-        DeletedMode::Disabled => (),
+        None => (),
     }
 }
 
@@ -343,7 +343,7 @@ fn enumerate_deleted(
     //
     // don't propagate errors, errors we are most concerned about
     // are transmission errors, which are handled elsewhere
-    if config.deleted_mode != DeletedMode::DepthOfOne && config.opt_recursive {
+    if config.deleted_mode != Some(DeletedMode::DepthOfOne) && config.opt_recursive {
         vec_dirs
             .into_iter()
             .map(|basic_dir_entry_info| basic_dir_entry_info.path)

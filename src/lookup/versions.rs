@@ -23,7 +23,7 @@ use std::{
 
 use rayon::prelude::*;
 
-use crate::config::init::Config;
+use crate::config::init::{Config, LastSnapMode};
 use crate::data::filesystem_map::{
     MapLiveToSnaps, MapOfAliases, MapOfDatasets, MostProximateAndOptAlts, SnapDatasetType,
     VecOfSnaps,
@@ -82,6 +82,34 @@ fn get_all_versions_for_path_set(
                 .flat_map(|search_bundle| get_versions(&search_bundle))
                 .flatten()
                 .collect();
+
+            let value = match &config.opt_last_snap {
+                Some(last_snap_mode) => {
+                    if let Some(last) = value.last() {
+                        match last_snap_mode {
+                            LastSnapMode::Any => vec![last.clone()],
+                            LastSnapMode::DittoOnly => {
+                                if pathdata == last {
+                                    vec![last.clone()]
+                                } else {
+                                    Vec::new()
+                                }
+                            }
+                            LastSnapMode::NoDitto => {
+                                if pathdata != last {
+                                    vec![last.clone()]
+                                } else {
+                                    Vec::new()
+                                }
+                            }
+                        }
+                    } else {
+                        Vec::new()
+                    }
+                }
+                None => value,
+            };
+
             (pathdata.to_owned(), value)
         })
         .collect();

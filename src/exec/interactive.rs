@@ -22,7 +22,7 @@ use lscolors::Colorable;
 use skim::prelude::*;
 
 use crate::config::init::Config;
-use crate::config::init::{DeletedMode, ExecMode, InteractiveMode};
+use crate::config::init::{ExecMode, InteractiveMode};
 use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::exec::display_main::display_exec;
 use crate::exec::recursive::recursive_exec;
@@ -85,11 +85,11 @@ impl SelectionCandidate {
             opt_no_snap: false,
             opt_debug: false,
             opt_no_traverse: false,
-            opt_last_snap: false,
+            opt_last_snap: None,
             opt_omit_ditto: config.opt_omit_ditto,
             requested_utc_offset: config.requested_utc_offset,
             exec_mode: ExecMode::Display,
-            deleted_mode: DeletedMode::Disabled,
+            deleted_mode: None,
             dataset_collection: config.dataset_collection.clone(),
             pwd: config.pwd.clone(),
             opt_requested_dir: config.opt_requested_dir.clone(),
@@ -231,7 +231,7 @@ fn browse_view(config: Arc<Config>, requested_dir: &PathData) -> HttmResult<Vec<
                       EXIT:       esc      | SELECT:       enter      | SELECT, MULTIPLE: shift+tab\n\
                       ──────────────────────────────────────────────────────────────────────────────",
         ))
-        .multi(config.opt_last_snap)
+        .multi(config.opt_last_snap.is_some())
         .regex(false)
         .build()
         .expect("Could not initialized skim options for browse_view");
@@ -277,7 +277,7 @@ fn interactive_select(
         return Err(HttmError::new(&msg).into());
     }
 
-    let path_string = if config.opt_last_snap {
+    let path_string = if config.opt_last_snap.is_some() {
         // should be good to index into both, there is a known known 2nd vec,
         let live_version = &paths_selected_in_browse
             .get(0)

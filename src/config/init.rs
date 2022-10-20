@@ -55,7 +55,6 @@ pub enum InteractiveMode {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum DeletedMode {
-    Disabled,
     DepthOfOne,
     Enabled,
     Only,
@@ -63,12 +62,18 @@ pub enum DeletedMode {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum NumVersionsMode {
-    Disabled,
     All,
     SingleAll,
     SingleNoSnap,
     SingleWithSnap,
     Multiple,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum LastSnapMode {
+    Any,
+    DittoOnly,
+    NoDitto,
 }
 
 fn parse_args() -> ArgMatches {
@@ -180,6 +185,11 @@ fn parse_args() -> ArgMatches {
             Arg::new("LAST_SNAP")
                 .short('l')
                 .long("last-snap")
+                .takes_value(true)
+                .default_missing_value("any")
+                .possible_values(&["any", "ditto", "ditto-only", "non-ditto", "no-ditto"])
+                .min_values(0)
+                .require_equals(true)
                 .help("automatically select and print the path of last-in-time unique snapshot version for the input file.")
                 .conflicts_with_all(&["NUM_VERSIONS", "SNAP_FILE_MOUNT", "MOUNT_FOR_FILE", "ALT_REPLICATED", "SNAP_POINT", "LOCAL_DIR", "NOT_SO_PRETTY"])
                 .display_order(11)
@@ -339,11 +349,11 @@ pub struct Config {
     pub opt_debug: bool,
     pub opt_no_traverse: bool,
     pub opt_omit_ditto: bool,
-    pub opt_last_snap: bool,
+    pub opt_last_snap: Option<LastSnapMode>,
     pub requested_utc_offset: UtcOffset,
     pub exec_mode: ExecMode,
     pub dataset_collection: DatasetCollection,
-    pub deleted_mode: DeletedMode,
+    pub deleted_mode: Option<DeletedMode>,
     pub pwd: PathData,
     pub opt_requested_dir: Option<PathData>,
 }
@@ -382,7 +392,13 @@ impl Config {
             matches.value_of("RESTORE"),
             Some("overwrite") | Some("yolo")
         );
-        let opt_last_snap = matches.is_present("LAST_SNAP");
+
+        let opt_last_snap = match matches.value_of("LAST_SNAP") {
+            Some("") | Some("any") => Some(LastSnapMode::Any),
+            Some("ditto-only") | Some("ditto") => Some(LastSnapMode::DittoOnly),
+            Some("non-ditto") | Some("no-ditto") => Some(LastSnapMode::NoDitto),
+            _ => None,
+        };
 
         let opt_num_versions = match matches.value_of("NUM_VERSIONS") {
             Some("") | Some("all") => Some(NumVersionsMode::All),
@@ -394,10 +410,10 @@ impl Config {
         };
 
         let mut deleted_mode = match matches.value_of("DELETED_MODE") {
-            Some("") | Some("all") => DeletedMode::Enabled,
-            Some("single") => DeletedMode::DepthOfOne,
-            Some("only") => DeletedMode::Only,
-            _ => DeletedMode::Disabled,
+            Some("") | Some("all") => Some(DeletedMode::Enabled),
+            Some("single") => Some(DeletedMode::DepthOfOne),
+            Some("only") => Some(DeletedMode::Only),
+            _ => None,
         };
 
         let opt_interactive_mode = if matches.is_present("RESTORE") {
@@ -418,12 +434,12 @@ impl Config {
             ExecMode::SnapFileMount
         } else if let Some(interactive_mode) = opt_interactive_mode {
             ExecMode::Interactive(interactive_mode)
-        } else if deleted_mode != DeletedMode::Disabled && opt_recursive {
+        } else if deleted_mode.is_some() && opt_recursive {
             let progress_bar: ProgressBar = indicatif::ProgressBar::new_spinner();
             ExecMode::DisplayRecursive(progress_bar)
         } else {
             // no need for deleted file modes in a non-interactive/display recursive setting
-            deleted_mode = DeletedMode::Disabled;
+            deleted_mode = None;
             ExecMode::Display
         };
 
@@ -458,7 +474,7 @@ impl Config {
             return Err(HttmError::new("Omit identical mode not available when a deleted recursive search is specified.  Quitting.").into());
         }
 
-        if opt_last_snap && matches!(exec_mode, ExecMode::DisplayRecursive(_)) {
+        if opt_last_snap.is_some() && matches!(exec_mode, ExecMode::DisplayRecursive(_)) {
             return Err(
                 HttmError::new("Last snap is not available in Display Recursive Mode.").into(),
             );
@@ -579,7 +595,7 @@ impl Config {
 
     fn get_opt_requested_dir(
         exec_mode: &mut ExecMode,
-        deleted_mode: &mut DeletedMode,
+        deleted_mode: &mut Option<DeletedMode>,
         paths: &[PathData],
         pwd: &PathData,
     ) -> HttmResult<Option<PathData>> {
@@ -616,7 +632,7 @@ impl Config {
                                 // switch to a standard Display mode
                                 ExecMode::DisplayRecursive(_) => {
                                     *exec_mode = ExecMode::Display;
-                                    *deleted_mode = DeletedMode::Disabled;
+                                    *deleted_mode = None;
                                     None
                                 }
                                 _ => unreachable!(),

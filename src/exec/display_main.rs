@@ -51,7 +51,7 @@ pub fn display_exec(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> Httm
         _ => {
             let drained_map: Vec<(&PathData, &Vec<PathData>)> = map_live_to_snaps.iter().collect();
 
-            if config.opt_raw || config.opt_zeros || config.opt_last_snap {
+            if config.opt_raw || config.opt_zeros || config.opt_last_snap.is_some() {
                 display_raw(config, &drained_map)?
             } else {
                 display_formatted(config, &drained_map)?
@@ -75,7 +75,7 @@ pub fn display_raw(
                 .iter()
                 .enumerate()
                 .filter_map(|(idx, display_set)| {
-                    if config.opt_last_snap && idx == 1 {
+                    if config.opt_last_snap.is_some() && idx == 1 {
                         None
                     } else {
                         Some(display_set)
@@ -295,25 +295,19 @@ pub fn get_display_set(config: &Config, drained_map: &[(&PathData, &Vec<PathData
     let vec_snaps = if config.opt_no_snap {
         Vec::new()
     } else {
-        let drained_iter = drained_map.iter().flat_map(|(live_version, snaps)| {
-            snaps.iter().filter(|snap_version| {
-                if config.opt_omit_ditto {
-                    snap_version.md_infallible() != live_version.md_infallible()
-                } else {
-                    true
-                }
+        drained_map
+            .iter()
+            .flat_map(|(live_version, snaps)| {
+                snaps.iter().filter(|snap_version| {
+                    if config.opt_omit_ditto {
+                        snap_version.md_infallible() != live_version.md_infallible()
+                    } else {
+                        true
+                    }
+                })
             })
-        });
-
-        if config.opt_last_snap {
-            if let Some(last) = drained_iter.last() {
-                vec![last.clone()]
-            } else {
-                Vec::new()
-            }
-        } else {
-            drained_iter.cloned().collect()
-        }
+            .cloned()
+            .collect()
     };
 
     let vec_live = if config.opt_no_live || matches!(config.exec_mode, ExecMode::MountsForFiles) {
