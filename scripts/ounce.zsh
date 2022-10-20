@@ -20,7 +20,6 @@ function ounce_of_prevention {
 
     # declare our exec vars
     local OUNCE_PROGRAM_NAME
-    local -a OUNCE_PARAMETERS
 
     # declare an array, convert to string later
     # this allows us to exec zfs snapshot once
@@ -32,8 +31,6 @@ function ounce_of_prevention {
            OUNCE_PROGRAM_NAME="$( command -v $a )"
 	   [[ -n "$OUNCE_PROGRAM_NAME" ]] || print_err_exit "'zfs' is required to execute 'ounce'.  Please check that 'zfs' is in your path."
            continue
-        else
-           OUNCE_PARAMETERS+=($( echo "$a" ))
         fi
 
         # is the argument a file?
