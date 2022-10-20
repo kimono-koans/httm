@@ -25,26 +25,28 @@ function ounce_of_prevention {
     # this allows us to exec zfs snapshot once
     local -a FILENAMES_ARRAY
 
+    # loop through our shell arguments 
     for a; do
         # set ounce params
         if [ -z "$OUNCE_PROGRAM_NAME" ]; then
-           OUNCE_PROGRAM_NAME="$( command -v $a )"
-	   [[ -n "$OUNCE_PROGRAM_NAME" ]] || print_err_exit "'zfs' is required to execute 'ounce'.  Please check that 'zfs' is in your path."
-           continue
+          OUNCE_PROGRAM_NAME="$( command -v $a )"
+	        [[ -n "$OUNCE_PROGRAM_NAME" ]] || print_err_exit "'zfs' is required to execute 'ounce'.  Please check that 'zfs' is in your path."
+          [[ ! -x "$OUNCE_PROGRAM_NAME" ]] || print_err_exit "'ounce' requires a valid executable name as the first argument."
+          continue
         fi
 
         # is the argument a file?
         if [[ -f "$a" ]]; then
-            local LIVE_FILE="$a"
+           local LIVE_FILE="$a"
         else
-            continue
+           continue
         fi
 
         # get last snap version of the live file?
         local LAST_SNAP="$(httm --last-snap=ditto "$LIVE_FILE")"
 
         # check whether to take snap - do we have a snap of the live file?
-        if [[ -z "$LAST_SNAP" ]] then
+        if [[ -z "$LAST_SNAP" ]]; then
            FILENAMES_ARRAY+=($( echo "$LIVE_FILE" ))
         fi
     done
@@ -60,11 +62,7 @@ function ounce_of_prevention {
     if [[ -z "ERR_OUTPUT" ]]; then
       print_err_exit "'ounce' quit with the following 'httm' or 'zfs' error: $ERR_OUTPUT"
     else
-      if [[ -x "$OUNCE_PROGRAM_NAME" ]]; then
-        "$@"
-      else
-	print_err_exit "'ounce' requires a valid executable name as the first argument."
-      fi
+      "$@"
     fi
 }
 
