@@ -1,0 +1,80 @@
+#!/bin/zsh
+
+# for the bible tells us so
+set -euf -o pipefail
+
+function print_err_exit {
+    echo "$@" 1>&2
+    exit 1
+}
+
+function prep_exec {
+    [[ -n "$( command -v httm )" ]] || print_err_exit "'httm' is required to execute 'ounce'.  Please check that 'httm' is in your path."
+    [[ -n "$( command -v stat )" ]] || print_err_exit "'stat' is required to execute 'ounce'.  Please check that 'stat' is in your path."
+    [[ -n "$( command -v sudo )" ]] || print_err_exit "'sudo' is required to execute 'ounce'.  Please check that 'sudo' is in your path."
+    [[ -n "$( command -v zfs )" ]] || print_err_exit "'zfs' is required to execute 'ounce'.  Please check that 'zfs' is in your path."
+}
+
+function ounce_of_prevention {
+    # do we have commands to execute?
+    prep_exec
+
+    # declare our exec vars
+    local OUNCE_PROGRAM_NAME
+    local -a OUNCE_PARAMETERS
+
+    # declare an array, convert to string later
+    # this allows us to exec zfs snapshot once
+    local -a FILENAMES_ARRAY
+
+    for a; do
+        # set ounce params
+        if [ -z "$OUNCE_PROGRAM_NAME" ]; then
+           OUNCE_PROGRAM_NAME="$( command -v $a )"
+	   [[ -n "$OUNCE_PROGRAM_NAME" ]] || print_err_exit "'zfs' is required to execute 'ounce'.  Please check that 'zfs' is in your path."
+           continue
+        else
+           OUNCE_PARAMETERS+=($( echo "$a" ))
+        fi
+
+        # is the argument a file?
+        if [[ -f "$a" ]]; then
+            local LIVE_FILE="$a"
+        else
+            continue
+        fi
+
+        # get last snap version of the live file?
+        local LAST_SNAP="$(httm -l "$LIVE_FILE")"
+
+        # check whether to take snap - do we have a snap of the live file?
+        # 1 - if empty, live file does not have a snapshot, then take snap
+        # 2 - if live file is not the same as the last snap, then take snap
+        if [[ -z "$LAST_SNAP" ]] || \
+           [[ ! -z "$LAST_SNAP" && \
+	   "$(stat -c '%Y %s %i %f' "$LIVE_FILE")" != "$(stat -c '%Y %s %i %f' "$LAST_SNAP")" ]]
+        then
+           FILENAMES_ARRAY+=($( echo "$LIVE_FILE" ))
+        fi
+    done
+
+    # check if filenames array is not empty
+    if [[ ${FILENAMES_ARRAY[@]} ]]; then
+      # httm will dynamically determine the location of
+      # the file's ZFS dataset and snapshot that mount
+      local FILENAMES_STRING="${FILENAMES_ARRAY[@]}"
+      local ERR_OUTPUT="$( sudo httm --snap "$FILENAMES_STRING" 1>&/dev/null 2>&1 )"
+    fi
+
+    if [[ -z "ERR_OUTPUT" ]]; then
+      print_err_exit "'ounce' quit with the following 'httm' or 'zfs' error: $ERR_OUTPUT"
+    else
+      if [[ -x "$OUNCE_PROGRAM_NAME" ]]; then
+        "$@"
+      else
+	print_err_exit "'ounce' requires a valid executable name as the first argument."
+      fi
+    fi
+}
+
+ounce_of_prevention "$@"
