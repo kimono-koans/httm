@@ -55,12 +55,11 @@ function ounce_of_prevention {
     if [[ ${FILENAMES_ARRAY[@]} ]]; then
       # httm will dynamically determine the location of
       # the file's ZFS dataset and snapshot that mount
-      local FILENAMES_STRING="${FILENAMES_ARRAY[@]}"
-      local ERR_OUTPUT="$( sudo httm --snap "$FILENAMES_STRING" 1>&/dev/null 2>&1 )"
+      local ERR_OUTPUT="$( sudo httm --snap "${FILENAMES_ARRAY[@]}" 1>&/dev/null 2>&1 )"
     fi
 
     if [[ -z "ERR_OUTPUT" ]]; then
-      print_err_exit "'ounce' quit with the following 'httm' or 'zfs' error: $ERR_OUTPUT"
+      print_err_exit "'ounce' failed with the following 'httm' or 'zfs' error: $ERR_OUTPUT"
     else
       "$@"
     fi
