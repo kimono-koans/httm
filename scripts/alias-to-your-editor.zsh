@@ -23,7 +23,7 @@ function ounce_of_prevention {
         # 1) if empty, live file does not have a snapshot, then take snap,>
         # 2) if live file is not the same as the last snap, then take snap
         if [[ -z "$LAST_SNAP" ]] || \
-           [[ ! -z "$LAST_SNAP" && "$(stat -c %Y "$LIVE_FILE")" -ne "$(sta>
+           [[ ! -z "$LAST_SNAP" && "$(stat -c %Y "$LIVE_FILE")" -ne  "$(stat -c %Y "$LAST_SNAP")" ]]
         then
            FILENAMES_ARRAY+=($( echo "$LIVE_FILE" ))
         fi
