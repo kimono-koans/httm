@@ -31,7 +31,7 @@ function ounce_of_prevention {
         if [ -z "$OUNCE_PROGRAM_NAME" ]; then
           OUNCE_PROGRAM_NAME="$( command -v $a )"
 	        [[ -n "$OUNCE_PROGRAM_NAME" ]] || print_err_exit "'zfs' is required to execute 'ounce'.  Please check that 'zfs' is in your path."
-          [[ ! -x "$OUNCE_PROGRAM_NAME" ]] || print_err_exit "'ounce' requires a valid executable name as the first argument."
+          [[ -x "$OUNCE_PROGRAM_NAME" ]] || print_err_exit "'ounce' requires a valid executable name as the first argument."
           continue
         fi
 
