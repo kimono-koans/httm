@@ -1,5 +1,19 @@
 # HTTM ZSH Widgets
 
+# ALT-d - dynamically snap PWD dataset
+httm-snapshot-pwd-widget() {
+
+  echo
+  command sudo httm --snap "$PWD"
+
+  local ret=$?
+  zle reset-prompt
+  return $ret
+
+}
+zle     -N      httm-snapshot-pwd-widget
+bindkey '\ed'   httm-snapshot-pwd-widget
+
 # ALT-m - browse for ZFS snapshots interactively
 httm-lookup-widget() {
 
