@@ -21,7 +21,6 @@ function exec_httm {
    if [[ $? -ne "0" ]]; then
       print_err_exit "'ounce' quit with a 'httm' or 'zfs' error."
    fi
-
 }
 
 function ounce_of_prevention {
