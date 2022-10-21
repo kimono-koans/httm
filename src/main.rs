@@ -24,9 +24,11 @@ mod data {
     pub mod filesystem_map;
     pub mod paths;
 }
+mod display {
+    pub mod main;
+    pub mod special;
+}
 mod exec {
-    pub mod display_main;
-    pub mod display_special;
     pub mod interactive;
     pub mod recursive;
     pub mod snapshot;
@@ -58,7 +60,7 @@ use crate::data::filesystem_map::{
     VecOfFilterDirs,
 };
 
-use crate::exec::display_special::display_mounts;
+use crate::display::special::display_mounts;
 use crate::exec::interactive::interactive_exec;
 use crate::exec::recursive::display_recursive_wrapper;
 use crate::exec::snapshot::take_snapshot;

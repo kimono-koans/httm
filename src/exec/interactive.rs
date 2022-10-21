@@ -21,10 +21,9 @@ use crossbeam::channel::unbounded;
 use lscolors::Colorable;
 use skim::prelude::*;
 
-use crate::config::generate::Config;
-use crate::config::generate::{ExecMode, InteractiveMode};
+use crate::config::generate::{Config, ExecMode, InteractiveMode};
 use crate::data::paths::{BasicDirEntryInfo, PathData};
-use crate::exec::display_main::display_exec;
+use crate::display::main::display_exec;
 use crate::exec::recursive::recursive_exec;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{

@@ -20,9 +20,7 @@ use std::collections::BTreeMap;
 use crate::config::generate::{Config, NumVersionsMode};
 use crate::data::filesystem_map::MapLiveToSnaps;
 use crate::data::paths::PathData;
-use crate::exec::display_main::{
-    display_raw, NOT_SO_PRETTY_FIXED_WIDTH_PADDING, QUOTATION_MARKS_LEN,
-};
+use crate::display::main::{display_raw, NOT_SO_PRETTY_FIXED_WIDTH_PADDING, QUOTATION_MARKS_LEN};
 use crate::library::results::HttmResult;
 use crate::library::utility::{get_delimiter, print_output_buf};
 use crate::lookup::file_mounts::get_mounts_for_files;

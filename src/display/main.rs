@@ -23,7 +23,7 @@ use terminal_size::{terminal_size, Height, Width};
 use crate::config::generate::{Config, ExecMode};
 use crate::data::filesystem_map::{DisplaySet, MapLiveToSnaps};
 use crate::data::paths::{PathData, PHANTOM_DATE, PHANTOM_SIZE};
-use crate::exec::display_special::display_num_versions;
+use crate::display::special::display_num_versions;
 use crate::library::results::HttmResult;
 use crate::library::utility::{get_date, get_delimiter, paint_string, DateFormat};
 
