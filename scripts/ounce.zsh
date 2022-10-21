@@ -34,6 +34,7 @@ function ounce_of_prevention {
 
     # set ounce params
     OUNCE_PROGRAM_NAME="$( command -v $1 )"
+    shift
     [[ -x "$OUNCE_PROGRAM_NAME" ]] || print_err_exit "'ounce' requires a valid executable name as the first argument."
 
     # loop through our shell arguments
@@ -54,7 +55,7 @@ function ounce_of_prevention {
     fi
 
     # execute original arguments
-    "$@"
+    "$OUNCE_PROGRAM_NAME" "$@"
 }
 
 ounce_of_prevention "$@"
