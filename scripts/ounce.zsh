@@ -1,7 +1,7 @@
 #!/bin/zsh
 
 # for the bible tells us so
-set -euf -o pipefail
+set -ef -o pipefail
 
 function print_err_exit {
     echo "$@" 1>&2
@@ -30,7 +30,7 @@ function ounce_of_prevention {
         # set ounce params
         if [[ -z "$OUNCE_PROGRAM_NAME" ]]; then
           OUNCE_PROGRAM_NAME="$( command -v $a )"
-	        [[ -n "$OUNCE_PROGRAM_NAME" ]] || print_err_exit "'zfs' is required to execute 'ounce'.  Please check that 'zfs' is in your path."
+	  [[ -n "$OUNCE_PROGRAM_NAME" ]] || print_err_exit "'zfs' is required to execute 'ounce'.  Please check that 'zfs' is in your path."
           [[ -x "$OUNCE_PROGRAM_NAME" ]] || print_err_exit "'ounce' requires a valid executable name as the first argument."
           continue
         fi
@@ -60,9 +60,9 @@ function ounce_of_prevention {
     fi
 
     if [[ -z "ERR_OUTPUT" ]]; then
-      print_err_exit "'ounce' quit with the following 'httm' or 'zfs' error: $ERR_OUTPUT"
+       print_err_exit "'ounce' quit with the following 'httm' or 'zfs' error: $ERR_OUTPUT"
     else
-      "$@"
+       "$@"
     fi
 }
 
