@@ -28,7 +28,7 @@ function ounce_of_prevention {
     # loop through our shell arguments
     for a; do
         # set ounce params
-        if [ -z "$OUNCE_PROGRAM_NAME" ]; then
+        if [[ -z "$OUNCE_PROGRAM_NAME" ]]; then
           OUNCE_PROGRAM_NAME="$( command -v $a )"
 	        [[ -n "$OUNCE_PROGRAM_NAME" ]] || print_err_exit "'zfs' is required to execute 'ounce'.  Please check that 'zfs' is in your path."
           [[ -x "$OUNCE_PROGRAM_NAME" ]] || print_err_exit "'ounce' requires a valid executable name as the first argument."
@@ -46,7 +46,7 @@ function ounce_of_prevention {
         local LAST_SNAP="$(httm --last-snap=ditto "$LIVE_FILE")"
 
         # check whether to take snap - do we have a snap of the live file?
-        if [[ -n "$LAST_SNAP" ]]; then
+        if [[ -z "$LAST_SNAP" ]]; then
            FILENAMES_ARRAY+=($( echo "$LIVE_FILE" ))
         fi
     done
@@ -56,7 +56,7 @@ function ounce_of_prevention {
       # httm will dynamically determine the location of
       # the file's ZFS dataset and snapshot that mount
       local FILENAMES_STRING="${FILENAMES_ARRAY[@]}"
-      local ERR_OUTPUT="$( sudo httm --snap "$FILENAMES_STRING" 1>&/dev/null 2>&1 )"
+      local ERR_OUTPUT="$( sudo httm --snap "$FILENAMES_STRING" 1>&/dev/null 2>&1 & )"
     fi
 
     if [[ -z "ERR_OUTPUT" ]]; then
