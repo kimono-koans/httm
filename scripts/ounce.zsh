@@ -15,12 +15,10 @@ function prep_exec {
     [[ -n "$( command -v zfs )" ]] || print_err_exit "'zfs' is required to execute 'ounce'.  Please check that 'zfs' is in your path."
 }
 
-function exec_httm {
+function exec_snap {
    # print stderr not stdout
-   httm --snap "$FILENAMES_STRING" 1> /dev/null
-   if [[ $? -ne "0" ]]; then
-      print_err_exit "'ounce' quit with a 'httm' or 'zfs' error."
-   fi
+   httm --snap "$@" 1> /dev/null
+   [[ $? -eq "0" ]] || print_err_exit "'ounce' quit with a 'httm' or 'zfs' error."
 }
 
 function ounce_of_prevention {
@@ -39,7 +37,7 @@ function ounce_of_prevention {
         # set ounce params
         if [[ -z "$OUNCE_PROGRAM_NAME" ]]; then
           OUNCE_PROGRAM_NAME="$( command -v $a )"
-	  [[ -n "$OUNCE_PROGRAM_NAME" ]] || print_err_exit "'zfs' is required to execute 'ounce'.  Please check that 'zfs' is in your path."
+	       [[ -n "$OUNCE_PROGRAM_NAME" ]] || print_err_exit "'zfs' is required to execute 'ounce'.  Please check that 'zfs' is in your path."
           [[ -x "$OUNCE_PROGRAM_NAME" ]] || print_err_exit "'ounce' requires a valid executable name as the first argument."
           continue
         fi
@@ -51,13 +49,8 @@ function ounce_of_prevention {
            continue
         fi
 
-        # get last snap version of the live file?
-        local LAST_SNAP="$(httm --last-snap=ditto "$LIVE_FILE")"
-
         # check whether to take snap - do we have a snap of the live file?
-        if [[ -z "$LAST_SNAP" ]]; then
-           FILENAMES_ARRAY+=($( echo "$LIVE_FILE" ))
-        fi
+        [[ -n "$(httm --last-snap=ditto "$LIVE_FILE")" ]] || FILENAMES_ARRAY+=($( echo "$LIVE_FILE" ))
     done
 
     # check if filenames array is not empty
@@ -65,7 +58,7 @@ function ounce_of_prevention {
       # httm will dynamically determine the location of
       # the file's ZFS dataset and snapshot that mount
       local FILENAMES_STRING="${FILENAMES_ARRAY[@]}"
-      exec_httm "$FILENAMES_STRING"
+      exec_snap "$FILENAMES_STRING"
     fi
 
     "$@"
