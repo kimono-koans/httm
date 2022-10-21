@@ -10,8 +10,18 @@ function print_err_exit {
 
 function prep_exec {
     [[ -n "$( command -v httm )" ]] || print_err_exit "'httm' is required to execute 'ounce'.  Please check that 'httm' is in your path."
-    [[ -n "$( command -v sudo )" ]] || print_err_exit "'sudo' is required to execute 'ounce'.  Please check that 'sudo' is in your path."
+    # Use zfs allow to operate without sudo
+    # [[ -n "$( command -v sudo )" ]] || print_err_exit "'sudo' is required to execute 'ounce'.  Please check that 'sudo' is in your path."
     [[ -n "$( command -v zfs )" ]] || print_err_exit "'zfs' is required to execute 'ounce'.  Please check that 'zfs' is in your path."
+}
+
+function exec_httm {
+   # print stderr not stdout
+   httm --snap "$FILENAMES_STRING" 1> /dev/null
+   if [[ $? -ne "0" ]]; then
+      print_err_exit "'ounce' quit with a 'httm' or 'zfs' error."
+   fi
+
 }
 
 function ounce_of_prevention {
@@ -56,14 +66,10 @@ function ounce_of_prevention {
       # httm will dynamically determine the location of
       # the file's ZFS dataset and snapshot that mount
       local FILENAMES_STRING="${FILENAMES_ARRAY[@]}"
-      local ERR_OUTPUT="$( sudo httm --snap "$FILENAMES_STRING" 1>&/dev/null 2>&1 & )"
+      exec_httm "$FILENAMES_STRING"
     fi
 
-    if [[ -z "ERR_OUTPUT" ]]; then
-       print_err_exit "'ounce' quit with the following 'httm' or 'zfs' error: $ERR_OUTPUT"
-    else
-       "$@"
-    fi
+    "$@"
 }
 
 ounce_of_prevention "$@"
