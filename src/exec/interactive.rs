@@ -23,7 +23,7 @@ use skim::prelude::*;
 
 use crate::config::generate::{Config, ExecMode, InteractiveMode};
 use crate::data::paths::{BasicDirEntryInfo, PathData};
-use crate::display::main::display_exec;
+use crate::display::primary::display_exec;
 use crate::exec::recursive::recursive_exec;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{

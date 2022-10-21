@@ -25,7 +25,7 @@ mod data {
     pub mod paths;
 }
 mod display {
-    pub mod main;
+    pub mod primary;
     pub mod special;
 }
 mod exec {
