@@ -51,7 +51,7 @@ function ounce_of_prevention {
       # check whether to take snap - do we have a snap of the live file?
       local FILENAMES_STRING="${FILENAMES_ARRAY[*]}"
       local NEEDS_SNAP="$( httm --last-snap=no-ditto "$FILENAMES_STRING" )"
-      [[ -z "$NEEDS_SNAP" ]] || exec_snap "$NEEDS_SNAP"
+      [[ -z "$NEEDS_SNAP" ]] || exec_snap "$FILENAMES_STRING"
     fi
 
     # execute original arguments
