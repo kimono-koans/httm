@@ -31,7 +31,7 @@ use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::exec::display_main::display_exec;
 use crate::exec::interactive::SelectionCandidate;
 use crate::library::results::{HttmError, HttmResult};
-use crate::{config::init::Config, data::filesystem_map::MapLiveToSnaps};
+use crate::{config::generate::Config, data::filesystem_map::MapLiveToSnaps};
 use crate::{FilesystemType, BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_SNAPSHOT_DIRECTORY};
 
 pub fn get_delimiter(config: &Config) -> char {

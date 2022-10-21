@@ -17,7 +17,7 @@
 
 use std::collections::BTreeMap;
 
-use crate::config::init::{Config, NumVersionsMode};
+use crate::config::generate::{Config, NumVersionsMode};
 use crate::data::filesystem_map::MapLiveToSnaps;
 use crate::data::paths::PathData;
 use crate::exec::display_main::{

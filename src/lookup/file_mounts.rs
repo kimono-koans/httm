@@ -20,7 +20,7 @@ use std::collections::BTreeMap;
 use itertools::Itertools;
 use rayon::prelude::*;
 
-use crate::config::init::Config;
+use crate::config::generate::Config;
 use crate::data::paths::PathData;
 use crate::library::results::HttmResult;
 use crate::lookup::versions::select_search_datasets;

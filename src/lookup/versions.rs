@@ -23,7 +23,7 @@ use std::{
 
 use rayon::prelude::*;
 
-use crate::config::init::{Config, LastSnapMode};
+use crate::config::generate::{Config, LastSnapMode};
 use crate::data::filesystem_map::{
     MapLiveToSnaps, MapOfAliases, MapOfDatasets, MostProximateAndOptAlts, SnapDatasetType,
     VecOfSnaps,

@@ -22,8 +22,8 @@ use once_cell::unsync::OnceCell;
 use rayon::{prelude::*, Scope, ThreadPool};
 use skim::prelude::*;
 
-use crate::config::init::Config;
-use crate::config::init::{DeletedMode, ExecMode};
+use crate::config::generate::Config;
+use crate::config::generate::{DeletedMode, ExecMode};
 use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::exec::display_main::display_exec;
 use crate::exec::interactive::SelectionCandidate;

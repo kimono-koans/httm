@@ -32,7 +32,8 @@ mod exec {
     pub mod snapshot;
 }
 mod config {
-    pub mod init;
+    pub mod generate;
+    pub mod helper;
     pub mod install_hot_keys;
 }
 mod library {
@@ -51,7 +52,7 @@ mod parse {
     pub mod snaps;
 }
 
-use crate::config::init::{Config, ExecMode};
+use crate::config::generate::{Config, ExecMode};
 use crate::data::filesystem_map::{
     FilesystemType, MapOfDatasets, MapOfSnaps, MostProximateAndOptAlts, OptBtrfsCommonSnapDir,
     VecOfFilterDirs,

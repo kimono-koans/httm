@@ -20,7 +20,7 @@ use std::borrow::Cow;
 use number_prefix::NumberPrefix;
 use terminal_size::{terminal_size, Height, Width};
 
-use crate::config::init::{Config, ExecMode};
+use crate::config::generate::{Config, ExecMode};
 use crate::data::filesystem_map::{DisplaySet, MapLiveToSnaps};
 use crate::data::paths::{PathData, PHANTOM_DATE, PHANTOM_SIZE};
 use crate::exec::display_special::display_num_versions;
