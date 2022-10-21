@@ -32,21 +32,14 @@ function ounce_of_prevention {
     # this allows us to exec zfs snapshot once
     local -a FILENAMES_ARRAY
 
+    # set ounce params
+    OUNCE_PROGRAM_NAME="$( command -v $1 )"
+    [[ -x "$OUNCE_PROGRAM_NAME" ]] || print_err_exit "'ounce' requires a valid executable name as the first argument."
+
     # loop through our shell arguments
     for a; do
-        # set ounce params
-        if [[ -z "$OUNCE_PROGRAM_NAME" ]]; then
-          OUNCE_PROGRAM_NAME="$( command -v $a )"
-          [[ -x "$OUNCE_PROGRAM_NAME" ]] || print_err_exit "'ounce' requires a valid executable name as the first argument."
-          continue
-        fi
-
         # is the argument a file?
-        if [[ -f "$a" ]]; then
-           # check whether to take snap - do we have a snap of the live file?
-           FILENAMES_ARRAY+=( "$a" )
-        fi
-
+        [[ ! -e "$a" ]] || FILENAMES_ARRAY+=( "$a" )
     done
 
     # check if filenames array is not empty
@@ -55,11 +48,12 @@ function ounce_of_prevention {
       # the file's ZFS dataset and snapshot that mount
       # check whether to take snap - do we have a snap of the live file?
       local FILENAMES_STRING="${FILENAMES_ARRAY[@]}"
-      local NEEDS_SNAP="$(httm --last-snap=ditto "$FILENAMES_STRING")"
+      local NEEDS_SNAP="$( httm --last-snap=no-ditto "$FILENAMES_STRING" )"
 
-      exec_snap "$NEEDS_SNAP"
+      [[ -z "$NEEDS_SNAP" ]] || exec_snap "$NEEDS_SNAP"
     fi
 
+    # execute original arguments
     "$@"
 }
 
