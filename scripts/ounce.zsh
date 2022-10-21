@@ -33,7 +33,8 @@ function ounce_of_prevention {
     local -a FILENAMES_ARRAY
 
     # set ounce params
-    OUNCE_PROGRAM_NAME="$( command -v $1 )"
+    [[ "$1" != "ounce" ]] || print_err_exit "'ounce' being called recursively. Quitting."
+    OUNCE_PROGRAM_NAME="$( command -v "$1" )"
     shift
     [[ -x "$OUNCE_PROGRAM_NAME" ]] || print_err_exit "'ounce' requires a valid executable name as the first argument."
 
@@ -44,13 +45,12 @@ function ounce_of_prevention {
     done
 
     # check if filenames array is not empty
-    if [[ ${FILENAMES_ARRAY[@]} ]]; then
+    if [[ ${FILENAMES_ARRAY[@]}  ]]; then
       # httm will dynamically determine the location of
       # the file's ZFS dataset and snapshot that mount
       # check whether to take snap - do we have a snap of the live file?
-      local FILENAMES_STRING="${FILENAMES_ARRAY[@]}"
+      local FILENAMES_STRING="${FILENAMES_ARRAY[*]}"
       local NEEDS_SNAP="$( httm --last-snap=no-ditto "$FILENAMES_STRING" )"
-
       [[ -z "$NEEDS_SNAP" ]] || exec_snap "$NEEDS_SNAP"
     fi
 
