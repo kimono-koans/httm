@@ -20,7 +20,7 @@ use std::collections::BTreeMap;
 use itertools::Itertools;
 use rayon::prelude::*;
 
-use crate::config::generate::Config;
+use crate::config::generate::{Config, ExecMode};
 use crate::data::paths::PathData;
 use crate::library::results::HttmResult;
 use crate::lookup::versions::select_search_datasets;
@@ -36,7 +36,7 @@ pub fn get_mounts_for_files(config: &Config) -> HttmResult<MountsForFiles> {
         .par_iter()
         .partition(|pathdata| pathdata.metadata.is_some());
 
-    if !phantom_files.is_empty() {
+    if !phantom_files.is_empty() && !matches!(config.exec_mode, ExecMode::SnapFileMount) {
         eprintln!(
             "httm was unable to determine mount locations for all input files, \
         because the following files do not appear to exist: "
