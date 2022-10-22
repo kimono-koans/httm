@@ -193,17 +193,12 @@ tar -zcvf "../all-versions-$(basename $file).tar.gz" "./"
 # and to view
 git log --stat
 ```
-`ounce` (codename: "dimebag") is a wrapper script for `httm` for no mental overhead, non-periodic dynamic snapshots.  Use `ounce` like so:
+[ounce](https://github.com/kimono-koans/httm/blob/master/scripts/ounce.bash) (codename: "dimebag") is a wrapper script for `httm` for no mental overhead, non-periodic dynamic snapshots.  Use `ounce` like so:
 ```bash
-# download and install the ounce script to somewhere in your path
-sudo curl --proto '=https' --tlsv1.2 -sSf --create-dirs -O \
---output /usr/local/bin/ounce \
-https://raw.githubusercontent.com/kimono-koans/httm/master/scripts/ounce.bash 
-sudo chmod +x /usr/local/bin/ounce
 # request ZFS snapshot privileges
 ounce --give-priv
-# ounce will add a snapshot of the recently touched "dummyfile" 
-# before it removes the file
+# here you create a "dummyfile", ounce will add a snapshot of "dummyfile" 
+# before it removes is, and httm will allow you to view the snapshot created
 touch ~/dummyfile; ounce rm ~/dummyfile; httm ~/dummyfile
 # use as an alias around programs which modify files/dirs
 echo "
