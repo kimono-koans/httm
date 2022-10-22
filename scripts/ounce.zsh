@@ -49,7 +49,6 @@ function prep_exec {
     # Use zfs allow to operate without sudo
     [[ -n "$( command -v httm )" ]] || print_err_exit "'httm' is required to execute 'ounce'.  Please check that 'httm' is in your path."
     [[ -n "$( command -v zfs )" ]] || print_err_exit "'zfs' is required to execute 'ounce'.  Please check that 'zfs' is in your path."
-    [[ -n "$( command -v zpool )" ]] || print_err_exit "'zpool' is required to execute 'ounce'.  Please check that 'zpool' is in your path."
     [[ -n "$( command -v sudo )" ]] || print_err_exit "'sudo' is required to execute 'ounce'.  Please check that 'sudo' is in your path."
 }
 
