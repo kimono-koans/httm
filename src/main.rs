@@ -125,7 +125,7 @@ fn print_display_map(config: &Config, map_live_to_snaps: MapLiveToSnaps) -> Httm
     // why don't we just go ahead an display last snap as an exec mode?
     // because last snap is useful as a global option.  for instance, we
     // can use it in the interactive modes to skip past the select phase
-    if config.opt_last_snap.is_some() && !matches!(config.exec_mode, ExecMode::NumVersions(_)) {
+    if config.opt_last_snap.is_some() && matches!(config.exec_mode, ExecMode::Display) {
         display_as_map(config, map_live_to_snaps)?
     } else {
         let output_buf = display_exec(config, &map_live_to_snaps)?;
