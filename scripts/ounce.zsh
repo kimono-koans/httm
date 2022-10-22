@@ -8,6 +8,19 @@ function print_err_exit {
     exit 1
 }
 
+function print_usage {
+    ounce="\e[31mounce\e[0m"
+    httm="\e[31mhttm\e[0m"
+
+    printf "\
+$ounce is a wrapper program that allows $httm to take snapshots snapshots of files you open at the command line.
+
+$ounce aims to be transparent.  It takes no arguments except the program you wish to execute through it and that program's arguments, which may or may not be files.
+
+USAGE: [target executable] [argument1 argument2...]\n" 1>&2
+    exit 1
+}
+
 function prep_exec {
     # Use zfs allow to operate without sudo
     [[ -n "$( command -v sudo )" ]] || print_err_exit "'sudo' is required to execute 'ounce'.  Please check that 'sudo' is in your path."
@@ -43,6 +56,7 @@ function ounce_of_prevention {
     local files_need_snap
 
     # get inner executable name
+    [[ "$1" != "-h" && "$1" != "--help" ]] || print_usage
     [[ "$1" != "ounce" ]] || print_err_exit "'ounce' being called recursively. Quitting."
     ounce_program_name="$( command -v "$1" )"
     shift
