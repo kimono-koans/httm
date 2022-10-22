@@ -92,7 +92,7 @@ function ounce_of_prevention {
             snapshot_suffix="$2"
             shift 2
         else
-            ounce_program_name="$( command -v "$1" )"
+            ounce_program_name="$( command -v "$1"; exit 0 )"
             shift
             break
         fi
