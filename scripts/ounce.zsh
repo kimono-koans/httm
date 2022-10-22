@@ -13,13 +13,17 @@ function prep_exec {
     [[ -n "$( command -v sudo )" ]] || print_err_exit "'sudo' is required to execute 'ounce'.  Please check that 'sudo' is in your path."
     [[ -n "$( command -v httm )" ]] || print_err_exit "'httm' is required to execute 'ounce'.  Please check that 'httm' is in your path."
     [[ -n "$( command -v zfs )" ]] || print_err_exit "'zfs' is required to execute 'ounce'.  Please check that 'zfs' is in your path."
-    [[ -n "$( command -v cut )" ]] || print_err_exit "'cut' is required to execute 'ounce'.  Please check that 'zfs' is in your path."
 }
 
 function exec_snap {
    # print stderr not stdout
-   httm --snap "$@" 1> /dev/null
-   [[ $? -eq "0" ]] || print_err_exit "'ounce' quit with a 'httm' or 'zfs' error."
+   if [[ "$( sudo -l | grep -c -e 'NOPASSWD' -e 'zfs snapshot *')" -ne 0 ]]; then
+      sudo httm --snap="ounceSnapFileMount" "$@" 1>/dev/null
+   else
+      httm --snap="ounceSnapFileMount" "$@" 1>/dev/null
+   fi
+
+   [[ $? -eq 0 ]] || print_err_exit "'ounce' quit with a 'httm' or 'zfs' error."
 }
 
 function ounce_of_prevention {
@@ -30,7 +34,6 @@ function ounce_of_prevention {
     local OUNCE_PROGRAM_NAME
     local FILENAMES_STRING
     local NEEDS_SNAP
-    local -a FILENAMES_ARRAY
 
     # get inner executable name
     [[ "$1" != "ounce" ]] || print_err_exit "'ounce' being called recursively. Quitting."
@@ -41,16 +44,17 @@ function ounce_of_prevention {
     # loop through our shell arguments
     for a; do
         # is the argument a file/directory that exists?
-        [[ ! -e "$a" ]] || FILENAMES_ARRAY+=( "$a" )
+        [[ ! -e "$a" ]] || FILENAMES_STRING+=( "$(printf "$a\0")" )
     done
 
     # check if filenames array is not empty
-    if [[ ${FILENAMES_ARRAY[@]}  ]]; then
+    if [[ -n FILENAMES_STRING  ]]; then
       # httm will dynamically determine the location of
       # the file's ZFS dataset and snapshot that mount
       # check whether to take snap - do we have a snap of the live file?
-      FILENAMES_STRING="${FILENAMES_ARRAY[*]}"
-      NEEDS_SNAP="$( httm --last-snap=no-ditto --not-so-pretty "$FILENAMES_STRING" 2>/dev/null | cut -f1 -d: )"
+      #
+      # leave FILENAMES_STRING unquoted!!!
+      NEEDS_SNAP="$( httm --last-snap=no-ditto --not-so-pretty $FILENAMES_STRING | cut -f1 -d: )"
       [[ -z "$NEEDS_SNAP" ]] || exec_snap "$NEEDS_SNAP"
     fi
 
