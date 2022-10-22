@@ -4,7 +4,7 @@
 set -ef -o pipefail
 
 function print_err_exit {
-    printf "Error: $*" 1>&2
+    printf "Error: $*\n" 1>&2
     exit 1
 }
 
@@ -93,11 +93,12 @@ function ounce_of_prevention {
             shift 2
         else
             ounce_program_name="$( command -v "$1" )"
-            [[ -x "$ounce_program_name" ]] || print_err_exit "'ounce' requires a valid executable name as the first argument."
             shift
             break
         fi
     done
+
+    [[ -x "$ounce_program_name" ]] || print_err_exit "'ounce' requires a valid executable name as the first argument."
 
     # loop through our shell arguments
     for a in "$@"; do
