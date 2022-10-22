@@ -91,8 +91,8 @@ function ounce_of_prevention {
             shift 2
         else
             ounce_program_name="$( command -v "$1" )"
-            shift
             [[ -x "$ounce_program_name" ]] || print_err_exit "'ounce' requires a valid executable name as the first argument."
+            shift
             break
         fi
     done
