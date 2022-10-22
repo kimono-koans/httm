@@ -8,18 +8,6 @@ function print_err_exit {
     exit 1
 }
 
-function give_priv {
-    local user_name
-    user_name="$( whoami )"
-    [[ "$user_name" != "root" ]] || print_err_exit "'ounce' must be executed as an unprivileged user to obtain their true user name.  You will be prompted when additional privileges are needed.  Quitting."
-
-    for p in $( sudo zpool list -o name | grep -v -e "NAME" ); do
-        sudo zfs allow "$user_name" mount,snapshot "$p" || print_err_exit "'ounce' could not obtain privileges on $p.  Quitting."
-    done
-
-    exit 0
-}
-
 function print_usage {
     ounce="\e[31mounce\e[0m"
     httm="\e[31mhttm\e[0m"
@@ -66,6 +54,21 @@ function needs_snap {
     uncut_res="$( httm --last-snap=no-ditto --not-so-pretty "$@" )"
     [[ $? -eq 0 ]] || print_err_exit "'ounce' quit with a 'httm' error."
     cut -f1 -d: <<< "$uncut_res"
+}
+
+function give_priv {
+    local user_name
+    user_name="$( whoami )"
+    [[ "$user_name" != "root" ]] || print_err_exit "'ounce' must be executed as an unprivileged user to obtain their true user name.  You will be prompted when additional privileges are needed.  Quitting."
+
+    local pools
+    pools="$( sudo zpool list -o name | grep -v -e "NAME" )"
+
+    for p in $pools; do
+        sudo zfs allow "$user_name" mount,snapshot "$p" || print_err_exit "'ounce' could not obtain privileges on $p.  Quitting."
+    done
+
+    printf "Sucessfully obtained ZFS snapshot privileges on the following pools:\n$pools\n"  && exit 0
 }
 
 function ounce_of_prevention {
