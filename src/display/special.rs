@@ -205,6 +205,11 @@ pub fn display_map_formatted(
 
     let write_out_buffer = map
         .iter()
+        .filter(|(_key, values)| if config.opt_last_snap.is_some() {
+            !values.is_empty()
+        } else {
+            true
+        } )
         .map(|(key, values)| {
             let display_path = if config.opt_no_pretty {
                 key.path_buf.to_string_lossy().into()
