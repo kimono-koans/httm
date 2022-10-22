@@ -58,12 +58,12 @@ use display::special::display_as_map;
 
 use crate::config::generate::{Config, ExecMode};
 use crate::data::filesystem_map::{
-    FilesystemType, MapOfDatasets, MapOfSnaps, MostProximateAndOptAlts, OptBtrfsCommonSnapDir,
-    VecOfFilterDirs, MapLiveToSnaps,
+    FilesystemType, MapLiveToSnaps, MapOfDatasets, MapOfSnaps, MostProximateAndOptAlts,
+    OptBtrfsCommonSnapDir, VecOfFilterDirs,
 };
 
-use crate::display::special::{display_mounts};
-use crate::display::primary::{display_exec};
+use crate::display::primary::display_exec;
+use crate::display::special::display_mounts;
 use crate::exec::interactive::interactive_exec;
 use crate::exec::recursive::display_recursive_wrapper;
 use crate::exec::snapshot::take_snapshot;
@@ -130,6 +130,6 @@ fn print_display_map(config: &Config, map_live_to_snaps: MapLiveToSnaps) -> Httm
         let output_buf = display_exec(config, &map_live_to_snaps)?;
         print_output_buf(output_buf)?
     }
-   
+
     Ok(())
 }

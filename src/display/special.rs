@@ -179,12 +179,15 @@ fn parse_num_versions(
 pub fn display_mounts(config: &Config) -> HttmResult<()> {
     let mounts_for_files = get_mounts_for_files(config)?;
 
-    display_as_map(&config, mounts_for_files)?;
+    display_as_map(config, mounts_for_files)?;
 
     Ok(())
 }
 
-pub fn display_as_map(config: &Config, mounts_for_files: BTreeMap<PathData, Vec<PathData>>) -> HttmResult<()> {
+pub fn display_as_map(
+    config: &Config,
+    mounts_for_files: BTreeMap<PathData, Vec<PathData>>,
+) -> HttmResult<()> {
     let output_buf = if config.opt_raw || config.opt_zeros {
         let drained_map: Vec<(&PathData, &Vec<PathData>)> = mounts_for_files.iter().collect();
         display_raw(config, &drained_map)?
@@ -205,11 +208,13 @@ pub fn display_map_formatted(
 
     let write_out_buffer = map
         .iter()
-        .filter(|(_key, values)| if config.opt_last_snap.is_some() {
-            !values.is_empty()
-        } else {
-            true
-        } )
+        .filter(|(_key, values)| {
+            if config.opt_last_snap.is_some() {
+                !values.is_empty()
+            } else {
+                true
+            }
+        })
         .map(|(key, values)| {
             let display_path = if config.opt_no_pretty {
                 key.path_buf.to_string_lossy().into()

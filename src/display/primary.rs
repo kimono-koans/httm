@@ -72,7 +72,7 @@ pub fn display_raw(
         .iter()
         .map(|(live_version, snaps)| {
             get_display_set(config, &[(live_version, snaps)])
-                .iter()            
+                .iter()
                 .flatten()
                 .map(|pathdata| format!("{}{}", pathdata.path_buf.display(), delimiter))
                 .collect::<String>()
@@ -302,7 +302,10 @@ pub fn get_display_set(config: &Config, drained_map: &[(&PathData, &Vec<PathData
             .collect()
     };
 
-    let vec_live = if config.opt_last_snap.is_some() || config.opt_no_live || matches!(config.exec_mode, ExecMode::MountsForFiles) {
+    let vec_live = if config.opt_last_snap.is_some()
+        || config.opt_no_live
+        || matches!(config.exec_mode, ExecMode::MountsForFiles)
+    {
         Vec::new()
     } else {
         drained_map
