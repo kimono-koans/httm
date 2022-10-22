@@ -1,6 +1,6 @@
 #!/bin/zsh
 
-# for the bible tells us so
+## for the bible tells us so
 set -ef -o pipefail
 
 function print_err_exit {
@@ -27,12 +27,9 @@ function ounce_of_prevention {
 
     # declare our exec vars
     local OUNCE_PROGRAM_NAME
-
-    # declare an array, convert to string later
-    # this allows us to exec zfs snapshot once
     local -a FILENAMES_ARRAY
 
-    # set ounce params
+    # get inner executable name
     [[ "$1" != "ounce" ]] || print_err_exit "'ounce' being called recursively. Quitting."
     OUNCE_PROGRAM_NAME="$( command -v "$1" )"
     shift
@@ -40,7 +37,7 @@ function ounce_of_prevention {
 
     # loop through our shell arguments
     for a; do
-        # is the argument a file?
+        # is the argument a file/directory that exists?
         [[ ! -e "$a" ]] || FILENAMES_ARRAY+=( "$a" )
     done
 
@@ -50,8 +47,13 @@ function ounce_of_prevention {
       # the file's ZFS dataset and snapshot that mount
       # check whether to take snap - do we have a snap of the live file?
       local FILENAMES_STRING="${FILENAMES_ARRAY[*]}"
-      local NEEDS_SNAP="$( httm --last-snap=no-ditto "$FILENAMES_STRING" )"
-      [[ -z "$NEEDS_SNAP" ]] || exec_snap "$FILENAMES_STRING"
+      # this is performance oriented sleaze.
+      #
+      # if any files need snapshots, then all get snapshots
+      # overhead of starting up httm for each file probably(?)
+      # negates any benefit of snapshotting fewer datasets
+      local NEEDS_SNAP="$( httm --last-snap=no-ditto --not-so-pretty "$FILENAMES_STRING" 2>/dev/null | cut -f1 -d: | uniq )"
+      [[ -z "$NEEDS_SNAP" ]] || exec_snap "$NEEDS_SNAP"
     fi
 
     # execute original arguments

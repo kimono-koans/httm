@@ -183,7 +183,7 @@ fn parse_args() -> ArgMatches {
                 .min_values(0)
                 .require_equals(true)
                 .help("automatically select and print the path of last-in-time unique snapshot version for the input file.")
-                .conflicts_with_all(&["NUM_VERSIONS", "SNAP_FILE_MOUNT", "MOUNT_FOR_FILE", "ALT_REPLICATED", "SNAP_POINT", "LOCAL_DIR", "NOT_SO_PRETTY"])
+                .conflicts_with_all(&["NUM_VERSIONS", "SNAP_FILE_MOUNT", "MOUNT_FOR_FILE", "ALT_REPLICATED", "SNAP_POINT", "LOCAL_DIR"])
                 .display_order(11)
         )
         .arg(

@@ -54,18 +54,21 @@ mod parse {
     pub mod snaps;
 }
 
+use display::special::display_as_map;
+
 use crate::config::generate::{Config, ExecMode};
 use crate::data::filesystem_map::{
     FilesystemType, MapOfDatasets, MapOfSnaps, MostProximateAndOptAlts, OptBtrfsCommonSnapDir,
-    VecOfFilterDirs,
+    VecOfFilterDirs, MapLiveToSnaps,
 };
 
-use crate::display::special::display_mounts;
+use crate::display::special::{display_mounts};
+use crate::display::primary::{display_exec};
 use crate::exec::interactive::interactive_exec;
 use crate::exec::recursive::display_recursive_wrapper;
 use crate::exec::snapshot::take_snapshot;
 use crate::library::results::HttmResult;
-use crate::library::utility::print_display_map;
+use crate::library::utility::print_output_buf;
 use crate::lookup::versions::versions_lookup_exec;
 
 pub const ZFS_HIDDEN_DIRECTORY: &str = ".zfs";
@@ -117,5 +120,16 @@ fn exec() -> HttmResult<()> {
         ExecMode::MountsForFiles => display_mounts(config.as_ref())?,
     }
 
+    Ok(())
+}
+
+fn print_display_map(config: &Config, map_live_to_snaps: MapLiveToSnaps) -> HttmResult<()> {
+    if config.opt_last_snap.is_some() {
+        display_as_map(config, map_live_to_snaps)?
+    } else {
+        let output_buf = display_exec(config, &map_live_to_snaps)?;
+        print_output_buf(output_buf)?
+    }
+   
     Ok(())
 }

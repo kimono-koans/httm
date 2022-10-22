@@ -179,11 +179,17 @@ fn parse_num_versions(
 pub fn display_mounts(config: &Config) -> HttmResult<()> {
     let mounts_for_files = get_mounts_for_files(config)?;
 
+    display_as_map(&config, mounts_for_files)?;
+
+    Ok(())
+}
+
+pub fn display_as_map(config: &Config, mounts_for_files: BTreeMap<PathData, Vec<PathData>>) -> HttmResult<()> {
     let output_buf = if config.opt_raw || config.opt_zeros {
         let drained_map: Vec<(&PathData, &Vec<PathData>)> = mounts_for_files.iter().collect();
         display_raw(config, &drained_map)?
     } else {
-        display_mounts_formatted(config, &mounts_for_files)?
+        display_map_formatted(config, &mounts_for_files)?
     };
 
     print_output_buf(output_buf)?;
@@ -191,7 +197,7 @@ pub fn display_mounts(config: &Config) -> HttmResult<()> {
     Ok(())
 }
 
-pub fn display_mounts_formatted(
+pub fn display_map_formatted(
     config: &Config,
     map: &BTreeMap<PathData, Vec<PathData>>,
 ) -> HttmResult<String> {
@@ -200,7 +206,11 @@ pub fn display_mounts_formatted(
     let write_out_buffer = map
         .iter()
         .map(|(key, values)| {
-            let display_path = format!("\"{}\"", key.path_buf.to_string_lossy());
+            let display_path = if config.opt_no_pretty {
+                key.path_buf.to_string_lossy().into()
+            } else {
+                format!("\"{}\"", key.path_buf.to_string_lossy())
+            };
 
             let values_string: String = values
                 .iter()
@@ -209,7 +219,7 @@ pub fn display_mounts_formatted(
                     let value_string = value.path_buf.to_string_lossy();
 
                     if config.opt_no_pretty {
-                        format!("{}\"{}\"", NOT_SO_PRETTY_FIXED_WIDTH_PADDING, value_string)
+                        format!("{}{}", NOT_SO_PRETTY_FIXED_WIDTH_PADDING, value_string)
                     } else if idx == 0 {
                         format!(
                             "{:<width$} : \"{}\"\n",
