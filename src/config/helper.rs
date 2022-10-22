@@ -75,7 +75,7 @@ pub fn get_paths(
                 vec![pwd.clone()]
             }
             ExecMode::Display
-            | ExecMode::SnapFileMount
+            | ExecMode::SnapFileMount(_)
             | ExecMode::MountsForFiles
             | ExecMode::NumVersions(_) => read_stdin()?
                 .par_iter()
@@ -157,7 +157,7 @@ pub fn get_opt_requested_dir(
             }
         }
         ExecMode::Display
-        | ExecMode::SnapFileMount
+        | ExecMode::SnapFileMount(_)
         | ExecMode::MountsForFiles
         | ExecMode::NumVersions(_) => {
             // in non-interactive mode / display mode, requested dir is just a file
@@ -236,7 +236,7 @@ pub fn get_dataset_collection(
 
     // don't want to request alt replicated mounts in snap mode
     let snaps_selected_for_search =
-        if os_alt_replicated && !matches!(exec_mode, ExecMode::SnapFileMount) {
+        if os_alt_replicated && !matches!(exec_mode, ExecMode::SnapFileMount(_)) {
             SnapsSelectedForSearch::IncludeAltReplicated
         } else {
             SnapsSelectedForSearch::MostProximateOnly

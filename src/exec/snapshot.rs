@@ -27,11 +27,12 @@ use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{get_date, get_delimiter, print_output_buf, DateFormat};
 use crate::lookup::file_mounts::{get_mounts_for_files, MountsForFiles};
 
-pub fn take_snapshot(config: Arc<Config>) -> HttmResult<()> {
+pub fn take_snapshot(config: Arc<Config>, requested_snapshot_suffix: &str) -> HttmResult<()> {
     fn exec_zfs_snapshot(
         config: Arc<Config>,
         zfs_command: &Path,
         mounts_for_files: &MountsForFiles,
+        requested_snapshot_suffix: &str,
     ) -> HttmResult<()> {
         // all snapshots should have the same timestamp
         let timestamp = get_date(&config, &SystemTime::now(), DateFormat::Timestamp);
@@ -57,9 +58,10 @@ pub fn take_snapshot(config: Arc<Config>) -> HttmResult<()> {
             }?;
 
             let snapshot_name = format!(
-                "{}@snap_{}_httmSnapFileMount",
+                "{}@snap_{}_{}",
                 dataset,
                 timestamp,
+                requested_snapshot_suffix,
             );
 
             Ok(snapshot_name)
@@ -122,7 +124,12 @@ pub fn take_snapshot(config: Arc<Config>) -> HttmResult<()> {
     let mounts_for_files: MountsForFiles = get_mounts_for_files(config.as_ref())?;
 
     if let Ok(zfs_command) = which("zfs") {
-        exec_zfs_snapshot(config, &zfs_command, &mounts_for_files)
+        exec_zfs_snapshot(
+            config,
+            &zfs_command,
+            &mounts_for_files,
+            requested_snapshot_suffix,
+        )
     } else {
         Err(
             HttmError::new("'zfs' command not found. Make sure the command 'zfs' is in your path.")

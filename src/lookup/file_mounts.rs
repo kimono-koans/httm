@@ -36,7 +36,7 @@ pub fn get_mounts_for_files(config: &Config) -> HttmResult<MountsForFiles> {
         .par_iter()
         .partition(|pathdata| pathdata.metadata.is_some());
 
-    if !phantom_files.is_empty() && !matches!(config.exec_mode, ExecMode::SnapFileMount) {
+    if !phantom_files.is_empty() && !matches!(config.exec_mode, ExecMode::SnapFileMount(_)) {
         eprintln!(
             "httm was unable to determine mount locations for all input files, \
         because the following files do not appear to exist: "

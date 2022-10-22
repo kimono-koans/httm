@@ -114,7 +114,7 @@ fn exec() -> HttmResult<()> {
         // ExecMode::DisplayRecursive, ExecMode::SnapFileMount, and ExecMode::MountsForFiles will print their
         // output elsewhere
         ExecMode::DisplayRecursive(_) => display_recursive_wrapper(config.clone())?,
-        ExecMode::SnapFileMount => take_snapshot(config.clone())?,
+        ExecMode::SnapFileMount(snapshot_suffix) => take_snapshot(config.clone(), snapshot_suffix)?,
         ExecMode::MountsForFiles => display_mounts(config.as_ref())?,
     }
 

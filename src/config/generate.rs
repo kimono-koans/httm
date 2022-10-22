@@ -33,7 +33,7 @@ pub enum ExecMode {
     Interactive(InteractiveMode),
     DisplayRecursive(indicatif::ProgressBar),
     Display,
-    SnapFileMount,
+    SnapFileMount(String),
     MountsForFiles,
     NumVersions(NumVersionsMode),
 }
@@ -159,8 +159,14 @@ fn parse_args() -> ArgMatches {
             Arg::new("SNAP_FILE_MOUNT")
                 .short('S')
                 .long("snap")
+                .takes_value(true)
+                .min_values(0)
+                .require_equals(true)
+                .default_missing_value("httmSnapFileMount")
                 .visible_aliases(&["snap-file", "snapshot", "snap-file-mount"])
-                .help("snapshot the mount point/s of the dataset/s which contains the input file/s. Note: This is a ZFS only option.")
+                .help("snapshot the mount point/s of the dataset/s which contains the input file/s.  \
+                This argument takes a value for an option snapshot suffix.  The default suffix is 'httmSnapFileMount'.  \
+                Note: This is a ZFS only option.")
                 .conflicts_with_all(&["INTERACTIVE", "SELECT", "RESTORE", "ALT_REPLICATED", "SNAP_POINT", "LOCAL_DIR"])
                 .display_order(9)
         )
@@ -418,12 +424,28 @@ impl Config {
             None
         };
 
+        let opt_snap_file_mount =
+            if let Some(requested_snapshot_suffix) = matches.value_of("SNAP_FILE_MOUNT") {
+                if requested_snapshot_suffix == "httmSnapFileMount" {
+                    Some(requested_snapshot_suffix.to_owned())
+                } else if requested_snapshot_suffix.contains(char::is_whitespace) {
+                    return Err(HttmError::new(
+                        "httm will only accept snapshot suffixes which don't contain whitespace",
+                    )
+                    .into());
+                } else {
+                    Some(requested_snapshot_suffix.to_owned())
+                }
+            } else {
+                None
+            };
+
         let mut exec_mode = if let Some(num_versions_mode) = opt_num_versions {
             ExecMode::NumVersions(num_versions_mode)
         } else if matches.is_present("MOUNT_FOR_FILE") {
             ExecMode::MountsForFiles
-        } else if matches.is_present("SNAP_FILE_MOUNT") {
-            ExecMode::SnapFileMount
+        } else if let Some(requested_snapshot_suffix) = opt_snap_file_mount {
+            ExecMode::SnapFileMount(requested_snapshot_suffix)
         } else if let Some(interactive_mode) = opt_interactive_mode {
             ExecMode::Interactive(interactive_mode)
         } else if deleted_mode.is_some() && opt_recursive {
