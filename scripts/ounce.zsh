@@ -48,11 +48,6 @@ function ounce_of_prevention {
       # the file's ZFS dataset and snapshot that mount
       # check whether to take snap - do we have a snap of the live file?
       local FILENAMES_STRING="${FILENAMES_ARRAY[*]}"
-      # this is performance oriented sleaze.
-      #
-      # if any files need snapshots, then all get snapshots
-      # overhead of starting up httm for each file probably(?)
-      # negates any benefit of snapshotting fewer datasets
       local NEEDS_SNAP="$( httm --last-snap=no-ditto --not-so-pretty "$FILENAMES_STRING" 2>/dev/null | cut -f1 -d: )"
       [[ -z "$NEEDS_SNAP" ]] || exec_snap "$NEEDS_SNAP"
     fi
