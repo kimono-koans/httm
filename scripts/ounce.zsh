@@ -28,6 +28,8 @@ function ounce_of_prevention {
 
     # declare our exec vars
     local OUNCE_PROGRAM_NAME
+    local FILENAMES_STRING
+    local NEEDS_SNAP
     local -a FILENAMES_ARRAY
 
     # get inner executable name
@@ -47,8 +49,8 @@ function ounce_of_prevention {
       # httm will dynamically determine the location of
       # the file's ZFS dataset and snapshot that mount
       # check whether to take snap - do we have a snap of the live file?
-      local FILENAMES_STRING="${FILENAMES_ARRAY[*]}"
-      local NEEDS_SNAP="$( httm --last-snap=no-ditto --not-so-pretty "$FILENAMES_STRING" 2>/dev/null | cut -f1 -d: )"
+      FILENAMES_STRING="${FILENAMES_ARRAY[*]}"
+      NEEDS_SNAP="$( httm --last-snap=no-ditto --not-so-pretty "$FILENAMES_STRING" 2>/dev/null | cut -f1 -d: )"
       [[ -z "$NEEDS_SNAP" ]] || exec_snap "$NEEDS_SNAP"
     fi
 
