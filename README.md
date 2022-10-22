@@ -193,7 +193,7 @@ tar -zcvf "../all-versions-$(basename $file).tar.gz" "./"
 # and to view
 git log --stat
 ```
-`ounce` (codename: "dimebag") is a wrapper script for `httm` which gives no mental overhead, non-periodic dynamic snapshots. Use `ounce` like so:
+`ounce` (codename: "dimebag") is a wrapper script for `httm` for no mental overhead, non-periodic dynamic snapshots.  Use `ounce` like so:
 ```bash
 # download and install the ounce script to somewhere in your path
 sudo curl --proto '=https' --tlsv1.2 -sSf --create-dirs -O \
@@ -204,13 +204,15 @@ sudo chmod +x /usr/local/bin/ounce
 ounce --give-priv
 # ounce will add a snapshot of the recently touched "dummyfile" 
 # before it removes the file
-touch dummyfile; ounce rm dummyfile
+touch ~/dummyfile; ounce rm ~/dummyfile; httm ~/dummyfile
 # use as an alias around programs which modify files/dirs
+echo "
+# ounce aliases 
 alias vim="ounce vim"
 alias emacs="ounce emacs"
 alias nano="ounce nano"
 alias rm="ounce rm"
-alias sudo="sudo "
+alias sudo="sudo "" >> ~/.zsh_aliases
 ```
 
 ## I know what you're thinking, but slow your roll.
