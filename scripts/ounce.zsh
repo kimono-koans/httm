@@ -83,7 +83,6 @@ function ounce_of_prevention {
     [[ "$1" != "-h" && "$1" != "--help" ]] || print_usage
     [[ "$1" != "--give-priv" ]] || give_priv
 
-
     # get inner executable name
     while (( "$#" )); do
         if [[ "$1" == "--suffix" ]]; then
