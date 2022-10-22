@@ -26,40 +26,46 @@ function exec_snap {
    [[ $? -eq 0 ]] || print_err_exit "'ounce' quit with a 'httm' or 'zfs' error."
 }
 
+function needs_snap {
+    local uncut_res
+    uncut_res="$( httm --last-snap=no-ditto --not-so-pretty $@ )"
+    [[ $? -eq 0 ]] || print_err_exit "'ounce' quit with a 'httm' error."
+    echo "$uncut_res" | cut -f1 -d:
+}
+
 function ounce_of_prevention {
     # do we have commands to execute?
     prep_exec
 
     # declare our exec vars
-    local OUNCE_PROGRAM_NAME
-    local FILENAMES_STRING
-    local NEEDS_SNAP
+    local ounce_program_name
+    local filenames_string
+    local files_need_snap
 
     # get inner executable name
     [[ "$1" != "ounce" ]] || print_err_exit "'ounce' being called recursively. Quitting."
-    OUNCE_PROGRAM_NAME="$( command -v "$1" )"
+    ounce_program_name="$( command -v "$1" )"
     shift
-    [[ -x "$OUNCE_PROGRAM_NAME" ]] || print_err_exit "'ounce' requires a valid executable name as the first argument."
+    [[ -x "$ounce_program_name" ]] || print_err_exit "'ounce' requires a valid executable name as the first argument."
 
     # loop through our shell arguments
     for a; do
         # is the argument a file/directory that exists?
-        [[ ! -e "$a" ]] || FILENAMES_STRING+=( "$(printf "$a\0")" )
+        [[ ! -e "$a" ]] || filenames_string+=( "$(printf "$a\0")" )
     done
 
     # check if filenames array is not empty
-    if [[ -n FILENAMES_STRING  ]]; then
+    if [[ -n filenames_string  ]]; then
       # httm will dynamically determine the location of
       # the file's ZFS dataset and snapshot that mount
       # check whether to take snap - do we have a snap of the live file?
-      #
       # leave FILENAMES_STRING unquoted!!!
-      NEEDS_SNAP="$( httm --last-snap=no-ditto --not-so-pretty $FILENAMES_STRING | cut -f1 -d: )"
-      [[ -z "$NEEDS_SNAP" ]] || exec_snap "$NEEDS_SNAP"
+      files_need_snap="$( needs_snap $filenames_string )"
+      [[ -z "$files_need_snap" ]] || exec_snap "$files_need_snap"
     fi
 
     # execute original arguments
-    "$OUNCE_PROGRAM_NAME" "$@"
+    "$ounce_program_name" "$@"
 }
 
 ounce_of_prevention "$@"
