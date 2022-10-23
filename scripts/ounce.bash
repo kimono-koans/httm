@@ -33,7 +33,7 @@ OPTIONS:
 }
 
 function print_err_exit {
-    printf "Error: $*\n" 1>&2
+    printf "%s\n" "Error: $*\n" 1>&2
     exit 1
 }
 
@@ -45,13 +45,19 @@ function prep_exec {
 
 function prep_sudo {
    local sudo_program
+   local -a program_list=(
+	sudo
+	doas
+	pkexec
+   )
 
-   while true; do
-       sudo_program="$( command -v sudo; exit 0 )"; [[ -n "$sudo_program" ]] && break
-       sudo_program="$( command -v doas; exit 0 )"; [[ -n "$sudo_program" ]] && break
-       sudo_program="$( command -v pkexec; exit 0 )"; [[ -n "$sudo_program" ]] && break
-       print_err_exit "'sudo' is required to execute 'ounce'.  Please check that 'sudo' is in your path."
+   for p in "$program_list"; do
+       sudo_program="$( command -v "$p"; exit 0 )"
+       [[ -z "$sudo_program" ]] || break
    done
+
+   [[ -n "$sudo_program" ]] || \
+   print_err_exit "'sudo'-like program is required to execute 'ounce'.  Please check that 'sudo' (or 'doas' or 'pkexec') is in your path."
 
    printf "$sudo_program"
 }
@@ -67,7 +73,7 @@ function exec_snap {
 
       $sudo_program httm "$3" --snap="$2" "$1" 1>/dev/null
       [[ $? -eq 0 ]] || \
-      print_err_exit "'ounce' quit with a 'httm'/'zfs' snapshot error.  Check you have the correct permissions to snapshot."
+      print_err_exit "'ounce' failed with a 'httm'/'zfs' snapshot error.  Check you have the correct permissions to snapshot."
    fi
 }
 
@@ -91,7 +97,11 @@ function give_priv {
         sudo zfs allow "$user_name" mount,snapshot "$p" || print_err_exit "'ounce' could not obtain privileges on $p.  Quitting."
     done
 
-    printf "Successfully obtained ZFS snapshot privileges on all the following pools:\n$pools\n"  && exit 0
+    printf "\
+Successfully obtained ZFS snapshot privileges on all the following pools:
+$pools
+"  1>&2
+   exit 0
 }
 
 function get_pools {
@@ -139,7 +149,7 @@ function ounce_of_prevention {
     # loop through the rest of our shell arguments
     for a in "$@"; do
         # is the argument a file/directory that exists?
-        [[ ! -e "$a" ]] || filenames_string+="$( printf "$a\n" )"
+        [[ ! -e "$a" ]] || filenames_string+="$( printf "%s\n" "$a" )"
     done
 
     # check if filenames array is not empty
