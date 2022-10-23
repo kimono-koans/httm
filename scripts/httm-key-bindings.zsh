@@ -1,10 +1,22 @@
 # HTTM ZSH Widgets
 
-# ALT-d - dynamically snap PWD dataset
+# ALT-d - Dynamically snap PWD dataset
+__httm-snapshot() {
+
+  httm --snap "$1" 2>/dev/null; [[ $? == 0 ]] || \
+  sudo httm --snap "$1"; [[ $? == 0 ]] || \
+  echo "httm snapshot widget quit with a snapshot error.  Check you have the correct permissions to snapshot."; return 1
+
+  local ret=$?
+  zle reset-prompt
+  return $ret
+
+}
+
 httm-snapshot-pwd-widget() {
 
   echo
-  command httm --snap "$PWD"
+  __httm-snapshot "$PWD"
 
   local ret=$?
   zle reset-prompt
