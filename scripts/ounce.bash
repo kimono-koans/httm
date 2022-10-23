@@ -60,13 +60,13 @@ function exec_snap {
    # mask all the errors from the first run without privileges,
    # let the sudo run show errors
 
-   # why printf? because if we fail a command our bash presets above, pipefail, etc
-   # bash will do something wonky here and won't let us compare ints?
-   if [[ "$( httm "$3" --snap="$2" "$1" >/dev/null 2>&1; printf "$?" )" != "0" ]]; then
+   httm "$3" --snap="$2" "$1" 1> /dev/null 2>/dev/null
+   if [[ $? -ne 0 ]]; then
       local sudo_program
       sudo_program="$( prep_sudo )"
 
-      [[ "$( $sudo_program httm "$3" --snap="$2" "$1" 1>/dev/null; printf "$?" )" == "0" ]] || \
+      $sudo_program httm "$3" --snap="$2" "$1" 1>/dev/null
+      [[ $? -eq 0 ]] || \
       print_err_exit "'ounce' quit with a 'httm'/'zfs' snapshot error.  Check you have the correct permissions to snapshot."
    fi
 }
@@ -75,7 +75,7 @@ function needs_snap {
     local uncut_res
 
     uncut_res="$( httm --last-snap=no-ditto --not-so-pretty "$@" )"
-    [[ $? -eq 0 ]] || print_err_exit "'ounce' quit with a 'httm' lookup error."
+    [[ $? -eq 0 ]] || print_err_exit "'ounce' failed with a 'httm' lookup error."
     cut -f1 -d: <<< "$uncut_res"
 }
 
@@ -91,12 +91,14 @@ function give_priv {
         sudo zfs allow "$user_name" mount,snapshot "$p" || print_err_exit "'ounce' could not obtain privileges on $p.  Quitting."
     done
 
-    printf "Sucessfully obtained ZFS snapshot privileges on all the following pools:\n$pools\n"  && exit 0
+    printf "Successfully obtained ZFS snapshot privileges on all the following pools:\n$pools\n"  && exit 0
 }
 
 function get_pools {
     local pools
+
     pools="$( sudo zpool list -o name | grep -v -e "NAME" )"
+
     printf "$pools"
 }
 
@@ -104,7 +106,7 @@ function ounce_of_prevention {
     # do we have commands to execute?
     prep_exec
 
-    # declare our exec vars
+    # declare our vars
     local program_name
     local filenames_string
     local files_need_snap
@@ -131,10 +133,10 @@ function ounce_of_prevention {
         fi
     done
 
-    # check program var is executable
+    # check the program name is executable
     [[ -x "$program_name" ]] || print_err_exit "'ounce' requires a valid executable name as the first argument."
 
-    # loop through our shell arguments
+    # loop through the rest of our shell arguments
     for a in "$@"; do
         # is the argument a file/directory that exists?
         [[ ! -e "$a" ]] || filenames_string+="$( printf "$a\n" )"
@@ -142,10 +144,8 @@ function ounce_of_prevention {
 
     # check if filenames array is not empty
     if [[ -n "$filenames_string"  ]]; then
-      # httm will dynamically determine the location of
+      # now, httm will dynamically determine the location of
       # the file's ZFS dataset and snapshot that mount
-      # check whether to take snap - do we have a snap of the live file?
-      # leave FILENAMES_STRING unquoted!!!
       files_need_snap="$( needs_snap "$filenames_string" )"
       [[ -z "$files_need_snap" ]] || exec_snap "$files_need_snap" "$snapshot_suffix" "$utc"
     fi
