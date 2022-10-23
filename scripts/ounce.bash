@@ -1,11 +1,13 @@
-#!/bin/bash
+#!/usr/bin/env bash
+
+# env is zsh here but should work in bash too
 
 # for the bible tells us so
 set -ef -o pipefail
 
 function print_usage {
-	ounce="\e[31mounce\e[0m"
-	httm="\e[31mhttm\e[0m"
+	local ounce="\e[31mounce\e[0m"
+	local httm="\e[31mhttm\e[0m"
 
 	printf "\
 $ounce is a wrapper program that allows $httm to take snapshots of files you open with other programs at the command line.
@@ -138,7 +140,7 @@ function ounce_of_prevention {
 	[[ "$1" != "--give-priv" ]] || give_priv
 
 	# get inner executable name
-	while (("$#")); do
+	while [[ $# -ne 0 ]]; do
 		if [[ "$1" == "--suffix" ]]; then
 			[[ -n "$2" ]] || print_err_exit "suffix is empty"
 			snapshot_suffix="$2"
@@ -167,12 +169,14 @@ function ounce_of_prevention {
 	done
 
 	# check if filenames array is not empty
-	if [[ ${filenames_array[@]} ]]; then
+	if [[ ${#filenames_array[@]} -ne 0 ]]; then
 		# now, httm will dynamically determine the location of
 		# the file's ZFS dataset and snapshot that mount
-		# do NOT use quotes on filesnames_string var!
-		printf -v filenames_string "%s\n" "${filenames_array[*]}"
-		files_need_snap=$(needs_snap $filenames_string)
+
+		# do NOT use quotes on filesnames_string var
+		# if delimiter is newline instead of a null!
+		printf -v filenames_string "%s\0" "${filenames_array[*]}"
+		files_need_snap="$(needs_snap "$filenames_string")"
 		[[ -z "$files_need_snap" ]] || exec_snap "$files_need_snap" "$snapshot_suffix" "$utc"
 	fi
 
