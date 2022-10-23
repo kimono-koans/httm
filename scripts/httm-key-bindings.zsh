@@ -1,32 +1,42 @@
 # HTTM ZSH Widgets
 
-# ALT-d - Dynamically snap PWD dataset
+# ALT-d - Dynamically snap selected files's dataset
 __httm-snapshot() {
 
-  httm --snap "$1" 2>/dev/null; [[ $? == 0 ]] || \
-  sudo httm --snap "$1"; [[ $? == 0 ]] || \
+  command httm --snap "$1" 2>/dev/null || \
+  command sudo httm --snap "$1" || \
   echo "httm snapshot widget quit with a snapshot error.  Check you have the correct permissions to snapshot."; return 1
 
   local ret=$?
   zle reset-prompt
   return $ret
-
 }
 
-httm-snapshot-pwd-widget() {
+httm-snapshot-widget() {
+  local filename
 
-  echo
-  __httm-snapshot "$PWD"
+  # requires an fzf function sourced to work properly
+  if [[ $( type '__fsel' 2>/dev/null | grep -q 'function' ) -eq 0 ]]; then
+    # need canonical path
+    filename="$(realpath $(__fsel))"
+    if [[ -z "$filename" ]]; then
+      return 0
+    fi
+  else
+    filename="$PWD"
+  fi
+
+  __httm-snapshot "$filename"
 
   local ret=$?
   zle reset-prompt
   return $ret
 
 }
-zle     -N      httm-snapshot-pwd-widget
-bindkey '\ed'   httm-snapshot-pwd-widget
+zle     -N      httm-snapshot-widget
+bindkey '\ed'   httm-snapshot-widget
 
-# ALT-m - browse for ZFS snapshots interactively
+# ALT-i - browse for ZFS snapshots interactively
 httm-lookup-widget() {
 
   echo
@@ -37,8 +47,8 @@ httm-lookup-widget() {
   return $ret
 
 }
-zle     -N      httm-lookup-widget
-bindkey '\em'   httm-lookup-widget
+zle     -N		httm-lookup-widget
+bindkey '\em'	httm-lookup-widget
 
 # ALT-s - select files on ZFS snapshots interactively
 __httm-select() {
