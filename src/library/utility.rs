@@ -315,7 +315,7 @@ pub fn get_date(config: &Config, system_time: &SystemTime, format: DateFormat) -
         .expect("timestamp date format could not be applied to the date supplied");
 
     if config.requested_utc_offset == UtcOffset::UTC && matches!(&format, DateFormat::Timestamp) {
-        [&raw_timestamp, "_UTC_"].into_iter().collect()
+        [&raw_timestamp, "_UTC"].into_iter().collect()
     } else {
         raw_timestamp
     }
