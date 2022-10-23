@@ -148,8 +148,8 @@ function ounce_of_prevention {
 
     # loop through the rest of our shell arguments
     for a in "$@"; do
-        # is the argument a file/directory that exists?
-        [[ ! -e "$a" ]] || filenames_string+="$( printf "%s\n" "$a" )"
+        # 1) is file or dir with 2) write permissions set? (httm will resolve links)
+        [[ ! -f "$a" && ! -d "$a" && ! -w "$a" ]] || filenames_string+="$( printf "%s\n" "$a" )"
     done
 
     # check if filenames array is not empty
