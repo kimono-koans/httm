@@ -164,8 +164,8 @@ function ounce_of_prevention {
 	# loop through the rest of our shell arguments
 	for a in "${@}"; do
 		# 1) is file, symlink or dir with 2) write permissions set? (httm will resolve links)
-		[[ ! -f "$a" && ! -d "$a" && ! -L "$a" && ! -w "$a" ]] ||
-			filenames_array+=("$a")
+		[[ ! -f "$a" && ! -d "$a" && ! -L "$a" ]] \
+		|| [[ ! -w "$a" ]] || filenames_array+=("$a")
 	done
 
 	# check if filenames array is not empty
