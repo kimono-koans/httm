@@ -119,6 +119,7 @@ function ounce_of_prevention {
     # declare our vars
     local program_name
     local filenames_string
+    local -a filenames_array
     local files_need_snap
     local snapshot_suffix="ounceSnapFileMount"
     local utc=""
@@ -149,14 +150,18 @@ function ounce_of_prevention {
     # loop through the rest of our shell arguments
     for a in "$@"; do
         # 1) is file or dir with 2) write permissions set? (httm will resolve links)
-        [[ ! -f "$a" && ! -d "$a" && ! -w "$a" ]] || filenames_string+="$( printf "$a\n" )"
+        [[ ! -f "$a" && ! -d "$a" && ! -w "$a" ]] || filenames_array+=( "$a" )
     done
+
+    printf -v filenames_string "%s\n" "${filenames_array[*]}"
 
     # check if filenames array is not empty
     if [[ -n "$filenames_string"  ]]; then
       # now, httm will dynamically determine the location of
       # the file's ZFS dataset and snapshot that mount
-      files_need_snap=$( needs_snap "$filenames_string" )
+
+      # do NOT use quotes on filesnames_string var!
+      files_need_snap=$( needs_snap $filenames_string )
       [[ -z "$files_need_snap" ]] || exec_snap "$files_need_snap" "$snapshot_suffix" "$utc"
     fi
 
@@ -164,4 +169,4 @@ function ounce_of_prevention {
     "$program_name" "$@"
 }
 
-ounce_of_prevention "$@
+ounce_of_prevention "$@"
