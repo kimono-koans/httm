@@ -57,7 +57,7 @@ function prep_sudo {
 		pkexec
 	)
 
-	for p in "$program_list"; do
+	for p in "${program_list[@]}"; do
 		sudo_program="$(
 			command -v "$p"
 			exit 0
@@ -160,7 +160,7 @@ function ounce_of_prevention {
 	[[ -x "$program_name" ]] || print_err_exit "'ounce' requires a valid executable name as the first argument."
 
 	# loop through the rest of our shell arguments
-	for a in "$@"; do
+	for a in "${@}"; do
 		# 1) is file, symlink or dir with 2) write permissions set? (httm will resolve links)
 		[[ ! -f "$a" && ! -d "$a" && ! -L "$a" && ! -w "$a" ]] ||
 			filenames_array+=("$a")
