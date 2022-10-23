@@ -25,7 +25,7 @@ use std::{
 
 use crossbeam::channel::{Receiver, TryRecvError};
 use lscolors::{Colorable, LsColors, Style};
-use time::{format_description, OffsetDateTime};
+use time::{format_description, OffsetDateTime, UtcOffset};
 
 use crate::config::generate::Config;
 use crate::data::paths::{BasicDirEntryInfo, PathData};
@@ -306,16 +306,22 @@ static DATE_FORMAT_TIMESTAMP: &str = "[year]-[month]-[day]-[hour]:[minute]:[seco
 pub fn get_date(config: &Config, system_time: &SystemTime, format: DateFormat) -> String {
     let date_time: OffsetDateTime = (*system_time).into();
 
-    let date_format = format_description::parse(get_date_format(format))
+    let date_format = format_description::parse(get_date_format(&format))
         .expect("timestamp date format is invalid");
 
-    date_time
+    let raw_timestamp = date_time
         .to_offset(config.requested_utc_offset)
         .format(&date_format)
-        .expect("timestamp date format could not be applied to the date supplied")
+        .expect("timestamp date format could not be applied to the date supplied");
+
+    if config.requested_utc_offset == UtcOffset::UTC && matches!(&format, DateFormat::Timestamp) {
+        [&raw_timestamp, "_UTC_"].into_iter().collect()
+    } else {
+        raw_timestamp
+    }
 }
 
-fn get_date_format<'a>(format: DateFormat) -> &'a str {
+fn get_date_format<'a>(format: &DateFormat) -> &'a str {
     match format {
         DateFormat::Display => DATE_FORMAT_DISPLAY,
         DateFormat::Timestamp => DATE_FORMAT_TIMESTAMP,
