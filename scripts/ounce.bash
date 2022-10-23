@@ -8,7 +8,7 @@ function print_usage {
     httm="\e[31mhttm\e[0m"
 
     printf "\
-'$ounce' is a wrapper program that allows '$httm' to take snapshots of files you open with other programs at the command line.
+$ounce is a wrapper program that allows $httm to take snapshots of files you open with other programs at the command line.
 
 USAGE:
 	ounce [target executable] [argument1 argument2...]
@@ -21,10 +21,10 @@ OPTIONS:
 
 	--suffix:
 		You may specify a special suffix to use for the snapshots you take.
-		See the '$httm' help, specifically \"httm --snap\", for additional information
+		See the $httm help, specifically \"httm --snap\", for additional information
 
 	--give-priv:
-		To use '$ounce' you will need privileges to snapshot ZFS datasets.
+		To use $ounce you will need privileges to snapshot ZFS datasets.
 		The prefered scheme is via zfs-allow.  Executing --give-priv as a unprivileged user
 		will give the current user snapshot privileges on all imported pools.
 
@@ -46,9 +46,9 @@ function prep_exec {
 function prep_sudo {
    local sudo_program
 
-   sudo_program="$( command -v sudo; exit 0 )" && test -n sudo_program || \
-   sudo_program="$( command -v doas; exit 0 )" && test -n sudo_program || \
-   sudo_program="$( command -v pkexec; exit 0 )" && test -n sudo_program || \
+   sudo_program="$( command -v sudo; exit 0 )" && [[ -n sudo_program ]] || \
+   sudo_program="$( command -v doas; exit 0 )" && [[ -n sudo_program ]] || \
+   sudo_program="$( command -v pkexec; exit 0 )" && [[ -n sudo_program ]] || \
    print_err_exit "'sudo' is requied to exec 'ounce'.  Please that 'sudo' or 'doas' or 'pkexec' is in your path."
 
    printf $sudo_program
@@ -64,7 +64,7 @@ function exec_snap {
       local sudo_program
       sudo_program="$( prep_sudo )"
 
-      [[ "$( $sudo_program httm "$3" --snap="$2" "$1" 1>/dev/null; printf $? )" == "0" ]] || \
+      [[ "$( $sudo_program httm "$3" --snap="$2" "$1" 1>/dev/null; printf "$?" )" == "0" ]] || \
       print_err_exit "'ounce' quit with a 'httm'/'zfs' snapshot error.  Check you have the correct permissions to snapshot."
    fi
 }
