@@ -26,8 +26,8 @@ OPTIONS:
 		See the $httm help, specifically \"httm --snap\", for additional information
 
 	--give-priv:
-		To use $ounce you will need privileges to ZFS snapshot ZFS datasets.
-		The prefered sceme is via zfs-allow.  Executing --give-priv as a unprivileged user
+		To use $ounce you will need privileges to snapshot ZFS datasets.
+		The prefered scheme is via zfs-allow.  Executing --give-priv as a unprivileged user
 		will give the current user snapshot privileges on all imported pools.
 \n" 1>&2
     exit 1
@@ -41,12 +41,9 @@ function prep_exec {
 }
 
 function exec_snap {
-   # print stderr not stdout
-   if [[ "$( sudo -l | grep -c -e 'NOPASSWD' -e 'zfs snapshot')" -ne 0 ]]; then
-      sudo httm --snap="$2" "$1" 1>/dev/null || print_err_exit "'ounce' quit with a 'httm' or 'zfs' error."
-   else
-      httm --snap="$2" "$1" 1>/dev/null || print_err_exit "'ounce' quit with a 'httm' or 'zfs' error."
-   fi
+   [[ $( httm --snap="$2" "$1" >/dev/null 2>&1; echo "$?" ) -eq 0 ]] || \
+   [[ $( sudo httm --snap="$2" "$1" 1>/dev/null; echo "$?" ) -eq 0 ]] || \
+   print_err_exit "'ounce' quit with an error.  Check you have the correct permissions to snapshot."
 }
 
 function needs_snap {
@@ -58,17 +55,23 @@ function needs_snap {
 
 function give_priv {
     local user_name
+    local pools
+
     user_name="$( whoami )"
     [[ "$user_name" != "root" ]] || print_err_exit "'ounce' must be executed as an unprivileged user to obtain their true user name.  You will be prompted when additional privileges are needed.  Quitting."
-
-    local pools
-    pools="$( sudo zpool list -o name | grep -v -e "NAME" )"
+    pools="$( get_pools )"
 
     for p in $pools; do
         sudo zfs allow "$user_name" mount,snapshot "$p" || print_err_exit "'ounce' could not obtain privileges on $p.  Quitting."
     done
 
     printf "Sucessfully obtained ZFS snapshot privileges on the following pools:\n$pools\n"  && exit 0
+}
+
+function get_pools {
+    local pools
+    pools="$( sudo zpool list -o name | grep -v -e "NAME" )"
+    printf "$pools"
 }
 
 function ounce_of_prevention {
@@ -80,6 +83,7 @@ function ounce_of_prevention {
     local filenames_string
     local files_need_snap
     local snapshot_suffix="ounceSnapFileMount"
+
 
     [[ "$1" != "ounce" ]] || print_err_exit "'ounce' being called recursively. Quitting."
     [[ "$1" != "-h" && "$1" != "--help" ]] || print_usage
