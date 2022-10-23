@@ -4,7 +4,7 @@
 httm-snapshot-pwd-widget() {
 
   echo
-  command sudo httm --snap "$PWD"
+  command httm --snap "$PWD"
 
   local ret=$?
   zle reset-prompt
