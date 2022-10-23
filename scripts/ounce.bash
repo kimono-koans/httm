@@ -33,7 +33,7 @@ OPTIONS:
 }
 
 function print_err_exit {
-    printf "%s\n" "Error: $*\n" 1>&2
+    printf "%s\n" "Error: $*" 1>&2
     exit 1
 }
 
@@ -57,7 +57,7 @@ function prep_sudo {
    done
 
    [[ -n "$sudo_program" ]] || \
-   print_err_exit "'sudo'-like program is required to execute 'ounce'.  Please check that 'sudo' (or 'doas' or 'pkexec') is in your path."
+   print_err_exit "'sudo'-like program is required to execute 'ounce' without special zfs-allow permissions.  Please check that 'sudo' (or 'doas' or 'pkexec') is in your path."
 
    printf "$sudo_program"
 }
@@ -66,7 +66,7 @@ function exec_snap {
    # mask all the errors from the first run without privileges,
    # let the sudo run show errors
 
-   httm "$3" --snap="$2" "$1" 1> /dev/null 2>/dev/null
+   httm "$3" --snap="$2" "$1" 1>/dev/null 2>/dev/null
    if [[ $? -ne 0 ]]; then
       local sudo_program
       sudo_program="$( prep_sudo )"
@@ -80,7 +80,7 @@ function exec_snap {
 function needs_snap {
     local uncut_res
 
-    uncut_res="$( httm --last-snap=no-ditto --not-so-pretty "$@" )"
+    uncut_res="$( httm --last-snap=no-ditto --not-so-pretty "$1" )"
     [[ $? -eq 0 ]] || print_err_exit "'ounce' failed with a 'httm' lookup error."
     cut -f1 -d: <<< "$uncut_res"
 }
@@ -149,14 +149,14 @@ function ounce_of_prevention {
     # loop through the rest of our shell arguments
     for a in "$@"; do
         # 1) is file or dir with 2) write permissions set? (httm will resolve links)
-        [[ ! -f "$a" && ! -d "$a" && ! -w "$a" ]] || filenames_string+="$( printf "%s\n" "$a" )"
+        [[ ! -f "$a" && ! -d "$a" && ! -w "$a" ]] || filenames_string+="$( printf "$a\n" )"
     done
 
     # check if filenames array is not empty
     if [[ -n "$filenames_string"  ]]; then
       # now, httm will dynamically determine the location of
       # the file's ZFS dataset and snapshot that mount
-      files_need_snap="$( needs_snap "$filenames_string" )"
+      files_need_snap=$( needs_snap "$filenames_string" )
       [[ -z "$files_need_snap" ]] || exec_snap "$files_need_snap" "$snapshot_suffix" "$utc"
     fi
 
@@ -164,4 +164,4 @@ function ounce_of_prevention {
     "$program_name" "$@"
 }
 
-ounce_of_prevention "$@"
+ounce_of_prevention "$@
