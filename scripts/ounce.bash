@@ -17,7 +17,7 @@ function print_usage {
 
 USAGE:
 	ounce [target executable] [argument1 argument2...]
-	ounce --suffix [target executable] [argument1 argument2...]
+	ounce --suffix [suffix name] [target executable] [argument1 argument2...]
  	ounce --give-priv
 
 OPTIONS:
@@ -41,8 +41,8 @@ function prep_exec {
 }
 
 function exec_snap {
-   [[ $( httm --snap="$2" "$1" >/dev/null 2>&1; echo "$?" ) -eq 0 ]] || \
-   [[ $( sudo httm --snap="$2" "$1" 1>/dev/null; echo "$?" ) -eq 0 ]] || \
+   [[ $( httm --snap="$2" "$1" >/dev/null 2>&1; return $? ) -eq 0 ]] || \
+   [[ $( sudo httm --snap="$2" "$1" 1>/dev/null; return $? ) -eq 0 ]] || \
    print_err_exit "'ounce' quit with an error.  Check you have the correct permissions to snapshot."
 }
 
@@ -65,7 +65,7 @@ function give_priv {
         sudo zfs allow "$user_name" mount,snapshot "$p" || print_err_exit "'ounce' could not obtain privileges on $p.  Quitting."
     done
 
-    printf "Sucessfully obtained ZFS snapshot privileges on the following pools:\n$pools\n"  && exit 0
+    printf "Sucessfully obtained ZFS snapshot privileges on all the following pools:\n$pools\n"  && exit 0
 }
 
 function get_pools {
