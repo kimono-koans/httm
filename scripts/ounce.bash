@@ -46,12 +46,14 @@ function prep_exec {
 function prep_sudo {
    local sudo_program
 
-   sudo_program="$( command -v sudo; exit 0 )" && [[ -n sudo_program ]] || \
-   sudo_program="$( command -v doas; exit 0 )" && [[ -n sudo_program ]] || \
-   sudo_program="$( command -v pkexec; exit 0 )" && [[ -n sudo_program ]] || \
-   print_err_exit "'sudo' is requied to exec 'ounce'.  Please that 'sudo' or 'doas' or 'pkexec' is in your path."
+   while true; do
+       sudo_program="$( command -v sudo; exit 0 )"; [[ -n "$sudo_program" ]] && break
+       sudo_program="$( command -v doas; exit 0 )"; [[ -n "$sudo_program" ]] && break
+       sudo_program="$( command -v pkexec; exit 0 )"; [[ -n "$sudo_program" ]] && break
+       print_err_exit "'sudo' is required to execute 'ounce'.  Please check that 'sudo' is in your path."
+   done
 
-   printf $sudo_program
+   printf "$sudo_program"
 }
 
 function exec_snap {
@@ -60,7 +62,7 @@ function exec_snap {
 
    # why printf? because if we fail a command our bash presets above, pipefail, etc
    # bash will do something wonky here and won't let us compare ints?
-   if [[ "$( httm "$3" --snap="$2" "$1" >/dev/null 2>&1 ; printf "$?" )" != "0" ]]; then
+   if [[ "$( httm "$3" --snap="$2" "$1" >/dev/null 2>&1; printf "$?" )" != "0" ]]; then
       local sudo_program
       sudo_program="$( prep_sudo )"
 
@@ -144,7 +146,7 @@ function ounce_of_prevention {
       # the file's ZFS dataset and snapshot that mount
       # check whether to take snap - do we have a snap of the live file?
       # leave FILENAMES_STRING unquoted!!!
-      files_need_snap="$( needs_snap $filenames_string )"
+      files_need_snap="$( needs_snap "$filenames_string" )"
       [[ -z "$files_need_snap" ]] || exec_snap "$files_need_snap" "$snapshot_suffix" "$utc"
     fi
 
