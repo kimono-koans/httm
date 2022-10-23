@@ -153,14 +153,13 @@ function ounce_of_prevention {
         [[ ! -f "$a" && ! -d "$a" && ! -w "$a" ]] || filenames_array+=( "$a" )
     done
 
-    printf -v filenames_string "%s\n" "${filenames_array[*]}"
-
     # check if filenames array is not empty
-    if [[ -n "$filenames_string"  ]]; then
+    if [[ ${filenames_array[@]} ]]; then
       # now, httm will dynamically determine the location of
       # the file's ZFS dataset and snapshot that mount
 
       # do NOT use quotes on filesnames_string var!
+      printf -v filenames_string "%s\n" "${filenames_array[*]}"
       files_need_snap=$( needs_snap $filenames_string )
       [[ -z "$files_need_snap" ]] || exec_snap "$files_need_snap" "$snapshot_suffix" "$utc"
     fi
