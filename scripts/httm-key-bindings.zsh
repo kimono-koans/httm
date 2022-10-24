@@ -2,7 +2,6 @@
 
 # ALT-d - Dynamically snap selected files's dataset
 __httm-snapshot() {
-
   command httm --snap 2>/dev/null "$1" || \
   command sudo httm --snap "$1" || \
   echo "httm snapshot widget quit with a snapshot error.  Check you have the correct permissions to snapshot."; return 1
@@ -36,7 +35,7 @@ httm-snapshot-widget() {
 zle     -N      httm-snapshot-widget
 bindkey '\ed'   httm-snapshot-widget
 
-# ALT-i - browse for ZFS snapshots interactively
+# ALT-m - browse for ZFS snapshots interactively
 httm-lookup-widget() {
 
   echo
