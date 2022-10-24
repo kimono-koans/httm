@@ -8,7 +8,7 @@ __httm-snapshot() {
   echo "httm snapshot widget quit with a snapshot error.  Check you have the correct permissions to snapshot."; return 1
 
   local ret=$?
-  zle reset-prompt
+  echo
   return $ret
 }
 
