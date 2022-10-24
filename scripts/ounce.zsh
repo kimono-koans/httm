@@ -91,7 +91,7 @@ function exec_snap {
 function needs_snap {
 	local uncut_res
 
-	uncut_res="$( printf "$1" | httm --last-snap=no-ditto --not-so-pretty )"
+	uncut_res="$( printf "$1" | httm --last-snap=no-ditto --not-so-pretty 2>/dev/null )"
 	[[ $? -eq 0 ]] || print_err_exit "'ounce' failed with a 'httm' lookup error."
 	cut -f1 -d: <<<"$uncut_res"
 }
