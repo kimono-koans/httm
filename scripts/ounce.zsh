@@ -14,21 +14,26 @@ $ounce is a wrapper program that allows $httm to take snapshots of files you ope
 
 USAGE:
 	ounce [target executable] [argument1 argument2...]
-	ounce --suffix [suffix name] [target executable] [argument1 argument2...]
- 	ounce --give-priv
+	ounce [OPTIONS]... [target executable] [argument1 argument2...]
 
 OPTIONS:
-	--utc:
-		You may specify UTC time for the timestamps on the snapshot names.
-
-	--suffix:
-		You may specify a special suffix to use for the snapshots you take.
-		See the $httm help, specifically \"httm --snap\", for additional information
+	--background:
+		Run the $ounce task in the background.  Safest for non-immediate file modifications
+		(perhaps for your \$EDITOR but not for 'rm').  $ounce is fast-ish (for a shell script)
+		but the time to ZFS mount snapshot will swamp its actual execution time.
 
 	--give-priv:
-		To use $ounce you will need privileges to snapshot ZFS datasets.
-		The prefered scheme is via zfs-allow.  Executing --give-priv as a unprivileged user
-		will give the current user snapshot privileges on all imported pools.
+		To use $ounce you will need privileges to snapshot ZFS datasets.  The prefered scheme
+		is via zfs-allow.  Executing --give-priv will give the current user snapshot privileges
+		on all imported pools. NOTE: User must execute --give-priv as an unprivileged user.  User
+		will be prompted elevated privileges later.
+
+	--suffix [suffix name]:
+		You may specify a special suffix to use for the snapshots you take.  See the $httm help,
+		specifically \"httm --snap\", for additional information.
+
+	--utc:
+		You may specify UTC time for the timestamps listed on snapshot names.
 
 " 1>&2
 	exit 1
@@ -76,9 +81,7 @@ function prep_sudo {
 function exec_snap {
 	# mask all the errors from the first run without privileges,
 	# let the sudo run show errors
-
-	httm "$3" --snap="$2" "$1" 1>/dev/null 2>/dev/null
-	if [[ $? -ne 0 ]]; then
+	if [[ $( httm "$3" --snap="$2" "$1" 1>/dev/null 2>/dev/null ) -ne 0 ]]; then
 		local sudo_program
 		sudo_program="$(prep_sudo)"
 
@@ -91,7 +94,7 @@ function exec_snap {
 function needs_snap {
 	local uncut_res
 
-	uncut_res="$( printf "$1" | httm --last-snap=no-ditto --not-so-pretty 2>/dev/null )"
+	uncut_res="$( echo "$1" | httm --last-snap=no-ditto --not-so-pretty 2>/dev/null )"
 	[[ $? -eq 0 ]] || print_err_exit "'ounce' failed with a 'httm' lookup error."
 	cut -f1 -d: <<<"$uncut_res"
 }
@@ -123,46 +126,15 @@ function get_pools {
 	printf "$pools"
 }
 
-function ounce_of_prevention {
-	# do we have commands to execute?
-	prep_exec
 
-	# declare our vars
-	local program_name
+function exec_main {
+
 	local filenames_string
-	local -a filenames_array
 	local files_need_snap
-	local snapshot_suffix="ounceSnapFileMount"
-	local utc=""
+	local -a filenames_array
 
-	[[ "$1" != "ounce" ]] || print_err_exit "'ounce' being called recursively. Quitting."
-	[[ "$1" != "-h" && "$1" != "--help" ]] || print_usage
-	[[ "$1" != "--give-priv" ]] || give_priv
-
-	# get inner executable name
-	while [[ $# -ne 0 ]]; do
-		if [[ "$1" == "--suffix" ]]; then
-			[[ -n "$2" ]] || print_err_exit "suffix is empty"
-			snapshot_suffix="$2"
-			shift 2
-		elif [[ "$1" == "--utc" ]]; then
-			utc="--utc"
-			shift
-		else
-			program_name="$(
-				command -v "$1"
-				exit 0
-			)"
-			shift
-			break
-		fi
-	done
-
-	# check the program name is executable
-	[[ -x "$program_name" ]] || print_err_exit "'ounce' requires a valid executable name as the first argument."
-
-	# loop through the rest of our shell arguments
-	for a in "${@}"; do
+        # loop through the rest of our shell arguments
+	for a; do
 		# 1) is file, symlink or dir with 2) write permissions set? (httm will resolve links)
 		[[ ! -f "$a" && ! -d "$a" && ! -L "$a" ]] || \
 		[[ ! -w "$a" ]] || filenames_array+=("$a")
@@ -181,8 +153,57 @@ function ounce_of_prevention {
 		[[ -z "$files_need_snap" ]] || exec_snap "$files_need_snap" "$snapshot_suffix" "$utc"
 	fi
 
+}
+
+function ounce_of_prevention {
+	# do we have commands to execute?
+	prep_exec
+
+	# declare our vars
+	local program_name
+	local background=false
+	local snapshot_suffix="ounceSnapFileMount"
+	local utc=""
+
+	[[ "$1" != "ounce" ]] || print_err_exit "'ounce' being called recursively. Quitting."
+	[[ "$1" != "-h" && "$1" != "--help" ]] || print_usage
+	[[ "$1" != "--give-priv" ]] || give_priv
+
+	# get inner executable name
+	while [[ $# -ne 0 ]]; do
+		if [[ "$1" == "--suffix" ]]; then
+			[[ -n "$2" ]] || print_err_exit "suffix is empty"
+			snapshot_suffix="$2"
+			shift 2
+		elif [[ "$1" == "--utc" ]]; then
+			utc="--utc"
+			shift
+		elif [[ "$1" == "--background" ]]; then
+			background=true
+			shift
+		else
+			program_name="$(
+				command -v "$1"
+				exit 0
+			)"
+			shift
+			break
+		fi
+	done
+
+	# check the program name is executable
+	[[ -x "$program_name" ]] || print_err_exit "'ounce' requires a valid executable name as the first argument."
+
 	# execute original arguments
-	"$program_name" "$@"
+	if [[ $background ]]; then
+		local background_pid
+		exec_main "$@" & background_pid="$!"
+		"$program_name" "$@"
+		wait "$background_pid"
+	else
+		exec_main
+		"$program_name" "$@"
+	fi
 }
 
 ounce_of_prevention "$@"
