@@ -3,7 +3,7 @@
 # ALT-d - Dynamically snap selected files's dataset
 __httm-snapshot() {
 
-  command httm --snap "$1" 2>/dev/null || \
+  command httm --snap 2>/dev/null "$1" || \
   command sudo httm --snap "$1" || \
   echo "httm snapshot widget quit with a snapshot error.  Check you have the correct permissions to snapshot."; return 1
 
@@ -17,16 +17,13 @@ httm-snapshot-widget() {
 
   # requires an fzf function sourced to work properly
   if [[ $( type '__fsel' 2>/dev/null | grep -q 'function' ) -eq 0 ]]; then
-    # need canonical path
+	# need canonical path
     filename="$(realpath $(__fsel))"
-    if [[ -z "$filename" ]]; then
-      return 0
-    fi
   else
     filename="$PWD"
   fi
 
-  __httm-snapshot "$filename"
+  [[ -z "$filename" ]] || __httm-snapshot "$filename"
 
   local ret=$?
   zle reset-prompt
