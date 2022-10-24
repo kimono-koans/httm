@@ -201,13 +201,13 @@ ounce --give-priv
 # before it removes is, and httm will allow you to view the snapshot created
 touch ~/dummyfile; ounce rm ~/dummyfile; httm ~/dummyfile
 # use as an alias around programs which modify files/dirs
-echo "
+printf "
 # ounce aliases 
-alias vim="ounce vim"
-alias emacs="ounce emacs"
-alias nano="ounce nano"
-alias rm="ounce rm"
-alias sudo="sudo "" >> ~/.zsh_aliases
+alias vim=\"ounce --background vim\"
+alias emacs=\"ounce --background emacs\"
+alias nano=\"ounce --background nano\"
+alias rm=\"ounce rm\"
+alias sudo=\"sudo \"" >> ~/.zsh_aliases
 ```
 
 ## I know what you're thinking, but slow your roll.
