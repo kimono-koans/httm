@@ -1,6 +1,6 @@
-#!/usr/bin/env zsh
+#!/usr/bin/env bash
 
-# env is zsh here but should work in bash too
+# Note: env is bash here but could/should work in zsh too?
 
 # for the bible tells us so
 set -ef -o pipefail
@@ -164,8 +164,8 @@ function ounce_of_prevention {
 	# loop through the rest of our shell arguments
 	for a in "${@}"; do
 		# 1) is file, symlink or dir with 2) write permissions set? (httm will resolve links)
-		[[ ! -f "$a" && ! -d "$a" && ! -L "$a" ]] \
-		|| [[ ! -w "$a" ]] || filenames_array+=("$a")
+		[[ ! -f "$a" && ! -d "$a" && ! -L "$a" ]] || \
+		[[ ! -w "$a" ]] || filenames_array+=("$a")
 	done
 
 	# check if filenames array is not empty
@@ -175,8 +175,8 @@ function ounce_of_prevention {
 
 		# do NOT use quotes on filesnames_string var
 		# if delimiter is newline instead of a null!
-		printf -v filenames_string "%s\0" "${filenames_array[*]}"
-		files_need_snap="$(needs_snap "$filenames_string")"
+		printf -v filenames_string "%s\n" "${filenames_array[@]}"
+		files_need_snap="$(needs_snap $filenames_string)"
 		[[ -z "$files_need_snap" ]] || exec_snap "$files_need_snap" "$snapshot_suffix" "$utc"
 	fi
 
