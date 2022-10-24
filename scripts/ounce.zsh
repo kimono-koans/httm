@@ -75,7 +75,7 @@ function prep_sudo {
 	[[ -n "$sudo_program" ]] ||
 		print_err_exit "'sudo'-like program is required to execute 'ounce' without special zfs-allow permissions.  Please check that 'sudo' (or 'doas' or 'pkexec') is in your path."
 
-	printf "$sudo_program"
+	echo "$sudo_program"
 }
 
 function exec_snap {
@@ -123,7 +123,7 @@ function get_pools {
 
 	pools="$(sudo zpool list -o name | grep -v -e "NAME")"
 
-	printf "$pools"
+	echo "$pools"
 }
 
 
@@ -163,7 +163,7 @@ function ounce_of_prevention {
 	local program_name
 	local background=false
 	local snapshot_suffix="ounceSnapFileMount"
-	local utc=""
+	local utc
 
 	[[ "$1" != "ounce" ]] || print_err_exit "'ounce' being called recursively. Quitting."
 	[[ "$1" != "-h" && "$1" != "--help" ]] || print_usage
