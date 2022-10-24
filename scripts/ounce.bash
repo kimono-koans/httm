@@ -1,6 +1,6 @@
-#!/usr/bin/env bash
+#!/usr/bin/env zsh
 
-# Note: env is bash here but could/should work in zsh too?
+# Note: env is zsh/bash here but could maybe/should work in zsh/bash too?
 
 # for the bible tells us so
 set -ef -o pipefail
@@ -91,7 +91,7 @@ function exec_snap {
 function needs_snap {
 	local uncut_res
 
-	uncut_res="$(httm --last-snap=no-ditto --not-so-pretty "$1")"
+	uncut_res="$( printf "$1" | httm --last-snap=no-ditto --not-so-pretty )"
 	[[ $? -eq 0 ]] || print_err_exit "'ounce' failed with a 'httm' lookup error."
 	cut -f1 -d: <<<"$uncut_res"
 }
@@ -100,9 +100,9 @@ function give_priv {
 	local user_name
 	local pools
 
-	user_name="$(whoami)"
+	user_name="$( whoami )"
 	[[ "$user_name" != "root" ]] || print_err_exit "'ounce' must be executed as an unprivileged user to obtain their true user name.  You will be prompted when additional privileges are needed.  Quitting."
-	pools="$(get_pools)"
+	pools="$( get_pools )"
 
 	for p in $pools; do
 		sudo zfs allow "$user_name" mount,snapshot "$p" || print_err_exit "'ounce' could not obtain privileges on $p.  Quitting."
@@ -175,8 +175,9 @@ function ounce_of_prevention {
 
 		# do NOT use quotes on filesnames_string var
 		# if delimiter is newline instead of a null!
-		printf -v filenames_string "%s\n" "${filenames_array[@]}"
-		files_need_snap="$(needs_snap $filenames_string)"
+		printf -v filenames_string "%s\0" "${filenames_array[@]}"
+
+		files_need_snap="$( needs_snap "$filenames_string" )"
 		[[ -z "$files_need_snap" ]] || exec_snap "$files_need_snap" "$snapshot_suffix" "$utc"
 	fi
 
