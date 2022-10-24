@@ -13,17 +13,20 @@ __httm-snapshot() {
 }
 
 httm-snapshot-widget() {
-  local filename
+  local input_file
+  local canonical_path
 
   # requires an fzf function sourced to work properly
-  if [[ $( type '__fsel' 2>/dev/null | grep -q 'function' ) -eq 0 ]]; then
-	# need canonical path
-    filename="$(realpath $(__fsel))"
+  if [[ $( type "__fsel" 2>/dev/null | grep -q "function" ) -eq 0 ]]
+  then
+	# need canonical path for a httm snapshot
+    input_file="$(__fsel)"
+    [[ -z "$input_file" ]] || canonical_path="$(readlink -f $input_file)"
   else
-    filename="$PWD"
+    canonical_path="$PWD"
   fi
 
-  [[ -z "$filename" ]] || __httm-snapshot "$filename"
+  [[ -z "$canonical_path" ]] || __httm-snapshot "$filename"
 
   local ret=$?
   zle reset-prompt
