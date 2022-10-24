@@ -3,7 +3,7 @@
 # Note: env is zsh/bash here but could maybe/should work in zsh/bash too?
 
 # for the bible tells us so
-set -ef -o pipefail
+set -euf -o pipefail
 
 function print_usage {
 	local ounce="\e[31mounce\e[0m"
@@ -163,7 +163,7 @@ function ounce_of_prevention {
 	local program_name
 	local background=false
 	local snapshot_suffix="ounceSnapFileMount"
-	local utc
+	local utc=""
 
 	[[ "$1" != "ounce" ]] || print_err_exit "'ounce' being called recursively. Quitting."
 	[[ "$1" != "-h" && "$1" != "--help" ]] || print_usage
