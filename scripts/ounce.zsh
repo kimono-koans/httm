@@ -81,11 +81,11 @@ function prep_sudo {
 function exec_snap {
 	# mask all the errors from the first run without privileges,
 	# let the sudo run show errors
-	if [[ $( httm "$3" --snap="$2" "$1" 1>/dev/null 2>/dev/null ) -ne 0 ]]; then
+	if [[ $( httm $3 --snap="$2" "$1" 1>/dev/null 2>/dev/null ) -ne 0 ]]; then
 		local sudo_program
 		sudo_program="$(prep_sudo)"
 
-		$sudo_program httm "$3" --snap="$2" "$1" 1>/dev/null
+		$sudo_program httm $3 --snap="$2" "$1" 1>/dev/null
 		[[ $? -eq 0 ]] ||
 			print_err_exit "'ounce' failed with a 'httm'/'zfs' snapshot error.  Check you have the correct permissions to snapshot."
 	fi
