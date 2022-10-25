@@ -1,50 +1,62 @@
 #!/usr/bin/env zsh
 
-# Note: env is zsh/bash here but could maybe/should work in zsh/bash too?
+# Note: env is zsh/bash here but could maybe/should work in zsh/bash too? #
 
 # for the bible tells us so
 set -euf -o pipefail
 
 function print_usage {
+
 	local ounce="\e[31mounce\e[0m"
 	local httm="\e[31mhttm\e[0m"
 
 	printf "\
-$ounce is a wrapper program that allows $httm to take snapshots of files you open with other programs at the command line.
+$ounce is a wrapper script for $httm which snapshot the dataset of files opened by other programs.
+
+$ounce only snapshots datasets when you have file changes outstanding, uncommitted to a snapshot already,
+and only when those files are given as arguments to the target executable at the command line.
 
 USAGE:
 	ounce [target executable] [argument1 argument2...]
 	ounce [OPTIONS]... [target executable] [argument1 argument2...]
+	ounce [--give-priv]
+	ounce [--help]
 
 OPTIONS:
 	--background:
-		Run the $ounce task in the background.  Safest for non-immediate file modifications
-		(perhaps for your \$EDITOR but not for 'rm').  $ounce is fast-ish (for a shell script)
-		but the time to ZFS mount snapshot will swamp its actual execution time.
+		Run the $ounce target executable in the background.  Safest for non-immediate file modifications
+		(perhaps for use with your \$EDITOR, but not 'rm').  $ounce is fast-ish (for a shell script)
+		but the time for ZFS to dynamically mount your snapshots will swamp actual time to search snapshots
+		and time to execute any snapshot.
 
 	--give-priv:
-		To use $ounce you will need privileges to snapshot ZFS datasets.  The prefered scheme
-		is via zfs-allow.  Executing --give-priv will give the current user snapshot privileges
-		on all imported pools. NOTE: User must execute --give-priv as an unprivileged user.  User
-		will be prompted elevated privileges later.
+		To use $ounce you will need privileges to snapshot ZFS datasets, and the prefered scheme is
+		\"zfs-allow\".  Executing this option will give the current user snapshot privileges on all
+		imported pools via \"zfs-allow\" . NOTE: User must execute --give-priv as an unprivileged user.
+		The user will be prompted later for elevated privileges.
 
 	--suffix [suffix name]:
-		You may specify a special suffix to use for the snapshots you take.  See the $httm help,
+		User may specify a special suffix to use for the snapshots you take with $ounce.  See the $httm help,
 		specifically \"httm --snap\", for additional information.
 
 	--utc:
-		You may specify UTC time for the timestamps listed on snapshot names.
+		User may specify UTC time for the timestamps listed on snapshot names.
+
+	--help:
+		Display this dialog.
 
 " 1>&2
 	exit 1
 }
 
 function print_err_exit {
+
 	printf "%s\n" "Error: $*" 1>&2
 	exit 1
 }
 
 function prep_exec {
+
 	# Use zfs allow to operate without sudo
 	[[ -n "$(
 		command -v httm
@@ -57,6 +69,7 @@ function prep_exec {
 }
 
 function prep_sudo {
+
 	local sudo_program
 	local -a program_list=(
 		sudo
@@ -75,37 +88,44 @@ function prep_sudo {
 	[[ -n "$sudo_program" ]] ||
 		print_err_exit "'sudo'-like program is required to execute 'ounce' without special zfs-allow permissions.  Please check that 'sudo' (or 'doas' or 'pkexec') is in your path."
 
-	echo "$sudo_program"
+	printf "$sudo_program"
 }
 
 function exec_snap {
+
+	local filenames=$1
+	local suffix=$2
+	local utc=$3
+
 	# mask all the errors from the first run without privileges,
 	# let the sudo run show errors
-	if [[ $( printf "$1" | httm $3 --snap="$2" 1>/dev/null 2>/dev/null ) -ne 0 ]]; then
+	if [[ $(printf "$filenames" | httm $utc --snap="$suffix") -ne 0 ]]; then
 		local sudo_program
-		sudo_program="$(prep_sudo)"
+		sudo_program="$( prep_sudo )"
 
-		printf "$1" | $sudo_program httm $3 --snap="$2" 1>/dev/null
+		printf "$filenames" | "$sudo_program" httm $utc --snap="$suffix"
 		[[ $? -eq 0 ]] ||
 			print_err_exit "'ounce' failed with a 'httm'/'zfs' snapshot error.  Check you have the correct permissions to snapshot."
 	fi
 }
 
 function needs_snap {
-	local uncut_res
 
-	uncut_res="$( echo "$1" | httm --last-snap=no-ditto --not-so-pretty 2>/dev/null )"
+	local uncut_res
+	local filenames=$1
+
+	uncut_res="$( printf "$filenames" | httm --last-snap=no-ditto-inclusive --not-so-pretty 2>/dev/null )"
 	[[ $? -eq 0 ]] || print_err_exit "'ounce' failed with a 'httm' lookup error."
 	cut -f1 -d: <<<"$uncut_res"
 }
 
 function give_priv {
-	local user_name
-	local pools
 
-	user_name="$( whoami )"
+	local pools
+	local user_name="$(whoami)"
+
 	[[ "$user_name" != "root" ]] || print_err_exit "'ounce' must be executed as an unprivileged user to obtain their true user name.  You will be prompted when additional privileges are needed.  Quitting."
-	pools="$( get_pools )"
+	pools="$(get_pools)"
 
 	for p in $pools; do
 		sudo zfs allow "$user_name" mount,snapshot "$p" || print_err_exit "'ounce' could not obtain privileges on $p.  Quitting."
@@ -119,13 +139,13 @@ $pools
 }
 
 function get_pools {
+
 	local pools
 
 	pools="$(sudo zpool list -o name | grep -v -e "NAME")"
 
-	echo "$pools"
+	printf "$pools"
 }
-
 
 function exec_main {
 
@@ -133,15 +153,15 @@ function exec_main {
 	local files_need_snap
 	local -a filenames_array
 
-        # loop through the rest of our shell arguments
+	# loop through the rest of our shell arguments
 	for a; do
 		# 1) is file, symlink or dir with 2) write permissions set? (httm will resolve links)
-		[[ ! -f "$a" && ! -d "$a" && ! -L "$a" ]] || \
-		[[ ! -w "$a" ]] || filenames_array+=("$a")
+		[[ ! -f "$a" && ! -d "$a" && ! -L "$a" ]] ||
+			[[ ! -w "$a" ]] || filenames_array+=("$a")
 	done
 
 	# check if filenames array is not empty
-	if [[ ${#filenames_array[@]} -ne 0 ]]; then
+	if [[ ${filenames_array[@]} ]]; then
 		# now, httm will dynamically determine the location of
 		# the file's ZFS dataset and snapshot that mount
 
@@ -150,12 +170,13 @@ function exec_main {
 		printf -v filenames_string "%s\0" "${filenames_array[@]}"
 
 		files_need_snap="$( needs_snap "$filenames_string" )"
-		[[ -z "$files_need_snap" ]] || exec_snap "$files_need_snap" "$snapshot_suffix" "$utc"
+		[[ -z $files_need_snap ]] || exec_snap "$files_need_snap" "$snapshot_suffix" "$utc"
 	fi
 
 }
 
 function ounce_of_prevention {
+
 	# do we have commands to execute?
 	prep_exec
 
@@ -197,12 +218,13 @@ function ounce_of_prevention {
 	# execute original arguments
 	if [[ $background ]]; then
 		local background_pid
-		exec_main "$@" & background_pid="$!"
+		exec_main "$@" &
+		background_pid="$!"
 		"$program_name" "$@"
 		wait "$background_pid"
 	else
 		exec_main
-		"$program_name" "$@"
+		wait && "$program_name" "$@"
 	fi
 }
 
