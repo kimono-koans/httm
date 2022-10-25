@@ -99,11 +99,23 @@ function exec_snap {
 
 	# mask all the errors from the first run without privileges,
 	# let the sudo run show errors
-	if [[ $(printf "$filenames" | httm $utc --snap="$suffix") -ne 0 ]]; then
+	if [[ -n "$utc" ]]; then
+		printf "$filenames" | httm "$utc" --snap="$suffix" 1>/dev/null 2>/dev/null
+	else
+		printf "$filenames" | httm --snap="$suffix" 1>/dev/null 2>/dev/null
+
+	fi
+
+	if [[ $? -ne 0 ]]; then
 		local sudo_program
 		sudo_program="$( prep_sudo )"
 
-		printf "$filenames" | "$sudo_program" httm $utc --snap="$suffix"
+		if [[ -n "$utc" ]]; then
+			printf "$filenames" | "$sudo_program" httm "$utc" --snap="$suffix" 1>/dev/null 2>/dev/null
+		else
+			printf "$filenames" | "$sudo_program" httm --snap="$suffix" 1>/dev/null 2>/dev/null
+		fi
+
 		[[ $? -eq 0 ]] ||
 			print_err_exit "'ounce' failed with a 'httm'/'zfs' snapshot error.  Check you have the correct permissions to snapshot."
 	fi
@@ -224,7 +236,7 @@ function ounce_of_prevention {
 		wait "$background_pid"
 	else
 		exec_main
-		wait && "$program_name" "$@"
+		"$program_name" "$@"
 	fi
 }
 
