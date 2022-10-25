@@ -157,6 +157,7 @@ function exec_main {
 	local filenames_string
 	local files_need_snap
 	local -a filenames_array
+	local canonical_path
 
 	# loop through the rest of our shell arguments
 	for a; do
