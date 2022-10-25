@@ -66,7 +66,8 @@ pub enum LastSnapMode {
     Any,
     None,
     DittoOnly,
-    NoDitto,
+    NoDittoExclusive,
+    NoDittoInclusive,
 }
 
 fn parse_args() -> ArgMatches {
@@ -186,7 +187,7 @@ fn parse_args() -> ArgMatches {
                 .long("last-snap")
                 .takes_value(true)
                 .default_missing_value("any")
-                .possible_values(&["any", "ditto", "ditto-only", "non-ditto", "no-ditto", "none"])
+                .possible_values(&["any", "ditto", "no-ditto-exclusive", "no-ditto-inclusive", "none"])
                 .min_values(0)
                 .require_equals(true)
                 .help("automatically select and print the path of last-in-time unique snapshot version for the input file.")
@@ -395,8 +396,9 @@ impl Config {
         let opt_last_snap = match matches.value_of("LAST_SNAP") {
             Some("") | Some("any") => Some(LastSnapMode::Any),
             Some("none") => Some(LastSnapMode::None),
-            Some("ditto-only") | Some("ditto") => Some(LastSnapMode::DittoOnly),
-            Some("non-ditto") | Some("no-ditto") => Some(LastSnapMode::NoDitto),
+            Some("ditto") => Some(LastSnapMode::DittoOnly),
+            Some("no-ditto-inclusive") => Some(LastSnapMode::NoDittoInclusive),
+            Some("no-ditto-exclusive") => Some(LastSnapMode::NoDittoExclusive),
             _ => None,
         };
 

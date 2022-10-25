@@ -107,13 +107,16 @@ fn get_last_snap(
             LastSnapMode::DittoOnly if pathdata.md_infallible() == last.md_infallible() => {
                 vec![last.clone()]
             }
-            LastSnapMode::NoDitto if pathdata.md_infallible() != last.md_infallible() => {
+            LastSnapMode::NoDittoExclusive if pathdata.md_infallible() != last.md_infallible() => {
+                vec![last.clone()]
+            }
+            LastSnapMode::NoDittoInclusive if pathdata.md_infallible() != last.md_infallible() => {
                 vec![last.clone()]
             }
             _ => Vec::new(),
         },
         None => match last_snap_mode {
-            LastSnapMode::None | LastSnapMode::NoDitto => vec![pathdata.clone()],
+            LastSnapMode::None | LastSnapMode::NoDittoInclusive => vec![pathdata.clone()],
             _ => Vec::new(),
         },
     }
