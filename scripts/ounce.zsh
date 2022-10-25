@@ -3,7 +3,7 @@
 # Note: env is zsh/bash here but could maybe/should work in zsh/bash too? #
 
 # for the bible tells us so
-set -xeuf -o pipefail
+set -euf -o pipefail
 
 function print_usage {
 
@@ -93,9 +93,9 @@ function prep_sudo {
 
 function exec_snap {
 
-	local filenames=$1
-	local suffix=$2
-	local utc=$3
+	local filenames="$1"
+	local suffix="$2"
+	local utc="$3"
 
 	# mask all the errors from the first run without privileges,
 	# let the sudo run show errors
@@ -106,8 +106,8 @@ function exec_snap {
 		local sudo_program
 		sudo_program="$(prep_sudo)"
 
-		[[ -z "$utc" ]] || printf "$filenames" | "$sudo_program" httm "$utc" --snap="$suffix" 1>/dev/null 2>/dev/null
-		[[ -n "$utc" ]] || printf "$filenames" | "$sudo_program" httm --snap="$suffix" 1>/dev/null 2>/dev/null
+		[[ -z "$utc" ]] || printf "$filenames" | "$sudo_program" httm "$utc" --snap="$suffix" 1>/dev/null
+		[[ -n "$utc" ]] || printf "$filenames" | "$sudo_program" httm --snap="$suffix" 1>/dev/null
 
 		[[ $? -eq 0 ]] ||
 			print_err_exit "'ounce' failed with a 'httm'/'zfs' snapshot error.  Check you have the correct permissions to snapshot."
@@ -117,7 +117,7 @@ function exec_snap {
 function needs_snap {
 
 	local uncut_res
-	local filenames=$1
+	local filenames="$1"
 
 	uncut_res="$(printf "$filenames" | httm --last-snap=no-ditto-inclusive --not-so-pretty 2>/dev/null)"
 	[[ $? -eq 0 ]] || print_err_exit "'ounce' failed with a 'httm' lookup error."
@@ -160,9 +160,17 @@ function exec_main {
 
 	# loop through the rest of our shell arguments
 	for a; do
-		# 1) is file, symlink or dir with 2) write permissions set? (httm will resolve links)
-		[[ ! -f "$a" && ! -d "$a" && ! -L "$a" ]] ||
-			[[ ! -w "$a" ]] || filenames_array+=("$a")
+		# omits argument flags
+		if [[ $a == -* ]] || [[ $a == --* ]]; then
+			continue
+		else
+			unset canonical_path
+			canonical_path="$( readlink -f "$a" 2>/dev/null )"
+
+			# 1) is file, symlink or dir with 2) write permissions set? (httm will resolve links)
+			[[ ! -f "$canonical_path" && ! -d "$canonical_path" && ! -L "$canonical_path" ]] ||
+			[[ ! -w "$canonical_path" ]] || filenames_array+=("$canonical_path")
+		fi
 	done
 
 	# check if filenames array is not empty
@@ -175,7 +183,7 @@ function exec_main {
 		printf -v filenames_string "%s\0" "${filenames_array[@]}"
 
 		files_need_snap="$(needs_snap "$filenames_string")"
-		[[ -z $files_need_snap ]] || exec_snap "$files_need_snap" "$snapshot_suffix" "$utc"
+		[[ -z "$files_need_snap" ]] || exec_snap "$files_need_snap" "$snapshot_suffix" "$utc"
 	fi
 
 }
