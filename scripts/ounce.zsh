@@ -3,7 +3,7 @@
 # Note: env is zsh/bash here but could maybe/should work in zsh/bash too? #
 
 # for the bible tells us so
-set -euf -o pipefail
+set -xeuf -o pipefail
 
 function print_usage {
 
@@ -99,22 +99,15 @@ function exec_snap {
 
 	# mask all the errors from the first run without privileges,
 	# let the sudo run show errors
-	if [[ -n "$utc" ]]; then
-		printf "$filenames" | httm "$utc" --snap="$suffix" 1>/dev/null 2>/dev/null
-	else
-		printf "$filenames" | httm --snap="$suffix" 1>/dev/null 2>/dev/null
-
-	fi
+	[[ -z "$utc" ]] || printf "$filenames" | httm "$utc" --snap="$suffix" 1>/dev/null 2>/dev/null
+	[[ -n "$utc" ]] || printf "$filenames" | httm --snap="$suffix" 1>/dev/null 2>/dev/null
 
 	if [[ $? -ne 0 ]]; then
 		local sudo_program
-		sudo_program="$( prep_sudo )"
+		sudo_program="$(prep_sudo)"
 
-		if [[ -n "$utc" ]]; then
-			printf "$filenames" | "$sudo_program" httm "$utc" --snap="$suffix" 1>/dev/null 2>/dev/null
-		else
-			printf "$filenames" | "$sudo_program" httm --snap="$suffix" 1>/dev/null 2>/dev/null
-		fi
+		[[ -z "$utc" ]] || printf "$filenames" | "$sudo_program" httm "$utc" --snap="$suffix" 1>/dev/null 2>/dev/null
+		[[ -n "$utc" ]] || printf "$filenames" | "$sudo_program" httm --snap="$suffix" 1>/dev/null 2>/dev/null
 
 		[[ $? -eq 0 ]] ||
 			print_err_exit "'ounce' failed with a 'httm'/'zfs' snapshot error.  Check you have the correct permissions to snapshot."
@@ -126,7 +119,7 @@ function needs_snap {
 	local uncut_res
 	local filenames=$1
 
-	uncut_res="$( printf "$filenames" | httm --last-snap=no-ditto-inclusive --not-so-pretty 2>/dev/null )"
+	uncut_res="$(printf "$filenames" | httm --last-snap=no-ditto-inclusive --not-so-pretty 2>/dev/null)"
 	[[ $? -eq 0 ]] || print_err_exit "'ounce' failed with a 'httm' lookup error."
 	cut -f1 -d: <<<"$uncut_res"
 }
@@ -181,7 +174,7 @@ function exec_main {
 		# if delimiter is newline instead of a null!
 		printf -v filenames_string "%s\0" "${filenames_array[@]}"
 
-		files_need_snap="$( needs_snap "$filenames_string" )"
+		files_need_snap="$(needs_snap "$filenames_string")"
 		[[ -z $files_need_snap ]] || exec_snap "$files_need_snap" "$snapshot_suffix" "$utc"
 	fi
 
