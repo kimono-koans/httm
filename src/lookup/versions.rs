@@ -112,7 +112,10 @@ fn get_last_snap(
             }
             _ => Vec::new(),
         },
-        None => Vec::new(),
+        None => match last_snap_mode {
+            LastSnapMode::None | LastSnapMode::NoDitto => vec![pathdata.clone()],
+            _ => Vec::new(),
+        },
     }
 }
 
