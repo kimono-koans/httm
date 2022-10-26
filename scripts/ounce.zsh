@@ -96,7 +96,6 @@ function take_snap {
 	local filenames="$1"
 	local suffix="$2"
 	local utc="$3"
-	local are_we_done
 
 	# mask all the errors from the first run without privileges,
 	# let the sudo run show errors
@@ -114,12 +113,13 @@ function take_snap {
 			print_err_exit "'ounce' failed with a 'httm'/'zfs' snapshot error.  Check you have the correct permissions to snapshot."
 	fi
 
-	for i in {1..3}; do
-		are_we_done="$( needs_snap "$filenames" )"
-		[[ $? -eq 0 ]] || print_err_exit "Request to confirm snapshot taken exited uncleanly.  Quitting."
-		[[ -n "$are_we_done" ]] || break
-		sleep 1
-	done
+	#local are_we_done
+	#for i in {1..3}; do
+	#	are_we_done="$( needs_snap "$filenames" )"
+	#	[[ $? -eq 0 ]] || print_err_exit "Request to confirm snapshot taken exited uncleanly.  Quitting."
+	#	[[ -n "$are_we_done" ]] || break
+	#	sleep 1
+	#done
 }
 
 function needs_snap {
