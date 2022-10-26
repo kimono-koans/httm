@@ -3,7 +3,7 @@
 ### Note: env is zsh/bash here but could maybe/should work in zsh/bash too? ###
 
 ### for the bible tells us so
-set -x -euf -o pipefail
+set -euf -o pipefail
 
 function print_usage {
 
