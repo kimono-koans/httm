@@ -98,23 +98,23 @@ function take_snap {
 	local utc="$3"
 	local are_we_done
 
+	# mask all the errors from the first run without privileges,
+	# let the sudo run show errors
+	[[ -z "$utc" ]] || printf "$filenames" | httm "$utc" --snap="$suffix" 1>/dev/null 2>/dev/null
+	[[ -n "$utc" ]] || printf "$filenames" | httm --snap="$suffix" 1>/dev/null 2>/dev/null
+
+	if [[ $? -ne 0 ]]; then
+		local sudo_program
+		sudo_program="$(prep_sudo)"
+
+		[[ -z "$utc" ]] || printf "$filenames" | "$sudo_program" httm "$utc" --snap="$suffix" 1>/dev/null
+		[[ -n "$utc" ]] || printf "$filenames" | "$sudo_program" httm --snap="$suffix" 1>/dev/null
+
+		[[ $? -eq 0 ]] ||
+			print_err_exit "'ounce' failed with a 'httm'/'zfs' snapshot error.  Check you have the correct permissions to snapshot."
+	fi
+
 	for i in {1..3}; do
-		# mask all the errors from the first run without privileges,
-		# let the sudo run show errors
-		[[ -z "$utc" ]] || printf "$filenames" | httm "$utc" --snap="$suffix" 1>/dev/null 2>/dev/null
-		[[ -n "$utc" ]] || printf "$filenames" | httm --snap="$suffix" 1>/dev/null 2>/dev/null
-
-		if [[ $? -ne 0 ]]; then
-			local sudo_program
-			sudo_program="$(prep_sudo)"
-
-			[[ -z "$utc" ]] || printf "$filenames" | "$sudo_program" httm "$utc" --snap="$suffix" 1>/dev/null
-			[[ -n "$utc" ]] || printf "$filenames" | "$sudo_program" httm --snap="$suffix" 1>/dev/null
-
-			[[ $? -eq 0 ]] ||
-				print_err_exit "'ounce' failed with a 'httm'/'zfs' snapshot error.  Check you have the correct permissions to snapshot."
-		fi
-
 		are_we_done="$( needs_snap "$filenames" )"
 		[[ $? -eq 0 ]] || print_err_exit "Request to confirm snapshot taken exited uncleanly.  Quitting."
 		[[ -n "$are_we_done" ]] || break
