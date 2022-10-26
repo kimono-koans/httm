@@ -91,27 +91,29 @@ function prep_sudo {
 	printf "$sudo_program"
 }
 
-function exec_snap {
+function take_snap {
 
 	local filenames="$1"
 	local suffix="$2"
 	local utc="$3"
 
-	# mask all the errors from the first run without privileges,
-	# let the sudo run show errors
-	[[ -z "$utc" ]] || printf "$filenames" | httm "$utc" --snap="$suffix" 1>/dev/null 2>/dev/null
-	[[ -n "$utc" ]] || printf "$filenames" | httm --snap="$suffix" 1>/dev/null 2>/dev/null
+	until [[ -z "$( needs_snap "$filenames" )"  || $? -ne 0 ]]; do
+		# mask all the errors from the first run without privileges,
+		# let the sudo run show errors
+		[[ -z "$utc" ]] || printf "$filenames" | httm "$utc" --snap="$suffix" 1>/dev/null 2>/dev/null
+		[[ -n "$utc" ]] || printf "$filenames" | httm --snap="$suffix" 1>/dev/null 2>/dev/null
 
-	if [[ $? -ne 0 ]]; then
-		local sudo_program
-		sudo_program="$(prep_sudo)"
+		if [[ $? -ne 0 ]]; then
+			local sudo_program
+			sudo_program="$(prep_sudo)"
 
-		[[ -z "$utc" ]] || printf "$filenames" | "$sudo_program" httm "$utc" --snap="$suffix" 1>/dev/null
-		[[ -n "$utc" ]] || printf "$filenames" | "$sudo_program" httm --snap="$suffix" 1>/dev/null
+			[[ -z "$utc" ]] || printf "$filenames" | "$sudo_program" httm "$utc" --snap="$suffix" 1>/dev/null
+			[[ -n "$utc" ]] || printf "$filenames" | "$sudo_program" httm --snap="$suffix" 1>/dev/null
 
-		[[ $? -eq 0 ]] ||
-			print_err_exit "'ounce' failed with a 'httm'/'zfs' snapshot error.  Check you have the correct permissions to snapshot."
-	fi
+			[[ $? -eq 0 ]] ||
+				print_err_exit "'ounce' failed with a 'httm'/'zfs' snapshot error.  Check you have the correct permissions to snapshot."
+		fi
+	done
 }
 
 function needs_snap {
@@ -166,7 +168,7 @@ function exec_main {
 			continue
 		else
 			unset canonical_path
-			canonical_path="$( readlink -f "$a" 2>/dev/null )"
+			canonical_path="$( readlink -e "$a" 2>/dev/null )"
 
 			# 1) is file, symlink or dir with 2) write permissions set? (httm will resolve links)
 			[[ ! -f "$canonical_path" && ! -d "$canonical_path" && ! -L "$canonical_path" ]] ||
@@ -184,7 +186,7 @@ function exec_main {
 		printf -v filenames_string "%s\n" "${filenames_array[@]}"
 
 		files_need_snap="$(needs_snap "$filenames_string")"
-		[[ -z "$files_need_snap" ]] || exec_snap "$files_need_snap" "$snapshot_suffix" "$utc"
+		[[ -z "$files_need_snap" ]] || take_snap "$files_need_snap" "$snapshot_suffix" "$utc"
 	fi
 
 }
