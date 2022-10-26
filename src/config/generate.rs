@@ -167,7 +167,7 @@ fn parse_args() -> ArgMatches {
                 .default_missing_value("httmSnapFileMount")
                 .visible_aliases(&["snap-file", "snapshot", "snap-file-mount"])
                 .help("snapshot the mount point/s of the dataset/s which contains the input file/s.  \
-                This argument takes a value for an option snapshot suffix.  The default suffix is 'httmSnapFileMount'.  \
+                This argument takes a value for an optional snapshot suffix.  The default suffix is 'httmSnapFileMount'.  \
                 Note: This is a ZFS only option.")
                 .conflicts_with_all(&["INTERACTIVE", "SELECT", "RESTORE", "ALT_REPLICATED", "SNAP_POINT", "LOCAL_DIR"])
                 .display_order(9)
@@ -222,8 +222,7 @@ fn parse_args() -> ArgMatches {
             Arg::new("NO_TRAVERSE")
                 .long("no-traverse")
                 .help("in recursive mode, don't traverse symlinks.  Although httm does its best to prevent searching pathologically recursive symlink-ed paths, \
-                it may still be possible to exhaust memory by searching certain paths.  Here, you may disable symlink traversal completely.  \
-                NOTE: httm will never traverse symlinks when a requested recursive search is on the root/base directory.")
+                here, Here, you may disable symlink traversal completely.  NOTE: httm will never traverse symlinks when a requested recursive search is on the root/base directory.")
                 .display_order(15)
         )
         .arg(
@@ -253,7 +252,7 @@ fn parse_args() -> ArgMatches {
                 .long("no-snap")
                 .visible_aliases(&["undead", "zombie"])
                 .help("only display information concerning 'pseudo-live' versions in Display Recursive mode (in --deleted, --recursive, but non-interactive modes).  \
-                Useful for finding only the \"files that once were\" and displaying only those pseudo-live/undead files.")
+                Useful for finding the \"files that once were\" and displaying only those pseudo-live/undead files.")
                 .requires("RECURSIVE")
                 .conflicts_with_all(&["INTERACTIVE", "SELECT", "RESTORE", "SNAP_FILE_MOUNT", "LAST_SNAP", "NOT_SO_PRETTY"])
                 .display_order(19)
