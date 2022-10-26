@@ -3,7 +3,7 @@
 ### Note: env is zsh/bash here but could maybe/should work in zsh/bash too? ###
 
 ### for the bible tells us so
-set -euf -o pipefail
+set -x -euf -o pipefail
 
 function print_usage {
 
@@ -183,7 +183,7 @@ function exec_main {
 	done
 
 	# check if filenames array is not empty
-	if [[ ${filenames_array[@]} ]]; then
+	if [[ ${#filenames_array[@]} ]]; then
 		printf -v filenames_string "%s\n" "${filenames_array[@]}"
 
 		# now, httm will dynamically determine the location of
@@ -243,7 +243,7 @@ function ounce_of_prevention {
 		"$program_name" "$@"
 		wait "$background_pid"
 	else
-		exec_main
+		exec_main "$@"
 		"$program_name" "$@"
 	fi
 }
