@@ -222,7 +222,7 @@ fn parse_args() -> ArgMatches {
             Arg::new("NO_TRAVERSE")
                 .long("no-traverse")
                 .help("in recursive mode, don't traverse symlinks.  Although httm does its best to prevent searching pathologically recursive symlink-ed paths, \
-                here, Here, you may disable symlink traversal completely.  NOTE: httm will never traverse symlinks when a requested recursive search is on the root/base directory.")
+                here, you may disable symlink traversal completely.  NOTE: httm will never traverse symlinks when a requested recursive search is on the root/base directory (\"/\").")
                 .display_order(15)
         )
         .arg(
