@@ -181,7 +181,7 @@ function exec_main {
 
 		# do NOT use quotes on filesnames_string var
 		# if delimiter is newline instead of a null!
-		printf -v filenames_string "%s\0" "${filenames_array[@]}"
+		printf -v filenames_string "%s\n" "${filenames_array[@]}"
 
 		files_need_snap="$(needs_snap "$filenames_string")"
 		[[ -z "$files_need_snap" ]] || exec_snap "$files_need_snap" "$snapshot_suffix" "$utc"
