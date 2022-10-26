@@ -1,8 +1,8 @@
 #!/usr/bin/env zsh
 
-## Note: env is zsh/bash here but could maybe/should work in zsh/bash too? #
+### Note: env is zsh/bash here but could maybe/should work in zsh/bash too? ###
 
-# for the bible tells us so
+### for the bible tells us so
 set -euf -o pipefail
 
 function print_usage {
@@ -184,12 +184,10 @@ function exec_main {
 
 	# check if filenames array is not empty
 	if [[ ${filenames_array[@]} ]]; then
+		printf -v filenames_string "%s\n" "${filenames_array[@]}"
+
 		# now, httm will dynamically determine the location of
 		# the file's ZFS dataset and snapshot that mount
-
-		# do NOT use quotes on filesnames_string var
-		# if delimiter is newline instead of a null!
-		printf -v filenames_string "%s\n" "${filenames_array[@]}"
 
 		files_need_snap="$(needs_snap "$filenames_string")"
 		[[ -z "$files_need_snap" ]] || take_snap "$files_need_snap" "$snapshot_suffix" "$utc"
@@ -237,7 +235,7 @@ function ounce_of_prevention {
 	# check the program name is executable
 	[[ -x "$program_name" ]] || print_err_exit "'ounce' requires a valid executable name as the first argument."
 
-	# execute original arguments
+	# start search and snap, then execute original arguments
 	if [[ $background ]]; then
 		local background_pid
 		exec_main "$@" &
