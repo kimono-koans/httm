@@ -135,6 +135,7 @@ function give_priv {
 
 	local pools=""
 	local user_name=""
+	local sudo_program=""
 
 	user_name="$(whoami)"
 
@@ -142,8 +143,10 @@ function give_priv {
 
 	pools="$(get_pools)"
 
+	sudo_program=$(prep_sudo)
+
 	for p in $pools; do
-		sudo zfs allow "$user_name" mount,snapshot "$p" || print_err_exit "'ounce' could not obtain privileges on $p.  Quitting."
+		"$sudo_program" zfs allow "$user_name" mount,snapshot "$p" || print_err_exit "'ounce' could not obtain privileges on $p.  Quitting."
 	done
 
 	printf "\
@@ -156,15 +159,13 @@ $pools
 function get_pools {
 
 	local pools=""
+	local sudo_program=""
 
-	pools="$(sudo zpool list -o name 2>/dev/null | grep -v -e "NAME")"
-
-	[[ $? -eq 0 ]] ||
-			print_err_exit "'ounce' failed with a 'zfs list' error.  Check you have the correct permissions to list snapshots."
+	sudo_program=$(prep_sudo)
+	pools="$(sudo zpool list -o name | grep -v -e "NAME")"
 
 	[[ -n "$pools" ]] ||
-			print_err_exit "'ounce' failed because it appears no pools were imported.  Quitting."
-
+		print_err_exit "'ounce' failed because it appears no pools were imported.  Quitting."
 
 	printf "$pools"
 }
@@ -182,16 +183,16 @@ function exec_main {
 	# loop through the rest of our shell arguments
 	for a; do
 		# omits argument flags
-		if [[ $a == -* ]] || [[ $a == --* ]]; then
-			continue
-		else
-			canonical_path="$(readlink -e "$a" 2>/dev/null; exit 0)"
+		[[ $a != -* && $a != --* ]] || continue
+		canonical_path="$(
+			readlink -e "$a" 2>/dev/null
+			exit 0
+		)"
 
-			# 1) is file, symlink or dir with 2) write permissions set? (httm will resolve links)
-			[[ -z  "$canonical_path" ]] ||
+		# 1) is file, symlink or dir with 2) write permissions set? (httm will resolve links)
+		[[ -z "$canonical_path" ]] ||
 			[[ ! -f "$canonical_path" && ! -d "$canonical_path" && ! -L "$canonical_path" ]] ||
-				[[ ! -w "$canonical_path" ]] || filenames_array+=("$canonical_path")
-		fi
+			[[ ! -w "$canonical_path" ]] || filenames_array+=("$canonical_path")
 	done
 
 	# check if filenames array is not empty
