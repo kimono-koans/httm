@@ -6,7 +6,6 @@
 set -euf -o pipefail
 
 function print_usage {
-
 	local ounce="\e[31mounce\e[0m"
 	local httm="\e[31mhttm\e[0m"
 
@@ -50,13 +49,11 @@ OPTIONS:
 }
 
 function print_err_exit {
-
 	printf "%s\n" "Error: $*" 1>&2
 	exit 1
 }
 
 function prep_exec {
-
 	# Use zfs allow to operate without sudo
 	[[ -n "$(
 		command -v httm
@@ -69,7 +66,6 @@ function prep_exec {
 }
 
 function prep_sudo {
-
 	local sudo_program=""
 
 	local -a program_list=(
@@ -93,7 +89,6 @@ function prep_sudo {
 }
 
 function take_snap {
-
 	local filenames=""
 	local suffix=""
 	local utc=""
@@ -120,7 +115,6 @@ function take_snap {
 }
 
 function needs_snap {
-
 	local uncut_res=""
 	local filenames=""
 
@@ -128,23 +122,21 @@ function needs_snap {
 
 	uncut_res="$(printf "$filenames" | httm --last-snap=no-ditto-inclusive --not-so-pretty 2>/dev/null)"
 	[[ $? -eq 0 ]] || print_err_exit "'ounce' failed with a 'httm' lookup error."
+	
 	cut -f1 -d: <<<"$uncut_res"
 }
 
 function give_priv {
-
 	local pools=""
 	local user_name=""
 	local sudo_program=""
 
 	user_name="$(whoami)"
-
-	[[ "$user_name" != "root" ]] || print_err_exit "'ounce' must be executed as an unprivileged user to obtain their true user name.  You will be prompted when additional privileges are needed.  Quitting."
-
+	sudo_program="$(prep_sudo)"
 	pools="$(get_pools)"
 
-	sudo_program=$(prep_sudo)
-
+	[[ "$user_name" != "root" ]] || print_err_exit "'ounce' must be executed as an unprivileged user to obtain their true user name.  You will be prompted when additional privileges are needed.  Quitting."
+	
 	for p in $pools; do
 		"$sudo_program" zfs allow "$user_name" mount,snapshot "$p" || print_err_exit "'ounce' could not obtain privileges on $p.  Quitting."
 	done
@@ -157,7 +149,6 @@ $pools
 }
 
 function get_pools {
-
 	local pools=""
 	local sudo_program=""
 
@@ -171,7 +162,6 @@ function get_pools {
 }
 
 function exec_main {
-
 	local filenames_string=""
 	local files_need_snap=""
 	local -a filenames_array=()
@@ -199,17 +189,15 @@ function exec_main {
 	[[ ${#filenames_array[@]} -ne 0 ]] || return 0
 
 	printf -v filenames_string "%s\n" "${filenames_array[@]}"
+	[[ -n "$filenames_string" ]] || print_err_exit "Could not covert files from array to string."
 
 	# now, httm will dynamically determine the location of
 	# the file's ZFS dataset and snapshot that mount
-
 	files_need_snap="$(needs_snap "$filenames_string")"
 	[[ -z "$files_need_snap" ]] || take_snap "$files_need_snap" "$snapshot_suffix" "$utc"
-
 }
 
 function ounce_of_prevention {
-
 	# do we have commands to execute?
 	prep_exec
 
