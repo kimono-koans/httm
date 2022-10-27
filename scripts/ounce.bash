@@ -199,7 +199,7 @@ function exec_main {
 	[[ ${#filenames_array[@]} -ne 0 ]] || return 0
 
 	printf -v filenames_string "%s\n" "${filenames_array[@]}"
-	[[ -n "$filenames_string" ]] || print_err_exit "Could not covert files from array to string."
+	[[ -n "$filenames_string" ]] || print_err_exit "bash could not covert file names from array to string."
 
 	# now, httm will dynamically determine the location of
 	# the file's ZFS dataset and snapshot that mount
