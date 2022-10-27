@@ -112,14 +112,6 @@ function take_snap {
 		[[ $? -eq 0 ]] ||
 			print_err_exit "'ounce' failed with a 'httm'/'zfs' snapshot error.  Check you have the correct permissions to snapshot."
 	fi
-
-	#local are_we_done
-	#for i in {1..3}; do
-	#	are_we_done="$( needs_snap "$filenames" )"
-	#	[[ $? -eq 0 ]] || print_err_exit "Request to confirm snapshot taken exited uncleanly.  Quitting."
-	#	[[ -n "$are_we_done" ]] || break
-	#	sleep 1
-	#done
 }
 
 function needs_snap {
