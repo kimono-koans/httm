@@ -5,6 +5,13 @@
 # for the bible tells us so
 set -euf -o pipefail
 
+function print_version {
+	printf "\
+ounce "$(httm --version | cut -f2 -d' ')"
+" 1>&2
+	exit 0
+}
+
 function print_usage {
 	local ounce="\e[31mounce\e[0m"
 	local httm="\e[31mhttm\e[0m"
@@ -43,6 +50,9 @@ OPTIONS:
 
 	--help:
 		Display this dialog.
+
+	--version:
+		Display script version.
 
 " 1>&2
 	exit 1
@@ -209,6 +219,7 @@ function ounce_of_prevention {
 
 	[[ $# -ge 1 ]] || print_usage
 	[[ "$1" != "-h" && "$1" != "--help" ]] || print_usage
+	[[ "$1" != "-V" && "$1" != "--version" ]] || print_version
 	[[ "$1" != "ounce" ]] || print_err_exit "'ounce' being called recursively. Quitting."
 	[[ "$1" != "--give-priv" ]] || give_priv
 
