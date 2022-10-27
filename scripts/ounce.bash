@@ -162,6 +162,8 @@ function exec_main {
 	local -a filenames_array
 	local canonical_path
 
+	[[ $# -ge 1 ]] || exit 0
+
 	# loop through the rest of our shell arguments
 	for a; do
 		# omits argument flags
@@ -178,7 +180,7 @@ function exec_main {
 	done
 
 	# check if filenames array is not empty
-	if [[ ${#filenames_array[@]} ]]; then
+	if [[ ${#filenames_array[@]} -ge 1 ]]; then
 		printf -v filenames_string "%s\n" "${filenames_array[@]}"
 
 		# now, httm will dynamically determine the location of
