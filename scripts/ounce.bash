@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
-##### Note: env is zsh/bash here but could maybe/should work in zsh/bash too? ###
+## Note: env is zsh/bash here but could maybe/should work in zsh/bash too? ##
 
-##### for the bible tells us so
+# for the bible tells us so
 set -euf -o pipefail
 
 function print_usage {
