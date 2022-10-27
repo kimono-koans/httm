@@ -1,8 +1,8 @@
-#!/usr/bin/env zsh
+#!/usr/bin/env bash
 
-### Note: env is zsh/bash here but could maybe/should work in zsh/bash too? ###
+##### Note: env is zsh/bash here but could maybe/should work in zsh/bash too? ###
 
-### for the bible tells us so
+##### for the bible tells us so
 set -euf -o pipefail
 
 function print_usage {
@@ -127,9 +127,12 @@ function needs_snap {
 function give_priv {
 
 	local pools
-	local user_name="$(whoami)"
+	local user_name
+
+	user_name="$(whoami)"
 
 	[[ "$user_name" != "root" ]] || print_err_exit "'ounce' must be executed as an unprivileged user to obtain their true user name.  You will be prompted when additional privileges are needed.  Quitting."
+
 	pools="$(get_pools)"
 
 	for p in $pools; do
@@ -166,11 +169,11 @@ function exec_main {
 			continue
 		else
 			unset canonical_path
-			canonical_path="$( readlink -e "$a" 2>/dev/null )"
+			canonical_path="$(readlink -e "$a" 2>/dev/null)"
 
 			# 1) is file, symlink or dir with 2) write permissions set? (httm will resolve links)
 			[[ ! -f "$canonical_path" && ! -d "$canonical_path" && ! -L "$canonical_path" ]] ||
-			[[ ! -w "$canonical_path" ]] || filenames_array+=("$canonical_path")
+				[[ ! -w "$canonical_path" ]] || filenames_array+=("$canonical_path")
 		fi
 	done
 
