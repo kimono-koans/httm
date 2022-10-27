@@ -157,7 +157,14 @@ function get_pools {
 
 	local pools=""
 
-	pools="$(sudo zpool list -o name | grep -v -e "NAME")"
+	pools="$(sudo zpool list -o name 2>/dev/null | grep -v -e "NAME")"
+
+	[[ $? -eq 0 ]] ||
+			print_err_exit "'ounce' failed with a 'zfs list' error.  Check you have the correct permissions to list snapshots."
+
+	[[ -n "$pools" ]] ||
+			print_err_exit "'ounce' failed because it appears no pools were imported.  Quitting."
+
 
 	printf "$pools"
 }
@@ -188,7 +195,7 @@ function exec_main {
 	done
 
 	# check if filenames array is not empty
-	[[ ${filenames_array[*]} ]] || return 0
+	[[ ${#filenames_array[@]} -ne 0 ]] || return 0
 
 	printf -v filenames_string "%s\n" "${filenames_array[@]}"
 
