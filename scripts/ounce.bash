@@ -170,25 +170,26 @@ function exec_main {
 		if [[ $a == -* ]] || [[ $a == --* ]]; then
 			continue
 		else
-			unset canonical_path
-			canonical_path="$(readlink -e "$a" 2>/dev/null)"
+			local canonical_path
+			canonical_path="$(readlink -e "$a" 2>/dev/null; exit 0)"
 
 			# 1) is file, symlink or dir with 2) write permissions set? (httm will resolve links)
+			[[ -z  "$canonical_path" ]] ||
 			[[ ! -f "$canonical_path" && ! -d "$canonical_path" && ! -L "$canonical_path" ]] ||
 				[[ ! -w "$canonical_path" ]] || filenames_array+=("$canonical_path")
 		fi
 	done
 
 	# check if filenames array is not empty
-	if [[ ${#filenames_array} -ge 1 ]]; then
-		printf -v filenames_string "%s\n" "${filenames_array[@]}"
+	[[ ${filenames_array[@]} ]] || return 0
 
-		# now, httm will dynamically determine the location of
-		# the file's ZFS dataset and snapshot that mount
+	printf -v filenames_string "%s\n" "${filenames_array[@]}"
 
-		files_need_snap="$(needs_snap "$filenames_string")"
-		[[ -z "$files_need_snap" ]] || take_snap "$files_need_snap" "$snapshot_suffix" "$utc"
-	fi
+	# now, httm will dynamically determine the location of
+	# the file's ZFS dataset and snapshot that mount
+
+	files_need_snap="$(needs_snap "$filenames_string")"
+	[[ -z "$files_need_snap" ]] || take_snap "$files_need_snap" "$snapshot_suffix" "$utc"
 
 }
 
