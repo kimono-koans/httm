@@ -122,7 +122,7 @@ function needs_snap {
 
 	uncut_res="$(printf "$filenames" | httm --last-snap=no-ditto-inclusive --not-so-pretty 2>/dev/null)"
 	[[ $? -eq 0 ]] || print_err_exit "'ounce' failed with a 'httm' lookup error."
-	
+
 	cut -f1 -d: <<<"$uncut_res"
 }
 
@@ -136,7 +136,7 @@ function give_priv {
 	pools="$(get_pools)"
 
 	[[ "$user_name" != "root" ]] || print_err_exit "'ounce' must be executed as an unprivileged user to obtain their true user name.  You will be prompted when additional privileges are needed.  Quitting."
-	
+
 	for p in $pools; do
 		"$sudo_program" zfs allow "$user_name" mount,snapshot "$p" || print_err_exit "'ounce' could not obtain privileges on $p.  Quitting."
 	done
