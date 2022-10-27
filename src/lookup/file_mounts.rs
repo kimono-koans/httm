@@ -38,7 +38,7 @@ pub fn get_mounts_for_files(config: &Config) -> HttmResult<MountsForFiles> {
 
     if !phantom_files.is_empty() {
         eprintln!(
-            "httm was unable to determine mount locations for all input files, \
+            "Error: httm was unable to determine mount locations for all input files, \
         because the following files do not appear to exist: "
         );
 
