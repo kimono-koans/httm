@@ -239,7 +239,7 @@ function ounce_of_prevention {
 	[[ -x "$program_name" ]] || print_err_exit "'ounce' requires a valid executable name as the first argument."
 
 	# start search and snap, then execute original arguments
-	if [[ $background ]]; then
+	if $background; then
 		local background_pid
 		exec_main "$@" &
 		background_pid="$!"
