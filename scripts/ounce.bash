@@ -169,6 +169,7 @@ function exec_main {
 	local -a filenames_array=()
 	local canonical_path=""
 
+	# simply exit if there are no remaining arguments
 	[[ $# -ge 1 ]] || exit 0
 
 	# loop through the rest of our shell arguments
