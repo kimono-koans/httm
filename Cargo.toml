@@ -43,7 +43,7 @@ residing on snapshots.  May also be used interactively to select and restore fro
 versions, and even to snapshot datasets which contain certain files.
 """
 license-file = ["LICENSE", "4"]
-depends = "$auto"
+depends = "libc6"
 section = "utility"
 priority = "optional"
 assets = [
