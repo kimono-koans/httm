@@ -70,7 +70,8 @@ function prep_exec {
 
 function prep_sudo {
 
-	local sudo_program
+	local sudo_program=""
+
 	local -a program_list=(
 		sudo
 		doas
@@ -93,9 +94,13 @@ function prep_sudo {
 
 function take_snap {
 
-	local filenames="$1"
-	local suffix="$2"
-	local utc="$3"
+	local filenames=""
+	local suffix=""
+	local utc=""
+
+	filenames="$1"
+	suffix="$2"
+	utc="$3"
 
 	# mask all the errors from the first run without privileges,
 	# let the sudo run show errors
@@ -116,8 +121,10 @@ function take_snap {
 
 function needs_snap {
 
-	local uncut_res
-	local filenames="$1"
+	local uncut_res=""
+	local filenames=""
+
+	filenames="$1"
 
 	uncut_res="$(printf "$filenames" | httm --last-snap=no-ditto-inclusive --not-so-pretty 2>/dev/null)"
 	[[ $? -eq 0 ]] || print_err_exit "'ounce' failed with a 'httm' lookup error."
@@ -126,8 +133,8 @@ function needs_snap {
 
 function give_priv {
 
-	local pools
-	local user_name
+	local pools=""
+	local user_name=""
 
 	user_name="$(whoami)"
 
@@ -148,7 +155,7 @@ $pools
 
 function get_pools {
 
-	local pools
+	local pools=""
 
 	pools="$(sudo zpool list -o name | grep -v -e "NAME")"
 
@@ -157,10 +164,10 @@ function get_pools {
 
 function exec_main {
 
-	local filenames_string
-	local files_need_snap
-	local -a filenames_array
-	local canonical_path
+	local filenames_string=""
+	local files_need_snap=""
+	local -a filenames_array=()
+	local canonical_path=""
 
 	[[ $# -ge 1 ]] || exit 0
 
@@ -170,7 +177,6 @@ function exec_main {
 		if [[ $a == -* ]] || [[ $a == --* ]]; then
 			continue
 		else
-			local canonical_path
 			canonical_path="$(readlink -e "$a" 2>/dev/null; exit 0)"
 
 			# 1) is file, symlink or dir with 2) write permissions set? (httm will resolve links)
@@ -181,7 +187,7 @@ function exec_main {
 	done
 
 	# check if filenames array is not empty
-	[[ ${filenames_array[@]} ]] || return 0
+	[[ ${filenames_array[*]} ]] || return 0
 
 	printf -v filenames_string "%s\n" "${filenames_array[@]}"
 
@@ -199,7 +205,7 @@ function ounce_of_prevention {
 	prep_exec
 
 	# declare our vars
-	local program_name
+	local program_name=""
 	local background=false
 	local snapshot_suffix="ounceSnapFileMount"
 	local utc=""
@@ -210,11 +216,12 @@ function ounce_of_prevention {
 	[[ "$1" != "--give-priv" ]] || give_priv
 
 	# get inner executable name
-	while [[ $# -ne 0 ]]; do
+	while [[ $# -ge 1 ]]; do
 		if [[ "$1" == "--suffix" ]]; then
-			[[ -n "$2" ]] || print_err_exit "suffix is empty"
-			snapshot_suffix="$2"
-			shift 2
+			shift
+			[[ $# -ge 1 ]] || print_err_exit "suffix is empty"
+			snapshot_suffix="$1"
+			shift
 		elif [[ "$1" == "--utc" ]]; then
 			utc="--utc"
 			shift
