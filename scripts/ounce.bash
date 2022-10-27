@@ -201,8 +201,9 @@ function ounce_of_prevention {
 	local snapshot_suffix="ounceSnapFileMount"
 	local utc=""
 
-	[[ "$1" != "ounce" ]] || print_err_exit "'ounce' being called recursively. Quitting."
+	[[ $# -ge 1 ]] || print_usage
 	[[ "$1" != "-h" && "$1" != "--help" ]] || print_usage
+	[[ "$1" != "ounce" ]] || print_err_exit "'ounce' being called recursively. Quitting."
 	[[ "$1" != "--give-priv" ]] || give_priv
 
 	# get inner executable name
