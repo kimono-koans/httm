@@ -180,7 +180,7 @@ function exec_main {
 	done
 
 	# check if filenames array is not empty
-	if [[ ${#filenames_array[@]} -ge 1 ]]; then
+	if [[ ${#filenames_array} -ge 1 ]]; then
 		printf -v filenames_string "%s\n" "${filenames_array[@]}"
 
 		# now, httm will dynamically determine the location of
