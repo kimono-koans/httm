@@ -7,7 +7,7 @@ set -euf -o pipefail
 
 function print_version {
 	printf "\
-ounce "$(httm --version | cut -f2 -d' ')"
+ounce $(httm --version | cut -f2 -d' ')
 " 1>&2
 	exit 0
 }
