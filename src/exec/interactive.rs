@@ -230,7 +230,7 @@ fn browse_view(config: Arc<Config>, requested_dir: &PathData) -> HttmResult<Vec<
                       EXIT:       esc      | SELECT:       enter      | SELECT, MULTIPLE: shift+tab\n\
                       ──────────────────────────────────────────────────────────────────────────────",
         ))
-        .multi(config.opt_last_snap.is_some())
+        .multi(config.opt_last_snap.is_none())
         .regex(false)
         .build()
         .expect("Could not initialized skim options for browse_view");
