@@ -38,12 +38,13 @@ once_cell = { version = "1.13.0", default-features = false }
 maintainer = "kimono koans <https://github.com/kimono-koans/>"
 copyright = "2022, Robert Swinford <robert.swinford<...at...>gmail.com>"
 extended-description = """\
-httm prints the size, date and corresponding locations of available unique versions of files
-residing on snapshots.  May also be used interactively to select and restore from such
+
+Prints the size, date and corresponding locations of available unique versions of files \
+residing on snapshots.  May also be used interactively to select and restore from such \
 versions, and even to snapshot datasets which contain certain files.
 """
 license-file = ["LICENSE", "4"]
-depends = "libc6"
+depends = "libc6" 
 section = "utility"
 priority = "optional"
 assets = [
