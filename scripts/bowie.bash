@@ -87,10 +87,11 @@ exec_main() {
 	[[ "$1" != "-V" && "$1" != "--version" ]] || print_version
 	[[ "$1" != "--last" ]] || shift
 	[[ "$1" != "--all" ]] || ( all_mode=true; shift )
-	[[ "$a" != -* && "$a" != --* ]] || \
-		print_err_exit "Option specified either was not expected or is not permitted in this context."
 
 	for a; do
+		[[ "$1" != -* && "$1" != --* ]] || \
+			print_err_exit "Option specified either was not expected or is not permitted in this context."
+		
 		canonical_path="$(readlink -e "$a" 2>/dev/null)"
 
         [[ -n "$canonical_path" ]]  || [[ -e "$canonical_path" ]] || [[ $? -eq 0 ]] || \
