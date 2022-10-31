@@ -104,7 +104,6 @@ display_diff() {
 }
 
 exec_main() {
-
 	#ask if we have the correct commands
 	prep_exec
 
