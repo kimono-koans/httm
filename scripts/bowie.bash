@@ -45,8 +45,6 @@ print_err_exit() {
 
 show_all_changes() {
 	local filename="$1"
-
-	# previous version is unset
 	local previous_version=""
 
 	for current_version in $(httm -n --omit-ditto "$filename"); do
@@ -65,8 +63,8 @@ show_all_changes() {
 
 show_last_change() {
 	local current_version="$1"
-
-	# previous version is unset
+	local previous_version=""
+	
 	previous_version="$( httm --omit-ditto --last-snap --raw "$current_version" )"
 
 	display_diff "$previous_version" "$current_version"
@@ -95,16 +93,15 @@ exec_main() {
 		shift
 	fi
 
-	# Do it
 	for a; do
 		[[ $a != -* && $a != --* ]] || continue
 
 		canonical_path="$(readlink -e "$a" 2>/dev/null)"
 
-        	[[ -n "$canonical_path" ]]  || [[ -e "$canonical_path" ]] || [[ $? -eq 0 ]] || print_err_exit "Could not determine canonical path for: $a"
+        [[ -n "$canonical_path" ]]  || [[ -e "$canonical_path" ]] || [[ $? -eq 0 ]] || print_err_exit "Could not determine canonical path for: $a"
 
-        	if $all_mode; then
-        		show_all_changes "$canonical_path"
+		if $all_mode; then
+			show_all_changes "$canonical_path"
 		else
 			show_last_change "$canonical_path"
 		fi
