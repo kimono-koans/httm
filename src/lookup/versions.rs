@@ -81,6 +81,13 @@ fn get_all_versions_for_path_set(
                 .flatten()
                 .flat_map(|search_bundle| get_versions(&search_bundle))
                 .flatten()
+                .filter(|snap_version| {
+                    if config.opt_omit_ditto {
+                        snap_version.md_infallible() != pathdata.md_infallible()
+                    } else {
+                        true
+                    }
+                })
                 .collect();
 
             match &config.opt_last_snap {

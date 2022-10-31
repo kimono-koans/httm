@@ -301,15 +301,7 @@ pub fn get_display_set(config: &Config, drained_map: &[(&PathData, &Vec<PathData
     } else {
         drained_map
             .iter()
-            .flat_map(|(live_version, snaps)| {
-                snaps.iter().filter(|snap_version| {
-                    if config.opt_omit_ditto {
-                        snap_version.md_infallible() != live_version.md_infallible()
-                    } else {
-                        true
-                    }
-                })
-            })
+            .flat_map(|(_live_version, snaps)| *snaps)
             .cloned()
             .collect()
     };
