@@ -25,7 +25,7 @@ OPTIONS:
 		Default mode.  Display only the difference between the last unique snapshot version and the live file.
 
 	--all:
-		Display the difference between the all unique snapshot versions and the live file.--all:
+		Display the difference between the all unique snapshot versions and the live file.
 
 	--select
 		Start an $httm interactive session to select the snapshot to display.
