@@ -97,10 +97,12 @@ exec_main() {
 		[[ "$a" != -* && "$a" != --* ]] ||
 			print_err_exit "Option specified either was not expected or is not permitted in this context."
 
-		canonical_path="$(readlink -e "$a" 2>/dev/null)"
+		canonical_path="$(
+			readlink -e "$a" 2>/dev/null
+			[[ $? -eq 0 ]] ||
+				print_err_exit "Could not determine canonical path for: $a"
 
-		[[ -n "$canonical_path" ]] || [[ -e "$canonical_path" ]] || [[ $? -eq 0 ]] ||
-			print_err_exit "Could not determine canonical path for: $a"
+		)"
 
 		if $all_mode; then
 			show_all_changes "$canonical_path"
