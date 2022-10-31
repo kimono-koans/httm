@@ -85,13 +85,8 @@ exec_main() {
 
 	[[ "$1" != "-h" && "$1" != "--help" ]] || print_usage
 	[[ "$1" != "-V" && "$1" != "--version" ]] || print_version
-
-	if [[ $1 == "--all" ]]; then
-		all_mode=true
-		shift
-	elif [[ $1 == "--last" ]]; then
-		shift
-	fi
+	[[ "$1" != "--last" ]] || shift
+	[[ "$1" != "--all" ]] || ( all_mode=true; shift )
 
 	for a; do
 		[[ $a != -* && $a != --* ]] || continue
