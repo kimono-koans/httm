@@ -23,7 +23,6 @@ $ounce only snapshots datasets when you have file changes outstanding, uncommitt
 and only when those files are given as arguments to the target executable at the command line.
 
 USAGE:
-	ounce [target executable] [argument1 argument2...]
 	ounce [OPTIONS]... [target executable] [argument1 argument2...]
 	ounce [--give-priv]
 	ounce [--help]
