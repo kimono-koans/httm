@@ -136,7 +136,7 @@ open smb://<your name>@<your remote share>.local/Home
 # execute httm
 httm -i -R --map-aliases /Users/<your name>:/Volumes/Home ~
 ```
-View the differences between each unique snapshot version of the `httm` `man` page and each previous version:
+View the differences between each unique snapshot version of the `httm` `man` page and each previous version (this simple script is the basis for [bowie](https://github.com/kimono-koans/httm/blob/master/scripts/bowie.bash)):
 ```bash
 filename="./httm/httm.1"
 # previous version is unset
