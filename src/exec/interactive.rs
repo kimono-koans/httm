@@ -15,7 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::{fs::FileType, io::Cursor, path::Path, path::PathBuf, thread, vec};
+use std::{fs::FileType, io::Cursor, path::Path, path::PathBuf, thread};
 
 use crossbeam::channel::unbounded;
 use lscolors::Colorable;
@@ -67,12 +67,10 @@ impl SelectionCandidate {
         }
     }
 
-    fn preview_view(&self) -> HttmResult<String> {
-        let config = &self.config;
-        let path = &self.path;
+    fn generate_config_for_display(config: &Config, paths_selected: &[PathData]) -> Config {
         // generate a config for a preview display only
-        let gen_config = Config {
-            paths: vec![PathData::from(path.as_path())],
+        Config {
+            paths: paths_selected.to_vec(),
             opt_raw: false,
             opt_zeros: false,
             opt_no_pretty: false,
@@ -92,7 +90,15 @@ impl SelectionCandidate {
             dataset_collection: config.dataset_collection.clone(),
             pwd: config.pwd.clone(),
             opt_requested_dir: config.opt_requested_dir.clone(),
-        };
+        }
+    }
+
+    fn preview_view(&self) -> HttmResult<String> {
+        let config = &self.config;
+        let paths_selected = &[PathData::from(self.path.as_path())];
+
+        // generate a config for display
+        let gen_config = SelectionCandidate::generate_config_for_display(config, paths_selected);
 
         // finally run search on those paths
         let map_live_to_snaps = versions_lookup_exec(&gen_config, &gen_config.paths)?;
@@ -299,7 +305,9 @@ fn interactive_select(
             .into_owned()
     } else {
         // same stuff we do at fn exec, snooze...
-        let selection_buffer = display_exec(config.as_ref(), &map_live_to_snaps)?;
+        let display_config =
+            SelectionCandidate::generate_config_for_display(&config, paths_selected_in_browse);
+        let selection_buffer = display_exec(&display_config, &map_live_to_snaps)?;
 
         // loop until user selects a valid snapshot version
         loop {
@@ -331,8 +339,14 @@ fn interactive_select(
             paths_selected_in_browse,
         )?)
     } else {
-        let output_buf = format!("\"{}\"\n", &path_string);
+        let output_buf = if config.opt_raw || config.opt_zeros || config.opt_last_snap.is_some() {
+            format!("{}\n", &path_string)
+        } else {
+            format!("\"{}\"\n", &path_string)
+        };
+
         print_output_buf(output_buf)?;
+
         std::process::exit(0)
     }
 }
