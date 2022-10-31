@@ -1,7 +1,6 @@
 #!/bin/bash
 
 set -euf -o pipefail
-#set -x
 
 print_version() {
 	printf "\
@@ -46,6 +45,8 @@ show_all_changes() {
 	local filename="$1"
 	local previous_version=""
 
+	display_header "$current_version"
+
 	for current_version in $(httm -n --omit-ditto "$filename"); do
 		# check if initial "previous_version" needs to be set
 		if [[ -z "$previous_version" ]]; then
@@ -66,7 +67,18 @@ show_last_change() {
 
 	previous_version="$(httm --omit-ditto --last-snap --raw "$current_version")"
 
+	display_header "$current_version"
 	display_diff "$previous_version" "$current_version"
+}
+
+display_header() {
+	local filename="$1"
+
+	printf "\
+$filename
+__
+"
+
 }
 
 display_diff() {
