@@ -108,12 +108,15 @@ exec_main() {
 	for a; do
 		[[ "$a" != -* && "$a" != --* ]] ||
 			print_err_exit "Option specified either was not expected or is not permitted in this context."
+	done
 
+	[[ ${#@} -ne 0 ]] || print_err_exit "No filenames specified."
+
+	for a; do
 		canonical_path="$(
 			readlink -e "$a" 2>/dev/null
 			[[ $? -eq 0 ]] ||
 				print_err_exit "Could not determine canonical path for: $a"
-
 		)"
 
 		if $all_mode; then
