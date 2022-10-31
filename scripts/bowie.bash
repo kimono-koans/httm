@@ -41,6 +41,18 @@ print_err_exit() {
 	exit 1
 }
 
+function prep_exec {
+	# Use zfs allow to operate without sudo
+	[[ -n "$(
+		command -v diff
+		exit 0
+	)" ]] || print_err_exit "'diff' is required to execute 'bowie'.  Please check that 'diff' is in your path."
+	[[ -n "$(
+		command -v httm
+		exit 0
+	)" ]] || print_err_exit "'httm' is required to execute 'bowie'.  Please check that 'httm' is in your path."
+}
+
 show_all_changes() {
 	local filename="$1"
 	local previous_version=""
@@ -86,13 +98,19 @@ display_diff() {
 	local current_version="$2"
 
 	# print that current version and previous version differ
-	(diff -q "$previous_version" "$current_version" || true)
+	(diff --color -q "$previous_version" "$current_version" || true)
 	# print the difference between that current version and previous_version
-	(diff -T "$previous_version" "$current_version" || true)
+	(diff --color -T "$previous_version" "$current_version" || true)
 }
 
 exec_main() {
+
+	#ask if we have the correct commands
+	prep_exec
+
+	# declare our variables
 	local all_mode=false
+	local canonical_path=""
 
 	[[ $# -ge 1 ]] || print_usage
 	[[ "$1" != "-h" && "$1" != "--help" ]] || print_usage
