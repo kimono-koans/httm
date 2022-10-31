@@ -82,6 +82,7 @@ fn get_all_versions_for_path_set(
                 .flat_map(|search_bundle| get_versions(&search_bundle))
                 .flatten()
                 .filter(|snap_version| {
+                    // process omit_ditto before last snap
                     if config.opt_omit_ditto {
                         snap_version.md_infallible() != pathdata.md_infallible()
                     } else {
@@ -89,13 +90,16 @@ fn get_all_versions_for_path_set(
                     }
                 })
                 .collect();
-
+            (pathdata.to_owned(), snaps)
+        })
+        .map(|(pathdata, snaps)| {
+            // process last snap mode after omit_ditto
             match &config.opt_last_snap {
                 Some(last_snap_mode) => {
-                    let vec_last_snap = get_last_snap(last_snap_mode, pathdata, snaps);
-                    (pathdata.to_owned(), vec_last_snap)
+                    let vec_last_snap = get_last_snap(last_snap_mode, &pathdata, snaps);
+                    (pathdata, vec_last_snap)
                 }
-                None => (pathdata.to_owned(), snaps),
+                None => (pathdata, snaps),
             }
         })
         .collect();
