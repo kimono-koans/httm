@@ -71,23 +71,11 @@ pub fn display_raw(
     let write_out_buffer = drained_map
         .iter()
         .map(|(live_version, snaps)| {
-            let display_set = get_display_set(config, &[(live_version, snaps)]);
-
-            match config.opt_last_snap {
-                None => display_set
-                    .iter()
-                    .flatten()
-                    .map(|pathdata| format!("{}{}", pathdata.path_buf.display(), delimiter))
-                    .collect::<String>(),
-                Some(_) => {
-                    // we need to index into this array for only the snaps
-                    // flattening will zero out any evidence of a snap
-                    display_set[0]
-                        .iter()
-                        .map(|pathdata| format!("{}{}", pathdata.path_buf.display(), delimiter))
-                        .collect::<String>()
-                }
-            }
+            get_display_set(config, &[(live_version, snaps)])
+                .iter()
+                .flatten()
+                .map(|pathdata| format!("{}{}", pathdata.path_buf.display(), delimiter))
+                .collect::<String>()
         })
         .collect();
 
