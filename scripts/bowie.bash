@@ -25,7 +25,10 @@ OPTIONS:
 		Default mode.  Display only the difference between the last unique snapshot version and the live file.
 
 	--all:
-		Display the difference between the all unique snapshot versions and the live file.
+		Display the difference between the all unique snapshot versions and the live file.--all:
+
+	--select
+		Start an $httm interactive session to select the snapshot to display.
 
 	--help:
 		Display this dialog.
@@ -59,22 +62,24 @@ prep_exec() {
 }
 
 show_all_changes() {
-	local current_version="$1"
+	local filename="$1"
 	local previous_version=""
 	local -a all_versions
 
-	read -a all_versions <<<$(httm -n --omit-ditto "$current_version")
+	while read -r line; do
+		all_versions+=("$line")
+	done <<<"$(httm -n --omit-ditto "$filename")"
 
 	# check if versions array is not empty
 	if [[ ${#all_versions[@]} -eq 0 ]]; then
-		print_err "No previous version available for: $current_version"
+		print_err "No previous version available for: $filename"
 		return 0
 	elif [[ ${#all_versions[@]} -eq 1 ]]; then
-		show_last_change "$current_version"
+		show_last_change "$filename"
 		return 0
 	fi
 
-	display_header "$current_version"
+	display_header "$filename"
 
 	for current_version in "${all_versions[@]}"; do
 		# check if initial "previous_version" needs to be set
@@ -88,6 +93,17 @@ show_all_changes() {
 		# set current_version to previous_version
 		previous_version="$current_version"
 	done
+}
+
+show_select_change() {
+	local current_version="$1"
+	local previous_version=""
+
+	previous_version="$(httm --select --raw "$current_version")"
+
+	display_header "$current_version"
+	display_diff "$previous_version" "$current_version"
+
 }
 
 show_last_change() {
@@ -130,6 +146,7 @@ exec_main() {
 
 	# declare our variables
 	local all_mode=false
+	local select_mode=false
 	local canonical_path=""
 
 	[[ $# -ge 1 ]] || print_usage
@@ -140,6 +157,9 @@ exec_main() {
 		all_mode=true
 		shift
 	elif [[ $1 == "--last" ]]; then
+		shift
+	elif [[ $1 == "--select" ]]; then
+		select_mode=true
 		shift
 	fi
 
@@ -159,6 +179,8 @@ exec_main() {
 
 		if $all_mode; then
 			show_all_changes "$canonical_path"
+		elif $select_mode; then
+			show_select_change "$canonical_path"
 		else
 			show_last_change "$canonical_path"
 		fi
