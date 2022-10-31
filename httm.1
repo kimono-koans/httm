@@ -84,7 +84,13 @@ mount]
 \fB\-l\fR, \fB\-\-last\-snap[=\fR<LAST_SNAP>...]
 .IP
 automatically select and print the path of last\-in\-time unique snapshot version for the
-input file. [possible values: any, ditto, no\-ditto\-exclusive, no\-ditto\-inclusive, none]
+input file.  Possible options are: "any", return the last in time snapshot version, this
+is the default, "ditto", return only last snaps which are the same as the live file
+version, "no\-ditto\-exclusive", return only a last snap which is not the same as the live
+version ("not ditto" is an alias for this option), "no\-ditto\-inclusive", return a last
+snap which is not the same as the live version, or should non\-exist, return the live
+file, and, "none", return the live file only for those files without a last snapshot.
+[possible values: any, ditto, no\-ditto, no\-ditto\-exclusive, no\-ditto\-inclusive, none]
 .HP
 \fB\-n\fR, \fB\-\-raw\fR
 .IP

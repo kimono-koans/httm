@@ -187,10 +187,17 @@ fn parse_args() -> ArgMatches {
                 .long("last-snap")
                 .takes_value(true)
                 .default_missing_value("any")
-                .possible_values(&["any", "ditto", "no-ditto-exclusive", "no-ditto-inclusive", "none"])
+                .possible_values(&["any", "ditto", "no-ditto", "no-ditto-exclusive", "no-ditto-inclusive", "none"])
                 .min_values(0)
                 .require_equals(true)
-                .help("automatically select and print the path of last-in-time unique snapshot version for the input file.")
+                .help("automatically select and print the path of last-in-time unique snapshot version for the input file.  \
+                Possible options are: \
+                \"any\", return the last in time snapshot version, this is the default, \
+                \"ditto\", return only last snaps which are the same as the live file version, \
+                \"no-ditto-exclusive\", return only a last snap which is not the same as the live version (\"not ditto\" is an alias for this option), \
+                \"no-ditto-inclusive\", return a last snap which is not the same as the live version, \
+                or should non-exist, return the live file, and, \
+                \"none\", return the live file only for those files without a last snapshot.")
                 .conflicts_with_all(&["NUM_VERSIONS", "SNAP_FILE_MOUNT", "MOUNT_FOR_FILE", "ALT_REPLICATED", "SNAP_POINT", "LOCAL_DIR"])
                 .display_order(11)
         )
@@ -397,7 +404,7 @@ impl Config {
             Some("none") => Some(LastSnapMode::None),
             Some("ditto") => Some(LastSnapMode::DittoOnly),
             Some("no-ditto-inclusive") => Some(LastSnapMode::NoDittoInclusive),
-            Some("no-ditto-exclusive") => Some(LastSnapMode::NoDittoExclusive),
+            Some("no-ditto-exclusive") | Some("no-ditto") => Some(LastSnapMode::NoDittoExclusive),
             _ => None,
         };
 
