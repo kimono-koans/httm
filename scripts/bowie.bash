@@ -61,10 +61,22 @@ prep_exec() {
 show_all_changes() {
 	local current_version="$1"
 	local previous_version=""
+	local -a all_versions
+
+	read -a all_versions <<<$(httm -n --omit-ditto "$current_version")
+
+	# check if versions array is not empty
+	if [[ ${#all_versions[@]} -eq 0 ]]; then
+		print_err "No previous version available for: $current_version"
+		return 0
+	elif [[ ${#all_versions[@]} -eq 1 ]]; then
+		show_last_change "$current_version"
+		return 0
+	fi
 
 	display_header "$current_version"
 
-	for current_version in $(httm -n --omit-ditto "$current_version"); do
+	for current_version in "${all_versions[@]}"; do
 		# check if initial "previous_version" needs to be set
 		if [[ -z "$previous_version" ]]; then
 			previous_version="$current_version"
