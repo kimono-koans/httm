@@ -1,6 +1,7 @@
 #!/bin/bash
 
 set -euf -o pipefail
+#set -x
 
 print_version() {
 	printf "\
@@ -37,11 +38,15 @@ OPTIONS:
 }
 
 print_err_exit() {
-	printf "%s\n" "Error: $*" 1>&2
+	print_err "$@"
 	exit 1
 }
 
-function prep_exec {
+print_err() {
+	printf "%s\n" "Error: $*" 1>&2
+}
+
+prep_exec() {
 	# Use zfs allow to operate without sudo
 	[[ -n "$(
 		command -v diff
@@ -97,10 +102,14 @@ display_diff() {
 	local previous_version="$1"
 	local current_version="$2"
 
-	# print that current version and previous version differ
-	(diff --color -q "$previous_version" "$current_version" || true)
-	# print the difference between that current version and previous_version
-	(diff --color -T "$previous_version" "$current_version" || true)
+	if [[ -n "$previous_version" ]]; then
+		# print that current version and previous version differ
+		(diff --color -q "$previous_version" "$current_version" || true)
+		# print the difference between that current version and previous_version
+		(diff --color -T "$previous_version" "$current_version" || true)
+	else
+		print_err "No previous version available for: $current_version"
+	fi
 }
 
 exec_main() {
@@ -124,16 +133,16 @@ exec_main() {
 
 	for a; do
 		[[ "$a" != -* && "$a" != --* ]] ||
-			print_err_exit "Option specified either was not expected or is not permitted in this context."
+			print_err_exit "Option specified either was not expected or is not permitted in this context.  Quitting."
 	done
 
-	[[ ${#@} -ne 0 ]] || print_err_exit "No filenames specified."
+	[[ ${#@} -ne 0 ]] || print_err_exit "No filenames specified.  Quitting."
 
 	for a; do
 		canonical_path="$(
 			readlink -e "$a" 2>/dev/null
 			[[ $? -eq 0 ]] ||
-				print_err_exit "Could not determine canonical path for: $a"
+				print_err "Could not determine canonical path for: $a"
 		)"
 
 		if $all_mode; then
