@@ -87,13 +87,14 @@ exec_main() {
 	[[ "$1" != "-V" && "$1" != "--version" ]] || print_version
 	[[ "$1" != "--last" ]] || shift
 	[[ "$1" != "--all" ]] || ( all_mode=true; shift )
+	[[ "$a" != -* && "$a" != --* ]] || \
+		print_err_exit "Option specified either was not expected or is not permitted in this context."
 
 	for a; do
-		[[ $a != -* && $a != --* ]] || continue
-
 		canonical_path="$(readlink -e "$a" 2>/dev/null)"
 
-        [[ -n "$canonical_path" ]]  || [[ -e "$canonical_path" ]] || [[ $? -eq 0 ]] || print_err_exit "Could not determine canonical path for: $a"
+        [[ -n "$canonical_path" ]]  || [[ -e "$canonical_path" ]] || [[ $? -eq 0 ]] || \
+			print_err_exit "Could not determine canonical path for: $a"
 
 		if $all_mode; then
 			show_all_changes "$canonical_path"
