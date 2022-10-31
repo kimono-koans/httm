@@ -174,8 +174,10 @@ exec_main() {
 		canonical_path="$(
 			readlink -e "$a" 2>/dev/null
 			[[ $? -eq 0 ]] ||
-				print_err "Could not determine canonical path for: $a"
+				(print_err "Could not determine canonical path for: $a")
 		)"
+
+		[[ -n "$canonical_path" ]] || continue
 
 		if $all_mode; then
 			show_all_changes "$canonical_path"
