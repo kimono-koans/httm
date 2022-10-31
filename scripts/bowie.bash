@@ -54,12 +54,12 @@ function prep_exec {
 }
 
 show_all_changes() {
-	local filename="$1"
+	local current_version="$1"
 	local previous_version=""
 
 	display_header "$current_version"
 
-	for current_version in $(httm -n --omit-ditto "$filename"); do
+	for current_version in $(httm -n --omit-ditto "$current_version"); do
 		# check if initial "previous_version" needs to be set
 		if [[ -z "$previous_version" ]]; then
 			previous_version="$current_version"
