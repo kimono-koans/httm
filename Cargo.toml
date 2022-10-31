@@ -1,6 +1,6 @@
 [package]
 name = "httm"
-version = "0.16.5"
+version = "0.16.6"
 edition = "2021"
 keywords = ["zfs", "backup", "restore", "cli-utility", "snapshot"]
 description = "A CLI tool for viewing snapshot file versions on ZFS and btrfs datasets"
@@ -50,6 +50,7 @@ priority = "optional"
 assets = [
     ["target/release/httm", "usr/bin/", "755"],
     ["scripts/ounce.bash", "usr/bin/ounce", "755"],
+    ["scripts/bowie.bash", "usr/bin/bowie", "755"],
     ["httm.1", "usr/share/man/man1/", "644"],
     ["README.md", "usr/share/doc/httm/README", "644"],
 ]
