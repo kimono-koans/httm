@@ -186,38 +186,26 @@ pub fn get_version_search_bundles(
     pathdata: &PathData,
     snap_types_of_interest: &MostProximateAndOptAlts,
 ) -> HttmResult<Vec<RelativePathAndSnapMounts>> {
-    fn exec<'a>(
-        config: &Config,
-        pathdata: &PathData,
-        proximate_dataset_mount: &Path,
-        iter: impl Iterator<Item = &'a PathBuf>,
-    ) -> HttmResult<Vec<RelativePathAndSnapMounts>> {
-        iter.map(|dataset_of_interest| {
-            get_version_search_bundle_per_dataset(
-                config,
-                pathdata,
-                proximate_dataset_mount,
-                dataset_of_interest,
-            )
-        })
-        .collect()
-    }
-
     let proximate_dataset_mount = &snap_types_of_interest.proximate_dataset_mount;
 
     match &snap_types_of_interest.opt_datasets_of_interest {
-        Some(datasets_of_interest) => exec(
+        Some(datasets_of_interest) => datasets_of_interest
+            .iter()
+            .map(|dataset_of_interest| {
+                get_version_search_bundle_per_dataset(
+                    config,
+                    pathdata,
+                    proximate_dataset_mount,
+                    dataset_of_interest,
+                )
+            })
+            .collect(),
+        None => Ok(vec![get_version_search_bundle_per_dataset(
             config,
             pathdata,
             proximate_dataset_mount,
-            datasets_of_interest.iter(),
-        ),
-        None => exec(
-            config,
-            pathdata,
             proximate_dataset_mount,
-            [proximate_dataset_mount].into_iter(),
-        ),
+        )?]),
     }
 }
 
