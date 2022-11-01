@@ -77,13 +77,16 @@ fn display_formatted(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> Htt
     let global_padding_collection = calculate_pretty_padding(config, &global_display_set);
 
     // indexing safety: array has known len of 2
-    let write_out_buffer = if global_display_set[1].len() == 1 {
+    let write_out_buffer = if map_live_to_snaps.len() == 1 {
         display_set_instance(config, &global_display_set, &global_padding_collection)
     } else {
         map_live_to_snaps
-            .iter()
+            .clone()
+            .into_iter()
             .map(|(live_version, snaps)| {
-                let raw_instance_set = [(live_version.clone(), snaps.clone())].into();
+                [(live_version, snaps)].into()
+            })
+            .map(|raw_instance_set| {
                 get_display_set(config, &raw_instance_set)
             })
             .map(|display_set| {
