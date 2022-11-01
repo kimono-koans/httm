@@ -186,8 +186,7 @@ pub fn display_mounts(config: &Config) -> HttmResult<()> {
 
 pub fn display_as_map(config: &Config, map: BTreeMap<PathData, Vec<PathData>>) -> HttmResult<()> {
     let output_buf = if config.opt_raw || config.opt_zeros {
-        let drained_map: Vec<(&PathData, &Vec<PathData>)> = map.iter().collect();
-        display_raw(config, &drained_map)?
+        display_raw(config, &map)?
     } else {
         display_map_formatted(config, &map)?
     };

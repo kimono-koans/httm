@@ -49,12 +49,10 @@ pub fn display_exec(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> Httm
             display_num_versions(config, num_versions_mode, map_live_to_snaps)?
         }
         _ => {
-            let drained_map: Vec<(&PathData, &Vec<PathData>)> = map_live_to_snaps.iter().collect();
-
             if config.opt_raw || config.opt_zeros {
-                display_raw(config, &drained_map)?
+                display_raw(config, map_live_to_snaps)?
             } else {
-                display_formatted(config, &drained_map)?
+                display_formatted(config, map_live_to_snaps)?
             }
         }
     };
@@ -62,85 +60,77 @@ pub fn display_exec(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> Httm
     Ok(output_buffer)
 }
 
-pub fn display_raw(
-    config: &Config,
-    drained_map: &[(&PathData, &Vec<PathData>)],
-) -> HttmResult<String> {
+pub fn display_raw(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> HttmResult<String> {
     let delimiter = get_delimiter(config);
 
-    let write_out_buffer = drained_map
+    let write_out_buffer = get_display_set(config, map_live_to_snaps)
         .iter()
-        .map(|(live_version, snaps)| {
-            get_display_set(config, &[(live_version, snaps)])
-                .iter()
-                .flatten()
-                .map(|pathdata| format!("{}{}", pathdata.path_buf.display(), delimiter))
-                .collect::<String>()
-        })
-        .collect();
+        .flatten()
+        .map(|pathdata| format!("{}{}", pathdata.path_buf.display(), delimiter))
+        .collect::<String>();
 
     Ok(write_out_buffer)
 }
 
-fn display_formatted(
-    config: &Config,
-    drained_map: &[(&PathData, &Vec<PathData>)],
-) -> HttmResult<String> {
-    let global_display_set = get_display_set(config, drained_map);
+fn display_formatted(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> HttmResult<String> {
+    let global_display_set = get_display_set(config, map_live_to_snaps);
     let global_padding_collection = calculate_pretty_padding(config, &global_display_set);
 
-    let write_out_buffer = drained_map
-        .iter()
-        .map(|(live_version, snaps)| {
-            // indexing safety: array has known len of 2
-            if global_display_set[1].len() == 1 {
-                global_display_set.clone()
-            } else {
-                let raw_instance_set = [(*live_version, *snaps)];
+    // indexing safety: array has known len of 2
+    let write_out_buffer = if global_display_set[1].len() == 1 {
+        display_set_instance(config, &global_display_set, &global_padding_collection)
+    } else {
+        map_live_to_snaps
+            .iter()
+            .map(|(live_version, snaps)| {
+                let raw_instance_set = [(live_version.clone(), snaps.clone())].into();
                 get_display_set(config, &raw_instance_set)
-            }
-        })
-        .map(|display_set| {
-            // get the display buffer for each set snaps and live
-            display_set.iter().enumerate().fold(
-                String::new(),
-                |mut display_set_buffer, (idx, snap_or_live_set)| {
-                    // a DisplaySet is an array of 2 - idx 0 are the snaps, 1 is the live versions
-                    let is_snap_set = idx == 0;
-                    let is_live_set = idx == 1;
-
-                    let component_buffer: String = snap_or_live_set
-                        .iter()
-                        .map(|pathdata| {
-                            display_pathdata(
-                                config,
-                                pathdata,
-                                is_live_set,
-                                &global_padding_collection,
-                            )
-                        })
-                        .collect();
-
-                    // add each buffer to the set - print fancy border string above, below and between sets
-                    if config.opt_no_pretty {
-                        display_set_buffer += &component_buffer;
-                    } else if is_snap_set {
-                        display_set_buffer += &global_padding_collection.fancy_border_string;
-                        if !component_buffer.is_empty() {
-                            display_set_buffer += &component_buffer;
-                            display_set_buffer += &global_padding_collection.fancy_border_string;
-                        }
-                    } else {
-                        display_set_buffer += &component_buffer;
-                        display_set_buffer += &global_padding_collection.fancy_border_string;
-                    }
-                    display_set_buffer
-                },
-            )
-        })
-        .collect();
+            })
+            .map(|display_set| {
+                display_set_instance(config, &display_set, &global_padding_collection)
+            })
+            .collect()
+    };
 
     Ok(write_out_buffer)
+}
+
+fn display_set_instance(
+    config: &Config,
+    display_set: &DisplaySet,
+    global_padding_collection: &PaddingCollection,
+) -> String {
+    // get the display buffer for each set snaps and live
+    display_set.iter().enumerate().fold(
+        String::new(),
+        |mut display_set_buffer, (idx, snap_or_live_set)| {
+            // a DisplaySet is an array of 2 - idx 0 are the snaps, 1 is the live versions
+            let is_snap_set = idx == 0;
+            let is_live_set = idx == 1;
+
+            let component_buffer: String = snap_or_live_set
+                .iter()
+                .map(|pathdata| {
+                    display_pathdata(config, pathdata, is_live_set, global_padding_collection)
+                })
+                .collect();
+
+            // add each buffer to the set - print fancy border string above, below and between sets
+            if config.opt_no_pretty {
+                display_set_buffer += &component_buffer;
+            } else if is_snap_set {
+                display_set_buffer += &global_padding_collection.fancy_border_string;
+                if !component_buffer.is_empty() {
+                    display_set_buffer += &component_buffer;
+                    display_set_buffer += &global_padding_collection.fancy_border_string;
+                }
+            } else {
+                display_set_buffer += &component_buffer;
+                display_set_buffer += &global_padding_collection.fancy_border_string;
+            }
+            display_set_buffer
+        },
+    )
 }
 
 fn display_pathdata(
@@ -283,15 +273,11 @@ fn calculate_pretty_padding(config: &Config, display_set: &DisplaySet) -> Paddin
     }
 }
 
-pub fn get_display_set(config: &Config, drained_map: &[(&PathData, &Vec<PathData>)]) -> DisplaySet {
+pub fn get_display_set(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> DisplaySet {
     let vec_snaps = if config.opt_no_snap {
         Vec::new()
     } else {
-        drained_map
-            .iter()
-            .flat_map(|(_live_version, snaps)| *snaps)
-            .cloned()
-            .collect()
+        map_live_to_snaps.values().flatten().cloned().collect()
     };
 
     let vec_live = if config.opt_last_snap.is_some()
@@ -300,11 +286,7 @@ pub fn get_display_set(config: &Config, drained_map: &[(&PathData, &Vec<PathData
     {
         Vec::new()
     } else {
-        drained_map
-            .iter()
-            .map(|(live_version, _snaps)| *live_version)
-            .cloned()
-            .collect()
+        map_live_to_snaps.keys().cloned().collect()
     };
 
     [vec_snaps, vec_live]
