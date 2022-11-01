@@ -30,7 +30,7 @@ use crate::lookup::file_mounts::get_mounts_for_files;
 pub fn display_num_versions(
     config: &Config,
     num_versions_mode: &NumVersionsMode,
-    map_live_to_snaps: MapLiveToSnaps,
+    map_live_to_snaps: &MapLiveToSnaps,
 ) -> HttmResult<String> {
     let delimiter = get_delimiter(config);
 
@@ -38,7 +38,7 @@ pub fn display_num_versions(
         .iter()
         .filter_map(|(live_version, snaps)| {
             let map_padding = if matches!(num_versions_mode, NumVersionsMode::All) {
-                get_padding_for_map(&map_live_to_snaps)
+                get_padding_for_map(map_live_to_snaps)
             } else {
                 0usize
             };
@@ -186,7 +186,7 @@ pub fn display_mounts(config: &Config) -> HttmResult<()> {
 
 pub fn display_as_map(config: &Config, map: BTreeMap<PathData, Vec<PathData>>) -> HttmResult<()> {
     let output_buf = if config.opt_raw || config.opt_zeros {
-        display_raw(config, map)?
+        display_raw(config, &map)?
     } else {
         display_map_formatted(config, &map)?
     };
