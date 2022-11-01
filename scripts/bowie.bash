@@ -28,7 +28,7 @@ OPTIONS:
 		Display the difference between each unique snapshot version against the next version, and finally the live file.
 
 	--select
-		Start an $httm interactive session to select the snapshot to display.
+		Start an $httm interactive session to select the snapshot difference to display against the live file.
 
 	--help:
 		Display this dialog.
