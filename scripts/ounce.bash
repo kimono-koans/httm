@@ -17,7 +17,7 @@ function print_usage {
 	local httm="\e[31mhttm\e[0m"
 
 	printf "\
-$ounce is a wrapper script for $httm which snapshot the dataset of files opened by other programs.
+$ounce is a wrapper script for $httm which snapshots the datasets of files opened by other programs.
 
 $ounce only snapshots datasets when you have file changes outstanding, uncommitted to a snapshot already,
 and only when those files are given as arguments to the target executable at the command line.
@@ -31,13 +31,13 @@ OPTIONS:
 	--background:
 		Run the $ounce target executable in the background.  Safest for non-immediate file modifications
 		(perhaps for use with your \$EDITOR, but not 'rm').  $ounce is fast-ish (for a shell script)
-		but the time for ZFS to dynamically mount your snapshots will swamp actual time to search snapshots
-		and time to execute any snapshot.
+		but the time for ZFS to dynamically mount your snapshots will swamp the actual time to search snapshots
+		and execute any snapshot.
 
 	--give-priv:
 		To use $ounce you will need privileges to snapshot ZFS datasets, and the prefered scheme is
 		\"zfs-allow\".  Executing this option will give the current user snapshot privileges on all
-		imported pools via \"zfs-allow\" . NOTE: User must execute --give-priv as an unprivileged user.
+		imported pools via \"zfs-allow\" . NOTE: The user must execute --give-priv as an unprivileged user.
 		The user will be prompted later for elevated privileges.
 
 	--suffix [suffix name]:
