@@ -83,7 +83,7 @@ fn display_formatted(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> Htt
         map_live_to_snaps
             .clone()
             .into_iter()
-            .map(|(live_version, snaps)| [(live_version, snaps)].into())
+            .map(|raw_tuple| [raw_tuple].into())
             .map(|raw_instance_set| get_display_set(config, &raw_instance_set))
             .map(|display_set| {
                 display_set_instance(config, &display_set, &global_padding_collection)
