@@ -501,11 +501,16 @@ fn interactive_restore(
                     break eprintln!("{}", result_buffer);
                 }
                 Err(err) => {
-                    return Err(HttmError::with_context(
-                        "httm restore failed for the following reason",
-                        Box::new(err),
-                    )
-                    .into());
+                    if err.kind() == std::io::ErrorKind::PermissionDenied {
+                        let msg = format!("httm restore failed because the user did not have the correct permissions to restore to: {:?}", new_file_path_buf);
+                        return Err(HttmError::new(&msg).into());
+                    } else {
+                        return Err(HttmError::with_context(
+                            "httm restore failed for the following reason",
+                            Box::new(err),
+                        )
+                        .into());
+                    }
                 }
             },
             "NO" | "N" => break eprintln!("User declined restore.  No files were restored."),
