@@ -145,8 +145,7 @@ exec_main() {
 	prep_exec
 
 	# declare our variables
-	local all_mode=false
-	local select_mode=false
+	local mode="last"
 	local canonical_path=""
 
 	[[ $# -ge 1 ]] || print_usage
@@ -154,12 +153,12 @@ exec_main() {
 	[[ "$1" != "-V" && "$1" != "--version" ]] || print_version
 
 	if [[ $1 == "--all" ]]; then
-		all_mode=true
-		shift
-	elif [[ $1 == "--last" ]]; then
+		mode="all"
 		shift
 	elif [[ $1 == "--select" ]]; then
-		select_mode=true
+		mode="select"
+		shift
+	elif [[ $1 == "--last" ]]; then
 		shift
 	fi
 
@@ -179,12 +178,12 @@ exec_main() {
 
 		[[ -n "$canonical_path" ]] || continue
 
-		if $all_mode; then
+		if [[ "$mode" == "all" ]]; then
 			show_all_changes "$canonical_path"
-		elif $select_mode; then
-			show_single_change "$canonical_path" "select"
+		elif [[ "$mode" == "select" ]]; then
+			show_single_change "$canonical_path" "$mode"
 		else
-			show_single_change "$canonical_path" "last"
+			show_single_change "$canonical_path" "$mode"
 		fi
 	done
 }
