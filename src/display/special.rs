@@ -184,15 +184,12 @@ pub fn display_mounts(config: &Config) -> HttmResult<()> {
     Ok(())
 }
 
-pub fn display_as_map(
-    config: &Config,
-    mounts_for_files: BTreeMap<PathData, Vec<PathData>>,
-) -> HttmResult<()> {
+pub fn display_as_map(config: &Config, map: BTreeMap<PathData, Vec<PathData>>) -> HttmResult<()> {
     let output_buf = if config.opt_raw || config.opt_zeros {
-        let drained_map: Vec<(&PathData, &Vec<PathData>)> = mounts_for_files.iter().collect();
+        let drained_map: Vec<(&PathData, &Vec<PathData>)> = map.iter().collect();
         display_raw(config, &drained_map)?
     } else {
-        display_map_formatted(config, &mounts_for_files)?
+        display_map_formatted(config, &map)?
     };
 
     print_output_buf(output_buf)?;

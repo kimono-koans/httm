@@ -67,6 +67,7 @@ impl SelectionCandidate {
         }
     }
 
+    // use an associated function her because we may need this display again elsewhere
     fn generate_config_for_display(config: &Config, paths_selected: &[PathData]) -> Config {
         // generate a config for a preview display only
         Config {
@@ -339,7 +340,7 @@ fn interactive_select(
             paths_selected_in_browse,
         )?)
     } else {
-        let output_buf = if config.opt_raw || config.opt_zeros || config.opt_last_snap.is_some() {
+        let output_buf = if config.opt_raw || config.opt_zeros {
             format!("{}\n", &path_string)
         } else {
             format!("\"{}\"\n", &path_string)

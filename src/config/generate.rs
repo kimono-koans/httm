@@ -387,7 +387,7 @@ impl Config {
         let opt_zeros = matches.is_present("ZEROS");
         let opt_no_snap = matches.is_present("NO_SNAP");
         // force a raw mode if one is not set for no_snap mode
-        let opt_raw = matches.is_present("RAW") || opt_no_snap && !opt_zeros;
+        let mut opt_raw = matches.is_present("RAW") || opt_no_snap && !opt_zeros;
         let opt_no_pretty = matches.is_present("NOT_SO_PRETTY");
         let opt_recursive = matches.is_present("RECURSIVE");
         let opt_exact = matches.is_present("EXACT");
@@ -433,6 +433,13 @@ impl Config {
         } else {
             None
         };
+
+        // if in last snap and select mode we will want to return a raw value,
+        // better to have this here.  It's more confusing if we work this logic later, I think.
+        if opt_last_snap.is_some() && matches!(opt_interactive_mode, Some(InteractiveMode::Select))
+        {
+            opt_raw = true
+        }
 
         let opt_snap_file_mount =
             if let Some(requested_snapshot_suffix) = matches.value_of("SNAP_FILE_MOUNT") {
