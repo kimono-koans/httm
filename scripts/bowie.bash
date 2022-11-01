@@ -95,24 +95,24 @@ show_all_changes() {
 	done
 }
 
-show_select_change() {
+check_not_identical() {	
 	local current_version="$1"
-	local previous_version=""
+	local previous_version="$2"
 
-	previous_version="$(httm --select --raw "$current_version")"
-
-	display_header "$current_version"
-	display_diff "$previous_version" "$current_version"
-
+	[[ -n "$( diff -q "$previous_version" "$current_version" )" ]]  || \
+	print_err_exit "The selected/last version and live file are 'diff'-identical, but have different modification times.  Perhaps try --all."
 }
 
-show_last_change() {
+show_single_change() {
 	local current_version="$1"
 	local previous_version=""
+	local mode="$2"
 
-	previous_version="$(httm --omit-ditto --last-snap --raw "$current_version")"
+	[[ "$mode" != "select" ]] || previous_version="$(httm --select --raw "$current_version")"
+	[[ "$mode" != "last" ]] || previous_version="$(httm --omit-ditto --last-snap --raw "$current_version")"
 
 	display_header "$current_version"
+	check_not_identical "$previous_version" "$current_version"
 	display_diff "$previous_version" "$current_version"
 }
 
@@ -131,8 +131,8 @@ display_diff() {
 	local current_version="$2"
 
 	if [[ -n "$previous_version" ]]; then
-		# print that current version and previous version differ
-		(diff --color -q "$previous_version" "$current_version" || true)
+		# print that current version and previous version differ, or are the same
+		(diff --color -q "$previous_version" "$current_version" || true)	
 		# print the difference between that current version and previous_version
 		(diff --color -T "$previous_version" "$current_version" || true)
 	else
@@ -182,9 +182,9 @@ exec_main() {
 		if $all_mode; then
 			show_all_changes "$canonical_path"
 		elif $select_mode; then
-			show_select_change "$canonical_path"
+			show_single_change "$canonical_path" "select"
 		else
-			show_last_change "$canonical_path"
+			show_single_change "$canonical_path" "last"
 		fi
 	done
 }
