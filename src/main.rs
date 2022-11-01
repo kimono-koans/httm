@@ -128,7 +128,7 @@ fn print_display_map(config: &Config, map_live_to_snaps: MapLiveToSnaps) -> Httm
     if config.opt_last_snap.is_some() && matches!(config.exec_mode, ExecMode::Display) {
         display_as_map(config, map_live_to_snaps)?
     } else {
-        let output_buf = display_exec(config, &map_live_to_snaps)?;
+        let output_buf = display_exec(config, map_live_to_snaps)?;
         print_output_buf(output_buf)?
     }
 

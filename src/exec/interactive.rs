@@ -104,7 +104,7 @@ impl SelectionCandidate {
         // finally run search on those paths
         let map_live_to_snaps = versions_lookup_exec(&gen_config, &gen_config.paths)?;
         // and display
-        let output_buf = display_exec(&gen_config, &map_live_to_snaps)?;
+        let output_buf = display_exec(&gen_config, map_live_to_snaps)?;
 
         Ok(output_buf)
     }
@@ -308,7 +308,8 @@ fn interactive_select(
         // same stuff we do at fn exec, snooze...
         let display_config =
             SelectionCandidate::generate_config_for_display(&config, paths_selected_in_browse);
-        let selection_buffer = display_exec(&display_config, &map_live_to_snaps)?;
+        // clone here so we can consume elsewhere where performance matters
+        let selection_buffer = display_exec(&display_config, map_live_to_snaps.clone())?;
 
         // loop until user selects a valid snapshot version
         loop {

@@ -43,7 +43,7 @@ struct PaddingCollection {
     phantom_size_pad_str: String,
 }
 
-pub fn display_exec(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> HttmResult<String> {
+pub fn display_exec(config: &Config, map_live_to_snaps: MapLiveToSnaps) -> HttmResult<String> {
     let output_buffer = match &config.exec_mode {
         ExecMode::NumVersions(num_versions_mode) => {
             display_num_versions(config, num_versions_mode, map_live_to_snaps)?
@@ -60,10 +60,10 @@ pub fn display_exec(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> Httm
     Ok(output_buffer)
 }
 
-pub fn display_raw(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> HttmResult<String> {
+pub fn display_raw(config: &Config, map_live_to_snaps: MapLiveToSnaps) -> HttmResult<String> {
     let delimiter = get_delimiter(config);
 
-    let write_out_buffer = get_display_set(config, map_live_to_snaps)
+    let write_out_buffer = get_display_set(config, &map_live_to_snaps)
         .iter()
         .flatten()
         .map(|pathdata| format!("{}{}", pathdata.path_buf.display(), delimiter))
@@ -72,8 +72,8 @@ pub fn display_raw(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> HttmR
     Ok(write_out_buffer)
 }
 
-fn display_formatted(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> HttmResult<String> {
-    let global_display_set = get_display_set(config, map_live_to_snaps);
+fn display_formatted(config: &Config, map_live_to_snaps: MapLiveToSnaps) -> HttmResult<String> {
+    let global_display_set = get_display_set(config, &map_live_to_snaps);
     let global_padding_collection = calculate_pretty_padding(config, &global_display_set);
 
     // indexing safety: array has known len of 2
@@ -81,7 +81,6 @@ fn display_formatted(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> Htt
         display_set_instance(config, &global_display_set, &global_padding_collection)
     } else {
         map_live_to_snaps
-            .clone()
             .into_iter()
             .map(|raw_tuple| [raw_tuple].into())
             .map(|raw_instance_set| get_display_set(config, &raw_instance_set))
