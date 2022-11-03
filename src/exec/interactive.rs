@@ -27,7 +27,7 @@ use crate::display::primary::display_exec;
 use crate::exec::recursive::recursive_exec;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{
-    copy_recursive, get_date, paint_string, print_output_buf, DateFormat, Never,
+    copy_recursive, get_date, get_delimiter, paint_string, print_output_buf, DateFormat, Never,
 };
 use crate::lookup::versions::versions_lookup_exec;
 
@@ -340,10 +340,12 @@ fn interactive_select(
             paths_selected_in_browse,
         )?)
     } else {
+        let delimiter = get_delimiter(&config);
+
         let output_buf = if config.opt_raw || config.opt_zeros {
-            format!("{}\n", &path_string)
+            format!("{}{}", &path_string, delimiter)
         } else {
-            format!("\"{}\"\n", &path_string)
+            format!("\"{}\"{}", &path_string, delimiter)
         };
 
         print_output_buf(output_buf)?;
