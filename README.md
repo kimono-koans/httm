@@ -8,18 +8,21 @@
 
 `httm` boasts an array of seductive features, like:
 
+* Search for the versions of multiple files simultaneously
 * Search for and recursively list all deleted files.  *Even browse files hidden behind deleted directories*.
 * List file snapshots from *all* local pools (`httm` automatically detects local snapshots *as well as* locally replicated snapshots)!
-* List file snapshots from remote backup pools (you may designate replicated remote snapshot directories).
+* List file snapshots from remote backup pools (even overlay replicated remote snapshot directories over live directories).
 * Supports ZFS and btrfs snapshots
 * For use with even `rsync`-ed non-ZFS/btrfs local datasets (like ext4, APFS, or NTFS), not just ZFS/btrfs.
 * Specify multiple files for lookup on different datasets
 * 3 native interactive modes: browse, select and restore
 * ANSI `ls` colors from your environment
 * Non-blocking recursive directory walking (available in all interactive modes)
+* List and snapshot the mounts for a file
+* Detect and display the number of unique versions
 * Select from several formatting styles.  Parseable ... or not ...  oh my!
 
-Use in combination with you favorite shell (hot keys!) for even more fun.
+Use in combination with you favorite shell's hot keys for even more fun.
 
 Inspired by the [findoid](https://github.com/jimsalterjrs/sanoid) script, [fzf](https://github.com/junegunn/fzf) and many [zsh](https://www.zsh.org) key bindings.
 
@@ -70,7 +73,14 @@ The `httm` project contains only a few components:
     ```bash
     cp ./httm/httm.1 /usr/local/share/man/man1/
     ```
+4. The optional [ounce](https://github.com/kimono-koans/httm/blob/master/scripts/ounce.bash) and [bowie](https://github.com/kimono-koans/httm/blob/master/scripts/bowie.bash) scripts.  See the scripts themselves, and below, in the Example Usage section, for more information.  To install, just copy it to a directory in your path, like so:
 
+    ```bash
+    cp ./httm/scripts/ounce.bash /usr/local/bin/ounce
+    cp ./httm/scripts/bowie.bash /usr/local/bin/bowie
+    chmod +x /usr/local/bin/bowie /usr/local/bin/ounce
+    ```
+    
 ### Caveats
 
 Right now, you will need to use a Unix-ish-y Rust-supported platform to build and install (that is: Linux, Solaris/illumos, the BSDs, MacOS).  Note, your platform *does not* need to support ZFS/btrfs to use `httm`.  And there is no fundamental reason a non-interactive Windows version of `httm` could not be built, as it once did build, but Windows platform support is not a priority for me right now.  Contributions from users are, of course, very welcome.
@@ -198,7 +208,7 @@ git log --stat
 # request ZFS snapshot privileges
 ounce --give-priv
 # here you create a "dummyfile", ounce will add a snapshot of "dummyfile" 
-# before it removes is, and httm will allow you to view the snapshot created
+# before you removes it, and httm will allow you to view the snapshot created
 touch ~/dummyfile; ounce rm ~/dummyfile; httm ~/dummyfile
 # use as an alias around programs which modify files/dirs
 printf "
