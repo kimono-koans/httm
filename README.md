@@ -207,7 +207,7 @@ git log --stat
 # request ZFS snapshot privileges
 ounce --give-priv
 # here you create a "dummyfile", ounce will add a snapshot of "dummyfile" 
-# before you removes it, and httm will allow you to view the snapshot created
+# before you remove it, and httm will allow you to view the snapshot created
 touch ~/dummyfile; ounce rm ~/dummyfile; httm ~/dummyfile
 # use as an alias around programs which modify files/dirs
 printf "
