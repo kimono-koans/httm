@@ -313,7 +313,7 @@ fn interactive_select(
         // loop until user selects a valid snapshot version
         loop {
             // get the file name
-            let requested_file_name = select_restore_view(&selection_buffer, false)?;
+            let requested_file_name = select_restore_view(&selection_buffer)?;
             // ... we want everything between the quotes
             let broken_string: Vec<_> = requested_file_name.split_terminator('"').collect();
             // ... and the file is the 2nd item or the indexed "1" object
@@ -354,11 +354,11 @@ fn interactive_select(
     }
 }
 
-fn select_restore_view(preview_buffer: &str, reverse: bool) -> HttmResult<String> {
+fn select_restore_view(preview_buffer: &str) -> HttmResult<String> {
     // build our browse view - less to do than before - no previews, looking through one 'lil buffer
     let skim_opts = SkimOptionsBuilder::default()
-        .tac(reverse)
-        .nosort(reverse)
+        .tac(true)
+        .nosort(true)
         .tabstop(Some("4"))
         .exact(true)
         .multi(false)
@@ -489,7 +489,7 @@ fn interactive_restore(
 
     // loop until user consents or doesn't
     loop {
-        let user_consent = select_restore_view(&preview_buffer, true)?.to_ascii_uppercase();
+        let user_consent = select_restore_view(&preview_buffer)?.to_ascii_uppercase();
 
         match user_consent.as_ref() {
             "YES" | "Y" => match copy_recursive(&snap_pathdata.path_buf, &new_file_path_buf) {
