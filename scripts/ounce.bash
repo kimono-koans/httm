@@ -4,7 +4,7 @@
 
 # for the bible tells us so
 set -euf -o pipefail
-set -x
+#set -x
 
 function print_version {
 	printf "\
@@ -187,11 +187,11 @@ function get_pools {
 }
 
 function exec_trace {
-	local pipe_name="$1"
+	local temp_pipe="$1"
 	local snapshot_suffix="$2"
 	local utc="$3"
 
-	stdbuf -i0 -o0 -e0 cat -u "$pipe_name" |
+	stdbuf -i0 -o0 -e0 cat -u "$temp_pipe" |
 		stdbuf -i0 -o0 -e0 cut -f 2 -d$'\"' |
 		stdbuf -i0 -o0 -e0 grep --line-buffered "\S" |
 		stdbuf -i0 -o0 -e0 grep --line-buffered -v "+++" |
@@ -273,10 +273,13 @@ function ounce_of_prevention {
 			shift
 		elif [[ "$1" == "--trace" ]]; then
 			prep_trace
+
 			trace=true
+
 			uuid="$(uuidgen)"
-			temp_pipe="/tmp/tracer_pipe.$uuid"
-			trap '[[ ! -p $temp_pipe ]] || rm -f $temp_pipe' EXIT
+			temp_pipe="/tmp/pipe.$uuid"
+
+			trap "[[ ! -p $temp_pipe ]] || rm -f $temp_pipe" EXIT
 			shift
 		elif [[ "$1" == "--background" ]]; then
 			background=true
