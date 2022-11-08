@@ -4,7 +4,7 @@
 
 # for the bible tells us so
 set -euf -o pipefail
-#set -x
+set -x
 
 function print_version {
 	printf "\
@@ -21,7 +21,8 @@ function print_usage {
 $ounce is a wrapper script for $httm which snapshots the datasets of files opened by other programs.
 
 $ounce only snapshots datasets when you have file changes outstanding, uncommitted to a snapshot already,
-and only when those files are given as arguments to the target executable at the command line.
+and only when those files are given as arguments to the target executable at the command line (except in --trace
+mode).
 
 USAGE:
 	ounce [OPTIONS]... [target executable] [argument1 argument2...]
@@ -36,8 +37,9 @@ OPTIONS:
 		and execute any snapshot.
 
 	--trace:
-		Trace file opens of the $ounce target executable using \"strace\".  \"strace\" tracing can do violent
-		things to a target executable.  Not recommended unless you know what you're doing.
+		Trace file opens of the $ounce target executable using \"strace\" to determine relevant input files.
+		NOTE: \"strace\" tracing can do *violent* things to a target executable.  Not recommended unless you
+		know what you're doing.
 
 	--give-priv:
 		To use $ounce you will need privileges to snapshot ZFS datasets, and the prefered scheme is
@@ -188,8 +190,6 @@ function get_pools {
 
 function exec_trace {
 	local temp_pipe="$1"
-	local snapshot_suffix="$2"
-	local utc="$3"
 
 	stdbuf -i0 -o0 -e0 cat -u "$temp_pipe" |
 		stdbuf -i0 -o0 -e0 cut -f 2 -d$'\"' |
@@ -205,16 +205,13 @@ function exec_args {
 	local filenames_string=""
 	local files_need_snap=""
 	local -a filenames_array=()
-	local -a remaining_args="$1"
-	local snapshot_suffix="$2"
-	local utc="$3"
 	local canonical_path=""
 
 	# simply exit if there are no remaining arguments
 	[[ $# -ge 1 ]] || return 0
 
 	# loop through the rest of our shell arguments
-	for a in "${remaining_args[@]}"; do
+	for a; do
 		# omits argument flags
 		[[ $a != -* && $a != --* ]] || continue
 		canonical_path="$(
@@ -252,8 +249,8 @@ function ounce_of_prevention {
 	local program_name=""
 	local background=false
 	local trace=false
-	local snapshot_suffix="ounceSnapFileMount"
-	local utc=""
+	declare snapshot_suffix="ounceSnapFileMount"
+	declare utc=""
 
 	[[ $# -ge 1 ]] || print_usage
 	[[ "$1" != "-h" && "$1" != "--help" ]] || print_usage
@@ -307,7 +304,7 @@ function ounce_of_prevention {
 		mkfifo "$temp_pipe"
 
 		# exec loop waiting for strace input background
-		exec_trace "$temp_pipe" "$snapshot_suffix" "$utc" &
+		exec_trace "$temp_pipe" &
 		background_pid="$!"
 
 		# main exec
@@ -318,14 +315,14 @@ function ounce_of_prevention {
 	elif $background; then
 		local background_pid
 
-		exec_args "$@" "$snapshot_suffix" "$utc" &
+		exec_args "$@" &
 		background_pid="$!"
 
 		"$program_name" "$@"
 
 		wait "$background_pid"
 	else
-		exec_args "$@" "$snapshot_suffix" "$utc"
+		exec_args "$@"
 		"$program_name" "$@"
 	fi
 }
