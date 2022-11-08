@@ -4,6 +4,7 @@
 
 # for the bible tells us so
 set -euf -o pipefail
+#set -x
 
 function print_version {
 	printf "\
@@ -34,6 +35,10 @@ OPTIONS:
 		but the time for ZFS to dynamically mount your snapshots will swamp the actual time to search snapshots
 		and execute any snapshot.
 
+	--trace:
+		Trace file opens of the $ounce target executable using \"strace\".  \"strace\" tracing can do violent
+		things to a target executable.  Not recommended unless you know what you're doing.
+
 	--give-priv:
 		To use $ounce you will need privileges to snapshot ZFS datasets, and the prefered scheme is
 		\"zfs-allow\".  Executing this option will give the current user snapshot privileges on all
@@ -60,6 +65,13 @@ OPTIONS:
 function print_err_exit {
 	printf "%s\n" "Error: $*" 1>&2
 	exit 1
+}
+
+function prep_trace {
+	[[ -n "$(
+		command -v strace
+		exit 0
+	)" ]] || print_err_exit "'strace' is required to execute 'ounce' in trace mode.  Please check that 'strace' is in your path."
 }
 
 function prep_exec {
@@ -170,17 +182,38 @@ function get_pools {
 	printf "$pools"
 }
 
-function exec_main {
+function exec_trace {
+	local previous_mount=""
+	local current_mount=""
+
+	local pipe_name="$1"
+	local snapshot_suffix="$2"
+	local utc="$3"
+
+	stdbuf -i0 -o0 -e0 cat -u "$pipe_name" |
+		stdbuf -i0 -o0 -e0 cut -f 2 -d$'\"' |
+		stdbuf -i0 -o0 -e0 grep --line-buffered "\S" |
+		stdbuf -i0 -o0 -e0 grep --line-buffered -v "+++" |
+		while read -r file; do
+			files_need_snap="$(needs_snap "$file")"
+			[[ -z "$files_need_snap" ]] || take_snap "$files_need_snap" "$snapshot_suffix" "$utc"
+		done
+}
+
+function exec_args {
 	local filenames_string=""
 	local files_need_snap=""
 	local -a filenames_array=()
+	local -a remaining_args=$1
 	local canonical_path=""
+	local snapshot_suffix="$2"
+	local utc="$3"
 
 	# simply exit if there are no remaining arguments
-	[[ $# -ge 1 ]] || exit 0
+	[[ $# -ge 1 ]] || return 0
 
 	# loop through the rest of our shell arguments
-	for a; do
+	for a in "${remaining_args[@]}"; do
 		# omits argument flags
 		[[ $a != -* && $a != --* ]] || continue
 		canonical_path="$(
@@ -210,9 +243,15 @@ function ounce_of_prevention {
 	# do we have commands to execute?
 	prep_exec
 
+	# declare special vars
+	local temp_pipe
+	temp_pipe="/tmp/tracer_pipe"
+	trap "[[ ! -p $temp_pipe ]] || rm -f '$temp_pipe'" EXIT
+
 	# declare our vars
 	local program_name=""
 	local background=false
+	local trace=false
 	local snapshot_suffix="ounceSnapFileMount"
 	local utc=""
 
@@ -232,6 +271,9 @@ function ounce_of_prevention {
 		elif [[ "$1" == "--utc" ]]; then
 			utc="--utc"
 			shift
+		elif [[ "$1" == "--trace" ]]; then
+			trace=true
+			shift
 		elif [[ "$1" == "--background" ]]; then
 			background=true
 			shift
@@ -249,14 +291,37 @@ function ounce_of_prevention {
 	[[ -x "$program_name" ]] || print_err_exit "'ounce' requires a valid executable name as the first argument."
 
 	# start search and snap, then execute original arguments
-	if $background; then
+	if $trace; then
+		# make sure we have strace
+		prep_trace
+
+		# set local vars
 		local background_pid
-		exec_main "$@" &
+
+		# create temp pipe
+		[[ ! -p "$temp_pipe" ]] || rm -f "$temp_pipe"
+		mkfifo "$temp_pipe"
+
+		# exec loop waiting for strace input background
+		exec_trace "$temp_pipe" "$snapshot_suffix" "$utc" &
 		background_pid="$!"
+
+		# main exec
+		stdbuf -i0 -o0 -e0 strace -A -o "| stdbuf -i0 -o0 -e0 cat -u > $temp_pipe" -f -e open,openat -y -- "$program_name" "$@"
+
+		# cleanup
+		wait "$background_pid"
+	elif $background; then
+		local background_pid
+
+		exec_args "$@" "$snapshot_suffix" "$utc" &
+		background_pid="$!"
+
 		"$program_name" "$@"
+
 		wait "$background_pid"
 	else
-		exec_main "$@"
+		exec_args "$@" "$snapshot_suffix" "$utc"
 		"$program_name" "$@"
 	fi
 }
