@@ -215,8 +215,7 @@ printf "
 alias vim=\"ounce --background vim\"
 alias emacs=\"ounce --background emacs\"
 alias nano=\"ounce --background nano\"
-alias rm=\"ounce rm\"
-alias sudo=\"sudo \"" >> ~/.zsh_aliases
+alias rm=\"ounce rm\"" >> ~/.zsh_aliases
 ```
 
 ## I know what you're thinking, but slow your roll.
