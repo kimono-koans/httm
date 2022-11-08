@@ -4,7 +4,7 @@
 
 # for the bible tells us so
 set -euf -o pipefail
-#set -x
+set -x
 
 function print_version {
 	printf "\
@@ -72,6 +72,10 @@ function prep_trace {
 		command -v strace
 		exit 0
 	)" ]] || print_err_exit "'strace' is required to execute 'ounce' in trace mode.  Please check that 'strace' is in your path."
+	[[ -n "$(
+		command -v uuidgen
+		exit 0
+	)" ]] || print_err_exit "'uuidgen' is required to execute 'ounce' in trace mode.  Please check that 'uuidgen' is in your path."
 }
 
 function prep_exec {
@@ -183,9 +187,6 @@ function get_pools {
 }
 
 function exec_trace {
-	local previous_mount=""
-	local current_mount=""
-
 	local pipe_name="$1"
 	local snapshot_suffix="$2"
 	local utc="$3"
@@ -204,10 +205,10 @@ function exec_args {
 	local filenames_string=""
 	local files_need_snap=""
 	local -a filenames_array=()
-	local -a remaining_args=$1
-	local canonical_path=""
+	local -a remaining_args="$1"
 	local snapshot_suffix="$2"
 	local utc="$3"
+	local canonical_path=""
 
 	# simply exit if there are no remaining arguments
 	[[ $# -ge 1 ]] || return 0
@@ -244,9 +245,8 @@ function ounce_of_prevention {
 	prep_exec
 
 	# declare special vars
-	local temp_pipe
-	temp_pipe="/tmp/tracer_pipe"
-	trap "[[ ! -p $temp_pipe ]] || rm -f '$temp_pipe'" EXIT
+	local temp_pipe=""
+	local uuid=""
 
 	# declare our vars
 	local program_name=""
@@ -272,7 +272,11 @@ function ounce_of_prevention {
 			utc="--utc"
 			shift
 		elif [[ "$1" == "--trace" ]]; then
+			prep_trace
 			trace=true
+			uuid="$(uuidgen)"
+			temp_pipe="/tmp/tracer_pipe.$uuid"
+			trap '[[ ! -p $temp_pipe ]] || rm -f $temp_pipe' EXIT
 			shift
 		elif [[ "$1" == "--background" ]]; then
 			background=true
@@ -292,9 +296,6 @@ function ounce_of_prevention {
 
 	# start search and snap, then execute original arguments
 	if $trace; then
-		# make sure we have strace
-		prep_trace
-
 		# set local vars
 		local background_pid
 
