@@ -277,7 +277,7 @@ function ounce_of_prevention {
 			uuid="$(uuidgen)"
 			temp_pipe="/tmp/pipe.$uuid"
 
-			trap '[[ ! -p $temp_pipe ]] || rm -f $temp_pipe' EXIT
+			trap "[[ ! -p $temp_pipe ]] || rm -f $temp_pipe" EXIT
 			shift
 		elif [[ "$1" == "--background" ]]; then
 			background=true
