@@ -4,7 +4,7 @@
 
 # for the bible tells us so
 set -euf -o pipefail
-set -x
+#set -x
 
 function print_version {
 	printf "\
