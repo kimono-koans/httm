@@ -4,7 +4,7 @@
 
 # for the bible tells us so
 set -euf -o pipefail
-#set -x
+set -x
 
 function print_version {
 	printf "\
@@ -37,9 +37,9 @@ OPTIONS:
 		and execute any snapshot.
 
 	--trace:
-		Trace file opens of the $ounce target executable using \"strace\" to determine relevant input files.
-		NOTE: \"strace\" tracing can do *violent* things to a target executable.  Not recommended unless you
-		know what you're doing.
+		Trace file 'open' and 'openat' calls of the $ounce target executable using \"strace\" to determine
+		relevant input files.  NOTE: \"strace\" tracing can do *violent* things to a target executable.  Not
+		recommended unless you know what you're doing.
 
 	--give-priv:
 		To use $ounce you will need privileges to snapshot ZFS datasets, and the prefered scheme is
@@ -249,8 +249,8 @@ function ounce_of_prevention {
 	local program_name=""
 	local background=false
 	local trace=false
-	declare snapshot_suffix="ounceSnapFileMount"
-	declare utc=""
+	local -x snapshot_suffix="ounceSnapFileMount"
+	local -x utc=""
 
 	[[ $# -ge 1 ]] || print_usage
 	[[ "$1" != "-h" && "$1" != "--help" ]] || print_usage
