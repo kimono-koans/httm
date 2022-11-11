@@ -77,7 +77,6 @@ fn display_formatted(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> Str
     let global_padding_collection = calculate_pretty_padding(config, &global_display_set);
 
     // indexing safety: array has known len of 2
-    
 
     if map_live_to_snaps.len() == 1 {
         display_set_instance(config, &global_display_set, &global_padding_collection)

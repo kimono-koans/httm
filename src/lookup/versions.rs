@@ -95,7 +95,7 @@ fn get_all_versions_for_path_set(
             // process last snap mode after omit_ditto
             match &config.opt_last_snap {
                 Some(last_snap_mode) => {
-                    let vec_last_snap = get_last_snap(last_snap_mode, &pathdata, snaps);
+                    let vec_last_snap = get_last_snap(last_snap_mode, &pathdata, &snaps);
                     (pathdata, vec_last_snap)
                 }
                 None => (pathdata, snaps),
@@ -109,7 +109,7 @@ fn get_all_versions_for_path_set(
 fn get_last_snap(
     last_snap_mode: &LastSnapMode,
     pathdata: &PathData,
-    snaps: Vec<PathData>,
+    snaps: &[PathData],
 ) -> Vec<PathData> {
     match snaps.last() {
         Some(last) => match last_snap_mode {
