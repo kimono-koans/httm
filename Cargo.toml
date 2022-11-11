@@ -20,7 +20,7 @@ opt-level = "z"  # Aggressively optimize for size.
 [dependencies]
 clap = { version = "3.2.8", features = ["cargo"] }
 crossbeam = { version = "0.8.2", default-features = false }
-time = { version = "0.3.11", features = ["formatting", "local-offset"] }
+time = { version = "0.3.17", default-features = false, features = ["formatting", "local-offset"] }
 number_prefix = { version = "0.4.0",  default-features = false }
 skim = { version = "0.10.1", default-features = false }
 lscolors = { version = "0.12.0", features = ["ansi_term"] }
