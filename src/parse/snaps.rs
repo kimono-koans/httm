@@ -20,7 +20,7 @@ use std::{fs::read_dir, path::Path, path::PathBuf, process::Command as ExecProce
 use rayon::prelude::*;
 use which::which;
 
-use crate::data::filesystem_map::{FilesystemType, MountType, VecOfSnaps};
+use crate::data::filesystem_map::{FilesystemType, MountType};
 use crate::library::results::{HttmError, HttmResult};
 use crate::{
     MapOfDatasets, MapOfSnaps, BTRFS_SNAPPER_HIDDEN_DIRECTORY, BTRFS_SNAPPER_SUFFIX,
@@ -46,7 +46,7 @@ pub fn precompute_snap_mounts(map_of_datasets: &MapOfDatasets) -> HttmResult<Map
     let map_of_snaps: MapOfSnaps = map_of_datasets
         .par_iter()
         .flat_map(|(mount, dataset_info)| {
-            let snap_mounts = match dataset_info.fs_type {
+            let snap_mounts: HttmResult<Vec<PathBuf>> = match dataset_info.fs_type {
                 FilesystemType::Zfs => precompute_from_defined_mounts(mount, &dataset_info.fs_type),
                 FilesystemType::Btrfs => match opt_root_mount_path {
                     Some(root_mount_path) => match dataset_info.mount_type {
@@ -74,12 +74,12 @@ pub fn precompute_snap_mounts(map_of_datasets: &MapOfDatasets) -> HttmResult<Map
 fn precompute_from_btrfs_cmd(
     mount_point_path: &Path,
     root_mount_path: &Path,
-) -> HttmResult<VecOfSnaps> {
+) -> HttmResult<Vec<PathBuf>> {
     fn parse(
         mount_point_path: &Path,
         root_mount_path: &Path,
         btrfs_command: &Path,
-    ) -> HttmResult<VecOfSnaps> {
+    ) -> HttmResult<Vec<PathBuf>> {
         let exec_command = btrfs_command;
         let arg_path = mount_point_path.to_string_lossy();
         let args = vec!["subvolume", "list", "-a", "-s", &arg_path];
@@ -129,7 +129,7 @@ fn precompute_from_btrfs_cmd(
 fn precompute_from_defined_mounts(
     mount_point_path: &Path,
     fs_type: &FilesystemType,
-) -> HttmResult<VecOfSnaps> {
+) -> HttmResult<Vec<PathBuf>> {
     let snaps = match fs_type {
         FilesystemType::Btrfs => read_dir(mount_point_path.join(BTRFS_SNAPPER_HIDDEN_DIRECTORY))?
             .flatten()

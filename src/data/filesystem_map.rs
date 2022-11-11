@@ -19,17 +19,15 @@ use crate::data::paths::PathData;
 use std::{collections::BTreeMap, path::PathBuf};
 
 pub type MapOfDatasets = BTreeMap<PathBuf, DatasetMetadata>;
-pub type MapOfSnaps = BTreeMap<PathBuf, VecOfSnaps>;
+pub type MapOfSnaps = BTreeMap<PathBuf, Vec<PathBuf>>;
 pub type MapOfAlts = BTreeMap<PathBuf, MostProximateAndOptAlts>;
 pub type MapOfAliases = BTreeMap<PathBuf, RemotePathAndFsType>;
-pub type BtrfsCommonSnapDir = PathBuf;
 pub type VecOfFilterDirs = Vec<PathBuf>;
-pub type VecOfSnaps = Vec<PathBuf>;
 pub type MapLiveToSnaps = BTreeMap<PathData, Vec<PathData>>;
 pub type DisplaySet = [Vec<PathData>; 2];
 pub type OptMapOfAlts = Option<MapOfAlts>;
 pub type OptMapOfAliases = Option<MapOfAliases>;
-pub type OptBtrfsCommonSnapDir = Option<BtrfsCommonSnapDir>;
+pub type OptBtrfsCommonSnapDir = Option<PathBuf>;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum FilesystemType {
