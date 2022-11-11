@@ -31,7 +31,7 @@ pub fn display_num_versions(
     config: &Config,
     num_versions_mode: &NumVersionsMode,
     map_live_to_snaps: &MapLiveToSnaps,
-) -> HttmResult<String> {
+) -> String {
     let delimiter = get_delimiter(config);
 
     let write_out_buffer: String = map_live_to_snaps
@@ -68,7 +68,7 @@ pub fn display_num_versions(
         eprintln!("{}", msg);
     }
 
-    Ok(write_out_buffer)
+    write_out_buffer
 }
 
 fn get_padding_for_map(map: &BTreeMap<PathData, Vec<PathData>>) -> usize {
@@ -177,7 +177,7 @@ fn parse_num_versions(
 }
 
 pub fn display_mounts(config: &Config) -> HttmResult<()> {
-    let mounts_for_files = get_mounts_for_files(config)?;
+    let mounts_for_files = get_mounts_for_files(config);
 
     display_as_map(config, mounts_for_files)?;
 
@@ -186,9 +186,9 @@ pub fn display_mounts(config: &Config) -> HttmResult<()> {
 
 pub fn display_as_map(config: &Config, map: BTreeMap<PathData, Vec<PathData>>) -> HttmResult<()> {
     let output_buf = if config.opt_raw || config.opt_zeros {
-        display_raw(config, &map)?
+        display_raw(config, &map)
     } else {
-        display_map_formatted(config, &map)?
+        display_map_formatted(config, &map)
     };
 
     print_output_buf(output_buf)?;
@@ -196,10 +196,7 @@ pub fn display_as_map(config: &Config, map: BTreeMap<PathData, Vec<PathData>>) -
     Ok(())
 }
 
-pub fn display_map_formatted(
-    config: &Config,
-    map: &BTreeMap<PathData, Vec<PathData>>,
-) -> HttmResult<String> {
+pub fn display_map_formatted(config: &Config, map: &BTreeMap<PathData, Vec<PathData>>) -> String {
     let padding = get_padding_for_map(map);
 
     let write_out_buffer = map
@@ -247,5 +244,5 @@ pub fn display_map_formatted(
         })
         .collect();
 
-    Ok(write_out_buffer)
+    write_out_buffer
 }

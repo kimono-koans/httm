@@ -38,7 +38,7 @@ pub struct RelativePathAndSnapMounts {
 }
 
 pub fn versions_lookup_exec(config: &Config, path_set: &[PathData]) -> HttmResult<MapLiveToSnaps> {
-    let map_live_to_snaps = get_all_versions_for_path_set(config, path_set)?;
+    let map_live_to_snaps = get_all_versions_for_path_set(config, path_set);
 
     // check if all files (snap and live) do not exist, if this is true, then user probably messed up
     // and entered a file that never existed (that is, perhaps a wrong file name)?
@@ -62,7 +62,7 @@ pub fn versions_lookup_exec(config: &Config, path_set: &[PathData]) -> HttmResul
 fn get_all_versions_for_path_set(
     config: &Config,
     path_set: &[PathData],
-) -> HttmResult<BTreeMap<PathData, Vec<PathData>>> {
+) -> BTreeMap<PathData, Vec<PathData>> {
     // create vec of all local and replicated backups at once
     let snaps_selected_for_search = config
         .dataset_collection
@@ -80,7 +80,6 @@ fn get_all_versions_for_path_set(
                 })
                 .flatten()
                 .flat_map(|search_bundle| get_versions(&search_bundle))
-                .flatten()
                 .filter(|snap_version| {
                     // process omit_ditto before last snap
                     if config.opt_omit_ditto {
@@ -90,7 +89,7 @@ fn get_all_versions_for_path_set(
                     }
                 })
                 .collect();
-            (pathdata.to_owned(), snaps)
+            (pathdata.clone(), snaps)
         })
         .map(|(pathdata, snaps)| {
             // process last snap mode after omit_ditto
@@ -104,7 +103,7 @@ fn get_all_versions_for_path_set(
         })
         .collect();
 
-    Ok(all_snap_versions)
+    all_snap_versions
 }
 
 fn get_last_snap(
@@ -309,7 +308,7 @@ fn get_proximate_dataset(
         })
 }
 
-fn get_versions(search_bundle: &RelativePathAndSnapMounts) -> HttmResult<Vec<PathData>> {
+fn get_versions(search_bundle: &RelativePathAndSnapMounts) -> Vec<PathData> {
     // get the DirEntry for our snapshot path which will have all our possible
     // snapshots, like so: .zfs/snapshots/<some snap name>/
     //
@@ -328,5 +327,5 @@ fn get_versions(search_bundle: &RelativePathAndSnapMounts) -> HttmResult<Vec<Pat
 
     let sorted_versions: Vec<PathData> = unique_versions.into_values().collect();
 
-    Ok(sorted_versions)
+    sorted_versions
 }

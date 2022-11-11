@@ -22,13 +22,12 @@ use rayon::prelude::*;
 
 use crate::config::generate::Config;
 use crate::data::paths::PathData;
-use crate::library::results::HttmResult;
 use crate::lookup::versions::select_search_datasets;
 use crate::MostProximateAndOptAlts;
 
 pub type MountsForFiles = BTreeMap<PathData, Vec<PathData>>;
 
-pub fn get_mounts_for_files(config: &Config) -> HttmResult<MountsForFiles> {
+pub fn get_mounts_for_files(config: &Config) -> MountsForFiles {
     // we only check for phantom files in "mount for file" mode because
     // people should be able to search for deleted files in other modes
     let (non_phantom_files, phantom_files): (Vec<&PathData>, Vec<&PathData>) = config
@@ -73,5 +72,5 @@ pub fn get_mounts_for_files(config: &Config) -> HttmResult<MountsForFiles> {
         })
         .collect();
 
-    Ok(mounts_for_files)
+    mounts_for_files
 }

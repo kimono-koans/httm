@@ -319,7 +319,7 @@ fn enumerate_deleted(
     }
 
     // obtain all unique deleted, policy is one version for each file, latest in time
-    let vec_deleted = deleted_lookup_exec(config.as_ref(), requested_dir)?;
+    let vec_deleted = deleted_lookup_exec(config.as_ref(), requested_dir);
 
     // combined entries will be sent or printed, but we need the vec_dirs to recurse
     let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =

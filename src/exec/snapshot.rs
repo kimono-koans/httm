@@ -46,7 +46,7 @@ pub fn take_snapshot(config: Arc<Config>, requested_snapshot_suffix: &str) -> Ht
                     match config.dataset_collection.map_of_datasets.get(&mount.path_buf) {
                         Some(dataset_info) => {
                             if let FilesystemType::Zfs = dataset_info.fs_type {
-                                Ok(dataset_info.name.to_owned())
+                                Ok(dataset_info.name.clone())
                             } else {
                                 return Err(HttmError::new("httm does not currently support snapshot-ing non-ZFS filesystems."))
                             }
@@ -82,7 +82,7 @@ pub fn take_snapshot(config: Arc<Config>, requested_snapshot_suffix: &str) -> Ht
             .map(|(key, group)| {
                 group.sort();
                 group.dedup();
-                (key.to_owned(), group.to_owned())
+                (key.clone(), group.clone())
             })
             .collect();
 
@@ -121,7 +121,7 @@ pub fn take_snapshot(config: Arc<Config>, requested_snapshot_suffix: &str) -> Ht
         Ok(())
     }
 
-    let mounts_for_files: MountsForFiles = get_mounts_for_files(config.as_ref())?;
+    let mounts_for_files: MountsForFiles = get_mounts_for_files(config.as_ref());
 
     if let Ok(zfs_command) = which("zfs") {
         exec_zfs_snapshot(

@@ -46,13 +46,13 @@ struct PaddingCollection {
 pub fn display_exec(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> HttmResult<String> {
     let output_buffer = match &config.exec_mode {
         ExecMode::NumVersions(num_versions_mode) => {
-            display_num_versions(config, num_versions_mode, map_live_to_snaps)?
+            display_num_versions(config, num_versions_mode, map_live_to_snaps)
         }
         _ => {
             if config.opt_raw || config.opt_zeros {
-                display_raw(config, map_live_to_snaps)?
+                display_raw(config, map_live_to_snaps)
             } else {
-                display_formatted(config, map_live_to_snaps)?
+                display_formatted(config, map_live_to_snaps)
             }
         }
     };
@@ -60,7 +60,7 @@ pub fn display_exec(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> Httm
     Ok(output_buffer)
 }
 
-pub fn display_raw(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> HttmResult<String> {
+pub fn display_raw(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> String {
     let delimiter = get_delimiter(config);
 
     let write_out_buffer = get_display_set(config, map_live_to_snaps)
@@ -69,15 +69,17 @@ pub fn display_raw(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> HttmR
         .map(|pathdata| format!("{}{}", pathdata.path_buf.display(), delimiter))
         .collect::<String>();
 
-    Ok(write_out_buffer)
+    write_out_buffer
 }
 
-fn display_formatted(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> HttmResult<String> {
+fn display_formatted(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> String {
     let global_display_set = get_display_set(config, map_live_to_snaps);
     let global_padding_collection = calculate_pretty_padding(config, &global_display_set);
 
     // indexing safety: array has known len of 2
-    let write_out_buffer = if map_live_to_snaps.len() == 1 {
+    
+
+    if map_live_to_snaps.len() == 1 {
         display_set_instance(config, &global_display_set, &global_padding_collection)
     } else {
         map_live_to_snaps
@@ -89,9 +91,7 @@ fn display_formatted(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> Htt
                 display_set_instance(config, &display_set, &global_padding_collection)
             })
             .collect()
-    };
-
-    Ok(write_out_buffer)
+    }
 }
 
 fn display_set_instance(
@@ -150,7 +150,7 @@ fn display_pathdata(
         let size = if pathdata.metadata.is_some() {
             display_human_size(&path_metadata.size)
         } else {
-            padding_collection.phantom_size_pad_str.to_owned()
+            padding_collection.phantom_size_pad_str.clone()
         };
         let path = pathdata.path_buf.to_string_lossy();
         let padding = NOT_SO_PRETTY_FIXED_WIDTH_PADDING;
@@ -161,7 +161,7 @@ fn display_pathdata(
             let size = if pathdata.metadata.is_some() {
                 display_human_size(&path_metadata.size)
             } else {
-                padding_collection.phantom_size_pad_str.to_owned()
+                padding_collection.phantom_size_pad_str.clone()
             };
             format!(
                 "{:>width$}",

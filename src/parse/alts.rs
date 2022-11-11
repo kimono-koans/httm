@@ -29,7 +29,7 @@ pub fn precompute_alt_replicated(map_of_datasets: &MapOfDatasets) -> MapOfAlts {
         .par_iter()
         .flat_map(|(mount, _dataset_info)| {
             get_alt_replicated_datasets(mount, map_of_datasets)
-                .map(|datasets| (mount.to_path_buf(), datasets))
+                .map(|datasets| (mount.clone(), datasets))
         })
         .collect()
 }

@@ -32,10 +32,7 @@ use crate::lookup::versions::{
     get_version_search_bundles, select_search_datasets, RelativePathAndSnapMounts,
 };
 
-pub fn deleted_lookup_exec(
-    config: &Config,
-    requested_dir: &Path,
-) -> HttmResult<Vec<BasicDirEntryInfo>> {
+pub fn deleted_lookup_exec(config: &Config, requested_dir: &Path) -> Vec<BasicDirEntryInfo> {
     // we always need a requesting dir because we are comparing the files in the
     // requesting dir to those of their relative dirs on snapshots
     let requested_dir_pathdata = PathData::from(requested_dir);
@@ -62,11 +59,11 @@ pub fn deleted_lookup_exec(
         })
         .flatten();
 
-    let unique_deleted = get_latest_in_time_for_filename(basic_dir_entry_info_iter)
-        .map(|(_file_name, (_modify_time, basic_dir_entry_info))| basic_dir_entry_info)
-        .collect();
+    
 
-    Ok(unique_deleted)
+    get_latest_in_time_for_filename(basic_dir_entry_info_iter)
+        .map(|(_file_name, (_modify_time, basic_dir_entry_info))| basic_dir_entry_info)
+        .collect()
 }
 
 // this functions like a BTreeMap, separate into buckets/groups
@@ -110,7 +107,7 @@ fn get_unique_deleted_for_dir(
         .collect();
 
     let unique_snap_filenames: BTreeMap<OsString, BasicDirEntryInfo> =
-        get_unique_snap_filenames(&search_bundle.snap_mounts, &search_bundle.relative_path)?;
+        get_unique_snap_filenames(&search_bundle.snap_mounts, &search_bundle.relative_path);
 
     // compare local filenames to all unique snap filenames - none values are unique, here
     let all_deleted_versions: Vec<BasicDirEntryInfo> = unique_snap_filenames
@@ -130,7 +127,7 @@ fn get_unique_deleted_for_dir(
 fn get_unique_snap_filenames(
     mounts: &[PathBuf],
     relative_path: &Path,
-) -> HttmResult<BTreeMap<OsString, BasicDirEntryInfo>> {
+) -> BTreeMap<OsString, BasicDirEntryInfo> {
     let basic_dir_entry_info_iter = mounts
         .iter()
         .map(|path| path.join(&relative_path))
@@ -142,8 +139,8 @@ fn get_unique_snap_filenames(
     // why do we care to check whether the dir entry is latest in time here as well as above?  because if we miss it here
     // the policy of latest in time would make no sense.  read_dir call could return mounts in no temporal order, and
     // entering into a map would leave only the last inserted in the map, not the latest in modify time
-    let unique_snap_filenames = get_latest_in_time_for_filename(basic_dir_entry_info_iter)
+    
+    get_latest_in_time_for_filename(basic_dir_entry_info_iter)
         .map(|(file_name, latest_entry_in_time)| (file_name, latest_entry_in_time.1))
-        .collect();
-    Ok(unique_snap_filenames)
+        .collect()
 }

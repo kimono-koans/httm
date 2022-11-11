@@ -112,7 +112,7 @@ impl SelectionCandidate {
 
 impl Colorable for &SelectionCandidate {
     fn path(&self) -> PathBuf {
-        self.path.to_path_buf()
+        self.path.clone()
     }
     fn file_name(&self) -> std::ffi::OsString {
         self.path.file_name().unwrap_or_default().to_os_string()
@@ -427,7 +427,7 @@ fn interactive_restore(
                         if pathdata == &snap_pathdata {
                             // safe to index into request, known len of 2 for set, keys and values, known len of 1 for request
                             let original_live_pathdata =
-                                map_live_to_snaps.keys().next().unwrap().to_owned();
+                                map_live_to_snaps.keys().next().unwrap().clone();
                             Some(original_live_pathdata)
                         } else {
                             None
