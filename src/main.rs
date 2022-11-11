@@ -59,7 +59,6 @@ use display::special::display_as_map;
 use crate::config::generate::{Config, ExecMode};
 use crate::data::filesystem_map::{
     FilesystemType, MapLiveToSnaps, MapOfDatasets, MapOfSnaps, MostProximateAndOptAlts,
-    OptBtrfsCommonSnapDir, VecOfFilterDirs,
 };
 
 use crate::display::primary::display_exec;
