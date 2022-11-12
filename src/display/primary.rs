@@ -23,8 +23,10 @@ use terminal_size::{terminal_size, Height, Width};
 
 use crate::config::generate::{Config, ExecMode};
 use crate::data::paths::{PathData, PHANTOM_DATE, PHANTOM_SIZE};
+use crate::display::maps::display_map_formatted;
 use crate::display::num_versions::display_num_versions;
 use crate::library::results::HttmResult;
+use crate::library::utility::print_output_buf;
 use crate::library::utility::{get_date, get_delimiter, paint_string, DateFormat};
 use crate::lookup::versions::MapLiveToSnaps;
 
@@ -37,50 +39,63 @@ pub const NOT_SO_PRETTY_FIXED_WIDTH_PADDING: &str = "\t";
 // and we add 2 quotation marks to the path when we format
 pub const QUOTATION_MARKS_LEN: usize = 2;
 
-pub fn display_exec(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> HttmResult<String> {
-    let output_buffer = match &config.exec_mode {
-        ExecMode::NumVersions(num_versions_mode) => {
-            display_num_versions(config, num_versions_mode, map_live_to_snaps)
-        }
-        _ => {
-            if config.opt_raw || config.opt_zeros {
-                display_raw(config, map_live_to_snaps)
-            } else {
-                display_formatted(config, map_live_to_snaps)
+impl MapLiveToSnaps {
+    pub fn display(&self, config: &Config) -> HttmResult<String> {
+        let output_buffer = match &config.exec_mode {
+            ExecMode::NumVersions(num_versions_mode) => {
+                display_num_versions(config, num_versions_mode, self)
             }
+            _ => {
+                if config.opt_raw || config.opt_zeros {
+                    self.as_raw_display(config)
+                } else {
+                    self.as_formatted_display(config)
+                }
+            }
+        };
+
+        Ok(output_buffer)
+    }
+
+    fn as_raw_display(&self, config: &Config) -> String {
+        let delimiter = get_delimiter(config);
+
+        let write_out_buffer = DisplaySet::new(config, self)
+            .iter()
+            .flatten()
+            .map(|pathdata| format!("{}{}", pathdata.path_buf.display(), delimiter))
+            .collect::<String>();
+
+        write_out_buffer
+    }
+
+    fn as_formatted_display(&self, config: &Config) -> String {
+        let global_display_set = DisplaySet::new(config, self);
+        let global_padding_collection = PaddingCollection::new(config, &global_display_set);
+
+        if self.len() == 1 {
+            global_display_set.display(config, &global_padding_collection)
+        } else {
+            self.deref()
+                .clone()
+                .into_iter()
+                .map(|raw_tuple| raw_tuple.into())
+                .map(|raw_instance_set| DisplaySet::new(config, &raw_instance_set))
+                .map(|display_set| display_set.display(config, &global_padding_collection))
+                .collect::<String>()
         }
-    };
+    }
 
-    Ok(output_buffer)
-}
+    pub fn display_map(&self, config: &Config) -> HttmResult<()> {
+        let output_buf = if config.opt_raw || config.opt_zeros {
+            self.as_raw_display(config)
+        } else {
+            display_map_formatted(config, self)
+        };
 
-pub fn display_raw(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> String {
-    let delimiter = get_delimiter(config);
+        print_output_buf(output_buf)?;
 
-    let write_out_buffer = DisplaySet::new(config, map_live_to_snaps)
-        .iter()
-        .flatten()
-        .map(|pathdata| format!("{}{}", pathdata.path_buf.display(), delimiter))
-        .collect::<String>();
-
-    write_out_buffer
-}
-
-fn display_formatted(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> String {
-    let global_display_set = DisplaySet::new(config, map_live_to_snaps);
-    let global_padding_collection = PaddingCollection::new(config, &global_display_set);
-
-    if map_live_to_snaps.len() == 1 {
-        global_display_set.display(config, &global_padding_collection)
-    } else {
-        map_live_to_snaps
-            .deref()
-            .clone()
-            .into_iter()
-            .map(|raw_tuple| raw_tuple.into())
-            .map(|raw_instance_set| DisplaySet::new(config, &raw_instance_set))
-            .map(|display_set| display_set.display(config, &global_padding_collection))
-            .collect::<String>()
+        Ok(())
     }
 }
 

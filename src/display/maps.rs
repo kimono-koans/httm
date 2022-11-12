@@ -19,30 +19,15 @@ use std::collections::BTreeMap;
 
 use crate::config::generate::Config;
 use crate::data::paths::PathData;
-use crate::display::primary::{
-    display_raw, NOT_SO_PRETTY_FIXED_WIDTH_PADDING, QUOTATION_MARKS_LEN,
-};
+use crate::display::primary::{NOT_SO_PRETTY_FIXED_WIDTH_PADDING, QUOTATION_MARKS_LEN};
 use crate::library::results::HttmResult;
-use crate::library::utility::print_output_buf;
 use crate::lookup::file_mounts::MountsForFiles;
 use crate::lookup::versions::MapLiveToSnaps;
 
 pub fn display_mounts(config: &Config) -> HttmResult<()> {
-    let map = MountsForFiles::new(config);
+    let map: MapLiveToSnaps = MountsForFiles::new(config).into();
 
-    display_as_map(config, map.into())?;
-
-    Ok(())
-}
-
-pub fn display_as_map(config: &Config, map: MapLiveToSnaps) -> HttmResult<()> {
-    let output_buf = if config.opt_raw || config.opt_zeros {
-        display_raw(config, &map)
-    } else {
-        display_map_formatted(config, &map.into())
-    };
-
-    print_output_buf(output_buf)?;
+    map.display_map(config)?;
 
     Ok(())
 }

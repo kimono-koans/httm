@@ -24,7 +24,6 @@ use skim::prelude::*;
 
 use crate::config::generate::{Config, DeletedMode, ExecMode};
 use crate::data::paths::{BasicDirEntryInfo, PathData};
-use crate::display::primary::display_exec;
 use crate::exec::interactive::SelectionCandidate;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{httm_is_dir, is_channel_closed, print_output_buf, HttmIsDir, Never};
@@ -508,7 +507,7 @@ fn print_display_recursive(config: &Config, entries: Vec<BasicDirEntryInfo>) -> 
 
     let map_live_to_snaps = versions_lookup_exec(config, &pseudo_live_set)?;
 
-    let output_buf = display_exec(config, &map_live_to_snaps)?;
+    let output_buf = map_live_to_snaps.display(config)?;
 
     print_output_buf(output_buf)?;
 

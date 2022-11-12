@@ -23,7 +23,6 @@ use skim::prelude::*;
 
 use crate::config::generate::{Config, ExecMode, InteractiveMode};
 use crate::data::paths::{BasicDirEntryInfo, PathData};
-use crate::display::primary::display_exec;
 use crate::exec::recursive::recursive_exec;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{
@@ -104,7 +103,7 @@ impl SelectionCandidate {
         // finally run search on those paths
         let map_live_to_snaps = versions_lookup_exec(&gen_config, &gen_config.paths)?;
         // and display
-        let output_buf = display_exec(&gen_config, &map_live_to_snaps)?;
+        let output_buf = map_live_to_snaps.display(&gen_config)?;
 
         Ok(output_buf)
     }
@@ -308,7 +307,7 @@ fn interactive_select(
         // same stuff we do at fn exec, snooze...
         let display_config =
             SelectionCandidate::generate_config_for_display(&config, paths_selected_in_browse);
-        let selection_buffer = display_exec(&display_config, &map_live_to_snaps)?;
+        let selection_buffer = map_live_to_snaps.display(&display_config)?;
 
         // loop until user selects a valid snapshot version
         loop {
