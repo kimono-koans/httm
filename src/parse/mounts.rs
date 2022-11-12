@@ -26,7 +26,7 @@ use crate::data::filesystem_map::{DatasetMetadata, FilesystemType, MountType};
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{get_common_path, get_fs_type_from_hidden_dir};
 use crate::parse::snaps::MapOfSnaps;
-use crate::{MapOfDatasets, ZFS_SNAPSHOT_DIRECTORY};
+use crate::ZFS_SNAPSHOT_DIRECTORY;
 
 pub const ZFS_FSTYPE: &str = "zfs";
 pub const BTRFS_FSTYPE: &str = "btrfs";
@@ -34,13 +34,16 @@ pub const SMB_FSTYPE: &str = "smbfs";
 pub const NFS_FSTYPE: &str = "nfs";
 pub const AFP_FSTYPE: &str = "afpfs";
 
+pub type MapOfDatasets = BTreeMap<PathBuf, DatasetMetadata>;
+pub type VecOfFilterDirs = Vec<PathBuf>;
+
 // divide by the type of system we are on
 // Linux allows us the read proc mounts
-pub fn parse_mounts_exec() -> HttmResult<(MapOfDatasets, MapOfSnaps, Vec<PathBuf>)> {
+pub fn get_base_collection() -> HttmResult<(MapOfDatasets, MapOfSnaps, VecOfFilterDirs)> {
     let (map_of_datasets, vec_filter_dirs) = if cfg!(target_os = "linux") {
-        parse_from_proc_mounts()?
+        from_proc_mounts()?
     } else {
-        parse_from_mount_cmd()?
+        from_mount_cmd()?
     };
 
     let map_of_snaps = MapOfSnaps::new(&map_of_datasets)?;
@@ -50,7 +53,7 @@ pub fn parse_mounts_exec() -> HttmResult<(MapOfDatasets, MapOfSnaps, Vec<PathBuf
 
 // parsing from proc mounts is both faster and necessary for certain btrfs features
 // for instance, allows us to read subvolumes mounts, like "/@" or "/@home"
-fn parse_from_proc_mounts() -> HttmResult<(MapOfDatasets, Vec<PathBuf>)> {
+fn from_proc_mounts() -> HttmResult<(MapOfDatasets, Vec<PathBuf>)> {
     let (map_of_datasets, filter_dirs): (MapOfDatasets, Vec<PathBuf>) = MountIter::new()?
         .par_bridge()
         .flatten()
@@ -132,7 +135,7 @@ fn parse_from_proc_mounts() -> HttmResult<(MapOfDatasets, Vec<PathBuf>)> {
 
 // old fashioned parsing for non-Linux systems, nearly as fast, works everywhere with a mount command
 // both methods are much faster than using zfs command
-fn parse_from_mount_cmd() -> HttmResult<(MapOfDatasets, Vec<PathBuf>)> {
+fn from_mount_cmd() -> HttmResult<(MapOfDatasets, Vec<PathBuf>)> {
     fn parse(mount_command: &Path) -> HttmResult<(MapOfDatasets, Vec<PathBuf>)> {
         let command_output =
             std::str::from_utf8(&ExecProcess::new(mount_command).output()?.stdout)?.to_owned();

@@ -21,7 +21,7 @@ use rayon::prelude::*;
 
 use crate::library::results::{HttmError, HttmResult};
 use crate::lookup::versions::MostProximateAndOptAlts;
-use crate::MapOfDatasets;
+use crate::parse::mounts::MapOfDatasets;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MapOfAlts {

@@ -15,7 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::{collections::BTreeMap, ffi::OsStr, path::PathBuf};
+use std::{ffi::OsStr, path::PathBuf};
 
 use clap::OsValues;
 
@@ -24,10 +24,8 @@ use crate::data::paths::PathData;
 use crate::library::results::HttmResult;
 use crate::parse::aliases::MapOfAliases;
 use crate::parse::alts::MapOfAlts;
-use crate::parse::mounts::{get_common_snap_dir, parse_mounts_exec};
+use crate::parse::mounts::{get_base_collection, get_common_snap_dir, MapOfDatasets};
 use crate::parse::snaps::MapOfSnaps;
-
-pub type MapOfDatasets = BTreeMap<PathBuf, DatasetMetadata>;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum FilesystemType {
@@ -112,7 +110,7 @@ impl DatasetCollection {
         pwd: &PathData,
         exec_mode: &ExecMode,
     ) -> HttmResult<DatasetCollection> {
-        let (map_of_datasets, map_of_snaps, vec_of_filter_dirs) = parse_mounts_exec()?;
+        let (map_of_datasets, map_of_snaps, vec_of_filter_dirs) = get_base_collection()?;
 
         // for a collection of btrfs mounts, indicates a common snapshot directory to ignore
         let opt_common_snap_dir = get_common_snap_dir(&map_of_datasets, &map_of_snaps);

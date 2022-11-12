@@ -25,9 +25,8 @@ use which::which;
 
 use crate::data::filesystem_map::{FilesystemType, MountType};
 use crate::library::results::{HttmError, HttmResult};
-use crate::{
-    MapOfDatasets, BTRFS_SNAPPER_HIDDEN_DIRECTORY, BTRFS_SNAPPER_SUFFIX, ZFS_SNAPSHOT_DIRECTORY,
-};
+use crate::parse::mounts::MapOfDatasets;
+use crate::{BTRFS_SNAPPER_HIDDEN_DIRECTORY, BTRFS_SNAPPER_SUFFIX, ZFS_SNAPSHOT_DIRECTORY};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MapOfSnaps {
