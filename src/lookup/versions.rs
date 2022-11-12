@@ -66,13 +66,13 @@ fn get_all_versions_for_path_set(
             let snaps: Vec<PathData> = snaps_selected_for_search
                 .par_iter()
                 .flat_map(|dataset_type| {
-                    MostProximateAndOptAlts::from_search(config, pathdata, dataset_type)
+                    MostProximateAndOptAlts::new(config, pathdata, dataset_type)
                 })
                 .flat_map(|dataset_for_search| {
-                    get_version_search_bundles(config, pathdata, &dataset_for_search)
+                    dataset_for_search.get_search_bundles(config, pathdata)
                 })
                 .flatten()
-                .flat_map(|search_bundle| get_versions(&search_bundle))
+                .flat_map(|search_bundle| RelativePathAndSnapMounts::get_versions(&search_bundle))
                 .filter(|snap_version| {
                     // process omit_ditto before last snap
                     if config.opt_omit_ditto {
@@ -132,7 +132,7 @@ pub struct MostProximateAndOptAlts {
 }
 
 impl MostProximateAndOptAlts {
-    pub fn from_search(
+    pub fn new(
         config: &Config,
         pathdata: &PathData,
         requested_dataset_type: &SnapDatasetType,
@@ -181,37 +181,36 @@ impl MostProximateAndOptAlts {
 
         Ok(snap_types_for_search)
     }
+    pub fn get_search_bundles(
+        &self,
+        config: &Config,
+        pathdata: &PathData,
+    ) -> HttmResult<Vec<RelativePathAndSnapMounts>> {
+        let proximate_dataset_mount = self.proximate_dataset_mount.as_path();
+
+        match &self.opt_datasets_of_interest {
+            Some(datasets_of_interest) => datasets_of_interest
+                .iter()
+                .map(|dataset_of_interest| {
+                    RelativePathAndSnapMounts::new(
+                        config,
+                        pathdata,
+                        proximate_dataset_mount,
+                        dataset_of_interest,
+                    )
+                })
+                .collect(),
+            None => Ok(vec![RelativePathAndSnapMounts::new(
+                config,
+                pathdata,
+                proximate_dataset_mount,
+                proximate_dataset_mount,
+            )?]),
+        }
+    }
     pub fn get_datasets_of_interest(self) -> Vec<PathBuf> {
         self.opt_datasets_of_interest
             .unwrap_or_else(|| vec![self.proximate_dataset_mount])
-    }
-}
-
-pub fn get_version_search_bundles(
-    config: &Config,
-    pathdata: &PathData,
-    snap_types_of_interest: &MostProximateAndOptAlts,
-) -> HttmResult<Vec<RelativePathAndSnapMounts>> {
-    let proximate_dataset_mount = &snap_types_of_interest.proximate_dataset_mount;
-
-    match &snap_types_of_interest.opt_datasets_of_interest {
-        Some(datasets_of_interest) => datasets_of_interest
-            .iter()
-            .map(|dataset_of_interest| {
-                RelativePathAndSnapMounts::new(
-                    config,
-                    pathdata,
-                    proximate_dataset_mount,
-                    dataset_of_interest,
-                )
-            })
-            .collect(),
-        None => Ok(vec![RelativePathAndSnapMounts::new(
-            config,
-            pathdata,
-            proximate_dataset_mount,
-            proximate_dataset_mount,
-        )?]),
     }
 }
 
@@ -285,6 +284,28 @@ impl RelativePathAndSnapMounts {
             .map(|path| path.to_path_buf())
             .map_err(|err| err.into())
     }
+
+    fn get_versions(&self) -> Vec<PathData> {
+        // get the DirEntry for our snapshot path which will have all our possible
+        // snapshots, like so: .zfs/snapshots/<some snap name>/
+        //
+        // BTreeMap will then remove duplicates with the same system modify time and size/file len
+        let unique_versions: BTreeMap<(SystemTime, u64), PathData> = self
+            .snap_mounts
+            .par_iter()
+            .map(|path| path.join(&self.relative_path))
+            .map(|joined_path| PathData::from(joined_path.as_path()))
+            .filter_map(|pathdata| {
+                pathdata
+                    .metadata
+                    .map(|metadata| ((metadata.modify_time, metadata.size), pathdata))
+            })
+            .collect();
+
+        let sorted_versions: Vec<PathData> = unique_versions.into_values().collect();
+
+        sorted_versions
+    }
 }
 
 fn get_proximate_dataset(
@@ -321,26 +342,4 @@ fn get_alias_dataset(pathdata: &PathData, map_of_alias: &MapOfAliases) -> Option
             .get(ancestor)
             .map(|alias_info| alias_info.remote_dir.clone())
     })
-}
-
-fn get_versions(search_bundle: &RelativePathAndSnapMounts) -> Vec<PathData> {
-    // get the DirEntry for our snapshot path which will have all our possible
-    // snapshots, like so: .zfs/snapshots/<some snap name>/
-    //
-    // BTreeMap will then remove duplicates with the same system modify time and size/file len
-    let unique_versions: BTreeMap<(SystemTime, u64), PathData> = search_bundle
-        .snap_mounts
-        .par_iter()
-        .map(|path| path.join(&search_bundle.relative_path))
-        .map(|joined_path| PathData::from(joined_path.as_path()))
-        .filter_map(|pathdata| {
-            pathdata
-                .metadata
-                .map(|metadata| ((metadata.modify_time, metadata.size), pathdata))
-        })
-        .collect();
-
-    let sorted_versions: Vec<PathData> = unique_versions.into_values().collect();
-
-    sorted_versions
 }

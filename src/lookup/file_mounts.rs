@@ -54,7 +54,7 @@ pub fn get_mounts_for_files(config: &Config) -> MountsForFiles {
                 .get_value()
                 .iter()
                 .flat_map(|dataset_type| {
-                    MostProximateAndOptAlts::from_search(config, pathdata, dataset_type)
+                    MostProximateAndOptAlts::new(config, pathdata, dataset_type)
                 })
                 .collect();
             (pathdata.clone(), datasets)

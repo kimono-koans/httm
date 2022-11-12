@@ -28,9 +28,7 @@ use itertools::Itertools;
 use crate::config::generate::Config;
 use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::library::results::HttmResult;
-use crate::lookup::versions::{
-    get_version_search_bundles, MostProximateAndOptAlts, RelativePathAndSnapMounts,
-};
+use crate::lookup::versions::{MostProximateAndOptAlts, RelativePathAndSnapMounts};
 
 pub fn deleted_lookup_exec(config: &Config, requested_dir: &Path) -> Vec<BasicDirEntryInfo> {
     // we always need a requesting dir because we are comparing the files in the
@@ -48,10 +46,10 @@ pub fn deleted_lookup_exec(config: &Config, requested_dir: &Path) -> Vec<BasicDi
         .get_value()
         .iter()
         .flat_map(|dataset_type| {
-            MostProximateAndOptAlts::from_search(config, &requested_dir_pathdata, dataset_type)
+            MostProximateAndOptAlts::new(config, &requested_dir_pathdata, dataset_type)
         })
         .flat_map(|datasets_of_interest| {
-            get_version_search_bundles(config, &requested_dir_pathdata, &datasets_of_interest)
+            datasets_of_interest.get_search_bundles(config, &requested_dir_pathdata)
         })
         .flatten()
         .flat_map(|search_bundle| {
