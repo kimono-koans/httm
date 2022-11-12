@@ -15,9 +15,17 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
+use std::{collections::BTreeMap, ffi::OsStr, path::PathBuf};
+
+use clap::OsValues;
+
+use crate::config::generate::ExecMode;
 use crate::data::paths::PathData;
+use crate::library::results::HttmResult;
 use crate::lookup::versions::MostProximateAndOptAlts;
-use std::{collections::BTreeMap, path::PathBuf};
+use crate::parse::aliases::parse_aliases;
+use crate::parse::alts::precompute_alt_replicated;
+use crate::parse::mounts::{get_common_snap_dir, parse_mounts_exec};
 
 pub type MapOfDatasets = BTreeMap<PathBuf, DatasetMetadata>;
 pub type MapOfSnaps = BTreeMap<PathBuf, Vec<PathBuf>>;
@@ -98,16 +106,6 @@ pub struct DatasetCollection {
     // vec of two enum variants - most proximate and alt replicated, or just most proximate
     pub snaps_selected_for_search: SnapsSelectedForSearch,
 }
-
-use std::ffi::OsStr;
-
-use clap::OsValues;
-
-use crate::config::generate::ExecMode;
-use crate::library::results::HttmResult;
-use crate::parse::aliases::parse_aliases;
-use crate::parse::alts::precompute_alt_replicated;
-use crate::parse::mounts::{get_common_snap_dir, parse_mounts_exec};
 
 impl DatasetCollection {
     pub fn new(
