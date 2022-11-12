@@ -16,6 +16,7 @@
 // that was distributed with this source code.
 
 use std::borrow::Cow;
+use std::ops::Deref;
 
 use number_prefix::NumberPrefix;
 use terminal_size::{terminal_size, Height, Width};
@@ -57,7 +58,6 @@ pub fn display_raw(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> Strin
     let delimiter = get_delimiter(config);
 
     let write_out_buffer = DisplaySet::new(config, map_live_to_snaps)
-        .into_inner()
         .iter()
         .flatten()
         .map(|pathdata| format!("{}{}", pathdata.path_buf.display(), delimiter))
@@ -102,6 +102,14 @@ impl From<DisplaySet> for [Vec<PathData>; 2] {
     }
 }
 
+impl Deref for DisplaySet {
+    type Target = [Vec<PathData>; 2];
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
 impl DisplaySet {
     pub fn new(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> DisplaySet {
         let vec_snaps = if config.opt_no_snap {
@@ -124,13 +132,9 @@ impl DisplaySet {
         }
     }
 
-    fn into_inner(self) -> [Vec<PathData>; 2] {
-        self.into()
-    }
-
     fn display(self, config: &Config, global_padding_collection: &PaddingCollection) -> String {
         // get the display buffer for each set snaps and live
-        self.into_inner().iter().enumerate().fold(
+        self.iter().enumerate().fold(
             String::new(),
             |mut display_set_buffer, (idx, snap_or_live_set)| {
                 // a DisplaySet is an array of 2 - idx 0 are the snaps, 1 is the live versions
@@ -241,7 +245,7 @@ struct PaddingCollection {
 impl PaddingCollection {
     fn new(config: &Config, display_set: &DisplaySet) -> PaddingCollection {
         // calculate padding and borders for display later
-        let (size_padding_len, fancy_border_len) = display_set.inner.iter().flatten().fold(
+        let (size_padding_len, fancy_border_len) = display_set.iter().flatten().fold(
             (0usize, 0usize),
             |(mut size_padding_len, mut fancy_border_len), pathdata| {
                 let path_metadata = pathdata.md_infallible();
