@@ -146,7 +146,7 @@ impl DisplaySet {
                 let component_buffer: String = snap_or_live_set
                     .iter()
                     .map(|pathdata| {
-                        display_pathdata(config, pathdata, is_live_set, global_padding_collection)
+                        pathdata.display(config, is_live_set, global_padding_collection)
                     })
                     .collect();
 
@@ -169,72 +169,74 @@ impl DisplaySet {
     }
 }
 
-fn display_pathdata(
-    config: &Config,
-    pathdata: &PathData,
-    is_live_set: bool,
-    padding_collection: &PaddingCollection,
-) -> String {
-    // obtain metadata for timestamp and size
-    let path_metadata = pathdata.md_infallible();
-
-    // tab delimited if "no pretty", no border lines, and no colors
-    let (display_size, display_path, display_padding) = if config.opt_no_pretty {
-        // displays blanks for phantom values, equaling their dummy lens and dates.
-        //
-        // we use a dummy instead of a None value here.  Basically, sometimes, we want
-        // to print the request even if a live file does not exist
-        let size = if pathdata.metadata.is_some() {
-            display_human_size(&path_metadata.size)
-        } else {
-            padding_collection.phantom_size_pad_str.clone()
-        };
-        let path = pathdata.path_buf.to_string_lossy();
-        let padding = NOT_SO_PRETTY_FIXED_WIDTH_PADDING;
-        (size, path, padding)
-    // print with padding and pretty border lines and ls colors
-    } else {
-        let size = {
-            let size = if pathdata.metadata.is_some() {
-                display_human_size(&path_metadata.size)
+impl PathData {
+    fn display(
+        &self,
+        config: &Config,
+        is_live_set: bool,
+        padding_collection: &PaddingCollection,
+    ) -> String {
+        // obtain metadata for timestamp and size
+        let metadata = self.md_infallible();
+    
+        // tab delimited if "no pretty", no border lines, and no colors
+        let (display_size, display_path, display_padding) = if config.opt_no_pretty {
+            // displays blanks for phantom values, equaling their dummy lens and dates.
+            //
+            // we use a dummy instead of a None value here.  Basically, sometimes, we want
+            // to print the request even if a live file does not exist
+            let size = if self.metadata.is_some() {
+                display_human_size(&metadata.size)
             } else {
                 padding_collection.phantom_size_pad_str.clone()
             };
-            format!(
-                "{:>width$}",
-                size,
-                width = padding_collection.size_padding_len
-            )
-        };
-        let path = {
-            let path_buf = &pathdata.path_buf;
-            // paint the live strings with ls colors - idx == 1 is 2nd or live set
-            let painted_path_str = if is_live_set {
-                paint_string(pathdata, path_buf.to_str().unwrap_or_default())
-            } else {
-                path_buf.to_string_lossy()
+            let path = self.path_buf.to_string_lossy();
+            let padding = NOT_SO_PRETTY_FIXED_WIDTH_PADDING;
+            (size, path, padding)
+        // print with padding and pretty border lines and ls colors
+        } else {
+            let size = {
+                let size = if self.metadata.is_some() {
+                    display_human_size(&metadata.size)
+                } else {
+                    padding_collection.phantom_size_pad_str.clone()
+                };
+                format!(
+                    "{:>width$}",
+                    size,
+                    width = padding_collection.size_padding_len
+                )
             };
-            Cow::Owned(format!(
-                "\"{:<width$}\"",
-                painted_path_str,
-                width = padding_collection.size_padding_len
-            ))
+            let path = {
+                let path_buf = &self.path_buf;
+                // paint the live strings with ls colors - idx == 1 is 2nd or live set
+                let painted_path_str = if is_live_set {
+                    paint_string(self, path_buf.to_str().unwrap_or_default())
+                } else {
+                    path_buf.to_string_lossy()
+                };
+                Cow::Owned(format!(
+                    "\"{:<width$}\"",
+                    painted_path_str,
+                    width = padding_collection.size_padding_len
+                ))
+            };
+            // displays blanks for phantom values, equaling their dummy lens and dates.
+            let padding = PRETTY_FIXED_WIDTH_PADDING;
+            (size, path, padding)
         };
-        // displays blanks for phantom values, equaling their dummy lens and dates.
-        let padding = PRETTY_FIXED_WIDTH_PADDING;
-        (size, path, padding)
-    };
-
-    let display_date = if pathdata.metadata.is_some() {
-        get_date(config, &path_metadata.modify_time, DateFormat::Display)
-    } else {
-        padding_collection.phantom_date_pad_str.to_owned()
-    };
-
-    format!(
-        "{}{}{}{}{}\n",
-        display_date, display_padding, display_size, display_padding, display_path
-    )
+    
+        let display_date = if self.metadata.is_some() {
+            get_date(config, &metadata.modify_time, DateFormat::Display)
+        } else {
+            padding_collection.phantom_date_pad_str.to_owned()
+        };
+    
+        format!(
+            "{}{}{}{}{}\n",
+            display_date, display_padding, display_size, display_padding, display_path
+        )
+    }
 }
 
 struct PaddingCollection {
@@ -250,13 +252,13 @@ impl PaddingCollection {
         let (size_padding_len, fancy_border_len) = display_set.iter().flatten().fold(
             (0usize, 0usize),
             |(mut size_padding_len, mut fancy_border_len), pathdata| {
-                let path_metadata = pathdata.md_infallible();
+                let metadata = pathdata.md_infallible();
 
                 let (display_date, display_size, display_path) = {
-                    let date = get_date(config, &path_metadata.modify_time, DateFormat::Display);
+                    let date = get_date(config, &metadata.modify_time, DateFormat::Display);
                     let size = format!(
                         "{:>width$}",
-                        display_human_size(&path_metadata.size),
+                        display_human_size(&metadata.size),
                         width = size_padding_len
                     );
                     let path = pathdata.path_buf.to_string_lossy();
@@ -264,7 +266,7 @@ impl PaddingCollection {
                     (date, size, path)
                 };
 
-                let display_size_len = display_human_size(&path_metadata.size).len();
+                let display_size_len = display_human_size(&metadata.size).len();
                 let formatted_line_len = display_date.len()
                     + display_size.len()
                     + display_path.len()
