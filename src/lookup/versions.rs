@@ -72,7 +72,7 @@ fn get_all_versions_for_path_set(
                     dataset_for_search.get_search_bundles(config, pathdata)
                 })
                 .flatten()
-                .flat_map(|search_bundle| RelativePathAndSnapMounts::get_versions(&search_bundle))
+                .flat_map(|search_bundle| search_bundle.get_versions())
                 .filter(|snap_version| {
                     // process omit_ditto before last snap
                     if config.opt_omit_ditto {
