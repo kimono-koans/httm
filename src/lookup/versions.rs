@@ -213,16 +213,12 @@ impl RelativePathAndSnapMounts {
         pathdata: &PathData,
         proximate_dataset_mount: &Path,
         dataset_of_interest: &Path,
-    ) -> HttmResult<RelativePathAndSnapMounts> {
+    ) -> HttmResult<Self> {
         // building our relative path by removing parent below the snap dir
         //
         // for native searches the prefix is are the dirs below the most proximate dataset
         // for user specified dirs/aliases these are specified by the user
-        let relative_path = RelativePathAndSnapMounts::get_relative_path(
-            config,
-            pathdata,
-            proximate_dataset_mount,
-        )?;
+        let relative_path = Self::get_relative_path(config, pathdata, proximate_dataset_mount)?;
 
         let snap_mounts = config
             .dataset_collection
