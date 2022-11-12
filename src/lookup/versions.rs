@@ -136,7 +136,7 @@ impl MostProximateAndOptAlts {
         config: &Config,
         pathdata: &PathData,
         requested_dataset_type: &SnapDatasetType,
-    ) -> HttmResult<MostProximateAndOptAlts> {
+    ) -> HttmResult<Self> {
         // here, we take our file path and get back possibly multiple ZFS dataset mountpoints
         // and our most proximate dataset mount point (which is always the same) for
         // a single file
@@ -163,7 +163,7 @@ impl MostProximateAndOptAlts {
         let snap_types_for_search: MostProximateAndOptAlts = match requested_dataset_type {
             SnapDatasetType::MostProximate => {
                 // just return the same dataset when in most proximate mode
-                MostProximateAndOptAlts {
+                Self {
                     proximate_dataset_mount,
                     opt_datasets_of_interest: None,
                 }
