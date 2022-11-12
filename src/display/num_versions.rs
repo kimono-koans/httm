@@ -18,9 +18,9 @@
 use crate::config::generate::{Config, NumVersionsMode};
 use crate::data::paths::PathData;
 use crate::library::utility::get_delimiter;
-use crate::lookup::versions::MapLiveToSnaps;
+use crate::lookup::versions::DisplayMap;
 
-impl MapLiveToSnaps {
+impl DisplayMap {
     pub fn print_num_versions(
         &self,
         config: &Config,

@@ -61,7 +61,7 @@ use crate::exec::recursive::display_recursive_wrapper;
 use crate::exec::snapshot::take_snapshot;
 use crate::library::results::HttmResult;
 use crate::library::utility::print_output_buf;
-use crate::lookup::versions::{versions_lookup_exec, MapLiveToSnaps};
+use crate::lookup::versions::{versions_lookup_exec, DisplayMap};
 
 pub const ZFS_HIDDEN_DIRECTORY: &str = ".zfs";
 pub const ZFS_SNAPSHOT_DIRECTORY: &str = ".zfs/snapshot";
@@ -113,7 +113,7 @@ fn exec() -> HttmResult<()> {
     Ok(())
 }
 
-fn print_display_map(config: &Config, map_live_to_snaps: MapLiveToSnaps) -> HttmResult<()> {
+fn print_display_map(config: &Config, map_live_to_snaps: DisplayMap) -> HttmResult<()> {
     // why don't we just go ahead an display last snap as an exec mode?
     // because last snap is useful as a global option.  for instance, we
     // can use it in the interactive modes to skip past the select phase

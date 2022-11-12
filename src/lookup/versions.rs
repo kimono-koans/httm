@@ -30,8 +30,8 @@ use crate::library::results::{HttmError, HttmResult};
 use crate::parse::aliases::MapOfAliases;
 use crate::parse::mounts::MapOfDatasets;
 
-pub fn versions_lookup_exec(config: &Config, path_set: &[PathData]) -> HttmResult<MapLiveToSnaps> {
-    let map_live_to_snaps = MapLiveToSnaps::new(config, path_set);
+pub fn versions_lookup_exec(config: &Config, path_set: &[PathData]) -> HttmResult<DisplayMap> {
+    let map_live_to_snaps = DisplayMap::new(config, path_set);
 
     // check if all files (snap and live) do not exist, if this is true, then user probably messed up
     // and entered a file that never existed (that is, perhaps a wrong file name)?
@@ -53,17 +53,17 @@ pub fn versions_lookup_exec(config: &Config, path_set: &[PathData]) -> HttmResul
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct MapLiveToSnaps {
+pub struct DisplayMap {
     inner: BTreeMap<PathData, Vec<PathData>>,
 }
 
-impl From<BTreeMap<PathData, Vec<PathData>>> for MapLiveToSnaps {
+impl From<BTreeMap<PathData, Vec<PathData>>> for DisplayMap {
     fn from(map: BTreeMap<PathData, Vec<PathData>>) -> Self {
         Self { inner: map }
     }
 }
 
-impl From<(PathData, Vec<PathData>)> for MapLiveToSnaps {
+impl From<(PathData, Vec<PathData>)> for DisplayMap {
     fn from(tuple: (PathData, Vec<PathData>)) -> Self {
         Self {
             inner: BTreeMap::from([tuple]),
@@ -71,13 +71,13 @@ impl From<(PathData, Vec<PathData>)> for MapLiveToSnaps {
     }
 }
 
-impl From<MapLiveToSnaps> for BTreeMap<PathData, Vec<PathData>> {
-    fn from(map_of_snaps: MapLiveToSnaps) -> Self {
+impl From<DisplayMap> for BTreeMap<PathData, Vec<PathData>> {
+    fn from(map_of_snaps: DisplayMap) -> Self {
         map_of_snaps.inner
     }
 }
 
-impl Deref for MapLiveToSnaps {
+impl Deref for DisplayMap {
     type Target = BTreeMap<PathData, Vec<PathData>>;
 
     fn deref(&self) -> &Self::Target {
@@ -85,7 +85,7 @@ impl Deref for MapLiveToSnaps {
     }
 }
 
-impl MapLiveToSnaps {
+impl DisplayMap {
     fn new(config: &Config, path_set: &[PathData]) -> Self {
         // create vec of all local and replicated backups at once
         let snaps_selected_for_search = config

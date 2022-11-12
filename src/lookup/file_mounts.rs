@@ -23,7 +23,7 @@ use rayon::prelude::*;
 
 use crate::config::generate::Config;
 use crate::data::paths::PathData;
-use crate::lookup::versions::{MapLiveToSnaps, MostProximateAndOptAlts};
+use crate::lookup::versions::{DisplayMap, MostProximateAndOptAlts};
 
 pub struct MountsForFiles {
     inner: BTreeMap<PathData, Vec<PathData>>,
@@ -41,7 +41,7 @@ impl From<MountsForFiles> for BTreeMap<PathData, Vec<PathData>> {
     }
 }
 
-impl From<MountsForFiles> for MapLiveToSnaps {
+impl From<MountsForFiles> for DisplayMap {
     fn from(map: MountsForFiles) -> Self {
         map.inner.into()
     }

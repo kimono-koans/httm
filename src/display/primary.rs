@@ -26,7 +26,7 @@ use crate::data::paths::{PathData, PHANTOM_DATE, PHANTOM_SIZE};
 use crate::library::results::HttmResult;
 use crate::library::utility::print_output_buf;
 use crate::library::utility::{get_date, get_delimiter, paint_string, DateFormat};
-use crate::lookup::versions::MapLiveToSnaps;
+use crate::lookup::versions::DisplayMap;
 
 // 2 space wide padding - used between date and size, and size and path
 pub const PRETTY_FIXED_WIDTH_PADDING: &str = "  ";
@@ -37,7 +37,7 @@ pub const NOT_SO_PRETTY_FIXED_WIDTH_PADDING: &str = "\t";
 // and we add 2 quotation marks to the path when we format
 pub const QUOTATION_MARKS_LEN: usize = 2;
 
-impl MapLiveToSnaps {
+impl DisplayMap {
     pub fn display(&self, config: &Config) -> HttmResult<String> {
         let output_buffer = match &config.exec_mode {
             ExecMode::NumVersions(num_versions_mode) => {
@@ -121,7 +121,7 @@ impl Deref for DisplaySet {
 }
 
 impl DisplaySet {
-    pub fn new(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> DisplaySet {
+    pub fn new(config: &Config, map_live_to_snaps: &DisplayMap) -> DisplaySet {
         let vec_snaps = if config.opt_no_snap {
             Vec::new()
         } else {

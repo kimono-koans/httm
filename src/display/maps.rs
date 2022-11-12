@@ -19,17 +19,17 @@ use crate::config::generate::Config;
 use crate::display::primary::{NOT_SO_PRETTY_FIXED_WIDTH_PADDING, QUOTATION_MARKS_LEN};
 use crate::library::results::HttmResult;
 use crate::lookup::file_mounts::MountsForFiles;
-use crate::lookup::versions::MapLiveToSnaps;
+use crate::lookup::versions::DisplayMap;
 
 pub fn display_mounts(config: &Config) -> HttmResult<()> {
-    let map: MapLiveToSnaps = MountsForFiles::new(config).into();
+    let map: DisplayMap = MountsForFiles::new(config).into();
 
     map.display_map(config)?;
 
     Ok(())
 }
 
-impl MapLiveToSnaps {
+impl DisplayMap {
     pub fn get_map_padding(&self) -> usize {
         self.iter()
             .map(|(key, _values)| key)
