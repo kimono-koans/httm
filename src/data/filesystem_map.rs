@@ -24,7 +24,6 @@ pub type MapOfSnaps = BTreeMap<PathBuf, Vec<PathBuf>>;
 pub type MapOfAlts = BTreeMap<PathBuf, MostProximateAndOptAlts>;
 pub type MapOfAliases = BTreeMap<PathBuf, RemotePathAndFsType>;
 pub type MapLiveToSnaps = BTreeMap<PathData, Vec<PathData>>;
-pub type DisplaySet = [Vec<PathData>; 2];
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum FilesystemType {

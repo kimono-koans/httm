@@ -21,7 +21,7 @@ use number_prefix::NumberPrefix;
 use terminal_size::{terminal_size, Height, Width};
 
 use crate::config::generate::{Config, ExecMode};
-use crate::data::filesystem_map::{DisplaySet, MapLiveToSnaps};
+use crate::data::filesystem_map::MapLiveToSnaps;
 use crate::data::paths::{PathData, PHANTOM_DATE, PHANTOM_SIZE};
 use crate::display::special::display_num_versions;
 use crate::library::results::HttmResult;
@@ -91,6 +91,27 @@ fn display_formatted(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> Str
             })
             .collect()
     }
+}
+
+pub type DisplaySet = [Vec<PathData>; 2];
+
+pub fn get_display_set(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> DisplaySet {
+    let vec_snaps = if config.opt_no_snap {
+        Vec::new()
+    } else {
+        map_live_to_snaps.values().flatten().cloned().collect()
+    };
+
+    let vec_live = if config.opt_last_snap.is_some()
+        || config.opt_no_live
+        || matches!(config.exec_mode, ExecMode::MountsForFiles)
+    {
+        Vec::new()
+    } else {
+        map_live_to_snaps.keys().cloned().collect()
+    };
+
+    [vec_snaps, vec_live]
 }
 
 fn display_set_instance(
@@ -269,25 +290,6 @@ fn calculate_pretty_padding(config: &Config, display_set: &DisplaySet) -> Paddin
         phantom_date_pad_str,
         phantom_size_pad_str,
     }
-}
-
-pub fn get_display_set(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> DisplaySet {
-    let vec_snaps = if config.opt_no_snap {
-        Vec::new()
-    } else {
-        map_live_to_snaps.values().flatten().cloned().collect()
-    };
-
-    let vec_live = if config.opt_last_snap.is_some()
-        || config.opt_no_live
-        || matches!(config.exec_mode, ExecMode::MountsForFiles)
-    {
-        Vec::new()
-    } else {
-        map_live_to_snaps.keys().cloned().collect()
-    };
-
-    [vec_snaps, vec_live]
 }
 
 fn display_human_size(size: &u64) -> String {
