@@ -57,7 +57,7 @@ mod parse {
 use lookup::file_mounts::MountsForFiles;
 
 use crate::config::generate::{Config, ExecMode};
-use crate::data::filesystem_map::{FilesystemType, MapLiveToSnaps, MapOfDatasets, MapOfSnaps};
+use crate::data::filesystem_map::{FilesystemType, MapLiveToSnaps, MapOfDatasets};
 
 use crate::display::maps::{display_as_map, display_mounts};
 use crate::display::primary::display_exec;

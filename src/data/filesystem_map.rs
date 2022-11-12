@@ -26,9 +26,9 @@ use crate::lookup::versions::MostProximateAndOptAlts;
 use crate::parse::aliases::parse_aliases;
 use crate::parse::alts::precompute_alt_replicated;
 use crate::parse::mounts::{get_common_snap_dir, parse_mounts_exec};
+use crate::parse::snaps::MapOfSnaps;
 
 pub type MapOfDatasets = BTreeMap<PathBuf, DatasetMetadata>;
-pub type MapOfSnaps = BTreeMap<PathBuf, Vec<PathBuf>>;
 pub type MapOfAlts = BTreeMap<PathBuf, MostProximateAndOptAlts>;
 pub type MapOfAliases = BTreeMap<PathBuf, RemotePathAndFsType>;
 pub type MapLiveToSnaps = BTreeMap<PathData, Vec<PathData>>;

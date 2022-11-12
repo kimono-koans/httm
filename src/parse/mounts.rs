@@ -25,8 +25,8 @@ use which::which;
 use crate::data::filesystem_map::{DatasetMetadata, FilesystemType, MountType};
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{get_common_path, get_fs_type_from_hidden_dir};
-use crate::parse::snaps::precompute_snap_mounts;
-use crate::{MapOfDatasets, MapOfSnaps, ZFS_SNAPSHOT_DIRECTORY};
+use crate::parse::snaps::MapOfSnaps;
+use crate::{MapOfDatasets, ZFS_SNAPSHOT_DIRECTORY};
 
 pub const ZFS_FSTYPE: &str = "zfs";
 pub const BTRFS_FSTYPE: &str = "btrfs";
@@ -43,7 +43,7 @@ pub fn parse_mounts_exec() -> HttmResult<(MapOfDatasets, MapOfSnaps, Vec<PathBuf
         parse_from_mount_cmd()?
     };
 
-    let map_of_snaps = precompute_snap_mounts(&map_of_datasets)?;
+    let map_of_snaps = MapOfSnaps::new(&map_of_datasets)?;
 
     Ok((map_of_datasets, map_of_snaps, vec_filter_dirs))
 }
