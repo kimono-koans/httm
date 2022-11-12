@@ -25,8 +25,9 @@ mod data {
     pub mod paths;
 }
 mod display {
+    pub mod maps;
+    pub mod num_versions;
     pub mod primary;
-    pub mod special;
 }
 mod exec {
     pub mod interactive;
@@ -54,14 +55,13 @@ mod parse {
     pub mod snaps;
 }
 
-use display::special::display_as_map;
 use lookup::file_mounts::MountsForFiles;
 
 use crate::config::generate::{Config, ExecMode};
 use crate::data::filesystem_map::{FilesystemType, MapLiveToSnaps, MapOfDatasets, MapOfSnaps};
 
+use crate::display::maps::{display_as_map, display_mounts};
 use crate::display::primary::display_exec;
-use crate::display::special::display_mounts;
 use crate::exec::interactive::interactive_exec;
 use crate::exec::recursive::display_recursive_wrapper;
 use crate::exec::snapshot::take_snapshot;
