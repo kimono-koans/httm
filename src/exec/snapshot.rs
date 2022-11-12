@@ -25,7 +25,7 @@ use crate::config::generate::Config;
 use crate::data::filesystem_map::FilesystemType;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{get_date, get_delimiter, print_output_buf, DateFormat};
-use crate::lookup::file_mounts::{get_mounts_for_files, MountsForFiles};
+use crate::lookup::file_mounts::MountsForFiles;
 
 pub fn take_snapshot(config: Arc<Config>, requested_snapshot_suffix: &str) -> HttmResult<()> {
     fn exec_zfs_snapshot(
@@ -37,7 +37,7 @@ pub fn take_snapshot(config: Arc<Config>, requested_snapshot_suffix: &str) -> Ht
         // all snapshots should have the same timestamp
         let timestamp = get_date(&config, &SystemTime::now(), DateFormat::Timestamp);
 
-        let vec_snapshot_names: Vec<String> = mounts_for_files
+        let vec_snapshot_names: Vec<String> = mounts_for_files.inner
             .iter()
             .flat_map(|(_pathdata, datasets)| datasets)
             .map(|mount| {
@@ -121,7 +121,7 @@ pub fn take_snapshot(config: Arc<Config>, requested_snapshot_suffix: &str) -> Ht
         Ok(())
     }
 
-    let mounts_for_files: MountsForFiles = get_mounts_for_files(config.as_ref());
+    let mounts_for_files: MountsForFiles = MountsForFiles::new(config.as_ref());
 
     if let Ok(zfs_command) = which("zfs") {
         exec_zfs_snapshot(

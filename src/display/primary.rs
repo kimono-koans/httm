@@ -36,13 +36,6 @@ pub const NOT_SO_PRETTY_FIXED_WIDTH_PADDING: &str = "\t";
 // and we add 2 quotation marks to the path when we format
 pub const QUOTATION_MARKS_LEN: usize = 2;
 
-struct PaddingCollection {
-    size_padding_len: usize,
-    fancy_border_string: String,
-    phantom_date_pad_str: String,
-    phantom_size_pad_str: String,
-}
-
 pub fn display_exec(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> HttmResult<String> {
     let output_buffer = match &config.exec_mode {
         ExecMode::NumVersions(num_versions_mode) => {
@@ -63,7 +56,8 @@ pub fn display_exec(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> Httm
 pub fn display_raw(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> String {
     let delimiter = get_delimiter(config);
 
-    let write_out_buffer = get_display_set(config, map_live_to_snaps)
+    let write_out_buffer = DisplaySet::new(config, map_live_to_snaps)
+        .into_inner()
         .iter()
         .flatten()
         .map(|pathdata| format!("{}{}", pathdata.path_buf.display(), delimiter))
@@ -73,83 +67,100 @@ pub fn display_raw(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> Strin
 }
 
 fn display_formatted(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> String {
-    let global_display_set = get_display_set(config, map_live_to_snaps);
-    let global_padding_collection = calculate_pretty_padding(config, &global_display_set);
+    let global_display_set = DisplaySet::new(config, map_live_to_snaps);
+    let global_padding_collection = PaddingCollection::new(config, &global_display_set);
 
     // indexing safety: array has known len of 2
 
     if map_live_to_snaps.len() == 1 {
-        display_set_instance(config, &global_display_set, &global_padding_collection)
+        global_display_set.display(config, &global_padding_collection)
     } else {
         map_live_to_snaps
             .clone()
             .into_iter()
             .map(|raw_tuple| [raw_tuple].into())
-            .map(|raw_instance_set| get_display_set(config, &raw_instance_set))
-            .map(|display_set| {
-                display_set_instance(config, &display_set, &global_padding_collection)
-            })
+            .map(|raw_instance_set| DisplaySet::new(config, &raw_instance_set))
+            .map(|display_set| display_set.display(config, &global_padding_collection))
             .collect()
     }
 }
 
-pub type DisplaySet = [Vec<PathData>; 2];
-
-pub fn get_display_set(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> DisplaySet {
-    let vec_snaps = if config.opt_no_snap {
-        Vec::new()
-    } else {
-        map_live_to_snaps.values().flatten().cloned().collect()
-    };
-
-    let vec_live = if config.opt_last_snap.is_some()
-        || config.opt_no_live
-        || matches!(config.exec_mode, ExecMode::MountsForFiles)
-    {
-        Vec::new()
-    } else {
-        map_live_to_snaps.keys().cloned().collect()
-    };
-
-    [vec_snaps, vec_live]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub struct DisplaySet {
+    inner: [Vec<PathData>; 2],
 }
 
-fn display_set_instance(
-    config: &Config,
-    display_set: &DisplaySet,
-    global_padding_collection: &PaddingCollection,
-) -> String {
-    // get the display buffer for each set snaps and live
-    display_set.iter().enumerate().fold(
-        String::new(),
-        |mut display_set_buffer, (idx, snap_or_live_set)| {
-            // a DisplaySet is an array of 2 - idx 0 are the snaps, 1 is the live versions
-            let is_snap_set = idx == 0;
-            let is_live_set = idx == 1;
+impl From<[Vec<PathData>; 2]> for DisplaySet {
+    fn from(array: [Vec<PathData>; 2]) -> Self {
+        Self { inner: array }
+    }
+}
 
-            let component_buffer: String = snap_or_live_set
-                .iter()
-                .map(|pathdata| {
-                    display_pathdata(config, pathdata, is_live_set, global_padding_collection)
-                })
-                .collect();
+impl From<DisplaySet> for [Vec<PathData>; 2] {
+    fn from(display_set: DisplaySet) -> Self {
+        display_set.inner
+    }
+}
 
-            // add each buffer to the set - print fancy border string above, below and between sets
-            if config.opt_no_pretty {
-                display_set_buffer += &component_buffer;
-            } else if is_snap_set {
-                display_set_buffer += &global_padding_collection.fancy_border_string;
-                if !component_buffer.is_empty() {
+impl DisplaySet {
+    pub fn new(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> DisplaySet {
+        let vec_snaps = if config.opt_no_snap {
+            Vec::new()
+        } else {
+            map_live_to_snaps.values().flatten().cloned().collect()
+        };
+
+        let vec_live = if config.opt_last_snap.is_some()
+            || config.opt_no_live
+            || matches!(config.exec_mode, ExecMode::MountsForFiles)
+        {
+            Vec::new()
+        } else {
+            map_live_to_snaps.keys().cloned().collect()
+        };
+
+        Self {
+            inner: [vec_snaps, vec_live],
+        }
+    }
+
+    fn into_inner(self) -> [Vec<PathData>; 2] {
+        self.into()
+    }
+
+    fn display(self, config: &Config, global_padding_collection: &PaddingCollection) -> String {
+        // get the display buffer for each set snaps and live
+        self.into_inner().iter().enumerate().fold(
+            String::new(),
+            |mut display_set_buffer, (idx, snap_or_live_set)| {
+                // a DisplaySet is an array of 2 - idx 0 are the snaps, 1 is the live versions
+                let is_snap_set = idx == 0;
+                let is_live_set = idx == 1;
+
+                let component_buffer: String = snap_or_live_set
+                    .iter()
+                    .map(|pathdata| {
+                        display_pathdata(config, pathdata, is_live_set, global_padding_collection)
+                    })
+                    .collect();
+
+                // add each buffer to the set - print fancy border string above, below and between sets
+                if config.opt_no_pretty {
+                    display_set_buffer += &component_buffer;
+                } else if is_snap_set {
+                    display_set_buffer += &global_padding_collection.fancy_border_string;
+                    if !component_buffer.is_empty() {
+                        display_set_buffer += &component_buffer;
+                        display_set_buffer += &global_padding_collection.fancy_border_string;
+                    }
+                } else {
                     display_set_buffer += &component_buffer;
                     display_set_buffer += &global_padding_collection.fancy_border_string;
                 }
-            } else {
-                display_set_buffer += &component_buffer;
-                display_set_buffer += &global_padding_collection.fancy_border_string;
-            }
-            display_set_buffer
-        },
-    )
+                display_set_buffer
+            },
+        )
+    }
 }
 
 fn display_pathdata(
@@ -220,39 +231,68 @@ fn display_pathdata(
     )
 }
 
-fn calculate_pretty_padding(config: &Config, display_set: &DisplaySet) -> PaddingCollection {
-    // calculate padding and borders for display later
-    let (size_padding_len, fancy_border_len) = display_set.iter().flatten().fold(
-        (0usize, 0usize),
-        |(mut size_padding_len, mut fancy_border_len), pathdata| {
-            let path_metadata = pathdata.md_infallible();
+struct PaddingCollection {
+    size_padding_len: usize,
+    fancy_border_string: String,
+    phantom_date_pad_str: String,
+    phantom_size_pad_str: String,
+}
 
-            let (display_date, display_size, display_path) = {
-                let date = get_date(config, &path_metadata.modify_time, DateFormat::Display);
-                let size = format!(
-                    "{:>width$}",
-                    display_human_size(&path_metadata.size),
-                    width = size_padding_len
-                );
-                let path = pathdata.path_buf.to_string_lossy();
+impl PaddingCollection {
+    fn new(config: &Config, display_set: &DisplaySet) -> PaddingCollection {
+        // calculate padding and borders for display later
+        let (size_padding_len, fancy_border_len) = display_set.inner.iter().flatten().fold(
+            (0usize, 0usize),
+            |(mut size_padding_len, mut fancy_border_len), pathdata| {
+                let path_metadata = pathdata.md_infallible();
 
-                (date, size, path)
-            };
+                let (display_date, display_size, display_path) = {
+                    let date = get_date(config, &path_metadata.modify_time, DateFormat::Display);
+                    let size = format!(
+                        "{:>width$}",
+                        display_human_size(&path_metadata.size),
+                        width = size_padding_len
+                    );
+                    let path = pathdata.path_buf.to_string_lossy();
 
-            let display_size_len = display_human_size(&path_metadata.size).len();
-            let formatted_line_len = display_date.len()
-                + display_size.len()
-                + display_path.len()
-                + PRETTY_FIXED_WIDTH_PADDING_LEN_X2
-                + QUOTATION_MARKS_LEN;
+                    (date, size, path)
+                };
 
-            size_padding_len = display_size_len.max(size_padding_len);
-            fancy_border_len = formatted_line_len.max(fancy_border_len);
-            (size_padding_len, fancy_border_len)
-        },
-    );
+                let display_size_len = display_human_size(&path_metadata.size).len();
+                let formatted_line_len = display_date.len()
+                    + display_size.len()
+                    + display_path.len()
+                    + PRETTY_FIXED_WIDTH_PADDING_LEN_X2
+                    + QUOTATION_MARKS_LEN;
 
-    let fancy_border_string: String = {
+                size_padding_len = display_size_len.max(size_padding_len);
+                fancy_border_len = formatted_line_len.max(fancy_border_len);
+                (size_padding_len, fancy_border_len)
+            },
+        );
+
+        let fancy_border_string: String = Self::get_fancy_border_string(fancy_border_len);
+
+        let phantom_date_pad_str = format!(
+            "{:<width$}",
+            "",
+            width = get_date(config, &PHANTOM_DATE, DateFormat::Display).len()
+        );
+        let phantom_size_pad_str = format!(
+            "{:<width$}",
+            "",
+            width = display_human_size(&PHANTOM_SIZE).len()
+        );
+
+        PaddingCollection {
+            size_padding_len,
+            fancy_border_string,
+            phantom_date_pad_str,
+            phantom_size_pad_str,
+        }
+    }
+
+    fn get_fancy_border_string(fancy_border_len: usize) -> String {
         let get_max_sized_border = || {
             // Active below is the most idiomatic Rust, but it maybe slower than the commented portion
             // (0..fancy_border_len).map(|_| "─").collect()
@@ -271,24 +311,6 @@ fn calculate_pretty_padding(config: &Config, display_set: &DisplaySet) -> Paddin
             }
             None => get_max_sized_border(),
         }
-    };
-
-    let phantom_date_pad_str = format!(
-        "{:<width$}",
-        "",
-        width = get_date(config, &PHANTOM_DATE, DateFormat::Display).len()
-    );
-    let phantom_size_pad_str = format!(
-        "{:<width$}",
-        "",
-        width = display_human_size(&PHANTOM_SIZE).len()
-    );
-
-    PaddingCollection {
-        size_padding_len,
-        fancy_border_string,
-        phantom_date_pad_str,
-        phantom_size_pad_str,
     }
 }
 

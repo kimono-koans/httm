@@ -25,7 +25,7 @@ use crate::display::primary::{
 };
 use crate::library::results::HttmResult;
 use crate::library::utility::{get_delimiter, print_output_buf};
-use crate::lookup::file_mounts::get_mounts_for_files;
+use crate::lookup::file_mounts::MountsForFiles;
 
 pub fn display_num_versions(
     config: &Config,
@@ -177,18 +177,18 @@ fn parse_num_versions(
 }
 
 pub fn display_mounts(config: &Config) -> HttmResult<()> {
-    let mounts_for_files = get_mounts_for_files(config);
+    let map = MountsForFiles::new(config);
 
-    display_as_map(config, mounts_for_files)?;
+    display_as_map(config, map)?;
 
     Ok(())
 }
 
-pub fn display_as_map(config: &Config, map: BTreeMap<PathData, Vec<PathData>>) -> HttmResult<()> {
+pub fn display_as_map(config: &Config, map: MountsForFiles) -> HttmResult<()> {
     let output_buf = if config.opt_raw || config.opt_zeros {
-        display_raw(config, &map)
+        display_raw(config, &map.into())
     } else {
-        display_map_formatted(config, &map)
+        display_map_formatted(config, &map.into())
     };
 
     print_output_buf(output_buf)?;
