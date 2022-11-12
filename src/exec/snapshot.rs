@@ -37,7 +37,7 @@ pub fn take_snapshot(config: Arc<Config>, requested_snapshot_suffix: &str) -> Ht
         // all snapshots should have the same timestamp
         let timestamp = get_date(&config, &SystemTime::now(), DateFormat::Timestamp);
 
-        let vec_snapshot_names: Vec<String> = mounts_for_files.inner
+        let vec_snapshot_names: Vec<String> = mounts_for_files
             .iter()
             .flat_map(|(_pathdata, datasets)| datasets)
             .map(|mount| {

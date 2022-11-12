@@ -16,6 +16,7 @@
 // that was distributed with this source code.
 
 use std::collections::BTreeMap;
+use std::ops::Deref;
 
 use itertools::Itertools;
 use rayon::prelude::*;
@@ -25,7 +26,7 @@ use crate::data::paths::PathData;
 use crate::lookup::versions::MostProximateAndOptAlts;
 
 pub struct MountsForFiles {
-    pub inner: BTreeMap<PathData, Vec<PathData>>,
+    inner: BTreeMap<PathData, Vec<PathData>>,
 }
 
 impl From<BTreeMap<PathData, Vec<PathData>>> for MountsForFiles {
@@ -37,6 +38,14 @@ impl From<BTreeMap<PathData, Vec<PathData>>> for MountsForFiles {
 impl From<MountsForFiles> for BTreeMap<PathData, Vec<PathData>> {
     fn from(mounts_for_files: MountsForFiles) -> Self {
         mounts_for_files.inner
+    }
+}
+
+impl Deref for MountsForFiles {
+    type Target = BTreeMap<PathData, Vec<PathData>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
     }
 }
 
