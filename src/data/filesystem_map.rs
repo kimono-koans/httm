@@ -22,14 +22,12 @@ use clap::OsValues;
 use crate::config::generate::ExecMode;
 use crate::data::paths::PathData;
 use crate::library::results::HttmResult;
-use crate::lookup::versions::MostProximateAndOptAlts;
 use crate::parse::aliases::MapOfAliases;
-use crate::parse::alts::precompute_alt_replicated;
+use crate::parse::alts::MapOfAlts;
 use crate::parse::mounts::{get_common_snap_dir, parse_mounts_exec};
 use crate::parse::snaps::MapOfSnaps;
 
 pub type MapOfDatasets = BTreeMap<PathBuf, DatasetMetadata>;
-pub type MapOfAlts = BTreeMap<PathBuf, MostProximateAndOptAlts>;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum FilesystemType {
@@ -121,7 +119,7 @@ impl DatasetCollection {
 
         // only create a map of alts if necessary
         let opt_map_of_alts = if opt_alt_replicated {
-            Some(precompute_alt_replicated(&map_of_datasets))
+            Some(MapOfAlts::new(&map_of_datasets))
         } else {
             None
         };
