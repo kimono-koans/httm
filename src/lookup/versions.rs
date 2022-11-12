@@ -30,12 +30,6 @@ use crate::data::filesystem_map::{
 use crate::data::paths::PathData;
 use crate::library::results::{HttmError, HttmResult};
 
-#[derive(Debug, Clone)]
-pub struct RelativePathAndSnapMounts {
-    pub relative_path: PathBuf,
-    pub snap_mounts: Vec<PathBuf>,
-}
-
 pub fn versions_lookup_exec(config: &Config, path_set: &[PathData]) -> HttmResult<MapLiveToSnaps> {
     let map_live_to_snaps = get_all_versions_for_path_set(config, path_set);
 
@@ -190,7 +184,7 @@ pub fn get_version_search_bundles(
         Some(datasets_of_interest) => datasets_of_interest
             .iter()
             .map(|dataset_of_interest| {
-                get_version_search_bundle_per_dataset(
+                RelativePathAndSnapMounts::new(
                     config,
                     pathdata,
                     proximate_dataset_mount,
@@ -198,7 +192,7 @@ pub fn get_version_search_bundles(
                 )
             })
             .collect(),
-        None => Ok(vec![get_version_search_bundle_per_dataset(
+        None => Ok(vec![RelativePathAndSnapMounts::new(
             config,
             pathdata,
             proximate_dataset_mount,
@@ -207,78 +201,80 @@ pub fn get_version_search_bundles(
     }
 }
 
-fn get_version_search_bundle_per_dataset(
-    config: &Config,
-    pathdata: &PathData,
-    proximate_dataset_mount: &Path,
-    dataset_of_interest: &Path,
-) -> HttmResult<RelativePathAndSnapMounts> {
-    // building our relative path by removing parent below the snap dir
-    //
-    // for native searches the prefix is are the dirs below the most proximate dataset
-    // for user specified dirs/aliases these are specified by the user
-    let relative_path = get_relative_path(config, pathdata, proximate_dataset_mount)?;
-
-    let snap_mounts = config
-        .dataset_collection
-        .map_of_snaps
-        .get(dataset_of_interest)
-        .ok_or_else(|| {
-            HttmError::new(
-                "httm could find no snap mount for your files.  \
-            Iterator should just ignore/flatten this error.",
-            )
-        })
-        .cloned()?;
-
-    Ok(RelativePathAndSnapMounts {
-        relative_path,
-        snap_mounts,
-    })
+#[derive(Debug, Clone)]
+pub struct RelativePathAndSnapMounts {
+    pub relative_path: PathBuf,
+    pub snap_mounts: Vec<PathBuf>,
 }
 
-fn get_relative_path(
-    config: &Config,
-    pathdata: &PathData,
-    proximate_dataset_mount: &Path,
-) -> HttmResult<PathBuf> {
-    // path strip, if aliased
-    if let Some(map_of_aliases) = &config.dataset_collection.opt_map_of_aliases {
-        let opt_aliased_local_dir = map_of_aliases
-            .iter()
-            // do a search for a key with a value
-            .find_map(|(local_dir, alias_info)| {
-                if alias_info.remote_dir == proximate_dataset_mount {
-                    Some(local_dir)
-                } else {
-                    None
-                }
-            });
+impl RelativePathAndSnapMounts {
+    fn new(
+        config: &Config,
+        pathdata: &PathData,
+        proximate_dataset_mount: &Path,
+        dataset_of_interest: &Path,
+    ) -> HttmResult<RelativePathAndSnapMounts> {
+        // building our relative path by removing parent below the snap dir
+        //
+        // for native searches the prefix is are the dirs below the most proximate dataset
+        // for user specified dirs/aliases these are specified by the user
+        let relative_path = RelativePathAndSnapMounts::get_relative_path(
+            config,
+            pathdata,
+            proximate_dataset_mount,
+        )?;
 
-        // fallback if unable to find an alias or strip a prefix
-        // (each an indication we should not be trying aliases)
-        if let Some(local_dir) = opt_aliased_local_dir {
-            if let Ok(alias_stripped_path) = pathdata.path_buf.strip_prefix(&local_dir) {
-                return Ok(alias_stripped_path.to_path_buf());
+        let snap_mounts = config
+            .dataset_collection
+            .map_of_snaps
+            .get(dataset_of_interest)
+            .ok_or_else(|| {
+                HttmError::new(
+                    "httm could find no snap mount for your files.  \
+                Iterator should just ignore/flatten this error.",
+                )
+            })
+            .cloned()?;
+
+        Ok(RelativePathAndSnapMounts {
+            relative_path,
+            snap_mounts,
+        })
+    }
+
+    fn get_relative_path(
+        config: &Config,
+        pathdata: &PathData,
+        proximate_dataset_mount: &Path,
+    ) -> HttmResult<PathBuf> {
+        // path strip, if aliased
+        if let Some(map_of_aliases) = &config.dataset_collection.opt_map_of_aliases {
+            let opt_aliased_local_dir = map_of_aliases
+                .iter()
+                // do a search for a key with a value
+                .find_map(|(local_dir, alias_info)| {
+                    if alias_info.remote_dir == proximate_dataset_mount {
+                        Some(local_dir)
+                    } else {
+                        None
+                    }
+                });
+
+            // fallback if unable to find an alias or strip a prefix
+            // (each an indication we should not be trying aliases)
+            if let Some(local_dir) = opt_aliased_local_dir {
+                if let Ok(alias_stripped_path) = pathdata.path_buf.strip_prefix(&local_dir) {
+                    return Ok(alias_stripped_path.to_path_buf());
+                }
             }
         }
+        // default path strip
+        pathdata
+            .path_buf
+            .strip_prefix(&proximate_dataset_mount)
+            .map(|path| path.to_path_buf())
+            .map_err(|err| err.into())
     }
-    // default path strip
-    pathdata
-        .path_buf
-        .strip_prefix(&proximate_dataset_mount)
-        .map(|path| path.to_path_buf())
-        .map_err(|err| err.into())
-}
-
-fn get_alias_dataset(pathdata: &PathData, map_of_alias: &MapOfAliases) -> Option<PathBuf> {
-    // find_map_first should return the first seq result with a par_iter
-    // but not with a par_bridge
-    pathdata.path_buf.ancestors().find_map(|ancestor| {
-        map_of_alias
-            .get(ancestor)
-            .map(|alias_info| alias_info.remote_dir.clone())
-    })
 }
 
 fn get_proximate_dataset(
@@ -305,6 +301,16 @@ fn get_proximate_dataset(
             )
             .into()
         })
+}
+
+fn get_alias_dataset(pathdata: &PathData, map_of_alias: &MapOfAliases) -> Option<PathBuf> {
+    // find_map_first should return the first seq result with a par_iter
+    // but not with a par_bridge
+    pathdata.path_buf.ancestors().find_map(|ancestor| {
+        map_of_alias
+            .get(ancestor)
+            .map(|alias_info| alias_info.remote_dir.clone())
+    })
 }
 
 fn get_versions(search_bundle: &RelativePathAndSnapMounts) -> Vec<PathData> {
