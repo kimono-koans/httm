@@ -15,13 +15,18 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::path::Path;
+use std::fs::canonicalize;
+use std::path::{Path, PathBuf};
+
+use clap::OsValues;
+use rayon::prelude::*;
+
+use crate::library::utility::{httm_is_dir, read_stdin};
 
 use clap::{crate_name, crate_version, Arg, ArgMatches};
 use indicatif::ProgressBar;
 use time::UtcOffset;
 
-use crate::config::helper::{get_dataset_collection, get_opt_requested_dir, get_paths, get_pwd};
 use crate::config::install_hot_keys::install_hot_keys;
 use crate::data::filesystem_map::DatasetCollection;
 use crate::data::paths::PathData;
@@ -488,15 +493,15 @@ impl Config {
         }
 
         // current working directory will be helpful in a number of places
-        let pwd = get_pwd()?;
+        let pwd = Self::get_pwd()?;
 
         // paths are immediately converted to our PathData struct
         let paths: Vec<PathData> =
-            get_paths(matches.values_of_os("INPUT_FILES"), &exec_mode, &pwd)?;
+            Self::get_paths(matches.values_of_os("INPUT_FILES"), &exec_mode, &pwd)?;
 
         // for exec_modes in which we can only take a single directory, process how we handle those here
         let opt_requested_dir: Option<PathData> =
-            get_opt_requested_dir(&mut exec_mode, &mut deleted_mode, &paths, &pwd)?;
+            Self::get_opt_requested_dir(&mut exec_mode, &mut deleted_mode, &paths, &pwd)?;
 
         let opt_omit_ditto = matches.is_present("OMIT_DITTO");
 
@@ -523,7 +528,7 @@ impl Config {
 
         // obtain a map of datasets, a map of snapshot directories, and possibly a map of
         // alternate filesystems and map of aliases if the user requests
-        let dataset_collection = get_dataset_collection(
+        let dataset_collection = DatasetCollection::new(
             matches.is_present("ALT_REPLICATED"),
             matches.value_of_os("REMOTE_DIR"),
             matches.value_of_os("LOCAL_DIR"),
@@ -556,5 +561,137 @@ impl Config {
         };
 
         Ok(config)
+    }
+    pub fn get_pwd() -> HttmResult<PathData> {
+        if let Ok(pwd) = std::env::current_dir() {
+            if let Ok(path) = PathBuf::from(&pwd).canonicalize() {
+                Ok(PathData::from(path.as_path()))
+            } else {
+                Err(
+                    HttmError::new("Could not obtain a canonical path for your working directory")
+                        .into(),
+                )
+            }
+        } else {
+            Err(HttmError::new(
+                "Working directory does not exist or your do not have permissions to access it.",
+            )
+            .into())
+        }
+    }
+
+    pub fn get_paths(
+        os_values: Option<OsValues>,
+        exec_mode: &ExecMode,
+        pwd: &PathData,
+    ) -> HttmResult<Vec<PathData>> {
+        let mut paths = if let Some(input_files) = os_values {
+            input_files
+                .par_bridge()
+                .map(Path::new)
+                // canonicalize() on a deleted relative path will not exist,
+                // so we have to join with the pwd to make a path that
+                // will exist on a snapshot
+                .map(|path| canonicalize(path).unwrap_or_else(|_| pwd.clone().path_buf.join(path)))
+                .map(|path| PathData::from(path.as_path()))
+                .collect()
+        } else {
+            match exec_mode {
+                // setting pwd as the path, here, keeps us from waiting on stdin when in certain modes
+                //  is more like Interactive and DisplayRecursive in this respect in requiring only one
+                // input, and waiting on one input from stdin is pretty silly
+                ExecMode::Interactive(_) | ExecMode::DisplayRecursive(_) => {
+                    vec![pwd.clone()]
+                }
+                ExecMode::Display
+                | ExecMode::SnapFileMount(_)
+                | ExecMode::MountsForFiles
+                | ExecMode::NumVersions(_) => read_stdin()?
+                    .par_iter()
+                    .map(|string| PathData::from(Path::new(&string)))
+                    .collect(),
+            }
+        };
+
+        // deduplicate pathdata and sort if in display mode --
+        // so input of ./.z* and ./.zshrc will only print ./.zshrc once
+        paths = if paths.len() > 1 {
+            paths.sort_unstable();
+            // dedup needs to be sorted/ordered first to work (not like a BTreeMap)
+            paths.dedup();
+
+            paths
+        } else {
+            paths
+        };
+
+        Ok(paths)
+    }
+
+    pub fn get_opt_requested_dir(
+        exec_mode: &mut ExecMode,
+        deleted_mode: &mut Option<DeletedMode>,
+        paths: &[PathData],
+        pwd: &PathData,
+    ) -> HttmResult<Option<PathData>> {
+        let res = match exec_mode {
+            ExecMode::Interactive(_) | ExecMode::DisplayRecursive(_) => {
+                match paths.len() {
+                    0 => Some(pwd.clone()),
+                    1 => {
+                        // safe to index as we know the paths len is 1
+                        let pathdata = &paths[0];
+
+                        // use our bespoke is_dir fn for determining whether a dir here see pub httm_is_dir
+                        if httm_is_dir(pathdata) {
+                            Some(pathdata.clone())
+                        // and then we take all comers here because may be a deleted file that DNE on a live version
+                        } else {
+                            match exec_mode {
+                                ExecMode::Interactive(ref interactive_mode) => {
+                                    match interactive_mode {
+                                        InteractiveMode::Browse => {
+                                            // doesn't make sense to have a non-dir in these modes
+                                            return Err(HttmError::new(
+                                                        "Path specified is not a directory, and therefore not suitable for browsing.",
+                                                    )
+                                                    .into());
+                                        }
+                                        InteractiveMode::Restore | InteractiveMode::Select => {
+                                            // non-dir file will just cause us to skip the lookup phase
+                                            None
+                                        }
+                                    }
+                                }
+                                // silently disable DisplayRecursive when path given is not a directory
+                                // switch to a standard Display mode
+                                ExecMode::DisplayRecursive(_) => {
+                                    *exec_mode = ExecMode::Display;
+                                    *deleted_mode = None;
+                                    None
+                                }
+                                _ => unreachable!(),
+                            }
+                        }
+                    }
+                    n if n > 1 => return Err(HttmError::new(
+                        "May only specify one path in the display recursive or interactive modes.",
+                    )
+                    .into()),
+                    _ => {
+                        unreachable!()
+                    }
+                }
+            }
+            ExecMode::Display
+            | ExecMode::SnapFileMount(_)
+            | ExecMode::MountsForFiles
+            | ExecMode::NumVersions(_) => {
+                // in non-interactive mode / display mode, requested dir is just a file
+                // like every other file and pwd must be the requested working dir.
+                None
+            }
+        };
+        Ok(res)
     }
 }

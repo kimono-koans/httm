@@ -36,7 +36,6 @@ mod exec {
 }
 mod config {
     pub mod generate;
-    pub mod helper;
     pub mod install_hot_keys;
 }
 mod library {
