@@ -31,7 +31,7 @@ use crate::parse::mounts::{get_base_collection, MapOfDatasets};
 use crate::parse::snaps::MapOfSnaps;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct DatasetCollection {
+pub struct FilesystemInfo {
     // key: mount, val: (dataset/subvol, fs_type, mount_type)
     pub map_of_datasets: MapOfDatasets,
     // key: mount, val: vec snap locations on disk (e.g. /.zfs/snapshot/snap_8a86e4fc_prepApt/home)
@@ -48,7 +48,7 @@ pub struct DatasetCollection {
     pub snaps_selected_for_search: SnapsSelectedForSearch,
 }
 
-impl DatasetCollection {
+impl FilesystemInfo {
     pub fn new(
         opt_alt_replicated: bool,
         opt_remote_dir: Option<&OsStr>,
@@ -56,7 +56,7 @@ impl DatasetCollection {
         opt_map_aliases: Option<OsValues>,
         pwd: &PathData,
         exec_mode: &ExecMode,
-    ) -> HttmResult<DatasetCollection> {
+    ) -> HttmResult<FilesystemInfo> {
         let (map_of_datasets, map_of_snaps, vec_of_filter_dirs) = get_base_collection()?;
 
         // for a collection of btrfs mounts, indicates a common snapshot directory to ignore
@@ -123,7 +123,7 @@ impl DatasetCollection {
                 SnapsSelectedForSearch::MostProximateOnly
             };
 
-        Ok(DatasetCollection {
+        Ok(FilesystemInfo {
             map_of_datasets,
             map_of_snaps,
             opt_map_of_alts,

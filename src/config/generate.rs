@@ -28,7 +28,7 @@ use indicatif::ProgressBar;
 use time::UtcOffset;
 
 use crate::config::install_hot_keys::install_hot_keys;
-use crate::data::filesystem_map::DatasetCollection;
+use crate::data::filesystem_info::FilesystemInfo;
 use crate::data::paths::PathData;
 use crate::library::results::{HttmError, HttmResult};
 use crate::ROOT_DIRECTORY;
@@ -363,7 +363,7 @@ pub struct Config {
     pub opt_last_snap: Option<LastSnapMode>,
     pub requested_utc_offset: UtcOffset,
     pub exec_mode: ExecMode,
-    pub dataset_collection: DatasetCollection,
+    pub dataset_collection: FilesystemInfo,
     pub deleted_mode: Option<DeletedMode>,
     pub pwd: PathData,
     pub opt_requested_dir: Option<PathData>,
@@ -528,7 +528,7 @@ impl Config {
 
         // obtain a map of datasets, a map of snapshot directories, and possibly a map of
         // alternate filesystems and map of aliases if the user requests
-        let dataset_collection = DatasetCollection::new(
+        let dataset_collection = FilesystemInfo::new(
             matches.is_present("ALT_REPLICATED"),
             matches.value_of_os("REMOTE_DIR"),
             matches.value_of_os("LOCAL_DIR"),

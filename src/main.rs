@@ -21,7 +21,7 @@ extern crate lazy_static;
 use std::sync::Arc;
 
 mod data {
-    pub mod filesystem_map;
+    pub mod filesystem_info;
     pub mod paths;
 }
 mod display {
