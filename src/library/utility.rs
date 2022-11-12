@@ -31,7 +31,8 @@ use crate::config::generate::Config;
 use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::exec::interactive::SelectionCandidate;
 use crate::library::results::{HttmError, HttmResult};
-use crate::{FilesystemType, BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_SNAPSHOT_DIRECTORY};
+use crate::parse::aliases::FilesystemType;
+use crate::{BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_SNAPSHOT_DIRECTORY};
 
 pub fn get_delimiter(config: &Config) -> char {
     if config.opt_zeros {

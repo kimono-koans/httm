@@ -22,10 +22,10 @@ use std::process::Command as ExecProcess;
 use which::which;
 
 use crate::config::generate::Config;
-use crate::data::filesystem_map::FilesystemType;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{get_date, get_delimiter, print_output_buf, DateFormat};
 use crate::lookup::file_mounts::MountsForFiles;
+use crate::parse::aliases::FilesystemType;
 
 pub fn take_snapshot(config: Arc<Config>, requested_snapshot_suffix: &str) -> HttmResult<()> {
     fn exec_zfs_snapshot(

@@ -23,9 +23,9 @@ use std::{
 use rayon::prelude::*;
 use which::which;
 
-use crate::data::filesystem_map::{FilesystemType, MountType};
 use crate::library::results::{HttmError, HttmResult};
-use crate::parse::mounts::MapOfDatasets;
+use crate::parse::aliases::FilesystemType;
+use crate::parse::mounts::{MapOfDatasets, MountType};
 use crate::{BTRFS_SNAPPER_HIDDEN_DIRECTORY, BTRFS_SNAPPER_SUFFIX, ZFS_SNAPSHOT_DIRECTORY};
 
 #[derive(Debug, Clone, PartialEq, Eq)]

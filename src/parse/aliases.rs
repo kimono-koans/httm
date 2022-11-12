@@ -17,9 +17,20 @@
 
 use std::{collections::BTreeMap, ffi::OsString, ops::Deref, path::Path, path::PathBuf};
 
-use crate::data::filesystem_map::RemotePathAndFsType;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::get_fs_type_from_hidden_dir;
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub enum FilesystemType {
+    Zfs,
+    Btrfs,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RemotePathAndFsType {
+    pub remote_dir: PathBuf,
+    pub fs_type: FilesystemType,
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MapOfAliases {

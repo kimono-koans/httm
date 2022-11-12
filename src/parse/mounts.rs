@@ -22,9 +22,9 @@ use rayon::iter::Either;
 use rayon::prelude::*;
 use which::which;
 
-use crate::data::filesystem_map::{DatasetMetadata, FilesystemType, MountType};
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{get_common_path, get_fs_type_from_hidden_dir};
+use crate::parse::aliases::FilesystemType;
 use crate::parse::snaps::MapOfSnaps;
 use crate::ZFS_SNAPSHOT_DIRECTORY;
 
@@ -33,6 +33,19 @@ pub const BTRFS_FSTYPE: &str = "btrfs";
 pub const SMB_FSTYPE: &str = "smbfs";
 pub const NFS_FSTYPE: &str = "nfs";
 pub const AFP_FSTYPE: &str = "afpfs";
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum MountType {
+    Local,
+    Network,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DatasetMetadata {
+    pub name: String,
+    pub fs_type: FilesystemType,
+    pub mount_type: MountType,
+}
 
 pub type MapOfDatasets = BTreeMap<PathBuf, DatasetMetadata>;
 pub type VecOfFilterDirs = Vec<PathBuf>;

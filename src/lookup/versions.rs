@@ -24,7 +24,6 @@ use std::{
 use rayon::prelude::*;
 
 use crate::config::generate::{Config, LastSnapMode};
-use crate::data::filesystem_map::SnapDatasetType;
 use crate::data::paths::PathData;
 use crate::display::primary::MapLiveToSnaps;
 use crate::library::results::{HttmError, HttmResult};
@@ -125,6 +124,37 @@ fn get_last_snap(
             LastSnapMode::None | LastSnapMode::NoDittoInclusive => vec![pathdata.clone()],
             _ => Vec::new(),
         },
+    }
+}
+
+#[derive(Copy, Debug, Clone, PartialEq, Eq)]
+pub enum SnapDatasetType {
+    MostProximate,
+    AltReplicated,
+}
+
+#[derive(Copy, Debug, Clone, PartialEq, Eq)]
+pub enum SnapsSelectedForSearch {
+    MostProximateOnly,
+    IncludeAltReplicated,
+}
+
+// alt replicated should come first,
+// so as to be at the top of results
+static INCLUDE_ALTS: &[SnapDatasetType] = [
+    SnapDatasetType::AltReplicated,
+    SnapDatasetType::MostProximate,
+]
+.as_slice();
+
+static ONLY_PROXIMATE: &[SnapDatasetType] = [SnapDatasetType::MostProximate].as_slice();
+
+impl SnapsSelectedForSearch {
+    pub fn get_value(&self) -> &[SnapDatasetType] {
+        match self {
+            SnapsSelectedForSearch::IncludeAltReplicated => INCLUDE_ALTS,
+            SnapsSelectedForSearch::MostProximateOnly => ONLY_PROXIMATE,
+        }
     }
 }
 

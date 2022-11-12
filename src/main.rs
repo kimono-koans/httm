@@ -55,7 +55,6 @@ mod parse {
 }
 
 use crate::config::generate::{Config, ExecMode};
-use crate::data::filesystem_map::FilesystemType;
 use crate::display::maps::{display_as_map, display_mounts};
 use crate::display::primary::{display_exec, MapLiveToSnaps};
 use crate::exec::interactive::interactive_exec;

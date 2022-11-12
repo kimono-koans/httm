@@ -22,66 +22,11 @@ use clap::OsValues;
 use crate::config::generate::ExecMode;
 use crate::data::paths::PathData;
 use crate::library::results::HttmResult;
+use crate::lookup::versions::SnapsSelectedForSearch;
 use crate::parse::aliases::MapOfAliases;
 use crate::parse::alts::MapOfAlts;
 use crate::parse::mounts::{get_base_collection, get_common_snap_dir, MapOfDatasets};
 use crate::parse::snaps::MapOfSnaps;
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum FilesystemType {
-    Zfs,
-    Btrfs,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum MountType {
-    Local,
-    Network,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct RemotePathAndFsType {
-    pub remote_dir: PathBuf,
-    pub fs_type: FilesystemType,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct DatasetMetadata {
-    pub name: String,
-    pub fs_type: FilesystemType,
-    pub mount_type: MountType,
-}
-
-#[derive(Copy, Debug, Clone, PartialEq, Eq)]
-pub enum SnapDatasetType {
-    MostProximate,
-    AltReplicated,
-}
-
-#[derive(Copy, Debug, Clone, PartialEq, Eq)]
-pub enum SnapsSelectedForSearch {
-    MostProximateOnly,
-    IncludeAltReplicated,
-}
-
-// alt replicated should come first,
-// so as to be at the top of results
-static INCLUDE_ALTS: &[SnapDatasetType] = [
-    SnapDatasetType::AltReplicated,
-    SnapDatasetType::MostProximate,
-]
-.as_slice();
-
-static ONLY_PROXIMATE: &[SnapDatasetType] = [SnapDatasetType::MostProximate].as_slice();
-
-impl SnapsSelectedForSearch {
-    pub fn get_value(&self) -> &[SnapDatasetType] {
-        match self {
-            SnapsSelectedForSearch::IncludeAltReplicated => INCLUDE_ALTS,
-            SnapsSelectedForSearch::MostProximateOnly => ONLY_PROXIMATE,
-        }
-    }
-}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DatasetCollection {
