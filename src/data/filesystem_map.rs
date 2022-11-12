@@ -23,14 +23,13 @@ use crate::config::generate::ExecMode;
 use crate::data::paths::PathData;
 use crate::library::results::HttmResult;
 use crate::lookup::versions::MostProximateAndOptAlts;
-use crate::parse::aliases::parse_aliases;
+use crate::parse::aliases::MapOfAliases;
 use crate::parse::alts::precompute_alt_replicated;
 use crate::parse::mounts::{get_common_snap_dir, parse_mounts_exec};
 use crate::parse::snaps::MapOfSnaps;
 
 pub type MapOfDatasets = BTreeMap<PathBuf, DatasetMetadata>;
 pub type MapOfAlts = BTreeMap<PathBuf, MostProximateAndOptAlts>;
-pub type MapOfAliases = BTreeMap<PathBuf, RemotePathAndFsType>;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum FilesystemType {
@@ -163,7 +162,7 @@ impl DatasetCollection {
                 env_local_dir
             };
 
-            Some(parse_aliases(
+            Some(MapOfAliases::new(
                 &raw_snap_dir,
                 &raw_local_dir,
                 pwd.path_buf.as_path(),

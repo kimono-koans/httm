@@ -24,10 +24,11 @@ use std::{
 use rayon::prelude::*;
 
 use crate::config::generate::{Config, LastSnapMode};
-use crate::data::filesystem_map::{MapOfAliases, MapOfDatasets, SnapDatasetType};
+use crate::data::filesystem_map::{MapOfDatasets, SnapDatasetType};
 use crate::data::paths::PathData;
 use crate::display::primary::MapLiveToSnaps;
 use crate::library::results::{HttmError, HttmResult};
+use crate::parse::aliases::MapOfAliases;
 
 pub fn versions_lookup_exec(config: &Config, path_set: &[PathData]) -> HttmResult<MapLiveToSnaps> {
     let map_live_to_snaps = get_versions_for_path_set(config, path_set);
