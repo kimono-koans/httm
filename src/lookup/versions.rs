@@ -29,7 +29,7 @@ use crate::data::paths::PathData;
 use crate::library::results::{HttmError, HttmResult};
 
 pub fn versions_lookup_exec(config: &Config, path_set: &[PathData]) -> HttmResult<MapLiveToSnaps> {
-    let map_live_to_snaps = get_all_versions_for_path_set(config, path_set);
+    let map_live_to_snaps = get_versions_for_path_set(config, path_set);
 
     // check if all files (snap and live) do not exist, if this is true, then user probably messed up
     // and entered a file that never existed (that is, perhaps a wrong file name)?
@@ -50,7 +50,7 @@ pub fn versions_lookup_exec(config: &Config, path_set: &[PathData]) -> HttmResul
     Ok(map_live_to_snaps)
 }
 
-fn get_all_versions_for_path_set(
+fn get_versions_for_path_set(
     config: &Config,
     path_set: &[PathData],
 ) -> BTreeMap<PathData, Vec<PathData>> {
@@ -181,6 +181,7 @@ impl MostProximateAndOptAlts {
 
         Ok(snap_types_for_search)
     }
+
     pub fn get_search_bundles(
         &self,
         config: &Config,
@@ -208,6 +209,7 @@ impl MostProximateAndOptAlts {
             )?]),
         }
     }
+
     pub fn get_datasets_of_interest(self) -> Vec<PathBuf> {
         self.opt_datasets_of_interest
             .unwrap_or_else(|| vec![self.proximate_dataset_mount])
@@ -231,7 +233,7 @@ impl RelativePathAndSnapMounts {
         //
         // for native searches the prefix is are the dirs below the most proximate dataset
         // for user specified dirs/aliases these are specified by the user
-        let relative_path = Self::get_relative_path(config, pathdata, proximate_dataset_mount)?;
+        let relative_path = get_relative_path(config, pathdata, proximate_dataset_mount)?;
 
         let snap_mounts = config
             .dataset_collection
@@ -249,40 +251,6 @@ impl RelativePathAndSnapMounts {
             relative_path,
             snap_mounts,
         })
-    }
-
-    fn get_relative_path(
-        config: &Config,
-        pathdata: &PathData,
-        proximate_dataset_mount: &Path,
-    ) -> HttmResult<PathBuf> {
-        // path strip, if aliased
-        if let Some(map_of_aliases) = &config.dataset_collection.opt_map_of_aliases {
-            let opt_aliased_local_dir = map_of_aliases
-                .iter()
-                // do a search for a key with a value
-                .find_map(|(local_dir, alias_info)| {
-                    if alias_info.remote_dir == proximate_dataset_mount {
-                        Some(local_dir)
-                    } else {
-                        None
-                    }
-                });
-
-            // fallback if unable to find an alias or strip a prefix
-            // (each an indication we should not be trying aliases)
-            if let Some(local_dir) = opt_aliased_local_dir {
-                if let Ok(alias_stripped_path) = pathdata.path_buf.strip_prefix(&local_dir) {
-                    return Ok(alias_stripped_path.to_path_buf());
-                }
-            }
-        }
-        // default path strip
-        pathdata
-            .path_buf
-            .strip_prefix(&proximate_dataset_mount)
-            .map(|path| path.to_path_buf())
-            .map_err(|err| err.into())
     }
 
     fn get_versions(&self) -> Vec<PathData> {
@@ -306,6 +274,40 @@ impl RelativePathAndSnapMounts {
 
         sorted_versions
     }
+}
+
+fn get_relative_path(
+    config: &Config,
+    pathdata: &PathData,
+    proximate_dataset_mount: &Path,
+) -> HttmResult<PathBuf> {
+    // path strip, if aliased
+    if let Some(map_of_aliases) = &config.dataset_collection.opt_map_of_aliases {
+        let opt_aliased_local_dir = map_of_aliases
+            .iter()
+            // do a search for a key with a value
+            .find_map(|(local_dir, alias_info)| {
+                if alias_info.remote_dir == proximate_dataset_mount {
+                    Some(local_dir)
+                } else {
+                    None
+                }
+            });
+
+        // fallback if unable to find an alias or strip a prefix
+        // (each an indication we should not be trying aliases)
+        if let Some(local_dir) = opt_aliased_local_dir {
+            if let Ok(alias_stripped_path) = pathdata.path_buf.strip_prefix(&local_dir) {
+                return Ok(alias_stripped_path.to_path_buf());
+            }
+        }
+    }
+    // default path strip
+    pathdata
+        .path_buf
+        .strip_prefix(&proximate_dataset_mount)
+        .map(|path| path.to_path_buf())
+        .map_err(|err| err.into())
 }
 
 fn get_proximate_dataset(
