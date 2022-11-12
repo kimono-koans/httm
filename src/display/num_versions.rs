@@ -17,7 +17,6 @@
 
 use crate::config::generate::{Config, NumVersionsMode};
 use crate::data::paths::PathData;
-use crate::display::maps::get_padding_for_map;
 use crate::library::utility::get_delimiter;
 use crate::lookup::versions::MapLiveToSnaps;
 
@@ -28,12 +27,12 @@ impl MapLiveToSnaps {
         num_versions_mode: &NumVersionsMode,
     ) -> String {
         let delimiter = get_delimiter(config);
-    
+
         let write_out_buffer: String = self
             .iter()
             .filter_map(|(live_version, snaps)| {
                 let map_padding = if matches!(num_versions_mode, NumVersionsMode::All) {
-                    get_padding_for_map(self)
+                    self.get_map_padding()
                 } else {
                     0usize
                 };
@@ -46,7 +45,7 @@ impl MapLiveToSnaps {
                 )
             })
             .collect();
-    
+
         if write_out_buffer.is_empty() {
             let msg = match num_versions_mode {
                 NumVersionsMode::Multiple => {
@@ -62,10 +61,10 @@ impl MapLiveToSnaps {
             };
             eprintln!("{}", msg);
         }
-    
+
         write_out_buffer
     }
-    
+
     fn parse_num_versions(
         num_versions_mode: &NumVersionsMode,
         delimiter: char,
@@ -74,13 +73,13 @@ impl MapLiveToSnaps {
         padding: usize,
     ) -> Option<String> {
         let display_path = format!("\"{}\"", live_version.path_buf.display());
-    
+
         let is_live_redundant = || {
             snaps
                 .iter()
                 .any(|snap_version| live_version.metadata == snap_version.metadata)
         };
-    
+
         match num_versions_mode {
             NumVersionsMode::All => {
                 let num_versions = if is_live_redundant() {
@@ -88,7 +87,7 @@ impl MapLiveToSnaps {
                 } else {
                     snaps.len() + 1
                 };
-    
+
                 if live_version.metadata.is_none() {
                     return Some(format!(
                         "{:<width$} : Path does not exist.{}",
@@ -97,7 +96,7 @@ impl MapLiveToSnaps {
                         width = padding
                     ));
                 }
-    
+
                 if num_versions == 1 {
                     Some(format!(
                         "{:<width$} : 1 Version available.{}",
@@ -125,7 +124,7 @@ impl MapLiveToSnaps {
                         display_path, delimiter
                     ));
                 }
-    
+
                 match num_versions_mode {
                     NumVersionsMode::Multiple => {
                         if snaps.is_empty() || (snaps.len() == 1 && is_live_redundant()) {

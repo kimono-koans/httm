@@ -93,7 +93,6 @@ impl MapLiveToSnaps {
                 .collect::<String>()
         }
     }
-    
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
