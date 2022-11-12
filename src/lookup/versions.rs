@@ -232,7 +232,7 @@ impl RelativePathAndSnapMounts {
             })
             .cloned()?;
 
-        Ok(RelativePathAndSnapMounts {
+        Ok(Self {
             relative_path,
             snap_mounts,
         })
