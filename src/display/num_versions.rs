@@ -16,9 +16,9 @@
 // that was distributed with this source code.
 
 use crate::config::generate::{Config, NumVersionsMode};
-use crate::data::filesystem_map::MapLiveToSnaps;
 use crate::data::paths::PathData;
 use crate::display::maps::get_padding_for_map;
+use crate::display::primary::MapLiveToSnaps;
 use crate::library::utility::get_delimiter;
 
 pub fn display_num_versions(

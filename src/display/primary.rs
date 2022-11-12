@@ -16,13 +16,13 @@
 // that was distributed with this source code.
 
 use std::borrow::Cow;
+use std::collections::BTreeMap;
 use std::ops::Deref;
 
 use number_prefix::NumberPrefix;
 use terminal_size::{terminal_size, Height, Width};
 
 use crate::config::generate::{Config, ExecMode};
-use crate::data::filesystem_map::MapLiveToSnaps;
 use crate::data::paths::{PathData, PHANTOM_DATE, PHANTOM_SIZE};
 use crate::display::num_versions::display_num_versions;
 use crate::library::results::HttmResult;
@@ -36,6 +36,8 @@ pub const PRETTY_FIXED_WIDTH_PADDING_LEN_X2: usize = PRETTY_FIXED_WIDTH_PADDING.
 pub const NOT_SO_PRETTY_FIXED_WIDTH_PADDING: &str = "\t";
 // and we add 2 quotation marks to the path when we format
 pub const QUOTATION_MARKS_LEN: usize = 2;
+
+pub type MapLiveToSnaps = BTreeMap<PathData, Vec<PathData>>;
 
 pub fn display_exec(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> HttmResult<String> {
     let output_buffer = match &config.exec_mode {
