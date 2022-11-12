@@ -70,8 +70,6 @@ fn display_formatted(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> Str
     let global_display_set = DisplaySet::new(config, map_live_to_snaps);
     let global_padding_collection = PaddingCollection::new(config, &global_display_set);
 
-    // indexing safety: array has known len of 2
-
     if map_live_to_snaps.len() == 1 {
         global_display_set.display(config, &global_padding_collection)
     } else {
