@@ -31,7 +31,6 @@ use crate::parse::snaps::MapOfSnaps;
 pub type MapOfDatasets = BTreeMap<PathBuf, DatasetMetadata>;
 pub type MapOfAlts = BTreeMap<PathBuf, MostProximateAndOptAlts>;
 pub type MapOfAliases = BTreeMap<PathBuf, RemotePathAndFsType>;
-pub type MapLiveToSnaps = BTreeMap<PathData, Vec<PathData>>;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum FilesystemType {
