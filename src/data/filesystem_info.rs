@@ -27,7 +27,7 @@ use crate::library::utility::get_common_path;
 use crate::lookup::versions::SnapsSelectedForSearch;
 use crate::parse::aliases::{FilesystemType, MapOfAliases};
 use crate::parse::alts::MapOfAlts;
-use crate::parse::mounts::{get_base_collection, MapOfDatasets};
+use crate::parse::mounts::{BaseFilesystemInfo, MapOfDatasets};
 use crate::parse::snaps::MapOfSnaps;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -36,12 +36,12 @@ pub struct FilesystemInfo {
     pub map_of_datasets: MapOfDatasets,
     // key: mount, val: vec snap locations on disk (e.g. /.zfs/snapshot/snap_8a86e4fc_prepApt/home)
     pub map_of_snaps: MapOfSnaps,
+    // vec dirs to be filtered
+    pub vec_of_filter_dirs: Vec<PathBuf>,
     // key: mount, val: alt dataset
     pub opt_map_of_alts: Option<MapOfAlts>,
     // key: local dir, val: (remote dir, fstype)
     pub opt_map_of_aliases: Option<MapOfAliases>,
-    // vec dirs to be filtered
-    pub vec_of_filter_dirs: Vec<PathBuf>,
     // opt single dir to to be filtered re: btrfs common snap dir
     pub opt_common_snap_dir: Option<PathBuf>,
     // vec of two enum variants - most proximate and alt replicated, or just most proximate
@@ -57,14 +57,15 @@ impl FilesystemInfo {
         pwd: &PathData,
         exec_mode: &ExecMode,
     ) -> HttmResult<FilesystemInfo> {
-        let (map_of_datasets, map_of_snaps, vec_of_filter_dirs) = get_base_collection()?;
+        let base_fs_info = BaseFilesystemInfo::new()?;
 
         // for a collection of btrfs mounts, indicates a common snapshot directory to ignore
-        let opt_common_snap_dir = get_common_snap_dir(&map_of_datasets, &map_of_snaps);
+        let opt_common_snap_dir =
+            get_common_snap_dir(&base_fs_info.map_of_datasets, &base_fs_info.map_of_snaps);
 
         // only create a map of alts if necessary
         let opt_map_of_alts = if opt_alt_replicated {
-            Some(MapOfAlts::new(&map_of_datasets))
+            Some(MapOfAlts::new(&base_fs_info.map_of_datasets))
         } else {
             None
         };
@@ -124,10 +125,10 @@ impl FilesystemInfo {
             };
 
         Ok(FilesystemInfo {
-            map_of_datasets,
-            map_of_snaps,
+            map_of_datasets: base_fs_info.map_of_datasets,
+            map_of_snaps: base_fs_info.map_of_snaps,
+            vec_of_filter_dirs: base_fs_info.vec_filter_dirs,
             opt_map_of_alts,
-            vec_of_filter_dirs,
             opt_common_snap_dir,
             opt_map_of_aliases,
             snaps_selected_for_search,
