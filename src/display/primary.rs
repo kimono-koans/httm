@@ -16,7 +16,6 @@
 // that was distributed with this source code.
 
 use std::borrow::Cow;
-use std::collections::BTreeMap;
 use std::ops::Deref;
 
 use number_prefix::NumberPrefix;
@@ -27,6 +26,7 @@ use crate::data::paths::{PathData, PHANTOM_DATE, PHANTOM_SIZE};
 use crate::display::num_versions::display_num_versions;
 use crate::library::results::HttmResult;
 use crate::library::utility::{get_date, get_delimiter, paint_string, DateFormat};
+use crate::lookup::versions::MapLiveToSnaps;
 
 // 2 space wide padding - used between date and size, and size and path
 pub const PRETTY_FIXED_WIDTH_PADDING: &str = "  ";
@@ -36,8 +36,6 @@ pub const PRETTY_FIXED_WIDTH_PADDING_LEN_X2: usize = PRETTY_FIXED_WIDTH_PADDING.
 pub const NOT_SO_PRETTY_FIXED_WIDTH_PADDING: &str = "\t";
 // and we add 2 quotation marks to the path when we format
 pub const QUOTATION_MARKS_LEN: usize = 2;
-
-pub type MapLiveToSnaps = BTreeMap<PathData, Vec<PathData>>;
 
 pub fn display_exec(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> HttmResult<String> {
     let output_buffer = match &config.exec_mode {
@@ -78,12 +76,13 @@ fn display_formatted(config: &Config, map_live_to_snaps: &MapLiveToSnaps) -> Str
         global_display_set.display(config, &global_padding_collection)
     } else {
         map_live_to_snaps
+            .deref()
             .clone()
             .into_iter()
-            .map(|raw_tuple| [raw_tuple].into())
+            .map(|raw_tuple| raw_tuple.into())
             .map(|raw_instance_set| DisplaySet::new(config, &raw_instance_set))
             .map(|display_set| display_set.display(config, &global_padding_collection))
-            .collect()
+            .collect::<String>()
     }
 }
 

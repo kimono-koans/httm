@@ -56,14 +56,13 @@ mod parse {
 
 use crate::config::generate::{Config, ExecMode};
 use crate::display::maps::{display_as_map, display_mounts};
-use crate::display::primary::{display_exec, MapLiveToSnaps};
+use crate::display::primary::display_exec;
 use crate::exec::interactive::interactive_exec;
 use crate::exec::recursive::display_recursive_wrapper;
 use crate::exec::snapshot::take_snapshot;
 use crate::library::results::HttmResult;
 use crate::library::utility::print_output_buf;
-use crate::lookup::file_mounts::MountsForFiles;
-use crate::lookup::versions::versions_lookup_exec;
+use crate::lookup::versions::{versions_lookup_exec, MapLiveToSnaps};
 
 pub const ZFS_HIDDEN_DIRECTORY: &str = ".zfs";
 pub const ZFS_SNAPSHOT_DIRECTORY: &str = ".zfs/snapshot";
@@ -120,7 +119,7 @@ fn print_display_map(config: &Config, map_live_to_snaps: MapLiveToSnaps) -> Httm
     // because last snap is useful as a global option.  for instance, we
     // can use it in the interactive modes to skip past the select phase
     if config.opt_last_snap.is_some() && matches!(config.exec_mode, ExecMode::Display) {
-        display_as_map(config, MountsForFiles::from(map_live_to_snaps))?
+        display_as_map(config, map_live_to_snaps)?
     } else {
         let output_buf = display_exec(config, &map_live_to_snaps)?;
         print_output_buf(output_buf)?

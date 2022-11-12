@@ -17,6 +17,7 @@
 
 use std::{
     collections::BTreeMap,
+    ops::Deref,
     path::{Path, PathBuf},
     time::SystemTime,
 };
@@ -25,13 +26,12 @@ use rayon::prelude::*;
 
 use crate::config::generate::{Config, LastSnapMode};
 use crate::data::paths::PathData;
-use crate::display::primary::MapLiveToSnaps;
 use crate::library::results::{HttmError, HttmResult};
 use crate::parse::aliases::MapOfAliases;
 use crate::parse::mounts::MapOfDatasets;
 
 pub fn versions_lookup_exec(config: &Config, path_set: &[PathData]) -> HttmResult<MapLiveToSnaps> {
-    let map_live_to_snaps = get_versions_for_path_set(config, path_set);
+    let map_live_to_snaps = MapLiveToSnaps::new(config, path_set);
 
     // check if all files (snap and live) do not exist, if this is true, then user probably messed up
     // and entered a file that never existed (that is, perhaps a wrong file name)?
@@ -52,78 +52,114 @@ pub fn versions_lookup_exec(config: &Config, path_set: &[PathData]) -> HttmResul
     Ok(map_live_to_snaps)
 }
 
-fn get_versions_for_path_set(
-    config: &Config,
-    path_set: &[PathData],
-) -> BTreeMap<PathData, Vec<PathData>> {
-    // create vec of all local and replicated backups at once
-    let snaps_selected_for_search = config
-        .dataset_collection
-        .snaps_selected_for_search
-        .get_value();
-
-    let all_snap_versions: BTreeMap<PathData, Vec<PathData>> = path_set
-        .par_iter()
-        .map(|pathdata| {
-            let snaps: Vec<PathData> = snaps_selected_for_search
-                .par_iter()
-                .flat_map(|dataset_type| {
-                    MostProximateAndOptAlts::new(config, pathdata, dataset_type)
-                })
-                .flat_map(|dataset_for_search| {
-                    dataset_for_search.get_search_bundles(config, pathdata)
-                })
-                .flatten()
-                .flat_map(|search_bundle| search_bundle.get_versions())
-                .filter(|snap_version| {
-                    // process omit_ditto before last snap
-                    if config.opt_omit_ditto {
-                        snap_version.md_infallible() != pathdata.md_infallible()
-                    } else {
-                        true
-                    }
-                })
-                .collect();
-            (pathdata.clone(), snaps)
-        })
-        .map(|(pathdata, snaps)| {
-            // process last snap mode after omit_ditto
-            match &config.opt_last_snap {
-                Some(last_snap_mode) => {
-                    let vec_last_snap = get_last_snap(last_snap_mode, &pathdata, &snaps);
-                    (pathdata, vec_last_snap)
-                }
-                None => (pathdata, snaps),
-            }
-        })
-        .collect();
-
-    all_snap_versions
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MapLiveToSnaps {
+    inner: BTreeMap<PathData, Vec<PathData>>,
 }
 
-fn get_last_snap(
-    last_snap_mode: &LastSnapMode,
-    pathdata: &PathData,
-    snaps: &[PathData],
-) -> Vec<PathData> {
-    match snaps.last() {
-        Some(last) => match last_snap_mode {
-            LastSnapMode::Any => vec![last.clone()],
-            LastSnapMode::DittoOnly if pathdata.md_infallible() == last.md_infallible() => {
-                vec![last.clone()]
-            }
-            LastSnapMode::NoDittoExclusive if pathdata.md_infallible() != last.md_infallible() => {
-                vec![last.clone()]
-            }
-            LastSnapMode::NoDittoInclusive if pathdata.md_infallible() != last.md_infallible() => {
-                vec![last.clone()]
-            }
-            _ => Vec::new(),
-        },
-        None => match last_snap_mode {
-            LastSnapMode::None | LastSnapMode::NoDittoInclusive => vec![pathdata.clone()],
-            _ => Vec::new(),
-        },
+impl From<BTreeMap<PathData, Vec<PathData>>> for MapLiveToSnaps {
+    fn from(map: BTreeMap<PathData, Vec<PathData>>) -> Self {
+        Self { inner: map }
+    }
+}
+
+impl From<(PathData, Vec<PathData>)> for MapLiveToSnaps {
+    fn from(tuple: (PathData, Vec<PathData>)) -> Self {
+        Self {
+            inner: BTreeMap::from([tuple]),
+        }
+    }
+}
+
+impl From<MapLiveToSnaps> for BTreeMap<PathData, Vec<PathData>> {
+    fn from(map_of_snaps: MapLiveToSnaps) -> Self {
+        map_of_snaps.inner
+    }
+}
+
+impl Deref for MapLiveToSnaps {
+    type Target = BTreeMap<PathData, Vec<PathData>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+impl MapLiveToSnaps {
+    fn new(config: &Config, path_set: &[PathData]) -> Self {
+        // create vec of all local and replicated backups at once
+        let snaps_selected_for_search = config
+            .dataset_collection
+            .snaps_selected_for_search
+            .get_value();
+
+        let all_snap_versions: BTreeMap<PathData, Vec<PathData>> = path_set
+            .par_iter()
+            .map(|pathdata| {
+                let snaps: Vec<PathData> = snaps_selected_for_search
+                    .par_iter()
+                    .flat_map(|dataset_type| {
+                        MostProximateAndOptAlts::new(config, pathdata, dataset_type)
+                    })
+                    .flat_map(|dataset_for_search| {
+                        dataset_for_search.get_search_bundles(config, pathdata)
+                    })
+                    .flatten()
+                    .flat_map(|search_bundle| search_bundle.get_versions())
+                    .filter(|snap_version| {
+                        // process omit_ditto before last snap
+                        if config.opt_omit_ditto {
+                            snap_version.md_infallible() != pathdata.md_infallible()
+                        } else {
+                            true
+                        }
+                    })
+                    .collect();
+                (pathdata.clone(), snaps)
+            })
+            .map(|(pathdata, snaps)| {
+                // process last snap mode after omit_ditto
+                match &config.opt_last_snap {
+                    Some(last_snap_mode) => {
+                        let vec_last_snap = Self::get_last_snap(last_snap_mode, &pathdata, &snaps);
+                        (pathdata, vec_last_snap)
+                    }
+                    None => (pathdata, snaps),
+                }
+            })
+            .collect();
+
+        all_snap_versions.into()
+    }
+
+    fn get_last_snap(
+        last_snap_mode: &LastSnapMode,
+        pathdata: &PathData,
+        snaps: &[PathData],
+    ) -> Vec<PathData> {
+        match snaps.last() {
+            Some(last) => match last_snap_mode {
+                LastSnapMode::Any => vec![last.clone()],
+                LastSnapMode::DittoOnly if pathdata.md_infallible() == last.md_infallible() => {
+                    vec![last.clone()]
+                }
+                LastSnapMode::NoDittoExclusive
+                    if pathdata.md_infallible() != last.md_infallible() =>
+                {
+                    vec![last.clone()]
+                }
+                LastSnapMode::NoDittoInclusive
+                    if pathdata.md_infallible() != last.md_infallible() =>
+                {
+                    vec![last.clone()]
+                }
+                _ => Vec::new(),
+            },
+            None => match last_snap_mode {
+                LastSnapMode::None | LastSnapMode::NoDittoInclusive => vec![pathdata.clone()],
+                _ => Vec::new(),
+            },
+        }
     }
 }
 

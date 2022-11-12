@@ -25,18 +25,19 @@ use crate::display::primary::{
 use crate::library::results::HttmResult;
 use crate::library::utility::print_output_buf;
 use crate::lookup::file_mounts::MountsForFiles;
+use crate::lookup::versions::MapLiveToSnaps;
 
 pub fn display_mounts(config: &Config) -> HttmResult<()> {
     let map = MountsForFiles::new(config);
 
-    display_as_map(config, map)?;
+    display_as_map(config, map.into())?;
 
     Ok(())
 }
 
-pub fn display_as_map(config: &Config, map: MountsForFiles) -> HttmResult<()> {
+pub fn display_as_map(config: &Config, map: MapLiveToSnaps) -> HttmResult<()> {
     let output_buf = if config.opt_raw || config.opt_zeros {
-        display_raw(config, &map.into())
+        display_raw(config, &map)
     } else {
         display_map_formatted(config, &map.into())
     };

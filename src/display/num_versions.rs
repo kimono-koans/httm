@@ -18,8 +18,8 @@
 use crate::config::generate::{Config, NumVersionsMode};
 use crate::data::paths::PathData;
 use crate::display::maps::get_padding_for_map;
-use crate::display::primary::MapLiveToSnaps;
 use crate::library::utility::get_delimiter;
+use crate::lookup::versions::MapLiveToSnaps;
 
 pub fn display_num_versions(
     config: &Config,
