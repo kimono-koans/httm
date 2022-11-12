@@ -178,7 +178,7 @@ impl PathData {
     ) -> String {
         // obtain metadata for timestamp and size
         let metadata = self.md_infallible();
-    
+
         // tab delimited if "no pretty", no border lines, and no colors
         let (display_size, display_path, display_padding) = if config.opt_no_pretty {
             // displays blanks for phantom values, equaling their dummy lens and dates.
@@ -225,13 +225,13 @@ impl PathData {
             let padding = PRETTY_FIXED_WIDTH_PADDING;
             (size, path, padding)
         };
-    
+
         let display_date = if self.metadata.is_some() {
             get_date(config, &metadata.modify_time, DateFormat::Display)
         } else {
             padding_collection.phantom_date_pad_str.to_owned()
         };
-    
+
         format!(
             "{}{}{}{}{}\n",
             display_date, display_padding, display_size, display_padding, display_path
