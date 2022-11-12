@@ -23,8 +23,6 @@ use terminal_size::{terminal_size, Height, Width};
 
 use crate::config::generate::{Config, ExecMode};
 use crate::data::paths::{PathData, PHANTOM_DATE, PHANTOM_SIZE};
-use crate::display::maps::display_map_formatted;
-use crate::display::num_versions::display_num_versions;
 use crate::library::results::HttmResult;
 use crate::library::utility::print_output_buf;
 use crate::library::utility::{get_date, get_delimiter, paint_string, DateFormat};
@@ -43,13 +41,13 @@ impl MapLiveToSnaps {
     pub fn display(&self, config: &Config) -> HttmResult<String> {
         let output_buffer = match &config.exec_mode {
             ExecMode::NumVersions(num_versions_mode) => {
-                display_num_versions(config, num_versions_mode, self)
+                self.print_num_versions(config, num_versions_mode)
             }
             _ => {
                 if config.opt_raw || config.opt_zeros {
-                    self.as_raw_display(config)
+                    self.print_raw(config)
                 } else {
-                    self.as_formatted_display(config)
+                    self.print_formatted(config)
                 }
             }
         };
@@ -57,7 +55,17 @@ impl MapLiveToSnaps {
         Ok(output_buffer)
     }
 
-    fn as_raw_display(&self, config: &Config) -> String {
+    pub fn display_map(&self, config: &Config) -> HttmResult<()> {
+        let output_buf = if config.opt_raw || config.opt_zeros {
+            self.print_raw(config)
+        } else {
+            self.print_formatted_map(config)
+        };
+
+        print_output_buf(output_buf)
+    }
+
+    fn print_raw(&self, config: &Config) -> String {
         let delimiter = get_delimiter(config);
 
         let write_out_buffer = DisplaySet::new(config, self)
@@ -69,7 +77,7 @@ impl MapLiveToSnaps {
         write_out_buffer
     }
 
-    fn as_formatted_display(&self, config: &Config) -> String {
+    fn print_formatted(&self, config: &Config) -> String {
         let global_display_set = DisplaySet::new(config, self);
         let global_padding_collection = PaddingCollection::new(config, &global_display_set);
 
@@ -85,18 +93,7 @@ impl MapLiveToSnaps {
                 .collect::<String>()
         }
     }
-
-    pub fn display_map(&self, config: &Config) -> HttmResult<()> {
-        let output_buf = if config.opt_raw || config.opt_zeros {
-            self.as_raw_display(config)
-        } else {
-            display_map_formatted(config, self)
-        };
-
-        print_output_buf(output_buf)?;
-
-        Ok(())
-    }
+    
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
