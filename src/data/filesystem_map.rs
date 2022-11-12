@@ -16,6 +16,7 @@
 // that was distributed with this source code.
 
 use crate::data::paths::PathData;
+use crate::lookup::versions::MostProximateAndOptAlts;
 use std::{collections::BTreeMap, path::PathBuf};
 
 pub type MapOfDatasets = BTreeMap<PathBuf, DatasetMetadata>;
@@ -48,19 +49,6 @@ pub struct DatasetMetadata {
     pub name: String,
     pub fs_type: FilesystemType,
     pub mount_type: MountType,
-}
-
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
-pub struct MostProximateAndOptAlts {
-    pub proximate_dataset_mount: PathBuf,
-    pub opt_datasets_of_interest: Option<Vec<PathBuf>>,
-}
-
-impl MostProximateAndOptAlts {
-    pub fn get_datasets_of_interest(self) -> Vec<PathBuf> {
-        self.opt_datasets_of_interest
-            .unwrap_or_else(|| vec![self.proximate_dataset_mount])
-    }
 }
 
 #[derive(Copy, Debug, Clone, PartialEq, Eq)]

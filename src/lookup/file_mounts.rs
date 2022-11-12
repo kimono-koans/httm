@@ -22,8 +22,7 @@ use rayon::prelude::*;
 
 use crate::config::generate::Config;
 use crate::data::paths::PathData;
-use crate::lookup::versions::select_search_datasets;
-use crate::MostProximateAndOptAlts;
+use crate::lookup::versions::MostProximateAndOptAlts;
 
 pub type MountsForFiles = BTreeMap<PathData, Vec<PathData>>;
 
@@ -54,7 +53,9 @@ pub fn get_mounts_for_files(config: &Config) -> MountsForFiles {
                 .snaps_selected_for_search
                 .get_value()
                 .iter()
-                .flat_map(|dataset_type| select_search_datasets(config, pathdata, dataset_type))
+                .flat_map(|dataset_type| {
+                    MostProximateAndOptAlts::from_search(config, pathdata, dataset_type)
+                })
                 .collect();
             (pathdata.clone(), datasets)
         })

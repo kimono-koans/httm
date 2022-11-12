@@ -24,9 +24,7 @@ use std::{
 use rayon::prelude::*;
 
 use crate::config::generate::{Config, LastSnapMode};
-use crate::data::filesystem_map::{
-    MapLiveToSnaps, MapOfAliases, MapOfDatasets, MostProximateAndOptAlts, SnapDatasetType,
-};
+use crate::data::filesystem_map::{MapLiveToSnaps, MapOfAliases, MapOfDatasets, SnapDatasetType};
 use crate::data::paths::PathData;
 use crate::library::results::{HttmError, HttmResult};
 
@@ -67,7 +65,9 @@ fn get_all_versions_for_path_set(
         .map(|pathdata| {
             let snaps: Vec<PathData> = snaps_selected_for_search
                 .par_iter()
-                .flat_map(|dataset_type| select_search_datasets(config, pathdata, dataset_type))
+                .flat_map(|dataset_type| {
+                    MostProximateAndOptAlts::from_search(config, pathdata, dataset_type)
+                })
                 .flat_map(|dataset_for_search| {
                     get_version_search_bundles(config, pathdata, &dataset_for_search)
                 })
@@ -125,52 +125,66 @@ fn get_last_snap(
     }
 }
 
-pub fn select_search_datasets(
-    config: &Config,
-    pathdata: &PathData,
-    requested_dataset_type: &SnapDatasetType,
-) -> HttmResult<MostProximateAndOptAlts> {
-    // here, we take our file path and get back possibly multiple ZFS dataset mountpoints
-    // and our most proximate dataset mount point (which is always the same) for
-    // a single file
-    //
-    // we ask a few questions: has the location been user defined? if not, does
-    // the user want all local datasets on the system, including replicated datasets?
-    // the most common case is: just use the most proximate dataset mount point as both
-    // the dataset of interest and most proximate ZFS dataset
-    //
-    // why? we need both the dataset of interest and the most proximate dataset because we
-    // will compare the most proximate dataset to our our canonical path and the difference
-    // between ZFS mount point and the canonical path is the path we will use to search the
-    // hidden snapshot dirs
-    let proximate_dataset_mount = match &config.dataset_collection.opt_map_of_aliases {
-        Some(map_of_aliases) => match get_alias_dataset(pathdata, map_of_aliases) {
-            Some(alias_snap_dir) => alias_snap_dir,
-            None => get_proximate_dataset(pathdata, &config.dataset_collection.map_of_datasets)?,
-        },
-        None => get_proximate_dataset(pathdata, &config.dataset_collection.map_of_datasets)?,
-    };
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+pub struct MostProximateAndOptAlts {
+    pub proximate_dataset_mount: PathBuf,
+    pub opt_datasets_of_interest: Option<Vec<PathBuf>>,
+}
 
-    let snap_types_for_search: MostProximateAndOptAlts = match requested_dataset_type {
-        SnapDatasetType::MostProximate => {
-            // just return the same dataset when in most proximate mode
-            MostProximateAndOptAlts {
-                proximate_dataset_mount,
-                opt_datasets_of_interest: None,
-            }
-        }
-        SnapDatasetType::AltReplicated => match &config.dataset_collection.opt_map_of_alts {
-            Some(map_of_alts) => match map_of_alts.get(proximate_dataset_mount.as_path()) {
-                Some(snap_types_for_search) => snap_types_for_search.clone(),
-                None => return Err(HttmError::new("If you are here a map of alts is missing for a supplied mount, \
-                this is fine as we should just flatten/ignore this error.").into()),
+impl MostProximateAndOptAlts {
+    pub fn from_search(
+        config: &Config,
+        pathdata: &PathData,
+        requested_dataset_type: &SnapDatasetType,
+    ) -> HttmResult<MostProximateAndOptAlts> {
+        // here, we take our file path and get back possibly multiple ZFS dataset mountpoints
+        // and our most proximate dataset mount point (which is always the same) for
+        // a single file
+        //
+        // we ask a few questions: has the location been user defined? if not, does
+        // the user want all local datasets on the system, including replicated datasets?
+        // the most common case is: just use the most proximate dataset mount point as both
+        // the dataset of interest and most proximate ZFS dataset
+        //
+        // why? we need both the dataset of interest and the most proximate dataset because we
+        // will compare the most proximate dataset to our our canonical path and the difference
+        // between ZFS mount point and the canonical path is the path we will use to search the
+        // hidden snapshot dirs
+        let proximate_dataset_mount = match &config.dataset_collection.opt_map_of_aliases {
+            Some(map_of_aliases) => match get_alias_dataset(pathdata, map_of_aliases) {
+                Some(alias_snap_dir) => alias_snap_dir,
+                None => {
+                    get_proximate_dataset(pathdata, &config.dataset_collection.map_of_datasets)?
+                }
             },
-            None => unreachable!("If config option alt-replicated is specified, then a map of alts should have been generated, \
-            if you are here such a map is missing."),
-        },
-    };
+            None => get_proximate_dataset(pathdata, &config.dataset_collection.map_of_datasets)?,
+        };
 
-    Ok(snap_types_for_search)
+        let snap_types_for_search: MostProximateAndOptAlts = match requested_dataset_type {
+            SnapDatasetType::MostProximate => {
+                // just return the same dataset when in most proximate mode
+                MostProximateAndOptAlts {
+                    proximate_dataset_mount,
+                    opt_datasets_of_interest: None,
+                }
+            }
+            SnapDatasetType::AltReplicated => match &config.dataset_collection.opt_map_of_alts {
+                Some(map_of_alts) => match map_of_alts.get(proximate_dataset_mount.as_path()) {
+                    Some(snap_types_for_search) => snap_types_for_search.clone(),
+                    None => return Err(HttmError::new("If you are here a map of alts is missing for a supplied mount, \
+                    this is fine as we should just flatten/ignore this error.").into()),
+                },
+                None => unreachable!("If config option alt-replicated is specified, then a map of alts should have been generated, \
+                if you are here such a map is missing."),
+            },
+        };
+
+        Ok(snap_types_for_search)
+    }
+    pub fn get_datasets_of_interest(self) -> Vec<PathBuf> {
+        self.opt_datasets_of_interest
+            .unwrap_or_else(|| vec![self.proximate_dataset_mount])
+    }
 }
 
 pub fn get_version_search_bundles(
