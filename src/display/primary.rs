@@ -39,13 +39,11 @@ impl DisplayMap {
     pub fn print_raw(&self, config: &Config) -> String {
         let delimiter = get_delimiter(config);
 
-        let write_out_buffer = DisplaySet::new(config, self)
+        DisplaySet::new(config, self)
             .iter()
             .flatten()
             .map(|pathdata| format!("{}{}", pathdata.path_buf.display(), delimiter))
-            .collect::<String>();
-
-        write_out_buffer
+            .collect::<String>()
     }
 
     pub fn print_formatted(&self, config: &Config) -> String {
