@@ -55,7 +55,7 @@ impl DisplayMap {
         Ok(output_buffer)
     }
 
-    pub fn display_map(&self, config: &Config) -> HttmResult<()> {
+    pub fn display_as_map(&self, config: &Config) -> HttmResult<()> {
         let output_buf = if config.opt_raw || config.opt_zeros {
             self.print_raw(config)
         } else {
@@ -103,12 +103,6 @@ pub struct DisplaySet {
 impl From<[Vec<PathData>; 2]> for DisplaySet {
     fn from(array: [Vec<PathData>; 2]) -> Self {
         Self { inner: array }
-    }
-}
-
-impl From<DisplaySet> for [Vec<PathData>; 2] {
-    fn from(display_set: DisplaySet) -> Self {
-        display_set.inner
     }
 }
 

@@ -34,12 +34,6 @@ impl From<BTreeMap<PathBuf, MostProximateAndOptAlts>> for MapOfAlts {
     }
 }
 
-impl From<MapOfAlts> for BTreeMap<PathBuf, MostProximateAndOptAlts> {
-    fn from(map_of_snaps: MapOfAlts) -> Self {
-        map_of_snaps.inner
-    }
-}
-
 impl Deref for MapOfAlts {
     type Target = BTreeMap<PathBuf, MostProximateAndOptAlts>;
 

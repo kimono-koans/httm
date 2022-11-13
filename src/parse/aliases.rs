@@ -43,12 +43,6 @@ impl From<BTreeMap<PathBuf, RemotePathAndFsType>> for MapOfAliases {
     }
 }
 
-impl From<MapOfAliases> for BTreeMap<PathBuf, RemotePathAndFsType> {
-    fn from(map_of_snaps: MapOfAliases) -> Self {
-        map_of_snaps.inner
-    }
-}
-
 impl Deref for MapOfAliases {
     type Target = BTreeMap<PathBuf, RemotePathAndFsType>;
 

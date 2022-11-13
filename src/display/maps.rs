@@ -24,7 +24,7 @@ use crate::lookup::versions::DisplayMap;
 pub fn display_mounts(config: &Config) -> HttmResult<()> {
     let map: DisplayMap = MountsForFiles::new(config).into();
 
-    map.display_map(config)?;
+    map.display_as_map(config)?;
 
     Ok(())
 }

@@ -35,12 +35,6 @@ impl From<BTreeMap<PathData, Vec<PathData>>> for MountsForFiles {
     }
 }
 
-impl From<MountsForFiles> for BTreeMap<PathData, Vec<PathData>> {
-    fn from(mounts_for_files: MountsForFiles) -> Self {
-        mounts_for_files.inner
-    }
-}
-
 impl From<MountsForFiles> for DisplayMap {
     fn from(map: MountsForFiles) -> Self {
         map.inner.into()

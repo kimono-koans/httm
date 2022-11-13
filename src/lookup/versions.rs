@@ -71,12 +71,6 @@ impl From<(PathData, Vec<PathData>)> for DisplayMap {
     }
 }
 
-impl From<DisplayMap> for BTreeMap<PathData, Vec<PathData>> {
-    fn from(map_of_snaps: DisplayMap) -> Self {
-        map_of_snaps.inner
-    }
-}
-
 impl Deref for DisplayMap {
     type Target = BTreeMap<PathData, Vec<PathData>>;
 

@@ -39,12 +39,6 @@ impl From<BTreeMap<PathBuf, Vec<PathBuf>>> for MapOfSnaps {
     }
 }
 
-impl From<MapOfSnaps> for BTreeMap<PathBuf, Vec<PathBuf>> {
-    fn from(map_of_snaps: MapOfSnaps) -> Self {
-        map_of_snaps.inner
-    }
-}
-
 impl Deref for MapOfSnaps {
     type Target = BTreeMap<PathBuf, Vec<PathBuf>>;
 
