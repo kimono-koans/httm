@@ -23,6 +23,7 @@ use rayon::prelude::*;
 
 use crate::config::generate::Config;
 use crate::data::paths::PathData;
+use crate::library::results::HttmResult;
 use crate::lookup::versions::{DisplayMap, MostProximateAndOptAlts};
 
 pub struct MountsForFiles {
@@ -47,6 +48,12 @@ impl Deref for MountsForFiles {
     fn deref(&self) -> &Self::Target {
         &self.inner
     }
+}
+
+pub fn display_as_mounts(config: &Config) -> HttmResult<()> {
+    let map: DisplayMap = MountsForFiles::new(config).into();
+
+    map.display_as_map(config)
 }
 
 impl MountsForFiles {

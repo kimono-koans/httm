@@ -55,7 +55,8 @@ mod parse {
 }
 
 use crate::config::generate::{Config, ExecMode};
-use crate::display::maps::display_mounts;
+use crate::lookup::file_mounts::display_as_mounts;
+
 use crate::exec::interactive::interactive_exec;
 use crate::exec::recursive::display_recursive_wrapper;
 use crate::exec::snapshot::take_snapshot;
@@ -107,7 +108,7 @@ fn exec() -> HttmResult<()> {
         // output elsewhere
         ExecMode::DisplayRecursive(_) => display_recursive_wrapper(config.clone())?,
         ExecMode::SnapFileMount(snapshot_suffix) => take_snapshot(config.clone(), snapshot_suffix)?,
-        ExecMode::MountsForFiles => display_mounts(config.as_ref())?,
+        ExecMode::MountsForFiles => display_as_mounts(config.as_ref())?,
     }
 
     Ok(())
