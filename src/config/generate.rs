@@ -21,8 +21,6 @@ use std::path::{Path, PathBuf};
 use clap::OsValues;
 use rayon::prelude::*;
 
-use crate::library::utility::{httm_is_dir, read_stdin};
-
 use clap::{crate_name, crate_version, Arg, ArgMatches};
 use indicatif::ProgressBar;
 use time::UtcOffset;
@@ -31,6 +29,7 @@ use crate::config::install_hot_keys::install_hot_keys;
 use crate::data::filesystem_info::FilesystemInfo;
 use crate::data::paths::PathData;
 use crate::library::results::{HttmError, HttmResult};
+use crate::library::utility::{httm_is_dir, read_stdin};
 use crate::ROOT_DIRECTORY;
 
 #[derive(Debug, Clone)]
@@ -562,6 +561,7 @@ impl Config {
 
         Ok(config)
     }
+
     pub fn get_pwd() -> HttmResult<PathData> {
         if let Ok(pwd) = std::env::current_dir() {
             if let Ok(path) = PathBuf::from(&pwd).canonicalize() {
@@ -581,11 +581,11 @@ impl Config {
     }
 
     pub fn get_paths(
-        os_values: Option<OsValues>,
+        opt_os_values: Option<OsValues>,
         exec_mode: &ExecMode,
         pwd: &PathData,
     ) -> HttmResult<Vec<PathData>> {
-        let mut paths = if let Some(input_files) = os_values {
+        let mut paths = if let Some(input_files) = opt_os_values {
             input_files
                 .par_bridge()
                 .map(Path::new)
