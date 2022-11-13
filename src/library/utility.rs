@@ -25,6 +25,7 @@ use std::{
 
 use crossbeam::channel::{Receiver, TryRecvError};
 use lscolors::{Colorable, LsColors, Style};
+use number_prefix::NumberPrefix;
 use time::{format_description, OffsetDateTime, UtcOffset};
 
 use crate::config::generate::Config;
@@ -326,5 +327,18 @@ fn get_date_format<'a>(format: &DateFormat) -> &'a str {
     match format {
         DateFormat::Display => DATE_FORMAT_DISPLAY,
         DateFormat::Timestamp => DATE_FORMAT_TIMESTAMP,
+    }
+}
+
+pub fn display_human_size(size: &u64) -> String {
+    let size = *size as f64;
+
+    match NumberPrefix::binary(size) {
+        NumberPrefix::Standalone(bytes) => {
+            format!("{} bytes", bytes)
+        }
+        NumberPrefix::Prefixed(prefix, n) => {
+            format!("{:.1} {}B", n, prefix)
+        }
     }
 }

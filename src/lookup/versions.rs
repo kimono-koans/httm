@@ -27,8 +27,6 @@ use rayon::prelude::*;
 use crate::config::generate::{Config, LastSnapMode};
 use crate::data::paths::PathData;
 use crate::library::results::{HttmError, HttmResult};
-use crate::parse::aliases::MapOfAliases;
-use crate::parse::mounts::MapOfDatasets;
 
 pub fn versions_lookup_exec(config: &Config, path_set: &[PathData]) -> HttmResult<DisplayMap> {
     let map_live_to_snaps = DisplayMap::new(config, path_set);
@@ -280,73 +278,6 @@ impl MostProximateAndOptAlts {
     pub fn get_datasets_of_interest(self) -> Vec<PathBuf> {
         self.opt_datasets_of_interest
             .unwrap_or_else(|| vec![self.proximate_dataset_mount])
-    }
-}
-
-impl PathData {
-    fn get_relative_path(
-        &self,
-        config: &Config,
-        proximate_dataset_mount: &Path,
-    ) -> HttmResult<PathBuf> {
-        // path strip, if aliased
-        if let Some(map_of_aliases) = &config.dataset_collection.opt_map_of_aliases {
-            let opt_aliased_local_dir = map_of_aliases
-                .iter()
-                // do a search for a key with a value
-                .find_map(|(local_dir, alias_info)| {
-                    if alias_info.remote_dir == proximate_dataset_mount {
-                        Some(local_dir)
-                    } else {
-                        None
-                    }
-                });
-
-            // fallback if unable to find an alias or strip a prefix
-            // (each an indication we should not be trying aliases)
-            if let Some(local_dir) = opt_aliased_local_dir {
-                if let Ok(alias_stripped_path) = self.path_buf.strip_prefix(&local_dir) {
-                    return Ok(alias_stripped_path.to_path_buf());
-                }
-            }
-        }
-        // default path strip
-        self.path_buf
-            .strip_prefix(&proximate_dataset_mount)
-            .map(|path| path.to_path_buf())
-            .map_err(|err| err.into())
-    }
-
-    fn get_proximate_dataset(&self, map_of_datasets: &MapOfDatasets) -> HttmResult<PathBuf> {
-        // for /usr/bin, we prefer the most proximate: /usr/bin to /usr and /
-        // ancestors() iterates in this top-down order, when a value: dataset/fstype is available
-        // we map to return the key, instead of the value
-        self.path_buf
-            .ancestors()
-            .find_map(|ancestor| {
-                if map_of_datasets.contains_key(ancestor) {
-                    Some(ancestor.to_path_buf())
-                } else {
-                    None
-                }
-            })
-            .ok_or_else(|| {
-                HttmError::new(
-                    "httm could not identify any qualifying dataset.  \
-                    Maybe consider specifying manually at SNAP_POINT?",
-                )
-                .into()
-            })
-    }
-
-    fn get_alias_dataset(&self, map_of_alias: &MapOfAliases) -> Option<PathBuf> {
-        // find_map_first should return the first seq result with a par_iter
-        // but not with a par_bridge
-        self.path_buf.ancestors().find_map(|ancestor| {
-            map_of_alias
-                .get(ancestor)
-                .map(|alias_info| alias_info.remote_dir.clone())
-        })
     }
 }
 

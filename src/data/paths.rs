@@ -25,6 +25,11 @@ use std::{
 
 use once_cell::unsync::OnceCell;
 
+use crate::config::generate::Config;
+use crate::library::results::{HttmError, HttmResult};
+use crate::parse::aliases::MapOfAliases;
+use crate::parse::mounts::MapOfDatasets;
+
 // only the most basic data from a DirEntry
 // for use to display in browse window and internally
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -95,7 +100,7 @@ impl cmp::Ord for PathData {
 impl From<&Path> for PathData {
     fn from(path: &Path) -> Self {
         let opt_metadata = symlink_metadata(path).ok();
-        PathData::from_parts(path, opt_metadata)
+        PathData::new(path, opt_metadata)
     }
 }
 
@@ -103,12 +108,12 @@ impl From<&DirEntry> for PathData {
     fn from(dir_entry: &DirEntry) -> Self {
         let opt_metadata = dir_entry.metadata().ok();
         let path = dir_entry.path();
-        PathData::from_parts(&path, opt_metadata)
+        PathData::new(&path, opt_metadata)
     }
 }
 
 impl PathData {
-    pub fn from_parts(path: &Path, opt_metadata: Option<Metadata>) -> Self {
+    pub fn new(path: &Path, opt_metadata: Option<Metadata>) -> Self {
         let absolute_path: PathBuf = if path.is_relative() {
             // canonicalize() on any path that DNE will throw an error
             //
@@ -138,5 +143,70 @@ impl PathData {
 
     pub fn md_infallible(&self) -> PathMetadata {
         self.metadata.unwrap_or(PHANTOM_PATH_METADATA)
+    }
+
+    pub fn get_relative_path(
+        &self,
+        config: &Config,
+        proximate_dataset_mount: &Path,
+    ) -> HttmResult<PathBuf> {
+        // path strip, if aliased
+        if let Some(map_of_aliases) = &config.dataset_collection.opt_map_of_aliases {
+            let opt_aliased_local_dir = map_of_aliases
+                .iter()
+                // do a search for a key with a value
+                .find_map(|(local_dir, alias_info)| {
+                    if alias_info.remote_dir == proximate_dataset_mount {
+                        Some(local_dir)
+                    } else {
+                        None
+                    }
+                });
+
+            // fallback if unable to find an alias or strip a prefix
+            // (each an indication we should not be trying aliases)
+            if let Some(local_dir) = opt_aliased_local_dir {
+                if let Ok(alias_stripped_path) = self.path_buf.strip_prefix(&local_dir) {
+                    return Ok(alias_stripped_path.to_path_buf());
+                }
+            }
+        }
+        // default path strip
+        self.path_buf
+            .strip_prefix(&proximate_dataset_mount)
+            .map(|path| path.to_path_buf())
+            .map_err(|err| err.into())
+    }
+
+    pub fn get_proximate_dataset(&self, map_of_datasets: &MapOfDatasets) -> HttmResult<PathBuf> {
+        // for /usr/bin, we prefer the most proximate: /usr/bin to /usr and /
+        // ancestors() iterates in this top-down order, when a value: dataset/fstype is available
+        // we map to return the key, instead of the value
+        self.path_buf
+            .ancestors()
+            .find_map(|ancestor| {
+                if map_of_datasets.contains_key(ancestor) {
+                    Some(ancestor.to_path_buf())
+                } else {
+                    None
+                }
+            })
+            .ok_or_else(|| {
+                HttmError::new(
+                    "httm could not identify any qualifying dataset.  \
+                    Maybe consider specifying manually at SNAP_POINT?",
+                )
+                .into()
+            })
+    }
+
+    pub fn get_alias_dataset(&self, map_of_alias: &MapOfAliases) -> Option<PathBuf> {
+        // find_map_first should return the first seq result with a par_iter
+        // but not with a par_bridge
+        self.path_buf.ancestors().find_map(|ancestor| {
+            map_of_alias
+                .get(ancestor)
+                .map(|alias_info| alias_info.remote_dir.clone())
+        })
     }
 }

@@ -18,12 +18,13 @@
 use std::borrow::Cow;
 use std::ops::Deref;
 
-use number_prefix::NumberPrefix;
 use terminal_size::{terminal_size, Height, Width};
 
 use crate::config::generate::{Config, ExecMode};
 use crate::data::paths::{PathData, PHANTOM_DATE, PHANTOM_SIZE};
-use crate::library::utility::{get_date, get_delimiter, paint_string, DateFormat};
+use crate::library::utility::{
+    display_human_size, get_date, get_delimiter, paint_string, DateFormat,
+};
 use crate::lookup::versions::DisplayMap;
 
 // 2 space wide padding - used between date and size, and size and path
@@ -48,17 +49,17 @@ impl DisplayMap {
 
     pub fn print_formatted(&self, config: &Config) -> String {
         let global_display_set = DisplaySet::new(config, self);
-        let global_padding_collection = PaddingCollection::new(config, &global_display_set);
+        let padding_collection = PaddingCollection::new(config, &global_display_set);
 
         if self.len() == 1 {
-            global_display_set.display(config, &global_padding_collection)
+            global_display_set.print(config, &padding_collection)
         } else {
             self.deref()
                 .clone()
                 .into_iter()
                 .map(|raw_tuple| raw_tuple.into())
                 .map(|raw_instance_set| DisplaySet::new(config, &raw_instance_set))
-                .map(|display_set| display_set.display(config, &global_padding_collection))
+                .map(|display_set| display_set.print(config, &padding_collection))
                 .collect::<String>()
         }
     }
@@ -105,7 +106,7 @@ impl DisplaySet {
         }
     }
 
-    fn display(self, config: &Config, global_padding_collection: &PaddingCollection) -> String {
+    fn print(self, config: &Config, padding_collection: &PaddingCollection) -> String {
         // get the display buffer for each set snaps and live
         self.iter().enumerate().fold(
             String::new(),
@@ -116,23 +117,21 @@ impl DisplaySet {
 
                 let component_buffer: String = snap_or_live_set
                     .iter()
-                    .map(|pathdata| {
-                        pathdata.display(config, is_live_set, global_padding_collection)
-                    })
+                    .map(|pathdata| pathdata.print(config, is_live_set, padding_collection))
                     .collect();
 
                 // add each buffer to the set - print fancy border string above, below and between sets
                 if config.opt_no_pretty {
                     display_set_buffer += &component_buffer;
                 } else if is_snap_set {
-                    display_set_buffer += &global_padding_collection.fancy_border_string;
+                    display_set_buffer += &padding_collection.fancy_border_string;
                     if !component_buffer.is_empty() {
                         display_set_buffer += &component_buffer;
-                        display_set_buffer += &global_padding_collection.fancy_border_string;
+                        display_set_buffer += &padding_collection.fancy_border_string;
                     }
                 } else {
                     display_set_buffer += &component_buffer;
-                    display_set_buffer += &global_padding_collection.fancy_border_string;
+                    display_set_buffer += &padding_collection.fancy_border_string;
                 }
                 display_set_buffer
             },
@@ -141,7 +140,7 @@ impl DisplaySet {
 }
 
 impl PathData {
-    fn display(
+    pub fn print(
         &self,
         config: &Config,
         is_live_set: bool,
@@ -210,11 +209,11 @@ impl PathData {
     }
 }
 
-struct PaddingCollection {
-    size_padding_len: usize,
-    fancy_border_string: String,
-    phantom_date_pad_str: String,
-    phantom_size_pad_str: String,
+pub struct PaddingCollection {
+    pub size_padding_len: usize,
+    pub fancy_border_string: String,
+    pub phantom_date_pad_str: String,
+    pub phantom_size_pad_str: String,
 }
 
 impl PaddingCollection {
@@ -289,19 +288,6 @@ impl PaddingCollection {
                 }
             }
             None => get_max_sized_border(),
-        }
-    }
-}
-
-fn display_human_size(size: &u64) -> String {
-    let size = *size as f64;
-
-    match NumberPrefix::binary(size) {
-        NumberPrefix::Standalone(bytes) => {
-            format!("{} bytes", bytes)
-        }
-        NumberPrefix::Prefixed(prefix, n) => {
-            format!("{:.1} {}B", n, prefix)
         }
     }
 }
