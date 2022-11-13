@@ -50,12 +50,6 @@ impl Deref for MountsForFiles {
     }
 }
 
-pub fn display_as_mounts(config: &Config) -> HttmResult<()> {
-    let map: DisplayMap = MountsForFiles::new(config).into();
-
-    map.display_as_map(config)
-}
-
 impl MountsForFiles {
     pub fn new(config: &Config) -> MountsForFiles {
         // we only check for phantom files in "mount for file" mode because
@@ -107,5 +101,11 @@ impl MountsForFiles {
             .collect();
 
         MountsForFiles::from(map)
+    }
+
+    pub fn display(config: &Config) -> HttmResult<()> {
+        let map: DisplayMap = MountsForFiles::new(config).into();
+
+        map.display_as_map(config)
     }
 }
