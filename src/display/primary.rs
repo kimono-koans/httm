@@ -52,14 +52,14 @@ impl DisplayMap {
         let padding_collection = PaddingCollection::new(config, &global_display_set);
 
         if self.len() == 1 {
-            global_display_set.print(config, &padding_collection)
+            global_display_set.print_formatted(config, &padding_collection)
         } else {
             self.deref()
                 .clone()
                 .into_iter()
                 .map(|raw_tuple| raw_tuple.into())
                 .map(|raw_instance_set| DisplaySet::new(config, &raw_instance_set))
-                .map(|display_set| display_set.print(config, &padding_collection))
+                .map(|display_set| display_set.print_formatted(config, &padding_collection))
                 .collect::<String>()
         }
     }
@@ -106,7 +106,7 @@ impl DisplaySet {
         }
     }
 
-    fn print(self, config: &Config, padding_collection: &PaddingCollection) -> String {
+    fn print_formatted(self, config: &Config, padding_collection: &PaddingCollection) -> String {
         // get the display buffer for each set snaps and live
         self.iter().enumerate().fold(
             String::new(),
@@ -117,7 +117,9 @@ impl DisplaySet {
 
                 let component_buffer: String = snap_or_live_set
                     .iter()
-                    .map(|pathdata| pathdata.print(config, is_live_set, padding_collection))
+                    .map(|pathdata| {
+                        pathdata.print_formatted(config, is_live_set, padding_collection)
+                    })
                     .collect();
 
                 // add each buffer to the set - print fancy border string above, below and between sets
@@ -140,7 +142,7 @@ impl DisplaySet {
 }
 
 impl PathData {
-    pub fn print(
+    pub fn print_formatted(
         &self,
         config: &Config,
         is_live_set: bool,
