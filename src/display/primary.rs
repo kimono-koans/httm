@@ -23,8 +23,6 @@ use terminal_size::{terminal_size, Height, Width};
 
 use crate::config::generate::{Config, ExecMode};
 use crate::data::paths::{PathData, PHANTOM_DATE, PHANTOM_SIZE};
-use crate::library::results::HttmResult;
-use crate::library::utility::print_output_buf;
 use crate::library::utility::{get_date, get_delimiter, paint_string, DateFormat};
 use crate::lookup::versions::DisplayMap;
 
@@ -38,34 +36,7 @@ pub const NOT_SO_PRETTY_FIXED_WIDTH_PADDING: &str = "\t";
 pub const QUOTATION_MARKS_LEN: usize = 2;
 
 impl DisplayMap {
-    pub fn display(&self, config: &Config) -> HttmResult<String> {
-        let output_buffer = match &config.exec_mode {
-            ExecMode::NumVersions(num_versions_mode) => {
-                self.print_num_versions(config, num_versions_mode)
-            }
-            _ => {
-                if config.opt_raw || config.opt_zeros {
-                    self.print_raw(config)
-                } else {
-                    self.print_formatted(config)
-                }
-            }
-        };
-
-        Ok(output_buffer)
-    }
-
-    pub fn display_as_map(&self, config: &Config) -> HttmResult<()> {
-        let output_buf = if config.opt_raw || config.opt_zeros {
-            self.print_raw(config)
-        } else {
-            self.print_formatted_map(config)
-        };
-
-        print_output_buf(output_buf)
-    }
-
-    fn print_raw(&self, config: &Config) -> String {
+    pub fn print_raw(&self, config: &Config) -> String {
         let delimiter = get_delimiter(config);
 
         let write_out_buffer = DisplaySet::new(config, self)
@@ -77,7 +48,7 @@ impl DisplayMap {
         write_out_buffer
     }
 
-    fn print_formatted(&self, config: &Config) -> String {
+    pub fn print_formatted(&self, config: &Config) -> String {
         let global_display_set = DisplaySet::new(config, self);
         let global_padding_collection = PaddingCollection::new(config, &global_display_set);
 
