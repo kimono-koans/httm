@@ -29,6 +29,7 @@ impl DisplayMap {
                 |key| key.path_buf.to_string_lossy().len() + QUOTATION_MARKS_LEN,
             )
     }
+
     pub fn print_formatted_map(&self, config: &Config) -> String {
         let padding = self.get_map_padding();
 
