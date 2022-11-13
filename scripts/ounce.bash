@@ -1,5 +1,22 @@
 #!/usr/bin/env bash
 
+#       ___           ___           ___           ___
+#      /\__\         /\  \         /\  \         /\__\
+#     /:/  /         \:\  \        \:\  \       /::|  |
+#    /:/__/           \:\  \        \:\  \     /:|:|  |
+#   /::\  \ ___       /::\  \       /::\  \   /:/|:|__|__
+#  /:/\:\  /\__\     /:/\:\__\     /:/\:\__\ /:/ |::::\__\
+#  \/__\:\/:/  /    /:/  \/__/    /:/  \/__/ \/__/~~/:/  /
+#       \::/  /    /:/  /        /:/  /            /:/  /
+#       /:/  /     \/__/         \/__/            /:/  /
+#      /:/  /                                    /:/  /
+#      \/__/                                     \/__/
+#
+# (c) Robert Swinford <robert.swinford<...at...>gmail.com>
+#
+# For the full copyright and license information, please view the LICENSE file
+# that was distributed with this source code.
+
 ## Note: env is zsh/bash here but could maybe/should work in zsh/bash too? ##
 
 # for the bible tells us so
