@@ -111,49 +111,53 @@ impl DisplayMap {
                     .collect();
                 (pathdata.clone(), snaps)
             })
+            .collect();
+
+        let display_map: DisplayMap = all_snap_versions.into();
+
+        // process last snap mode after omit_ditto
+        match &config.opt_last_snap {
+            Some(last_snap_mode) => display_map.get_last_snap(last_snap_mode),
+            None => display_map,
+        }
+    }
+
+    fn get_last_snap(&self, last_snap_mode: &LastSnapMode) -> DisplayMap {
+        let res: BTreeMap<PathData, Vec<PathData>> = self
+            .iter()
             .map(|(pathdata, snaps)| {
-                // process last snap mode after omit_ditto
-                match &config.opt_last_snap {
-                    Some(last_snap_mode) => {
-                        let vec_last_snap = Self::get_last_snap(last_snap_mode, &pathdata, &snaps);
-                        (pathdata, vec_last_snap)
-                    }
-                    None => (pathdata, snaps),
-                }
+                let new_snaps = match snaps.last() {
+                    Some(last) => match last_snap_mode {
+                        LastSnapMode::Any => vec![last.clone()],
+                        LastSnapMode::DittoOnly
+                            if pathdata.md_infallible() == last.md_infallible() =>
+                        {
+                            vec![last.clone()]
+                        }
+                        LastSnapMode::NoDittoExclusive
+                            if pathdata.md_infallible() != last.md_infallible() =>
+                        {
+                            vec![last.clone()]
+                        }
+                        LastSnapMode::NoDittoInclusive
+                            if pathdata.md_infallible() != last.md_infallible() =>
+                        {
+                            vec![last.clone()]
+                        }
+                        _ => Vec::new(),
+                    },
+                    None => match last_snap_mode {
+                        LastSnapMode::None | LastSnapMode::NoDittoInclusive => {
+                            vec![pathdata.clone()]
+                        }
+                        _ => Vec::new(),
+                    },
+                };
+                (pathdata.clone(), new_snaps)
             })
             .collect();
 
-        all_snap_versions.into()
-    }
-
-    fn get_last_snap(
-        last_snap_mode: &LastSnapMode,
-        pathdata: &PathData,
-        snaps: &[PathData],
-    ) -> Vec<PathData> {
-        match snaps.last() {
-            Some(last) => match last_snap_mode {
-                LastSnapMode::Any => vec![last.clone()],
-                LastSnapMode::DittoOnly if pathdata.md_infallible() == last.md_infallible() => {
-                    vec![last.clone()]
-                }
-                LastSnapMode::NoDittoExclusive
-                    if pathdata.md_infallible() != last.md_infallible() =>
-                {
-                    vec![last.clone()]
-                }
-                LastSnapMode::NoDittoInclusive
-                    if pathdata.md_infallible() != last.md_infallible() =>
-                {
-                    vec![last.clone()]
-                }
-                _ => Vec::new(),
-            },
-            None => match last_snap_mode {
-                LastSnapMode::None | LastSnapMode::NoDittoInclusive => vec![pathdata.clone()],
-                _ => Vec::new(),
-            },
-        }
+        res.into()
     }
 }
 
@@ -214,13 +218,13 @@ impl MostProximateAndOptAlts {
         // between ZFS mount point and the canonical path is the path we will use to search the
         // hidden snapshot dirs
         let proximate_dataset_mount = match &config.dataset_collection.opt_map_of_aliases {
-            Some(map_of_aliases) => match get_alias_dataset(pathdata, map_of_aliases) {
+            Some(map_of_aliases) => match pathdata.get_alias_dataset(map_of_aliases) {
                 Some(alias_snap_dir) => alias_snap_dir,
                 None => {
-                    get_proximate_dataset(pathdata, &config.dataset_collection.map_of_datasets)?
+                    pathdata.get_proximate_dataset(&config.dataset_collection.map_of_datasets)?
                 }
             },
-            None => get_proximate_dataset(pathdata, &config.dataset_collection.map_of_datasets)?,
+            None => pathdata.get_proximate_dataset(&config.dataset_collection.map_of_datasets)?,
         };
 
         let snap_types_for_search: MostProximateAndOptAlts = match requested_dataset_type {
@@ -279,6 +283,73 @@ impl MostProximateAndOptAlts {
     }
 }
 
+impl PathData {
+    fn get_relative_path(
+        &self,
+        config: &Config,
+        proximate_dataset_mount: &Path,
+    ) -> HttmResult<PathBuf> {
+        // path strip, if aliased
+        if let Some(map_of_aliases) = &config.dataset_collection.opt_map_of_aliases {
+            let opt_aliased_local_dir = map_of_aliases
+                .iter()
+                // do a search for a key with a value
+                .find_map(|(local_dir, alias_info)| {
+                    if alias_info.remote_dir == proximate_dataset_mount {
+                        Some(local_dir)
+                    } else {
+                        None
+                    }
+                });
+
+            // fallback if unable to find an alias or strip a prefix
+            // (each an indication we should not be trying aliases)
+            if let Some(local_dir) = opt_aliased_local_dir {
+                if let Ok(alias_stripped_path) = self.path_buf.strip_prefix(&local_dir) {
+                    return Ok(alias_stripped_path.to_path_buf());
+                }
+            }
+        }
+        // default path strip
+        self.path_buf
+            .strip_prefix(&proximate_dataset_mount)
+            .map(|path| path.to_path_buf())
+            .map_err(|err| err.into())
+    }
+
+    fn get_proximate_dataset(&self, map_of_datasets: &MapOfDatasets) -> HttmResult<PathBuf> {
+        // for /usr/bin, we prefer the most proximate: /usr/bin to /usr and /
+        // ancestors() iterates in this top-down order, when a value: dataset/fstype is available
+        // we map to return the key, instead of the value
+        self.path_buf
+            .ancestors()
+            .find_map(|ancestor| {
+                if map_of_datasets.contains_key(ancestor) {
+                    Some(ancestor.to_path_buf())
+                } else {
+                    None
+                }
+            })
+            .ok_or_else(|| {
+                HttmError::new(
+                    "httm could not identify any qualifying dataset.  \
+                    Maybe consider specifying manually at SNAP_POINT?",
+                )
+                .into()
+            })
+    }
+
+    fn get_alias_dataset(&self, map_of_alias: &MapOfAliases) -> Option<PathBuf> {
+        // find_map_first should return the first seq result with a par_iter
+        // but not with a par_bridge
+        self.path_buf.ancestors().find_map(|ancestor| {
+            map_of_alias
+                .get(ancestor)
+                .map(|alias_info| alias_info.remote_dir.clone())
+        })
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct RelativePathAndSnapMounts {
     pub relative_path: PathBuf,
@@ -296,7 +367,7 @@ impl RelativePathAndSnapMounts {
         //
         // for native searches the prefix is are the dirs below the most proximate dataset
         // for user specified dirs/aliases these are specified by the user
-        let relative_path = get_relative_path(config, pathdata, proximate_dataset_mount)?;
+        let relative_path = pathdata.get_relative_path(config, proximate_dataset_mount)?;
 
         let snap_mounts = config
             .dataset_collection
@@ -337,74 +408,4 @@ impl RelativePathAndSnapMounts {
 
         sorted_versions
     }
-}
-
-fn get_relative_path(
-    config: &Config,
-    pathdata: &PathData,
-    proximate_dataset_mount: &Path,
-) -> HttmResult<PathBuf> {
-    // path strip, if aliased
-    if let Some(map_of_aliases) = &config.dataset_collection.opt_map_of_aliases {
-        let opt_aliased_local_dir = map_of_aliases
-            .iter()
-            // do a search for a key with a value
-            .find_map(|(local_dir, alias_info)| {
-                if alias_info.remote_dir == proximate_dataset_mount {
-                    Some(local_dir)
-                } else {
-                    None
-                }
-            });
-
-        // fallback if unable to find an alias or strip a prefix
-        // (each an indication we should not be trying aliases)
-        if let Some(local_dir) = opt_aliased_local_dir {
-            if let Ok(alias_stripped_path) = pathdata.path_buf.strip_prefix(&local_dir) {
-                return Ok(alias_stripped_path.to_path_buf());
-            }
-        }
-    }
-    // default path strip
-    pathdata
-        .path_buf
-        .strip_prefix(&proximate_dataset_mount)
-        .map(|path| path.to_path_buf())
-        .map_err(|err| err.into())
-}
-
-fn get_proximate_dataset(
-    pathdata: &PathData,
-    map_of_datasets: &MapOfDatasets,
-) -> HttmResult<PathBuf> {
-    // for /usr/bin, we prefer the most proximate: /usr/bin to /usr and /
-    // ancestors() iterates in this top-down order, when a value: dataset/fstype is available
-    // we map to return the key, instead of the value
-    pathdata
-        .path_buf
-        .ancestors()
-        .find_map(|ancestor| {
-            if map_of_datasets.contains_key(ancestor) {
-                Some(ancestor.to_path_buf())
-            } else {
-                None
-            }
-        })
-        .ok_or_else(|| {
-            HttmError::new(
-                "httm could not identify any qualifying dataset.  \
-                Maybe consider specifying manually at SNAP_POINT?",
-            )
-            .into()
-        })
-}
-
-fn get_alias_dataset(pathdata: &PathData, map_of_alias: &MapOfAliases) -> Option<PathBuf> {
-    // find_map_first should return the first seq result with a par_iter
-    // but not with a par_bridge
-    pathdata.path_buf.ancestors().find_map(|ancestor| {
-        map_of_alias
-            .get(ancestor)
-            .map(|alias_info| alias_info.remote_dir.clone())
-    })
 }

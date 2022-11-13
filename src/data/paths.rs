@@ -135,6 +135,7 @@ impl PathData {
             metadata,
         }
     }
+
     pub fn md_infallible(&self) -> PathMetadata {
         self.metadata.unwrap_or(PHANTOM_PATH_METADATA)
     }
