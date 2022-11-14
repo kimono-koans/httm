@@ -435,7 +435,13 @@ impl Config {
 
         let opt_preview = match matches.value_of("PREVIEW") {
             Some("") | Some("default") => Some("default".to_owned()),
-            Some(user_defined) => Some(user_defined.to_owned()),
+            Some(user_defined) => {
+                if user_defined.contains("{snap_file}") {
+                    Some(user_defined.to_owned())
+                } else {
+                    return Err(HttmError::new("User defined preview commands require the user use the \"{snap_file}\" variable.").into())
+                }
+            },
             None => None,
         };
 
