@@ -361,43 +361,50 @@ fn interactive_select(
     }
 }
 
+fn parse_preview_command(defined_command: &str, opt_live_version: &Option<String>) -> String {
+    let preview_command = if defined_command == "default" {
+        if let Some(live_version) = opt_live_version {
+            format!(
+                    "snap_file=\"$( echo {{}} | cut -d'\"' -f2 )\"; if [[ -f \"$snap_file\" ]]; then bowie --direct \"$snap_file\" \"{}\" ; fi", live_version
+                )
+        } else {
+            "snap_file=\"$( echo {} | cut -d'\"' -f2 )\"; if [[ -f \"$snap_file\" ]]; then cat \"$snap_file\"; fi".to_string()
+        }
+    } else {
+        let parsed_command = if let Some(live_version) = opt_live_version {
+            let live_formatted = format!("\"{}\"", live_version);
+            defined_command
+                .replace("{snap_file}", "\"$snap_file\"")
+                .replace("{live_file}", &live_formatted)
+        } else {
+            defined_command.replace("{snap_file}", "\"$snap_file")
+        };
+
+        format!(
+                "snap_file=\"$( echo {{}} | cut -d'\"' -f2 )\"; if [[ -f \"$snap_file\" ]]; then {}; fi", parsed_command
+            )
+    };
+
+    preview_command
+}
+
 fn select_restore_view(
     preview_buffer: &str,
     opt_preview: &Option<String>,
     opt_live_version: &Option<String>,
 ) -> HttmResult<String> {
-    let (preview_window, preview_command) = if let Some(command) = opt_preview {
-        let format_command = if command == "default" {
-            if let Some(live_version) = opt_live_version {
-                format!(
-                        "snap_file=\"$( echo {{}} | cut -d'\"' -f2 )\"; if [[ -f \"$snap_file\" ]]; then bowie --direct \"$snap_file\" \"{}\" ; fi", live_version
-                    )
-            } else {
-                "snap_file=\"$( echo {} | cut -d'\"' -f2 )\"; if [[ -f \"$snap_file\" ]]; then cat \"$snap_file\"; fi".to_string()
-            }
-        } else {
-            let parsed_command = if let Some(live_version) = opt_live_version {
-                let live_formatted = format!("\"{}\"", live_version);
-                command
-                    .replace("{snap_file}", "\"$snap_file\"")
-                    .replace("{live_file}", &live_formatted)
-            } else {
-                command.replace("{snap_file}", "\"$snap_file")
-            };
-
-            format!(
-                    "snap_file=\"$( echo {{}} | cut -d'\"' -f2 )\"; if [[ -f \"$snap_file\" ]]; then {}; fi", parsed_command
-                )
-        };
-        (Some("up:50%"), format_command)
+    // only do it this way to let the lifetimes work out
+    // ugly but skim needs an owned String in this scope
+    let preview_command = if let Some(defined_command) = opt_preview {
+        parse_preview_command(defined_command, opt_live_version)
     } else {
-        (None, String::new())
+        String::new()
     };
 
     // build our browse view - less to do than before - no previews, looking through one 'lil buffer
     let skim_opts = if opt_preview.is_some() {
         SkimOptionsBuilder::default()
-            .preview_window(preview_window)
+            .preview_window(Some("up:50%"))
             .preview(Some(preview_command.as_str()))
             .tac(true)
             .nosort(true)
@@ -406,9 +413,10 @@ fn select_restore_view(
             .multi(false)
             .regex(false)
             .header(Some(
-                "PAGE UP:    page up  | PAGE DOWN:  page down\n\
-                        EXIT:       esc      | SELECT:     enter    \n\
-                        ─────────────────────────────────────────────",
+                "PREVIEW UP: shift+up | PREVIEW DOWN: shift+down\n\
+                    PAGE UP:    page up  | PAGE DOWN:    page down \n\
+                    EXIT:       esc      | SELECT:       enter      | SELECT, MULTIPLE: shift+tab\n\
+                    ──────────────────────────────────────────────────────────────────────────────",
             ))
             .build()
             .expect("Could not initialized skim options for select_restore_view")
