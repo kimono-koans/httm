@@ -157,7 +157,8 @@ fn parse_args() -> ArgMatches {
         .arg(
             Arg::new("PREVIEW")
                 .long("preview")
-                .help("user may specify a command to preview snapshots while in select view.  The default command is a 'bowie' formatted 'diff'. ")
+                .help("user may specify a command to preview snapshots while in select view.  The default command is a 'bowie' formatted 'diff'.  \
+                User may also specify the snapshot file name \"{snap_file}\" and live file name \"{live_file}\" within their shell command.")
                 .takes_value(true)
                 .min_values(0)
                 .require_equals(true)

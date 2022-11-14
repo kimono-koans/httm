@@ -362,7 +362,7 @@ fn interactive_select(
 }
 
 fn parse_preview_command(defined_command: &str, opt_live_version: &Option<String>) -> String {
-    let preview_command = if defined_command == "default" {
+    if defined_command == "default" {
         if let Some(live_version) = opt_live_version {
             format!(
                     "snap_file=\"$( echo {{}} | cut -d'\"' -f2 )\"; if [[ -f \"$snap_file\" ]]; then bowie --direct \"$snap_file\" \"{}\" ; fi", live_version
@@ -383,9 +383,7 @@ fn parse_preview_command(defined_command: &str, opt_live_version: &Option<String
         format!(
                 "snap_file=\"$( echo {{}} | cut -d'\"' -f2 )\"; if [[ -f \"$snap_file\" ]]; then {}; fi", parsed_command
             )
-    };
-
-    preview_command
+    }
 }
 
 fn select_restore_view(
