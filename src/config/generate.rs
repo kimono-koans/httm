@@ -155,11 +155,21 @@ fn parse_args() -> ArgMatches {
                 .display_order(7)
         )
         .arg(
+            Arg::new("PREVIEW")
+                .long("preview")
+                .help("user may specify a command to preview snapshots while in select view.  The default command is a 'bowie' formatted 'diff'. ")
+                .takes_value(true)
+                .min_values(0)
+                .require_equals(true)
+                .default_missing_value("default")
+                .display_order(8)
+        )
+        .arg(
             Arg::new("EXACT")
                 .short('e')
                 .long("exact")
                 .help("use exact pattern matching for searches in the interactive modes (in contrast to the default fuzzy-finder searching).")
-                .display_order(8)
+                .display_order(9)
         )
         .arg(
             Arg::new("SNAP_FILE_MOUNT")
@@ -174,7 +184,7 @@ fn parse_args() -> ArgMatches {
                 This argument takes a value for an optional snapshot suffix.  The default suffix is 'httmSnapFileMount'.  \
                 Note: This is a ZFS only option.")
                 .conflicts_with_all(&["INTERACTIVE", "SELECT", "RESTORE", "ALT_REPLICATED", "SNAP_POINT", "LOCAL_DIR"])
-                .display_order(9)
+                .display_order(10)
         )
         .arg(
             Arg::new("MOUNT_FOR_FILE")
@@ -183,7 +193,7 @@ fn parse_args() -> ArgMatches {
                 .visible_alias("mount")
                 .help("display the mount point/s of the dataset/s which contains the input file/s.")
                 .conflicts_with_all(&["INTERACTIVE", "SELECT", "RESTORE"])
-                .display_order(10)
+                .display_order(11)
         )
         .arg(
             Arg::new("LAST_SNAP")
@@ -203,7 +213,7 @@ fn parse_args() -> ArgMatches {
                 or should non-exist, return the live file, and, \
                 \"none\", return the live file only for those files without a last snapshot.")
                 .conflicts_with_all(&["NUM_VERSIONS", "SNAP_FILE_MOUNT", "MOUNT_FOR_FILE", "ALT_REPLICATED", "SNAP_POINT", "LOCAL_DIR"])
-                .display_order(11)
+                .display_order(12)
         )
         .arg(
             Arg::new("RAW")
@@ -212,7 +222,7 @@ fn parse_args() -> ArgMatches {
                 .visible_alias("newline")
                 .help("display the snapshot locations only, without extraneous information, delimited by a NEWLINE character.")
                 .conflicts_with_all(&["ZEROS", "NOT_SO_PRETTY"])
-                .display_order(12)
+                .display_order(13)
         )
         .arg(
             Arg::new("ZEROS")
@@ -220,21 +230,21 @@ fn parse_args() -> ArgMatches {
                 .long("zero")
                 .help("display the snapshot locations only, without extraneous information, delimited by a NULL character.")
                 .conflicts_with_all(&["RAW", "NOT_SO_PRETTY"])
-                .display_order(13)
+                .display_order(14)
         )
         .arg(
             Arg::new("NO_FILTER")
                 .long("no-filter")
                 .help("by default, in the interactive modes, httm will filter out results from non-supported datasets (like ext4, tmpfs, procfs, sysfs, or devtmpfs), and in common snapshot paths.  \
                 Here, one may select to disable such filtering.  httm, however, should always show the input path, and results from behind any input path when that path is searched.")
-                .display_order(14)
+                .display_order(15)
         )
         .arg(
             Arg::new("NO_TRAVERSE")
                 .long("no-traverse")
                 .help("in recursive mode, don't traverse symlinks.  Although httm does its best to prevent searching pathologically recursive symlink-ed paths, \
                 here, you may disable symlink traversal completely.  NOTE: httm will never traverse symlinks when a requested recursive search is on the root/base directory (\"/\").")
-                .display_order(15)
+                .display_order(16)
         )
         .arg(
             Arg::new("NOT_SO_PRETTY")
@@ -242,21 +252,21 @@ fn parse_args() -> ArgMatches {
                 .visible_aliases(&["tabs", "plain-jane"])
                 .help("display the ordinary output, but tab delimited, without any pretty border lines.")
                 .conflicts_with_all(&["RAW", "ZEROS"])
-                .display_order(16)
+                .display_order(17)
         )
         .arg(
             Arg::new("OMIT_DITTO")
                 .long("omit-ditto")
                 .help("omit display of the snapshot version which may be identical to the live version (`httm` ordinarily displays *all* snapshot versions and the live version).")
                 .conflicts_with_all(&["NUM_VERSIONS"])
-                .display_order(17)
+                .display_order(18)
         )
         .arg(
             Arg::new("NO_LIVE")
                 .long("no-live")
                 .visible_aliases(&["dead", "disco"])
                 .help("only display information concerning snapshot versions (display no information regarding 'live' versions of files or directories).")
-                .display_order(18)
+                .display_order(19)
         )
         .arg(
             Arg::new("NO_SNAP")
@@ -266,7 +276,7 @@ fn parse_args() -> ArgMatches {
                 Useful for finding the \"files that once were\" and displaying only those pseudo-live/undead files.")
                 .requires("RECURSIVE")
                 .conflicts_with_all(&["INTERACTIVE", "SELECT", "RESTORE", "SNAP_FILE_MOUNT", "LAST_SNAP", "NOT_SO_PRETTY"])
-                .display_order(19)
+                .display_order(20)
         )
         .arg(
             Arg::new("MAP_ALIASES")
@@ -280,7 +290,7 @@ fn parse_args() -> ArgMatches {
                 .use_value_delimiter(true)
                 .takes_value(true)
                 .value_parser(clap::builder::ValueParser::os_string())
-                .display_order(20)
+                .display_order(21)
         )
         .arg(
             Arg::new("NUM_VERSIONS")
@@ -296,7 +306,7 @@ fn parse_args() -> ArgMatches {
                 (and \"single-no-snap\" will print those without a snap taken, and \"single-with-snap\" will print those with a snap taken), \
                 and \"multiple\" will print only filenames which only have multiple versions.")
                 .conflicts_with_all(&["LAST_SNAP", "INTERACTIVE", "SELECT", "RESTORE", "RECURSIVE", "SNAP_FILE_MOUNT", "LAST_SNAP", "NOT_SO_PRETTY", "NO_LIVE", "NO_SNAP", "OMIT_IDENTICAL"])
-                .display_order(21)
+                .display_order(22)
         )
         .arg(
             Arg::new("REMOTE_DIR")
@@ -307,7 +317,7 @@ fn parse_args() -> ArgMatches {
                 (directory which contains a \".snapshots\" directory), such as the local mount point for a remote share.  You may also set via the HTTM_REMOTE_DIR environment variable.")
                 .takes_value(true)
                 .value_parser(clap::builder::ValueParser::os_string())
-                .display_order(22)
+                .display_order(23)
         )
         .arg(
             Arg::new("LOCAL_DIR")
@@ -320,26 +330,26 @@ fn parse_args() -> ArgMatches {
                 .requires("REMOTE_DIR")
                 .takes_value(true)
                 .value_parser(clap::builder::ValueParser::os_string())
-                .display_order(23)
+                .display_order(24)
         )
         .arg(
             Arg::new("UTC")
                 .long("utc")
                 .help("use UTC for date display and timestamps")
-                .display_order(24)
+                .display_order(25)
         )
         .arg(
             Arg::new("DEBUG")
                 .long("debug")
                 .help("print configuration and debugging info")
-                .display_order(25)
+                .display_order(26)
         )
         .arg(
             Arg::new("ZSH_HOT_KEYS")
                 .long("install-zsh-hot-keys")
                 .help("install zsh hot keys to the users home directory, and then exit")
                 .exclusive(true)
-                .display_order(26)
+                .display_order(27)
         )
         .get_matches()
 }
@@ -360,6 +370,7 @@ pub struct Config {
     pub opt_no_traverse: bool,
     pub opt_omit_ditto: bool,
     pub opt_last_snap: Option<LastSnapMode>,
+    pub opt_preview: Option<String>,
     pub requested_utc_offset: UtcOffset,
     pub exec_mode: ExecMode,
     pub dataset_collection: FilesystemInfo,
@@ -418,6 +429,11 @@ impl Config {
             Some("single-no-snap") => Some(NumVersionsMode::SingleNoSnap),
             Some("single-with-snap") => Some(NumVersionsMode::SingleWithSnap),
             Some("multiple") => Some(NumVersionsMode::Multiple),
+            _ => None,
+        };
+
+        let opt_preview = match matches.value_of("PREVIEW") {
+            Some("") | Some("default") => Some("default".to_owned()),
             _ => None,
         };
 
@@ -551,6 +567,7 @@ impl Config {
             opt_no_traverse,
             opt_omit_ditto,
             opt_last_snap,
+            opt_preview,
             requested_utc_offset,
             dataset_collection,
             exec_mode,

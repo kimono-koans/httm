@@ -83,6 +83,7 @@ impl SelectionCandidate {
             opt_debug: false,
             opt_no_traverse: false,
             opt_last_snap: None,
+            opt_preview: None,
             opt_omit_ditto: config.opt_omit_ditto,
             requested_utc_offset: config.requested_utc_offset,
             exec_mode: ExecMode::Display,
@@ -309,10 +310,13 @@ fn interactive_select(
             SelectionCandidate::generate_config_for_display(&config, paths_selected_in_browse);
         let selection_buffer = map_live_to_snaps.display(&display_config)?;
 
+        let opt_live_version = &paths_selected_in_browse
+            .get(0);
+
         // loop until user selects a valid snapshot version
         loop {
             // get the file name
-            let requested_file_name = select_restore_view(&selection_buffer)?;
+            let requested_file_name = select_restore_view(&selection_buffer, &config.opt_preview, opt_live_version)?;
             // ... we want everything between the quotes
             let broken_string: Vec<_> = requested_file_name.split_terminator('"').collect();
             // ... and the file is the 2nd item or the indexed "1" object
@@ -353,22 +357,53 @@ fn interactive_select(
     }
 }
 
-fn select_restore_view(preview_buffer: &str) -> HttmResult<String> {
+fn select_restore_view(preview_buffer: &str, opt_preview: &Option<String>, opt_live_version: &Option<&PathData>) -> HttmResult<String> {
+
+    let (preview_window, preview_command) = if let Some(command) = opt_preview {
+        if command == "default" {
+            let format_command = format!("cut -d'\"' -f2 | bowie --direct  {{}} {:?}", opt_live_version.unwrap().path_buf);
+            (Some("up:50%"), format_command)
+        } else {
+            (Some("up:50%"), command.to_owned())
+        }
+    } else {
+        (None, String::new())
+    };
+    
     // build our browse view - less to do than before - no previews, looking through one 'lil buffer
-    let skim_opts = SkimOptionsBuilder::default()
-        .tac(true)
-        .nosort(true)
-        .tabstop(Some("4"))
-        .exact(true)
-        .multi(false)
-        .regex(false)
-        .header(Some(
-            "PAGE UP:    page up  | PAGE DOWN:  page down\n\
-                      EXIT:       esc      | SELECT:     enter    \n\
-                      ─────────────────────────────────────────────",
-        ))
-        .build()
-        .expect("Could not initialized skim options for select_restore_view");
+    let skim_opts = if opt_preview.is_some() {
+        SkimOptionsBuilder::default()
+            .preview_window(preview_window)
+            .preview(Some(preview_command.as_str()))
+            .tac(true)
+            .nosort(true)
+            .tabstop(Some("4"))
+            .exact(true)
+            .multi(false)
+            .regex(false)
+            .header(Some(
+                "PAGE UP:    page up  | PAGE DOWN:  page down\n\
+                        EXIT:       esc      | SELECT:     enter    \n\
+                        ─────────────────────────────────────────────",
+            ))
+            .build()
+            .expect("Could not initialized skim options for select_restore_view")
+    } else {
+        SkimOptionsBuilder::default()
+            .tac(true)
+            .nosort(true)
+            .tabstop(Some("4"))
+            .exact(true)
+            .multi(false)
+            .regex(false)
+            .header(Some(
+                "PAGE UP:    page up  | PAGE DOWN:  page down\n\
+                        EXIT:       esc      | SELECT:     enter    \n\
+                        ─────────────────────────────────────────────",
+            ))
+            .build()
+            .expect("Could not initialized skim options for select_restore_view")
+    };
 
     let item_reader_opts = SkimItemReaderOption::default().ansi(true);
     let item_reader = SkimItemReader::new(item_reader_opts);
@@ -488,7 +523,7 @@ fn interactive_restore(
 
     // loop until user consents or doesn't
     loop {
-        let user_consent = select_restore_view(&preview_buffer)?.to_ascii_uppercase();
+        let user_consent = select_restore_view(&preview_buffer, &None, &None)?.to_ascii_uppercase();
 
         match user_consent.as_ref() {
             "YES" | "Y" => match copy_recursive(&snap_pathdata.path_buf, &new_file_path_buf) {
