@@ -47,6 +47,9 @@ OPTIONS:
 	--select
 		Start an $httm interactive session to select the snapshot difference to display against the live file.
 
+	--direct
+		Print difference with $bowie formatting.
+
 	--help:
 		Display this dialog.
 
@@ -92,7 +95,7 @@ show_all_changes() {
 		print_err "No previous version available for: $filename"
 		return 0
 	elif [[ ${#all_versions[@]} -eq 1 ]]; then
-		show_last_change "$filename"
+		show_single_change "$filename" "last"
 		return 0
 	fi
 
@@ -112,12 +115,12 @@ show_all_changes() {
 	done
 }
 
-check_not_identical() {	
+check_not_identical() {
 	local current_version="$1"
 	local previous_version="$2"
 
-	[[ -n "$( diff -q "$previous_version" "$current_version" )" ]]  || \
-	print_err_exit "The selected/last version and live file are 'diff'-identical, but have different modification times.  Perhaps try --all."
+	[[ -n "$(diff -q "$previous_version" "$current_version")" ]] ||
+		print_err_exit "The selected/last version and live file are 'diff'-identical, but have different modification times.  Perhaps try --all."
 }
 
 show_single_change() {
@@ -149,9 +152,9 @@ display_diff() {
 
 	if [[ -n "$previous_version" ]]; then
 		# print that current version and previous version differ, or are the same
-		(diff --color -q "$previous_version" "$current_version" || true)	
+		(diff --color=always -q "$previous_version" "$current_version" || true)
 		# print the difference between that current version and previous_version
-		(diff --color -T "$previous_version" "$current_version" || true)
+		(diff --color=always -T "$previous_version" "$current_version" || true)
 	else
 		print_err "No previous version available for: $current_version"
 	fi
@@ -175,6 +178,9 @@ exec_main() {
 	elif [[ $1 == "--select" ]]; then
 		mode="select"
 		shift
+	elif [[ $1 == "--direct" ]]; then
+		mode="direct"
+		shift
 	elif [[ $1 == "--last" ]]; then
 		shift
 	fi
@@ -185,6 +191,23 @@ exec_main() {
 	done
 
 	[[ ${#@} -ne 0 ]] || print_err_exit "No filenames specified.  Quitting."
+
+	if [[ "$mode" == "direct" ]]; then
+		previous_version="$(
+			readlink -e "$1" 2>/dev/null
+			[[ $? -eq 0 ]] ||
+				(print_err "Could not determine canonical path for: $1")
+		)"
+
+		current_version="$(
+			readlink -e "$2" 2>/dev/null
+			[[ $? -eq 0 ]] ||
+				(print_err "Could not determine canonical path for: $2")
+		)"
+
+		display_diff "$previous_version" "$current_version"
+		exit 0
+	fi
 
 	for a; do
 		canonical_path="$(
