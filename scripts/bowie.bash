@@ -152,9 +152,9 @@ display_diff() {
 
 	if [[ -n "$previous_version" ]]; then
 		# print that current version and previous version differ, or are the same
-		(diff --color -q "$previous_version" "$current_version" || true)
+		(diff --color=always -q "$previous_version" "$current_version" || true)
 		# print the difference between that current version and previous_version
-		(diff --color -T "$previous_version" "$current_version" || true)
+		(diff --color=always -T "$previous_version" "$current_version" || true)
 	else
 		print_err "No previous version available for: $current_version"
 	fi
