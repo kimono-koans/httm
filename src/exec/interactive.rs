@@ -227,6 +227,8 @@ fn browse_view(config: Arc<Config>, requested_dir: &PathData) -> HttmResult<Vec<
         })
     });
 
+    let opt_multi = config.opt_last_snap.is_none() || config.opt_preview.is_none();
+
     // create the skim component for previews
     let options = SkimOptionsBuilder::default()
         .preview_window(Some("up:50%"))
@@ -237,7 +239,7 @@ fn browse_view(config: Arc<Config>, requested_dir: &PathData) -> HttmResult<Vec<
                       EXIT:       esc      | SELECT:       enter      | SELECT, MULTIPLE: shift+tab\n\
                       ──────────────────────────────────────────────────────────────────────────────",
         ))
-        .multi(config.opt_last_snap.is_none())
+        .multi(opt_multi)
         .regex(false)
         .build()
         .expect("Could not initialized skim options for browse_view");
@@ -311,12 +313,14 @@ fn interactive_select(
         let selection_buffer = map_live_to_snaps.display(&display_config)?;
 
         let opt_live_version = &paths_selected_in_browse
-            .get(0);
+            .get(0)
+            .map(|pathdata| pathdata.path_buf.to_string_lossy().into_owned());
 
         // loop until user selects a valid snapshot version
         loop {
             // get the file name
-            let requested_file_name = select_restore_view(&selection_buffer, &config.opt_preview, opt_live_version)?;
+            let requested_file_name =
+                select_restore_view(&selection_buffer, &config.opt_preview, opt_live_version)?;
             // ... we want everything between the quotes
             let broken_string: Vec<_> = requested_file_name.split_terminator('"').collect();
             // ... and the file is the 2nd item or the indexed "1" object
@@ -357,19 +361,39 @@ fn interactive_select(
     }
 }
 
-fn select_restore_view(preview_buffer: &str, opt_preview: &Option<String>, opt_live_version: &Option<&PathData>) -> HttmResult<String> {
-
+fn select_restore_view(
+    preview_buffer: &str,
+    opt_preview: &Option<String>,
+    opt_live_version: &Option<String>,
+) -> HttmResult<String> {
     let (preview_window, preview_command) = if let Some(command) = opt_preview {
-        if command == "default" {
-            let format_command = format!("cut -d'\"' -f2 | bowie --direct  {{}} {:?}", opt_live_version.unwrap().path_buf);
-            (Some("up:50%"), format_command)
+        let format_command = if command == "default" {
+            if let Some(live_version) = opt_live_version {
+                format!(
+                        "snap_file=\"$( echo {{}} | cut -d'\"' -f2 )\"; if [[ -f \"$snap_file\" ]]; then bowie --direct \"$snap_file\" \"{}\" ; fi", live_version
+                    )
+            } else {
+                "snap_file=\"$( echo {} | cut -d'\"' -f2 )\"; if [[ -f \"$snap_file\" ]]; then cat \"$snap_file\"; fi".to_string()
+            }
         } else {
-            (Some("up:50%"), command.to_owned())
-        }
+            let parsed_command = if let Some(live_version) = opt_live_version {
+                let live_formatted = format!("\"{}\"", live_version);
+                command
+                    .replace("{snap_file}", "\"$snap_file\"")
+                    .replace("{live_file}", &live_formatted)
+            } else {
+                command.replace("{snap_file}", "\"$snap_file")
+            };
+
+            format!(
+                    "snap_file=\"$( echo {{}} | cut -d'\"' -f2 )\"; if [[ -f \"$snap_file\" ]]; then {}; fi", parsed_command
+                )
+        };
+        (Some("up:50%"), format_command)
     } else {
         (None, String::new())
     };
-    
+
     // build our browse view - less to do than before - no previews, looking through one 'lil buffer
     let skim_opts = if opt_preview.is_some() {
         SkimOptionsBuilder::default()

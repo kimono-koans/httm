@@ -434,7 +434,8 @@ impl Config {
 
         let opt_preview = match matches.value_of("PREVIEW") {
             Some("") | Some("default") => Some("default".to_owned()),
-            _ => None,
+            Some(user_defined) => Some(user_defined.to_owned()),
+            None => None,
         };
 
         let mut deleted_mode = match matches.value_of("DELETED_MODE") {
