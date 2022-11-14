@@ -366,10 +366,10 @@ fn parse_preview_command(defined_command: &str, opt_live_version: &Option<String
     if defined_command == "default" {
         if let Some(live_version) = opt_live_version {
             format!(
-                    "snap_file=\"$( echo {{}} | cut -d'\"' -f2 )\"; if [[ -f \"$snap_file\" ]] || [[ -d \"$snap_file\" ]] || [[ -L \"$snap_file\" ]]; then bowie --direct \"$snap_file\" \"{}\" ; fi", live_version
+                    "snap_file=\"$( echo {{}} | cut -d'\"' -f2 )\"; if [[ -f \"$snap_file\" ]] || [[ -d \"$snap_file\" ]] || [[ -L \"$snap_file\" ]]; then bowie --direct \"$snap_file\" \"{}\"; fi", live_version
                 )
         } else {
-            "snap_file=\"$( echo {} | cut -d'\"' -f2 )\"; if [[ -f \"$snap_file\" ]] || [[ -d \"$snap_file\" ]]  || [[ -L \"$snap_file\" ]]; then cat \"$snap_file\"; fi".to_string()
+            "snap_file=\"$( echo {} | cut -d'\"' -f2 )\"; if [[ -f \"$snap_file\" ]] || [[ -d \"$snap_file\" ]] || [[ -L \"$snap_file\" ]]; then cat \"$snap_file\"; fi".to_string()
         }
     } else {
         let parsed_command = if let Some(live_version) = opt_live_version {
@@ -387,7 +387,7 @@ fn parse_preview_command(defined_command: &str, opt_live_version: &Option<String
         };
 
         format!(
-                "snap_file=\"$( echo {{}} | cut -d'\"' -f2 )\"; if [[ -f \"$snap_file\" ]] || [[ -d \"$snap_file\" ]]  || [[ -L \"$snap_file\" ]]; then exec 0<&-; {}; fi", final_cmd
+                "snap_file=\"$( echo {{}} | cut -d'\"' -f2 )\"; if [[ -f \"$snap_file\" ]] || [[ -d \"$snap_file\" ]] || [[ -L \"$snap_file\" ]]; then exec 0<&-; {}; fi", final_cmd
             )
     }
 }
