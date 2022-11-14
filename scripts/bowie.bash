@@ -95,7 +95,7 @@ show_all_changes() {
 		print_err "No previous version available for: $filename"
 		return 0
 	elif [[ ${#all_versions[@]} -eq 1 ]]; then
-		show_last_change "$filename"
+		show_single_change "$filename"
 		return 0
 	fi
 
