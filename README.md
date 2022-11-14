@@ -123,6 +123,14 @@ View unique versions of a file for recovery (shortcut, no need to browse a direc
 ```bash
 httm -r /var/log/samba/log.smbd
 ```
+View bowie-formatted `diff` of each unique snapshot of `~/.zshrc` against the live file version:
+```bash
+httm --preview -s ~/.zshrc
+```
+View `cat` output of each unique snapshot of `~/.zshrc`:
+```bash
+httm --preview="cat {snap_file}" -s ~/.zshrc
+```
 Recover the last-in-time unique file version (shortcut, no need to browse a directory or select from among other unique versions):
 ```bash
 httm -l -r /var/log/samba/log.smbd
