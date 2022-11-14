@@ -227,9 +227,10 @@ fn browse_view(config: Arc<Config>, requested_dir: &PathData) -> HttmResult<Vec<
     });
 
     // create the skim component for previews
-    let options = SkimOptionsBuilder::default()
+    let skim_opts = SkimOptionsBuilder::default()
         .preview_window(Some("up:50%"))
         .preview(Some(""))
+        .nosort(true)
         .exact(config.opt_exact)
         .header(Some("PREVIEW UP: shift+up | PREVIEW DOWN: shift+down\n\
                       PAGE UP:    page up  | PAGE DOWN:    page down \n\
@@ -242,7 +243,7 @@ fn browse_view(config: Arc<Config>, requested_dir: &PathData) -> HttmResult<Vec<
         .expect("Could not initialized skim options for browse_view");
 
     // run_with() reads and shows items from the thread stream created above
-    let selected_items = if let Some(output) = Skim::run_with(&options, Some(rx_item)) {
+    let selected_items = if let Some(output) = Skim::run_with(&skim_opts, Some(rx_item)) {
         if output.is_abort {
             eprintln!("httm interactive file browse session was aborted.  Quitting.");
             std::process::exit(0)
