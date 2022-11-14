@@ -217,7 +217,8 @@ exec_main() {
 		)"
 
 		[[ -n "$canonical_path" ]] || continue
-
+		[[ -f "$canonical_path" ]] || print_err "Skipping path which is not a file: $a"
+		
 		if [[ "$mode" == "all" ]]; then
 			show_all_changes "$canonical_path"
 		elif [[ "$mode" == "select" ]]; then

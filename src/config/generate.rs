@@ -157,8 +157,8 @@ fn parse_args() -> ArgMatches {
         .arg(
             Arg::new("PREVIEW")
                 .long("preview")
-                .help("user may specify a command to preview snapshots while in select view.  The default command is a 'bowie' formatted 'diff'.  \
-                User may also specify the snapshot file name \"{snap_file}\" and live file name \"{live_file}\" within their shell command.")
+                .help("user may specify a command to preview snapshots while in select view.  The default command (no command value specified) is a 'bowie' formatted 'diff'.  \
+                User defined commands must specify the snapshot file name \"{snap_file}\" and may specify the live file name \"{live_file}\" within their shell command.")
                 .takes_value(true)
                 .min_values(0)
                 .require_equals(true)
@@ -435,13 +435,7 @@ impl Config {
 
         let opt_preview = match matches.value_of("PREVIEW") {
             Some("") | Some("default") => Some("default".to_owned()),
-            Some(user_defined) => {
-                if user_defined.contains("{snap_file}") {
-                    Some(user_defined.to_owned())
-                } else {
-                    return Err(HttmError::new("User defined preview commands require the user use the \"{snap_file}\" variable.").into())
-                }
-            },
+            Some(user_defined) => Some(user_defined.to_owned()),
             None => None,
         };
 
