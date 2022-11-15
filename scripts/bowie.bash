@@ -66,7 +66,7 @@ print_err_exit() {
 }
 
 print_err() {
-	printf "%s\n" "Error: $*" 2>&1
+	printf "%s\n" "Error: $*" 1>&2
 }
 
 prep_exec() {
