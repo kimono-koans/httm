@@ -66,7 +66,7 @@ print_err_exit() {
 }
 
 print_err() {
-	printf "%s\n" "Error: $*"
+	printf "%s\n" "Error: $*" 2>&1
 }
 
 prep_exec() {
@@ -133,6 +133,16 @@ show_single_change() {
 
 	display_header "$current_version"
 	check_not_identical "$previous_version" "$current_version"
+	display_diff "$previous_version" "$current_version"
+}
+
+show_direct() {
+	local previous_version="$1"
+	local current_version="$2"
+
+	display_header "$current_version"
+	[[ -n "$(diff -q "$previous_version" "$current_version")" ]] ||
+		printf "The selected/last version and live file are 'diff'-identical, but have different modification times.  Perhaps try --all."
 	display_diff "$previous_version" "$current_version"
 }
 
@@ -205,7 +215,7 @@ exec_main() {
 				(print_err "Could not determine canonical path for: $2")
 		)"
 
-		display_diff "$previous_version" "$current_version"
+		show_direct "$previous_version" "$current_version"
 		exit 0
 	fi
 
