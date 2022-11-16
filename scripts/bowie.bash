@@ -119,6 +119,9 @@ check_not_identical() {
 	local current_version="$1"
 	local previous_version="$2"
 
+	[[ "$previous_version" != "$current_version" ]] ||
+		print_err_exit "The selected/last version and live file are the same file."
+
 	[[ -n "$(diff -q "$previous_version" "$current_version")" ]] ||
 		print_err_exit "The selected/last version and live file are 'diff'-identical, but have different modification times.  Perhaps try --all."
 }
@@ -141,9 +144,14 @@ show_direct() {
 	local current_version="$2"
 
 	display_header "$current_version"
-	[[ -n "$(diff -q "$previous_version" "$current_version")" ]] ||
+
+	if [[ "$previous_version" == "$current_version" ]]; then
+		printf "The selected/last version and live file are the same file."
+	elif [[ -z "$(diff -q "$previous_version" "$current_version")" ]]; then
 		printf "The selected/last version and live file are 'diff'-identical, but have different modification times.  Perhaps try --all."
-	display_diff "$previous_version" "$current_version"
+	else
+		display_diff "$previous_version" "$current_version"
+	fi
 }
 
 display_header() {
