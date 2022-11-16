@@ -20,6 +20,7 @@ use std::{fs::FileType, io::Cursor, path::Path, path::PathBuf, thread};
 use crossbeam::channel::unbounded;
 use lscolors::Colorable;
 use skim::prelude::*;
+use which::which;
 
 use crate::config::generate::{Config, ExecMode, InteractiveMode};
 use crate::data::paths::{BasicDirEntryInfo, PathData};
@@ -368,15 +369,37 @@ fn parse_preview_command(
 ) -> HttmResult<String> {
     let command = if defined_command == "default" {
         match opt_live_version {
-            Some(live_version) if PathBuf::from(live_version).exists() => {
+            Some(live_version) if PathBuf::from(live_version).exists() && which("bowie").is_ok() => {
                 format!("bowie --direct \"$snap_file\" \"{}\"", live_version)
-            }
-            _ => "cat \"$snap_file\"".to_string(),
+            },
+            _ => match which("cat") {
+                Ok(_) => "cat \"$snap_file\"".to_string(),
+                Err(_) => {
+                    return Err(HttmError::new(
+                        "'cat' executable could not be found in the user's PATH. 'cat' is necessary for executing a bare preview command.",
+                    )
+                    .into())
+                }
+            },
         }
     } else {
+        match defined_command.split_ascii_whitespace().next() {
+            Some(potential_executable) => {
+                if which(potential_executable).is_err() {
+                    return Err(HttmError::new("User specified a preview variable for a live version, but a live version for the file selected does not exist.").into());
+                }
+            }
+            None => {
+                return Err(HttmError::new(
+                    "httm could not determine a valid preview command from user's input.",
+                )
+                .into());
+            }
+        }
+
         let parsed_command = match opt_live_version {
             Some(live_version) if defined_command.contains("{live_file}") && !PathBuf::from(live_version).exists() => {
-                return Err(HttmError::new("User specified a variable for a live version, but a live version for the file selected does not exist.").into())
+                return Err(HttmError::new("User specified a preview variable for a live version, but a live version for the file selected does not exist.").into())
             },
             Some(live_version) => {
                 defined_command
@@ -384,7 +407,7 @@ fn parse_preview_command(
                     .replace("{live_file}", format!("\"{}\"", live_version).as_str())
             },
             None if defined_command.contains("{live_file}") => {
-                return Err(HttmError::new("User specified a variable for a live version, but a live version could not be determined.").into())
+                return Err(HttmError::new("User specified a preview variable for a live version, but a live version could not be determined.").into())
             },
             None => {
                 defined_command
@@ -401,9 +424,18 @@ fn parse_preview_command(
         }
     };
 
-    let res = format!(
-        "snap_file=\"`echo {{}} | cut -d'\"' -f2`\"; if test -f \"$snap_file\" || test -d \"$snap_file\" || test -L \"$snap_file\"; then exec 0<&-; {command} 2>&1; fi"
-    );
+    let res = match which("cut") {
+        Ok(_) => {
+            format!(
+                "snap_file=\"`echo {{}} | cut -d'\"' -f2`\"; if test -f \"$snap_file\" || test -d \"$snap_file\" || test -L \"$snap_file\"; then exec 0<&-; {command} 2>&1; fi"
+            )
+        }
+        Err(_) => {
+            return Err(
+                HttmError::new("'cut' executable could not be found in the user's PATH. 'cut' is necessary for executing a preview command.").into(),
+            )
+        }
+    };
 
     Ok(res)
 }
