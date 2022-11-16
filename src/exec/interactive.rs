@@ -362,34 +362,50 @@ fn interactive_select(
     }
 }
 
-fn parse_preview_command(defined_command: &str, opt_live_version: &Option<String>) -> String {
-    if defined_command == "default" {
-        if let Some(live_version) = opt_live_version {
-            format!(
-                    "snap_file=\"$( echo {{}} | cut -d'\"' -f2 )\"; if [[ -f \"$snap_file\" ]] || [[ -d \"$snap_file\" ]] || [[ -L \"$snap_file\" ]]; then bowie --direct \"$snap_file\" \"{}\"; fi", live_version
-                )
-        } else {
-            "snap_file=\"$( echo {} | cut -d'\"' -f2 )\"; if [[ -f \"$snap_file\" ]] || [[ -d \"$snap_file\" ]] || [[ -L \"$snap_file\" ]]; then cat \"$snap_file\"; fi".to_string()
+fn parse_preview_command(
+    defined_command: &str,
+    opt_live_version: &Option<String>,
+) -> HttmResult<String> {
+    let command = if defined_command == "default" {
+        match opt_live_version {
+            Some(live_version) if PathBuf::from(live_version).exists() => {
+                format!("bowie --direct \"$snap_file\" \"{}\"", live_version)
+            }
+            _ => "cat \"$snap_file\"".to_string(),
         }
     } else {
-        let parsed_command = if let Some(live_version) = opt_live_version {
-            defined_command
-                .replace("{snap_file}", "\"$snap_file\"")
-                .replace("{live_file}", format!("\"{}\"", live_version).as_str())
-        } else {
-            defined_command.replace("{snap_file}", "\"$snap_file\"")
+        let parsed_command = match opt_live_version {
+            Some(live_version) if defined_command.contains("{live_file}") && !PathBuf::from(live_version).exists() => {
+                return Err(HttmError::new("User specified a variable for a live version, but a live version for the file selected does not exist.").into())
+            },
+            Some(live_version) => {
+                defined_command
+                    .replace("{snap_file}", "\"$snap_file\"")
+                    .replace("{live_file}", format!("\"{}\"", live_version).as_str())
+            },
+            None if defined_command.contains("{live_file}") => {
+                return Err(HttmError::new("User specified a variable for a live version, but a live version could not be determined.").into())
+            },
+            None => {
+                defined_command
+                    .replace("{snap_file}", "\"$snap_file\"")
+            },
         };
 
-        let final_cmd = if !parsed_command.contains("\"$snap_file\"") {
+        // protect ourselves from command like cat
+        // just waiting on stdin by appending the snap file
+        if !parsed_command.contains("\"$snap_file\"") {
             [defined_command, " \"$snap_file\""].into_iter().collect()
         } else {
             parsed_command
-        };
+        }
+    };
 
-        format!(
-                "snap_file=\"$( echo {{}} | cut -d'\"' -f2 )\"; if [[ -f \"$snap_file\" ]] || [[ -d \"$snap_file\" ]] || [[ -L \"$snap_file\" ]]; then exec 0<&-; {}; fi", final_cmd
-            )
-    }
+    let res = format!(
+        "snap_file=\"`echo {{}} | cut -d'\"' -f2`\"; if test -f \"$snap_file\" || test -d \"$snap_file\" || test -L \"$snap_file\"; then exec 0<&-; {command} 2>&1; fi"
+    );
+
+    Ok(res)
 }
 
 fn select_restore_view(
@@ -400,7 +416,7 @@ fn select_restore_view(
     // only do it this way to let the lifetimes work out
     // ugly but skim needs an owned String in this scope
     let preview_command = if let Some(defined_command) = opt_preview {
-        parse_preview_command(defined_command, opt_live_version)
+        parse_preview_command(defined_command, opt_live_version)?
     } else {
         String::new()
     };
