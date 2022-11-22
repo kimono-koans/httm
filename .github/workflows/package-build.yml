@@ -2,10 +2,10 @@ name: Build Debian/Redhat packages
 
 on:
   push:
-    paths:
-      - Cargo.toml
-    # release:
-    #   [created]
+    # Pattern matched against refs/tags
+    tags:        
+      - '*'           # Push events to every tag not containing /
+      # Allow manual triggering
 
 env:
   CARGO_TERM_COLOR: always
@@ -31,13 +31,13 @@ jobs:
       with:
         name: cargo-deb-upload
         path: target/debian/httm*.*
-  # publish:
-  #   runs-on: ubuntu-18.04
-    
-  #   steps:
-  #   - name: Checkout sources
-  #     uses: actions/checkout@v3
-  #   - name: cargo publish
-  #     env:
-  #         CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-  #     run: cargo publish --token "$CARGO_REGISTRY_TOKEN"
+
+  publish:
+    runs-on: ubuntu-20.04
+    steps:
+    - name: Checkout sources
+      uses: actions/checkout@v3
+    - name: cargo publish
+      env:
+        CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+      run: cargo publish --token "$CARGO_REGISTRY_TOKEN"
