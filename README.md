@@ -27,7 +27,7 @@ Inspired by the [findoid](https://github.com/jimsalterjrs/sanoid) script, [fzf](
 
 ## Install via Native Packages
 
-For Ubuntu-based distributions, I maintain a [personal package archive](https://launchpad.net/ubuntu/+ppas) or PPA.  Instructions on how to use that particular PPA can be found there [there](https://github.com/kimono-koans/ppa).
+For Ubuntu-based distributions, I maintain a [personal package archive](https://launchpad.net/ubuntu/+ppas) or PPA.  Instructions on how to use that particular PPA can be found [there](https://github.com/kimono-koans/ppa).
 
 For other Debian-based and Redhat-based Linux distributions (like, Mint or Fedora, etc.), check the [tagged releases](https://github.com/kimono-koans/httm/tags) for native packages for your distribution.  For Redhat-based Linux distributions, you may need to use the `--replacefiles` option when installing via `rpm -i`, see the linked [issue](https://github.com/kimono-koans/httm/issues/51).
 
