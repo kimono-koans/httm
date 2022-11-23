@@ -1,11 +1,11 @@
 name: Build Debian/Redhat packages
 
 on:
-  push:
-    # Pattern matched against refs/tags
-    tags:        
-      - '*'           # Push events to every tag not containing /
-      # Allow manual triggering
+  # push:
+  #   # Pattern matched against refs/tags
+  #   tags:        
+  #     - '*'           # Push events to every tag not containing /
+  #     # Allow manual triggering
   workflow_dispatch:
 
 env:
