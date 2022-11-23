@@ -6,6 +6,7 @@ on:
     tags:        
       - '*'           # Push events to every tag not containing /
       # Allow manual triggering
+  workflow_dispatch:
 
 env:
   CARGO_TERM_COLOR: always
