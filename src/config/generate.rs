@@ -42,21 +42,21 @@ pub enum ExecMode {
     NumVersions(NumVersionsMode),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum InteractiveMode {
     Browse,
     Select,
     Restore,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DeletedMode {
     DepthOfOne,
     Enabled,
     Only,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum NumVersionsMode {
     All,
     SingleAll,
@@ -65,7 +65,7 @@ pub enum NumVersionsMode {
     Multiple,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LastSnapMode {
     Any,
     None,

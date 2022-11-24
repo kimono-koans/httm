@@ -16,13 +16,13 @@
 // that was distributed with this source code.
 
 use std::{
-    collections::{BTreeMap, BTreeSet},
     ffi::OsString,
     fs::read_dir,
     path::{Path, PathBuf},
     time::SystemTime,
 };
 
+use hashbrown::{HashMap, HashSet};
 use itertools::Itertools;
 
 use crate::config::generate::Config;
@@ -97,12 +97,12 @@ fn get_unique_deleted_for_dir(
     // what is a deleted file
     //
     // create a collection of local file names
-    let local_filenames_set: BTreeSet<OsString> = read_dir(&requested_dir)?
+    let local_filenames_set: HashSet<OsString> = read_dir(&requested_dir)?
         .flatten()
         .map(|dir_entry| dir_entry.file_name())
         .collect();
 
-    let unique_snap_filenames: BTreeMap<OsString, BasicDirEntryInfo> =
+    let unique_snap_filenames: HashMap<OsString, BasicDirEntryInfo> =
         get_unique_snap_filenames(&search_bundle.snap_mounts, &search_bundle.relative_path);
 
     // compare local filenames to all unique snap filenames - none values are unique, here
@@ -123,7 +123,7 @@ fn get_unique_deleted_for_dir(
 fn get_unique_snap_filenames(
     mounts: &[PathBuf],
     relative_path: &Path,
-) -> BTreeMap<OsString, BasicDirEntryInfo> {
+) -> HashMap<OsString, BasicDirEntryInfo> {
     let basic_dir_entry_info_iter = mounts
         .iter()
         .map(|path| path.join(&relative_path))

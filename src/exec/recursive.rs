@@ -205,25 +205,22 @@ fn spawn_deleted(
     skim_tx_item: &SkimItemSender,
     hangup_rx: &Receiver<Never>,
 ) {
-    match config.deleted_mode {
-        Some(_) => {
-            // spawn_enumerate_deleted will send deleted files back to
-            // the main thread for us, so we can skip collecting deleted here
-            // and return an empty vec
-            let requested_dir_clone = requested_dir.to_path_buf();
-            let skim_tx_item_clone = skim_tx_item.clone();
-            let hangup_rx_clone = hangup_rx.clone();
+    if config.deleted_mode.is_some() {
+        // spawn_enumerate_deleted will send deleted files back to
+        // the main thread for us, so we can skip collecting deleted here
+        // and return an empty vec
+        let requested_dir_clone = requested_dir.to_path_buf();
+        let skim_tx_item_clone = skim_tx_item.clone();
+        let hangup_rx_clone = hangup_rx.clone();
 
-            deleted_scope.spawn(move |_| {
-                let _ = enumerate_deleted(
-                    config,
-                    &requested_dir_clone,
-                    &skim_tx_item_clone,
-                    &hangup_rx_clone,
-                );
-            });
-        }
-        None => (),
+        deleted_scope.spawn(move |_| {
+            let _ = enumerate_deleted(
+                config,
+                &requested_dir_clone,
+                &skim_tx_item_clone,
+                &hangup_rx_clone,
+            );
+        });
     }
 }
 
