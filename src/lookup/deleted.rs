@@ -102,8 +102,8 @@ where
         })
 }
 
-// this is sleazy but fast, use the snap dataset birth times for all files on that dataset
-// keeps us from repeating stat calls on sometimes 10000s of files in a dir
+// this fast, use the snap dataset birth times for all files on that dataset
+// this keeps us from the repeating stat calls on sometimes 10000s of files in a dir
 fn cached_snap_mod_times(config: &Config, path: &Path) -> Option<SystemTime> {
     static SNAP_MOD_TIME_CACHE: Lazy<Arc<DashMap<PathBuf, SystemTime>>> =
         Lazy::new(|| Arc::new(DashMap::new()));
