@@ -35,15 +35,17 @@ pub fn deleted_lookup_exec(config: &Config, requested_dir: &Path) -> Vec<BasicDi
     // requesting dir to those of their relative dirs on snapshots
     let requested_dir_pathdata = PathData::from(requested_dir);
 
+    let requested_snap_datasets = config
+        .dataset_collection
+        .snaps_selected_for_search
+        .get_value();
+
     // create vec of all local and replicated backups at once
     //
     // we need to make certain that what we return from possibly multiple datasets are unique
     // as these will be the filenames that populate our interactive views, so deduplicate
     // by filename and latest file version here
-    let basic_dir_entry_info_iter = config
-        .dataset_collection
-        .snaps_selected_for_search
-        .get_value()
+    let basic_dir_entry_info_iter = requested_snap_datasets
         .iter()
         .flat_map(|dataset_type| {
             MostProximateAndOptAlts::new(config, &requested_dir_pathdata, dataset_type)
@@ -57,9 +59,13 @@ pub fn deleted_lookup_exec(config: &Config, requested_dir: &Path) -> Vec<BasicDi
         })
         .flatten();
 
-    get_latest_in_time_for_filename(basic_dir_entry_info_iter)
-        .map(|(_file_name, (_modify_time, basic_dir_entry_info))| basic_dir_entry_info)
-        .collect()
+    if requested_snap_datasets.len() == 1 {
+        basic_dir_entry_info_iter.collect()
+    } else {
+        get_latest_in_time_for_filename(basic_dir_entry_info_iter)
+            .map(|(_file_name, (_modify_time, basic_dir_entry_info))| basic_dir_entry_info)
+            .collect()
+    }
 }
 
 // this functions like a BTreeMap, separate into buckets/groups
