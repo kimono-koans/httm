@@ -118,7 +118,7 @@ fn cached_snap_mod_times(config: &Config, path: &Path) -> Option<SystemTime> {
                 Some(mod_time) => Some(mod_time.to_owned()),
                 None => SNAP_MOD_TIME_CACHE.insert(
                     ancestor.to_path_buf(),
-                    ancestor.symlink_metadata().unwrap().modified().unwrap(),
+                    ancestor.symlink_metadata().ok()?.modified().ok()?,
                 ),
             }
         } else {
