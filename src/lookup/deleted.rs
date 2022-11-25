@@ -141,7 +141,6 @@ fn get_unique_snap_filenames(
     // why do we care to check whether the dir entry is latest in time here as well as above?  because if we miss it here
     // the policy of latest in time would make no sense.  read_dir call could return mounts in no temporal order, and
     // entering into a map would leave only the last inserted in the map, not the latest in modify time
-
     get_latest_in_time_for_filename(basic_dir_entry_info_iter)
         .map(|(file_name, latest_entry_in_time)| (file_name, latest_entry_in_time.1))
         .collect()
