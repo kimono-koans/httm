@@ -19,11 +19,14 @@ use std::{
     ffi::OsString,
     fs::read_dir,
     path::{Path, PathBuf},
+    sync::Arc,
     time::SystemTime,
 };
 
+use dashmap::DashMap;
 use hashbrown::{HashMap, HashSet};
 use itertools::Itertools;
+use once_cell::sync::Lazy;
 
 use crate::config::generate::Config;
 use crate::data::paths::{BasicDirEntryInfo, PathData};
@@ -55,14 +58,14 @@ pub fn deleted_lookup_exec(config: &Config, requested_dir: &Path) -> Vec<BasicDi
         })
         .flatten()
         .flat_map(|search_bundle| {
-            get_unique_deleted_for_dir(&requested_dir_pathdata.path_buf, &search_bundle)
+            get_unique_deleted_for_dir(config, &requested_dir_pathdata.path_buf, &search_bundle)
         })
         .flatten();
 
     if requested_snap_datasets.len() == 1 {
         basic_dir_entry_info_iter.collect()
     } else {
-        get_latest_in_time_for_filename(basic_dir_entry_info_iter)
+        get_latest_in_time_for_filename(config, basic_dir_entry_info_iter)
             .map(|(_file_name, (_modify_time, basic_dir_entry_info))| basic_dir_entry_info)
             .collect()
     }
@@ -74,8 +77,9 @@ pub fn deleted_lookup_exec(config: &Config, requested_dir: &Path) -> Vec<BasicDi
 // to give later functions an idea about which folder to choose when we want too look
 // behind deleted dirs, here we just choose latest in time
 fn get_latest_in_time_for_filename<I>(
+    config: &Config,
     basic_dir_entry_info_iter: I,
-) -> impl Iterator<Item = (OsString, (SystemTime, BasicDirEntryInfo))>
+) -> impl Iterator<Item = (OsString, (SystemTime, BasicDirEntryInfo))> + '_
 where
     I: Iterator<Item = BasicDirEntryInfo>,
 {
@@ -86,16 +90,45 @@ where
             group_of_dir_entries
                 .into_iter()
                 .filter_map(|basic_dir_entry_info| {
-                    basic_dir_entry_info
-                        .get_modify_time()
-                        .map(|modify_time| (modify_time, basic_dir_entry_info))
+                    match cached_snap_mod_times(config, &basic_dir_entry_info.path) {
+                        Some(mod_time) => Some((mod_time, basic_dir_entry_info)),
+                        None => basic_dir_entry_info
+                            .get_modify_time()
+                            .map(|modify_time| (modify_time, basic_dir_entry_info)),
+                    }
                 })
                 .max_by_key(|(modify_time, _basic_dir_entry_info)| *modify_time)
                 .map(|latest_entry_in_time| (file_name, latest_entry_in_time))
         })
 }
 
+// this is sleazy but fast, use the snap dataset birth times for all files on that dataset
+// keeps us from repeating stat calls on sometimes 10000s of files in a dir
+fn cached_snap_mod_times(config: &Config, path: &Path) -> Option<SystemTime> {
+    static SNAP_MOD_TIME_CACHE: Lazy<Arc<DashMap<PathBuf, SystemTime>>> =
+        Lazy::new(|| Arc::new(DashMap::new()));
+
+    path.ancestors().find_map(|ancestor| {
+        if config
+            .dataset_collection
+            .map_of_snaps
+            .contains_key(ancestor)
+        {
+            match SNAP_MOD_TIME_CACHE.get(ancestor) {
+                Some(mod_time) => Some(mod_time.to_owned()),
+                None => SNAP_MOD_TIME_CACHE.insert(
+                    ancestor.to_path_buf(),
+                    ancestor.symlink_metadata().unwrap().modified().unwrap(),
+                ),
+            }
+        } else {
+            None
+        }
+    })
+}
+
 fn get_unique_deleted_for_dir(
+    config: &Config,
     requested_dir: &Path,
     search_bundle: &RelativePathAndSnapMounts,
 ) -> HttmResult<Vec<BasicDirEntryInfo>> {
@@ -108,8 +141,11 @@ fn get_unique_deleted_for_dir(
         .map(|dir_entry| dir_entry.file_name())
         .collect();
 
-    let unique_snap_filenames: HashMap<OsString, BasicDirEntryInfo> =
-        get_unique_snap_filenames(&search_bundle.snap_mounts, &search_bundle.relative_path);
+    let unique_snap_filenames: HashMap<OsString, BasicDirEntryInfo> = get_unique_snap_filenames(
+        config,
+        &search_bundle.snap_mounts,
+        &search_bundle.relative_path,
+    );
 
     // compare local filenames to all unique snap filenames - none values are unique, here
     let all_deleted_versions: Vec<BasicDirEntryInfo> = unique_snap_filenames
@@ -127,6 +163,7 @@ fn get_unique_deleted_for_dir(
 }
 
 fn get_unique_snap_filenames(
+    config: &Config,
     mounts: &[PathBuf],
     relative_path: &Path,
 ) -> HashMap<OsString, BasicDirEntryInfo> {
@@ -141,7 +178,7 @@ fn get_unique_snap_filenames(
     // why do we care to check whether the dir entry is latest in time here as well as above?  because if we miss it here
     // the policy of latest in time would make no sense.  read_dir call could return mounts in no temporal order, and
     // entering into a map would leave only the last inserted in the map, not the latest in modify time
-    get_latest_in_time_for_filename(basic_dir_entry_info_iter)
+    get_latest_in_time_for_filename(config, basic_dir_entry_info_iter)
         .map(|(file_name, latest_entry_in_time)| (file_name, latest_entry_in_time.1))
         .collect()
 }
