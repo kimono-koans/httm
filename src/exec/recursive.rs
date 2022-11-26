@@ -83,14 +83,15 @@ pub fn recursive_exec(
             .unwrap()
     };
 
+    // nice deleted threads at nice level 10
     let set_deleted_search_priority = |i| {
         #[cfg(target_os = "linux")]
         unsafe {
-            libc::setpriority(i as u32, 0u32, 5i32);
+            libc::setpriority(i as u32, 0u32, 10i32);
         }
         #[cfg(target_os = "macos")]
         unsafe {
-            libc::setpriority(i as i32, 0u32, 5i32);
+            libc::setpriority(i as i32, 0u32, 10i32);
         }
     };
 
@@ -99,7 +100,7 @@ pub fn recursive_exec(
     let pool: ThreadPool = rayon::ThreadPoolBuilder::new()
         .stack_size(DEFAULT_STACK_SIZE)
         .num_threads(num_threads)
-        .start_handler(set_deleted_search_priority)  
+        .start_handler(set_deleted_search_priority)
         .build()
         .expect("Could not initialize rayon threadpool for recursive deleted search");
 
