@@ -16,9 +16,10 @@
 // that was distributed with this source code.
 
 // re-implementation of the into_group_map() and into_group_map_by()
-// methods for Iterator by Rust Itertools team
+// methods for Iterator by Rust Itertools team, their license is produced
+// verbatim below:
 
-// Copyright (c) 2015
+// "Copyright (c) 2015
 //
 // Permission is hereby granted, free of charge, to any
 // person obtaining a copy of this software and associated
@@ -42,7 +43,7 @@
 // CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
 // IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
-// DEALINGS IN THE SOFTWARE.
+// DEALINGS IN THE SOFTWARE."
 
 use std::{hash::Hash, iter::Iterator};
 
