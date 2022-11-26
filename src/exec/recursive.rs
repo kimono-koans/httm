@@ -68,10 +68,22 @@ pub fn recursive_exec(
     // here set at 1MB (the Linux default is 8MB) to avoid a stack overflow with the Rayon default
     const DEFAULT_STACK_SIZE: usize = 1_048_576;
 
+    // for deleted searches use number of cores if less than 4
+    // for 4 of greater, 3 for 4, 6 for 8, 11 for 16, 20 for 32...
+    let num_logical_cores = num_cpus::get();
+
+    let num_threads: usize = if num_logical_cores < 4usize {
+        num_logical_cores
+    } else {
+        let fp_num = num_logical_cores as f32;
+        (num_logical_cores / 2) + (fp_num.log(2.0).floor() as usize - 1usize)
+    };
+
     // build thread pool with a stack size large enough to avoid a stack overflow
     // this will be our one threadpool for directory enumeration ops
     let pool: ThreadPool = rayon::ThreadPoolBuilder::new()
         .stack_size(DEFAULT_STACK_SIZE)
+        .num_threads(num_threads)
         .build()
         .expect("Could not initialize rayon threadpool for recursive deleted search");
 
