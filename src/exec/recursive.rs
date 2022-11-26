@@ -363,7 +363,10 @@ fn enumerate_deleted(
     //
     // don't propagate errors, errors we are most concerned about
     // are transmission errors, which are handled elsewhere
-    if config.deleted_mode != Some(DeletedMode::DepthOfOne) && config.opt_recursive {
+    if config.deleted_mode != Some(DeletedMode::DepthOfOne)
+        && config.opt_recursive
+        && !vec_dirs.is_empty()
+    {
         // get latest in time per our policy
         let path_set: Vec<PathData> = vec_dirs
             .into_iter()
