@@ -69,35 +69,26 @@ pub fn recursive_exec(
     // here set at 1MB (the Linux default is 8MB) to avoid a stack overflow with the Rayon default
     const DEFAULT_STACK_SIZE: usize = 1_048_576;
 
-    // for deleted searches use number of cores if less than 2
-    // between 4 and 2, use only 2
-    // for 4 or greater, 6 for 8, 12 for 16, 24 for 32...
-    let num_logical_cores = num_cpus::get();
-
-    let num_threads: usize =
-        if !matches!(config.exec_mode, ExecMode::Interactive(_)) || num_logical_cores <= 1usize {
-            num_logical_cores
-        } else if num_logical_cores <= 8usize {
-            num_logical_cores.checked_div(2usize).unwrap()
-        } else {
-            num_logical_cores
-                .checked_mul(3usize)
-                .expect("Overflow occurred.  Number of CPUs was too large.")
-                .checked_div(4usize)
-                .unwrap()
-        };
+    //let config_clone = config.clone();
 
     // nice deleted threads at nice level 10
-    // let set_deleted_search_priority = |i| {
+    // let set_deleted_search_priority = move |tid| {
     //     use libc::PRIO_PROCESS;
+
+    //     // use a lower priority to make room for interactive views
+    //     let priority_level = if matches!(config_clone.exec_mode, ExecMode::Interactive(_)) {
+    //         16i32
+    //     } else {
+    //         4i32
+    //     };
 
     //     #[cfg(target_os = "linux")]
     //     unsafe {
-    //         libc::setpriority(PRIO_PROCESS, i as u32, 10i32);
+    //         libc::setpriority(PRIO_PROCESS, tid as u32, priority_level);
     //     }
     //     #[cfg(target_os = "macos")]
     //     unsafe {
-    //         libc::setpriority(PRIO_PROCESS, i as u32, 10i32);
+    //         libc::setpriority(PRIO_PROCESS, tid as u32, priority_level);
     //     }
     // };
 
@@ -105,7 +96,6 @@ pub fn recursive_exec(
     // this will be our one threadpool for directory enumeration ops
     let pool: ThreadPool = rayon::ThreadPoolBuilder::new()
         .stack_size(DEFAULT_STACK_SIZE)
-        .num_threads(num_threads)
         //.start_handler(set_deleted_search_priority)
         .build()
         .expect("Could not initialize rayon threadpool for recursive deleted search");

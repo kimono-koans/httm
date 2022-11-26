@@ -492,7 +492,6 @@ dependencies = [
  "hashbrown 0.13.1",
  "indicatif",
  "lscolors",
- "num_cpus",
  "number_prefix",
  "once_cell",
  "proc-mounts",
