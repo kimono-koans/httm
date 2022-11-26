@@ -28,7 +28,7 @@ use crate::exec::interactive::SelectionCandidate;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{httm_is_dir, is_channel_closed, print_output_buf, HttmIsDir, Never};
 use crate::lookup::deleted::deleted_lookup_exec;
-use crate::lookup::versions::versions_lookup_exec;
+use crate::lookup::versions::{versions_lookup_exec, DisplayMap};
 use crate::{BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_HIDDEN_DIRECTORY};
 
 #[allow(unused_variables)]
@@ -314,7 +314,7 @@ fn enumerate_deleted(
         return Err(HttmError::new("Thread requested to quit.  Quitting.").into());
     }
 
-    // obtain all unique deleted, policy is one version for each file, latest in time
+    // obtain all unique deleted, unordered, unsorted, will need to fix
     let vec_deleted = deleted_lookup_exec(config.as_ref(), requested_dir);
 
     // combined entries will be sent or printed, but we need the vec_dirs to recurse
@@ -339,9 +339,19 @@ fn enumerate_deleted(
     // don't propagate errors, errors we are most concerned about
     // are transmission errors, which are handled elsewhere
     if config.deleted_mode != Some(DeletedMode::DepthOfOne) && config.opt_recursive {
-        vec_dirs
+        // get latest in time per our policy
+        let path_set: Vec<PathData> = vec_dirs
             .into_iter()
-            .map(|basic_dir_entry_info| basic_dir_entry_info.path)
+            .map(|basic_dir_entry_info| PathData::from(&basic_dir_entry_info))
+            .collect();
+
+        let display_map = DisplayMap::new(&config, &path_set);
+
+        display_map
+            .values()
+            .filter_map(|sorted_vec| sorted_vec.last())
+            .cloned()
+            .map(|pathdata| pathdata.path_buf)
             .try_for_each(|deleted_dir| {
                 let config_clone = config.clone();
                 let requested_dir_clone = requested_dir.to_path_buf();

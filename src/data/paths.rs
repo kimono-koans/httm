@@ -112,6 +112,14 @@ impl From<&DirEntry> for PathData {
     }
 }
 
+impl From<&BasicDirEntryInfo> for PathData {
+    fn from(basic_info: &BasicDirEntryInfo) -> Self {
+        let opt_metadata = basic_info.path.metadata().ok();
+        let path = &basic_info.path;
+        PathData::new(path.as_path(), opt_metadata)
+    }
+}
+
 impl PathData {
     pub fn new(path: &Path, opt_metadata: Option<Metadata>) -> Self {
         let absolute_path: PathBuf = if path.is_relative() {
