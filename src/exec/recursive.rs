@@ -69,19 +69,23 @@ pub fn recursive_exec(
     // here set at 1MB (the Linux default is 8MB) to avoid a stack overflow with the Rayon default
     const DEFAULT_STACK_SIZE: usize = 1_048_576;
 
-    // for deleted searches use number of cores if less than 4
-    // for 4 or greater, 3 for 4, 6 for 8, 12 for 16, 24 for 32...
+    // for deleted searches use number of cores if less than 2
+    // between 4 and 2, use only 2
+    // for 4 or greater, 6 for 8, 12 for 16, 24 for 32...
     let num_logical_cores = num_cpus::get();
 
-    let num_threads: usize = if num_logical_cores < 4usize {
-        num_logical_cores
-    } else {
-        num_logical_cores
-            .checked_mul(3usize)
-            .expect("Overflow occurred.  Number of CPUs was too large.")
-            .checked_div(4usize)
-            .unwrap()
-    };
+    let num_threads: usize =
+        if !matches!(config.exec_mode, ExecMode::Interactive(_)) || num_logical_cores <= 1usize {
+            num_logical_cores
+        } else if num_logical_cores <= 8usize {
+            num_logical_cores.checked_div(2usize).unwrap()
+        } else {
+            num_logical_cores
+                .checked_mul(3usize)
+                .expect("Overflow occurred.  Number of CPUs was too large.")
+                .checked_div(4usize)
+                .unwrap()
+        };
 
     // nice deleted threads at nice level 10
     // let set_deleted_search_priority = |i| {
