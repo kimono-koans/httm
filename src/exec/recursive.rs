@@ -349,7 +349,7 @@ fn enumerate_deleted(
 
         display_map
             .values()
-            // last is last in time
+            // last() is last in time
             .filter_map(|sorted_vec| sorted_vec.last())
             .map(|pathdata| pathdata.path_buf.as_path())
             .try_for_each(|deleted_dir| {
