@@ -28,7 +28,6 @@ terminal_size = { version = "0.2.0", default-features = false }
 which = { version = "4.2.4", default-features = false }
 rayon = { version = "1.5.1", default-features = false }
 indicatif =  { version = "0.17.0", default-features = false }
-lazy_static = { version = "1.4.0", default-features = false }
 proc-mounts = { version = "0.3.0", default-features = false }
 once_cell = { version = "1.13.0", default-features = false }
 hashbrown = { version = "0.13.1" }

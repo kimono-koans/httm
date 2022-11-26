@@ -15,11 +15,6 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-#[macro_use]
-extern crate lazy_static;
-
-use std::sync::Arc;
-
 mod data {
     pub mod filesystem_info;
     pub mod paths;
@@ -55,6 +50,8 @@ mod parse {
     pub mod mounts;
     pub mod snaps;
 }
+
+use std::sync::Arc;
 
 use crate::config::generate::{Config, ExecMode};
 use crate::lookup::file_mounts::MountsForFiles;

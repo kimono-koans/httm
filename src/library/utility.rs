@@ -28,6 +28,7 @@ use crossbeam::channel::{Receiver, TryRecvError};
 use lscolors::{Colorable, LsColors, Style};
 use number_prefix::NumberPrefix;
 use time::{format_description, OffsetDateTime, UtcOffset};
+use once_cell::sync::Lazy;
 
 use crate::config::generate::Config;
 use crate::data::paths::{BasicDirEntryInfo, PathData};
@@ -225,11 +226,8 @@ impl HttmIsDir for BasicDirEntryInfo {
     }
 }
 
-lazy_static! {
-    static ref PHANTOM_STYLE: Style =
-        Style::from_ansi_sequence("38;2;250;200;200;1;0").unwrap_or_default();
-    static ref ENV_LS_COLORS: LsColors = LsColors::from_env().unwrap_or_default();
-}
+static PHANTOM_STYLE: Lazy<Style> = Lazy::new(|| Style::from_ansi_sequence("38;2;250;200;200;1;0").unwrap_or_default());
+static ENV_LS_COLORS: Lazy<LsColors> = Lazy::new(|| LsColors::from_env().unwrap_or_default());
 
 pub fn paint_string<T>(path: T, display_name: &str) -> Cow<str>
 where
