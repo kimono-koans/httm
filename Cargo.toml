@@ -32,7 +32,6 @@ proc-mounts = { version = "0.3.0", default-features = false }
 once_cell = { version = "1.16.0", default-features = false }
 hashbrown = { version = "0.13.1" }
 num_cpus = { version = "1.14.0" }
-libc = { version = "0.2.137", default-features = false }
 
 [package.metadata.deb]
 maintainer = "kimono koans <https://github.com/kimono-koans/>"
