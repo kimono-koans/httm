@@ -18,11 +18,11 @@
 use std::collections::BTreeMap;
 use std::ops::Deref;
 
-use itertools::Itertools;
 use rayon::prelude::*;
 
 use crate::config::generate::Config;
 use crate::data::paths::PathData;
+use crate::library::iter_extensions::HttmIter;
 use crate::library::results::HttmResult;
 use crate::lookup::versions::{DisplayMap, MostProximateAndOptAlts};
 

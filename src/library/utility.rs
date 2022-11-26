@@ -19,6 +19,7 @@ use std::{
     borrow::Cow,
     fs::{copy, create_dir_all, read_dir, DirEntry, FileType},
     io::{self, Read, Write},
+    iter::Iterator,
     path::{Component::RootDir, Path, PathBuf},
     time::SystemTime,
 };

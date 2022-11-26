@@ -25,11 +25,11 @@ use std::{
 
 use dashmap::DashMap;
 use hashbrown::{HashMap, HashSet};
-use itertools::Itertools;
 use once_cell::sync::Lazy;
 
 use crate::config::generate::Config;
 use crate::data::paths::{BasicDirEntryInfo, PathData};
+use crate::library::iter_extensions::HttmIter;
 use crate::library::results::HttmResult;
 use crate::lookup::versions::{MostProximateAndOptAlts, RelativePathAndSnapMounts};
 

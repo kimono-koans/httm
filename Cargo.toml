@@ -27,7 +27,6 @@ lscolors = { version = "0.13.0", features = ["ansi_term"] }
 terminal_size = { version = "0.2.0", default-features = false }
 which = { version = "4.2.4", default-features = false }
 rayon = { version = "1.5.1", default-features = false }
-itertools = { version = "0.10.3" } # use_std, use_alloc for into_group_map_by()
 indicatif =  { version = "0.17.0", default-features = false }
 lazy_static = { version = "1.4.0", default-features = false }
 proc-mounts = { version = "0.3.0", default-features = false }
