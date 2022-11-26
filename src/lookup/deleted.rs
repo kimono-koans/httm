@@ -19,17 +19,18 @@ use std::{
     ffi::OsString,
     fs::read_dir,
     path::{Path, PathBuf},
-    time::SystemTime,
 };
 
 use hashbrown::{HashMap, HashSet};
 
 use crate::config::generate::Config;
 use crate::data::paths::{BasicDirEntryInfo, PathData};
-use crate::library::iter_extensions::HttmIter;
 use crate::library::results::HttmResult;
 use crate::lookup::versions::{MostProximateAndOptAlts, RelativePathAndSnapMounts};
 
+// delete is a dumb function/module if we want to rank outputs, get last in time, etc.
+// we do that elsewhere.  deleted is simply about finding at least one version of a deleted file
+// this, believe it or not, will be faster
 pub fn deleted_lookup_exec(config: &Config, requested_dir: &Path) -> Vec<BasicDirEntryInfo> {
     // we always need a requesting dir because we are comparing the files in the
     // requesting dir to those of their relative dirs on snapshots
@@ -45,7 +46,7 @@ pub fn deleted_lookup_exec(config: &Config, requested_dir: &Path) -> Vec<BasicDi
     // we need to make certain that what we return from possibly multiple datasets are unique
     // as these will be the filenames that populate our interactive views, so deduplicate
     // by filename and latest file version here
-    let basic_dir_entry_info_iter = requested_snap_datasets
+    let basic_dir_entry_info_map: HashMap<OsString, BasicDirEntryInfo> = requested_snap_datasets
         .iter()
         .flat_map(|dataset_type| {
             MostProximateAndOptAlts::new(config, &requested_dir_pathdata, dataset_type)
@@ -57,42 +58,11 @@ pub fn deleted_lookup_exec(config: &Config, requested_dir: &Path) -> Vec<BasicDi
         .flat_map(|search_bundle| {
             get_unique_deleted_for_dir(&requested_dir_pathdata.path_buf, &search_bundle)
         })
-        .flatten();
+        .flatten()
+        .map(|basic_dir_entry_info| (basic_dir_entry_info.file_name.clone(), basic_dir_entry_info))
+        .collect();
 
-    if requested_snap_datasets.len() == 1 {
-        basic_dir_entry_info_iter.collect()
-    } else {
-        get_latest_in_time_for_filename(basic_dir_entry_info_iter)
-            .map(|(_file_name, (_modify_time, basic_dir_entry_info))| basic_dir_entry_info)
-            .collect()
-    }
-}
-
-// this functions like a BTreeMap, separate into buckets/groups
-// by file name, then return the oldest deleted dir entry, or max by its modify time
-// why? because this might be a folder that has been deleted and we need some policy
-// to give later functions an idea about which folder to choose when we want too look
-// behind deleted dirs, here we just choose latest in time
-fn get_latest_in_time_for_filename<I>(
-    basic_dir_entry_info_iter: I,
-) -> impl Iterator<Item = (OsString, (SystemTime, BasicDirEntryInfo))>
-where
-    I: Iterator<Item = BasicDirEntryInfo>,
-{
-    basic_dir_entry_info_iter
-        .into_group_map_by(|basic_dir_entry_info| basic_dir_entry_info.file_name.clone())
-        .into_iter()
-        .filter_map(|(file_name, group_of_dir_entries)| {
-            group_of_dir_entries
-                .into_iter()
-                .filter_map(|basic_dir_entry_info| {
-                    basic_dir_entry_info
-                        .get_modify_time()
-                        .map(|modify_time| (modify_time, basic_dir_entry_info))
-                })
-                .max_by_key(|(modify_time, _basic_dir_entry_info)| *modify_time)
-                .map(|latest_entry_in_time| (file_name, latest_entry_in_time))
-        })
+    basic_dir_entry_info_map.into_values().collect()
 }
 
 fn get_unique_deleted_for_dir(
