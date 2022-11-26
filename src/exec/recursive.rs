@@ -349,16 +349,16 @@ fn enumerate_deleted(
 
         display_map
             .values()
+            // last is last in time
             .filter_map(|sorted_vec| sorted_vec.last())
-            .cloned()
-            .map(|pathdata| pathdata.path_buf)
+            .map(|pathdata| pathdata.path_buf.as_path())
             .try_for_each(|deleted_dir| {
                 let config_clone = config.clone();
                 let requested_dir_clone = requested_dir.to_path_buf();
 
                 get_entries_behind_deleted_dir(
                     config_clone,
-                    &deleted_dir,
+                    deleted_dir,
                     &requested_dir_clone,
                     skim_tx_item,
                     hangup_rx,
