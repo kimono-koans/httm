@@ -102,8 +102,14 @@ where
         })
 }
 
-// this fast, use the snap dataset birth times for all files on that dataset
-// this keeps us from the repeating stat calls on sometimes 10000s of files in a dir
+// if not painstakingly correct, this is fast, here, we use the snap dataset birth times
+// for all files on that dataset.  this keeps us from calling stat repeatedly on sometimes
+// 10000s of files in a dir.
+//
+// This is simply to fulfill a policy of which snapshot is the snapshot, for the purposes of
+// a behind deleted dirs search, which is the latest in time.  It is possible that ZFS will
+// report the wrong thing here, but I've yet to see it be off.  But close enough is good enough
+// given the performance penalty
 fn cached_snap_mod_times(config: &Config, path: &Path) -> Option<SystemTime> {
     static SNAP_MOD_TIME_CACHE: Lazy<Arc<DashMap<PathBuf, SystemTime>>> =
         Lazy::new(|| Arc::new(DashMap::new()));
