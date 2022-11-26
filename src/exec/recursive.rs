@@ -16,6 +16,7 @@
 // that was distributed with this source code.
 
 use std::collections::VecDeque;
+
 use std::{fs::read_dir, path::Path, sync::Arc};
 
 use once_cell::unsync::OnceCell;
@@ -69,14 +70,17 @@ pub fn recursive_exec(
     const DEFAULT_STACK_SIZE: usize = 1_048_576;
 
     // for deleted searches use number of cores if less than 4
-    // for 4 of greater, 3 for 4, 6 for 8, 11 for 16, 20 for 32...
+    // for 4 or greater, 3 for 4, 6 for 8, 12 for 16, 24 for 32...
     let num_logical_cores = num_cpus::get();
 
     let num_threads: usize = if num_logical_cores < 4usize {
         num_logical_cores
     } else {
-        let fp_num = num_logical_cores as f32;
-        (num_logical_cores / 2) + (fp_num.log(2.0).floor() as usize - 1usize)
+        num_logical_cores
+            .checked_mul(3usize)
+            .expect("Overflow occurred.  Number of CPUs was too large.")
+            .checked_div(4usize)
+            .unwrap()
     };
 
     // build thread pool with a stack size large enough to avoid a stack overflow
