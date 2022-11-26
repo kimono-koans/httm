@@ -42,14 +42,10 @@ pub struct SelectionCandidate {
 }
 
 impl SelectionCandidate {
-    pub fn new(
-        config: Arc<Config>,
-        basic_dir_entry_info: BasicDirEntryInfo,
-        is_phantom: bool,
-    ) -> Self {
+    pub fn new(config: Arc<Config>, basic_info: BasicDirEntryInfo, is_phantom: bool) -> Self {
         SelectionCandidate {
             config,
-            path: basic_dir_entry_info.path,
+            path: basic_info.path,
             // here save space of bool/padding instead of an "is_phantom: bool"
             //
             // issue: conflate not having a file_type as phantom
@@ -61,7 +57,7 @@ impl SelectionCandidate {
                 if is_phantom {
                     None
                 } else {
-                    basic_dir_entry_info.file_type
+                    basic_info.file_type
                 }
             },
         }

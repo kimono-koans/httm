@@ -370,7 +370,7 @@ fn enumerate_deleted(
         // get latest in time per our policy
         let path_set: Vec<PathData> = vec_dirs
             .into_iter()
-            .map(|basic_dir_entry_info| PathData::from(&basic_dir_entry_info))
+            .map(|basic_info| PathData::from(&basic_info))
             .collect();
 
         let display_map = DisplayMap::new(&config, &path_set);
@@ -443,10 +443,10 @@ fn get_entries_behind_deleted_dir(
         // now recurse!
         // don't propagate errors, errors we are most concerned about
         // are transmission errors, which are handled elsewhere
-        vec_dirs.into_iter().try_for_each(|basic_dir_entry_info| {
+        vec_dirs.into_iter().try_for_each(|basic_info| {
             recurse_behind_deleted_dir(
                 config.clone(),
-                Path::new(&basic_dir_entry_info.file_name),
+                Path::new(&basic_info.file_name),
                 deleted_dir_on_snap,
                 pseudo_live_dir,
                 skim_tx_item,
@@ -479,10 +479,10 @@ fn get_pseudo_live_versions(
 ) -> Vec<BasicDirEntryInfo> {
     entries
         .into_iter()
-        .map(|basic_dir_entry_info| BasicDirEntryInfo {
-            path: pseudo_live_dir.join(&basic_dir_entry_info.file_name),
-            file_name: basic_dir_entry_info.file_name,
-            file_type: basic_dir_entry_info.file_type,
+        .map(|basic_info| BasicDirEntryInfo {
+            path: pseudo_live_dir.join(&basic_info.file_name),
+            file_name: basic_info.file_name,
+            file_type: basic_info.file_type,
             modify_time: OnceCell::new(),
         })
         .collect()
@@ -524,10 +524,10 @@ fn transmit_entries(
     // results, instead of printing and recursing into the subsequent dirs
     entries
         .into_iter()
-        .try_for_each(|basic_dir_entry_info| {
+        .try_for_each(|basic_info| {
             skim_tx_item.try_send(Arc::new(SelectionCandidate::new(
                 config.clone(),
-                basic_dir_entry_info,
+                basic_info,
                 is_phantom,
             )))
         })
@@ -537,7 +537,7 @@ fn transmit_entries(
 fn print_display_recursive(config: &Config, entries: Vec<BasicDirEntryInfo>) -> HttmResult<()> {
     let pseudo_live_set: Vec<PathData> = entries
         .iter()
-        .map(|basic_dir_entry_info| PathData::from(basic_dir_entry_info.path.as_path()))
+        .map(|basic_info| PathData::from(basic_info.path.as_path()))
         .collect();
 
     let map_live_to_snaps = versions_lookup_exec(config, &pseudo_live_set)?;

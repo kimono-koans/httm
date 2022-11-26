@@ -46,7 +46,7 @@ pub fn deleted_lookup_exec(config: &Config, requested_dir: &Path) -> Vec<BasicDi
     // we need to make certain that what we return from possibly multiple datasets are unique
     // as these will be the filenames that populate our interactive views, so deduplicate
     // by filename and latest file version here
-    let basic_dir_entry_info_map: HashMap<OsString, BasicDirEntryInfo> = requested_snap_datasets
+    let basic_info_map: HashMap<OsString, BasicDirEntryInfo> = requested_snap_datasets
         .iter()
         .flat_map(|dataset_type| {
             MostProximateAndOptAlts::new(config, &requested_dir_pathdata, dataset_type)
@@ -59,10 +59,10 @@ pub fn deleted_lookup_exec(config: &Config, requested_dir: &Path) -> Vec<BasicDi
             get_unique_deleted_for_dir(&requested_dir_pathdata.path_buf, &search_bundle)
         })
         .flatten()
-        .map(|basic_dir_entry_info| (basic_dir_entry_info.file_name.clone(), basic_dir_entry_info))
+        .map(|basic_info| (basic_info.file_name.clone(), basic_info))
         .collect();
 
-    basic_dir_entry_info_map.into_values().collect()
+    basic_info_map.into_values().collect()
 }
 
 fn get_unique_deleted_for_dir(
@@ -84,9 +84,9 @@ fn get_unique_deleted_for_dir(
     // compare local filenames to all unique snap filenames - none values are unique, here
     let all_deleted_versions: Vec<BasicDirEntryInfo> = unique_snap_filenames
         .into_iter()
-        .filter_map(|(file_name, basic_dir_entry_info)| {
+        .filter_map(|(file_name, basic_info)| {
             if !local_filenames_set.contains(&file_name) {
-                Some(basic_dir_entry_info)
+                Some(basic_info)
             } else {
                 None
             }
