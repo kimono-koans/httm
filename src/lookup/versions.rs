@@ -33,9 +33,7 @@ pub fn versions_lookup_exec(config: &Config, path_set: &[PathData]) -> HttmResul
 
     // check if all files (snap and live) do not exist, if this is true, then user probably messed up
     // and entered a file that never existed (that is, perhaps a wrong file name)?
-    if map_live_to_snaps
-        .values()
-        .all(|pathdata| pathdata.is_empty())
+    if map_live_to_snaps.values().all(std::vec::Vec::is_empty)
         && map_live_to_snaps
             .keys()
             .all(|pathdata| pathdata.metadata.is_none())

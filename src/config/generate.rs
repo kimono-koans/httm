@@ -416,16 +416,16 @@ impl Config {
         );
 
         let opt_last_snap = match matches.value_of("LAST_SNAP") {
-            Some("") | Some("any") => Some(LastSnapMode::Any),
+            Some("" | "any") => Some(LastSnapMode::Any),
             Some("none") => Some(LastSnapMode::None),
             Some("ditto") => Some(LastSnapMode::DittoOnly),
             Some("no-ditto-inclusive") => Some(LastSnapMode::NoDittoInclusive),
-            Some("no-ditto-exclusive") | Some("no-ditto") => Some(LastSnapMode::NoDittoExclusive),
+            Some("no-ditto-exclusive" | "no-ditto") => Some(LastSnapMode::NoDittoExclusive),
             _ => None,
         };
 
         let opt_num_versions = match matches.value_of("NUM_VERSIONS") {
-            Some("") | Some("all") => Some(NumVersionsMode::All),
+            Some("" | "all") => Some(NumVersionsMode::All),
             Some("single") => Some(NumVersionsMode::SingleAll),
             Some("single-no-snap") => Some(NumVersionsMode::SingleNoSnap),
             Some("single-with-snap") => Some(NumVersionsMode::SingleWithSnap),
@@ -434,13 +434,13 @@ impl Config {
         };
 
         let opt_preview = match matches.value_of("PREVIEW") {
-            Some("") | Some("default") => Some("default".to_owned()),
+            Some("" | "default") => Some("default".to_owned()),
             Some(user_defined) => Some(user_defined.to_owned()),
             None => None,
         };
 
         let mut deleted_mode = match matches.value_of("DELETED_MODE") {
-            Some("") | Some("all") => Some(DeletedMode::Enabled),
+            Some("" | "all") => Some(DeletedMode::Enabled),
             Some("single") => Some(DeletedMode::DepthOfOne),
             Some("only") => Some(DeletedMode::Only),
             _ => None,
@@ -571,8 +571,8 @@ impl Config {
             opt_last_snap,
             opt_preview,
             requested_utc_offset,
-            dataset_collection,
             exec_mode,
+            dataset_collection,
             deleted_mode,
             pwd,
             opt_requested_dir,

@@ -57,7 +57,7 @@ impl DisplayMap {
             self.deref()
                 .clone()
                 .into_iter()
-                .map(|raw_tuple| raw_tuple.into())
+                .map(std::convert::Into::into)
                 .map(|raw_instance_set| DisplaySet::new(config, &raw_instance_set))
                 .map(|display_set| display_set.print_formatted(config, &padding_collection))
                 .collect::<String>()
@@ -201,7 +201,7 @@ impl PathData {
         let display_date = if self.metadata.is_some() {
             get_date(config, &metadata.modify_time, DateFormat::Display)
         } else {
-            padding_collection.phantom_date_pad_str.to_owned()
+            padding_collection.phantom_date_pad_str.clone()
         };
 
         format!(

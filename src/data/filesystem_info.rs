@@ -76,7 +76,7 @@ impl FilesystemInfo {
                     env_map_aliases
                         .to_string_lossy()
                         .split_terminator(',')
-                        .map(|str| str.to_owned())
+                        .map(std::borrow::ToOwned::to_owned)
                         .collect(),
                 )
             } else {

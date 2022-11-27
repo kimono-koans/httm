@@ -94,22 +94,22 @@ pub fn read_stdin() -> HttmResult<Vec<String>> {
         buffer_string
             .split(&['\n', '\0'])
             .filter(|s| !s.is_empty())
-            .map(|s| s.to_owned())
+            .map(std::borrow::ToOwned::to_owned)
             .collect()
     } else if buffer_string.contains('\"') {
         buffer_string
             .split('\"')
             // unquoted paths should have excess whitespace trimmed
-            .map(|s| s.trim())
+            .map(str::trim)
             // remove any empty strings
             .filter(|s| !s.is_empty())
-            .map(|s| s.to_owned())
+            .map(std::borrow::ToOwned::to_owned)
             .collect::<Vec<String>>()
     } else {
         buffer_string
             .split_ascii_whitespace()
             .filter(|s| !s.is_empty())
-            .map(|s| s.to_owned())
+            .map(std::borrow::ToOwned::to_owned)
             .collect()
     };
 

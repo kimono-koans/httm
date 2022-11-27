@@ -182,8 +182,8 @@ impl PathData {
         // default path strip
         self.path_buf
             .strip_prefix(&proximate_dataset_mount)
-            .map(|path| path.to_path_buf())
-            .map_err(|err| err.into())
+            .map(std::path::Path::to_path_buf)
+            .map_err(std::convert::Into::into)
     }
 
     pub fn get_proximate_dataset(&self, map_of_datasets: &MapOfDatasets) -> HttmResult<PathBuf> {

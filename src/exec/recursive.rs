@@ -206,7 +206,7 @@ fn combine_and_send_entries(
         // live - not phantom
         match config.deleted_mode {
             Some(DeletedMode::Only) => Vec::new(),
-            Some(DeletedMode::DepthOfOne) | Some(DeletedMode::Enabled) | None => {
+            Some(DeletedMode::DepthOfOne | DeletedMode::Enabled) | None => {
                 // never show live files is display recursive/deleted only file mode
                 if matches!(config.exec_mode, ExecMode::DisplayRecursive(_)) {
                     Vec::new()
@@ -531,7 +531,7 @@ fn transmit_entries(
                 is_phantom,
             )))
         })
-        .map_err(|err| err.into())
+        .map_err(std::convert::Into::into)
 }
 
 fn print_display_recursive(config: &Config, entries: Vec<BasicDirEntryInfo>) -> HttmResult<()> {
