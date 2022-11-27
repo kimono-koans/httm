@@ -35,9 +35,9 @@ impl Deref for LastInTimeSet {
 }
 
 impl LastInTimeSet {
-    // this is very similar to above but of course returns last in time
+    // this is very similar to DisplayMap, but of course returns only last in time
     // it is also missing parallel iter functions, to make the searches more responsive
-    // by leaving those for the interactive views
+    // by leaving parallel search for the interactive views
     pub fn new(config: &Config, path_set: &[PathData]) -> Self {
         // create vec of all local and replicated backups at once
         let snaps_selected_for_search = config
