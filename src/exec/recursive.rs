@@ -20,7 +20,7 @@ use std::collections::VecDeque;
 use std::{fs::read_dir, path::Path, sync::Arc};
 
 use once_cell::unsync::OnceCell;
-use rayon::{prelude::*, Scope, ThreadPool};
+use rayon::{Scope, ThreadPool};
 use skim::prelude::*;
 
 use crate::config::generate::{Config, DeletedMode, ExecMode};
@@ -289,13 +289,6 @@ fn is_filter_dir(config: &Config, entry: &BasicDirEntryInfo) -> bool {
         }
     }
 
-    // check it is impossible that dir is filter dir because too long
-    if let Some(max_depth) = config.dataset_collection.filter_dirs.opt_max_depth {
-        if path.iter().count() > max_depth {
-            return false;
-        }
-    }
-
     let user_requested_dir = config
         .opt_requested_dir
         .as_ref()
@@ -306,13 +299,20 @@ fn is_filter_dir(config: &Config, entry: &BasicDirEntryInfo) -> bool {
     // check whether user requested this dir specifically, then we will show
     if path == user_requested_dir {
         false
-    // else: is a non-supported dataset?
     } else {
+        // check it is impossible that dir is filter dir because too long
+        if let Some(max_depth) = config.dataset_collection.filter_dirs.opt_max_depth {
+            if path.iter().count() > max_depth {
+                return false;
+            }
+        }
+
+        // else: is a non-supported dataset?
         config
             .dataset_collection
             .filter_dirs
             .vec_dirs
-            .par_iter()
+            .iter()
             .any(|filter_dir| path == filter_dir)
     }
 }
