@@ -25,7 +25,6 @@ use std::{
 };
 
 use crossbeam::channel::{Receiver, TryRecvError};
-use libc::PRIO_PROCESS;
 use lscolors::{Colorable, LsColors, Style};
 use number_prefix::NumberPrefix;
 use once_cell::sync::Lazy;
@@ -38,26 +37,38 @@ use crate::library::results::{HttmError, HttmResult};
 use crate::parse::aliases::FilesystemType;
 use crate::{BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_SNAPSHOT_DIRECTORY};
 
+#[allow(dead_code)]
+pub enum PriorityType {
+    Process = 0,
+    PGroup = 1,
+    User = 2,
+}
+
 // nice calling thread to a specified level
-pub fn nice_thread(opt_tid: Option<u32>, priority_level: i32) -> HttmResult<()> {
+pub fn nice_thread(
+    priority_type: PriorityType,
+    opt_tid: Option<u32>,
+    priority_level: i32,
+) -> HttmResult<()> {
     let tid = if let Some(tid) = opt_tid {
         tid
     } else {
         std::process::id()
     };
 
-    if cfg!(any(
-        target_os = "linux",
-        target_os = "macos",
-        target_os = "freebsd"
-    )) {
-        let ret = unsafe { libc::setpriority(PRIO_PROCESS, tid, priority_level) };
+    #[allow(unused_assignments)]
+    let mut ret = 0;
+    #[cfg(any(target_os = "macos", target_os = "freebsd"))]
+    unsafe {
+        ret = libc::setpriority(priority_type as i32, tid, priority_level)
+    };
+    #[cfg(target_os = "linux")]
+    unsafe {
+        ret = libc::setpriority(priority_type as u32, tid, priority_level)
+    };
 
-        if ret != 0i32 {
-            return Err(
-                HttmError::new("httm was unable to set the current thread's priority.").into(),
-            );
-        }
+    if ret != 0i32 {
+        return Err(HttmError::new("httm was unable to set the current thread's priority.").into());
     }
 
     Ok(())
