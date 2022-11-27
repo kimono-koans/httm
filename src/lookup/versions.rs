@@ -89,7 +89,7 @@ impl DisplayMap {
                 let snaps: Vec<PathData> = snaps_selected_for_search
                     .par_iter()
                     .flat_map(|dataset_type| {
-                        MostProximateAndOptAlts::new(config, pathdata, *dataset_type)
+                        MostProximateAndOptAlts::new(config, pathdata, dataset_type)
                     })
                     .flat_map(|dataset_for_search| {
                         dataset_for_search.get_search_bundles(config, pathdata)
@@ -198,7 +198,7 @@ impl MostProximateAndOptAlts {
     pub fn new(
         config: &Config,
         pathdata: &PathData,
-        requested_dataset_type: SnapDatasetType,
+        requested_dataset_type: &SnapDatasetType,
     ) -> HttmResult<Self> {
         // here, we take our file path and get back possibly multiple ZFS dataset mountpoints
         // and our most proximate dataset mount point (which is always the same) for

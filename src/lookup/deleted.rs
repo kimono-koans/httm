@@ -49,7 +49,7 @@ pub fn deleted_lookup_exec(config: &Config, requested_dir: &Path) -> Vec<BasicDi
     let basic_info_map: HashMap<OsString, BasicDirEntryInfo> = requested_snap_datasets
         .iter()
         .flat_map(|dataset_type| {
-            MostProximateAndOptAlts::new(config, &requested_dir_pathdata, *dataset_type)
+            MostProximateAndOptAlts::new(config, &requested_dir_pathdata, dataset_type)
         })
         .flat_map(|datasets_of_interest| {
             datasets_of_interest.get_search_bundles(config, &requested_dir_pathdata)
