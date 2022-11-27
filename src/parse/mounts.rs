@@ -47,20 +47,25 @@ pub struct DatasetMetadata {
     pub mount_type: MountType,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FilterDirs {
+    pub vec_dirs: Vec<PathBuf>,
+    pub opt_max_depth: Option<usize>,
+}
+
 pub type MapOfDatasets = BTreeMap<PathBuf, DatasetMetadata>;
-pub type VecOfFilterDirs = Vec<PathBuf>;
 
 pub struct BaseFilesystemInfo {
     pub map_of_datasets: MapOfDatasets,
     pub map_of_snaps: MapOfSnaps,
-    pub vec_filter_dirs: VecOfFilterDirs,
+    pub filter_dirs: FilterDirs,
 }
 
 impl BaseFilesystemInfo {
     // divide by the type of system we are on
     // Linux allows us the read proc mounts
     pub fn new() -> HttmResult<Self> {
-        let (map_of_datasets, vec_filter_dirs) = if cfg!(target_os = "linux") {
+        let (map_of_datasets, filter_dirs) = if cfg!(target_os = "linux") {
             Self::from_proc_mounts()?
         } else {
             Self::from_mount_cmd()?
@@ -71,14 +76,14 @@ impl BaseFilesystemInfo {
         Ok(BaseFilesystemInfo {
             map_of_datasets,
             map_of_snaps,
-            vec_filter_dirs,
+            filter_dirs,
         })
     }
 
     // parsing from proc mounts is both faster and necessary for certain btrfs features
     // for instance, allows us to read subvolumes mounts, like "/@" or "/@home"
-    fn from_proc_mounts() -> HttmResult<(MapOfDatasets, Vec<PathBuf>)> {
-        let (map_of_datasets, filter_dirs): (MapOfDatasets, Vec<PathBuf>) = MountIter::new()?
+    fn from_proc_mounts() -> HttmResult<(MapOfDatasets, FilterDirs)> {
+        let (map_of_datasets, vec_dirs): (MapOfDatasets, Vec<PathBuf>) = MountIter::new()?
             .par_bridge()
             .flatten()
             // but exclude snapshot mounts.  we want only the raw filesystems
@@ -150,6 +155,13 @@ impl BaseFilesystemInfo {
                 _ => Either::Right(mount_info.dest),
             });
 
+        let opt_max_depth = Self::get_filter_dirs_max_depth(&vec_dirs);
+
+        let filter_dirs = FilterDirs {
+            vec_dirs,
+            opt_max_depth,
+        };
+
         if map_of_datasets.is_empty() {
             Err(HttmError::new("httm could not find any valid datasets on the system.").into())
         } else {
@@ -159,13 +171,13 @@ impl BaseFilesystemInfo {
 
     // old fashioned parsing for non-Linux systems, nearly as fast, works everywhere with a mount command
     // both methods are much faster than using zfs command
-    fn from_mount_cmd() -> HttmResult<(MapOfDatasets, Vec<PathBuf>)> {
+    fn from_mount_cmd() -> HttmResult<(MapOfDatasets, FilterDirs)> {
         fn parse(mount_command: &Path) -> HttmResult<(MapOfDatasets, Vec<PathBuf>)> {
             let command_output =
                 std::str::from_utf8(&ExecProcess::new(mount_command).output()?.stdout)?.to_owned();
 
             // parse "mount" for filesystems and mountpoints
-            let (map_of_datasets, filter_dirs): (MapOfDatasets, Vec<PathBuf>) = command_output
+            let (map_of_datasets, vec_dirs): (MapOfDatasets, Vec<PathBuf>) = command_output
                 .par_lines()
                 // but exclude snapshot mounts.  we want the raw filesystem names.
                 .filter(|line| !line.contains(ZFS_SNAPSHOT_DIRECTORY))
@@ -210,19 +222,35 @@ impl BaseFilesystemInfo {
             if map_of_datasets.is_empty() {
                 Err(HttmError::new("httm could not find any valid datasets on the system.").into())
             } else {
-                Ok((map_of_datasets, filter_dirs))
+                Ok((map_of_datasets, vec_dirs))
             }
         }
 
         // do we have the necessary commands for search if user has not defined a snap point?
         // if so run the mount search, if not print some errors
         if let Ok(mount_command) = which("mount") {
-            parse(&mount_command)
+            let (map_of_datasets, vec_dirs) = parse(&mount_command)?;
+
+            let opt_max_depth = Self::get_filter_dirs_max_depth(&vec_dirs);
+
+            let filter_dirs = FilterDirs {
+                vec_dirs,
+                opt_max_depth,
+            };
+
+            Ok((map_of_datasets, filter_dirs))
         } else {
             Err(HttmError::new(
                 "'mount' command not be found. Make sure the command 'mount' is in your path.",
             )
             .into())
         }
+    }
+
+    fn get_filter_dirs_max_depth(vec_filter_dirs: &Vec<PathBuf>) -> Option<usize> {
+        vec_filter_dirs
+            .par_iter()
+            .map(|dir| dir.iter().count())
+            .max()
     }
 }

@@ -289,6 +289,13 @@ fn is_filter_dir(config: &Config, entry: &BasicDirEntryInfo) -> bool {
         }
     }
 
+    // check it is impossible that dir is filter dir because too long
+    if let Some(max_depth) = config.dataset_collection.filter_dirs.opt_max_depth {
+        if path.iter().count() > max_depth {
+            return false;
+        }
+    }
+
     let user_requested_dir = config
         .opt_requested_dir
         .as_ref()
@@ -303,7 +310,8 @@ fn is_filter_dir(config: &Config, entry: &BasicDirEntryInfo) -> bool {
     } else {
         config
             .dataset_collection
-            .vec_of_filter_dirs
+            .filter_dirs
+            .vec_dirs
             .par_iter()
             .any(|filter_dir| path == filter_dir)
     }

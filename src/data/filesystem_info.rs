@@ -27,7 +27,7 @@ use crate::library::utility::get_common_path;
 use crate::lookup::versions::SnapsSelectedForSearch;
 use crate::parse::aliases::{FilesystemType, MapOfAliases};
 use crate::parse::alts::MapOfAlts;
-use crate::parse::mounts::{BaseFilesystemInfo, MapOfDatasets};
+use crate::parse::mounts::{BaseFilesystemInfo, FilterDirs, MapOfDatasets};
 use crate::parse::snaps::MapOfSnaps;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -37,7 +37,7 @@ pub struct FilesystemInfo {
     // key: mount, val: vec snap locations on disk (e.g. /.zfs/snapshot/snap_8a86e4fc_prepApt/home)
     pub map_of_snaps: MapOfSnaps,
     // vec dirs to be filtered
-    pub vec_of_filter_dirs: Vec<PathBuf>,
+    pub filter_dirs: FilterDirs,
     // key: mount, val: alt dataset
     pub opt_map_of_alts: Option<MapOfAlts>,
     // key: local dir, val: (remote dir, fstype)
@@ -127,7 +127,7 @@ impl FilesystemInfo {
         Ok(FilesystemInfo {
             map_of_datasets: base_fs_info.map_of_datasets,
             map_of_snaps: base_fs_info.map_of_snaps,
-            vec_of_filter_dirs: base_fs_info.vec_filter_dirs,
+            filter_dirs: base_fs_info.filter_dirs,
             opt_map_of_alts,
             opt_common_snap_dir,
             opt_map_of_aliases,
