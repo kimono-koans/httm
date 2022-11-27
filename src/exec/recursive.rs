@@ -27,7 +27,9 @@ use crate::config::generate::{Config, DeletedMode, ExecMode};
 use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::exec::interactive::SelectionCandidate;
 use crate::library::results::{HttmError, HttmResult};
-use crate::library::utility::{httm_is_dir, is_channel_closed, print_output_buf, HttmIsDir, Never};
+use crate::library::utility::{
+    httm_is_dir, is_channel_closed, nice_thread, print_output_buf, HttmIsDir, Never,
+};
 use crate::lookup::deleted::deleted_lookup_exec;
 use crate::lookup::last_in_time::LastInTimeSet;
 use crate::lookup::versions::versions_lookup_exec;
@@ -70,34 +72,13 @@ pub fn recursive_exec(
     // here set at 1MB (the Linux default is 8MB) to avoid a stack overflow with the Rayon default
     const DEFAULT_STACK_SIZE: usize = 1_048_576;
 
-    //let config_clone = config.clone();
-
-    // nice deleted threads at nice level 10
-    // let set_deleted_search_priority = move |tid| {
-    //     use libc::PRIO_PROCESS;
-
-    //     // use a lower priority to make room for interactive views
-    //     let priority_level = if matches!(config_clone.exec_mode, ExecMode::Interactive(_)) {
-    //         16i32
-    //     } else {
-    //         4i32
-    //     };
-
-    //     #[cfg(target_os = "linux")]
-    //     unsafe {
-    //         libc::setpriority(PRIO_PROCESS, tid as u32, priority_level);
-    //     }
-    //     #[cfg(target_os = "macos")]
-    //     unsafe {
-    //         libc::setpriority(PRIO_PROCESS, tid as u32, priority_level);
-    //     }
-    // };
-
     // build thread pool with a stack size large enough to avoid a stack overflow
     // this will be our one threadpool for directory enumeration ops
     let pool: ThreadPool = rayon::ThreadPoolBuilder::new()
         .stack_size(DEFAULT_STACK_SIZE)
-        //.start_handler(set_deleted_search_priority)
+        .start_handler(move |rayon_tid| {
+            let _ = nice_thread(Some(rayon_tid as u32), 4i32);
+        })
         .build()
         .expect("Could not initialize rayon threadpool for recursive deleted search");
 
@@ -336,6 +317,13 @@ fn enumerate_deleted(
     // at end of browse scope
     if is_channel_closed(hangup_rx) {
         return Err(HttmError::new("Thread requested to quit.  Quitting.").into());
+    }
+
+    // re-nice thread
+    // use a lower priority to make room for interactive views
+    if matches!(config.exec_mode, ExecMode::Interactive(_)) {
+        // don't panic on failure setpriority failure
+        let _ = nice_thread(None, 8i32);
     }
 
     // obtain all unique deleted, unordered, unsorted, will need to fix

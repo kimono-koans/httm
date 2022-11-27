@@ -25,6 +25,7 @@ use std::{
 };
 
 use crossbeam::channel::{Receiver, TryRecvError};
+use libc::PRIO_PROCESS;
 use lscolors::{Colorable, LsColors, Style};
 use number_prefix::NumberPrefix;
 use once_cell::sync::Lazy;
@@ -36,6 +37,31 @@ use crate::exec::interactive::SelectionCandidate;
 use crate::library::results::{HttmError, HttmResult};
 use crate::parse::aliases::FilesystemType;
 use crate::{BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_SNAPSHOT_DIRECTORY};
+
+// nice calling thread to a specified level
+pub fn nice_thread(opt_tid: Option<u32>, priority_level: i32) -> HttmResult<()> {
+    let tid = if let Some(tid) = opt_tid {
+        tid
+    } else {
+        std::process::id()
+    };
+
+    if cfg!(any(
+        target_os = "linux",
+        target_os = "macos",
+        target_os = "freebsd"
+    )) {
+        let ret = unsafe { libc::setpriority(PRIO_PROCESS, tid, priority_level) };
+
+        if ret != 0i32 {
+            return Err(
+                HttmError::new("httm was unable to set the current thread's priority.").into(),
+            );
+        }
+    }
+
+    Ok(())
+}
 
 pub fn get_delimiter(config: &Config) -> char {
     if config.opt_zeros {
