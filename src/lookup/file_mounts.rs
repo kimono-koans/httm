@@ -79,7 +79,7 @@ impl MountsForFiles {
                     .get_value()
                     .iter()
                     .flat_map(|dataset_type| {
-                        MostProximateAndOptAlts::new(config, pathdata, dataset_type)
+                        MostProximateAndOptAlts::new(config, pathdata, *dataset_type)
                     })
                     .collect();
                 (pathdata.clone(), datasets)

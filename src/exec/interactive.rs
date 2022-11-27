@@ -101,7 +101,7 @@ impl SelectionCandidate {
         // finally run search on those paths
         let map_live_to_snaps = versions_lookup_exec(&gen_config, &gen_config.paths)?;
         // and display
-        let output_buf = map_live_to_snaps.display(&gen_config)?;
+        let output_buf = map_live_to_snaps.display(&gen_config);
 
         Ok(output_buf)
     }
@@ -218,10 +218,6 @@ fn browse_view(config: Arc<Config>, requested_dir: &PathData) -> HttmResult<Vec<
             tx_item.clone(),
             hangup_rx.clone(),
         )
-        .unwrap_or_else(|error| {
-            eprintln!("Error: {}", error);
-            std::process::exit(1)
-        })
     });
 
     let opt_multi = config.opt_last_snap.is_none() || config.opt_preview.is_none();
@@ -308,7 +304,7 @@ fn interactive_select(
         // same stuff we do at fn exec, snooze...
         let display_config =
             SelectionCandidate::generate_config_for_display(&config, paths_selected_in_browse);
-        let selection_buffer = map_live_to_snaps.display(&display_config)?;
+        let selection_buffer = map_live_to_snaps.display(&display_config);
 
         let opt_live_version = &paths_selected_in_browse
             .get(0)

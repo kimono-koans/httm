@@ -46,7 +46,7 @@ pub fn display_recursive_wrapper(config: Arc<Config>) -> HttmResult<()> {
                 &requested_dir.path_buf,
                 dummy_skim_tx_item,
                 hangup_rx,
-            )?;
+            );
         }
         None => {
             return Err(HttmError::new(
@@ -64,7 +64,7 @@ pub fn recursive_exec(
     requested_dir: &Path,
     skim_tx_item: SkimItemSender,
     hangup_rx: Receiver<Never>,
-) -> HttmResult<()> {
+) {
     // default stack size for rayon threads spawned to handle enumerate_deleted
     // here set at 1MB (the Linux default is 8MB) to avoid a stack overflow with the Rayon default
     const DEFAULT_STACK_SIZE: usize = 1_048_576;
@@ -113,8 +113,6 @@ pub fn recursive_exec(
             std::process::exit(1)
         });
     });
-
-    Ok(())
 }
 
 fn iterative_enumeration(
@@ -542,7 +540,7 @@ fn print_display_recursive(config: &Config, entries: Vec<BasicDirEntryInfo>) -> 
 
     let map_live_to_snaps = versions_lookup_exec(config, &pseudo_live_set)?;
 
-    let output_buf = map_live_to_snaps.display(config)?;
+    let output_buf = map_live_to_snaps.display(config);
 
     print_output_buf(output_buf)?;
 

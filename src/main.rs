@@ -120,7 +120,7 @@ fn print_display_map(config: &Config, map_live_to_snaps: DisplayMap) -> HttmResu
     if config.opt_last_snap.is_some() && matches!(config.exec_mode, ExecMode::Display) {
         map_live_to_snaps.display_as_map(config)?
     } else {
-        let output_buf = map_live_to_snaps.display(config)?;
+        let output_buf = map_live_to_snaps.display(config);
         print_output_buf(output_buf)?
     }
 

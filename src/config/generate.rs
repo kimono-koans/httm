@@ -383,10 +383,10 @@ pub struct Config {
 impl Config {
     pub fn new() -> HttmResult<Self> {
         let arg_matches = parse_args();
-        Config::from_matches(arg_matches)
+        Config::from_matches(&arg_matches)
     }
 
-    fn from_matches(matches: ArgMatches) -> HttmResult<Self> {
+    fn from_matches(matches: &ArgMatches) -> HttmResult<Self> {
         if matches.is_present("ZSH_HOT_KEYS") {
             install_hot_keys()?
         }

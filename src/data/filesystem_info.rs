@@ -148,7 +148,11 @@ pub fn get_common_snap_dir(
         .map(|(mount, _dataset_info)| mount)
         .collect();
 
-    if !btrfs_datasets.is_empty() {
+    if btrfs_datasets.is_empty() {
+        // since snapshots ZFS reside on multiple datasets
+        // never have a common snap path
+        None
+    } else {
         let vec_snaps: Vec<&PathBuf> = btrfs_datasets
             .into_par_iter()
             .filter_map(|mount| map_of_snaps.get(mount))
@@ -156,9 +160,5 @@ pub fn get_common_snap_dir(
             .collect();
 
         get_common_path(vec_snaps)
-    } else {
-        // since snapshots ZFS reside on multiple datasets
-        // never have a common snap path
-        None
     }
 }

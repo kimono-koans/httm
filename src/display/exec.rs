@@ -21,8 +21,8 @@ use crate::library::utility::print_output_buf;
 use crate::lookup::versions::DisplayMap;
 
 impl DisplayMap {
-    pub fn display(&self, config: &Config) -> HttmResult<String> {
-        let output_buffer = match &config.exec_mode {
+    pub fn display(&self, config: &Config) -> String {
+        match &config.exec_mode {
             ExecMode::NumVersions(num_versions_mode) => {
                 self.print_num_versions(config, num_versions_mode)
             }
@@ -33,9 +33,7 @@ impl DisplayMap {
                     self.print_formatted(config)
                 }
             }
-        };
-
-        Ok(output_buffer)
+        }
     }
 
     pub fn display_as_map(&self, config: &Config) -> HttmResult<()> {

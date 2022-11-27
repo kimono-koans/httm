@@ -154,7 +154,7 @@ impl DisplayMap {
                             None
                         }
                     }
-                    _ => unreachable!(),
+                    NumVersionsMode::All => unreachable!(),
                 }
             }
         }
