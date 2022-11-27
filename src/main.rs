@@ -42,6 +42,7 @@ mod library {
 mod lookup {
     pub mod deleted;
     pub mod file_mounts;
+    pub mod last_in_time;
     pub mod versions;
 }
 mod parse {

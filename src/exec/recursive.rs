@@ -29,7 +29,8 @@ use crate::exec::interactive::SelectionCandidate;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{httm_is_dir, is_channel_closed, print_output_buf, HttmIsDir, Never};
 use crate::lookup::deleted::deleted_lookup_exec;
-use crate::lookup::versions::{versions_lookup_exec, LastInTimeSet};
+use crate::lookup::last_in_time::LastInTimeSet;
+use crate::lookup::versions::versions_lookup_exec;
 use crate::{BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_HIDDEN_DIRECTORY};
 
 #[allow(unused_variables)]
