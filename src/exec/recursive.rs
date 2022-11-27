@@ -72,13 +72,6 @@ pub fn recursive_exec(
     // here set at 1MB (the Linux default is 8MB) to avoid a stack overflow with the Rayon default
     const DEFAULT_STACK_SIZE: usize = 1_048_576;
 
-    // re-nice thread
-    // use a lower priority to make room for interactive views
-    // if matches!(config.exec_mode, ExecMode::Interactive(_)) {
-    //     // don't panic on failure setpriority failure
-    //     let _ = nice_thread(PriorityType::Process, None, 4i32);
-    // }
-
     // build thread pool with a stack size large enough to avoid a stack overflow
     // this will be our one threadpool for directory enumeration ops
     let pool: ThreadPool = rayon::ThreadPoolBuilder::new()
