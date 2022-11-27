@@ -29,7 +29,7 @@ use crate::exec::interactive::SelectionCandidate;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{httm_is_dir, is_channel_closed, print_output_buf, HttmIsDir, Never};
 use crate::lookup::deleted::deleted_lookup_exec;
-use crate::lookup::versions::{versions_lookup_exec, DisplayMap};
+use crate::lookup::versions::{versions_lookup_exec, LastInTimeSet};
 use crate::{BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_HIDDEN_DIRECTORY};
 
 #[allow(unused_variables)]
@@ -371,25 +371,20 @@ fn enumerate_deleted(
             .map(|basic_info| PathData::from(&basic_info))
             .collect();
 
-        let display_map = DisplayMap::new(&config, &path_set);
+        let last_in_time_set = LastInTimeSet::new(&config, &path_set);
 
-        display_map
-            .values()
-            // last() is last in time
-            .filter_map(|sorted_vec| sorted_vec.last())
-            .map(|pathdata| pathdata.path_buf.as_path())
-            .try_for_each(|deleted_dir| {
-                let config_clone = config.clone();
-                let requested_dir_clone = requested_dir.to_path_buf();
+        last_in_time_set.iter().try_for_each(|deleted_dir| {
+            let config_clone = config.clone();
+            let requested_dir_clone = requested_dir.to_path_buf();
 
-                get_entries_behind_deleted_dir(
-                    config_clone,
-                    deleted_dir,
-                    &requested_dir_clone,
-                    skim_tx_item,
-                    hangup_rx,
-                )
-            })
+            get_entries_behind_deleted_dir(
+                config_clone,
+                deleted_dir.as_path(),
+                &requested_dir_clone,
+                skim_tx_item,
+                hangup_rx,
+            )
+        })
     } else {
         Ok(())
     }
