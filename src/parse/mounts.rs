@@ -177,7 +177,7 @@ impl BaseFilesystemInfo {
                 std::str::from_utf8(&ExecProcess::new(mount_command).output()?.stdout)?.to_owned();
 
             // parse "mount" for filesystems and mountpoints
-            let (map_of_datasets, vec_dirs): (MapOfDatasets, Vec<PathBuf>) = command_output
+            let (map_of_datasets, vec_filter_dirs): (MapOfDatasets, Vec<PathBuf>) = command_output
                 .par_lines()
                 // but exclude snapshot mounts.  we want the raw filesystem names.
                 .filter(|line| !line.contains(ZFS_SNAPSHOT_DIRECTORY))
@@ -222,19 +222,19 @@ impl BaseFilesystemInfo {
             if map_of_datasets.is_empty() {
                 Err(HttmError::new("httm could not find any valid datasets on the system.").into())
             } else {
-                Ok((map_of_datasets, vec_dirs))
+                Ok((map_of_datasets, vec_filter_dirs))
             }
         }
 
         // do we have the necessary commands for search if user has not defined a snap point?
         // if so run the mount search, if not print some errors
         if let Ok(mount_command) = which("mount") {
-            let (map_of_datasets, vec_dirs) = parse(&mount_command)?;
+            let (map_of_datasets, vec_filter_dirs) = parse(&mount_command)?;
 
-            let opt_max_depth = Self::get_filter_dirs_max_depth(&vec_dirs);
+            let opt_max_depth = Self::get_filter_dirs_max_depth(&vec_filter_dirs);
 
             let filter_dirs = FilterDirs {
-                vec_dirs,
+                vec_dirs: vec_filter_dirs,
                 opt_max_depth,
             };
 
