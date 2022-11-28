@@ -45,10 +45,10 @@ impl LastInTimeSet {
             .snaps_selected_for_search
             .get_value();
 
-        let all_snap_versions: BTreeMap<PathData, Vec<PathData>> = path_set
+        let inner: Vec<PathBuf> = path_set
             .iter()
-            .map(|pathdata| {
-                let snaps: Vec<PathData> = snaps_selected_for_search
+            .filter_map(|pathdata| {
+                snaps_selected_for_search
                     .iter()
                     .flat_map(|dataset_type| {
                         MostProximateAndOptAlts::new(config, pathdata, dataset_type)
@@ -57,23 +57,17 @@ impl LastInTimeSet {
                         dataset_for_search.get_search_bundles(config, pathdata)
                     })
                     .flatten()
-                    .flat_map(|search_bundle| Self::get_versions(&search_bundle))
-                    .collect();
-                (pathdata.clone(), snaps)
+                    .flat_map(|search_bundle| Self::get_last_version(&search_bundle))
+                    .filter(|pathdata| pathdata.metadata.is_some())
+                    .max_by_key(|pathdata| pathdata.metadata.unwrap().modify_time)
+                    .map(|pathdata| pathdata.path_buf)
             })
-            .collect();
-
-        let inner: Vec<PathBuf> = all_snap_versions
-            .values()
-            // last() is last in time
-            .filter_map(|sorted_vec| sorted_vec.last())
-            .map(|pathdata| pathdata.path_buf.clone())
             .collect();
 
         Self { inner }
     }
 
-    fn get_versions(search_bundle: &RelativePathAndSnapMounts) -> Vec<PathData> {
+    fn get_last_version(search_bundle: &RelativePathAndSnapMounts) -> Option<PathData> {
         // get the DirEntry for our snapshot path which will have all our possible
         // snapshots, like so: .zfs/snapshots/<some snap name>/
         //
@@ -92,6 +86,8 @@ impl LastInTimeSet {
 
         let sorted_versions: Vec<PathData> = unique_versions.into_values().collect();
 
-        sorted_versions
+        let res: Option<PathData> = sorted_versions.last().cloned();
+
+        res
     }
 }

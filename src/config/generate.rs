@@ -456,9 +456,11 @@ impl Config {
             None
         };
 
-        if opt_preview.is_some() && matches!(opt_interactive_mode, Some(InteractiveMode::Browse) | None) {
+        if opt_preview.is_some()
+            && matches!(opt_interactive_mode, Some(InteractiveMode::Browse) | None)
+        {
             return Err(HttmError::new(
-              "httm preview mode is only available in Select or Restore modes",
+                "httm preview mode is only available in Select or Restore modes",
             )
             .into());
         }
