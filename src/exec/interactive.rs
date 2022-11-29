@@ -73,7 +73,7 @@ impl SelectionCandidate {
             opt_no_pretty: false,
             opt_recursive: false,
             opt_no_live: false,
-            opt_exact: false,
+            opt_fuzzy: false,
             opt_overwrite: false,
             opt_no_filter: false,
             opt_no_snap: false,
@@ -227,7 +227,7 @@ fn browse_view(config: Arc<Config>, requested_dir: &PathData) -> HttmResult<Vec<
         .preview_window(Some("up:50%"))
         .preview(Some(""))
         .nosort(true)
-        .exact(config.opt_exact)
+        .exact(!config.opt_fuzzy)
         .header(Some("PREVIEW UP: shift+up | PREVIEW DOWN: shift+down\n\
                       PAGE UP:    page up  | PAGE DOWN:    page down \n\
                       EXIT:       esc      | SELECT:       enter      | SELECT, MULTIPLE: shift+tab\n\
