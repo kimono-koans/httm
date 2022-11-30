@@ -304,17 +304,28 @@ fn interactive_select(
         // same stuff we do at fn exec, snooze...
         let display_config =
             SelectionCandidate::generate_config_for_display(config, paths_selected_in_browse);
+
         let selection_buffer = map_live_to_snaps.display(&display_config);
 
         let opt_live_version = &paths_selected_in_browse
             .get(0)
             .map(|pathdata| pathdata.path_buf.to_string_lossy().into_owned());
 
+        let opt_preview_window = if config.opt_preview.is_some() {
+            Some("up:50%")
+        } else {
+            None
+        };
+
         // loop until user selects a valid snapshot version
         loop {
             // get the file name
-            let requested_file_name =
-                select_restore_view(&selection_buffer, &config.opt_preview, opt_live_version)?;
+            let requested_file_name = select_restore_view(
+                &selection_buffer,
+                &config.opt_preview,
+                opt_live_version,
+                opt_preview_window,
+            )?;
             // ... we want everything between the quotes
             let broken_string: Vec<_> = requested_file_name.split_terminator('"').collect();
             // ... and the file is the 2nd item or the indexed "1" object
@@ -436,6 +447,7 @@ fn select_restore_view(
     preview_buffer: &str,
     opt_preview: &Option<String>,
     opt_live_version: &Option<String>,
+    opt_preview_window: Option<&str>,
 ) -> HttmResult<String> {
     // only do it this way to let the lifetimes work out
     // ugly but skim needs an owned String in this scope
@@ -448,7 +460,7 @@ fn select_restore_view(
     // build our browse view - less to do than before - no previews, looking through one 'lil buffer
     let skim_opts = if opt_preview.is_some() {
         SkimOptionsBuilder::default()
-            .preview_window(Some("up:50%"))
+            .preview_window(opt_preview_window)
             .preview(Some(preview_command.as_str()))
             .tac(true)
             .nosort(true)
@@ -599,7 +611,8 @@ fn interactive_restore(
 
     // loop until user consents or doesn't
     loop {
-        let user_consent = select_restore_view(&preview_buffer, &None, &None)?.to_ascii_uppercase();
+        let user_consent =
+            select_restore_view(&preview_buffer, &None, &None, None)?.to_ascii_uppercase();
 
         match user_consent.as_ref() {
             "YES" | "Y" => match copy_recursive(&snap_pathdata.path_buf, &new_file_path_buf) {
