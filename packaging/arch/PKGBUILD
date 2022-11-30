@@ -1,5 +1,5 @@
 pkgname=httm
-pkgver=0.11.4
+pkgver=0.17.8
 pkgrel=1
 pkgdesc="Prints the size, date and locations of available unique versions (deduplicated by modify time and size) of files residing on ZFS or BTRFS snapshots."
 arch=('x86_64')
@@ -9,7 +9,7 @@ groups=('utility')
 options=('!strip' '!emptydirs')
 makedepends=('cargo')
 source=("${pkgname}-${pkgver}.tar.gz::https://static.crates.io/crates/$pkgname/$pkgname-$pkgver.crate")
-sha512sums=('37a8313caab6ece457e5db419f79afc969a243765ddfaaeb5424d8913657c9cc20e40e711baee2a134c3b8c3f65d68e6f0d8c0b4d5010aec2329659ab92ee2e5')
+sha512sums=('c3b3ff151f569b467a32163d98dd4dc0a8386fc958216bbc618a06bf88797d3cd37155de6bef7661c8c3ae57a678f8e92a7ac44cf1ff96502ab803876288c31e')
 
 prepare() {
 	cd "${srcdir}/${pkgname}-${pkgver}"
@@ -29,6 +29,12 @@ build(){
 package(){
 	# install executable
 	install -Dm755 "${srcdir}/${pkgname}-${pkgver}/target/release/${pkgname}" "${pkgdir}/usr/bin/${pkgname}"
+
+	# install bowie script
+	install -Dm755 "${srcdir}/${pkgname}-${pkgver}/scripts/bowie.bash" "${pkgdir}/usr/bin/bowie"
+
+	# install ounce script
+	install -Dm755 "${srcdir}/${pkgname}-${pkgver}/scripts/ounce.bash" "${pkgdir}/usr/bin/ounce"
 
 	# install man page
 	install -Dm644 "${srcdir}/${pkgname}-${pkgver}/${pkgname}.1" "${pkgdir}/usr/share/man/man1/${pkgname}.1"
