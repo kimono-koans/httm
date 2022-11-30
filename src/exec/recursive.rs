@@ -290,19 +290,8 @@ fn is_filter_dir(config: &Config, entry: &BasicDirEntryInfo) -> bool {
     if path == user_requested_dir {
         false
     } else {
-        // check it is impossible that dir is filter dir because too long
-        if let Some(max_depth) = config.dataset_collection.filter_dirs.opt_max_depth {
-            if path.iter().count() > max_depth {
-                return false;
-            }
-        }
-
         // else: is a non-supported dataset?
-        config
-            .dataset_collection
-            .filter_dirs
-            .dirs_set
-            .contains(path)
+        config.dataset_collection.filter_dirs.contains(path)
     }
 }
 

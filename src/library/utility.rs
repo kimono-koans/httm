@@ -37,7 +37,7 @@ use crate::library::results::{HttmError, HttmResult};
 use crate::parse::aliases::FilesystemType;
 use crate::{BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_SNAPSHOT_DIRECTORY};
 
-#[allow(dead_code)]
+/* #[allow(dead_code)]
 pub enum PriorityType {
     Process = 0,
     PGroup = 1,
@@ -73,7 +73,7 @@ pub fn nice_thread(
     }
 
     Ok(())
-}
+} */
 
 pub fn get_delimiter(config: &Config) -> char {
     if config.opt_zeros {

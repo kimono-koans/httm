@@ -52,11 +52,7 @@ pub struct DatasetMetadata {
     pub mount_type: MountType,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct FilterDirs {
-    pub dirs_set: BTreeSet<PathBuf>,
-    pub opt_max_depth: Option<usize>,
-}
+pub type FilterDirs = BTreeSet<PathBuf>;
 
 pub type MapOfDatasets = BTreeMap<PathBuf, DatasetMetadata>;
 
@@ -88,7 +84,7 @@ impl BaseFilesystemInfo {
     // parsing from proc mounts is both faster and necessary for certain btrfs features
     // for instance, allows us to read subvolumes mounts, like "/@" or "/@home"
     fn from_proc_mounts() -> HttmResult<(MapOfDatasets, FilterDirs)> {
-        let (map_of_datasets, dirs_set): (MapOfDatasets, BTreeSet<PathBuf>) = MountIter::new()?
+        let (map_of_datasets, filter_dirs): (MapOfDatasets, BTreeSet<PathBuf>) = MountIter::new()?
             .par_bridge()
             .flatten()
             // but exclude snapshot mounts.  we want only the raw filesystems
@@ -160,13 +156,6 @@ impl BaseFilesystemInfo {
                 _ => Either::Right(mount_info.dest),
             });
 
-        let opt_max_depth = Self::get_filter_dirs_max_depth(&dirs_set);
-
-        let filter_dirs = FilterDirs {
-            dirs_set,
-            opt_max_depth,
-        };
-
         if map_of_datasets.is_empty() {
             Err(HttmError::new("httm could not find any valid datasets on the system.").into())
         } else {
@@ -182,7 +171,7 @@ impl BaseFilesystemInfo {
                 std::str::from_utf8(&ExecProcess::new(mount_command).output()?.stdout)?.to_owned();
 
             // parse "mount" for filesystems and mountpoints
-            let (map_of_datasets, dirs_set): (MapOfDatasets, BTreeSet<PathBuf>) = command_output
+            let (map_of_datasets, filter_dirs): (MapOfDatasets, BTreeSet<PathBuf>) = command_output
                 .par_lines()
                 // but exclude snapshot mounts.  we want the raw filesystem names.
                 .filter(|line| !line.contains(ZFS_SNAPSHOT_DIRECTORY))
@@ -227,21 +216,14 @@ impl BaseFilesystemInfo {
             if map_of_datasets.is_empty() {
                 Err(HttmError::new("httm could not find any valid datasets on the system.").into())
             } else {
-                Ok((map_of_datasets, dirs_set))
+                Ok((map_of_datasets, filter_dirs))
             }
         }
 
         // do we have the necessary commands for search if user has not defined a snap point?
         // if so run the mount search, if not print some errors
         if let Ok(mount_command) = which("mount") {
-            let (map_of_datasets, dirs_set) = parse(&mount_command)?;
-
-            let opt_max_depth = Self::get_filter_dirs_max_depth(&dirs_set);
-
-            let filter_dirs = FilterDirs {
-                dirs_set,
-                opt_max_depth,
-            };
+            let (map_of_datasets, filter_dirs) = parse(&mount_command)?;
 
             Ok((map_of_datasets, filter_dirs))
         } else {
@@ -250,9 +232,5 @@ impl BaseFilesystemInfo {
             )
             .into())
         }
-    }
-
-    fn get_filter_dirs_max_depth(dirs_set: &BTreeSet<PathBuf>) -> Option<usize> {
-        dirs_set.par_iter().map(|dir| dir.iter().count()).max()
     }
 }
