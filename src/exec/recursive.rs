@@ -193,9 +193,7 @@ fn combine_and_send_entries(
         }
     };
 
-    display_or_transmit(config, entries, is_phantom, skim_tx_item)?;
-
-    Ok(())
+    display_or_transmit(config, entries, is_phantom, skim_tx_item)
 }
 
 // "spawn" a lighter weight rayon/greenish thread for enumerate_deleted, if needed
@@ -435,11 +433,9 @@ fn get_entries_behind_deleted_dir(
             requested_dir,
             skim_tx_item,
             hangup_rx,
-        )?,
-        None => return Err(HttmError::new("Not a valid file name!").into()),
+        ),
+        None => Err(HttmError::new("Not a valid file name!").into()),
     }
-
-    Ok(())
 }
 
 // this function creates dummy "live versions" values to match deleted files
@@ -516,7 +512,5 @@ fn print_display_recursive(config: &Config, entries: Vec<BasicDirEntryInfo>) -> 
 
     let output_buf = map_live_to_snaps.display(config);
 
-    print_output_buf(output_buf)?;
-
-    Ok(())
+    print_output_buf(output_buf)
 }

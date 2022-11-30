@@ -188,9 +188,7 @@ pub fn print_output_buf(output_buf: String) -> HttmResult<()> {
     let out = std::io::stdout();
     let mut out_locked = out.lock();
     out_locked.write_all(output_buf.as_bytes())?;
-    out_locked.flush()?;
-
-    Ok(())
+    out_locked.flush().map_err(|err| err.into())
 }
 
 // is this path/dir_entry something we should count as a directory for our purposes?
