@@ -26,9 +26,7 @@ use crate::config::generate::{Config, DeletedMode, ExecMode};
 use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::exec::interactive::SelectionCandidate;
 use crate::library::results::{HttmError, HttmResult};
-use crate::library::utility::{
-    httm_is_dir, is_channel_closed, nice_thread, print_output_buf, HttmIsDir, Never, PriorityType,
-};
+use crate::library::utility::{httm_is_dir, is_channel_closed, print_output_buf, HttmIsDir, Never};
 use crate::lookup::deleted::deleted_lookup_exec;
 use crate::lookup::last_in_time::LastInTimeSet;
 use crate::lookup::versions::versions_lookup_exec;
@@ -324,10 +322,10 @@ fn enumerate_deleted(
 
     // re-nice thread
     // use a lower priority to make room for interactive views/non-deleted enumeration
-    if matches!(config.exec_mode, ExecMode::Interactive(_)) {
-        // don't panic on failure setpriority failure
-        let _ = nice_thread(PriorityType::Process, None, 2i32);
-    }
+    // if matches!(config.exec_mode, ExecMode::Interactive(_)) {
+    //     // don't panic on failure setpriority failure
+    //     let _ = nice_thread(PriorityType::Process, None, 2i32);
+    // }
 
     // obtain all unique deleted, unordered, unsorted, will need to fix
     let vec_deleted = deleted_lookup_exec(config.as_ref(), requested_dir);

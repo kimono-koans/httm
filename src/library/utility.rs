@@ -44,6 +44,7 @@ pub enum PriorityType {
     User = 2,
 }
 
+#[allow(dead_code)]
 // nice calling thread to a specified level
 pub fn nice_thread(
     priority_type: PriorityType,
