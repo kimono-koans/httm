@@ -79,7 +79,7 @@ pub fn recursive_exec(
         .build()
         .expect("Could not initialize rayon threadpool for recursive deleted search");
 
-    pool.in_place_scope(|deleted_scope| {
+    pool.scope(|deleted_scope| {
         iterative_enumeration(
             config.clone(),
             requested_dir,
