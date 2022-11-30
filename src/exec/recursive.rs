@@ -151,13 +151,15 @@ fn enumerate_live(
         skim_tx_item,
     )?;
 
-    spawn_deleted(
-        config,
-        requested_dir,
-        deleted_scope,
-        skim_tx_item,
-        hangup_rx,
-    );
+    if config.deleted_mode.is_some() {
+        spawn_deleted(
+            config,
+            requested_dir,
+            deleted_scope,
+            skim_tx_item,
+            hangup_rx,
+        );
+    }
 
     Ok(vec_dirs)
 }
@@ -204,23 +206,21 @@ fn spawn_deleted(
     skim_tx_item: &SkimItemSender,
     hangup_rx: &Receiver<Never>,
 ) {
-    if config.deleted_mode.is_some() {
-        // spawn_enumerate_deleted will send deleted files back to
-        // the main thread for us, so we can skip collecting deleted here
-        // and return an empty vec
-        let requested_dir_clone = requested_dir.to_path_buf();
-        let skim_tx_item_clone = skim_tx_item.clone();
-        let hangup_rx_clone = hangup_rx.clone();
+    // spawn_enumerate_deleted will send deleted files back to
+    // the main thread for us, so we can skip collecting deleted here
+    // and return an empty vec
+    let requested_dir_clone = requested_dir.to_path_buf();
+    let skim_tx_item_clone = skim_tx_item.clone();
+    let hangup_rx_clone = hangup_rx.clone();
 
-        deleted_scope.spawn(move |_| {
-            let _ = enumerate_deleted(
-                config,
-                &requested_dir_clone,
-                &skim_tx_item_clone,
-                &hangup_rx_clone,
-            );
-        });
-    }
+    deleted_scope.spawn(move |_| {
+        let _ = enumerate_deleted(
+            config,
+            &requested_dir_clone,
+            &skim_tx_item_clone,
+            &hangup_rx_clone,
+        );
+    });
 }
 
 fn get_entries_partitioned(
