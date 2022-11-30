@@ -177,7 +177,7 @@ pub fn interactive_exec(
             match config.paths.get(0) {
                 Some(first_path) => {
                     let selected_file = first_path.clone();
-                    interactive_select(config, &[selected_file], interactive_mode)?;
+                    interactive_select(config.as_ref(), &[selected_file], interactive_mode)?;
                     unreachable!("interactive select never returns so unreachable here")
                 }
                 // Config::from should never allow us to have an instance where we don't
@@ -193,7 +193,7 @@ pub fn interactive_exec(
     // or continue down the interactive rabbit hole?
     match interactive_mode {
         InteractiveMode::Restore | InteractiveMode::Select => {
-            interactive_select(config, &paths_selected_in_browse, interactive_mode)?;
+            interactive_select(config.as_ref(), &paths_selected_in_browse, interactive_mode)?;
             unreachable!()
         }
         // InteractiveMode::Browse executes back through fn exec() in main.rs
@@ -260,11 +260,11 @@ fn browse_view(config: Arc<Config>, requested_dir: &PathData) -> HttmResult<Vec<
 }
 
 fn interactive_select(
-    config: Arc<Config>,
+    config: &Config,
     paths_selected_in_browse: &[PathData],
     interactive_mode: &InteractiveMode,
 ) -> HttmResult<()> {
-    let map_live_to_snaps = versions_lookup_exec(config.as_ref(), paths_selected_in_browse)?;
+    let map_live_to_snaps = versions_lookup_exec(config, paths_selected_in_browse)?;
 
     // snap and live set has no snaps
     if map_live_to_snaps.is_empty() {
@@ -303,7 +303,7 @@ fn interactive_select(
     } else {
         // same stuff we do at fn exec, snooze...
         let display_config =
-            SelectionCandidate::generate_config_for_display(&config, paths_selected_in_browse);
+            SelectionCandidate::generate_config_for_display(config, paths_selected_in_browse);
         let selection_buffer = map_live_to_snaps.display(&display_config);
 
         let opt_live_version = &paths_selected_in_browse
@@ -341,7 +341,7 @@ fn interactive_select(
             paths_selected_in_browse,
         )?)
     } else {
-        let delimiter = get_delimiter(&config);
+        let delimiter = get_delimiter(config);
 
         let output_buf = if config.opt_raw || config.opt_zeros {
             format!("{}{}", &path_string, delimiter)
@@ -508,7 +508,7 @@ fn select_restore_view(
 }
 
 fn interactive_restore(
-    config: Arc<Config>,
+    config: &Config,
     parsed_str: &str,
     paths_selected_in_browse: &[PathData],
 ) -> HttmResult<()> {
@@ -530,7 +530,7 @@ fn interactive_restore(
         // so, if you were in /etc and wanted to restore /etc/samba/smb.conf, httm will make certain to overwrite
         // at /etc/samba/smb.conf, not just avoid the rename
         let opt_original_live_pathdata = paths_selected_in_browse.iter().find_map(|pathdata| {
-            match versions_lookup_exec(config.as_ref(), &[pathdata.clone()]).ok() {
+            match versions_lookup_exec(config, &[pathdata.clone()]).ok() {
                 // safe to index into snaps, known len of 2 for set
                 Some(map_live_to_snaps) => {
                     map_live_to_snaps.values().flatten().find_map(|pathdata| {
@@ -568,7 +568,7 @@ fn interactive_restore(
         let new_filename = snap_filename
             + ".httm_restored."
             + &get_date(
-                &config,
+                config,
                 &snap_path_metadata.modify_time,
                 DateFormat::Timestamp,
             );

@@ -52,8 +52,6 @@ mod parse {
     pub mod snaps;
 }
 
-use std::sync::Arc;
-
 use crate::config::generate::{Config, ExecMode};
 use crate::lookup::file_mounts::MountsForFiles;
 
@@ -83,7 +81,7 @@ fn main() {
 fn exec() -> HttmResult<()> {
     // get our program args and generate a config for use
     // everywhere else
-    let config = Arc::new(Config::new()?);
+    let config = Config::new()?;
 
     if config.opt_debug {
         eprintln!("{:#?}", config);
@@ -107,7 +105,9 @@ fn exec() -> HttmResult<()> {
         // ExecMode::DisplayRecursive, ExecMode::SnapFileMount, and ExecMode::MountsForFiles will print their
         // output elsewhere
         ExecMode::DisplayRecursive(_) => display_recursive_wrapper(config.clone())?,
-        ExecMode::SnapFileMount(snapshot_suffix) => take_snapshot(config.clone(), snapshot_suffix)?,
+        ExecMode::SnapFileMount(snapshot_suffix) => {
+            take_snapshot(config.as_ref(), snapshot_suffix)?
+        }
         ExecMode::MountsForFiles => MountsForFiles::display(config.as_ref())?,
     }
 

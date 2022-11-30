@@ -15,7 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::{collections::BTreeMap, path::Path, sync::Arc, time::SystemTime};
+use std::{collections::BTreeMap, path::Path, time::SystemTime};
 
 use std::process::Command as ExecProcess;
 use which::which;
@@ -27,15 +27,15 @@ use crate::library::utility::{get_date, get_delimiter, print_output_buf, DateFor
 use crate::lookup::file_mounts::MountsForFiles;
 use crate::parse::aliases::FilesystemType;
 
-pub fn take_snapshot(config: Arc<Config>, requested_snapshot_suffix: &str) -> HttmResult<()> {
+pub fn take_snapshot(config: &Config, requested_snapshot_suffix: &str) -> HttmResult<()> {
     fn exec_zfs_snapshot(
-        config: Arc<Config>,
+        config: &Config,
         zfs_command: &Path,
         mounts_for_files: &MountsForFiles,
         requested_snapshot_suffix: &str,
     ) -> HttmResult<()> {
         // all snapshots should have the same timestamp
-        let timestamp = get_date(&config, &SystemTime::now(), DateFormat::Timestamp);
+        let timestamp = get_date(config, &SystemTime::now(), DateFormat::Timestamp);
 
         let vec_snapshot_names: Vec<String> = mounts_for_files
             .iter()
@@ -107,7 +107,7 @@ pub fn take_snapshot(config: Arc<Config>, requested_snapshot_suffix: &str) -> Ht
                     .iter()
                     .map(|snap_name| {
                         if config.opt_raw || config.opt_zeros {
-                            let delimiter = get_delimiter(&config);
+                            let delimiter = get_delimiter(config);
                             format!("{}{}", &snap_name, delimiter)
                         } else {
                             format!("httm took a snapshot named: {}\n", &snap_name)
@@ -121,7 +121,7 @@ pub fn take_snapshot(config: Arc<Config>, requested_snapshot_suffix: &str) -> Ht
         Ok(())
     }
 
-    let mounts_for_files: MountsForFiles = MountsForFiles::new(config.as_ref());
+    let mounts_for_files: MountsForFiles = MountsForFiles::new(config);
 
     if let Ok(zfs_command) = which("zfs") {
         exec_zfs_snapshot(

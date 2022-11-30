@@ -17,6 +17,7 @@
 
 use std::fs::canonicalize;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use clap::OsValues;
 use rayon::prelude::*;
@@ -380,9 +381,10 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn new() -> HttmResult<Self> {
+    pub fn new() -> HttmResult<Arc<Self>> {
         let arg_matches = parse_args();
-        Config::from_matches(&arg_matches)
+        let config = Config::from_matches(&arg_matches)?;
+        Ok(Arc::new(config))
     }
 
     fn from_matches(matches: &ArgMatches) -> HttmResult<Self> {
