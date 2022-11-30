@@ -15,7 +15,12 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::{collections::BTreeMap, path::Path, path::PathBuf, process::Command as ExecProcess};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    path::Path,
+    path::PathBuf,
+    process::Command as ExecProcess,
+};
 
 use proc_mounts::MountIter;
 use rayon::iter::Either;
@@ -49,7 +54,7 @@ pub struct DatasetMetadata {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FilterDirs {
-    pub vec_dirs: Vec<PathBuf>,
+    pub dirs_set: BTreeSet<PathBuf>,
     pub opt_max_depth: Option<usize>,
 }
 
@@ -83,7 +88,7 @@ impl BaseFilesystemInfo {
     // parsing from proc mounts is both faster and necessary for certain btrfs features
     // for instance, allows us to read subvolumes mounts, like "/@" or "/@home"
     fn from_proc_mounts() -> HttmResult<(MapOfDatasets, FilterDirs)> {
-        let (map_of_datasets, vec_dirs): (MapOfDatasets, Vec<PathBuf>) = MountIter::new()?
+        let (map_of_datasets, dirs_set): (MapOfDatasets, BTreeSet<PathBuf>) = MountIter::new()?
             .par_bridge()
             .flatten()
             // but exclude snapshot mounts.  we want only the raw filesystems
@@ -155,10 +160,10 @@ impl BaseFilesystemInfo {
                 _ => Either::Right(mount_info.dest),
             });
 
-        let opt_max_depth = Self::get_filter_dirs_max_depth(&vec_dirs);
+        let opt_max_depth = Self::get_filter_dirs_max_depth(&dirs_set);
 
         let filter_dirs = FilterDirs {
-            vec_dirs,
+            dirs_set,
             opt_max_depth,
         };
 
@@ -172,12 +177,12 @@ impl BaseFilesystemInfo {
     // old fashioned parsing for non-Linux systems, nearly as fast, works everywhere with a mount command
     // both methods are much faster than using zfs command
     fn from_mount_cmd() -> HttmResult<(MapOfDatasets, FilterDirs)> {
-        fn parse(mount_command: &Path) -> HttmResult<(MapOfDatasets, Vec<PathBuf>)> {
+        fn parse(mount_command: &Path) -> HttmResult<(MapOfDatasets, BTreeSet<PathBuf>)> {
             let command_output =
                 std::str::from_utf8(&ExecProcess::new(mount_command).output()?.stdout)?.to_owned();
 
             // parse "mount" for filesystems and mountpoints
-            let (map_of_datasets, vec_filter_dirs): (MapOfDatasets, Vec<PathBuf>) = command_output
+            let (map_of_datasets, dirs_set): (MapOfDatasets, BTreeSet<PathBuf>) = command_output
                 .par_lines()
                 // but exclude snapshot mounts.  we want the raw filesystem names.
                 .filter(|line| !line.contains(ZFS_SNAPSHOT_DIRECTORY))
@@ -222,19 +227,19 @@ impl BaseFilesystemInfo {
             if map_of_datasets.is_empty() {
                 Err(HttmError::new("httm could not find any valid datasets on the system.").into())
             } else {
-                Ok((map_of_datasets, vec_filter_dirs))
+                Ok((map_of_datasets, dirs_set))
             }
         }
 
         // do we have the necessary commands for search if user has not defined a snap point?
         // if so run the mount search, if not print some errors
         if let Ok(mount_command) = which("mount") {
-            let (map_of_datasets, vec_filter_dirs) = parse(&mount_command)?;
+            let (map_of_datasets, dirs_set) = parse(&mount_command)?;
 
-            let opt_max_depth = Self::get_filter_dirs_max_depth(&vec_filter_dirs);
+            let opt_max_depth = Self::get_filter_dirs_max_depth(&dirs_set);
 
             let filter_dirs = FilterDirs {
-                vec_dirs: vec_filter_dirs,
+                dirs_set,
                 opt_max_depth,
             };
 
@@ -247,10 +252,7 @@ impl BaseFilesystemInfo {
         }
     }
 
-    fn get_filter_dirs_max_depth(vec_filter_dirs: &Vec<PathBuf>) -> Option<usize> {
-        vec_filter_dirs
-            .par_iter()
-            .map(|dir| dir.iter().count())
-            .max()
+    fn get_filter_dirs_max_depth(dirs_set: &BTreeSet<PathBuf>) -> Option<usize> {
+        dirs_set.par_iter().map(|dir| dir.iter().count()).max()
     }
 }

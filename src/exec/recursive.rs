@@ -16,7 +16,6 @@
 // that was distributed with this source code.
 
 use std::collections::VecDeque;
-
 use std::{fs::read_dir, path::Path, sync::Arc};
 
 use once_cell::unsync::OnceCell;
@@ -304,9 +303,8 @@ fn is_filter_dir(config: &Config, entry: &BasicDirEntryInfo) -> bool {
         config
             .dataset_collection
             .filter_dirs
-            .vec_dirs
-            .iter()
-            .any(|filter_dir| path == filter_dir)
+            .dirs_set
+            .contains(path)
     }
 }
 
