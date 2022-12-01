@@ -183,11 +183,11 @@ fn combine_and_send_entries(
     } else {
         // live - not phantom
         match config.deleted_mode {
-            Some(DeletedMode::Only) => Vec::new(),
+            Some(DeletedMode::Only) => return Ok(()),
             Some(DeletedMode::DepthOfOne | DeletedMode::Enabled) | None => {
                 // never show live files is display recursive/deleted only file mode
                 if matches!(config.exec_mode, ExecMode::DisplayRecursive(_)) {
-                    Vec::new()
+                    return Ok(());
                 } else {
                     combined
                 }

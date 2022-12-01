@@ -482,7 +482,7 @@ dependencies = [
 
 [[package]]
 name = "httm"
-version = "0.17.9"
+version = "0.17.10"
 dependencies = [
  "clap",
  "crossbeam",
