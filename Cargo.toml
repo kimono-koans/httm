@@ -22,9 +22,7 @@ clap = { version = "3.2.8", features = ["cargo"] }
 crossbeam = { version = "0.8.2", default-features = false }
 time = { version = "0.3.17", features = ["formatting", "local-offset"] }
 number_prefix = { version = "0.4.0",  default-features = false }
-#skim = { version = "0.10.2", default-features = false }
-#skim = { git = "https://github.com/kimono-koans/skim", branch = "httm-vendored", default-features = false }
-skim = { path = "vendor/skim", default-features = false }
+skim = { version = "0.10.2", default-features = false }
 lscolors = { version = "0.13.0", features = ["ansi_term"] }
 terminal_size = { version = "0.2.2", default-features = false }
 which = { version = "4.3.0", default-features = false }
@@ -34,6 +32,9 @@ proc-mounts = { version = "0.3.0", default-features = false }
 once_cell = { version = "1.16.0", default-features = false }
 hashbrown = { version = "0.13.1" }
 # libc = { version = "0.2.137" }
+
+[patch.crates-io]
+skim = { git = "https://github.com/kimono-koans/skim", branch = "httm-vendored", default-features = false }
 
 [package.metadata.deb]
 maintainer = "kimono koans <https://github.com/kimono-koans/>"
