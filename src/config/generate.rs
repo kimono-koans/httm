@@ -167,9 +167,10 @@ fn parse_args() -> ArgMatches {
                 .display_order(8)
         )
         .arg(
-            Arg::new("FUZZY")
-                .long("fuzzy")
-                .help("use fuzzy pattern matching for searches in the interactive modes (in contrast to the default exact searching).")
+            Arg::new("EXACT")
+                .short('e')
+                .long("exact")
+                .help("use exact pattern matching for searches in the interactive modes (in contrast to the default fuzzy searching).")
                 .display_order(9)
         )
         .arg(
@@ -363,7 +364,7 @@ pub struct Config {
     pub opt_no_pretty: bool,
     pub opt_no_live: bool,
     pub opt_recursive: bool,
-    pub opt_fuzzy: bool,
+    pub opt_exact: bool,
     pub opt_overwrite: bool,
     pub opt_no_filter: bool,
     pub opt_no_snap: bool,
@@ -407,7 +408,7 @@ impl Config {
         let mut opt_raw = matches.is_present("RAW") || opt_no_snap && !opt_zeros;
         let opt_no_pretty = matches.is_present("NOT_SO_PRETTY");
         let opt_recursive = matches.is_present("RECURSIVE");
-        let opt_fuzzy = matches.is_present("FUZZY");
+        let opt_exact = matches.is_present("EXACT");
         let opt_no_live = matches.is_present("NO_LIVE");
         let opt_no_filter = matches.is_present("NO_FILTER");
         let opt_debug = matches.is_present("DEBUG");
@@ -571,7 +572,7 @@ impl Config {
             opt_no_pretty,
             opt_no_live,
             opt_recursive,
-            opt_fuzzy,
+            opt_exact,
             opt_overwrite,
             opt_no_filter,
             opt_no_snap,
