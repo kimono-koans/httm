@@ -488,6 +488,7 @@ dependencies = [
  "crossbeam",
  "hashbrown 0.13.1",
  "indicatif",
+ "libc",
  "lscolors",
  "number_prefix",
  "once_cell",
