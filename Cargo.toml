@@ -23,7 +23,7 @@ crossbeam = { version = "0.8.2", default-features = false }
 time = { version = "0.3.17", features = ["formatting", "local-offset"] }
 number_prefix = { version = "0.4.0",  default-features = false }
 #skim = { version = "0.10.2", default-features = false }
-skim = { git = "https://github.com/kimono-koans/skim", branch = "perf", default-features = false }
+skim = { git = "https://github.com/kimono-koans/skim", branch = "httm-vendored", default-features = false }
 lscolors = { version = "0.13.0", features = ["ansi_term"] }
 terminal_size = { version = "0.2.2", default-features = false }
 which = { version = "4.3.0", default-features = false }
