@@ -311,21 +311,11 @@ fn interactive_select(
             .get(0)
             .map(|pathdata| pathdata.path_buf.to_string_lossy().into_owned());
 
-        let opt_preview_window = if config.opt_preview.is_some() {
-            Some("up:50%")
-        } else {
-            None
-        };
-
         // loop until user selects a valid snapshot version
         loop {
             // get the file name
-            let requested_file_name = select_restore_view(
-                &selection_buffer,
-                &config.opt_preview,
-                opt_live_version,
-                opt_preview_window,
-            )?;
+            let requested_file_name =
+                select_restore_view(config, &selection_buffer, opt_live_version)?;
             // ... we want everything between the quotes
             let broken_string: Vec<_> = requested_file_name.split_terminator('"').collect();
             // ... and the file is the 2nd item or the indexed "1" object
@@ -444,54 +434,38 @@ fn parse_preview_command(
 }
 
 fn select_restore_view(
+    config: &Config,
     preview_buffer: &str,
-    opt_preview: &Option<String>,
     opt_live_version: &Option<String>,
-    opt_preview_window: Option<&str>,
 ) -> HttmResult<String> {
-    // only do it this way to let the lifetimes work out
-    // ugly but skim needs an owned String in this scope
-    let preview_command = if let Some(defined_command) = opt_preview {
-        parse_preview_command(defined_command, opt_live_version)?
-    } else {
-        String::new()
-    };
+    let (opt_preview_window, opt_preview_command) =
+        if let Some(defined_command) = &config.opt_preview {
+            (
+                Some("up:50%"),
+                Some(parse_preview_command(defined_command, opt_live_version)?),
+            )
+        } else {
+            (Some(""), None)
+        };
 
     // build our browse view - less to do than before - no previews, looking through one 'lil buffer
-    let skim_opts = if opt_preview.is_some() {
-        SkimOptionsBuilder::default()
-            .preview_window(opt_preview_window)
-            .preview(Some(preview_command.as_str()))
-            .tac(true)
-            .nosort(true)
-            .tabstop(Some("4"))
-            .exact(true)
-            .multi(false)
-            .regex(false)
-            .header(Some(
-                "PREVIEW UP: shift+up | PREVIEW DOWN: shift+down\n\
-                    PAGE UP:    page up  | PAGE DOWN:    page down \n\
-                    EXIT:       esc      | SELECT:       enter      | SELECT, MULTIPLE: shift+tab\n\
-                    ──────────────────────────────────────────────────────────────────────────────",
-            ))
-            .build()
-            .expect("Could not initialized skim options for select_restore_view")
-    } else {
-        SkimOptionsBuilder::default()
-            .tac(true)
-            .nosort(true)
-            .tabstop(Some("4"))
-            .exact(true)
-            .multi(false)
-            .regex(false)
-            .header(Some(
-                "PAGE UP:    page up  | PAGE DOWN:  page down\n\
-                        EXIT:       esc      | SELECT:     enter    \n\
-                        ─────────────────────────────────────────────",
-            ))
-            .build()
-            .expect("Could not initialized skim options for select_restore_view")
-    };
+    let skim_opts = SkimOptionsBuilder::default()
+        .preview_window(opt_preview_window)
+        .preview(opt_preview_command.as_deref())
+        .tac(true)
+        .nosort(true)
+        .tabstop(Some("4"))
+        .exact(true)
+        .multi(false)
+        .regex(false)
+        .header(Some(
+            "PREVIEW UP: shift+up | PREVIEW DOWN: shift+down\n\
+                PAGE UP:    page up  | PAGE DOWN:    page down \n\
+                EXIT:       esc      | SELECT:       enter      | SELECT, MULTIPLE: shift+tab\n\
+                ──────────────────────────────────────────────────────────────────────────────",
+        ))
+        .build()
+        .expect("Could not initialized skim options for select_restore_view");
 
     let item_reader_opts = SkimItemReaderOption::default().ansi(true);
     let item_reader = SkimItemReader::new(item_reader_opts);
@@ -612,7 +586,7 @@ fn interactive_restore(
     // loop until user consents or doesn't
     loop {
         let user_consent =
-            select_restore_view(&preview_buffer, &None, &None, None)?.to_ascii_uppercase();
+            select_restore_view(config, &preview_buffer, &None)?.to_ascii_uppercase();
 
         match user_consent.as_ref() {
             "YES" | "Y" => match copy_recursive(&snap_pathdata.path_buf, &new_file_path_buf) {
