@@ -220,13 +220,13 @@ fn spawn_deleted(
     let hangup_rx_clone = hangup_rx.clone();
 
     deleted_scope.spawn(move |_| {
-            let _ = enumerate_deleted(
-                config,
-                &requested_dir_clone,
-                &skim_tx_item_clone,
-                &hangup_rx_clone,
-            );
-        });
+        let _ = enumerate_deleted(
+            config,
+            &requested_dir_clone,
+            &skim_tx_item_clone,
+            &hangup_rx_clone,
+        );
+    });
 }
 
 fn get_entries_partitioned(
