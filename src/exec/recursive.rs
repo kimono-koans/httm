@@ -159,11 +159,11 @@ fn enumerate_live(
         skim_tx_item,
     )?;
 
-    if config.deleted_mode.is_some() {
+    if let Some(deleted_scope) = opt_deleted_scope {
         spawn_deleted(
             config,
             requested_dir,
-            opt_deleted_scope,
+            deleted_scope,
             skim_tx_item,
             hangup_rx,
         );
@@ -208,7 +208,7 @@ fn combine_and_send_entries(
 fn spawn_deleted(
     config: Arc<Config>,
     requested_dir: &Path,
-    deleted_scope: Option<&Scope>,
+    deleted_scope: &Scope,
     skim_tx_item: &SkimItemSender,
     hangup_rx: &Receiver<Never>,
 ) {
@@ -219,9 +219,7 @@ fn spawn_deleted(
     let skim_tx_item_clone = skim_tx_item.clone();
     let hangup_rx_clone = hangup_rx.clone();
 
-    deleted_scope
-        .expect("deleted scope should never be a None value by fn spawn_deleted()")
-        .spawn(move |_| {
+    deleted_scope.spawn(move |_| {
             let _ = enumerate_deleted(
                 config,
                 &requested_dir_clone,
