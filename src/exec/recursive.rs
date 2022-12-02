@@ -67,22 +67,11 @@ pub fn recursive_exec(
     skim_tx_item: SkimItemSender,
     hangup_rx: Receiver<Never>,
 ) {
-    // default stack size for rayon threads spawned to handle enumerate_deleted
-    // here set at 1MB (the Linux default is 8MB) to avoid a stack overflow with the Rayon default
-    const DEFAULT_STACK_SIZE: usize = 1_048_576;
-
-    // build thread pool with a stack size large enough to avoid a stack overflow
-    // this will be our one threadpool for directory enumeration ops
-    let pool: ThreadPool = rayon::ThreadPoolBuilder::new()
-        .stack_size(DEFAULT_STACK_SIZE)
-        .build()
-        .expect("Could not initialize rayon threadpool for recursive deleted search");
-
-    pool.scope(|deleted_scope| {
+    let exec = |opt_deleted_scope: Option<&Scope>| {
         iterative_enumeration(
             config.clone(),
             requested_dir,
-            deleted_scope,
+            opt_deleted_scope,
             &skim_tx_item,
             &hangup_rx,
         )
@@ -90,13 +79,30 @@ pub fn recursive_exec(
             eprintln!("Error: {}", error);
             std::process::exit(1)
         });
-    });
+    };
+
+    if config.deleted_mode.is_some() {
+        // default stack size for rayon threads spawned to handle enumerate_deleted
+        // here set at 1MB (the Linux default is 8MB) to avoid a stack overflow with the Rayon default
+        const DEFAULT_STACK_SIZE: usize = 1_048_576;
+
+        // build thread pool with a stack size large enough to avoid a stack overflow
+        // this will be our one threadpool for directory enumeration ops
+        let pool: ThreadPool = rayon::ThreadPoolBuilder::new()
+            .stack_size(DEFAULT_STACK_SIZE)
+            .build()
+            .expect("Could not initialize rayon threadpool for recursive deleted search");
+
+        pool.scope(|deleted_scope| exec(Some(deleted_scope)));
+    } else {
+        exec(None)
+    }
 }
 
 fn iterative_enumeration(
     config: Arc<Config>,
     requested_dir: &Path,
-    deleted_scope: &Scope,
+    opt_deleted_scope: Option<&Scope>,
     skim_tx_item: &SkimItemSender,
     hangup_rx: &Receiver<Never>,
 ) -> HttmResult<()> {
@@ -106,7 +112,7 @@ fn iterative_enumeration(
     let mut queue: VecDeque<BasicDirEntryInfo> = enumerate_live(
         config.clone(),
         requested_dir,
-        deleted_scope,
+        opt_deleted_scope,
         skim_tx_item,
         hangup_rx,
     )?
@@ -121,7 +127,7 @@ fn iterative_enumeration(
             if let Ok(vec_dirs) = enumerate_live(
                 config.clone(),
                 &item.path,
-                deleted_scope,
+                opt_deleted_scope,
                 skim_tx_item,
                 hangup_rx,
             ) {
@@ -136,7 +142,7 @@ fn iterative_enumeration(
 fn enumerate_live(
     config: Arc<Config>,
     requested_dir: &Path,
-    deleted_scope: &Scope,
+    opt_deleted_scope: Option<&Scope>,
     skim_tx_item: &SkimItemSender,
     hangup_rx: &Receiver<Never>,
 ) -> HttmResult<Vec<BasicDirEntryInfo>> {
@@ -157,7 +163,7 @@ fn enumerate_live(
         spawn_deleted(
             config,
             requested_dir,
-            deleted_scope,
+            opt_deleted_scope,
             skim_tx_item,
             hangup_rx,
         );
@@ -202,7 +208,7 @@ fn combine_and_send_entries(
 fn spawn_deleted(
     config: Arc<Config>,
     requested_dir: &Path,
-    deleted_scope: &Scope,
+    deleted_scope: Option<&Scope>,
     skim_tx_item: &SkimItemSender,
     hangup_rx: &Receiver<Never>,
 ) {
@@ -213,14 +219,16 @@ fn spawn_deleted(
     let skim_tx_item_clone = skim_tx_item.clone();
     let hangup_rx_clone = hangup_rx.clone();
 
-    deleted_scope.spawn(move |_| {
-        let _ = enumerate_deleted(
-            config,
-            &requested_dir_clone,
-            &skim_tx_item_clone,
-            &hangup_rx_clone,
-        );
-    });
+    deleted_scope
+        .expect("deleted scope should never be a None value by fn spawn_deleted()")
+        .spawn(move |_| {
+            let _ = enumerate_deleted(
+                config,
+                &requested_dir_clone,
+                &skim_tx_item_clone,
+                &hangup_rx_clone,
+            );
+        });
 }
 
 fn get_entries_partitioned(
