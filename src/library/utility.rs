@@ -32,7 +32,7 @@ use time::{format_description, OffsetDateTime, UtcOffset};
 
 use crate::config::generate::Config;
 use crate::data::paths::{BasicDirEntryInfo, PathData};
-use crate::exec::interactive::SelectionCandidate;
+use crate::data::selection::SelectionCandidate;
 use crate::library::results::{HttmError, HttmResult};
 use crate::parse::aliases::FilesystemType;
 use crate::{BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_SNAPSHOT_DIRECTORY};

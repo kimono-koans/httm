@@ -18,6 +18,7 @@
 mod data {
     pub mod filesystem_info;
     pub mod paths;
+    pub mod selection;
 }
 mod display {
     pub mod exec;
