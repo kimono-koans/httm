@@ -276,8 +276,6 @@ fn is_filter_dir(config: &Config, entry: &BasicDirEntryInfo) -> bool {
         return true;
     }
 
-    // is 1) a common snapshot path for btrfs, or 2) is a non-supported (non-ZFS, non-btrfs) dataset?
-
     // is a common btrfs snapshot dir?
     if let Some(common_snap_dir) = &config.dataset_collection.opt_common_snap_dir {
         if path == *common_snap_dir {
@@ -285,20 +283,15 @@ fn is_filter_dir(config: &Config, entry: &BasicDirEntryInfo) -> bool {
         }
     }
 
-    let user_requested_dir = config
-        .opt_requested_dir
-        .as_ref()
-        .expect("opt_requested_dir must always be Some in any recursive mode")
-        .path_buf
-        .as_path();
-
     // check whether user requested this dir specifically, then we will show
-    if path == user_requested_dir {
-        false
-    } else {
-        // else: is a non-supported dataset?
-        config.dataset_collection.filter_dirs.contains(path)
+    if let Some(user_requested_dir) = config.opt_requested_dir.as_ref() {
+        if user_requested_dir.path_buf.as_path() == path {
+            return false;
+        }
     }
+
+    // finally : is a non-supported dataset?
+    config.dataset_collection.filter_dirs.contains(path)
 }
 
 // deleted file search for all modes
