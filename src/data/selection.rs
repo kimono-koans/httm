@@ -74,6 +74,7 @@ impl SelectionCandidate {
             opt_no_snap: false,
             opt_debug: false,
             opt_no_traverse: false,
+            opt_no_hidden: false,
             opt_last_snap: None,
             opt_preview: None,
             opt_omit_ditto: config.opt_omit_ditto,

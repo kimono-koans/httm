@@ -238,6 +238,8 @@ fn get_entries_partitioned(
         .filter(|entry| {
             if config.opt_no_filter {
                 return true;
+            } else if config.opt_no_hidden && entry.file_name.to_string_lossy().starts_with('.') {
+                return false;
             } else if let Ok(file_type) = entry.get_filetype() {
                 if file_type.is_dir() {
                     return !is_filter_dir(config, entry);
