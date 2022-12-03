@@ -82,14 +82,11 @@ pub fn recursive_exec(
     };
 
     if config.deleted_mode.is_some() {
-        // default stack size for rayon threads spawned to handle enumerate_deleted
-        // here set at 1MB (the Linux default is 8MB) to avoid a stack overflow with the Rayon default
-        const DEFAULT_STACK_SIZE: usize = 1_048_576;
-
-        // build thread pool with a stack size large enough to avoid a stack overflow
-        // this will be our one threadpool for directory enumeration ops
+        // thread pool allows deleted to have its own scope, which means
+        // all threads must complete before the scope exits.  this is important
+        // for display recursive searches as the live enumeration will end before
+        // all deleted threads have completed
         let pool: ThreadPool = rayon::ThreadPoolBuilder::new()
-            .stack_size(DEFAULT_STACK_SIZE)
             .build()
             .expect("Could not initialize rayon threadpool for recursive deleted search");
 
