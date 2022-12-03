@@ -185,7 +185,7 @@ fn parse_args() -> ArgMatches {
                 .help("snapshot the mount point/s of the dataset/s which contains the input file/s.  \
                 This argument takes a value for an optional snapshot suffix.  The default suffix is 'httmSnapFileMount'.  \
                 Note: This is a ZFS only option.")
-                .conflicts_with_all(&["INTERACTIVE", "SELECT", "RESTORE", "ALT_REPLICATED", "SNAP_POINT", "LOCAL_DIR"])
+                .conflicts_with_all(&["BROWSE", "SELECT", "RESTORE", "ALT_REPLICATED", "SNAP_POINT", "LOCAL_DIR"])
                 .display_order(10)
         )
         .arg(
@@ -194,7 +194,7 @@ fn parse_args() -> ArgMatches {
                 .long("mount-for-file")
                 .visible_alias("mount")
                 .help("display the mount point/s of the dataset/s which contains the input file/s.")
-                .conflicts_with_all(&["INTERACTIVE", "SELECT", "RESTORE"])
+                .conflicts_with_all(&["BROWSE", "SELECT", "RESTORE"])
                 .display_order(11)
         )
         .arg(
@@ -244,8 +244,7 @@ fn parse_args() -> ArgMatches {
         .arg(
             Arg::new("FILTER_HIDDEN")
                 .long("no-hidden")
-                .help("never show information regarding hidden files and directories (those that start with a \'.\') in the recursive modes.")
-                .requires("RECURSIVE")
+                .help("never show information regarding hidden files and directories (those that start with a \'.\') in the recursive or interactive modes.")
                 .display_order(16)
         )
         .arg(
@@ -284,7 +283,7 @@ fn parse_args() -> ArgMatches {
                 .help("only display information concerning 'pseudo-live' versions in Display Recursive mode (in --deleted, --recursive, but non-interactive modes).  \
                 Useful for finding the \"files that once were\" and displaying only those pseudo-live/undead files.")
                 .requires("RECURSIVE")
-                .conflicts_with_all(&["INTERACTIVE", "SELECT", "RESTORE", "SNAP_FILE_MOUNT", "LAST_SNAP", "NOT_SO_PRETTY"])
+                .conflicts_with_all(&["BROWSE", "SELECT", "RESTORE", "SNAP_FILE_MOUNT", "LAST_SNAP", "NOT_SO_PRETTY"])
                 .display_order(21)
         )
         .arg(
@@ -314,7 +313,7 @@ fn parse_args() -> ArgMatches {
                 \"single\" will print only filenames which only have one version, \
                 (and \"single-no-snap\" will print those without a snap taken, and \"single-with-snap\" will print those with a snap taken), \
                 and \"multiple\" will print only filenames which only have multiple versions.")
-                .conflicts_with_all(&["LAST_SNAP", "INTERACTIVE", "SELECT", "RESTORE", "RECURSIVE", "SNAP_FILE_MOUNT", "LAST_SNAP", "NOT_SO_PRETTY", "NO_LIVE", "NO_SNAP", "OMIT_IDENTICAL"])
+                .conflicts_with_all(&["LAST_SNAP", "BROWSE", "SELECT", "RESTORE", "RECURSIVE", "SNAP_FILE_MOUNT", "LAST_SNAP", "NOT_SO_PRETTY", "NO_LIVE", "NO_SNAP", "OMIT_IDENTICAL"])
                 .display_order(23)
         )
         .arg(
@@ -467,13 +466,19 @@ impl Config {
             None
         };
 
+        if opt_no_hidden && !opt_recursive && opt_interactive_mode.is_none() {
+            return Err(HttmError::new(
+                "FILTER_HIDDEN is only available if either an interactive mode or recursive mode is specified.",
+            )
+            .into());
+        }
+
         if opt_preview.is_some()
             && matches!(opt_interactive_mode, Some(InteractiveMode::Browse) | None)
         {
-            return Err(HttmError::new(
-                "httm preview mode is only available in Select or Restore modes",
-            )
-            .into());
+            return Err(
+                HttmError::new("PREVIEW is only available in Select or Restore modes").into(),
+            );
         }
 
         // if in last snap and select mode we will want to return a raw value,
@@ -518,13 +523,11 @@ impl Config {
 
         if opt_recursive {
             if matches!(exec_mode, ExecMode::Display) {
-                return Err(
-                    HttmError::new("Recursive search not available in Display Mode.").into(),
-                );
+                return Err(HttmError::new("RECURSIVE not available in Display Mode.").into());
             }
         } else if opt_no_filter {
             return Err(HttmError::new(
-                "No filter mode only available when recursive search is enabled.",
+                "NO_FILTER only available when recursive search is enabled.",
             )
             .into());
         }
@@ -544,12 +547,15 @@ impl Config {
 
         // opt_omit_identical doesn't make sense in Display Recursive mode as no live files will exists?
         if opt_omit_ditto && matches!(exec_mode, ExecMode::DisplayRecursive(_)) {
-            return Err(HttmError::new("Omit identical mode not available when a deleted recursive search is specified.  Quitting.").into());
+            return Err(HttmError::new(
+                "OMIT_DITTO not available when a deleted recursive search is specified.  Quitting.",
+            )
+            .into());
         }
 
         if opt_last_snap.is_some() && matches!(exec_mode, ExecMode::DisplayRecursive(_)) {
             return Err(
-                HttmError::new("Last snap is not available in Display Recursive Mode.").into(),
+                HttmError::new("LAST_SNAP is not available in Display Recursive Mode.").into(),
             );
         }
 
