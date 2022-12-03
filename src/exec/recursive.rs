@@ -213,8 +213,7 @@ fn spawn_deleted(
     hangup_rx: &Receiver<Never>,
 ) {
     // spawn_enumerate_deleted will send deleted files back to
-    // the main thread for us, so we can skip collecting deleted here
-    // and return an empty vec
+    // the main thread for us
     let requested_dir_clone = requested_dir.to_path_buf();
     let skim_tx_item_clone = skim_tx_item.clone();
     let hangup_rx_clone = hangup_rx.clone();
@@ -308,7 +307,7 @@ fn enumerate_deleted(
         return Err(HttmError::new("Thread requested to quit.  Quitting.").into());
     }
 
-    // re-nice thread
+    // re-nice deleted thread
     // use a lower priority to make room for interactive views/non-deleted enumeration
     if matches!(config.exec_mode, ExecMode::Interactive(_)) {
         // don't panic on failure setpriority failure

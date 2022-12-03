@@ -28,7 +28,7 @@ use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::library::results::HttmResult;
 use crate::lookup::versions::{MostProximateAndOptAlts, RelativePathAndSnapMounts};
 
-// delete is a dumb function/module if we want to rank outputs, get last in time, etc.
+// deleted_lookup_exec is a dumb function/module if we want to rank outputs, get last in time, etc.
 // we do that elsewhere.  deleted is simply about finding at least one version of a deleted file
 // this, believe it or not, will be faster
 pub fn deleted_lookup_exec(config: &Config, requested_dir: &Path) -> Vec<BasicDirEntryInfo> {
