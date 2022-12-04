@@ -37,7 +37,7 @@ use crate::{BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_HIDDEN_DIRECTORY};
 #[allow(unused_variables)]
 pub fn display_recursive_wrapper(config: Arc<Config>) -> HttmResult<()> {
     // won't be sending anything anywhere, this just allows us to reuse enumerate_directory
-    let (dummy_skim_tx_item, _): (SkimItemSender, SkimItemReceiver) = unbounded();
+    let (dummy_skim_tx, _): (SkimItemSender, SkimItemReceiver) = unbounded();
     let (hangup_tx, hangup_rx): (Sender<Never>, Receiver<Never>) = bounded(0);
     let config_clone = config.clone();
 
@@ -46,7 +46,7 @@ pub fn display_recursive_wrapper(config: Arc<Config>) -> HttmResult<()> {
             recursive_exec(
                 config_clone,
                 &requested_dir.path_buf,
-                dummy_skim_tx_item,
+                dummy_skim_tx,
                 hangup_rx,
             );
         }
@@ -64,7 +64,7 @@ pub fn display_recursive_wrapper(config: Arc<Config>) -> HttmResult<()> {
 pub fn recursive_exec(
     config: Arc<Config>,
     requested_dir: &Path,
-    skim_tx_item: SkimItemSender,
+    skim_tx: SkimItemSender,
     hangup_rx: Receiver<Never>,
 ) {
     let exec = |opt_deleted_scope: Option<&Scope>| {
@@ -72,7 +72,7 @@ pub fn recursive_exec(
             config.clone(),
             requested_dir,
             opt_deleted_scope,
-            &skim_tx_item,
+            &skim_tx,
             &hangup_rx,
         )
         .unwrap_or_else(|error| {
@@ -100,7 +100,7 @@ fn iterative_enumeration(
     config: Arc<Config>,
     requested_dir: &Path,
     opt_deleted_scope: Option<&Scope>,
-    skim_tx_item: &SkimItemSender,
+    skim_tx: &SkimItemSender,
     hangup_rx: &Receiver<Never>,
 ) -> HttmResult<()> {
     // runs once for non-recursive but also "primes the pump"
@@ -110,7 +110,7 @@ fn iterative_enumeration(
         config.clone(),
         requested_dir,
         opt_deleted_scope,
-        skim_tx_item,
+        skim_tx,
         hangup_rx,
     )?
     .into();
@@ -125,7 +125,7 @@ fn iterative_enumeration(
                 config.clone(),
                 &item.path,
                 opt_deleted_scope,
-                skim_tx_item,
+                skim_tx,
                 hangup_rx,
             ) {
                 queue.extend(vec_dirs.into_iter())
@@ -140,7 +140,7 @@ fn enumerate_live(
     config: Arc<Config>,
     requested_dir: &Path,
     opt_deleted_scope: Option<&Scope>,
-    skim_tx_item: &SkimItemSender,
+    skim_tx: &SkimItemSender,
     hangup_rx: &Receiver<Never>,
 ) -> HttmResult<Vec<BasicDirEntryInfo>> {
     // combined entries will be sent or printed, but we need the vec_dirs to recurse
@@ -153,17 +153,11 @@ fn enumerate_live(
         &vec_dirs,
         false,
         requested_dir,
-        skim_tx_item,
+        skim_tx,
     )?;
 
     if let Some(deleted_scope) = opt_deleted_scope {
-        spawn_deleted(
-            config,
-            requested_dir,
-            deleted_scope,
-            skim_tx_item,
-            hangup_rx,
-        );
+        spawn_deleted(config, requested_dir, deleted_scope, skim_tx, hangup_rx);
     }
 
     Ok(vec_dirs)
@@ -175,7 +169,7 @@ fn combine_and_send_entries(
     vec_dirs: &[BasicDirEntryInfo],
     is_phantom: bool,
     requested_dir: &Path,
-    skim_tx_item: &SkimItemSender,
+    skim_tx: &SkimItemSender,
 ) -> HttmResult<()> {
     let mut combined = vec_files;
     combined.extend_from_slice(vec_dirs);
@@ -198,7 +192,7 @@ fn combine_and_send_entries(
         }
     };
 
-    display_or_transmit(config, entries, is_phantom, skim_tx_item)
+    display_or_transmit(config, entries, is_phantom, skim_tx)
 }
 
 // "spawn" a lighter weight rayon/greenish thread for enumerate_deleted, if needed
@@ -206,20 +200,20 @@ fn spawn_deleted(
     config: Arc<Config>,
     requested_dir: &Path,
     deleted_scope: &Scope,
-    skim_tx_item: &SkimItemSender,
+    skim_tx: &SkimItemSender,
     hangup_rx: &Receiver<Never>,
 ) {
     // spawn_enumerate_deleted will send deleted files back to
     // the main thread for us
     let requested_dir_clone = requested_dir.to_path_buf();
-    let skim_tx_item_clone = skim_tx_item.clone();
+    let skim_tx_clone = skim_tx.clone();
     let hangup_rx_clone = hangup_rx.clone();
 
     deleted_scope.spawn(move |_| {
         let _ = enumerate_deleted(
             config,
             &requested_dir_clone,
-            &skim_tx_item_clone,
+            &skim_tx_clone,
             &hangup_rx_clone,
         );
     });
@@ -296,7 +290,7 @@ fn is_filter_dir(config: &Config, entry: &BasicDirEntryInfo) -> bool {
 fn enumerate_deleted(
     config: Arc<Config>,
     requested_dir: &Path,
-    skim_tx_item: &SkimItemSender,
+    skim_tx: &SkimItemSender,
     hangup_rx: &Receiver<Never>,
 ) -> HttmResult<()> {
     // check -- should deleted threads keep working?
@@ -329,7 +323,7 @@ fn enumerate_deleted(
         &vec_dirs,
         true,
         requested_dir,
-        skim_tx_item,
+        skim_tx,
     )?;
 
     // disable behind deleted dirs with DepthOfOne,
@@ -357,7 +351,7 @@ fn enumerate_deleted(
                 config_clone,
                 deleted_dir.as_path(),
                 &requested_dir_clone,
-                skim_tx_item,
+                skim_tx,
                 hangup_rx,
             )
         })
@@ -374,7 +368,7 @@ fn get_entries_behind_deleted_dir(
     config: Arc<Config>,
     deleted_dir: &Path,
     requested_dir: &Path,
-    skim_tx_item: &SkimItemSender,
+    skim_tx: &SkimItemSender,
     hangup_rx: &Receiver<Never>,
 ) -> HttmResult<()> {
     fn recurse_behind_deleted_dir(
@@ -382,7 +376,7 @@ fn get_entries_behind_deleted_dir(
         dir_name: &Path,
         from_deleted_dir: &Path,
         from_requested_dir: &Path,
-        skim_tx_item: &SkimItemSender,
+        skim_tx: &SkimItemSender,
         hangup_rx: &Receiver<Never>,
     ) -> HttmResult<()> {
         // check -- should deleted threads keep working?
@@ -406,7 +400,7 @@ fn get_entries_behind_deleted_dir(
             &vec_dirs,
             true,
             pseudo_live_dir,
-            skim_tx_item,
+            skim_tx,
         )?;
 
         // now recurse!
@@ -418,7 +412,7 @@ fn get_entries_behind_deleted_dir(
                 Path::new(&basic_info.file_name),
                 deleted_dir_on_snap,
                 pseudo_live_dir,
-                skim_tx_item,
+                skim_tx,
                 hangup_rx,
             )
         })
@@ -430,7 +424,7 @@ fn get_entries_behind_deleted_dir(
             Path::new(dir_name),
             deleted_dir.parent().unwrap_or_else(|| Path::new("/")),
             requested_dir,
-            skim_tx_item,
+            skim_tx,
             hangup_rx,
         ),
         None => Err(HttmError::new("Not a valid file name!").into()),
@@ -459,13 +453,11 @@ fn display_or_transmit(
     config: Arc<Config>,
     entries: Vec<BasicDirEntryInfo>,
     is_phantom: bool,
-    skim_tx_item: &SkimItemSender,
+    skim_tx: &SkimItemSender,
 ) -> HttmResult<()> {
     // send to the interactive view, or print directly, never return back
     match &config.exec_mode {
-        ExecMode::Interactive(_) => {
-            transmit_entries(config.clone(), entries, is_phantom, skim_tx_item)?
-        }
+        ExecMode::Interactive(_) => transmit_entries(config.clone(), entries, is_phantom, skim_tx)?,
         ExecMode::DisplayRecursive(progress_bar) => {
             if entries.is_empty() {
                 progress_bar.tick();
@@ -485,14 +477,14 @@ fn transmit_entries(
     config: Arc<Config>,
     entries: Vec<BasicDirEntryInfo>,
     is_phantom: bool,
-    skim_tx_item: &SkimItemSender,
+    skim_tx: &SkimItemSender,
 ) -> HttmResult<()> {
     // don't want a par_iter here because it will block and wait for all
     // results, instead of printing and recursing into the subsequent dirs
     entries
         .into_iter()
         .try_for_each(|basic_info| {
-            skim_tx_item.try_send(Arc::new(SelectionCandidate::new(
+            skim_tx.try_send(Arc::new(SelectionCandidate::new(
                 config.clone(),
                 basic_info,
                 is_phantom,
