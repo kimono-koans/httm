@@ -865,7 +865,7 @@ checksum = "256b9932320c590e707b94576e3cc1f7c9024d0ee6612dfbcf1cb106cbe8e055"
 [[package]]
 name = "skim"
 version = "0.10.2"
-source = "git+https://github.com/kimono-koans/skim?branch=httm-vendored-v2#00b10497101d206340919f3ae411bdc0342484e7"
+source = "git+https://github.com/kimono-koans/skim?branch=httm-vendored#00b10497101d206340919f3ae411bdc0342484e7"
 dependencies = [
  "beef",
  "bitflags",
