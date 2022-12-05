@@ -244,6 +244,7 @@ fn parse_args() -> ArgMatches {
         .arg(
             Arg::new("FILTER_HIDDEN")
                 .long("no-hidden")
+                .aliases(&["no-hide", "nohide", "filter-hidden"])
                 .help("never show information regarding hidden files and directories (those that start with a \'.\') in the recursive or interactive modes.")
                 .display_order(16)
         )
