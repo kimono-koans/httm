@@ -34,7 +34,8 @@ hashbrown = { version = "0.13.1" }
 libc = { version = "0.2.137", default-features = false }
 
 [patch.crates-io]
-skim = { git = "https://github.com/kimono-koans/skim", branch = "httm-vendored" }
+#skim = { git = "https://github.com/kimono-koans/skim", branch = "httm-vendored" }
+skim = { path = "../skim" }
 
 [package.metadata.deb]
 maintainer = "kimono koans <https://github.com/kimono-koans/>"

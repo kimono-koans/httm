@@ -331,6 +331,7 @@ fn select_restore_view(
     let skim_opts = SkimOptionsBuilder::default()
         .preview_window(opt_preview_window)
         .preview(opt_preview_command.as_deref())
+        .disabled(true)
         .tac(true)
         .nosort(true)
         .tabstop(Some("4"))
