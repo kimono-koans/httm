@@ -59,11 +59,14 @@ makepkg -si
 
 The `httm` project contains only a few components:
 
-1. The `httm` executable. To build and install:
+Note: `0.17.10` will be the last release published to [crates.io](https://crates.io) until either `cargo` allows publishing patched dependencies, or my upstream dependencies accept my changes. That means, for now, the install from source method is `cargo install --git ... --tag ...`, if you want to install a version after `0.17.10`.
+
+1. The `httm` executable.  To build and install:
 
     ```bash
-    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh 
-    cargo install httm
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+    latest="(wget -nv -O - "https://api.github.com/repos/kimono-koans/httm/releases/latest" 2>/dev/null | grep tag_name | cut -d: -f2 | cut -d'\"' -f2)"
+    cargo install --git https://github.com/kimono-koans/httm.git --tag "$latest"
     ```
 2. The optional `zsh` hot-key bindings: Use `ESC+s` to select snapshots filenames to be dropped to your command line (for instance after the `cat` command), or use `ESC+m` to browse for all of a file's snapshots. After you install the `httm` binary, to copy the hot key script to your home directory, and source that script within your `.zshrc`:
 
