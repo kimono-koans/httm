@@ -24,14 +24,15 @@ time = { version = "0.3.17", features = ["formatting", "local-offset"] }
 number_prefix = { version = "0.4.0",  default-features = false }
 skim = { version = "0.10.2", default-features = false }
 lscolors = { version = "0.13.0", features = ["ansi_term"] }
-terminal_size = { version = "0.2.2", default-features = false }
+terminal_size = { version = "0.2.3", default-features = false }
 which = { version = "4.3.0", default-features = false }
 rayon = { version = "1.6.0", default-features = false }
 indicatif =  { version = "0.17.2", default-features = false }
 proc-mounts = { version = "0.3.0", default-features = false }
 once_cell = { version = "1.16.0", default-features = false }
+chrono = { version = "0.4.23", default-features = false }
 hashbrown = { version = "0.13.1" }
-libc = { version = "0.2.137", default-features = false }
+libc = { version = "0.2.138", default-features = false }
 
 [patch.crates-io]
 skim = { git = "https://github.com/kimono-koans/skim", branch = "httm-vendored" }
