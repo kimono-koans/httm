@@ -134,7 +134,7 @@ fn iterative_enumeration(
 
         // re-nice deleted threads to high priority
         // deleted threads were nice-ed while main thread was running
-        if matches!(config.exec_mode, ExecMode::Interactive(_)) && config.deleted_mode.is_some() {
+        if matches!(config.exec_mode, ExecMode::Interactive(_)) && !matches!(config.deleted_mode, Some(DeletedMode::Only)) {
             // don't panic on failure setpriority failure
             let _ = nice_thread(PriorityType::PGroup, None, 0i32);
         }
@@ -311,7 +311,7 @@ fn enumerate_deleted(
 
     // re-nice deleted thread
     // use a lower priority to make room for interactive views/non-deleted enumeration
-    if matches!(config.exec_mode, ExecMode::Interactive(_)) && matches!(config.deleted_mode, Some(DeletedMode::Only)) {
+    if matches!(config.exec_mode, ExecMode::Interactive(_)) && !matches!(config.deleted_mode, Some(DeletedMode::Only)) {
         // don't panic on failure setpriority failure
         let _ = nice_thread(PriorityType::Process, None, 2i32);
     }
