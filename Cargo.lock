@@ -457,6 +457,7 @@ dependencies = [
 name = "httm"
 version = "0.18.0"
 dependencies = [
+ "chrono",
  "clap",
  "crossbeam",
  "hashbrown 0.13.1",

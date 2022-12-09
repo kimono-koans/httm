@@ -131,7 +131,16 @@ fn iterative_enumeration(
                 queue.extend(vec_dirs.into_iter())
             }
         }
+
+        // re-nice deleted threads to high priority
+        // deleted threads were nice-ed while main thread was running
+        if matches!(config.exec_mode, ExecMode::Interactive(_)) && config.deleted_mode.is_some() {
+            // don't panic on failure setpriority failure
+            let _ = nice_thread(PriorityType::PGroup, None, 0i32);
+        }
     }
+
+    
 
     Ok(())
 }
@@ -304,7 +313,7 @@ fn enumerate_deleted(
     // use a lower priority to make room for interactive views/non-deleted enumeration
     if matches!(config.exec_mode, ExecMode::Interactive(_)) {
         // don't panic on failure setpriority failure
-        let _ = nice_thread(PriorityType::Process, None, 2i32);
+        let _ = nice_thread(PriorityType::Process, None, 8i32);
     }
 
     // obtain all unique deleted, unordered, unsorted, will need to fix
