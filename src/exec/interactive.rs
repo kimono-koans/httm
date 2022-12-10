@@ -338,7 +338,7 @@ fn select_restore_view(
         .exact(true)
         .multi(false)
         .regex(false)
-        .tiebreak(Some("length".to_string()))
+        .tiebreak(Some("length,index".to_string()))
         .header(Some(
             "PREVIEW UP: shift+up | PREVIEW DOWN: shift+down\n\
                 PAGE UP:    page up  | PAGE DOWN:    page down \n\
