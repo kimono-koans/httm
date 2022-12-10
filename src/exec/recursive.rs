@@ -29,7 +29,6 @@ use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{
     httm_is_dir, is_channel_closed, print_output_buf, HttmIsDir, Never,
 };
-//use crate::library::utility::{ nice_thread, PriorityType,};
 use crate::lookup::deleted::deleted_lookup_exec;
 use crate::lookup::last_in_time::LastInTimeSet;
 use crate::lookup::versions::versions_lookup_exec;
@@ -132,13 +131,6 @@ fn iterative_enumeration(
                 queue.extend(vec_dirs.into_iter())
             }
         }
-
-        // re-nice deleted threads to high priority
-        // deleted threads were nice-ed while main thread was running
-        // if matches!(config.exec_mode, ExecMode::Interactive(_)) && !matches!(config.deleted_mode, Some(DeletedMode::Only)) {
-        //     // don't panic on failure setpriority failure
-        //     let _ = nice_thread(PriorityType::PGroup, None, 0i32);
-        // }
     }
 
     
@@ -309,13 +301,6 @@ fn enumerate_deleted(
     if is_channel_closed(hangup_rx) {
         return Err(HttmError::new("Thread requested to quit.  Quitting.").into());
     }
-
-    // re-nice deleted thread
-    // use a lower priority to make room for interactive views/non-deleted enumeration
-    // if matches!(config.exec_mode, ExecMode::Interactive(_)) && !matches!(config.deleted_mode, Some(DeletedMode::Only)) {
-    //     // don't panic on failure setpriority failure
-    //     let _ = nice_thread(PriorityType::Process, None, 1i32);
-    // }
 
     // obtain all unique deleted, unordered, unsorted, will need to fix
     let vec_deleted = deleted_lookup_exec(config.as_ref(), requested_dir);
