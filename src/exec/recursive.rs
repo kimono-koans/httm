@@ -281,7 +281,12 @@ fn is_filter_dir(config: &Config, entry: &BasicDirEntryInfo) -> bool {
     }
 
     // finally : is a non-supported dataset?
-    config.dataset_collection.filter_dirs.contains(path)
+    // bailout easily if path is larger than max_filter_dir len
+    if path.components().count() <= config.dataset_collection.filter_dirs.max_len {
+        config.dataset_collection.filter_dirs.dirs.contains(path)
+    } else {
+        false
+    }
 }
 
 // deleted file search for all modes

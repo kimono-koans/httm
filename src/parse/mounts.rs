@@ -52,7 +52,11 @@ pub struct DatasetMetadata {
     pub mount_type: MountType,
 }
 
-pub type FilterDirs = BTreeSet<PathBuf>;
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FilterDirs {
+    pub dirs: BTreeSet<PathBuf>,
+    pub max_len: usize,
+}
 
 pub type MapOfDatasets = BTreeMap<PathBuf, DatasetMetadata>;
 
@@ -66,13 +70,24 @@ impl BaseFilesystemInfo {
     // divide by the type of system we are on
     // Linux allows us the read proc mounts
     pub fn new() -> HttmResult<Self> {
-        let (map_of_datasets, filter_dirs) = if cfg!(target_os = "linux") {
+        let (map_of_datasets, filter_dirs_set) = if cfg!(target_os = "linux") {
             Self::from_proc_mounts()?
         } else {
             Self::from_mount_cmd()?
         };
 
         let map_of_snaps = MapOfSnaps::new(&map_of_datasets)?;
+
+        let filter_dirs_max_len = filter_dirs_set
+            .iter()
+            .map(|dir| dir.components().count())
+            .max()
+            .unwrap_or(0);
+
+        let filter_dirs = FilterDirs {
+            dirs: filter_dirs_set,
+            max_len: filter_dirs_max_len,
+        };
 
         Ok(BaseFilesystemInfo {
             map_of_datasets,
@@ -83,7 +98,7 @@ impl BaseFilesystemInfo {
 
     // parsing from proc mounts is both faster and necessary for certain btrfs features
     // for instance, allows us to read subvolumes mounts, like "/@" or "/@home"
-    fn from_proc_mounts() -> HttmResult<(MapOfDatasets, FilterDirs)> {
+    fn from_proc_mounts() -> HttmResult<(MapOfDatasets, BTreeSet<PathBuf>)> {
         let (map_of_datasets, filter_dirs): (MapOfDatasets, BTreeSet<PathBuf>) = MountIter::new()?
             .par_bridge()
             .flatten()
@@ -165,7 +180,7 @@ impl BaseFilesystemInfo {
 
     // old fashioned parsing for non-Linux systems, nearly as fast, works everywhere with a mount command
     // both methods are much faster than using zfs command
-    fn from_mount_cmd() -> HttmResult<(MapOfDatasets, FilterDirs)> {
+    fn from_mount_cmd() -> HttmResult<(MapOfDatasets, BTreeSet<PathBuf>)> {
         fn parse(mount_command: &Path) -> HttmResult<(MapOfDatasets, BTreeSet<PathBuf>)> {
             let command_output =
                 std::str::from_utf8(&ExecProcess::new(mount_command).output()?.stdout)?.to_owned();
