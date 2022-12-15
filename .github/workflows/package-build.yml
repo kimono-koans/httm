@@ -27,7 +27,7 @@ jobs:
     - name: Convert deb to rpm with alien
       working-directory: target/debian
       run: sudo alien --to-rpm httm_*.deb
-    - name: upload binaries to release
+    - name: Upload binaries to release
       uses: softprops/action-gh-release@v1
       if: ${{startsWith(github.ref, 'refs/tags/') }}
       with:
