@@ -27,11 +27,11 @@ jobs:
     - name: Convert deb to rpm with alien
       working-directory: target/debian
       run: sudo alien --to-rpm httm_*.deb
-    - name: Upload both build artifacts
-      uses: actions/upload-artifact@v3.1.0
+    - name: upload binaries to release
+      uses: softprops/action-gh-release@v1
+      if: ${{startsWith(github.ref, 'refs/tags/') }}
       with:
-        name: cargo-deb-upload
-        path: target/debian/httm*.*
+          files: target/debian/httm*.*
 
   # publish:
   #   runs-on: ubuntu-20.04
