@@ -94,9 +94,9 @@ On FreeBSD, after a fresh minimal install, the interactive modes may not render 
 
 On some Linux distributions, which include old versions of `libc`, `cargo` may require building with `musl` instead, see the linked [issue](https://github.com/kimono-koans/httm/issues/17).
 
-## Where do snapshots (your own) come from?
+## Where do (your own) snapshots come from?
 
-If you'd like to read more about how I create snapshots my own snapshots, you might try my [A Somewhat Opinionated Guide to Effective ZFS Snapshots](https://kimono-koans.github.io/opinionated-guide/).
+If you'd like to read more about how I create snapshots, you might try my [A Somewhat Opinionated Guide to Effective ZFS Snapshots](https://kimono-koans.github.io/opinionated-guide/).
 
 ## Example Usage
 
