@@ -85,7 +85,7 @@ Note: `0.17.10` will be the last release published to [crates.io](https://crates
     cp ./httm/scripts/bowie.bash /usr/local/bin/bowie
     chmod +x /usr/local/bin/bowie /usr/local/bin/ounce
     ```
-    
+
 ### Caveats
 
 Right now, you will need to use a Unix-ish-y Rust-supported platform to build and install (that is: Linux, Solaris/illumos, the BSDs, MacOS).  Note, your platform *does not* need to support ZFS/btrfs to use `httm`.  And there is no fundamental reason a non-interactive Windows version of `httm` could not be built, as it once did build, but Windows platform support is not a priority for me right now.  Contributions from users are, of course, very welcome.
@@ -93,6 +93,10 @@ Right now, you will need to use a Unix-ish-y Rust-supported platform to build an
 On FreeBSD, after a fresh minimal install, the interactive modes may not render properly, see the linked [issue](https://github.com/kimono-koans/httm/issues/20) for the fix.
 
 On some Linux distributions, which include old versions of `libc`, `cargo` may require building with `musl` instead, see the linked [issue](https://github.com/kimono-koans/httm/issues/17).
+
+## Where do snapshots (your own) come from?
+
+If you'd like to read more about how I create snapshots my own snapshots, you might try my [A Somewhat Opinionated Guide to Effective ZFS Snapshots](https://kimono-koans.github.io/opinionated-guide/).
 
 ## Example Usage
 
