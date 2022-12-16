@@ -1,4 +1,4 @@
-[![asciicast](https://asciinema.org/a/529608.svg)](https://asciinema.org/a/529608)
+[![asciicast](https://asciinema.org/a/537719.svg)](https://asciinema.org/a/537719)
 
 # `httm`
 
@@ -94,10 +94,6 @@ On FreeBSD, after a fresh minimal install, the interactive modes may not render 
 
 On some Linux distributions, which include old versions of `libc`, `cargo` may require building with `musl` instead, see the linked [issue](https://github.com/kimono-koans/httm/issues/17).
 
-## Where do (your own) snapshots come from?
-
-If you'd like to read more about how I create snapshots, you might try my [A Somewhat Opinionated Guide to Effective ZFS Snapshots](https://kimono-koans.github.io/opinionated-guide/).
-
 ## Example Usage
 
 Note: Users may need to use `sudo` (or equivalent) to view versions on btrfs datasets, as btrfs snapshots may require root permissions in order to be visible.
@@ -133,7 +129,7 @@ View unique versions of a file for recovery (shortcut, no need to browse a direc
 ```bash
 httm -r /var/log/samba/log.smbd
 ```
-View bowie-formatted `diff` of each unique snapshot of `~/.zshrc` against the live file version:
+View `bowie`-formatted `diff` of each unique snapshot of `~/.zshrc` against the live file version:
 ```bash
 httm --preview -s ~/.zshrc
 ```
@@ -236,7 +232,11 @@ alias nano=\"ounce --background nano\"
 alias rm=\"ounce rm\"" >> ~/.zsh_aliases
 ```
 
-## I know what you're thinking, but slow your roll.
+## Yo, @kimono-koans, where do your snapshots come from?
+
+If you'd like to read more about how someone else/I personally create snapshots, you might try my [A Somewhat Opinionated Guide to Effective ZFS Snapshots](https://kimono-koans.github.io/opinionated-guide/).
+
+## I know what you're thinking, but slow your roll
 
 ![To be clear, httm is *not*...](https://i.pinimg.com/originals/23/7f/2a/237f2ab8765663c721325366406197b7.gif)
 
