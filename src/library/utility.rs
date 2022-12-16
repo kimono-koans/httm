@@ -37,44 +37,6 @@ use crate::library::results::{HttmError, HttmResult};
 use crate::parse::aliases::FilesystemType;
 use crate::{BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_SNAPSHOT_DIRECTORY};
 
-#[allow(dead_code)]
-pub enum PriorityType {
-    Process = 0,
-    PGroup = 1,
-    User = 2,
-}
-
-#[allow(dead_code)]
-// nice calling thread to a specified level
-pub fn nice_thread(
-    priority_type: PriorityType,
-    opt_tid: Option<u32>,
-    priority_level: i32,
-) -> HttmResult<()> {
-    let tid = if let Some(tid) = opt_tid {
-        tid
-    } else {
-        std::process::id()
-    };
-
-    #[allow(unused_assignments)]
-    let mut ret = 0;
-    #[cfg(any(target_os = "macos", target_os = "freebsd"))]
-    unsafe {
-        ret = libc::setpriority(priority_type as i32, tid, priority_level)
-    };
-    #[cfg(target_os = "linux")]
-    unsafe {
-        ret = libc::setpriority(priority_type as u32, tid, priority_level)
-    };
-
-    if ret != 0i32 {
-        return Err(HttmError::new("httm was unable to set the current thread's priority.").into());
-    }
-
-    Ok(())
-}
-
 pub fn get_delimiter(config: &Config) -> char {
     if config.opt_zeros {
         '\0'
@@ -378,3 +340,42 @@ pub fn display_human_size(size: &u64) -> String {
         }
     }
 }
+
+/* #[allow(dead_code)]
+pub enum PriorityType {
+    Process = 0,
+    PGroup = 1,
+    User = 2,
+}
+
+#[allow(dead_code)]
+// nice calling thread to a specified level
+pub fn nice_thread(
+    priority_type: PriorityType,
+    opt_tid: Option<u32>,
+    priority_level: i32,
+) -> HttmResult<()> {
+    let tid = if let Some(tid) = opt_tid {
+        tid
+    } else {
+        std::process::id()
+    };
+
+    #[allow(unused_assignments)]
+    let mut ret = 0;
+    #[cfg(any(target_os = "macos", target_os = "freebsd"))]
+    unsafe {
+        ret = libc::setpriority(priority_type as i32, tid, priority_level)
+    };
+    #[cfg(target_os = "linux")]
+    unsafe {
+        ret = libc::setpriority(priority_type as u32, tid, priority_level)
+    };
+
+    if ret != 0i32 {
+        return Err(HttmError::new("httm was unable to set the current thread's priority.").into());
+    }
+
+    Ok(())
+}
+*/

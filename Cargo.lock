@@ -455,14 +455,13 @@ dependencies = [
 
 [[package]]
 name = "httm"
-version = "0.18.1"
+version = "0.18.2"
 dependencies = [
  "chrono",
  "clap",
  "crossbeam",
  "hashbrown 0.13.1",
  "indicatif",
- "libc",
  "lscolors",
  "number_prefix",
  "once_cell",

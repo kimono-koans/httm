@@ -32,7 +32,7 @@ proc-mounts = { version = "0.3.0", default-features = false }
 once_cell = { version = "1.16.0", default-features = false }
 chrono = { version = "0.4.23", default-features = false }
 hashbrown = { version = "0.13.1" }
-libc = { version = "0.2.138", default-features = false }
+# libc = { version = "0.2.138", default-features = false }
 
 [patch.crates-io]
 skim = { git = "https://github.com/kimono-koans/skim", branch = "httm-vendored" }
