@@ -341,7 +341,8 @@ pub fn display_human_size(size: &u64) -> String {
     }
 }
 
-/* #[allow(dead_code)]
+/*
+#[allow(dead_code)]
 pub enum PriorityType {
     Process = 0,
     PGroup = 1,
@@ -363,13 +364,16 @@ pub fn nice_thread(
 
     #[allow(unused_assignments)]
     let mut ret = 0;
-    #[cfg(any(target_os = "macos", target_os = "freebsd"))]
+    #[cfg(any(target_os = "macos", target_os = "freebsd", target_env = "musl"))]
     unsafe {
         ret = libc::setpriority(priority_type as i32, tid, priority_level)
     };
-    #[cfg(target_os = "linux")]
+    #[cfg(target_env = "gnu")]
     unsafe {
-        ret = libc::setpriority(priority_type as u32, tid, priority_level)
+        // linux kernel uses unsigned ints so represents -20..20 as 1..40
+        // AFAIK libc actually uses i32 ints and converts.  this may be some weird
+        // rust libc wrinkle?
+        ret = libc::setpriority((priority_type as i32 + 20i32) as u32, tid, priority_level)
     };
 
     if ret != 0i32 {
@@ -378,4 +382,5 @@ pub fn nice_thread(
 
     Ok(())
 }
-*/
+
+ */
