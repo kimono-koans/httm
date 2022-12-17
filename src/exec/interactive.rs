@@ -351,9 +351,8 @@ impl InteractiveRestore {
 
         // loop until user consents or doesn't
         loop {
-            let user_consent =
-                select_restore_view(config, &preview_buffer, ViewMode::Restore)?
-                    .to_ascii_uppercase();
+            let user_consent = select_restore_view(config, &preview_buffer, ViewMode::Restore)?
+                .to_ascii_uppercase();
 
             match user_consent.as_ref() {
                 "YES" | "Y" => match copy_recursive(&snap_pathdata.path_buf, &new_file_path_buf) {
@@ -401,14 +400,15 @@ struct PreviewSelection {
 }
 
 impl PreviewSelection {
-    fn new(
-        config: &Config,
-        view_mode: ViewMode,
-    ) -> HttmResult<Self> {
+    fn new(config: &Config, view_mode: ViewMode) -> HttmResult<Self> {
         //let (opt_preview_window, opt_preview_command) =
         let res = match &config.opt_preview {
             Some(defined_command) if matches!(view_mode, ViewMode::Select(_)) => {
-                let opt_live_version = if let ViewMode::Select(opt) = view_mode { opt } else { unreachable!() };
+                let opt_live_version = if let ViewMode::Select(opt) = view_mode {
+                    opt
+                } else {
+                    unreachable!()
+                };
 
                 PreviewSelection {
                     opt_preview_window: Some("up:50%".to_owned()),
@@ -417,7 +417,7 @@ impl PreviewSelection {
                         &opt_live_version,
                     )?),
                 }
-            },
+            }
             _ => PreviewSelection {
                 opt_preview_window: Some("".to_owned()),
                 opt_preview_command: None,
