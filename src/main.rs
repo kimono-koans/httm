@@ -27,6 +27,7 @@ mod display {
 }
 mod exec {
     pub mod interactive;
+    pub mod preview;
     pub mod recursive;
     pub mod snapshot;
     pub mod spawn_deleted;
