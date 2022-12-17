@@ -25,7 +25,7 @@ use crate::data::paths::{PathData, PHANTOM_DATE, PHANTOM_SIZE};
 use crate::library::utility::{
     display_human_size, get_date, get_delimiter, paint_string, DateFormat,
 };
-use crate::lookup::versions::DisplayMap;
+use crate::lookup::versions::VersionsMap;
 
 // 2 space wide padding - used between date and size, and size and path
 pub const PRETTY_FIXED_WIDTH_PADDING: &str = "  ";
@@ -36,7 +36,7 @@ pub const NOT_SO_PRETTY_FIXED_WIDTH_PADDING: &str = "\t";
 // and we add 2 quotation marks to the path when we format
 pub const QUOTATION_MARKS_LEN: usize = 2;
 
-impl DisplayMap {
+impl VersionsMap {
     pub fn display(&self, config: &Config) -> String {
         match &config.exec_mode {
             ExecMode::NumVersions(num_versions_mode) => {
@@ -115,7 +115,7 @@ impl Deref for DisplaySet {
 }
 
 impl DisplaySet {
-    pub fn new(config: &Config, display_map: &DisplayMap) -> DisplaySet {
+    pub fn new(config: &Config, display_map: &VersionsMap) -> DisplaySet {
         let vec_snaps = if config.opt_no_snap {
             Vec::new()
         } else {

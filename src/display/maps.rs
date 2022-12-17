@@ -17,9 +17,9 @@
 
 use crate::config::generate::{Config, PrintMode};
 use crate::display::primary::{NOT_SO_PRETTY_FIXED_WIDTH_PADDING, QUOTATION_MARKS_LEN};
-use crate::lookup::versions::DisplayMap;
+use crate::lookup::versions::VersionsMap;
 
-impl DisplayMap {
+impl VersionsMap {
     pub fn get_map_padding(&self) -> usize {
         self.iter()
             .map(|(key, _values)| key)

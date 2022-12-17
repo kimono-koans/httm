@@ -23,7 +23,7 @@ use rayon::prelude::*;
 use crate::config::generate::Config;
 use crate::data::paths::PathData;
 use crate::library::iter_extensions::HttmIter;
-use crate::lookup::versions::{DisplayMap, MostProximateAndOptAlts};
+use crate::lookup::versions::{MostProximateAndOptAlts, VersionsMap};
 
 pub struct MountsForFiles {
     inner: BTreeMap<PathData, Vec<PathData>>,
@@ -35,7 +35,7 @@ impl From<BTreeMap<PathData, Vec<PathData>>> for MountsForFiles {
     }
 }
 
-impl From<MountsForFiles> for DisplayMap {
+impl From<MountsForFiles> for VersionsMap {
     fn from(map: MountsForFiles) -> Self {
         map.inner.into()
     }

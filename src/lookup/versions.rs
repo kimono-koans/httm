@@ -28,38 +28,18 @@ use crate::config::generate::{Config, LastSnapMode};
 use crate::data::paths::PathData;
 use crate::library::results::{HttmError, HttmResult};
 
-pub fn versions_lookup_exec(config: &Config, path_set: &[PathData]) -> HttmResult<DisplayMap> {
-    let display_map = DisplayMap::new(config, path_set);
-
-    // check if all files (snap and live) do not exist, if this is true, then user probably messed up
-    // and entered a file that never existed (that is, perhaps a wrong file name)?
-    if display_map.values().all(std::vec::Vec::is_empty)
-        && display_map
-            .keys()
-            .all(|pathdata| pathdata.metadata.is_none())
-        && !config.opt_no_snap
-    {
-        return Err(HttmError::new(
-            "httm could not find either a live copy or a snapshot copy of any specified file, so, umm, 🤷? Please try another file.",
-        )
-        .into());
-    }
-
-    Ok(display_map)
-}
-
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct DisplayMap {
+pub struct VersionsMap {
     inner: BTreeMap<PathData, Vec<PathData>>,
 }
 
-impl From<BTreeMap<PathData, Vec<PathData>>> for DisplayMap {
+impl From<BTreeMap<PathData, Vec<PathData>>> for VersionsMap {
     fn from(map: BTreeMap<PathData, Vec<PathData>>) -> Self {
         Self { inner: map }
     }
 }
 
-impl From<(PathData, Vec<PathData>)> for DisplayMap {
+impl From<(PathData, Vec<PathData>)> for VersionsMap {
     fn from(tuple: (PathData, Vec<PathData>)) -> Self {
         Self {
             inner: BTreeMap::from([tuple]),
@@ -67,7 +47,7 @@ impl From<(PathData, Vec<PathData>)> for DisplayMap {
     }
 }
 
-impl Deref for DisplayMap {
+impl Deref for VersionsMap {
     type Target = BTreeMap<PathData, Vec<PathData>>;
 
     fn deref(&self) -> &Self::Target {
@@ -75,8 +55,28 @@ impl Deref for DisplayMap {
     }
 }
 
-impl DisplayMap {
-    pub fn new(config: &Config, path_set: &[PathData]) -> Self {
+impl VersionsMap {
+    pub fn new(config: &Config, path_set: &[PathData]) -> HttmResult<VersionsMap> {
+        let display_map = Self::from(config, path_set);
+
+        // check if all files (snap and live) do not exist, if this is true, then user probably messed up
+        // and entered a file that never existed (that is, perhaps a wrong file name)?
+        if display_map.values().all(std::vec::Vec::is_empty)
+            && display_map
+                .keys()
+                .all(|pathdata| pathdata.metadata.is_none())
+            && !config.opt_no_snap
+        {
+            return Err(HttmError::new(
+                "httm could not find either a live copy or a snapshot copy of any specified file, so, umm, 🤷? Please try another file.",
+            )
+            .into());
+        }
+
+        Ok(display_map)
+    }
+
+    pub fn from(config: &Config, path_set: &[PathData]) -> Self {
         // create vec of all local and replicated backups at once
         let snaps_selected_for_search = config
             .dataset_collection
@@ -109,7 +109,7 @@ impl DisplayMap {
             })
             .collect();
 
-        let display_map: DisplayMap = all_snap_versions.into();
+        let display_map: VersionsMap = all_snap_versions.into();
 
         // process last snap mode after omit_ditto
         match &config.opt_last_snap {
@@ -118,7 +118,7 @@ impl DisplayMap {
         }
     }
 
-    fn get_last_snap(&self, last_snap_mode: &LastSnapMode) -> DisplayMap {
+    fn get_last_snap(&self, last_snap_mode: &LastSnapMode) -> VersionsMap {
         let res: BTreeMap<PathData, Vec<PathData>> = self
             .iter()
             .map(|(pathdata, snaps)| {

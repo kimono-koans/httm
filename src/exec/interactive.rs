@@ -29,7 +29,7 @@ use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{
     copy_recursive, get_date, get_delimiter, print_output_buf, DateFormat, Never,
 };
-use crate::lookup::versions::{versions_lookup_exec, DisplayMap};
+use crate::lookup::versions::VersionsMap;
 
 pub struct InteractiveBrowse {}
 
@@ -43,10 +43,11 @@ impl InteractiveBrowse {
             Some(requested_dir) => {
                 // loop until user selects a valid path
                 loop {
-                    let selected_pathdata = InteractiveBrowse::browse_view(config.clone(), requested_dir)?
-                        .into_iter()
-                        .map(|path_string| PathData::from(Path::new(&path_string)))
-                        .collect::<Vec<PathData>>();
+                    let selected_pathdata =
+                        InteractiveBrowse::browse_view(config.clone(), requested_dir)?
+                            .into_iter()
+                            .map(|path_string| PathData::from(Path::new(&path_string)))
+                            .collect::<Vec<PathData>>();
                     if !selected_pathdata.is_empty() {
                         break selected_pathdata;
                     }
@@ -59,7 +60,11 @@ impl InteractiveBrowse {
                 match config.paths.get(0) {
                     Some(first_path) => {
                         let selected_file = first_path.clone();
-                        InteractiveSelect::exec(config.as_ref(), &[selected_file], interactive_mode)?;
+                        InteractiveSelect::exec(
+                            config.as_ref(),
+                            &[selected_file],
+                            interactive_mode,
+                        )?;
                         unreachable!("interactive select never returns so unreachable here")
                     }
                     // Config::from should never allow us to have an instance where we don't
@@ -70,12 +75,16 @@ impl InteractiveBrowse {
                 }
             }
         };
-    
+
         // do we return back to our main exec function to print,
         // or continue down the interactive rabbit hole?
         match interactive_mode {
             InteractiveMode::Restore(_) | InteractiveMode::Select => {
-                InteractiveSelect::exec(config.as_ref(), &paths_selected_in_browse, interactive_mode)?;
+                InteractiveSelect::exec(
+                    config.as_ref(),
+                    &paths_selected_in_browse,
+                    interactive_mode,
+                )?;
                 unreachable!()
             }
             // InteractiveMode::Browse executes back through fn exec() in main.rs
@@ -150,7 +159,7 @@ impl InteractiveSelect {
         paths_selected_in_browse: &[PathData],
         interactive_mode: &InteractiveMode,
     ) -> HttmResult<()> {
-        let display_map = versions_lookup_exec(config, paths_selected_in_browse)?;
+        let display_map = VersionsMap::new(config, paths_selected_in_browse)?;
 
         // snap and live set has no snaps
         if display_map.is_empty() {
@@ -238,7 +247,7 @@ impl InteractiveSelect {
     fn get_last_snap(
         config: &Config,
         paths_selected_in_browse: &[PathData],
-        display_map: &DisplayMap,
+        display_map: &VersionsMap,
     ) -> HttmResult<String> {
         // should be good to index into both, there is a known known 2nd vec,
         let live_version = &paths_selected_in_browse
@@ -360,7 +369,7 @@ impl InteractiveRestore {
             // so, if you were in /etc and wanted to restore /etc/samba/smb.conf, httm will make certain to overwrite
             // at /etc/samba/smb.conf
             let opt_original_live_pathdata = paths_selected_in_browse.iter().find_map(|pathdata| {
-                match versions_lookup_exec(config, &[pathdata.clone()]).ok() {
+                match VersionsMap::new(config, &[pathdata.clone()]).ok() {
                     // safe to index into snaps, known len of 2 for set
                     Some(display_map) => {
                         display_map.values().flatten().find_map(|pathdata| {
