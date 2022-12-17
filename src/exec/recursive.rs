@@ -25,10 +25,9 @@ use skim::prelude::*;
 use crate::config::generate::{Config, DeletedMode, ExecMode};
 use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::data::selection::SelectionCandidate;
+use crate::exec::spawn_deleted::SpawnDeletedThreads;
 use crate::library::results::{HttmError, HttmResult};
-use crate::library::utility::{httm_is_dir, is_channel_closed, print_output_buf, HttmIsDir, Never};
-use crate::lookup::deleted::deleted_lookup_exec;
-use crate::lookup::last_in_time::LastInTimeSet;
+use crate::library::utility::{httm_is_dir, print_output_buf, HttmIsDir, Never};
 use crate::lookup::versions::versions_lookup_exec;
 use crate::{BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_HIDDEN_DIRECTORY};
 
@@ -66,7 +65,7 @@ pub fn recursive_exec(
     hangup_rx: Receiver<Never>,
 ) {
     let exec = |opt_deleted_scope: Option<&Scope>| {
-        iterative_enumeration(
+        MainIterativeLoop::exec(
             config.clone(),
             requested_dir,
             opt_deleted_scope,
@@ -94,74 +93,78 @@ pub fn recursive_exec(
     }
 }
 
-fn iterative_enumeration(
-    config: Arc<Config>,
-    requested_dir: &Path,
-    opt_deleted_scope: Option<&Scope>,
-    skim_tx: &SkimItemSender,
-    hangup_rx: &Receiver<Never>,
-) -> HttmResult<()> {
-    // runs once for non-recursive but also "primes the pump"
-    // for recursive to have items available, also only place an
-    // error can stop execution
-    let mut queue: VecDeque<BasicDirEntryInfo> = enumerate_live(
-        config.clone(),
-        requested_dir,
-        opt_deleted_scope,
-        skim_tx,
-        hangup_rx,
-    )?
-    .into();
+struct MainIterativeLoop {}
 
-    if config.opt_recursive {
-        // condition kills iter when user has made a selection
-        // pop_back makes this a LIFO queue which is supposedly better for caches
-        while let Some(item) = queue.pop_back() {
-            // no errors will be propagated in recursive mode
-            // far too likely to run into a dir we don't have permissions to view
-            if let Ok(vec_dirs) = enumerate_live(
-                config.clone(),
-                &item.path,
-                opt_deleted_scope,
-                skim_tx,
-                hangup_rx,
-            ) {
-                queue.extend(vec_dirs.into_iter())
+impl MainIterativeLoop {
+    fn exec(
+        config: Arc<Config>,
+        requested_dir: &Path,
+        opt_deleted_scope: Option<&Scope>,
+        skim_tx: &SkimItemSender,
+        hangup_rx: &Receiver<Never>,
+    ) -> HttmResult<()> {
+        // runs once for non-recursive but also "primes the pump"
+        // for recursive to have items available, also only place an
+        // error can stop execution
+        let mut queue: VecDeque<BasicDirEntryInfo> = Self::enumerate(
+            config.clone(),
+            requested_dir,
+            opt_deleted_scope,
+            skim_tx,
+            hangup_rx,
+        )?
+        .into();
+
+        if config.opt_recursive {
+            // condition kills iter when user has made a selection
+            // pop_back makes this a LIFO queue which is supposedly better for caches
+            while let Some(item) = queue.pop_back() {
+                // no errors will be propagated in recursive mode
+                // far too likely to run into a dir we don't have permissions to view
+                if let Ok(vec_dirs) = Self::enumerate(
+                    config.clone(),
+                    &item.path,
+                    opt_deleted_scope,
+                    skim_tx,
+                    hangup_rx,
+                ) {
+                    queue.extend(vec_dirs.into_iter())
+                }
             }
         }
+
+        Ok(())
     }
 
-    Ok(())
-}
+    fn enumerate(
+        config: Arc<Config>,
+        requested_dir: &Path,
+        opt_deleted_scope: Option<&Scope>,
+        skim_tx: &SkimItemSender,
+        hangup_rx: &Receiver<Never>,
+    ) -> HttmResult<Vec<BasicDirEntryInfo>> {
+        // combined entries will be sent or printed, but we need the vec_dirs to recurse
+        let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
+            get_entries_partitioned(config.as_ref(), requested_dir)?;
 
-fn enumerate_live(
-    config: Arc<Config>,
-    requested_dir: &Path,
-    opt_deleted_scope: Option<&Scope>,
-    skim_tx: &SkimItemSender,
-    hangup_rx: &Receiver<Never>,
-) -> HttmResult<Vec<BasicDirEntryInfo>> {
-    // combined entries will be sent or printed, but we need the vec_dirs to recurse
-    let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
-        get_entries_partitioned(config.as_ref(), requested_dir)?;
+        combine_and_send_entries(
+            config.clone(),
+            vec_files,
+            &vec_dirs,
+            false,
+            requested_dir,
+            skim_tx,
+        )?;
 
-    combine_and_send_entries(
-        config.clone(),
-        vec_files,
-        &vec_dirs,
-        false,
-        requested_dir,
-        skim_tx,
-    )?;
+        if let Some(deleted_scope) = opt_deleted_scope {
+            SpawnDeletedThreads::exec(config, requested_dir, deleted_scope, skim_tx, hangup_rx);
+        }
 
-    if let Some(deleted_scope) = opt_deleted_scope {
-        spawn_deleted(config, requested_dir, deleted_scope, skim_tx, hangup_rx);
+        Ok(vec_dirs)
     }
-
-    Ok(vec_dirs)
 }
 
-fn combine_and_send_entries(
+pub fn combine_and_send_entries(
     config: Arc<Config>,
     vec_files: Vec<BasicDirEntryInfo>,
     vec_dirs: &[BasicDirEntryInfo],
@@ -193,31 +196,7 @@ fn combine_and_send_entries(
     display_or_transmit(config, entries, is_phantom, skim_tx)
 }
 
-// "spawn" a lighter weight rayon/greenish thread for enumerate_deleted, if needed
-fn spawn_deleted(
-    config: Arc<Config>,
-    requested_dir: &Path,
-    deleted_scope: &Scope,
-    skim_tx: &SkimItemSender,
-    hangup_rx: &Receiver<Never>,
-) {
-    // spawn_enumerate_deleted will send deleted files back to
-    // the main thread for us
-    let requested_dir_clone = requested_dir.to_path_buf();
-    let skim_tx_clone = skim_tx.clone();
-    let hangup_rx_clone = hangup_rx.clone();
-
-    deleted_scope.spawn(move |_| {
-        let _ = enumerate_deleted(
-            config,
-            &requested_dir_clone,
-            &skim_tx_clone,
-            &hangup_rx_clone,
-        );
-    });
-}
-
-fn get_entries_partitioned(
+pub fn get_entries_partitioned(
     config: &Config,
     requested_dir: &Path,
 ) -> HttmResult<(Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>)> {
@@ -244,7 +223,7 @@ fn get_entries_partitioned(
     Ok((vec_dirs, vec_files))
 }
 
-fn recursive_is_entry_dir(config: &Config, entry: &BasicDirEntryInfo) -> bool {
+pub fn recursive_is_entry_dir(config: &Config, entry: &BasicDirEntryInfo) -> bool {
     // must do is_dir() look up on file type as look up on path will traverse links!
     if config.opt_no_traverse {
         if let Ok(file_type) = entry.get_filetype() {
@@ -287,144 +266,6 @@ fn is_filter_dir(config: &Config, entry: &BasicDirEntryInfo) -> bool {
     }
 
     config.dataset_collection.filter_dirs.dirs.contains(path)
-}
-
-// deleted file search for all modes
-fn enumerate_deleted(
-    config: Arc<Config>,
-    requested_dir: &Path,
-    skim_tx: &SkimItemSender,
-    hangup_rx: &Receiver<Never>,
-) -> HttmResult<()> {
-    // check -- should deleted threads keep working?
-    // exit/error on disconnected channel, which closes
-    // at end of browse scope
-    if is_channel_closed(hangup_rx) {
-        return Err(HttmError::new("Thread requested to quit.  Quitting.").into());
-    }
-
-    // obtain all unique deleted, unordered, unsorted, will need to fix
-    let vec_deleted = deleted_lookup_exec(config.as_ref(), requested_dir);
-
-    // combined entries will be sent or printed, but we need the vec_dirs to recurse
-    let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
-        vec_deleted.into_iter().partition(|entry| {
-            // no need to traverse symlinks in deleted search
-            recursive_is_entry_dir(config.as_ref(), entry)
-        });
-
-    combine_and_send_entries(
-        config.clone(),
-        vec_files,
-        &vec_dirs,
-        true,
-        requested_dir,
-        skim_tx,
-    )?;
-
-    // disable behind deleted dirs with DepthOfOne,
-    // otherwise recurse and find all those deleted files
-    //
-    // don't propagate errors, errors we are most concerned about
-    // are transmission errors, which are handled elsewhere
-    if config.deleted_mode != Some(DeletedMode::DepthOfOne)
-        && config.opt_recursive
-        && !vec_dirs.is_empty()
-    {
-        // get latest in time per our policy
-        let path_set: Vec<PathData> = vec_dirs
-            .into_iter()
-            .map(|basic_info| PathData::from(&basic_info))
-            .collect();
-
-        let last_in_time_set = LastInTimeSet::new(&config, &path_set);
-
-        last_in_time_set.iter().try_for_each(|deleted_dir| {
-            let config_clone = config.clone();
-            let requested_dir_clone = requested_dir.to_path_buf();
-
-            get_entries_behind_deleted_dir(
-                config_clone,
-                deleted_dir.as_path(),
-                &requested_dir_clone,
-                skim_tx,
-                hangup_rx,
-            )
-        })
-    } else {
-        Ok(())
-    }
-}
-
-// searches for all files behind the dirs that have been deleted
-// recurses over all dir entries and creates pseudo live versions
-// for them all, policy is to use the latest snapshot version before
-// deletion
-fn get_entries_behind_deleted_dir(
-    config: Arc<Config>,
-    deleted_dir: &Path,
-    requested_dir: &Path,
-    skim_tx: &SkimItemSender,
-    hangup_rx: &Receiver<Never>,
-) -> HttmResult<()> {
-    fn recurse_behind_deleted_dir(
-        config: Arc<Config>,
-        dir_name: &Path,
-        from_deleted_dir: &Path,
-        from_requested_dir: &Path,
-        skim_tx: &SkimItemSender,
-        hangup_rx: &Receiver<Never>,
-    ) -> HttmResult<()> {
-        // check -- should deleted threads keep working?
-        // exit/error on disconnected channel, which closes
-        // at end of browse scope
-        if is_channel_closed(hangup_rx) {
-            return Err(HttmError::new("Thread requested to quit.  Quitting.").into());
-        }
-
-        // deleted_dir_on_snap is the path from the deleted dir on the snapshot
-        // pseudo_live_dir is the path from the fake, deleted directory that once was
-        let deleted_dir_on_snap = &from_deleted_dir.to_path_buf().join(&dir_name);
-        let pseudo_live_dir = &from_requested_dir.to_path_buf().join(&dir_name);
-
-        let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
-            get_entries_partitioned(config.as_ref(), deleted_dir_on_snap)?;
-
-        combine_and_send_entries(
-            config.clone(),
-            vec_files,
-            &vec_dirs,
-            true,
-            pseudo_live_dir,
-            skim_tx,
-        )?;
-
-        // now recurse!
-        // don't propagate errors, errors we are most concerned about
-        // are transmission errors, which are handled elsewhere
-        vec_dirs.into_iter().try_for_each(|basic_info| {
-            recurse_behind_deleted_dir(
-                config.clone(),
-                Path::new(&basic_info.file_name),
-                deleted_dir_on_snap,
-                pseudo_live_dir,
-                skim_tx,
-                hangup_rx,
-            )
-        })
-    }
-
-    match &deleted_dir.file_name() {
-        Some(dir_name) => recurse_behind_deleted_dir(
-            config,
-            Path::new(dir_name),
-            deleted_dir.parent().unwrap_or_else(|| Path::new("/")),
-            requested_dir,
-            skim_tx,
-            hangup_rx,
-        ),
-        None => Err(HttmError::new("Not a valid file name!").into()),
-    }
 }
 
 // this function creates dummy "live versions" values to match deleted files

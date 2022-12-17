@@ -380,12 +380,10 @@ impl InteractiveRestore {
 
             match opt_original_live_pathdata {
                 Some(pathdata) => Ok(pathdata.path_buf),
-                None => {
-                    Err(HttmError::new(
-                        "httm unable to determine original file path in overwrite mode.  Quitting.",
-                    )
-                    .into())
-                }
+                None => Err(HttmError::new(
+                    "httm unable to determine original file path in overwrite mode.  Quitting.",
+                )
+                .into()),
             }
         } else {
             let snap_filename = snap_pathdata

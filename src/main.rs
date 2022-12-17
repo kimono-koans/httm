@@ -29,6 +29,7 @@ mod exec {
     pub mod interactive;
     pub mod recursive;
     pub mod snapshot;
+    pub mod spawn_deleted;
 }
 mod config {
     pub mod generate;
