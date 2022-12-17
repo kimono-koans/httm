@@ -143,7 +143,7 @@ impl DisplayMap {
                         _ => Vec::new(),
                     },
                     None => match last_snap_mode {
-                        LastSnapMode::None | LastSnapMode::NoDittoInclusive => {
+                        LastSnapMode::Without | LastSnapMode::NoDittoInclusive => {
                             vec![pathdata.clone()]
                         }
                         _ => Vec::new(),
