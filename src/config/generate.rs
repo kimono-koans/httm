@@ -217,7 +217,7 @@ fn parse_args() -> ArgMatches {
                 .long("last-snap")
                 .takes_value(true)
                 .default_missing_value("any")
-                .possible_values(&["any", "ditto", "no-ditto", "no-ditto-exclusive", "no-ditto-inclusive", "none"])
+                .possible_values(&["any", "ditto", "no-ditto", "no-ditto-exclusive", "no-ditto-inclusive", "none", "without"])
                 .min_values(0)
                 .require_equals(true)
                 .help("automatically select and print the path of last-in-time unique snapshot version for the input file.  \
