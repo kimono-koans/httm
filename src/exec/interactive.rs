@@ -21,7 +21,7 @@ use crossbeam::channel::unbounded;
 use skim::prelude::*;
 use which::which;
 
-use crate::config::generate::{Config, InteractiveMode, PrintMode};
+use crate::config::generate::{Config, ExecMode, InteractiveMode, PrintMode, RestoreMode};
 use crate::data::paths::PathData;
 use crate::data::selection::SelectionCandidate;
 use crate::exec::recursive::recursive_exec;
@@ -71,7 +71,7 @@ pub fn interactive_exec(
     // do we return back to our main exec function to print,
     // or continue down the interactive rabbit hole?
     match interactive_mode {
-        InteractiveMode::Restore | InteractiveMode::Select => {
+        InteractiveMode::Restore(_) | InteractiveMode::Select => {
             interactive_select(config.as_ref(), &paths_selected_in_browse, interactive_mode)?;
             unreachable!()
         }
@@ -211,7 +211,7 @@ fn interactive_select(
     };
 
     // continue to interactive_restore or print and exit here?
-    if matches!(interactive_mode, InteractiveMode::Restore) {
+    if matches!(interactive_mode, InteractiveMode::Restore(_)) {
         // one only allow one to select one path string during select
         // but we retain paths_selected_in_browse because we may need
         // it later during restore if opt_overwrite is selected
@@ -394,7 +394,10 @@ fn interactive_restore(
         .ok_or_else(|| HttmError::new("Source location does not exist on disk. Quitting."))?;
 
     // build new place to send file
-    let new_file_path_buf = if config.opt_overwrite {
+    let new_file_path_buf = if matches!(
+        config.exec_mode,
+        ExecMode::Interactive(InteractiveMode::Restore(RestoreMode::Overwrite))
+    ) {
         // instead of just not naming the new file with extra info (date plus "httm_restored") and shoving that new file
         // into the pwd, here, we actually look for the original location of the file to make sure we overwrite it.
         // so, if you were in /etc and wanted to restore /etc/samba/smb.conf, httm will make certain to overwrite

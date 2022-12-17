@@ -66,7 +66,6 @@ impl SelectionCandidate {
             opt_recursive: false,
             opt_no_live: false,
             opt_exact: false,
-            opt_overwrite: false,
             opt_no_filter: false,
             opt_no_snap: false,
             opt_debug: false,

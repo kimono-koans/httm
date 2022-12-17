@@ -47,7 +47,13 @@ pub enum ExecMode {
 pub enum InteractiveMode {
     Browse,
     Select,
-    Restore,
+    Restore(RestoreMode),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RestoreMode {
+    Default,
+    Overwrite,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -377,7 +383,6 @@ pub struct Config {
     pub opt_no_live: bool,
     pub opt_recursive: bool,
     pub opt_exact: bool,
-    pub opt_overwrite: bool,
     pub opt_no_filter: bool,
     pub opt_no_snap: bool,
     pub opt_debug: bool,
@@ -435,10 +440,6 @@ impl Config {
         let opt_no_filter = matches.is_present("NO_FILTER");
         let opt_debug = matches.is_present("DEBUG");
         let opt_no_hidden = matches.is_present("FILTER_HIDDEN");
-        let opt_overwrite = matches!(
-            matches.value_of("RESTORE"),
-            Some("overwrite") | Some("yolo")
-        );
 
         let opt_last_snap = match matches.value_of("LAST_SNAP") {
             Some("" | "any") => Some(LastSnapMode::Any),
@@ -472,7 +473,14 @@ impl Config {
         };
 
         let opt_interactive_mode = if matches.is_present("RESTORE") {
-            Some(InteractiveMode::Restore)
+            if matches!(
+                matches.value_of("RESTORE"),
+                Some("overwrite") | Some("yolo")
+            ) {
+                Some(InteractiveMode::Restore(RestoreMode::Overwrite))
+            } else {
+                Some(InteractiveMode::Restore(RestoreMode::Default))
+            }
         } else if matches.is_present("SELECT") {
             Some(InteractiveMode::Select)
         } else if matches.is_present("BROWSE") {
@@ -600,7 +608,6 @@ impl Config {
             opt_no_live,
             opt_recursive,
             opt_exact,
-            opt_overwrite,
             opt_no_filter,
             opt_no_snap,
             opt_debug,
@@ -716,7 +723,7 @@ impl Config {
                                                     )
                                                     .into());
                                         }
-                                        InteractiveMode::Restore | InteractiveMode::Select => {
+                                        InteractiveMode::Restore(_) | InteractiveMode::Select => {
                                             // non-dir file will just cause us to skip the lookup phase
                                             None
                                         }

@@ -95,7 +95,7 @@ impl DisplayMap {
         }
     }
 
-    pub fn print_map( self, config: &Config) -> HttmResult<()> {
+    pub fn print_map(self, config: &Config) -> HttmResult<()> {
         if config.opt_last_snap.is_some() && matches!(config.exec_mode, ExecMode::Display) {
             self.display_as_map(config)
         } else {
