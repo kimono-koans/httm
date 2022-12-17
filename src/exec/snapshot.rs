@@ -20,7 +20,7 @@ use std::{collections::BTreeMap, path::Path, time::SystemTime};
 use std::process::Command as ExecProcess;
 use which::which;
 
-use crate::config::generate::Config;
+use crate::config::generate::{Config, PrintMode};
 use crate::library::iter_extensions::HttmIter;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{get_date, get_delimiter, print_output_buf, DateFormat};
@@ -106,7 +106,7 @@ pub fn take_snapshot(config: &Config, requested_snapshot_suffix: &str) -> HttmRe
                 let output_buf = snapshot_names
                     .iter()
                     .map(|snap_name| {
-                        if config.opt_raw || config.opt_zeros {
+                        if matches!(config.print_mode, PrintMode::RawNewline | PrintMode::RawZero)  {
                             let delimiter = get_delimiter(config);
                             format!("{}{}", &snap_name, delimiter)
                         } else {

@@ -20,7 +20,7 @@ use std::{fs::FileType, path::PathBuf};
 use lscolors::Colorable;
 use skim::prelude::*;
 
-use crate::config::generate::{Config, ExecMode};
+use crate::config::generate::{Config, ExecMode, PrintMode};
 use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::library::results::HttmResult;
 use crate::library::utility::paint_string;
@@ -63,9 +63,6 @@ impl SelectionCandidate {
         // generate a config for a preview display only
         Config {
             paths: paths_selected.to_vec(),
-            opt_raw: false,
-            opt_zeros: false,
-            opt_no_pretty: false,
             opt_recursive: false,
             opt_no_live: false,
             opt_exact: false,
@@ -80,6 +77,7 @@ impl SelectionCandidate {
             opt_omit_ditto: config.opt_omit_ditto,
             requested_utc_offset: config.requested_utc_offset,
             exec_mode: ExecMode::Display,
+            print_mode: PrintMode::FormattedDefault,
             deleted_mode: None,
             dataset_collection: config.dataset_collection.clone(),
             pwd: config.pwd.clone(),

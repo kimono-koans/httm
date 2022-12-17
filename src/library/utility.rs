@@ -30,7 +30,7 @@ use number_prefix::NumberPrefix;
 use once_cell::sync::Lazy;
 use time::{format_description, OffsetDateTime, UtcOffset};
 
-use crate::config::generate::Config;
+use crate::config::generate::{Config, PrintMode};
 use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::data::selection::SelectionCandidate;
 use crate::library::results::{HttmError, HttmResult};
@@ -38,7 +38,7 @@ use crate::parse::aliases::FilesystemType;
 use crate::{BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_SNAPSHOT_DIRECTORY};
 
 pub fn get_delimiter(config: &Config) -> char {
-    if config.opt_zeros {
+    if matches!(config.print_mode, PrintMode::RawZero)  {
         '\0'
     } else {
         '\n'

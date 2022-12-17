@@ -15,7 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::config::generate::Config;
+use crate::config::generate::{Config, PrintMode};
 use crate::display::primary::{NOT_SO_PRETTY_FIXED_WIDTH_PADDING, QUOTATION_MARKS_LEN};
 use crate::lookup::versions::DisplayMap;
 
@@ -43,7 +43,7 @@ impl DisplayMap {
                 }
             })
             .map(|(key, values)| {
-                let display_path = if config.opt_no_pretty {
+                let display_path = if matches!(config.print_mode, PrintMode::FormattedNotPretty)  {
                     key.path_buf.to_string_lossy().into()
                 } else {
                     format!("\"{}\"", key.path_buf.to_string_lossy())
@@ -55,7 +55,7 @@ impl DisplayMap {
                     .map(|(idx, value)| {
                         let value_string = value.path_buf.to_string_lossy();
 
-                        if config.opt_no_pretty {
+                        if matches!(config.print_mode, PrintMode::FormattedNotPretty) {
                             format!("{}{}", NOT_SO_PRETTY_FIXED_WIDTH_PADDING, value_string)
                         } else if idx == 0 {
                             format!(
@@ -70,7 +70,7 @@ impl DisplayMap {
                     })
                     .collect::<String>();
 
-                if config.opt_no_pretty {
+                if matches!(config.print_mode, PrintMode::FormattedNotPretty) {
                     format!("{}:{}\n", display_path, values_string)
                 } else {
                     values_string

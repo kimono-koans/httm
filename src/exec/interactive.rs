@@ -21,7 +21,7 @@ use crossbeam::channel::unbounded;
 use skim::prelude::*;
 use which::which;
 
-use crate::config::generate::{Config, InteractiveMode};
+use crate::config::generate::{Config, InteractiveMode, PrintMode};
 use crate::data::paths::PathData;
 use crate::data::selection::SelectionCandidate;
 use crate::exec::recursive::recursive_exec;
@@ -223,7 +223,7 @@ fn interactive_select(
     } else {
         let delimiter = get_delimiter(config);
 
-        let output_buf = if config.opt_raw || config.opt_zeros {
+        let output_buf = if matches!(config.print_mode, PrintMode::RawNewline | PrintMode::RawZero)  {
             format!("{}{}", &path_string, delimiter)
         } else {
             format!("\"{}\"{}", &path_string, delimiter)

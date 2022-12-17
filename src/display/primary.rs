@@ -20,7 +20,7 @@ use std::ops::Deref;
 
 use terminal_size::{terminal_size, Height, Width};
 
-use crate::config::generate::{Config, ExecMode};
+use crate::config::generate::{Config, ExecMode, PrintMode};
 use crate::data::paths::{PathData, PHANTOM_DATE, PHANTOM_SIZE};
 use crate::library::utility::{
     display_human_size, get_date, get_delimiter, paint_string, DateFormat,
@@ -123,7 +123,7 @@ impl DisplaySet {
                     .collect();
 
                 // add each buffer to the set - print fancy border string above, below and between sets
-                if config.opt_no_pretty {
+                if matches!(config.print_mode, PrintMode::FormattedNotPretty) {
                     display_set_buffer += &component_buffer;
                 } else if is_snap_set {
                     display_set_buffer += &padding_collection.fancy_border_string;
@@ -152,7 +152,7 @@ impl PathData {
         let metadata = self.md_infallible();
 
         // tab delimited if "no pretty", no border lines, and no colors
-        let (display_size, display_path, display_padding) = if config.opt_no_pretty {
+        let (display_size, display_path, display_padding) = if matches!(config.print_mode, PrintMode::FormattedNotPretty) {
             // displays blanks for phantom values, equaling their dummy lens and dates.
             //
             // we use a dummy instead of a None value here.  Basically, sometimes, we want

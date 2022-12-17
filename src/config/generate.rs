@@ -51,6 +51,14 @@ pub enum InteractiveMode {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PrintMode {
+    FormattedDefault,
+    FormattedNotPretty,
+    RawNewline,
+    RawZero,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DeletedMode {
     DepthOfOne,
     Enabled,
@@ -366,9 +374,6 @@ fn parse_args() -> ArgMatches {
 #[derive(Debug, Clone)]
 pub struct Config {
     pub paths: Vec<PathData>,
-    pub opt_raw: bool,
-    pub opt_zeros: bool,
-    pub opt_no_pretty: bool,
     pub opt_no_live: bool,
     pub opt_recursive: bool,
     pub opt_exact: bool,
@@ -383,8 +388,9 @@ pub struct Config {
     pub opt_preview: Option<String>,
     pub requested_utc_offset: UtcOffset,
     pub exec_mode: ExecMode,
-    pub dataset_collection: FilesystemInfo,
+    pub print_mode: PrintMode,
     pub deleted_mode: Option<DeletedMode>,
+    pub dataset_collection: FilesystemInfo,
     pub pwd: PathData,
     pub opt_requested_dir: Option<PathData>,
 }
@@ -410,11 +416,19 @@ impl Config {
             UtcOffset::current_local_offset().unwrap_or(UtcOffset::UTC)
         };
 
-        let opt_zeros = matches.is_present("ZEROS");
         let opt_no_snap = matches.is_present("NO_SNAP");
+
+        let mut print_mode = if matches.is_present("ZEROS") {
+            PrintMode::RawZero
+        } else if matches.is_present("RAW") || opt_no_snap {
+            PrintMode::RawNewline
+        } else if matches.is_present("NOT_SO_PRETTY") {
+            PrintMode::FormattedNotPretty
+        } else {
+            PrintMode::FormattedDefault
+        };
+        
         // force a raw mode if one is not set for no_snap mode
-        let mut opt_raw = matches.is_present("RAW") || opt_no_snap && !opt_zeros;
-        let opt_no_pretty = matches.is_present("NOT_SO_PRETTY");
         let opt_recursive = matches.is_present("RECURSIVE");
         let opt_exact = matches.is_present("EXACT");
         let opt_no_live = matches.is_present("NO_LIVE");
@@ -486,7 +500,7 @@ impl Config {
         // better to have this here.  It's more confusing if we work this logic later, I think.
         if opt_last_snap.is_some() && matches!(opt_interactive_mode, Some(InteractiveMode::Select))
         {
-            opt_raw = true
+            print_mode = PrintMode::RawNewline
         }
 
         let opt_snap_file_mount =
@@ -583,9 +597,6 @@ impl Config {
 
         let config = Config {
             paths,
-            opt_raw,
-            opt_zeros,
-            opt_no_pretty,
             opt_no_live,
             opt_recursive,
             opt_exact,
@@ -600,6 +611,7 @@ impl Config {
             opt_no_hidden,
             requested_utc_offset,
             exec_mode,
+            print_mode,
             dataset_collection,
             deleted_mode,
             pwd,

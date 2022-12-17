@@ -15,7 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::config::generate::{Config, ExecMode};
+use crate::config::generate::{Config, ExecMode, PrintMode};
 use crate::library::results::HttmResult;
 use crate::library::utility::print_output_buf;
 use crate::lookup::versions::DisplayMap;
@@ -27,7 +27,7 @@ impl DisplayMap {
                 self.print_num_versions(config, num_versions_mode)
             }
             _ => {
-                if config.opt_raw || config.opt_zeros {
+                if matches!(config.print_mode, PrintMode::RawNewline | PrintMode::RawZero) {
                     self.print_raw(config)
                 } else {
                     self.print_formatted(config)
@@ -37,7 +37,7 @@ impl DisplayMap {
     }
 
     pub fn display_as_map(&self, config: &Config) -> HttmResult<()> {
-        let output_buf = if config.opt_raw || config.opt_zeros {
+        let output_buf = if matches!(config.print_mode, PrintMode::RawNewline | PrintMode::RawZero)  {
             self.print_raw(config)
         } else {
             self.print_formatted_map(config)
