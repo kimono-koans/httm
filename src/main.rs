@@ -90,9 +90,7 @@ fn exec() -> HttmResult<()> {
 
     // fn exec() handles the basic display cases, and sends other cases to be processed elsewhere
     match &config.exec_mode {
-        // ExecMode::Interactive may return back to this function to be printed
-        // from an interactive browse must get the paths to print to display, or continue
-        // to select or restore functions
+        // ExecMode::Interactive *may* return back to this function to be printed
         ExecMode::Interactive(interactive_mode) => {
             let browse_result = &interactive_exec(config.clone(), interactive_mode)?;
             let map_to_live_snaps = versions_lookup_exec(config.as_ref(), browse_result)?;
@@ -112,9 +110,6 @@ fn exec() -> HttmResult<()> {
 }
 
 fn print_display_map(config: &Config, map_live_to_snaps: DisplayMap) -> HttmResult<()> {
-    // why don't we just go ahead an display last snap as an exec mode?
-    // because last snap is useful as a global option.  for instance, we
-    // can use it in the interactive modes to skip past the select phase
     if config.opt_last_snap.is_some() && matches!(config.exec_mode, ExecMode::Display) {
         map_live_to_snaps.display_as_map(config)
     } else {
