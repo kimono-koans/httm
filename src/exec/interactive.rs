@@ -196,7 +196,8 @@ impl InteractiveSelect {
 
             let selection_buffer = display_map.display(&display_config);
 
-            let opt_live_version = &paths_selected_in_browse
+            let opt_live_version: Option<String> = paths_selected_in_browse
+                .as_ref()
                 .get(0)
                 .map(|pathdata| pathdata.path_buf.to_string_lossy().into_owned());
 
@@ -206,8 +207,7 @@ impl InteractiveSelect {
                 let requested_file_name = select_restore_view(
                     config,
                     &selection_buffer,
-                    opt_live_version,
-                    ViewMode::Select,
+                    ViewMode::Select(opt_live_version.clone()),
                 )?;
                 // ... we want everything between the quotes
                 let broken_string: Vec<_> = requested_file_name.split_terminator('"').collect();
@@ -352,7 +352,7 @@ impl InteractiveRestore {
         // loop until user consents or doesn't
         loop {
             let user_consent =
-                select_restore_view(config, &preview_buffer, &None, ViewMode::Restore)?
+                select_restore_view(config, &preview_buffer, ViewMode::Restore)?
                     .to_ascii_uppercase();
 
             match user_consent.as_ref() {
@@ -391,7 +391,7 @@ impl InteractiveRestore {
 }
 
 enum ViewMode {
-    Select,
+    Select(Option<String>),
     Restore,
 }
 
@@ -403,17 +403,20 @@ struct PreviewSelection {
 impl PreviewSelection {
     fn new(
         config: &Config,
-        opt_live_version: &Option<String>,
         view_mode: ViewMode,
     ) -> HttmResult<Self> {
         //let (opt_preview_window, opt_preview_command) =
         let res = match &config.opt_preview {
-            Some(defined_command) if matches!(view_mode, ViewMode::Select) => PreviewSelection {
-                opt_preview_window: Some("up:50%".to_owned()),
-                opt_preview_command: Some(Self::parse_preview_command(
-                    defined_command,
-                    opt_live_version,
-                )?),
+            Some(defined_command) if matches!(view_mode, ViewMode::Select(_)) => {
+                let opt_live_version = if let ViewMode::Select(opt) = view_mode { opt } else { unreachable!() };
+
+                PreviewSelection {
+                    opt_preview_window: Some("up:50%".to_owned()),
+                    opt_preview_command: Some(Self::parse_preview_command(
+                        defined_command,
+                        &opt_live_version,
+                    )?),
+                }
             },
             _ => PreviewSelection {
                 opt_preview_window: Some("".to_owned()),
@@ -505,10 +508,9 @@ impl PreviewSelection {
 fn select_restore_view(
     config: &Config,
     preview_buffer: &str,
-    opt_live_version: &Option<String>,
     view_mode: ViewMode,
 ) -> HttmResult<String> {
-    let preview_selection = PreviewSelection::new(config, opt_live_version, view_mode)?;
+    let preview_selection = PreviewSelection::new(config, view_mode)?;
 
     // build our browse view - less to do than before - no previews, looking through one 'lil buffer
     let skim_opts = SkimOptionsBuilder::default()
