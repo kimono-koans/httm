@@ -25,7 +25,7 @@ use skim::prelude::*;
 use crate::config::generate::{Config, DeletedMode, ExecMode};
 use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::data::selection::SelectionCandidate;
-use crate::exec::spawn_deleted::SpawnDeletedThreads;
+use crate::exec::spawn_deleted::SpawnDeletedThread;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{httm_is_dir, print_output_buf, HttmIsDir, Never};
 use crate::lookup::versions::VersionsMap;
@@ -157,7 +157,7 @@ impl MainIterativeLoop {
         )?;
 
         if let Some(deleted_scope) = opt_deleted_scope {
-            SpawnDeletedThreads::exec(config, requested_dir, deleted_scope, skim_tx, hangup_rx);
+            SpawnDeletedThread::exec(config, requested_dir, deleted_scope, skim_tx, hangup_rx);
         }
 
         Ok(vec_dirs)
