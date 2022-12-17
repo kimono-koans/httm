@@ -23,7 +23,7 @@ use skim::prelude::*;
 use crate::config::generate::{Config, ExecMode, InteractiveMode, PrintMode, RestoreMode};
 use crate::data::paths::{PathData, PathMetadata};
 use crate::data::selection::SelectionCandidate;
-use crate::exec::preview::{PreviewSelection, ViewMode};
+use crate::exec::preview::PreviewSelection;
 use crate::exec::recursive::recursive_exec;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{
@@ -413,6 +413,11 @@ impl InteractiveRestore {
             }
         }
     }
+}
+
+pub enum ViewMode {
+    Select(Option<String>),
+    Restore,
 }
 
 fn select_restore_view(

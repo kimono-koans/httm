@@ -20,12 +20,8 @@ use std::path::PathBuf;
 use which::which;
 
 use crate::config::generate::Config;
+use crate::exec::interactive::ViewMode;
 use crate::library::results::{HttmError, HttmResult};
-
-pub enum ViewMode {
-    Select(Option<String>),
-    Restore,
-}
 
 pub struct PreviewSelection {
     pub opt_preview_window: Option<String>,
