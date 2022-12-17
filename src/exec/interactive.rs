@@ -22,14 +22,14 @@ use skim::prelude::*;
 use which::which;
 
 use crate::config::generate::{Config, ExecMode, InteractiveMode, PrintMode, RestoreMode};
-use crate::data::paths::PathData;
+use crate::data::paths::{PathData, PathMetadata};
 use crate::data::selection::SelectionCandidate;
 use crate::exec::recursive::recursive_exec;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{
     copy_recursive, get_date, get_delimiter, print_output_buf, DateFormat, Never,
 };
-use crate::lookup::versions::versions_lookup_exec;
+use crate::lookup::versions::{versions_lookup_exec, DisplayMap};
 
 pub fn interactive_exec(
     config: Arc<Config>,
@@ -167,28 +167,7 @@ impl InteractiveSelect {
         }
 
         let path_string = if config.opt_last_snap.is_some() {
-            // should be good to index into both, there is a known known 2nd vec,
-            let live_version = &paths_selected_in_browse
-                .get(0)
-                .expect("ExecMode::LiveSnap should always have exactly one path.");
-            display_map
-                .values()
-                .flatten()
-                .filter(|snap_version| {
-                    if config.opt_omit_ditto {
-                        snap_version.md_infallible().modify_time
-                            != live_version.md_infallible().modify_time
-                    } else {
-                        true
-                    }
-                })
-                .last()
-                .ok_or_else(|| {
-                    HttmError::new("No last snapshot for the requested input file exists.")
-                })?
-                .path_buf
-                .to_string_lossy()
-                .into_owned()
+            Self::get_last_snap(config, paths_selected_in_browse, &display_map)?
         } else {
             // same stuff we do at fn exec, snooze...
             let display_config =
@@ -235,21 +214,55 @@ impl InteractiveSelect {
                 paths_selected_in_browse,
             )?)
         } else {
-            let delimiter = get_delimiter(config);
-
-            let output_buf = if matches!(
-                config.print_mode,
-                PrintMode::RawNewline | PrintMode::RawZero
-            ) {
-                format!("{}{}", &path_string, delimiter)
-            } else {
-                format!("\"{}\"{}", &path_string, delimiter)
-            };
-
-            print_output_buf(output_buf)?;
-
-            std::process::exit(0)
+            Ok(Self::print_selection(config, &path_string)?)
         }
+    }
+
+    fn print_selection(config: &Config, path_string: &str) -> HttmResult<()> {
+        let delimiter = get_delimiter(config);
+
+        let output_buf = if matches!(
+            config.print_mode,
+            PrintMode::RawNewline | PrintMode::RawZero
+        ) {
+            format!("{}{}", path_string, delimiter)
+        } else {
+            format!("\"{}\"{}", path_string, delimiter)
+        };
+
+        print_output_buf(output_buf)?;
+
+        std::process::exit(0)
+    }
+
+    fn get_last_snap(
+        config: &Config,
+        paths_selected_in_browse: &[PathData],
+        display_map: &DisplayMap,
+    ) -> HttmResult<String> {
+        // should be good to index into both, there is a known known 2nd vec,
+        let live_version = &paths_selected_in_browse
+            .get(0)
+            .expect("ExecMode::LiveSnap should always have exactly one path.");
+
+        let last_snap = display_map
+            .values()
+            .flatten()
+            .filter(|snap_version| {
+                if config.opt_omit_ditto {
+                    snap_version.md_infallible().modify_time
+                        != live_version.md_infallible().modify_time
+                } else {
+                    true
+                }
+            })
+            .last()
+            .ok_or_else(|| HttmError::new("No last snapshot for the requested input file exists."))?
+            .path_buf
+            .to_string_lossy()
+            .into_owned();
+
+        Ok(last_snap)
     }
 }
 
@@ -273,69 +286,12 @@ impl InteractiveRestore {
             .ok_or_else(|| HttmError::new("Source location does not exist on disk. Quitting."))?;
 
         // build new place to send file
-        let new_file_path_buf = if matches!(
-            config.exec_mode,
-            ExecMode::Interactive(InteractiveMode::Restore(RestoreMode::Overwrite))
-        ) {
-            // instead of just not naming the new file with extra info (date plus "httm_restored") and shoving that new file
-            // into the pwd, here, we actually look for the original location of the file to make sure we overwrite it.
-            // so, if you were in /etc and wanted to restore /etc/samba/smb.conf, httm will make certain to overwrite
-            // at /etc/samba/smb.conf
-            let opt_original_live_pathdata = paths_selected_in_browse.iter().find_map(|pathdata| {
-                match versions_lookup_exec(config, &[pathdata.clone()]).ok() {
-                    // safe to index into snaps, known len of 2 for set
-                    Some(display_map) => {
-                        display_map.values().flatten().find_map(|pathdata| {
-                            if pathdata == &snap_pathdata {
-                                // safe to index into request, known len of 2 for set, keys and values, known len of 1 for request
-                                let original_live_pathdata =
-                                    display_map.keys().next().unwrap().clone();
-                                Some(original_live_pathdata)
-                            } else {
-                                None
-                            }
-                        })
-                    }
-                    None => None,
-                }
-            });
-
-            match opt_original_live_pathdata {
-                Some(pathdata) => pathdata.path_buf,
-                None => {
-                    return Err(HttmError::new(
-                        "httm unable to determine original file path in overwrite mode.  Quitting.",
-                    )
-                    .into())
-                }
-            }
-        } else {
-            let snap_filename = snap_pathdata
-                .path_buf
-                .file_name()
-                .expect("Could not obtain a file name for the snap file version of path given")
-                .to_string_lossy()
-                .into_owned();
-
-            let new_filename = snap_filename
-                + ".httm_restored."
-                + &get_date(
-                    config,
-                    &snap_path_metadata.modify_time,
-                    DateFormat::Timestamp,
-                );
-            let new_file_dir = config.pwd.path_buf.clone();
-            let new_file_path_buf: PathBuf = new_file_dir.join(new_filename);
-
-            // don't let the user rewrite one restore over another in non-overwrite mode
-            if new_file_path_buf.exists() {
-                return Err(
-                    HttmError::new("httm will not restore to that file, as a file with the same path name already exists. Quitting.").into(),
-                );
-            } else {
-                new_file_path_buf
-            }
-        };
+        let new_file_path_buf = Self::build_new_file_path(
+            config,
+            paths_selected_in_browse,
+            &snap_pathdata,
+            &snap_path_metadata,
+        )?;
 
         // tell the user what we're up to, and get consent
         let preview_buffer = format!(
@@ -351,9 +307,8 @@ impl InteractiveRestore {
 
         // loop until user consents or doesn't
         loop {
-            let user_consent =
-                select_restore_view(config, &preview_buffer, ViewMode::Restore)?
-                    .to_ascii_uppercase();
+            let user_consent = select_restore_view(config, &preview_buffer, ViewMode::Restore)?
+                .to_ascii_uppercase();
 
             match user_consent.as_ref() {
                 "YES" | "Y" => match copy_recursive(&snap_pathdata.path_buf, &new_file_path_buf) {
@@ -388,6 +343,78 @@ impl InteractiveRestore {
 
         std::process::exit(0)
     }
+
+    fn build_new_file_path(
+        config: &Config,
+        paths_selected_in_browse: &[PathData],
+        snap_pathdata: &PathData,
+        snap_path_metadata: &PathMetadata,
+    ) -> HttmResult<PathBuf> {
+        // build new place to send file
+        if matches!(
+            config.exec_mode,
+            ExecMode::Interactive(InteractiveMode::Restore(RestoreMode::Overwrite))
+        ) {
+            // instead of just not naming the new file with extra info (date plus "httm_restored") and shoving that new file
+            // into the pwd, here, we actually look for the original location of the file to make sure we overwrite it.
+            // so, if you were in /etc and wanted to restore /etc/samba/smb.conf, httm will make certain to overwrite
+            // at /etc/samba/smb.conf
+            let opt_original_live_pathdata = paths_selected_in_browse.iter().find_map(|pathdata| {
+                match versions_lookup_exec(config, &[pathdata.clone()]).ok() {
+                    // safe to index into snaps, known len of 2 for set
+                    Some(display_map) => {
+                        display_map.values().flatten().find_map(|pathdata| {
+                            if pathdata == snap_pathdata {
+                                // safe to index into request, known len of 2 for set, keys and values, known len of 1 for request
+                                let original_live_pathdata =
+                                    display_map.keys().next().unwrap().clone();
+                                Some(original_live_pathdata)
+                            } else {
+                                None
+                            }
+                        })
+                    }
+                    None => None,
+                }
+            });
+
+            match opt_original_live_pathdata {
+                Some(pathdata) => Ok(pathdata.path_buf),
+                None => {
+                    Err(HttmError::new(
+                        "httm unable to determine original file path in overwrite mode.  Quitting.",
+                    )
+                    .into())
+                }
+            }
+        } else {
+            let snap_filename = snap_pathdata
+                .path_buf
+                .file_name()
+                .expect("Could not obtain a file name for the snap file version of path given")
+                .to_string_lossy()
+                .into_owned();
+
+            let new_filename = snap_filename
+                + ".httm_restored."
+                + &get_date(
+                    config,
+                    &snap_path_metadata.modify_time,
+                    DateFormat::Timestamp,
+                );
+            let new_file_dir = config.pwd.path_buf.clone();
+            let new_file_path_buf: PathBuf = new_file_dir.join(new_filename);
+
+            // don't let the user rewrite one restore over another in non-overwrite mode
+            if new_file_path_buf.exists() {
+                Err(
+                    HttmError::new("httm will not restore to that file, as a file with the same path name already exists. Quitting.").into(),
+                )
+            } else {
+                Ok(new_file_path_buf)
+            }
+        }
+    }
 }
 
 enum ViewMode {
@@ -401,14 +428,15 @@ struct PreviewSelection {
 }
 
 impl PreviewSelection {
-    fn new(
-        config: &Config,
-        view_mode: ViewMode,
-    ) -> HttmResult<Self> {
+    fn new(config: &Config, view_mode: ViewMode) -> HttmResult<Self> {
         //let (opt_preview_window, opt_preview_command) =
         let res = match &config.opt_preview {
             Some(defined_command) if matches!(view_mode, ViewMode::Select(_)) => {
-                let opt_live_version = if let ViewMode::Select(opt) = view_mode { opt } else { unreachable!() };
+                let opt_live_version = if let ViewMode::Select(opt) = view_mode {
+                    opt
+                } else {
+                    unreachable!()
+                };
 
                 PreviewSelection {
                     opt_preview_window: Some("up:50%".to_owned()),
@@ -417,7 +445,7 @@ impl PreviewSelection {
                         &opt_live_version,
                     )?),
                 }
-            },
+            }
             _ => PreviewSelection {
                 opt_preview_window: Some("".to_owned()),
                 opt_preview_command: None,
