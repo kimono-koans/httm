@@ -427,7 +427,7 @@ impl Config {
         } else {
             PrintMode::FormattedDefault
         };
-        
+
         // force a raw mode if one is not set for no_snap mode
         let opt_recursive = matches.is_present("RECURSIVE");
         let opt_exact = matches.is_present("EXACT");

@@ -38,7 +38,7 @@ use crate::parse::aliases::FilesystemType;
 use crate::{BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_SNAPSHOT_DIRECTORY};
 
 pub fn get_delimiter(config: &Config) -> char {
-    if matches!(config.print_mode, PrintMode::RawZero)  {
+    if matches!(config.print_mode, PrintMode::RawZero) {
         '\0'
     } else {
         '\n'

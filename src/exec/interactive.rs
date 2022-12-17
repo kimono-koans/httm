@@ -223,7 +223,10 @@ fn interactive_select(
     } else {
         let delimiter = get_delimiter(config);
 
-        let output_buf = if matches!(config.print_mode, PrintMode::RawNewline | PrintMode::RawZero)  {
+        let output_buf = if matches!(
+            config.print_mode,
+            PrintMode::RawNewline | PrintMode::RawZero
+        ) {
             format!("{}{}", &path_string, delimiter)
         } else {
             format!("\"{}\"{}", &path_string, delimiter)

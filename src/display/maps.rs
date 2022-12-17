@@ -43,7 +43,7 @@ impl DisplayMap {
                 }
             })
             .map(|(key, values)| {
-                let display_path = if matches!(config.print_mode, PrintMode::FormattedNotPretty)  {
+                let display_path = if matches!(config.print_mode, PrintMode::FormattedNotPretty) {
                     key.path_buf.to_string_lossy().into()
                 } else {
                     format!("\"{}\"", key.path_buf.to_string_lossy())

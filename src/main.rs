@@ -21,7 +21,6 @@ mod data {
     pub mod selection;
 }
 mod display {
-    pub mod exec;
     pub mod maps;
     pub mod num_versions;
     pub mod primary;
