@@ -120,7 +120,7 @@ impl BaseFilesystemInfo {
                 )),
                 &SMB_FSTYPE | &AFP_FSTYPE | &NFS_FSTYPE => {
                     match get_fs_type_from_hidden_dir(&mount_info.dest) {
-                        Ok(FilesystemType::Zfs) => Either::Left((
+                        Some(FilesystemType::Zfs) => Either::Left((
                             mount_info.dest,
                             DatasetMetadata {
                                 name: mount_info.source.to_string_lossy().into_owned(),
@@ -128,7 +128,7 @@ impl BaseFilesystemInfo {
                                 mount_type: MountType::Network,
                             },
                         )),
-                        Ok(FilesystemType::Btrfs) => Either::Left((
+                        Some(FilesystemType::Btrfs) => Either::Left((
                             mount_info.dest,
                             DatasetMetadata {
                                 name: mount_info.source.to_string_lossy().into_owned(),
@@ -136,7 +136,7 @@ impl BaseFilesystemInfo {
                                 mount_type: MountType::Network,
                             },
                         )),
-                        Err(_) => Either::Right(mount_info.dest),
+                        None => Either::Right(mount_info.dest),
                     }
                 }
                 &BTRFS_FSTYPE => {
@@ -208,21 +208,21 @@ impl BaseFilesystemInfo {
                 // and flip around, mount should key of key/value
                 .partition_map(|(filesystem, mount)| {
                     match get_fs_type_from_hidden_dir(&mount) {
-                        Ok(FilesystemType::Zfs) => {
+                        Some(FilesystemType::Zfs) => {
                             Either::Left((mount, DatasetMetadata {
                                 name: filesystem,
                                 fs_type: FilesystemType::Zfs,
                                 mount_type: MountType::Local
                             }))
                         },
-                        Ok(FilesystemType::Btrfs) => {
+                        Some(FilesystemType::Btrfs) => {
                             Either::Left((mount, DatasetMetadata{
                                 name: filesystem,
                                 fs_type: FilesystemType::Btrfs,
                                 mount_type: MountType::Local
                             }))
                         },
-                        Err(_) => {
+                        None => {
                             Either::Right(mount)
                         }
                     }

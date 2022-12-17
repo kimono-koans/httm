@@ -33,7 +33,7 @@ use time::{format_description, OffsetDateTime, UtcOffset};
 use crate::config::generate::{Config, PrintMode};
 use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::data::selection::SelectionCandidate;
-use crate::library::results::{HttmError, HttmResult};
+use crate::library::results::HttmResult;
 use crate::parse::aliases::FilesystemType;
 use crate::{BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_SNAPSHOT_DIRECTORY};
 
@@ -269,28 +269,23 @@ impl PaintString for &SelectionCandidate {
     }
 }
 
-pub fn get_fs_type_from_hidden_dir(dataset_mount: &Path) -> HttmResult<FilesystemType> {
+pub fn get_fs_type_from_hidden_dir(dataset_mount: &Path) -> Option<FilesystemType> {
     // set fstype, known by whether there is a ZFS hidden snapshot dir in the root dir
-    let fs_type = if dataset_mount
+    if dataset_mount
         .join(ZFS_SNAPSHOT_DIRECTORY)
         .metadata()
         .is_ok()
     {
-        FilesystemType::Zfs
+        Some(FilesystemType::Zfs)
     } else if dataset_mount
         .join(BTRFS_SNAPPER_HIDDEN_DIRECTORY)
         .metadata()
         .is_ok()
     {
-        FilesystemType::Btrfs
+        Some(FilesystemType::Btrfs)
     } else {
-        return Err(HttmError::new(
-                "Requesting a filesystem type from path is only available for ZFS datasets and btrfs datasets snapshot-ed via snapper.",
-            )
-            .into());
-    };
-
-    Ok(fs_type)
+        None
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

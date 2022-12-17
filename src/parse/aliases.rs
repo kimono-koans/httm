@@ -119,7 +119,6 @@ impl MapOfAliases {
             })
             .filter_map(|(local_dir, remote_dir)| {
                 get_fs_type_from_hidden_dir(&remote_dir)
-                    .ok()
                     .map(|fs_type| {
                         (
                             local_dir,

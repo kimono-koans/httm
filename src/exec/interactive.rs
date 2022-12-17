@@ -401,7 +401,7 @@ fn interactive_restore(
         // instead of just not naming the new file with extra info (date plus "httm_restored") and shoving that new file
         // into the pwd, here, we actually look for the original location of the file to make sure we overwrite it.
         // so, if you were in /etc and wanted to restore /etc/samba/smb.conf, httm will make certain to overwrite
-        // at /etc/samba/smb.conf, not just avoid the rename
+        // at /etc/samba/smb.conf
         let opt_original_live_pathdata = paths_selected_in_browse.iter().find_map(|pathdata| {
             match versions_lookup_exec(config, &[pathdata.clone()]).ok() {
                 // safe to index into snaps, known len of 2 for set
