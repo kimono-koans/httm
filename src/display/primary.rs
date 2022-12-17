@@ -115,11 +115,11 @@ impl Deref for DisplaySet {
 }
 
 impl DisplaySet {
-    pub fn new(config: &Config, map_live_to_snaps: &DisplayMap) -> DisplaySet {
+    pub fn new(config: &Config, display_map: &DisplayMap) -> DisplaySet {
         let vec_snaps = if config.opt_no_snap {
             Vec::new()
         } else {
-            map_live_to_snaps.values().flatten().cloned().collect()
+            display_map.values().flatten().cloned().collect()
         };
 
         let vec_live = if config.opt_last_snap.is_some()
@@ -128,7 +128,7 @@ impl DisplaySet {
         {
             Vec::new()
         } else {
-            map_live_to_snaps.keys().cloned().collect()
+            display_map.keys().cloned().collect()
         };
 
         Self {

@@ -92,9 +92,9 @@ impl SelectionCandidate {
         let gen_config = SelectionCandidate::generate_config_for_display(config, paths_selected);
 
         // finally run search on those paths
-        let map_live_to_snaps = versions_lookup_exec(&gen_config, &gen_config.paths)?;
+        let display_map = versions_lookup_exec(&gen_config, &gen_config.paths)?;
         // and display
-        let output_buf = map_live_to_snaps.display(&gen_config);
+        let output_buf = display_map.display(&gen_config);
 
         Ok(output_buf)
     }

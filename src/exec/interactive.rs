@@ -143,10 +143,10 @@ fn interactive_select(
     paths_selected_in_browse: &[PathData],
     interactive_mode: &InteractiveMode,
 ) -> HttmResult<()> {
-    let map_live_to_snaps = versions_lookup_exec(config, paths_selected_in_browse)?;
+    let display_map = versions_lookup_exec(config, paths_selected_in_browse)?;
 
     // snap and live set has no snaps
-    if map_live_to_snaps.is_empty() {
+    if display_map.is_empty() {
         let paths: Vec<String> = paths_selected_in_browse
             .iter()
             .map(|path| path.path_buf.to_string_lossy().to_string())
@@ -163,7 +163,7 @@ fn interactive_select(
         let live_version = &paths_selected_in_browse
             .get(0)
             .expect("ExecMode::LiveSnap should always have exactly one path.");
-        map_live_to_snaps
+        display_map
             .values()
             .flatten()
             .filter(|snap_version| {
@@ -184,7 +184,7 @@ fn interactive_select(
         let display_config =
             SelectionCandidate::generate_config_for_display(config, paths_selected_in_browse);
 
-        let selection_buffer = map_live_to_snaps.display(&display_config);
+        let selection_buffer = display_map.display(&display_config);
 
         let opt_live_version = &paths_selected_in_browse
             .get(0)
@@ -200,7 +200,7 @@ fn interactive_select(
             // ... and the file is the 2nd item or the indexed "1" object
             if let Some(path_string) = broken_string.get(1) {
                 // and cannot select a 'live' version or other invalid value.
-                if map_live_to_snaps.iter().all(|(live_version, _snaps)| {
+                if display_map.iter().all(|(live_version, _snaps)| {
                     Path::new(path_string) != live_version.path_buf.as_path()
                 }) {
                     // return string from the loop
@@ -405,12 +405,11 @@ fn interactive_restore(
         let opt_original_live_pathdata = paths_selected_in_browse.iter().find_map(|pathdata| {
             match versions_lookup_exec(config, &[pathdata.clone()]).ok() {
                 // safe to index into snaps, known len of 2 for set
-                Some(map_live_to_snaps) => {
-                    map_live_to_snaps.values().flatten().find_map(|pathdata| {
+                Some(display_map) => {
+                    display_map.values().flatten().find_map(|pathdata| {
                         if pathdata == &snap_pathdata {
                             // safe to index into request, known len of 2 for set, keys and values, known len of 1 for request
-                            let original_live_pathdata =
-                                map_live_to_snaps.keys().next().unwrap().clone();
+                            let original_live_pathdata = display_map.keys().next().unwrap().clone();
                             Some(original_live_pathdata)
                         } else {
                             None

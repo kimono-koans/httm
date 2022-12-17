@@ -29,12 +29,12 @@ use crate::data::paths::PathData;
 use crate::library::results::{HttmError, HttmResult};
 
 pub fn versions_lookup_exec(config: &Config, path_set: &[PathData]) -> HttmResult<DisplayMap> {
-    let map_live_to_snaps = DisplayMap::new(config, path_set);
+    let display_map = DisplayMap::new(config, path_set);
 
     // check if all files (snap and live) do not exist, if this is true, then user probably messed up
     // and entered a file that never existed (that is, perhaps a wrong file name)?
-    if map_live_to_snaps.values().all(std::vec::Vec::is_empty)
-        && map_live_to_snaps
+    if display_map.values().all(std::vec::Vec::is_empty)
+        && display_map
             .keys()
             .all(|pathdata| pathdata.metadata.is_none())
         && !config.opt_no_snap
@@ -45,7 +45,7 @@ pub fn versions_lookup_exec(config: &Config, path_set: &[PathData]) -> HttmResul
         .into());
     }
 
-    Ok(map_live_to_snaps)
+    Ok(display_map)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
