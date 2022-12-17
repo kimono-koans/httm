@@ -59,7 +59,7 @@ use library::utility::print_output_buf;
 use crate::config::generate::{Config, ExecMode};
 use crate::lookup::file_mounts::MountsForFiles;
 
-use crate::exec::interactive::interactive_exec;
+use crate::exec::interactive::InteractiveBrowse;
 use crate::exec::recursive::display_recursive_wrapper;
 use crate::exec::snapshot::take_snapshot;
 use crate::library::results::HttmResult;
@@ -94,15 +94,15 @@ fn exec() -> HttmResult<()> {
     match &config.exec_mode {
         // ExecMode::Interactive *may* return back to this function to be printed
         ExecMode::Interactive(interactive_mode) => {
-            let browse_result = &interactive_exec(config.clone(), interactive_mode)?;
-            let display_map = versions_lookup_exec(config.as_ref(), browse_result)?;
-            let output_buf = display_map.display(&config);
+            let browse_result = InteractiveBrowse::exec(config.clone(), interactive_mode)?;
+            let display_map = versions_lookup_exec(config.as_ref(), browse_result.as_ref())?;
+            let output_buf = display_map.display(config.as_ref());
             print_output_buf(output_buf)
         }
         // ExecMode::Display will be just printed, we already know the paths
         ExecMode::Display | ExecMode::NumVersions(_) => {
             let display_map = versions_lookup_exec(config.as_ref(), &config.paths)?;
-            let output_buf = display_map.display(&config);
+            let output_buf = display_map.display(config.as_ref());
             print_output_buf(output_buf)
         }
         // ExecMode::DisplayRecursive, ExecMode::SnapFileMount, and ExecMode::MountsForFiles will print their

@@ -31,60 +31,60 @@ use crate::library::utility::{
 };
 use crate::lookup::versions::{versions_lookup_exec, DisplayMap};
 
-pub fn interactive_exec(
-    config: Arc<Config>,
-    interactive_mode: &InteractiveMode,
-) -> HttmResult<Vec<PathData>> {
-    let paths_selected_in_browse = match &config.opt_requested_dir {
-        // collect string paths from what we get from lookup_view
-        Some(requested_dir) => {
-            // loop until user selects a valid path
-            loop {
-                let selected_pathdata = InteractiveBrowse::exec(config.clone(), requested_dir)?
-                    .into_iter()
-                    .map(|path_string| PathData::from(Path::new(&path_string)))
-                    .collect::<Vec<PathData>>();
-                if !selected_pathdata.is_empty() {
-                    break selected_pathdata;
-                }
-            }
-        }
-        None => {
-            // go to interactive_select early if user has already requested a file
-            // and we are in the appropriate mode Select or Restore, see struct Config,
-            // and None here is also used for LastSnap to skip browsing for a file/dir
-            match config.paths.get(0) {
-                Some(first_path) => {
-                    let selected_file = first_path.clone();
-                    InteractiveSelect::exec(config.as_ref(), &[selected_file], interactive_mode)?;
-                    unreachable!("interactive select never returns so unreachable here")
-                }
-                // Config::from should never allow us to have an instance where we don't
-                // have at least one path to use
-                None => unreachable!(
-                    "config.paths.get(0) should never be a None value in Interactive Mode"
-                ),
-            }
-        }
-    };
-
-    // do we return back to our main exec function to print,
-    // or continue down the interactive rabbit hole?
-    match interactive_mode {
-        InteractiveMode::Restore(_) | InteractiveMode::Select => {
-            InteractiveSelect::exec(config.as_ref(), &paths_selected_in_browse, interactive_mode)?;
-            unreachable!()
-        }
-        // InteractiveMode::Browse executes back through fn exec() in main.rs
-        InteractiveMode::Browse => Ok(paths_selected_in_browse.to_vec()),
-    }
-}
-
-struct InteractiveBrowse {}
+pub struct InteractiveBrowse {}
 
 impl InteractiveBrowse {
+    pub fn exec(
+        config: Arc<Config>,
+        interactive_mode: &InteractiveMode,
+    ) -> HttmResult<Vec<PathData>> {
+        let paths_selected_in_browse = match &config.opt_requested_dir {
+            // collect string paths from what we get from lookup_view
+            Some(requested_dir) => {
+                // loop until user selects a valid path
+                loop {
+                    let selected_pathdata = InteractiveBrowse::browse_view(config.clone(), requested_dir)?
+                        .into_iter()
+                        .map(|path_string| PathData::from(Path::new(&path_string)))
+                        .collect::<Vec<PathData>>();
+                    if !selected_pathdata.is_empty() {
+                        break selected_pathdata;
+                    }
+                }
+            }
+            None => {
+                // go to interactive_select early if user has already requested a file
+                // and we are in the appropriate mode Select or Restore, see struct Config,
+                // and None here is also used for LastSnap to skip browsing for a file/dir
+                match config.paths.get(0) {
+                    Some(first_path) => {
+                        let selected_file = first_path.clone();
+                        InteractiveSelect::exec(config.as_ref(), &[selected_file], interactive_mode)?;
+                        unreachable!("interactive select never returns so unreachable here")
+                    }
+                    // Config::from should never allow us to have an instance where we don't
+                    // have at least one path to use
+                    None => unreachable!(
+                        "config.paths.get(0) should never be a None value in Interactive Mode"
+                    ),
+                }
+            }
+        };
+    
+        // do we return back to our main exec function to print,
+        // or continue down the interactive rabbit hole?
+        match interactive_mode {
+            InteractiveMode::Restore(_) | InteractiveMode::Select => {
+                InteractiveSelect::exec(config.as_ref(), &paths_selected_in_browse, interactive_mode)?;
+                unreachable!()
+            }
+            // InteractiveMode::Browse executes back through fn exec() in main.rs
+            InteractiveMode::Browse => Ok(paths_selected_in_browse.to_vec()),
+        }
+    }
+
     #[allow(unused_variables)]
-    fn exec(config: Arc<Config>, requested_dir: &PathData) -> HttmResult<Vec<String>> {
+    fn browse_view(config: Arc<Config>, requested_dir: &PathData) -> HttmResult<Vec<String>> {
         // prep thread spawn
         let requested_dir_clone = requested_dir.path_buf.clone();
         let config_clone = config.clone();
