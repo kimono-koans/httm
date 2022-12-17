@@ -52,6 +52,8 @@ mod parse {
     pub mod snaps;
 }
 
+use library::utility::print_output_buf;
+
 use crate::config::generate::{Config, ExecMode};
 use crate::lookup::file_mounts::MountsForFiles;
 
@@ -92,12 +94,14 @@ fn exec() -> HttmResult<()> {
         ExecMode::Interactive(interactive_mode) => {
             let browse_result = &interactive_exec(config.clone(), interactive_mode)?;
             let map_to_live_snaps = versions_lookup_exec(config.as_ref(), browse_result)?;
-            map_to_live_snaps.print_map(&config)
+            let res = map_to_live_snaps.display(&config);
+            print_output_buf(res)
         }
         // ExecMode::Display will be just printed, we already know the paths
         ExecMode::Display | ExecMode::NumVersions(_) => {
             let map_to_live_snaps = versions_lookup_exec(config.as_ref(), &config.paths)?;
-            map_to_live_snaps.print_map(&config)
+            let res = map_to_live_snaps.display(&config);
+            print_output_buf(res)
         }
         // ExecMode::DisplayRecursive, ExecMode::SnapFileMount, and ExecMode::MountsForFiles will print their
         // output elsewhere

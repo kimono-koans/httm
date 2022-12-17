@@ -24,6 +24,7 @@ use crate::config::generate::Config;
 use crate::data::paths::PathData;
 use crate::library::iter_extensions::HttmIter;
 use crate::library::results::HttmResult;
+use crate::library::utility::print_output_buf;
 use crate::lookup::versions::{DisplayMap, MostProximateAndOptAlts};
 
 pub struct MountsForFiles {
@@ -106,6 +107,8 @@ impl MountsForFiles {
     pub fn display(config: &Config) -> HttmResult<()> {
         let map: DisplayMap = MountsForFiles::new(config).into();
 
-        map.display_as_map(config)
+        let res = map.display(config);
+
+        print_output_buf(res)
     }
 }

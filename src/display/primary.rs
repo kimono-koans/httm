@@ -22,8 +22,6 @@ use terminal_size::{terminal_size, Height, Width};
 
 use crate::config::generate::{Config, ExecMode, PrintMode};
 use crate::data::paths::{PathData, PHANTOM_DATE, PHANTOM_SIZE};
-use crate::library::results::HttmResult;
-use crate::library::utility::print_output_buf;
 use crate::library::utility::{
     display_human_size, get_date, get_delimiter, paint_string, DateFormat,
 };
@@ -44,36 +42,37 @@ impl DisplayMap {
             ExecMode::NumVersions(num_versions_mode) => {
                 self.print_num_versions(config, num_versions_mode)
             }
+            ExecMode::Display
+                if config.opt_last_snap.is_some()
+                    && !matches!(
+                        config.print_mode,
+                        PrintMode::RawNewline | PrintMode::RawZero
+                    ) =>
+            {
+                self.print_formatted_map(config)
+            }
+            ExecMode::MountsForFiles
+                if !matches!(
+                    config.print_mode,
+                    PrintMode::RawNewline | PrintMode::RawZero
+                ) =>
+            {
+                self.print_formatted_map(config)
+            }
             _ => self.print(config),
         }
-    }
-
-    pub fn display_as_map(&self, config: &Config) -> HttmResult<()> {
-        let output_buf = if matches!(
-            config.print_mode,
-            PrintMode::RawNewline | PrintMode::RawZero
-        ) {
-            self.print(config)
-        } else {
-            self.print_formatted_map(config)
-        };
-
-        print_output_buf(output_buf)
     }
 
     pub fn print(&self, config: &Config) -> String {
         let global_display_set = DisplaySet::new(config, self);
         let padding_collection = PaddingCollection::new(config, &global_display_set);
 
-        if self.len() == 1
-            && matches!(
-                config.print_mode,
-                PrintMode::FormattedDefault | PrintMode::FormattedNotPretty
-            )
-        {
-            global_display_set.print_formatted(config, &padding_collection)
-        } else {
-            self.deref()
+        match &config.print_mode {
+            PrintMode::FormattedDefault | PrintMode::FormattedNotPretty if self.len() == 1 => {
+                global_display_set.print_formatted(config, &padding_collection)
+            }
+            _ => self
+                .deref()
                 .clone()
                 .into_iter()
                 .map(std::convert::Into::into)
@@ -91,16 +90,7 @@ impl DisplayMap {
                             .collect()
                     }
                 })
-                .collect::<String>()
-        }
-    }
-
-    pub fn print_map(self, config: &Config) -> HttmResult<()> {
-        if config.opt_last_snap.is_some() && matches!(config.exec_mode, ExecMode::Display) {
-            self.display_as_map(config)
-        } else {
-            let output_buf = self.display(config);
-            print_output_buf(output_buf)
+                .collect::<String>(),
         }
     }
 }
