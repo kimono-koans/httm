@@ -27,7 +27,7 @@ use crate::exec::recursive::{
 };
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{is_channel_closed, Never};
-use crate::lookup::deleted::deleted_lookup_exec;
+use crate::lookup::deleted::DeletedFilesBundle;
 use crate::lookup::last_in_time::LastInTimeSet;
 
 pub struct SpawnDeletedThreads {}
@@ -72,11 +72,11 @@ impl SpawnDeletedThreads {
         }
 
         // obtain all unique deleted, unordered, unsorted, will need to fix
-        let vec_deleted = deleted_lookup_exec(config.as_ref(), requested_dir);
+        let vec_deleted = DeletedFilesBundle::new(config.as_ref(), requested_dir);
 
         // combined entries will be sent or printed, but we need the vec_dirs to recurse
         let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
-            vec_deleted.into_iter().partition(|entry| {
+            vec_deleted.into_inner().into_iter().partition(|entry| {
                 // no need to traverse symlinks in deleted search
                 recursive_is_entry_dir(config.as_ref(), entry)
             });

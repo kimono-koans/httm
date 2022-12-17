@@ -18,6 +18,7 @@
 use std::{
     ffi::OsString,
     fs::read_dir,
+    ops::Deref,
     path::{Path, PathBuf},
 };
 
@@ -28,84 +29,116 @@ use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::library::results::HttmResult;
 use crate::lookup::versions::{MostProximateAndOptAlts, RelativePathAndSnapMounts};
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DeletedFilesBundle {
+    inner: Vec<BasicDirEntryInfo>,
+}
+
+impl From<Vec<BasicDirEntryInfo>> for DeletedFilesBundle {
+    fn from(vec: Vec<BasicDirEntryInfo>) -> Self {
+        Self { inner: vec }
+    }
+}
+
+impl Deref for DeletedFilesBundle {
+    type Target = Vec<BasicDirEntryInfo>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+impl DeletedFilesBundle {
+    pub fn into_inner(self) -> Vec<BasicDirEntryInfo> {
+        self.inner
+    }
+}
+
 // deleted_lookup_exec is a dumb function/module if we want to rank outputs, get last in time, etc.
 // we do that elsewhere.  deleted is simply about finding at least one version of a deleted file
 // this, believe it or not, will be faster
-pub fn deleted_lookup_exec(config: &Config, requested_dir: &Path) -> Vec<BasicDirEntryInfo> {
-    // we always need a requesting dir because we are comparing the files in the
-    // requesting dir to those of their relative dirs on snapshots
-    let requested_dir_pathdata = PathData::from(requested_dir);
+impl DeletedFilesBundle {
+    pub fn new(config: &Config, requested_dir: &Path) -> Self {
+        // we always need a requesting dir because we are comparing the files in the
+        // requesting dir to those of their relative dirs on snapshots
+        let requested_dir_pathdata = PathData::from(requested_dir);
 
-    let requested_snap_datasets = config
-        .dataset_collection
-        .snaps_selected_for_search
-        .get_value();
+        let requested_snap_datasets = config
+            .dataset_collection
+            .snaps_selected_for_search
+            .get_value();
 
-    // create vec of all local and replicated backups at once
-    //
-    // we need to make certain that what we return from possibly multiple datasets are unique
-    // as these will be the filenames that populate our interactive views, so deduplicate
-    // by filename and latest file version here
-    let basic_info_map: HashMap<OsString, BasicDirEntryInfo> = requested_snap_datasets
-        .iter()
-        .flat_map(|dataset_type| {
-            MostProximateAndOptAlts::new(config, &requested_dir_pathdata, dataset_type)
-        })
-        .flat_map(|datasets_of_interest| {
-            datasets_of_interest.get_search_bundles(config, &requested_dir_pathdata)
-        })
-        .flatten()
-        .flat_map(|search_bundle| {
-            get_unique_deleted_for_dir(&requested_dir_pathdata.path_buf, &search_bundle)
-        })
-        .flatten()
-        .map(|basic_info| (basic_info.file_name.clone(), basic_info))
-        .collect();
+        // create vec of all local and replicated backups at once
+        //
+        // we need to make certain that what we return from possibly multiple datasets are unique
+        // as these will be the filenames that populate our interactive views, so deduplicate
+        // by filename and latest file version here
+        let basic_info_map: HashMap<OsString, BasicDirEntryInfo> = requested_snap_datasets
+            .iter()
+            .flat_map(|dataset_type| {
+                MostProximateAndOptAlts::new(config, &requested_dir_pathdata, dataset_type)
+            })
+            .flat_map(|datasets_of_interest| {
+                datasets_of_interest.get_search_bundles(config, &requested_dir_pathdata)
+            })
+            .flatten()
+            .flat_map(|search_bundle| {
+                Self::get_unique_deleted_for_dir(&requested_dir_pathdata.path_buf, &search_bundle)
+            })
+            .flatten()
+            .map(|basic_info| (basic_info.file_name.clone(), basic_info))
+            .collect();
 
-    basic_info_map.into_values().collect()
-}
+        let inner = basic_info_map.into_values().collect();
 
-fn get_unique_deleted_for_dir(
-    requested_dir: &Path,
-    search_bundle: &RelativePathAndSnapMounts,
-) -> HttmResult<Vec<BasicDirEntryInfo>> {
-    // get all local entries we need to compare against these to know
-    // what is a deleted file
-    //
-    // create a collection of local file names
-    let local_filenames_set: HashSet<OsString> = read_dir(&requested_dir)?
-        .flatten()
-        .map(|dir_entry| dir_entry.file_name())
-        .collect();
+        DeletedFilesBundle { inner }
+    }
 
-    let unique_snap_filenames: HashMap<OsString, BasicDirEntryInfo> =
-        get_unique_snap_filenames(&search_bundle.snap_mounts, &search_bundle.relative_path);
+    fn get_unique_deleted_for_dir(
+        requested_dir: &Path,
+        search_bundle: &RelativePathAndSnapMounts,
+    ) -> HttmResult<Vec<BasicDirEntryInfo>> {
+        // get all local entries we need to compare against these to know
+        // what is a deleted file
+        //
+        // create a collection of local file names
+        let local_filenames_set: HashSet<OsString> = read_dir(&requested_dir)?
+            .flatten()
+            .map(|dir_entry| dir_entry.file_name())
+            .collect();
 
-    // compare local filenames to all unique snap filenames - none values are unique, here
-    let all_deleted_versions: Vec<BasicDirEntryInfo> = unique_snap_filenames
-        .into_iter()
-        .filter_map(|(file_name, basic_info)| {
-            if !local_filenames_set.contains(&file_name) {
-                Some(basic_info)
-            } else {
-                None
-            }
-        })
-        .collect();
+        let unique_snap_filenames: HashMap<OsString, BasicDirEntryInfo> =
+            Self::get_unique_snap_filenames(
+                &search_bundle.snap_mounts,
+                &search_bundle.relative_path,
+            );
 
-    Ok(all_deleted_versions)
-}
+        // compare local filenames to all unique snap filenames - none values are unique, here
+        let all_deleted_versions: Vec<BasicDirEntryInfo> = unique_snap_filenames
+            .into_iter()
+            .filter_map(|(file_name, basic_info)| {
+                if !local_filenames_set.contains(&file_name) {
+                    Some(basic_info)
+                } else {
+                    None
+                }
+            })
+            .collect();
 
-fn get_unique_snap_filenames(
-    mounts: &[PathBuf],
-    relative_path: &Path,
-) -> HashMap<OsString, BasicDirEntryInfo> {
-    mounts
-        .iter()
-        .map(|path| path.join(&relative_path))
-        .flat_map(|path| read_dir(&path))
-        .flatten()
-        .flatten()
-        .map(|dir_entry| (dir_entry.file_name(), BasicDirEntryInfo::from(&dir_entry)))
-        .collect::<HashMap<OsString, BasicDirEntryInfo>>()
+        Ok(all_deleted_versions)
+    }
+
+    fn get_unique_snap_filenames(
+        mounts: &[PathBuf],
+        relative_path: &Path,
+    ) -> HashMap<OsString, BasicDirEntryInfo> {
+        mounts
+            .iter()
+            .map(|path| path.join(&relative_path))
+            .flat_map(|path| read_dir(&path))
+            .flatten()
+            .flatten()
+            .map(|dir_entry| (dir_entry.file_name(), BasicDirEntryInfo::from(&dir_entry)))
+            .collect::<HashMap<OsString, BasicDirEntryInfo>>()
+    }
 }
