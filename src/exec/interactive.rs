@@ -31,7 +31,7 @@ use crate::library::utility::{
 };
 use crate::lookup::versions::VersionsMap;
 
-pub struct InteractiveBrowse {}
+pub struct InteractiveBrowse;
 
 impl InteractiveBrowse {
     pub fn exec(
@@ -151,7 +151,7 @@ impl InteractiveBrowse {
     }
 }
 
-struct InteractiveSelect {}
+struct InteractiveSelect;
 
 impl InteractiveSelect {
     fn exec(
@@ -275,7 +275,7 @@ impl InteractiveSelect {
     }
 }
 
-struct InteractiveRestore {}
+struct InteractiveRestore;
 
 impl InteractiveRestore {
     fn exec(

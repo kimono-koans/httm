@@ -93,7 +93,7 @@ pub fn recursive_exec(
     }
 }
 
-struct MainIterativeLoop {}
+struct MainIterativeLoop;
 
 impl MainIterativeLoop {
     fn exec(

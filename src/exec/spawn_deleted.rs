@@ -30,7 +30,7 @@ use crate::library::utility::{is_channel_closed, Never};
 use crate::lookup::deleted::DeletedFilesBundle;
 use crate::lookup::last_in_time::LastInTimeSet;
 
-pub struct SpawnDeletedThread {}
+pub struct SpawnDeletedThread;
 
 impl SpawnDeletedThread {
     // "spawn" a lighter weight rayon/greenish thread for enumerate_deleted, if needed
