@@ -61,7 +61,7 @@ use crate::exec::interactive::interactive_exec;
 use crate::exec::recursive::display_recursive_wrapper;
 use crate::exec::snapshot::take_snapshot;
 use crate::library::results::HttmResult;
-use crate::lookup::versions::versions_lookup_exec;
+use crate::lookup::versions::{versions_lookup_exec, DisplayMap};
 
 pub const ZFS_HIDDEN_DIRECTORY: &str = ".zfs";
 pub const ZFS_SNAPSHOT_DIRECTORY: &str = ".zfs/snapshot";
@@ -107,6 +107,10 @@ fn exec() -> HttmResult<()> {
         // output elsewhere
         ExecMode::DisplayRecursive(_) => display_recursive_wrapper(config.clone()),
         ExecMode::SnapFileMount(snapshot_suffix) => take_snapshot(config.as_ref(), snapshot_suffix),
-        ExecMode::MountsForFiles => MountsForFiles::display(config.as_ref()),
+        ExecMode::MountsForFiles => {
+            let display_map: DisplayMap = MountsForFiles::new(&config).into();
+            let output_buf = display_map.display(&config);
+            print_output_buf(output_buf)
+        }
     }
 }
