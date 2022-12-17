@@ -59,8 +59,7 @@ use crate::exec::interactive::interactive_exec;
 use crate::exec::recursive::display_recursive_wrapper;
 use crate::exec::snapshot::take_snapshot;
 use crate::library::results::HttmResult;
-use crate::library::utility::print_output_buf;
-use crate::lookup::versions::{versions_lookup_exec, DisplayMap};
+use crate::lookup::versions::{versions_lookup_exec};
 
 pub const ZFS_HIDDEN_DIRECTORY: &str = ".zfs";
 pub const ZFS_SNAPSHOT_DIRECTORY: &str = ".zfs/snapshot";
@@ -93,26 +92,17 @@ fn exec() -> HttmResult<()> {
         ExecMode::Interactive(interactive_mode) => {
             let browse_result = &interactive_exec(config.clone(), interactive_mode)?;
             let map_to_live_snaps = versions_lookup_exec(config.as_ref(), browse_result)?;
-            print_display_map(&config, map_to_live_snaps)
+            map_to_live_snaps.print_map(&config)
         }
         // ExecMode::Display will be just printed, we already know the paths
         ExecMode::Display | ExecMode::NumVersions(_) => {
             let map_to_live_snaps = versions_lookup_exec(config.as_ref(), &config.paths)?;
-            print_display_map(&config, map_to_live_snaps)
+            map_to_live_snaps.print_map(&config)
         }
         // ExecMode::DisplayRecursive, ExecMode::SnapFileMount, and ExecMode::MountsForFiles will print their
         // output elsewhere
         ExecMode::DisplayRecursive(_) => display_recursive_wrapper(config.clone()),
         ExecMode::SnapFileMount(snapshot_suffix) => take_snapshot(config.as_ref(), snapshot_suffix),
         ExecMode::MountsForFiles => MountsForFiles::display(config.as_ref()),
-    }
-}
-
-fn print_display_map(config: &Config, map_live_to_snaps: DisplayMap) -> HttmResult<()> {
-    if config.opt_last_snap.is_some() && matches!(config.exec_mode, ExecMode::Display) {
-        map_live_to_snaps.display_as_map(config)
-    } else {
-        let output_buf = map_live_to_snaps.display(config);
-        print_output_buf(output_buf)
     }
 }

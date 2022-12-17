@@ -94,6 +94,15 @@ impl DisplayMap {
                 .collect::<String>()
         }
     }
+
+    pub fn print_map( self, config: &Config) -> HttmResult<()> {
+        if config.opt_last_snap.is_some() && matches!(config.exec_mode, ExecMode::Display) {
+            self.display_as_map(config)
+        } else {
+            let output_buf = self.display(config);
+            print_output_buf(output_buf)
+        }
+    }
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
