@@ -40,7 +40,7 @@ pub fn display_recursive_wrapper(config: Arc<Config>) -> HttmResult<()> {
 
     match &config.opt_requested_dir {
         Some(requested_dir) => {
-            recursive_exec(
+            RecursiveLoop::exec(
                 config_clone,
                 &requested_dir.path_buf,
                 dummy_skim_tx,
@@ -58,45 +58,45 @@ pub fn display_recursive_wrapper(config: Arc<Config>) -> HttmResult<()> {
     Ok(())
 }
 
-pub fn recursive_exec(
-    config: Arc<Config>,
-    requested_dir: &Path,
-    skim_tx: SkimItemSender,
-    hangup_rx: Receiver<Never>,
-) {
-    let exec = |opt_deleted_scope: Option<&Scope>| {
-        MainIterativeLoop::exec(
-            config.clone(),
-            requested_dir,
-            opt_deleted_scope,
-            &skim_tx,
-            &hangup_rx,
-        )
-        .unwrap_or_else(|error| {
-            eprintln!("Error: {}", error);
-            std::process::exit(1)
-        });
-    };
+pub struct RecursiveLoop;
 
-    if config.deleted_mode.is_some() {
-        // thread pool allows deleted to have its own scope, which means
-        // all threads must complete before the scope exits.  this is important
-        // for display recursive searches as the live enumeration will end before
-        // all deleted threads have completed
-        let pool: ThreadPool = rayon::ThreadPoolBuilder::new()
-            .build()
-            .expect("Could not initialize rayon threadpool for recursive deleted search");
+impl RecursiveLoop {
+    pub fn exec(
+        config: Arc<Config>,
+        requested_dir: &Path,
+        skim_tx: SkimItemSender,
+        hangup_rx: Receiver<Never>,
+    ) {
+        let exec = |opt_deleted_scope: Option<&Scope>| {
+            Self::run_main_loop(
+                config.clone(),
+                requested_dir,
+                opt_deleted_scope,
+                &skim_tx,
+                &hangup_rx,
+            )
+            .unwrap_or_else(|error| {
+                eprintln!("Error: {}", error);
+                std::process::exit(1)
+            });
+        };
 
-        pool.scope(|deleted_scope| exec(Some(deleted_scope)));
-    } else {
-        exec(None)
+        if config.deleted_mode.is_some() {
+            // thread pool allows deleted to have its own scope, which means
+            // all threads must complete before the scope exits.  this is important
+            // for display recursive searches as the live enumeration will end before
+            // all deleted threads have completed
+            let pool: ThreadPool = rayon::ThreadPoolBuilder::new()
+                .build()
+                .expect("Could not initialize rayon threadpool for recursive deleted search");
+
+            pool.scope(|deleted_scope| exec(Some(deleted_scope)));
+        } else {
+            exec(None)
+        }
     }
-}
 
-struct MainIterativeLoop;
-
-impl MainIterativeLoop {
-    fn exec(
+    fn run_main_loop(
         config: Arc<Config>,
         requested_dir: &Path,
         opt_deleted_scope: Option<&Scope>,
@@ -106,7 +106,7 @@ impl MainIterativeLoop {
         // runs once for non-recursive but also "primes the pump"
         // for recursive to have items available, also only place an
         // error can stop execution
-        let mut queue: VecDeque<BasicDirEntryInfo> = Self::enumerate(
+        let mut queue: VecDeque<BasicDirEntryInfo> = Self::enumerate_directory(
             config.clone(),
             requested_dir,
             opt_deleted_scope,
@@ -121,7 +121,7 @@ impl MainIterativeLoop {
             while let Some(item) = queue.pop_back() {
                 // no errors will be propagated in recursive mode
                 // far too likely to run into a dir we don't have permissions to view
-                if let Ok(vec_dirs) = Self::enumerate(
+                if let Ok(vec_dirs) = Self::enumerate_directory(
                     config.clone(),
                     &item.path,
                     opt_deleted_scope,
@@ -136,7 +136,7 @@ impl MainIterativeLoop {
         Ok(())
     }
 
-    fn enumerate(
+    fn enumerate_directory(
         config: Arc<Config>,
         requested_dir: &Path,
         opt_deleted_scope: Option<&Scope>,

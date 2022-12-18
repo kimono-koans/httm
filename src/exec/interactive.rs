@@ -24,7 +24,7 @@ use crate::config::generate::{Config, ExecMode, InteractiveMode, PrintMode, Rest
 use crate::data::paths::{PathData, PathMetadata};
 use crate::data::selection::SelectionCandidate;
 use crate::exec::preview::PreviewSelection;
-use crate::exec::recursive::recursive_exec;
+use crate::exec::recursive::RecursiveLoop;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{
     copy_recursive, get_date, get_delimiter, print_output_buf, DateFormat, Never,
@@ -103,7 +103,7 @@ impl InteractiveBrowse {
         // thread spawn fn enumerate_directory - permits recursion into dirs without blocking
         thread::spawn(move || {
             // no way to propagate error from closure so exit and explain error here
-            recursive_exec(
+            RecursiveLoop::exec(
                 config_clone,
                 &requested_dir_clone,
                 tx_item.clone(),
