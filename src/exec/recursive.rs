@@ -67,7 +67,7 @@ impl RecursiveLoop {
         skim_tx: SkimItemSender,
         hangup_rx: Receiver<Never>,
     ) {
-        let exec = |opt_deleted_scope: Option<&Scope>| {
+        let run = |opt_deleted_scope: Option<&Scope>| {
             Self::run_main_loop(
                 config.clone(),
                 requested_dir,
@@ -90,9 +90,9 @@ impl RecursiveLoop {
                 .build()
                 .expect("Could not initialize rayon threadpool for recursive deleted search");
 
-            pool.scope(|deleted_scope| exec(Some(deleted_scope)));
+            pool.scope(|deleted_scope| run(Some(deleted_scope)));
         } else {
-            exec(None)
+            run(None)
         }
     }
 
