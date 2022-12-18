@@ -42,20 +42,12 @@ impl VersionsMap {
             ExecMode::NumVersions(num_versions_mode) => {
                 self.print_num_versions(config, num_versions_mode)
             }
-            ExecMode::Display
+            ExecMode::Display | ExecMode::MountsForFiles
                 if config.opt_last_snap.is_some()
                     && !matches!(
                         config.print_mode,
                         PrintMode::RawNewline | PrintMode::RawZero
                     ) =>
-            {
-                self.print_formatted_map(config)
-            }
-            ExecMode::MountsForFiles
-                if !matches!(
-                    config.print_mode,
-                    PrintMode::RawNewline | PrintMode::RawZero
-                ) =>
             {
                 self.print_formatted_map(config)
             }
