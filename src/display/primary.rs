@@ -171,7 +171,7 @@ impl PathData {
         padding_collection: &PaddingCollection,
     ) -> String {
         // obtain metadata for timestamp and size
-        let metadata = self.md_infallible();
+        let metadata = self.get_md_infallible();
 
         // tab delimited if "no pretty", no border lines, and no colors
         let (display_size, display_path, display_padding) =
@@ -247,7 +247,7 @@ impl PaddingCollection {
         let (size_padding_len, fancy_border_len) = display_set.iter().flatten().fold(
             (0usize, 0usize),
             |(mut size_padding_len, mut fancy_border_len), pathdata| {
-                let metadata = pathdata.md_infallible();
+                let metadata = pathdata.get_md_infallible();
 
                 let (display_date, display_size, display_path) = {
                     let date = get_date(config, &metadata.modify_time, DateFormat::Display);

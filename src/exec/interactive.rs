@@ -259,8 +259,8 @@ impl InteractiveSelect {
             .flatten()
             .filter(|snap_version| {
                 if config.opt_omit_ditto {
-                    snap_version.md_infallible().modify_time
-                        != live_version.md_infallible().modify_time
+                    snap_version.get_md_infallible().modify_time
+                        != live_version.get_md_infallible().modify_time
                 } else {
                     true
                 }

@@ -143,7 +143,7 @@ impl PathData {
         return UNIX_EPOCH + time::Duration::new(md.ctime(), md.ctime_nsec() as i32);
     }
 
-    pub fn md_infallible(&self) -> PathMetadata {
+    pub fn get_md_infallible(&self) -> PathMetadata {
         self.metadata.unwrap_or(PHANTOM_PATH_METADATA)
     }
 

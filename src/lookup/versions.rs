@@ -99,7 +99,7 @@ impl VersionsMap {
                     .filter(|snap_version| {
                         // process omit_ditto before last snap
                         if config.opt_omit_ditto {
-                            snap_version.md_infallible() != pathdata.md_infallible()
+                            snap_version.get_md_infallible() != pathdata.get_md_infallible()
                         } else {
                             true
                         }
@@ -126,17 +126,17 @@ impl VersionsMap {
                     Some(last) => match last_snap_mode {
                         LastSnapMode::Any => vec![last.clone()],
                         LastSnapMode::DittoOnly
-                            if pathdata.md_infallible() == last.md_infallible() =>
+                            if pathdata.get_md_infallible() == last.get_md_infallible() =>
                         {
                             vec![last.clone()]
                         }
                         LastSnapMode::NoDittoExclusive
-                            if pathdata.md_infallible() != last.md_infallible() =>
+                            if pathdata.get_md_infallible() != last.get_md_infallible() =>
                         {
                             vec![last.clone()]
                         }
                         LastSnapMode::NoDittoInclusive
-                            if pathdata.md_infallible() != last.md_infallible() =>
+                            if pathdata.get_md_infallible() != last.get_md_infallible() =>
                         {
                             vec![last.clone()]
                         }
