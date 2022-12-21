@@ -18,7 +18,6 @@
 use std::collections::VecDeque;
 use std::{fs::read_dir, path::Path, sync::Arc};
 
-use once_cell::unsync::OnceCell;
 use rayon::{Scope, ThreadPool};
 use skim::prelude::*;
 
@@ -281,7 +280,6 @@ fn get_pseudo_live_versions(
             path: pseudo_live_dir.join(&basic_info.file_name),
             file_name: basic_info.file_name,
             file_type: basic_info.file_type,
-            modify_time: OnceCell::new(),
         })
         .collect()
 }

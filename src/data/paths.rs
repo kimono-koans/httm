@@ -19,11 +19,10 @@ use std::{
     cmp,
     ffi::OsString,
     fs::{symlink_metadata, DirEntry, FileType, Metadata},
+    os::unix::prelude::MetadataExt,
     path::{Path, PathBuf},
-    time::SystemTime,
+    time::{SystemTime, UNIX_EPOCH},
 };
-
-use once_cell::unsync::OnceCell;
 
 use crate::config::generate::Config;
 use crate::library::results::{HttmError, HttmResult};
@@ -37,18 +36,6 @@ pub struct BasicDirEntryInfo {
     pub file_name: OsString,
     pub path: PathBuf,
     pub file_type: Option<FileType>,
-    pub modify_time: OnceCell<Option<SystemTime>>,
-}
-
-impl BasicDirEntryInfo {
-    pub fn get_modify_time(&self) -> Option<SystemTime> {
-        *self.modify_time.get_or_init(|| {
-            self.path
-                .symlink_metadata()
-                .ok()
-                .and_then(|metadata| metadata.modified().ok())
-        })
-    }
 }
 
 impl From<&DirEntry> for BasicDirEntryInfo {
@@ -57,7 +44,6 @@ impl From<&DirEntry> for BasicDirEntryInfo {
             file_name: dir_entry.file_name(),
             path: dir_entry.path(),
             file_type: dir_entry.file_type().ok(),
-            modify_time: OnceCell::new(),
         }
     }
 }
@@ -136,7 +122,7 @@ impl PathData {
         let metadata = opt_metadata.map(|md| {
             let len = md.len();
             // may fail on systems that don't collect a modify time
-            let time = md.modified().unwrap_or(PHANTOM_DATE);
+            let time = Self::get_modify_time(md);
             PathMetadata {
                 size: len,
                 modify_time: time,
@@ -147,6 +133,14 @@ impl PathData {
             path_buf: absolute_path,
             metadata,
         }
+    }
+
+    // using ctime instead of mtime is more correct as mtime can be trivially changed from user space
+    fn get_modify_time(md: Metadata) -> SystemTime {
+        #[cfg(not(unix))]
+        return md.modified().unwrap_or(UNIX_EPOCH);
+        #[cfg(unix)]
+        return UNIX_EPOCH + time::Duration::new(md.ctime(), md.ctime_nsec() as i32);
     }
 
     pub fn md_infallible(&self) -> PathMetadata {
