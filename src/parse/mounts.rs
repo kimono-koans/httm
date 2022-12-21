@@ -82,26 +82,30 @@ impl BaseFilesystemInfo {
 
         let map_of_snaps = MapOfSnaps::new(&raw_datasets)?;
 
-        let datasets_max_len = raw_datasets
-            .keys()
-            .map(|mount| mount.components().count())
-            .max()
-            .unwrap_or(0);
+        let map_of_datasets = {
+            let datasets_max_len = raw_datasets
+                .keys()
+                .map(|mount| mount.components().count())
+                .max()
+                .unwrap_or(0);
 
-        let map_of_datasets = MapOfDatasets {
-            datasets: raw_datasets,
-            max_len: datasets_max_len,
+            MapOfDatasets {
+                datasets: raw_datasets,
+                max_len: datasets_max_len,
+            }
         };
 
-        let filter_dirs_max_len = filter_dirs_set
-            .iter()
-            .map(|dir| dir.components().count())
-            .max()
-            .unwrap_or(0);
+        let filter_dirs = {
+            let filter_dirs_max_len = filter_dirs_set
+                .iter()
+                .map(|dir| dir.components().count())
+                .max()
+                .unwrap_or(0);
 
-        let filter_dirs = FilterDirs {
-            dirs: filter_dirs_set,
-            max_len: filter_dirs_max_len,
+            FilterDirs {
+                dirs: filter_dirs_set,
+                max_len: filter_dirs_max_len,
+            }
         };
 
         Ok(BaseFilesystemInfo {
