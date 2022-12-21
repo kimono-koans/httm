@@ -43,7 +43,7 @@ pub fn take_snapshot(config: &Config, requested_snapshot_suffix: &str) -> HttmRe
             .map(|mount| {
             let dataset: String = match &config.dataset_collection.opt_map_of_aliases {
                 None => {
-                    match config.dataset_collection.map_of_datasets.get(&mount.path_buf) {
+                    match config.dataset_collection.map_of_datasets.datasets.get(&mount.path_buf) {
                         Some(dataset_info) => {
                             if let FilesystemType::Zfs = dataset_info.fs_type {
                                 Ok(dataset_info.name.clone())

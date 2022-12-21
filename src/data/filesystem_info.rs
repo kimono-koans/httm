@@ -143,6 +143,7 @@ pub fn get_common_snap_dir(
     map_of_snaps: &MapOfSnaps,
 ) -> Option<PathBuf> {
     let btrfs_datasets: Vec<&PathBuf> = map_of_datasets
+        .datasets
         .par_iter()
         .filter(|(_mount, dataset_info)| dataset_info.fs_type == FilesystemType::Btrfs)
         .map(|(mount, _dataset_info)| mount)

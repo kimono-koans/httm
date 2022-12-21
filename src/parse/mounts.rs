@@ -58,7 +58,11 @@ pub struct FilterDirs {
     pub max_len: usize,
 }
 
-pub type MapOfDatasets = BTreeMap<PathBuf, DatasetMetadata>;
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MapOfDatasets {
+    pub datasets: BTreeMap<PathBuf, DatasetMetadata>,
+    pub max_len: usize,
+}
 
 pub struct BaseFilesystemInfo {
     pub map_of_datasets: MapOfDatasets,
@@ -70,13 +74,24 @@ impl BaseFilesystemInfo {
     // divide by the type of system we are on
     // Linux allows us the read proc mounts
     pub fn new() -> HttmResult<Self> {
-        let (map_of_datasets, filter_dirs_set) = if cfg!(target_os = "linux") {
+        let (raw_datasets, filter_dirs_set) = if cfg!(target_os = "linux") {
             Self::from_proc_mounts()?
         } else {
             Self::from_mount_cmd()?
         };
 
-        let map_of_snaps = MapOfSnaps::new(&map_of_datasets)?;
+        let map_of_snaps = MapOfSnaps::new(&raw_datasets)?;
+
+        let datasets_max_len = raw_datasets
+            .keys()
+            .map(|mount| mount.components().count())
+            .max()
+            .unwrap_or(0);
+
+        let map_of_datasets = MapOfDatasets {
+            datasets: raw_datasets,
+            max_len: datasets_max_len,
+        };
 
         let filter_dirs_max_len = filter_dirs_set
             .iter()
@@ -98,8 +113,11 @@ impl BaseFilesystemInfo {
 
     // parsing from proc mounts is both faster and necessary for certain btrfs features
     // for instance, allows us to read subvolumes mounts, like "/@" or "/@home"
-    fn from_proc_mounts() -> HttmResult<(MapOfDatasets, BTreeSet<PathBuf>)> {
-        let (map_of_datasets, filter_dirs): (MapOfDatasets, BTreeSet<PathBuf>) = MountIter::new()?
+    fn from_proc_mounts() -> HttmResult<(BTreeMap<PathBuf, DatasetMetadata>, BTreeSet<PathBuf>)> {
+        let (map_of_datasets, filter_dirs): (
+            BTreeMap<PathBuf, DatasetMetadata>,
+            BTreeSet<PathBuf>,
+        ) = MountIter::new()?
             .par_bridge()
             .flatten()
             // but exclude snapshot mounts.  we want only the raw filesystems
@@ -180,13 +198,18 @@ impl BaseFilesystemInfo {
 
     // old fashioned parsing for non-Linux systems, nearly as fast, works everywhere with a mount command
     // both methods are much faster than using zfs command
-    fn from_mount_cmd() -> HttmResult<(MapOfDatasets, BTreeSet<PathBuf>)> {
-        fn parse(mount_command: &Path) -> HttmResult<(MapOfDatasets, BTreeSet<PathBuf>)> {
+    fn from_mount_cmd() -> HttmResult<(BTreeMap<PathBuf, DatasetMetadata>, BTreeSet<PathBuf>)> {
+        fn parse(
+            mount_command: &Path,
+        ) -> HttmResult<(BTreeMap<PathBuf, DatasetMetadata>, BTreeSet<PathBuf>)> {
             let command_output =
                 std::str::from_utf8(&ExecProcess::new(mount_command).output()?.stdout)?.to_owned();
 
             // parse "mount" for filesystems and mountpoints
-            let (map_of_datasets, filter_dirs): (MapOfDatasets, BTreeSet<PathBuf>) = command_output
+            let (map_of_datasets, filter_dirs): (
+                BTreeMap<PathBuf, DatasetMetadata>,
+                BTreeSet<PathBuf>,
+            ) = command_output
                 .par_lines()
                 // but exclude snapshot mounts.  we want the raw filesystem names.
                 .filter(|line| !line.contains(ZFS_SNAPSHOT_DIRECTORY))

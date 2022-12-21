@@ -46,6 +46,7 @@ impl MapOfAlts {
     // instead of looking up, precompute possible alt replicated mounts before exec
     pub fn new(map_of_datasets: &MapOfDatasets) -> Self {
         let res: BTreeMap<PathBuf, MostProximateAndOptAlts> = map_of_datasets
+            .datasets
             .par_iter()
             .flat_map(|(mount, _dataset_info)| {
                 Self::get_alt_replicated_from_mount(mount, map_of_datasets)
@@ -60,7 +61,8 @@ impl MapOfAlts {
         proximate_dataset_mount: &Path,
         map_of_datasets: &MapOfDatasets,
     ) -> HttmResult<MostProximateAndOptAlts> {
-        let proximate_dataset_fs_name = match &map_of_datasets.get(proximate_dataset_mount) {
+        let proximate_dataset_fs_name = match &map_of_datasets.datasets.get(proximate_dataset_mount)
+        {
             Some(dataset_info) => dataset_info.name.clone(),
             None => {
                 return Err(HttmError::new("httm was unable to detect an alternate replicated mount point.  Perhaps the replicated filesystem is not mounted?").into());
@@ -71,6 +73,7 @@ impl MapOfAlts {
         // but which has a prefix, like a different pool name: rpool might be
         // replicated to tank/rpool
         let mut alt_replicated_mounts: Vec<PathBuf> = map_of_datasets
+            .datasets
             .par_iter()
             .filter(|(_mount, dataset_info)| {
                 dataset_info.name != proximate_dataset_fs_name

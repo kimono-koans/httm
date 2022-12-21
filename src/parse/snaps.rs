@@ -25,7 +25,7 @@ use which::which;
 
 use crate::library::results::{HttmError, HttmResult};
 use crate::parse::aliases::FilesystemType;
-use crate::parse::mounts::{MapOfDatasets, MountType};
+use crate::parse::mounts::{DatasetMetadata, MountType};
 use crate::{BTRFS_SNAPPER_HIDDEN_DIRECTORY, BTRFS_SNAPPER_SUFFIX, ZFS_SNAPSHOT_DIRECTORY};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -49,7 +49,7 @@ impl Deref for MapOfSnaps {
 
 impl MapOfSnaps {
     // fans out precompute of snap mounts to the appropriate function based on fstype
-    pub fn new(map_of_datasets: &MapOfDatasets) -> HttmResult<Self> {
+    pub fn new(map_of_datasets: &BTreeMap<PathBuf, DatasetMetadata>) -> HttmResult<Self> {
         let opt_root_mount_path: Option<&PathBuf> =
             map_of_datasets
                 .par_iter()

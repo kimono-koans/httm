@@ -186,8 +186,9 @@ impl PathData {
         // we map to return the key, instead of the value
         self.path_buf
             .ancestors()
+            .skip_while(|ancestor| ancestor.components().count() > map_of_datasets.max_len)
             .find_map(|ancestor| {
-                if map_of_datasets.contains_key(ancestor) {
+                if map_of_datasets.datasets.contains_key(ancestor) {
                     Some(ancestor.to_path_buf())
                 } else {
                     None
