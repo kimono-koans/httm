@@ -40,7 +40,7 @@ impl VersionsMap {
     pub fn display(&self, config: &Config) -> String {
         match &config.exec_mode {
             ExecMode::NumVersions(num_versions_mode) => {
-                self.print_num_versions(config, num_versions_mode)
+                self.print_as_num_versions(config, num_versions_mode)
             }
             ExecMode::Display | ExecMode::MountsForFiles
                 if config.opt_last_snap.is_some()
@@ -49,13 +49,13 @@ impl VersionsMap {
                         PrintMode::RawNewline | PrintMode::RawZero
                     ) =>
             {
-                self.print_formatted_map(config)
+                self.print_as_formatted_map(config)
             }
-            _ => self.print(config),
+            _ => self.print_formatted(config),
         }
     }
 
-    pub fn print(&self, config: &Config) -> String {
+    fn print_formatted(&self, config: &Config) -> String {
         let global_display_set = DisplaySet::new(config, self);
         let padding_collection = PaddingCollection::new(config, &global_display_set);
 

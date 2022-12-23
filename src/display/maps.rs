@@ -30,7 +30,7 @@ impl VersionsMap {
             )
     }
 
-    pub fn print_formatted_map(&self, config: &Config) -> String {
+    pub fn print_as_formatted_map(&self, config: &Config) -> String {
         let padding = self.get_map_padding();
 
         let write_out_buffer = self

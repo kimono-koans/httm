@@ -125,7 +125,9 @@ impl VersionsMap {
                 let new_snaps = match snaps.last() {
                     Some(last) => match last_snap_mode {
                         LastSnapMode::Any => vec![last.clone()],
-                        LastSnapMode::DittoOnly if pathdata.get_md_infallible() == last.get_md_infallible() => {
+                        LastSnapMode::DittoOnly
+                            if pathdata.get_md_infallible() == last.get_md_infallible() =>
+                        {
                             vec![last.clone()]
                         }
                         LastSnapMode::NoDittoExclusive | LastSnapMode::NoDittoInclusive
