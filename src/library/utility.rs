@@ -82,6 +82,16 @@ fn copy_attributes(src: &Path, dst: &Path) -> HttmResult<()> {
         chown(dst, Some(dst_uid.into()), Some(dst_gid.into()))?
     }
 
+    // Xattrs
+    {
+        let xattrs = xattr::list(src)?;
+        for attr in xattrs {
+            if let Some(attr_value) = xattr::get(src, attr.clone())? {
+                xattr::set(dst, attr, &attr_value[..])?;
+            }
+        }
+    }
+
     // Timestamps
     {
         use nix::sys::stat::{stat, utimensat, UtimensatFlags};

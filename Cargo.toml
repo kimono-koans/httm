@@ -33,6 +33,7 @@ once_cell = { version = "1.16.0", default-features = false }
 chrono = { version = "0.4.23", default-features = false }
 hashbrown = { version = "0.13.1" }
 nix = { version = "0.26.1", features = ["fs"] }
+xattr = { version = "1.0.0", default-features = false }
 
 [patch.crates-io]
 skim = { git = "https://github.com/kimono-koans/skim", branch = "httm-vendored" }
