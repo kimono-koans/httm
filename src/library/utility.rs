@@ -100,18 +100,19 @@ pub fn copy_attributes(src: &Path, dst: &Path) -> HttmResult<()> {
     Ok(())
 }
 
-fn map_permissions_errors(err: io::Error, dst: &Path) -> HttmError {
-    if err.kind() == std::io::ErrorKind::PermissionDenied {
-        let msg = format!("httm restore failed because the user did not have the correct permissions to restore to: {:?}", dst);
-        HttmError::new(&msg)
-    } else {
-        HttmError::with_context("httm restore failed for the following reason", &err)
+fn map_io_err(err: io::Error, dst: &Path) -> HttmError {
+    match err.kind() {
+        std::io::ErrorKind::PermissionDenied => {
+            let msg = format!("httm restore failed because the user did not have the correct permissions to restore to: {:?}", dst);
+            HttmError::new(&msg)
+        }
+        _ => HttmError::with_context("httm restore failed for the following reason", &err),
     }
 }
 
 pub fn copy_recursive(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<()> {
     if PathBuf::from(src).is_dir() {
-        create_dir_all(&dst).map_err(|err| map_permissions_errors(err, dst))?;
+        create_dir_all(&dst).map_err(|err| map_io_err(err, dst))?;
 
         for entry in read_dir(src)? {
             let entry = entry?;
@@ -125,11 +126,11 @@ pub fn copy_recursive(src: &Path, dst: &Path, should_preserve: bool) -> HttmResu
                 )?;
             } else {
                 copy(&entry.path(), &dst.join(&entry.file_name()))
-                    .map_err(|err| map_permissions_errors(err, dst))?;
+                    .map_err(|err| map_io_err(err, dst))?;
             }
         }
     } else {
-        copy(src, dst).map_err(|err| map_permissions_errors(err, dst))?;
+        copy(src, dst).map_err(|err| map_io_err(err, dst))?;
     }
 
     if should_preserve {
