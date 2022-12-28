@@ -17,15 +17,18 @@
 
 use std::{
     borrow::Cow,
-    fs::{copy, create_dir_all, read_dir, DirEntry, FileType},
+    fs::{copy, create_dir_all, read_dir, set_permissions, DirEntry, FileType},
     io::{self, Read, Write},
     iter::Iterator,
+    os::unix::fs::MetadataExt,
     path::{Component::RootDir, Path, PathBuf},
     time::SystemTime,
 };
 
 use crossbeam::channel::{Receiver, TryRecvError};
 use lscolors::{Colorable, LsColors, Style};
+use nix::sys::stat::{stat, utimensat, UtimensatFlags};
+use nix::sys::time::TimeSpec;
 use number_prefix::NumberPrefix;
 use once_cell::sync::Lazy;
 use time::{format_description, OffsetDateTime, UtcOffset};
@@ -68,35 +71,38 @@ fn copy_attributes(src: &Path, dst: &Path) -> HttmResult<()> {
 
     // Mode
     {
-        std::fs::set_permissions(dst, src_metadata.permissions())?
+        set_permissions(dst, src_metadata.permissions())?
+    }
+
+    // ACLs - requires libacl1-dev to build
+    #[cfg(feature = "acls")]
+    {
+        let acls = exacl::getfacl(src, None)?;
+
+        acls.into_iter()
+            .try_for_each(|acl| exacl::setfacl(&[dst], &[acl], None))?;
     }
 
     // Ownership
     {
-        use nix::unistd::chown;
-        use std::os::unix::fs::MetadataExt;
-
         let dst_uid = src_metadata.uid();
         let dst_gid = src_metadata.gid();
 
-        chown(dst, Some(dst_uid.into()), Some(dst_gid.into()))?
+        nix::unistd::chown(dst, Some(dst_uid.into()), Some(dst_gid.into()))?
     }
 
-    // Xattrs
+    // XAttrs
     {
         let xattrs = xattr::list(src)?;
-        for attr in xattrs {
-            if let Some(attr_value) = xattr::get(src, attr.clone())? {
-                xattr::set(dst, attr, &attr_value[..])?;
-            }
-        }
+
+        xattrs
+            .flat_map(|attr| xattr::get(src, attr.clone()).map(|opt_value| (attr, opt_value)))
+            .filter_map(|(attr, opt_value)| opt_value.map(|value| (attr, value)))
+            .try_for_each(|(attr, value)| xattr::set(dst, attr, value.as_slice()))?;
     }
 
     // Timestamps
     {
-        use nix::sys::stat::{stat, utimensat, UtimensatFlags};
-        use nix::sys::time::TimeSpec;
-
         let raw_stat = stat(src)?;
 
         let atime = raw_stat.st_atime;
