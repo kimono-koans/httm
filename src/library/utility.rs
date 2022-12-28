@@ -77,10 +77,11 @@ fn copy_attributes(src: &Path, dst: &Path) -> HttmResult<()> {
     // ACLs - requires libacl1-dev to build
     #[cfg(feature = "acls")]
     {
-        let acls = exacl::getfacl(src, None)?;
-
-        acls.into_iter()
-            .try_for_each(|acl| exacl::setfacl(&[dst], &[acl], None))?;
+        if let Ok(acls) = exacl::getfacl(src, None) {
+            let _ = acls
+                .into_iter()
+                .try_for_each(|acl| exacl::setfacl(&[dst], &[acl], None));
+        }
     }
 
     // Ownership
@@ -93,12 +94,12 @@ fn copy_attributes(src: &Path, dst: &Path) -> HttmResult<()> {
 
     // XAttrs
     {
-        let xattrs = xattr::list(src)?;
-
-        xattrs
-            .flat_map(|attr| xattr::get(src, attr.clone()).map(|opt_value| (attr, opt_value)))
-            .filter_map(|(attr, opt_value)| opt_value.map(|value| (attr, value)))
-            .try_for_each(|(attr, value)| xattr::set(dst, attr, value.as_slice()))?;
+        if let Ok(xattrs) = xattr::list(src) {
+            let _ = xattrs
+                .flat_map(|attr| xattr::get(src, attr.clone()).map(|opt_value| (attr, opt_value)))
+                .filter_map(|(attr, opt_value)| opt_value.map(|value| (attr, value)))
+                .try_for_each(|(attr, value)| xattr::set(dst, attr, value.as_slice()));
+        }
     }
 
     // Timestamps
