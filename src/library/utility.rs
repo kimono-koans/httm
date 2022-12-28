@@ -25,6 +25,7 @@ use std::{
 };
 
 use crossbeam::channel::{Receiver, TryRecvError};
+use filetime::FileTime;
 use lscolors::{Colorable, LsColors, Style};
 use number_prefix::NumberPrefix;
 use once_cell::sync::Lazy;
@@ -63,14 +64,57 @@ pub fn make_tmp_path(path: &Path) -> PathBuf {
     PathBuf::from(res)
 }
 
-pub fn copy_recursive(src: &Path, dst: &Path) -> io::Result<()> {
+pub fn copy_attributes(src: &Path, dst: &Path) -> HttmResult<()> {
+    let src_metadata = src.symlink_metadata()?;
+
+    // Mode
+    {
+        if !dst.is_symlink() {
+            std::fs::set_permissions(dst, src_metadata.permissions())?
+        }
+    }
+
+    // Timestamps
+    {
+        let atime = FileTime::from_last_access_time(&src_metadata);
+        let mtime = FileTime::from_last_modification_time(&src_metadata);
+
+        if dst.is_symlink() {
+            filetime::set_symlink_file_times(dst, atime, mtime)?
+        } else {
+            filetime::set_file_times(dst, atime, mtime)?
+        }
+    }
+
+    // Ownership
+    {
+        use nix::unistd::chown;
+        use std::os::unix::fs::MetadataExt;
+
+        let dst_uid = src_metadata.uid();
+        let dst_gid = src_metadata.gid();
+
+        chown(dst, Some(dst_uid.into()), Some(dst_gid.into()))?
+    }
+
+    Ok(())
+}
+
+pub fn copy_recursive(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<()> {
     if PathBuf::from(src).is_dir() {
         create_dir_all(&dst)?;
         for entry in read_dir(src)? {
             let entry = entry?;
             let file_type = entry.file_type()?;
             if file_type.is_dir() {
-                copy_recursive(&entry.path(), &dst.join(&entry.file_name()))?;
+                copy_recursive(
+                    &entry.path(),
+                    &dst.join(&entry.file_name()),
+                    should_preserve,
+                )?;
+                if should_preserve {
+                    copy_attributes(&entry.path(), &dst.join(&entry.file_name()))?;
+                }
             } else {
                 copy(&entry.path(), &dst.join(&entry.file_name()))?;
             }

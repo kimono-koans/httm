@@ -128,11 +128,12 @@ fn parse_args() -> ArgMatches {
                 .long("restore")
                 .takes_value(true)
                 .default_missing_value("copy")
-                .possible_values(&["copy", "overwrite", "yolo"])
+                .possible_values(&["copy", "overwrite", "yolo", "preserve"])
                 .min_values(0)
                 .require_equals(true)
                 .help("interactive browse and search a specified directory to display unique file versions.  Continue to another dialog to select a snapshot version to restore.  \
-                Default is a non-destructive \"copy\" to the current working directory with a new name, so as not to overwrite any \"live\" file version.  However, user may specify \"overwrite\" to restore to the same file location.")
+                Default is a non-destructive \"copy\" to the current working directory with a new name, so as not to overwrite any \"live\" file version.  However, user may specify \"overwrite\" or (\"preserve\" or \"yolo\") to restore to the same file location.  \
+                Overwrite mode will attempt to preserve the mode, timestamps and ownership of the selected snapshot file version.")
                 .conflicts_with("SELECT")
                 .display_order(4)
         )
@@ -475,7 +476,7 @@ impl Config {
         let opt_interactive_mode = if matches.is_present("RESTORE") {
             if matches!(
                 matches.value_of("RESTORE"),
-                Some("overwrite") | Some("yolo")
+                Some("overwrite") | Some("yolo") | Some("preserve")
             ) {
                 Some(InteractiveMode::Restore(RestoreMode::Overwrite))
             } else {

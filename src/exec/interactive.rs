@@ -295,7 +295,7 @@ impl InteractiveRestore {
             .ok_or_else(|| HttmError::new("Source location does not exist on disk. Quitting."))?;
 
         // build new place to send file
-        let new_file_path_buf = Self::build_new_file_path(
+        let (new_file_path_buf, should_preserve) = Self::build_new_file_path(
             config,
             paths_selected_in_browse,
             &snap_pathdata,
@@ -320,7 +320,11 @@ impl InteractiveRestore {
                 .to_ascii_uppercase();
 
             match user_consent.as_ref() {
-                "YES" | "Y" => match copy_recursive(&snap_pathdata.path_buf, &new_file_path_buf) {
+                "YES" | "Y" => match copy_recursive(
+                    &snap_pathdata.path_buf,
+                    &new_file_path_buf,
+                    should_preserve,
+                ) {
                     Ok(_) => {
                         let result_buffer = format!(
                             "httm copied a file from a ZFS snapshot:\n\n\
@@ -332,16 +336,11 @@ impl InteractiveRestore {
                         break eprintln!("{}", result_buffer);
                     }
                     Err(err) => {
-                        if err.kind() == std::io::ErrorKind::PermissionDenied {
-                            let msg = format!("httm restore failed because the user did not have the correct permissions to restore to: {:?}", new_file_path_buf);
-                            return Err(HttmError::new(&msg).into());
-                        } else {
-                            return Err(HttmError::with_context(
-                                "httm restore failed for the following reason",
-                                Box::new(err),
-                            )
-                            .into());
-                        }
+                        return Err(HttmError::with_context(
+                            "httm restore failed for the following reason",
+                            err,
+                        )
+                        .into())
                     }
                 },
                 "NO" | "N" => break eprintln!("User declined restore.  No files were restored."),
@@ -358,7 +357,7 @@ impl InteractiveRestore {
         paths_selected_in_browse: &[PathData],
         snap_pathdata: &PathData,
         snap_path_metadata: &PathMetadata,
-    ) -> HttmResult<PathBuf> {
+    ) -> HttmResult<(PathBuf, bool)> {
         // build new place to send file
         if matches!(
             config.exec_mode,
@@ -388,7 +387,7 @@ impl InteractiveRestore {
             });
 
             match opt_original_live_pathdata {
-                Some(pathdata) => Ok(pathdata.path_buf),
+                Some(pathdata) => Ok((pathdata.path_buf, true)),
                 None => Err(HttmError::new(
                     "httm unable to determine original file path in overwrite mode.  Quitting.",
                 )
@@ -418,7 +417,7 @@ impl InteractiveRestore {
                     HttmError::new("httm will not restore to that file, as a file with the same path name already exists. Quitting.").into(),
                 )
             } else {
-                Ok(new_file_path_buf)
+                Ok((new_file_path_buf, false))
             }
         }
     }
