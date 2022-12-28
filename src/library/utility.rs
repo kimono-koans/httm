@@ -68,9 +68,7 @@ fn copy_attributes(src: &Path, dst: &Path) -> HttmResult<()> {
 
     // Mode
     {
-        if !dst.is_symlink() {
-            std::fs::set_permissions(dst, src_metadata.permissions())?
-        }
+        std::fs::set_permissions(dst, src_metadata.permissions())?
     }
 
     // Ownership
@@ -144,7 +142,7 @@ pub fn copy_recursive(src: &Path, dst: &Path, should_preserve: bool) -> HttmResu
         copy(src, dst).map_err(|err| map_io_err(err, dst))?;
     }
 
-    if should_preserve {
+    if should_preserve && cfg!(unix) {
         copy_attributes(src, dst)?;
     }
 
