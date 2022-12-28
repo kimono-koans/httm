@@ -387,7 +387,10 @@ impl InteractiveRestore {
             });
 
             match opt_original_live_pathdata {
-                Some(pathdata) => Ok((pathdata.path_buf, true)),
+                Some(pathdata) => {
+                    let should_preserve = true;
+                    Ok((pathdata.path_buf, should_preserve))
+                }
                 None => Err(HttmError::new(
                     "httm unable to determine original file path in overwrite mode.  Quitting.",
                 )
@@ -417,7 +420,8 @@ impl InteractiveRestore {
                     HttmError::new("httm will not restore to that file, as a file with the same path name already exists. Quitting.").into(),
                 )
             } else {
-                Ok((new_file_path_buf, false))
+                let should_preserve = false;
+                Ok((new_file_path_buf, should_preserve))
             }
         }
     }

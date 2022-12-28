@@ -74,6 +74,17 @@ pub fn copy_attributes(src: &Path, dst: &Path) -> HttmResult<()> {
         }
     }
 
+    // Ownership
+    {
+        use nix::unistd::chown;
+        use std::os::unix::fs::MetadataExt;
+
+        let dst_uid = src_metadata.uid();
+        let dst_gid = src_metadata.gid();
+
+        chown(dst, Some(dst_uid.into()), Some(dst_gid.into()))?
+    }
+
     // Timestamps
     {
         let atime = FileTime::from_last_access_time(&src_metadata);
@@ -86,23 +97,13 @@ pub fn copy_attributes(src: &Path, dst: &Path) -> HttmResult<()> {
         }
     }
 
-    // Ownership
-    {
-        use nix::unistd::chown;
-        use std::os::unix::fs::MetadataExt;
-
-        let dst_uid = src_metadata.uid();
-        let dst_gid = src_metadata.gid();
-
-        chown(dst, Some(dst_uid.into()), Some(dst_gid.into()))?
-    }
-
     Ok(())
 }
 
 pub fn copy_recursive(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<()> {
     if PathBuf::from(src).is_dir() {
         create_dir_all(&dst)?;
+
         for entry in read_dir(src)? {
             let entry = entry?;
             let file_type = entry.file_type()?;
@@ -112,9 +113,6 @@ pub fn copy_recursive(src: &Path, dst: &Path, should_preserve: bool) -> HttmResu
                     &dst.join(&entry.file_name()),
                     should_preserve,
                 )?;
-                if should_preserve {
-                    copy_attributes(&entry.path(), &dst.join(&entry.file_name()))?;
-                }
             } else {
                 copy(&entry.path(), &dst.join(&entry.file_name()))?;
             }
@@ -122,6 +120,11 @@ pub fn copy_recursive(src: &Path, dst: &Path, should_preserve: bool) -> HttmResu
     } else {
         copy(src, dst)?;
     }
+
+    if should_preserve {
+        copy_attributes(src, dst)?;
+    }
+
     Ok(())
 }
 
