@@ -33,7 +33,7 @@ once_cell = { version = "1.16.0", default-features = false }
 chrono = { version = "0.4.23", default-features = false }
 hashbrown = { version = "0.13.1" }
 # libc = { version = "0.2.138", default-features = false }
-filetime = { version = "0.2.19" }
+filetime = { version = "0.2.19", default-features = false  }
 nix = { version = "0.26.1" }
 
 [patch.crates-io]
