@@ -404,18 +404,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "filetime"
-version = "0.2.19"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4e884668cd0c7480504233e951174ddc3b382f7c2666e3b7310b5c4e7b0c37f9"
-dependencies = [
- "cfg-if",
- "libc",
- "redox_syscall",
- "windows-sys",
-]
-
-[[package]]
 name = "fnv"
 version = "1.0.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -472,7 +460,6 @@ dependencies = [
  "chrono",
  "clap",
  "crossbeam",
- "filetime",
  "hashbrown 0.13.1",
  "indicatif",
  "lscolors",

@@ -25,7 +25,6 @@ use std::{
 };
 
 use crossbeam::channel::{Receiver, TryRecvError};
-use filetime::FileTime;
 use lscolors::{Colorable, LsColors, Style};
 use number_prefix::NumberPrefix;
 use once_cell::sync::Lazy;
@@ -87,14 +86,26 @@ fn copy_attributes(src: &Path, dst: &Path) -> HttmResult<()> {
 
     // Timestamps
     {
-        let atime = FileTime::from_last_access_time(&src_metadata);
-        let mtime = FileTime::from_last_modification_time(&src_metadata);
+        use nix::sys::stat::{stat, utimensat, UtimensatFlags};
+        use nix::sys::time::TimeSpec;
 
-        if dst.is_symlink() {
-            filetime::set_symlink_file_times(dst, atime, mtime)?
-        } else {
-            filetime::set_file_times(dst, atime, mtime)?
-        }
+        let raw_stat = stat(src)?;
+
+        let atime = raw_stat.st_atime;
+        let atime_nsec = raw_stat.st_atime_nsec;
+        let mtime = raw_stat.st_mtime;
+        let mtime_nsec = raw_stat.st_mtime_nsec;
+
+        let atime_timespec = TimeSpec::new(atime, atime_nsec);
+        let mtime_timespec = TimeSpec::new(mtime, mtime_nsec);
+
+        utimensat(
+            None,
+            dst,
+            &atime_timespec,
+            &mtime_timespec,
+            UtimensatFlags::NoFollowSymlink,
+        )?
     }
 
     Ok(())
