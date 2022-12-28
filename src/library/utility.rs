@@ -100,20 +100,23 @@ pub fn copy_attributes(src: &Path, dst: &Path) -> HttmResult<()> {
     Ok(())
 }
 
+fn map_permissions_errors(err: io::Error, dst: &Path) -> HttmError {
+    if err.kind() == std::io::ErrorKind::PermissionDenied {
+        let msg = format!("httm restore failed because the user did not have the correct permissions to restore to: {:?}", dst);
+        HttmError::new(&msg)
+    } else {
+        HttmError::from(err)
+    }
+}
+
 pub fn copy_recursive(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<()> {
     if PathBuf::from(src).is_dir() {
-        create_dir_all(&dst).map_err(|err| {
-            if err.kind() == std::io::ErrorKind::PermissionDenied {
-                let msg = format!("httm restore failed because the user did not have the correct permissions to restore to: {:?}", dst);
-                HttmError::new(&msg)
-            } else {
-                HttmError::from(err)
-            }
-        })?;
+        create_dir_all(&dst).map_err(|err| map_permissions_errors(err, dst))?;
 
         for entry in read_dir(src)? {
             let entry = entry?;
             let file_type = entry.file_type()?;
+
             if file_type.is_dir() {
                 copy_recursive(
                     &entry.path(),
@@ -121,25 +124,12 @@ pub fn copy_recursive(src: &Path, dst: &Path, should_preserve: bool) -> HttmResu
                     should_preserve,
                 )?;
             } else {
-                copy(&entry.path(), &dst.join(&entry.file_name())).map_err(|err| {
-                    if err.kind() == std::io::ErrorKind::PermissionDenied {
-                        let msg = format!("httm restore failed because the user did not have the correct permissions to restore to: {:?}", dst);
-                        HttmError::new(&msg)
-                    } else {
-                        HttmError::from(err)
-                    }
-                })?;
+                copy(&entry.path(), &dst.join(&entry.file_name()))
+                    .map_err(|err| map_permissions_errors(err, dst))?;
             }
         }
     } else {
-        copy(src, dst).map_err(|err| {
-            if err.kind() == std::io::ErrorKind::PermissionDenied {
-                let msg = format!("httm restore failed because the user did not have the correct permissions to restore to: {:?}", dst);
-                HttmError::new(&msg)
-            } else {
-                HttmError::from(err)
-            }
-        })?;
+        copy(src, dst).map_err(|err| map_permissions_errors(err, dst))?;
     }
 
     if should_preserve {
