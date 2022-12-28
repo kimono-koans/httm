@@ -34,7 +34,7 @@ use time::{format_description, OffsetDateTime, UtcOffset};
 use crate::config::generate::{Config, PrintMode};
 use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::data::selection::SelectionCandidate;
-use crate::library::results::HttmResult;
+use crate::library::results::{HttmError, HttmResult};
 use crate::parse::aliases::FilesystemType;
 use crate::{BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_SNAPSHOT_DIRECTORY};
 
@@ -102,7 +102,14 @@ pub fn copy_attributes(src: &Path, dst: &Path) -> HttmResult<()> {
 
 pub fn copy_recursive(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<()> {
     if PathBuf::from(src).is_dir() {
-        create_dir_all(&dst)?;
+        create_dir_all(&dst).map_err(|err| {
+            if err.kind() == std::io::ErrorKind::PermissionDenied {
+                let msg = format!("httm restore failed because the user did not have the correct permissions to restore to: {:?}", dst);
+                HttmError::new(&msg)
+            } else {
+                HttmError::from(err)
+            }
+        })?;
 
         for entry in read_dir(src)? {
             let entry = entry?;
@@ -114,11 +121,25 @@ pub fn copy_recursive(src: &Path, dst: &Path, should_preserve: bool) -> HttmResu
                     should_preserve,
                 )?;
             } else {
-                copy(&entry.path(), &dst.join(&entry.file_name()))?;
+                copy(&entry.path(), &dst.join(&entry.file_name())).map_err(|err| {
+                    if err.kind() == std::io::ErrorKind::PermissionDenied {
+                        let msg = format!("httm restore failed because the user did not have the correct permissions to restore to: {:?}", dst);
+                        HttmError::new(&msg)
+                    } else {
+                        HttmError::from(err)
+                    }
+                })?;
             }
         }
     } else {
-        copy(src, dst)?;
+        copy(src, dst).map_err(|err| {
+            if err.kind() == std::io::ErrorKind::PermissionDenied {
+                let msg = format!("httm restore failed because the user did not have the correct permissions to restore to: {:?}", dst);
+                HttmError::new(&msg)
+            } else {
+                HttmError::from(err)
+            }
+        })?;
     }
 
     if should_preserve {

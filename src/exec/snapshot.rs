@@ -48,7 +48,7 @@ pub fn take_snapshot(config: &Config, requested_snapshot_suffix: &str) -> HttmRe
                             if let FilesystemType::Zfs = dataset_info.fs_type {
                                 Ok(dataset_info.name.clone())
                             } else {
-                                return Err(HttmError::new("httm does not currently support snapshot-ing non-ZFS filesystems."))
+                                Err(HttmError::new("httm does not currently support snapshot-ing non-ZFS filesystems."))
                             }
                         }
                         None => return Err(HttmError::new("httm was unable to parse dataset from mount!")),

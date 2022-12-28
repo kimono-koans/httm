@@ -15,7 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::{error::Error, fmt};
+use std::{error::Error, fmt, io::Error as IoError};
 
 // wrap this complex looking error type, which is used everywhere,
 // into something more simple looking. This error, FYI, is really easy to use with rayon.
@@ -49,5 +49,19 @@ impl fmt::Display for HttmError {
 impl Error for HttmError {
     fn description(&self) -> &str {
         &self.details
+    }
+}
+
+impl From<&dyn Error> for HttmError {
+    fn from(err: &dyn Error) -> Self {
+        let context = format!("{:?}", err);
+        HttmError { details: context }
+    }
+}
+
+impl From<IoError> for HttmError {
+    fn from(err: IoError) -> Self {
+        let context = format!("{:?}", err);
+        HttmError { details: context }
     }
 }
