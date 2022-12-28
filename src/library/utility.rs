@@ -105,7 +105,7 @@ fn map_permissions_errors(err: io::Error, dst: &Path) -> HttmError {
         let msg = format!("httm restore failed because the user did not have the correct permissions to restore to: {:?}", dst);
         HttmError::new(&msg)
     } else {
-        HttmError::from(err)
+        HttmError::with_context("httm restore failed for the following reason", &err)
     }
 }
 

@@ -32,8 +32,9 @@ impl HttmError {
             details: msg.to_owned(),
         }
     }
-    pub fn with_context(msg: &str, err: Box<dyn Error + Send + Sync>) -> Self {
+    pub fn with_context(msg: &str, err: &dyn Error) -> Self {
         let msg_plus_context = format!("{} : {:?}", msg, err);
+
         HttmError {
             details: msg_plus_context,
         }

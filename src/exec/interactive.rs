@@ -320,29 +320,19 @@ impl InteractiveRestore {
                 .to_ascii_uppercase();
 
             match user_consent.as_ref() {
-                "YES" | "Y" => match copy_recursive(
-                    &snap_pathdata.path_buf,
-                    &new_file_path_buf,
-                    should_preserve,
-                ) {
-                    Ok(_) => {
-                        let result_buffer = format!(
-                            "httm copied a file from a ZFS snapshot:\n\n\
-                                \tfrom: {:?}\n\
-                                \tto:   {:?}\n\n\
-                                Restore completed successfully.",
-                            snap_pathdata.path_buf, new_file_path_buf
-                        );
-                        break eprintln!("{}", result_buffer);
-                    }
-                    Err(err) => {
-                        return Err(HttmError::with_context(
-                            "httm restore failed for the following reason",
-                            err,
-                        )
-                        .into())
-                    }
-                },
+                "YES" | "Y" => {
+                    copy_recursive(&snap_pathdata.path_buf, &new_file_path_buf, should_preserve)?;
+
+                    let result_buffer = format!(
+                        "httm copied a file from a ZFS snapshot:\n\n\
+                            \tfrom: {:?}\n\
+                            \tto:   {:?}\n\n\
+                            Restore completed successfully.",
+                        snap_pathdata.path_buf, new_file_path_buf
+                    );
+
+                    break eprintln!("{}", result_buffer);
+                }
                 "NO" | "N" => break eprintln!("User declined restore.  No files were restored."),
                 // if not yes or no, then noop and continue to the next iter of loop
                 _ => {}

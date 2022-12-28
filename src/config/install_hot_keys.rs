@@ -54,7 +54,7 @@ pub fn install_hot_keys() -> HttmResult<()> {
         .map_err(|err| {
             HttmError::with_context(
                 "Opening user's ~/.zshrc file failed for the following reason: ",
-                err.into(),
+                &err,
             )
         })?;
 
@@ -110,13 +110,13 @@ pub fn install_hot_keys() -> HttmResult<()> {
                     std::process::exit(0)
                 }
                 Err(err) => {
-                    Err(HttmError::with_context("httm: could not move .httm-key-bindings.zsh.tmp to .httm-key-bindings.zsh for the following reason: ", err.into()).into())
+                    Err(HttmError::with_context("httm: could not move .httm-key-bindings.zsh.tmp to .httm-key-bindings.zsh for the following reason: ", &err).into())
                 }
             }
         }
         Err(err) => Err(HttmError::with_context(
             "Opening ~/.httm-key-bindings.zsh.tmp file failed for the following reason: ",
-            err.into(),
+            &err,
         )
         .into()),
     }
