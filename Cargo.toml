@@ -1,6 +1,6 @@
 [package]
 name = "httm"
-version = "0.18.3"
+version = "0.19.0"
 edition = "2021"
 keywords = ["zfs", "backup", "restore", "cli-utility", "snapshot"]
 description = "A CLI tool for viewing snapshot file versions on ZFS and btrfs datasets"
