@@ -19,7 +19,6 @@ use std::{
     cmp,
     ffi::OsString,
     fs::{symlink_metadata, DirEntry, FileType, Metadata},
-    os::unix::prelude::MetadataExt,
     path::{Path, PathBuf},
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -135,12 +134,14 @@ impl PathData {
         }
     }
 
-    // using ctime instead of mtime is more correct as mtime can be trivially changed from user space
+    // using ctime instead of mtime might be more correct as mtime can be trivially changed from user space
+    // but I think we want to use mtime here? People should be able to make a snapshot "unique" with only mtime?
     fn get_modify_time(md: Metadata) -> SystemTime {
-        #[cfg(not(unix))]
-        return md.modified().unwrap_or(UNIX_EPOCH);
-        #[cfg(unix)]
-        return UNIX_EPOCH + time::Duration::new(md.ctime(), md.ctime_nsec() as i32);
+        //#[cfg(not(unix))]
+        // return md.modified().unwrap_or(UNIX_EPOCH);
+        //#[cfg(unix)]
+        //return UNIX_EPOCH + time::Duration::new(md.ctime(), md.ctime_nsec() as i32);
+        md.modified().unwrap_or(UNIX_EPOCH)
     }
 
     pub fn get_md_infallible(&self) -> PathMetadata {
