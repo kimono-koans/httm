@@ -57,7 +57,7 @@ impl Deref for VersionsMap {
 
 impl VersionsMap {
     pub fn new(config: &Config, path_set: &[PathData]) -> HttmResult<VersionsMap> {
-        let display_map = Self::from(config, path_set);
+        let display_map = Self::exec(config, path_set);
 
         // check if all files (snap and live) do not exist, if this is true, then user probably messed up
         // and entered a file that never existed (that is, perhaps a wrong file name)?
@@ -76,7 +76,7 @@ impl VersionsMap {
         Ok(display_map)
     }
 
-    pub fn from(config: &Config, path_set: &[PathData]) -> Self {
+    fn exec(config: &Config, path_set: &[PathData]) -> Self {
         // create vec of all local and replicated backups at once
         let snaps_selected_for_search = config
             .dataset_collection
