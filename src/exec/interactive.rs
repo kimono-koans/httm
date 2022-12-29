@@ -410,7 +410,10 @@ impl InteractiveRestore {
                     HttmError::new("httm will not restore to that file, as a file with the same path name already exists. Quitting.").into(),
                 )
             } else {
-                let should_preserve = false;
+                let should_preserve = matches!(
+                    config.exec_mode,
+                    ExecMode::Interactive(InteractiveMode::Restore(RestoreMode::CopyAndPreserve))
+                );
                 Ok((new_file_path_buf, should_preserve))
             }
         }

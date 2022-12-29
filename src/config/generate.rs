@@ -52,7 +52,8 @@ pub enum InteractiveMode {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RestoreMode {
-    Default,
+    CopyOnly,
+    CopyAndPreserve,
     Overwrite,
 }
 
@@ -128,12 +129,14 @@ fn parse_args() -> ArgMatches {
                 .long("restore")
                 .takes_value(true)
                 .default_missing_value("copy")
-                .possible_values(&["copy", "overwrite", "yolo", "preserve"])
+                .possible_values(&["copy", "copy-and-preserve", "overwrite", "yolo"])
                 .min_values(0)
                 .require_equals(true)
                 .help("interactive browse and search a specified directory to display unique file versions.  Continue to another dialog to select a snapshot version to restore.  \
-                Default is a non-destructive \"copy\" to the current working directory with a new name, so as not to overwrite any \"live\" file version.  However, user may specify \"overwrite\" or (\"preserve\" or \"yolo\") to restore to the same file location.  \
-                Overwrite mode will attempt to preserve the permissions/mode, timestamps, xattrs and ownership of the selected snapshot file version (this is and will likely remain a UNIX only feature).")
+                Default is a non-destructive \"copy\" to the current working directory with a new name, so as not to overwrite any \"live\" file version.  \
+                However, user may specify \"overwrite\" or (\"yolo\") to restore to the same file location.  \
+                Overwrite mode will attempt to preserve attributes like the permissions/mode, timestamps, xattrs and ownership of the selected snapshot file version (this is and will likely remain a UNIX only feature).  \
+                In order to preserve such attributes in \"copy\" mode, the use \"copy-and-preserve\" option.")
                 .conflicts_with("SELECT")
                 .display_order(4)
         )
@@ -474,13 +477,14 @@ impl Config {
         };
 
         let opt_interactive_mode = if matches.is_present("RESTORE") {
-            if matches!(
-                matches.value_of("RESTORE"),
-                Some("overwrite") | Some("yolo") | Some("preserve")
-            ) {
-                Some(InteractiveMode::Restore(RestoreMode::Overwrite))
-            } else {
-                Some(InteractiveMode::Restore(RestoreMode::Default))
+            match matches.value_of("RESTORE") {
+                Some("overwrite") | Some("yolo") => {
+                    Some(InteractiveMode::Restore(RestoreMode::Overwrite))
+                }
+                Some("copy-and-preserve") => {
+                    Some(InteractiveMode::Restore(RestoreMode::CopyAndPreserve))
+                }
+                Some(_) | None => Some(InteractiveMode::Restore(RestoreMode::CopyOnly)),
             }
         } else if matches.is_present("SELECT") {
             Some(InteractiveMode::Select)
