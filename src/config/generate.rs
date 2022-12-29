@@ -135,8 +135,8 @@ fn parse_args() -> ArgMatches {
                 .help("interactive browse and search a specified directory to display unique file versions.  Continue to another dialog to select a snapshot version to restore.  \
                 Default is a non-destructive \"copy\" to the current working directory with a new name, so as not to overwrite any \"live\" file version.  \
                 However, user may specify \"overwrite\" or (\"yolo\") to restore to the same file location.  \
-                Overwrite mode will attempt to preserve attributes like the permissions/mode, timestamps, xattrs and ownership of the selected snapshot file version (this is and will likely remain a UNIX only feature).  \
-                In order to preserve such attributes in \"copy\" mode, the use \"copy-and-preserve\" option.")
+                Overwrite mode will attempt to preserve attributes, like the permissions/mode, timestamps, xattrs and ownership of the selected snapshot file version (this is and will likely remain a UNIX only feature).  \
+                In order to preserve such attributes in \"copy\" mode, use the \"copy-and-preserve\" option.")
                 .conflicts_with("SELECT")
                 .display_order(4)
         )
