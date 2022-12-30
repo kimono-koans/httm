@@ -15,17 +15,20 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::config::generate::NumVersionsMode;
+use crate::config::generate::{Config, NumVersionsMode};
 use crate::data::paths::PathData;
-use crate::exec::display::DisplayWrapper;
 use crate::library::utility::get_delimiter;
+use crate::lookup::versions::VersionsMap;
 
-impl<'a> DisplayWrapper<'a> {
-    pub fn format_as_num_versions(&self, num_versions_mode: &NumVersionsMode) -> String {
-        let delimiter = get_delimiter(self.config);
+impl VersionsMap {
+    pub fn format_as_num_versions(
+        &self,
+        config: &Config,
+        num_versions_mode: &NumVersionsMode,
+    ) -> String {
+        let delimiter = get_delimiter(config);
 
         let write_out_buffer: String = self
-            .map
             .iter()
             .filter_map(|(live_version, snaps)| {
                 let map_padding = if matches!(num_versions_mode, NumVersionsMode::All) {
