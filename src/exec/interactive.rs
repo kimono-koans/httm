@@ -31,6 +31,8 @@ use crate::library::utility::{
 };
 use crate::lookup::versions::VersionsMap;
 
+use super::display::DisplayWrapper;
+
 pub struct InteractiveBrowse;
 
 impl InteractiveBrowse {
@@ -159,10 +161,10 @@ impl InteractiveSelect {
         paths_selected_in_browse: &[PathData],
         interactive_mode: &InteractiveMode,
     ) -> HttmResult<()> {
-        let display_map = VersionsMap::new(config, paths_selected_in_browse)?;
+        let versions_map = VersionsMap::new(config, paths_selected_in_browse)?;
 
         // snap and live set has no snaps
-        if display_map.is_empty() {
+        if versions_map.is_empty() {
             let paths: Vec<String> = paths_selected_in_browse
                 .iter()
                 .map(|path| path.path_buf.to_string_lossy().to_string())
@@ -176,13 +178,15 @@ impl InteractiveSelect {
         }
 
         let path_string = if config.opt_last_snap.is_some() {
-            Self::get_last_snap(config, paths_selected_in_browse, &display_map)?
+            Self::get_last_snap(config, paths_selected_in_browse, &versions_map)?
         } else {
             // same stuff we do at fn exec, snooze...
             let display_config =
                 SelectionCandidate::generate_config_for_display(config, paths_selected_in_browse);
 
-            let selection_buffer = display_map.display(&display_config);
+            let display_map = DisplayWrapper::from(&display_config, versions_map);
+
+            let selection_buffer = display_map.to_string();
 
             let opt_live_version: Option<String> = paths_selected_in_browse
                 .as_ref()
@@ -202,7 +206,7 @@ impl InteractiveSelect {
                 // ... and the file is the 2nd item or the indexed "1" object
                 if let Some(path_string) = broken_string.get(1) {
                     // and cannot select a 'live' version or other invalid value.
-                    if display_map.iter().all(|(live_version, _snaps)| {
+                    if display_map.map.iter().all(|(live_version, _snaps)| {
                         Path::new(path_string) != live_version.path_buf.as_path()
                     }) {
                         // return string from the loop

@@ -24,10 +24,10 @@ use skim::prelude::*;
 use crate::config::generate::{Config, DeletedMode, ExecMode};
 use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::data::selection::SelectionCandidate;
+use crate::exec::display::DisplayWrapper;
 use crate::exec::spawn_deleted::SpawnDeletedThread;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{httm_is_dir, print_output_buf, HttmIsDir, Never};
-use crate::lookup::versions::VersionsMap;
 use crate::{BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_HIDDEN_DIRECTORY};
 
 #[allow(unused_variables)]
@@ -334,9 +334,9 @@ fn print_display_recursive(config: &Config, entries: Vec<BasicDirEntryInfo>) -> 
         .map(|basic_info| PathData::from(basic_info.path.as_path()))
         .collect();
 
-    let display_map = VersionsMap::new(config, &pseudo_live_set)?;
+    let display_map = DisplayWrapper::new(config, &pseudo_live_set)?;
 
-    let output_buf = display_map.display(config);
+    let output_buf = display_map.to_string();
 
     print_output_buf(output_buf)
 }

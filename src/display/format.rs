@@ -22,6 +22,7 @@ use terminal_size::{terminal_size, Height, Width};
 
 use crate::config::generate::{Config, ExecMode, PrintMode};
 use crate::data::paths::{PathData, PHANTOM_DATE, PHANTOM_SIZE};
+use crate::library::utility::get_delimiter;
 use crate::library::utility::{display_human_size, get_date, paint_string, DateFormat};
 use crate::lookup::versions::VersionsMap;
 
@@ -33,6 +34,39 @@ pub const PRETTY_FIXED_WIDTH_PADDING_LEN_X2: usize = PRETTY_FIXED_WIDTH_PADDING.
 pub const NOT_SO_PRETTY_FIXED_WIDTH_PADDING: &str = "\t";
 // and we add 2 quotation marks to the path when we format
 pub const QUOTATION_MARKS_LEN: usize = 2;
+
+impl VersionsMap {
+    pub fn format(&self, config: &Config) -> String {
+        let global_display_set = DisplaySet::new(config, self);
+        let padding_collection = PaddingCollection::new(config, &global_display_set);
+
+        match &config.print_mode {
+            PrintMode::FormattedDefault | PrintMode::FormattedNotPretty if self.len() == 1 => {
+                global_display_set.format(config, &padding_collection)
+            }
+            _ => self
+                .deref()
+                .clone()
+                .into_iter()
+                .map(std::convert::Into::into)
+                .map(|raw_instance_set| DisplaySet::new(config, &raw_instance_set))
+                .map(|display_set| match config.print_mode {
+                    PrintMode::FormattedDefault | PrintMode::FormattedNotPretty => {
+                        display_set.format(config, &padding_collection)
+                    }
+                    PrintMode::RawNewline | PrintMode::RawZero => {
+                        let delimiter = get_delimiter(config);
+                        display_set
+                            .iter()
+                            .flatten()
+                            .map(|pathdata| format!("{}{}", pathdata.path_buf.display(), delimiter))
+                            .collect()
+                    }
+                })
+                .collect::<String>(),
+        }
+    }
+}
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct DisplaySet {

@@ -21,9 +21,9 @@ mod data {
     pub mod selection;
 }
 mod display {
+    pub mod format;
     pub mod maps;
     pub mod num_versions;
-    pub mod primary;
 }
 mod exec {
     pub mod display;
@@ -60,6 +60,7 @@ use library::utility::print_output_buf;
 use crate::config::generate::{Config, ExecMode};
 use crate::lookup::file_mounts::MountsForFiles;
 
+use crate::exec::display::DisplayWrapper;
 use crate::exec::interactive::InteractiveBrowse;
 use crate::exec::recursive::display_recursive_wrapper;
 use crate::exec::snapshot::take_snapshot;
@@ -96,14 +97,14 @@ fn exec() -> HttmResult<()> {
         // ExecMode::Interactive *may* return back to this function to be printed
         ExecMode::Interactive(interactive_mode) => {
             let browse_result = InteractiveBrowse::exec(config.clone(), interactive_mode)?;
-            let display_map = VersionsMap::new(config.as_ref(), browse_result.as_ref())?;
-            let output_buf = display_map.display(config.as_ref());
+            let display_map = DisplayWrapper::new(config.as_ref(), browse_result.as_ref())?;
+            let output_buf = display_map.to_string();
             print_output_buf(output_buf)
         }
         // ExecMode::Display will be just printed, we already know the paths
         ExecMode::Display | ExecMode::NumVersions(_) => {
-            let display_map = VersionsMap::new(config.as_ref(), &config.paths)?;
-            let output_buf = display_map.display(config.as_ref());
+            let display_map = DisplayWrapper::new(config.as_ref(), &config.paths)?;
+            let output_buf = display_map.to_string();
             print_output_buf(output_buf)
         }
         // ExecMode::DisplayRecursive, ExecMode::SnapFileMount, and ExecMode::MountsForFiles will print their
@@ -111,8 +112,9 @@ fn exec() -> HttmResult<()> {
         ExecMode::DisplayRecursive(_) => display_recursive_wrapper(config.clone()),
         ExecMode::SnapFileMount(snapshot_suffix) => take_snapshot(config.as_ref(), snapshot_suffix),
         ExecMode::MountsForFiles => {
-            let display_map: VersionsMap = MountsForFiles::new(&config).into();
-            let output_buf = display_map.display(&config);
+            let versions_map: VersionsMap = MountsForFiles::new(&config).into();
+            let display_map: DisplayWrapper = DisplayWrapper::from(&config, versions_map);
+            let output_buf = display_map.to_string();
             print_output_buf(output_buf)
         }
     }

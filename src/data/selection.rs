@@ -22,9 +22,9 @@ use skim::prelude::*;
 
 use crate::config::generate::{Config, ExecMode, PrintMode};
 use crate::data::paths::{BasicDirEntryInfo, PathData};
+use crate::exec::display::DisplayWrapper;
 use crate::library::results::HttmResult;
 use crate::library::utility::paint_string;
-use crate::lookup::versions::VersionsMap;
 
 // these represent the items ready for selection and preview
 // contains everything one needs to request preview and paint with
@@ -92,10 +92,10 @@ impl SelectionCandidate {
         let gen_config = SelectionCandidate::generate_config_for_display(config, paths_selected);
 
         // finally run search on those paths
-        let display_map = VersionsMap::new(&gen_config, &gen_config.paths)?;
+        let display_map = DisplayWrapper::new(&gen_config, &gen_config.paths)?;
 
         // and display
-        let output_buf = display_map.display(&gen_config);
+        let output_buf = display_map.to_string();
 
         Ok(output_buf)
     }

@@ -16,7 +16,7 @@
 // that was distributed with this source code.
 
 use crate::config::generate::{Config, PrintMode};
-use crate::display::primary::{NOT_SO_PRETTY_FIXED_WIDTH_PADDING, QUOTATION_MARKS_LEN};
+use crate::display::format::{NOT_SO_PRETTY_FIXED_WIDTH_PADDING, QUOTATION_MARKS_LEN};
 use crate::lookup::versions::VersionsMap;
 
 impl VersionsMap {
