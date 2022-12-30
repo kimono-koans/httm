@@ -332,4 +332,12 @@ impl RelativePathAndSnapMounts {
 
         sorted_versions
     }
+
+    pub fn get_last_version(&self) -> Option<PathData> {
+        let sorted_versions = self.get_versions();
+
+        let res: Option<PathData> = sorted_versions.last().cloned();
+
+        res
+    }
 }
