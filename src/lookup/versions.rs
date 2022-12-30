@@ -57,12 +57,12 @@ impl Deref for VersionsMap {
 
 impl VersionsMap {
     pub fn new(config: &Config, path_set: &[PathData]) -> HttmResult<VersionsMap> {
-        let display_map = Self::exec(config, path_set);
+        let versions_map = Self::exec(config, path_set);
 
         // check if all files (snap and live) do not exist, if this is true, then user probably messed up
         // and entered a file that never existed (that is, perhaps a wrong file name)?
-        if display_map.values().all(std::vec::Vec::is_empty)
-            && display_map
+        if versions_map.values().all(std::vec::Vec::is_empty)
+            && versions_map
                 .keys()
                 .all(|pathdata| pathdata.metadata.is_none())
             && !config.opt_no_snap
@@ -73,7 +73,7 @@ impl VersionsMap {
             .into());
         }
 
-        Ok(display_map)
+        Ok(versions_map)
     }
 
     fn exec(config: &Config, path_set: &[PathData]) -> Self {
@@ -109,12 +109,12 @@ impl VersionsMap {
             })
             .collect();
 
-        let display_map: VersionsMap = all_snap_versions.into();
+        let versions_map: VersionsMap = all_snap_versions.into();
 
         // process last snap mode after omit_ditto
         match &config.opt_last_snap {
-            Some(last_snap_mode) => display_map.get_last_snap(last_snap_mode),
-            None => display_map,
+            Some(last_snap_mode) => versions_map.get_last_snap(last_snap_mode),
+            None => versions_map,
         }
     }
 

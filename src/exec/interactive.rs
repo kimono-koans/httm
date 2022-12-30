@@ -251,14 +251,14 @@ impl InteractiveSelect {
     fn get_last_snap(
         config: &Config,
         paths_selected_in_browse: &[PathData],
-        display_map: &VersionsMap,
+        versions_map: &VersionsMap,
     ) -> HttmResult<String> {
         // should be good to index into both, there is a known known 2nd vec,
         let live_version = &paths_selected_in_browse
             .get(0)
             .expect("ExecMode::LiveSnap should always have exactly one path.");
 
-        let last_snap = display_map
+        let last_snap = versions_map
             .values()
             .flatten()
             .filter(|snap_version| {
@@ -364,12 +364,12 @@ impl InteractiveRestore {
             let opt_original_live_pathdata = paths_selected_in_browse.iter().find_map(|pathdata| {
                 match VersionsMap::new(config, &[pathdata.clone()]).ok() {
                     // safe to index into snaps, known len of 2 for set
-                    Some(display_map) => {
-                        display_map.values().flatten().find_map(|pathdata| {
+                    Some(versions_map) => {
+                        versions_map.values().flatten().find_map(|pathdata| {
                             if pathdata == snap_pathdata {
                                 // safe to index into request, known len of 2 for set, keys and values, known len of 1 for request
                                 let original_live_pathdata =
-                                    display_map.keys().next().unwrap().clone();
+                                    versions_map.keys().next().unwrap().clone();
                                 Some(original_live_pathdata)
                             } else {
                                 None
