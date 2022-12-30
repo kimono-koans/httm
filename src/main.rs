@@ -26,6 +26,7 @@ mod display {
     pub mod primary;
 }
 mod exec {
+    pub mod display;
     pub mod interactive;
     pub mod preview;
     pub mod recursive;

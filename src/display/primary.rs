@@ -22,9 +22,7 @@ use terminal_size::{terminal_size, Height, Width};
 
 use crate::config::generate::{Config, ExecMode, PrintMode};
 use crate::data::paths::{PathData, PHANTOM_DATE, PHANTOM_SIZE};
-use crate::library::utility::{
-    display_human_size, get_date, get_delimiter, paint_string, DateFormat,
-};
+use crate::library::utility::{display_human_size, get_date, paint_string, DateFormat};
 use crate::lookup::versions::VersionsMap;
 
 // 2 space wide padding - used between date and size, and size and path
@@ -35,57 +33,6 @@ pub const PRETTY_FIXED_WIDTH_PADDING_LEN_X2: usize = PRETTY_FIXED_WIDTH_PADDING.
 pub const NOT_SO_PRETTY_FIXED_WIDTH_PADDING: &str = "\t";
 // and we add 2 quotation marks to the path when we format
 pub const QUOTATION_MARKS_LEN: usize = 2;
-
-impl VersionsMap {
-    pub fn display(&self, config: &Config) -> String {
-        match &config.exec_mode {
-            ExecMode::NumVersions(num_versions_mode) => {
-                self.print_as_num_versions(config, num_versions_mode)
-            }
-            ExecMode::Display | ExecMode::MountsForFiles
-                if config.opt_last_snap.is_some()
-                    && !matches!(
-                        config.print_mode,
-                        PrintMode::RawNewline | PrintMode::RawZero
-                    ) =>
-            {
-                self.print_as_formatted_map(config)
-            }
-            _ => self.print_formatted(config),
-        }
-    }
-
-    fn print_formatted(&self, config: &Config) -> String {
-        let global_display_set = DisplaySet::new(config, self);
-        let padding_collection = PaddingCollection::new(config, &global_display_set);
-
-        match &config.print_mode {
-            PrintMode::FormattedDefault | PrintMode::FormattedNotPretty if self.len() == 1 => {
-                global_display_set.print_formatted(config, &padding_collection)
-            }
-            _ => self
-                .deref()
-                .clone()
-                .into_iter()
-                .map(std::convert::Into::into)
-                .map(|raw_instance_set| DisplaySet::new(config, &raw_instance_set))
-                .map(|display_set| match config.print_mode {
-                    PrintMode::FormattedDefault | PrintMode::FormattedNotPretty => {
-                        display_set.print_formatted(config, &padding_collection)
-                    }
-                    PrintMode::RawNewline | PrintMode::RawZero => {
-                        let delimiter = get_delimiter(config);
-                        display_set
-                            .iter()
-                            .flatten()
-                            .map(|pathdata| format!("{}{}", pathdata.path_buf.display(), delimiter))
-                            .collect()
-                    }
-                })
-                .collect::<String>(),
-        }
-    }
-}
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct DisplaySet {
@@ -128,7 +75,7 @@ impl DisplaySet {
         }
     }
 
-    fn print_formatted(self, config: &Config, padding_collection: &PaddingCollection) -> String {
+    pub fn format(self, config: &Config, padding_collection: &PaddingCollection) -> String {
         // get the display buffer for each set snaps and live
         self.iter().enumerate().fold(
             String::new(),
@@ -139,9 +86,7 @@ impl DisplaySet {
 
                 let component_buffer: String = snap_or_live_set
                     .iter()
-                    .map(|pathdata| {
-                        pathdata.print_formatted(config, is_live_set, padding_collection)
-                    })
+                    .map(|pathdata| pathdata.format(config, is_live_set, padding_collection))
                     .collect();
 
                 // add each buffer to the set - print fancy border string above, below and between sets
@@ -164,7 +109,7 @@ impl DisplaySet {
 }
 
 impl PathData {
-    pub fn print_formatted(
+    pub fn format(
         &self,
         config: &Config,
         is_live_set: bool,
@@ -242,7 +187,7 @@ pub struct PaddingCollection {
 }
 
 impl PaddingCollection {
-    fn new(config: &Config, display_set: &DisplaySet) -> PaddingCollection {
+    pub fn new(config: &Config, display_set: &DisplaySet) -> PaddingCollection {
         // calculate padding and borders for display later
         let (size_padding_len, fancy_border_len) = display_set.iter().flatten().fold(
             (0usize, 0usize),

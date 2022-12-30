@@ -21,7 +21,7 @@ use crate::library::utility::get_delimiter;
 use crate::lookup::versions::VersionsMap;
 
 impl VersionsMap {
-    pub fn print_as_num_versions(
+    pub fn format_as_num_versions(
         &self,
         config: &Config,
         num_versions_mode: &NumVersionsMode,
