@@ -36,7 +36,11 @@ impl Deref for LastInTimeSet {
 
 impl LastInTimeSet {
     // this is very similar to VersionsMap, but of course returns only last in time
-    // it is also missing parallel iter functions, to make the searches more responsive
+    // for directory paths during deleted searches.  it's important to have a policy, here,
+    // last in time, for which directory we return during deleted searches, because
+    // different snapshot-ed dirs may contain different files.
+
+    // thi fn is also missing parallel iter fns, to make the searches more responsive
     // by leaving parallel search for the interactive views
     pub fn new(config: &Config, path_set: &[PathData]) -> Self {
         // create vec of all local and replicated backups at once
