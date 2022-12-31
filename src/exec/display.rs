@@ -44,7 +44,13 @@ impl<'a> std::string::ToString for DisplayWrapper<'a> {
             ExecMode::NumVersions(num_versions_mode) => self
                 .map
                 .format_as_num_versions(self.config, num_versions_mode),
-            ExecMode::Display if self.config.opt_last_snap.is_some() => {
+            ExecMode::Display
+                if self.config.opt_last_snap.is_some()
+                    && !matches!(
+                        self.config.print_mode,
+                        PrintMode::RawNewline | PrintMode::RawZero
+                    ) =>
+            {
                 self.map.format_as_map(self.config)
             }
             ExecMode::MountsForFiles
