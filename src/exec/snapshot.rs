@@ -27,8 +27,28 @@ use crate::library::utility::{get_date, get_delimiter, print_output_buf, DateFor
 use crate::lookup::file_mounts::MountsForFiles;
 use crate::parse::aliases::FilesystemType;
 
-pub fn take_snapshot(config: &Config, requested_snapshot_suffix: &str) -> HttmResult<()> {
-    fn exec_zfs_snapshot(
+pub struct TakeSnapshot;
+
+impl TakeSnapshot {
+    pub fn exec(config: &Config, requested_snapshot_suffix: &str) -> HttmResult<()> {
+        let mounts_for_files: MountsForFiles = MountsForFiles::new(config);
+
+        if let Ok(zfs_command) = which("zfs") {
+            Self::snapshot_mounts(
+                config,
+                &zfs_command,
+                &mounts_for_files,
+                requested_snapshot_suffix,
+            )
+        } else {
+            Err(HttmError::new(
+                "'zfs' command not found. Make sure the command 'zfs' is in your path.",
+            )
+            .into())
+        }
+    }
+
+    fn snapshot_mounts(
         config: &Config,
         zfs_command: &Path,
         mounts_for_files: &MountsForFiles,
@@ -119,21 +139,5 @@ pub fn take_snapshot(config: &Config, requested_snapshot_suffix: &str) -> HttmRe
         })?;
 
         Ok(())
-    }
-
-    let mounts_for_files: MountsForFiles = MountsForFiles::new(config);
-
-    if let Ok(zfs_command) = which("zfs") {
-        exec_zfs_snapshot(
-            config,
-            &zfs_command,
-            &mounts_for_files,
-            requested_snapshot_suffix,
-        )
-    } else {
-        Err(
-            HttmError::new("'zfs' command not found. Make sure the command 'zfs' is in your path.")
-                .into(),
-        )
     }
 }

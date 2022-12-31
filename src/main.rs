@@ -55,6 +55,7 @@ mod parse {
     pub mod snaps;
 }
 
+use exec::snapshot::TakeSnapshot;
 use library::utility::print_output_buf;
 
 use crate::config::generate::{Config, ExecMode};
@@ -63,7 +64,6 @@ use crate::lookup::file_mounts::MountsForFiles;
 use crate::exec::display::DisplayWrapper;
 use crate::exec::interactive::InteractiveBrowse;
 use crate::exec::recursive::display_recursive_wrapper;
-use crate::exec::snapshot::take_snapshot;
 use crate::library::results::HttmResult;
 use crate::lookup::versions::VersionsMap;
 
@@ -110,7 +110,9 @@ fn exec() -> HttmResult<()> {
         // ExecMode::DisplayRecursive, ExecMode::SnapFileMount, and ExecMode::MountsForFiles will print their
         // output elsewhere
         ExecMode::DisplayRecursive(_) => display_recursive_wrapper(config.clone()),
-        ExecMode::SnapFileMount(snapshot_suffix) => take_snapshot(config.as_ref(), snapshot_suffix),
+        ExecMode::SnapFileMount(snapshot_suffix) => {
+            TakeSnapshot::exec(config.as_ref(), snapshot_suffix)
+        }
         ExecMode::MountsForFiles => {
             let versions_map: VersionsMap = MountsForFiles::new(&config).into();
             let display_map: DisplayWrapper = DisplayWrapper::from(&config, versions_map);
