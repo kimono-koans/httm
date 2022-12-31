@@ -18,14 +18,12 @@
 use std::{ffi::OsStr, path::PathBuf};
 
 use clap::OsValues;
-use rayon::prelude::*;
 
 use crate::config::generate::ExecMode;
 use crate::data::paths::PathData;
 use crate::library::results::HttmResult;
-use crate::library::utility::get_common_path;
 use crate::lookup::versions::SnapsSelectedForSearch;
-use crate::parse::aliases::{FilesystemType, MapOfAliases};
+use crate::parse::aliases::MapOfAliases;
 use crate::parse::alts::MapOfAlts;
 use crate::parse::mounts::{BaseFilesystemInfo, FilterDirs, MapOfDatasets};
 use crate::parse::snaps::MapOfSnaps;
@@ -60,8 +58,7 @@ impl FilesystemInfo {
         let base_fs_info = BaseFilesystemInfo::new()?;
 
         // for a collection of btrfs mounts, indicates a common snapshot directory to ignore
-        let opt_common_snap_dir =
-            get_common_snap_dir(&base_fs_info.map_of_datasets, &base_fs_info.map_of_snaps);
+        let opt_common_snap_dir = base_fs_info.get_common_snap_dir();
 
         // only create a map of alts if necessary
         let opt_map_of_alts = if opt_alt_replicated {
@@ -133,33 +130,5 @@ impl FilesystemInfo {
             opt_map_of_aliases,
             snaps_selected_for_search,
         })
-    }
-}
-
-// if we have some btrfs mounts, we check to see if there is a snap directory in common
-// so we can hide that common path from searches later
-pub fn get_common_snap_dir(
-    map_of_datasets: &MapOfDatasets,
-    map_of_snaps: &MapOfSnaps,
-) -> Option<PathBuf> {
-    let btrfs_datasets: Vec<&PathBuf> = map_of_datasets
-        .datasets
-        .par_iter()
-        .filter(|(_mount, dataset_info)| dataset_info.fs_type == FilesystemType::Btrfs)
-        .map(|(mount, _dataset_info)| mount)
-        .collect();
-
-    if btrfs_datasets.is_empty() {
-        // since snapshots ZFS reside on multiple datasets
-        // never have a common snap path
-        None
-    } else {
-        let vec_snaps: Vec<&PathBuf> = btrfs_datasets
-            .into_par_iter()
-            .filter_map(|mount| map_of_snaps.get(mount))
-            .flat_map(|snap_info| snap_info)
-            .collect();
-
-        get_common_path(vec_snaps)
     }
 }

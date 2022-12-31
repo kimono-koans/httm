@@ -23,6 +23,7 @@ use skim::prelude::*;
 use crate::config::generate::{Config, ExecMode, InteractiveMode, PrintMode, RestoreMode};
 use crate::data::paths::{PathData, PathMetadata};
 use crate::data::selection::SelectionCandidate;
+use crate::exec::display::DisplayWrapper;
 use crate::exec::preview::PreviewSelection;
 use crate::exec::recursive::RecursiveLoop;
 use crate::library::results::{HttmError, HttmResult};
@@ -30,8 +31,6 @@ use crate::library::utility::{
     copy_recursive, get_date, get_delimiter, print_output_buf, DateFormat, Never,
 };
 use crate::lookup::versions::VersionsMap;
-
-use super::display::DisplayWrapper;
 
 pub struct InteractiveBrowse;
 

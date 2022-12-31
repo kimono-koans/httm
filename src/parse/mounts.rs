@@ -28,7 +28,7 @@ use rayon::prelude::*;
 use which::which;
 
 use crate::library::results::{HttmError, HttmResult};
-use crate::library::utility::get_fs_type_from_hidden_dir;
+use crate::library::utility::{get_common_path, get_fs_type_from_hidden_dir};
 use crate::parse::aliases::FilesystemType;
 use crate::parse::snaps::MapOfSnaps;
 use crate::ZFS_SNAPSHOT_DIRECTORY;
@@ -273,6 +273,34 @@ impl BaseFilesystemInfo {
                 "'mount' command not be found. Make sure the command 'mount' is in your path.",
             )
             .into())
+        }
+    }
+
+    // if we have some btrfs mounts, we check to see if there is a snap directory in common
+    // so we can hide that common path from searches later
+    pub fn get_common_snap_dir(&self) -> Option<PathBuf> {
+        let map_of_datasets: &MapOfDatasets = &self.map_of_datasets;
+        let map_of_snaps: &MapOfSnaps = &self.map_of_snaps;
+
+        let btrfs_datasets: Vec<&PathBuf> = map_of_datasets
+            .datasets
+            .par_iter()
+            .filter(|(_mount, dataset_info)| dataset_info.fs_type == FilesystemType::Btrfs)
+            .map(|(mount, _dataset_info)| mount)
+            .collect();
+
+        if btrfs_datasets.is_empty() {
+            // since snapshots ZFS reside on multiple datasets
+            // never have a common snap path
+            None
+        } else {
+            let vec_snaps: Vec<&PathBuf> = btrfs_datasets
+                .into_par_iter()
+                .filter_map(|mount| map_of_snaps.get(mount))
+                .flat_map(|snap_info| snap_info)
+                .collect();
+
+            get_common_path(vec_snaps)
         }
     }
 }
