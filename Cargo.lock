@@ -467,7 +467,7 @@ dependencies = [
 
 [[package]]
 name = "httm"
-version = "0.19.1"
+version = "0.19.2"
 dependencies = [
  "chrono",
  "clap",
