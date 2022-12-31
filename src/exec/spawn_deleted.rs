@@ -27,8 +27,7 @@ use crate::exec::recursive::{
 };
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{is_channel_closed, Never};
-use crate::lookup::deleted::DeletedFilesBundle;
-use crate::lookup::last_in_time::LastInTimeSet;
+use crate::lookup::deleted::{DeletedFilesBundle, LastInTimeSet};
 
 pub struct SpawnDeletedThread;
 
