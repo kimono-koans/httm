@@ -15,9 +15,13 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-// re-implementation of the into_group_map() and into_group_map_by()
-// methods for Iterator by Rust Itertools team, their license is produced
-// verbatim below:
+// this module is a re-implementation of the into_group_map() and into_group_map_by()
+// methods for Iterator by Rust Itertools team, for the purpose of using the same
+// hashbrown hashmap used elsewhere in httm.  this was/is done for both performance
+// and binary size reasons.
+//
+// though I am fairly certain this re-implementation of their API is fair use
+// I've reproduced their license, as of 11/25/2022, verbatim below:
 
 // "Copyright (c) 2015
 //
