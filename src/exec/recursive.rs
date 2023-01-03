@@ -24,38 +24,11 @@ use skim::prelude::*;
 use crate::config::generate::{Config, DeletedMode, ExecMode};
 use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::data::selection::SelectionCandidate;
+use crate::exec::deleted::SpawnDeletedThread;
 use crate::exec::display::DisplayWrapper;
-use crate::exec::spawn_deleted::SpawnDeletedThread;
-use crate::library::results::{HttmError, HttmResult};
+use crate::library::results::HttmResult;
 use crate::library::utility::{httm_is_dir, print_output_buf, HttmIsDir, Never};
 use crate::{BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_HIDDEN_DIRECTORY};
-
-#[allow(unused_variables)]
-pub fn display_recursive_wrapper(config: Arc<Config>) -> HttmResult<()> {
-    // won't be sending anything anywhere, this just allows us to reuse enumerate_directory
-    let (dummy_skim_tx, _): (SkimItemSender, SkimItemReceiver) = unbounded();
-    let (hangup_tx, hangup_rx): (Sender<Never>, Receiver<Never>) = bounded(0);
-    let config_clone = config.clone();
-
-    match &config.opt_requested_dir {
-        Some(requested_dir) => {
-            RecursiveLoop::exec(
-                config_clone,
-                &requested_dir.path_buf,
-                dummy_skim_tx,
-                hangup_rx,
-            );
-        }
-        None => {
-            return Err(HttmError::new(
-                "requested_dir should never be None in Display Recursive mode",
-            )
-            .into())
-        }
-    }
-
-    Ok(())
-}
 
 pub struct RecursiveLoop;
 

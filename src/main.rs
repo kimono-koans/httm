@@ -26,12 +26,12 @@ mod display {
     pub mod num_versions;
 }
 mod exec {
+    pub mod deleted;
     pub mod display;
     pub mod interactive;
     pub mod preview;
     pub mod recursive;
     pub mod snapshot;
-    pub mod spawn_deleted;
 }
 mod config {
     pub mod generate;
@@ -60,9 +60,9 @@ use library::utility::print_output_buf;
 use crate::config::generate::{Config, ExecMode};
 use crate::lookup::file_mounts::MountsForFiles;
 
+use crate::exec::deleted::DisplayRecursiveWrapper;
 use crate::exec::display::DisplayWrapper;
 use crate::exec::interactive::InteractiveBrowse;
-use crate::exec::recursive::display_recursive_wrapper;
 use crate::library::results::HttmResult;
 use crate::lookup::versions::VersionsMap;
 
@@ -108,7 +108,7 @@ fn exec() -> HttmResult<()> {
         }
         // ExecMode::DisplayRecursive, ExecMode::SnapFileMount, and ExecMode::MountsForFiles will print their
         // output elsewhere
-        ExecMode::DisplayRecursive(_) => display_recursive_wrapper(config.clone()),
+        ExecMode::DisplayRecursive(_) => DisplayRecursiveWrapper::exec(config.clone()),
         ExecMode::SnapFileMount(snapshot_suffix) => {
             TakeSnapshot::exec(config.as_ref(), snapshot_suffix)
         }
