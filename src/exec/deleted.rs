@@ -22,7 +22,6 @@ use skim::prelude::*;
 
 use crate::config::generate::{Config, DeletedMode};
 use crate::data::paths::{BasicDirEntryInfo, PathData};
-use crate::exec::recursive::RecursiveLoop;
 use crate::exec::recursive::{
     combine_and_send_entries, get_entries_partitioned, recursive_is_entry_dir,
 };
@@ -193,36 +192,5 @@ impl SpawnDeletedThread {
             ),
             None => Err(HttmError::new("Not a valid file name!").into()),
         }
-    }
-}
-
-pub struct DisplayRecursiveWrapper;
-
-impl DisplayRecursiveWrapper {
-    #[allow(unused_variables)]
-    pub fn exec(config: Arc<Config>) -> HttmResult<()> {
-        // won't be sending anything anywhere, this just allows us to reuse enumerate_directory
-        let (dummy_skim_tx, _): (SkimItemSender, SkimItemReceiver) = unbounded();
-        let (hangup_tx, hangup_rx): (Sender<Never>, Receiver<Never>) = bounded(0);
-        let config_clone = config.clone();
-
-        match &config.opt_requested_dir {
-            Some(requested_dir) => {
-                RecursiveLoop::exec(
-                    config_clone,
-                    &requested_dir.path_buf,
-                    dummy_skim_tx,
-                    hangup_rx,
-                );
-            }
-            None => {
-                return Err(HttmError::new(
-                    "requested_dir should never be None in Display Recursive mode",
-                )
-                .into())
-            }
-        }
-
-        Ok(())
     }
 }

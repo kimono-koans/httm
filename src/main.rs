@@ -60,9 +60,9 @@ use library::utility::print_output_buf;
 use crate::config::generate::{Config, ExecMode};
 use crate::lookup::file_mounts::MountsForFiles;
 
-use crate::exec::deleted::DisplayRecursiveWrapper;
 use crate::exec::display::DisplayWrapper;
 use crate::exec::interactive::InteractiveBrowse;
+use crate::exec::recursive::NonInteractiveRecursiveWrapper;
 use crate::library::results::HttmResult;
 use crate::lookup::versions::VersionsMap;
 
@@ -106,9 +106,11 @@ fn exec() -> HttmResult<()> {
             let output_buf = display_map.to_string();
             print_output_buf(output_buf)
         }
-        // ExecMode::DisplayRecursive, ExecMode::SnapFileMount, and ExecMode::MountsForFiles will print their
+        // ExecMode::NonInteractiveRecursive, ExecMode::SnapFileMount, and ExecMode::MountsForFiles will print their
         // output elsewhere
-        ExecMode::DisplayRecursive(_) => DisplayRecursiveWrapper::exec(config.clone()),
+        ExecMode::NonInteractiveRecursive(_) => {
+            NonInteractiveRecursiveWrapper::exec(config.clone())
+        }
         ExecMode::SnapFileMount(snapshot_suffix) => {
             TakeSnapshot::exec(config.as_ref(), snapshot_suffix)
         }

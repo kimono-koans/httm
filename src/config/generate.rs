@@ -36,7 +36,7 @@ use crate::ROOT_DIRECTORY;
 #[derive(Debug, Clone)]
 pub enum ExecMode {
     Interactive(InteractiveMode),
-    DisplayRecursive(indicatif::ProgressBar),
+    NonInteractiveRecursive(indicatif::ProgressBar),
     Display,
     SnapFileMount(String),
     MountsForFiles,
@@ -542,7 +542,7 @@ impl Config {
             ExecMode::Interactive(interactive_mode)
         } else if deleted_mode.is_some() && opt_recursive {
             let progress_bar: ProgressBar = indicatif::ProgressBar::new_spinner();
-            ExecMode::DisplayRecursive(progress_bar)
+            ExecMode::NonInteractiveRecursive(progress_bar)
         } else {
             // no need for deleted file modes in a non-interactive/display recursive setting
             deleted_mode = None;
@@ -574,14 +574,14 @@ impl Config {
         let opt_omit_ditto = matches.is_present("OMIT_DITTO");
 
         // opt_omit_identical doesn't make sense in Display Recursive mode as no live files will exists?
-        if opt_omit_ditto && matches!(exec_mode, ExecMode::DisplayRecursive(_)) {
+        if opt_omit_ditto && matches!(exec_mode, ExecMode::NonInteractiveRecursive(_)) {
             return Err(HttmError::new(
                 "OMIT_DITTO not available when a deleted recursive search is specified.  Quitting.",
             )
             .into());
         }
 
-        if opt_last_snap.is_some() && matches!(exec_mode, ExecMode::DisplayRecursive(_)) {
+        if opt_last_snap.is_some() && matches!(exec_mode, ExecMode::NonInteractiveRecursive(_)) {
             return Err(
                 HttmError::new("LAST_SNAP is not available in Display Recursive Mode.").into(),
             );
@@ -669,9 +669,9 @@ impl Config {
         } else {
             match exec_mode {
                 // setting pwd as the path, here, keeps us from waiting on stdin when in certain modes
-                //  is more like Interactive and DisplayRecursive in this respect in requiring only one
+                //  is more like Interactive and NonInteractiveRecursive in this respect in requiring only one
                 // input, and waiting on one input from stdin is pretty silly
-                ExecMode::Interactive(_) | ExecMode::DisplayRecursive(_) => {
+                ExecMode::Interactive(_) | ExecMode::NonInteractiveRecursive(_) => {
                     vec![pwd.clone()]
                 }
                 ExecMode::Display
@@ -706,7 +706,7 @@ impl Config {
         pwd: &PathData,
     ) -> HttmResult<Option<PathData>> {
         let res = match exec_mode {
-            ExecMode::Interactive(_) | ExecMode::DisplayRecursive(_) => {
+            ExecMode::Interactive(_) | ExecMode::NonInteractiveRecursive(_) => {
                 match paths.len() {
                     0 => Some(pwd.clone()),
                     1 => {
@@ -734,9 +734,9 @@ impl Config {
                                         }
                                     }
                                 }
-                                // silently disable DisplayRecursive when path given is not a directory
+                                // silently disable NonInteractiveRecursive when path given is not a directory
                                 // switch to a standard Display mode
-                                ExecMode::DisplayRecursive(_) => {
+                                ExecMode::NonInteractiveRecursive(_) => {
                                     *exec_mode = ExecMode::Display;
                                     *deleted_mode = None;
                                     None

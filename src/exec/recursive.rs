@@ -26,7 +26,7 @@ use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::data::selection::SelectionCandidate;
 use crate::exec::deleted::SpawnDeletedThread;
 use crate::exec::display::DisplayWrapper;
-use crate::library::results::HttmResult;
+use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{httm_is_dir, print_output_buf, HttmIsDir, Never};
 use crate::{BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_HIDDEN_DIRECTORY};
 
@@ -156,7 +156,7 @@ pub fn combine_and_send_entries(
             Some(DeletedMode::Only) => return Ok(()),
             Some(DeletedMode::DepthOfOne | DeletedMode::Enabled) | None => {
                 // never show live files is display recursive/deleted only file mode
-                if matches!(config.exec_mode, ExecMode::DisplayRecursive(_)) {
+                if matches!(config.exec_mode, ExecMode::NonInteractiveRecursive(_)) {
                     return Ok(());
                 } else {
                     combined
@@ -266,7 +266,7 @@ fn display_or_transmit(
     // send to the interactive view, or print directly, never return back
     match &config.exec_mode {
         ExecMode::Interactive(_) => transmit_entries(config.clone(), entries, is_phantom, skim_tx)?,
-        ExecMode::DisplayRecursive(progress_bar) => {
+        ExecMode::NonInteractiveRecursive(progress_bar) => {
             if entries.is_empty() {
                 progress_bar.tick();
             } else {
@@ -312,4 +312,35 @@ fn print_display_recursive(config: &Config, entries: Vec<BasicDirEntryInfo>) -> 
     let output_buf = display_map.to_string();
 
     print_output_buf(output_buf)
+}
+
+pub struct NonInteractiveRecursiveWrapper;
+
+impl NonInteractiveRecursiveWrapper {
+    #[allow(unused_variables)]
+    pub fn exec(config: Arc<Config>) -> HttmResult<()> {
+        // won't be sending anything anywhere, this just allows us to reuse enumerate_directory
+        let (dummy_skim_tx, _): (SkimItemSender, SkimItemReceiver) = unbounded();
+        let (hangup_tx, hangup_rx): (Sender<Never>, Receiver<Never>) = bounded(0);
+        let config_clone = config.clone();
+
+        match &config.opt_requested_dir {
+            Some(requested_dir) => {
+                RecursiveLoop::exec(
+                    config_clone,
+                    &requested_dir.path_buf,
+                    dummy_skim_tx,
+                    hangup_rx,
+                );
+            }
+            None => {
+                return Err(HttmError::new(
+                    "requested_dir should never be None in Display Recursive mode",
+                )
+                .into())
+            }
+        }
+
+        Ok(())
+    }
 }
