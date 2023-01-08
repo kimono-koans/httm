@@ -176,8 +176,9 @@ fn parse_args() -> ArgMatches {
         .arg(
             Arg::new("PREVIEW")
                 .long("preview")
-                .help("user may specify a command to preview snapshots while in select view.  The default command (no command value specified) is a 'bowie' formatted 'diff'.  \
-                User defined commands must specify the snapshot file name \"{snap_file}\" and may specify the live file name \"{live_file}\" within their shell command.")
+                .help("user may specify a command to preview snapshots while in select view.  This argument optionally takes a value specifying the command to be executed.  \
+                The default value/command, if no command value specified, is a 'bowie' formatted 'diff'.  \
+                User defined commands must specify the snapshot file name \"{snap_file}\" and the live file name \"{live_file}\" within their shell command.")
                 .takes_value(true)
                 .min_values(0)
                 .require_equals(true)
@@ -284,7 +285,7 @@ fn parse_args() -> ArgMatches {
         .arg(
             Arg::new("OMIT_DITTO")
                 .long("omit-ditto")
-                .help("omit display of the snapshot version which may be identical to the live version (`httm` ordinarily displays *all* snapshot versions and the live version).")
+                .help("omit display of the snapshot version which may be identical to the live version (`httm` ordinarily displays all snapshot versions and the live version).")
                 .conflicts_with_all(&["NUM_VERSIONS"])
                 .display_order(19)
         )
@@ -292,7 +293,7 @@ fn parse_args() -> ArgMatches {
             Arg::new("NO_LIVE")
                 .long("no-live")
                 .visible_aliases(&["dead", "disco"])
-                .help("only display information concerning snapshot versions (display no information regarding 'live' versions of files or directories).")
+                .help("only display information concerning snapshot versions (display no information regarding live versions of files or directories).")
                 .display_order(20)
         )
         .arg(
