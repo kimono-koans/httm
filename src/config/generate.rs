@@ -98,7 +98,7 @@ fn parse_args() -> ArgMatches {
         .arg(
             Arg::new("INPUT_FILES")
                 .help("in any non-interactive mode, put requested files here.  If you enter no files, \
-                then httm will pause waiting for input on stdin(3). In any interactive mode, \
+                then httm will pause waiting for input on stdin.  In any interactive mode, \
                 this is the directory search path. If no directory is entered, \
                 httm will use the current working directory.")
                 .takes_value(true)
@@ -119,7 +119,7 @@ fn parse_args() -> ArgMatches {
             Arg::new("SELECT")
                 .short('s')
                 .long("select")
-                .help("interactive browse and search a specified directory to display unique file versions.  Continue to another dialog to select a snapshot version to dump to stdout(3).")
+                .help("interactive browse and search a specified directory to display unique file versions.  Continue to another dialog to select a snapshot version to dump to stdout.")
                 .conflicts_with("RESTORE")
                 .display_order(3)
         )
@@ -133,10 +133,10 @@ fn parse_args() -> ArgMatches {
                 .min_values(0)
                 .require_equals(true)
                 .help("interactive browse and search a specified directory to display unique file versions.  Continue to another dialog to select a snapshot version to restore.  \
-                Default is a non-destructive \"copy\" to the current working directory with a new name, so as not to overwrite any \"live\" file version.  \
-                However, user may specify \"overwrite\" or (\"yolo\") to restore to the same file location.  \
+                This argument optionally takes a value.  Default behavior/value is a non-destructive \"copy\" to the current working directory with a new name, \
+                so as not to overwrite any \"live\" file version.  However, the user may specify \"overwrite\" or (\"yolo\") to restore to the same file location.  \
                 Overwrite mode will attempt to preserve attributes, like the permissions/mode, timestamps, xattrs and ownership of the selected snapshot file version (this is and will likely remain a UNIX only feature).  \
-                In order to preserve such attributes in \"copy\" mode, use the \"copy-and-preserve\" option.")
+                In order to preserve such attributes in \"copy\" mode, specify the \"copy-and-preserve\" value.")
                 .conflicts_with("SELECT")
                 .display_order(4)
         )
@@ -150,9 +150,9 @@ fn parse_args() -> ArgMatches {
                 .min_values(0)
                 .require_equals(true)
                 .help("show deleted files in interactive modes.  In non-interactive modes, do a search for all files deleted from a specified directory. \
-                If \"--deleted only\" is specified, then, in interactive modes, non-deleted files will be excluded from the search. \
-                If \"--deleted single\" is specified, then, deleted files behind deleted directories, \
-                (files with a depth greater than one) will be ignored.")
+                This argument optionally takes a value.  The default behavior/value is \"all\".  \
+                If \"only\" is specified, then, in the interactive modes, non-deleted files will be excluded from the search. \
+                If \"single\" is specified, then, deleted files behind deleted directories, (that is -- files with a depth greater than one) will be ignored.")
                 .display_order(5)
         )
         .arg(
@@ -201,7 +201,7 @@ fn parse_args() -> ArgMatches {
                 .default_missing_value("httmSnapFileMount")
                 .visible_aliases(&["snap-file", "snapshot", "snap-file-mount"])
                 .help("snapshot the mount point/s of the dataset/s which contains the input file/s.  \
-                This argument takes a value for an optional snapshot suffix.  The default suffix is 'httmSnapFileMount'.  \
+                This argument optionally takes a value for a snapshot suffix.  The default suffix is 'httmSnapFileMount'.  \
                 Note: This is a ZFS only option.")
                 .conflicts_with_all(&["BROWSE", "SELECT", "RESTORE", "ALT_REPLICATED", "SNAP_POINT", "LOCAL_DIR"])
                 .display_order(10)
@@ -225,10 +225,10 @@ fn parse_args() -> ArgMatches {
                 .min_values(0)
                 .require_equals(true)
                 .help("automatically select and print the path of last-in-time unique snapshot version for the input file.  \
-                Possible options are: \
-                \"any\", return the last in time snapshot version, this is the default, \
+                This argument optionally takes a value.  Possible values are: \
+                \"any\", return the last in time snapshot version, this is the default behavior/value, \
                 \"ditto\", return only last snaps which are the same as the live file version, \
-                \"no-ditto-exclusive\", return only a last snap which is not the same as the live version (\"not ditto\" is an alias for this option), \
+                \"no-ditto-exclusive\", return only a last snap which is not the same as the live version (argument \"--not-ditto\" is an alias for this option), \
                 \"no-ditto-inclusive\", return a last snap which is not the same as the live version, \
                 or should non-exist, return the live file, and, \
                 \"none\" or \"without\", return the live file only for those files without a last snapshot.")
@@ -255,8 +255,8 @@ fn parse_args() -> ArgMatches {
         .arg(
             Arg::new("NO_FILTER")
                 .long("no-filter")
-                .help("by default, in the interactive modes, httm will filter out results from non-supported datasets (like ext4, tmpfs, procfs, sysfs, or devtmpfs), and in common snapshot paths.  \
-                Here, one may select to disable such filtering.  httm, however, should always show the input path, and results from behind any input path when that path is searched.")
+                .help("by default, in the interactive modes, httm will filter out files residing upon non-supported datasets (like ext4, tmpfs, procfs, sysfs, or devtmpfs, etc.), and within any \"common\" snapshot paths.  \
+                Here, one may select to disable such filtering.  httm, however, will always show the input path, and results from behind any input path when that is the path being searched.")
                 .display_order(15)
         )
         .arg(
@@ -300,7 +300,7 @@ fn parse_args() -> ArgMatches {
                 .long("no-snap")
                 .visible_aliases(&["undead", "zombie"])
                 .help("only display information concerning 'pseudo-live' versions in Display Recursive mode (in --deleted, --recursive, but non-interactive modes).  \
-                Useful for finding the \"files that once were\" and displaying only those pseudo-live/undead files.")
+                Useful for finding the \"files that once were\" and displaying only those pseudo-live/zombie files.")
                 .requires("RECURSIVE")
                 .conflicts_with_all(&["BROWSE", "SELECT", "RESTORE", "SNAP_FILE_MOUNT", "LAST_SNAP", "NOT_SO_PRETTY"])
                 .display_order(21)
@@ -312,8 +312,9 @@ fn parse_args() -> ArgMatches {
                 .help("manually map a local directory (eg. \"/Users/<User Name>\") as an alias of a mount point for ZFS or btrfs, \
                 such as the local mount point for a backup on a remote share (eg. \"/Volumes/Home\").  \
                 This option is useful if you wish to view snapshot versions from within the local directory you back up to your remote share.  \
-                Such map is delimited by a colon, ':', and specified as <LOCAL_DIR>:<REMOTE_DIR> (eg. --map-aliases /Users/<User Name>:/Volumes/Home).  \
-                Multiple maps may be specified delimited by a comma, ','.  You may also set via the environment variable HTTM_MAP_ALIASES.")
+                This option requires a value.  Such a value is delimited by a colon, ':', and is specified in the form <LOCAL_DIR>:<REMOTE_DIR> \
+                (eg. --map-aliases /Users/<User Name>:/Volumes/Home).  Multiple maps may be specified delimited by a comma, ','.  \
+                You may also set via the environment variable HTTM_MAP_ALIASES.")
                 .use_value_delimiter(true)
                 .takes_value(true)
                 .value_parser(clap::builder::ValueParser::os_string())
@@ -328,7 +329,7 @@ fn parse_args() -> ArgMatches {
                 .require_equals(true)
                 .help("detect and display the number of versions available (e.g. one, \"1\", \
                 version is available if either a snapshot version exists, and is identical to live version, or only a live version exists).  \
-                This option takes a value: \"all\" will print the filename and number of versions, \
+                This argument optionally takes a value.  The default value, \"all\", will print the filename and number of versions, \
                 \"single\" will print only filenames which only have one version, \
                 (and \"single-no-snap\" will print those without a snap taken, and \"single-with-snap\" will print those with a snap taken), \
                 and \"multiple\" will print only filenames which only have multiple versions.")
