@@ -307,7 +307,7 @@ impl InteractiveRestore {
 
         // tell the user what we're up to, and get consent
         let preview_buffer = format!(
-            "httm will copy a file from a ZFS snapshot:\n\n\
+            "httm will copy a file from a snapshot:\n\n\
             \tfrom: {:?}\n\
             \tto:   {:?}\n\n\
             Before httm restores this file, it would like your consent. Continue? (YES/NO)\n\
@@ -327,7 +327,7 @@ impl InteractiveRestore {
                     copy_recursive(&snap_pathdata.path_buf, &new_file_path_buf, should_preserve)?;
 
                     let result_buffer = format!(
-                        "httm copied a file from a ZFS snapshot:\n\n\
+                        "httm copied a file from a snapshot:\n\n\
                             \tfrom: {:?}\n\
                             \tto:   {:?}\n\n\
                             Restore completed successfully.",
