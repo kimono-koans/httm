@@ -17,6 +17,7 @@
 
 use std::{
     collections::BTreeMap,
+    io::ErrorKind,
     ops::Deref,
     path::{Path, PathBuf},
     time::SystemTime,
@@ -320,7 +321,26 @@ impl RelativePathAndSnapMounts {
             .snap_mounts
             .par_iter()
             .map(|path| path.join(&self.relative_path))
-            .map(|joined_path| PathData::from(joined_path.as_path()))
+            .filter_map(|joined_path| {
+                match joined_path.symlink_metadata() {
+                    Ok(md) => Some(PathData::new(joined_path.as_path(), Some(md))),
+                    Err(err) => {
+                        match err.kind() {
+                            // if we do not have permissions to read the snapshot directories
+                            // fail/panic printing a descriptive error instead of flattening
+                            ErrorKind::PermissionDenied => {
+                                eprintln!("Error: When httm tried to find a file contained within a snapshot directory, permission was denied.  \
+                                Perhaps you need to use sudo or equivalent to view the contents of this snapshot (for instance, btrfs by default creates privileged snapshots).  \
+                                \nDetails: {}", err);
+                                std::process::exit(1)
+                            },
+                            // if file metadata is not found, or is otherwise not available, 
+                            // continue, it simply means we do not have a snapshot of this file
+                            _ => None,
+                        }
+                    },
+                }
+            })
             .filter_map(|pathdata| {
                 pathdata
                     .metadata
