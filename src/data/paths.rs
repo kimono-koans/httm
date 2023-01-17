@@ -84,6 +84,7 @@ impl cmp::Ord for PathData {
 
 impl From<&Path> for PathData {
     fn from(path: &Path) -> Self {
+        // this metadata() function will not traverse symlinks
         let opt_metadata = symlink_metadata(path).ok();
         PathData::new(path, opt_metadata)
     }
@@ -91,6 +92,7 @@ impl From<&Path> for PathData {
 
 impl From<&DirEntry> for PathData {
     fn from(dir_entry: &DirEntry) -> Self {
+        // this metadata() function will not traverse symlinks
         let opt_metadata = dir_entry.metadata().ok();
         let path = dir_entry.path();
         PathData::new(&path, opt_metadata)
@@ -99,6 +101,7 @@ impl From<&DirEntry> for PathData {
 
 impl From<&BasicDirEntryInfo> for PathData {
     fn from(basic_info: &BasicDirEntryInfo) -> Self {
+        // this metadata() function will not traverse symlinks
         let opt_metadata = basic_info.path.metadata().ok();
         let path = &basic_info.path;
         PathData::new(path.as_path(), opt_metadata)
