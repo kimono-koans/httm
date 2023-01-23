@@ -46,6 +46,7 @@ mod lookup {
     pub mod deleted;
     pub mod file_mounts;
     pub mod versions;
+    pub mod wipe;
 }
 mod parse {
     pub mod aliases;
