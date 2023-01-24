@@ -64,13 +64,13 @@ use library::utility::print_output_buf;
 use crate::config::generate::{Config, ExecMode};
 use crate::lookup::file_mounts::MountsForFiles;
 
+use crate::display::maps::format_as_map;
 use crate::exec::display::DisplayWrapper;
 use crate::exec::interactive::InteractiveBrowse;
 use crate::exec::recursive::NonInteractiveRecursiveWrapper;
 use crate::library::results::HttmResult;
 use crate::lookup::prune::PruneMap;
 use crate::lookup::versions::VersionsMap;
-use crate::display::maps::format_as_map;
 
 pub const ZFS_HIDDEN_DIRECTORY: &str = ".zfs";
 pub const ZFS_SNAPSHOT_DIRECTORY: &str = ".zfs/snapshot";

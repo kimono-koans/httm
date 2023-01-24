@@ -19,17 +19,19 @@ use std::collections::BTreeMap;
 
 use crate::config::generate::{Config, NumVersionsMode};
 use crate::data::paths::PathData;
+use crate::display::maps::get_map_padding;
+use crate::display::maps::ToStringMap;
 use crate::library::utility::get_delimiter;
 use crate::lookup::versions::VersionsMap;
-use crate::display::maps::ToStringMap;
-use crate::display::maps::get_map_padding;
 
 impl ToStringMap for VersionsMap {
     fn to_string_map(&self) -> BTreeMap<String, Vec<String>> {
-        self
-            .iter()
+        self.iter()
             .map(|(key, values)| {
-                let res = values.into_iter().map(|value| value.path_buf.to_string_lossy().to_string()).collect(); 
+                let res = values
+                    .iter()
+                    .map(|value| value.path_buf.to_string_lossy().to_string())
+                    .collect();
                 (key.path_buf.to_string_lossy().to_string(), res)
             })
             .collect()

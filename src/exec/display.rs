@@ -20,8 +20,8 @@ use crate::data::paths::PathData;
 use crate::display::maps::ToStringMap;
 use crate::library::results::HttmResult;
 
-use crate::lookup::versions::VersionsMap;
 use crate::display::maps::format_as_map;
+use crate::lookup::versions::VersionsMap;
 
 pub struct DisplayWrapper<'a> {
     pub config: &'a Config,
