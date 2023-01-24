@@ -55,7 +55,7 @@ impl PruneSnapshots {
 
         if snap_names.is_empty() {
             let msg = format!(
-                "httm could not find any snaps exist for the files specified: {}",
+                "httm could not find any snapshots for the files specified: {}",
                 file_names_string
             );
             return Err(HttmError::new(&msg).into());
