@@ -464,13 +464,13 @@ pub fn select_restore_view(
     // run_with() reads and shows items from the thread stream created above
     let selected_items = if let Some(output) = Skim::run_with(&skim_opts, Some(items)) {
         if output.is_abort {
-            eprintln!("httm select/restore session was aborted.  Quitting.");
+            eprintln!("httm select/restore/wipe session was aborted.  Quitting.");
             std::process::exit(0)
         } else {
             output.selected_items
         }
     } else {
-        return Err(HttmError::new("httm select/restore session failed.").into());
+        return Err(HttmError::new("httm select/restore/wipe session failed.").into());
     };
 
     // output() converts the filename/raw path to a absolute path string for use elsewhere
