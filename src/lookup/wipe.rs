@@ -19,6 +19,7 @@ use std::{collections::BTreeMap, io::ErrorKind, ops::Deref};
 
 use crate::config::generate::Config;
 use crate::data::paths::PathData;
+use crate::lookup::file_mounts::MountsForFiles;
 use crate::lookup::versions::MostProximateAndOptAlts;
 use crate::lookup::versions::RelativePathAndSnapMounts;
 
@@ -59,8 +60,7 @@ impl WipeMap {
 
         let all_snap_versions: BTreeMap<PathData, Vec<String>> = config
             .paths
-            .clone()
-            .into_iter()
+            .iter()
             .map(|pathdata| {
                 let snaps: Vec<PathData> = snaps_selected_for_search
                     .iter()
@@ -73,12 +73,13 @@ impl WipeMap {
                     .flatten()
                     .flat_map(|search_bundle| search_bundle.get_all_versions())
                     .collect();
+                println!("{:?}", snaps);
                 (pathdata, snaps)
             })
             .filter_map(|(pathdata, vec_snaps)| {
                 let converted = vec_snaps
                     .into_iter()
-                    .map(|pathdata| pathdata.path_buf)
+                    .flat_map(|pathdata| pathdata.path_buf.canonicalize())
                     .filter_map(|snap| {
                         let snap_name = snap
                             .components()
@@ -87,13 +88,22 @@ impl WipeMap {
                                     || component.as_os_str() != std::path::Path::new("snapshot")
                             })
                             .next();
+                        
+                        println!("{:?}", snap_name);
 
                         snap_name.map(|snap| snap.as_os_str().to_os_string())
                     })
-                    .map(|snap| snap.to_string_lossy().into_owned())
-                    .collect();
+                    .map(|snap| {
+                        let mounts = MountsForFiles::new(config);
+                        let snap_string = snap.to_string_lossy().into_owned();
 
-                Some((pathdata, converted))
+                        snap_string
+                    })
+                    .collect();
+                
+                println!("{:?}", converted);
+
+                Some((pathdata.clone(), converted))
             })
             .collect();
 
