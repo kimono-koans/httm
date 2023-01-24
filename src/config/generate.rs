@@ -554,16 +554,16 @@ impl Config {
             ExecMode::NumVersions(num_versions_mode)
         } else if matches.is_present("MOUNT_FOR_FILE") {
             ExecMode::MountsForFiles
-        } else if let Some(opt) = matches.value_of("PRUNE_FILE") {
-            let restriction = if opt == "none" {
+        } else if let Some(value) = matches.value_of("PRUNE_FILE") {
+            let restriction = if value == "none" {
                 None
-            } else if opt == "native" {
+            } else if value == "native" {
                 Some(vec![
                     "ounceSnapFileMount".to_owned(),
                     "httmSnapFileMount".to_owned(),
                 ])
             } else {
-                let vec: Vec<String> = opt.split(',').map(|string| string.to_owned()).collect();
+                let vec: Vec<String> = value.split(',').map(|string| string.to_owned()).collect();
                 Some(vec)
             };
 
