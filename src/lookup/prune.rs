@@ -53,7 +53,7 @@ impl Deref for PruneMap {
 }
 
 impl PruneMap {
-    pub fn exec(config: &Config) -> Self {
+    pub fn exec(config: &Config, opt_restriction: &Option<Vec<String>>) -> Self {
         // only prune the proximate dataset
         let snaps_selected_for_search = ONLY_PROXIMATE;
 
@@ -88,8 +88,12 @@ impl PruneMap {
             })
             .collect();
 
-        let all_snap_names =
-            Self::get_snap_names(config, snaps_selected_for_search, dataset_names_tree);
+        let all_snap_names = Self::get_snap_names(
+            config,
+            snaps_selected_for_search,
+            dataset_names_tree,
+            opt_restriction,
+        );
 
         let prune_map: PruneMap = all_snap_names.into();
 
@@ -100,6 +104,7 @@ impl PruneMap {
         config: &Config,
         snaps_selected_for_search: &[SnapDatasetType],
         dataset_names_tree: BTreeMap<PathData, String>,
+        opt_restriction: &Option<Vec<String>>,
     ) -> BTreeMap<PathData, Vec<String>> {
         let all_snap_names: BTreeMap<PathData, Vec<String>> = config
             .paths
@@ -128,6 +133,13 @@ impl PruneMap {
                             .map(|(_lhs, rhs)| rhs.to_owned())
                     })
                     .filter_map(|snap| snap.split_once('/').map(|(lhs, _rhs)| lhs.to_owned()))
+                    .filter(|string| {
+                        if let Some(restriction) = opt_restriction {
+                            restriction.iter().any(|pat| string.contains(pat))
+                        } else {
+                            true
+                        }
+                    })
                     .collect();
 
                 (pathdata.clone(), snap_names)

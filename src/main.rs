@@ -117,7 +117,7 @@ fn exec() -> HttmResult<()> {
         ExecMode::SnapFileMount(snapshot_suffix) => {
             TakeSnapshot::exec(config.as_ref(), snapshot_suffix)
         }
-        ExecMode::Prune => PruneSnapshots::exec(config.as_ref()),
+        ExecMode::Prune(restriction) => PruneSnapshots::exec(config.as_ref(), restriction),
         ExecMode::MountsForFiles => {
             let versions_map: VersionsMap = MountsForFiles::new(&config).into();
             let display_map: DisplayWrapper = DisplayWrapper::from(&config, versions_map);

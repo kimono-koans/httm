@@ -28,8 +28,8 @@ use crate::lookup::prune::PruneMap;
 pub struct PruneSnapshots;
 
 impl PruneSnapshots {
-    pub fn exec(config: &Config) -> HttmResult<()> {
-        let prune_map: PruneMap = PruneMap::exec(config);
+    pub fn exec(config: &Config, opt_restriction: &Option<Vec<String>>) -> HttmResult<()> {
+        let prune_map: PruneMap = PruneMap::exec(config, opt_restriction);
 
         if let Ok(zfs_command) = which("zfs") {
             Self::interactive_prune(config, &zfs_command, prune_map)

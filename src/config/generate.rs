@@ -39,7 +39,7 @@ pub enum ExecMode {
     NonInteractiveRecursive(indicatif::ProgressBar),
     Display,
     SnapFileMount(String),
-    Prune,
+    Prune(Option<Vec<String>>),
     MountsForFiles,
     NumVersions(NumVersionsMode),
 }
@@ -212,7 +212,13 @@ fn parse_args() -> ArgMatches {
             Arg::new("PRUNE_FILE")
                 .short('P')
                 .long("prune")
+                .takes_value(true)
+                .min_values(0)
+                .require_equals(true)
+                .default_missing_value("none")
                 .help("prune all snapshot/s from a file's most immediate mount which contain the input file/s.  \
+                This argument optionally takes a value to restrict only to those snapshots which contain that value.  \
+                The value \"restrict\" will restrict to httm native snap value names, like \"httmSnapFileMount\" and \"ounceSnapFileMount\". \
                 Note: This is a ZFS only option.")
                 .conflicts_with_all(&["BROWSE", "SELECT", "RESTORE", "ALT_REPLICATED", "SNAP_POINT", "LOCAL_DIR"])
                 .display_order(11)
@@ -548,8 +554,22 @@ impl Config {
             ExecMode::NumVersions(num_versions_mode)
         } else if matches.is_present("MOUNT_FOR_FILE") {
             ExecMode::MountsForFiles
-        } else if matches.is_present("PRUNE_FILE") {
-            ExecMode::Prune
+        } else if let Some(opt) = matches.value_of("PRUNE_FILE") {
+            let restriction = if opt == "none" {
+                None
+            } else if opt == "restrict" {
+                Some(vec![
+                    "ounceSnapFileMount".to_owned(),
+                    "httmSnapFileMount".to_owned(),
+                ])
+            } else if opt.contains(',') {
+                let vec: Vec<String> = opt.split(',').map(|string| string.to_owned()).collect();
+                Some(vec)
+            } else {
+                Some(vec![opt.to_owned()])
+            };
+
+            ExecMode::Prune(restriction)
         } else if let Some(requested_snapshot_suffix) = opt_snap_file_mount {
             ExecMode::SnapFileMount(requested_snapshot_suffix)
         } else if let Some(interactive_mode) = opt_interactive_mode {
@@ -690,7 +710,7 @@ impl Config {
                 }
                 ExecMode::Display
                 | ExecMode::SnapFileMount(_)
-                | ExecMode::Prune
+                | ExecMode::Prune(_)
                 | ExecMode::MountsForFiles
                 | ExecMode::NumVersions(_) => read_stdin()?
                     .par_iter()
@@ -771,7 +791,7 @@ impl Config {
             }
             ExecMode::Display
             | ExecMode::SnapFileMount(_)
-            | ExecMode::Prune
+            | ExecMode::Prune(_)
             | ExecMode::MountsForFiles
             | ExecMode::NumVersions(_) => {
                 // in non-interactive mode / display mode, requested dir is just a file
