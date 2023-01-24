@@ -428,7 +428,7 @@ pub enum ViewMode {
     Restore,
 }
 
-fn select_restore_view(
+pub fn select_restore_view(
     config: &Config,
     preview_buffer: &str,
     view_mode: ViewMode,
