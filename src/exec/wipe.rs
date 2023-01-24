@@ -97,7 +97,9 @@ Wipe completed successfully.",
 
                     break eprintln!("{}", result_buffer);
                 }
-                "NO" | "N" => break eprintln!("User declined restore.  No files were restored."),
+                "NO" | "N" => {
+                    break eprintln!("User declined wipe.  No files were wiped from snapshots.")
+                }
                 // if not yes or no, then noop and continue to the next iter of loop
                 _ => {}
             }
