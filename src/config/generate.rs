@@ -217,8 +217,8 @@ fn parse_args() -> ArgMatches {
                 .require_equals(true)
                 .default_missing_value("none")
                 .help("prune all snapshot/s from a file's most immediate mount which contain the input file/s.  \
-                This argument optionally takes a value to restrict only to those snapshots which contain that value.  \
-                The value \"restrict\" will restrict to httm native snap value names, like \"httmSnapFileMount\" and \"ounceSnapFileMount\". \
+                This argument optionally takes a value to restrict only to those snapshots which contain that pattern (multiple values are separated by a comma).  \
+                The value \"native\" will restrict to httm native snap value names, like \"httmSnapFileMount\" and \"ounceSnapFileMount\". \
                 Note: This is a ZFS only option.")
                 .conflicts_with_all(&["BROWSE", "SELECT", "RESTORE", "ALT_REPLICATED", "SNAP_POINT", "LOCAL_DIR"])
                 .display_order(11)
@@ -557,7 +557,7 @@ impl Config {
         } else if let Some(opt) = matches.value_of("PRUNE_FILE") {
             let restriction = if opt == "none" {
                 None
-            } else if opt == "restrict" {
+            } else if opt == "native" {
                 Some(vec![
                     "ounceSnapFileMount".to_owned(),
                     "httmSnapFileMount".to_owned(),
