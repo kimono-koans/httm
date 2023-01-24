@@ -562,11 +562,9 @@ impl Config {
                     "ounceSnapFileMount".to_owned(),
                     "httmSnapFileMount".to_owned(),
                 ])
-            } else if opt.contains(',') {
+            } else {
                 let vec: Vec<String> = opt.split(',').map(|string| string.to_owned()).collect();
                 Some(vec)
-            } else {
-                Some(vec![opt.to_owned()])
             };
 
             ExecMode::Prune(restriction)
