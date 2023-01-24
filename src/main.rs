@@ -57,6 +57,7 @@ mod parse {
 }
 
 use exec::snapshot::TakeSnapshot;
+use exec::wipe::WipeSnapshots;
 use library::utility::print_output_buf;
 
 use crate::config::generate::{Config, ExecMode};
@@ -115,6 +116,9 @@ fn exec() -> HttmResult<()> {
         }
         ExecMode::SnapFileMount(snapshot_suffix) => {
             TakeSnapshot::exec(config.as_ref(), snapshot_suffix)
+        }
+        ExecMode::WipeMode => {
+            WipeSnapshots::exec(config.as_ref())
         }
         ExecMode::MountsForFiles => {
             let versions_map: VersionsMap = MountsForFiles::new(&config).into();
