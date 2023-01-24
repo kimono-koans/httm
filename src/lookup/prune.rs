@@ -25,17 +25,17 @@ use super::file_mounts::MountsForFiles;
 use super::versions::SnapDatasetType;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct WipeMap {
+pub struct PruneMap {
     inner: BTreeMap<PathData, Vec<String>>,
 }
 
-impl From<BTreeMap<PathData, Vec<String>>> for WipeMap {
+impl From<BTreeMap<PathData, Vec<String>>> for PruneMap {
     fn from(map: BTreeMap<PathData, Vec<String>>) -> Self {
         Self { inner: map }
     }
 }
 
-impl From<(PathData, Vec<String>)> for WipeMap {
+impl From<(PathData, Vec<String>)> for PruneMap {
     fn from(tuple: (PathData, Vec<String>)) -> Self {
         Self {
             inner: BTreeMap::from([tuple]),
@@ -43,7 +43,7 @@ impl From<(PathData, Vec<String>)> for WipeMap {
     }
 }
 
-impl Deref for WipeMap {
+impl Deref for PruneMap {
     type Target = BTreeMap<PathData, Vec<String>>;
 
     fn deref(&self) -> &Self::Target {
@@ -51,9 +51,9 @@ impl Deref for WipeMap {
     }
 }
 
-impl WipeMap {
+impl PruneMap {
     pub fn exec(config: &Config) -> Self {
-        // create only wipe the proximate dataset
+        // only prune the proximate dataset
         let snaps_selected_for_search = ONLY_PROXIMATE;
 
         let mount_tree = MountsForFiles::new(config);
@@ -81,9 +81,9 @@ impl WipeMap {
         let all_snap_names =
             Self::get_snap_names(config, snaps_selected_for_search, dataset_names_tree);
 
-        let wipe_map: WipeMap = all_snap_names.into();
+        let prune_map: PruneMap = all_snap_names.into();
 
-        wipe_map
+        prune_map
     }
 
     fn get_snap_names(

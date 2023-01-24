@@ -39,7 +39,7 @@ pub enum ExecMode {
     NonInteractiveRecursive(indicatif::ProgressBar),
     Display,
     SnapFileMount(String),
-    WipeMode,
+    Prune,
     MountsForFiles,
     NumVersions(NumVersionsMode),
 }
@@ -209,10 +209,10 @@ fn parse_args() -> ArgMatches {
                 .display_order(10)
         )
         .arg(
-            Arg::new("WIPE_FILE")
-                .short('W')
-                .long("wipe")
-                .help("wipe all snapshot/s from the most immediate mount which contain the input file/s.  \
+            Arg::new("PRUNE_FILE")
+                .short('P')
+                .long("prune")
+                .help("prune all snapshot/s from a file's most immediate mount which contain the input file/s.  \
                 Note: This is a ZFS only option.")
                 .conflicts_with_all(&["BROWSE", "SELECT", "RESTORE", "ALT_REPLICATED", "SNAP_POINT", "LOCAL_DIR"])
                 .display_order(11)
@@ -548,8 +548,8 @@ impl Config {
             ExecMode::NumVersions(num_versions_mode)
         } else if matches.is_present("MOUNT_FOR_FILE") {
             ExecMode::MountsForFiles
-        } else if matches.is_present("WIPE_FILE") {
-            ExecMode::WipeMode
+        } else if matches.is_present("PRUNE_FILE") {
+            ExecMode::Prune
         } else if let Some(requested_snapshot_suffix) = opt_snap_file_mount {
             ExecMode::SnapFileMount(requested_snapshot_suffix)
         } else if let Some(interactive_mode) = opt_interactive_mode {
@@ -690,7 +690,7 @@ impl Config {
                 }
                 ExecMode::Display
                 | ExecMode::SnapFileMount(_)
-                | ExecMode::WipeMode
+                | ExecMode::Prune
                 | ExecMode::MountsForFiles
                 | ExecMode::NumVersions(_) => read_stdin()?
                     .par_iter()
@@ -771,7 +771,7 @@ impl Config {
             }
             ExecMode::Display
             | ExecMode::SnapFileMount(_)
-            | ExecMode::WipeMode
+            | ExecMode::Prune
             | ExecMode::MountsForFiles
             | ExecMode::NumVersions(_) => {
                 // in non-interactive mode / display mode, requested dir is just a file

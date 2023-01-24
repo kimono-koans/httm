@@ -23,16 +23,16 @@ use which::which;
 use crate::config::generate::Config;
 use crate::exec::interactive::{select_restore_view, ViewMode};
 use crate::library::results::{HttmError, HttmResult};
-use crate::lookup::wipe::WipeMap;
+use crate::lookup::prune::PruneMap;
 
-pub struct WipeSnapshots;
+pub struct PruneSnapshots;
 
-impl WipeSnapshots {
+impl PruneSnapshots {
     pub fn exec(config: &Config) -> HttmResult<()> {
-        let wipe_map: WipeMap = WipeMap::exec(config);
+        let prune_map: PruneMap = PruneMap::exec(config);
 
         if let Ok(zfs_command) = which("zfs") {
-            Self::interactive_wipe(config, &zfs_command, wipe_map)
+            Self::interactive_prune(config, &zfs_command, prune_map)
         } else {
             Err(HttmError::new(
                 "'zfs' command not found. Make sure the command 'zfs' is in your path.",
@@ -41,20 +41,24 @@ impl WipeSnapshots {
         }
     }
 
-    fn interactive_wipe(config: &Config, zfs_command: &Path, wipe_map: WipeMap) -> HttmResult<()> {
+    fn interactive_prune(
+        config: &Config,
+        zfs_command: &Path,
+        prune_map: PruneMap,
+    ) -> HttmResult<()> {
         // tell the user what we're up to, and get consent
-        if wipe_map.keys().len() == 0 {
+        if prune_map.keys().len() == 0 {
             return Err(
                 HttmError::new("All file/s specified do not appear to exist.  Quitting.").into(),
             );
         }
 
-        let file_names_string: String = wipe_map
+        let file_names_string: String = prune_map
             .keys()
             .map(|key| format!("{:?}\n", key.path_buf))
             .collect();
 
-        let snap_names: Vec<String> = wipe_map.values().flatten().cloned().collect();
+        let snap_names: Vec<String> = prune_map.values().flatten().cloned().collect();
 
         if snap_names.is_empty() {
             let msg = format!(
@@ -70,7 +74,7 @@ impl WipeSnapshots {
             .collect();
 
         let preview_buffer = format!(
-            "User has requested the following file/s be wiped from snapshot/s:\n\n{}
+            "User has requested the following file/s be pruned from snapshot/s:\n\n{}
 httm will destroy the following snapshot/s:\n\n{}
 Before httm destroys these snapshot/s, it would like your consent. Continue? (YES/NO)\n\
 ─────────────────────────────────────────────────────────────────────────────\n\
@@ -86,19 +90,19 @@ NO",
 
             match user_consent.as_ref() {
                 "YES" | "Y" => {
-                    Self::wipe_snaps(config, zfs_command, &wipe_map)?;
+                    Self::prune_snaps(config, zfs_command, &prune_map)?;
 
                     let result_buffer = format!(
-                        "httm wiped the following file/s from a snapshot/s:\n\n{}
+                        "httm pruned the following file/s from a snapshot/s:\n\n{}
 By destroying the following snapshot/s:\n\n{}
-Wipe completed successfully.",
+Prune completed successfully.",
                         file_names_string, snap_names_string
                     );
 
                     break eprintln!("{}", result_buffer);
                 }
                 "NO" | "N" => {
-                    break eprintln!("User declined wipe.  No files were wiped from snapshots.")
+                    break eprintln!("User declined prune.  No files were pruned from snapshots.")
                 }
                 // if not yes or no, then noop and continue to the next iter of loop
                 _ => {}
@@ -108,8 +112,8 @@ Wipe completed successfully.",
         std::process::exit(0)
     }
 
-    fn wipe_snaps(_config: &Config, zfs_command: &Path, wipe_map: &WipeMap) -> HttmResult<()> {
-        wipe_map.iter().try_for_each( |(_pathdata, snapshot_names)| {
+    fn prune_snaps(_config: &Config, zfs_command: &Path, prune_map: &PruneMap) -> HttmResult<()> {
+        prune_map.iter().try_for_each( |(_pathdata, snapshot_names)| {
             let mut process_args = vec!["destroy".to_owned()];
             process_args.extend_from_slice(snapshot_names);
 
