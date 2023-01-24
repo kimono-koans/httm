@@ -15,13 +15,9 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::{
-    collections::BTreeMap,
-    io::ErrorKind,
-    ops::Deref,
-};
+use std::{collections::BTreeMap, io::ErrorKind, ops::Deref};
 
-use crate::config::generate::{Config};
+use crate::config::generate::Config;
 use crate::data::paths::PathData;
 use crate::lookup::versions::MostProximateAndOptAlts;
 use crate::lookup::versions::RelativePathAndSnapMounts;
@@ -61,53 +57,24 @@ impl WipeMap {
             .snaps_selected_for_search
             .get_value();
 
-        let mount_map: BTreeMap<PathData, Vec<MostProximateAndOptAlts>> = config
+        let all_snap_versions: BTreeMap<PathData, Vec<String>> = config
             .paths
-            .iter()
+            .clone()
+            .into_iter()
             .map(|pathdata| {
-                let vec_search_bundles = snaps_selected_for_search
+                let snaps: Vec<PathData> = snaps_selected_for_search
                     .iter()
                     .flat_map(|dataset_type| {
-                        MostProximateAndOptAlts::new(config, pathdata, dataset_type)
+                        MostProximateAndOptAlts::new(config, &pathdata, dataset_type)
                     })
-                    .collect();
-                (pathdata.clone(), vec_search_bundles)
-            })
-            .collect();
-        
-        let search_map: BTreeMap<PathData, Vec<RelativePathAndSnapMounts>> = mount_map
-            .clone()
-            .into_iter()
-            .map(|(pathdata, vec_search_bundles)| {
-                let vec_search_bundles = vec_search_bundles
-                    .iter()
                     .flat_map(|dataset_for_search| {
-                       dataset_for_search.get_search_bundles(config, &pathdata)
+                        dataset_for_search.get_search_bundles(config, &pathdata)
                     })
                     .flatten()
+                    .flat_map(|search_bundle| search_bundle.get_all_versions())
                     .collect();
-                (pathdata, vec_search_bundles)
+                (pathdata, snaps)
             })
-            .collect();
-
-        let raw_snap_map: BTreeMap<PathData, Vec<PathData>> = search_map
-            .clone()
-            .into_iter()
-            .map(|(pathdata, vec_search_bundles)| {
-                let converted = vec_search_bundles
-                    .iter()
-                    .map(|search_bundle| {
-                        search_bundle.get_all_versions()
-                    })
-                    .flatten()
-                    .collect();    
-                (pathdata, converted)
-            })
-            .collect();
-
-        let all_snap_versions: BTreeMap<PathData, Vec<String>> = raw_snap_map
-            .clone()
-            .into_iter()
             .filter_map(|(pathdata, vec_snaps)| {
                 let converted = vec_snaps
                     .into_iter()
@@ -116,17 +83,16 @@ impl WipeMap {
                         let snap_name = snap
                             .components()
                             .skip_while(|component| {
-                                component.as_os_str() != std::path::Path::new(".zfs") || component.as_os_str() != std::path::Path::new("snapshot")
+                                component.as_os_str() != std::path::Path::new(".zfs")
+                                    || component.as_os_str() != std::path::Path::new("snapshot")
                             })
                             .next();
 
                         snap_name.map(|snap| snap.as_os_str().to_os_string())
                     })
-                    .map(|snap| {
-                        snap.to_string_lossy().into_owned()
-                    })
+                    .map(|snap| snap.to_string_lossy().into_owned())
                     .collect();
-                    
+
                 Some((pathdata, converted))
             })
             .collect();

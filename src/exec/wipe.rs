@@ -15,18 +15,13 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::{collections::BTreeMap, path::Path, time::SystemTime};
-
-use std::process::Command as ExecProcess;
 use which::which;
 
-use crate::config::generate::{Config, PrintMode};
-use crate::library::iter_extensions::HttmIter;
+use crate::config::generate::Config;
+
 use crate::library::results::{HttmError, HttmResult};
-use crate::library::utility::{get_date, get_delimiter, print_output_buf, DateFormat};
-use crate::lookup::file_mounts::MountsForFiles;
+
 use crate::lookup::wipe::WipeMap;
-use crate::parse::aliases::FilesystemType;
 
 pub struct WipeSnapshots;
 
@@ -34,7 +29,7 @@ impl WipeSnapshots {
     pub fn exec(config: &Config) -> HttmResult<()> {
         let snap_map: WipeMap = WipeMap::exec(config);
 
-        if let Ok(zfs_command) = which("zfs") {
+        if let Ok(_zfs_command) = which("zfs") {
             // Self::wipe_snaps(
             //     config,
             //     &zfs_command,

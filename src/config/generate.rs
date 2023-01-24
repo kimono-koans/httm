@@ -380,7 +380,7 @@ fn parse_args() -> ArgMatches {
                 .long("debug")
                 .help("print configuration and debugging info")
                 .display_order(28)
-        )       
+        )
         .arg(
             Arg::new("ZSH_HOT_KEYS")
                 .long("install-zsh-hot-keys")
