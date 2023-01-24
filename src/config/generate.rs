@@ -212,6 +212,8 @@ fn parse_args() -> ArgMatches {
             Arg::new("WIPE_FILE")
                 .short('W')
                 .long("wipe")
+                .help("wipe all snapshot/s which contains the input file/s.  \
+                Note: This is a ZFS only option.")
                 .conflicts_with_all(&["BROWSE", "SELECT", "RESTORE", "ALT_REPLICATED", "SNAP_POINT", "LOCAL_DIR"])
                 .display_order(11)
         )
