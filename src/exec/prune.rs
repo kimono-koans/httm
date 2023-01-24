@@ -46,13 +46,6 @@ impl PruneSnapshots {
         zfs_command: &Path,
         prune_map: PruneMap,
     ) -> HttmResult<()> {
-        // tell the user what we're up to, and get consent
-        if prune_map.keys().len() == 0 {
-            return Err(
-                HttmError::new("All file/s specified do not appear to exist.  Quitting.").into(),
-            );
-        }
-
         let file_names_string: String = prune_map
             .keys()
             .map(|key| format!("{:?}\n", key.path_buf))
@@ -113,9 +106,9 @@ Prune completed successfully.",
     }
 
     fn prune_snaps(_config: &Config, zfs_command: &Path, prune_map: &PruneMap) -> HttmResult<()> {
-        prune_map.iter().try_for_each( |(_pathdata, snapshot_names)| {
+        prune_map.iter().flat_map(|(_pathdata, snapshot_names)| snapshot_names).try_for_each( |snapshot_name| {
             let mut process_args = vec!["destroy".to_owned()];
-            process_args.extend_from_slice(snapshot_names);
+            process_args.push(snapshot_name.to_owned());
 
             let process_output = ExecProcess::new(zfs_command).args(&process_args).output()?;
             let stderr_string = std::str::from_utf8(&process_output.stderr)?.trim();

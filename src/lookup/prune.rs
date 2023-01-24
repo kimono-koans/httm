@@ -20,6 +20,7 @@ use std::{collections::BTreeMap, io::ErrorKind, ops::Deref};
 use crate::config::generate::Config;
 use crate::data::paths::PathData;
 use crate::lookup::versions::{MostProximateAndOptAlts, RelativePathAndSnapMounts, ONLY_PROXIMATE};
+use crate::parse::aliases::FilesystemType;
 
 use super::file_mounts::MountsForFiles;
 use super::versions::SnapDatasetType;
@@ -56,7 +57,7 @@ impl PruneMap {
         // only prune the proximate dataset
         let snaps_selected_for_search = ONLY_PROXIMATE;
 
-        let mount_tree = MountsForFiles::new(config);
+        let mount_tree = MountsForFiles::from_raw_paths(config, &config.paths);
 
         let dataset_names_tree: BTreeMap<PathData, String> = mount_tree
             .deref()
@@ -71,7 +72,16 @@ impl PruneMap {
                             .datasets
                             .get(&mount.path_buf);
 
-                        opt_mount_md.map(|md| md.name.to_owned())
+                        match opt_mount_md {
+                            Some(md) => {
+                                if md.fs_type == FilesystemType::Zfs {
+                                    Some(md.name.to_owned())
+                                } else {
+                                    None
+                                }
+                            }
+                            None => None,
+                        }
                     })
                     .collect();
                 (pathdata.clone(), name)

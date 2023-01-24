@@ -53,9 +53,10 @@ impl MountsForFiles {
     pub fn new(config: &Config) -> MountsForFiles {
         // we only check for phantom files in "mount for file" mode because
         // people should be able to search for deleted files in other modes
-        let (non_phantom_files, phantom_files): (Vec<&PathData>, Vec<&PathData>) = config
+        let (non_phantom_files, phantom_files): (Vec<PathData>, Vec<PathData>) = config
             .paths
-            .par_iter()
+            .clone()
+            .into_par_iter()
             .partition(|pathdata| pathdata.metadata.is_some());
 
         if !phantom_files.is_empty() {
@@ -69,8 +70,12 @@ impl MountsForFiles {
                 .for_each(|pathdata| eprintln!("{:?}", pathdata.path_buf));
         }
 
-        let map: BTreeMap<PathData, Vec<PathData>> = non_phantom_files
-            .into_iter()
+        MountsForFiles::from_raw_paths(config, &non_phantom_files)
+    }
+
+    pub fn from_raw_paths(config: &Config, raw_vec: &[PathData]) -> MountsForFiles {
+        let map: BTreeMap<PathData, Vec<PathData>> = raw_vec
+            .iter()
             .map(|pathdata| {
                 let datasets: Vec<MostProximateAndOptAlts> = config
                     .dataset_collection
