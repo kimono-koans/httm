@@ -405,7 +405,6 @@ pub struct Config {
     pub opt_no_traverse: bool,
     pub opt_omit_ditto: bool,
     pub opt_no_hidden: bool,
-    pub opt_wipe: bool,
     pub opt_last_snap: Option<LastSnapMode>,
     pub opt_preview: Option<String>,
     pub requested_utc_offset: UtcOffset,
@@ -457,7 +456,6 @@ impl Config {
         let opt_no_filter = matches.is_present("NO_FILTER");
         let opt_debug = matches.is_present("DEBUG");
         let opt_no_hidden = matches.is_present("FILTER_HIDDEN");
-        let opt_wipe = matches.is_present("WIPE_FILE");
 
         let opt_last_snap = match matches.value_of("LAST_SNAP") {
             Some("" | "any") => Some(LastSnapMode::Any),
@@ -550,7 +548,7 @@ impl Config {
             ExecMode::NumVersions(num_versions_mode)
         } else if matches.is_present("MOUNT_FOR_FILE") {
             ExecMode::MountsForFiles
-        } else if opt_wipe {
+        } else if matches.is_present("WIPE_FILE") {
             ExecMode::WipeMode
         } else if let Some(requested_snapshot_suffix) = opt_snap_file_mount {
             ExecMode::SnapFileMount(requested_snapshot_suffix)
@@ -637,7 +635,6 @@ impl Config {
             opt_last_snap,
             opt_preview,
             opt_no_hidden,
-            opt_wipe,
             requested_utc_offset,
             exec_mode,
             print_mode,
