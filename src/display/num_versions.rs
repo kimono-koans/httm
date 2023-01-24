@@ -15,10 +15,26 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
+use std::collections::BTreeMap;
+
 use crate::config::generate::{Config, NumVersionsMode};
 use crate::data::paths::PathData;
 use crate::library::utility::get_delimiter;
 use crate::lookup::versions::VersionsMap;
+use crate::display::maps::ToStringMap;
+use crate::display::maps::get_map_padding;
+
+impl ToStringMap for VersionsMap {
+    fn to_string_map(&self) -> BTreeMap<String, Vec<String>> {
+        self
+            .iter()
+            .map(|(key, values)| {
+                let res = values.into_iter().map(|value| value.path_buf.to_string_lossy().to_string()).collect(); 
+                (key.path_buf.to_string_lossy().to_string(), res)
+            })
+            .collect()
+    }
+}
 
 impl VersionsMap {
     pub fn format_as_num_versions(
@@ -32,7 +48,7 @@ impl VersionsMap {
             .iter()
             .filter_map(|(live_version, snaps)| {
                 let map_padding = if matches!(num_versions_mode, NumVersionsMode::All) {
-                    self.get_map_padding()
+                    get_map_padding(&self.to_string_map())
                 } else {
                     0usize
                 };

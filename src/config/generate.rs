@@ -41,6 +41,7 @@ pub enum ExecMode {
     SnapFileMount(String),
     Prune(Option<Vec<String>>),
     MountsForFiles,
+    SnapsForFiles,
     NumVersions(NumVersionsMode),
 }
 
@@ -224,13 +225,20 @@ fn parse_args() -> ArgMatches {
                 .display_order(11)
         )
         .arg(
+            Arg::new("SNAPS_FOR_FILE")
+                .long("snaps-for-file")
+                .help("display the snapshot names (*not* file names) which contains the input file/s.")
+                .conflicts_with_all(&["BROWSE", "SELECT", "RESTORE"])
+                .display_order(12)
+        )
+        .arg(
             Arg::new("MOUNT_FOR_FILE")
                 .short('m')
                 .long("mount-for-file")
                 .visible_alias("mount")
                 .help("display the mount point/s of the dataset/s which contains the input file/s.")
                 .conflicts_with_all(&["BROWSE", "SELECT", "RESTORE"])
-                .display_order(12)
+                .display_order(13)
         )
         .arg(
             Arg::new("LAST_SNAP")
@@ -250,7 +258,7 @@ fn parse_args() -> ArgMatches {
                 or should non-exist, return the live file, and, \
                 \"none\" or \"without\", return the live file only for those files without a last snapshot.")
                 .conflicts_with_all(&["NUM_VERSIONS", "SNAP_FILE_MOUNT", "MOUNT_FOR_FILE", "ALT_REPLICATED", "SNAP_POINT", "LOCAL_DIR"])
-                .display_order(13)
+                .display_order(14)
         )
         .arg(
             Arg::new("RAW")
@@ -259,7 +267,7 @@ fn parse_args() -> ArgMatches {
                 .visible_alias("newline")
                 .help("display the snapshot locations only, without extraneous information, delimited by a NEWLINE character.")
                 .conflicts_with_all(&["ZEROS", "NOT_SO_PRETTY"])
-                .display_order(14)
+                .display_order(15)
         )
         .arg(
             Arg::new("ZEROS")
@@ -267,28 +275,28 @@ fn parse_args() -> ArgMatches {
                 .long("zero")
                 .help("display the snapshot locations only, without extraneous information, delimited by a NULL character.")
                 .conflicts_with_all(&["RAW", "NOT_SO_PRETTY"])
-                .display_order(15)
+                .display_order(16)
         )
         .arg(
             Arg::new("NO_FILTER")
                 .long("no-filter")
                 .help("by default, in the interactive modes, httm will filter out files residing upon non-supported datasets (like ext4, tmpfs, procfs, sysfs, or devtmpfs, etc.), and within any \"common\" snapshot paths.  \
                 Here, one may select to disable such filtering.  httm, however, will always show the input path, and results from behind any input path when that is the path being searched.")
-                .display_order(16)
+                .display_order(17)
         )
         .arg(
             Arg::new("FILTER_HIDDEN")
                 .long("no-hidden")
                 .aliases(&["no-hide", "nohide", "filter-hidden"])
                 .help("never show information regarding hidden files and directories (those that start with a \'.\') in the recursive or interactive modes.")
-                .display_order(17)
+                .display_order(18)
         )
         .arg(
             Arg::new("NO_TRAVERSE")
                 .long("no-traverse")
                 .help("in recursive mode, don't traverse symlinks.  Although httm does its best to prevent searching pathologically recursive symlink-ed paths, \
                 here, you may disable symlink traversal completely.  NOTE: httm will never traverse symlinks when a requested recursive search is on the root/base directory (\"/\").")
-                .display_order(18)
+                .display_order(19)
         )
         .arg(
             Arg::new("NOT_SO_PRETTY")
@@ -296,21 +304,21 @@ fn parse_args() -> ArgMatches {
                 .visible_aliases(&["tabs", "plain-jane"])
                 .help("display the ordinary output, but tab delimited, without any pretty border lines.")
                 .conflicts_with_all(&["RAW", "ZEROS"])
-                .display_order(19)
+                .display_order(20)
         )
         .arg(
             Arg::new("OMIT_DITTO")
                 .long("omit-ditto")
                 .help("omit display of the snapshot version which may be identical to the live version (`httm` ordinarily displays all snapshot versions and the live version).")
                 .conflicts_with_all(&["NUM_VERSIONS"])
-                .display_order(20)
+                .display_order(21)
         )
         .arg(
             Arg::new("NO_LIVE")
                 .long("no-live")
                 .visible_aliases(&["dead", "disco"])
                 .help("only display information concerning snapshot versions (display no information regarding live versions of files or directories).")
-                .display_order(21)
+                .display_order(22)
         )
         .arg(
             Arg::new("NO_SNAP")
@@ -320,7 +328,7 @@ fn parse_args() -> ArgMatches {
                 Useful for finding the \"files that once were\" and displaying only those pseudo-live/zombie files.")
                 .requires("RECURSIVE")
                 .conflicts_with_all(&["BROWSE", "SELECT", "RESTORE", "SNAP_FILE_MOUNT", "LAST_SNAP", "NOT_SO_PRETTY"])
-                .display_order(22)
+                .display_order(23)
         )
         .arg(
             Arg::new("MAP_ALIASES")
@@ -335,7 +343,7 @@ fn parse_args() -> ArgMatches {
                 .use_value_delimiter(true)
                 .takes_value(true)
                 .value_parser(clap::builder::ValueParser::os_string())
-                .display_order(23)
+                .display_order(24)
         )
         .arg(
             Arg::new("NUM_VERSIONS")
@@ -351,7 +359,7 @@ fn parse_args() -> ArgMatches {
                 (and \"single-no-snap\" will print those without a snap taken, and \"single-with-snap\" will print those with a snap taken), \
                 and \"multiple\" will print only filenames which only have multiple versions.")
                 .conflicts_with_all(&["LAST_SNAP", "BROWSE", "SELECT", "RESTORE", "RECURSIVE", "SNAP_FILE_MOUNT", "LAST_SNAP", "NOT_SO_PRETTY", "NO_LIVE", "NO_SNAP", "OMIT_IDENTICAL"])
-                .display_order(24)
+                .display_order(25)
         )
         .arg(
             Arg::new("REMOTE_DIR")
@@ -362,7 +370,7 @@ fn parse_args() -> ArgMatches {
                 (directory which contains a \".snapshots\" directory), such as the local mount point for a remote share.  You may also set via the HTTM_REMOTE_DIR environment variable.")
                 .takes_value(true)
                 .value_parser(clap::builder::ValueParser::os_string())
-                .display_order(25)
+                .display_order(26)
         )
         .arg(
             Arg::new("LOCAL_DIR")
@@ -375,26 +383,26 @@ fn parse_args() -> ArgMatches {
                 .requires("REMOTE_DIR")
                 .takes_value(true)
                 .value_parser(clap::builder::ValueParser::os_string())
-                .display_order(26)
+                .display_order(27)
         )
         .arg(
             Arg::new("UTC")
                 .long("utc")
                 .help("use UTC for date display and timestamps")
-                .display_order(27)
+                .display_order(28)
         )
         .arg(
             Arg::new("DEBUG")
                 .long("debug")
                 .help("print configuration and debugging info")
-                .display_order(28)
+                .display_order(29)
         )
         .arg(
             Arg::new("ZSH_HOT_KEYS")
                 .long("install-zsh-hot-keys")
                 .help("install zsh hot keys to the users home directory, and then exit")
                 .exclusive(true)
-                .display_order(29)
+                .display_order(30)
         )
         .get_matches()
 }
@@ -552,6 +560,8 @@ impl Config {
 
         let mut exec_mode = if let Some(num_versions_mode) = opt_num_versions {
             ExecMode::NumVersions(num_versions_mode)
+        } else if matches.is_present("SNAPS_FOR_FILE") {
+            ExecMode::SnapsForFiles
         } else if matches.is_present("MOUNT_FOR_FILE") {
             ExecMode::MountsForFiles
         } else if let Some(value) = matches.value_of("PRUNE_FILE") {
@@ -710,6 +720,7 @@ impl Config {
                 | ExecMode::SnapFileMount(_)
                 | ExecMode::Prune(_)
                 | ExecMode::MountsForFiles
+                | ExecMode::SnapsForFiles
                 | ExecMode::NumVersions(_) => read_stdin()?
                     .par_iter()
                     .map(|string| PathData::from(Path::new(&string)))
@@ -791,6 +802,7 @@ impl Config {
             | ExecMode::SnapFileMount(_)
             | ExecMode::Prune(_)
             | ExecMode::MountsForFiles
+            | ExecMode::SnapsForFiles
             | ExecMode::NumVersions(_) => {
                 // in non-interactive mode / display mode, requested dir is just a file
                 // like every other file and pwd must be the requested working dir.

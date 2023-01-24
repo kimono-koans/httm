@@ -56,6 +56,7 @@ mod parse {
     pub mod snaps;
 }
 
+use display::maps::ToStringMap;
 use exec::prune::PruneSnapshots;
 use exec::snapshot::TakeSnapshot;
 use library::utility::print_output_buf;
@@ -67,7 +68,9 @@ use crate::exec::display::DisplayWrapper;
 use crate::exec::interactive::InteractiveBrowse;
 use crate::exec::recursive::NonInteractiveRecursiveWrapper;
 use crate::library::results::HttmResult;
+use crate::lookup::prune::PruneMap;
 use crate::lookup::versions::VersionsMap;
+use crate::display::maps::format_as_map;
 
 pub const ZFS_HIDDEN_DIRECTORY: &str = ".zfs";
 pub const ZFS_SNAPSHOT_DIRECTORY: &str = ".zfs/snapshot";
@@ -116,6 +119,12 @@ fn exec() -> HttmResult<()> {
         }
         ExecMode::SnapFileMount(snapshot_suffix) => {
             TakeSnapshot::exec(config.as_ref(), snapshot_suffix)
+        }
+        ExecMode::SnapsForFiles => {
+            let prune_map: PruneMap = PruneMap::exec(config.as_ref(), &None);
+            let string_map = prune_map.to_string_map();
+            let output_buf = format_as_map(&string_map, &config);
+            print_output_buf(output_buf)
         }
         ExecMode::Prune(restriction) => PruneSnapshots::exec(config.as_ref(), restriction),
         ExecMode::MountsForFiles => {

@@ -21,6 +21,7 @@ use crate::config::generate::Config;
 use crate::data::paths::PathData;
 use crate::lookup::versions::{MostProximateAndOptAlts, RelativePathAndSnapMounts, ONLY_PROXIMATE};
 use crate::parse::aliases::FilesystemType;
+use crate::display::maps::ToStringMap;
 
 use super::file_mounts::MountsForFiles;
 use super::versions::SnapDatasetType;
@@ -49,6 +50,17 @@ impl Deref for PruneMap {
 
     fn deref(&self) -> &Self::Target {
         &self.inner
+    }
+}
+
+impl ToStringMap for PruneMap {
+    fn to_string_map(&self) -> BTreeMap<String, Vec<String>> {
+        self
+            .iter()
+            .map(|(key, value)| {
+                (key.path_buf.to_string_lossy().to_string(), value.to_owned())
+            })
+            .collect()
     }
 }
 
