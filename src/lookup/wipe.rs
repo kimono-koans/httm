@@ -54,14 +54,15 @@ impl Deref for WipeMap {
 }
 
 impl WipeMap {
-    fn exec(config: &Config, path_set: &[PathData]) -> Self {
+    pub fn exec(config: &Config) -> Self {
         // create vec of all local and replicated backups at once
         let snaps_selected_for_search = config
             .dataset_collection
             .snaps_selected_for_search
             .get_value();
 
-        let mount_map: BTreeMap<PathData, Vec<MostProximateAndOptAlts>> = path_set
+        let mount_map: BTreeMap<PathData, Vec<MostProximateAndOptAlts>> = config
+            .paths
             .iter()
             .map(|pathdata| {
                 let vec_search_bundles = snaps_selected_for_search
@@ -108,29 +109,25 @@ impl WipeMap {
             .clone()
             .into_iter()
             .filter_map(|(pathdata, vec_snaps)| {
-                let opt_suffix = search_map.get(&pathdata).map(|path| path.relative_path);
-                let opt_prefix = mount_map.get(&pathdata).map(|path| path.proximate_dataset_mount);
+                let converted = vec_snaps
+                    .into_iter()
+                    .map(|pathdata| pathdata.path_buf)
+                    .filter_map(|snap| {
+                        let snap_name = snap
+                            .components()
+                            .skip_while(|component| {
+                                component.as_os_str() != std::path::Path::new(".zfs") || component.as_os_str() != std::path::Path::new("snapshot")
+                            })
+                            .next();
 
-                if opt_prefix.is_none() || opt_suffix.is_none() {
-                    None
-                } else {
-                    let suffix = opt_suffix.unwrap();
-                    let prefix = opt_prefix.unwrap();
-
-                    let converted = vec_snaps
-                        .into_iter()
-                        .filter_map(|snap| {
-                            let path_string = snap.path_buf.to_string_lossy();
-                            path_string.strip_prefix(&prefix)
-                        })
-                        .filter_map(|path_string| {
-                            path_string.strip_suffix(&suffix)  
-                        })
-                        .map(|path_string| path_string.to_owned())
-                        .collect();
+                        snap_name.map(|snap| snap.as_os_str().to_os_string())
+                    })
+                    .map(|snap| {
+                        snap.to_string_lossy().into_owned()
+                    })
+                    .collect();
                     
-                    Some((pathdata, converted))
-                }                
+                Some((pathdata, converted))
             })
             .collect();
 

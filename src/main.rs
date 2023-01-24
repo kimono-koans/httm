@@ -32,6 +32,7 @@ mod exec {
     pub mod preview;
     pub mod recursive;
     pub mod snapshot;
+    pub mod wipe;
 }
 mod config {
     pub mod generate;
