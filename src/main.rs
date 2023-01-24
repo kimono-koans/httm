@@ -32,6 +32,7 @@ mod exec {
     pub mod preview;
     pub mod recursive;
     pub mod snapshot;
+    pub mod wipe;
 }
 mod config {
     pub mod generate;
@@ -46,6 +47,7 @@ mod lookup {
     pub mod deleted;
     pub mod file_mounts;
     pub mod versions;
+    pub mod wipe;
 }
 mod parse {
     pub mod aliases;
@@ -55,6 +57,7 @@ mod parse {
 }
 
 use exec::snapshot::TakeSnapshot;
+use exec::wipe::WipeSnapshots;
 use library::utility::print_output_buf;
 
 use crate::config::generate::{Config, ExecMode};
@@ -114,6 +117,7 @@ fn exec() -> HttmResult<()> {
         ExecMode::SnapFileMount(snapshot_suffix) => {
             TakeSnapshot::exec(config.as_ref(), snapshot_suffix)
         }
+        ExecMode::WipeMode => WipeSnapshots::exec(config.as_ref()),
         ExecMode::MountsForFiles => {
             let versions_map: VersionsMap = MountsForFiles::new(&config).into();
             let display_map: DisplayWrapper = DisplayWrapper::from(&config, versions_map);
