@@ -15,18 +15,17 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::collections::BTreeMap;
-
 use crate::config::generate::{Config, NumVersionsMode};
 use crate::data::paths::PathData;
-use crate::display::maps::get_map_padding;
-use crate::display::maps::ToPrintableMap;
 use crate::library::utility::get_delimiter;
 use crate::lookup::versions::VersionsMap;
 
-impl ToPrintableMap for VersionsMap {
-    fn to_printable_map(&self) -> BTreeMap<String, Vec<String>> {
-        self.iter()
+use super::maps::PrintableMap;
+
+impl From<&VersionsMap> for PrintableMap {
+    fn from(map: &VersionsMap) -> PrintableMap {
+        let inner = map
+            .iter()
             .map(|(key, values)| {
                 let res = values
                     .iter()
@@ -34,7 +33,8 @@ impl ToPrintableMap for VersionsMap {
                     .collect();
                 (key.path_buf.to_string_lossy().to_string(), res)
             })
-            .collect()
+            .collect();
+        Self { inner }
     }
 }
 
@@ -50,7 +50,8 @@ impl VersionsMap {
             .iter()
             .filter_map(|(live_version, snaps)| {
                 let map_padding = if matches!(num_versions_mode, NumVersionsMode::All) {
-                    get_map_padding(&self.to_printable_map())
+                    let printable_map = PrintableMap::from(self);
+                    printable_map.get_map_padding()
                 } else {
                     0usize
                 };

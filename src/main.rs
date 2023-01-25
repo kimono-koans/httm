@@ -56,7 +56,9 @@ mod parse {
     pub mod snaps;
 }
 
-use display::maps::ToPrintableMap;
+use std::ops::Deref;
+
+use display::maps::PrintableMap;
 use exec::prune::PruneSnapshots;
 use exec::snapshot::TakeSnapshot;
 use library::utility::{get_delimiter, print_output_buf};
@@ -64,7 +66,6 @@ use library::utility::{get_delimiter, print_output_buf};
 use crate::config::generate::{Config, ExecMode, PrintMode};
 use crate::lookup::file_mounts::MountsForFiles;
 
-use crate::display::maps::format_as_map;
 use crate::exec::display::DisplayWrapper;
 use crate::exec::interactive::InteractiveBrowse;
 use crate::exec::recursive::NonInteractiveRecursiveWrapper;
@@ -122,18 +123,19 @@ fn exec() -> HttmResult<()> {
         }
         ExecMode::SnapsForFiles => {
             let snap_name_map: SnapNameMap = SnapNameMap::exec(config.as_ref(), &None);
-            let printable_map = snap_name_map.to_printable_map();
+            let printable_map = PrintableMap::from(&snap_name_map);
 
             let output_buf = match config.print_mode {
                 PrintMode::RawNewline | PrintMode::RawZero => printable_map
-                    .into_values()
+                    .deref()
+                    .values()
                     .flatten()
                     .map(|value| {
                         let delimiter = get_delimiter(&config);
                         format!("{}{}", value, delimiter)
                     })
                     .collect::<String>(),
-                _ => format_as_map(&printable_map, &config),
+                _ => printable_map.format_as_map(&config),
             };
 
             print_output_buf(output_buf)

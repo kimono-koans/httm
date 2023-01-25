@@ -19,7 +19,7 @@ use std::{collections::BTreeMap, io::ErrorKind, ops::Deref};
 
 use crate::config::generate::Config;
 use crate::data::paths::PathData;
-use crate::display::maps::ToPrintableMap;
+use crate::display::maps::PrintableMap;
 use crate::lookup::versions::{MostProximateAndOptAlts, RelativePathAndSnapMounts, ONLY_PROXIMATE};
 use crate::parse::aliases::FilesystemType;
 
@@ -53,11 +53,13 @@ impl Deref for SnapNameMap {
     }
 }
 
-impl ToPrintableMap for SnapNameMap {
-    fn to_printable_map(&self) -> BTreeMap<String, Vec<String>> {
-        self.iter()
+impl From<&SnapNameMap> for PrintableMap {
+    fn from(map: &SnapNameMap) -> PrintableMap {
+        let inner = map
+            .iter()
             .map(|(key, value)| (key.path_buf.to_string_lossy().to_string(), value.to_owned()))
-            .collect()
+            .collect();
+        Self { inner }
     }
 }
 
