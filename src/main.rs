@@ -128,9 +128,9 @@ fn exec() -> HttmResult<()> {
                 PrintMode::RawNewline | PrintMode::RawZero => printable_map
                     .into_values()
                     .flatten()
-                    .map(|string| {
+                    .map(|value| {
                         let delimiter = get_delimiter(&config);
-                        format!("{}{}", string, delimiter)
+                        format!("{}{}", value, delimiter)
                     })
                     .collect::<String>(),
                 _ => format_as_map(&printable_map, &config),
