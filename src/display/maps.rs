@@ -20,6 +20,8 @@ use std::ops::Deref;
 
 use crate::config::generate::{Config, PrintMode};
 use crate::display::format::{NOT_SO_PRETTY_FIXED_WIDTH_PADDING, QUOTATION_MARKS_LEN};
+use crate::SnapNameMap;
+use crate::VersionsMap;
 
 pub struct PrintableMap {
     pub inner: BTreeMap<String, Vec<String>>,
@@ -30,6 +32,32 @@ impl Deref for PrintableMap {
 
     fn deref(&self) -> &Self::Target {
         &self.inner
+    }
+}
+
+impl From<&VersionsMap> for PrintableMap {
+    fn from(map: &VersionsMap) -> PrintableMap {
+        let inner = map
+            .iter()
+            .map(|(key, values)| {
+                let res = values
+                    .iter()
+                    .map(|value| value.path_buf.to_string_lossy().to_string())
+                    .collect();
+                (key.path_buf.to_string_lossy().to_string(), res)
+            })
+            .collect();
+        Self { inner }
+    }
+}
+
+impl From<&SnapNameMap> for PrintableMap {
+    fn from(map: &SnapNameMap) -> PrintableMap {
+        let inner = map
+            .iter()
+            .map(|(key, value)| (key.path_buf.to_string_lossy().to_string(), value.to_owned()))
+            .collect();
+        Self { inner }
     }
 }
 

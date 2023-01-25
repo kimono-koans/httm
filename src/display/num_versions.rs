@@ -19,24 +19,7 @@ use crate::config::generate::{Config, NumVersionsMode};
 use crate::data::paths::PathData;
 use crate::library::utility::get_delimiter;
 use crate::lookup::versions::VersionsMap;
-
-use super::maps::PrintableMap;
-
-impl From<&VersionsMap> for PrintableMap {
-    fn from(map: &VersionsMap) -> PrintableMap {
-        let inner = map
-            .iter()
-            .map(|(key, values)| {
-                let res = values
-                    .iter()
-                    .map(|value| value.path_buf.to_string_lossy().to_string())
-                    .collect();
-                (key.path_buf.to_string_lossy().to_string(), res)
-            })
-            .collect();
-        Self { inner }
-    }
-}
+use crate::PrintableMap;
 
 impl VersionsMap {
     pub fn format_as_num_versions(
