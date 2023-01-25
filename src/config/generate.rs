@@ -203,7 +203,7 @@ fn parse_args() -> ArgMatches {
                 .require_equals(true)
                 .default_missing_value("httmSnapFileMount")
                 .visible_aliases(&["snap-file", "snapshot", "snap-file-mount"])
-                .help("snapshot the mount point/s of the dataset/s which contains the input file/s.  \
+                .help("snapshot a file/s most immediate mount.  \
                 This argument optionally takes a value for a snapshot suffix.  The default suffix is 'httmSnapFileMount'.  \
                 Note: This is a ZFS only option.")
                 .conflicts_with_all(&["BROWSE", "SELECT", "RESTORE", "ALT_REPLICATED", "SNAP_POINT", "LOCAL_DIR"])
@@ -217,9 +217,9 @@ fn parse_args() -> ArgMatches {
                 .min_values(0)
                 .require_equals(true)
                 .default_missing_value("none")
-                .help("prune all snapshot/s from a file's most immediate mount which contain the input file/s.  \
+                .help("prune all snapshot/s on a file's most immediate mount.  \
                 This argument optionally takes a value to restrict only to those snapshots which contain that pattern (multiple values are separated by a comma).  \
-                The value \"native\" will restrict to httm native snap value names, like \"httmSnapFileMount\" and \"ounceSnapFileMount\". \
+                The value \"native\" will restrict to httm native snapshot suffix values, like \"httmSnapFileMount\" and \"ounceSnapFileMount\". \
                 Note: This is a ZFS only option.")
                 .conflicts_with_all(&["BROWSE", "SELECT", "RESTORE", "ALT_REPLICATED", "SNAP_POINT", "LOCAL_DIR"])
                 .display_order(11)
@@ -227,7 +227,7 @@ fn parse_args() -> ArgMatches {
         .arg(
             Arg::new("SNAPS_FOR_FILE")
                 .long("snaps-for-file")
-                .help("display the snapshot names (*not* file names) which contains the input file/s.")
+                .help("display all snapshots (read: *not* file versions) on a file's most immediate mount.")
                 .conflicts_with_all(&["BROWSE", "SELECT", "RESTORE"])
                 .display_order(12)
         )
@@ -236,7 +236,7 @@ fn parse_args() -> ArgMatches {
                 .short('m')
                 .long("mount-for-file")
                 .visible_alias("mount")
-                .help("display the mount point/s of the dataset/s which contains the input file/s.")
+                .help("display the all mount point/s of the dataset/s which contains the input file/s.")
                 .conflicts_with_all(&["BROWSE", "SELECT", "RESTORE"])
                 .display_order(13)
         )
