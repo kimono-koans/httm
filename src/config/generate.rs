@@ -217,7 +217,7 @@ fn parse_args() -> ArgMatches {
                 .min_values(0)
                 .require_equals(true)
                 .default_missing_value("none")
-                .help("prune all snapshot/s on a file's most immediate mount.  \
+                .help("prune all snapshot/s which contain the input file on that file's most immediate mount.  \
                 This argument optionally takes a value to filter only those snapshots which contain that pattern (multiple values are separated by a comma).  \
                 The value \"native\" will restrict selection to only httm native snapshot suffix values, like \"httmSnapFileMount\" and \"ounceSnapFileMount\". \
                 Note: This is a ZFS only option.")
