@@ -43,7 +43,7 @@ impl<'a> std::string::ToString for OtherDisplayWrapper<'a> {
                     format!("{}{}", value, delimiter)
                 })
                 .collect::<String>(),
-            _ => self.map.format_as_map(self.config),
+            _ => self.map.format(self.config),
         }
     }
 }
