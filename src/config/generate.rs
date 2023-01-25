@@ -217,9 +217,11 @@ fn parse_args() -> ArgMatches {
                 .min_values(0)
                 .require_equals(true)
                 .default_missing_value("none")
-                .help("prune all snapshot/s which contain the input file on that file's most immediate mount.  \
-                This argument optionally takes a value to filter only those snapshots which contain that pattern (multiple values are separated by a comma).  \
-                The value \"native\" will restrict selection to only httm native snapshot suffix values, like \"httmSnapFileMount\" and \"ounceSnapFileMount\". \
+                .help("prune all snapshot/s which contain the input file/s on that file's most immediate mount (via \"zfs destroy\").  \
+                \"zfs destroy\" is obviously a DESTRUCTIVE operation which *does not* strictly apply to the file in question.  \
+                You may lose other data you care about, if you are not careful.  \
+                This argument optionally takes a value to filter only those snapshots which contain the specified pattern (multiple values are separated by a comma).  \
+                The value \"native\" will restrict selection to only httm native snapshot suffix values, like \"httmSnapFileMount\" and \"ounceSnapFileMount\".  \
                 Note: This is a ZFS only option.")
                 .conflicts_with_all(&["BROWSE", "SELECT", "RESTORE", "ALT_REPLICATED", "SNAP_POINT", "LOCAL_DIR"])
                 .display_order(11)
