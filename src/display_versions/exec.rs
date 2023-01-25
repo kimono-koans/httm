@@ -16,8 +16,8 @@
 // that was distributed with this source code.
 
 use crate::config::generate::{Config, ExecMode, PrintMode};
-use crate::data::paths::PathData;
-use crate::library::results::HttmResult;
+
+
 
 use crate::display_other::generic_maps::PrintableMap;
 use crate::lookup::versions::VersionsMap;
@@ -28,12 +28,6 @@ pub struct VersionsDisplayWrapper<'a> {
 }
 
 impl<'a> VersionsDisplayWrapper<'a> {
-    pub fn new(config: &'a Config, path_set: &'a [PathData]) -> HttmResult<Self> {
-        let map = VersionsMap::new(config, path_set)?;
-
-        Ok(Self { config, map })
-    }
-
     pub fn from(config: &'a Config, map: VersionsMap) -> Self {
         Self { config, map }
     }

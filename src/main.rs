@@ -105,14 +105,18 @@ fn exec() -> HttmResult<()> {
         // ExecMode::Interactive *may* return back to this function to be printed
         ExecMode::Interactive(interactive_mode) => {
             let browse_result = InteractiveBrowse::exec(config.clone(), interactive_mode)?;
-            let display_map = VersionsDisplayWrapper::new(config.as_ref(), browse_result.as_ref())?;
-            let output_buf = display_map.to_string();
+            let versions_map = VersionsMap::new(config.as_ref(), &browse_result)?;
+            let output_buf =
+                VersionsDisplayWrapper::from(config.as_ref(), versions_map).to_string();
+
             print_output_buf(output_buf)
         }
         // ExecMode::Display will be just printed, we already know the paths
         ExecMode::Display | ExecMode::NumVersions(_) => {
-            let display_map = VersionsDisplayWrapper::new(config.as_ref(), &config.paths)?;
-            let output_buf = display_map.to_string();
+            let versions_map = VersionsMap::new(config.as_ref(), &config.paths)?;
+            let output_buf =
+                VersionsDisplayWrapper::from(config.as_ref(), versions_map).to_string();
+
             print_output_buf(output_buf)
         }
         // ExecMode::NonInteractiveRecursive, ExecMode::SnapFileMount, and ExecMode::MountsForFiles will print their
@@ -135,6 +139,7 @@ fn exec() -> HttmResult<()> {
             let mounts_map = &MountsForFiles::new(&config);
             let printable_map: PrintableMap = mounts_map.into();
             let output_buf = OtherDisplayWrapper::from(&config, printable_map).to_string();
+
             print_output_buf(output_buf)
         }
     }
