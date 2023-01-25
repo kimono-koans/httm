@@ -254,7 +254,7 @@ fn parse_args() -> ArgMatches {
                 This argument optionally takes a value.  Possible values are: \
                 \"any\", return the last in time snapshot version, this is the default behavior/value, \
                 \"ditto\", return only last snaps which are the same as the live file version, \
-                \"no-ditto-exclusive\", return only a last snap which is not the same as the live version (argument \"--not-ditto\" is an alias for this option), \
+                \"no-ditto-exclusive\", return only a last snap which is not the same as the live version (argument \"--no-ditto\" is an alias for this option), \
                 \"no-ditto-inclusive\", return a last snap which is not the same as the live version, \
                 or should non-exist, return the live file, and, \
                 \"none\" or \"without\", return the live file only for those files without a last snapshot.")
@@ -279,39 +279,39 @@ fn parse_args() -> ArgMatches {
                 .display_order(16)
         )
         .arg(
-            Arg::new("NO_FILTER")
-                .long("no-filter")
-                .help("by default, in the interactive modes, httm will filter out files residing upon non-supported datasets (like ext4, tmpfs, procfs, sysfs, or devtmpfs, etc.), and within any \"common\" snapshot paths.  \
-                Here, one may select to disable such filtering.  httm, however, will always show the input path, and results from behind any input path when that is the path being searched.")
-                .display_order(17)
-        )
-        .arg(
-            Arg::new("FILTER_HIDDEN")
-                .long("no-hidden")
-                .aliases(&["no-hide", "nohide", "filter-hidden"])
-                .help("never show information regarding hidden files and directories (those that start with a \'.\') in the recursive or interactive modes.")
-                .display_order(18)
-        )
-        .arg(
-            Arg::new("NO_TRAVERSE")
-                .long("no-traverse")
-                .help("in recursive mode, don't traverse symlinks.  Although httm does its best to prevent searching pathologically recursive symlink-ed paths, \
-                here, you may disable symlink traversal completely.  NOTE: httm will never traverse symlinks when a requested recursive search is on the root/base directory (\"/\").")
-                .display_order(19)
-        )
-        .arg(
             Arg::new("NOT_SO_PRETTY")
                 .long("not-so-pretty")
                 .visible_aliases(&["tabs", "plain-jane"])
                 .help("display the ordinary output, but tab delimited, without any pretty border lines.")
                 .conflicts_with_all(&["RAW", "ZEROS"])
-                .display_order(20)
+                .display_order(17)
         )
         .arg(
             Arg::new("OMIT_DITTO")
                 .long("omit-ditto")
                 .help("omit display of the snapshot version which may be identical to the live version (`httm` ordinarily displays all snapshot versions and the live version).")
                 .conflicts_with_all(&["NUM_VERSIONS"])
+                .display_order(18)
+        )
+        .arg(
+            Arg::new("NO_FILTER")
+                .long("no-filter")
+                .help("by default, in the interactive modes, httm will filter out files residing upon non-supported datasets (like ext4, tmpfs, procfs, sysfs, or devtmpfs, etc.), and within any \"common\" snapshot paths.  \
+                Here, one may select to disable such filtering.  httm, however, will always show the input path, and results from behind any input path when that is the path being searched.")
+                .display_order(19)
+        )
+        .arg(
+            Arg::new("FILTER_HIDDEN")
+                .long("no-hidden")
+                .aliases(&["no-hide", "nohide", "filter-hidden"])
+                .help("never show information regarding hidden files and directories (those that start with a \'.\') in the recursive or interactive modes.")
+                .display_order(20)
+        )
+        .arg(
+            Arg::new("NO_TRAVERSE")
+                .long("no-traverse")
+                .help("in recursive mode, don't traverse symlinks.  Although httm does its best to prevent searching pathologically recursive symlink-ed paths, \
+                here, you may disable symlink traversal completely.  NOTE: httm will never traverse symlinks when a requested recursive search is on the root/base directory (\"/\").")
                 .display_order(21)
         )
         .arg(
