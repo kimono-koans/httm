@@ -35,7 +35,7 @@ interactive browse and search a specified directory to display unique file versi
 Continue to another dialog to select a snapshot version to restore.  This argument
 optionally takes a value.  Default behavior/value is a non\-destructive "copy" to the
 current working directory with a new name, so as not to overwrite any "live" file
-version.  However, the user may specify "overwrite" or ("yolo") to restore to the same
+version.  However, the user may specify "overwrite" (or "yolo") to restore to the same
 file location.  Note, "overwrite" can be a DESTRUCTIVE operation.  Overwrite mode will
 attempt to preserve attributes, like the permissions/mode, timestamps, xattrs and
 ownership of the selected snapshot file version (this is and will likely remain a UNIX
@@ -68,7 +68,7 @@ ignore unmounted datasets in the interactive modes.
 recurse into the selected directory to find more files. Only available in interactive
 and deleted file modes.
 .HP
-\fB\-\-preview[=\fR<PREVIEW>...]
+\fB\-p\fR, \fB\-\-preview[=\fR<PREVIEW>...]
 .TP
 user may specify a command to preview snapshots while in select view.
 This argument
@@ -97,9 +97,9 @@ The default suffix is 'httmSnapFileMount'.  Note: This is a ZFS only
 .IP
 option. [aliases: snap\-file, snapshot, snap\-file\-mount]
 .HP
-\fB\-\-prune[=\fR<PRUNE_FILE>...]
+\fB\-\-purge[=\fR<PURGE_FILE>...]
 .IP
-prune all snapshot/s which contain the input file/s on that file's most immediate mount
+purge all snapshot/s which contain the input file/s on that file's most immediate mount
 (via "zfs destroy").  "zfs destroy" is a DESTRUCTIVE operation which *does not* strictly
 apply to the file in question, but the entire dataset.  Careless use may cause you to
 lose snapshot data you care about.  This argument optionally takes a value to filter
@@ -123,12 +123,11 @@ automatically select and print the path of last\-in\-time unique snapshot versio
 input file.  This argument optionally takes a value.  Possible values are: "any", return
 the last in time snapshot version, this is the default behavior/value, "ditto", return
 only last snaps which are the same as the live file version, "no\-ditto\-exclusive",
-return only a last snap which is not the same as the live version (argument
-"\-\-not\-ditto" is an alias for this option), "no\-ditto\-inclusive", return a last snap
-which is not the same as the live version, or should non\-exist, return the live file,
-and, "none" or "without", return the live file only for those files without a last
-snapshot. [possible values: any, ditto, no\-ditto, no\-ditto\-exclusive,
-no\-ditto\-inclusive, none, without]
+return only a last snap which is not the same as the live version (argument "\-\-no\-ditto"
+is an alias for this option), "no\-ditto\-inclusive", return a last snap which is not the
+same as the live version, or should non\-exist, return the live file, and, "none" or
+"without", return the live file only for those files without a last snapshot. [possible
+values: any, ditto, no\-ditto, no\-ditto\-exclusive, no\-ditto\-inclusive, none, without]
 .HP
 \fB\-n\fR, \fB\-\-raw\fR
 .IP
@@ -139,6 +138,16 @@ NEWLINE character. [aliases: newline]
 .IP
 display the snapshot locations only, without extraneous information, delimited by a NULL
 character.
+.HP
+\fB\-\-not\-so\-pretty\fR
+.IP
+display the ordinary output, but tab delimited, without any pretty border lines.
+[aliases: tabs, plain\-jane]
+.HP
+\fB\-\-omit\-ditto\fR
+.IP
+omit display of the snapshot version which may be identical to the live version (`httm`
+ordinarily displays all snapshot versions and the live version).
 .HP
 \fB\-\-no\-filter\fR
 .IP
@@ -161,16 +170,6 @@ Although httm does its best to prevent
 searching pathologically recursive symlink\-ed paths, here, you may disable symlink
 traversal completely.  NOTE: httm will never traverse symlinks when a requested
 recursive search is on the root/base directory ("/").
-.HP
-\fB\-\-not\-so\-pretty\fR
-.IP
-display the ordinary output, but tab delimited, without any pretty border lines.
-[aliases: tabs, plain\-jane]
-.HP
-\fB\-\-omit\-ditto\fR
-.IP
-omit display of the snapshot version which may be identical to the live version (`httm`
-ordinarily displays all snapshot versions and the live version).
 .HP
 \fB\-\-no\-live\fR
 .IP

@@ -33,7 +33,7 @@ mod exec {
     pub mod deleted;
     pub mod interactive;
     pub mod preview;
-    pub mod prune;
+    pub mod purge;
     pub mod recursive;
     pub mod snapshot;
 }
@@ -60,7 +60,7 @@ mod parse {
 }
 
 use crate::display_other::generic_maps::PrintableMap;
-use exec::prune::PruneSnapshots;
+use exec::purge::PurgeFiles;
 use exec::snapshot::TakeSnapshot;
 use library::utility::print_output_buf;
 
@@ -134,7 +134,7 @@ fn exec() -> HttmResult<()> {
 
             print_output_buf(output_buf)
         }
-        ExecMode::Prune(opt_filters) => PruneSnapshots::exec(config.as_ref(), opt_filters),
+        ExecMode::Purge(opt_filters) => PurgeFiles::exec(config.as_ref(), opt_filters),
         ExecMode::MountsForFiles => {
             let mounts_map = &MountsForFiles::new(&config);
             let printable_map: PrintableMap = mounts_map.into();

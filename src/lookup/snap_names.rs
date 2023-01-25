@@ -46,7 +46,7 @@ impl Deref for SnapNameMap {
 
 impl SnapNameMap {
     pub fn exec(config: &Config, opt_restriction: &Option<Vec<String>>) -> Self {
-        // only prune the proximate dataset
+        // only purge the proximate dataset
         let snaps_selected_for_search = ONLY_PROXIMATE;
 
         let mount_tree = MountsForFiles::from_raw_paths(config, &config.paths);

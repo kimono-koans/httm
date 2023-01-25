@@ -39,7 +39,7 @@ pub enum ExecMode {
     NonInteractiveRecursive(indicatif::ProgressBar),
     Display,
     SnapFileMount(String),
-    Prune(Option<Vec<String>>),
+    Purge(Option<Vec<String>>),
     MountsForFiles,
     SnapsForFiles,
     NumVersions(NumVersionsMode),
@@ -211,13 +211,13 @@ fn parse_args() -> ArgMatches {
                 .display_order(10)
         )
         .arg(
-            Arg::new("PRUNE_FILE")
-                .long("prune")
+            Arg::new("PURGE_FILE")
+                .long("purge")
                 .takes_value(true)
                 .min_values(0)
                 .require_equals(true)
                 .default_missing_value("none")
-                .help("prune all snapshot/s which contain the input file/s on that file's most immediate mount (via \"zfs destroy\").  \
+                .help("purge all snapshot/s which contain the input file/s on that file's most immediate mount (via \"zfs destroy\").  \
                 \"zfs destroy\" is a DESTRUCTIVE operation which *does not* strictly apply to the file in question, but the entire dataset.  \
                 Careless use may cause you to lose snapshot data you care about.  \
                 This argument optionally takes a value to filter only those snapshots which contain the specified pattern (multiple values are separated by a comma).  \
@@ -566,7 +566,7 @@ impl Config {
             ExecMode::SnapsForFiles
         } else if matches.is_present("MOUNT_FOR_FILE") {
             ExecMode::MountsForFiles
-        } else if let Some(value) = matches.value_of("PRUNE_FILE") {
+        } else if let Some(value) = matches.value_of("PURGE_FILE") {
             let filters = if value == "none" {
                 None
             } else if value == "native" {
@@ -579,7 +579,7 @@ impl Config {
                 Some(vec)
             };
 
-            ExecMode::Prune(filters)
+            ExecMode::Purge(filters)
         } else if let Some(requested_snapshot_suffix) = opt_snap_file_mount {
             ExecMode::SnapFileMount(requested_snapshot_suffix)
         } else if let Some(interactive_mode) = opt_interactive_mode {
@@ -720,7 +720,7 @@ impl Config {
                 }
                 ExecMode::Display
                 | ExecMode::SnapFileMount(_)
-                | ExecMode::Prune(_)
+                | ExecMode::Purge(_)
                 | ExecMode::MountsForFiles
                 | ExecMode::SnapsForFiles
                 | ExecMode::NumVersions(_) => read_stdin()?
@@ -802,7 +802,7 @@ impl Config {
             }
             ExecMode::Display
             | ExecMode::SnapFileMount(_)
-            | ExecMode::Prune(_)
+            | ExecMode::Purge(_)
             | ExecMode::MountsForFiles
             | ExecMode::SnapsForFiles
             | ExecMode::NumVersions(_) => {
