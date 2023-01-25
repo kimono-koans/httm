@@ -86,7 +86,7 @@ impl PruneSnapshots {
                     Self::prune_snaps(config, zfs_command, &snap_name_map)?;
 
                     let result_buffer = format!(
-                        "httm pruned the following file/s from a snapshot/s:\n\n{}\
+                        "httm pruned the following file/s from snapshot/s:\n\n{}\
                         By destroying the following snapshot/s:\n\n{}\
                         Prune completed successfully.",
                         file_names_string, snap_names_string
@@ -110,7 +110,7 @@ impl PruneSnapshots {
         zfs_command: &Path,
         snap_name_map: &SnapNameMap,
     ) -> HttmResult<()> {
-        snap_name_map.iter().flat_map(|(_pathdata, snapshot_names)| snapshot_names).try_for_each( |snapshot_name| {
+        snap_name_map.values().flatten().try_for_each( |snapshot_name| {
             let mut process_args = vec!["destroy".to_owned()];
             process_args.push(snapshot_name.to_owned());
 
