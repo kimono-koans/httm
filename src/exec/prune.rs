@@ -58,7 +58,7 @@ impl PruneSnapshots {
                 "httm could not find any snapshots for the files specified: {}",
                 file_names_string
             );
-            return Err(HttmError::new(&msg).into());
+            return Err(HttmError::new(msg.trim_end()).into());
         }
 
         let snap_names_string: String = snap_names
