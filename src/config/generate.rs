@@ -211,7 +211,6 @@ fn parse_args() -> ArgMatches {
         )
         .arg(
             Arg::new("PRUNE_FILE")
-                .short('P')
                 .long("prune")
                 .takes_value(true)
                 .min_values(0)
@@ -360,7 +359,7 @@ fn parse_args() -> ArgMatches {
                 \"single\" will print only filenames which only have one version, \
                 (and \"single-no-snap\" will print those without a snap taken, and \"single-with-snap\" will print those with a snap taken), \
                 and \"multiple\" will print only filenames which only have multiple versions.")
-                .conflicts_with_all(&["LAST_SNAP", "BROWSE", "SELECT", "RESTORE", "RECURSIVE", "SNAP_FILE_MOUNT", "LAST_SNAP", "NOT_SO_PRETTY", "NO_LIVE", "NO_SNAP", "OMIT_IDENTICAL"])
+                .conflicts_with_all(&["LAST_SNAP", "BROWSE", "SELECT", "RESTORE", "RECURSIVE", "SNAP_FILE_MOUNT", "LAST_SNAP", "NOT_SO_PRETTY", "NO_LIVE", "NO_SNAP", "OMIT_IDENTICAL", "RAW", "ZEROS"])
                 .display_order(25)
         )
         .arg(
