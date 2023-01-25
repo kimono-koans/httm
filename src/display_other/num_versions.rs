@@ -17,9 +17,9 @@
 
 use crate::config::generate::{Config, NumVersionsMode};
 use crate::data::paths::PathData;
+use crate::display_other::generic_maps::PrintableMap;
 use crate::library::utility::get_delimiter;
 use crate::lookup::versions::VersionsMap;
-use crate::PrintableMap;
 
 impl VersionsMap {
     pub fn format_as_num_versions(

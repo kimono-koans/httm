@@ -23,7 +23,7 @@ use skim::prelude::*;
 use crate::config::generate::{Config, ExecMode, InteractiveMode, PrintMode, RestoreMode};
 use crate::data::paths::{PathData, PathMetadata};
 use crate::data::selection::SelectionCandidate;
-use crate::exec::display::DisplayWrapper;
+use crate::display_versions::exec::VersionsDisplayWrapper;
 use crate::exec::preview::PreviewSelection;
 use crate::exec::recursive::RecursiveLoop;
 use crate::library::results::{HttmError, HttmResult};
@@ -183,7 +183,7 @@ impl InteractiveSelect {
             let display_config =
                 SelectionCandidate::generate_config_for_display(config, paths_selected_in_browse);
 
-            let display_map = DisplayWrapper::from(&display_config, versions_map);
+            let display_map = VersionsDisplayWrapper::from(&display_config, versions_map);
 
             let selection_buffer = display_map.to_string();
 

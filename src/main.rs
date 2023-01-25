@@ -20,14 +20,17 @@ mod data {
     pub mod paths;
     pub mod selection;
 }
-mod display {
-    pub mod format;
-    pub mod maps;
+mod display_other {
+    pub mod exec;
+    pub mod generic_maps;
     pub mod num_versions;
+}
+mod display_versions {
+    pub mod exec;
+    pub mod format;
 }
 mod exec {
     pub mod deleted;
-    pub mod display;
     pub mod interactive;
     pub mod preview;
     pub mod prune;
@@ -56,17 +59,16 @@ mod parse {
     pub mod snaps;
 }
 
-use std::ops::Deref;
-
-use display::maps::PrintableMap;
+use crate::display_other::generic_maps::PrintableMap;
 use exec::prune::PruneSnapshots;
 use exec::snapshot::TakeSnapshot;
-use library::utility::{get_delimiter, print_output_buf};
+use library::utility::print_output_buf;
 
-use crate::config::generate::{Config, ExecMode, PrintMode};
+use crate::config::generate::{Config, ExecMode};
 use crate::lookup::file_mounts::MountsForFiles;
 
-use crate::exec::display::DisplayWrapper;
+use crate::display_other::exec::OtherDisplayWrapper;
+use crate::display_versions::exec::VersionsDisplayWrapper;
 use crate::exec::interactive::InteractiveBrowse;
 use crate::exec::recursive::NonInteractiveRecursiveWrapper;
 use crate::library::results::HttmResult;
@@ -103,13 +105,13 @@ fn exec() -> HttmResult<()> {
         // ExecMode::Interactive *may* return back to this function to be printed
         ExecMode::Interactive(interactive_mode) => {
             let browse_result = InteractiveBrowse::exec(config.clone(), interactive_mode)?;
-            let display_map = DisplayWrapper::new(config.as_ref(), browse_result.as_ref())?;
+            let display_map = VersionsDisplayWrapper::new(config.as_ref(), browse_result.as_ref())?;
             let output_buf = display_map.to_string();
             print_output_buf(output_buf)
         }
         // ExecMode::Display will be just printed, we already know the paths
         ExecMode::Display | ExecMode::NumVersions(_) => {
-            let display_map = DisplayWrapper::new(config.as_ref(), &config.paths)?;
+            let display_map = VersionsDisplayWrapper::new(config.as_ref(), &config.paths)?;
             let output_buf = display_map.to_string();
             print_output_buf(output_buf)
         }
@@ -122,28 +124,16 @@ fn exec() -> HttmResult<()> {
             TakeSnapshot::exec(config.as_ref(), snapshot_suffix)
         }
         ExecMode::SnapsForFiles => {
-            let snap_name_map: SnapNameMap = SnapNameMap::exec(config.as_ref(), &None);
+            let snap_name_map = SnapNameMap::exec(config.as_ref(), &None);
             let printable_map = PrintableMap::from(&snap_name_map);
-
-            let output_buf = match config.print_mode {
-                PrintMode::RawNewline | PrintMode::RawZero => printable_map
-                    .deref()
-                    .values()
-                    .flatten()
-                    .map(|value| {
-                        let delimiter = get_delimiter(&config);
-                        format!("{}{}", value, delimiter)
-                    })
-                    .collect::<String>(),
-                _ => printable_map.format_as_map(&config),
-            };
+            let output_buf = OtherDisplayWrapper::from(config.as_ref(), printable_map).to_string();
 
             print_output_buf(output_buf)
         }
         ExecMode::Prune(opt_filters) => PruneSnapshots::exec(config.as_ref(), opt_filters),
         ExecMode::MountsForFiles => {
-            let versions_map: VersionsMap = MountsForFiles::new(&config).into();
-            let display_map: DisplayWrapper = DisplayWrapper::from(&config, versions_map);
+            let versions_map = MountsForFiles::new(&config).into();
+            let display_map = VersionsDisplayWrapper::from(&config, versions_map);
             let output_buf = display_map.to_string();
             print_output_buf(output_buf)
         }

@@ -19,7 +19,7 @@ use std::collections::BTreeMap;
 use std::ops::Deref;
 
 use crate::config::generate::{Config, PrintMode};
-use crate::display::format::{NOT_SO_PRETTY_FIXED_WIDTH_PADDING, QUOTATION_MARKS_LEN};
+use crate::display_versions::format::{NOT_SO_PRETTY_FIXED_WIDTH_PADDING, QUOTATION_MARKS_LEN};
 use crate::SnapNameMap;
 use crate::VersionsMap;
 

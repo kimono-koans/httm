@@ -19,15 +19,15 @@ use crate::config::generate::{Config, ExecMode, PrintMode};
 use crate::data::paths::PathData;
 use crate::library::results::HttmResult;
 
-use crate::display::maps::PrintableMap;
+use crate::display_other::generic_maps::PrintableMap;
 use crate::lookup::versions::VersionsMap;
 
-pub struct DisplayWrapper<'a> {
+pub struct VersionsDisplayWrapper<'a> {
     pub config: &'a Config,
     pub map: VersionsMap,
 }
 
-impl<'a> DisplayWrapper<'a> {
+impl<'a> VersionsDisplayWrapper<'a> {
     pub fn new(config: &'a Config, path_set: &'a [PathData]) -> HttmResult<Self> {
         let map = VersionsMap::new(config, path_set)?;
 
@@ -39,7 +39,7 @@ impl<'a> DisplayWrapper<'a> {
     }
 }
 
-impl<'a> std::string::ToString for DisplayWrapper<'a> {
+impl<'a> std::string::ToString for VersionsDisplayWrapper<'a> {
     fn to_string(&self) -> String {
         match &self.config.exec_mode {
             ExecMode::NumVersions(num_versions_mode) => self

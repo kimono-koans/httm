@@ -22,7 +22,7 @@ use skim::prelude::*;
 
 use crate::config::generate::{Config, ExecMode, PrintMode};
 use crate::data::paths::{BasicDirEntryInfo, PathData};
-use crate::exec::display::DisplayWrapper;
+use crate::display_versions::exec::VersionsDisplayWrapper;
 use crate::library::results::HttmResult;
 use crate::library::utility::paint_string;
 
@@ -92,7 +92,7 @@ impl SelectionCandidate {
         let gen_config = SelectionCandidate::generate_config_for_display(config, paths_selected);
 
         // finally run search on those paths
-        let display_map = DisplayWrapper::new(&gen_config, &gen_config.paths)?;
+        let display_map = VersionsDisplayWrapper::new(&gen_config, &gen_config.paths)?;
 
         // and display
         let output_buf = display_map.to_string();
