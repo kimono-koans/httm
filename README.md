@@ -4,7 +4,7 @@
 
 *The dream of a CLI Time Machine is still alive with `httm`.*
 
-`httm` prints the size, date and corresponding locations of available unique versions (deduplicated by modify time and size) of files residing on snapshots, but can also be used *interactively* to select and restore such files.  `httm` might change the way you use snapshots (because ZFS/btrfs aren't designed for finding for unique file versions) or the Time Machine concept (because `httm` is very fast!).
+`httm` prints the size, date and corresponding locations of available unique versions (deduplicated by modify time and size) of files residing on snapshots, but can also be used *interactively* to select and restore files, even snapshot mounts by file! `httm` might change the way you use snapshots (because ZFS/btrfs aren't designed for finding for unique file versions) or the Time Machine concept (because `httm` is very fast!).
 
 `httm` boasts an array of seductive features, like:
 
@@ -14,11 +14,12 @@
 * List file snapshots from remote backup pools (even overlay replicated remote snapshot directories over live directories).
 * Preview snapshot file versions with a custom command, or `diff` compare to the live version (with `bowie`)
 * Supports ZFS and btrfs snapshots
-* For use with even `rsync`-ed non-ZFS/btrfs local datasets (like ext4, APFS, or NTFS), not just ZFS/btrfs.
+* For use with `rsync`-ed non-ZFS/btrfs local datasets (like ext4, APFS, or NTFS), not just ZFS/btrfs.
 * 3 native interactive modes: browse, select and restore
 * ANSI `ls` colors from your environment
 * Non-blocking recursive directory walking (available in all interactive modes)
 * List or snapshot the mounts for a file (even trace arbitrary program file opens to snapshot *before* you make changes, with `ounce`!)
+* List all snapshot names and prune snapshots for a file
 * Detect and display the number of unique file versions available
 * Select from several formatting styles.  Parseable ... or not ...  oh my!
 
