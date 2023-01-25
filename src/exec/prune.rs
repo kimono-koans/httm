@@ -67,8 +67,8 @@ impl PruneSnapshots {
             .collect();
 
         let preview_buffer = format!(
-            "User has requested the following file/s be pruned from snapshot/s:\n\n{}\
-            httm will destroy the following snapshot/s:\n\n{}\
+            "User has requested the following file/s be pruned from snapshot/s:\n\n{}\n\
+            httm will destroy the following snapshot/s:\n\n{}\n\
             Before httm destroys these snapshot/s, it would like your consent. Continue? (YES/NO)\n\
             ─────────────────────────────────────────────────────────────────────────────\n\
             YES\n\
@@ -86,8 +86,8 @@ impl PruneSnapshots {
                     Self::prune_snaps(config, zfs_command, &snap_name_map)?;
 
                     let result_buffer = format!(
-                        "httm pruned the following file/s from snapshot/s:\n\n{}\
-                        By destroying the following snapshot/s:\n\n{}\
+                        "httm pruned the following file/s from snapshot/s:\n\n{}\n\
+                        By destroying the following snapshot/s:\n\n{}\n\
                         Prune completed successfully.",
                         file_names_string, snap_names_string
                     );
