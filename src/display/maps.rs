@@ -20,13 +20,13 @@ use std::collections::BTreeMap;
 use crate::config::generate::{Config, PrintMode};
 use crate::display::format::{NOT_SO_PRETTY_FIXED_WIDTH_PADDING, QUOTATION_MARKS_LEN};
 
-pub trait ToStringMap {
-    fn to_string_map(&self) -> BTreeMap<String, Vec<String>>;
+pub trait ToPrintableMap {
+    fn to_printable_map(&self) -> BTreeMap<String, Vec<String>>;
 }
 
-pub type StringMap = BTreeMap<String, Vec<String>>;
+pub type PrintableMap = BTreeMap<String, Vec<String>>;
 
-pub fn get_map_padding(map: &StringMap) -> usize {
+pub fn get_map_padding(map: &PrintableMap) -> usize {
     map.iter()
         .map(|(key, _values)| key)
         .max_by_key(|key| key.len())
@@ -36,7 +36,7 @@ pub fn get_map_padding(map: &StringMap) -> usize {
         )
 }
 
-pub fn format_as_map(map: &StringMap, config: &Config) -> String {
+pub fn format_as_map(map: &PrintableMap, config: &Config) -> String {
     let padding = get_map_padding(map);
 
     let write_out_buffer = map

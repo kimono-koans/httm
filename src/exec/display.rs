@@ -17,7 +17,7 @@
 
 use crate::config::generate::{Config, ExecMode, PrintMode};
 use crate::data::paths::PathData;
-use crate::display::maps::ToStringMap;
+use crate::display::maps::ToPrintableMap;
 use crate::library::results::HttmResult;
 
 use crate::display::maps::format_as_map;
@@ -53,8 +53,8 @@ impl<'a> std::string::ToString for DisplayWrapper<'a> {
                         PrintMode::RawNewline | PrintMode::RawZero
                     ) =>
             {
-                let string_map = self.map.to_string_map();
-                format_as_map(&string_map, self.config)
+                let printable_map = self.map.to_printable_map();
+                format_as_map(&printable_map, self.config)
             }
             ExecMode::MountsForFiles
                 if !matches!(
@@ -62,8 +62,8 @@ impl<'a> std::string::ToString for DisplayWrapper<'a> {
                     PrintMode::RawNewline | PrintMode::RawZero
                 ) =>
             {
-                let string_map = self.map.to_string_map();
-                format_as_map(&string_map, self.config)
+                let printable_map = self.map.to_printable_map();
+                format_as_map(&printable_map, self.config)
             }
             _ => self.map.format(self.config),
         }

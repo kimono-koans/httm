@@ -56,12 +56,12 @@ mod parse {
     pub mod snaps;
 }
 
-use display::maps::ToStringMap;
+use display::maps::ToPrintableMap;
 use exec::prune::PruneSnapshots;
 use exec::snapshot::TakeSnapshot;
-use library::utility::print_output_buf;
+use library::utility::{get_delimiter, print_output_buf};
 
-use crate::config::generate::{Config, ExecMode};
+use crate::config::generate::{Config, ExecMode, PrintMode};
 use crate::lookup::file_mounts::MountsForFiles;
 
 use crate::display::maps::format_as_map;
@@ -122,8 +122,20 @@ fn exec() -> HttmResult<()> {
         }
         ExecMode::SnapsForFiles => {
             let prune_map: PruneMap = PruneMap::exec(config.as_ref(), &None);
-            let string_map = prune_map.to_string_map();
-            let output_buf = format_as_map(&string_map, &config);
+            let printable_map = prune_map.to_printable_map();
+
+            let output_buf = match config.print_mode {
+                PrintMode::RawNewline | PrintMode::RawZero => printable_map
+                    .into_values()
+                    .flatten()
+                    .map(|string| {
+                        let delimiter = get_delimiter(&config);
+                        format!("{}{}", string, delimiter)
+                    })
+                    .collect::<String>(),
+                _ => format_as_map(&printable_map, &config),
+            };
+
             print_output_buf(output_buf)
         }
         ExecMode::Prune(restriction) => PruneSnapshots::exec(config.as_ref(), restriction),

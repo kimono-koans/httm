@@ -20,12 +20,12 @@ use std::collections::BTreeMap;
 use crate::config::generate::{Config, NumVersionsMode};
 use crate::data::paths::PathData;
 use crate::display::maps::get_map_padding;
-use crate::display::maps::ToStringMap;
+use crate::display::maps::ToPrintableMap;
 use crate::library::utility::get_delimiter;
 use crate::lookup::versions::VersionsMap;
 
-impl ToStringMap for VersionsMap {
-    fn to_string_map(&self) -> BTreeMap<String, Vec<String>> {
+impl ToPrintableMap for VersionsMap {
+    fn to_printable_map(&self) -> BTreeMap<String, Vec<String>> {
         self.iter()
             .map(|(key, values)| {
                 let res = values
@@ -50,7 +50,7 @@ impl VersionsMap {
             .iter()
             .filter_map(|(live_version, snaps)| {
                 let map_padding = if matches!(num_versions_mode, NumVersionsMode::All) {
-                    get_map_padding(&self.to_string_map())
+                    get_map_padding(&self.to_printable_map())
                 } else {
                     0usize
                 };
