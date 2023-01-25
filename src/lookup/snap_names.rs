@@ -96,7 +96,7 @@ impl SnapNameMap {
         config: &Config,
         snaps_selected_for_search: &[SnapDatasetType],
         dataset_names_tree: BTreeMap<PathData, String>,
-        opt_restriction: &Option<Vec<String>>,
+        opt_filters: &Option<Vec<String>>,
     ) -> BTreeMap<PathData, Vec<String>> {
         let snap_name_map: BTreeMap<PathData, Vec<String>> = config
             .paths
@@ -126,8 +126,8 @@ impl SnapNameMap {
                     })
                     .filter_map(|snap| snap.split_once('/').map(|(lhs, _rhs)| lhs.to_owned()))
                     .filter(|string| {
-                        if let Some(restriction) = opt_restriction {
-                            restriction.iter().any(|pat| string.contains(pat))
+                        if let Some(filters) = opt_filters {
+                            filters.iter().any(|pat| string.contains(pat))
                         } else {
                             true
                         }

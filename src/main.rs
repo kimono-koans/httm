@@ -140,7 +140,7 @@ fn exec() -> HttmResult<()> {
 
             print_output_buf(output_buf)
         }
-        ExecMode::Prune(restriction) => PruneSnapshots::exec(config.as_ref(), restriction),
+        ExecMode::Prune(opt_filters) => PruneSnapshots::exec(config.as_ref(), opt_filters),
         ExecMode::MountsForFiles => {
             let versions_map: VersionsMap = MountsForFiles::new(&config).into();
             let display_map: DisplayWrapper = DisplayWrapper::from(&config, versions_map);

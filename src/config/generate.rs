@@ -565,7 +565,7 @@ impl Config {
         } else if matches.is_present("MOUNT_FOR_FILE") {
             ExecMode::MountsForFiles
         } else if let Some(value) = matches.value_of("PRUNE_FILE") {
-            let restriction = if value == "none" {
+            let filters = if value == "none" {
                 None
             } else if value == "native" {
                 Some(vec![
@@ -577,7 +577,7 @@ impl Config {
                 Some(vec)
             };
 
-            ExecMode::Prune(restriction)
+            ExecMode::Prune(filters)
         } else if let Some(requested_snapshot_suffix) = opt_snap_file_mount {
             ExecMode::SnapFileMount(requested_snapshot_suffix)
         } else if let Some(interactive_mode) = opt_interactive_mode {
