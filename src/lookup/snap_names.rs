@@ -27,17 +27,17 @@ use super::file_mounts::MountsForFiles;
 use super::versions::SnapDatasetType;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct PruneMap {
+pub struct SnapNameMap {
     inner: BTreeMap<PathData, Vec<String>>,
 }
 
-impl From<BTreeMap<PathData, Vec<String>>> for PruneMap {
+impl From<BTreeMap<PathData, Vec<String>>> for SnapNameMap {
     fn from(map: BTreeMap<PathData, Vec<String>>) -> Self {
         Self { inner: map }
     }
 }
 
-impl From<(PathData, Vec<String>)> for PruneMap {
+impl From<(PathData, Vec<String>)> for SnapNameMap {
     fn from(tuple: (PathData, Vec<String>)) -> Self {
         Self {
             inner: BTreeMap::from([tuple]),
@@ -45,7 +45,7 @@ impl From<(PathData, Vec<String>)> for PruneMap {
     }
 }
 
-impl Deref for PruneMap {
+impl Deref for SnapNameMap {
     type Target = BTreeMap<PathData, Vec<String>>;
 
     fn deref(&self) -> &Self::Target {
@@ -53,7 +53,7 @@ impl Deref for PruneMap {
     }
 }
 
-impl ToPrintableMap for PruneMap {
+impl ToPrintableMap for SnapNameMap {
     fn to_printable_map(&self) -> BTreeMap<String, Vec<String>> {
         self.iter()
             .map(|(key, value)| (key.path_buf.to_string_lossy().to_string(), value.to_owned()))
@@ -61,7 +61,7 @@ impl ToPrintableMap for PruneMap {
     }
 }
 
-impl PruneMap {
+impl SnapNameMap {
     pub fn exec(config: &Config, opt_restriction: &Option<Vec<String>>) -> Self {
         // only prune the proximate dataset
         let snaps_selected_for_search = ONLY_PROXIMATE;
@@ -104,9 +104,9 @@ impl PruneMap {
             opt_restriction,
         );
 
-        let prune_map: PruneMap = all_snap_names.into();
+        let snap_name_map: SnapNameMap = all_snap_names.into();
 
-        prune_map
+        snap_name_map
     }
 
     fn get_snap_names(

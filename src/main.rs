@@ -46,7 +46,7 @@ mod library {
 mod lookup {
     pub mod deleted;
     pub mod file_mounts;
-    pub mod prune;
+    pub mod snap_names;
     pub mod versions;
 }
 mod parse {
@@ -69,7 +69,7 @@ use crate::exec::display::DisplayWrapper;
 use crate::exec::interactive::InteractiveBrowse;
 use crate::exec::recursive::NonInteractiveRecursiveWrapper;
 use crate::library::results::HttmResult;
-use crate::lookup::prune::PruneMap;
+use crate::lookup::snap_names::SnapNameMap;
 use crate::lookup::versions::VersionsMap;
 
 pub const ZFS_HIDDEN_DIRECTORY: &str = ".zfs";
@@ -121,8 +121,8 @@ fn exec() -> HttmResult<()> {
             TakeSnapshot::exec(config.as_ref(), snapshot_suffix)
         }
         ExecMode::SnapsForFiles => {
-            let prune_map: PruneMap = PruneMap::exec(config.as_ref(), &None);
-            let printable_map = prune_map.to_printable_map();
+            let snap_name_map: SnapNameMap = SnapNameMap::exec(config.as_ref(), &None);
+            let printable_map = snap_name_map.to_printable_map();
 
             let output_buf = match config.print_mode {
                 PrintMode::RawNewline | PrintMode::RawZero => printable_map

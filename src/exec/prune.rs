@@ -23,16 +23,16 @@ use which::which;
 use crate::config::generate::Config;
 use crate::exec::interactive::{select_restore_view, ViewMode};
 use crate::library::results::{HttmError, HttmResult};
-use crate::lookup::prune::PruneMap;
+use crate::lookup::snap_names::SnapNameMap;
 
 pub struct PruneSnapshots;
 
 impl PruneSnapshots {
     pub fn exec(config: &Config, opt_restriction: &Option<Vec<String>>) -> HttmResult<()> {
-        let prune_map: PruneMap = PruneMap::exec(config, opt_restriction);
+        let snap_name_map: SnapNameMap = SnapNameMap::exec(config, opt_restriction);
 
         if let Ok(zfs_command) = which("zfs") {
-            Self::interactive_prune(config, &zfs_command, prune_map)
+            Self::interactive_prune(config, &zfs_command, snap_name_map)
         } else {
             Err(HttmError::new(
                 "'zfs' command not found. Make sure the command 'zfs' is in your path.",
@@ -44,14 +44,14 @@ impl PruneSnapshots {
     fn interactive_prune(
         config: &Config,
         zfs_command: &Path,
-        prune_map: PruneMap,
+        snap_name_map: SnapNameMap,
     ) -> HttmResult<()> {
-        let file_names_string: String = prune_map
+        let file_names_string: String = snap_name_map
             .keys()
             .map(|key| format!("{:?}\n", key.path_buf))
             .collect();
 
-        let snap_names: Vec<String> = prune_map.values().flatten().cloned().collect();
+        let snap_names: Vec<String> = snap_name_map.values().flatten().cloned().collect();
 
         if snap_names.is_empty() {
             let msg = format!(
@@ -83,7 +83,7 @@ impl PruneSnapshots {
 
             match user_consent.as_ref() {
                 "YES" | "Y" => {
-                    Self::prune_snaps(config, zfs_command, &prune_map)?;
+                    Self::prune_snaps(config, zfs_command, &snap_name_map)?;
 
                     let result_buffer = format!(
                         "httm pruned the following file/s from a snapshot/s:\n\n{}\
@@ -105,8 +105,12 @@ impl PruneSnapshots {
         std::process::exit(0)
     }
 
-    fn prune_snaps(_config: &Config, zfs_command: &Path, prune_map: &PruneMap) -> HttmResult<()> {
-        prune_map.iter().flat_map(|(_pathdata, snapshot_names)| snapshot_names).try_for_each( |snapshot_name| {
+    fn prune_snaps(
+        _config: &Config,
+        zfs_command: &Path,
+        snap_name_map: &SnapNameMap,
+    ) -> HttmResult<()> {
+        snap_name_map.iter().flat_map(|(_pathdata, snapshot_names)| snapshot_names).try_for_each( |snapshot_name| {
             let mut process_args = vec!["destroy".to_owned()];
             process_args.push(snapshot_name.to_owned());
 
