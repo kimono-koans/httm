@@ -628,9 +628,9 @@ impl Config {
         } else if let Some(values) = matches.value_of("PURGE") {
             let raw: Vec<String> = values.split(',').map(|string| string.to_owned()).collect();
 
-            let opt_name_filters = if raw.is_empty() && raw.index(0) == "none" {
+            let opt_name_filters = if raw.len() == 1usize && raw.index(0) == "none" {
                 None
-            } else if raw.is_empty() && raw.index(0) == "native" {
+            } else if raw.len() == 1usize && raw.index(0) == "native" {
                 Some(vec![
                     "ounceSnapFileMount".to_owned(),
                     "httmSnapFileMount".to_owned(),
