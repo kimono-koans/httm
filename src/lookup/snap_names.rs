@@ -15,11 +15,11 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::{collections::BTreeMap, io::ErrorKind, ops::Deref};
+use std::{collections::BTreeMap, ops::Deref};
 
 use crate::config::generate::Config;
 use crate::data::paths::PathData;
-use crate::lookup::versions::{MostProximateAndOptAlts, RelativePathAndSnapMounts, ONLY_PROXIMATE};
+use crate::lookup::versions::{MostProximateAndOptAlts, ONLY_PROXIMATE};
 use crate::parse::aliases::FilesystemType;
 
 use super::file_mounts::MountsForFiles;
@@ -33,14 +33,6 @@ pub struct SnapNameMap {
 impl From<BTreeMap<PathData, Vec<String>>> for SnapNameMap {
     fn from(map: BTreeMap<PathData, Vec<String>>) -> Self {
         Self { inner: map }
-    }
-}
-
-impl From<(PathData, Vec<String>)> for SnapNameMap {
-    fn from(tuple: (PathData, Vec<String>)) -> Self {
-        Self {
-            inner: BTreeMap::from([tuple]),
-        }
     }
 }
 
@@ -106,7 +98,7 @@ impl SnapNameMap {
         dataset_names_tree: BTreeMap<PathData, String>,
         opt_restriction: &Option<Vec<String>>,
     ) -> BTreeMap<PathData, Vec<String>> {
-        let all_snap_names: BTreeMap<PathData, Vec<String>> = config
+        let snap_name_map: BTreeMap<PathData, Vec<String>> = config
             .paths
             .iter()
             .map(|pathdata| {
@@ -145,53 +137,18 @@ impl SnapNameMap {
                 (pathdata.clone(), snap_names)
             })
             .filter_map(|(pathdata, snap_names)| {
-                let opt_name = dataset_names_tree.get(&pathdata);
+                let opt_mount_name = dataset_names_tree.get(&pathdata);
 
-                let full_names: Option<Vec<String>> = opt_name.map(|dataset_name| {
+                let full_names: Option<Vec<String>> = opt_mount_name.map(|dataset_name| {
                     snap_names
                         .iter()
                         .map(|snap| format!("{}@{}", dataset_name, snap))
                         .collect()
                 });
+
                 full_names.map(|names| (pathdata, names))
             })
             .collect();
-        all_snap_names
-    }
-}
-
-impl RelativePathAndSnapMounts {
-    fn get_all_versions(&self) -> Vec<PathData> {
-        // get the DirEntry for our snapshot path which will have all our possible
-        // snapshots, like so: .zfs/snapshots/<some snap name>/
-        //
-        // BTreeMap will then remove duplicates with the same system modify time and size/file len
-        let all_versions: Vec<PathData> = self
-            .snap_mounts
-            .iter()
-            .map(|path| path.join(&self.relative_path))
-            .filter_map(|joined_path| {
-                match joined_path.symlink_metadata() {
-                    Ok(md) => Some(PathData::new(joined_path.as_path(), Some(md))),
-                    Err(err) => {
-                        match err.kind() {
-                            // if we do not have permissions to read the snapshot directories
-                            // fail/panic printing a descriptive error instead of flattening
-                            ErrorKind::PermissionDenied => {
-                                eprintln!("Error: When httm tried to find a file contained within a snapshot directory, permission was denied.  \
-                                Perhaps you need to use sudo or equivalent to view the contents of this snapshot (for instance, btrfs by default creates privileged snapshots).  \
-                                \nDetails: {}", err);
-                                std::process::exit(1)
-                            },
-                            // if file metadata is not found, or is otherwise not available, 
-                            // continue, it simply means we do not have a snapshot of this file
-                            _ => None,
-                        }
-                    },
-                }
-            })
-            .collect();
-
-        all_versions
+        snap_name_map
     }
 }

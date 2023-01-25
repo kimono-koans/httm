@@ -96,7 +96,7 @@ impl VersionsMap {
                         dataset_for_search.get_search_bundles(config, pathdata)
                     })
                     .flatten()
-                    .flat_map(|search_bundle| search_bundle.get_versions())
+                    .flat_map(|search_bundle| search_bundle.get_unique_versions())
                     .filter(|snap_version| {
                         // process omit_ditto before last snap
                         if config.opt_omit_ditto {
@@ -312,12 +312,12 @@ impl RelativePathAndSnapMounts {
         })
     }
 
-    fn get_versions(&self) -> Vec<PathData> {
+    pub fn get_all_versions(&self) -> Vec<PathData> {
         // get the DirEntry for our snapshot path which will have all our possible
         // snapshots, like so: .zfs/snapshots/<some snap name>/
         //
         // BTreeMap will then remove duplicates with the same system modify time and size/file len
-        let unique_versions: BTreeMap<(SystemTime, u64), PathData> = self
+        let all_versions: Vec<PathData> = self
             .snap_mounts
             .par_iter()
             .map(|path| path.join(&self.relative_path))
@@ -341,6 +341,19 @@ impl RelativePathAndSnapMounts {
                     },
                 }
             })
+            .collect();
+
+        all_versions
+    }
+
+    fn get_unique_versions(&self) -> Vec<PathData> {
+        // get the DirEntry for our snapshot path which will have all our possible
+        // snapshots, like so: .zfs/snapshots/<some snap name>/
+        //
+        // BTreeMap will then remove duplicates with the same system modify time and size/file len
+        let unique_versions: BTreeMap<(SystemTime, u64), PathData> = self
+            .get_all_versions()
+            .into_iter()
             .filter_map(|pathdata| {
                 pathdata
                     .metadata
@@ -354,7 +367,7 @@ impl RelativePathAndSnapMounts {
     }
 
     pub fn get_last_version(&self) -> Option<PathData> {
-        let sorted_versions = self.get_versions();
+        let sorted_versions = self.get_unique_versions();
 
         let res: Option<PathData> = sorted_versions.last().cloned();
 
