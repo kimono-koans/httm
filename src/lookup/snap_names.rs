@@ -45,11 +45,7 @@ impl Deref for SnapNameMap {
 }
 
 impl SnapNameMap {
-    pub fn exec(
-        config: &Config,
-        opt_name_filters: &Option<Vec<String>>,
-        opt_mode_filters: &Option<SnapFilter>,
-    ) -> Self {
+    pub fn exec(config: &Config, opt_filters: &Option<SnapFilter>) -> Self {
         // only purge the proximate dataset
         let snaps_selected_for_search = ONLY_PROXIMATE;
 
@@ -88,8 +84,7 @@ impl SnapNameMap {
             config,
             snaps_selected_for_search,
             dataset_names_tree,
-            opt_name_filters,
-            opt_mode_filters,
+            opt_filters,
         );
 
         let snap_name_map: SnapNameMap = all_snap_names.into();
@@ -101,8 +96,7 @@ impl SnapNameMap {
         config: &Config,
         snaps_selected_for_search: &[SnapDatasetType],
         dataset_names_tree: BTreeMap<PathData, String>,
-        opt_name_filters: &Option<Vec<String>>,
-        opt_mode_filters: &Option<SnapFilter>,
+        opt_filters: &Option<SnapFilter>,
     ) -> BTreeMap<PathData, Vec<String>> {
         let snap_name_map: BTreeMap<PathData, Vec<String>> = config
             .paths
@@ -117,9 +111,9 @@ impl SnapNameMap {
                         dataset_for_search.get_search_bundles(config, pathdata)
                     })
                     .flatten()
-                    .flat_map(|search_bundle| match opt_mode_filters {
+                    .flat_map(|search_bundle| match opt_filters {
                         Some(mode_filters)
-                            if matches!(mode_filters.snap_filter_mode, SnapFilterMode::Unique) =>
+                            if matches!(mode_filters.mode, SnapFilterMode::Unique) =>
                         {
                             search_bundle.get_unique_versions()
                         }
@@ -139,8 +133,12 @@ impl SnapNameMap {
                     })
                     .filter_map(|snap| snap.split_once('/').map(|(lhs, _rhs)| lhs.to_owned()))
                     .filter(|string| {
-                        if let Some(filters) = opt_name_filters {
-                            filters.iter().any(|pat| string.contains(pat))
+                        if let Some(filters) = opt_filters {
+                            if let Some(name_filters) = &filters.name_filters {
+                                name_filters.iter().any(|pat| string.contains(pat))
+                            } else {
+                                true
+                            }
                         } else {
                             true
                         }
@@ -163,7 +161,7 @@ impl SnapNameMap {
             })
             .collect();
 
-        match opt_mode_filters {
+        match opt_filters {
             Some(mode_filter) => snap_name_map
                 .into_iter()
                 .map(|(pathdata, snaps)| {
@@ -172,7 +170,7 @@ impl SnapNameMap {
                         snaps
                             .into_iter()
                             .rev()
-                            .skip(mode_filter.omit_snaps)
+                            .skip(mode_filter.omit_num_snaps)
                             .collect(),
                     )
                 })

@@ -28,13 +28,8 @@ use crate::lookup::snap_names::SnapNameMap;
 pub struct PurgeFiles;
 
 impl PurgeFiles {
-    pub fn exec(
-        config: &Config,
-        opt_name_filters: &Option<Vec<String>>,
-        opt_mode_filters: &Option<SnapFilter>,
-    ) -> HttmResult<()> {
-        let snap_name_map: SnapNameMap =
-            SnapNameMap::exec(config, opt_name_filters, opt_mode_filters);
+    pub fn exec(config: &Config, opt_filters: &Option<SnapFilter>) -> HttmResult<()> {
+        let snap_name_map: SnapNameMap = SnapNameMap::exec(config, opt_filters);
 
         if let Ok(zfs_command) = which("zfs") {
             Self::interactive_purge(config, &zfs_command, snap_name_map)

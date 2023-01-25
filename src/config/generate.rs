@@ -40,7 +40,7 @@ pub enum ExecMode {
     NonInteractiveRecursive(indicatif::ProgressBar),
     Display,
     SnapFileMount(String),
-    Purge(Option<Vec<String>>, Option<SnapFilter>),
+    Purge(Option<SnapFilter>),
     MountsForFiles,
     SnapsForFiles(Option<SnapFilter>),
     NumVersions(NumVersionsMode),
@@ -54,8 +54,9 @@ pub enum SnapFilterMode {
 
 #[derive(Debug, Clone)]
 pub struct SnapFilter {
-    pub snap_filter_mode: SnapFilterMode,
-    pub omit_snaps: usize,
+    pub mode: SnapFilterMode,
+    pub omit_num_snaps: usize,
+    pub name_filters: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -226,16 +227,9 @@ fn parse_args() -> ArgMatches {
         .arg(
             Arg::new("PURGE")
                 .long("purge")
-                .takes_value(true)
-                .min_values(0)
-                .require_equals(true)
-                .multiple_values(false)
-                .default_missing_value("none")
                 .help("purge all snapshot/s which contain the input file/s on that file's most immediate mount (via \"zfs destroy\").  \
                 \"zfs destroy\" is a DESTRUCTIVE operation which *does not* only apply to the file in question, but the entire snapshot upon which it resides.  \
                 Careless use may cause you to lose snapshot data you care about.  \
-                This argument optionally takes a value to filter only those snapshots which contain the specified pattern (multiple values are separated by a comma).  \
-                The value \"native\" will restrict selection to only httm native snapshot suffix values, like \"httmSnapFileMount\" and \"ounceSnapFileMount\".  
                 This argument will also be filtered according to any values specified at SNAPS_FOR_FILE.  \
                 Note: This is a ZFS only option.")
                 .conflicts_with_all(&["BROWSE", "SELECT", "RESTORE", "ALT_REPLICATED", "SNAP_POINT", "LOCAL_DIR"])
@@ -251,8 +245,11 @@ fn parse_args() -> ArgMatches {
                 .default_missing_value("all")
                 .help("display snapshots names for a file on that file's most immediate mount.  \
                 This argument optionally takes a value.  By default, this argument will return \"all\" available snapshot names.  \
-                However, the user may also request only \"unique\" snapshots.  And by appending a comma, \",\" and a number, the user may omit last \"n\" snapshots from any list.  \
-                So a value of \"unique,5\" would return the snapshot names of only the last 5 (at most) unique snapshot versions.  \
+                However, the user may also request only \"unique\" snapshots.  \
+                And by appending a comma, \",\" and a number, the user may omit last \"n\" snapshots from any list.  \
+                By appending successive comma, this argument filters those snapshots which contain the specified pattern.  \
+                A value of \"unique,5,prep_Apt\" would return the snapshot names of only the last 5 (at most) unique snapshot versions which contain \"prep_Apt\".  \
+                The value \"native\" will restrict selection to only httm native snapshot suffix values, like \"httmSnapFileMount\" and \"ounceSnapFileMount\".  
                 Note: This is a ZFS only option.")
                 .conflicts_with_all(&["BROWSE", "SELECT", "RESTORE"])
                 .display_order(12)
@@ -585,38 +582,7 @@ impl Config {
             };
 
         let opt_snap_mode_filters = if let Some(values) = matches.value_of("SNAPS_FOR_FILE") {
-            let raw: Vec<&str> = values.split(',').collect();
-
-            if raw.len() > 2 {
-                return Err(HttmError::new("Too many filter arguments given. Quitting.").into());
-            }
-
-            let snap_filter_mode = if let Some(value) = raw.first() {
-                if value == &"all" {
-                    SnapFilterMode::All
-                } else if value == &"unique" {
-                    SnapFilterMode::Unique
-                } else {
-                    return Err(HttmError::new("Invalid snap filter mode given. Quitting.").into());
-                }
-            } else {
-                return Err(HttmError::new("Invalid snap filter mode given. Quitting.").into());
-            };
-
-            let omit_snaps = if let Some(value) = raw.get(1) {
-                if let Ok(number) = value.parse::<usize>() {
-                    number
-                } else {
-                    return Err(HttmError::new("Invalid max snaps given. Quitting.").into());
-                }
-            } else {
-                0usize
-            };
-
-            Some(SnapFilter {
-                snap_filter_mode,
-                omit_snaps,
-            })
+            Some(Self::get_snap_filters(values)?)
         } else {
             None
         };
@@ -625,22 +591,9 @@ impl Config {
             ExecMode::NumVersions(num_versions_mode)
         } else if matches.is_present("MOUNT_FOR_FILE") {
             ExecMode::MountsForFiles
-        } else if let Some(values) = matches.value_of("PURGE") {
-            let raw: Vec<String> = values.split(',').map(|string| string.to_owned()).collect();
-
-            let opt_name_filters = if raw.len() == 1usize && raw.index(0) == "none" {
-                None
-            } else if raw.len() == 1usize && raw.index(0) == "native" {
-                Some(vec![
-                    "ounceSnapFileMount".to_owned(),
-                    "httmSnapFileMount".to_owned(),
-                ])
-            } else {
-                Some(raw)
-            };
-
-            ExecMode::Purge(opt_name_filters, opt_snap_mode_filters)
-        } else if matches.values_of("SNAPS_FOR_FILE").is_some() {
+        } else if matches.is_present("PURGE") {
+            ExecMode::Purge(opt_snap_mode_filters)
+        } else if opt_snap_mode_filters.is_some() {
             ExecMode::SnapsForFiles(opt_snap_mode_filters)
         } else if let Some(requested_snapshot_suffix) = opt_snap_file_mount {
             ExecMode::SnapFileMount(requested_snapshot_suffix)
@@ -782,7 +735,7 @@ impl Config {
                 }
                 ExecMode::Display
                 | ExecMode::SnapFileMount(_)
-                | ExecMode::Purge(_, _)
+                | ExecMode::Purge(_)
                 | ExecMode::MountsForFiles
                 | ExecMode::SnapsForFiles(_)
                 | ExecMode::NumVersions(_) => read_stdin()?
@@ -864,7 +817,7 @@ impl Config {
             }
             ExecMode::Display
             | ExecMode::SnapFileMount(_)
-            | ExecMode::Purge(_, _)
+            | ExecMode::Purge(_)
             | ExecMode::MountsForFiles
             | ExecMode::SnapsForFiles(_)
             | ExecMode::NumVersions(_) => {
@@ -874,5 +827,54 @@ impl Config {
             }
         };
         Ok(res)
+    }
+
+    pub fn get_snap_filters(values: &str) -> HttmResult<SnapFilter> {
+        let mut raw = values.trim_end().split(',');
+
+        let mode = if let Some(value) = raw.next() {
+            if value == "all" {
+                SnapFilterMode::All
+            } else if value == "unique" {
+                SnapFilterMode::Unique
+            } else {
+                return Err(HttmError::new("Invalid snap filter mode given. Quitting.").into());
+            }
+        } else {
+            return Err(HttmError::new("Invalid snap filter mode given. Quitting.").into());
+        };
+
+        let omit_num_snaps = if let Some(value) = raw.next() {
+            if let Ok(number) = value.parse::<usize>() {
+                number
+            } else {
+                return Err(HttmError::new("Invalid max snaps given. Quitting.").into());
+            }
+        } else {
+            0usize
+        };
+
+        let rest: Vec<&str> = raw.collect();
+
+        let name_filters = if !rest.is_empty() {
+            if rest.len() == 1usize && rest.index(0) == &"none" {
+                None
+            } else if rest.len() == 1usize && rest.index(0) == &"native" {
+                Some(vec![
+                    "ounceSnapFileMount".to_owned(),
+                    "httmSnapFileMount".to_owned(),
+                ])
+            } else {
+                Some(rest.iter().map(|item| item.to_string()).collect())
+            }
+        } else {
+            None
+        };
+
+        Ok(SnapFilter {
+            mode,
+            omit_num_snaps,
+            name_filters,
+        })
     }
 }
