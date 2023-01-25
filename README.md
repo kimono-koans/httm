@@ -12,9 +12,8 @@
 * Search for and recursively list deleted files.  *Even browse files hidden behind deleted directories*.
 * List file snapshots from *all* local pools (detect local snapshot versions *as well as* locally replicated snapshot versions)!
 * List file snapshots from remote backup pools (even overlay replicated remote snapshot directories over live directories).
-* Preview snapshot file versions with a custom command, or `diff` compare to the live version (with `bowie`)
-* Supports ZFS and btrfs snapshots
 * For use with `rsync`-ed non-ZFS/btrfs local datasets (like ext4, APFS, or NTFS), not just ZFS/btrfs.
+* Preview snapshot file versions with a custom command, or `diff` compare to the live version
 * 3 native interactive modes: browse, select and restore
 * ANSI `ls` colors from your environment
 * Non-blocking recursive directory walking (available in all interactive modes)
@@ -22,6 +21,7 @@
 * List all snapshot names and prune snapshots for a file
 * Detect and display the number of unique file versions available
 * Select from several formatting styles.  Parseable ... or not ...  oh my!
+* Supports ZFS and btrfs snapshots
 
 Use in combination with you favorite shell's hot keys for even more fun.
 
