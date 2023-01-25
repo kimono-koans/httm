@@ -132,9 +132,9 @@ fn exec() -> HttmResult<()> {
         }
         ExecMode::Prune(opt_filters) => PruneSnapshots::exec(config.as_ref(), opt_filters),
         ExecMode::MountsForFiles => {
-            let versions_map = MountsForFiles::new(&config).into();
-            let display_map = VersionsDisplayWrapper::from(&config, versions_map);
-            let output_buf = display_map.to_string();
+            let mounts_map = &MountsForFiles::new(&config);
+            let printable_map: PrintableMap = mounts_map.into();
+            let output_buf = OtherDisplayWrapper::from(&config, printable_map).to_string();
             print_output_buf(output_buf)
         }
     }

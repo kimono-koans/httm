@@ -20,6 +20,7 @@ use std::ops::Deref;
 
 use crate::config::generate::{Config, PrintMode};
 use crate::display_versions::format::{NOT_SO_PRETTY_FIXED_WIDTH_PADDING, QUOTATION_MARKS_LEN};
+use crate::MountsForFiles;
 use crate::SnapNameMap;
 use crate::VersionsMap;
 
@@ -35,8 +36,24 @@ impl Deref for PrintableMap {
     }
 }
 
+impl From<&MountsForFiles> for PrintableMap {
+    fn from(map: &MountsForFiles) -> Self {
+        let inner = map
+            .iter()
+            .map(|(key, values)| {
+                let res = values
+                    .iter()
+                    .map(|value| value.path_buf.to_string_lossy().to_string())
+                    .collect();
+                (key.path_buf.to_string_lossy().to_string(), res)
+            })
+            .collect();
+        Self { inner }
+    }
+}
+
 impl From<&VersionsMap> for PrintableMap {
-    fn from(map: &VersionsMap) -> PrintableMap {
+    fn from(map: &VersionsMap) -> Self {
         let inner = map
             .iter()
             .map(|(key, values)| {

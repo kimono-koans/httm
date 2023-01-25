@@ -55,15 +55,6 @@ impl<'a> std::string::ToString for VersionsDisplayWrapper<'a> {
                 let printable_map = PrintableMap::from(&self.map);
                 printable_map.format_as_map(self.config)
             }
-            ExecMode::MountsForFiles
-                if !matches!(
-                    self.config.print_mode,
-                    PrintMode::RawNewline | PrintMode::RawZero
-                ) =>
-            {
-                let printable_map = PrintableMap::from(&self.map);
-                printable_map.format_as_map(self.config)
-            }
             _ => self.map.format(self.config),
         }
     }
