@@ -15,19 +15,15 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::config::generate::{Config, NumVersionsMode};
+use crate::config::generate::NumVersionsMode;
 use crate::data::paths::PathData;
 use crate::display_other::generic_maps::PrintableMap;
-use crate::library::utility::get_delimiter;
 use crate::lookup::versions::VersionsMap;
 
 impl VersionsMap {
-    pub fn format_as_num_versions(
-        &self,
-        config: &Config,
-        num_versions_mode: &NumVersionsMode,
-    ) -> String {
-        let delimiter = get_delimiter(config);
+    pub fn format_as_num_versions(&self, num_versions_mode: &NumVersionsMode) -> String {
+        // let delimiter = get_delimiter(config);
+        let delimiter = '\n';
 
         let write_out_buffer: String = self
             .iter()
