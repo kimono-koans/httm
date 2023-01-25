@@ -16,6 +16,7 @@
 // that was distributed with this source code.
 
 use std::fs::canonicalize;
+use std::ops::Index;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -39,10 +40,22 @@ pub enum ExecMode {
     NonInteractiveRecursive(indicatif::ProgressBar),
     Display,
     SnapFileMount(String),
-    Purge(Option<Vec<String>>),
+    Purge(Option<Vec<String>>, Option<SnapFilter>),
     MountsForFiles,
-    SnapsForFiles,
+    SnapsForFiles(Option<SnapFilter>),
     NumVersions(NumVersionsMode),
+}
+
+#[derive(Debug, Clone)]
+pub enum SnapFilterMode {
+    All,
+    Unique,
+}
+
+#[derive(Debug, Clone)]
+pub struct SnapFilter {
+    pub snap_filter_mode: SnapFilterMode,
+    pub omit_snaps: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -216,12 +229,14 @@ fn parse_args() -> ArgMatches {
                 .takes_value(true)
                 .min_values(0)
                 .require_equals(true)
+                .multiple_values(false)
                 .default_missing_value("none")
                 .help("purge all snapshot/s which contain the input file/s on that file's most immediate mount (via \"zfs destroy\").  \
                 \"zfs destroy\" is a DESTRUCTIVE operation which *does not* only apply to the file in question, but the entire snapshot upon which it resides.  \
                 Careless use may cause you to lose snapshot data you care about.  \
                 This argument optionally takes a value to filter only those snapshots which contain the specified pattern (multiple values are separated by a comma).  \
-                The value \"native\" will restrict selection to only httm native snapshot suffix values, like \"httmSnapFileMount\" and \"ounceSnapFileMount\".  \
+                The value \"native\" will restrict selection to only httm native snapshot suffix values, like \"httmSnapFileMount\" and \"ounceSnapFileMount\".  
+                This argument will also be filtered according to any values specified at SNAPS_FOR_FILE.  \
                 Note: This is a ZFS only option.")
                 .conflicts_with_all(&["BROWSE", "SELECT", "RESTORE", "ALT_REPLICATED", "SNAP_POINT", "LOCAL_DIR"])
                 .display_order(11)
@@ -229,7 +244,16 @@ fn parse_args() -> ArgMatches {
         .arg(
             Arg::new("SNAPS_FOR_FILE")
                 .long("snaps-for-file")
-                .help("display all snapshots names for a file on that file's most immediate mount.")
+                .takes_value(true)
+                .min_values(0)
+                .require_equals(true)
+                .multiple_values(false)
+                .default_missing_value("all")
+                .help("display snapshots names for a file on that file's most immediate mount.  \
+                This argument optionally takes a value.  By default, this argument will return \"all\" available snapshot names.  \
+                However, the user may also request only \"unique\" snapshots.  And by appending a comma, \",\" and a number, the user may omit last \"n\" snapshots from any list.  \
+                So a value of \"unique,5\" would return the snapshot names of only the last 5 (at most) unique snapshot versions.  \
+                Note: This is a ZFS only option.")
                 .conflicts_with_all(&["BROWSE", "SELECT", "RESTORE"])
                 .display_order(12)
         )
@@ -560,26 +584,64 @@ impl Config {
                 None
             };
 
+        let opt_snap_mode_filters = if let Some(values) = matches.value_of("SNAPS_FOR_FILE") {
+            let raw: Vec<&str> = values.split(',').collect();
+
+            if raw.len() > 2 {
+                return Err(HttmError::new("Too many filter arguments given. Quitting.").into());
+            }
+
+            let snap_filter_mode = if let Some(value) = raw.first() {
+                if value == &"all" {
+                    SnapFilterMode::All
+                } else if value == &"unique" {
+                    SnapFilterMode::Unique
+                } else {
+                    return Err(HttmError::new("Invalid snap filter mode given. Quitting.").into());
+                }
+            } else {
+                return Err(HttmError::new("Invalid snap filter mode given. Quitting.").into());
+            };
+
+            let omit_snaps = if let Some(value) = raw.get(1) {
+                if let Ok(number) = value.parse::<usize>() {
+                    number
+                } else {
+                    return Err(HttmError::new("Invalid max snaps given. Quitting.").into());
+                }
+            } else {
+                0usize
+            };
+
+            Some(SnapFilter {
+                snap_filter_mode,
+                omit_snaps,
+            })
+        } else {
+            None
+        };
+
         let mut exec_mode = if let Some(num_versions_mode) = opt_num_versions {
             ExecMode::NumVersions(num_versions_mode)
-        } else if matches.is_present("SNAPS_FOR_FILE") {
-            ExecMode::SnapsForFiles
         } else if matches.is_present("MOUNT_FOR_FILE") {
             ExecMode::MountsForFiles
-        } else if let Some(value) = matches.value_of("PURGE") {
-            let filters = if value == "none" {
+        } else if let Some(values) = matches.value_of("PURGE") {
+            let raw: Vec<String> = values.split(',').map(|string| string.to_owned()).collect();
+
+            let opt_name_filters = if raw.is_empty() && raw.index(0) == "none" {
                 None
-            } else if value == "native" {
+            } else if raw.is_empty() && raw.index(0) == "native" {
                 Some(vec![
                     "ounceSnapFileMount".to_owned(),
                     "httmSnapFileMount".to_owned(),
                 ])
             } else {
-                let vec: Vec<String> = value.split(',').map(|string| string.to_owned()).collect();
-                Some(vec)
+                Some(raw)
             };
 
-            ExecMode::Purge(filters)
+            ExecMode::Purge(opt_name_filters, opt_snap_mode_filters)
+        } else if matches.values_of("SNAPS_FOR_FILE").is_some() {
+            ExecMode::SnapsForFiles(opt_snap_mode_filters)
         } else if let Some(requested_snapshot_suffix) = opt_snap_file_mount {
             ExecMode::SnapFileMount(requested_snapshot_suffix)
         } else if let Some(interactive_mode) = opt_interactive_mode {
@@ -720,9 +782,9 @@ impl Config {
                 }
                 ExecMode::Display
                 | ExecMode::SnapFileMount(_)
-                | ExecMode::Purge(_)
+                | ExecMode::Purge(_, _)
                 | ExecMode::MountsForFiles
-                | ExecMode::SnapsForFiles
+                | ExecMode::SnapsForFiles(_)
                 | ExecMode::NumVersions(_) => read_stdin()?
                     .par_iter()
                     .map(|string| PathData::from(Path::new(&string)))
@@ -802,9 +864,9 @@ impl Config {
             }
             ExecMode::Display
             | ExecMode::SnapFileMount(_)
-            | ExecMode::Purge(_)
+            | ExecMode::Purge(_, _)
             | ExecMode::MountsForFiles
-            | ExecMode::SnapsForFiles
+            | ExecMode::SnapsForFiles(_)
             | ExecMode::NumVersions(_) => {
                 // in non-interactive mode / display mode, requested dir is just a file
                 // like every other file and pwd must be the requested working dir.

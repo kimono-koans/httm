@@ -346,7 +346,7 @@ impl RelativePathAndSnapMounts {
         all_versions
     }
 
-    fn get_unique_versions(&self) -> Vec<PathData> {
+    pub fn get_unique_versions(&self) -> Vec<PathData> {
         // get the DirEntry for our snapshot path which will have all our possible
         // snapshots, like so: .zfs/snapshots/<some snap name>/
         //

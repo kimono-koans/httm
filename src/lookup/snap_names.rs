@@ -17,7 +17,7 @@
 
 use std::{collections::BTreeMap, ops::Deref};
 
-use crate::config::generate::Config;
+use crate::config::generate::{Config, SnapFilter, SnapFilterMode};
 use crate::data::paths::PathData;
 use crate::lookup::versions::{MostProximateAndOptAlts, ONLY_PROXIMATE};
 use crate::parse::aliases::FilesystemType;
@@ -45,7 +45,11 @@ impl Deref for SnapNameMap {
 }
 
 impl SnapNameMap {
-    pub fn exec(config: &Config, opt_restriction: &Option<Vec<String>>) -> Self {
+    pub fn exec(
+        config: &Config,
+        opt_name_filters: &Option<Vec<String>>,
+        opt_mode_filters: &Option<SnapFilter>,
+    ) -> Self {
         // only purge the proximate dataset
         let snaps_selected_for_search = ONLY_PROXIMATE;
 
@@ -84,7 +88,8 @@ impl SnapNameMap {
             config,
             snaps_selected_for_search,
             dataset_names_tree,
-            opt_restriction,
+            opt_name_filters,
+            opt_mode_filters,
         );
 
         let snap_name_map: SnapNameMap = all_snap_names.into();
@@ -96,7 +101,8 @@ impl SnapNameMap {
         config: &Config,
         snaps_selected_for_search: &[SnapDatasetType],
         dataset_names_tree: BTreeMap<PathData, String>,
-        opt_filters: &Option<Vec<String>>,
+        opt_name_filters: &Option<Vec<String>>,
+        opt_mode_filters: &Option<SnapFilter>,
     ) -> BTreeMap<PathData, Vec<String>> {
         let snap_name_map: BTreeMap<PathData, Vec<String>> = config
             .paths
@@ -111,7 +117,14 @@ impl SnapNameMap {
                         dataset_for_search.get_search_bundles(config, pathdata)
                     })
                     .flatten()
-                    .flat_map(|search_bundle| search_bundle.get_all_versions())
+                    .flat_map(|search_bundle| match opt_mode_filters {
+                        Some(mode_filters)
+                            if matches!(mode_filters.snap_filter_mode, SnapFilterMode::Unique) =>
+                        {
+                            search_bundle.get_unique_versions()
+                        }
+                        _ => search_bundle.get_all_versions(),
+                    })
                     .collect();
                 (pathdata, snap_versions)
             })
@@ -126,7 +139,7 @@ impl SnapNameMap {
                     })
                     .filter_map(|snap| snap.split_once('/').map(|(lhs, _rhs)| lhs.to_owned()))
                     .filter(|string| {
-                        if let Some(filters) = opt_filters {
+                        if let Some(filters) = opt_name_filters {
                             filters.iter().any(|pat| string.contains(pat))
                         } else {
                             true
@@ -149,6 +162,22 @@ impl SnapNameMap {
                 full_names.map(|names| (pathdata, names))
             })
             .collect();
-        snap_name_map
+
+        match opt_mode_filters {
+            Some(mode_filter) => snap_name_map
+                .into_iter()
+                .map(|(pathdata, snaps)| {
+                    (
+                        pathdata,
+                        snaps
+                            .into_iter()
+                            .rev()
+                            .skip(mode_filter.omit_snaps)
+                            .collect(),
+                    )
+                })
+                .collect(),
+            _ => snap_name_map,
+        }
     }
 }

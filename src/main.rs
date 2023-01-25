@@ -127,14 +127,16 @@ fn exec() -> HttmResult<()> {
         ExecMode::SnapFileMount(snapshot_suffix) => {
             TakeSnapshot::exec(config.as_ref(), snapshot_suffix)
         }
-        ExecMode::SnapsForFiles => {
-            let snap_name_map = SnapNameMap::exec(config.as_ref(), &None);
+        ExecMode::SnapsForFiles(opt_mode_filters) => {
+            let snap_name_map = SnapNameMap::exec(config.as_ref(), &None, opt_mode_filters);
             let printable_map = PrintableMap::from(&snap_name_map);
             let output_buf = OtherDisplayWrapper::from(config.as_ref(), printable_map).to_string();
 
             print_output_buf(output_buf)
         }
-        ExecMode::Purge(opt_filters) => PurgeFiles::exec(config.as_ref(), opt_filters),
+        ExecMode::Purge(opt_name_filters, opt_mode_filters) => {
+            PurgeFiles::exec(config.as_ref(), opt_name_filters, opt_mode_filters)
+        }
         ExecMode::MountsForFiles => {
             let mounts_map = &MountsForFiles::new(&config);
             let printable_map: PrintableMap = mounts_map.into();
