@@ -211,14 +211,14 @@ fn parse_args() -> ArgMatches {
                 .display_order(10)
         )
         .arg(
-            Arg::new("PURGE_FILE")
+            Arg::new("PURGE")
                 .long("purge")
                 .takes_value(true)
                 .min_values(0)
                 .require_equals(true)
                 .default_missing_value("none")
                 .help("purge all snapshot/s which contain the input file/s on that file's most immediate mount (via \"zfs destroy\").  \
-                \"zfs destroy\" is a DESTRUCTIVE operation which *does not* strictly apply to the file in question, but the entire dataset.  \
+                \"zfs destroy\" is a DESTRUCTIVE operation which *does not* only apply to the file in question, but the entire snapshot upon which it resides.  \
                 Careless use may cause you to lose snapshot data you care about.  \
                 This argument optionally takes a value to filter only those snapshots which contain the specified pattern (multiple values are separated by a comma).  \
                 The value \"native\" will restrict selection to only httm native snapshot suffix values, like \"httmSnapFileMount\" and \"ounceSnapFileMount\".  \
@@ -566,7 +566,7 @@ impl Config {
             ExecMode::SnapsForFiles
         } else if matches.is_present("MOUNT_FOR_FILE") {
             ExecMode::MountsForFiles
-        } else if let Some(value) = matches.value_of("PURGE_FILE") {
+        } else if let Some(value) = matches.value_of("PURGE") {
             let filters = if value == "none" {
                 None
             } else if value == "native" {
