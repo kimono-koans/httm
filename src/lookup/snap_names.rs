@@ -132,10 +132,10 @@ impl SnapNameMap {
                             .map(|(_lhs, rhs)| rhs.to_owned())
                     })
                     .filter_map(|snap| snap.split_once('/').map(|(lhs, _rhs)| lhs.to_owned()))
-                    .filter(|string| {
+                    .filter(|snap| {
                         if let Some(filters) = opt_filters {
-                            if let Some(name_filters) = &filters.name_filters {
-                                name_filters.iter().any(|pat| string.contains(pat))
+                            if let Some(names) = &filters.name_filters {
+                                names.iter().any(|pattern| snap.contains(pattern))
                             } else {
                                 true
                             }
@@ -162,7 +162,7 @@ impl SnapNameMap {
             .collect();
 
         match opt_filters {
-            Some(mode_filter) => snap_name_map
+            Some(mode_filter) if mode_filter.omit_num_snaps != 0 => snap_name_map
                 .into_iter()
                 .map(|(pathdata, snaps)| {
                     (
