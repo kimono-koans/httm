@@ -67,7 +67,7 @@ impl PurgeFiles {
             .collect();
 
         let preview_buffer = format!(
-            "User has requested the following file/s be purged:\n\n{}\n\
+            "User has requested snapshots related to the following file/s be purged:\n\n{}\n\
             httm will destroy the following snapshot/s:\n\n{}\n\
             Before httm destroys these snapshot/s, it would like your consent. Continue? (YES/NO)\n\
             ─────────────────────────────────────────────────────────────────────────────\n\
@@ -86,7 +86,7 @@ impl PurgeFiles {
                     Self::purge_snaps(config, zfs_command, &snap_name_map)?;
 
                     let result_buffer = format!(
-                        "httm purged the following file/s:\n\n{}\n\
+                        "httm purged snapshots related to the following file/s:\n\n{}\n\
                         By destroying the following snapshot/s:\n\n{}\n\
                         Purge completed successfully.",
                         file_names_string, snap_names_string
@@ -118,7 +118,7 @@ impl PurgeFiles {
             // stderr_string is a string not an error, so here we build an err or output
             if !stderr_string.is_empty() {
                 let msg = if stderr_string.contains("cannot destroy snapshots: permission denied") {
-                    "httm must have root privileges to destroy a filesystem".to_owned()
+                    "httm must have root privileges to destroy a snapshot filesystem".to_owned()
                 } else {
                     "httm was unable to destroy snapshots. The 'zfs' command issued the following error: ".to_owned() + stderr_string
                 };
