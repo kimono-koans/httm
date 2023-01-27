@@ -18,7 +18,7 @@
 * ANSI `ls` colors from your environment
 * Non-blocking recursive directory walking (available in all interactive modes)
 * List or snapshot the mounts for a file (even trace arbitrary program file opens to snapshot *before* you make changes, with `ounce`!)
-* List all snapshot names, even purge snapshots which include a file
+* List all snapshot names, even purge snapshots, which include a file
 * Detect and display the number of unique file versions available
 * Select from several formatting styles.  Parseable ... or not ...  oh my!
 * Supports ZFS and btrfs snapshots
