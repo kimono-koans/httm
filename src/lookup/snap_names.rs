@@ -19,6 +19,7 @@ use std::{collections::BTreeMap, ops::Deref};
 
 use crate::config::generate::{Config, SnapFilter, SnapFilterMode};
 use crate::data::paths::PathData;
+use crate::library::results::{HttmError, HttmResult};
 use crate::lookup::versions::{MostProximateAndOptAlts, ONLY_PROXIMATE};
 use crate::parse::aliases::FilesystemType;
 
@@ -45,7 +46,7 @@ impl Deref for SnapNameMap {
 }
 
 impl SnapNameMap {
-    pub fn exec(config: &Config, opt_filters: &Option<SnapFilter>) -> Self {
+    pub fn exec(config: &Config, opt_filters: &Option<SnapFilter>) -> HttmResult<Self> {
         // only purge the proximate dataset
         let snaps_selected_for_search = ONLY_PROXIMATE;
 
@@ -87,9 +88,21 @@ impl SnapNameMap {
             opt_filters,
         );
 
-        let snap_name_map: SnapNameMap = all_snap_names.into();
+        all_snap_names.iter().try_for_each(|(pathdata, snaps)| {
+            let res: HttmResult<()> = if snaps.is_empty() {
+                let msg = format!(
+                    "httm could not find any snapshots for the files specified: {:?}",
+                    pathdata.path_buf
+                );
+                return Err(HttmError::new(&msg).into());
+            } else {
+                Ok(())
+            };
+            res
+        })?;
 
-        snap_name_map
+        let snap_name_map: SnapNameMap = all_snap_names.into();
+        Ok(snap_name_map)
     }
 
     fn get_snap_names(

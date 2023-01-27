@@ -128,7 +128,7 @@ fn exec() -> HttmResult<()> {
             TakeSnapshot::exec(config.as_ref(), snapshot_suffix)
         }
         ExecMode::SnapsForFiles(opt_filters) => {
-            let snap_name_map = SnapNameMap::exec(config.as_ref(), opt_filters);
+            let snap_name_map = SnapNameMap::exec(config.as_ref(), opt_filters)?;
             let printable_map = PrintableMap::from(&snap_name_map);
             let output_buf = OtherDisplayWrapper::from(config.as_ref(), printable_map).to_string();
 

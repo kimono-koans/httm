@@ -29,7 +29,7 @@ pub struct PurgeFiles;
 
 impl PurgeFiles {
     pub fn exec(config: &Config, opt_filters: &Option<SnapFilter>) -> HttmResult<()> {
-        let snap_name_map: SnapNameMap = SnapNameMap::exec(config, opt_filters);
+        let snap_name_map: SnapNameMap = SnapNameMap::exec(config, opt_filters)?;
 
         if let Ok(zfs_command) = which("zfs") {
             Self::interactive_purge(config, &zfs_command, snap_name_map)
@@ -52,14 +52,6 @@ impl PurgeFiles {
             .collect();
 
         let snap_names: Vec<String> = snap_name_map.values().flatten().cloned().collect();
-
-        if snap_names.is_empty() {
-            let msg = format!(
-                "httm could not find any snapshots for the files specified: {}",
-                file_names_string
-            );
-            return Err(HttmError::new(msg.trim_end()).into());
-        }
 
         let snap_names_string: String = snap_names
             .iter()
