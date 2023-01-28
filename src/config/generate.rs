@@ -172,6 +172,14 @@ fn parse_args() -> ArgMatches {
                 .display_order(5)
         )
         .arg(
+            Arg::new("RECURSIVE")
+                .short('R')
+                .long("recursive")
+                .conflicts_with_all(&["SNAPSHOT"])
+                .help("recurse into the selected directory to find more files. Only available in interactive and deleted file modes.")
+                .display_order(6)
+        )
+        .arg(
             Arg::new("ALT_REPLICATED")
                 .short('a')
                 .long("alt-replicated")
@@ -179,14 +187,6 @@ fn parse_args() -> ArgMatches {
                 NOTE: Be certain such replicated datasets are mounted before use.  \
                 httm will silently ignore unmounted datasets in the interactive modes.")
                 .conflicts_with_all(&["REMOTE_DIR", "LOCAL_DIR"])
-                .display_order(6)
-        )
-        .arg(
-            Arg::new("RECURSIVE")
-                .short('R')
-                .long("recursive")
-                .conflicts_with_all(&["SNAPSHOT"])
-                .help("recurse into the selected directory to find more files. Only available in interactive and deleted file modes.")
                 .display_order(7)
         )
         .arg(
