@@ -157,7 +157,7 @@ fn parse_args() -> ArgMatches {
                 .display_order(4)
         )
         .arg(
-            Arg::new("DELETED_MODE")
+            Arg::new("DELETED")
                 .short('d')
                 .long("deleted")
                 .takes_value(true)
@@ -178,14 +178,14 @@ fn parse_args() -> ArgMatches {
                 .help("automatically discover locally replicated datasets and list their snapshots as well.  \
                 NOTE: Be certain such replicated datasets are mounted before use.  \
                 httm will silently ignore unmounted datasets in the interactive modes.")
-                .conflicts_with_all(&["SNAP_POINT", "LOCAL_DIR"])
+                .conflicts_with_all(&["REMOTE_DIR", "LOCAL_DIR"])
                 .display_order(6)
         )
         .arg(
             Arg::new("RECURSIVE")
                 .short('R')
                 .long("recursive")
-                .conflicts_with_all(&["SNAP_FILE_MOUNT"])
+                .conflicts_with_all(&["SNAPSHOT"])
                 .help("recurse into the selected directory to find more files. Only available in interactive and deleted file modes.")
                 .display_order(7)
         )
@@ -210,7 +210,7 @@ fn parse_args() -> ArgMatches {
                 .display_order(9)
         )
         .arg(
-            Arg::new("SNAP_FILE_MOUNT")
+            Arg::new("SNAPSHOT")
                 .short('S')
                 .long("snap")
                 .takes_value(true)
@@ -221,23 +221,13 @@ fn parse_args() -> ArgMatches {
                 .help("snapshot a file/s most immediate mount.  \
                 This argument optionally takes a value for a snapshot suffix.  The default suffix is 'httmSnapFileMount'.  \
                 Note: This is a ZFS only option.")
-                .conflicts_with_all(&["BROWSE", "SELECT", "RESTORE", "ALT_REPLICATED", "SNAP_POINT", "LOCAL_DIR"])
+                .conflicts_with_all(&["BROWSE", "SELECT", "RESTORE", "ALT_REPLICATED", "REMOTE_DIR", "LOCAL_DIR"])
                 .display_order(10)
         )
         .arg(
-            Arg::new("PURGE")
-                .long("purge")
-                .help("purge all snapshot/s which contain the input file/s on that file's most immediate mount (via \"zfs destroy\").  \
-                \"zfs destroy\" is a DESTRUCTIVE operation which *does not* only apply to the file in question, but the entire snapshot upon which it resides.  \
-                Careless use may cause you to lose snapshot data you care about.  \
-                This argument will also be filtered according to any values specified at SNAPS_FOR_FILE.  \
-                Note: This is a ZFS only option.")
-                .conflicts_with_all(&["BROWSE", "SELECT", "RESTORE", "ALT_REPLICATED", "SNAP_POINT", "LOCAL_DIR"])
-                .display_order(11)
-        )
-        .arg(
-            Arg::new("SNAPS_FOR_FILE")
-                .long("snaps-for-file")
+            Arg::new("LIST_SNAPS")
+                .long("list-snaps")
+                .aliases(&["snaps-for-file", "ls-snaps"])
                 .takes_value(true)
                 .min_values(0)
                 .require_equals(true)
@@ -247,17 +237,29 @@ fn parse_args() -> ArgMatches {
                 This argument optionally takes a value.  By default, this argument will return \"all\" available snapshot names.  \
                 However, the user may also request only \"unique\" snapshots.  \
                 And by appending a comma, \",\" and a number, the user may omit last \"n\" snapshots from any list.  \
-                By appending successive comma, this argument filters those snapshots which contain the specified pattern.  \
+                By appending successive commas, this argument filters those snapshots which contain the specified pattern/s.  \
                 A value of \"unique,5,prep_Apt\" would return the snapshot names of only the last 5 (at most) unique snapshot versions which contain \"prep_Apt\".  \
                 The value \"native\" will restrict selection to only httm native snapshot suffix values, like \"httmSnapFileMount\" and \"ounceSnapFileMount\".  
                 Note: This is a ZFS only option.")
                 .conflicts_with_all(&["BROWSE", "SELECT", "RESTORE"])
+                .display_order(11)
+        )
+        .arg(
+            Arg::new("PURGE")
+                .long("purge")
+                .help("purge all snapshot/s which contain the input file/s on that file's most immediate mount (via \"zfs destroy\").  \
+                \"zfs destroy\" is a DESTRUCTIVE operation which *does not* only apply to the file in question, but the entire snapshot upon which it resides.  \
+                Careless use may cause you to lose snapshot data you care about.  \
+                This argument will also be filtered according to any values specified at LIST_SNAPS.  \
+                Note: This is a ZFS only option.")
+                .conflicts_with_all(&["BROWSE", "SELECT", "RESTORE", "ALT_REPLICATED", "REMOTE_DIR", "LOCAL_DIR"])
                 .display_order(12)
         )
         .arg(
-            Arg::new("MOUNT_FOR_FILE")
+            Arg::new("FILE_MOUNT")
                 .short('m')
-                .long("mount-for-file")
+                .long("file-mount")
+                .alias("mount-for-file")
                 .visible_alias("mount")
                 .help("display the all mount point/s of all dataset/s which contain/s the input file/s.")
                 .conflicts_with_all(&["BROWSE", "SELECT", "RESTORE"])
@@ -280,7 +282,7 @@ fn parse_args() -> ArgMatches {
                 \"no-ditto-inclusive\", return a last snap which is not the same as the live version, \
                 or should non-exist, return the live file, and, \
                 \"none\" or \"without\", return the live file only for those files without a last snapshot.")
-                .conflicts_with_all(&["NUM_VERSIONS", "SNAP_FILE_MOUNT", "MOUNT_FOR_FILE", "ALT_REPLICATED", "SNAP_POINT", "LOCAL_DIR"])
+                .conflicts_with_all(&["NUM_VERSIONS", "SNAPSHOT", "MOUNT_FOR_FILE", "ALT_REPLICATED", "REMOTE_DIR", "LOCAL_DIR"])
                 .display_order(14)
         )
         .arg(
@@ -350,7 +352,7 @@ fn parse_args() -> ArgMatches {
                 .help("only display information concerning 'pseudo-live' versions in Display Recursive mode (in --deleted, --recursive, but non-interactive modes).  \
                 Useful for finding the \"files that once were\" and displaying only those pseudo-live/zombie files.")
                 .requires("RECURSIVE")
-                .conflicts_with_all(&["BROWSE", "SELECT", "RESTORE", "SNAP_FILE_MOUNT", "LAST_SNAP", "NOT_SO_PRETTY"])
+                .conflicts_with_all(&["BROWSE", "SELECT", "RESTORE", "SNAPSHOT", "LAST_SNAP", "NOT_SO_PRETTY"])
                 .display_order(23)
         )
         .arg(
@@ -381,7 +383,7 @@ fn parse_args() -> ArgMatches {
                 \"single\" will print only filenames which only have one version, \
                 (and \"single-no-snap\" will print those without a snap taken, and \"single-with-snap\" will print those with a snap taken), \
                 and \"multiple\" will print only filenames which only have multiple versions.")
-                .conflicts_with_all(&["LAST_SNAP", "BROWSE", "SELECT", "RESTORE", "RECURSIVE", "SNAP_FILE_MOUNT", "LAST_SNAP", "NOT_SO_PRETTY", "NO_LIVE", "NO_SNAP", "OMIT_IDENTICAL", "RAW", "ZEROS"])
+                .conflicts_with_all(&["LAST_SNAP", "BROWSE", "SELECT", "RESTORE", "RECURSIVE", "SNAPSHOT", "LAST_SNAP", "NOT_SO_PRETTY", "NO_LIVE", "NO_SNAP", "OMIT_IDENTICAL", "RAW", "ZEROS"])
                 .display_order(25)
         )
         .arg(
@@ -518,7 +520,7 @@ impl Config {
             None => None,
         };
 
-        let mut deleted_mode = match matches.value_of("DELETED_MODE") {
+        let mut deleted_mode = match matches.value_of("DELETED") {
             Some("" | "all") => Some(DeletedMode::Enabled),
             Some("single") => Some(DeletedMode::DepthOfOne),
             Some("only") => Some(DeletedMode::Only),
@@ -566,7 +568,7 @@ impl Config {
         }
 
         let opt_snap_file_mount =
-            if let Some(requested_snapshot_suffix) = matches.value_of("SNAP_FILE_MOUNT") {
+            if let Some(requested_snapshot_suffix) = matches.value_of("SNAPSHOT") {
                 if requested_snapshot_suffix == "httmSnapFileMount" {
                     Some(requested_snapshot_suffix.to_owned())
                 } else if requested_snapshot_suffix.contains(char::is_whitespace) {
@@ -581,7 +583,7 @@ impl Config {
                 None
             };
 
-        let opt_snap_mode_filters = if let Some(values) = matches.value_of("SNAPS_FOR_FILE") {
+        let opt_snap_mode_filters = if let Some(values) = matches.value_of("LIST_SNAPS") {
             Some(Self::get_snap_filters(values)?)
         } else {
             None
@@ -589,7 +591,7 @@ impl Config {
 
         let mut exec_mode = if let Some(num_versions_mode) = opt_num_versions {
             ExecMode::NumVersions(num_versions_mode)
-        } else if matches.is_present("MOUNT_FOR_FILE") {
+        } else if matches.is_present("FILE_MOUNT") {
             ExecMode::MountsForFiles
         } else if matches.is_present("PURGE") {
             ExecMode::Purge(opt_snap_mode_filters)
