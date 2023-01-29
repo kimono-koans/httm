@@ -251,7 +251,8 @@ fn parse_args() -> ArgMatches {
                 .help("purge all snapshot/s which contain the input file/s on that file's most immediate mount (via \"zfs destroy\").  \
                 \"zfs destroy\" is a DESTRUCTIVE operation which *does not* only apply to the file in question, but the entire snapshot upon which it resides.  \
                 Careless use may cause you to lose snapshot data you care about.  \
-                This argument will also be filtered according to any values specified at LIST_SNAPS.  \
+                This argument requires and will be filtered according to any values specified at LIST_SNAPS.  \
+                User may also enable SELECT mode to make a granular selection of specific snapshots to purge.  \
                 Note: This is a ZFS only option.")
                 .conflicts_with_all(&["BROWSE", "RESTORE", "ALT_REPLICATED", "REMOTE_DIR", "LOCAL_DIR"])
                 .requires("LIST_SNAPS")
