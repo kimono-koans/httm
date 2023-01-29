@@ -17,7 +17,7 @@
 
 use std::{collections::BTreeMap, ops::Deref};
 
-use crate::config::generate::{Config, SnapFilter, SnapFilterMode};
+use crate::config::generate::{Config, SnapFilter, SnapsOfType};
 use crate::data::paths::PathData;
 use crate::library::results::{HttmError, HttmResult};
 use crate::lookup::versions::{MostProximateAndOptAlts, ONLY_PROXIMATE};
@@ -126,7 +126,7 @@ impl SnapNameMap {
                     .flatten()
                     .flat_map(|search_bundle| match opt_filters {
                         Some(mode_filters)
-                            if matches!(mode_filters.mode, SnapFilterMode::Unique) =>
+                            if matches!(mode_filters.type_filter, SnapsOfType::Unique) =>
                         {
                             search_bundle.get_unique_versions()
                         }

@@ -47,14 +47,15 @@ pub enum ExecMode {
 }
 
 #[derive(Debug, Clone)]
-pub enum SnapFilterMode {
+pub enum SnapsOfType {
     All,
     Unique,
 }
 
 #[derive(Debug, Clone)]
 pub struct SnapFilter {
-    pub mode: SnapFilterMode,
+    pub type_filter: SnapsOfType,
+    pub select_mode: bool,
     pub omit_num_snaps: usize,
     pub name_filters: Option<Vec<String>>,
 }
@@ -227,7 +228,7 @@ fn parse_args() -> ArgMatches {
         .arg(
             Arg::new("LIST_SNAPS")
                 .long("list-snaps")
-                .aliases(&["snaps-for-file", "ls-snaps"])
+                .aliases(&["snaps-for-file", "ls-snaps", "list-snapshots"])
                 .takes_value(true)
                 .min_values(0)
                 .require_equals(true)
@@ -241,7 +242,7 @@ fn parse_args() -> ArgMatches {
                 A value of \"unique,5,prep_Apt\" would return the snapshot names of only the last 5 (at most) unique snapshot versions which contain \"prep_Apt\".  \
                 The value \"native\" will restrict selection to only httm native snapshot suffix values, like \"httmSnapFileMount\" and \"ounceSnapFileMount\".  
                 Note: This is a ZFS only option.")
-                .conflicts_with_all(&["BROWSE", "SELECT", "RESTORE", "ALT_REPLICATED", "REMOTE_DIR", "LOCAL_DIR"])
+                .conflicts_with_all(&["BROWSE", "RESTORE", "ALT_REPLICATED", "REMOTE_DIR", "LOCAL_DIR"])
                 .display_order(11)
         )
         .arg(
@@ -252,7 +253,7 @@ fn parse_args() -> ArgMatches {
                 Careless use may cause you to lose snapshot data you care about.  \
                 This argument will also be filtered according to any values specified at LIST_SNAPS.  \
                 Note: This is a ZFS only option.")
-                .conflicts_with_all(&["BROWSE", "SELECT", "RESTORE", "ALT_REPLICATED", "REMOTE_DIR", "LOCAL_DIR"])
+                .conflicts_with_all(&["BROWSE", "RESTORE", "ALT_REPLICATED", "REMOTE_DIR", "LOCAL_DIR"])
                 .requires("LIST_SNAPS")
                 .display_order(12)
         )
@@ -378,7 +379,7 @@ fn parse_args() -> ArgMatches {
                 .possible_values(&["all", "single", "single-no-snap", "single-with-snap", "multiple"])
                 .min_values(0)
                 .require_equals(true)
-                .help("detect and display the number of versions available (e.g. one, \"1\", \
+                .help("detect and display the number of unique versions available (e.g. one, \"1\", \
                 version is available if either a snapshot version exists, and is identical to live version, or only a live version exists).  \
                 This argument optionally takes a value.  The default value, \"all\", will print the filename and number of versions, \
                 \"single\" will print only filenames which only have one version, \
@@ -585,7 +586,13 @@ impl Config {
             };
 
         let opt_snap_mode_filters = if let Some(values) = matches.value_of("LIST_SNAPS") {
-            Some(Self::get_snap_filters(values)?)
+            let select_mode = matches!(opt_interactive_mode, Some(InteractiveMode::Select));
+
+            if !matches.is_present("PURGE") && select_mode {
+                eprintln!("Select mode for listed snapshots only available in PURGE mode.")
+            }
+
+            Some(Self::get_snap_filters(values, select_mode)?)
         } else {
             None
         };
@@ -832,14 +839,14 @@ impl Config {
         Ok(res)
     }
 
-    pub fn get_snap_filters(values: &str) -> HttmResult<SnapFilter> {
+    pub fn get_snap_filters(values: &str, select_mode: bool) -> HttmResult<SnapFilter> {
         let mut raw = values.trim_end().split(',');
 
-        let mode = if let Some(value) = raw.next() {
+        let type_filter = if let Some(value) = raw.next() {
             if value == "all" {
-                SnapFilterMode::All
+                SnapsOfType::All
             } else if value == "unique" {
-                SnapFilterMode::Unique
+                SnapsOfType::Unique
             } else {
                 return Err(HttmError::new("Invalid snap filter mode given. Quitting.").into());
             }
@@ -875,7 +882,8 @@ impl Config {
         };
 
         Ok(SnapFilter {
-            mode,
+            type_filter,
+            select_mode,
             omit_num_snaps,
             name_filters,
         })

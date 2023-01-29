@@ -199,9 +199,10 @@ impl InteractiveSelect {
                     config,
                     &selection_buffer,
                     ViewMode::Select(opt_live_version.clone()),
+                    false,
                 )?;
                 // ... we want everything between the quotes
-                let broken_string: Vec<_> = requested_file_name.split_terminator('"').collect();
+                let broken_string: Vec<_> = requested_file_name[0].split_terminator('"').collect();
                 // ... and the file is the 2nd item or the indexed "1" object
                 if let Some(path_string) = broken_string.get(1) {
                     // and cannot select a 'live' version or other invalid value.
@@ -319,8 +320,9 @@ impl InteractiveRestore {
 
         // loop until user consents or doesn't
         loop {
-            let user_consent = select_restore_view(config, &preview_buffer, ViewMode::Restore)?
-                .to_ascii_uppercase();
+            let user_consent =
+                select_restore_view(config, &preview_buffer, ViewMode::RestoreOrPurge, false)?[0]
+                    .to_ascii_uppercase();
 
             match user_consent.as_ref() {
                 "YES" | "Y" => {
@@ -425,14 +427,15 @@ impl InteractiveRestore {
 
 pub enum ViewMode {
     Select(Option<String>),
-    Restore,
+    RestoreOrPurge,
 }
 
 pub fn select_restore_view(
     config: &Config,
     preview_buffer: &str,
     view_mode: ViewMode,
-) -> HttmResult<String> {
+    multi: bool,
+) -> HttmResult<Vec<String>> {
     let preview_selection = PreviewSelection::new(config, view_mode)?;
 
     // build our browse view - less to do than before - no previews, looking through one 'lil buffer
@@ -444,7 +447,7 @@ pub fn select_restore_view(
         .nosort(true)
         .tabstop(Some("4"))
         .exact(true)
-        .multi(false)
+        .multi(multi)
         .regex(false)
         .tiebreak(Some("length,index".to_string()))
         .header(Some(

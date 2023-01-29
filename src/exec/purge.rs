@@ -31,8 +31,14 @@ impl PurgeFiles {
     pub fn exec(config: &Config, opt_filters: &Option<SnapFilter>) -> HttmResult<()> {
         let snap_name_map: SnapNameMap = SnapNameMap::exec(config, opt_filters)?;
 
+        let select_mode = if let Some(filters) = opt_filters {
+            filters.select_mode
+        } else {
+            false
+        };
+
         if let Ok(zfs_command) = which("zfs") {
-            Self::interactive_purge(config, &zfs_command, snap_name_map)
+            Self::interactive_purge(config, &zfs_command, snap_name_map, select_mode)
         } else {
             Err(HttmError::new(
                 "'zfs' command not found. Make sure the command 'zfs' is in your path.",
@@ -45,13 +51,23 @@ impl PurgeFiles {
         config: &Config,
         zfs_command: &Path,
         snap_name_map: SnapNameMap,
+        select_mode: bool,
     ) -> HttmResult<()> {
         let file_names_string: String = snap_name_map
             .keys()
             .map(|key| format!("{:?}\n", key.path_buf))
             .collect();
 
-        let snap_names: Vec<String> = snap_name_map.values().flatten().cloned().collect();
+        let snap_names: Vec<String> = if select_mode {
+            let buffer: String = snap_name_map
+                .values()
+                .flatten()
+                .map(|value| format!("{}\n", value))
+                .collect();
+            select_restore_view(config, &buffer, ViewMode::Select(None), true)?
+        } else {
+            snap_name_map.values().flatten().cloned().collect()
+        };
 
         let snap_names_string: String = snap_names
             .iter()
@@ -70,8 +86,9 @@ impl PurgeFiles {
 
         // loop until user consents or doesn't
         loop {
-            let user_consent = select_restore_view(config, &preview_buffer, ViewMode::Restore)?
-                .to_ascii_uppercase();
+            let user_consent =
+                select_restore_view(config, &preview_buffer, ViewMode::RestoreOrPurge, false)?[0]
+                    .to_ascii_uppercase();
 
             match user_consent.as_ref() {
                 "YES" | "Y" => {
