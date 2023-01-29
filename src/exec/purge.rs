@@ -20,7 +20,7 @@ use std::process::Command as ExecProcess;
 
 use which::which;
 
-use crate::config::generate::{Config, SnapFilter};
+use crate::config::generate::{Config, ListSnapsFilters};
 use crate::exec::interactive::{select_restore_view, ViewMode};
 use crate::library::results::{HttmError, HttmResult};
 use crate::lookup::snap_names::SnapNameMap;
@@ -28,7 +28,7 @@ use crate::lookup::snap_names::SnapNameMap;
 pub struct PurgeFiles;
 
 impl PurgeFiles {
-    pub fn exec(config: &Config, opt_filters: &Option<SnapFilter>) -> HttmResult<()> {
+    pub fn exec(config: &Config, opt_filters: &Option<ListSnapsFilters>) -> HttmResult<()> {
         let snap_name_map: SnapNameMap = SnapNameMap::exec(config, opt_filters)?;
 
         let select_mode = if let Some(filters) = opt_filters {

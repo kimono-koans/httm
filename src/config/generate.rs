@@ -40,24 +40,10 @@ pub enum ExecMode {
     NonInteractiveRecursive(indicatif::ProgressBar),
     Display,
     SnapFileMount(String),
-    Purge(Option<SnapFilter>),
+    Purge(Option<ListSnapsFilters>),
     MountsForFiles,
-    SnapsForFiles(Option<SnapFilter>),
+    SnapsForFiles(Option<ListSnapsFilters>),
     NumVersions(NumVersionsMode),
-}
-
-#[derive(Debug, Clone)]
-pub enum SnapsOfType {
-    All,
-    Unique,
-}
-
-#[derive(Debug, Clone)]
-pub struct SnapFilter {
-    pub type_filter: SnapsOfType,
-    pub select_mode: bool,
-    pub omit_num_snaps: usize,
-    pub name_filters: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -89,13 +75,18 @@ pub enum DeletedMode {
     Only,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum NumVersionsMode {
+#[derive(Debug, Clone)]
+pub enum ListSnapsOfType {
     All,
-    SingleAll,
-    SingleNoSnap,
-    SingleWithSnap,
-    Multiple,
+    Unique,
+}
+
+#[derive(Debug, Clone)]
+pub struct ListSnapsFilters {
+    pub select_mode: bool,
+    pub type_filter: ListSnapsOfType,
+    pub omit_num_snaps: usize,
+    pub name_filters: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -105,6 +96,15 @@ pub enum LastSnapMode {
     DittoOnly,
     NoDittoExclusive,
     NoDittoInclusive,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum NumVersionsMode {
+    All,
+    SingleAll,
+    SingleNoSnap,
+    SingleWithSnap,
+    Multiple,
 }
 
 fn parse_args() -> ArgMatches {
@@ -840,14 +840,14 @@ impl Config {
         Ok(res)
     }
 
-    pub fn get_snap_filters(values: &str, select_mode: bool) -> HttmResult<SnapFilter> {
+    pub fn get_snap_filters(values: &str, select_mode: bool) -> HttmResult<ListSnapsFilters> {
         let mut raw = values.trim_end().split(',');
 
         let type_filter = if let Some(value) = raw.next() {
             if value == "all" {
-                SnapsOfType::All
+                ListSnapsOfType::All
             } else if value == "unique" {
-                SnapsOfType::Unique
+                ListSnapsOfType::Unique
             } else {
                 return Err(HttmError::new("Invalid snap filter mode given. Quitting.").into());
             }
@@ -882,7 +882,7 @@ impl Config {
             None
         };
 
-        Ok(SnapFilter {
+        Ok(ListSnapsFilters {
             type_filter,
             select_mode,
             omit_num_snaps,

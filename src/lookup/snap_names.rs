@@ -17,7 +17,7 @@
 
 use std::{collections::BTreeMap, ops::Deref};
 
-use crate::config::generate::{Config, SnapFilter, SnapsOfType};
+use crate::config::generate::{Config, ListSnapsFilters, ListSnapsOfType};
 use crate::data::paths::PathData;
 use crate::library::results::{HttmError, HttmResult};
 use crate::lookup::versions::{MostProximateAndOptAlts, ONLY_PROXIMATE};
@@ -46,7 +46,7 @@ impl Deref for SnapNameMap {
 }
 
 impl SnapNameMap {
-    pub fn exec(config: &Config, opt_filters: &Option<SnapFilter>) -> HttmResult<Self> {
+    pub fn exec(config: &Config, opt_filters: &Option<ListSnapsFilters>) -> HttmResult<Self> {
         // only purge the proximate dataset
         let snaps_selected_for_search = ONLY_PROXIMATE;
 
@@ -109,7 +109,7 @@ impl SnapNameMap {
         config: &Config,
         snaps_selected_for_search: &[SnapDatasetType],
         dataset_names_tree: BTreeMap<PathData, String>,
-        opt_filters: &Option<SnapFilter>,
+        opt_filters: &Option<ListSnapsFilters>,
     ) -> BTreeMap<PathData, Vec<String>> {
         let snap_name_map: BTreeMap<PathData, Vec<String>> = config
             .paths
@@ -126,7 +126,7 @@ impl SnapNameMap {
                     .flatten()
                     .flat_map(|search_bundle| match opt_filters {
                         Some(mode_filters)
-                            if matches!(mode_filters.type_filter, SnapsOfType::Unique) =>
+                            if matches!(mode_filters.type_filter, ListSnapsOfType::Unique) =>
                         {
                             search_bundle.get_unique_versions()
                         }
