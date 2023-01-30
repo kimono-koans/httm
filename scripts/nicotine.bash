@@ -91,7 +91,25 @@ prep_exec() {
 	)" ]] || print_err_exit "'httm' is required to execute 'nicotine'.  Please check that 'httm' is in your path."
 }
 
-function convert2git {
+function copy_add_commit {
+	local path="$1"
+	shift
+	local archive_dir="$1"
+	shift
+
+	[[ -d "$path" ]] || cp -aR "$path" "$archive_dir/"
+	[[ ! -d "$path" ]] || cp -aR "$path" "$archive_dir"
+
+	if [[ $debug = true ]]; then
+		git add --all "$archive_dir"
+		git commit -m "httm commit from ZFS snapshot" --date "$(date -d "$(stat -c %y $version)")" || true
+	else
+		git add --all "$archive_dir" > /dev/null
+		git commit -q -m "httm commit from ZFS snapshot" --date "$(date -d "$(stat -c %y $version)")" > /dev/null || true
+	fi
+}
+
+function convert_to_git {
 	local debug=$1
 	shift
 	local working_dir="$1"
@@ -100,100 +118,58 @@ function convert2git {
 	shift
 	local output_dir="$1"
 	shift
+	local path="$1"
+	shift
 
-	local -a paths=()
 	local archive_dir=""
 	local basename=""
-	local canonical_path=""
-
-	for a; do
-		canonical_path="$(
-			readlink -e "$a" 2>/dev/null
-			[[ $? -eq 0 ]] || print_err "Could not determine canonical path for: $a"
-		)"
-		[[ -n "$canonical_path" ]] || continue
-
-		# check if file exists
-		if [[ ! -e "$canonical_path" ]]; then
-			printf "$canonical_path does not exist. Skipping.\n"
-			continue
-		fi
-
-		# ... and tar will not create an archive using an empty dir
-		if [[ -z "$(ls -A "$canonical_path")" ]]; then
-			printf "$canonical_path is an empty directory. Skipping.\n"
-			continue
-		fi
-
-		paths+=( "$canonical_path" )
-	done
 
 	# copy each version to repo and commit after each copy
-	for path in "${paths[@]}"; do
-		# create dir for file
-		basename="$(basename "$path")"
-		archive_dir="$tmp_dir/$basename"
+	# create dir for file
+	basename="$(basename "$path")"
+	archive_dir="$tmp_dir/$basename"
 
-		# must enter the dir to have git work
-		mkdir "$archive_dir" || print_err_exit "nicotine could not create a temporary directory.  Check you have permissions to create."
-		cd "$archive_dir" || print_err_exit "nicotine could not enter a temporary directory: $archive_dir.  Check you have permissions to enter."
+	# must enter the dir to have git work
+	mkdir "$archive_dir" || print_err_exit "nicotine could not create a temporary directory.  Check you have permissions to create."
+	cd "$archive_dir" || print_err_exit "nicotine could not enter a temporary directory: $archive_dir.  Check you have permissions to enter."
 
-		# create git repo
-		if [[ $debug = true ]]; then
-			git init || print_err_exit "git could not initialize directory"
-		else
-			git init -q >/dev/null || print_err_exit "git could not initialize directory"
-		fi
+	# create git repo
+	if [[ $debug = true ]]; then
+		git init || print_err_exit "git could not initialize directory"
+	else
+		git init -q >/dev/null || print_err_exit "git could not initialize directory"
+	fi
 
-		# copy, add, and commit to git repo in loop
-		local -a version_list
+	# copy, add, and commit to git repo in loop
+	local -a version_list
 
-		while read -r line; do
-			version_list+=("$line")
-		done <<<"$(httm -n --omit-ditto "$path")"
+	while read -r line; do
+		version_list+=("$line")
+	done <<<"$(httm -n --omit-ditto "$path")"
 
-		if [[ ${#version_list[@]} -eq 0 ]] || [[ ${#version_list[@]} -eq 1 ]]; then
-			[[ -d "$path" ]] || cp -aR "$path" "$archive_dir/"
-			[[ ! -d "$path" ]] || cp -aR "$path" "$archive_dir"
+	if [[ ${#version_list[@]} -eq 0 ]] || [[ ${#version_list[@]} -eq 1 ]]; then
+		copy_add_commit "$path" "$archive_dir"
+	else
+		for version in "${version_list[@]}"; do
+			copy_add_commit "$version" "$archive_dir"
+		done
+	fi
 
-			if [[ $debug = true ]]; then
-				git add --all "$archive_dir"
-				git commit -m "httm commit from ZFS snapshot" --date "$(date -d "$(stat -c %y $path)")" || true
-			else
-				git add --all "$archive_dir" > /dev/null
-				git commit -q -m "httm commit from ZFS snapshot" --date "$(date -d "$(stat -c %y $path)")" > /dev/null || true
-			fi
-		else
-			for version in "${version_list[@]}"; do
-				[[ -d "$path" ]] || cp -aR "$path" "$archive_dir/"
-				[[ ! -d "$path" ]] || cp -aR "$path" "$archive_dir"
+	# create archive
+	local output_file="$output_dir/$(basename $path)-snapshot-archive.tar.gz"
 
-				if [[ $debug = true ]]; then
-					git add --all "$archive_dir"
-					git commit -m "httm commit from ZFS snapshot" --date "$(date -d "$(stat -c %y $version)")" || true
-				else
-					git add --all "$archive_dir" > /dev/null
-					git commit -q -m "httm commit from ZFS snapshot" --date "$(date -d "$(stat -c %y $version)")" > /dev/null || true
-				fi
-			done
-		fi
+	cd ..
 
-		# create archive
-		local output_file="$output_dir/$(basename $path)-snapshot-archive.tar.gz"
+	if [[ $debug = true ]]; then
+		tar -zcvf "$output_file" "./$basename" || print_err_exit "Archive creation failed.  Quitting."
+	else
+		tar -zcvf "$output_file" "./$basename" > /dev/null || print_err_exit "Archive creation failed.  Quitting."
+	fi
 
-		cd ..
+	# cleanup safely
+	[[ ! -e "./$basename" ]] || rm -rf "./$basename"
 
-		if [[ $debug = true ]]; then
-			tar -zcvf "$output_file" "./$basename" || print_err_exit "Archive creation failed.  Quitting."
-		else
-			tar -zcvf "$output_file" "./$basename" > /dev/null || print_err_exit "Archive creation failed.  Quitting."
-		fi
-
-		# cleanup safely
-		[[ ! -e "./$basename" ]] || rm -rf "./$basename"
-
-		printf "nicotine archive created successfully: $output_file\n"
-	done
+	printf "nicotine archive created successfully: $output_file\n"
 }
 
 function nicotine {
@@ -228,7 +204,29 @@ function nicotine {
 	[[ -n "$tmp_dir" ]] || print_err_exit "Could not create a temporary directory for scratch work.  Quitting."
 	[[ -n "$output_dir" ]] || print_err_exit "Could not determine the current working directory.  Quitting."
 
-	convert2git $debug "$working_dir" "$tmp_dir" "$output_dir" "$@"
+	for a; do
+		canonical_path="$(
+			readlink -e "$a" 2>/dev/null
+			[[ $? -eq 0 ]] || print_err "Could not determine canonical path for: $a"
+		)"
+		# if empty, skip
+		[[ -n "$canonical_path" ]] || continue
+
+		# if file DNE, skip
+		if [[ ! -e "$canonical_path" ]]; then
+			printf "$canonical_path does not exist. Skipping.\n"
+			continue
+		fi
+
+		# if empty dir, skip, as tar will not work
+		if [[ -z "$(ls -A "$canonical_path")" ]]; then
+			printf "$canonical_path is an empty directory. Skipping.\n"
+			continue
+		fi
+
+		convert_to_git $debug "$working_dir" "$tmp_dir" "$output_dir" "$canonical_path"
+	done
+
 }
 
 nicotine "$@"
