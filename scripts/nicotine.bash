@@ -67,6 +67,18 @@ prep_exec() {
 		exit 0
 	)" ]] || print_err_exit "'git' is required to execute 'nicotine'.  Please check that 'git' is in your path."
 	[[ -n "$(
+		command -v tar
+		exit 0
+	)" ]] || print_err_exit "'tar' is required to execute 'nicotine'.  Please check that 'targit' is in your path."
+	[[ -n "$(
+		command -v mktemp
+		exit 0
+	)" ]] || print_err_exit "'mktemp' is required to execute 'nicotine'.  Please check that 'mktemp' is in your path."
+	[[ -n "$(
+		command -v mkdir
+		exit 0
+	)" ]] || print_err_exit "'mkdir' is required to execute 'nicotine'.  Please check that 'mkdir' is in your path."
+	[[ -n "$(
 		command -v httm
 		exit 0
 	)" ]] || print_err_exit "'httm' is required to execute 'nicotine'.  Please check that 'httm' is in your path."
@@ -85,21 +97,27 @@ function convert2git {
 
 	# copy each version to repo and commit after each copy
 	for file in $files; do
-		# 1) is file, symlink or dir with 2) write permissions set? (httm will resolve links)
+		# sanity -- check if file exists
 		if [[ ! -e "$file" ]]; then
 			printf "$file does not exist. Skipping.\n"
 			continue
 		fi
 
+		# tar will not create an archive using an empty dir
 		if [[ -d "$file" ]] && [[ -n "$( find "$file" -maxdepth 0 -type d -empty )" ]]; then
 			printf "$file is an empty directory. Skipping.\n"
 			continue
 		fi
 
 		# create dir for file
-		archive_dir="$tmp_dir/$(basename $file)"
-		mkdir "$archive_dir" || print_err_exit "nicotine could not create a temporary directory.  Check you have permissions to create."
-		cd "$archive_dir" || print_err_exit "nicotine could not create a temporary directory.  Check you have permissions to create."
+		if [[ -d "$file" ]]; then
+			archive_dir="$tmp_dir"
+			cd "$archive_dir" || print_err_exit "nicotine could not enter a temporary directory.  Check you have permissions to enter."
+		else 
+			archive_dir="$tmp_dir/$(basename $file)"
+			mkdir "$archive_dir" || print_err_exit "nicotine could not create a temporary directory.  Check you have permissions to create."
+			cd "$archive_dir" || print_err_exit "nicotine could not enter a temporary directory.  Check you have permissions to enter."
+		fi
 
 		# create git repo
 		if [[ $debug = true ]]; then
@@ -108,7 +126,7 @@ function convert2git {
 			git init -q >/dev/null || print_err_exit "git could not initialize directory"
 		fi
 
-		# copy
+		# copy, add, and commit to git repo in loop
 		local -a list=( $( httm -n --omit-ditto "$file" 2>/dev/null || exit 0 ) )
 
 		if [[ ${#list[@]} -ne 0 ]]; then
@@ -135,6 +153,7 @@ function convert2git {
 				fi
 		fi
 
+		# creat archive
 		local output_file="$output_dir/$(basename $file)-snapshot-archive.tar.gz"
 
 		if [[ $debug = true ]]; then
@@ -161,7 +180,6 @@ function nicotine {
 	[[ "$1" != "-h" && "$1" != "--help" ]] || print_usage
 	[[ "$1" != "-V" && "$1" != "--version" ]] || print_version
 
-	# get inner executable name
 	while [[ $# -ge 1 ]]; do
 		if [[ "$1" == "--output-dir" ]]; then
 			shift
@@ -176,8 +194,8 @@ function nicotine {
 		fi
 	done
 
-	local tmp_dir=$( mktemp -d )
-	trap "[[ ! -d $tmp_dir ]] || rm -rf $tmp_dir" EXIT
+	local tmp_dir="$( mktemp -d )"
+	trap "[[ ! -d "$tmp_dir" ]] || rm -rf "$tmp_dir"" EXIT
 
 	[[ -n "$tmp_dir" ]] || print_err_exit "Could not create a temporary directory for scratch work.  Quitting."
 	[[ -n "$output_dir" ]] || print_err_exit "Could not determine the current working directory.  Quitting."
