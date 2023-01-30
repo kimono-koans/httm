@@ -85,6 +85,7 @@ function convert2git {
 
 	# copy each version to repo and commit after each copy
 	for file in $files; do
+		# 1) is file, symlink or dir with 2) write permissions set? (httm will resolve links)
 		if [[ ! -e "$file" ]]; then
 			printf "$file does not exist. Skipping.\n"
 			continue
@@ -108,18 +109,18 @@ function convert2git {
 		fi
 
 		# copy
-		local -a list="$( httm -n --omit-ditto "$file" 2>/dev/null || exit 0 )"
+		local -a list=( $( httm -n --omit-ditto "$file" 2>/dev/null || exit 0 ) )
 
 		if [[ ${#list[@]} -ne 0 ]]; then
 			for version in $list; do
 				cp -aR "$version" "$archive_dir/"
 
 				if [[ $debug = true ]]; then
-					git add --all "$archive_dir/$(basename $canonical_path)"
-					git commit -m "httm commit from ZFS snapshot" --date "$(date -d "$(stat -c %y $version)")"
+					git add --all "$archive_dir/$(basename $file)"
+					git commit -am "httm commit from ZFS snapshot" --date "$(date -d "$(stat -c %y $version)")"
 				else
-					git add --all "$archive_dir/$(basename $canonical_path)" > /dev/null
-					git commit -q -m "httm commit from ZFS snapshot" --date "$(date -d "$(stat -c %y $version)")" > /dev/null
+					git add --all "$archive_dir/$(basename $file)" > /dev/null
+					git commit -q -am "httm commit from ZFS snapshot" --date "$(date -d "$(stat -c %y $version)")" > /dev/null
 				fi
 			done
 		else
@@ -127,10 +128,10 @@ function convert2git {
 
 				if [[ $debug = true ]]; then
 					git add --all "$archive_dir/$(basename $file)"
-					git commit -m "httm commit from ZFS snapshot" --date "$(date -d "$(stat -c %y $version)")"
+					git commit -am "httm commit from ZFS snapshot" --date "$(date -d "$(stat -c %y $version)")"
 				else
 					git add --all "$archive_dir/$(basename $file)" > /dev/null
-					git commit -q -m "httm commit from ZFS snapshot" --date "$(date -d "$(stat -c %y $version)")" > /dev/null
+					git commit -q -am "httm commit from ZFS snapshot" --date "$(date -d "$(stat -c %y $version)")" > /dev/null
 				fi
 		fi
 
