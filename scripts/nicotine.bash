@@ -32,7 +32,7 @@ print_usage() {
 	local httm="\e[31mhttm\e[0m"
 
 	printf "\
-$nicotine is a wrapper script for $httm which converts unique file versions on snaps to a git archive.
+$nicotine is a wrapper script for $httm which converts unique file versions on snapshots to a git archive.
 
 USAGE:
 	nicotine [OPTIONS]... [file1 file2...]
@@ -85,13 +85,13 @@ function convert2git {
 
 	# copy each version to repo and commit after each copy
 	for file in $files; do
-		if [[ ! -e "$file" ]];then
-			print_err "$file does not exist. Skipping."
+		if [[ ! -e "$file" ]]; then
+			printf "$file does not exist. Skipping.\n"
 			continue
 		fi
 
-		if [[ -d "$file" ]] && [[ -n "$( find "$file" -maxdepth 0 -type d -empty )" ]];then
-			printf "$file is an empty directory. Skipping."
+		if [[ -d "$file" ]] && [[ -n "$( find "$file" -maxdepth 0 -type d -empty )" ]]; then
+			printf "$file is an empty directory. Skipping.\n"
 			continue
 		fi
 
@@ -107,32 +107,45 @@ function convert2git {
 			git init -q >/dev/null || print_err_exit "git could not initialize directory"
 		fi
 
+		# copy
 		local -a list="$( httm -n --omit-ditto "$file" 2>/dev/null || exit 0 )"
 
 		if [[ ${#list[@]} -ne 0 ]]; then
 			for version in $list; do
 				cp -aR "$version" "$archive_dir/"
+
+				if [[ $debug = true ]]; then
+					git add --all "$archive_dir/$(basename $canonical_path)"
+					git commit -m "httm commit from ZFS snapshot" --date "$(date -d "$(stat -c %y $version)")"
+				else
+					git add --all "$archive_dir/$(basename $canonical_path)" > /dev/null
+					git commit -q -m "httm commit from ZFS snapshot" --date "$(date -d "$(stat -c %y $version)")" > /dev/null
+				fi
 			done
 		else
 				cp -aR "$file" "$archive_dir/"
+
+				if [[ $debug = true ]]; then
+					git add --all "$archive_dir/$(basename $file)"
+					git commit -m "httm commit from ZFS snapshot" --date "$(date -d "$(stat -c %y $version)")"
+				else
+					git add --all "$archive_dir/$(basename $file)" > /dev/null
+					git commit -q -m "httm commit from ZFS snapshot" --date "$(date -d "$(stat -c %y $version)")" > /dev/null
+				fi
 		fi
 
 		local output_file="$output_dir/$(basename $file)-snapshot-archive.tar.gz"
 
 		if [[ $debug = true ]]; then
-			git add --all "$archive_dir/$(basename $file)"
-			git commit -q -m "httm commit from ZFS snapshot" --date "$(date -d "$(stat -c %y $version)")"
 			tar -zcvf "$output_file" "./" || print_err_exit "tar.gz archive creation failed.  Quitting."
-
 		else
-			git add --all "$archive_dir/$(basename $file)" > /dev/null
-			git commit -q -m "httm commit from ZFS snapshot" --date "$(date -d "$(stat -c %y $version)")" > /dev/null
 			tar -zcvf "$output_file" "./" > /dev/null || print_err_exit "tar.gz archive creation failed.  Quitting."
 		fi
 
 		printf "nicotine archive created successfully: $output_file\n"
+		archive_dir="$tmp_dir"
 
-		cd "$tmp_dir"
+		cd - > /dev/null
 	done
 }
 
