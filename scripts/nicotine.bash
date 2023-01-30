@@ -18,7 +18,7 @@
 # that was distributed with this source code.
 
 set -euf -o pipefail
-set -x
+#set -x
 
 print_version() {
 	printf "\
@@ -61,7 +61,10 @@ print_err() {
 }
 
 prep_exec() {
-	# Use zfs allow to operate without sudo
+	[[ -n "$(
+		command -v readlink
+		exit 0
+	)" ]] || print_err_exit "'readlink' is required to execute 'nicotine'.  Please check that 'readlink' is in your path."
 	[[ -n "$(
 		command -v git
 		exit 0
@@ -93,26 +96,37 @@ function convert2git {
 	shift
 	local output_dir="$1"
 	shift
-	local files="$@"
 
-	local archive_dir="$tmp_dir"
+	local -a paths=()
+	local archive_dir=""
+	local canonical_path=""
+
+	for a; do
+		canonical_path="$(
+			readlink -e "$a" 2>/dev/null
+			[[ $? -eq 0 ]] || print_err "Could not determine canonical path for: $a"
+		)"
+		[[ -n "$canonical_path" ]] || continue
+
+		# check if file exists
+		if [[ ! -e "$canonical_path" ]]; then
+			printf "$canonical_path does not exist. Skipping.\n"
+			continue
+		fi
+
+		# ... and tar will not create an archive using an empty dir
+		if [[ -z "$(ls -A "$canonical_path")" ]]; then
+			printf "$canonical_path is an empty directory. Skipping.\n"
+			continue
+		fi
+
+		paths+=( "$canonical_path" )
+	done
 
 	# copy each version to repo and commit after each copy
-	for file in $files; do
-		# sanity -- check if file exists
-		if [[ ! -e "$file" ]]; then
-			printf "$file does not exist. Skipping.\n"
-			continue
-		fi
-
-		# tar will not create an archive using an empty dir
-		if [[ -d "$file" ]] && [[ -n "$( find "$file" -maxdepth 0 -type d -empty )" ]]; then
-			printf "$file is an empty directory. Skipping.\n"
-			continue
-		fi
-
+	for path in "${paths[@]}"; do
 		# create dir for file
-		archive_dir="$tmp_dir/$(basename $file)"
+		archive_dir="$tmp_dir/$(basename "$path")"
 		mkdir "$archive_dir" || print_err_exit "nicotine could not create a temporary directory.  Check you have permissions to create."
 		cd "$archive_dir" || print_err_exit "nicotine could not enter a temporary directory.  Check you have permissions to enter."
 
@@ -128,9 +142,19 @@ function convert2git {
 
 		while read -r line; do
 			version_list+=("$line")
-		done <<<"$(httm -n --omit-ditto "$file")"
+		done <<<"$(httm -n --omit-ditto "$path")"
 
-		if [[ ${#version_list[@]} -ne 0 ]]; then
+		if [[ ${#version_list[@]} -eq 0 ]] || [[ ${#version_list[@]} -eq 1 ]]; then
+			cp -aR "$path" "$archive_dir/"
+
+			if [[ $debug = true ]]; then
+				git add --all "$archive_dir/$(basename $path)"
+				git commit -m "httm commit from ZFS snapshot" --date "$(date -d "$(stat -c %y $path)")"
+			else
+				git add --all "$archive_dir/$(basename $path)" > /dev/null
+				git commit -q -m "httm commit from ZFS snapshot" --date "$(date -d "$(stat -c %y $path)")" > /dev/null
+			fi
+		else
 			for version in "${version_list[@]}"; do
 				cp -aR "$version" "$archive_dir/"
 
@@ -142,33 +166,20 @@ function convert2git {
 					git commit -q -m "httm commit from ZFS snapshot" --date "$(date -d "$(stat -c %y $version)")" > /dev/null
 				fi
 			done
-		else
-				cp -aR "$file" "$archive_dir/"
-
-				if [[ $debug = true ]]; then
-					git add --all "$archive_dir/$(basename $file)"
-					git commit -m "httm commit from ZFS snapshot" --date "$(date -d "$(stat -c %y $file)")"
-				else
-					git add --all "$archive_dir/$(basename $file)" > /dev/null
-					git commit -q -m "httm commit from ZFS snapshot" --date "$(date -d "$(stat -c %y $file)")" > /dev/null
-				fi
 		fi
 
 		# create archive
-		local output_file="$output_dir/$(basename $file)-snapshot-archive.tar.gz"
+		local output_file="$output_dir/$(basename $path)-snapshot-archive.tar.gz"
 
 		cd "$tmp_dir"
 
 		if [[ $debug = true ]]; then
-			tar -zcvf "$output_file" "./$(basename $file)" || print_err_exit "tar.gz archive creation failed.  Quitting."
+			tar -zcvf "$output_file" "./$(basename $path)" || print_err_exit "tar.gz archive creation failed.  Quitting."
 		else
-			tar -zcvf "$output_file" "./$(basename $file)" > /dev/null || print_err_exit "tar.gz archive creation failed.  Quitting."
+			tar -zcvf "$output_file" "./$(basename $path)" > /dev/null || print_err_exit "tar.gz archive creation failed.  Quitting."
 		fi
 
 		printf "nicotine archive created successfully: $output_file\n"
-		archive_dir="$tmp_dir"
-
-		cd "$working_dir" > /dev/null
 	done
 }
 
