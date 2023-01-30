@@ -18,7 +18,7 @@
 # that was distributed with this source code.
 
 set -euf -o pipefail
-#set -x
+set -x
 
 print_version() {
 	printf "\
@@ -124,10 +124,14 @@ function convert2git {
 		fi
 
 		# copy, add, and commit to git repo in loop
-		local -a list=( $( httm -n --omit-ditto "$file" 2>/dev/null || exit 0 ) )
+		local -a version_list
 
-		if [[ ${#list[@]} -ne 0 ]]; then
-			for version in $list; do
+		while read -r line; do
+			version_list+=("$line")
+		done <<<"$(httm -n --omit-ditto "$file")"
+
+		if [[ ${#version_list[@]} -ne 0 ]]; then
+			for version in "${version_list[@]}"; do
 				cp -aR "$version" "$archive_dir/"
 
 				if [[ $debug = true ]]; then
@@ -150,7 +154,7 @@ function convert2git {
 				fi
 		fi
 
-		# creat archive
+		# create archive
 		local output_file="$output_dir/$(basename $file)-snapshot-archive.tar.gz"
 
 		cd "$tmp_dir"
@@ -164,7 +168,7 @@ function convert2git {
 		printf "nicotine archive created successfully: $output_file\n"
 		archive_dir="$tmp_dir"
 
-		cd "$working_dir"
+		cd "$working_dir" > /dev/null
 	done
 }
 
