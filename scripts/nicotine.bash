@@ -39,9 +39,9 @@ USAGE:
 
 OPTIONS:
 	--output-dir:
-		Select the output directory.
+		Select the output directory.  Default is the current working directory.
 	--debug:
-		Show git and tar command output.
+		Show git and tar command output.  Default is to completely silence both.
 	--help:
 		Display this dialog.
 	--version:
@@ -208,6 +208,8 @@ function nicotine {
 
 	[[ -n "$tmp_dir" ]] || print_err_exit "Could not create a temporary directory for scratch work.  Quitting."
 	[[ -n "$output_dir" ]] || print_err_exit "Could not determine the current working directory.  Quitting."
+
+	[[ $# -ne 0 ]] || print_err_exit "User must specify at least one input file.  Quitting."
 
 	for a; do
 		canonical_path="$(
