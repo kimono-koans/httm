@@ -62,6 +62,10 @@ print_err() {
 
 prep_exec() {
 	[[ -n "$(
+		command -v ls
+		exit 0
+	)" ]] || print_err_exit "'ls' is required to execute 'nicotine'.  Please check that 'ls' is in your path."
+	[[ -n "$(
 		command -v readlink
 		exit 0
 	)" ]] || print_err_exit "'readlink' is required to execute 'nicotine'.  Please check that 'readlink' is in your path."
@@ -99,6 +103,7 @@ function convert2git {
 
 	local -a paths=()
 	local archive_dir=""
+	local basename=""
 	local canonical_path=""
 
 	for a; do
@@ -126,9 +131,12 @@ function convert2git {
 	# copy each version to repo and commit after each copy
 	for path in "${paths[@]}"; do
 		# create dir for file
-		archive_dir="$tmp_dir/$(basename "$path")"
+		basename="$(basename "$path")"
+		archive_dir="$tmp_dir/$basename"
+
+		# must enter the dir to have git work
 		mkdir "$archive_dir" || print_err_exit "nicotine could not create a temporary directory.  Check you have permissions to create."
-		cd "$archive_dir" || print_err_exit "nicotine could not enter a temporary directory.  Check you have permissions to enter."
+		cd "$archive_dir" || print_err_exit "nicotine could not enter a temporary directory: $archive_dir.  Check you have permissions to enter."
 
 		# create git repo
 		if [[ $debug = true ]]; then
@@ -145,25 +153,27 @@ function convert2git {
 		done <<<"$(httm -n --omit-ditto "$path")"
 
 		if [[ ${#version_list[@]} -eq 0 ]] || [[ ${#version_list[@]} -eq 1 ]]; then
-			cp -aR "$path" "$archive_dir/"
+			[[ -d "$path" ]] || cp -aR "$path" "$archive_dir/"
+			[[ ! -d "$path" ]] || cp -aR "$path" "$archive_dir"
 
 			if [[ $debug = true ]]; then
-				git add --all "$archive_dir/$(basename $path)"
-				git commit -m "httm commit from ZFS snapshot" --date "$(date -d "$(stat -c %y $path)")"
+				git add --all "$archive_dir"
+				git commit -m "httm commit from ZFS snapshot" --date "$(date -d "$(stat -c %y $path)")" || true
 			else
-				git add --all "$archive_dir/$(basename $path)" > /dev/null
-				git commit -q -m "httm commit from ZFS snapshot" --date "$(date -d "$(stat -c %y $path)")" > /dev/null
+				git add --all "$archive_dir" > /dev/null
+				git commit -q -m "httm commit from ZFS snapshot" --date "$(date -d "$(stat -c %y $path)")" > /dev/null || true
 			fi
 		else
 			for version in "${version_list[@]}"; do
-				cp -aR "$version" "$archive_dir/"
+				[[ -d "$path" ]] || cp -aR "$path" "$archive_dir/"
+				[[ ! -d "$path" ]] || cp -aR "$path" "$archive_dir"
 
 				if [[ $debug = true ]]; then
-					git add --all "$archive_dir/$(basename $version)"
-					git commit -m "httm commit from ZFS snapshot" --date "$(date -d "$(stat -c %y $version)")"
+					git add --all "$archive_dir"
+					git commit -m "httm commit from ZFS snapshot" --date "$(date -d "$(stat -c %y $version)")" || true
 				else
-					git add --all "$archive_dir/$(basename $version)" > /dev/null
-					git commit -q -m "httm commit from ZFS snapshot" --date "$(date -d "$(stat -c %y $version)")" > /dev/null
+					git add --all "$archive_dir" > /dev/null
+					git commit -q -m "httm commit from ZFS snapshot" --date "$(date -d "$(stat -c %y $version)")" > /dev/null || true
 				fi
 			done
 		fi
@@ -171,13 +181,16 @@ function convert2git {
 		# create archive
 		local output_file="$output_dir/$(basename $path)-snapshot-archive.tar.gz"
 
-		cd "$tmp_dir"
+		cd ..
 
 		if [[ $debug = true ]]; then
-			tar -zcvf "$output_file" "./$(basename $path)" || print_err_exit "tar.gz archive creation failed.  Quitting."
+			tar -zcvf "$output_file" "./$basename" || print_err_exit "Archive creation failed.  Quitting."
 		else
-			tar -zcvf "$output_file" "./$(basename $path)" > /dev/null || print_err_exit "tar.gz archive creation failed.  Quitting."
+			tar -zcvf "$output_file" "./$basename" > /dev/null || print_err_exit "Archive creation failed.  Quitting."
 		fi
+
+		# cleanup safely
+		[[ ! -e "./$basename" ]] || rm -rf "./$basename"
 
 		printf "nicotine archive created successfully: $output_file\n"
 	done
