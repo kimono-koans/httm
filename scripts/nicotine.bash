@@ -87,6 +87,8 @@ prep_exec() {
 function convert2git {
 	local debug=$1
 	shift
+	local working_dir="$1"
+	shift
 	local tmp_dir="$1"
 	shift
 	local output_dir="$1"
@@ -110,14 +112,9 @@ function convert2git {
 		fi
 
 		# create dir for file
-		if [[ -d "$file" ]]; then
-			archive_dir="$tmp_dir"
-			cd "$archive_dir" || print_err_exit "nicotine could not enter a temporary directory.  Check you have permissions to enter."
-		else 
-			archive_dir="$tmp_dir/$(basename $file)"
-			mkdir "$archive_dir" || print_err_exit "nicotine could not create a temporary directory.  Check you have permissions to create."
-			cd "$archive_dir" || print_err_exit "nicotine could not enter a temporary directory.  Check you have permissions to enter."
-		fi
+		archive_dir="$tmp_dir/$(basename $file)"
+		mkdir "$archive_dir" || print_err_exit "nicotine could not create a temporary directory.  Check you have permissions to create."
+		cd "$archive_dir" || print_err_exit "nicotine could not enter a temporary directory.  Check you have permissions to enter."
 
 		# create git repo
 		if [[ $debug = true ]]; then
@@ -134,11 +131,11 @@ function convert2git {
 				cp -aR "$version" "$archive_dir/"
 
 				if [[ $debug = true ]]; then
-					git add --all "$archive_dir/$(basename $file)"
-					git commit -am "httm commit from ZFS snapshot" --date "$(date -d "$(stat -c %y $version)")"
+					git add --all "$archive_dir/$(basename $version)"
+					git commit -m "httm commit from ZFS snapshot" --date "$(date -d "$(stat -c %y $version)")"
 				else
-					git add --all "$archive_dir/$(basename $file)" > /dev/null
-					git commit -q -am "httm commit from ZFS snapshot" --date "$(date -d "$(stat -c %y $version)")" > /dev/null
+					git add --all "$archive_dir/$(basename $version)" > /dev/null
+					git commit -q -m "httm commit from ZFS snapshot" --date "$(date -d "$(stat -c %y $version)")" > /dev/null
 				fi
 			done
 		else
@@ -146,26 +143,28 @@ function convert2git {
 
 				if [[ $debug = true ]]; then
 					git add --all "$archive_dir/$(basename $file)"
-					git commit -am "httm commit from ZFS snapshot" --date "$(date -d "$(stat -c %y $version)")"
+					git commit -m "httm commit from ZFS snapshot" --date "$(date -d "$(stat -c %y $file)")"
 				else
 					git add --all "$archive_dir/$(basename $file)" > /dev/null
-					git commit -q -am "httm commit from ZFS snapshot" --date "$(date -d "$(stat -c %y $version)")" > /dev/null
+					git commit -q -m "httm commit from ZFS snapshot" --date "$(date -d "$(stat -c %y $file)")" > /dev/null
 				fi
 		fi
 
 		# creat archive
 		local output_file="$output_dir/$(basename $file)-snapshot-archive.tar.gz"
 
+		cd "$tmp_dir"
+
 		if [[ $debug = true ]]; then
-			tar -zcvf "$output_file" "./" || print_err_exit "tar.gz archive creation failed.  Quitting."
+			tar -zcvf "$output_file" "./$(basename $file)" || print_err_exit "tar.gz archive creation failed.  Quitting."
 		else
-			tar -zcvf "$output_file" "./" > /dev/null || print_err_exit "tar.gz archive creation failed.  Quitting."
+			tar -zcvf "$output_file" "./$(basename $file)" > /dev/null || print_err_exit "tar.gz archive creation failed.  Quitting."
 		fi
 
 		printf "nicotine archive created successfully: $output_file\n"
 		archive_dir="$tmp_dir"
 
-		cd - > /dev/null
+		cd "$working_dir"
 	done
 }
 
@@ -175,6 +174,7 @@ function nicotine {
 
 	local debug=false
 	local output_dir="$( pwd )"
+	local working_dir="$( pwd )"
 
 	[[ $# -ge 1 ]] || print_usage
 	[[ "$1" != "-h" && "$1" != "--help" ]] || print_usage
@@ -200,7 +200,7 @@ function nicotine {
 	[[ -n "$tmp_dir" ]] || print_err_exit "Could not create a temporary directory for scratch work.  Quitting."
 	[[ -n "$output_dir" ]] || print_err_exit "Could not determine the current working directory.  Quitting."
 
-	convert2git $debug "$tmp_dir" "$output_dir" "$@"
+	convert2git $debug "$working_dir" "$tmp_dir" "$output_dir" "$@"
 }
 
 nicotine "$@"
