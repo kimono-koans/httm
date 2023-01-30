@@ -177,8 +177,12 @@ function nicotine {
 	prep_exec
 
 	local debug=false
-	local output_dir="$( pwd )"
-	local working_dir="$( pwd )"
+	local pwd
+	pwd="$(readlink -e "$( pwd )" 2>/dev/null || true)"
+	[[ -e "$pwd" ]] || print_err_exit "Could not obtain current working directory.  Quitting."
+
+	local output_dir="$pwd"
+	local working_dir="$pwd"
 
 	[[ $# -ge 1 ]] || print_usage
 	[[ "$1" != "-h" && "$1" != "--help" ]] || print_usage
@@ -188,11 +192,12 @@ function nicotine {
 		if [[ "$1" == "--output-dir" ]]; then
 			shift
 			[[ $# -ge 1 ]] || print_err_exit "output-dir argument is empty"
-			output_dir="$1"
+			output_dir="$(readlink -e "$1" 2>/dev/null || true)"
+			[[ -e "$output_dir" ]] || print_err_exit "Could not obtain output directory from path given.  Quitting."
 			shift
 		elif [[ "$1" == "--debug" ]]; then
-			debug=true
 			shift
+			debug=true
 		else
 			break
 		fi
@@ -209,16 +214,15 @@ function nicotine {
 			readlink -e "$a" 2>/dev/null
 			[[ $? -eq 0 ]] || print_err "Could not determine canonical path for: $a"
 		)"
-		# if empty, skip
 		[[ -n "$canonical_path" ]] || continue
 
-		# if file DNE, skip
+		# check if file exists
 		if [[ ! -e "$canonical_path" ]]; then
 			printf "$canonical_path does not exist. Skipping.\n"
 			continue
 		fi
 
-		# if empty dir, skip, as tar will not work
+		# ... and tar will not create an archive using an empty dir
 		if [[ -z "$(ls -A "$canonical_path")" ]]; then
 			printf "$canonical_path is an empty directory. Skipping.\n"
 			continue
