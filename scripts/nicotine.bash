@@ -62,9 +62,9 @@ print_err() {
 
 prep_exec() {
 	[[ -n "$(
-		command -v ls
+		command -v find
 		exit 0
-	)" ]] || print_err_exit "'ls' is required to execute 'nicotine'.  Please check that 'ls' is in your path."
+	)" ]] || print_err_exit "'find' is required to execute 'nicotine'.  Please check that 'find' is in your path."
 	[[ -n "$(
 		command -v readlink
 		exit 0
@@ -92,13 +92,15 @@ prep_exec() {
 }
 
 function copy_add_commit {
+	local debug=$1
+	shift
 	local path="$1"
 	shift
 	local archive_dir="$1"
 	shift
 
-	[[ -d "$path" ]] || cp -aR "$path" "$archive_dir/"
-	[[ ! -d "$path" ]] || cp -aR "$path" "$archive_dir"
+	[[ -d "$path" ]] || cp -a "$path" "$archive_dir/"
+	[[ ! -d "$path" ]] || cp -a "$path" "$archive_dir"
 
 	if [[ $debug = true ]]; then
 		git add --all "$archive_dir"
@@ -110,6 +112,8 @@ function copy_add_commit {
 }
 
 function get_unique_versions {
+	local debug=$1
+	shift
 	local path="$1"
 	shift
 	local archive_dir="$1"
@@ -122,22 +126,24 @@ function get_unique_versions {
 	done <<<"$(httm -n --omit-ditto "$path")"
 
 	if [[ ${#version_list[@]} -eq 0 ]] || [[ ${#version_list[@]} -eq 1 ]]; then
-		copy_add_commit "$path" "$archive_dir"
+		copy_add_commit $debug "$path" "$archive_dir"
 	else
 		for version in "${version_list[@]}"; do
-			copy_add_commit "$version" "$archive_dir"
+			copy_add_commit $debug "$version" "$archive_dir"
 		done
 	fi
 
 }
 
 function traverse {
+	local debug=$1
+	shift
 	local path="$1"
 	shift
 	local archive_dir="$1"
 	shift
 
-	get_unique_versions "$path" "$archive_dir"
+	get_unique_versions $debug "$path" "$archive_dir"
 
 	[[ -d "$path" ]] || return 0
 
@@ -150,9 +156,9 @@ function traverse {
 
 	for entry in "${dir_entries[@]}"; do
 		if [[ -d "$entry" ]]; then
-			traverse "$entry" "$archive_dir/$basename"
+			traverse $debug "$entry" "$archive_dir/$basename"
 		else
-			get_unique_versions "$entry" "$archive_dir/$basename"
+			get_unique_versions $debug "$entry" "$archive_dir/$basename"
 		fi
 	done
 }
@@ -194,7 +200,7 @@ function convert_to_git {
 	fi
 
 	# copy, add, and commit to git repo in loop
-	traverse "$path" "$archive_dir"
+	traverse $debug "$path" "$archive_dir"
 
 	cd "$archive_dir"
 
@@ -268,7 +274,7 @@ function nicotine {
 		fi
 
 		# ... and tar will not create an archive using an empty dir
-		if [[ -z "$(ls -A "$canonical_path")" ]]; then
+		if [[ -d "$canonical_path" ]] && [[ -z "$(find "$canonical_path" -mindepth 1 -maxdepth 1)" ]]; then
 			printf "$canonical_path is an empty directory. Skipping.\n"
 			continue
 		fi
