@@ -106,10 +106,10 @@ function copy_add_commit {
 
 	# only commit files not directories
 	if [[ -d "$path" ]]; then 
-		cp -a "$path" "$archive_dir"
+		cp -a "$path" "$archive_dir/"
 		return 0
 	else
-		cp -a "$path" "$archive_dir/"
+		cp -a "$path" "$archive_dir"
 	fi
 
 	if [[ $debug = true ]]; then
@@ -199,13 +199,9 @@ function convert_to_git {
 	# create dir for file
 	basename="$(basename "$path")"
 
-	if [[ -d "$path" ]]; then
-		archive_dir="$tmp_dir"
-	else
-		archive_dir="$tmp_dir/$basename"
-		# must enter the dir to have git work
-		mkdir "$archive_dir" || print_err_exit "nicotine could not create a temporary directory.  Check you have permissions to create."
-	fi
+	archive_dir="$tmp_dir/$basename"
+	# must enter the dir to have git work
+	mkdir "$archive_dir" || print_err_exit "nicotine could not create a temporary directory.  Check you have permissions to create."
 
 	cd "$archive_dir" || print_err_exit "nicotine could not enter a temporary directory: $archive_dir.  Check you have permissions to enter."
 
@@ -217,23 +213,25 @@ function convert_to_git {
 	fi
 
 	# copy, add, and commit to git repo in loop
-	traverse $debug "$path" "$archive_dir"
+	if [[ -d "$path" ]]; then
+		traverse $debug "$path" "$tmp_dir"
+	else
+		traverse $debug "$path" "$archive_dir"
+	fi
 
 	if [[ $no_archive = true ]]; then
 		cp -ra "$archive_dir" "$output_dir/$basename-git"
 	else
-		cd "$archive_dir"
+		cd "$tmp_dir"
 
 		# create archive
 		local output_file="$output_dir/$(basename $path)-git-archive.tar.gz"
 
 		if [[ $debug = true ]]; then
-			tar -zcvf "$output_file" "./" || print_err_exit "Archive creation failed.  Quitting."
+			tar -zcvf "$output_file" "./$basename" || print_err_exit "Archive creation failed.  Quitting."
 		else
-			tar -zcvf "$output_file" "./" > /dev/null || print_err_exit "Archive creation failed.  Quitting."
+			tar -zcvf "$output_file" "./$basename" > /dev/null || print_err_exit "Archive creation failed.  Quitting."
 		fi
-
-		cd "$tmp_dir"
 	fi
 	
 	# cleanup safely
