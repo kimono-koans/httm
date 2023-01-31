@@ -38,6 +38,8 @@ USAGE:
 	nicotine [OPTIONS]... [file1 file2...]
 
 OPTIONS:
+	--no-archive
+		Disable archive creation.  Instead copy git tree to the output directory.
 	--output-dir:
 		Select the output directory.  Default is the current working directory.
 	--debug:
@@ -166,6 +168,8 @@ function traverse {
 function convert_to_git {
 	local debug=$1
 	shift
+	local no_archive=$1
+	shift
 	local working_dir="$1"
 	shift
 	local tmp_dir="$1"
@@ -202,24 +206,32 @@ function convert_to_git {
 	# copy, add, and commit to git repo in loop
 	traverse $debug "$path" "$archive_dir"
 
-	cd "$archive_dir"
-
-	# create archive
-	local output_file="$output_dir/$(basename $path)-snapshot-archive.tar.gz"
-
-	if [[ $debug = true ]]; then
-		tar -zcvf "$output_file" "./" || print_err_exit "Archive creation failed.  Quitting."
+	if [[ $no_archive = true ]]; then
+		cp -ra "$archive_dir" "$output_dir/$basename-repo"
 	else
-		tar -zcvf "$output_file" "./" > /dev/null || print_err_exit "Archive creation failed.  Quitting."
+		cd "$archive_dir"
+
+		# create archive
+		local output_file="$output_dir/$(basename $path)-snapshot-archive.tar.gz"
+
+		if [[ $debug = true ]]; then
+			tar -zcvf "$output_file" "./" || print_err_exit "Archive creation failed.  Quitting."
+		else
+			tar -zcvf "$output_file" "./" > /dev/null || print_err_exit "Archive creation failed.  Quitting."
+		fi
+
+		cd "$tmp_dir"
 	fi
-
-	cd "$tmp_dir"
-
+	
 	# cleanup safely
 	[[ ! -e "$tmp_dir/$basename" ]] || rm -rf "$tmp_dir/$basename"
 	[[ -e "$tmp_dir/$basename" ]] || rm -rf "$tmp_dir/*"
 
-	printf "nicotine archive created successfully: $output_file\n"
+	if [[ $no_archive = true ]]; then
+		printf "nicotine git repository created successfully: $basename-repo\n"			
+	else
+		printf "nicotine git archive created successfully: $output_file\n"
+	fi
 }
 
 function nicotine {
@@ -227,6 +239,7 @@ function nicotine {
 	prep_exec
 
 	local debug=false
+	local no_archive=false
 	local pwd
 	pwd="$(readlink -e "$( pwd )" 2>/dev/null || true)"
 	[[ -e "$pwd" ]] || print_err_exit "Could not obtain current working directory.  Quitting."
@@ -248,6 +261,9 @@ function nicotine {
 		elif [[ "$1" == "--debug" ]]; then
 			shift
 			debug=true
+		elif [[ "$1" == "--no-archive" ]]; then
+			shift
+			no_archive=true
 		else
 			break
 		fi
@@ -279,7 +295,7 @@ function nicotine {
 			continue
 		fi
 
-		convert_to_git $debug "$working_dir" "$tmp_dir" "$output_dir" "$canonical_path"
+		convert_to_git $debug $no_archive "$working_dir" "$tmp_dir" "$output_dir" "$canonical_path"
 	done
 
 }
