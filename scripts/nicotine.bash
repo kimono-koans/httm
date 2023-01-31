@@ -207,12 +207,12 @@ function convert_to_git {
 	traverse $debug "$path" "$archive_dir"
 
 	if [[ $no_archive = true ]]; then
-		cp -ra "$archive_dir" "$output_dir/$basename-repo"
+		cp -ra "$archive_dir" "$output_dir/$basename-git"
 	else
 		cd "$archive_dir"
 
 		# create archive
-		local output_file="$output_dir/$(basename $path)-snapshot-archive.tar.gz"
+		local output_file="$output_dir/$(basename $path)-git-archive.tar.gz"
 
 		if [[ $debug = true ]]; then
 			tar -zcvf "$output_file" "./" || print_err_exit "Archive creation failed.  Quitting."
@@ -228,7 +228,7 @@ function convert_to_git {
 	[[ -e "$tmp_dir/$basename" ]] || rm -rf "$tmp_dir/*"
 
 	if [[ $no_archive = true ]]; then
-		printf "nicotine git repository created successfully: $basename-repo\n"			
+		printf "nicotine git repository created successfully: $basename-git\n"			
 	else
 		printf "nicotine git archive created successfully: $output_file\n"
 	fi
