@@ -30,9 +30,11 @@ nicotine $(httm --version | cut -f2 -d' ')
 print_usage() {
 	local nicotine="\e[31mnicotine\e[0m"
 	local httm="\e[31mhttm\e[0m"
+	local git="\e[31mgit\e[0m"
+	local tar="\e[31mtar\e[0m"
 
 	printf "\
-$nicotine is a wrapper script for $httm which converts unique snapshot file versions to a git archive.
+$nicotine is a wrapper script for $httm which converts unique snapshot file versions to a $git archive.
 
 USAGE:
 	nicotine [OPTIONS]... [file1 file2...]
@@ -41,9 +43,9 @@ OPTIONS:
 	--output-dir:
 		Select the output directory.  Default is the current working directory.
 	--no-archive
-		Disable archive creation.  Copy git tree to the output directory.
+		Disable archive creation.  Copy the $git directory into the output directory.
 	--debug:
-		Show git and tar command output.  Default is to completely silence both.
+		Show $git and $tar command output.  Default is to complete silence both.
 	--help:
 		Display this dialog.
 	--version:
