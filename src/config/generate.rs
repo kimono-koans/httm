@@ -354,7 +354,6 @@ fn parse_args() -> ArgMatches {
                 .visible_aliases(&["undead", "zombie"])
                 .help("only display information concerning 'pseudo-live' versions in Display Recursive mode (in --deleted, --recursive, but non-interactive modes).  \
                 Useful for finding the \"files that once were\" and displaying only those pseudo-live/zombie files.")
-                .requires("RECURSIVE")
                 .conflicts_with_all(&["BROWSE", "SELECT", "RESTORE", "SNAPSHOT", "LAST_SNAP", "NOT_SO_PRETTY"])
                 .display_order(23)
         )
@@ -610,7 +609,7 @@ impl Config {
             ExecMode::SnapFileMount(requested_snapshot_suffix)
         } else if let Some(interactive_mode) = opt_interactive_mode {
             ExecMode::Interactive(interactive_mode)
-        } else if deleted_mode.is_some() && opt_recursive {
+        } else if deleted_mode.is_some() {
             let progress_bar: ProgressBar = indicatif::ProgressBar::new_spinner();
             ExecMode::NonInteractiveRecursive(progress_bar)
         } else {
