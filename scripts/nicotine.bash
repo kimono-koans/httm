@@ -101,22 +101,22 @@ function copy_add_commit {
 	shift
 	local path="$1"
 	shift
-	local archive_dir="$1"
+	local dest_dir="$1"
 	shift
 
-	# only commit files not directories
 	if [[ -d "$path" ]]; then 
-		cp -a "$path" "$archive_dir/"
+		cp -a "$path" "$dest_dir/"
+		# only commit files not directories
 		return 0
 	else
-		cp -a "$path" "$archive_dir"
+		cp -a "$path" "$dest_dir"
 	fi
 
 	if [[ $debug = true ]]; then
-		git add --all "$archive_dir"
+		git add --all "$dest_dir"
 		git commit -m "httm commit from ZFS snapshot" --date "$(date -d "$(stat -c %y $path)")" || true
 	else
-		git add --all "$archive_dir" > /dev/null
+		git add --all "$dest_dir" > /dev/null
 		git commit -q -m "httm commit from ZFS snapshot" --date "$(date -d "$(stat -c %y $path)")" > /dev/null || true
 	fi
 }
@@ -126,7 +126,7 @@ function get_unique_versions {
 	shift
 	local path="$1"
 	shift
-	local archive_dir="$1"
+	local dest_dir="$1"
 	shift
 
 	local -a version_list
@@ -139,10 +139,10 @@ function get_unique_versions {
 	done <<<"$(httm -n --omit-ditto "$path")"
 
 	if [[ -d "$path" ]] || [[ ${#version_list[@]} -eq 0 ]] || [[ ${#version_list[@]} -eq 1 ]]; then
-		copy_add_commit $debug "$path" "$archive_dir"
+		copy_add_commit $debug "$path" "$dest_dir"
 	else
 		for version in "${version_list[@]}"; do
-			copy_add_commit $debug "$version" "$archive_dir"
+			copy_add_commit $debug "$version" "$dest_dir"
 		done
 	fi
 }
@@ -152,10 +152,10 @@ function traverse {
 	shift
 	local path="$1"
 	shift
-	local archive_dir="$1"
+	local dest_dir="$1"
 	shift
 
-	get_unique_versions $debug "$path" "$archive_dir"
+	get_unique_versions $debug "$path" "$dest_dir"
 
 	[[ -d "$path" ]] || return 0
 
@@ -171,9 +171,9 @@ function traverse {
 
 	for entry in "${dir_entries[@]}"; do
 		if [[ -d "$entry" ]]; then
-			traverse $debug "$entry" "$archive_dir/$basename"
+			traverse $debug "$entry" "$dest_dir/$basename"
 		else
-			get_unique_versions $debug "$entry" "$archive_dir/$basename"
+			get_unique_versions $debug "$entry" "$dest_dir/$basename"
 		fi
 	done
 }
@@ -199,10 +199,11 @@ function convert_to_git {
 	# create dir for file
 	basename="$(basename "$path")"
 
+	# git requires a dir to init
 	archive_dir="$tmp_dir/$basename"
-	# must enter the dir to have git work
 	mkdir "$archive_dir" || print_err_exit "nicotine could not create a temporary directory.  Check you have permissions to create."
-
+	
+	# ... and must enter the dir to have git work
 	cd "$archive_dir" || print_err_exit "nicotine could not enter a temporary directory: $archive_dir.  Check you have permissions to enter."
 
 	# create git repo
@@ -213,6 +214,8 @@ function convert_to_git {
 	fi
 
 	# copy, add, and commit to git repo in loop
+	# why branch? because git requires a dir and
+	# for files we create a dir specifically for the file
 	if [[ -d "$path" ]]; then
 		traverse $debug "$path" "$tmp_dir"
 	else
@@ -222,6 +225,7 @@ function convert_to_git {
 	if [[ $no_archive = true ]]; then
 		cp -ra "$archive_dir" "$output_dir/$basename-git"
 	else
+		# tar works with relative paths, so make certain we are in out base tmp_dir
 		cd "$tmp_dir"
 
 		# create archive
@@ -282,9 +286,8 @@ function nicotine {
 
 	local tmp_dir="$( mktemp -d )"
 	trap "[[ ! -d "$tmp_dir" ]] || rm -rf "$tmp_dir"" EXIT
-
-	[[ -n "$tmp_dir" ]] || print_err_exit "Could not create a temporary directory for scratch work.  Quitting."
-	[[ -n "$output_dir" ]] || print_err_exit "Could not determine the current working directory.  Quitting."
+	[[ -e "$tmp_dir" ]] || print_err_exit "Could not create a temporary directory for scratch work.  Quitting."
+	
 	[[ $# -ne 0 ]] || print_err_exit "User must specify at least one input file.  Quitting."
 
 	for a; do
