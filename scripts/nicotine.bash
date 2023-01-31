@@ -126,18 +126,20 @@ function get_unique_versions {
 
 	local -a version_list
 
-	while read -r line; do
+	# all we care about is unique file versions, unique directory versions aren't useful
+	# in this context, as we are recursing and commiting every file we find, so we can skip 
+	# commiting all directory versions we find
+	[[ -d "$path" ]] || while read -r line; do
 		version_list+=("$line")
 	done <<<"$(httm -n --omit-ditto "$path")"
 
-	if [[ ${#version_list[@]} -eq 0 ]] || [[ ${#version_list[@]} -eq 1 ]]; then
+	if [[ -d "$path" ]] || [[ ${#version_list[@]} -eq 0 ]] || [[ ${#version_list[@]} -eq 1 ]]; then
 		copy_add_commit $debug "$path" "$archive_dir"
 	else
 		for version in "${version_list[@]}"; do
 			copy_add_commit $debug "$version" "$archive_dir"
 		done
 	fi
-
 }
 
 function traverse {
