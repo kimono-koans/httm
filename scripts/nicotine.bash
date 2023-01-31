@@ -225,7 +225,7 @@ function convert_to_git {
 	if [[ $no_archive = true ]]; then
 		cp -ra "$archive_dir" "$output_dir/$basename-git"
 	else
-		# tar works with relative paths, so make certain we are in out base tmp_dir
+		# tar works with relative paths, so make certain we are in our base tmp_dir
 		cd "$tmp_dir"
 
 		# create archive
