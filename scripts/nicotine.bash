@@ -102,11 +102,59 @@ function copy_add_commit {
 
 	if [[ $debug = true ]]; then
 		git add --all "$archive_dir"
-		git commit -m "httm commit from ZFS snapshot" --date "$(date -d "$(stat -c %y $version)")" || true
+		git commit -m "httm commit from ZFS snapshot" --date "$(date -d "$(stat -c %y $path)")" || true
 	else
 		git add --all "$archive_dir" > /dev/null
-		git commit -q -m "httm commit from ZFS snapshot" --date "$(date -d "$(stat -c %y $version)")" > /dev/null || true
+		git commit -q -m "httm commit from ZFS snapshot" --date "$(date -d "$(stat -c %y $path)")" > /dev/null || true
 	fi
+}
+
+function get_unique_versions {
+	local path="$1"
+	shift
+	local archive_dir="$1"
+	shift
+
+	local -a version_list
+
+	while read -r line; do
+		version_list+=("$line")
+	done <<<"$(httm -n --omit-ditto "$path")"
+
+	if [[ ${#version_list[@]} -eq 0 ]] || [[ ${#version_list[@]} -eq 1 ]]; then
+		copy_add_commit "$path" "$archive_dir"
+	else
+		for version in "${version_list[@]}"; do
+			copy_add_commit "$version" "$archive_dir"
+		done
+	fi
+
+}
+
+function traverse {
+	local path="$1"
+	shift
+	local archive_dir="$1"
+	shift
+
+	get_unique_versions "$path" "$archive_dir"
+
+	[[ -d "$path" ]] || return 0
+
+	local -a dir_entries
+	local basename="$(basename "$path")"
+
+	while read -r line; do
+		dir_entries+=("$line")
+	done <<<"$(find "$path" -mindepth 1 -maxdepth 1)"
+
+	for entry in "${dir_entries[@]}"; do
+		if [[ -d "$entry" ]]; then
+			traverse "$entry" "$archive_dir/$basename"
+		else
+			get_unique_versions "$entry" "$archive_dir/$basename"
+		fi
+	done
 }
 
 function convert_to_git {
@@ -127,10 +175,15 @@ function convert_to_git {
 	# copy each version to repo and commit after each copy
 	# create dir for file
 	basename="$(basename "$path")"
-	archive_dir="$tmp_dir/$basename"
 
-	# must enter the dir to have git work
-	mkdir "$archive_dir" || print_err_exit "nicotine could not create a temporary directory.  Check you have permissions to create."
+	if [[ -d "$path" ]]; then
+		archive_dir="$tmp_dir"
+	else
+		archive_dir="$tmp_dir/$basename"
+		# must enter the dir to have git work
+		mkdir "$archive_dir" || print_err_exit "nicotine could not create a temporary directory.  Check you have permissions to create."
+	fi
+
 	cd "$archive_dir" || print_err_exit "nicotine could not enter a temporary directory: $archive_dir.  Check you have permissions to enter."
 
 	# create git repo
@@ -141,33 +194,24 @@ function convert_to_git {
 	fi
 
 	# copy, add, and commit to git repo in loop
-	local -a version_list
+	traverse "$path" "$archive_dir"
 
-	while read -r line; do
-		version_list+=("$line")
-	done <<<"$(httm -n --omit-ditto "$path")"
-
-	if [[ ${#version_list[@]} -eq 0 ]] || [[ ${#version_list[@]} -eq 1 ]]; then
-		copy_add_commit "$path" "$archive_dir"
-	else
-		for version in "${version_list[@]}"; do
-			copy_add_commit "$version" "$archive_dir"
-		done
-	fi
+	cd "$archive_dir"
 
 	# create archive
 	local output_file="$output_dir/$(basename $path)-snapshot-archive.tar.gz"
 
-	cd ..
-
 	if [[ $debug = true ]]; then
-		tar -zcvf "$output_file" "./$basename" || print_err_exit "Archive creation failed.  Quitting."
+		tar -zcvf "$output_file" "./" || print_err_exit "Archive creation failed.  Quitting."
 	else
-		tar -zcvf "$output_file" "./$basename" > /dev/null || print_err_exit "Archive creation failed.  Quitting."
+		tar -zcvf "$output_file" "./" > /dev/null || print_err_exit "Archive creation failed.  Quitting."
 	fi
 
+	cd "$tmp_dir"
+
 	# cleanup safely
-	[[ ! -e "./$basename" ]] || rm -rf "./$basename"
+	[[ ! -e "$tmp_dir/$basename" ]] || rm -rf "$tmp_dir/$basename"
+	[[ -e "$tmp_dir/$basename" ]] || rm -rf "$tmp_dir/*"
 
 	printf "nicotine archive created successfully: $output_file\n"
 }
@@ -208,7 +252,6 @@ function nicotine {
 
 	[[ -n "$tmp_dir" ]] || print_err_exit "Could not create a temporary directory for scratch work.  Quitting."
 	[[ -n "$output_dir" ]] || print_err_exit "Could not determine the current working directory.  Quitting."
-
 	[[ $# -ne 0 ]] || print_err_exit "User must specify at least one input file.  Quitting."
 
 	for a; do
