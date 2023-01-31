@@ -167,7 +167,7 @@ impl BaseFilesystemInfo {
                         .par_iter()
                         .filter(|line| line.contains('='))
                         .filter_map(|line| {
-                            line.split_once(&"=")
+                            line.split_once('=')
                                 .map(|(key, value)| (key.to_owned(), value.to_owned()))
                         })
                         .collect();
@@ -221,15 +221,15 @@ impl BaseFilesystemInfo {
                 .filter_map(|line|
                     // GNU Linux mount output
                     if line.contains("type") {
-                        line.split_once(&" type")
+                        line.split_once(" type")
                     // Busybox and BSD mount output
                     } else {
-                        line.split_once(&" (")
+                        line.split_once(" (")
                     }
                 )
                 .map(|(filesystem_and_mount,_)| filesystem_and_mount )
                 // mount cmd includes and " on " between src and dest of mount
-                .filter_map(|filesystem_and_mount| filesystem_and_mount.split_once(&" on "))
+                .filter_map(|filesystem_and_mount| filesystem_and_mount.split_once(" on "))
                 .map(|(filesystem, mount)| (filesystem.to_owned(), PathBuf::from(mount)))
                 // sanity check: does the filesystem exist and have a ZFS hidden dir? if not, filter it out
                 // and flip around, mount should key of key/value

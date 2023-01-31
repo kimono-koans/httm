@@ -102,7 +102,7 @@ impl DeletedFilesBundle {
         // what is a deleted file
         //
         // create a collection of local file names
-        let local_filenames_set: HashSet<OsString> = read_dir(&requested_dir)?
+        let local_filenames_set: HashSet<OsString> = read_dir(requested_dir)?
             .flatten()
             .map(|dir_entry| dir_entry.file_name())
             .collect();
@@ -134,8 +134,8 @@ impl DeletedFilesBundle {
     ) -> HashMap<OsString, BasicDirEntryInfo> {
         mounts
             .iter()
-            .map(|path| path.join(&relative_path))
-            .flat_map(|path| read_dir(&path))
+            .map(|path| path.join(relative_path))
+            .flat_map(read_dir)
             .flatten()
             .flatten()
             .map(|dir_entry| (dir_entry.file_name(), BasicDirEntryInfo::from(&dir_entry)))

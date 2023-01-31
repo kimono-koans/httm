@@ -43,7 +43,7 @@ OPTIONS:
 	--output-dir:
 		Select the output directory.  Default is the current working directory.
 	--no-archive
-		Disable archive creation.  Copy the $git directory into the output directory.
+		Disable archive creation.  Create a $git directory (e.g. named \"\$file1-git\") to the output directory.
 	--debug:
 		Show $git and $tar command output.  Default is to complete silence both.
 	--help:

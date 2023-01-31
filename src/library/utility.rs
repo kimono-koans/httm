@@ -138,20 +138,16 @@ fn map_io_err(err: io::Error, dst: &Path) -> HttmError {
 
 pub fn copy_recursive(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<()> {
     if PathBuf::from(src).is_dir() {
-        create_dir_all(&dst).map_err(|err| map_io_err(err, dst))?;
+        create_dir_all(dst).map_err(|err| map_io_err(err, dst))?;
 
         for entry in read_dir(src)? {
             let entry = entry?;
             let file_type = entry.file_type()?;
 
             if file_type.is_dir() {
-                copy_recursive(
-                    &entry.path(),
-                    &dst.join(&entry.file_name()),
-                    should_preserve,
-                )?;
+                copy_recursive(&entry.path(), &dst.join(entry.file_name()), should_preserve)?;
             } else {
-                copy(&entry.path(), &dst.join(&entry.file_name()))
+                copy(entry.path(), dst.join(entry.file_name()))
                     .map_err(|err| map_io_err(err, dst))?;
             }
         }
@@ -174,7 +170,7 @@ pub fn read_stdin() -> HttmResult<Vec<String>> {
 
     let buffer_string = std::str::from_utf8(&buffer)?;
 
-    let broken_string: Vec<String> = if buffer_string.contains(&['\n', '\0']) {
+    let broken_string: Vec<String> = if buffer_string.contains(['\n', '\0']) {
         // always split on newline or null char, if available
         buffer_string
             .split(&['\n', '\0'])

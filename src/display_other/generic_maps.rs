@@ -80,14 +80,10 @@ impl From<&SnapNameMap> for PrintableMap {
 
 impl PrintableMap {
     pub fn get_map_padding(&self) -> usize {
-        self.inner
-            .iter()
-            .map(|(key, _values)| key)
-            .max_by_key(|key| key.len())
-            .map_or_else(
-                || QUOTATION_MARKS_LEN,
-                |key| key.len() + QUOTATION_MARKS_LEN,
-            )
+        self.inner.keys().max_by_key(|key| key.len()).map_or_else(
+            || QUOTATION_MARKS_LEN,
+            |key| key.len() + QUOTATION_MARKS_LEN,
+        )
     }
 
     pub fn format(&self, config: &Config) -> String {

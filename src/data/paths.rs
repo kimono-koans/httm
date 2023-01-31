@@ -172,14 +172,14 @@ impl PathData {
             // fallback if unable to find an alias or strip a prefix
             // (each an indication we should not be trying aliases)
             if let Some(local_dir) = opt_aliased_local_dir {
-                if let Ok(alias_stripped_path) = self.path_buf.strip_prefix(&local_dir) {
+                if let Ok(alias_stripped_path) = self.path_buf.strip_prefix(local_dir) {
                     return Ok(alias_stripped_path.to_path_buf());
                 }
             }
         }
         // default path strip
         self.path_buf
-            .strip_prefix(&proximate_dataset_mount)
+            .strip_prefix(proximate_dataset_mount)
             .map(std::path::Path::to_path_buf)
             .map_err(std::convert::Into::into)
     }

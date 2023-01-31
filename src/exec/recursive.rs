@@ -174,7 +174,7 @@ pub fn get_entries_partitioned(
     requested_dir: &Path,
 ) -> HttmResult<(Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>)> {
     //separates entries into dirs and files
-    let (vec_dirs, vec_files) = read_dir(&requested_dir)?
+    let (vec_dirs, vec_files) = read_dir(requested_dir)?
         .flatten()
         // checking file_type on dir entries is always preferable
         // as it is much faster than a metadata call on the path

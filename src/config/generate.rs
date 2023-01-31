@@ -146,7 +146,7 @@ fn parse_args() -> ArgMatches {
                 .long("restore")
                 .takes_value(true)
                 .default_missing_value("copy")
-                .possible_values(&["copy", "copy-and-preserve", "overwrite", "yolo"])
+                .possible_values(["copy", "copy-and-preserve", "overwrite", "yolo"])
                 .min_values(0)
                 .require_equals(true)
                 .help("interactive browse and search a specified directory to display unique file versions.  Continue to another dialog to select a snapshot version to restore.  \
@@ -163,7 +163,7 @@ fn parse_args() -> ArgMatches {
                 .long("deleted")
                 .takes_value(true)
                 .default_missing_value("all")
-                .possible_values(&["all", "single", "only"])
+                .possible_values(["all", "single", "only"])
                 .min_values(0)
                 .require_equals(true)
                 .help("show deleted files in interactive modes.  In non-interactive modes, do a search for all files deleted from a specified directory. \
@@ -274,7 +274,7 @@ fn parse_args() -> ArgMatches {
                 .long("last-snap")
                 .takes_value(true)
                 .default_missing_value("any")
-                .possible_values(&["any", "ditto", "no-ditto", "no-ditto-exclusive", "no-ditto-inclusive", "none", "without"])
+                .possible_values(["any", "ditto", "no-ditto", "no-ditto-exclusive", "no-ditto-inclusive", "none", "without"])
                 .min_values(0)
                 .require_equals(true)
                 .help("automatically select and print the path of last-in-time unique snapshot version for the input file.  \
@@ -377,7 +377,7 @@ fn parse_args() -> ArgMatches {
             Arg::new("NUM_VERSIONS")
                 .long("num-versions")
                 .default_missing_value("all")
-                .possible_values(&["all", "single", "single-no-snap", "single-with-snap", "multiple"])
+                .possible_values(["all", "single", "single-no-snap", "single-with-snap", "multiple"])
                 .min_values(0)
                 .require_equals(true)
                 .help("detect and display the number of unique versions available (e.g. one, \"1\", \

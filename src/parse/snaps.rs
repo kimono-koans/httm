@@ -109,7 +109,7 @@ impl MapOfSnaps {
 
             let snaps = command_output
                 .par_lines()
-                .filter_map(|line| line.split_once(&"path "))
+                .filter_map(|line| line.split_once("path "))
                 .map(
                     |(_first, snap_path)| match snap_path.strip_prefix("<FS_TREE>/") {
                         Some(fs_tree_path) => {

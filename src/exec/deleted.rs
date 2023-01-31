@@ -151,8 +151,8 @@ impl SpawnDeletedThread {
 
             // deleted_dir_on_snap is the path from the deleted dir on the snapshot
             // pseudo_live_dir is the path from the fake, deleted directory that once was
-            let deleted_dir_on_snap = &from_deleted_dir.to_path_buf().join(&dir_name);
-            let pseudo_live_dir = &from_requested_dir.to_path_buf().join(&dir_name);
+            let deleted_dir_on_snap = &from_deleted_dir.to_path_buf().join(dir_name);
+            let pseudo_live_dir = &from_requested_dir.to_path_buf().join(dir_name);
 
             let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
                 get_entries_partitioned(config.as_ref(), deleted_dir_on_snap)?;
