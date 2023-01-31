@@ -104,8 +104,13 @@ function copy_add_commit {
 	local archive_dir="$1"
 	shift
 
-	[[ -d "$path" ]] || cp -a "$path" "$archive_dir/"
-	[[ ! -d "$path" ]] || cp -a "$path" "$archive_dir"
+	# only commit files not directories
+	if [[ -d "$path" ]]; then 
+		cp -a "$path" "$archive_dir"
+		return 0
+	else
+		cp -a "$path" "$archive_dir/"
+	fi
 
 	if [[ $debug = true ]]; then
 		git add --all "$archive_dir"
@@ -154,12 +159,15 @@ function traverse {
 
 	[[ -d "$path" ]] || return 0
 
-	local -a dir_entries
+	local -a dir_entries=()
 	local basename="$(basename "$path")"
 
 	while read -r line; do
+		[[ -n "$line" ]] || return 0
 		dir_entries+=("$line")
 	done <<<"$(find "$path" -mindepth 1 -maxdepth 1)"
+
+	[[ ${#dir_entries[@]} -ne 0 ]] || return 0
 
 	for entry in "${dir_entries[@]}"; do
 		if [[ -d "$entry" ]]; then
