@@ -106,7 +106,7 @@ function copy_add_commit {
 
 	if [[ -d "$path" ]]; then 
 		cp -a "$path" "$dest_dir/"
-		# only commit files not directories
+		# return early -- only commit files not directories
 		return 0
 	else
 		cp -a "$path" "$dest_dir"
@@ -138,6 +138,7 @@ function get_unique_versions {
 		version_list+=("$line")
 	done <<<"$(httm -n --omit-ditto "$path")"
 
+	# see above, one/zero version indicates $path has no snaps
 	if [[ -d "$path" ]] || [[ ${#version_list[@]} -eq 0 ]] || [[ ${#version_list[@]} -eq 1 ]]; then
 		copy_add_commit $debug "$path" "$dest_dir"
 	else
@@ -157,16 +158,17 @@ function traverse {
 
 	get_unique_versions $debug "$path" "$dest_dir"
 
+	# return early - is file, not, can't traverse
 	[[ -d "$path" ]] || return 0
 
 	local -a dir_entries=()
 	local basename="$(basename "$path")"
 
 	while read -r line; do
-		[[ -n "$line" ]] || return 0
-		dir_entries+=("$line")
+		[[ -z "$line" ]] || dir_entries+=("$line")
 	done <<<"$(find "$path" -mindepth 1 -maxdepth 1)"
 
+	# return early - empty dir
 	[[ ${#dir_entries[@]} -ne 0 ]] || return 0
 
 	for entry in "${dir_entries[@]}"; do
