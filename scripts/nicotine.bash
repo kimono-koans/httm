@@ -32,16 +32,16 @@ print_usage() {
 	local httm="\e[31mhttm\e[0m"
 
 	printf "\
-$nicotine is a wrapper script for $httm which converts unique file versions on snapshots to a git archive.
+$nicotine is a wrapper script for $httm which converts unique snapshot file versions to a git archive.
 
 USAGE:
 	nicotine [OPTIONS]... [file1 file2...]
 
 OPTIONS:
-	--no-archive
-		Disable archive creation.  Instead copy git tree to the output directory.
 	--output-dir:
 		Select the output directory.  Default is the current working directory.
+	--no-archive
+		Disable archive creation.  Copy git tree to the output directory.
 	--debug:
 		Show git and tar command output.  Default is to completely silence both.
 	--help:
@@ -240,12 +240,12 @@ function nicotine {
 
 	local debug=false
 	local no_archive=false
-	local pwd
-	pwd="$(readlink -e "$( pwd )" 2>/dev/null || true)"
-	[[ -e "$pwd" ]] || print_err_exit "Could not obtain current working directory.  Quitting."
+	local working_dir
+	local output_dir
 
-	local output_dir="$pwd"
-	local working_dir="$pwd"
+	working_dir="$(readlink -e "$( pwd )" 2>/dev/null || true)"
+	[[ -e "$working_dir" ]] || print_err_exit "Could not obtain current working directory.  Quitting."
+	output_dir="$working_dir"
 
 	[[ $# -ge 1 ]] || print_usage
 	[[ "$1" != "-h" && "$1" != "--help" ]] || print_usage
