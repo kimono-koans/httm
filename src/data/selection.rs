@@ -78,7 +78,7 @@ impl SelectionCandidate {
             requested_utc_offset: config.requested_utc_offset,
             exec_mode: ExecMode::Display,
             print_mode: PrintMode::FormattedDefault,
-            deleted_mode: None,
+            opt_deleted_mode: None,
             dataset_collection: config.dataset_collection.clone(),
             pwd: config.pwd.clone(),
             opt_requested_dir: config.opt_requested_dir.clone(),

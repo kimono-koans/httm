@@ -71,7 +71,7 @@ pub enum PrintMode {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DeletedMode {
     DepthOfOne,
-    Enabled,
+    All,
     Only,
 }
 
@@ -451,7 +451,7 @@ pub struct Config {
     pub requested_utc_offset: UtcOffset,
     pub exec_mode: ExecMode,
     pub print_mode: PrintMode,
-    pub deleted_mode: Option<DeletedMode>,
+    pub opt_deleted_mode: Option<DeletedMode>,
     pub dataset_collection: FilesystemInfo,
     pub pwd: PathData,
     pub opt_requested_dir: Option<PathData>,
@@ -522,8 +522,8 @@ impl Config {
             None => None,
         };
 
-        let mut deleted_mode = match matches.value_of("DELETED") {
-            Some("" | "all") => Some(DeletedMode::Enabled),
+        let mut opt_deleted_mode = match matches.value_of("DELETED") {
+            Some("" | "all") => Some(DeletedMode::All),
             Some("single") => Some(DeletedMode::DepthOfOne),
             Some("only") => Some(DeletedMode::Only),
             _ => None,
@@ -609,12 +609,12 @@ impl Config {
             ExecMode::SnapFileMount(requested_snapshot_suffix)
         } else if let Some(interactive_mode) = opt_interactive_mode {
             ExecMode::Interactive(interactive_mode)
-        } else if deleted_mode.is_some() {
+        } else if opt_deleted_mode.is_some() {
             let progress_bar: ProgressBar = indicatif::ProgressBar::new_spinner();
             ExecMode::NonInteractiveRecursive(progress_bar)
         } else {
             // no need for deleted file modes in a non-interactive/display recursive setting
-            deleted_mode = None;
+            opt_deleted_mode = None;
             ExecMode::Display
         };
 
@@ -638,7 +638,14 @@ impl Config {
 
         // for exec_modes in which we can only take a single directory, process how we handle those here
         let opt_requested_dir: Option<PathData> =
-            Self::get_opt_requested_dir(&mut exec_mode, &mut deleted_mode, &paths, &pwd)?;
+            Self::get_opt_requested_dir(&mut exec_mode, &mut opt_deleted_mode, &paths, &pwd)?;
+
+        if !matches!(opt_deleted_mode, None | Some(DeletedMode::All)) && !opt_recursive {
+            return Err(HttmError::new(
+                "Deleted modes other than \"all\" require recursive mode is enabled.  Quitting.",
+            )
+            .into());
+        }
 
         let opt_omit_ditto = matches.is_present("OMIT_DITTO");
 
@@ -694,7 +701,7 @@ impl Config {
             exec_mode,
             print_mode,
             dataset_collection,
-            deleted_mode,
+            opt_deleted_mode,
             pwd,
             opt_requested_dir,
         };

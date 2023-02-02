@@ -54,7 +54,7 @@ impl RecursiveLoop {
             });
         };
 
-        if config.deleted_mode.is_some() {
+        if config.opt_deleted_mode.is_some() {
             // thread pool allows deleted to have its own scope, which means
             // all threads must complete before the scope exits.  this is important
             // for display recursive searches as the live enumeration will end before
@@ -153,9 +153,9 @@ pub fn combine_and_send_entries(
         get_pseudo_live_versions(combined, requested_dir)
     } else {
         // live - not phantom
-        match config.deleted_mode {
+        match config.opt_deleted_mode {
             Some(DeletedMode::Only) => return Ok(()),
-            Some(DeletedMode::DepthOfOne | DeletedMode::Enabled) | None => {
+            Some(DeletedMode::DepthOfOne | DeletedMode::All) | None => {
                 // never show live files is display recursive/deleted only file mode
                 if matches!(config.exec_mode, ExecMode::NonInteractiveRecursive(_)) {
                     return Ok(());
@@ -272,8 +272,11 @@ fn display_or_transmit(
                 progress_bar.tick();
             } else {
                 print_display_recursive(config.as_ref(), entries)?;
+
                 // keeps spinner from squashing last line of output
-                eprintln!();
+                if config.opt_recursive {
+                    eprintln!();
+                }
             }
         }
         _ => unreachable!(),

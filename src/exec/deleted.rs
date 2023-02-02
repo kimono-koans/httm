@@ -94,7 +94,7 @@ impl SpawnDeletedThread {
         //
         // don't propagate errors, errors we are most concerned about
         // are transmission errors, which are handled elsewhere
-        if config.deleted_mode != Some(DeletedMode::DepthOfOne)
+        if config.opt_deleted_mode != Some(DeletedMode::DepthOfOne)
             && config.opt_recursive
             && !vec_dirs.is_empty()
         {
