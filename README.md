@@ -198,7 +198,7 @@ tar \
 --show-transformed-names \
 -zcvf "all-versions-$(basename $file).tar.gz" -T  -
 ```
-Create a *super fancy* `git` archive of all unique versions of `/var/log/syslog`:
+Create a *super fancy* `git` archive of all unique versions of `/var/log/syslog` (this simple script is the basis for [nicotine](https://github.com/kimono-koans/httm/blob/master/scripts/nicotine.bash)):
 ```bash
 # create variable for file name
 file="/var/log/syslog"
@@ -217,7 +217,7 @@ tar -zcvf "../all-versions-$(basename $file).tar.gz" "./"
 # and to view
 git log --stat
 ```
-[ounce](https://github.com/kimono-koans/httm/blob/master/scripts/ounce.bash) (codename: "dimebag") is a wrapper script for `httm` for no mental overhead, non-periodic dynamic snapshots.  Use `ounce` like so:
+Use [ounce](https://github.com/kimono-koans/httm/blob/master/scripts/ounce.bash) (codename: "dimebag"), a wrapper script for `httm`, for no mental overhead, non-periodic dynamic snapshots, like so:
 ```bash
 # request ZFS snapshot privileges
 ounce --give-priv
