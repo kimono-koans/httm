@@ -613,8 +613,6 @@ impl Config {
             let progress_bar: ProgressBar = indicatif::ProgressBar::new_spinner();
             ExecMode::NonInteractiveRecursive(progress_bar)
         } else {
-            // no need for deleted file modes in a non-interactive/display recursive setting
-            opt_deleted_mode = None;
             ExecMode::Display
         };
 
