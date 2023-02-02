@@ -269,7 +269,14 @@ fn display_or_transmit(
         ExecMode::Interactive(_) => transmit_entries(config.clone(), entries, is_phantom, skim_tx)?,
         ExecMode::NonInteractiveRecursive(progress_bar) => {
             if entries.is_empty() {
-                progress_bar.tick();
+                if config.opt_recursive {
+                    progress_bar.tick();
+                } else {
+                    eprintln!(
+                        "NOTICE: httm could not find any deleted files at this directory level.  \
+                    Perhaps try specifying a deleted mode in combination with \"--recursive\"."
+                    )
+                }
             } else {
                 print_display_recursive(config.as_ref(), entries)?;
 
