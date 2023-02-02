@@ -120,7 +120,7 @@ httm -i -R ~
 ```
 Browse all files deleted from your home directory, recursively, and view unique versions on all local and alternative replicated dataset snapshots:
 ```bash
-httm -d only -i -a -R ~
+httm -d=only -i -a -R ~
 ```
 Browse all files in your home directory, recursively, and view unique versions on local snapshots, to select and ultimately restore to your working directory:
 ```bash

@@ -522,7 +522,7 @@ impl Config {
             None => None,
         };
 
-        let mut deleted_mode = match matches.value_of("DELETED") {
+        let deleted_mode = match matches.value_of("DELETED") {
             Some("" | "all") => Some(DeletedMode::Enabled),
             Some("single") => Some(DeletedMode::DepthOfOne),
             Some("only") => Some(DeletedMode::Only),
@@ -613,8 +613,6 @@ impl Config {
             let progress_bar: ProgressBar = indicatif::ProgressBar::new_spinner();
             ExecMode::NonInteractiveRecursive(progress_bar)
         } else {
-            // no need for deleted file modes in a non-interactive/display recursive setting
-            deleted_mode = None;
             ExecMode::Display
         };
 
@@ -638,7 +636,7 @@ impl Config {
 
         // for exec_modes in which we can only take a single directory, process how we handle those here
         let opt_requested_dir: Option<PathData> =
-            Self::get_opt_requested_dir(&mut exec_mode, &mut deleted_mode, &paths, &pwd)?;
+            Self::get_opt_requested_dir(&mut exec_mode, &paths, &pwd)?;
 
         let opt_omit_ditto = matches.is_present("OMIT_DITTO");
 
@@ -772,7 +770,6 @@ impl Config {
 
     pub fn get_opt_requested_dir(
         exec_mode: &mut ExecMode,
-        deleted_mode: &mut Option<DeletedMode>,
         paths: &[PathData],
         pwd: &PathData,
     ) -> HttmResult<Option<PathData>> {
@@ -809,20 +806,16 @@ impl Config {
                                 // switch to a standard Display mode
                                 ExecMode::NonInteractiveRecursive(_) => {
                                     *exec_mode = ExecMode::Display;
-                                    *deleted_mode = None;
                                     None
                                 }
                                 _ => unreachable!(),
                             }
                         }
                     }
-                    n if n > 1 => return Err(HttmError::new(
+                    _ => return Err(HttmError::new(
                         "May only specify one path in the display recursive or interactive modes.",
                     )
                     .into()),
-                    _ => {
-                        unreachable!()
-                    }
                 }
             }
             ExecMode::Display
