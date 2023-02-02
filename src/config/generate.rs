@@ -164,6 +164,7 @@ fn parse_args() -> ArgMatches {
                 .takes_value(true)
                 .default_missing_value("all")
                 .possible_values(["all", "single", "only"])
+                .require_equals(true)
                 .min_values(0)
                 .require_equals(true)
                 .help("show deleted files in interactive modes.  In non-interactive modes, do a search for all files deleted from a specified directory. \
