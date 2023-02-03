@@ -310,6 +310,11 @@ function nicotine {
 			continue
 		fi
 
+		if [[ ! -f "$canonical_path" && ! -d "$canonical_path" && ! -L "$canonical_path" ]]; then
+			printf "$canonical_path is not a file, directory, or symlink. Skipping.\n"
+			continue		
+		fi
+
 		convert_to_git $debug $no_archive "$working_dir" "$tmp_dir" "$output_dir" "$canonical_path"
 	done
 
