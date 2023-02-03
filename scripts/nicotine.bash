@@ -310,6 +310,7 @@ function nicotine {
 			continue
 		fi
 
+		# if not a file, directory, or symlink, we can't use so also skip
 		if [[ ! -f "$canonical_path" && ! -d "$canonical_path" && ! -L "$canonical_path" ]]; then
 			printf "$canonical_path is not a file, directory, or symlink. Skipping.\n"
 			continue		
