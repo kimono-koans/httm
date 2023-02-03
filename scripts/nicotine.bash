@@ -231,7 +231,7 @@ function convert_to_git {
 		cd "$tmp_dir"
 
 		# create archive
-		local output_file="$output_dir/$(basename $path)-git-archive.tar.gz"
+		local output_file="$output_dir/$(basename $path)-git.tar.gz"
 
 		if [[ $debug = true ]]; then
 			tar -zcvf "$output_file" "./$basename" || print_err_exit "Archive creation failed.  Quitting."
