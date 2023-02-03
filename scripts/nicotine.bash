@@ -132,7 +132,7 @@ function get_unique_versions {
 	local -a version_list
 
 	# all we care about is unique file versions, unique directory versions aren't useful
-	# in this context, as we are recursing and commiting every file we find, so we can skip 
+	# in this context, as we are recursing and commiting every file we find, we can skip 
 	# commiting all directory versions we find
 	[[ -d "$path" ]] || while read -r line; do
 		version_list+=("$line")
@@ -158,7 +158,7 @@ function traverse {
 
 	get_unique_versions $debug "$path" "$dest_dir"
 
-	# return early - is file, not, can't traverse
+	# return early - if is file, can't traverse
 	[[ -d "$path" ]] || return 0
 
 	local -a dir_entries=()
@@ -197,7 +197,6 @@ function convert_to_git {
 	local archive_dir=""
 	local basename=""
 
-	# copy each version to repo and commit after each copy
 	# create dir for file
 	basename="$(basename "$path")"
 
@@ -205,7 +204,7 @@ function convert_to_git {
 	archive_dir="$tmp_dir/$basename"
 	mkdir "$archive_dir" || print_err_exit "nicotine could not create a temporary directory.  Check you have permissions to create."
 	
-	# ... and must enter the dir to have git work
+	# ... and we must enter the dir to have git work
 	cd "$archive_dir" || print_err_exit "nicotine could not enter a temporary directory: $archive_dir.  Check you have permissions to enter."
 
 	# create git repo
@@ -305,7 +304,7 @@ function nicotine {
 			continue
 		fi
 
-		# ... and tar will not create an archive using an empty dir
+		# ... and tar will not create an archive for an empty dir
 		if [[ -d "$canonical_path" ]] && [[ -z "$(find "$canonical_path" -mindepth 1 -maxdepth 1)" ]]; then
 			printf "$canonical_path is an empty directory. Skipping.\n"
 			continue
