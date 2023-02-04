@@ -84,7 +84,7 @@ pub mod group_map {
         I: Iterator<Item = (K, V)>,
         K: Hash + Eq,
     {
-        let mut lookup: HashMap<K, Vec<V>> = HashMap::new();
+        let mut lookup: HashMap<K, Vec<V>> = HashMap::with_capacity(iter.size_hint().0);
 
         iter.for_each(|(key, val)| match lookup.get_mut(&key) {
             Some(vec_val) => {
