@@ -104,7 +104,7 @@ impl VersionsMap {
                     ))
                 } else {
                     Some(format!(
-                        "{:<width$} : {} Version available.{}",
+                        "{:<width$} : {} Versions available.{}",
                         display_path,
                         num_versions,
                         delimiter,
