@@ -24,11 +24,11 @@ use crate::MountsForFiles;
 use crate::SnapNameMap;
 use crate::VersionsMap;
 
-pub struct PrintableMap {
+pub struct PrintAsMap {
     pub inner: BTreeMap<String, Vec<String>>,
 }
 
-impl Deref for PrintableMap {
+impl Deref for PrintAsMap {
     type Target = BTreeMap<String, Vec<String>>;
 
     fn deref(&self) -> &Self::Target {
@@ -36,7 +36,7 @@ impl Deref for PrintableMap {
     }
 }
 
-impl From<&MountsForFiles> for PrintableMap {
+impl From<&MountsForFiles> for PrintAsMap {
     fn from(map: &MountsForFiles) -> Self {
         let inner = map
             .iter()
@@ -52,7 +52,7 @@ impl From<&MountsForFiles> for PrintableMap {
     }
 }
 
-impl From<&VersionsMap> for PrintableMap {
+impl From<&VersionsMap> for PrintAsMap {
     fn from(map: &VersionsMap) -> Self {
         let inner = map
             .iter()
@@ -68,8 +68,8 @@ impl From<&VersionsMap> for PrintableMap {
     }
 }
 
-impl From<&SnapNameMap> for PrintableMap {
-    fn from(map: &SnapNameMap) -> PrintableMap {
+impl From<&SnapNameMap> for PrintAsMap {
+    fn from(map: &SnapNameMap) -> Self {
         let inner = map
             .iter()
             .map(|(key, value)| (key.path_buf.to_string_lossy().to_string(), value.to_owned()))
@@ -78,7 +78,7 @@ impl From<&SnapNameMap> for PrintableMap {
     }
 }
 
-impl PrintableMap {
+impl PrintAsMap {
     pub fn get_map_padding(&self) -> usize {
         self.inner.keys().max_by_key(|key| key.len()).map_or_else(
             || QUOTATION_MARKS_LEN,

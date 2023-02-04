@@ -59,7 +59,7 @@ mod parse {
     pub mod snaps;
 }
 
-use crate::display_other::generic_maps::PrintableMap;
+use crate::display_other::generic_maps::PrintAsMap;
 use exec::purge::PurgeFiles;
 use exec::snapshot::TakeSnapshot;
 use library::utility::print_output_buf;
@@ -129,7 +129,7 @@ fn exec() -> HttmResult<()> {
         }
         ExecMode::SnapsForFiles(opt_filters) => {
             let snap_name_map = SnapNameMap::exec(config.as_ref(), opt_filters)?;
-            let printable_map = PrintableMap::from(&snap_name_map);
+            let printable_map = PrintAsMap::from(&snap_name_map);
             let output_buf = OtherDisplayWrapper::from(config.as_ref(), printable_map).to_string();
 
             print_output_buf(output_buf)
@@ -137,7 +137,7 @@ fn exec() -> HttmResult<()> {
         ExecMode::Purge(opt_filters) => PurgeFiles::exec(config.as_ref(), opt_filters),
         ExecMode::MountsForFiles => {
             let mounts_map = &MountsForFiles::new(&config);
-            let printable_map: PrintableMap = mounts_map.into();
+            let printable_map: PrintAsMap = mounts_map.into();
             let output_buf = OtherDisplayWrapper::from(&config, printable_map).to_string();
 
             print_output_buf(output_buf)

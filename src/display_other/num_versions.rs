@@ -17,7 +17,7 @@
 
 use crate::config::generate::NumVersionsMode;
 use crate::data::paths::PathData;
-use crate::display_other::generic_maps::PrintableMap;
+use crate::display_other::generic_maps::PrintAsMap;
 use crate::lookup::versions::VersionsMap;
 
 impl VersionsMap {
@@ -29,7 +29,7 @@ impl VersionsMap {
             .iter()
             .filter_map(|(live_version, snaps)| {
                 let map_padding = if matches!(num_versions_mode, NumVersionsMode::All) {
-                    let printable_map = PrintableMap::from(self);
+                    let printable_map = PrintAsMap::from(self);
                     printable_map.get_map_padding()
                 } else {
                     0usize

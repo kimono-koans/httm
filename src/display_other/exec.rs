@@ -17,16 +17,16 @@
 
 use crate::config::generate::{Config, PrintMode};
 
-use crate::display_other::generic_maps::PrintableMap;
+use crate::display_other::generic_maps::PrintAsMap;
 use crate::library::utility::get_delimiter;
 
 pub struct OtherDisplayWrapper<'a> {
     pub config: &'a Config,
-    pub map: PrintableMap,
+    pub map: PrintAsMap,
 }
 
 impl<'a> OtherDisplayWrapper<'a> {
-    pub fn from(config: &'a Config, map: PrintableMap) -> Self {
+    pub fn from(config: &'a Config, map: PrintAsMap) -> Self {
         Self { config, map }
     }
 }
