@@ -51,7 +51,7 @@ impl SnapNameMap {
         let snaps_selected_for_search = ONLY_PROXIMATE;
 
         let mount_tree =
-            MountsForFiles::from_raw_paths(config, &config.paths, &MountDisplay::Directory);
+            MountsForFiles::from_raw_paths(config, &config.paths, &MountDisplay::Target);
 
         let dataset_names_tree: BTreeMap<PathData, String> = mount_tree
             .deref()

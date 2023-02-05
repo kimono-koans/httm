@@ -44,10 +44,8 @@ impl From<&MountsForFiles> for PrintAsMap {
                 let res = values
                     .iter()
                     .filter_map(|value| match mounts_for_files.mount_display {
-                        MountDisplay::Directory => {
-                            Some(value.path_buf.to_string_lossy().to_string())
-                        }
-                        MountDisplay::DeviceDataset => {
+                        MountDisplay::Target => Some(value.path_buf.to_string_lossy().to_string()),
+                        MountDisplay::Source => {
                             let opt_md = mounts_for_files
                                 .config
                                 .dataset_collection

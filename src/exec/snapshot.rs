@@ -31,8 +31,7 @@ pub struct TakeSnapshot;
 
 impl TakeSnapshot {
     pub fn exec(config: &Config, requested_snapshot_suffix: &str) -> HttmResult<()> {
-        let mounts_for_files: MountsForFiles =
-            MountsForFiles::new(config, &MountDisplay::Directory);
+        let mounts_for_files: MountsForFiles = MountsForFiles::new(config, &MountDisplay::Target);
 
         if let Ok(zfs_command) = which("zfs") {
             Self::snapshot_mounts(

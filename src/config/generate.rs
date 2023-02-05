@@ -48,8 +48,8 @@ pub enum ExecMode {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MountDisplay {
-    Directory,
-    DeviceDataset,
+    Target,
+    Source,
     RelativePath,
 }
 
@@ -273,14 +273,14 @@ fn parse_args() -> ArgMatches {
                 .alias("mount-for-file")
                 .visible_alias("mount")
                 .takes_value(true)
-                .default_missing_value("directory")
-                .possible_values(["directory", "device", "dataset", "relative-path", "relative"])
+                .default_missing_value("target")
+                .possible_values(["source", "target", "directory", "device", "dataset", "relative-path", "relative", "relpath"])
                 .min_values(0)
                 .require_equals(true)
                 .help("display the all mount point/s of all dataset/s which contain/s the input file/s.
                 This argument optionally takes a value.  Possible values are: \
-                \"directory\", return the directory upon which the underlying dataset or device of the mount, \
-                \"device\" or \"dataset\", return the underlying dataset/device of the mount, and, 
+                \"target\" or \"directory\", return the directory upon which the underlying dataset or device of the mount, \
+                \"source\" or \"device\" or \"dataset\", return the underlying dataset/device of the mount, and, 
                 \"relative-path\" or \"relative\", return the path relative to the underlying dataset/device of the mount.")
                 .conflicts_with_all(&["BROWSE", "SELECT", "RESTORE"])
                 .display_order(13)
@@ -534,9 +534,9 @@ impl Config {
         };
 
         let opt_mount_display = match matches.value_of("FILE_MOUNT") {
-            Some("" | "directory") => Some(MountDisplay::Directory),
-            Some("device" | "dataset") => Some(MountDisplay::DeviceDataset),
-            Some("relative-path" | "relative") => Some(MountDisplay::RelativePath),
+            Some("" | "target" | "directory") => Some(MountDisplay::Target),
+            Some("source" | "device" | "dataset") => Some(MountDisplay::Source),
+            Some("relative-path" | "relative" | "relpath") => Some(MountDisplay::RelativePath),
             _ => None,
         };
 
