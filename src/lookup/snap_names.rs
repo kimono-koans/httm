@@ -122,7 +122,7 @@ impl SnapNameMap {
 
                         match opt_dataset_md {
                             Some(md) if md.fs_type != FilesystemType::Zfs => {
-                                eprintln!("WARNING: {:?} is located on a ZFS dataset.  httm can only list snapshot names for ZFS datasets.", pathdata);
+                                eprintln!("WARNING: {:?} is located on a non-ZFS dataset.  httm can only list snapshot names for ZFS datasets.", pathdata);
                                 None
                             }
                             Some(md) => {
