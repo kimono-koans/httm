@@ -25,19 +25,19 @@ use crate::data::paths::PathData;
 use crate::library::iter_extensions::HttmIter;
 use crate::lookup::versions::{MostProximateAndOptAlts, VersionsMap};
 
-pub struct MountsForFiles {
+pub struct MountsForFiles<'a> {
     pub inner: BTreeMap<PathData, Vec<PathData>>,
-    pub mount_display: MountDisplay,
-    pub config: Config,
+    pub mount_display: &'a MountDisplay,
+    pub config: &'a Config,
 }
 
-impl From<MountsForFiles> for VersionsMap {
+impl<'a> From<MountsForFiles<'a>> for VersionsMap {
     fn from(map: MountsForFiles) -> Self {
         map.inner.into()
     }
 }
 
-impl Deref for MountsForFiles {
+impl<'a> Deref for MountsForFiles<'a> {
     type Target = BTreeMap<PathData, Vec<PathData>>;
 
     fn deref(&self) -> &Self::Target {
@@ -45,8 +45,8 @@ impl Deref for MountsForFiles {
     }
 }
 
-impl MountsForFiles {
-    pub fn new(config: &Config, mount_display: &MountDisplay) -> Self {
+impl<'a> MountsForFiles<'a> {
+    pub fn new(config: &'a Config, mount_display: &'a MountDisplay) -> Self {
         // we only check for phantom files in "mount for file" mode because
         // people should be able to search for deleted files in other modes
         let (non_phantom_files, phantom_files): (Vec<PathData>, Vec<PathData>) = config
@@ -70,9 +70,9 @@ impl MountsForFiles {
     }
 
     pub fn from_raw_paths(
-        config: &Config,
+        config: &'a Config,
         raw_vec: &[PathData],
-        mount_display: &MountDisplay,
+        mount_display: &'a MountDisplay,
     ) -> Self {
         let map: BTreeMap<PathData, Vec<PathData>> = raw_vec
             .iter()
@@ -106,8 +106,8 @@ impl MountsForFiles {
 
         Self {
             inner: map,
-            mount_display: mount_display.to_owned(),
-            config: config.to_owned(),
+            mount_display,
+            config,
         }
     }
 }

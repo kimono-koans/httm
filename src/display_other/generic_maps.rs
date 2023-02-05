@@ -36,7 +36,7 @@ impl Deref for PrintAsMap {
     }
 }
 
-impl From<&MountsForFiles> for PrintAsMap {
+impl<'a> From<&MountsForFiles<'a>> for PrintAsMap {
     fn from(mounts_for_files: &MountsForFiles) -> Self {
         let inner = mounts_for_files
             .iter()
@@ -57,7 +57,7 @@ impl From<&MountsForFiles> for PrintAsMap {
                         MountDisplay::RelativePath => {
                             let opt_rel_path = key
                                 .get_relative_path(
-                                    &mounts_for_files.config,
+                                    mounts_for_files.config,
                                     value.path_buf.as_path(),
                                 )
                                 .ok();
