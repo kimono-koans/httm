@@ -22,6 +22,7 @@ use crate::config::generate::{Config, ListSnapsFilters, ListSnapsOfType};
 use crate::data::paths::PathData;
 use crate::library::results::{HttmError, HttmResult};
 use crate::lookup::versions::MostProximateAndOptAlts;
+use crate::parse::aliases::FilesystemType;
 
 use super::versions::SnapDatasetType;
 
@@ -113,17 +114,25 @@ impl SnapNameMap {
 
                         let dataset_path = PathBuf::from(dataset);
 
-                        let opt_dataset = config
+                        let opt_dataset_md = config
                             .dataset_collection
                             .map_of_datasets
                             .inner
-                            .get(&dataset_path)
-                            .map(|md| md.name.to_owned());
+                            .get(&dataset_path);
 
-                        if opt_snap.is_some() && opt_dataset.is_some() {
-                            Some(format!("{}@{}", opt_dataset.unwrap(), opt_snap.unwrap()))
-                        } else {
-                            None
+                        match opt_dataset_md {
+                            Some(md) if md.fs_type != FilesystemType::Zfs => {
+                                eprintln!("WARNING: {:?} is located on a ZFS dataset.  httm can only list snapshot names for ZFS datasets.", pathdata);
+                                None
+                            }
+                            Some(md) => {
+                                if opt_snap.is_some() {
+                                    Some(format!("{}@{}", md.name, opt_snap.unwrap()))
+                                } else {
+                                    None
+                                }
+                            }
+                            None => None,
                         }
                     })
                     .filter(|snap| {
