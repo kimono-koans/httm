@@ -242,15 +242,15 @@ fn parse_args() -> ArgMatches {
                 .require_equals(true)
                 .multiple_values(false)
                 .default_missing_value("all")
-                .help("display snapshots names for a file on that file's most immediate mount.  \
-                This argument optionally takes a value.  By default, this argument will return \"all\" available snapshot names.  \
+                .help("display snapshots names for a file.  This argument optionally takes a value.  \
+                By default, this argument will return \"all\" available snapshot names.  \
                 However, the user may also request only \"unique\" snapshots.  \
                 And by appending a comma, \",\" and a number, the user may omit last \"n\" snapshots from any list.  \
                 By appending successive commas, this argument filters those snapshots which contain the specified pattern/s.  \
                 A value of \"unique,5,prep_Apt\" would return the snapshot names of only the last 5 (at most) unique snapshot versions which contain \"prep_Apt\".  \
                 The value \"native\" will restrict selection to only httm native snapshot suffix values, like \"httmSnapFileMount\" and \"ounceSnapFileMount\".  
                 Note: This is a ZFS only option.")
-                .conflicts_with_all(&["BROWSE", "RESTORE", "ALT_REPLICATED", "REMOTE_DIR", "LOCAL_DIR"])
+                .conflicts_with_all(&["BROWSE", "RESTORE"])
                 .display_order(11)
         )
         .arg(

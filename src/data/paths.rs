@@ -192,7 +192,7 @@ impl PathData {
             .ancestors()
             .skip_while(|ancestor| ancestor.components().count() > map_of_datasets.max_len)
             .find_map(|ancestor| {
-                if map_of_datasets.datasets.contains_key(ancestor) {
+                if map_of_datasets.inner.contains_key(ancestor) {
                     Some(ancestor.to_path_buf())
                 } else {
                     None

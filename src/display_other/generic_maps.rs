@@ -50,7 +50,7 @@ impl<'a> From<&MountsForFiles<'a>> for PrintAsMap {
                                 .config
                                 .dataset_collection
                                 .map_of_datasets
-                                .datasets
+                                .inner
                                 .get(&value.path_buf);
                             opt_md.map(|md| md.name.to_owned())
                         }

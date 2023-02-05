@@ -54,13 +54,13 @@ pub struct DatasetMetadata {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FilterDirs {
-    pub dirs: BTreeSet<PathBuf>,
+    pub inner: BTreeSet<PathBuf>,
     pub max_len: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MapOfDatasets {
-    pub datasets: BTreeMap<PathBuf, DatasetMetadata>,
+    pub inner: BTreeMap<PathBuf, DatasetMetadata>,
     pub max_len: usize,
 }
 
@@ -90,7 +90,7 @@ impl BaseFilesystemInfo {
                 .unwrap_or(0);
 
             MapOfDatasets {
-                datasets: raw_datasets,
+                inner: raw_datasets,
                 max_len: datasets_max_len,
             }
         };
@@ -103,7 +103,7 @@ impl BaseFilesystemInfo {
                 .unwrap_or(0);
 
             FilterDirs {
-                dirs: filter_dirs_set,
+                inner: filter_dirs_set,
                 max_len: filter_dirs_max_len,
             }
         };
@@ -283,7 +283,7 @@ impl BaseFilesystemInfo {
         let map_of_snaps: &MapOfSnaps = &self.map_of_snaps;
 
         let btrfs_datasets: Vec<&PathBuf> = map_of_datasets
-            .datasets
+            .inner
             .par_iter()
             .filter(|(_mount, dataset_info)| dataset_info.fs_type == FilesystemType::Btrfs)
             .map(|(mount, _dataset_info)| mount)

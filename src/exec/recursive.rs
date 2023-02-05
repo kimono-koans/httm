@@ -238,7 +238,7 @@ fn is_filter_dir(config: &Config, entry: &BasicDirEntryInfo) -> bool {
         return false;
     }
 
-    config.dataset_collection.filter_dirs.dirs.contains(path)
+    config.dataset_collection.filter_dirs.inner.contains(path)
 }
 
 // this function creates dummy "live versions" values to match deleted files
