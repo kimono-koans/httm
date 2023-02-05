@@ -56,6 +56,15 @@ impl From<&MountsForFiles> for PrintAsMap {
                                 .get(&value.path_buf);
                             opt_md.map(|md| md.name.to_owned())
                         }
+                        MountDisplay::RelativePath => {
+                            let opt_rel_path = key
+                                .get_relative_path(
+                                    &mounts_for_files.config,
+                                    value.path_buf.as_path(),
+                                )
+                                .ok();
+                            opt_rel_path.map(|path| path.to_string_lossy().to_string())
+                        }
                     })
                     .collect();
                 (key.path_buf.to_string_lossy().to_string(), res)

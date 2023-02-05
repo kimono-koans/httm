@@ -50,6 +50,7 @@ pub enum ExecMode {
 pub enum MountDisplay {
     Directory,
     DeviceDataset,
+    RelativePath,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -273,13 +274,14 @@ fn parse_args() -> ArgMatches {
                 .visible_alias("mount")
                 .takes_value(true)
                 .default_missing_value("directory")
-                .possible_values(["directory", "device", "dataset"])
+                .possible_values(["directory", "device", "dataset", "relative-path", "relative"])
                 .min_values(0)
                 .require_equals(true)
                 .help("display the all mount point/s of all dataset/s which contain/s the input file/s.
                 This argument optionally takes a value.  Possible values are: \
                 \"directory\", return the directory upon which the underlying dataset or device of the mount, \
-                and \"device\" or \"dataset\", return the underlying dataset/device of the mount.")
+                \"device\" or \"dataset\", return the underlying dataset/device of the mount, and, 
+                \"relative-path\" or \"relative\", return the path relative to the underlying dataset/device of the mount.")
                 .conflicts_with_all(&["BROWSE", "SELECT", "RESTORE"])
                 .display_order(13)
         )
@@ -534,6 +536,7 @@ impl Config {
         let opt_mount_display = match matches.value_of("FILE_MOUNT") {
             Some("" | "directory") => Some(MountDisplay::Directory),
             Some("device" | "dataset") => Some(MountDisplay::DeviceDataset),
+            Some("relative-path" | "relative") => Some(MountDisplay::RelativePath),
             _ => None,
         };
 
