@@ -41,9 +41,15 @@ pub enum ExecMode {
     Display,
     SnapFileMount(String),
     Purge(Option<ListSnapsFilters>),
-    MountsForFiles,
+    MountsForFiles(MountDisplay),
     SnapsForFiles(Option<ListSnapsFilters>),
     NumVersions(NumVersionsMode),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum MountDisplay {
+    Directory,
+    DeviceDataset,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -265,7 +271,15 @@ fn parse_args() -> ArgMatches {
                 .long("file-mount")
                 .alias("mount-for-file")
                 .visible_alias("mount")
-                .help("display the all mount point/s of all dataset/s which contain/s the input file/s.")
+                .takes_value(true)
+                .default_missing_value("directory")
+                .possible_values(["directory", "device", "dataset"])
+                .min_values(0)
+                .require_equals(true)
+                .help("display the all mount point/s of all dataset/s which contain/s the input file/s.
+                This argument optionally takes a value.  Possible values are: \
+                \"directory\", return the directory upon which the underlying dataset or device of the mount, \
+                and \"device\" or \"dataset\", return the underlying dataset/device of the mount.")
                 .conflicts_with_all(&["BROWSE", "SELECT", "RESTORE"])
                 .display_order(13)
         )
@@ -517,6 +531,12 @@ impl Config {
             _ => None,
         };
 
+        let opt_mount_display = match matches.value_of("FILE_MOUNT") {
+            Some("" | "directory") => Some(MountDisplay::Directory),
+            Some("device" | "dataset") => Some(MountDisplay::DeviceDataset),
+            _ => None,
+        };
+
         let opt_preview = match matches.value_of("PREVIEW") {
             Some("" | "default") => Some("default".to_owned()),
             Some(user_defined) => Some(user_defined.to_owned()),
@@ -600,8 +620,8 @@ impl Config {
 
         let mut exec_mode = if let Some(num_versions_mode) = opt_num_versions {
             ExecMode::NumVersions(num_versions_mode)
-        } else if matches.is_present("FILE_MOUNT") {
-            ExecMode::MountsForFiles
+        } else if let Some(mount_display) = opt_mount_display {
+            ExecMode::MountsForFiles(mount_display)
         } else if matches.is_present("PURGE") {
             ExecMode::Purge(opt_snap_mode_filters)
         } else if opt_snap_mode_filters.is_some() {
@@ -752,7 +772,7 @@ impl Config {
                 ExecMode::Display
                 | ExecMode::SnapFileMount(_)
                 | ExecMode::Purge(_)
-                | ExecMode::MountsForFiles
+                | ExecMode::MountsForFiles(_)
                 | ExecMode::SnapsForFiles(_)
                 | ExecMode::NumVersions(_) => read_stdin()?
                     .par_iter()
@@ -834,7 +854,7 @@ impl Config {
             ExecMode::Display
             | ExecMode::SnapFileMount(_)
             | ExecMode::Purge(_)
-            | ExecMode::MountsForFiles
+            | ExecMode::MountsForFiles(_)
             | ExecMode::SnapsForFiles(_)
             | ExecMode::NumVersions(_) => {
                 // in non-interactive mode / display mode, requested dir is just a file

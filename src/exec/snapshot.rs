@@ -20,7 +20,7 @@ use std::{collections::BTreeMap, path::Path, time::SystemTime};
 use std::process::Command as ExecProcess;
 use which::which;
 
-use crate::config::generate::{Config, PrintMode};
+use crate::config::generate::{Config, MountDisplay, PrintMode};
 use crate::library::iter_extensions::HttmIter;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{get_date, get_delimiter, print_output_buf, DateFormat};
@@ -31,7 +31,8 @@ pub struct TakeSnapshot;
 
 impl TakeSnapshot {
     pub fn exec(config: &Config, requested_snapshot_suffix: &str) -> HttmResult<()> {
-        let mounts_for_files: MountsForFiles = MountsForFiles::new(config);
+        let mounts_for_files: MountsForFiles =
+            MountsForFiles::new(config, &MountDisplay::Directory);
 
         if let Ok(zfs_command) = which("zfs") {
             Self::snapshot_mounts(

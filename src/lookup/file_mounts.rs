@@ -20,19 +20,15 @@ use std::ops::Deref;
 
 use rayon::prelude::*;
 
-use crate::config::generate::Config;
+use crate::config::generate::{Config, MountDisplay};
 use crate::data::paths::PathData;
 use crate::library::iter_extensions::HttmIter;
 use crate::lookup::versions::{MostProximateAndOptAlts, VersionsMap};
 
 pub struct MountsForFiles {
-    inner: BTreeMap<PathData, Vec<PathData>>,
-}
-
-impl From<BTreeMap<PathData, Vec<PathData>>> for MountsForFiles {
-    fn from(map: BTreeMap<PathData, Vec<PathData>>) -> Self {
-        Self { inner: map }
-    }
+    pub inner: BTreeMap<PathData, Vec<PathData>>,
+    pub mount_display: MountDisplay,
+    pub config: Config,
 }
 
 impl From<MountsForFiles> for VersionsMap {
@@ -50,7 +46,7 @@ impl Deref for MountsForFiles {
 }
 
 impl MountsForFiles {
-    pub fn new(config: &Config) -> MountsForFiles {
+    pub fn new(config: &Config, mount_display: &MountDisplay) -> Self {
         // we only check for phantom files in "mount for file" mode because
         // people should be able to search for deleted files in other modes
         let (non_phantom_files, phantom_files): (Vec<PathData>, Vec<PathData>) = config
@@ -70,10 +66,14 @@ impl MountsForFiles {
                 .for_each(|pathdata| eprintln!("{:?}", pathdata.path_buf));
         }
 
-        MountsForFiles::from_raw_paths(config, &non_phantom_files)
+        MountsForFiles::from_raw_paths(config, &non_phantom_files, mount_display)
     }
 
-    pub fn from_raw_paths(config: &Config, raw_vec: &[PathData]) -> MountsForFiles {
+    pub fn from_raw_paths(
+        config: &Config,
+        raw_vec: &[PathData],
+        mount_display: &MountDisplay,
+    ) -> Self {
         let map: BTreeMap<PathData, Vec<PathData>> = raw_vec
             .iter()
             .map(|pathdata| {
@@ -104,6 +104,10 @@ impl MountsForFiles {
             })
             .collect();
 
-        MountsForFiles::from(map)
+        Self {
+            inner: map,
+            mount_display: mount_display.to_owned(),
+            config: config.to_owned(),
+        }
     }
 }

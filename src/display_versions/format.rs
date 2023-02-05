@@ -97,7 +97,7 @@ impl DisplaySet {
 
         let vec_live = if config.opt_last_snap.is_some()
             || config.opt_no_live
-            || matches!(config.exec_mode, ExecMode::MountsForFiles)
+            || matches!(config.exec_mode, ExecMode::MountsForFiles(_))
         {
             Vec::new()
         } else {

@@ -18,14 +18,14 @@
 use std::collections::BTreeMap;
 use std::ops::Deref;
 
-use crate::config::generate::{Config, PrintMode};
+use crate::config::generate::{Config, MountDisplay, PrintMode};
 use crate::display_versions::format::{NOT_SO_PRETTY_FIXED_WIDTH_PADDING, QUOTATION_MARKS_LEN};
 use crate::MountsForFiles;
 use crate::SnapNameMap;
 use crate::VersionsMap;
 
 pub struct PrintAsMap {
-    pub inner: BTreeMap<String, Vec<String>>,
+    inner: BTreeMap<String, Vec<String>>,
 }
 
 impl Deref for PrintAsMap {
@@ -37,13 +37,26 @@ impl Deref for PrintAsMap {
 }
 
 impl From<&MountsForFiles> for PrintAsMap {
-    fn from(map: &MountsForFiles) -> Self {
-        let inner = map
+    fn from(mounts_for_files: &MountsForFiles) -> Self {
+        let inner = mounts_for_files
             .iter()
             .map(|(key, values)| {
                 let res = values
                     .iter()
-                    .map(|value| value.path_buf.to_string_lossy().to_string())
+                    .filter_map(|value| match mounts_for_files.mount_display {
+                        MountDisplay::Directory => {
+                            Some(value.path_buf.to_string_lossy().to_string())
+                        }
+                        MountDisplay::DeviceDataset => {
+                            let opt_md = mounts_for_files
+                                .config
+                                .dataset_collection
+                                .map_of_datasets
+                                .datasets
+                                .get(&value.path_buf);
+                            opt_md.map(|md| md.name.to_owned())
+                        }
+                    })
                     .collect();
                 (key.path_buf.to_string_lossy().to_string(), res)
             })

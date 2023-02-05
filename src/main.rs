@@ -135,8 +135,8 @@ fn exec() -> HttmResult<()> {
             print_output_buf(output_buf)
         }
         ExecMode::Purge(opt_filters) => PurgeFiles::exec(config.as_ref(), opt_filters),
-        ExecMode::MountsForFiles => {
-            let mounts_map = &MountsForFiles::new(&config);
+        ExecMode::MountsForFiles(mount_display) => {
+            let mounts_map = &MountsForFiles::new(&config, mount_display);
             let printable_map: PrintAsMap = mounts_map.into();
             let output_buf = OtherDisplayWrapper::from(&config, printable_map).to_string();
 

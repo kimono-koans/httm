@@ -17,7 +17,7 @@
 
 use std::{collections::BTreeMap, ops::Deref};
 
-use crate::config::generate::{Config, ListSnapsFilters, ListSnapsOfType};
+use crate::config::generate::{Config, ListSnapsFilters, ListSnapsOfType, MountDisplay};
 use crate::data::paths::PathData;
 use crate::library::results::{HttmError, HttmResult};
 use crate::lookup::versions::{MostProximateAndOptAlts, ONLY_PROXIMATE};
@@ -50,7 +50,8 @@ impl SnapNameMap {
         // only purge the proximate dataset
         let snaps_selected_for_search = ONLY_PROXIMATE;
 
-        let mount_tree = MountsForFiles::from_raw_paths(config, &config.paths);
+        let mount_tree =
+            MountsForFiles::from_raw_paths(config, &config.paths, &MountDisplay::Directory);
 
         let dataset_names_tree: BTreeMap<PathData, String> = mount_tree
             .deref()
