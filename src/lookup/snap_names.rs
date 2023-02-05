@@ -71,6 +71,7 @@ impl SnapNameMap {
                                 if md.fs_type == FilesystemType::Zfs {
                                     Some(md.name.to_owned())
                                 } else {
+                                    eprintln!("WARNING: {} is not a ZFS dataset.  httm cannot list snapshots for non-ZFS datasets.", md.name.to_owned());
                                     None
                                 }
                             }
