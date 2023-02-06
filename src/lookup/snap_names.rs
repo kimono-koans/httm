@@ -15,7 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::path::PathBuf;
+use std::path::Path;
 use std::{collections::BTreeMap, ops::Deref};
 
 use crate::config::generate::{Config, ListSnapsFilters, ListSnapsOfType};
@@ -112,13 +112,13 @@ impl SnapNameMap {
                     .filter_map(|(dataset, rest)| {
                         let opt_snap = rest.split_once('/').map(|(lhs, _rhs)| lhs);
 
-                        let dataset_path = PathBuf::from(dataset);
+                        let dataset_path = Path::new(&dataset);
 
                         let opt_dataset_md = config
                             .dataset_collection
                             .map_of_datasets
                             .inner
-                            .get(&dataset_path);
+                            .get(dataset_path);
 
                         match opt_dataset_md {
                             Some(md) if md.fs_type != FilesystemType::Zfs => {
@@ -126,11 +126,7 @@ impl SnapNameMap {
                                 None
                             }
                             Some(md) => {
-                                if opt_snap.is_some() {
-                                    Some(format!("{}@{}", md.name, opt_snap.unwrap()))
-                                } else {
-                                    None
-                                }
+                                opt_snap.map(|snap| format!("{}@{}", md.name, snap))
                             }
                             None => None,
                         }
