@@ -40,7 +40,7 @@ impl<'a> std::string::ToString for OtherDisplayWrapper<'a> {
                 .flatten()
                 .map(|value| {
                     let delimiter = get_delimiter(self.config);
-                    format!("{}{}", value, delimiter)
+                    format!("{value}{delimiter}")
                 })
                 .collect::<String>(),
             _ => self.map.format(self.config),

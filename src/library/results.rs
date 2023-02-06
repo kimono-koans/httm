@@ -33,7 +33,7 @@ impl HttmError {
         }
     }
     pub fn with_context(msg: &str, err: &dyn Error) -> Self {
-        let msg_plus_context = format!("{} : {:?}", msg, err);
+        let msg_plus_context = format!("{msg} : {err:?}");
 
         HttmError {
             details: msg_plus_context,
@@ -55,14 +55,14 @@ impl Error for HttmError {
 
 impl From<&dyn Error> for HttmError {
     fn from(err: &dyn Error) -> Self {
-        let context = format!("{:?}", err);
+        let context = format!("{err:?}");
         HttmError { details: context }
     }
 }
 
 impl From<IoError> for HttmError {
     fn from(err: IoError) -> Self {
-        let context = format!("{:?}", err);
+        let context = format!("{err:?}");
         HttmError { details: context }
     }
 }

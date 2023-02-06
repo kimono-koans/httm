@@ -85,7 +85,7 @@ fn main() {
     match exec() {
         Ok(_) => std::process::exit(0),
         Err(error) => {
-            eprintln!("Error: {}", error);
+            eprintln!("Error: {error}");
             std::process::exit(1)
         }
     }
@@ -97,7 +97,7 @@ fn exec() -> HttmResult<()> {
     let config = Config::new()?;
 
     if config.opt_debug {
-        eprintln!("{:#?}", config);
+        eprintln!("{config:#?}");
     }
 
     // fn exec() handles the basic display cases, and sends other cases to be processed elsewhere

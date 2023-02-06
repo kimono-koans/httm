@@ -183,7 +183,7 @@ impl LastInTimeSet {
                         dataset_for_search.get_search_bundles(config, pathdata)
                     })
                     .flatten()
-                    .flat_map(|search_bundle| search_bundle.get_last_version())
+                    .filter_map(|search_bundle| search_bundle.get_last_version())
                     .filter(|pathdata| pathdata.metadata.is_some())
                     .max_by_key(|pathdata| pathdata.metadata.unwrap().modify_time)
                     .map(|pathdata| pathdata.path_buf)

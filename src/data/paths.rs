@@ -124,7 +124,7 @@ impl PathData {
         let metadata = opt_metadata.map(|md| {
             let len = md.len();
             // may fail on systems that don't collect a modify time
-            let time = Self::get_modify_time(md);
+            let time = Self::get_modify_time(&md);
             PathMetadata {
                 size: len,
                 modify_time: time,
@@ -139,7 +139,7 @@ impl PathData {
 
     // using ctime instead of mtime might be more correct as mtime can be trivially changed from user space
     // but I think we want to use mtime here? People should be able to make a snapshot "unique" with only mtime?
-    fn get_modify_time(md: Metadata) -> SystemTime {
+    fn get_modify_time(md: &Metadata) -> SystemTime {
         //#[cfg(not(unix))]
         // return md.modified().unwrap_or(UNIX_EPOCH);
         //#[cfg(unix)]

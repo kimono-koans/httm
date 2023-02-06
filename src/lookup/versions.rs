@@ -331,7 +331,7 @@ impl RelativePathAndSnapMounts {
                             ErrorKind::PermissionDenied => {
                                 eprintln!("Error: When httm tried to find a file contained within a snapshot directory, permission was denied.  \
                                 Perhaps you need to use sudo or equivalent to view the contents of this snapshot (for instance, btrfs by default creates privileged snapshots).  \
-                                \nDetails: {}", err);
+                                \nDetails: {err}");
                                 std::process::exit(1)
                             },
                             // if file metadata is not found, or is otherwise not available, 

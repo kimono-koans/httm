@@ -52,7 +52,7 @@ impl<'a> From<&MountsForFiles<'a>> for PrintAsMap {
                                 .map_of_datasets
                                 .inner
                                 .get(&value.path_buf);
-                            opt_md.map(|md| md.name.to_owned())
+                            opt_md.map(|md| md.name.clone())
                         }
                         MountDisplay::RelativePath => {
                             let opt_rel_path = key
@@ -92,7 +92,7 @@ impl From<&SnapNameMap> for PrintAsMap {
     fn from(map: &SnapNameMap) -> Self {
         let inner = map
             .iter()
-            .map(|(key, value)| (key.path_buf.to_string_lossy().to_string(), value.to_owned()))
+            .map(|(key, value)| (key.path_buf.to_string_lossy().to_string(), value.clone()))
             .collect();
         Self { inner }
     }
@@ -121,9 +121,9 @@ impl PrintAsMap {
             })
             .map(|(key, values)| {
                 let display_path = if matches!(config.print_mode, PrintMode::FormattedNotPretty) {
-                    key.to_owned()
+                    key.clone()
                 } else {
-                    format!("\"{}\"", key)
+                    format!("\"{key}\"")
                 };
 
                 let values_string: String = values
@@ -131,7 +131,7 @@ impl PrintAsMap {
                     .enumerate()
                     .map(|(idx, value)| {
                         if matches!(config.print_mode, PrintMode::FormattedNotPretty) {
-                            format!("{}{}", NOT_SO_PRETTY_FIXED_WIDTH_PADDING, value)
+                            format!("{NOT_SO_PRETTY_FIXED_WIDTH_PADDING}{value}")
                         } else if idx == 0 {
                             format!(
                                 "{:<width$} : \"{}\"\n",
@@ -140,13 +140,13 @@ impl PrintAsMap {
                                 width = padding
                             )
                         } else {
-                            format!("{:<width$} : \"{}\"\n", "", value, width = padding)
+                            format!("{:<padding$} : \"{value}\"\n", "")
                         }
                     })
                     .collect::<String>();
 
                 if matches!(config.print_mode, PrintMode::FormattedNotPretty) {
-                    format!("{}:{}\n", display_path, values_string)
+                    format!("{display_path}:{values_string}\n")
                 } else {
                     values_string
                 }

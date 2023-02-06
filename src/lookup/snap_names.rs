@@ -122,11 +122,11 @@ impl SnapNameMap {
 
                         match opt_dataset_md {
                             Some(md) if md.fs_type != FilesystemType::Zfs => {
-                                eprintln!("WARNING: {:?} is located on a non-ZFS dataset.  httm can only list snapshot names for ZFS datasets.", pathdata);
+                                eprintln!("WARNING: {pathdata:?} is located on a non-ZFS dataset.  httm can only list snapshot names for ZFS datasets.");
                                 None
                             }
                             Some(md) => {
-                                opt_snap.map(|snap| format!("{}@{}", md.name, snap))
+                                opt_snap.map(|snap| format!("{}@{snap}", md.name))
                             }
                             None => None,
                         }

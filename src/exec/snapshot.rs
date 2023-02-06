@@ -79,7 +79,7 @@ impl TakeSnapshot {
                     .map(|snap_name| {
                         if matches!(config.print_mode, PrintMode::RawNewline | PrintMode::RawZero)  {
                             let delimiter = get_delimiter(config);
-                            format!("{}{}", &snap_name, delimiter)
+                            format!("{}{delimiter}", &snap_name)
                         } else {
                             format!("httm took a snapshot named: {}\n", &snap_name)
                         }

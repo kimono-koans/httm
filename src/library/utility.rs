@@ -129,7 +129,7 @@ fn copy_attributes(src: &Path, dst: &Path) -> HttmResult<()> {
 fn map_io_err(err: io::Error, dst: &Path) -> HttmError {
     match err.kind() {
         std::io::ErrorKind::PermissionDenied => {
-            let msg = format!("httm restore failed because the user did not have the correct permissions to restore to: {:?}", dst);
+            let msg = format!("httm restore failed because the user did not have the correct permissions to restore to: {dst:?}");
             HttmError::new(&msg)
         }
         _ => HttmError::with_context("httm restore failed for the following reason", &err),
@@ -231,7 +231,7 @@ pub fn print_output_buf(output_buf: String) -> HttmResult<()> {
     let out = std::io::stdout();
     let mut out_locked = out.lock();
     out_locked.write_all(output_buf.as_bytes())?;
-    out_locked.flush().map_err(|err| err.into())
+    out_locked.flush().map_err(std::convert::Into::into)
 }
 
 // is this path/dir_entry something we should count as a directory for our purposes?
@@ -409,10 +409,10 @@ pub fn display_human_size(size: &u64) -> String {
 
     match NumberPrefix::binary(size) {
         NumberPrefix::Standalone(bytes) => {
-            format!("{} bytes", bytes)
+            format!("{bytes} bytes")
         }
         NumberPrefix::Prefixed(prefix, n) => {
-            format!("{:.1} {}B", n, prefix)
+            format!("{n:.1} {prefix}B")
         }
     }
 }

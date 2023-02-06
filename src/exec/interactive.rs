@@ -88,7 +88,7 @@ impl InteractiveBrowse {
                 unreachable!()
             }
             // InteractiveMode::Browse executes back through fn exec() in main.rs
-            InteractiveMode::Browse => Ok(paths_selected_in_browse.to_vec()),
+            InteractiveMode::Browse => Ok(paths_selected_in_browse),
         }
     }
 
@@ -208,7 +208,7 @@ impl InteractiveSelect {
                         Path::new(path_string) != live_version.path_buf.as_path()
                     }) {
                         // return string from the loop
-                        break path_string.to_string();
+                        break (*path_string).to_string();
                     }
                 }
             }
@@ -236,9 +236,9 @@ impl InteractiveSelect {
             config.print_mode,
             PrintMode::RawNewline | PrintMode::RawZero
         ) {
-            format!("{}{}", path_string, delimiter)
+            format!("{path_string}{delimiter}")
         } else {
-            format!("\"{}\"{}", path_string, delimiter)
+            format!("\"{path_string}\"{delimiter}")
         };
 
         print_output_buf(output_buf)?;
@@ -308,12 +308,12 @@ impl InteractiveRestore {
         let preview_buffer = format!(
             "httm will copy a file from a snapshot:\n\n\
             \tfrom: {:?}\n\
-            \tto:   {:?}\n\n\
+            \tto:   {new_file_path_buf:?}\n\n\
             Before httm restores this file, it would like your consent. Continue? (YES/NO)\n\
             ──────────────────────────────────────────────────────────────────────────────\n\
             YES\n\
             NO",
-            snap_pathdata.path_buf, new_file_path_buf
+            snap_pathdata.path_buf
         );
 
         // loop until user consents or doesn't
@@ -329,12 +329,12 @@ impl InteractiveRestore {
                     let result_buffer = format!(
                         "httm copied a file from a snapshot:\n\n\
                             \tfrom: {:?}\n\
-                            \tto:   {:?}\n\n\
+                            \tto:   {new_file_path_buf:?}\n\n\
                             Restore completed successfully.",
-                        snap_pathdata.path_buf, new_file_path_buf
+                        snap_pathdata.path_buf
                     );
 
-                    break eprintln!("{}", result_buffer);
+                    break eprintln!("{result_buffer}");
                 }
                 "NO" | "N" => break eprintln!("User declined restore.  No files were restored."),
                 // if not yes or no, then noop and continue to the next iter of loop

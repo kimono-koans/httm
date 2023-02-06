@@ -59,7 +59,7 @@ impl VersionsMap {
                         display_set
                             .iter()
                             .flatten()
-                            .map(|pathdata| format!("{}{}", pathdata.path_buf.display(), delimiter))
+                            .map(|pathdata| format!("{}{delimiter}", pathdata.path_buf.display()))
                             .collect()
                     }
                 })
@@ -278,7 +278,7 @@ impl PaddingCollection {
         let get_max_sized_border = || {
             // Active below is the most idiomatic Rust, but it maybe slower than the commented portion
             // (0..fancy_border_len).map(|_| "─").collect()
-            format!("{:─<width$}\n", "", width = fancy_border_len)
+            format!("{:─<fancy_border_len$}\n", "")
         };
 
         match terminal_size() {

@@ -48,7 +48,7 @@ impl PreviewSelection {
                 }
             }
             _ => PreviewSelection {
-                opt_preview_window: Some("".to_owned()),
+                opt_preview_window: Some(String::new()),
                 opt_preview_command: None,
             },
         };
@@ -63,7 +63,7 @@ impl PreviewSelection {
         let command = if defined_command == "default" {
             match opt_live_version {
                 Some(live_version) if PathBuf::from(live_version).exists() && which("bowie").is_ok() => {
-                    format!("bowie --direct \"$snap_file\" \"{}\"", live_version)
+                    format!("bowie --direct \"$snap_file\" \"{live_version}\"")
                 },
                 _ => match which("cat") {
                     Ok(_) => "cat \"$snap_file\"".to_string(),
@@ -97,7 +97,7 @@ impl PreviewSelection {
                 Some(live_version) => {
                     defined_command
                         .replace("{snap_file}", "\"$snap_file\"")
-                        .replace("{live_file}", format!("\"{}\"", live_version).as_str())
+                        .replace("{live_file}", format!("\"{live_version}\"").as_str())
                 },
                 None if defined_command.contains("{live_file}") => {
                     return Err(HttmError::new("User specified a preview variable for a live version, but a live version could not be determined.").into())

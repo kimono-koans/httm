@@ -555,7 +555,7 @@ impl Config {
 
         let opt_interactive_mode = if matches.is_present("RESTORE") {
             match matches.value_of("RESTORE") {
-                Some("overwrite") | Some("yolo") => {
+                Some("overwrite" | "yolo") => {
                     Some(InteractiveMode::Restore(RestoreMode::Overwrite))
                 }
                 Some("copy-and-preserve") => {
@@ -706,27 +706,7 @@ impl Config {
             &exec_mode,
         )?;
 
-        let config = Config {
-            paths,
-            opt_no_live,
-            opt_recursive,
-            opt_exact,
-            opt_no_filter,
-            opt_no_snap,
-            opt_debug,
-            opt_no_traverse,
-            opt_omit_ditto,
-            opt_last_snap,
-            opt_preview,
-            opt_no_hidden,
-            requested_utc_offset,
-            exec_mode,
-            print_mode,
-            dataset_collection,
-            opt_deleted_mode,
-            pwd,
-            opt_requested_dir,
-        };
+        let config = Config { paths, opt_no_live, opt_recursive, opt_exact, opt_no_filter, opt_no_snap, opt_debug, opt_no_traverse, opt_omit_ditto, opt_no_hidden, opt_last_snap, opt_preview, requested_utc_offset, exec_mode, print_mode, opt_deleted_mode, dataset_collection, pwd, opt_requested_dir };
 
         Ok(config)
     }
@@ -904,18 +884,13 @@ impl Config {
                     "httmSnapFileMount".to_owned(),
                 ])
             } else {
-                Some(rest.iter().map(|item| item.to_string()).collect())
+                Some(rest.iter().map(|item| (*item).to_string()).collect())
             }
         } else {
             None
         };
 
-        Ok(ListSnapsFilters {
-            type_filter,
-            select_mode,
-            omit_num_snaps,
-            name_filters,
-        })
+        Ok(ListSnapsFilters { select_mode, type_filter, omit_num_snaps, name_filters })
     }
 
     // use an associated function here because we may need this display again elsewhere

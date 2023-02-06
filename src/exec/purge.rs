@@ -62,7 +62,7 @@ impl PurgeFiles {
             let buffer: String = snap_name_map
                 .values()
                 .flatten()
-                .map(|value| format!("{}\n", value))
+                .map(|value| format!("{value}\n"))
                 .collect();
             select_restore_view(config, &buffer, ViewMode::Select(None), true)?
         } else {
@@ -71,7 +71,7 @@ impl PurgeFiles {
 
         let snap_names_string: String = snap_names
             .iter()
-            .map(|value| format!("{}\n", value))
+            .map(|value| format!("{value}\n"))
             .collect();
 
         let preview_buffer = format!(
@@ -101,7 +101,7 @@ impl PurgeFiles {
                         file_names_string, snap_names_string
                     );
 
-                    break eprintln!("{}", result_buffer);
+                    break eprintln!("{result_buffer}");
                 }
                 "NO" | "N" => break eprintln!("User declined purge.  No files were purged."),
                 // if not yes or no, then noop and continue to the next iter of loop
@@ -119,7 +119,7 @@ impl PurgeFiles {
     ) -> HttmResult<()> {
         snap_name_map.values().flatten().try_for_each( |snapshot_name| {
             let mut process_args = vec!["destroy".to_owned()];
-            process_args.push(snapshot_name.to_owned());
+            process_args.push(snapshot_name.clone());
 
             let process_output = ExecProcess::new(zfs_command).args(&process_args).output()?;
             let stderr_string = std::str::from_utf8(&process_output.stderr)?.trim();

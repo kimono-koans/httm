@@ -49,7 +49,7 @@ impl RecursiveLoop {
                 &hangup_rx,
             )
             .unwrap_or_else(|error| {
-                eprintln!("Error: {}", error);
+                eprintln!("Error: {error}");
                 std::process::exit(1)
             });
         };

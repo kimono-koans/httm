@@ -57,7 +57,7 @@ impl VersionsMap {
                 // NumVersionsMode::All empty should be dealt with earlier at lookup_exec
                 _ => unreachable!(),
             };
-            eprintln!("{}", msg);
+            eprintln!("{msg}");
         }
 
         write_out_buffer
@@ -128,26 +128,26 @@ impl VersionsMap {
                         if snaps.is_empty() || (snaps.len() == 1 && is_live_redundant()) {
                             None
                         } else {
-                            Some(format!("{}{}", display_path, delimiter))
+                            Some(format!("{display_path}{delimiter}"))
                         }
                     }
                     NumVersionsMode::SingleAll => {
                         if snaps.is_empty() || (snaps.len() == 1 && is_live_redundant()) {
-                            Some(format!("{}{}", display_path, delimiter))
+                            Some(format!("{display_path}{delimiter}"))
                         } else {
                             None
                         }
                     }
                     NumVersionsMode::SingleNoSnap => {
                         if snaps.is_empty() {
-                            Some(format!("{}{}", display_path, delimiter))
+                            Some(format!("{display_path}{delimiter}"))
                         } else {
                             None
                         }
                     }
                     NumVersionsMode::SingleWithSnap => {
                         if !snaps.is_empty() && (snaps.len() == 1 && is_live_redundant()) {
-                            Some(format!("{}{}", display_path, delimiter))
+                            Some(format!("{display_path}{delimiter}"))
                         } else {
                             None
                         }
