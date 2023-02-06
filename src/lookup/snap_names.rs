@@ -59,7 +59,7 @@ impl SnapNameMap {
         snap_name_map.deref().iter().for_each(|(pathdata, snaps)| {
             if snaps.is_empty() {
                 let msg = format!(
-                    "httm could not find any snapshots for the files specified: {:?}",
+                    "httm could not find any snapshots for the file specified: {:?}",
                     pathdata.path_buf
                 );
                 eprintln!("WARNING: {msg}");
