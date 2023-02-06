@@ -256,7 +256,7 @@ fn parse_args() -> ArgMatches {
         .arg(
             Arg::new("PURGE")
                 .long("purge")
-                .help("purge all snapshot/s which contain the input file/s on that file's most immediate mount (via \"zfs destroy\").  \
+                .help("purge all snapshot/s which contain the input file/s on that file's most immediate mount via \"zfs destroy\".  \
                 \"zfs destroy\" is a DESTRUCTIVE operation which *does not* only apply to the file in question, but the entire snapshot upon which it resides.  \
                 Careless use may cause you to lose snapshot data you care about.  \
                 This argument requires and will be filtered according to any values specified at LIST_SNAPS.  \
@@ -277,10 +277,10 @@ fn parse_args() -> ArgMatches {
                 .possible_values(["source", "target", "directory", "device", "dataset", "relative-path", "relative", "relpath"])
                 .min_values(0)
                 .require_equals(true)
-                .help("display the all mount point/s of all dataset/s which contain/s the input file/s.
+                .help("display the all mount point/s of all dataset/s which contain/s the input file/s.  \
                 This argument optionally takes a value.  Possible values are: \
                 \"target\" or \"directory\", return the directory upon which the underlying dataset or device of the mount, \
-                \"source\" or \"device\" or \"dataset\", return the underlying dataset/device of the mount, and, 
+                \"source\" or \"device\" or \"dataset\", return the underlying dataset/device of the mount, and, \
                 \"relative-path\" or \"relative\", return the path relative to the underlying dataset/device of the mount.")
                 .conflicts_with_all(&["BROWSE", "SELECT", "RESTORE"])
                 .display_order(13)
@@ -299,8 +299,7 @@ fn parse_args() -> ArgMatches {
                 \"any\", return the last in time snapshot version, this is the default behavior/value, \
                 \"ditto\", return only last snaps which are the same as the live file version, \
                 \"no-ditto-exclusive\", return only a last snap which is not the same as the live version (argument \"--no-ditto\" is an alias for this option), \
-                \"no-ditto-inclusive\", return a last snap which is not the same as the live version, \
-                or should non-exist, return the live file, and, \
+                \"no-ditto-inclusive\", return a last snap which is not the same as the live version, or should none exist, return the live file, and, \
                 \"none\" or \"without\", return the live file only for those files without a last snapshot.")
                 .conflicts_with_all(&["NUM_VERSIONS", "SNAPSHOT", "MOUNT_FOR_FILE", "ALT_REPLICATED", "REMOTE_DIR", "LOCAL_DIR"])
                 .display_order(14)
