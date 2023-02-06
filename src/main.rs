@@ -21,13 +21,13 @@ mod data {
     pub mod selection;
 }
 mod display_other {
-    pub mod exec;
     pub mod generic_maps;
     pub mod num_versions;
+    pub mod wrapper;
 }
 mod display_versions {
-    pub mod exec;
     pub mod format;
+    pub mod wrapper;
 }
 mod exec {
     pub mod deleted;
@@ -67,8 +67,8 @@ use library::utility::print_output_buf;
 use crate::config::generate::{Config, ExecMode};
 use crate::lookup::file_mounts::MountsForFiles;
 
-use crate::display_other::exec::OtherDisplayWrapper;
-use crate::display_versions::exec::VersionsDisplayWrapper;
+use crate::display_other::wrapper::OtherDisplayWrapper;
+use crate::display_versions::wrapper::VersionsDisplayWrapper;
 use crate::exec::interactive::InteractiveBrowse;
 use crate::exec::recursive::NonInteractiveRecursiveWrapper;
 use crate::library::results::HttmResult;

@@ -16,8 +16,8 @@
 // that was distributed with this source code.
 
 use crate::config::generate::{Config, ExecMode};
-use crate::display_other::exec::OtherDisplayWrapper;
 use crate::display_other::generic_maps::PrintAsMap;
+use crate::display_other::wrapper::OtherDisplayWrapper;
 use crate::lookup::versions::VersionsMap;
 
 pub struct VersionsDisplayWrapper<'a> {

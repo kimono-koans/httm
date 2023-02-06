@@ -22,7 +22,7 @@ use skim::prelude::*;
 
 use crate::config::generate::{Config, ExecMode, InteractiveMode, PrintMode, RestoreMode};
 use crate::data::paths::{PathData, PathMetadata};
-use crate::display_versions::exec::VersionsDisplayWrapper;
+use crate::display_versions::wrapper::VersionsDisplayWrapper;
 use crate::exec::preview::PreviewSelection;
 use crate::exec::recursive::RecursiveLoop;
 use crate::library::results::{HttmError, HttmResult};

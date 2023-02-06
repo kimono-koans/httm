@@ -22,7 +22,7 @@ use skim::prelude::*;
 
 use crate::config::generate::Config;
 use crate::data::paths::{BasicDirEntryInfo, PathData};
-use crate::display_versions::exec::VersionsDisplayWrapper;
+use crate::display_versions::wrapper::VersionsDisplayWrapper;
 use crate::library::results::HttmResult;
 use crate::library::utility::paint_string;
 use crate::VersionsMap;

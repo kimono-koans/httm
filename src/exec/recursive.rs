@@ -24,7 +24,7 @@ use skim::prelude::*;
 use crate::config::generate::{Config, DeletedMode, ExecMode};
 use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::data::selection::SelectionCandidate;
-use crate::display_versions::exec::VersionsDisplayWrapper;
+use crate::display_versions::wrapper::VersionsDisplayWrapper;
 use crate::exec::deleted::SpawnDeletedThread;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{httm_is_dir, print_output_buf, HttmIsDir, Never};
