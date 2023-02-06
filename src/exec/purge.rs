@@ -29,7 +29,7 @@ pub struct PurgeFiles;
 
 impl PurgeFiles {
     pub fn exec(config: &Config, opt_filters: &Option<ListSnapsFilters>) -> HttmResult<()> {
-        let snap_name_map: SnapNameMap = SnapNameMap::exec(config, opt_filters)?;
+        let snap_name_map: SnapNameMap = SnapNameMap::exec(config, opt_filters);
 
         let select_mode = if let Some(filters) = opt_filters {
             filters.select_mode

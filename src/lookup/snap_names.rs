@@ -18,9 +18,10 @@
 use std::path::Path;
 use std::{collections::BTreeMap, ops::Deref};
 
+use rayon::prelude::*;
+
 use crate::config::generate::{Config, ListSnapsFilters, ListSnapsOfType};
 use crate::data::paths::PathData;
-use crate::library::results::{HttmError, HttmResult};
 use crate::lookup::versions::MostProximateAndOptAlts;
 use crate::parse::aliases::FilesystemType;
 
@@ -46,7 +47,7 @@ impl Deref for SnapNameMap {
 }
 
 impl SnapNameMap {
-    pub fn exec(config: &Config, opt_filters: &Option<ListSnapsFilters>) -> HttmResult<Self> {
+    pub fn exec(config: &Config, opt_filters: &Option<ListSnapsFilters>) -> Self {
         // only purge the proximate dataset
         let snaps_selected_for_search = config
             .dataset_collection
@@ -55,21 +56,18 @@ impl SnapNameMap {
 
         let all_snap_names = Self::get_snap_names(config, snaps_selected_for_search, opt_filters);
 
-        all_snap_names.iter().try_for_each(|(pathdata, snaps)| {
-            let res: HttmResult<()> = if snaps.is_empty() {
+        all_snap_names.iter().for_each(|(pathdata, snaps)| {
+            if snaps.is_empty() {
                 let msg = format!(
                     "httm could not find any snapshots for the files specified: {:?}",
                     pathdata.path_buf
                 );
-                return Err(HttmError::new(&msg).into());
-            } else {
-                Ok(())
-            };
-            res
-        })?;
+                eprintln!("WARNING: {msg}");
+            }
+        });
 
         let snap_name_map: SnapNameMap = all_snap_names.into();
-        Ok(snap_name_map)
+        snap_name_map
     }
 
     fn get_snap_names(
@@ -78,8 +76,9 @@ impl SnapNameMap {
         opt_filters: &Option<ListSnapsFilters>,
     ) -> BTreeMap<PathData, Vec<String>> {
         let requested_versions = config.paths.iter().map(|pathdata| {
+            // same way we use the rayon threadpool in versions
             let snap_versions: Vec<PathData> = snaps_selected_for_search
-                .iter()
+                .par_iter()
                 .flat_map(|dataset_type| {
                     MostProximateAndOptAlts::new(config, pathdata, dataset_type)
                 })
@@ -101,8 +100,9 @@ impl SnapNameMap {
 
         let snap_name_map: BTreeMap<PathData, Vec<String>> = requested_versions
             .map(|(pathdata, vec_snaps)| {
+                // use par iter here because no one else is using the global rayon threadpool any more
                 let snap_names: Vec<String> = vec_snaps
-                    .into_iter()
+                    .into_par_iter()
                     .map(|pathdata| pathdata.path_buf)
                     .filter_map(|snap| {
                         snap.to_string_lossy()
