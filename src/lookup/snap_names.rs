@@ -54,9 +54,9 @@ impl SnapNameMap {
             .snaps_selected_for_search
             .get_value();
 
-        let all_snap_names = Self::get_snap_names(config, snaps_selected_for_search, opt_filters);
+        let snap_name_map = Self::get_snap_names(config, snaps_selected_for_search, opt_filters);
 
-        all_snap_names.iter().for_each(|(pathdata, snaps)| {
+        snap_name_map.deref().iter().for_each(|(pathdata, snaps)| {
             if snaps.is_empty() {
                 let msg = format!(
                     "httm could not find any snapshots for the files specified: {:?}",
@@ -66,7 +66,6 @@ impl SnapNameMap {
             }
         });
 
-        let snap_name_map: SnapNameMap = all_snap_names.into();
         snap_name_map
     }
 
@@ -74,7 +73,7 @@ impl SnapNameMap {
         config: &Config,
         snaps_selected_for_search: &[SnapDatasetType],
         opt_filters: &Option<ListSnapsFilters>,
-    ) -> BTreeMap<PathData, Vec<String>> {
+    ) -> SnapNameMap {
         let requested_versions = config.paths.iter().map(|pathdata| {
             // same way we use the rayon threadpool in versions
             let snap_versions: Vec<PathData> = snaps_selected_for_search
@@ -98,7 +97,7 @@ impl SnapNameMap {
             (pathdata, snap_versions)
         });
 
-        let snap_name_map: BTreeMap<PathData, Vec<String>> = requested_versions
+        let inner: BTreeMap<PathData, Vec<String>> = requested_versions
             .map(|(pathdata, vec_snaps)| {
                 // use par iter here because no one else is using the global rayon threadpool any more
                 let snap_names: Vec<String> = vec_snaps
@@ -149,20 +148,23 @@ impl SnapNameMap {
             .collect();
 
         match opt_filters {
-            Some(mode_filter) if mode_filter.omit_num_snaps != 0 => snap_name_map
-                .into_iter()
-                .map(|(pathdata, snaps)| {
-                    (
-                        pathdata,
-                        snaps
-                            .into_iter()
-                            .rev()
-                            .skip(mode_filter.omit_num_snaps)
-                            .collect(),
-                    )
-                })
-                .collect(),
-            _ => snap_name_map,
+            Some(mode_filter) if mode_filter.omit_num_snaps != 0 => {
+                let res: BTreeMap<PathData, Vec<String>> = inner
+                    .into_iter()
+                    .map(|(pathdata, snaps)| {
+                        (
+                            pathdata,
+                            snaps
+                                .into_iter()
+                                .rev()
+                                .skip(mode_filter.omit_num_snaps)
+                                .collect(),
+                        )
+                    })
+                    .collect();
+                res.into()
+            }
+            _ => inner.into(),
         }
     }
 }
