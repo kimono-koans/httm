@@ -55,7 +55,7 @@ impl VersionsMap {
                     "Notification: No paths which have only a single version exist."
                 }
                 // NumVersionsMode::All empty should be dealt with earlier at lookup_exec
-                _ => unreachable!(),
+                NumVersionsMode::All => unreachable!(),
             };
             eprintln!("{msg}");
         }

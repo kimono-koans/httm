@@ -160,7 +160,7 @@ impl PathData {
                 // we use a dummy instead of a None value here.  Basically, sometimes, we want
                 // to print the request even if a live file does not exist
                 let size = if self.metadata.is_some() {
-                    display_human_size(&metadata.size)
+                    display_human_size(metadata.size)
                 } else {
                     padding_collection.phantom_size_pad_str.clone()
                 };
@@ -171,7 +171,7 @@ impl PathData {
             } else {
                 let size = {
                     let size = if self.metadata.is_some() {
-                        display_human_size(&metadata.size)
+                        display_human_size(metadata.size)
                     } else {
                         padding_collection.phantom_size_pad_str.clone()
                     };
@@ -232,7 +232,7 @@ impl PaddingCollection {
                     let date = get_date(config, &metadata.modify_time, DateFormat::Display);
                     let size = format!(
                         "{:>width$}",
-                        display_human_size(&metadata.size),
+                        display_human_size(metadata.size),
                         width = size_padding_len
                     );
                     let path = pathdata.path_buf.to_string_lossy();
@@ -240,7 +240,7 @@ impl PaddingCollection {
                     (date, size, path)
                 };
 
-                let display_size_len = display_human_size(&metadata.size).len();
+                let display_size_len = display_human_size(metadata.size).len();
                 let formatted_line_len = display_date.len()
                     + display_size.len()
                     + display_path.len()
@@ -263,7 +263,7 @@ impl PaddingCollection {
         let phantom_size_pad_str = format!(
             "{:<width$}",
             "",
-            width = display_human_size(&PHANTOM_SIZE).len()
+            width = display_human_size(PHANTOM_SIZE).len()
         );
 
         PaddingCollection {

@@ -159,9 +159,8 @@ pub fn combine_and_send_entries(
                 // never show live files is display recursive/deleted only file mode
                 if matches!(config.exec_mode, ExecMode::NonInteractiveRecursive(_)) {
                     return Ok(());
-                } else {
-                    combined
                 }
+                combined
             }
         }
     };

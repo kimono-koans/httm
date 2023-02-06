@@ -404,8 +404,8 @@ fn get_date_format<'a>(format: &DateFormat) -> &'a str {
     }
 }
 
-pub fn display_human_size(size: &u64) -> String {
-    let size = *size as f64;
+pub fn display_human_size(size: u64) -> String {
+    let size = size as f64;
 
     match NumberPrefix::binary(size) {
         NumberPrefix::Standalone(bytes) => {

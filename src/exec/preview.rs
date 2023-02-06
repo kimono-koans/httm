@@ -110,10 +110,10 @@ impl PreviewSelection {
 
             // protect ourselves from command like cat
             // just waiting on stdin by appending the snap file
-            if !parsed_command.contains("\"$snap_file\"") {
-                [defined_command, " \"$snap_file\""].into_iter().collect()
-            } else {
+            if parsed_command.contains("\"$snap_file\"") {
                 parsed_command
+            } else {
+                [defined_command, " \"$snap_file\""].into_iter().collect()
             }
         };
 
