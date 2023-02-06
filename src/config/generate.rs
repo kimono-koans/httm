@@ -917,4 +917,30 @@ impl Config {
             name_filters,
         })
     }
+
+    // use an associated function here because we may need this display again elsewhere
+    pub fn generate_display_config(&self, paths_selected: &[PathData]) -> Self {
+        // generate a config for a preview display only
+        Config {
+            paths: paths_selected.to_vec(),
+            opt_recursive: false,
+            opt_no_live: false,
+            opt_exact: false,
+            opt_no_filter: false,
+            opt_no_snap: false,
+            opt_debug: false,
+            opt_no_traverse: false,
+            opt_no_hidden: false,
+            opt_last_snap: None,
+            opt_preview: None,
+            opt_omit_ditto: self.opt_omit_ditto,
+            requested_utc_offset: self.requested_utc_offset,
+            exec_mode: ExecMode::Display,
+            print_mode: PrintMode::FormattedDefault,
+            opt_deleted_mode: None,
+            dataset_collection: self.dataset_collection.clone(),
+            pwd: self.pwd.clone(),
+            opt_requested_dir: self.opt_requested_dir.clone(),
+        }
+    }
 }

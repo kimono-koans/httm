@@ -22,7 +22,6 @@ use skim::prelude::*;
 
 use crate::config::generate::{Config, ExecMode, InteractiveMode, PrintMode, RestoreMode};
 use crate::data::paths::{PathData, PathMetadata};
-use crate::data::selection::SelectionCandidate;
 use crate::display_versions::exec::VersionsDisplayWrapper;
 use crate::exec::preview::PreviewSelection;
 use crate::exec::recursive::RecursiveLoop;
@@ -180,8 +179,7 @@ impl InteractiveSelect {
             Self::get_last_snap(config, paths_selected_in_browse, &versions_map)?
         } else {
             // same stuff we do at fn exec, snooze...
-            let display_config =
-                SelectionCandidate::generate_config_for_display(config, paths_selected_in_browse);
+            let display_config = config.generate_display_config(paths_selected_in_browse);
 
             let display_map = VersionsDisplayWrapper::from(&display_config, versions_map);
 

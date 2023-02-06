@@ -20,7 +20,7 @@ use std::{fs::FileType, path::PathBuf};
 use lscolors::Colorable;
 use skim::prelude::*;
 
-use crate::config::generate::{Config, ExecMode, PrintMode};
+use crate::config::generate::Config;
 use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::display_versions::exec::VersionsDisplayWrapper;
 use crate::library::results::HttmResult;
@@ -59,41 +59,15 @@ impl SelectionCandidate {
         }
     }
 
-    // use an associated function her because we may need this display again elsewhere
-    pub fn generate_config_for_display(config: &Config, paths_selected: &[PathData]) -> Config {
-        // generate a config for a preview display only
-        Config {
-            paths: paths_selected.to_vec(),
-            opt_recursive: false,
-            opt_no_live: false,
-            opt_exact: false,
-            opt_no_filter: false,
-            opt_no_snap: false,
-            opt_debug: false,
-            opt_no_traverse: false,
-            opt_no_hidden: false,
-            opt_last_snap: None,
-            opt_preview: None,
-            opt_omit_ditto: config.opt_omit_ditto,
-            requested_utc_offset: config.requested_utc_offset,
-            exec_mode: ExecMode::Display,
-            print_mode: PrintMode::FormattedDefault,
-            opt_deleted_mode: None,
-            dataset_collection: config.dataset_collection.clone(),
-            pwd: config.pwd.clone(),
-            opt_requested_dir: config.opt_requested_dir.clone(),
-        }
-    }
-
     fn preview_view(&self) -> HttmResult<String> {
         let config = &self.config;
         let paths_selected = &[PathData::from(self.path.as_path())];
 
         // generate a config for display
-        let gen_config = SelectionCandidate::generate_config_for_display(config, paths_selected);
+        let display_config = config.generate_display_config(paths_selected);
 
         // finally run search on those paths
-        let versions_map = VersionsMap::new(&gen_config, &gen_config.paths)?;
+        let versions_map = VersionsMap::new(&display_config, &display_config.paths)?;
         let output_buf = VersionsDisplayWrapper::from(config.as_ref(), versions_map).to_string();
 
         Ok(output_buf)
