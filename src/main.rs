@@ -47,6 +47,7 @@ mod library {
     pub mod utility;
 }
 mod lookup {
+    pub mod common;
     pub mod deleted;
     pub mod file_mounts;
     pub mod snap_names;

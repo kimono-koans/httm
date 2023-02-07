@@ -20,22 +20,27 @@ use std::{collections::BTreeMap, ops::Deref, path::Path, path::PathBuf};
 use rayon::prelude::*;
 
 use crate::library::results::{HttmError, HttmResult};
-use crate::lookup::versions::MostProximateAndOptAlts;
 use crate::parse::mounts::MapOfDatasets;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MapOfAlts {
-    inner: BTreeMap<PathBuf, MostProximateAndOptAlts>,
+    inner: BTreeMap<PathBuf, AltMetadata>,
 }
 
-impl From<BTreeMap<PathBuf, MostProximateAndOptAlts>> for MapOfAlts {
-    fn from(map: BTreeMap<PathBuf, MostProximateAndOptAlts>) -> Self {
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+pub struct AltMetadata {
+    pub proximate_dataset_mount: PathBuf,
+    pub opt_datasets_of_interest: Option<Vec<PathBuf>>,
+}
+
+impl<'a> From<BTreeMap<PathBuf, AltMetadata>> for MapOfAlts {
+    fn from(map: BTreeMap<PathBuf, AltMetadata>) -> Self {
         Self { inner: map }
     }
 }
 
-impl Deref for MapOfAlts {
-    type Target = BTreeMap<PathBuf, MostProximateAndOptAlts>;
+impl<'a> Deref for MapOfAlts {
+    type Target = BTreeMap<PathBuf, AltMetadata>;
 
     fn deref(&self) -> &Self::Target {
         &self.inner
@@ -45,7 +50,7 @@ impl Deref for MapOfAlts {
 impl MapOfAlts {
     // instead of looking up, precompute possible alt replicated mounts before exec
     pub fn new(map_of_datasets: &MapOfDatasets) -> Self {
-        let res: BTreeMap<PathBuf, MostProximateAndOptAlts> = map_of_datasets
+        let res: BTreeMap<PathBuf, AltMetadata> = map_of_datasets
             .inner
             .par_iter()
             .flat_map(|(mount, _dataset_info)| {
@@ -60,7 +65,7 @@ impl MapOfAlts {
     fn get_alt_replicated_from_mount(
         proximate_dataset_mount: &Path,
         map_of_datasets: &MapOfDatasets,
-    ) -> HttmResult<MostProximateAndOptAlts> {
+    ) -> HttmResult<AltMetadata> {
         let proximate_dataset_fs_name = match &map_of_datasets.inner.get(proximate_dataset_mount) {
             Some(dataset_info) => dataset_info.name.clone(),
             None => {
@@ -89,7 +94,7 @@ impl MapOfAlts {
             Err(HttmError::new("httm was unable to detect an alternate replicated mount point.  Perhaps the replicated filesystem is not mounted?").into())
         } else {
             alt_replicated_mounts.sort_unstable_by_key(|path| path.as_os_str().len());
-            Ok(MostProximateAndOptAlts {
+            Ok(AltMetadata {
                 proximate_dataset_mount: proximate_dataset_mount.to_path_buf(),
                 opt_datasets_of_interest: Some(alt_replicated_mounts),
             })

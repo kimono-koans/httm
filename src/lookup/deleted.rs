@@ -75,15 +75,36 @@ impl DeletedFilesBundle {
         // by filename and latest file version here
         let basic_info_map: HashMap<OsString, BasicDirEntryInfo> = requested_snap_datasets
             .iter()
+            // .flat_map(|dataset_type| {
+            //     MostProximateAndOptAlts::new(config, &requested_dir_pathdata, dataset_type)
+            // })
+            // .flat_map(|datasets_of_interest| {
+            //     datasets_of_interest.get_search_bundles(config, &requested_dir_pathdata)
+            // })
             .flat_map(|dataset_type| {
-                MostProximateAndOptAlts::new(config, &requested_dir_pathdata, dataset_type)
-            })
-            .flat_map(|datasets_of_interest| {
-                datasets_of_interest.get_search_bundles(config, &requested_dir_pathdata)
-            })
-            .flatten()
-            .flat_map(|search_bundle| {
-                Self::get_unique_deleted_for_dir(&requested_dir_pathdata.path_buf, &search_bundle)
+                if let Ok(datasets_of_interest) =
+                    MostProximateAndOptAlts::new(config, &requested_dir_pathdata, dataset_type)
+                {
+                    if let Ok(vec_search_bundle) =
+                        datasets_of_interest.get_search_bundles(config, &requested_dir_pathdata)
+                    {
+                        let res: Vec<BasicDirEntryInfo> = vec_search_bundle
+                            .iter()
+                            .flat_map(|search_bundle| {
+                                Self::get_unique_deleted_for_dir(
+                                    &requested_dir_pathdata.path_buf,
+                                    search_bundle,
+                                )
+                            })
+                            .flatten()
+                            .collect();
+                        Some(res)
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
             })
             .flatten()
             .map(|basic_info| (basic_info.file_name.clone(), basic_info))
@@ -177,13 +198,25 @@ impl LastInTimeSet {
                 snaps_selected_for_search
                     .iter()
                     .flat_map(|dataset_type| {
-                        MostProximateAndOptAlts::new(config, pathdata, dataset_type)
-                    })
-                    .flat_map(|dataset_for_search| {
-                        dataset_for_search.get_search_bundles(config, pathdata)
+                        if let Ok(datasets_of_interest) =
+                            MostProximateAndOptAlts::new(config, pathdata, dataset_type)
+                        {
+                            if let Ok(vec_search_bundle) =
+                                datasets_of_interest.get_search_bundles(config, pathdata)
+                            {
+                                let res: Vec<PathData> = vec_search_bundle
+                                    .iter()
+                                    .flat_map(|search_bundle| search_bundle.get_last_version())
+                                    .collect();
+                                Some(res)
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        }
                     })
                     .flatten()
-                    .filter_map(|search_bundle| search_bundle.get_last_version())
                     .filter(|pathdata| pathdata.metadata.is_some())
                     .max_by_key(|pathdata| pathdata.metadata.unwrap().modify_time)
                     .map(|pathdata| pathdata.path_buf)

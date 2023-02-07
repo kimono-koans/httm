@@ -79,20 +79,35 @@ impl SnapNameMap {
             let snap_versions: Vec<PathData> = snaps_selected_for_search
                 .par_iter()
                 .flat_map(|dataset_type| {
-                    MostProximateAndOptAlts::new(config, pathdata, dataset_type)
-                })
-                .flat_map(|dataset_for_search| {
-                    dataset_for_search.get_search_bundles(config, pathdata)
+                    if let Ok(datasets_of_interest) =
+                        MostProximateAndOptAlts::new(config, pathdata, dataset_type)
+                    {
+                        if let Ok(vec_search_bundle) =
+                            datasets_of_interest.get_search_bundles(config, pathdata)
+                        {
+                            let res: Vec<PathData> = vec_search_bundle
+                                .iter()
+                                .flat_map(|search_bundle| match opt_filters {
+                                    Some(mode_filters)
+                                        if matches!(
+                                            mode_filters.type_filter,
+                                            ListSnapsOfType::Unique
+                                        ) =>
+                                    {
+                                        search_bundle.get_unique_versions()
+                                    }
+                                    _ => search_bundle.get_all_versions(),
+                                })
+                                .collect();
+                            Some(res)
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
                 })
                 .flatten()
-                .flat_map(|search_bundle| match opt_filters {
-                    Some(mode_filters)
-                        if matches!(mode_filters.type_filter, ListSnapsOfType::Unique) =>
-                    {
-                        search_bundle.get_unique_versions()
-                    }
-                    _ => search_bundle.get_all_versions(),
-                })
                 .collect();
             (pathdata, snap_versions)
         });
