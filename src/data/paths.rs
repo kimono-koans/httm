@@ -193,13 +193,7 @@ impl PathData {
         self.path_buf
             .ancestors()
             .skip_while(|ancestor| ancestor.components().count() > map_of_datasets.max_len)
-            .find_map(|ancestor| {
-                if map_of_datasets.inner.contains_key(ancestor) {
-                    Some(ancestor)
-                } else {
-                    None
-                }
-            })
+            .find(|ancestor| map_of_datasets.inner.contains_key(*ancestor))
             .ok_or_else(|| {
                 HttmError::new(
                     "httm could not identify any qualifying dataset.  \
