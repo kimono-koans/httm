@@ -99,13 +99,10 @@ impl SnapNameMap {
                                     _ => search_bundle.get_all_versions(),
                                 })
                                 .collect();
-                            Some(res)
-                        } else {
-                            None
+                            return Some(res);
                         }
-                    } else {
-                        None
                     }
+                    None
                 })
                 .flatten()
                 .collect();

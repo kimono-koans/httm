@@ -33,13 +33,13 @@ pub struct AltMetadata {
     pub opt_datasets_of_interest: Option<Vec<PathBuf>>,
 }
 
-impl<'a> From<BTreeMap<PathBuf, AltMetadata>> for MapOfAlts {
+impl From<BTreeMap<PathBuf, AltMetadata>> for MapOfAlts {
     fn from(map: BTreeMap<PathBuf, AltMetadata>) -> Self {
         Self { inner: map }
     }
 }
 
-impl<'a> Deref for MapOfAlts {
+impl Deref for MapOfAlts {
     type Target = BTreeMap<PathBuf, AltMetadata>;
 
     fn deref(&self) -> &Self::Target {

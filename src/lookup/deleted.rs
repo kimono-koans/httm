@@ -75,12 +75,6 @@ impl DeletedFilesBundle {
         // by filename and latest file version here
         let basic_info_map: HashMap<OsString, BasicDirEntryInfo> = requested_snap_datasets
             .iter()
-            // .flat_map(|dataset_type| {
-            //     MostProximateAndOptAlts::new(config, &requested_dir_pathdata, dataset_type)
-            // })
-            // .flat_map(|datasets_of_interest| {
-            //     datasets_of_interest.get_search_bundles(config, &requested_dir_pathdata)
-            // })
             .flat_map(|dataset_type| {
                 if let Ok(datasets_of_interest) =
                     MostProximateAndOptAlts::new(config, &requested_dir_pathdata, dataset_type)
@@ -98,13 +92,10 @@ impl DeletedFilesBundle {
                             })
                             .flatten()
                             .collect();
-                        Some(res)
-                    } else {
-                        None
+                        return Some(res);
                     }
-                } else {
-                    None
                 }
+                None
             })
             .flatten()
             .map(|basic_info| (basic_info.file_name.clone(), basic_info))
@@ -129,10 +120,7 @@ impl DeletedFilesBundle {
             .collect();
 
         let unique_snap_filenames: HashMap<OsString, BasicDirEntryInfo> =
-            Self::get_unique_snap_filenames(
-                &search_bundle.snap_mounts,
-                &search_bundle.relative_path,
-            );
+            Self::get_unique_snap_filenames(search_bundle.snap_mounts, search_bundle.relative_path);
 
         // compare local filenames to all unique snap filenames - none values are unique, here
         let all_deleted_versions: Vec<BasicDirEntryInfo> = unique_snap_filenames
@@ -208,13 +196,10 @@ impl LastInTimeSet {
                                     .iter()
                                     .flat_map(|search_bundle| search_bundle.get_last_version())
                                     .collect();
-                                Some(res)
-                            } else {
-                                None
+                                return Some(res);
                             }
-                        } else {
-                            None
                         }
+                        None
                     })
                     .flatten()
                     .filter(|pathdata| pathdata.metadata.is_some())

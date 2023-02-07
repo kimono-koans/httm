@@ -102,26 +102,10 @@ impl VersionsMap {
                                     .iter()
                                     .flat_map(|search_bundle| search_bundle.get_unique_versions())
                                     .collect();
-                                Some(res)
-                            } else {
-                                None
+                                return Some(res);
                             }
-                        } else {
-                            None
                         }
-                        // let opt_vec_search_bundle =
-                        //     FindVersions::exec(config, pathdata, dataset_type);
-
-                        // let res = opt_vec_search_bundle.ok().map(|vec_search_bundle| {
-                        //     let res: Vec<PathData> = vec_search_bundle
-                        //         .iter()
-                        //         .map(|search_bundle| search_bundle.get_unique_versions())
-                        //         .flatten()
-                        //         .collect();
-                        //     res
-                        // });
-
-                        // res
+                        None
                     })
                     .flatten()
                     .filter(|snap_version| {
@@ -352,7 +336,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
         let all_versions: Vec<PathData> = self
             .snap_mounts
             .par_iter()
-            .map(|path| path.join(&self.relative_path))
+            .map(|path| path.join(self.relative_path))
             .filter_map(|joined_path| {
                 match joined_path.symlink_metadata() {
                     Ok(md) => Some(PathData::new(joined_path.as_path(), Some(md))),
