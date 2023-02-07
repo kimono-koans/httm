@@ -101,7 +101,7 @@ impl RecursiveLoop {
                     skim_tx,
                     hangup_rx,
                 ) {
-                    queue.extend(vec_dirs.into_iter())
+                    queue.extend(vec_dirs)
                 }
             }
         }
