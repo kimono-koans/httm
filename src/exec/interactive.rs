@@ -297,12 +297,14 @@ impl InteractiveRestore {
             .ok_or_else(|| HttmError::new("Source location does not exist on disk. Quitting."))?;
 
         // build new place to send file
-        let (new_file_path_buf, should_preserve) = Self::build_new_file_path(
+        let new_file_path_buf = Self::build_new_file_path(
             config,
             paths_selected_in_browse,
             &snap_pathdata,
             &snap_path_metadata,
         )?;
+
+        let should_preserve = Self::should_preserve_attributes(config);
 
         // tell the user what we're up to, and get consent
         let preview_buffer = format!(
@@ -345,12 +347,20 @@ impl InteractiveRestore {
         std::process::exit(0)
     }
 
+    fn should_preserve_attributes(config: &Config) -> bool {
+        matches!(
+            config.exec_mode,
+            ExecMode::Interactive(InteractiveMode::Restore(RestoreMode::CopyAndPreserve))
+                | ExecMode::Interactive(InteractiveMode::Restore(RestoreMode::Overwrite))
+        )
+    }
+
     fn build_new_file_path(
         config: &Config,
         paths_selected_in_browse: &[PathData],
         snap_pathdata: &PathData,
         snap_path_metadata: &PathMetadata,
-    ) -> HttmResult<(PathBuf, bool)> {
+    ) -> HttmResult<PathBuf> {
         // build new place to send file
         if matches!(
             config.exec_mode,
@@ -380,10 +390,7 @@ impl InteractiveRestore {
             });
 
             match opt_original_live_pathdata {
-                Some(pathdata) => {
-                    let should_preserve = true;
-                    Ok((pathdata.path_buf, should_preserve))
-                }
+                Some(pathdata) => Ok(pathdata.path_buf),
                 None => Err(HttmError::new(
                     "httm unable to determine original file path in overwrite mode.  Quitting.",
                 )
@@ -413,11 +420,7 @@ impl InteractiveRestore {
                     HttmError::new("httm will not restore to that file, as a file with the same path name already exists. Quitting.").into(),
                 )
             } else {
-                let should_preserve = matches!(
-                    config.exec_mode,
-                    ExecMode::Interactive(InteractiveMode::Restore(RestoreMode::CopyAndPreserve))
-                );
-                Ok((new_file_path_buf, should_preserve))
+                Ok(new_file_path_buf)
             }
         }
     }
