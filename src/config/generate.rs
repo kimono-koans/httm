@@ -248,7 +248,7 @@ fn parse_args() -> ArgMatches {
                 And by appending a comma, \",\" and a number, the user may omit last \"n\" snapshots from any list.  \
                 By appending successive commas, this argument filters those snapshots which contain the specified pattern/s.  \
                 A value of \"unique,5,prep_Apt\" would return the snapshot names of only the last 5 (at most) unique snapshot versions which contain \"prep_Apt\".  \
-                The value \"native\" will restrict selection to only httm native snapshot suffix values, like \"httmSnapFileMount\" and \"ounceSnapFileMount\".  
+                The value \"native\" will restrict selection to only httm native snapshot suffix values, like \"httmSnapFileMount\" and \"ounceSnapFileMount\".  \
                 Note: This is a ZFS only option.")
                 .conflicts_with_all(&["BROWSE", "RESTORE"])
                 .display_order(11)
