@@ -260,7 +260,7 @@ impl<'a> MostProximateAndOptAlts<'a> {
         let proximate_dataset_mount = datasets_of_interest.proximate_dataset_mount;
 
         match datasets_of_interest.opt_datasets_of_interest {
-            Some(datasets_of_interest) => datasets_of_interest
+            Some(datasets) => datasets
                 .iter()
                 .map(|dataset_of_interest| {
                     RelativePathAndSnapMounts::new(
