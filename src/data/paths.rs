@@ -46,8 +46,8 @@ impl From<&DirEntry> for BasicDirEntryInfo {
 }
 
 impl BasicDirEntryInfo {
-    pub fn get_filename(&self) -> &OsStr {
-        self.path.file_name().unwrap_or_default()
+    pub fn get_filename(&self) -> Option<&OsStr> {
+        self.path.file_name()
     }
 }
 
