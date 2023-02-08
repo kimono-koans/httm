@@ -25,7 +25,7 @@ use std::{
 
 use rayon::prelude::*;
 
-use crate::config::generate::{Config, LastSnapMode};
+use crate::config::generate::{BulkExclusion, Config, LastSnapMode};
 use crate::data::paths::PathData;
 use crate::library::results::{HttmError, HttmResult};
 
@@ -68,7 +68,7 @@ impl VersionsMap {
             && versions_map
                 .keys()
                 .all(|pathdata| pathdata.metadata.is_none())
-            && !config.opt_no_snap
+            && !matches!(config.opt_bulk_exclusion, Some(BulkExclusion::NoSnap))
         {
             return Err(HttmError::new(
                 "httm could not find either a live copy or a snapshot copy of any specified file, so, umm, 🤷? Please try another file.",

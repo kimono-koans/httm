@@ -20,7 +20,7 @@ use std::ops::Deref;
 
 use terminal_size::{terminal_size, Height, Width};
 
-use crate::config::generate::{Config, ExecMode, PrintMode};
+use crate::config::generate::{BulkExclusion, Config, ExecMode, PrintMode};
 use crate::data::paths::{PathData, PHANTOM_DATE, PHANTOM_SIZE};
 use crate::library::utility::get_delimiter;
 use crate::library::utility::{display_human_size, get_date, paint_string, DateFormat};
@@ -89,14 +89,14 @@ impl Deref for DisplaySet {
 
 impl DisplaySet {
     pub fn new(config: &Config, versions_map: &VersionsMap) -> DisplaySet {
-        let vec_snaps = if config.opt_no_snap {
+        let vec_snaps = if matches!(config.opt_bulk_exclusion, Some(BulkExclusion::NoSnap)) {
             Vec::new()
         } else {
             versions_map.values().flatten().cloned().collect()
         };
 
         let vec_live = if config.opt_last_snap.is_some()
-            || config.opt_no_live
+            || matches!(config.opt_bulk_exclusion, Some(BulkExclusion::NoLive))
             || matches!(config.exec_mode, ExecMode::MountsForFiles(_))
         {
             Vec::new()

@@ -46,6 +46,12 @@ pub enum ExecMode {
     NumVersions(NumVersionsMode),
 }
 
+#[derive(Debug, Clone)]
+pub enum BulkExclusion {
+    NoLive,
+    NoSnap,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MountDisplay {
     Target,
@@ -453,11 +459,10 @@ fn parse_args() -> ArgMatches {
 #[derive(Debug, Clone)]
 pub struct Config {
     pub paths: Vec<PathData>,
-    pub opt_no_live: bool,
+    pub opt_bulk_exclusion: Option<BulkExclusion>,
     pub opt_recursive: bool,
     pub opt_exact: bool,
     pub opt_no_filter: bool,
-    pub opt_no_snap: bool,
     pub opt_debug: bool,
     pub opt_no_traverse: bool,
     pub opt_omit_ditto: bool,
@@ -494,11 +499,19 @@ impl Config {
             UtcOffset::current_local_offset().unwrap_or(UtcOffset::UTC)
         };
 
-        let opt_no_snap = matches.is_present("NO_SNAP");
+        let opt_bulk_exclusion = if matches.is_present("NO_LIVE") {
+            Some(BulkExclusion::NoLive)
+        } else if matches.is_present("NO_SNAP") {
+            Some(BulkExclusion::NoSnap)
+        } else {
+            None
+        };
 
         let mut print_mode = if matches.is_present("ZEROS") {
             PrintMode::RawZero
-        } else if matches.is_present("RAW") || opt_no_snap {
+        } else if matches.is_present("RAW")
+            || matches!(opt_bulk_exclusion, Some(BulkExclusion::NoSnap))
+        {
             PrintMode::RawNewline
         } else if matches.is_present("NOT_SO_PRETTY") {
             PrintMode::FormattedNotPretty
@@ -509,7 +522,6 @@ impl Config {
         // force a raw mode if one is not set for no_snap mode
         let opt_recursive = matches.is_present("RECURSIVE");
         let opt_exact = matches.is_present("EXACT");
-        let opt_no_live = matches.is_present("NO_LIVE");
         let opt_no_filter = matches.is_present("NO_FILTER");
         let opt_debug = matches.is_present("DEBUG");
         let opt_no_hidden = matches.is_present("FILTER_HIDDEN");
@@ -707,11 +719,10 @@ impl Config {
 
         let config = Config {
             paths,
-            opt_no_live,
+            opt_bulk_exclusion,
             opt_recursive,
             opt_exact,
             opt_no_filter,
-            opt_no_snap,
             opt_debug,
             opt_no_traverse,
             opt_omit_ditto,
@@ -923,10 +934,9 @@ impl Config {
         Config {
             paths: paths_selected.to_vec(),
             opt_recursive: false,
-            opt_no_live: false,
+            opt_bulk_exclusion: None,
             opt_exact: false,
             opt_no_filter: false,
-            opt_no_snap: false,
             opt_debug: false,
             opt_no_traverse: false,
             opt_no_hidden: false,
