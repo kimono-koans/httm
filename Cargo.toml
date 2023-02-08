@@ -16,7 +16,6 @@ maintenance = { status = "actively-developed" }
 
 [profile.release]
 debug = true
-opt-level = "z"  # Aggressively optimize for size.
 
 # acls feature - requires libacl1-dev to build
 [features]
