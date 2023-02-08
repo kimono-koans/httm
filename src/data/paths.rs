@@ -17,7 +17,7 @@
 
 use std::{
     cmp,
-    ffi::OsString,
+    ffi::OsStr,
     fs::{symlink_metadata, DirEntry, FileType, Metadata},
     path::{Path, PathBuf},
     time::{SystemTime, UNIX_EPOCH},
@@ -32,7 +32,6 @@ use crate::parse::mounts::MapOfDatasets;
 // for use to display in browse window and internally
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct BasicDirEntryInfo {
-    pub file_name: OsString,
     pub path: PathBuf,
     pub file_type: Option<FileType>,
 }
@@ -40,10 +39,15 @@ pub struct BasicDirEntryInfo {
 impl From<&DirEntry> for BasicDirEntryInfo {
     fn from(dir_entry: &DirEntry) -> Self {
         BasicDirEntryInfo {
-            file_name: dir_entry.file_name(),
             path: dir_entry.path(),
             file_type: dir_entry.file_type().ok(),
         }
+    }
+}
+
+impl BasicDirEntryInfo {
+    pub fn get_filename(&self) -> &OsStr {
+        self.path.file_name().unwrap_or_default()
     }
 }
 

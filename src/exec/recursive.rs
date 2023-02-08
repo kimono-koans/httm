@@ -181,7 +181,9 @@ pub fn get_entries_partitioned(
         .filter(|entry| {
             if config.opt_no_filter {
                 return true;
-            } else if config.opt_no_hidden && entry.file_name.to_string_lossy().starts_with('.') {
+            } else if config.opt_no_hidden
+                && entry.get_filename().to_string_lossy().starts_with('.')
+            {
                 return false;
             } else if let Ok(file_type) = entry.get_filetype() {
                 if file_type.is_dir() {
@@ -250,8 +252,7 @@ fn get_pseudo_live_versions(
     entries
         .into_iter()
         .map(|basic_info| BasicDirEntryInfo {
-            path: pseudo_live_dir.join(&basic_info.file_name),
-            file_name: basic_info.file_name,
+            path: pseudo_live_dir.join(basic_info.path.file_name().unwrap_or_default()),
             file_type: basic_info.file_type,
         })
         .collect()
