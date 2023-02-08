@@ -74,10 +74,10 @@ impl SnapNameMap {
         snaps_selected_for_search: &[SnapDatasetType],
         opt_filters: &Option<ListSnapsFilters>,
     ) -> SnapNameMap {
-        let requested_versions = config.paths.iter().map(|pathdata| {
+        let requested_versions = config.paths.par_iter().map(|pathdata| {
             // same way we use the rayon threadpool in versions
             let snap_versions: Vec<PathData> = snaps_selected_for_search
-                .par_iter()
+                .iter()
                 .flat_map(|dataset_type| {
                     MostProximateAndOptAlts::new(config, pathdata, dataset_type)
                 })
