@@ -90,7 +90,7 @@ impl VersionsMap {
             .par_iter()
             .map(|pathdata| {
                 let snaps: Vec<PathData> = snaps_selected_for_search
-                    .iter()
+                    .par_iter()
                     .flat_map(|dataset_type| {
                         MostProximateAndOptAlts::new(config, pathdata, dataset_type)
                     })
