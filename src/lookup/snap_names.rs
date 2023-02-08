@@ -82,7 +82,11 @@ impl SnapNameMap {
                     MostProximateAndOptAlts::new(config, pathdata, dataset_type)
                 })
                 .flat_map(|datasets_of_interest| {
-                    datasets_of_interest.get_search_bundles(config, pathdata)
+                    MostProximateAndOptAlts::get_search_bundles(
+                        config,
+                        datasets_of_interest,
+                        pathdata,
+                    )
                 })
                 .flatten()
                 .flat_map(|search_bundle| match opt_filters {

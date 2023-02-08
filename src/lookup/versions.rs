@@ -95,7 +95,11 @@ impl VersionsMap {
                         MostProximateAndOptAlts::new(config, pathdata, dataset_type)
                     })
                     .flat_map(|datasets_of_interest| {
-                        datasets_of_interest.get_search_bundles(config, pathdata)
+                        MostProximateAndOptAlts::get_search_bundles(
+                            config,
+                            datasets_of_interest,
+                            pathdata,
+                        )
                     })
                     .flatten()
                     .flat_map(|search_bundle| search_bundle.get_unique_versions())
@@ -249,13 +253,13 @@ impl<'a> MostProximateAndOptAlts<'a> {
     }
 
     pub fn get_search_bundles<'b>(
-        &'b self,
         config: &'b Config,
+        datasets_of_interest: MostProximateAndOptAlts<'b>,
         pathdata: &'b PathData,
-    ) -> HttmResult<Vec<RelativePathAndSnapMounts>> {
-        let proximate_dataset_mount = self.proximate_dataset_mount;
+    ) -> HttmResult<Vec<RelativePathAndSnapMounts<'b>>> {
+        let proximate_dataset_mount = datasets_of_interest.proximate_dataset_mount;
 
-        match &self.opt_datasets_of_interest {
+        match datasets_of_interest.opt_datasets_of_interest {
             Some(datasets_of_interest) => datasets_of_interest
                 .iter()
                 .map(|dataset_of_interest| {
@@ -284,17 +288,17 @@ impl<'a> MostProximateAndOptAlts<'a> {
 }
 
 #[derive(Debug, Clone)]
-pub struct RelativePathAndSnapMounts {
-    pub relative_path: PathBuf,
-    pub snap_mounts: Vec<PathBuf>,
+pub struct RelativePathAndSnapMounts<'a> {
+    pub relative_path: &'a Path,
+    pub snap_mounts: &'a Vec<PathBuf>,
 }
 
-impl RelativePathAndSnapMounts {
+impl<'a> RelativePathAndSnapMounts<'a> {
     fn new(
-        config: &Config,
-        pathdata: &PathData,
-        proximate_dataset_mount: &Path,
-        dataset_of_interest: &Path,
+        config: &'a Config,
+        pathdata: &'a PathData,
+        proximate_dataset_mount: &'a Path,
+        dataset_of_interest: &'a Path,
     ) -> HttmResult<Self> {
         // building our relative path by removing parent below the snap dir
         //
@@ -311,8 +315,7 @@ impl RelativePathAndSnapMounts {
                     "httm could find no snap mount for your files.  \
                 Iterator should just ignore/flatten this error.",
                 )
-            })
-            .cloned()?;
+            })?;
 
         Ok(Self {
             relative_path,
@@ -328,7 +331,7 @@ impl RelativePathAndSnapMounts {
         let all_versions: Vec<PathData> = self
             .snap_mounts
             .par_iter()
-            .map(|path| path.join(&self.relative_path))
+            .map(|path| path.join(self.relative_path))
             .filter_map(|joined_path| {
                 match joined_path.symlink_metadata() {
                     Ok(md) => Some(PathData::new(joined_path.as_path(), Some(md))),
