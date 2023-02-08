@@ -153,8 +153,8 @@ impl PathData {
 
     pub fn get_relative_path<'a>(
         &'a self,
-        config: &'a Config,
-        proximate_dataset_mount: &'a Path,
+        config: &Config,
+        proximate_dataset_mount: &Path,
     ) -> HttmResult<&'a Path> {
         // path strip, if aliased
         if let Some(map_of_aliases) = &config.dataset_collection.opt_map_of_aliases {
@@ -183,7 +183,7 @@ impl PathData {
 
     pub fn get_proximate_dataset<'a>(
         &'a self,
-        map_of_datasets: &'a MapOfDatasets,
+        map_of_datasets: &MapOfDatasets,
     ) -> HttmResult<&'a Path> {
         // for /usr/bin, we prefer the most proximate: /usr/bin to /usr and /
         // ancestors() iterates in this top-down order, when a value: dataset/fstype is available
@@ -201,7 +201,7 @@ impl PathData {
             })
     }
 
-    pub fn get_alias_dataset<'a>(&'a self, map_of_alias: &'a MapOfAliases) -> Option<&'a Path> {
+    pub fn get_alias_dataset<'a>(&self, map_of_alias: &'a MapOfAliases) -> Option<&'a Path> {
         // find_map_first should return the first seq result with a par_iter
         // but not with a par_bridge
         self.path_buf.ancestors().find_map(|ancestor| {

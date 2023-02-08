@@ -200,7 +200,7 @@ impl<'a> MostProximateAndOptAlts<'a> {
     pub fn new(
         config: &'a Config,
         pathdata: &'a PathData,
-        requested_dataset_type: &'a SnapDatasetType,
+        requested_dataset_type: &SnapDatasetType,
     ) -> HttmResult<Self> {
         // here, we take our file path and get back possibly multiple ZFS dataset mountpoints
         // and our most proximate dataset mount point (which is always the same) for
@@ -298,7 +298,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
         config: &'a Config,
         pathdata: &'a PathData,
         proximate_dataset_mount: &'a Path,
-        dataset_of_interest: &'a Path,
+        dataset_of_interest: &Path,
     ) -> HttmResult<Self> {
         // building our relative path by removing parent below the snap dir
         //
