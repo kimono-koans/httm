@@ -151,11 +151,11 @@ impl PathData {
         self.metadata.unwrap_or(PHANTOM_PATH_METADATA)
     }
 
-    pub fn get_relative_path<'a>(
-        &'a self,
-        config: &'a Config,
-        proximate_dataset_mount: &'a Path,
-    ) -> HttmResult<&'a Path> {
+    pub fn get_relative_path(
+        &self,
+        config: &Config,
+        proximate_dataset_mount: &Path,
+    ) -> HttmResult<PathBuf> {
         // path strip, if aliased
         if let Some(map_of_aliases) = &config.dataset_collection.opt_map_of_aliases {
             let opt_aliased_local_dir = map_of_aliases
@@ -173,14 +173,15 @@ impl PathData {
             // (each an indication we should not be trying aliases)
             if let Some(local_dir) = opt_aliased_local_dir {
                 if let Ok(alias_stripped_path) = self.path_buf.strip_prefix(local_dir) {
-                    return Ok(alias_stripped_path);
+                    return Ok(alias_stripped_path.to_path_buf());
                 }
             }
         }
         // default path strip
-        self.path_buf
-            .strip_prefix(proximate_dataset_mount)
-            .map_err(std::convert::Into::into)
+        Ok(self
+            .path_buf
+            .strip_prefix(proximate_dataset_mount)?
+            .to_path_buf())
     }
 
     pub fn get_proximate_dataset<'a>(

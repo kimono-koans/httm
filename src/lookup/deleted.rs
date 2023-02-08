@@ -76,26 +76,14 @@ impl DeletedFilesBundle {
         let basic_info_map: HashMap<OsString, BasicDirEntryInfo> = requested_snap_datasets
             .iter()
             .flat_map(|dataset_type| {
-                if let Ok(datasets_of_interest) =
-                    MostProximateAndOptAlts::new(config, &requested_dir_pathdata, dataset_type)
-                {
-                    if let Ok(vec_search_bundle) =
-                        datasets_of_interest.get_search_bundles(config, &requested_dir_pathdata)
-                    {
-                        let res: Vec<BasicDirEntryInfo> = vec_search_bundle
-                            .iter()
-                            .flat_map(|search_bundle| {
-                                Self::get_unique_deleted_for_dir(
-                                    &requested_dir_pathdata.path_buf,
-                                    search_bundle,
-                                )
-                            })
-                            .flatten()
-                            .collect();
-                        return Some(res);
-                    }
-                }
-                None
+                MostProximateAndOptAlts::new(config, &requested_dir_pathdata, dataset_type)
+            })
+            .flat_map(|datasets_of_interest| {
+                datasets_of_interest.get_search_bundles(config, &requested_dir_pathdata)
+            })
+            .flatten()
+            .flat_map(|search_bundle| {
+                Self::get_unique_deleted_for_dir(&requested_dir_pathdata.path_buf, &search_bundle)
             })
             .flatten()
             .map(|basic_info| (basic_info.file_name.clone(), basic_info))
@@ -120,7 +108,10 @@ impl DeletedFilesBundle {
             .collect();
 
         let unique_snap_filenames: HashMap<OsString, BasicDirEntryInfo> =
-            Self::get_unique_snap_filenames(search_bundle.snap_mounts, search_bundle.relative_path);
+            Self::get_unique_snap_filenames(
+                &search_bundle.snap_mounts,
+                &search_bundle.relative_path,
+            );
 
         // compare local filenames to all unique snap filenames - none values are unique, here
         let all_deleted_versions: Vec<BasicDirEntryInfo> = unique_snap_filenames
@@ -186,22 +177,13 @@ impl LastInTimeSet {
                 snaps_selected_for_search
                     .iter()
                     .flat_map(|dataset_type| {
-                        if let Ok(datasets_of_interest) =
-                            MostProximateAndOptAlts::new(config, pathdata, dataset_type)
-                        {
-                            if let Ok(vec_search_bundle) =
-                                datasets_of_interest.get_search_bundles(config, pathdata)
-                            {
-                                let res: Vec<PathData> = vec_search_bundle
-                                    .iter()
-                                    .flat_map(|search_bundle| search_bundle.get_last_version())
-                                    .collect();
-                                return Some(res);
-                            }
-                        }
-                        None
+                        MostProximateAndOptAlts::new(config, pathdata, dataset_type)
+                    })
+                    .flat_map(|datasets_of_interest| {
+                        datasets_of_interest.get_search_bundles(config, pathdata)
                     })
                     .flatten()
+                    .flat_map(|search_bundle| search_bundle.get_last_version())
                     .filter(|pathdata| pathdata.metadata.is_some())
                     .max_by_key(|pathdata| pathdata.metadata.unwrap().modify_time)
                     .map(|pathdata| pathdata.path_buf)

@@ -79,34 +79,22 @@ impl SnapNameMap {
             let snap_versions: Vec<PathData> = snaps_selected_for_search
                 .par_iter()
                 .flat_map(|dataset_type| {
-                    if let Ok(datasets_of_interest) =
-                        MostProximateAndOptAlts::new(config, pathdata, dataset_type)
-                    {
-                        if let Ok(vec_search_bundle) =
-                            datasets_of_interest.get_search_bundles(config, pathdata)
-                        {
-                            let res: Vec<PathData> = vec_search_bundle
-                                .iter()
-                                .flat_map(|search_bundle| match opt_filters {
-                                    Some(mode_filters)
-                                        if matches!(
-                                            mode_filters.type_filter,
-                                            ListSnapsOfType::Unique
-                                        ) =>
-                                    {
-                                        search_bundle.get_unique_versions()
-                                    }
-                                    _ => search_bundle.get_all_versions(),
-                                })
-                                .collect();
-                            return Some(res);
-                        }
-                    }
-                    None
+                    MostProximateAndOptAlts::new(config, pathdata, dataset_type)
+                })
+                .flat_map(|datasets_of_interest| {
+                    datasets_of_interest.get_search_bundles(config, pathdata)
                 })
                 .flatten()
+                .flat_map(|search_bundle| match opt_filters {
+                    Some(mode_filters)
+                        if matches!(mode_filters.type_filter, ListSnapsOfType::Unique) =>
+                    {
+                        search_bundle.get_unique_versions()
+                    }
+                    _ => search_bundle.get_all_versions(),
+                })
                 .collect();
-            (pathdata, snap_versions)
+            (pathdata.clone(), snap_versions)
         });
 
         let inner: BTreeMap<PathData, Vec<String>> = requested_versions
@@ -155,7 +143,7 @@ impl SnapNameMap {
                     })
                     .collect();
 
-                (pathdata.clone(), snap_names)
+                (pathdata, snap_names)
             })
             .collect();
 
