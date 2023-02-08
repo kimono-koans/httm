@@ -81,8 +81,12 @@ impl SnapNameMap {
                 .flat_map(|dataset_type| {
                     MostProximateAndOptAlts::new(config, pathdata, dataset_type)
                 })
-                .flat_map(|dataset_for_search| {
-                    dataset_for_search.get_search_bundles(config, pathdata)
+                .flat_map(|datasets_of_interest| {
+                    MostProximateAndOptAlts::get_search_bundles(
+                        config,
+                        datasets_of_interest,
+                        pathdata,
+                    )
                 })
                 .flatten()
                 .flat_map(|search_bundle| match opt_filters {
@@ -94,7 +98,7 @@ impl SnapNameMap {
                     _ => search_bundle.get_all_versions(),
                 })
                 .collect();
-            (pathdata, snap_versions)
+            (pathdata.clone(), snap_versions)
         });
 
         let inner: BTreeMap<PathData, Vec<String>> = requested_versions
@@ -143,7 +147,7 @@ impl SnapNameMap {
                     })
                     .collect();
 
-                (pathdata.clone(), snap_names)
+                (pathdata, snap_names)
             })
             .collect();
 

@@ -79,7 +79,11 @@ impl DeletedFilesBundle {
                 MostProximateAndOptAlts::new(config, &requested_dir_pathdata, dataset_type)
             })
             .flat_map(|datasets_of_interest| {
-                datasets_of_interest.get_search_bundles(config, &requested_dir_pathdata)
+                MostProximateAndOptAlts::get_search_bundles(
+                    config,
+                    datasets_of_interest,
+                    &requested_dir_pathdata,
+                )
             })
             .flatten()
             .flat_map(|search_bundle| {
@@ -108,10 +112,7 @@ impl DeletedFilesBundle {
             .collect();
 
         let unique_snap_filenames: HashMap<OsString, BasicDirEntryInfo> =
-            Self::get_unique_snap_filenames(
-                &search_bundle.snap_mounts,
-                &search_bundle.relative_path,
-            );
+            Self::get_unique_snap_filenames(search_bundle.snap_mounts, search_bundle.relative_path);
 
         // compare local filenames to all unique snap filenames - none values are unique, here
         let all_deleted_versions: Vec<BasicDirEntryInfo> = unique_snap_filenames
@@ -179,11 +180,15 @@ impl LastInTimeSet {
                     .flat_map(|dataset_type| {
                         MostProximateAndOptAlts::new(config, pathdata, dataset_type)
                     })
-                    .flat_map(|dataset_for_search| {
-                        dataset_for_search.get_search_bundles(config, pathdata)
+                    .flat_map(|datasets_of_interest| {
+                        MostProximateAndOptAlts::get_search_bundles(
+                            config,
+                            datasets_of_interest,
+                            pathdata,
+                        )
                     })
                     .flatten()
-                    .filter_map(|search_bundle| search_bundle.get_last_version())
+                    .flat_map(|search_bundle| search_bundle.get_last_version())
                     .filter(|pathdata| pathdata.metadata.is_some())
                     .max_by_key(|pathdata| pathdata.metadata.unwrap().modify_time)
                     .map(|pathdata| pathdata.path_buf)

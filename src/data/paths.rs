@@ -151,11 +151,11 @@ impl PathData {
         self.metadata.unwrap_or(PHANTOM_PATH_METADATA)
     }
 
-    pub fn get_relative_path(
-        &self,
-        config: &Config,
-        proximate_dataset_mount: &Path,
-    ) -> HttmResult<PathBuf> {
+    pub fn get_relative_path<'a>(
+        &'a self,
+        config: &'a Config,
+        proximate_dataset_mount: &'a Path,
+    ) -> HttmResult<&'a Path> {
         // path strip, if aliased
         if let Some(map_of_aliases) = &config.dataset_collection.opt_map_of_aliases {
             let opt_aliased_local_dir = map_of_aliases
@@ -173,31 +173,25 @@ impl PathData {
             // (each an indication we should not be trying aliases)
             if let Some(local_dir) = opt_aliased_local_dir {
                 if let Ok(alias_stripped_path) = self.path_buf.strip_prefix(local_dir) {
-                    return Ok(alias_stripped_path.to_path_buf());
+                    return Ok(alias_stripped_path);
                 }
             }
         }
         // default path strip
-        self.path_buf
-            .strip_prefix(proximate_dataset_mount)
-            .map(std::path::Path::to_path_buf)
-            .map_err(std::convert::Into::into)
+        Ok(self.path_buf.strip_prefix(proximate_dataset_mount)?)
     }
 
-    pub fn get_proximate_dataset(&self, map_of_datasets: &MapOfDatasets) -> HttmResult<PathBuf> {
+    pub fn get_proximate_dataset<'a>(
+        &'a self,
+        map_of_datasets: &'a MapOfDatasets,
+    ) -> HttmResult<&'a Path> {
         // for /usr/bin, we prefer the most proximate: /usr/bin to /usr and /
         // ancestors() iterates in this top-down order, when a value: dataset/fstype is available
         // we map to return the key, instead of the value
         self.path_buf
             .ancestors()
             .skip_while(|ancestor| ancestor.components().count() > map_of_datasets.max_len)
-            .find_map(|ancestor| {
-                if map_of_datasets.inner.contains_key(ancestor) {
-                    Some(ancestor.to_path_buf())
-                } else {
-                    None
-                }
-            })
+            .find(|ancestor| map_of_datasets.inner.contains_key(*ancestor))
             .ok_or_else(|| {
                 HttmError::new(
                     "httm could not identify any qualifying dataset.  \
@@ -207,13 +201,13 @@ impl PathData {
             })
     }
 
-    pub fn get_alias_dataset(&self, map_of_alias: &MapOfAliases) -> Option<PathBuf> {
+    pub fn get_alias_dataset<'a>(&'a self, map_of_alias: &'a MapOfAliases) -> Option<&'a Path> {
         // find_map_first should return the first seq result with a par_iter
         // but not with a par_bridge
         self.path_buf.ancestors().find_map(|ancestor| {
             map_of_alias
                 .get(ancestor)
-                .map(|alias_info| alias_info.remote_dir.clone())
+                .map(|alias_info| alias_info.remote_dir.as_path())
         })
     }
 }
