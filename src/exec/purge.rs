@@ -92,7 +92,7 @@ impl PurgeFiles {
 
             match user_consent.as_ref() {
                 "YES" | "Y" => {
-                    Self::purge_snaps(config, zfs_command, &snap_name_map)?;
+                    Self::purge_snaps(zfs_command, &snap_name_map)?;
 
                     let result_buffer = format!(
                         "httm purged snapshots related to the following file/s:\n\n{}\n\
@@ -112,11 +112,7 @@ impl PurgeFiles {
         std::process::exit(0)
     }
 
-    fn purge_snaps(
-        _config: &Config,
-        zfs_command: &Path,
-        snap_name_map: &SnapNameMap,
-    ) -> HttmResult<()> {
+    fn purge_snaps(zfs_command: &Path, snap_name_map: &SnapNameMap) -> HttmResult<()> {
         snap_name_map.values().flatten().try_for_each( |snapshot_name| {
             let mut process_args = vec!["destroy".to_owned()];
             process_args.push(snapshot_name.clone());
