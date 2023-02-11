@@ -37,7 +37,10 @@ pub const QUOTATION_MARKS_LEN: usize = 2;
 
 impl VersionsMap {
     pub fn format(&self, config: &Config) -> String {
-        let global_display_set = DisplaySet::new(config, self);
+        let keys: Vec<&PathData> = self.keys().collect();
+        let values: Vec<&PathData> = self.values().flatten().collect();
+
+        let global_display_set = DisplaySet::from((keys, values));
         let padding_collection = PaddingCollection::new(config, &global_display_set);
 
         match &config.print_mode {
@@ -45,12 +48,12 @@ impl VersionsMap {
                 global_display_set.format(config, &padding_collection)
             }
             _ => self
-                .deref()
-                .clone()
-                .into_iter()
-                .map(std::convert::Into::into)
-                .map(|raw_instance_set| {
-                    let display_set = DisplaySet::new(config, &raw_instance_set);
+                .iter()
+                .map(|(key, values)| {
+                    let keys: Vec<&PathData> = vec![key];
+                    let values: Vec<&PathData> = values.iter().collect();
+
+                    let display_set = DisplaySet::from((keys, values));
 
                     match config.print_mode {
                         PrintMode::FormattedDefault | PrintMode::FormattedNotPretty => {
@@ -58,6 +61,7 @@ impl VersionsMap {
                         }
                         PrintMode::RawNewline | PrintMode::RawZero => {
                             let delimiter = get_delimiter(config);
+                            
                             display_set
                                 .iter()
                                 .flatten()
@@ -78,6 +82,14 @@ pub struct DisplaySet<'a> {
     inner: [Vec<&'a PathData>; 2],
 }
 
+impl<'a> From<(Vec<&'a PathData>, Vec<&'a PathData>)> for DisplaySet<'a> {
+    fn from((keys, values): (Vec<&'a PathData>, Vec<&'a PathData>)) -> Self {
+        Self {
+            inner: [values, keys],
+        }
+    }
+}
+
 impl<'a> Deref for DisplaySet<'a> {
     type Target = [Vec<&'a PathData>; 2];
 
@@ -87,57 +99,55 @@ impl<'a> Deref for DisplaySet<'a> {
 }
 
 impl<'a> DisplaySet<'a> {
-    pub fn new(config: &Config, versions_map: &'a VersionsMap) -> Self {
-        let vec_snaps = if matches!(config.opt_bulk_exclusion, Some(BulkExclusion::NoSnap)) {
-            Vec::new()
-        } else {
-            versions_map.values().flatten().collect()
-        };
-
-        let vec_live = if config.opt_last_snap.is_some()
-            || matches!(config.opt_bulk_exclusion, Some(BulkExclusion::NoLive))
-            || matches!(config.exec_mode, ExecMode::MountsForFiles(_))
-        {
-            Vec::new()
-        } else {
-            versions_map.keys().collect()
-        };
-
-        Self {
-            inner: [vec_snaps, vec_live],
-        }
-    }
-
     pub fn format(self, config: &Config, padding_collection: &PaddingCollection) -> String {
         // get the display buffer for each set snaps and live
-        self.iter().enumerate().fold(
-            String::new(),
-            |mut display_set_buffer, (idx, snap_or_live_set)| {
-                // a DisplaySet is an array of 2 - idx 0 are the snaps, 1 is the live versions
-                let is_snap_set = idx == 0;
-                let is_live_set = idx == 1;
+        self.iter()
+            .enumerate()
+            .filter(|(idx, _snap_or_live_set)| {
+                let is_snap_set = idx == &0;
+                let is_live_set = idx == &1;
 
-                let component_buffer: String = snap_or_live_set
-                    .iter()
-                    .map(|pathdata| pathdata.format(config, is_live_set, padding_collection))
-                    .collect();
+                if is_live_set && config.opt_last_snap.is_some()
+                    || matches!(config.opt_bulk_exclusion, Some(BulkExclusion::NoLive))
+                    || matches!(config.exec_mode, ExecMode::MountsForFiles(_))
+                {
+                    return false;
+                }
 
-                // add each buffer to the set - print fancy border string above, below and between sets
-                if matches!(config.print_mode, PrintMode::FormattedNotPretty) {
-                    display_set_buffer += &component_buffer;
-                } else if is_snap_set {
-                    display_set_buffer += &padding_collection.fancy_border_string;
-                    if !component_buffer.is_empty() {
+                if is_snap_set && matches!(config.opt_bulk_exclusion, Some(BulkExclusion::NoSnap)) {
+                    return false;
+                }
+
+                true
+            })
+            .fold(
+                String::new(),
+                |mut display_set_buffer, (idx, snap_or_live_set)| {
+                    // a DisplaySet is an array of 2 - idx 0 are the snaps, 1 is the live versions
+                    let is_snap_set = idx == 0;
+                    let is_live_set = idx == 1;
+
+                    let component_buffer: String = snap_or_live_set
+                        .iter()
+                        .map(|pathdata| pathdata.format(config, is_live_set, padding_collection))
+                        .collect();
+
+                    // add each buffer to the set - print fancy border string above, below and between sets
+                    if matches!(config.print_mode, PrintMode::FormattedNotPretty) {
+                        display_set_buffer += &component_buffer;
+                    } else if is_snap_set {
+                        display_set_buffer += &padding_collection.fancy_border_string;
+                        if !component_buffer.is_empty() {
+                            display_set_buffer += &component_buffer;
+                            display_set_buffer += &padding_collection.fancy_border_string;
+                        }
+                    } else {
                         display_set_buffer += &component_buffer;
                         display_set_buffer += &padding_collection.fancy_border_string;
                     }
-                } else {
-                    display_set_buffer += &component_buffer;
-                    display_set_buffer += &padding_collection.fancy_border_string;
-                }
-                display_set_buffer
-            },
-        )
+                    display_set_buffer
+                },
+            )
     }
 }
 
