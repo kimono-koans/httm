@@ -169,9 +169,9 @@ impl PathData {
                 // we use a dummy instead of a None value here.  Basically, sometimes, we want
                 // to print the request even if a live file does not exist
                 let size = if self.metadata.is_some() {
-                    display_human_size(metadata.size)
+                    Cow::Owned(display_human_size(metadata.size))
                 } else {
-                    Cow::Borrowed(padding_collection.phantom_size_pad_str.as_str())
+                    Cow::Borrowed(&padding_collection.phantom_size_pad_str)
                 };
                 let path = self.path_buf.to_string_lossy();
                 let padding = NOT_SO_PRETTY_FIXED_WIDTH_PADDING;
@@ -180,9 +180,9 @@ impl PathData {
             } else {
                 let size = {
                     let size = if self.metadata.is_some() {
-                        display_human_size(metadata.size)
+                        Cow::Owned(display_human_size(metadata.size))
                     } else {
-                        Cow::Borrowed(padding_collection.phantom_size_pad_str.as_str())
+                        Cow::Borrowed(&padding_collection.phantom_size_pad_str)
                     };
                     Cow::Owned(format!(
                         "{:>width$}",
@@ -210,9 +210,9 @@ impl PathData {
             };
 
         let display_date = if self.metadata.is_some() {
-            get_date(config, &metadata.modify_time, DateFormat::Display)
+            Cow::Owned(get_date(config, &metadata.modify_time, DateFormat::Display))
         } else {
-            padding_collection.phantom_date_pad_str.clone()
+            Cow::Borrowed(&padding_collection.phantom_date_pad_str)
         };
 
         format!(

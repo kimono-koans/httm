@@ -404,12 +404,12 @@ fn get_date_format<'a>(format: &DateFormat) -> &'a str {
     }
 }
 
-pub fn display_human_size<'a>(size: u64) -> Cow<'a, str> {
+pub fn display_human_size(size: u64) -> String {
     let size = size as f64;
 
     match NumberPrefix::binary(size) {
-        NumberPrefix::Standalone(bytes) => Cow::Owned(format!("{bytes} bytes")),
-        NumberPrefix::Prefixed(prefix, n) => Cow::Owned(format!("{n:.1} {prefix}B")),
+        NumberPrefix::Standalone(bytes) => format!("{bytes} bytes"),
+        NumberPrefix::Prefixed(prefix, n) => format!("{n:.1} {prefix}B"),
     }
 }
 
