@@ -61,7 +61,7 @@ impl VersionsMap {
                         }
                         PrintMode::RawNewline | PrintMode::RawZero => {
                             let delimiter = get_delimiter(config);
-                            
+
                             display_set
                                 .iter()
                                 .flatten()
@@ -171,7 +171,7 @@ impl PathData {
                 let size = if self.metadata.is_some() {
                     display_human_size(metadata.size)
                 } else {
-                    padding_collection.phantom_size_pad_str.clone()
+                    Cow::Borrowed(padding_collection.phantom_size_pad_str.as_str())
                 };
                 let path = self.path_buf.to_string_lossy();
                 let padding = NOT_SO_PRETTY_FIXED_WIDTH_PADDING;
@@ -182,13 +182,13 @@ impl PathData {
                     let size = if self.metadata.is_some() {
                         display_human_size(metadata.size)
                     } else {
-                        padding_collection.phantom_size_pad_str.clone()
+                        Cow::Borrowed(padding_collection.phantom_size_pad_str.as_str())
                     };
-                    format!(
+                    Cow::Owned(format!(
                         "{:>width$}",
                         size,
                         width = padding_collection.size_padding_len
-                    )
+                    ))
                 };
                 let path = {
                     let path_buf = &self.path_buf;
