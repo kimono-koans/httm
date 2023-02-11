@@ -350,8 +350,9 @@ impl InteractiveRestore {
     fn should_preserve_attributes(config: &Config) -> bool {
         matches!(
             config.exec_mode,
-            ExecMode::Interactive(InteractiveMode::Restore(RestoreMode::CopyAndPreserve))
-                | ExecMode::Interactive(InteractiveMode::Restore(RestoreMode::Overwrite))
+            ExecMode::Interactive(InteractiveMode::Restore(
+                RestoreMode::CopyAndPreserve | RestoreMode::Overwrite
+            ))
         )
     }
 
