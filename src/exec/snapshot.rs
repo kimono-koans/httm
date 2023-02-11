@@ -15,9 +15,10 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::{collections::BTreeMap, path::Path, time::SystemTime};
-
 use std::process::Command as ExecProcess;
+use std::{path::Path, time::SystemTime};
+
+use crate::HashbrownMap;
 use which::which;
 
 use crate::config::generate::{Config, MountDisplay, PrintMode};
@@ -96,7 +97,7 @@ impl TakeSnapshot {
         config: &Config,
         mounts_for_files: &MountsForFiles,
         requested_snapshot_suffix: &str,
-    ) -> HttmResult<BTreeMap<String, Vec<String>>> {
+    ) -> HttmResult<HashbrownMap<String, Vec<String>>> {
         // all snapshots should have the same timestamp
         let timestamp = get_date(config, &SystemTime::now(), DateFormat::Timestamp);
 
@@ -130,10 +131,10 @@ impl TakeSnapshot {
             Ok(snapshot_name)
         }).collect::<Result<Vec<String>, HttmError>>()?;
 
-        // why all this garbage with BTreeMaps, etc.? ZFS will not allow one to take snapshots
+        // why all this garbage with HashbrownMaps, etc.? ZFS will not allow one to take snapshots
         // with the same name, at the same time, across pools.  Since we don't really care, we break
         // the snapshots into groups by pool name and then just take snapshots for each pool
-        let map_snapshot_names: BTreeMap<String, Vec<String>> = vec_snapshot_names
+        let map_snapshot_names: HashbrownMap<String, Vec<String>> = vec_snapshot_names
             .into_iter()
             .into_group_map_by(|snapshot_name| {
                 let (pool_name, _rest) = snapshot_name

@@ -16,13 +16,13 @@
 // that was distributed with this source code.
 
 use std::{
-    collections::BTreeMap,
     io::ErrorKind,
     ops::Deref,
     path::{Path, PathBuf},
     time::SystemTime,
 };
 
+use crate::HashbrownMap;
 use rayon::prelude::*;
 
 use crate::config::generate::{BulkExclusion, Config, LastSnapMode};
@@ -33,11 +33,11 @@ use crate::library::results::{HttmError, HttmResult};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VersionsMap {
-    inner: BTreeMap<PathData, Vec<PathData>>,
+    inner: HashbrownMap<PathData, Vec<PathData>>,
 }
 
-impl From<BTreeMap<PathData, Vec<PathData>>> for VersionsMap {
-    fn from(map: BTreeMap<PathData, Vec<PathData>>) -> Self {
+impl From<HashbrownMap<PathData, Vec<PathData>>> for VersionsMap {
+    fn from(map: HashbrownMap<PathData, Vec<PathData>>) -> Self {
         Self { inner: map }
     }
 }
@@ -45,13 +45,13 @@ impl From<BTreeMap<PathData, Vec<PathData>>> for VersionsMap {
 impl From<(PathData, Vec<PathData>)> for VersionsMap {
     fn from(tuple: (PathData, Vec<PathData>)) -> Self {
         Self {
-            inner: BTreeMap::from([tuple]),
+            inner: HashbrownMap::from([tuple]),
         }
     }
 }
 
 impl Deref for VersionsMap {
-    type Target = BTreeMap<PathData, Vec<PathData>>;
+    type Target = HashbrownMap<PathData, Vec<PathData>>;
 
     fn deref(&self) -> &Self::Target {
         &self.inner
@@ -86,7 +86,7 @@ impl VersionsMap {
             .snaps_selected_for_search
             .get_value();
 
-        let all_snap_versions: BTreeMap<PathData, Vec<PathData>> = path_set
+        let all_snap_versions: HashbrownMap<PathData, Vec<PathData>> = path_set
             .par_iter()
             .map(|pathdata| {
                 let snaps: Vec<PathData> = snaps_selected_for_search
@@ -126,7 +126,7 @@ impl VersionsMap {
     }
 
     fn get_last_snap(&self, last_snap_mode: &LastSnapMode) -> VersionsMap {
-        let res: BTreeMap<PathData, Vec<PathData>> = self
+        let res: HashbrownMap<PathData, Vec<PathData>> = self
             .iter()
             .map(|(pathdata, snaps)| {
                 let new_snaps = match snaps.last() {
@@ -327,7 +327,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
         // get the DirEntry for our snapshot path which will have all our possible
         // snapshots, like so: .zfs/snapshots/<some snap name>/
         //
-        // BTreeMap will then remove duplicates with the same system modify time and size/file len
+        // HashbrownMap will then remove duplicates with the same system modify time and size/file len
         let all_versions: Vec<PathData> = self
             .snap_mounts
             .par_iter()
@@ -361,8 +361,8 @@ impl<'a> RelativePathAndSnapMounts<'a> {
         // get the DirEntry for our snapshot path which will have all our possible
         // snapshots, like so: .zfs/snapshots/<some snap name>/
         //
-        // BTreeMap will then remove duplicates with the same system modify time and size/file len
-        let unique_versions: BTreeMap<(SystemTime, u64), PathData> = self
+        // HashbrownMap will then remove duplicates with the same system modify time and size/file len
+        let unique_versions: HashbrownMap<(SystemTime, u64), PathData> = self
             .get_all_versions()
             .into_iter()
             .filter_map(|pathdata| {

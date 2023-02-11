@@ -17,7 +17,7 @@
 
 // this module is a re-implementation of the into_group_map() and into_group_map_by()
 // methods for Iterator by Rust Itertools team, for the purpose of using the same
-// hashbrown hashmap used elsewhere in httm.  this was/is done for both performance
+// hashbrown HashbrownMap used elsewhere in httm.  this was/is done for both performance
 // and binary size reasons.
 //
 // though I am fairly certain this re-implementation of their API is fair use
@@ -51,10 +51,10 @@
 
 use std::{hash::Hash, iter::Iterator};
 
-use hashbrown::HashMap;
+use crate::HashbrownMap;
 
 pub trait HttmIter: Iterator {
-    fn into_group_map<K, V>(self) -> HashMap<K, Vec<V>>
+    fn into_group_map<K, V>(self) -> HashbrownMap<K, Vec<V>>
     where
         Self: Iterator<Item = (K, V)> + Sized,
         K: Hash + Eq,
@@ -62,7 +62,7 @@ pub trait HttmIter: Iterator {
         group_map::into_group_map(self)
     }
 
-    fn into_group_map_by<K, V, F>(self, f: F) -> HashMap<K, Vec<V>>
+    fn into_group_map_by<K, V, F>(self, f: F) -> HashbrownMap<K, Vec<V>>
     where
         Self: Iterator<Item = V> + Sized,
         K: Hash + Eq,
@@ -77,14 +77,14 @@ impl<T: ?Sized> HttmIter for T where T: Iterator {}
 pub mod group_map {
     use std::{hash::Hash, iter::Iterator};
 
-    use hashbrown::HashMap;
+    use crate::HashbrownMap;
 
-    pub fn into_group_map<I, K, V>(iter: I) -> HashMap<K, Vec<V>>
+    pub fn into_group_map<I, K, V>(iter: I) -> HashbrownMap<K, Vec<V>>
     where
         I: Iterator<Item = (K, V)>,
         K: Hash + Eq,
     {
-        let mut lookup: HashMap<K, Vec<V>> = HashMap::with_capacity(iter.size_hint().0);
+        let mut lookup: HashbrownMap<K, Vec<V>> = HashbrownMap::with_capacity(iter.size_hint().0);
 
         iter.for_each(|(key, val)| match lookup.get_mut(&key) {
             Some(vec_val) => {
@@ -98,7 +98,7 @@ pub mod group_map {
         lookup
     }
 
-    pub fn into_group_map_by<I, K, V>(iter: I, f: impl Fn(&V) -> K) -> HashMap<K, Vec<V>>
+    pub fn into_group_map_by<I, K, V>(iter: I, f: impl Fn(&V) -> K) -> HashbrownMap<K, Vec<V>>
     where
         I: Iterator<Item = V>,
         K: Hash + Eq,

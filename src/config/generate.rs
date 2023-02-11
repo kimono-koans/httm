@@ -798,7 +798,7 @@ impl Config {
         // so input of ./.z* and ./.zshrc will only print ./.zshrc once
         paths = if paths.len() > 1 {
             paths.sort_unstable();
-            // dedup needs to be sorted/ordered first to work (not like a BTreeMap)
+            // dedup needs to be sorted/ordered first to work (not like a HashbrownMap)
             paths.dedup();
 
             paths

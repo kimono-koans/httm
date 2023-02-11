@@ -15,9 +15,10 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
+use std::ops::Deref;
 use std::path::Path;
-use std::{collections::BTreeMap, ops::Deref};
 
+use crate::HashbrownMap;
 use rayon::prelude::*;
 
 use crate::config::generate::{Config, ListSnapsFilters, ListSnapsOfType};
@@ -29,17 +30,17 @@ use super::versions::SnapDatasetType;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SnapNameMap {
-    inner: BTreeMap<PathData, Vec<String>>,
+    inner: HashbrownMap<PathData, Vec<String>>,
 }
 
-impl From<BTreeMap<PathData, Vec<String>>> for SnapNameMap {
-    fn from(map: BTreeMap<PathData, Vec<String>>) -> Self {
+impl From<HashbrownMap<PathData, Vec<String>>> for SnapNameMap {
+    fn from(map: HashbrownMap<PathData, Vec<String>>) -> Self {
         Self { inner: map }
     }
 }
 
 impl Deref for SnapNameMap {
-    type Target = BTreeMap<PathData, Vec<String>>;
+    type Target = HashbrownMap<PathData, Vec<String>>;
 
     fn deref(&self) -> &Self::Target {
         &self.inner
@@ -101,7 +102,7 @@ impl SnapNameMap {
             (pathdata.clone(), snap_versions)
         });
 
-        let inner: BTreeMap<PathData, Vec<String>> = requested_versions
+        let inner: HashbrownMap<PathData, Vec<String>> = requested_versions
             .map(|(pathdata, vec_snaps)| {
                 // use par iter here because no one else is using the global rayon threadpool any more
                 let snap_names: Vec<String> = vec_snaps
@@ -153,7 +154,7 @@ impl SnapNameMap {
 
         match opt_filters {
             Some(mode_filter) if mode_filter.omit_num_snaps != 0 => {
-                let res: BTreeMap<PathData, Vec<String>> = inner
+                let res: HashbrownMap<PathData, Vec<String>> = inner
                     .into_iter()
                     .map(|(pathdata, snaps)| {
                         (

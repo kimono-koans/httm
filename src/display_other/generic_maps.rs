@@ -15,8 +15,9 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::collections::BTreeMap;
 use std::ops::Deref;
+
+use crate::HashbrownMap;
 
 use crate::config::generate::{Config, MountDisplay, PrintMode};
 use crate::display_versions::format::{NOT_SO_PRETTY_FIXED_WIDTH_PADDING, QUOTATION_MARKS_LEN};
@@ -25,11 +26,11 @@ use crate::SnapNameMap;
 use crate::VersionsMap;
 
 pub struct PrintAsMap {
-    inner: BTreeMap<String, Vec<String>>,
+    inner: HashbrownMap<String, Vec<String>>,
 }
 
 impl Deref for PrintAsMap {
-    type Target = BTreeMap<String, Vec<String>>;
+    type Target = HashbrownMap<String, Vec<String>>;
 
     fn deref(&self) -> &Self::Target {
         &self.inner

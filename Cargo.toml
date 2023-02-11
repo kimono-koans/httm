@@ -38,7 +38,7 @@ indicatif =  { version = "0.17.2", default-features = false }
 proc-mounts = { version = "0.3.0", default-features = false }
 once_cell = { version = "1.16.0", default-features = false }
 chrono = { version = "0.4.23", default-features = false }
-hashbrown = { version = "0.13.1" }
+hashbrown = { version = "0.13.1", features = ["rayon"] }
 nix = { version = "0.26.1", features = ["fs"] }
 xattr = { version = "1.0.0", default-features = false }
 

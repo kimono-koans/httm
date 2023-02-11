@@ -22,7 +22,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use hashbrown::{HashMap, HashSet};
+use crate::HashbrownMap;
+use crate::HashbrownSet;
 
 use crate::config::generate::Config;
 use crate::data::paths::{BasicDirEntryInfo, PathData};
@@ -73,7 +74,7 @@ impl DeletedFilesBundle {
         // we need to make certain that what we return from possibly multiple datasets are unique
         // as these will be the filenames that populate our interactive views, so deduplicate
         // by filename and latest file version here
-        let basic_info_map: HashMap<OsString, BasicDirEntryInfo> = requested_snap_datasets
+        let basic_info_map: HashbrownMap<OsString, BasicDirEntryInfo> = requested_snap_datasets
             .iter()
             .flat_map(|dataset_type| {
                 MostProximateAndOptAlts::new(config, &requested_dir_pathdata, dataset_type)
@@ -106,12 +107,12 @@ impl DeletedFilesBundle {
         // what is a deleted file
         //
         // create a collection of local file names
-        let local_filenames_set: HashSet<OsString> = read_dir(requested_dir)?
+        let local_filenames_set: HashbrownSet<OsString> = read_dir(requested_dir)?
             .flatten()
             .map(|dir_entry| dir_entry.file_name())
             .collect();
 
-        let unique_snap_filenames: HashMap<OsString, BasicDirEntryInfo> =
+        let unique_snap_filenames: HashbrownMap<OsString, BasicDirEntryInfo> =
             Self::get_unique_snap_filenames(search_bundle.snap_mounts, search_bundle.relative_path);
 
         // compare local filenames to all unique snap filenames - none values are unique, here
@@ -132,7 +133,7 @@ impl DeletedFilesBundle {
     fn get_unique_snap_filenames(
         mounts: &[PathBuf],
         relative_path: &Path,
-    ) -> HashMap<OsString, BasicDirEntryInfo> {
+    ) -> HashbrownMap<OsString, BasicDirEntryInfo> {
         mounts
             .iter()
             .map(|path| path.join(relative_path))
@@ -140,7 +141,7 @@ impl DeletedFilesBundle {
             .flatten()
             .flatten()
             .map(|dir_entry| (dir_entry.file_name(), BasicDirEntryInfo::from(&dir_entry)))
-            .collect::<HashMap<OsString, BasicDirEntryInfo>>()
+            .collect::<HashbrownMap<OsString, BasicDirEntryInfo>>()
     }
 }
 
