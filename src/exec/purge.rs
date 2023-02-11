@@ -38,7 +38,7 @@ impl PurgeFiles {
         };
 
         if let Ok(zfs_command) = which("zfs") {
-            Self::interactive_purge(config, &zfs_command, snap_name_map, select_mode)
+            Self::interactive_purge(config, &zfs_command, &snap_name_map, select_mode)
         } else {
             Err(HttmError::new(
                 "'zfs' command not found. Make sure the command 'zfs' is in your path.",
@@ -50,7 +50,7 @@ impl PurgeFiles {
     fn interactive_purge(
         config: &Config,
         zfs_command: &Path,
-        snap_name_map: SnapNameMap,
+        snap_name_map: &SnapNameMap,
         select_mode: bool,
     ) -> HttmResult<()> {
         let file_names_string: String = snap_name_map
@@ -92,7 +92,7 @@ impl PurgeFiles {
 
             match user_consent.as_ref() {
                 "YES" | "Y" => {
-                    Self::purge_snaps(zfs_command, &snap_name_map)?;
+                    Self::purge_snaps(zfs_command, snap_name_map)?;
 
                     let result_buffer = format!(
                         "httm purged snapshots related to the following file/s:\n\n{}\n\
