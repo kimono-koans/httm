@@ -72,6 +72,20 @@ impl SelectionCandidate {
 
         Ok(output_buf)
     }
+
+    fn generate_display_name(&self) -> Cow<str> {
+        self.path
+            .strip_prefix(
+                &self
+                    .config
+                    .opt_requested_dir
+                    .as_ref()
+                    .expect("requested_dir should never be None in Interactive Browse mode")
+                    .path_buf,
+            )
+            .unwrap_or(&self.path)
+            .to_string_lossy()
+    }
 }
 
 impl Colorable for &SelectionCandidate {
@@ -94,21 +108,7 @@ impl SkimItem for SelectionCandidate {
         self.path.to_string_lossy()
     }
     fn display<'a>(&'a self, _context: DisplayContext<'a>) -> AnsiString<'a> {
-        AnsiString::parse(&paint_string(
-            self,
-            &self
-                .path
-                .strip_prefix(
-                    &self
-                        .config
-                        .opt_requested_dir
-                        .as_ref()
-                        .expect("requested_dir should never be None in Interactive Browse mode")
-                        .path_buf,
-                )
-                .unwrap_or(&self.path)
-                .to_string_lossy(),
-        ))
+        AnsiString::parse(&paint_string(self, &self.generate_display_name()))
     }
     fn output(&self) -> Cow<str> {
         self.text()
