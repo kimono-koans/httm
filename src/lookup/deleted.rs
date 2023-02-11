@@ -90,13 +90,7 @@ impl DeletedFilesBundle {
                 Self::get_unique_deleted_for_dir(&requested_dir_pathdata.path_buf, &search_bundle)
             })
             .flatten()
-            .filter(|basic_info| basic_info.get_filename().is_some())
-            .map(|basic_info| {
-                (
-                    basic_info.get_filename().unwrap().to_os_string(),
-                    basic_info,
-                )
-            })
+            .map(|basic_info| (basic_info.get_filename().to_os_string(), basic_info))
             .collect();
 
         let inner = basic_info_map.into_values().collect();

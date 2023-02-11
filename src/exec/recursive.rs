@@ -225,12 +225,7 @@ impl SharedRecursive {
                 if config.opt_no_filter {
                     return true;
                 } else if config.opt_no_hidden
-                    && entry.get_filename().is_some()
-                    && entry
-                        .get_filename()
-                        .unwrap()
-                        .to_string_lossy()
-                        .starts_with('.')
+                    && entry.get_filename().to_string_lossy().starts_with('.')
                 {
                     return false;
                 } else if let Ok(file_type) = entry.get_filetype() {
