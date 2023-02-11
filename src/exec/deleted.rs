@@ -22,9 +22,7 @@ use skim::prelude::*;
 
 use crate::config::generate::{Config, DeletedMode};
 use crate::data::paths::{BasicDirEntryInfo, PathData};
-use crate::exec::recursive::{
-    combine_and_send_entries, get_entries_partitioned, recursive_is_entry_dir,
-};
+use crate::exec::recursive::SharedRecursive;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{is_channel_closed, Never};
 use crate::lookup::deleted::{DeletedFilesBundle, LastInTimeSet};
@@ -77,10 +75,10 @@ impl SpawnDeletedThread {
         let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
             vec_deleted.into_inner().into_iter().partition(|entry| {
                 // no need to traverse symlinks in deleted search
-                recursive_is_entry_dir(config.as_ref(), entry)
+                SharedRecursive::is_entry_dir(config.as_ref(), entry)
             });
 
-        combine_and_send_entries(
+        SharedRecursive::combine_and_send_entries(
             config.clone(),
             vec_files,
             &vec_dirs,
@@ -155,9 +153,9 @@ impl SpawnDeletedThread {
             let pseudo_live_dir = &from_requested_dir.to_path_buf().join(dir_name);
 
             let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
-                get_entries_partitioned(config.as_ref(), deleted_dir_on_snap)?;
+                SharedRecursive::get_entries_partitioned(config.as_ref(), deleted_dir_on_snap)?;
 
-            combine_and_send_entries(
+            SharedRecursive::combine_and_send_entries(
                 config.clone(),
                 vec_files,
                 &vec_dirs,

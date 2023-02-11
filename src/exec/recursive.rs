@@ -31,9 +31,49 @@ use crate::library::utility::{httm_is_dir, print_output_buf, HttmIsDir, Never};
 use crate::VersionsMap;
 use crate::{BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_HIDDEN_DIRECTORY};
 
-pub struct RecursiveLoop;
+pub struct NonInteractiveRecursiveWrapper;
 
-impl RecursiveLoop {
+impl NonInteractiveRecursiveWrapper {
+    #[allow(unused_variables)]
+    pub fn exec(config: Arc<Config>) -> HttmResult<()> {
+        // won't be sending anything anywhere, this just allows us to reuse enumerate_directory
+        let (dummy_skim_tx, _): (SkimItemSender, SkimItemReceiver) = unbounded();
+        let (hangup_tx, hangup_rx): (Sender<Never>, Receiver<Never>) = bounded(0);
+        let config_clone = config.clone();
+
+        match &config.opt_requested_dir {
+            Some(requested_dir) => {
+                InteractiveRecursive::exec(
+                    config_clone,
+                    &requested_dir.path_buf,
+                    dummy_skim_tx,
+                    hangup_rx,
+                );
+            }
+            None => {
+                return Err(HttmError::new(
+                    "requested_dir should never be None in Display Recursive mode",
+                )
+                .into())
+            }
+        }
+
+        Ok(())
+    }
+
+    fn print(config: &Config, entries: Vec<BasicDirEntryInfo>) -> HttmResult<()> {
+        let pseudo_live_set: Vec<PathData> = entries.iter().map(PathData::from).collect();
+
+        let versions_map = VersionsMap::new(config, &pseudo_live_set)?;
+        let output_buf = VersionsDisplayWrapper::from(config, versions_map).to_string();
+
+        print_output_buf(output_buf)
+    }
+}
+
+pub struct InteractiveRecursive;
+
+impl InteractiveRecursive {
     pub fn exec(
         config: Arc<Config>,
         requested_dir: &Path,
@@ -41,7 +81,7 @@ impl RecursiveLoop {
         hangup_rx: Receiver<Never>,
     ) {
         let run = |opt_deleted_scope: Option<&Scope>| {
-            Self::run_main_loop(
+            Self::main_loop(
                 config.clone(),
                 requested_dir,
                 opt_deleted_scope,
@@ -69,7 +109,7 @@ impl RecursiveLoop {
         }
     }
 
-    fn run_main_loop(
+    fn main_loop(
         config: Arc<Config>,
         requested_dir: &Path,
         opt_deleted_scope: Option<&Scope>,
@@ -118,9 +158,9 @@ impl RecursiveLoop {
     ) -> HttmResult<Vec<BasicDirEntryInfo>> {
         // combined entries will be sent or printed, but we need the vec_dirs to recurse
         let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
-            get_entries_partitioned(config.as_ref(), requested_dir)?;
+            SharedRecursive::get_entries_partitioned(config.as_ref(), requested_dir)?;
 
-        combine_and_send_entries(
+        SharedRecursive::combine_and_send_entries(
             config.clone(),
             vec_files,
             &vec_dirs,
@@ -137,225 +177,188 @@ impl RecursiveLoop {
     }
 }
 
-pub fn combine_and_send_entries(
-    config: Arc<Config>,
-    vec_files: Vec<BasicDirEntryInfo>,
-    vec_dirs: &[BasicDirEntryInfo],
-    is_phantom: bool,
-    requested_dir: &Path,
-    skim_tx: &SkimItemSender,
-) -> HttmResult<()> {
-    let mut combined = vec_files;
-    combined.extend_from_slice(vec_dirs);
+pub struct SharedRecursive;
 
-    let entries = if is_phantom {
-        // deleted - phantom
-        get_pseudo_live_versions(combined, requested_dir)
-    } else {
-        // live - not phantom
-        match config.opt_deleted_mode {
-            Some(DeletedMode::Only) => return Ok(()),
-            Some(DeletedMode::DepthOfOne | DeletedMode::All) | None => {
-                // never show live files is display recursive/deleted only file mode
-                if matches!(config.exec_mode, ExecMode::NonInteractiveRecursive(_)) {
-                    return Ok(());
-                }
-                combined
-            }
-        }
-    };
+impl SharedRecursive {
+    pub fn combine_and_send_entries(
+        config: Arc<Config>,
+        vec_files: Vec<BasicDirEntryInfo>,
+        vec_dirs: &[BasicDirEntryInfo],
+        is_phantom: bool,
+        requested_dir: &Path,
+        skim_tx: &SkimItemSender,
+    ) -> HttmResult<()> {
+        let mut combined = vec_files;
+        combined.extend_from_slice(vec_dirs);
 
-    display_or_transmit(config, entries, is_phantom, skim_tx)
-}
-
-pub fn get_entries_partitioned(
-    config: &Config,
-    requested_dir: &Path,
-) -> HttmResult<(Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>)> {
-    //separates entries into dirs and files
-    let (vec_dirs, vec_files) = read_dir(requested_dir)?
-        .flatten()
-        // checking file_type on dir entries is always preferable
-        // as it is much faster than a metadata call on the path
-        .map(|dir_entry| BasicDirEntryInfo::from(&dir_entry))
-        .filter(|entry| {
-            if config.opt_no_filter {
-                return true;
-            } else if config.opt_no_hidden
-                && entry.get_filename().is_some()
-                && entry
-                    .get_filename()
-                    .unwrap()
-                    .to_string_lossy()
-                    .starts_with('.')
-            {
-                return false;
-            } else if let Ok(file_type) = entry.get_filetype() {
-                if file_type.is_dir() {
-                    return !is_filter_dir(config, entry);
+        let entries = if is_phantom {
+            // deleted - phantom
+            Self::get_pseudo_live_versions(combined, requested_dir)
+        } else {
+            // live - not phantom
+            match config.opt_deleted_mode {
+                Some(DeletedMode::Only) => return Ok(()),
+                Some(DeletedMode::DepthOfOne | DeletedMode::All) | None => {
+                    // never show live files is display recursive/deleted only file mode
+                    if matches!(config.exec_mode, ExecMode::NonInteractiveRecursive(_)) {
+                        return Ok(());
+                    }
+                    combined
                 }
             }
-            true
-        })
-        .partition(|entry| recursive_is_entry_dir(config, entry));
+        };
 
-    Ok((vec_dirs, vec_files))
-}
+        Self::display_or_transmit(config, entries, is_phantom, skim_tx)
+    }
 
-pub fn recursive_is_entry_dir(config: &Config, entry: &BasicDirEntryInfo) -> bool {
-    // must do is_dir() look up on file type as look up on path will traverse links!
-    if config.opt_no_traverse {
-        if let Ok(file_type) = entry.get_filetype() {
-            return file_type.is_dir();
+    pub fn get_entries_partitioned(
+        config: &Config,
+        requested_dir: &Path,
+    ) -> HttmResult<(Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>)> {
+        // separates entries into dirs and files
+        let (vec_dirs, vec_files) = read_dir(requested_dir)?
+            .flatten()
+            // checking file_type on dir entries is always preferable
+            // as it is much faster than a metadata call on the path
+            .map(|dir_entry| BasicDirEntryInfo::from(&dir_entry))
+            .filter(|entry| {
+                if config.opt_no_filter {
+                    return true;
+                } else if config.opt_no_hidden
+                    && entry.get_filename().is_some()
+                    && entry
+                        .get_filename()
+                        .unwrap()
+                        .to_string_lossy()
+                        .starts_with('.')
+                {
+                    return false;
+                } else if let Ok(file_type) = entry.get_filetype() {
+                    if file_type.is_dir() {
+                        return !Self::is_filter_dir(config, entry);
+                    }
+                }
+                true
+            })
+            .partition(|entry| Self::is_entry_dir(config, entry));
+
+        Ok((vec_dirs, vec_files))
+    }
+
+    pub fn is_entry_dir(config: &Config, entry: &BasicDirEntryInfo) -> bool {
+        // must do is_dir() look up on file type as look up on path will traverse links!
+        if config.opt_no_traverse {
+            if let Ok(file_type) = entry.get_filetype() {
+                return file_type.is_dir();
+            }
         }
-    }
-    httm_is_dir(entry)
-}
-
-fn is_filter_dir(config: &Config, entry: &BasicDirEntryInfo) -> bool {
-    // FYI path is always a relative path, but no need to canonicalize as
-    // partial eq for paths is comparison of components iter
-    let path = entry.path.as_path();
-
-    // never check the hidden snapshot directory for live files (duh)
-    // didn't think this was possible until I saw a SMB share return
-    // a .zfs dir entry
-    if path.ends_with(ZFS_HIDDEN_DIRECTORY) || path.ends_with(BTRFS_SNAPPER_HIDDEN_DIRECTORY) {
-        return true;
+        httm_is_dir(entry)
     }
 
-    // is a common btrfs snapshot dir?
-    if let Some(common_snap_dir) = &config.dataset_collection.opt_common_snap_dir {
-        if path == *common_snap_dir {
+    fn is_filter_dir(config: &Config, entry: &BasicDirEntryInfo) -> bool {
+        // FYI path is always a relative path, but no need to canonicalize as
+        // partial eq for paths is comparison of components iter
+        let path = entry.path.as_path();
+
+        // never check the hidden snapshot directory for live files (duh)
+        // didn't think this was possible until I saw a SMB share return
+        // a .zfs dir entry
+        if path.ends_with(ZFS_HIDDEN_DIRECTORY) || path.ends_with(BTRFS_SNAPPER_HIDDEN_DIRECTORY) {
             return true;
         }
-    }
 
-    // check whether user requested this dir specifically, then we will show
-    if let Some(user_requested_dir) = config.opt_requested_dir.as_ref() {
-        if user_requested_dir.path_buf.as_path() == path {
+        // is a common btrfs snapshot dir?
+        if let Some(common_snap_dir) = &config.dataset_collection.opt_common_snap_dir {
+            if path == *common_snap_dir {
+                return true;
+            }
+        }
+
+        // check whether user requested this dir specifically, then we will show
+        if let Some(user_requested_dir) = config.opt_requested_dir.as_ref() {
+            if user_requested_dir.path_buf.as_path() == path {
+                return false;
+            }
+        }
+
+        // finally : is a non-supported dataset?
+        // bailout easily if path is larger than max_filter_dir len
+        if path.components().count() > config.dataset_collection.filter_dirs.max_len {
             return false;
         }
+
+        config.dataset_collection.filter_dirs.inner.contains(path)
     }
 
-    // finally : is a non-supported dataset?
-    // bailout easily if path is larger than max_filter_dir len
-    if path.components().count() > config.dataset_collection.filter_dirs.max_len {
-        return false;
+    // this function creates dummy "live versions" values to match deleted files
+    // which have been found on snapshots, we return to the user "the path that
+    // once was" in their browse panel
+    fn get_pseudo_live_versions(
+        entries: Vec<BasicDirEntryInfo>,
+        pseudo_live_dir: &Path,
+    ) -> Vec<BasicDirEntryInfo> {
+        entries
+            .into_iter()
+            .map(|basic_info| BasicDirEntryInfo {
+                path: pseudo_live_dir.join(basic_info.path.file_name().unwrap_or_default()),
+                file_type: basic_info.file_type,
+            })
+            .collect()
     }
 
-    config.dataset_collection.filter_dirs.inner.contains(path)
-}
-
-// this function creates dummy "live versions" values to match deleted files
-// which have been found on snapshots, we return to the user "the path that
-// once was" in their browse panel
-fn get_pseudo_live_versions(
-    entries: Vec<BasicDirEntryInfo>,
-    pseudo_live_dir: &Path,
-) -> Vec<BasicDirEntryInfo> {
-    entries
-        .into_iter()
-        .map(|basic_info| BasicDirEntryInfo {
-            path: pseudo_live_dir.join(basic_info.path.file_name().unwrap_or_default()),
-            file_type: basic_info.file_type,
-        })
-        .collect()
-}
-
-fn display_or_transmit(
-    config: Arc<Config>,
-    entries: Vec<BasicDirEntryInfo>,
-    is_phantom: bool,
-    skim_tx: &SkimItemSender,
-) -> HttmResult<()> {
-    // send to the interactive view, or print directly, never return back
-    match &config.exec_mode {
-        ExecMode::Interactive(_) => transmit_entries(config.clone(), entries, is_phantom, skim_tx)?,
-        ExecMode::NonInteractiveRecursive(progress_bar) => {
-            if entries.is_empty() {
-                if config.opt_recursive {
-                    progress_bar.tick();
+    fn display_or_transmit(
+        config: Arc<Config>,
+        entries: Vec<BasicDirEntryInfo>,
+        is_phantom: bool,
+        skim_tx: &SkimItemSender,
+    ) -> HttmResult<()> {
+        // send to the interactive view, or print directly, never return back
+        match &config.exec_mode {
+            ExecMode::Interactive(_) => {
+                Self::transmit(config.clone(), entries, is_phantom, skim_tx)?
+            }
+            ExecMode::NonInteractiveRecursive(progress_bar) => {
+                if entries.is_empty() {
+                    if config.opt_recursive {
+                        progress_bar.tick();
+                    } else {
+                        eprintln!(
+                            "NOTICE: httm could not find any deleted files at this directory level.  \
+                        Perhaps try specifying a deleted mode in combination with \"--recursive\"."
+                        )
+                    }
                 } else {
-                    eprintln!(
-                        "NOTICE: httm could not find any deleted files at this directory level.  \
-                    Perhaps try specifying a deleted mode in combination with \"--recursive\"."
-                    )
-                }
-            } else {
-                print_display_recursive(config.as_ref(), entries)?;
+                    NonInteractiveRecursiveWrapper::print(config.as_ref(), entries)?;
 
-                // keeps spinner from squashing last line of output
-                if config.opt_recursive {
-                    eprintln!();
+                    // keeps spinner from squashing last line of output
+                    if config.opt_recursive {
+                        eprintln!();
+                    }
                 }
             }
-        }
-        _ => unreachable!(),
-    }
-
-    Ok(())
-}
-
-fn transmit_entries(
-    config: Arc<Config>,
-    entries: Vec<BasicDirEntryInfo>,
-    is_phantom: bool,
-    skim_tx: &SkimItemSender,
-) -> HttmResult<()> {
-    // don't want a par_iter here because it will block and wait for all
-    // results, instead of printing and recursing into the subsequent dirs
-    entries
-        .into_iter()
-        .try_for_each(|basic_info| {
-            skim_tx.try_send(Arc::new(SelectionCandidate::new(
-                config.clone(),
-                basic_info,
-                is_phantom,
-            )))
-        })
-        .map_err(std::convert::Into::into)
-}
-
-fn print_display_recursive(config: &Config, entries: Vec<BasicDirEntryInfo>) -> HttmResult<()> {
-    let pseudo_live_set: Vec<PathData> = entries
-        .iter()
-        .map(|basic_info| PathData::from(basic_info.path.as_path()))
-        .collect();
-
-    let versions_map = VersionsMap::new(config, &pseudo_live_set)?;
-    let output_buf = VersionsDisplayWrapper::from(config, versions_map).to_string();
-
-    print_output_buf(output_buf)
-}
-
-pub struct NonInteractiveRecursiveWrapper;
-
-impl NonInteractiveRecursiveWrapper {
-    #[allow(unused_variables)]
-    pub fn exec(config: Arc<Config>) -> HttmResult<()> {
-        // won't be sending anything anywhere, this just allows us to reuse enumerate_directory
-        let (dummy_skim_tx, _): (SkimItemSender, SkimItemReceiver) = unbounded();
-        let (hangup_tx, hangup_rx): (Sender<Never>, Receiver<Never>) = bounded(0);
-        let config_clone = config.clone();
-
-        match &config.opt_requested_dir {
-            Some(requested_dir) => {
-                RecursiveLoop::exec(
-                    config_clone,
-                    &requested_dir.path_buf,
-                    dummy_skim_tx,
-                    hangup_rx,
-                );
-            }
-            None => {
-                return Err(HttmError::new(
-                    "requested_dir should never be None in Display Recursive mode",
-                )
-                .into())
-            }
+            _ => unreachable!(),
         }
 
         Ok(())
+    }
+
+    fn transmit(
+        config: Arc<Config>,
+        entries: Vec<BasicDirEntryInfo>,
+        is_phantom: bool,
+        skim_tx: &SkimItemSender,
+    ) -> HttmResult<()> {
+        // don't want a par_iter here because it will block and wait for all
+        // results, instead of printing and recursing into the subsequent dirs
+        entries
+            .into_iter()
+            .try_for_each(|basic_info| {
+                skim_tx.try_send(Arc::new(SelectionCandidate::new(
+                    config.clone(),
+                    basic_info,
+                    is_phantom,
+                )))
+            })
+            .map_err(std::convert::Into::into)
     }
 }
