@@ -15,9 +15,8 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::{ops::Deref, path::Path, path::PathBuf};
+use std::{collections::BTreeMap, ops::Deref, path::Path, path::PathBuf};
 
-use crate::HashbrownMap;
 use rayon::prelude::*;
 
 use crate::library::results::{HttmError, HttmResult};
@@ -25,7 +24,7 @@ use crate::parse::mounts::MapOfDatasets;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MapOfAlts {
-    inner: HashbrownMap<PathBuf, AltMetadata>,
+    inner: BTreeMap<PathBuf, AltMetadata>,
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
@@ -34,14 +33,14 @@ pub struct AltMetadata {
     pub opt_datasets_of_interest: Option<Vec<PathBuf>>,
 }
 
-impl From<HashbrownMap<PathBuf, AltMetadata>> for MapOfAlts {
-    fn from(map: HashbrownMap<PathBuf, AltMetadata>) -> Self {
+impl From<BTreeMap<PathBuf, AltMetadata>> for MapOfAlts {
+    fn from(map: BTreeMap<PathBuf, AltMetadata>) -> Self {
         Self { inner: map }
     }
 }
 
 impl Deref for MapOfAlts {
-    type Target = HashbrownMap<PathBuf, AltMetadata>;
+    type Target = BTreeMap<PathBuf, AltMetadata>;
 
     fn deref(&self) -> &Self::Target {
         &self.inner
@@ -51,7 +50,7 @@ impl Deref for MapOfAlts {
 impl MapOfAlts {
     // instead of looking up, precompute possible alt replicated mounts before exec
     pub fn new(map_of_datasets: &MapOfDatasets) -> Self {
-        let res: HashbrownMap<PathBuf, AltMetadata> = map_of_datasets
+        let res: BTreeMap<PathBuf, AltMetadata> = map_of_datasets
             .inner
             .par_iter()
             .flat_map(|(mount, _dataset_info)| {

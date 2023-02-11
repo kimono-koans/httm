@@ -15,9 +15,11 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::{fs::read_dir, ops::Deref, path::Path, path::PathBuf, process::Command as ExecProcess};
+use std::{
+    collections::BTreeMap, fs::read_dir, ops::Deref, path::Path, path::PathBuf,
+    process::Command as ExecProcess,
+};
 
-use crate::HashbrownMap;
 use rayon::prelude::*;
 use which::which;
 
@@ -28,17 +30,17 @@ use crate::{BTRFS_SNAPPER_HIDDEN_DIRECTORY, BTRFS_SNAPPER_SUFFIX, ZFS_SNAPSHOT_D
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MapOfSnaps {
-    inner: HashbrownMap<PathBuf, Vec<PathBuf>>,
+    inner: BTreeMap<PathBuf, Vec<PathBuf>>,
 }
 
-impl From<HashbrownMap<PathBuf, Vec<PathBuf>>> for MapOfSnaps {
-    fn from(map: HashbrownMap<PathBuf, Vec<PathBuf>>) -> Self {
+impl From<BTreeMap<PathBuf, Vec<PathBuf>>> for MapOfSnaps {
+    fn from(map: BTreeMap<PathBuf, Vec<PathBuf>>) -> Self {
         Self { inner: map }
     }
 }
 
 impl Deref for MapOfSnaps {
-    type Target = HashbrownMap<PathBuf, Vec<PathBuf>>;
+    type Target = BTreeMap<PathBuf, Vec<PathBuf>>;
 
     fn deref(&self) -> &Self::Target {
         &self.inner
@@ -47,7 +49,7 @@ impl Deref for MapOfSnaps {
 
 impl MapOfSnaps {
     // fans out precompute of snap mounts to the appropriate function based on fstype
-    pub fn new(map_of_datasets: &HashbrownMap<PathBuf, DatasetMetadata>) -> HttmResult<Self> {
+    pub fn new(map_of_datasets: &BTreeMap<PathBuf, DatasetMetadata>) -> HttmResult<Self> {
         let opt_root_mount_path: Option<&PathBuf> =
             map_of_datasets
                 .par_iter()
@@ -62,7 +64,7 @@ impl MapOfSnaps {
                     FilesystemType::Zfs => None,
                 });
 
-        let map_of_snaps: HashbrownMap<PathBuf, Vec<PathBuf>> = map_of_datasets
+        let map_of_snaps: BTreeMap<PathBuf, Vec<PathBuf>> = map_of_datasets
             .par_iter()
             .flat_map(|(mount, dataset_info)| {
                 let snap_mounts: HttmResult<Vec<PathBuf>> = match dataset_info.fs_type {

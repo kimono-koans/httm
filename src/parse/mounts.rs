@@ -15,9 +15,13 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::{collections::BTreeSet, path::Path, path::PathBuf, process::Command as ExecProcess};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    path::Path,
+    path::PathBuf,
+    process::Command as ExecProcess,
+};
 
-use crate::HashbrownMap;
 use proc_mounts::MountIter;
 use rayon::iter::Either;
 use rayon::prelude::*;
@@ -56,7 +60,7 @@ pub struct FilterDirs {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MapOfDatasets {
-    pub inner: HashbrownMap<PathBuf, DatasetMetadata>,
+    pub inner: BTreeMap<PathBuf, DatasetMetadata>,
     pub max_len: usize,
 }
 
@@ -113,10 +117,9 @@ impl BaseFilesystemInfo {
 
     // parsing from proc mounts is both faster and necessary for certain btrfs features
     // for instance, allows us to read subvolumes mounts, like "/@" or "/@home"
-    fn from_proc_mounts() -> HttmResult<(HashbrownMap<PathBuf, DatasetMetadata>, BTreeSet<PathBuf>)>
-    {
+    fn from_proc_mounts() -> HttmResult<(BTreeMap<PathBuf, DatasetMetadata>, BTreeSet<PathBuf>)> {
         let (map_of_datasets, filter_dirs): (
-            HashbrownMap<PathBuf, DatasetMetadata>,
+            BTreeMap<PathBuf, DatasetMetadata>,
             BTreeSet<PathBuf>,
         ) = MountIter::new()?
             .par_bridge()
@@ -159,7 +162,7 @@ impl BaseFilesystemInfo {
                     }
                 }
                 &BTRFS_FSTYPE => {
-                    let keyed_options: HashbrownMap<String, String> = mount_info
+                    let keyed_options: BTreeMap<String, String> = mount_info
                         .options
                         .par_iter()
                         .filter(|line| line.contains('='))
@@ -199,16 +202,16 @@ impl BaseFilesystemInfo {
 
     // old fashioned parsing for non-Linux systems, nearly as fast, works everywhere with a mount command
     // both methods are much faster than using zfs command
-    fn from_mount_cmd() -> HttmResult<(HashbrownMap<PathBuf, DatasetMetadata>, BTreeSet<PathBuf>)> {
+    fn from_mount_cmd() -> HttmResult<(BTreeMap<PathBuf, DatasetMetadata>, BTreeSet<PathBuf>)> {
         fn parse(
             mount_command: &Path,
-        ) -> HttmResult<(HashbrownMap<PathBuf, DatasetMetadata>, BTreeSet<PathBuf>)> {
+        ) -> HttmResult<(BTreeMap<PathBuf, DatasetMetadata>, BTreeSet<PathBuf>)> {
             let command_output =
                 std::str::from_utf8(&ExecProcess::new(mount_command).output()?.stdout)?.to_owned();
 
             // parse "mount" for filesystems and mountpoints
             let (map_of_datasets, filter_dirs): (
-                HashbrownMap<PathBuf, DatasetMetadata>,
+                BTreeMap<PathBuf, DatasetMetadata>,
                 BTreeSet<PathBuf>,
             ) = command_output
                 .par_lines()

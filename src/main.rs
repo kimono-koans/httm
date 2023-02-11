@@ -75,9 +75,6 @@ use crate::library::results::HttmResult;
 use crate::lookup::snap_names::SnapNameMap;
 use crate::lookup::versions::VersionsMap;
 
-type HashbrownMap<K, V> = hashbrown::HashMap<K, V>;
-type HashbrownSet<K> = hashbrown::HashSet<K>;
-
 pub const ZFS_HIDDEN_DIRECTORY: &str = ".zfs";
 pub const ZFS_SNAPSHOT_DIRECTORY: &str = ".zfs/snapshot";
 pub const BTRFS_SNAPPER_HIDDEN_DIRECTORY: &str = ".snapshots";

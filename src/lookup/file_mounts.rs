@@ -15,9 +15,9 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
+use std::collections::BTreeMap;
 use std::ops::Deref;
 
-use crate::HashbrownMap;
 use rayon::prelude::*;
 
 use crate::config::generate::{Config, MountDisplay};
@@ -26,7 +26,7 @@ use crate::library::iter_extensions::HttmIter;
 use crate::lookup::versions::{MostProximateAndOptAlts, VersionsMap};
 
 pub struct MountsForFiles<'a> {
-    pub inner: HashbrownMap<PathData, Vec<PathData>>,
+    pub inner: BTreeMap<PathData, Vec<PathData>>,
     pub mount_display: &'a MountDisplay,
     pub config: &'a Config,
 }
@@ -38,7 +38,7 @@ impl<'a> From<MountsForFiles<'a>> for VersionsMap {
 }
 
 impl<'a> Deref for MountsForFiles<'a> {
-    type Target = HashbrownMap<PathData, Vec<PathData>>;
+    type Target = BTreeMap<PathData, Vec<PathData>>;
 
     fn deref(&self) -> &Self::Target {
         &self.inner
@@ -74,7 +74,7 @@ impl<'a> MountsForFiles<'a> {
         raw_vec: &[PathData],
         mount_display: &'a MountDisplay,
     ) -> Self {
-        let map: HashbrownMap<PathData, Vec<PathData>> = raw_vec
+        let map: BTreeMap<PathData, Vec<PathData>> = raw_vec
             .iter()
             .map(|pathdata| {
                 let datasets: Vec<MostProximateAndOptAlts> = config
