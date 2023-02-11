@@ -43,37 +43,39 @@ impl VersionsMap {
         let global_display_set = DisplaySet::from((keys, values));
         let padding_collection = PaddingCollection::new(config, &global_display_set);
 
-        match &config.print_mode {
-            PrintMode::FormattedDefault | PrintMode::FormattedNotPretty if self.len() == 1 => {
-                global_display_set.format(config, &padding_collection)
-            }
-            _ => self
-                .iter()
-                .map(|(key, values)| {
-                    let keys: Vec<&PathData> = vec![key];
-                    let values: Vec<&PathData> = values.iter().collect();
-
-                    let display_set = DisplaySet::from((keys, values));
-
-                    match config.print_mode {
-                        PrintMode::FormattedDefault | PrintMode::FormattedNotPretty => {
-                            display_set.format(config, &padding_collection)
-                        }
-                        PrintMode::RawNewline | PrintMode::RawZero => {
-                            let delimiter = get_delimiter(config);
-
-                            display_set
-                                .iter()
-                                .flatten()
-                                .map(|pathdata| {
-                                    format!("{}{delimiter}", pathdata.path_buf.display())
-                                })
-                                .collect()
-                        }
-                    }
-                })
-                .collect::<String>(),
+        // if a single instance immediately return the global we already prepared
+        if matches!(
+            &config.print_mode,
+            PrintMode::FormattedDefault | PrintMode::FormattedNotPretty
+        ) && self.len() == 1
+        {
+            return global_display_set.format(config, &padding_collection);
         }
+
+        // else re compute for each instance and print per instance, now with uniform padding
+        self.iter()
+            .map(|(key, values)| {
+                let keys: Vec<&PathData> = vec![key];
+                let values: Vec<&PathData> = values.iter().collect();
+
+                let display_set = DisplaySet::from((keys, values));
+
+                match config.print_mode {
+                    PrintMode::FormattedDefault | PrintMode::FormattedNotPretty => {
+                        display_set.format(config, &padding_collection)
+                    }
+                    PrintMode::RawNewline | PrintMode::RawZero => {
+                        let delimiter = get_delimiter(config);
+
+                        display_set
+                            .iter()
+                            .flatten()
+                            .map(|pathdata| format!("{}{delimiter}", pathdata.path_buf.display()))
+                            .collect()
+                    }
+                }
+            })
+            .collect::<String>()
     }
 }
 
@@ -99,7 +101,7 @@ impl<'a> Deref for DisplaySet<'a> {
 }
 
 impl<'a> DisplaySet<'a> {
-    pub fn format(self, config: &Config, padding_collection: &PaddingCollection) -> String {
+    pub fn format(&self, config: &Config, padding_collection: &PaddingCollection) -> String {
         // get the display buffer for each set snaps and live
         self.iter()
             .enumerate()
