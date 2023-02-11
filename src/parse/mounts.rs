@@ -15,13 +15,9 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::{
-    collections::{BTreeMap, BTreeSet},
-    path::Path,
-    path::PathBuf,
-    process::Command as ExecProcess,
-};
+use std::{path::Path, path::PathBuf, process::Command as ExecProcess};
 
+use hashbrown::{HashMap, HashSet};
 use proc_mounts::MountIter;
 use rayon::iter::Either;
 use rayon::prelude::*;
@@ -54,13 +50,13 @@ pub struct DatasetMetadata {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FilterDirs {
-    pub inner: BTreeSet<PathBuf>,
+    pub inner: HashSet<PathBuf>,
     pub max_len: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MapOfDatasets {
-    pub inner: BTreeMap<PathBuf, DatasetMetadata>,
+    pub inner: HashMap<PathBuf, DatasetMetadata>,
     pub max_len: usize,
 }
 
@@ -117,81 +113,79 @@ impl BaseFilesystemInfo {
 
     // parsing from proc mounts is both faster and necessary for certain btrfs features
     // for instance, allows us to read subvolumes mounts, like "/@" or "/@home"
-    fn from_proc_mounts() -> HttmResult<(BTreeMap<PathBuf, DatasetMetadata>, BTreeSet<PathBuf>)> {
-        let (map_of_datasets, filter_dirs): (
-            BTreeMap<PathBuf, DatasetMetadata>,
-            BTreeSet<PathBuf>,
-        ) = MountIter::new()?
-            .par_bridge()
-            .flatten()
-            // but exclude snapshot mounts.  we want only the raw filesystems
-            .filter(|mount_info| {
-                !mount_info
-                    .dest
-                    .to_string_lossy()
-                    .contains(ZFS_SNAPSHOT_DIRECTORY)
-            })
-            .partition_map(|mount_info| match &mount_info.fstype.as_str() {
-                &ZFS_FSTYPE => Either::Left((
-                    mount_info.dest,
-                    DatasetMetadata {
-                        name: mount_info.source.to_string_lossy().into_owned(),
-                        fs_type: FilesystemType::Zfs,
-                        mount_type: MountType::Local,
-                    },
-                )),
-                &SMB_FSTYPE | &AFP_FSTYPE | &NFS_FSTYPE => {
-                    match get_fs_type_from_hidden_dir(&mount_info.dest) {
-                        Some(FilesystemType::Zfs) => Either::Left((
-                            mount_info.dest,
-                            DatasetMetadata {
-                                name: mount_info.source.to_string_lossy().into_owned(),
-                                fs_type: FilesystemType::Zfs,
-                                mount_type: MountType::Network,
-                            },
-                        )),
-                        Some(FilesystemType::Btrfs) => Either::Left((
-                            mount_info.dest,
-                            DatasetMetadata {
-                                name: mount_info.source.to_string_lossy().into_owned(),
-                                fs_type: FilesystemType::Btrfs,
-                                mount_type: MountType::Network,
-                            },
-                        )),
-                        None => Either::Right(mount_info.dest),
-                    }
-                }
-                &BTRFS_FSTYPE => {
-                    let keyed_options: BTreeMap<String, String> = mount_info
-                        .options
-                        .par_iter()
-                        .filter(|line| line.contains('='))
-                        .filter_map(|line| {
-                            line.split_once('=')
-                                .map(|(key, value)| (key.to_owned(), value.to_owned()))
-                        })
-                        .collect();
-
-                    let name = match keyed_options.get("subvol") {
-                        Some(subvol) => subvol.clone(),
-                        None => mount_info.source.to_string_lossy().into_owned(),
-                    };
-
-                    let fs_type = FilesystemType::Btrfs;
-
-                    let mount_type = MountType::Local;
-
-                    Either::Left((
+    fn from_proc_mounts() -> HttmResult<(HashMap<PathBuf, DatasetMetadata>, HashSet<PathBuf>)> {
+        let (map_of_datasets, filter_dirs): (HashMap<PathBuf, DatasetMetadata>, HashSet<PathBuf>) =
+            MountIter::new()?
+                .par_bridge()
+                .flatten()
+                // but exclude snapshot mounts.  we want only the raw filesystems
+                .filter(|mount_info| {
+                    !mount_info
+                        .dest
+                        .to_string_lossy()
+                        .contains(ZFS_SNAPSHOT_DIRECTORY)
+                })
+                .partition_map(|mount_info| match &mount_info.fstype.as_str() {
+                    &ZFS_FSTYPE => Either::Left((
                         mount_info.dest,
                         DatasetMetadata {
-                            name,
-                            fs_type,
-                            mount_type,
+                            name: mount_info.source.to_string_lossy().into_owned(),
+                            fs_type: FilesystemType::Zfs,
+                            mount_type: MountType::Local,
                         },
-                    ))
-                }
-                _ => Either::Right(mount_info.dest),
-            });
+                    )),
+                    &SMB_FSTYPE | &AFP_FSTYPE | &NFS_FSTYPE => {
+                        match get_fs_type_from_hidden_dir(&mount_info.dest) {
+                            Some(FilesystemType::Zfs) => Either::Left((
+                                mount_info.dest,
+                                DatasetMetadata {
+                                    name: mount_info.source.to_string_lossy().into_owned(),
+                                    fs_type: FilesystemType::Zfs,
+                                    mount_type: MountType::Network,
+                                },
+                            )),
+                            Some(FilesystemType::Btrfs) => Either::Left((
+                                mount_info.dest,
+                                DatasetMetadata {
+                                    name: mount_info.source.to_string_lossy().into_owned(),
+                                    fs_type: FilesystemType::Btrfs,
+                                    mount_type: MountType::Network,
+                                },
+                            )),
+                            None => Either::Right(mount_info.dest),
+                        }
+                    }
+                    &BTRFS_FSTYPE => {
+                        let keyed_options: HashMap<String, String> = mount_info
+                            .options
+                            .par_iter()
+                            .filter(|line| line.contains('='))
+                            .filter_map(|line| {
+                                line.split_once('=')
+                                    .map(|(key, value)| (key.to_owned(), value.to_owned()))
+                            })
+                            .collect();
+
+                        let name = match keyed_options.get("subvol") {
+                            Some(subvol) => subvol.clone(),
+                            None => mount_info.source.to_string_lossy().into_owned(),
+                        };
+
+                        let fs_type = FilesystemType::Btrfs;
+
+                        let mount_type = MountType::Local;
+
+                        Either::Left((
+                            mount_info.dest,
+                            DatasetMetadata {
+                                name,
+                                fs_type,
+                                mount_type,
+                            },
+                        ))
+                    }
+                    _ => Either::Right(mount_info.dest),
+                });
 
         if map_of_datasets.is_empty() {
             Err(HttmError::new("httm could not find any valid datasets on the system.").into())
@@ -202,17 +196,17 @@ impl BaseFilesystemInfo {
 
     // old fashioned parsing for non-Linux systems, nearly as fast, works everywhere with a mount command
     // both methods are much faster than using zfs command
-    fn from_mount_cmd() -> HttmResult<(BTreeMap<PathBuf, DatasetMetadata>, BTreeSet<PathBuf>)> {
+    fn from_mount_cmd() -> HttmResult<(HashMap<PathBuf, DatasetMetadata>, HashSet<PathBuf>)> {
         fn parse(
             mount_command: &Path,
-        ) -> HttmResult<(BTreeMap<PathBuf, DatasetMetadata>, BTreeSet<PathBuf>)> {
+        ) -> HttmResult<(HashMap<PathBuf, DatasetMetadata>, HashSet<PathBuf>)> {
             let command_output =
                 std::str::from_utf8(&ExecProcess::new(mount_command).output()?.stdout)?.to_owned();
 
             // parse "mount" for filesystems and mountpoints
             let (map_of_datasets, filter_dirs): (
-                BTreeMap<PathBuf, DatasetMetadata>,
-                BTreeSet<PathBuf>,
+                HashMap<PathBuf, DatasetMetadata>,
+                HashSet<PathBuf>,
             ) = command_output
                 .par_lines()
                 // but exclude snapshot mounts.  we want the raw filesystem names.

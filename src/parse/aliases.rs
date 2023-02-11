@@ -15,7 +15,9 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::{collections::BTreeMap, ffi::OsString, ops::Deref, path::Path, path::PathBuf};
+use std::{ffi::OsString, ops::Deref, path::Path, path::PathBuf};
+
+use hashbrown::HashMap;
 
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::get_fs_type_from_hidden_dir;
@@ -34,17 +36,17 @@ pub struct RemotePathAndFsType {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MapOfAliases {
-    inner: BTreeMap<PathBuf, RemotePathAndFsType>,
+    inner: HashMap<PathBuf, RemotePathAndFsType>,
 }
 
-impl From<BTreeMap<PathBuf, RemotePathAndFsType>> for MapOfAliases {
-    fn from(map: BTreeMap<PathBuf, RemotePathAndFsType>) -> Self {
+impl From<HashMap<PathBuf, RemotePathAndFsType>> for MapOfAliases {
+    fn from(map: HashMap<PathBuf, RemotePathAndFsType>) -> Self {
         Self { inner: map }
     }
 }
 
 impl Deref for MapOfAliases {
-    type Target = BTreeMap<PathBuf, RemotePathAndFsType>;
+    type Target = HashMap<PathBuf, RemotePathAndFsType>;
 
     fn deref(&self) -> &Self::Target {
         &self.inner
@@ -99,7 +101,7 @@ impl MapOfAliases {
             aliases_iter.push(value)
         }
 
-        let map_of_aliases: BTreeMap<PathBuf, RemotePathAndFsType> = aliases_iter
+        let map_of_aliases: HashMap<PathBuf, RemotePathAndFsType> = aliases_iter
             .into_iter()
             .filter_map(|(local_dir, snap_dir)| {
                 if !local_dir.exists() || !snap_dir.exists() {
