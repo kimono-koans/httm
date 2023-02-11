@@ -49,18 +49,23 @@ impl VersionsMap {
                 .clone()
                 .into_iter()
                 .map(std::convert::Into::into)
-                .map(|raw_instance_set| DisplaySet::new(config, &raw_instance_set))
-                .map(|display_set| match config.print_mode {
-                    PrintMode::FormattedDefault | PrintMode::FormattedNotPretty => {
-                        display_set.format(config, &padding_collection)
-                    }
-                    PrintMode::RawNewline | PrintMode::RawZero => {
-                        let delimiter = get_delimiter(config);
-                        display_set
-                            .iter()
-                            .flatten()
-                            .map(|pathdata| format!("{}{delimiter}", pathdata.path_buf.display()))
-                            .collect()
+                .map(|raw_instance_set| {
+                    let display_set = DisplaySet::new(config, &raw_instance_set);
+
+                    match config.print_mode {
+                        PrintMode::FormattedDefault | PrintMode::FormattedNotPretty => {
+                            display_set.format(config, &padding_collection)
+                        }
+                        PrintMode::RawNewline | PrintMode::RawZero => {
+                            let delimiter = get_delimiter(config);
+                            display_set
+                                .iter()
+                                .flatten()
+                                .map(|pathdata| {
+                                    format!("{}{delimiter}", pathdata.path_buf.display())
+                                })
+                                .collect()
+                        }
                     }
                 })
                 .collect::<String>(),
@@ -69,30 +74,24 @@ impl VersionsMap {
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
-pub struct DisplaySet {
-    inner: [Vec<PathData>; 2],
+pub struct DisplaySet<'a> {
+    inner: [Vec<&'a PathData>; 2],
 }
 
-impl From<[Vec<PathData>; 2]> for DisplaySet {
-    fn from(array: [Vec<PathData>; 2]) -> Self {
-        Self { inner: array }
-    }
-}
-
-impl Deref for DisplaySet {
-    type Target = [Vec<PathData>; 2];
+impl<'a> Deref for DisplaySet<'a> {
+    type Target = [Vec<&'a PathData>; 2];
 
     fn deref(&self) -> &Self::Target {
         &self.inner
     }
 }
 
-impl DisplaySet {
-    pub fn new(config: &Config, versions_map: &VersionsMap) -> DisplaySet {
+impl<'a> DisplaySet<'a> {
+    pub fn new(config: &Config, versions_map: &'a VersionsMap) -> Self {
         let vec_snaps = if matches!(config.opt_bulk_exclusion, Some(BulkExclusion::NoSnap)) {
             Vec::new()
         } else {
-            versions_map.values().flatten().cloned().collect()
+            versions_map.values().flatten().collect()
         };
 
         let vec_live = if config.opt_last_snap.is_some()
@@ -101,7 +100,7 @@ impl DisplaySet {
         {
             Vec::new()
         } else {
-            versions_map.keys().cloned().collect()
+            versions_map.keys().collect()
         };
 
         Self {
