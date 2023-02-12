@@ -18,12 +18,15 @@
 use std::collections::BTreeMap;
 use std::ops::Deref;
 
+use serde::{Deserialize, Serialize};
+
 use crate::config::generate::{Config, MountDisplay, PrintMode};
 use crate::display_versions::format::{NOT_SO_PRETTY_FIXED_WIDTH_PADDING, QUOTATION_MARKS_LEN};
 use crate::MountsForFiles;
 use crate::SnapNameMap;
 use crate::VersionsMap;
 
+#[derive(Serialize, Deserialize)]
 pub struct PrintAsMap {
     inner: BTreeMap<String, Vec<String>>,
 }
@@ -104,6 +107,16 @@ impl PrintAsMap {
             || QUOTATION_MARKS_LEN,
             |key| key.len() + QUOTATION_MARKS_LEN,
         )
+    }
+
+    pub fn to_json(&self) -> String {
+        match serde_json::to_string_pretty(self) {
+            Ok(s) => s + "\n",
+            Err(error) => {
+                eprintln!("Error: {error}");
+                std::process::exit(1)
+            },
+        }
     }
 
     pub fn format(&self, config: &Config) -> String {

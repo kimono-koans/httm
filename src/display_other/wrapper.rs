@@ -33,7 +33,7 @@ impl<'a> OtherDisplayWrapper<'a> {
 
 impl<'a> std::string::ToString for OtherDisplayWrapper<'a> {
     fn to_string(&self) -> String {
-        match self.config.print_mode {
+        match &self.config.print_mode {
             PrintMode::RawNewline | PrintMode::RawZero => self
                 .map
                 .values()
@@ -43,7 +43,10 @@ impl<'a> std::string::ToString for OtherDisplayWrapper<'a> {
                     format!("{value}{delimiter}")
                 })
                 .collect::<String>(),
-            _ => self.map.format(self.config),
+            PrintMode::FormattedJson => self.map.to_json(),
+            PrintMode::FormattedDefault | PrintMode::FormattedNotPretty => {
+                self.map.format(self.config)
+            }
         }
     }
 }

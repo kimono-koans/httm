@@ -15,7 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::config::generate::{Config, ExecMode};
+use crate::config::generate::{Config, ExecMode, PrintMode};
 use crate::display_other::generic_maps::PrintAsMap;
 use crate::display_other::wrapper::OtherDisplayWrapper;
 use crate::lookup::versions::VersionsMap;
@@ -40,6 +40,10 @@ impl<'a> std::string::ToString for VersionsDisplayWrapper<'a> {
             ExecMode::Display if self.config.opt_last_snap.is_some() => {
                 let printable_map = PrintAsMap::from(&self.map);
                 OtherDisplayWrapper::from(self.config, printable_map).to_string()
+            }
+            ExecMode::Display if matches!(self.config.print_mode, PrintMode::FormattedJson) => {
+                let printable_map = PrintAsMap::from(&self.map);
+                printable_map.to_json()
             }
             _ => self.map.format(self.config),
         }

@@ -30,7 +30,6 @@ use crate::data::paths::PathData;
 use crate::library::results::{HttmError, HttmResult};
 
 //use super::common::FindVersions;
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VersionsMap {
     inner: BTreeMap<PathData, Vec<PathData>>,
