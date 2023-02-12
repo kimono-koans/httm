@@ -43,8 +43,8 @@ impl<'a> std::string::ToString for OtherDisplayWrapper<'a> {
                     format!("{value}{delimiter}")
                 })
                 .collect::<String>(),
-            PrintMode::FormattedJson => {
-                let json_string = self.map.to_json();
+            PrintMode::FormattedJsonDefault | PrintMode::FormattedJsonNotPretty => {
+                let json_string = self.map.to_json(self.config);
 
                 match self.config.exec_mode {
                     ExecMode::Display | ExecMode::Interactive(_) => {

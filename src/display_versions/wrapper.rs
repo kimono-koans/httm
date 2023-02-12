@@ -39,7 +39,10 @@ impl<'a> std::string::ToString for VersionsDisplayWrapper<'a> {
             }
             ExecMode::Display
                 if self.config.opt_last_snap.is_some()
-                    || matches!(self.config.print_mode, PrintMode::FormattedJson) =>
+                    || matches!(
+                        self.config.print_mode,
+                        PrintMode::FormattedJsonDefault | PrintMode::FormattedJsonNotPretty
+                    ) =>
             {
                 let printable_map = PrintAsMap::from(&self.map);
                 OtherDisplayWrapper::from(self.config, printable_map).to_string()

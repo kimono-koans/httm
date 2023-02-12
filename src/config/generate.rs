@@ -77,7 +77,8 @@ pub enum RestoreMode {
 pub enum PrintMode {
     FormattedDefault,
     FormattedNotPretty,
-    FormattedJson,
+    FormattedJsonDefault,
+    FormattedJsonNotPretty,
     RawNewline,
     RawZero,
 }
@@ -333,14 +334,14 @@ fn parse_args() -> ArgMatches {
                 .long("not-so-pretty")
                 .visible_aliases(&["tabs", "plain-jane"])
                 .help("display the ordinary output, but tab delimited, without any pretty border lines.")
-                .conflicts_with_all(&["RAW", "ZEROS", "JSON"])
+                .conflicts_with_all(&["RAW", "ZEROS"])
                 .display_order(17)
         )
         .arg(
             Arg::new("JSON")
                 .long("json")
                 .help("display the ordinary output, but as formatted JSON.")
-                .conflicts_with_all(&["RAW", "ZEROS", "NOT_SO_PRETTY"])
+                .conflicts_with_all(&["RAW", "ZEROS"])
                 .display_order(17)
         )
         .arg(
@@ -521,8 +522,10 @@ impl Config {
             || matches!(opt_bulk_exclusion, Some(BulkExclusion::NoSnap))
         {
             PrintMode::RawNewline
-        } else if matches.is_present("JSON") {
-            PrintMode::FormattedJson
+        } else if matches.is_present("JSON") || matches.is_present("NOT_SO_PRETTY") {
+            PrintMode::FormattedJsonDefault
+        } else if matches.is_present("JSON") || !matches.is_present("NOT_SO_PRETTY") {
+            PrintMode::FormattedJsonNotPretty
         } else if matches.is_present("NOT_SO_PRETTY") {
             PrintMode::FormattedNotPretty
         } else {

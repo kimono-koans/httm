@@ -73,8 +73,8 @@ impl VersionsMap {
                             .map(|pathdata| format!("{}{delimiter}", pathdata.path_buf.display()))
                             .collect()
                     }
-                    PrintMode::FormattedJson => {
-                        unreachable!("JSON should be printed well before we reach this point.")
+                    PrintMode::FormattedJsonDefault | PrintMode::FormattedJsonNotPretty => {
+                        unreachable!("JSON print modes are not valid in this context.")
                     }
                 }
             })

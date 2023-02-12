@@ -109,8 +109,14 @@ impl PrintAsMap {
         )
     }
 
-    pub fn to_json(&self) -> String {
-        match serde_json::to_string_pretty(self) {
+    pub fn to_json(&self, config: &Config) -> String {
+        let res = match config.print_mode {
+            PrintMode::FormattedJsonDefault => serde_json::to_string_pretty(self),
+            PrintMode::FormattedJsonNotPretty => serde_json::to_string(self),
+            _ => unreachable!("Non-JSON print modes are not valid in this context"),
+        };
+
+        match res {
             Ok(s) => s,
             Err(error) => {
                 eprintln!("Error: {error}");
