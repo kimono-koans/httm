@@ -522,9 +522,9 @@ impl Config {
             || matches!(opt_bulk_exclusion, Some(BulkExclusion::NoSnap))
         {
             PrintMode::RawNewline
-        } else if matches.is_present("JSON") && matches.is_present("NOT_SO_PRETTY") {
-            PrintMode::FormattedJsonDefault
         } else if matches.is_present("JSON") && !matches.is_present("NOT_SO_PRETTY") {
+            PrintMode::FormattedJsonDefault
+        } else if matches.is_present("JSON") && matches.is_present("NOT_SO_PRETTY") {
             PrintMode::FormattedJsonNotPretty
         } else if matches.is_present("NOT_SO_PRETTY") {
             PrintMode::FormattedNotPretty

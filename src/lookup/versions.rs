@@ -181,13 +181,12 @@ impl VersionsMap {
 
     pub fn to_json(&self, config: &Config) -> String {
         let res = match config.print_mode {
-            PrintMode::FormattedJsonDefault => serde_json::to_string_pretty(self),
             PrintMode::FormattedJsonNotPretty => serde_json::to_string(self),
-            _ => unreachable!("Non-JSON print modes are not valid in this context"),
+            _ => serde_json::to_string_pretty(self),
         };
 
         match res {
-            Ok(s) => s,
+            Ok(s) => s + "\n",
             Err(error) => {
                 eprintln!("Error: {error}");
                 std::process::exit(1)

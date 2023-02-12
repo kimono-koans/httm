@@ -41,11 +41,10 @@ impl<'a> std::string::ToString for VersionsDisplayWrapper<'a> {
                 let printable_map = PrintAsMap::from(&self.map);
                 OtherDisplayWrapper::from(self.config, printable_map).to_string()
             }
-            ExecMode::Display
-                if matches!(
-                    self.config.print_mode,
-                    PrintMode::FormattedJsonDefault | PrintMode::FormattedJsonNotPretty
-                ) =>
+            _ if matches!(
+                self.config.print_mode,
+                PrintMode::FormattedJsonDefault | PrintMode::FormattedJsonNotPretty
+            ) =>
             {
                 self.map.to_json(self.config)
             }
