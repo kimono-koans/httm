@@ -45,7 +45,7 @@ impl VersionsMap {
 
         // if a single instance immediately return the global we already prepared
         if matches!(
-            &config.print_mode,
+            config.print_mode,
             PrintMode::FormattedDefault | PrintMode::FormattedNotPretty
         ) && self.len() == 1
         {

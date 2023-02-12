@@ -37,7 +37,7 @@ impl<'a> std::string::ToString for VersionsDisplayWrapper<'a> {
             ExecMode::NumVersions(num_versions_mode) => {
                 self.map.format_as_num_versions(num_versions_mode)
             }
-            ExecMode::Display => {
+            _ => {
                 if self.config.opt_last_snap.is_some() {
                     let printable_map = PrintAsMap::from(&self.map);
                     return OtherDisplayWrapper::from(self.config, printable_map).to_string();
@@ -50,7 +50,6 @@ impl<'a> std::string::ToString for VersionsDisplayWrapper<'a> {
                     _ => self.map.format(self.config),
                 }
             }
-            _ => self.map.format(self.config),
         }
     }
 }
