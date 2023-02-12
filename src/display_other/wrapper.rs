@@ -15,7 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::config::generate::{Config, PrintMode};
+use crate::config::generate::{Config, ExecMode, PrintMode};
 
 use crate::display_other::generic_maps::PrintAsMap;
 use crate::library::utility::get_delimiter;
@@ -43,7 +43,25 @@ impl<'a> std::string::ToString for OtherDisplayWrapper<'a> {
                     format!("{value}{delimiter}")
                 })
                 .collect::<String>(),
-            PrintMode::FormattedJson => self.map.to_json(),
+            PrintMode::FormattedJson => {
+                let json_string = self.map.to_json();
+
+                match self.config.exec_mode {
+                    ExecMode::Display | ExecMode::Interactive(_) => {
+                        json_string.replace("\"inner\"", "\"versions\"")
+                    }
+                    ExecMode::MountsForFiles(_) => json_string.replace("\"inner\"", "\"mounts\""),
+                    ExecMode::SnapsForFiles(_) => {
+                        json_string.replace("\"inner\"", "\"snapshot_names\"")
+                    }
+                    ExecMode::NonInteractiveRecursive(_)
+                    | ExecMode::NumVersions(_)
+                    | ExecMode::Purge(_)
+                    | ExecMode::SnapFileMount(_) => {
+                        unreachable!("JSON print should not be available in the selected {:?} execution mode.", self.config.exec_mode);
+                    }
+                }
+            }
             PrintMode::FormattedDefault | PrintMode::FormattedNotPretty => {
                 self.map.format(self.config)
             }

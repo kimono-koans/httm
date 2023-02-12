@@ -111,11 +111,11 @@ impl PrintAsMap {
 
     pub fn to_json(&self) -> String {
         match serde_json::to_string_pretty(self) {
-            Ok(s) => s + "\n",
+            Ok(s) => s,
             Err(error) => {
                 eprintln!("Error: {error}");
                 std::process::exit(1)
-            },
+            }
         }
     }
 
