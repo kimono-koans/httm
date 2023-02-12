@@ -23,10 +23,16 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use crate::config::generate::Config;
+use serde::ser::SerializeStruct;
+use serde::{Serialize, Serializer};
+
 use crate::library::results::{HttmError, HttmResult};
 use crate::parse::aliases::MapOfAliases;
 use crate::parse::mounts::MapOfDatasets;
+use crate::{
+    config::generate::Config,
+    library::utility::{display_human_size, get_simple_date, DateFormat},
+};
 
 // only the most basic data from a DirEntry
 // for use to display in browse window and internally
@@ -213,5 +219,36 @@ impl PathData {
                 .get(ancestor)
                 .map(|alias_info| alias_info.remote_dir.as_path())
         })
+    }
+}
+
+impl Serialize for PathData {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        // 3 is the number of fields in the struct.
+        let mut state = serializer.serialize_struct("PathData", 2)?;
+
+        state.serialize_field("snapshot_path", &self.path_buf)?;
+        state.serialize_field("snapshot_metadata", &self.metadata)?;
+        state.end()
+    }
+}
+
+impl Serialize for PathMetadata {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        // 3 is the number of fields in the struct.
+        let mut state = serializer.serialize_struct("PathMetadata", 2)?;
+
+        let size = display_human_size(self.size);
+        let date = get_simple_date(&self.modify_time, DateFormat::Display);
+
+        state.serialize_field("size", &size)?;
+        state.serialize_field("modify_time", &date)?;
+        state.end()
     }
 }

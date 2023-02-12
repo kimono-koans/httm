@@ -18,6 +18,9 @@
 use std::collections::BTreeMap;
 use std::ops::Deref;
 
+use serde::ser::SerializeStruct;
+use serde::{Serialize, Serializer};
+
 use crate::config::generate::{Config, MountDisplay, PrintMode};
 use crate::display_versions::format::{NOT_SO_PRETTY_FIXED_WIDTH_PADDING, QUOTATION_MARKS_LEN};
 use crate::MountsForFiles;
@@ -33,6 +36,24 @@ impl Deref for PrintAsMap {
 
     fn deref(&self) -> &Self::Target {
         &self.inner
+    }
+}
+
+impl From<BTreeMap<String, Vec<String>>> for PrintAsMap {
+    fn from(map: BTreeMap<String, Vec<String>>) -> Self {
+        Self { inner: map }
+    }
+}
+
+impl Serialize for PrintAsMap {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_struct("PrintAsMap", 1)?;
+
+        state.serialize_field("inner", &self.inner)?;
+        state.end()
     }
 }
 
@@ -104,6 +125,21 @@ impl PrintAsMap {
             || QUOTATION_MARKS_LEN,
             |key| key.len() + QUOTATION_MARKS_LEN,
         )
+    }
+
+    pub fn to_json(&self, config: &Config) -> String {
+        let res = match config.print_mode {
+            PrintMode::FormattedJsonNotPretty => serde_json::to_string(self),
+            _ => serde_json::to_string_pretty(self),
+        };
+
+        match res {
+            Ok(s) => s + "\n",
+            Err(error) => {
+                eprintln!("Error: {error}");
+                std::process::exit(1)
+            }
+        }
     }
 
     pub fn format(&self, config: &Config) -> String {

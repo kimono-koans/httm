@@ -68,7 +68,7 @@ impl SelectionCandidate {
 
         // finally run search on those paths
         let versions_map = VersionsMap::new(&display_config, &display_config.paths)?;
-        let output_buf = VersionsDisplayWrapper::from(config.as_ref(), versions_map).to_string();
+        let output_buf = VersionsDisplayWrapper::from(&display_config, versions_map).to_string();
 
         Ok(output_buf)
     }

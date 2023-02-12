@@ -45,7 +45,7 @@ impl VersionsMap {
 
         // if a single instance immediately return the global we already prepared
         if matches!(
-            &config.print_mode,
+            config.print_mode,
             PrintMode::FormattedDefault | PrintMode::FormattedNotPretty
         ) && self.len() == 1
         {
@@ -72,6 +72,9 @@ impl VersionsMap {
                             .flatten()
                             .map(|pathdata| format!("{}{delimiter}", pathdata.path_buf.display()))
                             .collect()
+                    }
+                    PrintMode::FormattedJsonDefault | PrintMode::FormattedJsonNotPretty => {
+                        unreachable!("JSON print modes are not valid in this context.")
                     }
                 }
             })
