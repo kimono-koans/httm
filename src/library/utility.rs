@@ -373,11 +373,13 @@ pub fn get_fs_type_from_hidden_dir(dataset_mount: &Path) -> Option<FilesystemTyp
 pub enum DateFormat {
     Display,
     Timestamp,
+    ShowOffset,
 }
 
 static DATE_FORMAT_DISPLAY: &str =
     "[weekday repr:short] [month repr:short] [day] [hour]:[minute]:[second] [year]";
 static DATE_FORMAT_TIMESTAMP: &str = "[year]-[month]-[day]-[hour]:[minute]:[second]";
+static DATE_FORMAT_UTC: &str = "[year]-[month]-[day]-[hour]:[minute]:[second] UTC";
 
 pub fn get_date(config: &Config, system_time: &SystemTime, format: DateFormat) -> String {
     let date_time: OffsetDateTime = (*system_time).into();
@@ -397,10 +399,10 @@ pub fn get_date(config: &Config, system_time: &SystemTime, format: DateFormat) -
     }
 }
 
-pub fn get_simple_date(system_time: &SystemTime, format: DateFormat) -> String {
+pub fn get_simple_date(system_time: &SystemTime) -> String {
     let date_time: OffsetDateTime = (*system_time).into();
 
-    let date_format = format_description::parse(get_date_format(&format))
+    let date_format = format_description::parse(get_date_format(&DateFormat::ShowOffset))
         .expect("timestamp date format is invalid");
 
     date_time
@@ -412,6 +414,7 @@ fn get_date_format<'a>(format: &DateFormat) -> &'a str {
     match format {
         DateFormat::Display => DATE_FORMAT_DISPLAY,
         DateFormat::Timestamp => DATE_FORMAT_TIMESTAMP,
+        DateFormat::ShowOffset => DATE_FORMAT_UTC,
     }
 }
 
