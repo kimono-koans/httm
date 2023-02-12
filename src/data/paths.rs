@@ -227,11 +227,10 @@ impl Serialize for PathData {
     where
         S: Serializer,
     {
-        // 3 is the number of fields in the struct.
         let mut state = serializer.serialize_struct("PathData", 2)?;
 
-        state.serialize_field("snapshot_path", &self.path_buf)?;
-        state.serialize_field("snapshot_metadata", &self.metadata)?;
+        state.serialize_field("snap_path", &self.path_buf)?;
+        state.serialize_field("snap_metadata", &self.metadata)?;
         state.end()
     }
 }
@@ -241,7 +240,6 @@ impl Serialize for PathMetadata {
     where
         S: Serializer,
     {
-        // 3 is the number of fields in the struct.
         let mut state = serializer.serialize_struct("PathMetadata", 2)?;
 
         let size = display_human_size(self.size);
