@@ -37,15 +37,17 @@ impl<'a> std::string::ToString for VersionsDisplayWrapper<'a> {
             ExecMode::NumVersions(num_versions_mode) => {
                 self.map.format_as_num_versions(num_versions_mode)
             }
-            ExecMode::Display
-                if self.config.opt_last_snap.is_some()
-                    || matches!(
-                        self.config.print_mode,
-                        PrintMode::FormattedJsonDefault | PrintMode::FormattedJsonNotPretty
-                    ) =>
-            {
+            ExecMode::Display if self.config.opt_last_snap.is_some() => {
                 let printable_map = PrintAsMap::from(&self.map);
                 OtherDisplayWrapper::from(self.config, printable_map).to_string()
+            }
+            ExecMode::Display
+                if matches!(
+                    self.config.print_mode,
+                    PrintMode::FormattedJsonDefault | PrintMode::FormattedJsonNotPretty
+                ) =>
+            {
+                self.map.to_json(self.config)
             }
             _ => self.map.format(self.config),
         }

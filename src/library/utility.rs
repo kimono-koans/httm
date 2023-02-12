@@ -397,6 +397,17 @@ pub fn get_date(config: &Config, system_time: &SystemTime, format: DateFormat) -
     }
 }
 
+pub fn get_simple_date(system_time: &SystemTime, format: DateFormat) -> String {
+    let date_time: OffsetDateTime = (*system_time).into();
+
+    let date_format = format_description::parse(get_date_format(&format))
+        .expect("timestamp date format is invalid");
+
+    date_time
+        .format(&date_format)
+        .expect("timestamp date format could not be applied to the date supplied")
+}
+
 fn get_date_format<'a>(format: &DateFormat) -> &'a str {
     match format {
         DateFormat::Display => DATE_FORMAT_DISPLAY,

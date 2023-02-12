@@ -18,7 +18,8 @@
 use std::collections::BTreeMap;
 use std::ops::Deref;
 
-use serde::{Deserialize, Serialize};
+use serde::ser::SerializeStruct;
+use serde::{Serialize, Serializer};
 
 use crate::config::generate::{Config, MountDisplay, PrintMode};
 use crate::display_versions::format::{NOT_SO_PRETTY_FIXED_WIDTH_PADDING, QUOTATION_MARKS_LEN};
@@ -26,7 +27,6 @@ use crate::MountsForFiles;
 use crate::SnapNameMap;
 use crate::VersionsMap;
 
-#[derive(Serialize, Deserialize)]
 pub struct PrintAsMap {
     inner: BTreeMap<String, Vec<String>>,
 }
@@ -36,6 +36,24 @@ impl Deref for PrintAsMap {
 
     fn deref(&self) -> &Self::Target {
         &self.inner
+    }
+}
+
+impl From<BTreeMap<String, Vec<String>>> for PrintAsMap {
+    fn from(map: BTreeMap<String, Vec<String>>) -> Self {
+        Self { inner: map }
+    }
+}
+
+impl Serialize for PrintAsMap {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_struct("PrintAsMap", 1)?;
+
+        state.serialize_field("inner", &self.inner)?;
+        state.end()
     }
 }
 
