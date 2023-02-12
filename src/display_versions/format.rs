@@ -24,7 +24,7 @@ use crate::config::generate::{BulkExclusion, Config, ExecMode, PrintMode};
 use crate::data::paths::{PathData, PHANTOM_DATE, PHANTOM_SIZE};
 use crate::library::utility::get_delimiter;
 use crate::library::utility::{display_human_size, get_date, paint_string, DateFormat};
-use crate::lookup::versions::VersionsMap;
+use crate::VersionsDisplayWrapper;
 
 // 2 space wide padding - used between date and size, and size and path
 pub const PRETTY_FIXED_WIDTH_PADDING: &str = "  ";
@@ -35,21 +35,21 @@ pub const NOT_SO_PRETTY_FIXED_WIDTH_PADDING: &str = "\t";
 // and we add 2 quotation marks to the path when we format
 pub const QUOTATION_MARKS_LEN: usize = 2;
 
-impl VersionsMap {
-    pub fn format(&self, config: &Config) -> String {
+impl<'a> VersionsDisplayWrapper<'a> {
+    pub fn format(&self) -> String {
         let keys: Vec<&PathData> = self.keys().collect();
         let values: Vec<&PathData> = self.values().flatten().collect();
 
         let global_display_set = DisplaySet::from((keys, values));
-        let padding_collection = PaddingCollection::new(config, &global_display_set);
+        let padding_collection = PaddingCollection::new(self.config, &global_display_set);
 
         // if a single instance immediately return the global we already prepared
         if matches!(
-            config.print_mode,
+            self.config.print_mode,
             PrintMode::FormattedDefault | PrintMode::FormattedNotPretty
         ) && self.len() == 1
         {
-            return global_display_set.format(config, &padding_collection);
+            return global_display_set.format(self.config, &padding_collection);
         }
 
         // else re compute for each instance and print per instance, now with uniform padding
@@ -60,12 +60,12 @@ impl VersionsMap {
 
                 let display_set = DisplaySet::from((keys, values));
 
-                match config.print_mode {
+                match self.config.print_mode {
                     PrintMode::FormattedDefault | PrintMode::FormattedNotPretty => {
-                        display_set.format(config, &padding_collection)
+                        display_set.format(self.config, &padding_collection)
                     }
                     PrintMode::RawNewline | PrintMode::RawZero => {
-                        let delimiter = get_delimiter(config);
+                        let delimiter = get_delimiter(self.config);
 
                         display_set
                             .iter()

@@ -15,7 +15,13 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
+use std::{collections::BTreeMap, ops::Deref};
+
+use serde::ser::SerializeStruct;
+use serde::{Serialize, Serializer};
+
 use crate::config::generate::{Config, ExecMode, PrintMode};
+use crate::data::paths::PathData;
 use crate::display_other::generic_maps::PrintAsMap;
 use crate::display_other::wrapper::OtherDisplayWrapper;
 use crate::lookup::versions::VersionsMap;
@@ -23,12 +29,6 @@ use crate::lookup::versions::VersionsMap;
 pub struct VersionsDisplayWrapper<'a> {
     pub config: &'a Config,
     pub map: VersionsMap,
-}
-
-impl<'a> VersionsDisplayWrapper<'a> {
-    pub fn from(config: &'a Config, map: VersionsMap) -> Self {
-        Self { config, map }
-    }
 }
 
 impl<'a> std::string::ToString for VersionsDisplayWrapper<'a> {
@@ -45,11 +45,59 @@ impl<'a> std::string::ToString for VersionsDisplayWrapper<'a> {
 
                 match self.config.print_mode {
                     PrintMode::FormattedJsonDefault | PrintMode::FormattedJsonNotPretty => {
-                        self.map.to_json(self.config)
+                        self.to_json()
                     }
-                    _ => self.map.format(self.config),
+                    _ => self.format(),
                 }
             }
         }
+    }
+}
+
+impl<'a> Deref for VersionsDisplayWrapper<'a> {
+    type Target = BTreeMap<PathData, Vec<PathData>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.map
+    }
+}
+
+impl<'a> VersionsDisplayWrapper<'a> {
+    pub fn from(config: &'a Config, map: VersionsMap) -> Self {
+        Self { config, map }
+    }
+
+    pub fn to_json(&self) -> String {
+        let res = match self.config.print_mode {
+            PrintMode::FormattedJsonNotPretty => serde_json::to_string(self),
+            _ => serde_json::to_string_pretty(self),
+        };
+
+        match res {
+            Ok(s) => s + "\n",
+            Err(error) => {
+                eprintln!("Error: {error}");
+                std::process::exit(1)
+            }
+        }
+    }
+}
+
+impl<'a> Serialize for VersionsDisplayWrapper<'a> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        // 3 is the number of fields in the struct.
+        let mut state = serializer.serialize_struct("VersionMap", 1)?;
+
+        let new_map: BTreeMap<String, Vec<PathData>> = self
+            .deref()
+            .iter()
+            .map(|(key, values)| (key.path_buf.to_string_lossy().to_string(), values.clone()))
+            .collect();
+
+        state.serialize_field("versions", &new_map)?;
+        state.end()
     }
 }

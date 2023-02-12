@@ -24,10 +24,8 @@ use std::{
 };
 
 use rayon::prelude::*;
-use serde::ser::SerializeStruct;
-use serde::{Serialize, Serializer};
 
-use crate::config::generate::{BulkExclusion, Config, LastSnapMode, PrintMode};
+use crate::config::generate::{BulkExclusion, Config, LastSnapMode};
 use crate::data::paths::PathData;
 use crate::library::results::{HttmError, HttmResult};
 
@@ -56,26 +54,6 @@ impl Deref for VersionsMap {
 
     fn deref(&self) -> &Self::Target {
         &self.inner
-    }
-}
-
-impl Serialize for VersionsMap {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        // 3 is the number of fields in the struct.
-        let mut state = serializer.serialize_struct("VersionMap", 1)?;
-
-        let new_map: BTreeMap<String, Vec<PathData>> = self
-            .inner
-            .clone()
-            .into_iter()
-            .map(|(key, values)| (key.path_buf.to_string_lossy().to_string(), values))
-            .collect();
-
-        state.serialize_field("versions", &new_map)?;
-        state.end()
     }
 }
 
@@ -177,21 +155,6 @@ impl VersionsMap {
             .collect();
 
         res.into()
-    }
-
-    pub fn to_json(&self, config: &Config) -> String {
-        let res = match config.print_mode {
-            PrintMode::FormattedJsonNotPretty => serde_json::to_string(self),
-            _ => serde_json::to_string_pretty(self),
-        };
-
-        match res {
-            Ok(s) => s + "\n",
-            Err(error) => {
-                eprintln!("Error: {error}");
-                std::process::exit(1)
-            }
-        }
     }
 }
 
