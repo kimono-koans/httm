@@ -44,7 +44,7 @@ impl<'a> std::string::ToString for OtherDisplayWrapper<'a> {
                 })
                 .collect::<String>(),
             PrintMode::FormattedJsonDefault | PrintMode::FormattedJsonNotPretty => {
-                let json_string = self.map.to_json(self.config);
+                let json_string = self.to_json();
 
                 match self.config.exec_mode {
                     ExecMode::Display | ExecMode::Interactive(_) => {
@@ -62,9 +62,7 @@ impl<'a> std::string::ToString for OtherDisplayWrapper<'a> {
                     }
                 }
             }
-            PrintMode::FormattedDefault | PrintMode::FormattedNotPretty => {
-                self.map.format(self.config)
-            }
+            PrintMode::FormattedDefault | PrintMode::FormattedNotPretty => self.format(),
         }
     }
 }

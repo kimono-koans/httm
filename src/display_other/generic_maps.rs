@@ -21,9 +21,10 @@ use std::ops::Deref;
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
 
-use crate::config::generate::{Config, MountDisplay, PrintMode};
+use crate::config::generate::{MountDisplay, PrintMode};
 use crate::display_versions::format::{NOT_SO_PRETTY_FIXED_WIDTH_PADDING, QUOTATION_MARKS_LEN};
 use crate::MountsForFiles;
+use crate::OtherDisplayWrapper;
 use crate::SnapNameMap;
 use crate::VersionsMap;
 
@@ -126,11 +127,13 @@ impl PrintAsMap {
             |key| key.len() + QUOTATION_MARKS_LEN,
         )
     }
+}
 
-    pub fn to_json(&self, config: &Config) -> String {
-        let res = match config.print_mode {
-            PrintMode::FormattedJsonNotPretty => serde_json::to_string(self),
-            _ => serde_json::to_string_pretty(self),
+impl<'a> OtherDisplayWrapper<'a> {
+    pub fn to_json(&self) -> String {
+        let res = match &self.config.print_mode {
+            PrintMode::FormattedJsonNotPretty => serde_json::to_string(&self.map),
+            _ => serde_json::to_string_pretty(&self.map),
         };
 
         match res {
@@ -142,31 +145,32 @@ impl PrintAsMap {
         }
     }
 
-    pub fn format(&self, config: &Config) -> String {
-        let padding = self.get_map_padding();
+    pub fn format(&self) -> String {
+        let padding = self.map.get_map_padding();
 
         let write_out_buffer = self
-            .inner
+            .map
             .iter()
             .filter(|(_key, values)| {
-                if config.opt_last_snap.is_some() {
+                if self.config.opt_last_snap.is_some() {
                     !values.is_empty()
                 } else {
                     true
                 }
             })
             .map(|(key, values)| {
-                let display_path = if matches!(config.print_mode, PrintMode::FormattedNotPretty) {
-                    key.clone()
-                } else {
-                    format!("\"{key}\"")
-                };
+                let display_path =
+                    if matches!(self.config.print_mode, PrintMode::FormattedNotPretty) {
+                        key.clone()
+                    } else {
+                        format!("\"{key}\"")
+                    };
 
                 let values_string: String = values
                     .iter()
                     .enumerate()
                     .map(|(idx, value)| {
-                        if matches!(config.print_mode, PrintMode::FormattedNotPretty) {
+                        if matches!(self.config.print_mode, PrintMode::FormattedNotPretty) {
                             format!("{NOT_SO_PRETTY_FIXED_WIDTH_PADDING}{value}")
                         } else if idx == 0 {
                             format!(
@@ -181,7 +185,7 @@ impl PrintAsMap {
                     })
                     .collect::<String>();
 
-                if matches!(config.print_mode, PrintMode::FormattedNotPretty) {
+                if matches!(self.config.print_mode, PrintMode::FormattedNotPretty) {
                     format!("{display_path}:{values_string}\n")
                 } else {
                     values_string
