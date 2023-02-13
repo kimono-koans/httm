@@ -48,11 +48,11 @@ impl<'a> std::string::ToString for OtherDisplayWrapper<'a> {
 
                 match self.config.exec_mode {
                     ExecMode::Display | ExecMode::Interactive(_) => {
-                        json_string.replace("\"inner\"", "\"versions\"")
+                        json_string.replace("\"inner\": ", "\"versions\": ")
                     }
-                    ExecMode::MountsForFiles(_) => json_string.replace("\"inner\"", "\"mounts\""),
+                    ExecMode::MountsForFiles(_) => json_string.replace("\"inner\": ", "\"mounts\": "),
                     ExecMode::SnapsForFiles(_) => {
-                        json_string.replace("\"inner\"", "\"snapshot_names\"")
+                        json_string.replace("\"inner\": ", "\"snapshot_names\": ")
                     }
                     ExecMode::NonInteractiveRecursive(_)
                     | ExecMode::NumVersions(_)
