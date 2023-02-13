@@ -35,7 +35,7 @@ impl<'a> std::string::ToString for VersionsDisplayWrapper<'a> {
     fn to_string(&self) -> String {
         match &self.config.exec_mode {
             ExecMode::NumVersions(num_versions_mode) => {
-                self.map.format_as_num_versions(num_versions_mode)
+                self.format_as_num_versions(num_versions_mode)
             }
             _ => {
                 if self.config.opt_last_snap.is_some() {

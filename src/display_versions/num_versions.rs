@@ -18,9 +18,9 @@
 use crate::config::generate::NumVersionsMode;
 use crate::data::paths::PathData;
 use crate::display_map::helper::PrintAsMap;
-use crate::lookup::versions::VersionsMap;
+use crate::VersionsDisplayWrapper;
 
-impl VersionsMap {
+impl<'a> VersionsDisplayWrapper<'a> {
     pub fn format_as_num_versions(&self, num_versions_mode: &NumVersionsMode) -> String {
         // let delimiter = get_delimiter(config);
         let delimiter = '\n';
@@ -29,7 +29,7 @@ impl VersionsMap {
             .iter()
             .filter_map(|(live_version, snaps)| {
                 let map_padding = if matches!(num_versions_mode, NumVersionsMode::All) {
-                    let printable_map = PrintAsMap::from(self);
+                    let printable_map = PrintAsMap::from(&self.map);
                     printable_map.get_map_padding()
                 } else {
                     0usize
