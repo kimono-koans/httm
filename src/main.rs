@@ -22,11 +22,11 @@ mod data {
 }
 mod display_other {
     pub mod generic_maps;
-    pub mod num_versions;
     pub mod wrapper;
 }
 mod display_versions {
     pub mod format;
+    pub mod num_versions;
     pub mod wrapper;
 }
 mod exec {
