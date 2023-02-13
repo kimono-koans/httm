@@ -20,8 +20,8 @@ mod data {
     pub mod paths;
     pub mod selection;
 }
-mod display_other {
-    pub mod generic_maps;
+mod display_map {
+    pub mod helper;
     pub mod wrapper;
 }
 mod display_versions {
@@ -59,7 +59,7 @@ mod parse {
     pub mod snaps;
 }
 
-use crate::display_other::generic_maps::PrintAsMap;
+use crate::display_map::helper::PrintAsMap;
 use exec::purge::PurgeFiles;
 use exec::snapshot::TakeSnapshot;
 use library::utility::print_output_buf;
@@ -67,7 +67,7 @@ use library::utility::print_output_buf;
 use crate::config::generate::{Config, ExecMode};
 use crate::lookup::file_mounts::MountsForFiles;
 
-use crate::display_other::wrapper::OtherDisplayWrapper;
+use crate::display_map::wrapper::OtherDisplayWrapper;
 use crate::display_versions::wrapper::VersionsDisplayWrapper;
 use crate::exec::interactive::InteractiveBrowse;
 use crate::exec::recursive::NonInteractiveRecursiveWrapper;

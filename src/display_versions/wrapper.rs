@@ -22,8 +22,8 @@ use serde::{Serialize, Serializer};
 
 use crate::config::generate::{Config, ExecMode, PrintMode};
 use crate::data::paths::PathData;
-use crate::display_other::generic_maps::PrintAsMap;
-use crate::display_other::wrapper::OtherDisplayWrapper;
+use crate::display_map::helper::PrintAsMap;
+use crate::display_map::wrapper::OtherDisplayWrapper;
 use crate::lookup::versions::VersionsMap;
 
 pub struct VersionsDisplayWrapper<'a> {

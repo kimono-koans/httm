@@ -16,8 +16,8 @@
 // that was distributed with this source code.
 
 use crate::config::generate::{Config, ExecMode, PrintMode};
-
-use crate::display_other::generic_maps::PrintAsMap;
+use crate::display_map::helper::PrintAsMap;
+use crate::display_versions::format::NOT_SO_PRETTY_FIXED_WIDTH_PADDING;
 use crate::library::utility::get_delimiter;
 
 pub struct OtherDisplayWrapper<'a> {
@@ -64,5 +64,73 @@ impl<'a> std::string::ToString for OtherDisplayWrapper<'a> {
             }
             PrintMode::FormattedDefault | PrintMode::FormattedNotPretty => self.format(),
         }
+    }
+}
+
+impl<'a> OtherDisplayWrapper<'a> {
+    pub fn to_json(&self) -> String {
+        let res = match &self.config.print_mode {
+            PrintMode::FormattedJsonNotPretty => serde_json::to_string(&self.map),
+            _ => serde_json::to_string_pretty(&self.map),
+        };
+
+        match res {
+            Ok(s) => s + "\n",
+            Err(error) => {
+                eprintln!("Error: {error}");
+                std::process::exit(1)
+            }
+        }
+    }
+
+    pub fn format(&self) -> String {
+        let padding = self.map.get_map_padding();
+
+        let write_out_buffer = self
+            .map
+            .iter()
+            .filter(|(_key, values)| {
+                if self.config.opt_last_snap.is_some() {
+                    !values.is_empty()
+                } else {
+                    true
+                }
+            })
+            .map(|(key, values)| {
+                let display_path =
+                    if matches!(self.config.print_mode, PrintMode::FormattedNotPretty) {
+                        key.clone()
+                    } else {
+                        format!("\"{key}\"")
+                    };
+
+                let values_string: String = values
+                    .iter()
+                    .enumerate()
+                    .map(|(idx, value)| {
+                        if matches!(self.config.print_mode, PrintMode::FormattedNotPretty) {
+                            format!("{NOT_SO_PRETTY_FIXED_WIDTH_PADDING}{value}")
+                        } else if idx == 0 {
+                            format!(
+                                "{:<width$} : \"{}\"\n",
+                                display_path,
+                                value,
+                                width = padding
+                            )
+                        } else {
+                            format!("{:<padding$} : \"{value}\"\n", "")
+                        }
+                    })
+                    .collect::<String>();
+
+                if matches!(self.config.print_mode, PrintMode::FormattedNotPretty) {
+                    format!("{display_path}:{values_string}\n")
+                } else {
+                    values_string
+                }
+            })
+            .collect();
+
+        write_out_buffer
     }
 }
