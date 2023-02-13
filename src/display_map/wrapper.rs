@@ -50,7 +50,9 @@ impl<'a> std::string::ToString for OtherDisplayWrapper<'a> {
                     ExecMode::Display | ExecMode::Interactive(_) => {
                         json_string.replace("\"inner\": ", "\"versions\": ")
                     }
-                    ExecMode::MountsForFiles(_) => json_string.replace("\"inner\": ", "\"mounts\": "),
+                    ExecMode::MountsForFiles(_) => {
+                        json_string.replace("\"inner\": ", "\"mounts\": ")
+                    }
                     ExecMode::SnapsForFiles(_) => {
                         json_string.replace("\"inner\": ", "\"snapshot_names\": ")
                     }
