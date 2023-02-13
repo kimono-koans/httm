@@ -373,13 +373,11 @@ pub fn get_fs_type_from_hidden_dir(dataset_mount: &Path) -> Option<FilesystemTyp
 pub enum DateFormat {
     Display,
     Timestamp,
-    ShowOffset,
 }
 
 static DATE_FORMAT_DISPLAY: &str =
     "[weekday repr:short] [month repr:short] [day] [hour]:[minute]:[second] [year]";
 static DATE_FORMAT_TIMESTAMP: &str = "[year]-[month]-[day]-[hour]:[minute]:[second]";
-static DATE_FORMAT_UTC: &str = "[year]-[month]-[day]-[hour]:[minute]:[second] UTC";
 
 pub fn get_date(config: &Config, system_time: &SystemTime, format: DateFormat) -> String {
     let date_time: OffsetDateTime = (*system_time).into();
@@ -387,34 +385,38 @@ pub fn get_date(config: &Config, system_time: &SystemTime, format: DateFormat) -
     let date_format = format_description::parse(get_date_format(&format))
         .expect("timestamp date format is invalid");
 
-    let raw_timestamp = date_time
+    let raw_string = date_time
         .to_offset(config.requested_utc_offset)
         .format(&date_format)
         .expect("timestamp date format could not be applied to the date supplied");
 
-    if config.requested_utc_offset == UtcOffset::UTC && matches!(&format, DateFormat::Timestamp) {
-        [&raw_timestamp, "_UTC"].into_iter().collect()
+    if config.requested_utc_offset == UtcOffset::UTC {
+        match &format {
+            DateFormat::Timestamp => raw_string + "_UTC",
+            DateFormat::Display => raw_string + " UTC",
+        }
     } else {
-        raw_timestamp
+        raw_string
     }
 }
 
-pub fn get_simple_date(system_time: &SystemTime) -> String {
+pub fn get_date_utc_only(system_time: &SystemTime) -> String {
     let date_time: OffsetDateTime = (*system_time).into();
 
-    let date_format = format_description::parse(get_date_format(&DateFormat::ShowOffset))
+    let date_format = format_description::parse(get_date_format(&DateFormat::Display))
         .expect("timestamp date format is invalid");
 
-    date_time
+    let raw_string = date_time
         .format(&date_format)
-        .expect("timestamp date format could not be applied to the date supplied")
+        .expect("timestamp date format could not be applied to the date supplied");
+
+    raw_string + " UTC"
 }
 
 fn get_date_format<'a>(format: &DateFormat) -> &'a str {
     match format {
         DateFormat::Display => DATE_FORMAT_DISPLAY,
         DateFormat::Timestamp => DATE_FORMAT_TIMESTAMP,
-        DateFormat::ShowOffset => DATE_FORMAT_UTC,
     }
 }
 
@@ -426,47 +428,3 @@ pub fn display_human_size(size: u64) -> String {
         NumberPrefix::Prefixed(prefix, n) => format!("{n:.1} {prefix}B"),
     }
 }
-
-/*
-#[allow(dead_code)]
-pub enum PriorityType {
-    Process = 0,
-    PGroup = 1,
-    User = 2,
-}
-
-#[allow(dead_code)]
-// nice calling thread to a specified level
-pub fn nice_thread(
-    priority_type: PriorityType,
-    opt_tid: Option<u32>,
-    priority_level: i32,
-) -> HttmResult<()> {
-    let tid = if let Some(tid) = opt_tid {
-        tid
-    } else {
-        std::process::id()
-    };
-
-    #[allow(unused_assignments)]
-    let mut ret = 0;
-    #[cfg(any(target_os = "macos", target_os = "freebsd", target_env = "musl"))]
-    unsafe {
-        ret = libc::setpriority(priority_type as i32, tid, priority_level)
-    };
-    #[cfg(target_env = "gnu")]
-    unsafe {
-        // linux kernel uses unsigned ints so represents -20..20 as 1..40
-        // AFAIK libc actually uses i32 ints and converts.  this may be some weird
-        // rust libc wrinkle?
-        ret = libc::setpriority((priority_type as i32 + 20i32) as u32, tid, priority_level)
-    };
-
-    if ret != 0i32 {
-        return Err(HttmError::new("httm was unable to set the current thread's priority.").into());
-    }
-
-    Ok(())
-}
-
- */

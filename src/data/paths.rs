@@ -31,7 +31,7 @@ use crate::parse::aliases::MapOfAliases;
 use crate::parse::mounts::MapOfDatasets;
 use crate::{
     config::generate::Config,
-    library::utility::{display_human_size, get_simple_date},
+    library::utility::{display_human_size, get_date_utc_only},
 };
 
 // only the most basic data from a DirEntry
@@ -243,7 +243,7 @@ impl Serialize for PathMetadata {
         let mut state = serializer.serialize_struct("PathMetadata", 2)?;
 
         let size = display_human_size(self.size);
-        let date = get_simple_date(&self.modify_time);
+        let date = get_date_utc_only(&self.modify_time);
 
         state.serialize_field("size", &size)?;
         state.serialize_field("modify_time", &date)?;
