@@ -379,38 +379,29 @@ static DATE_FORMAT_DISPLAY: &str =
     "[weekday repr:short] [month repr:short] [day] [hour]:[minute]:[second] [year]";
 static DATE_FORMAT_TIMESTAMP: &str = "[year]-[month]-[day]-[hour]:[minute]:[second]";
 
-pub fn get_date(config: &Config, system_time: &SystemTime, format: DateFormat) -> String {
+pub fn get_date(
+    utc_offset: UtcOffset,
+    system_time: &SystemTime,
+    date_format: DateFormat,
+) -> String {
     let date_time: OffsetDateTime = (*system_time).into();
 
-    let date_format = format_description::parse(get_date_format(&format))
+    let parsed_format = format_description::parse(get_date_format(&date_format))
         .expect("timestamp date format is invalid");
 
     let raw_string = date_time
-        .to_offset(config.requested_utc_offset)
-        .format(&date_format)
+        .to_offset(utc_offset)
+        .format(&parsed_format)
         .expect("timestamp date format could not be applied to the date supplied");
 
-    if config.requested_utc_offset == UtcOffset::UTC {
-        match &format {
+    if utc_offset == UtcOffset::UTC {
+        match &date_format {
             DateFormat::Timestamp => raw_string + "_UTC",
             DateFormat::Display => raw_string + " UTC",
         }
     } else {
         raw_string
     }
-}
-
-pub fn get_date_utc_only(system_time: &SystemTime) -> String {
-    let date_time: OffsetDateTime = (*system_time).into();
-
-    let date_format = format_description::parse(get_date_format(&DateFormat::Display))
-        .expect("timestamp date format is invalid");
-
-    let raw_string = date_time
-        .format(&date_format)
-        .expect("timestamp date format could not be applied to the date supplied");
-
-    raw_string + " UTC"
 }
 
 fn get_date_format<'a>(format: &DateFormat) -> &'a str {

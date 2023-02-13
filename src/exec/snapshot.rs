@@ -98,7 +98,11 @@ impl TakeSnapshot {
         requested_snapshot_suffix: &str,
     ) -> HttmResult<BTreeMap<String, Vec<String>>> {
         // all snapshots should have the same timestamp
-        let timestamp = get_date(config, &SystemTime::now(), DateFormat::Timestamp);
+        let timestamp = get_date(
+            config.requested_utc_offset,
+            &SystemTime::now(),
+            DateFormat::Timestamp,
+        );
 
         let vec_snapshot_names: Vec<String> = mounts_for_files
             .iter()

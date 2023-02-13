@@ -215,7 +215,11 @@ impl PathData {
             };
 
         let display_date = if self.metadata.is_some() {
-            Cow::Owned(get_date(config, &metadata.modify_time, DateFormat::Display))
+            Cow::Owned(get_date(
+                config.requested_utc_offset,
+                &metadata.modify_time,
+                DateFormat::Display,
+            ))
         } else {
             Cow::Borrowed(&padding_collection.phantom_date_pad_str)
         };
@@ -243,7 +247,11 @@ impl PaddingCollection {
                 let metadata = pathdata.get_md_infallible();
 
                 let (display_date, display_size, display_path) = {
-                    let date = get_date(config, &metadata.modify_time, DateFormat::Display);
+                    let date = get_date(
+                        config.requested_utc_offset,
+                        &metadata.modify_time,
+                        DateFormat::Display,
+                    );
                     let size = format!(
                         "{:>width$}",
                         display_human_size(metadata.size),
@@ -272,7 +280,12 @@ impl PaddingCollection {
         let phantom_date_pad_str = format!(
             "{:<width$}",
             "",
-            width = get_date(config, &PHANTOM_DATE, DateFormat::Display).len()
+            width = get_date(
+                config.requested_utc_offset,
+                &PHANTOM_DATE,
+                DateFormat::Display
+            )
+            .len()
         );
         let phantom_size_pad_str = format!(
             "{:<width$}",
