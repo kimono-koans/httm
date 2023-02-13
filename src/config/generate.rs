@@ -340,7 +340,7 @@ fn parse_args() -> ArgMatches {
         .arg(
             Arg::new("JSON")
                 .long("json")
-                .help("display the ordinary output, but as formatted JSON.  Time in this display mode is UTC only.")
+                .help("display the ordinary output, but as formatted JSON.  JSON mode implies the OMIT_DITTO and UTC arguments.")
                 .conflicts_with_all(&["RAW", "ZEROS"])
                 .display_order(18)
         )
@@ -693,7 +693,7 @@ impl Config {
             .into());
         }
 
-        let opt_omit_ditto = matches.is_present("OMIT_DITTO");
+        let opt_omit_ditto = matches.is_present("OMIT_DITTO") || matches.is_present("JSON");
 
         // opt_omit_identical doesn't make sense in Display Recursive mode as no live files will exists?
         if opt_omit_ditto && matches!(exec_mode, ExecMode::NonInteractiveRecursive(_)) {

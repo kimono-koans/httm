@@ -94,7 +94,11 @@ impl<'a> Serialize for VersionsDisplayWrapper<'a> {
         let new_map: BTreeMap<String, Vec<PathData>> = self
             .deref()
             .iter()
-            .map(|(key, values)| (key.path_buf.to_string_lossy().to_string(), values.clone()))
+            .map(|(key, values)| {
+                let mut new_values = values.to_owned();
+                new_values.push(key.to_owned());
+                (key.path_buf.to_string_lossy().to_string(), new_values)
+            })
             .collect();
 
         state.serialize_field("versions", &new_map)?;

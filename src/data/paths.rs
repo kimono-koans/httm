@@ -229,8 +229,8 @@ impl Serialize for PathData {
     {
         let mut state = serializer.serialize_struct("PathData", 2)?;
 
-        state.serialize_field("snap_path", &self.path_buf)?;
-        state.serialize_field("snap_metadata", &self.metadata)?;
+        state.serialize_field("path", &self.path_buf)?;
+        state.serialize_field("metadata", &self.metadata)?;
         state.end()
     }
 }
