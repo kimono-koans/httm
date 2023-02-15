@@ -246,9 +246,9 @@ Wed Feb 15 12:59:42 2023  0 bytes  "/home/kimono/.zfs/snapshot/snap_2023-02-15-1
 # use as an alias around programs which modify files/dirs
 ➜ printf "
 # ounce aliases 
-alias vim=\"ounce --background vim\"
-alias emacs=\"ounce --background emacs\"
-alias nano=\"ounce --background nano\"
+alias vim=\"ounce --trace vim\"
+alias emacs=\"ounce --trace emacs\"
+alias nano=\"ounce --trace nano\"
 alias rm=\"ounce rm\"" >> ~/.zsh_aliases
 ```
 Use [bowie](https://github.com/kimono-koans/httm/blob/master/scripts/bowie.bash), a wrapper script for `httm`, to display the difference between unique snapshot versions and the live file:
