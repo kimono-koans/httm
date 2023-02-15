@@ -107,7 +107,7 @@ Like other UNIX utilities (such as `cat`, `uniq`, `sort`), if you include no pat
 # Press CTRL+C to send a SIGINT and quit the program
 ➜ httm 
 # Pipe output of find command to httm
-➜ find . | httm
+➜ find . -maxdepth 1 | httm
 ```
 Print all unique versions of your history file:
 ```bash
