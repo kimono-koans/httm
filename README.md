@@ -246,7 +246,7 @@ alias emacs=\"ounce --background emacs\"
 alias nano=\"ounce --background nano\"
 alias rm=\"ounce rm\"" >> ~/.zsh_aliases
 ```
-Use [bowie](https://github.com/kimono-koans/httm/blob/master/scripts/bowie.bash)), a wrapper script for `httm`, to display the difference between unique snapshot versions and the live file:
+Use [bowie](https://github.com/kimono-koans/httm/blob/master/scripts/bowie.bash), a wrapper script for `httm`, to display the difference between unique snapshot versions and the live file:
 ```bash
 ➜ bowie /var/log/syslog
 /home/kimono/.zshrc
