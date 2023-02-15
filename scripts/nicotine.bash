@@ -198,8 +198,10 @@ function convert_to_git {
 	local basename=""
 
 	# create dir for file
-	basename="$(basename "$path")"
-
+	raw="$(basename "$path")"
+	# Use parameter expansion to remove leading dot: "${FILENAME#.}"
+	basename="${raw#.}"
+	
 	# git requires a dir to init
 	archive_dir="$tmp_dir/$basename"
 	mkdir "$archive_dir" || print_err_exit "nicotine could not create a temporary directory.  Check you have permissions to create."
@@ -230,7 +232,7 @@ function convert_to_git {
 		cd "$tmp_dir"
 
 		# create archive
-		local output_file="$output_dir/$(basename $path)-git.tar.gz"
+		local output_file="$output_dir/$basename-git.tar.gz"
 
 		if [[ $debug = true ]]; then
 			tar -zcvf "$output_file" "./$basename" || print_err_exit "Archive creation failed.  Quitting."
