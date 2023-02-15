@@ -129,9 +129,9 @@ fn parse_args() -> ArgMatches {
         .version(crate_version!())
         .arg(
             Arg::new("INPUT_FILES")
-                .help("in any non-interactive mode, put requested files here.  If you enter no files, \
+                .help("in any non-interactive mode, put requested paths here.  If you include no paths as arguments, \
                 then httm will pause waiting for input on stdin.  In any interactive mode, \
-                this is the directory search path. If no directory is entered, \
+                this is the directory search path. If no directory is specified, \
                 httm will use the current working directory.")
                 .takes_value(true)
                 .multiple_values(true)

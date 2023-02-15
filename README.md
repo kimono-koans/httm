@@ -29,11 +29,11 @@ Inspired by the [findoid](https://github.com/jimsalterjrs/sanoid) script, [fzf](
 
 ## Install via Native Packages
 
-For Debian-based distributions (like Ubuntu), I maintain a personal package archive, or PPA.  See the [linked repository](https://github.com/kimono-koans/ppa) for instructions on how to use.
+For Debian-based distributions (like Ubuntu), I maintain an (unsupported) personal package archive, or PPA.  See the [linked repository](https://github.com/kimono-koans/ppa).
 
-For Debian-based and Redhat-based Linux distributions (like Ubuntu or Fedora, etc.), check the [tagged releases](https://github.com/kimono-koans/httm/tags) for native packages for your distribution.  For Redhat-based Linux distributions, you may need to use the `--replacefiles` option when installing via `rpm -i`, see the linked [issue](https://github.com/kimono-koans/httm/issues/51).
+For Debian-based and Redhat-based Linux distributions (like Ubuntu or Fedora, etc.), also check the [tagged releases](https://github.com/kimono-koans/httm/tags) for native packages for your distribution.  For Redhat-based Linux distributions, you may need to use the `--replacefiles` option when installing via `rpm -i`, see the linked [issue](https://github.com/kimono-koans/httm/issues/51).
 
-You may also create and install your own native package from the latest sources, like so:
+You may also create and install your own native package from the latest sources, for Debian-based and Redhat-based Linux distributions, like so:
 
 ```bash
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
@@ -55,6 +55,8 @@ For Arch-based Linux distributions, you can create and install your own native p
 wget https://raw.githubusercontent.com/kimono-koans/httm/master/packaging/arch/PKGBUILD
 makepkg -si
 ```
+
+For MacOS users, a user from the community (very exciting) has posted a [formulae](https://formulae.brew.sh/formula/httm) for [Homebrew](https://brew.sh).
 
 ## Install via Source
 
@@ -79,12 +81,13 @@ Note: `0.17.10` will be the last release published to [crates.io](https://crates
     ```bash
     cp ./httm/httm.1 /usr/local/share/man/man1/
     ```
-4. The optional [ounce](https://github.com/kimono-koans/httm/blob/master/scripts/ounce.bash) and [bowie](https://github.com/kimono-koans/httm/blob/master/scripts/bowie.bash) scripts.  See the scripts themselves, and below, in the Example Usage section, for more information.  To install, just copy it to a directory in your path, like so:
+4. The optional [ounce](https://github.com/kimono-koans/httm/blob/master/scripts/ounce.bash), [bowie](https://github.com/kimono-koans/httm/blob/master/scripts/bowie.bash), and [nicotine](https://github.com/kimono-koans/httm/blob/master/scripts/nicotine.bash) scripts.  See the scripts themselves, and below, in the Example Usage section, for more information.  To install, just copy it to a directory in your path, like so:
 
     ```bash
     cp ./httm/scripts/ounce.bash /usr/local/bin/ounce
     cp ./httm/scripts/bowie.bash /usr/local/bin/bowie
-    chmod +x /usr/local/bin/bowie /usr/local/bin/ounce
+    cp ./httm/scripts/nicotine.bash /usr/local/bin/nicotine
+    chmod +x /usr/local/bin/bowie /usr/local/bin/ounce /usr/local/bin/nicotine
     ```
 
 ### Caveats
@@ -99,9 +102,20 @@ On some Linux distributions, which include old versions of `libc`, `cargo` may r
 
 Note: Users may need to use `sudo` (or equivalent) to view versions on btrfs datasets, as btrfs snapshots may require root permissions in order to be visible.
 
+Like other UNIX utilities (such `cat`, `uniq`, `sort`), if you include no path/s as arguments, then `httm` will pause waiting for input on stdin:
+```bash
+# Press CTRL+C to send a SIGINT and quit the program
+httm 
+# Pipe output of find command to httm
+find . | httm
+```
 Print all unique versions of your history file:
 ```bash
 httm ~/.histfile
+```
+Print all unique versions of your history file, as formatted JSON:
+```bash
+httm --json ~/.histfile
 ```
 Print all files on snapshots deleted from your home directory, recursive:
 ```bash
