@@ -105,74 +105,74 @@ Note: Users may need to use `sudo` (or equivalent) to view versions on btrfs dat
 Like other UNIX utilities (such `cat`, `uniq`, `sort`), if you include no path/s as arguments, then `httm` will pause waiting for input on stdin:
 ```bash
 # Press CTRL+C to send a SIGINT and quit the program
-httm 
+➜ httm 
 # Pipe output of find command to httm
-find . | httm
+➜ find . | httm
 ```
 Print all unique versions of your history file:
 ```bash
-httm ~/.histfile
+➜ httm ~/.histfile
 ```
 Print all unique versions of your history file, as formatted JSON:
 ```bash
-httm --json ~/.histfile
+➜ httm --json ~/.histfile
 ```
 Print all files on snapshots deleted from your home directory, recursive:
 ```bash
-httm -d -R ~
+➜ httm -d -R ~
 ```
-Print all files on snapshots deleted from your home directory, recursive, newline delimited, piped to a `deleted-files.txt` file: 
+Print all files on snapshots deleted from your home directory, recursive, newline delimited, piped to a text file:
 ```bash
 # pseudo live file versions
-httm -d -n -R --no-snap ~ > pseudo-live-versions.txt
+➜ httm -d -n -R --no-snap ~ > pseudo-live-versions.txt
 # unique snapshot versions
-httm -d -n -R --no-live ~ > deleted-unique-versions.txt
+➜ httm -d -n -R --no-live ~ > deleted-unique-versions.txt
 ```
 Browse all files in your home directory, recursively, and view unique versions on local snapshots:
 ```bash
-httm -i -R ~
+➜ httm -i -R ~
 ```
 Browse all files deleted from your home directory, recursively, and view unique versions on all local and alternative replicated dataset snapshots:
 ```bash
-httm -d=only -i -a -R ~
+➜ httm -d=only -i -a -R ~
 ```
 Browse all files in your home directory, recursively, and view unique versions on local snapshots, to select and ultimately restore to your working directory:
 ```bash
-httm -r -R ~
+➜ httm -r -R ~
 ```
 View unique versions of a file for recovery (shortcut, no need to browse a directory):
 ```bash
-httm -r /var/log/samba/log.smbd
+➜ httm -r /var/log/samba/log.smbd
 ```
 View `bowie`-formatted `diff` of each unique snapshot of `~/.zshrc` against the live file version:
 ```bash
-httm --preview -s ~/.zshrc
+➜ httm --preview -s ~/.zshrc
 ```
 View `cat` output of each unique snapshot of `~/.zshrc`:
 ```bash
-httm --preview="cat {snap_file}" -s ~/.zshrc
+➜ httm --preview="cat {snap_file}" -s ~/.zshrc
 ```
 Recover the last-in-time unique file version (shortcut, no need to browse a directory or select from among other unique versions):
 ```bash
-httm -l -r /var/log/samba/log.smbd
+➜ httm -l -r /var/log/samba/log.smbd
 ```
 Snapshot the dataset upon which `/etc/samba/smb.conf` is located:
 ```bash
-sudo httm -S /etc/samba/smb.conf
+➜ sudo httm -S /etc/samba/smb.conf
 ``` 
 Browse all files, recursively, in a folder backed up via `rsync` to a remote share, and view unique versions on remote snapshots directly (only available for btrfs-snapper and ZFS datasets).  
 ```bash
 # mount the share
-open smb://<your name>@<your remote share>.local/Home
+➜ open smb://<your name>@<your remote share>.local/Home
 # execute httm
-httm -i -R /Volumes/Home
+➜ httm -i -R /Volumes/Home
 ```
 Browse all files, recursively, in your MacOS home directory backed up via `rsync` to a ZFS/btrfs remote share, shared via `smbd`, and view unique versions on remote snapshots. Note: The difference from above is, here, you're browsing files from a "live" directory:
 ```bash
 # mount the share
-open smb://<your name>@<your remote share>.local/Home
+➜ open smb://<your name>@<your remote share>.local/Home
 # execute httm
-httm -i -R --map-aliases /Users/<your name>:/Volumes/Home ~
+➜ httm -i -R --map-aliases /Users/<your name>:/Volumes/Home ~
 ```
 View the differences between each unique snapshot version of the `httm` `man` page and each previous version (this simple script is the basis for [bowie](https://github.com/kimono-koans/httm/blob/master/scripts/bowie.bash)):
 ```bash
@@ -197,7 +197,7 @@ done
 ```
 Create a simple `tar` archive of all unique versions of your `/var/log/syslog`:
 ```bash
-httm -n --omit-ditto /var/log/syslog | tar -zcvf all-versions-syslog.tar.gz -T -
+➜ httm -n --omit-ditto /var/log/syslog | tar -zcvf all-versions-syslog.tar.gz -T -
 ```
 Create a *kinda fancy* `tar` archive of all unique versions of your `/var/log/syslog`:
 ```bash
@@ -231,20 +231,25 @@ tar -zcvf "../all-versions-$(basename $file).tar.gz" "./"
 # and to view
 git log --stat
 ```
-Use [ounce](https://github.com/kimono-koans/httm/blob/master/scripts/ounce.bash) (codename: "dimebag"), a wrapper script for `httm`, for no mental overhead, non-periodic dynamic snapshots, like so:
+Use [ounce](https://github.com/kimono-koans/httm/blob/master/scripts/ounce.bash) (codename: "dimebag"), a wrapper script for `httm`, for no mental overhead, non-periodic dynamic snapshots:
 ```bash
 # request ZFS snapshot privileges
-ounce --give-priv
+➜ ounce --give-priv
 # here you create a "dummyfile", ounce will add a snapshot of "dummyfile" 
 # before you remove it, and httm will allow you to view the snapshot created
-touch ~/dummyfile; ounce rm ~/dummyfile; httm ~/dummyfile
+➜ touch ~/dummyfile; ounce rm ~/dummyfile; httm ~/dummyfile
 # use as an alias around programs which modify files/dirs
-printf "
+➜ printf "
 # ounce aliases 
 alias vim=\"ounce --background vim\"
 alias emacs=\"ounce --background emacs\"
 alias nano=\"ounce --background nano\"
 alias rm=\"ounce rm\"" >> ~/.zsh_aliases
+```
+Use [nicotine](https://github.com/kimono-koans/httm/blob/master/scripts/nicotine.bash), a wrapper script for `httm`, to convert unique snapshot file versions to a git archive:
+```bash
+➜ nicotine .zshrc
+nicotine git archive created successfully: /home/rswinford/zshrc-git.tar.gz
 ```
 
 ## Yo, @kimono-koans, where do your snapshots come from?
