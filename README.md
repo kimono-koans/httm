@@ -246,10 +246,21 @@ alias emacs=\"ounce --background emacs\"
 alias nano=\"ounce --background nano\"
 alias rm=\"ounce rm\"" >> ~/.zsh_aliases
 ```
-Use [nicotine](https://github.com/kimono-koans/httm/blob/master/scripts/nicotine.bash), a wrapper script for `httm`, to convert unique snapshot file versions to a git archive:
+Use [bowie](https://github.com/kimono-koans/httm/blob/master/scripts/bowie.bash)), a wrapper script for `httm`, to display the difference between unique snapshot versions and the live file:
+```bash
+➜ bowie /var/log/syslog
+/home/kimono/.zshrc
+__
+Files /home/kimono/.zfs/snapshot/snap_2023-02-14-13:42:11_ounceSnapFileMount/.zshrc and /home/kimono/.zshrc differ
+1c1
+<	### If you come from bash you might have to change your $PATH.
+---
+>	# If you come from bash you might have to change your $PATH.
+```
+Use [nicotine](https://github.com/kimono-koans/httm/blob/master/scripts/nicotine.bash), a wrapper script for `httm`, to convert unique snapshot file versions to a `git` archives:
 ```bash
 ➜ nicotine .zshrc
-nicotine git archive created successfully: /home/rswinford/zshrc-git.tar.gz
+nicotine git archive created successfully: /home/kimono/zshrc-git.tar.gz
 ```
 
 ## Yo, @kimono-koans, where do your snapshots come from?
