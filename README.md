@@ -238,6 +238,11 @@ Use [ounce](https://github.com/kimono-koans/httm/blob/master/scripts/ounce.bash)
 # here you create a "dummyfile", ounce will add a snapshot of "dummyfile" 
 # before you remove it, and httm will allow you to view the snapshot created
 ➜ touch ~/dummyfile; ounce rm ~/dummyfile; httm ~/dummyfile
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+Wed Feb 15 12:59:42 2023  0 bytes  "/home/kimono/.zfs/snapshot/snap_2023-02-15-12:59:42_ounceSnapFileMount/dummyfile"
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+                                   "/home/kimono/dummyfile"
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 # use as an alias around programs which modify files/dirs
 ➜ printf "
 # ounce aliases 
