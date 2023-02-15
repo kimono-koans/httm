@@ -102,7 +102,7 @@ On some Linux distributions, which include old versions of `libc`, `cargo` may r
 
 Note: Users may need to use `sudo` (or equivalent) to view versions on btrfs datasets, as btrfs snapshots may require root permissions in order to be visible.
 
-Like other UNIX utilities (such `cat`, `uniq`, `sort`), if you include no path/s as arguments, then `httm` will pause waiting for input on stdin:
+Like other UNIX utilities (such as `cat`, `uniq`, `sort`), if you include no path/s as arguments, then `httm` will pause waiting for input on stdin:
 ```bash
 # Press CTRL+C to send a SIGINT and quit the program
 ➜ httm 
