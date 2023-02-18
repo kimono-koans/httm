@@ -113,7 +113,7 @@ impl TakeSnapshot {
                     match config.dataset_collection.map_of_datasets.inner.get(&mount.path_buf) {
                         Some(dataset_info) => {
                             if let FilesystemType::Zfs = dataset_info.fs_type {
-                                Ok(dataset_info.name.clone())
+                                Ok(dataset_info.source.clone())
                             } else {
                                 Err(HttmError::new("httm does not currently support snapshot-ing non-ZFS filesystems."))
                             }

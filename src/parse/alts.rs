@@ -68,7 +68,7 @@ impl MapOfAlts {
         map_of_datasets: &MapOfDatasets,
     ) -> HttmResult<AltMetadata> {
         let proximate_dataset_fs_name = match &map_of_datasets.inner.get(proximate_dataset_mount) {
-            Some(dataset_info) => dataset_info.name.clone(),
+            Some(dataset_info) => dataset_info.source.clone(),
             None => {
                 return Err(HttmError::new("httm was unable to detect an alternate replicated mount point.  Perhaps the replicated filesystem is not mounted?").into());
             }
@@ -81,9 +81,9 @@ impl MapOfAlts {
             .inner
             .par_iter()
             .filter(|(_mount, dataset_info)| {
-                dataset_info.name != proximate_dataset_fs_name
+                dataset_info.source != proximate_dataset_fs_name
                     && dataset_info
-                        .name
+                        .source
                         .ends_with(proximate_dataset_fs_name.as_str())
             })
             .map(|(mount, _fsname)| mount)
