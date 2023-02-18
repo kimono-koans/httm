@@ -4,7 +4,7 @@
 
 *The dream of a CLI Time Machine is still alive with `httm`.*
 
-`httm` prints the size, date and corresponding locations of available unique versions (deduplicated by modify time and size) of files residing on snapshots, but can also be used *interactively* to select and restore files, even snapshot mounts by file! `httm` might change the way you use snapshots (because ZFS/btrfs aren't designed for finding for unique file versions) or the Time Machine concept (because `httm` is very fast!).
+`httm` prints the size, date and corresponding locations of available unique versions (deduplicated by modify time and size) of files residing on snapshots, but can also be used *interactively* to select and restore files, even snapshot mounts by file! `httm` might change the way you use snapshots (because ZFS/BTRFS/NILFS2 aren't designed for finding for unique file versions) or the Time Machine concept (because `httm` is very fast!).
 
 `httm` boasts an array of seductive features, like:
 
@@ -12,7 +12,7 @@
 * Search for and recursively list deleted files.  *Even browse files hidden behind deleted directories*.
 * List file snapshots from *all* local pools (detect local snapshot versions *as well as* locally replicated snapshot versions)!
 * List file snapshots from remote backup pools (even overlay replicated remote snapshot directories over live directories).
-* For use with `rsync`-ed non-ZFS/btrfs local datasets (like ext4, APFS, or NTFS), not just ZFS/btrfs.
+* For use with `rsync`-ed non-ZFS/BTRFS/NILFS2 local datasets (like ext4, APFS, or NTFS), not just ZFS/BTRFS/NILFS2.
 * Preview snapshot file versions with a custom command, or `diff` compare to the live version
 * 3 native interactive modes: browse, select and restore
 * ANSI `ls` colors from your environment
@@ -21,7 +21,7 @@
 * List all snapshot names, even purge snapshots, which include a file
 * Detect and display the number of unique file versions available
 * Select from several formatting styles.  Parseable ... or not ...  oh my!
-* Supports ZFS and btrfs snapshots
+* Supports ZFS/BTRFS/NILFS2 snapshots
 
 Use in combination with you favorite shell's hot keys for even more fun.
 
@@ -92,7 +92,7 @@ Note: `0.17.10` will be the last release published to [crates.io](https://crates
 
 ### Caveats
 
-Right now, you will need to use a Unix-ish-y Rust-supported platform to build and install (that is: Linux, Solaris/illumos, the BSDs, MacOS).  Note, your platform *does not* need to support ZFS/btrfs to use `httm`.  And there is no fundamental reason a non-interactive Windows version of `httm` could not be built, as it once did build, but Windows platform support is not a priority for me right now.  Contributions from users are, of course, very welcome.
+Right now, you will need to use a Unix-ish-y Rust-supported platform to build and install (that is: Linux, Solaris/illumos, the BSDs, MacOS).  Note, your platform *does not* need to support ZFS/BTRFS/NILFS2 to use `httm`.  And there is no fundamental reason a non-interactive Windows version of `httm` could not be built, as it once did build, but Windows platform support is not a priority for me right now.  Contributions from users are, of course, very welcome.
 
 On FreeBSD, after a fresh minimal install, the interactive modes may not render properly, see the linked [issue](https://github.com/kimono-koans/httm/issues/20) for the fix.
 
@@ -100,7 +100,7 @@ On some Linux distributions, which include old versions of `libc`, `cargo` may r
 
 ## Example Usage
 
-Note: Users may need to use `sudo` (or equivalent) to view versions on btrfs datasets, as btrfs snapshots may require root permissions in order to be visible.
+Note: Users may need to use `sudo` (or equivalent) to view versions on BTRFS or NILFS2 datasets, as BTRFS or NILFS2 snapshots may require root permissions in order to be visible.
 
 Like other UNIX utilities (such as `cat`, `uniq`, `sort`), if you include no path/s as arguments, then `httm` will pause waiting for input on stdin:
 ```bash
@@ -160,14 +160,14 @@ Snapshot the dataset upon which `/etc/samba/smb.conf` is located:
 ```bash
 ➜ sudo httm -S /etc/samba/smb.conf
 ``` 
-Browse all files, recursively, in a folder backed up via `rsync` to a remote share, and view unique versions on remote snapshots directly (only available for btrfs-snapper and ZFS datasets).  
+Browse all files, recursively, in a folder backed up via `rsync` to a remote share, and view unique versions on remote snapshots directly (only available for BTRFS Snapper and ZFS datasets).  
 ```bash
 # mount the share
 ➜ open smb://<your name>@<your remote share>.local/Home
 # execute httm
 ➜ httm -i -R /Volumes/Home
 ```
-Browse all files, recursively, in your MacOS home directory backed up via `rsync` to a ZFS/btrfs remote share, shared via `smbd`, and view unique versions on remote snapshots. Note: The difference from above is, here, you're browsing files from a "live" directory:
+Browse all files, recursively, in your MacOS home directory backed up via `rsync` to a ZFS or BTRFS Snapper remote share, shared via `smbd`, and view unique versions on remote snapshots. Note: The difference from above is, here, you're browsing files from a "live" directory:
 ```bash
 # mount the share
 ➜ open smb://<your name>@<your remote share>.local/Home

@@ -129,7 +129,7 @@ impl SnapNameMap {
                                 None
                             }
                             Some(md) => {
-                                opt_snap.map(|snap| format!("{}@{snap}", md.name))
+                                opt_snap.map(|snap| format!("{}@{snap}", md.source))
                             }
                             None => None,
                         }

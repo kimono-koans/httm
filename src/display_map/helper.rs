@@ -73,7 +73,7 @@ impl<'a> From<&MountsForFiles<'a>> for PrintAsMap {
                                 .map_of_datasets
                                 .inner
                                 .get(&value.path_buf);
-                            opt_md.map(|md| md.name.clone())
+                            opt_md.map(|md| md.source.clone())
                         }
                         MountDisplay::RelativePath => {
                             let opt_rel_path = key
