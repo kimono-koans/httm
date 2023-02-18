@@ -20,6 +20,7 @@ use std::{fs::read_dir, ops::Deref, path::Path, path::PathBuf, process::Command 
 use hashbrown::HashMap;
 use rayon::prelude::*;
 use which::which;
+use proc_mounts::MountIter;
 
 use crate::library::results::{HttmError, HttmResult};
 use crate::parse::aliases::FilesystemType;
@@ -59,7 +60,7 @@ impl MapOfSnaps {
                             None
                         }
                     }
-                    FilesystemType::Zfs => None,
+                    FilesystemType::Zfs | FilesystemType::Nilfs2 => None,
                 });
 
         let map_of_snaps: HashMap<PathBuf, Vec<PathBuf>> = map_of_datasets
@@ -76,6 +77,7 @@ impl MapOfSnaps {
                         },
                         None => Self::from_defined_mounts(mount, &dataset_info.fs_type),
                     },
+                    FilesystemType::Nilfs2 => Self::from_mount_cmd(dataset_info),
                 };
 
                 snap_mounts.map(|snap_mounts| (mount.clone(), snap_mounts))
@@ -159,8 +161,37 @@ impl MapOfSnaps {
                 .par_bridge()
                 .map(|entry| entry.path())
                 .collect(),
+            _ => unreachable!(),
         };
 
         Ok(snaps)
     }
+
+    // similar to btrfs precompute, build paths to all snap mounts for zfs (all) and btrfs snapper (for networked datasets only)
+    fn from_mount_cmd(
+        dataset_metadata: &DatasetMetadata,
+    ) -> HttmResult<Vec<PathBuf>> {
+        let snaps: Vec<PathBuf> = MountIter::new()?
+            .par_bridge()
+            .flatten()
+            .filter(|mount_info| {
+                mount_info.source.as_path() == Path::new(&dataset_metadata.name)
+            })
+            .filter(|mount_info| {
+                mount_info
+                .options
+                .iter()
+                .any(|opt| {
+                    opt.contains("cp=")
+                })
+            })
+            .map(|mount_info| {
+                mount_info.dest
+            })
+            .collect();
+                
+            
+        Ok(snaps)
+    }
+
 }

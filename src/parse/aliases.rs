@@ -26,6 +26,7 @@ use crate::library::utility::get_fs_type_from_hidden_dir;
 pub enum FilesystemType {
     Zfs,
     Btrfs,
+    Nilfs2,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
