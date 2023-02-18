@@ -122,25 +122,20 @@ impl BaseFilesystemInfo {
                 .flatten()
                 // but exclude snapshot mounts.  we want only the raw filesystems
                 .filter(|mount_info| {
-                    if &mount_info.fstype.as_str() != &ZFS_FSTYPE {
+                    if mount_info.fstype.as_str() != ZFS_FSTYPE {
                         true
                     } else {
                         !mount_info
-                        .dest
-                        .to_string_lossy()
-                        .contains(ZFS_SNAPSHOT_DIRECTORY)
+                            .dest
+                            .to_string_lossy()
+                            .contains(ZFS_SNAPSHOT_DIRECTORY)
                     }
                 })
                 .filter(|mount_info| {
-                    if &mount_info.fstype.as_str() != &NILFS2_FSTYPE {
+                    if mount_info.fstype.as_str() != NILFS2_FSTYPE {
                         true
                     } else {
-                        !mount_info
-                        .options
-                        .iter()
-                        .any(|opt| {
-                            opt.contains("cp=")
-                        })
+                        !mount_info.options.iter().any(|opt| opt.contains("cp="))
                     }
                 })
                 .partition_map(|mount_info| match &mount_info.fstype.as_str() {
@@ -202,7 +197,7 @@ impl BaseFilesystemInfo {
                             },
                         ))
                     }
-                    &NILFS2_FSTYPE => {                        
+                    &NILFS2_FSTYPE => {
                         let fs_type = FilesystemType::Nilfs2;
 
                         let mount_type = MountType::Local;
