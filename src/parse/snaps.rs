@@ -145,10 +145,12 @@ impl MapOfSnaps {
     }
 
     fn parse_mounts(dataset_metadata: &DatasetMetadata) -> HttmResult<Vec<PathBuf>> {
+        let source_path = Path::new(&dataset_metadata.source);
+
         let snaps = MountIter::new()?
             .flatten()
             .par_bridge()
-            .filter(|mount_info| mount_info.source.as_path() == Path::new(&dataset_metadata.source))
+            .filter(|mount_info| mount_info.source.as_path() == source_path)
             .filter(|mount_info| mount_info.options.iter().any(|opt| opt.contains("cp=")))
             .map(|mount_info| mount_info.dest)
             .collect();
