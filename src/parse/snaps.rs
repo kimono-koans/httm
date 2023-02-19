@@ -73,7 +73,7 @@ impl MapOfSnaps {
                             MountType::Local => Self::parse_btrfs_cmd(mount, root_mount_path),
                             MountType::Network => Self::from_defined_mounts(mount, dataset_info),
                         },
-                        None => Self::from_defined_mounts(mount, dataset_info),
+                        None => Self::parse_btrfs_cmd(mount, mount),
                     },
                     FilesystemType::Nilfs2 => Self::parse_mounts(dataset_info),
                 };
