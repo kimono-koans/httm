@@ -28,7 +28,7 @@ use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{get_common_path, get_fs_type_from_hidden_dir};
 use crate::parse::aliases::FilesystemType;
 use crate::parse::snaps::MapOfSnaps;
-use crate::ZFS_SNAPSHOT_DIRECTORY;
+use crate::{NILFS2_SNAPSHOT_ID_KEY, ZFS_SNAPSHOT_DIRECTORY};
 
 pub const ZFS_FSTYPE: &str = "zfs";
 pub const NILFS2_FSTYPE: &str = "nilfs2";
@@ -122,15 +122,25 @@ impl BaseFilesystemInfo {
                 .flatten()
                 // but exclude snapshot mounts.  we want only the raw filesystems
                 .filter(|mount_info| {
-                    mount_info.fstype.as_str() != ZFS_FSTYPE
-                        || !mount_info
+                    if mount_info.fstype.as_str() == ZFS_FSTYPE
+                        && mount_info
                             .dest
                             .to_string_lossy()
                             .contains(ZFS_SNAPSHOT_DIRECTORY)
-                })
-                .filter(|mount_info| {
-                    mount_info.fstype.as_str() != NILFS2_FSTYPE
-                        || !mount_info.options.iter().any(|opt| opt.contains("cp="))
+                    {
+                        return false;
+                    }
+
+                    if mount_info.fstype.as_str() == NILFS2_FSTYPE
+                        && mount_info
+                            .options
+                            .iter()
+                            .any(|opt| opt.contains(NILFS2_SNAPSHOT_ID_KEY))
+                    {
+                        return false;
+                    }
+
+                    true
                 })
                 .partition_map(|mount_info| match &mount_info.fstype.as_str() {
                     &ZFS_FSTYPE => Either::Left((

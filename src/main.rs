@@ -80,6 +80,7 @@ pub const ZFS_SNAPSHOT_DIRECTORY: &str = ".zfs/snapshot";
 pub const BTRFS_SNAPPER_HIDDEN_DIRECTORY: &str = ".snapshots";
 pub const BTRFS_SNAPPER_SUFFIX: &str = "snapshot";
 pub const ROOT_DIRECTORY: &str = "/";
+pub const NILFS2_SNAPSHOT_ID_KEY: &str = "cp=";
 
 fn main() {
     match exec() {
