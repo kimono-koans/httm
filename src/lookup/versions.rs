@@ -19,6 +19,7 @@ use std::{
     collections::BTreeMap,
     io::ErrorKind,
     ops::Deref,
+    ops::DerefMut,
     path::{Path, PathBuf},
     time::SystemTime,
 };
@@ -35,7 +36,7 @@ use crate::{
 //use super::common::FindVersions;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VersionsMap {
-    inner: BTreeMap<PathData, Vec<PathData>>,
+    pub inner: BTreeMap<PathData, Vec<PathData>>,
 }
 
 impl From<BTreeMap<PathData, Vec<PathData>>> for VersionsMap {
@@ -60,9 +61,15 @@ impl Deref for VersionsMap {
     }
 }
 
+impl DerefMut for VersionsMap {    
+    fn deref_mut(&mut self) -> &mut BTreeMap<PathData, Vec<PathData>> {
+        &mut self.inner
+    }
+}
+
 impl VersionsMap {
     pub fn new(config: &Config, path_set: &[PathData]) -> HttmResult<VersionsMap> {
-        let versions_map = Self::exec(path_set);
+        let mut versions_map = Self::exec(path_set);
 
         // check if all files (snap and live) do not exist, if this is true, then user probably messed up
         // and entered a file that never existed (that is, perhaps a wrong file name)?
@@ -79,12 +86,15 @@ impl VersionsMap {
         }
 
         // process last snap mode after omit_ditto
-        match &config.opt_last_snap {
-            Some(last_snap_mode) => {
-                Ok(versions_map.omit_versions(last_snap_mode, config.opt_omit_ditto))
-            }
-            None => Ok(versions_map),
+        if config.opt_omit_ditto {
+            versions_map.omit_ditto()
         }
+
+        if let Some(last_snap_mode) = &config.opt_last_snap {
+            versions_map.get_last_snap(last_snap_mode)
+        }
+
+        Ok(versions_map)
     }
 
     fn exec(path_set: &[PathData]) -> Self {
@@ -115,47 +125,43 @@ impl VersionsMap {
         versions_map
     }
 
-    fn omit_versions(&self, last_snap_mode: &LastSnapMode, omit_ditto: bool) -> VersionsMap {
-        let res: BTreeMap<PathData, Vec<PathData>> = self
-            .iter()
-            .filter(|(pathdata, snaps)| {
-                // process omit_ditto before last snap
-                if omit_ditto {
-                    if let Some(last_snap) = snaps.last() {
-                        return last_snap.get_md_infallible() != pathdata.get_md_infallible();
-                    }
+    fn omit_ditto(&mut self) {
+        self.iter_mut().for_each(|(pathdata, snaps)| {
+            // process omit_ditto before last snap
+            if let Some(last_snap) = snaps.last() {
+                if last_snap.get_md_infallible() == pathdata.get_md_infallible() {
+                    snaps.pop();
                 }
+            }
+        });
+    }
 
-                true
-            })
-            .map(|(pathdata, snaps)| {
-                let new_snaps = match snaps.last() {
-                    Some(last) => match last_snap_mode {
-                        LastSnapMode::Any => vec![last.clone()],
-                        LastSnapMode::DittoOnly
-                            if pathdata.get_md_infallible() == last.get_md_infallible() =>
-                        {
-                            vec![last.clone()]
-                        }
-                        LastSnapMode::NoDittoExclusive | LastSnapMode::NoDittoInclusive
-                            if pathdata.get_md_infallible() != last.get_md_infallible() =>
-                        {
-                            vec![last.clone()]
-                        }
-                        _ => Vec::new(),
-                    },
-                    None => match last_snap_mode {
-                        LastSnapMode::Without | LastSnapMode::NoDittoInclusive => {
-                            vec![pathdata.clone()]
-                        }
-                        _ => Vec::new(),
-                    },
-                };
-                (pathdata.clone(), new_snaps)
-            })
-            .collect();
-
-        res.into()
+    fn get_last_snap(&mut self, last_snap_mode: &LastSnapMode) {
+        self.iter_mut().for_each(|(pathdata, snaps)| {
+            *snaps = match snaps.last() {
+                // if last() is some, then should be able to unwrap pop()
+                Some(last) => match last_snap_mode {
+                    LastSnapMode::Any => vec![snaps.pop().unwrap()],
+                    LastSnapMode::DittoOnly
+                        if pathdata.get_md_infallible() == last.get_md_infallible() =>
+                    {
+                        vec![snaps.pop().unwrap()]
+                    }
+                    LastSnapMode::NoDittoExclusive | LastSnapMode::NoDittoInclusive
+                        if pathdata.get_md_infallible() != last.get_md_infallible() =>
+                    {
+                        vec![snaps.pop().unwrap()]
+                    }
+                    _ => Vec::new(),
+                },
+                None => match last_snap_mode {
+                    LastSnapMode::Without | LastSnapMode::NoDittoInclusive => {
+                        vec![pathdata.clone()]
+                    }
+                    _ => Vec::new(),
+                },
+            };
+        });
     }
 }
 
