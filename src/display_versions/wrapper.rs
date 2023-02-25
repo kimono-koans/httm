@@ -23,7 +23,6 @@ use serde::{Serialize, Serializer};
 use crate::config::generate::{Config, ExecMode, PrintMode};
 use crate::data::paths::PathData;
 use crate::display_map::helper::PrintAsMap;
-use crate::display_map::wrapper::OtherDisplayWrapper;
 use crate::lookup::versions::VersionsMap;
 use crate::GLOBAL_CONFIG;
 
@@ -41,7 +40,7 @@ impl<'a> std::string::ToString for VersionsDisplayWrapper<'a> {
             _ => {
                 if GLOBAL_CONFIG.opt_last_snap.is_some() {
                     let printable_map = PrintAsMap::from(&self.map);
-                    return OtherDisplayWrapper::from(printable_map).to_string();
+                    return printable_map.to_string();
                 }
 
                 match &GLOBAL_CONFIG.print_mode {

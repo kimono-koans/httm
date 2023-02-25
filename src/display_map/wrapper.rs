@@ -21,21 +21,10 @@ use crate::display_versions::format::NOT_SO_PRETTY_FIXED_WIDTH_PADDING;
 use crate::library::utility::get_delimiter;
 use crate::GLOBAL_CONFIG;
 
-pub struct OtherDisplayWrapper {
-    pub map: PrintAsMap,
-}
-
-impl OtherDisplayWrapper {
-    pub fn from(map: PrintAsMap) -> Self {
-        Self { map }
-    }
-}
-
-impl std::string::ToString for OtherDisplayWrapper {
+impl std::string::ToString for PrintAsMap {
     fn to_string(&self) -> String {
         match &GLOBAL_CONFIG.print_mode {
             PrintMode::RawNewline | PrintMode::RawZero => self
-                .map
                 .values()
                 .flatten()
                 .map(|value| {
@@ -69,11 +58,11 @@ impl std::string::ToString for OtherDisplayWrapper {
     }
 }
 
-impl OtherDisplayWrapper {
+impl PrintAsMap {
     pub fn to_json(&self) -> String {
         let res = match &GLOBAL_CONFIG.print_mode {
-            PrintMode::FormattedJsonNotPretty => serde_json::to_string(&self.map),
-            _ => serde_json::to_string_pretty(&self.map),
+            PrintMode::FormattedJsonNotPretty => serde_json::to_string(&self),
+            _ => serde_json::to_string_pretty(&self),
         };
 
         match res {
@@ -86,10 +75,9 @@ impl OtherDisplayWrapper {
     }
 
     pub fn format(&self) -> String {
-        let padding = self.map.get_map_padding();
+        let padding = self.get_map_padding();
 
         let write_out_buffer = self
-            .map
             .iter()
             .filter(|(_key, values)| {
                 if GLOBAL_CONFIG.opt_last_snap.is_some() {

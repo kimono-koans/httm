@@ -70,7 +70,6 @@ use once_cell::sync::Lazy;
 use crate::config::generate::{Config, ExecMode};
 use crate::lookup::file_mounts::MountsForFiles;
 
-use crate::display_map::wrapper::OtherDisplayWrapper;
 use crate::display_versions::wrapper::VersionsDisplayWrapper;
 use crate::exec::interactive::InteractiveBrowse;
 use crate::exec::recursive::NonInteractiveRecursiveWrapper;
@@ -135,7 +134,7 @@ fn exec() -> HttmResult<()> {
         ExecMode::SnapsForFiles(opt_filters) => {
             let snap_name_map = SnapNameMap::exec(opt_filters);
             let printable_map = PrintAsMap::from(&snap_name_map);
-            let output_buf = OtherDisplayWrapper::from(printable_map).to_string();
+            let output_buf = printable_map.to_string();
 
             print_output_buf(output_buf)
         }
@@ -143,7 +142,7 @@ fn exec() -> HttmResult<()> {
         ExecMode::MountsForFiles(mount_display) => {
             let mounts_map = &MountsForFiles::new(mount_display);
             let printable_map: PrintAsMap = mounts_map.into();
-            let output_buf = OtherDisplayWrapper::from(printable_map).to_string();
+            let output_buf = printable_map.to_string();
 
             print_output_buf(output_buf)
         }
