@@ -17,7 +17,7 @@
 
 use std::{
     borrow::Cow,
-    fs::{copy, create_dir_all, read_dir, set_permissions, DirEntry, FileType},
+    fs::{copy, create_dir_all, read_dir, set_permissions, FileType},
     io::{self, Read, Write},
     iter::Iterator,
     os::unix::fs::MetadataExt,
@@ -236,9 +236,9 @@ pub fn print_output_buf(output_buf: String) -> HttmResult<()> {
 }
 
 // is this path/dir_entry something we should count as a directory for our purposes?
-pub fn httm_is_dir<T>(entry: &T) -> bool
+pub fn httm_is_dir<'a, T>(entry: &'a T) -> bool
 where
-    T: HttmIsDir,
+    T: HttmIsDir<'a>,
 {
     let path = entry.get_path();
     match entry.get_filetype() {
@@ -261,39 +261,30 @@ where
     }
 }
 
-pub trait HttmIsDir {
+pub trait HttmIsDir<'a> {
     fn get_filetype(&self) -> Result<FileType, std::io::Error>;
-    fn get_path(&self) -> PathBuf;
+    fn get_path(&'a self) -> &'a Path;
 }
 
-impl HttmIsDir for Path {
+impl<'a> HttmIsDir<'a> for Path {
     fn get_filetype(&self) -> Result<FileType, std::io::Error> {
         Ok(self.metadata()?.file_type())
     }
-    fn get_path(&self) -> PathBuf {
-        self.to_path_buf()
+    fn get_path(&'a self) -> &'a Path {
+        self
     }
 }
 
-impl HttmIsDir for PathData {
+impl<'a> HttmIsDir<'a> for PathData {
     fn get_filetype(&self) -> Result<FileType, std::io::Error> {
         Ok(self.path_buf.metadata()?.file_type())
     }
-    fn get_path(&self) -> PathBuf {
-        self.path_buf.clone()
+    fn get_path(&'a self) -> &'a Path {
+        &self.path_buf
     }
 }
 
-impl HttmIsDir for DirEntry {
-    fn get_filetype(&self) -> Result<FileType, std::io::Error> {
-        self.file_type()
-    }
-    fn get_path(&self) -> PathBuf {
-        self.path()
-    }
-}
-
-impl HttmIsDir for BasicDirEntryInfo {
+impl<'a> HttmIsDir<'a> for BasicDirEntryInfo {
     fn get_filetype(&self) -> Result<FileType, std::io::Error> {
         //  of course, this is a placeholder error, we just need an error to report back
         //  why not store the error in the struct instead?  because it's more complex.  it might
@@ -301,8 +292,8 @@ impl HttmIsDir for BasicDirEntryInfo {
         self.file_type
             .ok_or_else(|| io::Error::from(io::ErrorKind::NotFound))
     }
-    fn get_path(&self) -> PathBuf {
-        self.path.clone()
+    fn get_path(&'a self) -> &'a Path {
+        &self.path
     }
 }
 
@@ -335,7 +326,7 @@ pub trait PaintString {
 
 impl PaintString for &PathData {
     fn get_ls_style(&self) -> Option<&lscolors::style::Style> {
-        ENV_LS_COLORS.style_for_path(self.path_buf.as_path())
+        ENV_LS_COLORS.style_for_path(&self.path_buf)
     }
     fn get_is_phantom(&self) -> bool {
         self.metadata.is_none()
