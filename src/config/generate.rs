@@ -502,7 +502,7 @@ impl Config {
             install_hot_keys()?
         }
 
-        let requested_utc_offset = if matches.is_present("UTC") || matches.is_present("JSON") {
+        let requested_utc_offset = if matches.is_present("UTC") {
             UtcOffset::UTC
         } else {
             // this fn is surprisingly finicky. it needs to be done
