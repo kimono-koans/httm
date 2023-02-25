@@ -78,9 +78,7 @@ impl<'a> MountsForFiles<'a> {
                     .snaps_selected_for_search
                     .get_value()
                     .iter()
-                    .flat_map(|dataset_type| {
-                        MostProximateAndOptAlts::new(&GLOBAL_CONFIG, pathdata, dataset_type)
-                    })
+                    .flat_map(|dataset_type| MostProximateAndOptAlts::new(pathdata, dataset_type))
                     .collect();
                 (pathdata.clone(), datasets)
             })

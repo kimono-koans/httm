@@ -76,11 +76,10 @@ impl DeletedFilesBundle {
         let basic_info_map: HashMap<OsString, BasicDirEntryInfo> = requested_snap_datasets
             .iter()
             .flat_map(|dataset_type| {
-                MostProximateAndOptAlts::new(&GLOBAL_CONFIG, &requested_dir_pathdata, dataset_type)
+                MostProximateAndOptAlts::new(&requested_dir_pathdata, dataset_type)
             })
             .flat_map(|datasets_of_interest| {
                 MostProximateAndOptAlts::get_search_bundles(
-                    &GLOBAL_CONFIG,
                     datasets_of_interest,
                     &requested_dir_pathdata,
                 )
@@ -177,15 +176,9 @@ impl LastInTimeSet {
             .filter_map(|pathdata| {
                 snaps_selected_for_search
                     .iter()
-                    .flat_map(|dataset_type| {
-                        MostProximateAndOptAlts::new(&GLOBAL_CONFIG, pathdata, dataset_type)
-                    })
+                    .flat_map(|dataset_type| MostProximateAndOptAlts::new(pathdata, dataset_type))
                     .flat_map(|datasets_of_interest| {
-                        MostProximateAndOptAlts::get_search_bundles(
-                            &GLOBAL_CONFIG,
-                            datasets_of_interest,
-                            pathdata,
-                        )
+                        MostProximateAndOptAlts::get_search_bundles(datasets_of_interest, pathdata)
                     })
                     .flatten()
                     .filter_map(|search_bundle| search_bundle.get_last_version())

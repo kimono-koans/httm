@@ -75,9 +75,7 @@ impl<'a> From<&MountsForFiles<'a>> for PrintAsMap {
                             opt_md.map(|md| md.source.clone())
                         }
                         MountDisplay::RelativePath => {
-                            let opt_rel_path = key
-                                .get_relative_path(&GLOBAL_CONFIG, value.path_buf.as_path())
-                                .ok();
+                            let opt_rel_path = key.get_relative_path(value.path_buf.as_path()).ok();
                             opt_rel_path.map(|path| path.to_string_lossy().to_string())
                         }
                     })

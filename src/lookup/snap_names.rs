@@ -78,15 +78,9 @@ impl SnapNameMap {
             // same way we use the rayon threadpool in versions
             let snap_versions: Vec<PathData> = snaps_selected_for_search
                 .iter()
-                .flat_map(|dataset_type| {
-                    MostProximateAndOptAlts::new(&GLOBAL_CONFIG, pathdata, dataset_type)
-                })
+                .flat_map(|dataset_type| MostProximateAndOptAlts::new(pathdata, dataset_type))
                 .flat_map(|datasets_of_interest| {
-                    MostProximateAndOptAlts::get_search_bundles(
-                        &GLOBAL_CONFIG,
-                        datasets_of_interest,
-                        pathdata,
-                    )
+                    MostProximateAndOptAlts::get_search_bundles(datasets_of_interest, pathdata)
                 })
                 .flatten()
                 .flat_map(|search_bundle| match opt_filters {

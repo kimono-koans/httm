@@ -32,7 +32,6 @@ use crate::library::{
 };
 use crate::parse::aliases::MapOfAliases;
 use crate::parse::mounts::MapOfDatasets;
-use crate::Config;
 use crate::{
     library::utility::{display_human_size, get_date},
     GLOBAL_CONFIG,
@@ -165,13 +164,9 @@ impl PathData {
         self.metadata.unwrap_or(PHANTOM_PATH_METADATA)
     }
 
-    pub fn get_relative_path<'a>(
-        &'a self,
-        config: &Config,
-        proximate_dataset_mount: &Path,
-    ) -> HttmResult<&'a Path> {
+    pub fn get_relative_path<'a>(&'a self, proximate_dataset_mount: &Path) -> HttmResult<&'a Path> {
         // path strip, if aliased
-        if let Some(map_of_aliases) = &config.dataset_collection.opt_map_of_aliases {
+        if let Some(map_of_aliases) = &GLOBAL_CONFIG.dataset_collection.opt_map_of_aliases {
             let opt_aliased_local_dir = map_of_aliases
                 .iter()
                 // do a search for a key with a value
