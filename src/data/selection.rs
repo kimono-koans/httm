@@ -57,7 +57,7 @@ impl SelectionCandidate {
     }
 
     fn preview_view(&self) -> HttmResult<String> {
-        let config = GLOBAL_CONFIG.as_ref();
+        let config = &GLOBAL_CONFIG;
         let paths_selected = &[PathData::from(self.path.as_path())];
 
         // generate a config for display

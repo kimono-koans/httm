@@ -18,7 +18,6 @@
 use std::fs::canonicalize;
 use std::ops::Index;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 
 use clap::OsValues;
 use rayon::prelude::*;
@@ -488,13 +487,13 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn new() -> HttmResult<Arc<Self>> {
+    pub fn new() -> HttmResult<Self> {
         let arg_matches = parse_args();
         let config = Config::from_matches(&arg_matches)?;
         if config.opt_debug {
             eprintln!("{config:#?}");
         }
-        Ok(Arc::new(config))
+        Ok(config)
     }
 
     fn from_matches(matches: &ArgMatches) -> HttmResult<Self> {

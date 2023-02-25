@@ -59,8 +59,6 @@ mod parse {
     pub mod snaps;
 }
 
-use std::sync::Arc;
-
 use crate::display_map::helper::PrintAsMap;
 use exec::purge::PurgeFiles;
 use exec::snapshot::TakeSnapshot;
@@ -96,7 +94,7 @@ fn main() {
 
 // get our program args and generate a config for use
 // everywhere else
-static GLOBAL_CONFIG: Lazy<Arc<Config>> = Lazy::new(|| {
+static GLOBAL_CONFIG: Lazy<Config> = Lazy::new(|| {
     Config::new()
         .map_err(|error| {
             eprintln!("Error: {error}");

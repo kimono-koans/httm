@@ -76,15 +76,11 @@ impl DeletedFilesBundle {
         let basic_info_map: HashMap<OsString, BasicDirEntryInfo> = requested_snap_datasets
             .iter()
             .flat_map(|dataset_type| {
-                MostProximateAndOptAlts::new(
-                    GLOBAL_CONFIG.as_ref(),
-                    &requested_dir_pathdata,
-                    dataset_type,
-                )
+                MostProximateAndOptAlts::new(&GLOBAL_CONFIG, &requested_dir_pathdata, dataset_type)
             })
             .flat_map(|datasets_of_interest| {
                 MostProximateAndOptAlts::get_search_bundles(
-                    GLOBAL_CONFIG.as_ref(),
+                    &GLOBAL_CONFIG,
                     datasets_of_interest,
                     &requested_dir_pathdata,
                 )
