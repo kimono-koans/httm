@@ -27,16 +27,14 @@ use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
 use time::UtcOffset;
 
+use crate::library::utility::{display_human_size, get_date};
 use crate::library::{
     results::{HttmError, HttmResult},
     utility::DateFormat,
 };
 use crate::parse::aliases::MapOfAliases;
 use crate::parse::mounts::MapOfDatasets;
-use crate::{
-    config::generate::Config,
-    library::utility::{display_human_size, get_date},
-};
+use crate::Config;
 
 // only the most basic data from a DirEntry
 // for use to display in browse window and internally

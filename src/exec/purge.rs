@@ -20,7 +20,7 @@ use std::process::Command as ExecProcess;
 
 use which::which;
 
-use crate::config::generate::{Config, ListSnapsFilters};
+use crate::config::generate::ListSnapsFilters;
 use crate::exec::interactive::{select_restore_view, ViewMode};
 use crate::library::results::{HttmError, HttmResult};
 use crate::lookup::snap_names::SnapNameMap;
@@ -28,8 +28,8 @@ use crate::lookup::snap_names::SnapNameMap;
 pub struct PurgeFiles;
 
 impl PurgeFiles {
-    pub fn exec(config: &Config, opt_filters: &Option<ListSnapsFilters>) -> HttmResult<()> {
-        let snap_name_map: SnapNameMap = SnapNameMap::exec(config, opt_filters);
+    pub fn exec(opt_filters: &Option<ListSnapsFilters>) -> HttmResult<()> {
+        let snap_name_map: SnapNameMap = SnapNameMap::exec(opt_filters);
 
         let select_mode = if let Some(filters) = opt_filters {
             filters.select_mode
@@ -38,7 +38,7 @@ impl PurgeFiles {
         };
 
         if let Ok(zfs_command) = which("zfs") {
-            Self::interactive_purge(config, &zfs_command, &snap_name_map, select_mode)
+            Self::interactive_purge(&zfs_command, &snap_name_map, select_mode)
         } else {
             Err(HttmError::new(
                 "'zfs' command not found. Make sure the command 'zfs' is in your path.",
@@ -48,7 +48,6 @@ impl PurgeFiles {
     }
 
     fn interactive_purge(
-        config: &Config,
         zfs_command: &Path,
         snap_name_map: &SnapNameMap,
         select_mode: bool,
@@ -64,7 +63,7 @@ impl PurgeFiles {
                 .flatten()
                 .map(|value| format!("{value}\n"))
                 .collect();
-            select_restore_view(config, &buffer, ViewMode::Select(None), true)?
+            select_restore_view(&buffer, ViewMode::Select(None), true)?
         } else {
             snap_name_map.values().flatten().cloned().collect()
         };
@@ -87,7 +86,7 @@ impl PurgeFiles {
         // loop until user consents or doesn't
         loop {
             let user_consent =
-                select_restore_view(config, &preview_buffer, ViewMode::RestoreOrPurge, false)?[0]
+                select_restore_view(&preview_buffer, ViewMode::RestoreOrPurge, false)?[0]
                     .to_ascii_uppercase();
 
             match user_consent.as_ref() {

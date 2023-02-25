@@ -15,24 +15,24 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::{path::Path, sync::Arc};
+use std::path::Path;
 
 use rayon::Scope;
 use skim::prelude::*;
 
-use crate::config::generate::{Config, DeletedMode};
+use crate::config::generate::DeletedMode;
 use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::exec::recursive::SharedRecursive;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{is_channel_closed, Never};
 use crate::lookup::deleted::{DeletedFilesBundle, LastInTimeSet};
+use crate::GLOBAL_CONFIG;
 
 pub struct SpawnDeletedThread;
 
 impl SpawnDeletedThread {
     // "spawn" a lighter weight rayon/greenish thread for enumerate_deleted, if needed
     pub fn exec(
-        config: Arc<Config>,
         requested_dir: &Path,
         deleted_scope: &Scope,
         skim_tx: &SkimItemSender,
@@ -45,18 +45,12 @@ impl SpawnDeletedThread {
         let hangup_rx_clone = hangup_rx.clone();
 
         deleted_scope.spawn(move |_| {
-            let _ = Self::enumerate(
-                config,
-                &requested_dir_clone,
-                &skim_tx_clone,
-                &hangup_rx_clone,
-            );
+            let _ = Self::enumerate(&requested_dir_clone, &skim_tx_clone, &hangup_rx_clone);
         });
     }
 
     // deleted file search for all modes
     fn enumerate(
-        config: Arc<Config>,
         requested_dir: &Path,
         skim_tx: &SkimItemSender,
         hangup_rx: &Receiver<Never>,
@@ -69,17 +63,16 @@ impl SpawnDeletedThread {
         }
 
         // obtain all unique deleted, unordered, unsorted, will need to fix
-        let vec_deleted = DeletedFilesBundle::new(config.as_ref(), requested_dir);
+        let vec_deleted = DeletedFilesBundle::new(requested_dir);
 
         // combined entries will be sent or printed, but we need the vec_dirs to recurse
         let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
             vec_deleted.into_inner().into_iter().partition(|entry| {
                 // no need to traverse symlinks in deleted search
-                SharedRecursive::is_entry_dir(config.as_ref(), entry)
+                SharedRecursive::is_entry_dir(entry)
             });
 
         SharedRecursive::combine_and_send_entries(
-            config.clone(),
             vec_files,
             &vec_dirs,
             true,
@@ -92,8 +85,8 @@ impl SpawnDeletedThread {
         //
         // don't propagate errors, errors we are most concerned about
         // are transmission errors, which are handled elsewhere
-        if config.opt_deleted_mode != Some(DeletedMode::DepthOfOne)
-            && config.opt_recursive
+        if GLOBAL_CONFIG.opt_deleted_mode != Some(DeletedMode::DepthOfOne)
+            && GLOBAL_CONFIG.opt_recursive
             && !vec_dirs.is_empty()
         {
             // get latest in time per our policy
@@ -102,14 +95,12 @@ impl SpawnDeletedThread {
                 .map(|basic_info| PathData::from(&basic_info))
                 .collect();
 
-            let last_in_time_set = LastInTimeSet::new(&config, &path_set);
+            let last_in_time_set = LastInTimeSet::new(&path_set);
 
             last_in_time_set.iter().try_for_each(|deleted_dir| {
-                let config_clone = config.clone();
                 let requested_dir_clone = requested_dir.to_path_buf();
 
                 Self::get_entries_behind_deleted_dir(
-                    config_clone,
                     deleted_dir.as_path(),
                     &requested_dir_clone,
                     skim_tx,
@@ -126,14 +117,12 @@ impl SpawnDeletedThread {
     // for them all, policy is to use the latest snapshot version before
     // deletion
     fn get_entries_behind_deleted_dir(
-        config: Arc<Config>,
         deleted_dir: &Path,
         requested_dir: &Path,
         skim_tx: &SkimItemSender,
         hangup_rx: &Receiver<Never>,
     ) -> HttmResult<()> {
         fn recurse_behind_deleted_dir(
-            config: Arc<Config>,
             dir_name: &Path,
             from_deleted_dir: &Path,
             from_requested_dir: &Path,
@@ -153,10 +142,9 @@ impl SpawnDeletedThread {
             let pseudo_live_dir = &from_requested_dir.to_path_buf().join(dir_name);
 
             let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
-                SharedRecursive::get_entries_partitioned(config.as_ref(), deleted_dir_on_snap)?;
+                SharedRecursive::get_entries_partitioned(deleted_dir_on_snap)?;
 
             SharedRecursive::combine_and_send_entries(
-                config.clone(),
                 vec_files,
                 &vec_dirs,
                 true,
@@ -170,7 +158,6 @@ impl SpawnDeletedThread {
             vec_dirs.into_iter().try_for_each(|basic_info| {
                 let file_name = Path::new(basic_info.get_filename());
                 recurse_behind_deleted_dir(
-                    config.clone(),
                     file_name,
                     deleted_dir_on_snap,
                     pseudo_live_dir,
@@ -182,7 +169,6 @@ impl SpawnDeletedThread {
 
         match &deleted_dir.file_name() {
             Some(dir_name) => recurse_behind_deleted_dir(
-                config,
                 Path::new(dir_name),
                 deleted_dir.parent().unwrap_or_else(|| Path::new("/")),
                 requested_dir,

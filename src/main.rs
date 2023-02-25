@@ -59,10 +59,13 @@ mod parse {
     pub mod snaps;
 }
 
+use std::sync::Arc;
+
 use crate::display_map::helper::PrintAsMap;
 use exec::purge::PurgeFiles;
 use exec::snapshot::TakeSnapshot;
 use library::utility::print_output_buf;
+use once_cell::sync::Lazy;
 
 use crate::config::generate::{Config, ExecMode};
 use crate::lookup::file_mounts::MountsForFiles;
@@ -92,54 +95,55 @@ fn main() {
     }
 }
 
-fn exec() -> HttmResult<()> {
-    // get our program args and generate a config for use
-    // everywhere else
-    let config = Config::new()?;
+// get our program args and generate a config for use
+// everywhere else
+//let config = Config::new()?;
+static GLOBAL_CONFIG: Lazy<Arc<Config>> = Lazy::new(|| match Config::new() {
+    Ok(config) => config,
+    Err(error) => {
+        eprintln!("Error: {error}");
+        std::process::exit(1)
+    }
+});
 
-    if config.opt_debug {
-        eprintln!("{config:#?}");
+fn exec() -> HttmResult<()> {
+    if GLOBAL_CONFIG.opt_debug {
+        eprintln!("{GLOBAL_CONFIG:#?}");
     }
 
     // fn exec() handles the basic display cases, and sends other cases to be processed elsewhere
-    match &config.exec_mode {
+    match &GLOBAL_CONFIG.exec_mode {
         // ExecMode::Interactive *may* return back to this function to be printed
         ExecMode::Interactive(interactive_mode) => {
-            let browse_result = InteractiveBrowse::exec(config.clone(), interactive_mode)?;
-            let versions_map = VersionsMap::new(config.as_ref(), &browse_result)?;
-            let output_buf =
-                VersionsDisplayWrapper::from(config.as_ref(), versions_map).to_string();
+            let browse_result = InteractiveBrowse::exec(interactive_mode)?;
+            let versions_map = VersionsMap::new(&GLOBAL_CONFIG, &browse_result)?;
+            let output_buf = VersionsDisplayWrapper::from(&GLOBAL_CONFIG, versions_map).to_string();
 
             print_output_buf(output_buf)
         }
         // ExecMode::Display will be just printed, we already know the paths
         ExecMode::Display | ExecMode::NumVersions(_) => {
-            let versions_map = VersionsMap::new(config.as_ref(), &config.paths)?;
-            let output_buf =
-                VersionsDisplayWrapper::from(config.as_ref(), versions_map).to_string();
+            let versions_map = VersionsMap::new(&GLOBAL_CONFIG, &GLOBAL_CONFIG.paths)?;
+            let output_buf = VersionsDisplayWrapper::from(&GLOBAL_CONFIG, versions_map).to_string();
 
             print_output_buf(output_buf)
         }
         // ExecMode::NonInteractiveRecursive, ExecMode::SnapFileMount, and ExecMode::MountsForFiles will print their
         // output elsewhere
-        ExecMode::NonInteractiveRecursive(_) => {
-            NonInteractiveRecursiveWrapper::exec(config.clone())
-        }
-        ExecMode::SnapFileMount(snapshot_suffix) => {
-            TakeSnapshot::exec(config.as_ref(), snapshot_suffix)
-        }
+        ExecMode::NonInteractiveRecursive(_) => NonInteractiveRecursiveWrapper::exec(),
+        ExecMode::SnapFileMount(snapshot_suffix) => TakeSnapshot::exec(snapshot_suffix),
         ExecMode::SnapsForFiles(opt_filters) => {
-            let snap_name_map = SnapNameMap::exec(config.as_ref(), opt_filters);
+            let snap_name_map = SnapNameMap::exec(opt_filters);
             let printable_map = PrintAsMap::from(&snap_name_map);
-            let output_buf = OtherDisplayWrapper::from(config.as_ref(), printable_map).to_string();
+            let output_buf = OtherDisplayWrapper::from(printable_map).to_string();
 
             print_output_buf(output_buf)
         }
-        ExecMode::Purge(opt_filters) => PurgeFiles::exec(config.as_ref(), opt_filters),
+        ExecMode::Purge(opt_filters) => PurgeFiles::exec(opt_filters),
         ExecMode::MountsForFiles(mount_display) => {
-            let mounts_map = &MountsForFiles::new(&config, mount_display);
+            let mounts_map = &MountsForFiles::new(mount_display);
             let printable_map: PrintAsMap = mounts_map.into();
-            let output_buf = OtherDisplayWrapper::from(&config, printable_map).to_string();
+            let output_buf = OtherDisplayWrapper::from(printable_map).to_string();
 
             print_output_buf(output_buf)
         }

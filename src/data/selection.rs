@@ -20,27 +20,24 @@ use std::{fs::FileType, path::PathBuf};
 use lscolors::Colorable;
 use skim::prelude::*;
 
-use crate::config::generate::Config;
 use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::display_versions::wrapper::VersionsDisplayWrapper;
 use crate::library::results::HttmResult;
 use crate::library::utility::paint_string;
-use crate::VersionsMap;
+use crate::{VersionsMap, GLOBAL_CONFIG};
 
 // these represent the items ready for selection and preview
 // contains everything one needs to request preview and paint with
 // LsColors -- see preview_view, preview for how preview is done
 // and impl Colorable for how we paint the path strings
 pub struct SelectionCandidate {
-    config: Arc<Config>,
     path: PathBuf,
     file_type: Option<FileType>,
 }
 
 impl SelectionCandidate {
-    pub fn new(config: Arc<Config>, basic_info: BasicDirEntryInfo, is_phantom: bool) -> Self {
+    pub fn new(basic_info: BasicDirEntryInfo, is_phantom: bool) -> Self {
         SelectionCandidate {
-            config,
             path: basic_info.path,
             // here save space of bool/padding instead of an "is_phantom: bool"
             //
@@ -60,7 +57,7 @@ impl SelectionCandidate {
     }
 
     fn preview_view(&self) -> HttmResult<String> {
-        let config = &self.config;
+        let config = GLOBAL_CONFIG.as_ref();
         let paths_selected = &[PathData::from(self.path.as_path())];
 
         // generate a config for display
@@ -76,8 +73,7 @@ impl SelectionCandidate {
     fn generate_display_name(&self) -> Cow<str> {
         self.path
             .strip_prefix(
-                &self
-                    .config
+                &GLOBAL_CONFIG
                     .opt_requested_dir
                     .as_ref()
                     .expect("requested_dir should never be None in Interactive Browse mode")

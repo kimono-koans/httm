@@ -20,26 +20,22 @@ use std::{collections::BTreeMap, path::Path, time::SystemTime};
 use std::process::Command as ExecProcess;
 use which::which;
 
-use crate::config::generate::{Config, MountDisplay, PrintMode};
+use crate::config::generate::{MountDisplay, PrintMode};
 use crate::library::iter_extensions::HttmIter;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{get_date, get_delimiter, print_output_buf, DateFormat};
 use crate::lookup::file_mounts::MountsForFiles;
 use crate::parse::aliases::FilesystemType;
+use crate::GLOBAL_CONFIG;
 
 pub struct TakeSnapshot;
 
 impl TakeSnapshot {
-    pub fn exec(config: &Config, requested_snapshot_suffix: &str) -> HttmResult<()> {
-        let mounts_for_files: MountsForFiles = MountsForFiles::new(config, &MountDisplay::Target);
+    pub fn exec(requested_snapshot_suffix: &str) -> HttmResult<()> {
+        let mounts_for_files: MountsForFiles = MountsForFiles::new(&MountDisplay::Target);
 
         if let Ok(zfs_command) = which("zfs") {
-            Self::snapshot_mounts(
-                config,
-                &zfs_command,
-                &mounts_for_files,
-                requested_snapshot_suffix,
-            )
+            Self::snapshot_mounts(&zfs_command, &mounts_for_files, requested_snapshot_suffix)
         } else {
             Err(HttmError::new(
                 "'zfs' command not found. Make sure the command 'zfs' is in your path.",
@@ -49,13 +45,12 @@ impl TakeSnapshot {
     }
 
     fn snapshot_mounts(
-        config: &Config,
         zfs_command: &Path,
         mounts_for_files: &MountsForFiles,
         requested_snapshot_suffix: &str,
     ) -> HttmResult<()> {
         let map_snapshot_names =
-            Self::get_snapshot_names(config, mounts_for_files, requested_snapshot_suffix)?;
+            Self::get_snapshot_names(mounts_for_files, requested_snapshot_suffix)?;
 
         map_snapshot_names.iter().try_for_each( |(_pool_name, snapshot_names)| {
             let mut process_args = vec!["snapshot".to_owned()];
@@ -77,8 +72,8 @@ impl TakeSnapshot {
                 let output_buf = snapshot_names
                     .iter()
                     .map(|snap_name| {
-                        if matches!(config.print_mode, PrintMode::RawNewline | PrintMode::RawZero)  {
-                            let delimiter = get_delimiter(config);
+                        if matches!(GLOBAL_CONFIG.print_mode, PrintMode::RawNewline | PrintMode::RawZero)  {
+                            let delimiter = get_delimiter();
                             format!("{}{delimiter}", &snap_name)
                         } else {
                             format!("httm took a snapshot named: {}\n", &snap_name)
@@ -93,13 +88,12 @@ impl TakeSnapshot {
     }
 
     fn get_snapshot_names(
-        config: &Config,
         mounts_for_files: &MountsForFiles,
         requested_snapshot_suffix: &str,
     ) -> HttmResult<BTreeMap<String, Vec<String>>> {
         // all snapshots should have the same timestamp
         let timestamp = get_date(
-            config.requested_utc_offset,
+            GLOBAL_CONFIG.requested_utc_offset,
             &SystemTime::now(),
             DateFormat::Timestamp,
         );
@@ -108,9 +102,9 @@ impl TakeSnapshot {
             .iter()
             .flat_map(|(_pathdata, datasets)| datasets)
             .map(|mount| {
-            let dataset: String = match &config.dataset_collection.opt_map_of_aliases {
+            let dataset: String = match &GLOBAL_CONFIG.dataset_collection.opt_map_of_aliases {
                 None => {
-                    match config.dataset_collection.map_of_datasets.inner.get(&mount.path_buf) {
+                    match GLOBAL_CONFIG.dataset_collection.map_of_datasets.inner.get(&mount.path_buf) {
                         Some(dataset_info) => {
                             if let FilesystemType::Zfs = dataset_info.fs_type {
                                 Ok(dataset_info.source.clone())
