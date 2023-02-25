@@ -380,9 +380,9 @@ impl<'a> RelativePathAndSnapMounts<'a> {
     }
 
     pub fn get_last_version(&self) -> Option<PathData> {
-        let sorted_versions = self.get_unique_versions();
+        let mut sorted_versions = self.get_unique_versions();
 
-        let res: Option<PathData> = sorted_versions.last().cloned();
+        let res: Option<PathData> = sorted_versions.pop();
 
         res
     }

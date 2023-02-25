@@ -182,8 +182,7 @@ impl LastInTimeSet {
                     })
                     .flatten()
                     .filter_map(|search_bundle| search_bundle.get_last_version())
-                    .filter(|pathdata| pathdata.metadata.is_some())
-                    .max_by_key(|pathdata| pathdata.metadata.unwrap().modify_time)
+                    .max_by_key(|pathdata| pathdata.get_md_infallible().modify_time)
                     .map(|pathdata| pathdata.path_buf)
             })
             .collect();
