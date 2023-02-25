@@ -89,9 +89,12 @@ impl<'a> MountsForFiles<'a> {
                     .into_iter()
                     .flat_map(|(_proximate_mount, snap_types_for_search)| snap_types_for_search)
                     .flat_map(|snap_types_for_search| {
-                        snap_types_for_search.get_datasets_of_interest()
+                        snap_types_for_search
+                            .opt_datasets_of_interest
+                            .as_ref()
+                            .map(|paths| paths.iter().map(|path| PathData::from(path.as_path())))
                     })
-                    .map(|path| PathData::from(path.as_path()))
+                    .flatten()
                     .rev()
                     .collect();
                 (pathdata, datasets)

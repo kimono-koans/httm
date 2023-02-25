@@ -61,7 +61,7 @@ impl Deref for VersionsMap {
     }
 }
 
-impl DerefMut for VersionsMap {    
+impl DerefMut for VersionsMap {
     fn deref_mut(&mut self) -> &mut BTreeMap<PathData, Vec<PathData>> {
         &mut self.inner
     }
@@ -281,12 +281,6 @@ impl<'a> MostProximateAndOptAlts<'a> {
                 proximate_dataset_mount,
             )?]),
         }
-    }
-
-    pub fn get_datasets_of_interest(&self) -> Vec<PathBuf> {
-        self.opt_datasets_of_interest
-            .clone()
-            .unwrap_or_else(|| vec![self.proximate_dataset_mount.to_path_buf()])
     }
 }
 
