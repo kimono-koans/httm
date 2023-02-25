@@ -396,13 +396,13 @@ pub fn get_date(
         .expect("timestamp date format could not be applied to the date supplied");
 
     if utc_offset == UtcOffset::UTC {
-        match &date_format {
+        return match &date_format {
             DateFormat::Timestamp => raw_string + "_UTC",
             DateFormat::Display => raw_string + " UTC",
-        }
-    } else {
-        raw_string
+        };
     }
+
+    raw_string
 }
 
 fn get_date_format<'a>(format: &DateFormat) -> &'a str {
