@@ -96,20 +96,16 @@ fn main() {
 
 // get our program args and generate a config for use
 // everywhere else
-//let config = Config::new()?;
-static GLOBAL_CONFIG: Lazy<Arc<Config>> = Lazy::new(|| match Config::new() {
-    Ok(config) => config,
-    Err(error) => {
-        eprintln!("Error: {error}");
-        std::process::exit(1)
-    }
+static GLOBAL_CONFIG: Lazy<Arc<Config>> = Lazy::new(|| {
+    Config::new()
+        .map_err(|error| {
+            eprintln!("Error: {error}");
+            std::process::exit(1)
+        })
+        .unwrap()
 });
 
 fn exec() -> HttmResult<()> {
-    if GLOBAL_CONFIG.opt_debug {
-        eprintln!("{GLOBAL_CONFIG:#?}");
-    }
-
     // fn exec() handles the basic display cases, and sends other cases to be processed elsewhere
     match &GLOBAL_CONFIG.exec_mode {
         // ExecMode::Interactive *may* return back to this function to be printed

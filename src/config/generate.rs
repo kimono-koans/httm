@@ -491,6 +491,9 @@ impl Config {
     pub fn new() -> HttmResult<Arc<Self>> {
         let arg_matches = parse_args();
         let config = Config::from_matches(&arg_matches)?;
+        if config.opt_debug {
+            eprintln!("{config:#?}");
+        }
         Ok(Arc::new(config))
     }
 
