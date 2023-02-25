@@ -24,7 +24,6 @@ use crate::config::generate::{Config, ExecMode, PrintMode};
 use crate::data::paths::PathData;
 use crate::display_map::helper::PrintAsMap;
 use crate::lookup::versions::VersionsMap;
-use crate::GLOBAL_CONFIG;
 
 pub struct VersionsDisplayWrapper<'a> {
     pub config: &'a Config,
@@ -33,17 +32,17 @@ pub struct VersionsDisplayWrapper<'a> {
 
 impl<'a> std::string::ToString for VersionsDisplayWrapper<'a> {
     fn to_string(&self) -> String {
-        match &GLOBAL_CONFIG.exec_mode {
+        match &self.config.exec_mode {
             ExecMode::NumVersions(num_versions_mode) => {
                 self.format_as_num_versions(num_versions_mode)
             }
             _ => {
-                if GLOBAL_CONFIG.opt_last_snap.is_some() {
+                if self.config.opt_last_snap.is_some() {
                     let printable_map = PrintAsMap::from(&self.map);
                     return printable_map.to_string();
                 }
 
-                match &GLOBAL_CONFIG.print_mode {
+                match &self.config.print_mode {
                     PrintMode::FormattedJsonDefault | PrintMode::FormattedJsonNotPretty => {
                         self.to_json()
                     }
@@ -68,7 +67,7 @@ impl<'a> VersionsDisplayWrapper<'a> {
     }
 
     pub fn to_json(&self) -> String {
-        let res = match &GLOBAL_CONFIG.print_mode {
+        let res = match self.config.print_mode {
             PrintMode::FormattedJsonNotPretty => serde_json::to_string(self),
             _ => serde_json::to_string_pretty(self),
         };

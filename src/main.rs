@@ -21,8 +21,8 @@ mod data {
     pub mod selection;
 }
 mod display_map {
+    pub mod format;
     pub mod helper;
-    pub mod wrapper;
 }
 mod display_versions {
     pub mod format;
