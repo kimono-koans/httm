@@ -25,7 +25,6 @@ use std::{
 
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
-use time::UtcOffset;
 
 use crate::library::{
     results::{HttmError, HttmResult},
@@ -33,9 +32,10 @@ use crate::library::{
 };
 use crate::parse::aliases::MapOfAliases;
 use crate::parse::mounts::MapOfDatasets;
+use crate::Config;
 use crate::{
-    config::generate::Config,
     library::utility::{display_human_size, get_date},
+    GLOBAL_CONFIG,
 };
 
 // only the most basic data from a DirEntry
@@ -247,7 +247,11 @@ impl Serialize for PathMetadata {
         let mut state = serializer.serialize_struct("PathMetadata", 2)?;
 
         let size = display_human_size(self.size);
-        let date = get_date(UtcOffset::UTC, &self.modify_time, DateFormat::Display);
+        let date = get_date(
+            GLOBAL_CONFIG.requested_utc_offset,
+            &self.modify_time,
+            DateFormat::Display,
+        );
 
         state.serialize_field("size", &size)?;
         state.serialize_field("modify_time", &date)?;

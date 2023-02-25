@@ -20,7 +20,7 @@ use std::{io::Cursor, path::Path, path::PathBuf, thread};
 use crossbeam::channel::unbounded;
 use skim::prelude::*;
 
-use crate::config::generate::{Config, ExecMode, InteractiveMode, PrintMode, RestoreMode};
+use crate::config::generate::{ExecMode, InteractiveMode, PrintMode, RestoreMode};
 use crate::data::paths::{PathData, PathMetadata};
 use crate::display_versions::wrapper::VersionsDisplayWrapper;
 use crate::exec::preview::PreviewSelection;
@@ -30,24 +30,21 @@ use crate::library::utility::{
     copy_recursive, get_date, get_delimiter, print_output_buf, DateFormat, Never,
 };
 use crate::lookup::versions::VersionsMap;
+use crate::GLOBAL_CONFIG;
 
 pub struct InteractiveBrowse;
 
 impl InteractiveBrowse {
-    pub fn exec(
-        config: Arc<Config>,
-        interactive_mode: &InteractiveMode,
-    ) -> HttmResult<Vec<PathData>> {
-        let paths_selected_in_browse = match &config.opt_requested_dir {
+    pub fn exec(interactive_mode: &InteractiveMode) -> HttmResult<Vec<PathData>> {
+        let paths_selected_in_browse = match &GLOBAL_CONFIG.opt_requested_dir {
             // collect string paths from what we get from lookup_view
             Some(requested_dir) => {
                 // loop until user selects a valid path
                 loop {
-                    let selected_pathdata =
-                        InteractiveBrowse::browse_view(config.clone(), requested_dir)?
-                            .into_iter()
-                            .map(|path_string| PathData::from(Path::new(&path_string)))
-                            .collect::<Vec<PathData>>();
+                    let selected_pathdata = InteractiveBrowse::browse_view(requested_dir)?
+                        .into_iter()
+                        .map(|path_string| PathData::from(Path::new(&path_string)))
+                        .collect::<Vec<PathData>>();
                     if !selected_pathdata.is_empty() {
                         break selected_pathdata;
                     }
@@ -57,11 +54,10 @@ impl InteractiveBrowse {
                 // go to interactive_select early if user has already requested a file
                 // and we are in the appropriate mode Select or Restore, see struct Config,
                 // and None here is also used for LastSnap to skip browsing for a file/dir
-                match config.paths.get(0) {
+                match GLOBAL_CONFIG.paths.get(0) {
                     Some(first_path) => {
                         let selected_file = first_path.clone();
                         InteractiveSelect::exec(
-                            config.as_ref(),
                             &[selected_file],
                             interactive_mode,
                         )?;
@@ -70,7 +66,7 @@ impl InteractiveBrowse {
                     // Config::from should never allow us to have an instance where we don't
                     // have at least one path to use
                     None => unreachable!(
-                        "config.paths.get(0) should never be a None value in Interactive Mode"
+                        "GLOBAL_CONFIG.paths.get(0) should never be a None value in Interactive Mode"
                     ),
                 }
             }
@@ -80,11 +76,7 @@ impl InteractiveBrowse {
         // or continue down the interactive rabbit hole?
         match interactive_mode {
             InteractiveMode::Restore(_) | InteractiveMode::Select => {
-                InteractiveSelect::exec(
-                    config.as_ref(),
-                    &paths_selected_in_browse,
-                    interactive_mode,
-                )?;
+                InteractiveSelect::exec(&paths_selected_in_browse, interactive_mode)?;
                 unreachable!()
             }
             // InteractiveMode::Browse executes back through fn exec() in main.rs
@@ -93,32 +85,27 @@ impl InteractiveBrowse {
     }
 
     #[allow(unused_variables)]
-    fn browse_view(config: Arc<Config>, requested_dir: &PathData) -> HttmResult<Vec<String>> {
+    fn browse_view(requested_dir: &PathData) -> HttmResult<Vec<String>> {
         // prep thread spawn
         let requested_dir_clone = requested_dir.path_buf.clone();
-        let config_clone = config.clone();
         let (tx_item, rx_item): (SkimItemSender, SkimItemReceiver) = unbounded();
         let (hangup_tx, hangup_rx): (Sender<Never>, Receiver<Never>) = bounded(0);
 
         // thread spawn fn enumerate_directory - permits recursion into dirs without blocking
         thread::spawn(move || {
             // no way to propagate error from closure so exit and explain error here
-            InteractiveRecursive::exec(
-                config_clone,
-                &requested_dir_clone,
-                tx_item.clone(),
-                hangup_rx.clone(),
-            )
+            InteractiveRecursive::exec(&requested_dir_clone, tx_item.clone(), hangup_rx.clone())
         });
 
-        let opt_multi = config.opt_last_snap.is_none() || config.opt_preview.is_none();
+        let opt_multi =
+            GLOBAL_CONFIG.opt_last_snap.is_none() || GLOBAL_CONFIG.opt_preview.is_none();
 
         // create the skim component for previews
         let skim_opts = SkimOptionsBuilder::default()
             .preview_window(Some("up:50%"))
             .preview(Some(""))
             .nosort(true)
-            .exact(config.opt_exact)
+            .exact(GLOBAL_CONFIG.opt_exact)
             .header(Some("PREVIEW UP: shift+up | PREVIEW DOWN: shift+down\n\
                         PAGE UP:    page up  | PAGE DOWN:    page down \n\
                         EXIT:       esc      | SELECT:       enter      | SELECT, MULTIPLE: shift+tab\n\
@@ -155,11 +142,10 @@ struct InteractiveSelect;
 
 impl InteractiveSelect {
     fn exec(
-        config: &Config,
         paths_selected_in_browse: &[PathData],
         interactive_mode: &InteractiveMode,
     ) -> HttmResult<()> {
-        let versions_map = VersionsMap::new(config, paths_selected_in_browse)?;
+        let versions_map = VersionsMap::new(&GLOBAL_CONFIG, paths_selected_in_browse)?;
 
         // snap and live set has no snaps
         if versions_map.is_empty() {
@@ -175,11 +161,11 @@ impl InteractiveSelect {
             return Err(HttmError::new(&msg).into());
         }
 
-        let path_string = if config.opt_last_snap.is_some() {
-            Self::get_last_snap(config, paths_selected_in_browse, &versions_map)?
+        let path_string = if GLOBAL_CONFIG.opt_last_snap.is_some() {
+            Self::get_last_snap(paths_selected_in_browse, &versions_map)?
         } else {
             // same stuff we do at fn exec, snooze...
-            let display_config = config.generate_display_config(paths_selected_in_browse);
+            let display_config = GLOBAL_CONFIG.generate_display_config(paths_selected_in_browse);
 
             let display_map = VersionsDisplayWrapper::from(&display_config, versions_map);
 
@@ -194,7 +180,6 @@ impl InteractiveSelect {
             loop {
                 // get the file name
                 let requested_file_name = select_restore_view(
-                    config,
                     &selection_buffer,
                     ViewMode::Select(opt_live_version.clone()),
                     false,
@@ -220,20 +205,19 @@ impl InteractiveSelect {
             // but we retain paths_selected_in_browse because we may need
             // it later during restore if opt_overwrite is selected
             Ok(InteractiveRestore::exec(
-                config,
                 &path_string,
                 paths_selected_in_browse,
             )?)
         } else {
-            Ok(Self::print_selection(config, &path_string)?)
+            Ok(Self::print_selection(&path_string)?)
         }
     }
 
-    fn print_selection(config: &Config, path_string: &str) -> HttmResult<()> {
-        let delimiter = get_delimiter(config);
+    fn print_selection(path_string: &str) -> HttmResult<()> {
+        let delimiter = get_delimiter();
 
         let output_buf = if matches!(
-            config.print_mode,
+            GLOBAL_CONFIG.print_mode,
             PrintMode::RawNewline | PrintMode::RawZero
         ) {
             format!("{path_string}{delimiter}")
@@ -247,7 +231,6 @@ impl InteractiveSelect {
     }
 
     fn get_last_snap(
-        config: &Config,
         paths_selected_in_browse: &[PathData],
         versions_map: &VersionsMap,
     ) -> HttmResult<String> {
@@ -260,7 +243,7 @@ impl InteractiveSelect {
             .values()
             .flatten()
             .filter(|snap_version| {
-                if config.opt_omit_ditto {
+                if GLOBAL_CONFIG.opt_omit_ditto {
                     snap_version.get_md_infallible().modify_time
                         != live_version.get_md_infallible().modify_time
                 } else {
@@ -280,11 +263,7 @@ impl InteractiveSelect {
 struct InteractiveRestore;
 
 impl InteractiveRestore {
-    fn exec(
-        config: &Config,
-        parsed_str: &str,
-        paths_selected_in_browse: &[PathData],
-    ) -> HttmResult<()> {
+    fn exec(parsed_str: &str, paths_selected_in_browse: &[PathData]) -> HttmResult<()> {
         // build pathdata from selection buffer parsed string
         //
         // request is also sanity check for snap path exists below when we check
@@ -298,13 +277,12 @@ impl InteractiveRestore {
 
         // build new place to send file
         let new_file_path_buf = Self::build_new_file_path(
-            config,
             paths_selected_in_browse,
             &snap_pathdata,
             &snap_path_metadata,
         )?;
 
-        let should_preserve = Self::should_preserve_attributes(config);
+        let should_preserve = Self::should_preserve_attributes();
 
         // tell the user what we're up to, and get consent
         let preview_buffer = format!(
@@ -321,7 +299,7 @@ impl InteractiveRestore {
         // loop until user consents or doesn't
         loop {
             let user_consent =
-                select_restore_view(config, &preview_buffer, ViewMode::RestoreOrPurge, false)?[0]
+                select_restore_view(&preview_buffer, ViewMode::RestoreOrPurge, false)?[0]
                     .to_ascii_uppercase();
 
             match user_consent.as_ref() {
@@ -347,9 +325,9 @@ impl InteractiveRestore {
         std::process::exit(0)
     }
 
-    fn should_preserve_attributes(config: &Config) -> bool {
+    fn should_preserve_attributes() -> bool {
         matches!(
-            config.exec_mode,
+            GLOBAL_CONFIG.exec_mode,
             ExecMode::Interactive(InteractiveMode::Restore(
                 RestoreMode::CopyAndPreserve | RestoreMode::Overwrite
             ))
@@ -357,14 +335,13 @@ impl InteractiveRestore {
     }
 
     fn build_new_file_path(
-        config: &Config,
         paths_selected_in_browse: &[PathData],
         snap_pathdata: &PathData,
         snap_path_metadata: &PathMetadata,
     ) -> HttmResult<PathBuf> {
         // build new place to send file
         if matches!(
-            config.exec_mode,
+            GLOBAL_CONFIG.exec_mode,
             ExecMode::Interactive(InteractiveMode::Restore(RestoreMode::Overwrite))
         ) {
             // instead of just not naming the new file with extra info (date plus "httm_restored") and shoving that new file
@@ -372,7 +349,7 @@ impl InteractiveRestore {
             // so, if you were in /etc and wanted to restore /etc/samba/smb.conf, httm will make certain to overwrite
             // at /etc/samba/smb.conf
             let opt_original_live_pathdata = paths_selected_in_browse.iter().find_map(|pathdata| {
-                match VersionsMap::new(config, &[pathdata.clone()]).ok() {
+                match VersionsMap::new(&GLOBAL_CONFIG, &[pathdata.clone()]).ok() {
                     // safe to index into snaps, known len of 2 for set
                     Some(versions_map) => {
                         versions_map.values().flatten().find_map(|pathdata| {
@@ -408,11 +385,11 @@ impl InteractiveRestore {
             let new_filename = snap_filename
                 + ".httm_restored."
                 + &get_date(
-                    config.requested_utc_offset,
+                    GLOBAL_CONFIG.requested_utc_offset,
                     &snap_path_metadata.modify_time,
                     DateFormat::Timestamp,
                 );
-            let new_file_dir = config.pwd.path_buf.clone();
+            let new_file_dir = GLOBAL_CONFIG.pwd.path_buf.clone();
             let new_file_path_buf: PathBuf = new_file_dir.join(new_filename);
 
             // don't let the user rewrite one restore over another in non-overwrite mode
@@ -433,12 +410,11 @@ pub enum ViewMode {
 }
 
 pub fn select_restore_view(
-    config: &Config,
     preview_buffer: &str,
     view_mode: ViewMode,
     multi: bool,
 ) -> HttmResult<Vec<String>> {
-    let preview_selection = PreviewSelection::new(config, view_mode)?;
+    let preview_selection = PreviewSelection::new(view_mode)?;
 
     // build our browse view - less to do than before - no previews, looking through one 'lil buffer
     let skim_opts = SkimOptionsBuilder::default()

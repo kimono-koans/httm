@@ -24,10 +24,10 @@ use std::{
 
 use hashbrown::{HashMap, HashSet};
 
-use crate::config::generate::Config;
 use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::library::results::HttmResult;
 use crate::lookup::versions::{MostProximateAndOptAlts, RelativePathAndSnapMounts};
+use crate::GLOBAL_CONFIG;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DeletedFilesBundle {
@@ -58,12 +58,12 @@ impl DeletedFilesBundle {
 // we do that elsewhere.  deleted is simply about finding at least one version of a deleted file
 // this, believe it or not, will be faster
 impl DeletedFilesBundle {
-    pub fn new(config: &Config, requested_dir: &Path) -> Self {
+    pub fn new(requested_dir: &Path) -> Self {
         // we always need a requesting dir because we are comparing the files in the
         // requesting dir to those of their relative dirs on snapshots
         let requested_dir_pathdata = PathData::from(requested_dir);
 
-        let requested_snap_datasets = config
+        let requested_snap_datasets = GLOBAL_CONFIG
             .dataset_collection
             .snaps_selected_for_search
             .get_value();
@@ -76,11 +76,15 @@ impl DeletedFilesBundle {
         let basic_info_map: HashMap<OsString, BasicDirEntryInfo> = requested_snap_datasets
             .iter()
             .flat_map(|dataset_type| {
-                MostProximateAndOptAlts::new(config, &requested_dir_pathdata, dataset_type)
+                MostProximateAndOptAlts::new(
+                    GLOBAL_CONFIG.as_ref(),
+                    &requested_dir_pathdata,
+                    dataset_type,
+                )
             })
             .flat_map(|datasets_of_interest| {
                 MostProximateAndOptAlts::get_search_bundles(
-                    config,
+                    GLOBAL_CONFIG.as_ref(),
                     datasets_of_interest,
                     &requested_dir_pathdata,
                 )
@@ -165,9 +169,9 @@ impl LastInTimeSet {
 
     // this fn is also missing parallel iter fns, to make the searches more responsive
     // by leaving parallel search for the interactive views
-    pub fn new(config: &Config, path_set: &[PathData]) -> Self {
+    pub fn new(path_set: &[PathData]) -> Self {
         // create vec of all local and replicated backups at once
-        let snaps_selected_for_search = config
+        let snaps_selected_for_search = GLOBAL_CONFIG
             .dataset_collection
             .snaps_selected_for_search
             .get_value();
@@ -178,11 +182,11 @@ impl LastInTimeSet {
                 snaps_selected_for_search
                     .iter()
                     .flat_map(|dataset_type| {
-                        MostProximateAndOptAlts::new(config, pathdata, dataset_type)
+                        MostProximateAndOptAlts::new(&GLOBAL_CONFIG, pathdata, dataset_type)
                     })
                     .flat_map(|datasets_of_interest| {
                         MostProximateAndOptAlts::get_search_bundles(
-                            config,
+                            &GLOBAL_CONFIG,
                             datasets_of_interest,
                             pathdata,
                         )

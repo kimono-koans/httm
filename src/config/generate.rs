@@ -340,7 +340,7 @@ fn parse_args() -> ArgMatches {
         .arg(
             Arg::new("JSON")
                 .long("json")
-                .help("display the ordinary output, but as formatted JSON.  JSON mode implies UTC time.")
+                .help("display the ordinary output, but as formatted JSON.")
                 .conflicts_with_all(&["RAW", "ZEROS"])
                 .display_order(18)
         )
@@ -491,6 +491,9 @@ impl Config {
     pub fn new() -> HttmResult<Arc<Self>> {
         let arg_matches = parse_args();
         let config = Config::from_matches(&arg_matches)?;
+        if config.opt_debug {
+            eprintln!("{config:#?}");
+        }
         Ok(Arc::new(config))
     }
 

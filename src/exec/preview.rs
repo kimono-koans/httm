@@ -19,9 +19,9 @@ use std::path::PathBuf;
 
 use which::which;
 
-use crate::config::generate::Config;
 use crate::exec::interactive::ViewMode;
 use crate::library::results::{HttmError, HttmResult};
+use crate::GLOBAL_CONFIG;
 
 pub struct PreviewSelection {
     pub opt_preview_window: Option<String>,
@@ -29,9 +29,9 @@ pub struct PreviewSelection {
 }
 
 impl PreviewSelection {
-    pub fn new(config: &Config, view_mode: ViewMode) -> HttmResult<Self> {
+    pub fn new(view_mode: ViewMode) -> HttmResult<Self> {
         //let (opt_preview_window, opt_preview_command) =
-        let res = match &config.opt_preview {
+        let res = match &GLOBAL_CONFIG.opt_preview {
             Some(defined_command) if matches!(view_mode, ViewMode::Select(_)) => {
                 let opt_live_version = if let ViewMode::Select(opt) = view_mode {
                     opt

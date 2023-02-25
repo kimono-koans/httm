@@ -23,7 +23,6 @@ use serde::{Serialize, Serializer};
 use crate::config::generate::{Config, ExecMode, PrintMode};
 use crate::data::paths::PathData;
 use crate::display_map::helper::PrintAsMap;
-use crate::display_map::wrapper::OtherDisplayWrapper;
 use crate::lookup::versions::VersionsMap;
 
 pub struct VersionsDisplayWrapper<'a> {
@@ -40,10 +39,10 @@ impl<'a> std::string::ToString for VersionsDisplayWrapper<'a> {
             _ => {
                 if self.config.opt_last_snap.is_some() {
                     let printable_map = PrintAsMap::from(&self.map);
-                    return OtherDisplayWrapper::from(self.config, printable_map).to_string();
+                    return printable_map.to_string();
                 }
 
-                match self.config.print_mode {
+                match &self.config.print_mode {
                     PrintMode::FormattedJsonDefault | PrintMode::FormattedJsonNotPretty => {
                         self.to_json()
                     }

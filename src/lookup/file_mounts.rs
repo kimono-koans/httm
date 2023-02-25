@@ -20,15 +20,15 @@ use std::ops::Deref;
 
 use rayon::prelude::*;
 
-use crate::config::generate::{Config, MountDisplay};
+use crate::config::generate::MountDisplay;
 use crate::data::paths::PathData;
 use crate::library::iter_extensions::HttmIter;
 use crate::lookup::versions::{MostProximateAndOptAlts, VersionsMap};
+use crate::GLOBAL_CONFIG;
 
 pub struct MountsForFiles<'a> {
     pub inner: BTreeMap<PathData, Vec<PathData>>,
     pub mount_display: &'a MountDisplay,
-    pub config: &'a Config,
 }
 
 impl<'a> From<MountsForFiles<'a>> for VersionsMap {
@@ -46,10 +46,10 @@ impl<'a> Deref for MountsForFiles<'a> {
 }
 
 impl<'a> MountsForFiles<'a> {
-    pub fn new(config: &'a Config, mount_display: &'a MountDisplay) -> Self {
+    pub fn new(mount_display: &'a MountDisplay) -> Self {
         // we only check for phantom files in "mount for file" mode because
         // people should be able to search for deleted files in other modes
-        let (non_phantom_files, phantom_files): (Vec<PathData>, Vec<PathData>) = config
+        let (non_phantom_files, phantom_files): (Vec<PathData>, Vec<PathData>) = GLOBAL_CONFIG
             .paths
             .clone()
             .into_par_iter()
@@ -66,24 +66,20 @@ impl<'a> MountsForFiles<'a> {
                 .for_each(|pathdata| eprintln!("{:?}", pathdata.path_buf));
         }
 
-        MountsForFiles::from_raw_paths(config, &non_phantom_files, mount_display)
+        MountsForFiles::from_raw_paths(&non_phantom_files, mount_display)
     }
 
-    pub fn from_raw_paths(
-        config: &'a Config,
-        raw_vec: &[PathData],
-        mount_display: &'a MountDisplay,
-    ) -> Self {
+    pub fn from_raw_paths(raw_vec: &[PathData], mount_display: &'a MountDisplay) -> Self {
         let map: BTreeMap<PathData, Vec<PathData>> = raw_vec
             .iter()
             .map(|pathdata| {
-                let datasets: Vec<MostProximateAndOptAlts> = config
+                let datasets: Vec<MostProximateAndOptAlts> = GLOBAL_CONFIG
                     .dataset_collection
                     .snaps_selected_for_search
                     .get_value()
                     .iter()
                     .flat_map(|dataset_type| {
-                        MostProximateAndOptAlts::new(config, pathdata, dataset_type)
+                        MostProximateAndOptAlts::new(&GLOBAL_CONFIG, pathdata, dataset_type)
                     })
                     .collect();
                 (pathdata.clone(), datasets)
@@ -107,7 +103,6 @@ impl<'a> MountsForFiles<'a> {
         Self {
             inner: map,
             mount_display,
-            config,
         }
     }
 }

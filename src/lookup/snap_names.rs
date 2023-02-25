@@ -20,10 +20,11 @@ use std::{collections::BTreeMap, ops::Deref};
 
 use rayon::prelude::*;
 
-use crate::config::generate::{Config, ListSnapsFilters, ListSnapsOfType};
+use crate::config::generate::{ListSnapsFilters, ListSnapsOfType};
 use crate::data::paths::PathData;
 use crate::lookup::versions::MostProximateAndOptAlts;
 use crate::parse::aliases::FilesystemType;
+use crate::GLOBAL_CONFIG;
 
 use super::versions::SnapDatasetType;
 
@@ -47,14 +48,14 @@ impl Deref for SnapNameMap {
 }
 
 impl SnapNameMap {
-    pub fn exec(config: &Config, opt_filters: &Option<ListSnapsFilters>) -> Self {
+    pub fn exec(opt_filters: &Option<ListSnapsFilters>) -> Self {
         // only purge the proximate dataset
-        let snaps_selected_for_search = config
+        let snaps_selected_for_search = GLOBAL_CONFIG
             .dataset_collection
             .snaps_selected_for_search
             .get_value();
 
-        let snap_name_map = Self::get_snap_names(config, snaps_selected_for_search, opt_filters);
+        let snap_name_map = Self::get_snap_names(snaps_selected_for_search, opt_filters);
 
         snap_name_map.deref().iter().for_each(|(pathdata, snaps)| {
             if snaps.is_empty() {
@@ -70,20 +71,19 @@ impl SnapNameMap {
     }
 
     fn get_snap_names(
-        config: &Config,
         snaps_selected_for_search: &[SnapDatasetType],
         opt_filters: &Option<ListSnapsFilters>,
     ) -> SnapNameMap {
-        let requested_versions = config.paths.par_iter().map(|pathdata| {
+        let requested_versions = GLOBAL_CONFIG.paths.par_iter().map(|pathdata| {
             // same way we use the rayon threadpool in versions
             let snap_versions: Vec<PathData> = snaps_selected_for_search
                 .iter()
                 .flat_map(|dataset_type| {
-                    MostProximateAndOptAlts::new(config, pathdata, dataset_type)
+                    MostProximateAndOptAlts::new(&GLOBAL_CONFIG, pathdata, dataset_type)
                 })
                 .flat_map(|datasets_of_interest| {
                     MostProximateAndOptAlts::get_search_bundles(
-                        config,
+                        &GLOBAL_CONFIG,
                         datasets_of_interest,
                         pathdata,
                     )
@@ -117,7 +117,7 @@ impl SnapNameMap {
 
                         let dataset_path = Path::new(&dataset);
 
-                        let opt_dataset_md = config
+                        let opt_dataset_md = GLOBAL_CONFIG
                             .dataset_collection
                             .map_of_datasets
                             .inner

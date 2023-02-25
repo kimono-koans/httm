@@ -23,9 +23,9 @@ use serde::{Serialize, Serializer};
 
 use crate::config::generate::MountDisplay;
 use crate::display_versions::format::QUOTATION_MARKS_LEN;
-use crate::MountsForFiles;
 use crate::SnapNameMap;
 use crate::VersionsMap;
+use crate::{MountsForFiles, GLOBAL_CONFIG};
 
 pub struct PrintAsMap {
     inner: BTreeMap<String, Vec<String>>,
@@ -67,8 +67,7 @@ impl<'a> From<&MountsForFiles<'a>> for PrintAsMap {
                     .filter_map(|value| match mounts_for_files.mount_display {
                         MountDisplay::Target => Some(value.path_buf.to_string_lossy().to_string()),
                         MountDisplay::Source => {
-                            let opt_md = mounts_for_files
-                                .config
+                            let opt_md = &GLOBAL_CONFIG
                                 .dataset_collection
                                 .map_of_datasets
                                 .inner
@@ -77,10 +76,7 @@ impl<'a> From<&MountsForFiles<'a>> for PrintAsMap {
                         }
                         MountDisplay::RelativePath => {
                             let opt_rel_path = key
-                                .get_relative_path(
-                                    mounts_for_files.config,
-                                    value.path_buf.as_path(),
-                                )
+                                .get_relative_path(&GLOBAL_CONFIG, value.path_buf.as_path())
                                 .ok();
                             opt_rel_path.map(|path| path.to_string_lossy().to_string())
                         }

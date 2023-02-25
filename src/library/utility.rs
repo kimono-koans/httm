@@ -33,15 +33,16 @@ use number_prefix::NumberPrefix;
 use once_cell::sync::Lazy;
 use time::{format_description, OffsetDateTime, UtcOffset};
 
-use crate::config::generate::{Config, PrintMode};
+use crate::config::generate::PrintMode;
 use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::data::selection::SelectionCandidate;
 use crate::library::results::{HttmError, HttmResult};
 use crate::parse::aliases::FilesystemType;
+use crate::GLOBAL_CONFIG;
 use crate::{BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_SNAPSHOT_DIRECTORY};
 
-pub fn get_delimiter(config: &Config) -> char {
-    if matches!(config.print_mode, PrintMode::RawZero) {
+pub fn get_delimiter() -> char {
+    if matches!(GLOBAL_CONFIG.print_mode, PrintMode::RawZero) {
         '\0'
     } else {
         '\n'
