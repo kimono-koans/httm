@@ -340,7 +340,7 @@ fn parse_args() -> ArgMatches {
         .arg(
             Arg::new("JSON")
                 .long("json")
-                .help("display the ordinary output, but as formatted JSON.  JSON mode implies UTC time.")
+                .help("display the ordinary output, but as formatted JSON.")
                 .conflicts_with_all(&["RAW", "ZEROS"])
                 .display_order(18)
         )
