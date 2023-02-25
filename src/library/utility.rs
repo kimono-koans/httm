@@ -25,6 +25,7 @@ use std::{
     time::SystemTime,
 };
 
+use ansi_term::Style as AnsiTermStyle;
 use crossbeam::channel::{Receiver, TryRecvError};
 use lscolors::{Colorable, LsColors, Style};
 use nix::sys::stat::{stat, utimensat, UtimensatFlags};
@@ -308,9 +309,12 @@ impl<'a> HttmIsDir<'a> for BasicDirEntryInfo {
     }
 }
 
-static PHANTOM_STYLE: Lazy<Style> =
-    Lazy::new(|| Style::from_ansi_sequence("38;2;250;200;200;1;0").unwrap_or_default());
 static ENV_LS_COLORS: Lazy<LsColors> = Lazy::new(|| LsColors::from_env().unwrap_or_default());
+static PHANTOM_STYLE: Lazy<AnsiTermStyle> = Lazy::new(|| {
+    Style::to_ansi_term_style(
+        &Style::from_ansi_sequence("38;2;250;200;200;1;0").unwrap_or_default(),
+    )
+});
 
 pub fn paint_string<T>(path: T, display_name: &str) -> Cow<str>
 where
@@ -318,12 +322,11 @@ where
 {
     if path.get_is_phantom() {
         // paint all other phantoms/deleted files the same color, light pink
-        let ansi_style = &Style::to_ansi_term_style(&PHANTOM_STYLE);
-        return Cow::Owned(ansi_style.paint(display_name).to_string());
+        return Cow::Owned(PHANTOM_STYLE.paint(display_name).to_string());
     }
 
     if let Some(style) = path.get_ls_style() {
-        let ansi_style = &Style::to_ansi_term_style(style);
+        let ansi_style: &AnsiTermStyle = &Style::to_ansi_term_style(style);
         return Cow::Owned(ansi_style.paint(display_name).to_string());
     }
 

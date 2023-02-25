@@ -470,6 +470,7 @@ dependencies = [
 name = "httm"
 version = "0.22.1"
 dependencies = [
+ "ansi_term",
  "chrono",
  "clap",
  "crossbeam",
