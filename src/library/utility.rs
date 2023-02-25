@@ -238,9 +238,10 @@ pub fn print_output_buf(output_buf: String) -> HttmResult<()> {
 // is this path/dir_entry something we should count as a directory for our purposes?
 pub fn httm_is_dir<'a, T>(entry: &'a T) -> bool
 where
-    T: HttmIsDir<'a>,
+    T: HttmIsDir<'a> + ?Sized,
 {
     let path = entry.get_path();
+
     match entry.get_filetype() {
         Ok(file_type) => match file_type {
             file_type if file_type.is_dir() => true,
@@ -262,11 +263,15 @@ where
 }
 
 pub trait HttmIsDir<'a> {
+    fn httm_is_dir(&self) -> bool;
     fn get_filetype(&self) -> Result<FileType, std::io::Error>;
     fn get_path(&'a self) -> &'a Path;
 }
 
 impl<'a> HttmIsDir<'a> for Path {
+    fn httm_is_dir(&self) -> bool {
+        httm_is_dir(self)
+    }
     fn get_filetype(&self) -> Result<FileType, std::io::Error> {
         Ok(self.metadata()?.file_type())
     }
@@ -276,6 +281,9 @@ impl<'a> HttmIsDir<'a> for Path {
 }
 
 impl<'a> HttmIsDir<'a> for PathData {
+    fn httm_is_dir(&self) -> bool {
+        httm_is_dir(self)
+    }
     fn get_filetype(&self) -> Result<FileType, std::io::Error> {
         Ok(self.path_buf.metadata()?.file_type())
     }
@@ -285,6 +293,9 @@ impl<'a> HttmIsDir<'a> for PathData {
 }
 
 impl<'a> HttmIsDir<'a> for BasicDirEntryInfo {
+    fn httm_is_dir(&self) -> bool {
+        httm_is_dir(self)
+    }
     fn get_filetype(&self) -> Result<FileType, std::io::Error> {
         //  of course, this is a placeholder error, we just need an error to report back
         //  why not store the error in the struct instead?  because it's more complex.  it might
@@ -308,15 +319,17 @@ where
     if path.get_is_phantom() {
         // paint all other phantoms/deleted files the same color, light pink
         let ansi_style = &Style::to_ansi_term_style(&PHANTOM_STYLE);
-        Cow::Owned(ansi_style.paint(display_name).to_string())
-    } else if let Some(style) = path.get_ls_style() {
-        let ansi_style = &Style::to_ansi_term_style(style);
-        Cow::Owned(ansi_style.paint(display_name).to_string())
-    } else {
-        // if a non-phantom file that should not be colored (sometimes -- your regular files)
-        // or just in case if all else fails, don't paint and return string
-        Cow::Borrowed(display_name)
+        return Cow::Owned(ansi_style.paint(display_name).to_string());
     }
+
+    if let Some(style) = path.get_ls_style() {
+        let ansi_style = &Style::to_ansi_term_style(style);
+        return Cow::Owned(ansi_style.paint(display_name).to_string());
+    }
+
+    // if a non-phantom file that should not be colored (sometimes -- your regular files)
+    // or just in case if all else fails, don't paint and return string
+    Cow::Borrowed(display_name)
 }
 
 pub trait PaintString {

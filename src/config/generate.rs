@@ -30,7 +30,7 @@ use crate::config::install_hot_keys::install_hot_keys;
 use crate::data::filesystem_info::FilesystemInfo;
 use crate::data::paths::PathData;
 use crate::library::results::{HttmError, HttmResult};
-use crate::library::utility::{httm_is_dir, read_stdin};
+use crate::library::utility::{read_stdin, HttmIsDir};
 use crate::ROOT_DIRECTORY;
 
 #[derive(Debug, Clone)]
@@ -839,7 +839,7 @@ impl Config {
                         let pathdata = &paths[0];
 
                         // use our bespoke is_dir fn for determining whether a dir here see pub httm_is_dir
-                        if httm_is_dir(pathdata) {
+                        if pathdata.httm_is_dir() {
                             Some(pathdata.clone())
                         // and then we take all comers here because may be a deleted file that DNE on a live version
                         } else {

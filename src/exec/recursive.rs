@@ -27,7 +27,7 @@ use crate::data::selection::SelectionCandidate;
 use crate::display_versions::wrapper::VersionsDisplayWrapper;
 use crate::exec::deleted::SpawnDeletedThread;
 use crate::library::results::{HttmError, HttmResult};
-use crate::library::utility::{httm_is_dir, print_output_buf, HttmIsDir, Never};
+use crate::library::utility::{print_output_buf, HttmIsDir, Never};
 use crate::VersionsMap;
 use crate::GLOBAL_CONFIG;
 use crate::{BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_HIDDEN_DIRECTORY};
@@ -220,7 +220,8 @@ impl SharedRecursive {
                 return file_type.is_dir();
             }
         }
-        httm_is_dir(entry)
+
+        entry.httm_is_dir()
     }
 
     fn is_filter_dir(entry: &BasicDirEntryInfo) -> bool {
