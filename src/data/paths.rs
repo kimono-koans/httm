@@ -26,8 +26,8 @@ use std::{
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
 
+use crate::parse::aliases::MapOfAliases;
 use crate::parse::mounts::MapOfDatasets;
-use crate::{config::generate::JsonMode, parse::aliases::MapOfAliases};
 use crate::{
     config::generate::PrintMode,
     library::{
@@ -244,22 +244,23 @@ impl Serialize for PathMetadata {
     {
         let mut state = serializer.serialize_struct("PathData", 2)?;
 
-        if let PrintMode::Json(json_mode) = &GLOBAL_CONFIG.print_mode {
-            if matches!(json_mode, JsonMode::Raw | JsonMode::Zeros) {
-                state.serialize_field("size", &self.size)?;
-                state.serialize_field("modify_time", &self.modify_time)?;
-            }
+        if matches!(
+            GLOBAL_CONFIG.print_mode,
+            PrintMode::RawNewline | PrintMode::RawZero
+        ) {
+            state.serialize_field("size", &self.size)?;
+            state.serialize_field("modify_time", &self.modify_time)?;
+        } else {
+            let size = display_human_size(self.size);
+            let date = get_date(
+                GLOBAL_CONFIG.requested_utc_offset,
+                &self.modify_time,
+                DateFormat::Display,
+            );
+
+            state.serialize_field("size", &size)?;
+            state.serialize_field("modify_time", &date)?;
         }
-
-        let size = display_human_size(self.size);
-        let date = get_date(
-            GLOBAL_CONFIG.requested_utc_offset,
-            &self.modify_time,
-            DateFormat::Display,
-        );
-
-        state.serialize_field("size", &size)?;
-        state.serialize_field("modify_time", &date)?;
 
         state.end()
     }

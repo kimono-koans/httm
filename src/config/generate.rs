@@ -78,15 +78,6 @@ pub enum PrintMode {
     FormattedNotPretty,
     RawNewline,
     RawZero,
-    Json(JsonMode),
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum JsonMode {
-    FormattedDefault,
-    FormattedNotPretty,
-    Raw,
-    Zeros,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -481,6 +472,7 @@ pub struct Config {
     pub opt_no_traverse: bool,
     pub opt_omit_ditto: bool,
     pub opt_no_hidden: bool,
+    pub opt_json: bool,
     pub opt_last_snap: Option<LastSnapMode>,
     pub opt_preview: Option<String>,
     pub requested_utc_offset: UtcOffset,
@@ -524,15 +516,9 @@ impl Config {
             None
         };
 
-        let mut print_mode = if matches.is_present("JSON") && matches.is_present("ZEROS") {
-            PrintMode::Json(JsonMode::Zeros)
-        } else if matches.is_present("JSON") && matches.is_present("RAW") {
-            PrintMode::Json(JsonMode::Raw)
-        } else if matches.is_present("JSON") && matches.is_present("NOT_SO_PRETTY") {
-            PrintMode::Json(JsonMode::FormattedNotPretty)
-        } else if matches.is_present("JSON") {
-            PrintMode::Json(JsonMode::FormattedDefault)
-        } else if matches.is_present("ZEROS") {
+        let opt_json = matches.is_present("JSON");
+
+        let mut print_mode = if matches.is_present("ZEROS") {
             PrintMode::RawZero
         } else if matches.is_present("RAW")
             || matches!(opt_bulk_exclusion, Some(BulkExclusion::NoSnap))
@@ -754,6 +740,7 @@ impl Config {
             opt_no_hidden,
             opt_last_snap,
             opt_preview,
+            opt_json,
             requested_utc_offset,
             exec_mode,
             print_mode,
@@ -967,6 +954,7 @@ impl Config {
             opt_no_hidden: false,
             opt_last_snap: None,
             opt_preview: None,
+            opt_json: false,
             opt_omit_ditto: self.opt_omit_ditto,
             requested_utc_offset: self.requested_utc_offset,
             exec_mode: ExecMode::Display,

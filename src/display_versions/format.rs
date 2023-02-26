@@ -74,9 +74,6 @@ impl<'a> VersionsDisplayWrapper<'a> {
                             .map(|pathdata| format!("{}{delimiter}", pathdata.path_buf.display()))
                             .collect()
                     }
-                    PrintMode::Json(_) => {
-                        unreachable!("JSON print modes are not valid in this context.")
-                    }
                 }
             })
             .collect::<String>()

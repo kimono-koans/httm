@@ -20,12 +20,12 @@ use std::{collections::BTreeMap, ops::Deref};
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
 
-use crate::config::generate::JsonMode;
 use crate::config::generate::{Config, ExecMode, PrintMode};
 use crate::data::paths::PathData;
 use crate::display_map::helper::PrintAsMap;
 use crate::library::utility::get_delimiter;
 use crate::lookup::versions::VersionsMap;
+use crate::GLOBAL_CONFIG;
 
 pub struct VersionsDisplayWrapper<'a> {
     pub config: &'a Config,
@@ -44,9 +44,10 @@ impl<'a> std::string::ToString for VersionsDisplayWrapper<'a> {
                     return printable_map.to_string();
                 }
 
-                match &self.config.print_mode {
-                    PrintMode::Json(json_mode) => self.to_json(json_mode),
-                    _ => self.format(),
+                if GLOBAL_CONFIG.opt_json {
+                    self.to_json()
+                } else {
+                    self.format()
                 }
             }
         }
@@ -66,12 +67,12 @@ impl<'a> VersionsDisplayWrapper<'a> {
         Self { config, map }
     }
 
-    pub fn to_json(&self, json_mode: &JsonMode) -> String {
-        let res = match json_mode {
-            JsonMode::FormattedNotPretty | JsonMode::Raw | JsonMode::Zeros => {
+    pub fn to_json(&self) -> String {
+        let res = match GLOBAL_CONFIG.print_mode {
+            PrintMode::FormattedNotPretty | PrintMode::RawNewline | PrintMode::RawZero => {
                 serde_json::to_string(self)
             }
-            JsonMode::FormattedDefault => serde_json::to_string_pretty(self),
+            PrintMode::FormattedDefault => serde_json::to_string_pretty(self),
         };
 
         match res {

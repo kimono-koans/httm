@@ -15,7 +15,6 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::config::generate::JsonMode;
 use crate::config::generate::{ExecMode, PrintMode};
 use crate::display_map::helper::PrintAsMap;
 use crate::display_versions::format::NOT_SO_PRETTY_FIXED_WIDTH_PADDING;
@@ -24,48 +23,50 @@ use crate::GLOBAL_CONFIG;
 
 impl std::string::ToString for PrintAsMap {
     fn to_string(&self) -> String {
-        match &GLOBAL_CONFIG.print_mode {
-            PrintMode::RawNewline | PrintMode::RawZero => self
-                .values()
-                .flatten()
-                .map(|value| {
-                    let delimiter = get_delimiter();
-                    format!("{value}{delimiter}")
-                })
-                .collect::<String>(),
-            PrintMode::Json(json_mode) => {
-                let json_string = self.to_json(json_mode);
+        if GLOBAL_CONFIG.opt_json {
+            let json_string = self.to_json();
 
-                match &GLOBAL_CONFIG.exec_mode {
-                    ExecMode::Display | ExecMode::Interactive(_) => {
-                        json_string.replace("\"inner\": ", "\"versions\": ")
-                    }
-                    ExecMode::MountsForFiles(_) => {
-                        json_string.replace("\"inner\": ", "\"mounts\": ")
-                    }
-                    ExecMode::SnapsForFiles(_) => {
-                        json_string.replace("\"inner\": ", "\"snapshot_names\": ")
-                    }
-                    ExecMode::NonInteractiveRecursive(_)
-                    | ExecMode::NumVersions(_)
-                    | ExecMode::Purge(_)
-                    | ExecMode::SnapFileMount(_) => {
-                        unreachable!("JSON print should not be available in the selected {:?} execution mode.", &GLOBAL_CONFIG.exec_mode);
-                    }
+            match &GLOBAL_CONFIG.exec_mode {
+                ExecMode::Display | ExecMode::Interactive(_) => {
+                    json_string.replace("\"inner\": ", "\"versions\": ")
+                }
+                ExecMode::MountsForFiles(_) => json_string.replace("\"inner\": ", "\"mounts\": "),
+                ExecMode::SnapsForFiles(_) => {
+                    json_string.replace("\"inner\": ", "\"snapshot_names\": ")
+                }
+                ExecMode::NonInteractiveRecursive(_)
+                | ExecMode::NumVersions(_)
+                | ExecMode::Purge(_)
+                | ExecMode::SnapFileMount(_) => {
+                    unreachable!(
+                        "JSON print should not be available in the selected {:?} execution mode.",
+                        &GLOBAL_CONFIG.exec_mode
+                    );
                 }
             }
-            PrintMode::FormattedDefault | PrintMode::FormattedNotPretty => self.format(),
+        } else {
+            match &GLOBAL_CONFIG.print_mode {
+                PrintMode::RawNewline | PrintMode::RawZero => self
+                    .values()
+                    .flatten()
+                    .map(|value| {
+                        let delimiter = get_delimiter();
+                        format!("{value}{delimiter}")
+                    })
+                    .collect::<String>(),
+                PrintMode::FormattedDefault | PrintMode::FormattedNotPretty => self.format(),
+            }
         }
     }
 }
 
 impl PrintAsMap {
-    pub fn to_json(&self, json_mode: &JsonMode) -> String {
-        let res = match json_mode {
-            JsonMode::Raw | JsonMode::Zeros | JsonMode::FormattedNotPretty => {
+    pub fn to_json(&self) -> String {
+        let res = match GLOBAL_CONFIG.print_mode {
+            PrintMode::FormattedNotPretty | PrintMode::RawNewline | PrintMode::RawZero => {
                 serde_json::to_string(&self)
             }
-            JsonMode::FormattedDefault => serde_json::to_string_pretty(&self),
+            PrintMode::FormattedDefault => serde_json::to_string_pretty(&self),
         };
 
         match res {
