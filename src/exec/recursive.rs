@@ -111,10 +111,10 @@ impl InteractiveRecursive {
             while let Some(item) = queue.pop() {
                 // no errors will be propagated in recursive mode
                 // far too likely to run into a dir we don't have permissions to view
-                if let Ok(vec_dirs) =
+                if let Ok(mut vec_dirs) =
                     Self::enumerate_directory(&item.path, opt_deleted_scope, skim_tx, hangup_rx)
                 {
-                    queue.extend(vec_dirs)
+                    queue.append(&mut vec_dirs)
                 }
             }
         }
