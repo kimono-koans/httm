@@ -27,6 +27,7 @@ use crate::SnapNameMap;
 use crate::VersionsMap;
 use crate::{MountsForFiles, GLOBAL_CONFIG};
 
+#[derive(Debug)]
 pub struct PrintAsMap {
     inner: BTreeMap<String, Vec<String>>,
 }

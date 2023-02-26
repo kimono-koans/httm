@@ -26,6 +26,7 @@ use crate::library::iter_extensions::HttmIter;
 use crate::lookup::versions::{MostProximateAndOptAlts, VersionsMap};
 use crate::GLOBAL_CONFIG;
 
+#[derive(Debug)]
 pub struct MountsForFiles<'a> {
     pub inner: BTreeMap<PathData, Vec<PathData>>,
     pub mount_display: &'a MountDisplay,
@@ -88,10 +89,14 @@ impl<'a> MountsForFiles<'a> {
                 let datasets: Vec<PathData> = vec_snap_types_for_search
                     .into_iter()
                     .flat_map(|(_proximate_mount, snap_types_for_search)| snap_types_for_search)
-                    .filter_map(|snap_types_for_search| {
-                        snap_types_for_search.opt_datasets_of_interest.as_ref()
+                    .flat_map(|snap_types_for_search| {
+                        snap_types_for_search
+                            .opt_datasets_of_interest
+                            .to_owned()
+                            .unwrap_or_else(|| {
+                                vec![snap_types_for_search.proximate_dataset_mount.to_path_buf()]
+                            })
                     })
-                    .flatten()
                     .map(|path| PathData::from(path.as_path()))
                     .rev()
                     .collect();
