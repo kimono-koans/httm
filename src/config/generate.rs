@@ -382,6 +382,7 @@ fn parse_args() -> ArgMatches {
                 .help("only display information concerning 'pseudo-live' versions in Display Recursive mode (in --deleted, --recursive, but non-interactive modes).  \
                 Useful for finding the \"files that once were\" and displaying only those pseudo-live/zombie files.")
                 .conflicts_with_all(&["BROWSE", "SELECT", "RESTORE", "SNAPSHOT", "LAST_SNAP", "NOT_SO_PRETTY"])
+                .requires("DELETED")
                 .display_order(24)
         )
         .arg(
@@ -464,7 +465,6 @@ fn parse_args() -> ArgMatches {
 #[derive(Debug, Clone)]
 pub struct Config {
     pub paths: Vec<PathData>,
-    pub opt_bulk_exclusion: Option<BulkExclusion>,
     pub opt_recursive: bool,
     pub opt_exact: bool,
     pub opt_no_filter: bool,
@@ -473,15 +473,16 @@ pub struct Config {
     pub opt_omit_ditto: bool,
     pub opt_no_hidden: bool,
     pub opt_json: bool,
+    pub opt_bulk_exclusion: Option<BulkExclusion>,
     pub opt_last_snap: Option<LastSnapMode>,
     pub opt_preview: Option<String>,
+    pub opt_deleted_mode: Option<DeletedMode>,
+    pub opt_requested_dir: Option<PathData>,
     pub requested_utc_offset: UtcOffset,
     pub exec_mode: ExecMode,
     pub print_mode: PrintMode,
-    pub opt_deleted_mode: Option<DeletedMode>,
     pub dataset_collection: FilesystemInfo,
     pub pwd: PathData,
-    pub opt_requested_dir: Option<PathData>,
 }
 
 impl Config {
@@ -508,6 +509,18 @@ impl Config {
             UtcOffset::current_local_offset().unwrap_or(UtcOffset::UTC)
         };
 
+        let opt_json = matches.is_present("JSON");
+
+        let mut print_mode = if matches.is_present("ZEROS") {
+            PrintMode::RawZero
+        } else if matches.is_present("RAW") {
+            PrintMode::RawNewline
+        } else if matches.is_present("NOT_SO_PRETTY") {
+            PrintMode::FormattedNotPretty
+        } else {
+            PrintMode::FormattedDefault
+        };
+
         let opt_bulk_exclusion = if matches.is_present("NO_LIVE") {
             Some(BulkExclusion::NoLive)
         } else if matches.is_present("NO_SNAP") {
@@ -516,19 +529,14 @@ impl Config {
             None
         };
 
-        let opt_json = matches.is_present("JSON");
-
-        let mut print_mode = if matches.is_present("ZEROS") {
-            PrintMode::RawZero
-        } else if matches.is_present("RAW")
-            || matches!(opt_bulk_exclusion, Some(BulkExclusion::NoSnap))
-        {
-            PrintMode::RawNewline
-        } else if matches.is_present("NOT_SO_PRETTY") {
-            PrintMode::FormattedNotPretty
-        } else {
-            PrintMode::FormattedDefault
-        };
+        if let Some(BulkExclusion::NoSnap) = opt_bulk_exclusion {
+            if let PrintMode::FormattedNotPretty | PrintMode::FormattedDefault = print_mode {
+                return Err(HttmError::new(
+                    "NO_SNAP is only available if RAW or ZEROS are specified.",
+                )
+                .into());
+            }
+        }
 
         // force a raw mode if one is not set for no_snap mode
         let opt_recursive = matches.is_present("RECURSIVE");
@@ -946,20 +954,20 @@ impl Config {
         Config {
             paths: paths_selected.to_vec(),
             opt_recursive: false,
-            opt_bulk_exclusion: None,
             opt_exact: false,
             opt_no_filter: false,
             opt_debug: false,
             opt_no_traverse: false,
             opt_no_hidden: false,
+            opt_json: false,
+            opt_bulk_exclusion: None,
             opt_last_snap: None,
             opt_preview: None,
-            opt_json: false,
+            opt_deleted_mode: None,
             opt_omit_ditto: self.opt_omit_ditto,
             requested_utc_offset: self.requested_utc_offset,
             exec_mode: ExecMode::Display,
             print_mode: PrintMode::FormattedDefault,
-            opt_deleted_mode: None,
             dataset_collection: self.dataset_collection.clone(),
             pwd: self.pwd.clone(),
             opt_requested_dir: self.opt_requested_dir.clone(),
