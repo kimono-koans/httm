@@ -20,7 +20,7 @@ use std::ops::Deref;
 
 use terminal_size::{terminal_size, Height, Width};
 
-use crate::config::generate::{BulkExclusion, PrintMode, Config};
+use crate::config::generate::{BulkExclusion, Config, PrintMode};
 use crate::data::paths::{PathData, PHANTOM_DATE, PHANTOM_SIZE};
 use crate::library::utility::get_delimiter;
 use crate::library::utility::{display_human_size, get_date, paint_string, DateFormat};
@@ -108,20 +108,12 @@ impl<'a> DisplaySet<'a> {
                 let is_snap_set = idx == &0;
                 let is_live_set = idx == &1;
 
-                if is_live_set && matches!(
-                        &config.opt_bulk_exclusion,
-                        Some(BulkExclusion::NoLive)
-                    )
+                if is_live_set && matches!(&config.opt_bulk_exclusion, Some(BulkExclusion::NoLive))
                 {
                     return false;
                 }
 
-                if is_snap_set
-                    && matches!(
-                        config.opt_bulk_exclusion,
-                        Some(BulkExclusion::NoSnap)
-                    )
-                {
+                if is_snap_set && matches!(config.opt_bulk_exclusion, Some(BulkExclusion::NoSnap)) {
                     return false;
                 }
 
@@ -159,7 +151,12 @@ impl<'a> DisplaySet<'a> {
 }
 
 impl PathData {
-    pub fn format(&self, config: &Config, is_live_set: bool, padding_collection: &PaddingCollection) -> String {
+    pub fn format(
+        &self,
+        config: &Config,
+        is_live_set: bool,
+        padding_collection: &PaddingCollection,
+    ) -> String {
         // obtain metadata for timestamp and size
         let metadata = self.get_md_infallible();
 
@@ -236,7 +233,7 @@ pub struct PaddingCollection {
 }
 
 impl PaddingCollection {
-    pub fn new(config: &Config, display_set: &DisplaySet, ) -> PaddingCollection {
+    pub fn new(config: &Config, display_set: &DisplaySet) -> PaddingCollection {
         // calculate padding and borders for display later
         let (size_padding_len, fancy_border_len) = display_set.iter().flatten().fold(
             (0usize, 0usize),
