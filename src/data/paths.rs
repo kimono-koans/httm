@@ -26,12 +26,15 @@ use std::{
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
 
-use crate::library::{
-    results::{HttmError, HttmResult},
-    utility::DateFormat,
-};
-use crate::parse::aliases::MapOfAliases;
 use crate::parse::mounts::MapOfDatasets;
+use crate::{config::generate::JsonMode, parse::aliases::MapOfAliases};
+use crate::{
+    config::generate::PrintMode,
+    library::{
+        results::{HttmError, HttmResult},
+        utility::DateFormat,
+    },
+};
 use crate::{
     library::utility::{display_human_size, get_date},
     GLOBAL_CONFIG,
@@ -239,7 +242,14 @@ impl Serialize for PathMetadata {
     where
         S: Serializer,
     {
-        let mut state = serializer.serialize_struct("PathMetadata", 2)?;
+        let mut state = serializer.serialize_struct("PathData", 2)?;
+
+        if let PrintMode::Json(json_mode) = &GLOBAL_CONFIG.print_mode {
+            if matches!(json_mode, JsonMode::Raw | JsonMode::Zeros) {
+                state.serialize_field("size", &self.size)?;
+                state.serialize_field("modify_time", &self.modify_time)?;
+            }
+        }
 
         let size = display_human_size(self.size);
         let date = get_date(
@@ -250,6 +260,7 @@ impl Serialize for PathMetadata {
 
         state.serialize_field("size", &size)?;
         state.serialize_field("modify_time", &date)?;
+
         state.end()
     }
 }

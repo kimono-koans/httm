@@ -15,6 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
+use crate::config::generate::JsonMode;
 use crate::config::generate::{ExecMode, PrintMode};
 use crate::display_map::helper::PrintAsMap;
 use crate::display_versions::format::NOT_SO_PRETTY_FIXED_WIDTH_PADDING;
@@ -32,8 +33,8 @@ impl std::string::ToString for PrintAsMap {
                     format!("{value}{delimiter}")
                 })
                 .collect::<String>(),
-            PrintMode::FormattedJsonDefault | PrintMode::FormattedJsonNotPretty => {
-                let json_string = self.to_json();
+            PrintMode::Json(json_mode) => {
+                let json_string = self.to_json(json_mode);
 
                 match &GLOBAL_CONFIG.exec_mode {
                     ExecMode::Display | ExecMode::Interactive(_) => {
@@ -59,10 +60,12 @@ impl std::string::ToString for PrintAsMap {
 }
 
 impl PrintAsMap {
-    pub fn to_json(&self) -> String {
-        let res = match &GLOBAL_CONFIG.print_mode {
-            PrintMode::FormattedJsonNotPretty => serde_json::to_string(&self),
-            _ => serde_json::to_string_pretty(&self),
+    pub fn to_json(&self, json_mode: &JsonMode) -> String {
+        let res = match json_mode {
+            JsonMode::Raw | JsonMode::Zeros | JsonMode::FormattedNotPretty => {
+                serde_json::to_string(&self)
+            }
+            JsonMode::FormattedDefault => serde_json::to_string_pretty(&self),
         };
 
         match res {

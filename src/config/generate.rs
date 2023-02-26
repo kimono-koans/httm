@@ -76,10 +76,17 @@ pub enum RestoreMode {
 pub enum PrintMode {
     FormattedDefault,
     FormattedNotPretty,
-    FormattedJsonDefault,
-    FormattedJsonNotPretty,
     RawNewline,
     RawZero,
+    Json(JsonMode),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum JsonMode {
+    FormattedDefault,
+    FormattedNotPretty,
+    Raw,
+    Zeros,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -317,7 +324,7 @@ fn parse_args() -> ArgMatches {
                 .long("raw")
                 .visible_alias("newline")
                 .help("display the snapshot locations only, without extraneous information, delimited by a NEWLINE character.")
-                .conflicts_with_all(&["ZEROS", "NOT_SO_PRETTY", "JSON"])
+                .conflicts_with_all(&["ZEROS", "NOT_SO_PRETTY"])
                 .display_order(15)
         )
         .arg(
@@ -325,13 +332,13 @@ fn parse_args() -> ArgMatches {
                 .short('0')
                 .long("zero")
                 .help("display the snapshot locations only, without extraneous information, delimited by a NULL character.")
-                .conflicts_with_all(&["RAW", "NOT_SO_PRETTY", "JSON"])
+                .conflicts_with_all(&["RAW", "NOT_SO_PRETTY"])
                 .display_order(16)
         )
         .arg(
             Arg::new("NOT_SO_PRETTY")
                 .long("not-so-pretty")
-                .visible_aliases(&["tabs", "plain-jane"])
+                .visible_aliases(&["tabs", "plain-jane", "not-pretty"])
                 .help("display the ordinary output, but tab delimited, without any pretty border lines.")
                 .conflicts_with_all(&["RAW", "ZEROS"])
                 .display_order(17)
@@ -340,7 +347,6 @@ fn parse_args() -> ArgMatches {
             Arg::new("JSON")
                 .long("json")
                 .help("display the ordinary output, but as formatted JSON.")
-                .conflicts_with_all(&["RAW", "ZEROS"])
                 .display_order(18)
         )
         .arg(
@@ -518,16 +524,20 @@ impl Config {
             None
         };
 
-        let mut print_mode = if matches.is_present("ZEROS") {
+        let mut print_mode = if matches.is_present("JSON") && matches.is_present("ZEROS") {
+            PrintMode::Json(JsonMode::Zeros)
+        } else if matches.is_present("JSON") && matches.is_present("RAW") {
+            PrintMode::Json(JsonMode::Raw)
+        } else if matches.is_present("JSON") && matches.is_present("NOT_SO_PRETTY") {
+            PrintMode::Json(JsonMode::FormattedNotPretty)
+        } else if matches.is_present("JSON") {
+            PrintMode::Json(JsonMode::FormattedDefault)
+        } else if matches.is_present("ZEROS") {
             PrintMode::RawZero
         } else if matches.is_present("RAW")
             || matches!(opt_bulk_exclusion, Some(BulkExclusion::NoSnap))
         {
             PrintMode::RawNewline
-        } else if matches.is_present("JSON") && !matches.is_present("NOT_SO_PRETTY") {
-            PrintMode::FormattedJsonDefault
-        } else if matches.is_present("JSON") && matches.is_present("NOT_SO_PRETTY") {
-            PrintMode::FormattedJsonNotPretty
         } else if matches.is_present("NOT_SO_PRETTY") {
             PrintMode::FormattedNotPretty
         } else {

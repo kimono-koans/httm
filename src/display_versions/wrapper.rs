@@ -20,9 +20,11 @@ use std::{collections::BTreeMap, ops::Deref};
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
 
+use crate::config::generate::JsonMode;
 use crate::config::generate::{Config, ExecMode, PrintMode};
 use crate::data::paths::PathData;
 use crate::display_map::helper::PrintAsMap;
+use crate::library::utility::get_delimiter;
 use crate::lookup::versions::VersionsMap;
 
 pub struct VersionsDisplayWrapper<'a> {
@@ -43,9 +45,7 @@ impl<'a> std::string::ToString for VersionsDisplayWrapper<'a> {
                 }
 
                 match &self.config.print_mode {
-                    PrintMode::FormattedJsonDefault | PrintMode::FormattedJsonNotPretty => {
-                        self.to_json()
-                    }
+                    PrintMode::Json(json_mode) => self.to_json(json_mode),
                     _ => self.format(),
                 }
             }
@@ -66,14 +66,19 @@ impl<'a> VersionsDisplayWrapper<'a> {
         Self { config, map }
     }
 
-    pub fn to_json(&self) -> String {
-        let res = match self.config.print_mode {
-            PrintMode::FormattedJsonNotPretty => serde_json::to_string(self),
-            _ => serde_json::to_string_pretty(self),
+    pub fn to_json(&self, json_mode: &JsonMode) -> String {
+        let res = match json_mode {
+            JsonMode::FormattedNotPretty | JsonMode::Raw | JsonMode::Zeros => {
+                serde_json::to_string(self)
+            }
+            JsonMode::FormattedDefault => serde_json::to_string_pretty(self),
         };
 
         match res {
-            Ok(s) => s + "\n",
+            Ok(s) => {
+                let delimiter = get_delimiter();
+                format!("{s}{delimiter}")
+            }
             Err(error) => {
                 eprintln!("Error: {error}");
                 std::process::exit(1)
