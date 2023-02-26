@@ -26,7 +26,7 @@ impl std::string::ToString for PrintAsMap {
         if GLOBAL_CONFIG.opt_json {
             let json_string = self.to_json();
 
-            match &GLOBAL_CONFIG.exec_mode {
+            let res = match &GLOBAL_CONFIG.exec_mode {
                 ExecMode::Display | ExecMode::Interactive(_) => {
                     json_string.replace("\"inner\": ", "\"versions\": ")
                 }
@@ -43,19 +43,21 @@ impl std::string::ToString for PrintAsMap {
                         &GLOBAL_CONFIG.exec_mode
                     );
                 }
-            }
-        } else {
-            match &GLOBAL_CONFIG.print_mode {
-                PrintMode::RawNewline | PrintMode::RawZero => self
-                    .values()
-                    .flatten()
-                    .map(|value| {
-                        let delimiter = get_delimiter();
-                        format!("{value}{delimiter}")
-                    })
-                    .collect::<String>(),
-                PrintMode::FormattedDefault | PrintMode::FormattedNotPretty => self.format(),
-            }
+            };
+
+            return res;
+        }
+
+        match &GLOBAL_CONFIG.print_mode {
+            PrintMode::RawNewline | PrintMode::RawZero => self
+                .values()
+                .flatten()
+                .map(|value| {
+                    let delimiter = get_delimiter();
+                    format!("{value}{delimiter}")
+                })
+                .collect::<String>(),
+            PrintMode::FormattedDefault | PrintMode::FormattedNotPretty => self.format(),
         }
     }
 }

@@ -45,10 +45,10 @@ impl<'a> std::string::ToString for VersionsDisplayWrapper<'a> {
                 }
 
                 if GLOBAL_CONFIG.opt_json {
-                    self.to_json()
-                } else {
-                    self.format()
+                    return self.to_json();
                 }
+
+                self.format()
             }
         }
     }
