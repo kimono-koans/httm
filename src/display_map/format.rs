@@ -69,7 +69,10 @@ impl PrintAsMap {
         };
 
         match res {
-            Ok(s) => s + "\n",
+            Ok(s) => {
+                let delimiter = get_delimiter();
+                format!("{s}{delimiter}")
+            }
             Err(error) => {
                 eprintln!("Error: {error}");
                 std::process::exit(1)
