@@ -25,7 +25,6 @@ use crate::data::paths::PathData;
 use crate::display_map::helper::PrintAsMap;
 use crate::library::utility::get_delimiter;
 use crate::lookup::versions::VersionsMap;
-use crate::GLOBAL_CONFIG;
 
 pub struct VersionsDisplayWrapper<'a> {
     pub config: &'a Config,
@@ -44,7 +43,7 @@ impl<'a> std::string::ToString for VersionsDisplayWrapper<'a> {
                     return printable_map.to_string();
                 }
 
-                if GLOBAL_CONFIG.opt_json {
+                if self.config.opt_json {
                     return self.to_json();
                 }
 
@@ -68,7 +67,7 @@ impl<'a> VersionsDisplayWrapper<'a> {
     }
 
     pub fn to_json(&self) -> String {
-        let res = match GLOBAL_CONFIG.print_mode {
+        let res = match self.config.print_mode {
             PrintMode::FormattedNotPretty | PrintMode::RawNewline | PrintMode::RawZero => {
                 serde_json::to_string(self)
             }
