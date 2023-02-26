@@ -15,7 +15,6 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::collections::VecDeque;
 use std::{fs::read_dir, path::Path, sync::Arc};
 
 use rayon::{Scope, ThreadPool};
@@ -103,13 +102,13 @@ impl InteractiveRecursive {
         // runs once for non-recursive but also "primes the pump"
         // for recursive to have items available, also only place an
         // error can stop execution
-        let mut queue: VecDeque<BasicDirEntryInfo> =
-            Self::enumerate_directory(requested_dir, opt_deleted_scope, skim_tx, hangup_rx)?.into();
+        let mut queue: Vec<BasicDirEntryInfo> =
+            Self::enumerate_directory(requested_dir, opt_deleted_scope, skim_tx, hangup_rx)?;
 
         if GLOBAL_CONFIG.opt_recursive {
             // condition kills iter when user has made a selection
             // pop_back makes this a LIFO queue which is supposedly better for caches
-            while let Some(item) = queue.pop_back() {
+            while let Some(item) = queue.pop() {
                 // no errors will be propagated in recursive mode
                 // far too likely to run into a dir we don't have permissions to view
                 if let Ok(vec_dirs) =
