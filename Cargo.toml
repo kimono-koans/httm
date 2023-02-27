@@ -50,7 +50,7 @@ skim = { git = "https://github.com/kimono-koans/skim", branch = "httm-vendored" 
 
 [package.metadata.deb]
 maintainer = "kimono koans <https://github.com/kimono-koans/>"
-copyright = "2022, Robert Swinford <robert.swinford<...at...>gmail.com>"
+copyright = "2023, Robert Swinford <robert.swinford<...at...>gmail.com>"
 extended-description = """\
 
 Prints the size, date and corresponding locations of available unique versions of files \
