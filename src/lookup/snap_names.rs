@@ -89,7 +89,7 @@ impl SnapNameMap {
                     {
                         search_bundle.get_unique_versions()
                     }
-                    _ => search_bundle.get_all_versions(),
+                    _ => search_bundle.get_all_versions().collect(),
                 })
                 .collect();
             (pathdata.clone(), snap_versions)

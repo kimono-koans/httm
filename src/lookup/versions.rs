@@ -319,12 +319,12 @@ impl<'a> RelativePathAndSnapMounts<'a> {
         })
     }
 
-    pub fn get_all_versions(&self) -> Vec<PathData> {
+    pub fn get_all_versions(&self) -> impl ParallelIterator<Item = PathData> + '_ {
         // get the DirEntry for our snapshot path which will have all our possible
         // snapshots, like so: .zfs/snapshots/<some snap name>/
         //
         // BTreeMap will then remove duplicates with the same system modify time and size/file len
-        let all_versions: Vec<PathData> = self
+        self
             .snap_mounts
             .par_iter()
             .map(|path| path.join(self.relative_path))
@@ -348,9 +348,6 @@ impl<'a> RelativePathAndSnapMounts<'a> {
                     },
                 }
             })
-            .collect();
-
-        all_versions
     }
 
     pub fn get_unique_versions(&self) -> Vec<PathData> {
@@ -360,7 +357,6 @@ impl<'a> RelativePathAndSnapMounts<'a> {
         // BTreeMap will then remove duplicates with the same system modify time and size/file len
         let unique_versions: BTreeMap<(SystemTime, u64), PathData> = self
             .get_all_versions()
-            .into_iter()
             .filter_map(|pathdata| {
                 pathdata
                     .metadata
