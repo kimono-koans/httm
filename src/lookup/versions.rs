@@ -319,7 +319,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
         })
     }
 
-    pub fn get_all_versions(&self) -> impl ParallelIterator<Item = PathData> + '_ {
+    pub fn get_all_versions(&'a self) -> impl ParallelIterator<Item = PathData> + 'a {
         // get the DirEntry for our snapshot path which will have all our possible
         // snapshots, like so: .zfs/snapshots/<some snap name>/
         //
