@@ -16,7 +16,7 @@
 // that was distributed with this source code.
 
 use std::{
-    cmp,
+    cmp::{Ord, Ordering, PartialOrd},
     ffi::OsStr,
     fs::{symlink_metadata, DirEntry, FileType, Metadata},
     path::{Path, PathBuf},
@@ -70,30 +70,16 @@ pub struct PathData {
     pub metadata: Option<PathMetadata>,
 }
 
-#[derive(Copy, Clone, Debug, Eq, Hash, PartialEq)]
-pub struct PathMetadata {
-    pub size: u64,
-    pub modify_time: SystemTime,
-}
-
-pub const PHANTOM_DATE: SystemTime = SystemTime::UNIX_EPOCH;
-pub const PHANTOM_SIZE: u64 = 0u64;
-
-pub const PHANTOM_PATH_METADATA: PathMetadata = PathMetadata {
-    size: PHANTOM_SIZE,
-    modify_time: PHANTOM_DATE,
-};
-
-impl cmp::PartialOrd for PathData {
+impl PartialOrd for PathData {
     #[inline]
-    fn partial_cmp(&self, other: &PathData) -> Option<cmp::Ordering> {
+    fn partial_cmp(&self, other: &PathData) -> Option<Ordering> {
         Some(self.path_buf.cmp(&other.path_buf))
     }
 }
 
-impl cmp::Ord for PathData {
+impl Ord for PathData {
     #[inline]
-    fn cmp(&self, other: &PathData) -> cmp::Ordering {
+    fn cmp(&self, other: &PathData) -> Ordering {
         self.path_buf.cmp(&other.path_buf)
     }
 }
@@ -265,3 +251,17 @@ impl Serialize for PathMetadata {
         state.end()
     }
 }
+
+#[derive(Copy, Clone, Debug, Eq, Hash, PartialEq)]
+pub struct PathMetadata {
+    pub size: u64,
+    pub modify_time: SystemTime,
+}
+
+pub const PHANTOM_DATE: SystemTime = SystemTime::UNIX_EPOCH;
+pub const PHANTOM_SIZE: u64 = 0u64;
+
+pub const PHANTOM_PATH_METADATA: PathMetadata = PathMetadata {
+    size: PHANTOM_SIZE,
+    modify_time: PHANTOM_DATE,
+};

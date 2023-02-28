@@ -16,17 +16,19 @@
 // that was distributed with this source code.
 
 use std::{
+    cmp::{Ord, Ordering, PartialOrd},
     collections::BTreeMap,
-    io::ErrorKind,
+    fs::File,
+    io::{BufRead, BufReader, ErrorKind},
     ops::Deref,
     ops::DerefMut,
     path::{Path, PathBuf},
-    time::SystemTime,
 };
 
 use rayon::prelude::*;
 
 use crate::data::paths::PathData;
+use crate::data::paths::PathMetadata;
 use crate::library::results::{HttmError, HttmResult};
 use crate::{
     config::generate::{BulkExclusion, Config, LastSnapMode},
@@ -355,12 +357,18 @@ impl<'a> RelativePathAndSnapMounts<'a> {
         // snapshots, like so: .zfs/snapshots/<some snap name>/
         //
         // BTreeMap will then remove duplicates with the same system modify time and size/file len
-        let unique_versions: BTreeMap<(SystemTime, u64), PathData> = self
+        let unique_versions: BTreeMap<ComparisonData, PathData> = self
             .get_all_versions()
             .filter_map(|pathdata| {
-                pathdata
-                    .metadata
-                    .map(|metadata| ((metadata.modify_time, metadata.size), pathdata))
+                pathdata.metadata.map(|metadata| {
+                    (
+                        ComparisonData {
+                            metadata,
+                            path: pathdata.path_buf.clone(),
+                        },
+                        pathdata,
+                    )
+                })
             })
             .collect();
 
@@ -375,5 +383,71 @@ impl<'a> RelativePathAndSnapMounts<'a> {
         let res: Option<PathData> = sorted_versions.pop();
 
         res
+    }
+}
+
+#[derive(Eq, PartialEq)]
+struct ComparisonData {
+    metadata: PathMetadata,
+    path: PathBuf,
+}
+
+impl PartialOrd for ComparisonData {
+    #[inline]
+    fn partial_cmp(&self, other: &ComparisonData) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for ComparisonData {
+    #[inline]
+    fn cmp(&self, other: &ComparisonData) -> Ordering {
+        if self.metadata.modify_time == other.metadata.modify_time {
+            return self.metadata.size.cmp(&other.metadata.size);
+        }
+
+        // if files, differ re mtime, but have same size, we test by bytes whether the same
+        if self.metadata.size == other.metadata.size {
+            if let Ok(same_file) = self.is_same_file(other) {
+                if same_file {
+                    return Ordering::Equal;
+                }
+            }
+        }
+
+        self.metadata.modify_time.cmp(&other.metadata.modify_time)
+    }
+}
+
+impl ComparisonData {
+    #[inline]
+    #[allow(unused_assignments)]
+    fn is_same_file(&self, other: &ComparisonData) -> HttmResult<bool> {
+        const IN_BUFFER_SIZE: usize = 65_536;
+
+        let self_file = File::open(&self.path)?;
+        let other_file = File::open(&other.path)?;
+
+        let mut self_buffer = BufReader::with_capacity(IN_BUFFER_SIZE, self_file);
+        let mut other_buffer = BufReader::with_capacity(IN_BUFFER_SIZE, other_file);
+
+        let mut self_bytes_buffer = Vec::with_capacity(IN_BUFFER_SIZE);
+        let mut other_bytes_buffer = Vec::with_capacity(IN_BUFFER_SIZE);
+
+        loop {
+            self_bytes_buffer = self_buffer.fill_buf()?.to_vec();
+            self_buffer.consume(self_bytes_buffer.len());
+
+            other_bytes_buffer = other_buffer.fill_buf()?.to_vec();
+            other_buffer.consume(other_bytes_buffer.len());
+
+            if self_bytes_buffer.is_empty() || other_bytes_buffer.is_empty() {
+                return Ok(true);
+            }
+
+            if self_bytes_buffer != other_bytes_buffer {
+                return Ok(false);
+            }
+        }
     }
 }
