@@ -338,6 +338,7 @@ fn parse_args() -> ArgMatches {
             Arg::new("JSON")
                 .long("json")
                 .help("display the ordinary output, but as formatted JSON.")
+                .conflicts_with_all(&["SELECT", "RESTORE"])
                 .display_order(18)
         )
         .arg(
