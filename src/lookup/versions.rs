@@ -472,26 +472,21 @@ impl CompareFiles {
         let mut other_bytes_buffer = Vec::with_capacity(IN_BUFFER_SIZE);
 
         loop {
-            rayon::join(
-                || {
-                    if self.hash.get().is_none() {
-                        if let Ok(chunk) = self_buffer.fill_buf() {
-                            self_bytes_buffer = chunk.to_vec();
-                            self_buffer.consume(self_bytes_buffer.len());
-                            self_adler.write(&self_bytes_buffer);
-                        }
-                    }
-                },
-                || {
-                    if other.hash.get().is_none() {
-                        if let Ok(chunk) = other_buffer.fill_buf() {
-                            other_bytes_buffer = chunk.to_vec();
-                            other_buffer.consume(other_bytes_buffer.len());
-                            other_adler.write(&other_bytes_buffer);
-                        }
-                    }
-                },
-            );
+            if self.hash.get().is_none() {
+                if let Ok(chunk) = self_buffer.fill_buf() {
+                    self_bytes_buffer = chunk.to_vec();
+                    self_buffer.consume(self_bytes_buffer.len());
+                    self_adler.write(&self_bytes_buffer);
+                }
+            }
+
+            if other.hash.get().is_none() {
+                if let Ok(chunk) = other_buffer.fill_buf() {
+                    other_bytes_buffer = chunk.to_vec();
+                    other_buffer.consume(other_bytes_buffer.len());
+                    other_adler.write(&other_bytes_buffer);
+                }
+            }
 
             if self.hash.get().is_some() && other.hash.get().is_some() {
                 break;
