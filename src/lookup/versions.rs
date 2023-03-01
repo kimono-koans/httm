@@ -119,7 +119,7 @@ impl VersionsMap {
                     })
                     .flatten()
                     .flat_map(|search_bundle| {
-                        search_bundle.get_unique_versions(&config.opt_strictly_unique)
+                        search_bundle.get_unique_versions(&config.opt_uniqueness)
                     })
                     .collect();
                 (pathdata.clone(), snaps)
@@ -356,7 +356,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
             })
     }
 
-    pub fn get_unique_versions(&self, uniqueness: &Uniqueness) -> Vec<PathData> {
+    pub fn get_unique_versions(&self, uniqueness: &Option<Uniqueness>) -> Vec<PathData> {
         // get the DirEntry for our snapshot path which will have all our possible
         // snapshots, like so: .zfs/snapshots/<some snap name>/
         //
@@ -365,7 +365,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
         let iter = self.get_all_versions();
 
         let sorted_versions: Vec<PathData> = match uniqueness {
-            Uniqueness::AbsolutelyUnique => {
+            Some(Uniqueness::AbsolutelyUnique) => {
                 let versions: BTreeMap<CompareFiles, PathData> = iter
                     .filter_map(|pathdata| {
                         pathdata.metadata.map(|metadata| {
@@ -385,7 +385,8 @@ impl<'a> RelativePathAndSnapMounts<'a> {
 
                 versions.into_values().collect()
             }
-            Uniqueness::GoodEnough => {
+            Some(Uniqueness::NoFilter) => iter.collect(),
+            None => {
                 let versions: BTreeMap<CompareFiles, PathData> = iter
                     .filter_map(|pathdata| {
                         pathdata.metadata.map(|metadata| {
@@ -402,14 +403,13 @@ impl<'a> RelativePathAndSnapMounts<'a> {
 
                 versions.into_values().collect()
             }
-            Uniqueness::NoFilter => iter.collect(),
         };
 
         sorted_versions
     }
 
     pub fn get_last_version(&self) -> Option<PathData> {
-        let mut sorted_versions = self.get_unique_versions(&Uniqueness::GoodEnough);
+        let mut sorted_versions = self.get_unique_versions(&None);
 
         let res: Option<PathData> = sorted_versions.pop();
 

@@ -54,7 +54,6 @@ pub enum BulkExclusion {
 #[derive(Debug, Clone)]
 pub enum Uniqueness {
     AbsolutelyUnique,
-    GoodEnough,
     NoFilter,
 }
 
@@ -226,9 +225,10 @@ fn parse_args() -> ArgMatches {
         .arg(
             Arg::new("UNIQUENESS")
                 .long("unique")
+                .visible_aliases(&["uniqueness"])
                 .takes_value(true)
-                .default_missing_value("default ")
-                .possible_values(["default", "good-enough", "all", "absolute"])
+                .default_missing_value("absolute")
+                .possible_values(["default", "good-enough", "all", "everything", "not-unique", "absolute"])
                 .min_values(0)
                 .require_equals(true)
                 .help("comparing files solely on the basis of size and modify time (the \"default\" behavior) may return what appear to be \"false positives\", in the sense that, \
@@ -496,7 +496,7 @@ pub struct Config {
     pub opt_omit_ditto: bool,
     pub opt_no_hidden: bool,
     pub opt_json: bool,
-    pub opt_strictly_unique: Uniqueness,
+    pub opt_uniqueness: Option<Uniqueness>,
     pub opt_bulk_exclusion: Option<BulkExclusion>,
     pub opt_last_snap: Option<LastSnapMode>,
     pub opt_preview: Option<String>,
@@ -536,16 +536,10 @@ impl Config {
         let opt_json = matches.is_present("JSON");
 
         // ["default", "good-enough", "all", "absolute"]
-        let opt_strictly_unique = match matches.value_of("UNIQUENESS") {
-            Some("absolute") => Uniqueness::AbsolutelyUnique,
-            Some("all") => Uniqueness::NoFilter,
-            Some("default" | "good-enough" | _) | None => Uniqueness::GoodEnough,
-        };
-
-        if matches.is_present("STRICTLY_UNIQUE") {
-            Uniqueness::AbsolutelyUnique
-        } else {
-            Uniqueness::GoodEnough
+        let opt_uniqueness = match matches.value_of("UNIQUENESS") {
+            Some("absolute") => Some(Uniqueness::AbsolutelyUnique),
+            Some("all" | "everything" | "not-unique") => Some(Uniqueness::NoFilter),
+            Some("default" | "good-enough") | _ => None,
         };
 
         let mut print_mode = if matches.is_present("ZEROS") {
@@ -786,7 +780,7 @@ impl Config {
             opt_last_snap,
             opt_preview,
             opt_json,
-            opt_strictly_unique,
+            opt_uniqueness,
             requested_utc_offset,
             exec_mode,
             print_mode,
@@ -1002,7 +996,7 @@ impl Config {
             opt_last_snap: None,
             opt_preview: None,
             opt_deleted_mode: None,
-            opt_strictly_unique: Uniqueness::GoodEnough,
+            opt_uniqueness: None,
             opt_omit_ditto: self.opt_omit_ditto,
             requested_utc_offset: self.requested_utc_offset,
             exec_mode: ExecMode::Display,

@@ -20,7 +20,7 @@ use std::{collections::BTreeMap, ops::Deref};
 
 use rayon::prelude::*;
 
-use crate::config::generate::{ListSnapsFilters, ListSnapsOfType, Uniqueness};
+use crate::config::generate::{ListSnapsFilters, ListSnapsOfType};
 use crate::data::paths::PathData;
 use crate::lookup::versions::MostProximateAndOptAlts;
 use crate::parse::aliases::FilesystemType;
@@ -87,7 +87,7 @@ impl SnapNameMap {
                     Some(mode_filters)
                         if matches!(mode_filters.type_filter, ListSnapsOfType::Unique) =>
                     {
-                        search_bundle.get_unique_versions(&Uniqueness::GoodEnough)
+                        search_bundle.get_unique_versions(&None)
                     }
                     _ => search_bundle.get_all_versions().collect(),
                 })
