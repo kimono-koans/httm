@@ -354,7 +354,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
             })
     }
 
-    pub fn get_unique_versions(&self, is_unique: &Uniqueness) -> Vec<PathData> {
+    pub fn get_unique_versions(&self, uniqueness: &Uniqueness) -> Vec<PathData> {
         // get the DirEntry for our snapshot path which will have all our possible
         // snapshots, like so: .zfs/snapshots/<some snap name>/
         //
@@ -362,7 +362,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
 
         let iter = self.get_all_versions();
 
-        let sorted_versions: Vec<PathData> = match is_unique {
+        let sorted_versions: Vec<PathData> = match uniqueness {
             Uniqueness::AbsolutelyUnique => {
                 let versions: BTreeMap<CompareFiles, PathData> = iter
                     .filter_map(|pathdata| {
