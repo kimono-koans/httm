@@ -25,7 +25,9 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use once_cell::sync::OnceCell;
 use rayon::prelude::*;
+use simd_adler32::Adler32;
 
 use crate::data::paths::PathData;
 use crate::data::paths::PathMetadata;
@@ -371,6 +373,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
                                 CompareFiles {
                                     metadata,
                                     opt_path: Some(pathdata.path_buf.clone()),
+                                    hash: OnceCell::new(),
                                 },
                                 pathdata,
                             )
@@ -388,6 +391,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
                                 CompareFiles {
                                     metadata,
                                     opt_path: None,
+                                    hash: OnceCell::new(),
                                 },
                                 pathdata,
                             )
@@ -416,6 +420,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
 struct CompareFiles {
     metadata: PathMetadata,
     opt_path: Option<PathBuf>,
+    hash: OnceCell<u32>,
 }
 
 impl PartialOrd for CompareFiles {
@@ -454,6 +459,9 @@ impl CompareFiles {
     fn is_same_file(&self, other: &Self) -> HttmResult<bool> {
         const IN_BUFFER_SIZE: usize = 65_536;
 
+        let mut self_adler = Adler32::new();
+        let mut other_adler = Adler32::new();
+
         let self_file = File::open(self.opt_path.as_ref().unwrap())?;
         let other_file = File::open(other.opt_path.as_ref().unwrap())?;
 
@@ -464,19 +472,43 @@ impl CompareFiles {
         let mut other_bytes_buffer = Vec::with_capacity(IN_BUFFER_SIZE);
 
         loop {
-            self_bytes_buffer = self_buffer.fill_buf()?.to_vec();
-            self_buffer.consume(self_bytes_buffer.len());
+            rayon::join(
+                || {
+                    if self.hash.get().is_none() {
+                        if let Ok(chunk) = self_buffer.fill_buf() {
+                            self_bytes_buffer = chunk.to_vec();
+                            self_buffer.consume(self_bytes_buffer.len());
+                            self_adler.write(&self_bytes_buffer);
+                        }
+                    }
+                },
+                || {
+                    if other.hash.get().is_none() {
+                        if let Ok(chunk) = other_buffer.fill_buf() {
+                            other_bytes_buffer = chunk.to_vec();
+                            other_buffer.consume(other_bytes_buffer.len());
+                            other_adler.write(&other_bytes_buffer);
+                        }
+                    }
+                },
+            );
 
-            other_bytes_buffer = other_buffer.fill_buf()?.to_vec();
-            other_buffer.consume(other_bytes_buffer.len());
+            if self.hash.get().is_some() && other.hash.get().is_some() {
+                break;
+            }
 
             if self_bytes_buffer.is_empty() || other_bytes_buffer.is_empty() {
-                return Ok(true);
+                break;
             }
+        }
 
-            if self_bytes_buffer != other_bytes_buffer {
-                return Ok(false);
-            }
+        let self_hash = self.hash.get_or_init(|| self_adler.finish());
+        let other_hash = other.hash.get_or_init(|| other_adler.finish());
+
+        if self_hash == other_hash {
+            Ok(true)
+        } else {
+            Ok(false)
         }
     }
 }

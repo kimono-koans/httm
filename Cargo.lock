@@ -485,6 +485,7 @@ dependencies = [
  "rayon",
  "serde",
  "serde_json",
+ "simd-adler32",
  "skim",
  "terminal_size 0.2.3",
  "time 0.3.17",
@@ -912,6 +913,12 @@ dependencies = [
  "ryu",
  "serde",
 ]
+
+[[package]]
+name = "simd-adler32"
+version = "0.3.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "14a5df39617d7c8558154693a1bb8157a4aab8179209540cc0b10e5dc24e0b18"
 
 [[package]]
 name = "skim"
