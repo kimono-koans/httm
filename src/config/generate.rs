@@ -227,15 +227,15 @@ fn parse_args() -> ArgMatches {
                 .long("unique")
                 .visible_aliases(&["uniqueness"])
                 .takes_value(true)
-                .default_missing_value("absolute")
-                .possible_values(["default", "good-enough", "all", "everything", "not-unique", "absolute"])
+                .default_missing_value("strict")
+                .possible_values(["no-filter", "strict"])
                 .min_values(0)
                 .require_equals(true)
-                .help("comparing files solely on the basis of size and modify time (the \"default\" behavior) may return what appear to be \"false positives\", in the sense that, \
-                modify time (and change time for that matter) is/are not a precise measure of whether a file has actually changed.  \
-                A program might overwrite a file with the same or same sized contents, for instance, a package manager, or a user can simply update the modify time via 'touch'.  \
-                The \"absolute\" option can obviously can be an expensive operation, as the files need to be read back and compared, and should probably only be used for smaller files, \
-                and will not be shown in Interactive browse mode.  The \"all\" option dumps all snapshot versions.")
+                .help("comparing file versions solely on the basis of size and modify time (the default behavior) may return what appear to be \"false positives\", \
+                in the sense that, modify time (and change time for that matter) is/are not a precise measure of whether a file has actually changed.  \
+                A program might overwrite a file with the same or same sized contents, or a user can simply update the modify time via 'touch'.  \
+                If this flag is specified, the \"strict\" option is enabled.  This option can be an expensive operation, as the file versions need to be read back and compared, and should probably only be used for smaller files.  \
+                The \"strict\" option is not shown in Interactive browse mode.  The \"no-filter\" option dumps all snapshot versions, and no attempt is made to determine if the file versions are distinct.")
                 .display_order(9)
         )
         .arg(
@@ -537,9 +537,9 @@ impl Config {
 
         // ["default", "good-enough", "all", "absolute"]
         let opt_uniqueness = match matches.value_of("UNIQUENESS") {
-            Some("absolute") => Some(Uniqueness::AbsolutelyUnique),
-            Some("all" | "everything" | "not-unique") => Some(Uniqueness::NoFilter),
-            Some("default" | "good-enough") | _ => None,
+            Some("no-filter") => Some(Uniqueness::NoFilter),
+            Some("strict" | _) => Some(Uniqueness::AbsolutelyUnique),
+            None => None,
         };
 
         let mut print_mode = if matches.is_present("ZEROS") {

@@ -356,6 +356,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
             })
     }
 
+    #[allow(clippy::mutable_key_type)]
     pub fn get_unique_versions(&self, uniqueness: &Option<Uniqueness>) -> Vec<PathData> {
         // get the DirEntry for our snapshot path which will have all our possible
         // snapshots, like so: .zfs/snapshots/<some snap name>/
@@ -372,7 +373,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
                             (
                                 CompareFiles {
                                     metadata,
-                                    extra: Some(AbsoluteExtra {
+                                    extra: Some(CompareFilesExtra {
                                         hash: OnceCell::new(),
                                         path: pathdata.path_buf.clone(),
                                     }),
@@ -420,11 +421,11 @@ impl<'a> RelativePathAndSnapMounts<'a> {
 #[derive(Eq, PartialEq)]
 struct CompareFiles {
     metadata: PathMetadata,
-    extra: Option<AbsoluteExtra>,
+    extra: Option<CompareFilesExtra>,
 }
 
 #[derive(Eq, PartialEq)]
-struct AbsoluteExtra {
+struct CompareFilesExtra {
     path: PathBuf,
     hash: OnceCell<u32>,
 }
