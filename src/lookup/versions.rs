@@ -478,6 +478,12 @@ impl CompareFiles {
         let mut other_bytes_buffer = Vec::with_capacity(IN_BUFFER_SIZE);
 
         loop {
+            if self.extra.as_ref().unwrap().hash.get().is_some()
+                && other.extra.as_ref().unwrap().hash.get().is_some()
+            {
+                break;
+            }
+
             if self.extra.as_ref().unwrap().hash.get().is_none() {
                 if let Ok(chunk) = self_buffer.fill_buf() {
                     self_bytes_buffer = chunk.to_vec();
@@ -494,13 +500,7 @@ impl CompareFiles {
                 }
             }
 
-            if self.extra.as_ref().unwrap().hash.get().is_some()
-                && other.extra.as_ref().unwrap().hash.get().is_some()
-            {
-                break;
-            }
-
-            if self_bytes_buffer.is_empty() || other_bytes_buffer.is_empty() {
+            if self_bytes_buffer.is_empty() && other_bytes_buffer.is_empty() {
                 break;
             }
         }
