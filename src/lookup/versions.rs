@@ -31,7 +31,7 @@ use crate::data::paths::PathData;
 use crate::data::paths::PathMetadata;
 use crate::library::results::{HttmError, HttmResult};
 use crate::{
-    config::generate::{BulkExclusion, Config, LastSnapMode},
+    config::generate::{BulkExclusion, Config, LastSnapMode, Uniqueness},
     GLOBAL_CONFIG,
 };
 
@@ -71,7 +71,7 @@ impl DerefMut for VersionsMap {
 
 impl VersionsMap {
     pub fn new(config: &Config, path_set: &[PathData]) -> HttmResult<VersionsMap> {
-        let mut versions_map = Self::exec(path_set);
+        let mut versions_map = Self::exec(config, path_set);
 
         // check if all files (snap and live) do not exist, if this is true, then user probably messed up
         // and entered a file that never existed (that is, perhaps a wrong file name)?
@@ -99,7 +99,7 @@ impl VersionsMap {
         Ok(versions_map)
     }
 
-    fn exec(path_set: &[PathData]) -> Self {
+    fn exec(config: &Config, path_set: &[PathData]) -> Self {
         // create vec of all local and replicated backups at once
         let snaps_selected_for_search = GLOBAL_CONFIG
             .dataset_collection
@@ -116,7 +116,9 @@ impl VersionsMap {
                         MostProximateAndOptAlts::get_search_bundles(datasets_of_interest, pathdata)
                     })
                     .flatten()
-                    .flat_map(|search_bundle| search_bundle.get_unique_versions())
+                    .flat_map(|search_bundle| {
+                        search_bundle.get_unique_versions(&config.opt_strictly_unique)
+                    })
                     .collect();
                 (pathdata.clone(), snaps)
             })
@@ -352,33 +354,57 @@ impl<'a> RelativePathAndSnapMounts<'a> {
             })
     }
 
-    pub fn get_unique_versions(&self) -> Vec<PathData> {
+    pub fn get_unique_versions(&self, is_unique: &Uniqueness) -> Vec<PathData> {
         // get the DirEntry for our snapshot path which will have all our possible
         // snapshots, like so: .zfs/snapshots/<some snap name>/
         //
         // BTreeMap will then remove duplicates with the same system modify time and size/file len
-        let unique_versions: BTreeMap<ComparisonData, PathData> = self
-            .get_all_versions()
-            .filter_map(|pathdata| {
-                pathdata.metadata.map(|metadata| {
-                    (
-                        ComparisonData {
-                            metadata,
-                            path: pathdata.path_buf.clone(),
-                        },
-                        pathdata,
-                    )
-                })
-            })
-            .collect();
 
-        let sorted_versions: Vec<PathData> = unique_versions.into_values().collect();
+        let iter = self.get_all_versions();
+
+        let sorted_versions: Vec<PathData> = match is_unique {
+            Uniqueness::AbsolutelyUnique => {
+                let versions: BTreeMap<CompareFiles, PathData> = iter
+                    .filter_map(|pathdata| {
+                        pathdata.metadata.map(|metadata| {
+                            (
+                                CompareFiles {
+                                    metadata,
+                                    opt_path: Some(pathdata.path_buf.clone()),
+                                },
+                                pathdata,
+                            )
+                        })
+                    })
+                    .collect();
+
+                versions.into_values().collect()
+            }
+            Uniqueness::GoodEnough => {
+                let versions: BTreeMap<CompareFiles, PathData> = iter
+                    .filter_map(|pathdata| {
+                        pathdata.metadata.map(|metadata| {
+                            (
+                                CompareFiles {
+                                    metadata,
+                                    opt_path: None,
+                                },
+                                pathdata,
+                            )
+                        })
+                    })
+                    .collect();
+
+                versions.into_values().collect()
+            }
+            Uniqueness::NoFilter => iter.collect(),
+        };
 
         sorted_versions
     }
 
     pub fn get_last_version(&self) -> Option<PathData> {
-        let mut sorted_versions = self.get_unique_versions();
+        let mut sorted_versions = self.get_unique_versions(&Uniqueness::GoodEnough);
 
         let res: Option<PathData> = sorted_versions.pop();
 
@@ -387,29 +413,32 @@ impl<'a> RelativePathAndSnapMounts<'a> {
 }
 
 #[derive(Eq, PartialEq)]
-struct ComparisonData {
+struct CompareFiles {
     metadata: PathMetadata,
-    path: PathBuf,
+    opt_path: Option<PathBuf>,
 }
 
-impl PartialOrd for ComparisonData {
+impl PartialOrd for CompareFiles {
     #[inline]
-    fn partial_cmp(&self, other: &ComparisonData) -> Option<Ordering> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl Ord for ComparisonData {
+impl Ord for CompareFiles {
     #[inline]
-    fn cmp(&self, other: &ComparisonData) -> Ordering {
+    fn cmp(&self, other: &Self) -> Ordering {
         if self.metadata.modify_time == other.metadata.modify_time {
             return self.metadata.size.cmp(&other.metadata.size);
         }
 
         // if files, differ re mtime, but have same size, we test by bytes whether the same
-        if self.metadata.size == other.metadata.size {
-            if let Ok(same_file) = self.is_same_file(other) {
-                if same_file {
+        if self.opt_path.is_some()
+            && other.opt_path.is_some()
+            && self.metadata.size == other.metadata.size
+        {
+            if let Ok(is_same_file) = self.is_same_file(other) {
+                if is_same_file {
                     return Ordering::Equal;
                 }
             }
@@ -419,14 +448,14 @@ impl Ord for ComparisonData {
     }
 }
 
-impl ComparisonData {
+impl CompareFiles {
     #[inline]
     #[allow(unused_assignments)]
-    fn is_same_file(&self, other: &ComparisonData) -> HttmResult<bool> {
+    fn is_same_file(&self, other: &Self) -> HttmResult<bool> {
         const IN_BUFFER_SIZE: usize = 65_536;
 
-        let self_file = File::open(&self.path)?;
-        let other_file = File::open(&other.path)?;
+        let self_file = File::open(self.opt_path.as_ref().unwrap())?;
+        let other_file = File::open(other.opt_path.as_ref().unwrap())?;
 
         let mut self_buffer = BufReader::with_capacity(IN_BUFFER_SIZE, self_file);
         let mut other_buffer = BufReader::with_capacity(IN_BUFFER_SIZE, other_file);

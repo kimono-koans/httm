@@ -51,6 +51,13 @@ pub enum BulkExclusion {
     NoSnap,
 }
 
+#[derive(Debug, Clone)]
+pub enum Uniqueness {
+    AbsolutelyUnique,
+    GoodEnough,
+    NoFilter,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MountDisplay {
     Target,
@@ -217,14 +224,18 @@ fn parse_args() -> ArgMatches {
                 .display_order(8)
         )
         .arg(
-            Arg::new("STRICTLY_UNIQUE")
-                .long("strict")
-                .visible_aliases(&["only-unique", "strictly-unique"])
-                .help("determine if files with distinct modify times, but which are same size, have the same file contents.  \
-                Comparing files solely on the basis of size and modify time may return what appear to be \"false positives\", in the sense that, \
+            Arg::new("UNIQUENESS")
+                .long("unique")
+                .takes_value(true)
+                .default_missing_value("default ")
+                .possible_values(["default", "good-enough", "all", "absolute"])
+                .min_values(0)
+                .require_equals(true)
+                .help("comparing files solely on the basis of size and modify time (the \"default\" behavior) may return what appear to be \"false positives\", in the sense that, \
                 modify time (and change time for that matter) is/are not a precise measure of whether a file has actually changed.  \
                 A program might overwrite a file with the same or same sized contents, for instance, a package manager, or a user can simply update the modify time via 'touch'.  \
-                This is obviously can be an expensive operation, as the files need to be read back and compared, and should probably only be used for smaller files.")
+                The \"absolute\" option can obviously can be an expensive operation, as the files need to be read back and compared, and should probably only be used for smaller files, \
+                and will not be shown in Interactive browse mode.  The \"all\" option dumps all snapshot versions.")
                 .display_order(9)
         )
         .arg(
@@ -485,7 +496,7 @@ pub struct Config {
     pub opt_omit_ditto: bool,
     pub opt_no_hidden: bool,
     pub opt_json: bool,
-    pub opt_strictly_unique: bool,
+    pub opt_strictly_unique: Uniqueness,
     pub opt_bulk_exclusion: Option<BulkExclusion>,
     pub opt_last_snap: Option<LastSnapMode>,
     pub opt_preview: Option<String>,
@@ -523,7 +534,19 @@ impl Config {
         };
 
         let opt_json = matches.is_present("JSON");
-        let opt_strictly_unique = matches.is_present("STRICTLY_UNIQUE");
+
+        // ["default", "good-enough", "all", "absolute"]
+        let opt_strictly_unique = match matches.value_of("UNIQUENESS") {
+            Some("absolute") => Uniqueness::AbsolutelyUnique,
+            Some("all") => Uniqueness::NoFilter,
+            Some("default" | "good-enough" | _) | None => Uniqueness::GoodEnough,
+        };
+
+        if matches.is_present("STRICTLY_UNIQUE") {
+            Uniqueness::AbsolutelyUnique
+        } else {
+            Uniqueness::GoodEnough
+        };
 
         let mut print_mode = if matches.is_present("ZEROS") {
             PrintMode::RawZero
@@ -979,7 +1002,7 @@ impl Config {
             opt_last_snap: None,
             opt_preview: None,
             opt_deleted_mode: None,
-            opt_strictly_unique: self.opt_strictly_unique,
+            opt_strictly_unique: Uniqueness::GoodEnough,
             opt_omit_ditto: self.opt_omit_ditto,
             requested_utc_offset: self.requested_utc_offset,
             exec_mode: ExecMode::Display,
