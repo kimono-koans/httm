@@ -373,7 +373,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
                                 CompareFiles {
                                     metadata,
                                     opt_path: Some(pathdata.path_buf.clone()),
-                                    hash: OnceCell::new(),
+                                    hash: Some(OnceCell::new()),
                                 },
                                 pathdata,
                             )
@@ -391,7 +391,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
                                 CompareFiles {
                                     metadata,
                                     opt_path: None,
-                                    hash: OnceCell::new(),
+                                    hash: None,
                                 },
                                 pathdata,
                             )
@@ -420,7 +420,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
 struct CompareFiles {
     metadata: PathMetadata,
     opt_path: Option<PathBuf>,
-    hash: OnceCell<u32>,
+    hash: Option<OnceCell<u32>>,
 }
 
 impl PartialOrd for CompareFiles {
@@ -439,8 +439,9 @@ impl Ord for CompareFiles {
 
         // if files, differ re mtime, but have same size, we test by bytes whether the same
         if self.opt_path.is_some()
-            && other.opt_path.is_some()
-            && self.metadata.size == other.metadata.size
+        && other.opt_path.is_some()
+        && other.hash.is_some()
+        && self.metadata.size == other.metadata.size
         {
             if let Ok(is_same_file) = self.is_same_file(other) {
                 if is_same_file {
@@ -472,7 +473,7 @@ impl CompareFiles {
         let mut other_bytes_buffer = Vec::with_capacity(IN_BUFFER_SIZE);
 
         loop {
-            if self.hash.get().is_none() {
+            if self.hash.as_ref().unwrap().get().is_none() {
                 if let Ok(chunk) = self_buffer.fill_buf() {
                     self_bytes_buffer = chunk.to_vec();
                     self_buffer.consume(self_bytes_buffer.len());
@@ -480,7 +481,7 @@ impl CompareFiles {
                 }
             }
 
-            if other.hash.get().is_none() {
+            if other.hash.as_ref().unwrap().get().is_none() {
                 if let Ok(chunk) = other_buffer.fill_buf() {
                     other_bytes_buffer = chunk.to_vec();
                     other_buffer.consume(other_bytes_buffer.len());
@@ -488,7 +489,7 @@ impl CompareFiles {
                 }
             }
 
-            if self.hash.get().is_some() && other.hash.get().is_some() {
+            if self.hash.as_ref().unwrap().get().is_some() && other.hash.as_ref().unwrap().get().is_some() {
                 break;
             }
 
@@ -497,8 +498,8 @@ impl CompareFiles {
             }
         }
 
-        let self_hash = self.hash.get_or_init(|| self_adler.finish());
-        let other_hash = other.hash.get_or_init(|| other_adler.finish());
+        let self_hash = self.hash.as_ref().unwrap().get_or_init(|| self_adler.finish());
+        let other_hash = other.hash.as_ref().unwrap().get_or_init(|| other_adler.finish());
 
         if self_hash == other_hash {
             Ok(true)
