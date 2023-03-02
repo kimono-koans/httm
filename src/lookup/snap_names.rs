@@ -87,7 +87,7 @@ impl SnapNameMap {
                     Some(mode_filters)
                         if matches!(mode_filters.type_filter, ListSnapsOfType::Unique) =>
                     {
-                        search_bundle.get_unique_versions(&None)
+                        search_bundle.get_unique_versions(&GLOBAL_CONFIG.opt_uniqueness)
                     }
                     _ => search_bundle.get_all_versions().collect(),
                 })
