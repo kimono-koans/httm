@@ -29,11 +29,11 @@ use once_cell::sync::OnceCell;
 use rayon::prelude::*;
 use simd_adler32::Adler32;
 
-use crate::data::paths::PathData;
 use crate::data::paths::PathMetadata;
 use crate::library::results::{HttmError, HttmResult};
+use crate::{config::generate::ListSnapsOfType, data::paths::PathData};
 use crate::{
-    config::generate::{BulkExclusion, Config, LastSnapMode, Uniqueness},
+    config::generate::{BulkExclusion, Config, LastSnapMode},
     GLOBAL_CONFIG,
 };
 
@@ -118,9 +118,7 @@ impl VersionsMap {
                         MostProximateAndOptAlts::get_search_bundles(datasets_of_interest, pathdata)
                     })
                     .flatten()
-                    .flat_map(|search_bundle| {
-                        search_bundle.get_unique_versions(&config.opt_uniqueness)
-                    })
+                    .flat_map(|search_bundle| search_bundle.get_unique_versions(&config.uniqueness))
                     .collect();
                 (pathdata.clone(), snaps)
             })
@@ -357,7 +355,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
     }
 
     #[allow(clippy::mutable_key_type)]
-    pub fn get_unique_versions(&self, uniqueness: &Option<Uniqueness>) -> Vec<PathData> {
+    pub fn get_unique_versions(&self, uniqueness: &ListSnapsOfType) -> Vec<PathData> {
         // get the DirEntry for our snapshot path which will have all our possible
         // snapshots, like so: .zfs/snapshots/<some snap name>/
         //
@@ -366,7 +364,14 @@ impl<'a> RelativePathAndSnapMounts<'a> {
         let iter = self.get_all_versions();
 
         let sorted_versions: Vec<PathData> = match uniqueness {
-            Some(Uniqueness::AbsolutelyUnique) => {
+            ListSnapsOfType::All => {
+                let mut versions: Vec<PathData> = iter.collect();
+
+                versions.sort_unstable();
+
+                versions
+            }
+            ListSnapsOfType::UniqueContents => {
                 let versions: BTreeMap<CompareFiles, PathData> = iter
                     .filter_map(|pathdata| {
                         pathdata.metadata.map(|metadata| {
@@ -386,8 +391,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
 
                 versions.into_values().collect()
             }
-            Some(Uniqueness::NoFilter) => iter.collect(),
-            None => {
+            ListSnapsOfType::UniqueMetadata => {
                 let versions: BTreeMap<CompareFiles, PathData> = iter
                     .filter_map(|pathdata| {
                         pathdata.metadata.map(|metadata| {
@@ -410,7 +414,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
     }
 
     pub fn get_last_version(&self) -> Option<PathData> {
-        let mut sorted_versions = self.get_unique_versions(&None);
+        let mut sorted_versions = self.get_unique_versions(&ListSnapsOfType::All);
 
         let res: Option<PathData> = sorted_versions.pop();
 

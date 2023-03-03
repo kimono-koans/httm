@@ -51,12 +51,6 @@ pub enum BulkExclusion {
     NoSnap,
 }
 
-#[derive(Debug, Clone)]
-pub enum Uniqueness {
-    AbsolutelyUnique,
-    NoFilter,
-}
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MountDisplay {
     Target,
@@ -96,13 +90,13 @@ pub enum DeletedMode {
 #[derive(Debug, Clone)]
 pub enum ListSnapsOfType {
     All,
-    Unique,
+    UniqueMetadata,
+    UniqueContents,
 }
 
 #[derive(Debug, Clone)]
 pub struct ListSnapsFilters {
     pub select_mode: bool,
-    pub type_filter: ListSnapsOfType,
     pub omit_num_snaps: usize,
     pub name_filters: Option<Vec<String>>,
 }
@@ -224,18 +218,19 @@ fn parse_args() -> ArgMatches {
         )
         .arg(
             Arg::new("UNIQUENESS")
-                .long("unique")
-                .visible_aliases(&["uniqueness"])
+                .long("uniqueness")
+                .visible_aliases(&["unique"])
                 .takes_value(true)
-                .default_missing_value("strict")
-                .possible_values(["no-filter", "strict"])
+                .default_missing_value("contents")
+                .possible_values(["all", "metadata", "contents"])
                 .min_values(0)
                 .require_equals(true)
-                .help("comparing file versions solely on the basis of size and modify time (the default behavior) may return what appear to be \"false positives\", \
-                in the sense that, modify time (and change time for that matter) is/are not a precise measure of whether a file has actually changed.  \
-                A program might overwrite a file with the same or same sized contents, or a user can simply update the modify time via 'touch'.  \
-                If this flag is specified, the \"strict\" option is enabled.  This option can be an expensive operation, as the file versions need to be read back and compared, and should probably only be used for smaller files.  \
-                The \"strict\" option is not shown in Interactive browse mode.  The \"no-filter\" option dumps all snapshot versions, and no attempt is made to determine if the file versions are distinct.")
+                .help("comparing file versions solely on the basis of size and modify time (the default \"metadata\" behavior) may return what appear to be \"false positives\", \
+                in the sense that, modify time is not a precise measure of whether a file has actually changed.  A program might overwrite a file with the same contents, 
+                or a user can simply update the modify time via 'touch'.  If only this flag is specified, the \"contents\" option overrides the default \"metadata\" behavior.  \
+                The \"contents\" option can be an expensive, as the file versions need to be read back and compared, and should probably only be used for smaller files.  \
+                Given how expensive this operation can be, \"contents\" option is not shown in Interactive browse mode.  \
+                The \"all\" option dumps all snapshot versions, and no attempt is made to determine if the file versions are distinct.")
                 .display_order(9)
         )
         .arg(
@@ -270,12 +265,10 @@ fn parse_args() -> ArgMatches {
                 .multiple_values(false)
                 .default_missing_value("all")
                 .help("display snapshots names for a file.  This argument optionally takes a value.  \
-                By default, this argument will return \"all\" available snapshot names.  \
-                However, the user may also request only \"unique\" snapshots.  \
-                And by appending a comma, \",\" and a number, the user may omit last \"n\" snapshots from any list.  \
-                By appending successive commas, this argument filters those snapshots which contain the specified pattern/s.  \
-                A value of \"unique,5,prep_Apt\" would return the snapshot names of only the last 5 (at most) unique snapshot versions which contain \"prep_Apt\".  \
-                The value \"native\" will restrict selection to only httm native snapshot suffix values, like \"httmSnapFileMount\" and \"ounceSnapFileMount\".  \
+                By default, this argument will return all available snapshot names.  User may limit type of snapshots returned via the UNIQUENESS flag.  \
+                The user may also omit the last \"n\" snapshots from any list.  By appending a comma, this argument also filters those snapshots which contain the specified pattern/s.  \
+                A value of \"5,prep_Apt\" would return the snapshot names of only the last 5 (at most) of all snapshot versions which contain \"prep_Apt\".  \
+                The value \"native\" will restrict selection to only 'httm' native snapshot suffix values, like \"httmSnapFileMount\" and \"ounceSnapFileMount\".  \
                 Note: This is a ZFS only option.")
                 .conflicts_with_all(&["BROWSE", "RESTORE"])
                 .display_order(12)
@@ -496,7 +489,7 @@ pub struct Config {
     pub opt_omit_ditto: bool,
     pub opt_no_hidden: bool,
     pub opt_json: bool,
-    pub opt_uniqueness: Option<Uniqueness>,
+    pub uniqueness: ListSnapsOfType,
     pub opt_bulk_exclusion: Option<BulkExclusion>,
     pub opt_last_snap: Option<LastSnapMode>,
     pub opt_preview: Option<String>,
@@ -535,11 +528,10 @@ impl Config {
 
         let opt_json = matches.is_present("JSON");
 
-        // ["default", "good-enough", "all", "absolute"]
-        let opt_uniqueness = match matches.value_of("UNIQUENESS") {
-            Some("no-filter") => Some(Uniqueness::NoFilter),
-            Some("strict" | _) => Some(Uniqueness::AbsolutelyUnique),
-            None => None,
+        let uniqueness = match matches.value_of("UNIQUENESS") {
+            Some("all") => ListSnapsOfType::All,
+            Some("contents") => ListSnapsOfType::UniqueContents,
+            Some("metadata" | _) | None => ListSnapsOfType::UniqueMetadata,
         };
 
         let mut print_mode = if matches.is_present("ZEROS") {
@@ -780,7 +772,7 @@ impl Config {
             opt_last_snap,
             opt_preview,
             opt_json,
-            opt_uniqueness,
+            uniqueness,
             requested_utc_offset,
             exec_mode,
             print_mode,
@@ -933,18 +925,6 @@ impl Config {
     pub fn get_snap_filters(values: &str, select_mode: bool) -> HttmResult<ListSnapsFilters> {
         let mut raw = values.trim_end().split(',');
 
-        let type_filter = if let Some(value) = raw.next() {
-            if value == "all" {
-                ListSnapsOfType::All
-            } else if value == "unique" {
-                ListSnapsOfType::Unique
-            } else {
-                return Err(HttmError::new("Invalid snap filter mode given. Quitting.").into());
-            }
-        } else {
-            return Err(HttmError::new("Invalid snap filter mode given. Quitting.").into());
-        };
-
         let omit_num_snaps = if let Some(value) = raw.next() {
             if let Ok(number) = value.parse::<usize>() {
                 number
@@ -974,7 +954,6 @@ impl Config {
 
         Ok(ListSnapsFilters {
             select_mode,
-            type_filter,
             omit_num_snaps,
             name_filters,
         })
@@ -996,7 +975,7 @@ impl Config {
             opt_last_snap: None,
             opt_preview: None,
             opt_deleted_mode: None,
-            opt_uniqueness: None,
+            uniqueness: ListSnapsOfType::UniqueMetadata,
             opt_omit_ditto: self.opt_omit_ditto,
             requested_utc_offset: self.requested_utc_offset,
             exec_mode: ExecMode::Display,
