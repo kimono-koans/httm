@@ -371,7 +371,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
                     let a_md = a.get_md_infallible();
                     let b_md = b.get_md_infallible();
 
-                    ((a_md.modify_time, a_md.size)).cmp(&(b_md.modify_time, b_md.size))
+                    (a_md.modify_time, a_md.size).cmp(&(b_md.modify_time, b_md.size))
                 });
 
                 versions

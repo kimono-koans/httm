@@ -662,10 +662,16 @@ impl Config {
             };
 
         let opt_snap_mode_filters = if matches.is_present("LIST_SNAPS") {
+            // allow selection of snaps to purge in purge mode
             let select_mode = matches!(opt_interactive_mode, Some(InteractiveMode::Select));
 
             if !matches.is_present("PURGE") && select_mode {
                 eprintln!("Select mode for listed snapshots only available in PURGE mode.")
+            }
+
+            // default to listing all snaps in list snaps mode if unset
+            if !matches.is_present("UNIQUENESS") {
+                uniqueness = ListSnapsOfType::All;
             }
 
             if let Some(values) = matches.value_of("LIST_SNAPS") {
