@@ -528,7 +528,7 @@ impl Config {
 
         let opt_json = matches.is_present("JSON");
 
-        let uniqueness = match matches.value_of("UNIQUENESS") {
+        let mut uniqueness = match matches.value_of("UNIQUENESS") {
             Some("all") => ListSnapsOfType::All,
             Some("contents") => ListSnapsOfType::UniqueContents,
             Some("metadata" | _) | None => ListSnapsOfType::UniqueMetadata,
@@ -664,6 +664,8 @@ impl Config {
 
         let opt_snap_mode_filters = if let Some(values) = matches.value_of("LIST_SNAPS") {
             let select_mode = matches!(opt_interactive_mode, Some(InteractiveMode::Select));
+
+            uniqueness = ListSnapsOfType::All;
 
             if !matches.is_present("PURGE") && select_mode {
                 eprintln!("Select mode for listed snapshots only available in PURGE mode.")
@@ -926,7 +928,9 @@ impl Config {
         let mut raw = values.trim_end().split(',');
 
         let omit_num_snaps = if let Some(value) = raw.next() {
-            if let Ok(number) = value.parse::<usize>() {
+            if value.is_empty() {
+                0usize
+            } else if let Ok(number) = value.parse::<usize>() {
                 number
             } else {
                 return Err(HttmError::new("Invalid max snaps given. Quitting.").into());
