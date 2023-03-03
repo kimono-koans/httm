@@ -439,9 +439,7 @@ impl Ord for CompareVersionsContainer {
         let other_md = other.pathdata.get_md_infallible();
 
         if self_md.modify_time == other_md.modify_time {
-            return self_md
-                .size
-                .cmp(&other_md.size);
+            return self_md.size.cmp(&other_md.size);
         }
 
         // if files, differ re mtime, but have same size, we test by bytes whether the same
