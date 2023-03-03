@@ -17,7 +17,7 @@
 
 use std::{
     cmp::{Ord, Ordering, PartialOrd},
-    collections::BTreeMap,
+    collections::{BTreeMap, BTreeSet},
     fs::File,
     io::{BufRead, BufReader, ErrorKind},
     ops::Deref,
@@ -29,7 +29,6 @@ use once_cell::sync::OnceCell;
 use rayon::prelude::*;
 use simd_adler32::Adler32;
 
-use crate::data::paths::PathMetadata;
 use crate::library::results::{HttmError, HttmResult};
 use crate::{config::generate::ListSnapsOfType, data::paths::PathData};
 use crate::{
@@ -377,41 +376,34 @@ impl<'a> RelativePathAndSnapMounts<'a> {
                 versions
             }
             ListSnapsOfType::UniqueContents => {
-                let versions: BTreeMap<CompareFiles, PathData> = iter
+                let versions: BTreeSet<CompareVersionsContainer> = iter
                     .filter_map(|pathdata| {
-                        pathdata.metadata.map(|metadata| {
-                            (
-                                CompareFiles {
-                                    metadata,
-                                    extra: Some(CompareFilesExtra {
-                                        hash: OnceCell::new(),
-                                        path: pathdata.path_buf.clone(),
-                                    }),
-                                },
-                                pathdata,
-                            )
+                        pathdata.metadata.map(|_metadata| CompareVersionsContainer {
+                            pathdata,
+                            opt_hash: Some(OnceCell::new()),
                         })
                     })
                     .collect();
 
-                versions.into_values().collect()
+                versions
+                    .into_iter()
+                    .map(PathData::from)
+                    .collect()
             }
             ListSnapsOfType::UniqueMetadata => {
-                let versions: BTreeMap<CompareFiles, PathData> = iter
+                let versions: BTreeSet<CompareVersionsContainer> = iter
                     .filter_map(|pathdata| {
-                        pathdata.metadata.map(|metadata| {
-                            (
-                                CompareFiles {
-                                    metadata,
-                                    extra: None,
-                                },
-                                pathdata,
-                            )
+                        pathdata.metadata.map(|_metadata| CompareVersionsContainer {
+                            pathdata,
+                            opt_hash: None,
                         })
                     })
                     .collect();
 
-                versions.into_values().collect()
+                versions
+                    .into_iter()
+                    .map(PathData::from)
+                    .collect()
             }
         };
 
@@ -428,53 +420,57 @@ impl<'a> RelativePathAndSnapMounts<'a> {
 }
 
 #[derive(Eq, PartialEq)]
-struct CompareFiles {
-    metadata: PathMetadata,
-    extra: Option<CompareFilesExtra>,
+struct CompareVersionsContainer {
+    pathdata: PathData,
+    opt_hash: Option<OnceCell<u32>>,
 }
 
-#[derive(Eq, PartialEq)]
-struct CompareFilesExtra {
-    path: PathBuf,
-    hash: OnceCell<u32>,
+impl From<CompareVersionsContainer> for PathData {
+    fn from(container: CompareVersionsContainer) -> Self {
+        container.pathdata
+    }
 }
 
-impl PartialOrd for CompareFiles {
+impl PartialOrd for CompareVersionsContainer {
     #[inline]
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl Ord for CompareFiles {
+impl Ord for CompareVersionsContainer {
     #[inline]
     fn cmp(&self, other: &Self) -> Ordering {
-        if self.metadata.modify_time == other.metadata.modify_time {
-            return self.metadata.size.cmp(&other.metadata.size);
+        if self.pathdata.get_md_infallible().modify_time
+            == other.pathdata.get_md_infallible().modify_time
+        {
+            return self
+                .pathdata
+                .get_md_infallible()
+                .size
+                .cmp(&other.pathdata.get_md_infallible().size);
         }
 
         // if files, differ re mtime, but have same size, we test by bytes whether the same
-        if self.extra.is_some()
-            && other.extra.is_some()
-            && self.metadata.size == other.metadata.size
+        if self.opt_hash.is_some()
+            && other.opt_hash.is_some()
+            && self.pathdata.get_md_infallible().size == other.pathdata.get_md_infallible().size
         {
-            if let Ok(is_same_file) = self
-                .extra
-                .as_ref()
-                .unwrap()
-                .is_same_file(other.extra.as_ref().unwrap())
-            {
+            if let Ok(is_same_file) = self.is_same_file(other) {
                 if is_same_file {
                     return Ordering::Equal;
                 }
             }
         }
 
-        self.metadata.modify_time.cmp(&other.metadata.modify_time)
+        self.pathdata
+            .get_md_infallible()
+            .modify_time
+            .cmp(&other.pathdata.get_md_infallible().modify_time)
     }
 }
 
-impl CompareFilesExtra {
+impl CompareVersionsContainer {
     #[inline]
     #[allow(unused_assignments)]
     fn is_same_file(&self, other: &Self) -> HttmResult<bool> {
@@ -483,8 +479,8 @@ impl CompareFilesExtra {
         let mut self_adler = Adler32::new();
         let mut other_adler = Adler32::new();
 
-        let self_file = File::open(&self.path)?;
-        let other_file = File::open(&other.path)?;
+        let self_file = File::open(&self.pathdata.path_buf)?;
+        let other_file = File::open(&other.pathdata.path_buf)?;
 
         let mut self_buffer = BufReader::with_capacity(IN_BUFFER_SIZE, self_file);
         let mut other_buffer = BufReader::with_capacity(IN_BUFFER_SIZE, other_file);
@@ -492,12 +488,15 @@ impl CompareFilesExtra {
         let mut self_bytes_buffer = Vec::with_capacity(IN_BUFFER_SIZE);
         let mut other_bytes_buffer = Vec::with_capacity(IN_BUFFER_SIZE);
 
+        let self_hash = self.opt_hash.as_ref().unwrap();
+        let other_hash = other.opt_hash.as_ref().unwrap();
+
         loop {
-            if self.hash.get().is_some() && other.hash.get().is_some() {
+            if self_hash.get().is_some() && other_hash.get().is_some() {
                 break;
             }
 
-            if self.hash.get().is_none() {
+            if self_hash.get().is_none() {
                 if let Ok(chunk) = self_buffer.fill_buf() {
                     self_bytes_buffer = chunk.to_vec();
                     self_buffer.consume(self_bytes_buffer.len());
@@ -505,7 +504,7 @@ impl CompareFilesExtra {
                 }
             }
 
-            if other.hash.get().is_none() {
+            if other_hash.get().is_none() {
                 if let Ok(chunk) = other_buffer.fill_buf() {
                     other_bytes_buffer = chunk.to_vec();
                     other_buffer.consume(other_bytes_buffer.len());
@@ -518,10 +517,10 @@ impl CompareFilesExtra {
             }
         }
 
-        let self_hash = self.hash.get_or_init(|| self_adler.finish());
-        let other_hash = other.hash.get_or_init(|| other_adler.finish());
+        let cmp_self_hash = self_hash.get_or_init(|| self_adler.finish());
+        let cmp_other_hash = other_hash.get_or_init(|| other_adler.finish());
 
-        if self_hash == other_hash {
+        if cmp_self_hash == cmp_other_hash {
             Ok(true)
         } else {
             Ok(false)

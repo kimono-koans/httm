@@ -149,6 +149,7 @@ impl PathData {
         md.modified().unwrap_or(UNIX_EPOCH)
     }
 
+    #[inline]
     pub fn get_md_infallible(&self) -> PathMetadata {
         self.metadata.unwrap_or(PHANTOM_PATH_METADATA)
     }
