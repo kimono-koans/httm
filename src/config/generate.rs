@@ -226,7 +226,7 @@ fn parse_args() -> ArgMatches {
                 .min_values(0)
                 .require_equals(true)
                 .help("comparing file versions solely on the basis of size and modify time (the default \"metadata\" behavior) may return what appear to be \"false positives\", \
-                in the sense that, modify time is not a precise measure of whether a file has actually changed.  A program might overwrite a file with the same contents, 
+                in the sense that, modify time is not a precise measure of whether a file has actually changed.  A program might overwrite a file with the same contents, \
                 or a user can simply update the modify time via 'touch'.  If only this flag is specified, the \"contents\" option overrides the default \"metadata\" behavior.  \
                 The \"contents\" option can be an expensive, as the file versions need to be read back and compared, and should probably only be used for smaller files.  \
                 Given how expensive this operation can be, \"contents\" option is not shown in Interactive browse mode.  \
