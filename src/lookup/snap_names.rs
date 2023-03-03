@@ -151,6 +151,7 @@ impl SnapNameMap {
                                 .into_iter()
                                 .rev()
                                 .skip(mode_filter.omit_num_snaps)
+                                .rev()
                                 .collect(),
                         )
                     })
