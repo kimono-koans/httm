@@ -458,7 +458,12 @@ impl Ord for CompareFiles {
             && other.extra.is_some()
             && self.metadata.size == other.metadata.size
         {
-            if let Ok(is_same_file) = self.is_same_file(other) {
+            if let Ok(is_same_file) = self
+                .extra
+                .as_ref()
+                .unwrap()
+                .is_same_file(other.extra.as_ref().unwrap())
+            {
                 if is_same_file {
                     return Ordering::Equal;
                 }
@@ -469,7 +474,7 @@ impl Ord for CompareFiles {
     }
 }
 
-impl CompareFiles {
+impl CompareFilesExtra {
     #[inline]
     #[allow(unused_assignments)]
     fn is_same_file(&self, other: &Self) -> HttmResult<bool> {
@@ -478,8 +483,8 @@ impl CompareFiles {
         let mut self_adler = Adler32::new();
         let mut other_adler = Adler32::new();
 
-        let self_file = File::open(&self.extra.as_ref().unwrap().path)?;
-        let other_file = File::open(&other.extra.as_ref().unwrap().path)?;
+        let self_file = File::open(&self.path)?;
+        let other_file = File::open(&other.path)?;
 
         let mut self_buffer = BufReader::with_capacity(IN_BUFFER_SIZE, self_file);
         let mut other_buffer = BufReader::with_capacity(IN_BUFFER_SIZE, other_file);
@@ -488,13 +493,11 @@ impl CompareFiles {
         let mut other_bytes_buffer = Vec::with_capacity(IN_BUFFER_SIZE);
 
         loop {
-            if self.extra.as_ref().unwrap().hash.get().is_some()
-                && other.extra.as_ref().unwrap().hash.get().is_some()
-            {
+            if self.hash.get().is_some() && other.hash.get().is_some() {
                 break;
             }
 
-            if self.extra.as_ref().unwrap().hash.get().is_none() {
+            if self.hash.get().is_none() {
                 if let Ok(chunk) = self_buffer.fill_buf() {
                     self_bytes_buffer = chunk.to_vec();
                     self_buffer.consume(self_bytes_buffer.len());
@@ -502,7 +505,7 @@ impl CompareFiles {
                 }
             }
 
-            if other.extra.as_ref().unwrap().hash.get().is_none() {
+            if other.hash.get().is_none() {
                 if let Ok(chunk) = other_buffer.fill_buf() {
                     other_bytes_buffer = chunk.to_vec();
                     other_buffer.consume(other_bytes_buffer.len());
@@ -515,18 +518,8 @@ impl CompareFiles {
             }
         }
 
-        let self_hash = self
-            .extra
-            .as_ref()
-            .unwrap()
-            .hash
-            .get_or_init(|| self_adler.finish());
-        let other_hash = other
-            .extra
-            .as_ref()
-            .unwrap()
-            .hash
-            .get_or_init(|| other_adler.finish());
+        let self_hash = self.hash.get_or_init(|| self_adler.finish());
+        let other_hash = other.hash.get_or_init(|| other_adler.finish());
 
         if self_hash == other_hash {
             Ok(true)
