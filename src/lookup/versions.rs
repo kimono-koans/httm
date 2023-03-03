@@ -439,11 +439,7 @@ impl Ord for CompareVersionsContainer {
         let other_md = other.pathdata.get_md_infallible();
 
         if self_md.modify_time == other_md.modify_time {
-            return self
-                .pathdata
-                .get_md_infallible()
-                .size
-                .cmp(&other.pathdata.get_md_infallible().size);
+            return self_md.size.cmp(&other_md.size);
         }
 
         // if files, differ re mtime, but have same size, we test by bytes whether the same
@@ -463,7 +459,7 @@ impl CompareVersionsContainer {
     #[inline]
     #[allow(unused_assignments)]
     fn is_same_file(&self, other: &Self) -> HttmResult<bool> {
-        const IN_BUFFER_SIZE: usize = 65_536;
+        const IN_BUFFER_SIZE: usize = 131_072;
 
         let mut self_adler = Adler32::new();
         let mut other_adler = Adler32::new();
@@ -474,8 +470,8 @@ impl CompareVersionsContainer {
         let mut self_buffer = BufReader::with_capacity(IN_BUFFER_SIZE, self_file);
         let mut other_buffer = BufReader::with_capacity(IN_BUFFER_SIZE, other_file);
 
-        let mut self_bytes_buffer = Vec::with_capacity(IN_BUFFER_SIZE);
-        let mut other_bytes_buffer = Vec::with_capacity(IN_BUFFER_SIZE);
+        let mut self_bytes_buffer = [0u8; IN_BUFFER_SIZE];
+        let mut other_bytes_buffer = [0u8; IN_BUFFER_SIZE];
 
         let self_hash = self.opt_hash.as_ref().unwrap();
         let other_hash = other.opt_hash.as_ref().unwrap();
@@ -487,7 +483,7 @@ impl CompareVersionsContainer {
 
             if self_hash.get().is_none() {
                 if let Ok(chunk) = self_buffer.fill_buf() {
-                    self_bytes_buffer = chunk.to_vec();
+                    self_bytes_buffer = chunk;
                     self_buffer.consume(self_bytes_buffer.len());
                     self_adler.write(&self_bytes_buffer);
                 }
@@ -495,7 +491,7 @@ impl CompareVersionsContainer {
 
             if other_hash.get().is_none() {
                 if let Ok(chunk) = other_buffer.fill_buf() {
-                    other_bytes_buffer = chunk.to_vec();
+                    other_bytes_buffer = chunk;
                     other_buffer.consume(other_bytes_buffer.len());
                     other_adler.write(&other_bytes_buffer);
                 }
