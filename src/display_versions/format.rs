@@ -68,8 +68,18 @@ impl<'a> VersionsDisplayWrapper<'a> {
 
                         display_set
                             .iter()
-                            .flatten()
-                            .map(|pathdata| format!("{}{delimiter}", pathdata.path_buf.display()))
+                            .enumerate()
+                            .filter(|(idx, _snap_or_live_set)| {
+                                filter_bulk_exclusions(idx, self.config)
+                            })
+                            .map(|(_idx, snap_or_live_set)| {
+                                snap_or_live_set
+                                    .iter()
+                                    .map(|pathdata| {
+                                        format!("{}{delimiter}", pathdata.path_buf.display())
+                                    })
+                                    .collect::<String>()
+                            })
                             .collect()
                     }
                 }
@@ -99,26 +109,24 @@ impl<'a> Deref for DisplaySet<'a> {
     }
 }
 
+#[inline]
+fn filter_bulk_exclusions(idx: &usize, config: &Config) -> bool {
+    let is_snap_set = idx == &0;
+    let is_live_set = idx == &1;
+
+    match config.opt_bulk_exclusion {
+        Some(BulkExclusion::NoLive) if is_live_set => false,
+        Some(BulkExclusion::NoSnap) if is_snap_set => false,
+        _ => true,
+    }
+}
+
 impl<'a> DisplaySet<'a> {
     pub fn format(&self, config: &Config, padding_collection: &PaddingCollection) -> String {
         // get the display buffer for each set snaps and live
         self.iter()
             .enumerate()
-            .filter(|(idx, _snap_or_live_set)| {
-                let is_snap_set = idx == &0;
-                let is_live_set = idx == &1;
-
-                if is_live_set && matches!(&config.opt_bulk_exclusion, Some(BulkExclusion::NoLive))
-                {
-                    return false;
-                }
-
-                if is_snap_set && matches!(config.opt_bulk_exclusion, Some(BulkExclusion::NoSnap)) {
-                    return false;
-                }
-
-                true
-            })
+            .filter(|(idx, _snap_or_live_set)| filter_bulk_exclusions(idx, config))
             .fold(
                 String::new(),
                 |mut display_set_buffer, (idx, snap_or_live_set)| {
