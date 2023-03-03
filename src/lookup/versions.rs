@@ -385,10 +385,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
                     })
                     .collect();
 
-                versions
-                    .into_iter()
-                    .map(PathData::from)
-                    .collect()
+                versions.into_iter().map(PathData::from).collect()
             }
             ListSnapsOfType::UniqueMetadata => {
                 let versions: BTreeSet<CompareVersionsContainer> = iter
@@ -400,10 +397,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
                     })
                     .collect();
 
-                versions
-                    .into_iter()
-                    .map(PathData::from)
-                    .collect()
+                versions.into_iter().map(PathData::from).collect()
             }
         };
 
@@ -441,9 +435,10 @@ impl PartialOrd for CompareVersionsContainer {
 impl Ord for CompareVersionsContainer {
     #[inline]
     fn cmp(&self, other: &Self) -> Ordering {
-        if self.pathdata.get_md_infallible().modify_time
-            == other.pathdata.get_md_infallible().modify_time
-        {
+        let self_md = self.pathdata.get_md_infallible();
+        let other_md = other.pathdata.get_md_infallible();
+
+        if self_md.modify_time == other_md.modify_time {
             return self
                 .pathdata
                 .get_md_infallible()
@@ -452,10 +447,7 @@ impl Ord for CompareVersionsContainer {
         }
 
         // if files, differ re mtime, but have same size, we test by bytes whether the same
-        if self.opt_hash.is_some()
-            && other.opt_hash.is_some()
-            && self.pathdata.get_md_infallible().size == other.pathdata.get_md_infallible().size
-        {
+        if self.opt_hash.is_some() && other.opt_hash.is_some() && self_md.size == other_md.size {
             if let Ok(is_same_file) = self.is_same_file(other) {
                 if is_same_file {
                     return Ordering::Equal;
@@ -463,10 +455,7 @@ impl Ord for CompareVersionsContainer {
             }
         }
 
-        self.pathdata
-            .get_md_infallible()
-            .modify_time
-            .cmp(&other.pathdata.get_md_infallible().modify_time)
+        self_md.modify_time.cmp(&other_md.modify_time)
     }
 }
 
