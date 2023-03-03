@@ -263,7 +263,6 @@ fn parse_args() -> ArgMatches {
                 .min_values(0)
                 .require_equals(true)
                 .multiple_values(false)
-                .default_missing_value("all")
                 .help("display snapshots names for a file.  This argument optionally takes a value.  \
                 By default, this argument will return all available snapshot names.  User may limit type of snapshots returned via the UNIQUENESS flag.  \
                 The user may also omit the last \"n\" snapshots from any list.  By appending a comma, this argument also filters those snapshots which contain the specified pattern/s.  \
@@ -662,16 +661,24 @@ impl Config {
                 None
             };
 
-        let opt_snap_mode_filters = if let Some(values) = matches.value_of("LIST_SNAPS") {
+        let opt_snap_mode_filters = if matches.is_present("LIST_SNAPS") {
             let select_mode = matches!(opt_interactive_mode, Some(InteractiveMode::Select));
 
-            uniqueness = ListSnapsOfType::All;
+            if let Some(values) = matches.value_of("LIST_SNAPS") {
+                uniqueness = ListSnapsOfType::All;
 
-            if !matches.is_present("PURGE") && select_mode {
-                eprintln!("Select mode for listed snapshots only available in PURGE mode.")
+                if !matches.is_present("PURGE") && select_mode {
+                    eprintln!("Select mode for listed snapshots only available in PURGE mode.")
+                }
+
+                Some(Self::get_snap_filters(values, select_mode)?)
+            } else {
+                Some(ListSnapsFilters {
+                    select_mode,
+                    omit_num_snaps: 0usize,
+                    name_filters: None,
+                })
             }
-
-            Some(Self::get_snap_filters(values, select_mode)?)
         } else {
             None
         };
@@ -910,6 +917,7 @@ impl Config {
                     }
                 }
             }
+
             ExecMode::Display
             | ExecMode::SnapFileMount(_)
             | ExecMode::Purge(_)
@@ -928,9 +936,7 @@ impl Config {
         let mut raw = values.trim_end().split(',');
 
         let omit_num_snaps = if let Some(value) = raw.next() {
-            if value.is_empty() {
-                0usize
-            } else if let Ok(number) = value.parse::<usize>() {
+            if let Ok(number) = value.parse::<usize>() {
                 number
             } else {
                 return Err(HttmError::new("Invalid max snaps given. Quitting.").into());
