@@ -84,7 +84,7 @@ impl SnapNameMap {
                 })
                 .flatten()
                 .flat_map(|search_bundle| {
-                    search_bundle.get_unique_versions(&GLOBAL_CONFIG.uniqueness)
+                    search_bundle.get_versions_processed(&GLOBAL_CONFIG.uniqueness)
                 })
                 .collect();
             (pathdata.clone(), snap_versions)

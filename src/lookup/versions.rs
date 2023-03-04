@@ -117,7 +117,9 @@ impl VersionsMap {
                         MostProximateAndOptAlts::get_search_bundles(datasets_of_interest, pathdata)
                     })
                     .flatten()
-                    .flat_map(|search_bundle| search_bundle.get_unique_versions(&config.uniqueness))
+                    .flat_map(|search_bundle| {
+                        search_bundle.get_versions_processed(&config.uniqueness)
+                    })
                     .collect();
                 (pathdata.clone(), snaps)
             })
@@ -322,7 +324,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
         })
     }
 
-    pub fn get_all_versions(&'a self) -> impl ParallelIterator<Item = PathData> + 'a {
+    fn get_versions_unprocessed(&'a self) -> impl ParallelIterator<Item = PathData> + 'a {
         // get the DirEntry for our snapshot path which will have all our possible
         // snapshots, like so: .zfs/snapshots/<some snap name>/
         //
@@ -354,7 +356,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
     }
 
     #[allow(clippy::mutable_key_type)]
-    pub fn get_unique_versions(&self, uniqueness: &ListSnapsOfType) -> Vec<PathData> {
+    pub fn get_versions_processed(&self, uniqueness: &ListSnapsOfType) -> Vec<PathData> {
         // get the DirEntry for our snapshot path which will have all our possible
         // snapshots, like so: .zfs/snapshots/<some snap name>/
         //
@@ -374,7 +376,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
             versions.into_iter().map(PathData::from).collect()
         }
 
-        let all_versions = self.get_all_versions();
+        let all_versions = self.get_versions_unprocessed();
 
         let sorted_versions: Vec<PathData> = match uniqueness {
             ListSnapsOfType::All => {
@@ -401,7 +403,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
     }
 
     pub fn get_last_version(&self) -> Option<PathData> {
-        let mut sorted_versions = self.get_unique_versions(&ListSnapsOfType::All);
+        let mut sorted_versions = self.get_versions_processed(&ListSnapsOfType::All);
 
         let res: Option<PathData> = sorted_versions.pop();
 
