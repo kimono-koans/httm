@@ -391,12 +391,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
 
                 versions
             }
-            ListSnapsOfType::UniqueContents => {
-                into_unique_versions(all_versions, &ListSnapsOfType::UniqueContents)
-            }
-            ListSnapsOfType::UniqueMetadata => {
-                into_unique_versions(all_versions, &ListSnapsOfType::UniqueMetadata)
-            }
+            uniqueness => into_unique_versions(all_versions, uniqueness),
         };
 
         sorted_versions
