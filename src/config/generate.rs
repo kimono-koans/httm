@@ -228,8 +228,8 @@ fn parse_args() -> ArgMatches {
                 .help("comparing file versions solely on the basis of size and modify time (the default \"metadata\" behavior) may return what appear to be \"false positives\", \
                 in the sense that, modify time is not a precise measure of whether a file has actually changed.  A program might overwrite a file with the same contents, \
                 or a user can simply update the modify time via 'touch'.  If only this flag is specified, the \"contents\" option overrides the default \"metadata\" behavior.  \
-                The \"contents\" option can be an expensive, as the file versions need to be read back and compared, and should probably only be used for smaller files.  \
-                Given how expensive this operation can be, \"contents\" option is not shown in Interactive browse mode.  \
+                The \"contents\" option can be expensive, as the file versions need to be read back and compared, and should probably only be used for smaller files.  \
+                Given how expensive this operation can be, \"contents\" option is not shown in Interactive browse mode, but after a selection is made, can be utilized in Select mode.  \
                 The \"all\" option dumps all snapshot versions, and no attempt is made to determine if the file versions are distinct.")
                 .display_order(9)
         )
@@ -527,12 +527,6 @@ impl Config {
 
         let opt_json = matches.is_present("JSON");
 
-        let mut uniqueness = match matches.value_of("UNIQUENESS") {
-            Some("all") => ListSnapsOfType::All,
-            Some("contents") => ListSnapsOfType::UniqueContents,
-            Some("metadata" | _) | None => ListSnapsOfType::UniqueMetadata,
-        };
-
         let mut print_mode = if matches.is_present("ZEROS") {
             PrintMode::RawZero
         } else if matches.is_present("RAW") {
@@ -621,6 +615,12 @@ impl Config {
             Some(InteractiveMode::Browse)
         } else {
             None
+        };
+
+        let mut uniqueness = match matches.value_of("UNIQUENESS") {
+            Some("all") => ListSnapsOfType::All,
+            Some("contents") => ListSnapsOfType::UniqueContents,
+            Some("metadata" | _) | None => ListSnapsOfType::UniqueMetadata,
         };
 
         if opt_no_hidden && !opt_recursive && opt_interactive_mode.is_none() {
