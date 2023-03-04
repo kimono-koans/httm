@@ -328,10 +328,10 @@ impl CompareVersionsContainer {
     fn is_same_file(&self, other: &Self) -> HttmResult<bool> {
         const IN_BUFFER_SIZE: usize = 131_072;
 
-        let self_hash = self.opt_hash.as_ref().unwrap();
-        let other_hash = other.opt_hash.as_ref().unwrap();
+        let self_hash_cell = self.opt_hash.as_ref().unwrap();
+        let other_hash_cell = other.opt_hash.as_ref().unwrap();
 
-        let cmp_self_hash = if let Some(hash_value) = self_hash.get() {
+        let self_hash = if let Some(hash_value) = self_hash_cell.get() {
             *hash_value
         } else {
             let self_file = File::open(&self.pathdata.path_buf)?;
@@ -340,7 +340,7 @@ impl CompareVersionsContainer {
             adler32(&mut self_reader)?
         };
 
-        let cmp_other_hash = if let Some(hash_value) = other_hash.get() {
+        let other_hash = if let Some(hash_value) = other_hash_cell.get() {
             *hash_value
         } else {
             let other_file = File::open(&other.pathdata.path_buf)?;
@@ -349,10 +349,10 @@ impl CompareVersionsContainer {
             adler32(&mut other_reader)?
         };
 
-        self_hash.get_or_init(|| cmp_self_hash);
-        other_hash.get_or_init(|| cmp_other_hash);
+        self_hash_cell.get_or_init(|| self_hash);
+        other_hash_cell.get_or_init(|| other_hash);
 
-        if cmp_self_hash == cmp_other_hash {
+        if self_hash == other_hash {
             Ok(true)
         } else {
             Ok(false)
