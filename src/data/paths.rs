@@ -300,7 +300,7 @@ impl Ord for CompareVersionsContainer {
         }
 
         // if files, differ re mtime, but have same size, we test by bytes whether the same
-        if self.opt_hash.is_some() && other.opt_hash.is_some() && self_md.size == other_md.size {
+        if self_md.size == other_md.size && self.opt_hash.is_some() && other.opt_hash.is_some() {
             if let Ok(is_same_file) = self.is_same_file(other) {
                 if is_same_file {
                     return Ordering::Equal;
