@@ -300,12 +300,12 @@ impl Ord for CompareVersionsContainer {
         }
 
         // if files, differ re mtime, but have same size, we test by bytes whether the same
-        if self_md.size == other_md.size && self.opt_hash.is_some() && other.opt_hash.is_some() {
-            if let Ok(is_same_file) = self.is_same_file(other) {
-                if is_same_file {
-                    return Ordering::Equal;
-                }
-            }
+        if self_md.size == other_md.size
+            && self.opt_hash.is_some()
+            && other.opt_hash.is_some()
+            && self.is_same_file(other)
+        {
+            return Ordering::Equal;
         }
 
         self_md.modify_time.cmp(&other_md.modify_time)
@@ -325,37 +325,47 @@ impl CompareVersionsContainer {
 
     #[inline]
     #[allow(unused_assignments)]
-    fn is_same_file(&self, other: &Self) -> HttmResult<bool> {
+    fn is_same_file(&self, other: &Self) -> bool {
         const IN_BUFFER_SIZE: usize = 131_072;
 
-        let self_hash_cell = self.opt_hash.as_ref().unwrap();
-        let other_hash_cell = other.opt_hash.as_ref().unwrap();
+        // SAFETY: Unwrap will fail on opt_hash is None, here we've guarded this above
+        let self_hash_cell = self
+            .opt_hash
+            .as_ref()
+            .expect("opt_hash should be check prior to this point and must be Some");
+        let other_hash_cell = other
+            .opt_hash
+            .as_ref()
+            .expect("opt_hash should be check prior to this point and must be Some");
 
-        let self_hash = if let Some(hash_value) = self_hash_cell.get() {
-            *hash_value
-        } else {
-            let self_file = File::open(&self.pathdata.path_buf)?;
-            let mut self_reader = BufReader::with_capacity(IN_BUFFER_SIZE, self_file);
+        let (self_hash, other_hash) = rayon::join(
+            || {
+                if let Some(hash_value) = self_hash_cell.get() {
+                    *hash_value
+                } else {
+                    let self_file = File::open(&self.pathdata.path_buf)
+                        .expect("self_file should be checked prior to this point, and should be guaranteed to exist");
+                    let mut self_reader = BufReader::with_capacity(IN_BUFFER_SIZE, self_file);
 
-            adler32(&mut self_reader)?
-        };
+                    adler32(&mut self_reader).unwrap_or_default()
+                }
+            },
+            || {
+                if let Some(hash_value) = other_hash_cell.get() {
+                    *hash_value
+                } else {
+                    let other_file = File::open(&other.pathdata.path_buf)
+                        .expect("other_file should be checked prior to this point, and should be guaranteed to exist");
+                    let mut other_reader = BufReader::with_capacity(IN_BUFFER_SIZE, other_file);
 
-        let other_hash = if let Some(hash_value) = other_hash_cell.get() {
-            *hash_value
-        } else {
-            let other_file = File::open(&other.pathdata.path_buf)?;
-            let mut other_reader = BufReader::with_capacity(IN_BUFFER_SIZE, other_file);
-
-            adler32(&mut other_reader)?
-        };
+                    adler32(&mut other_reader).unwrap_or_default()
+                }
+            },
+        );
 
         self_hash_cell.get_or_init(|| self_hash);
         other_hash_cell.get_or_init(|| other_hash);
 
-        if self_hash == other_hash {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
+        self_hash == other_hash
     }
 }
