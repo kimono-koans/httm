@@ -18,16 +18,19 @@
 use std::{
     cmp::{Ord, Ordering, PartialOrd},
     ffi::OsStr,
-    fs::{symlink_metadata, DirEntry, FileType, Metadata},
+    fs::{symlink_metadata, DirEntry, File, FileType, Metadata},
+    io::{BufRead, BufReader},
     path::{Path, PathBuf},
     time::{SystemTime, UNIX_EPOCH},
 };
 
+use once_cell::sync::OnceCell;
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
+use simd_adler32::Adler32;
 
-use crate::parse::aliases::MapOfAliases;
 use crate::parse::mounts::MapOfDatasets;
+use crate::{config::generate::ListSnapsOfType, parse::aliases::MapOfAliases};
 use crate::{
     config::generate::PrintMode,
     library::{
@@ -266,3 +269,113 @@ pub const PHANTOM_PATH_METADATA: PathMetadata = PathMetadata {
     size: PHANTOM_SIZE,
     modify_time: PHANTOM_DATE,
 };
+
+#[derive(Eq, PartialEq)]
+pub struct CompareVersionsContainer {
+    pathdata: PathData,
+    opt_hash: Option<OnceCell<u32>>,
+}
+
+impl From<CompareVersionsContainer> for PathData {
+    fn from(container: CompareVersionsContainer) -> Self {
+        container.pathdata
+    }
+}
+
+impl PartialOrd for CompareVersionsContainer {
+    #[inline]
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for CompareVersionsContainer {
+    #[inline]
+    fn cmp(&self, other: &Self) -> Ordering {
+        let self_md = self.pathdata.get_md_infallible();
+        let other_md = other.pathdata.get_md_infallible();
+
+        if self_md.modify_time == other_md.modify_time {
+            return self_md.size.cmp(&other_md.size);
+        }
+
+        // if files, differ re mtime, but have same size, we test by bytes whether the same
+        if self.opt_hash.is_some() && other.opt_hash.is_some() && self_md.size == other_md.size {
+            if let Ok(is_same_file) = self.is_same_file(other) {
+                if is_same_file {
+                    return Ordering::Equal;
+                }
+            }
+        }
+
+        self_md.modify_time.cmp(&other_md.modify_time)
+    }
+}
+
+impl CompareVersionsContainer {
+    pub fn new(pathdata: PathData, snaps_of_type: &ListSnapsOfType) -> Self {
+        let opt_hash = match snaps_of_type {
+            ListSnapsOfType::UniqueContents => Some(OnceCell::new()),
+            ListSnapsOfType::UniqueMetadata => None,
+            _ => unreachable!(),
+        };
+
+        CompareVersionsContainer { pathdata, opt_hash }
+    }
+
+    #[inline]
+    #[allow(unused_assignments)]
+    fn is_same_file(&self, other: &Self) -> HttmResult<bool> {
+        const IN_BUFFER_SIZE: usize = 131_072;
+
+        let mut self_adler = Adler32::new();
+        let mut other_adler = Adler32::new();
+
+        let self_file = File::open(&self.pathdata.path_buf)?;
+        let other_file = File::open(&other.pathdata.path_buf)?;
+
+        let mut self_buffer = BufReader::with_capacity(IN_BUFFER_SIZE, self_file);
+        let mut other_buffer = BufReader::with_capacity(IN_BUFFER_SIZE, other_file);
+
+        let mut self_bytes_buffer = Vec::new();
+        let mut other_bytes_buffer = Vec::new();
+
+        let self_hash = self.opt_hash.as_ref().unwrap();
+        let other_hash = other.opt_hash.as_ref().unwrap();
+
+        loop {
+            if self_hash.get().is_some() && other_hash.get().is_some() {
+                break;
+            }
+
+            if self_hash.get().is_none() {
+                if let Ok(chunk) = self_buffer.fill_buf() {
+                    self_bytes_buffer = chunk.to_vec();
+                    self_buffer.consume(self_bytes_buffer.len());
+                    self_adler.write(&self_bytes_buffer);
+                }
+            }
+
+            if other_hash.get().is_none() {
+                if let Ok(chunk) = other_buffer.fill_buf() {
+                    other_bytes_buffer = chunk.to_vec();
+                    other_buffer.consume(other_bytes_buffer.len());
+                    other_adler.write(&other_bytes_buffer);
+                }
+            }
+
+            if self_bytes_buffer.is_empty() && other_bytes_buffer.is_empty() {
+                break;
+            }
+        }
+
+        let cmp_self_hash = self_hash.get_or_init(|| self_adler.finish());
+        let cmp_other_hash = other_hash.get_or_init(|| other_adler.finish());
+
+        if cmp_self_hash == cmp_other_hash {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+}
