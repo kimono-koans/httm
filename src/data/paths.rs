@@ -343,6 +343,7 @@ impl CompareVersionsContainer {
                 }
 
                 Self::get_path_hash(&self.pathdata.path_buf)
+                    .map(|hash| *self_hash_cell.get_or_init(|| hash))
             },
             || {
                 if let Some(hash_value) = other_hash_cell.get() {
@@ -350,22 +351,17 @@ impl CompareVersionsContainer {
                 }
 
                 Self::get_path_hash(&other.pathdata.path_buf)
+                    .map(|hash| *self_hash_cell.get_or_init(|| hash))
             },
         );
 
-        let res_self = if let Ok(hash) = self_hash {
-            self_hash_cell.get_or_init(|| hash)
-        } else {
-            return false;
-        };
+        if let Ok(res_self) = self_hash {
+            if let Ok(res_other) = other_hash {
+                return res_self == res_other;
+            }
+        }
 
-        let res_other = if let Ok(hash) = other_hash {
-            self_hash_cell.get_or_init(|| hash)
-        } else {
-            return false;
-        };
-
-        res_self == res_other
+        false
     }
 
     fn get_path_hash(path: &Path) -> HttmResult<u32> {
