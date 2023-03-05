@@ -15,7 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::{collections::BTreeMap, ops::Deref};
 
 use rayon::prelude::*;
@@ -95,7 +95,10 @@ impl SnapNameMap {
                 // use par iter here because no one else is using the global rayon threadpool any more
                 let snap_names: Vec<String> = vec_snaps
                     .into_par_iter()
-                    .filter_map(|pathdata| Self::snap_pathdata_to_snap_name(&pathdata))
+                    .filter_map(|pathdata| {
+                        Self::deconstruct_snap_pathdata(&pathdata)
+                            .map(|(snap_name, _relpath)| snap_name)
+                    })
                     .filter(|snap| {
                         if let Some(filters) = opt_filters {
                             if let Some(names) = &filters.name_filters {
@@ -135,12 +138,12 @@ impl SnapNameMap {
         }
     }
 
-    fn snap_pathdata_to_snap_name(pathdata: &PathData) -> Option<String> {
+    fn deconstruct_snap_pathdata(pathdata: &PathData) -> Option<(String, PathBuf)> {
         let path_string = &pathdata.path_buf.to_string_lossy();
 
-        let (dataset_path, opt_snap) =
+        let (dataset_path, opt_split) =
             if let Some((lhs, rhs)) = path_string.split_once(".zfs/snapshot/") {
-                (Path::new(lhs), rhs.split_once('/').map(|(lhs, _rhs)| lhs))
+                (Path::new(lhs), rhs.split_once('/'))
             } else {
                 return None;
             };
@@ -156,8 +159,9 @@ impl SnapNameMap {
                 eprintln!("WARNING: {pathdata:?} is located on a non-ZFS dataset.  httm can only list snapshot names for ZFS datasets.");
                 None
             }
-            Some(md) => opt_snap.map(|snap| format!("{}@{snap}", md.source)),
-            None => None,
+            Some(md) => opt_split
+                .map(|(snap, relpath)| (format!("{}@{snap}", md.source), PathBuf::from(relpath))),
+            _ => None,
         }
     }
 }
