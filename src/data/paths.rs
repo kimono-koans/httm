@@ -326,8 +326,6 @@ impl CompareVersionsContainer {
     #[inline]
     #[allow(unused_assignments)]
     fn is_same_file(&self, other: &Self) -> bool {
-        const IN_BUFFER_SIZE: usize = 131_072;
-
         // SAFETY: Unwrap will fail on opt_hash is None, here we've guarded this above
         let self_hash_cell = self
             .opt_hash
@@ -341,25 +339,17 @@ impl CompareVersionsContainer {
         let (self_hash, other_hash): (HttmResult<u32>, HttmResult<u32>) = rayon::join(
             || {
                 if let Some(hash_value) = self_hash_cell.get() {
-                    Ok(*hash_value)
-                } else {
-                    let self_file = File::open(&self.pathdata.path_buf)?;
-
-                    let mut self_reader = BufReader::with_capacity(IN_BUFFER_SIZE, self_file);
-
-                    adler32(&mut self_reader).map_err(|err| err.into())
+                    return Ok(*hash_value);
                 }
+
+                Self::get_path_hash(&self.pathdata.path_buf)
             },
             || {
                 if let Some(hash_value) = other_hash_cell.get() {
-                    Ok(*hash_value)
-                } else {
-                    let other_file = File::open(&other.pathdata.path_buf)?;
-
-                    let mut other_reader = BufReader::with_capacity(IN_BUFFER_SIZE, other_file);
-
-                    adler32(&mut other_reader).map_err(|err| err.into())
+                    return Ok(*hash_value);
                 }
+
+                Self::get_path_hash(&other.pathdata.path_buf)
             },
         );
 
@@ -376,5 +366,15 @@ impl CompareVersionsContainer {
         };
 
         res_self == res_other
+    }
+
+    fn get_path_hash(path: &Path) -> HttmResult<u32> {
+        const IN_BUFFER_SIZE: usize = 131_072;
+
+        let self_file = File::open(path)?;
+
+        let mut self_reader = BufReader::with_capacity(IN_BUFFER_SIZE, self_file);
+
+        adler32(&mut self_reader).map_err(|err| err.into())
     }
 }
