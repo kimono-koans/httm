@@ -338,34 +338,43 @@ impl CompareVersionsContainer {
             .as_ref()
             .expect("opt_hash should be check prior to this point and must be Some");
 
-        let (self_hash, other_hash) = rayon::join(
+        let (self_hash, other_hash): (HttmResult<u32>, HttmResult<u32>) = rayon::join(
             || {
                 if let Some(hash_value) = self_hash_cell.get() {
-                    *hash_value
+                    Ok(*hash_value)
                 } else {
-                    let self_file = File::open(&self.pathdata.path_buf)
-                        .expect("self_file should be checked prior to this point, and should be guaranteed to exist");
+                    let self_file = File::open(&self.pathdata.path_buf)?;
+
                     let mut self_reader = BufReader::with_capacity(IN_BUFFER_SIZE, self_file);
 
-                    adler32(&mut self_reader).unwrap_or_default()
+                    adler32(&mut self_reader).map_err(|err| err.into())
                 }
             },
             || {
                 if let Some(hash_value) = other_hash_cell.get() {
-                    *hash_value
+                    Ok(*hash_value)
                 } else {
-                    let other_file = File::open(&other.pathdata.path_buf)
-                        .expect("other_file should be checked prior to this point, and should be guaranteed to exist");
+                    let other_file = File::open(&other.pathdata.path_buf)?;
+
                     let mut other_reader = BufReader::with_capacity(IN_BUFFER_SIZE, other_file);
 
-                    adler32(&mut other_reader).unwrap_or_default()
+                    adler32(&mut other_reader).map_err(|err| err.into())
                 }
             },
         );
 
-        self_hash_cell.get_or_init(|| self_hash);
-        other_hash_cell.get_or_init(|| other_hash);
+        let res_self = if let Ok(hash) = self_hash {
+            self_hash_cell.get_or_init(|| hash)
+        } else {
+            return false;
+        };
 
-        self_hash == other_hash
+        let res_other = if let Ok(hash) = other_hash {
+            self_hash_cell.get_or_init(|| hash)
+        } else {
+            return false;
+        };
+
+        res_self == res_other
     }
 }
