@@ -95,34 +95,7 @@ impl SnapNameMap {
                 // use par iter here because no one else is using the global rayon threadpool any more
                 let snap_names: Vec<String> = vec_snaps
                     .into_par_iter()
-                    .map(|pathdata| pathdata.path_buf)
-                    .filter_map(|snap| {
-                        snap.to_string_lossy()
-                            .split_once(".zfs/snapshot/")
-                            .map(|(lhs, rhs)| (lhs.to_owned(), rhs.to_owned()))
-                    })
-                    .filter_map(|(dataset, rest)| {
-                        let opt_snap = rest.split_once('/').map(|(lhs, _rhs)| lhs);
-
-                        let dataset_path = Path::new(&dataset);
-
-                        let opt_dataset_md = GLOBAL_CONFIG
-                            .dataset_collection
-                            .map_of_datasets
-                            .inner
-                            .get(dataset_path);
-
-                        match opt_dataset_md {
-                            Some(md) if md.fs_type != FilesystemType::Zfs => {
-                                eprintln!("WARNING: {pathdata:?} is located on a non-ZFS dataset.  httm can only list snapshot names for ZFS datasets.");
-                                None
-                            }
-                            Some(md) => {
-                                opt_snap.map(|snap| format!("{}@{snap}", md.source))
-                            }
-                            None => None,
-                        }
-                    })
+                    .filter_map(|pathdata| Self::snap_pathdata_to_snap_name(&pathdata))
                     .filter(|snap| {
                         if let Some(filters) = opt_filters {
                             if let Some(names) = &filters.name_filters {
@@ -159,6 +132,32 @@ impl SnapNameMap {
                 res.into()
             }
             _ => inner.into(),
+        }
+    }
+
+    fn snap_pathdata_to_snap_name(pathdata: &PathData) -> Option<String> {
+        let path_string = &pathdata.path_buf.to_string_lossy();
+
+        let (dataset_path, opt_snap) =
+            if let Some((lhs, rhs)) = path_string.split_once(".zfs/snapshot/") {
+                (Path::new(lhs), rhs.split_once('/').map(|(lhs, _rhs)| lhs))
+            } else {
+                return None;
+            };
+
+        let opt_dataset_md = GLOBAL_CONFIG
+            .dataset_collection
+            .map_of_datasets
+            .inner
+            .get(dataset_path);
+
+        match opt_dataset_md {
+            Some(md) if md.fs_type != FilesystemType::Zfs => {
+                eprintln!("WARNING: {pathdata:?} is located on a non-ZFS dataset.  httm can only list snapshot names for ZFS datasets.");
+                None
+            }
+            Some(md) => opt_snap.map(|snap| format!("{}@{snap}", md.source)),
+            None => None,
         }
     }
 }
