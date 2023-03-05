@@ -96,8 +96,8 @@ impl SnapNameMap {
                 let snap_names: Vec<String> = vec_snaps
                     .into_par_iter()
                     .filter_map(|pathdata| {
-                        Self::deconstruct_snap_pathdata(&pathdata)
-                            .map(|(snap_name, _relpath)| snap_name)
+                        DeconstructedSnapPathData::new(&pathdata, false)
+                            .map(|deconstructed| deconstructed.snap_name)
                     })
                     .filter(|snap| {
                         if let Some(filters) = opt_filters {
@@ -137,8 +137,18 @@ impl SnapNameMap {
             _ => inner.into(),
         }
     }
+}
 
-    fn deconstruct_snap_pathdata(pathdata: &PathData) -> Option<(String, PathBuf)> {
+// allow dead code here because this could be useful re: finding ZFS objects
+// zdb uses snap name and relative path for instance
+#[allow(dead_code)]
+pub struct DeconstructedSnapPathData {
+    snap_name: String,
+    relpath: Option<PathBuf>,
+}
+
+impl DeconstructedSnapPathData {
+    fn new(pathdata: &PathData, include_relative_path: bool) -> Option<Self> {
         let path_string = &pathdata.path_buf.to_string_lossy();
 
         let (dataset_path, opt_split) =
@@ -155,12 +165,20 @@ impl SnapNameMap {
             .get(dataset_path);
 
         match opt_dataset_md {
-            Some(md) if md.fs_type != FilesystemType::Zfs => {
+            Some(md) if md.fs_type == FilesystemType::Zfs => {
+                opt_split.map(|(snap, relpath)| DeconstructedSnapPathData {
+                    snap_name: format!("{}@{snap}", md.source),
+                    relpath: if include_relative_path {
+                        Some(PathBuf::from(relpath))
+                    } else {
+                        None
+                    },
+                })
+            }
+            Some(_md) => {
                 eprintln!("WARNING: {pathdata:?} is located on a non-ZFS dataset.  httm can only list snapshot names for ZFS datasets.");
                 None
             }
-            Some(md) => opt_split
-                .map(|(snap, relpath)| (format!("{}@{snap}", md.source), PathBuf::from(relpath))),
             _ => None,
         }
     }
