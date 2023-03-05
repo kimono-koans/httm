@@ -70,12 +70,12 @@ impl MapOfSnaps {
                     FilesystemType::Zfs => Self::from_defined_mounts(mount, dataset_info),
                     FilesystemType::Btrfs => match opt_root_mount_path {
                         Some(root_mount_path) => match dataset_info.mount_type {
-                            MountType::Local => Self::parse_btrfs_cmd(mount, root_mount_path),
+                            MountType::Local => Self::from_btrfs_cmd(mount, root_mount_path),
                             MountType::Network => Self::from_defined_mounts(mount, dataset_info),
                         },
-                        None => Self::parse_btrfs_cmd(mount, mount),
+                        None => Self::from_btrfs_cmd(mount, mount),
                     },
-                    FilesystemType::Nilfs2 => Self::parse_mounts(dataset_info),
+                    FilesystemType::Nilfs2 => Self::from_defined_mounts(mount, dataset_info),
                 };
 
                 snap_mounts.map(|snap_mounts| (mount.clone(), snap_mounts))
@@ -90,10 +90,7 @@ impl MapOfSnaps {
     }
 
     // build paths to all snap mounts
-    fn parse_btrfs_cmd(
-        mount_point_path: &Path,
-        root_mount_path: &Path,
-    ) -> HttmResult<Vec<PathBuf>> {
+    fn from_btrfs_cmd(mount_point_path: &Path, root_mount_path: &Path) -> HttmResult<Vec<PathBuf>> {
         fn parse(
             mount_point_path: &Path,
             root_mount_path: &Path,
@@ -144,20 +141,6 @@ impl MapOfSnaps {
         }
     }
 
-    fn parse_mounts(dataset_metadata: &DatasetMetadata) -> HttmResult<Vec<PathBuf>> {
-        let source_path = Path::new(&dataset_metadata.source);
-
-        let snaps = MountIter::new()?
-            .flatten()
-            .par_bridge()
-            .filter(|mount_info| mount_info.source.as_path() == source_path)
-            .filter(|mount_info| mount_info.options.iter().any(|opt| opt.contains("cp=")))
-            .map(|mount_info| mount_info.dest)
-            .collect();
-
-        Ok(snaps)
-    }
-
     fn from_defined_mounts(
         mount_point_path: &Path,
         dataset_metadata: &DatasetMetadata,
@@ -175,7 +158,17 @@ impl MapOfSnaps {
                 .par_bridge()
                 .map(|entry| entry.path())
                 .collect(),
-            _ => unreachable!(),
+            FilesystemType::Nilfs2 => {
+                let source_path = Path::new(&dataset_metadata.source);
+
+                MountIter::new()?
+                    .flatten()
+                    .par_bridge()
+                    .filter(|mount_info| mount_info.source.as_path() == source_path)
+                    .filter(|mount_info| mount_info.options.iter().any(|opt| opt.contains("cp=")))
+                    .map(|mount_info| mount_info.dest)
+                    .collect()
+            }
         };
 
         Ok(snaps)
