@@ -351,7 +351,7 @@ impl CompareVersionsContainer {
                 }
 
                 Self::get_path_hash(&other.pathdata.path_buf)
-                    .map(|hash| *self_hash_cell.get_or_init(|| hash))
+                    .map(|hash| *other_hash_cell.get_or_init(|| hash))
             },
         );
 
