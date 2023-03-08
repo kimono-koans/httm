@@ -70,5 +70,5 @@ assets = [
     ["httm.1", "usr/share/man/man1/httm.1", "644"],
     ["README.md", "usr/share/doc/httm/README.md", "644"],
     ["LICENSE", "usr/share/doc/httm/LICENSE", "644"],
-    ["THIRD_PARTY/LICENSES_THIRD_PARTY.html", "usr/share/doc/httm/LICENSES_THIRD_PARTY.html", "644"],
+    ["third_party/LICENSES_THIRD_PARTY.html", "usr/share/doc/httm/LICENSES_THIRD_PARTY.html", "644"],
 ]
