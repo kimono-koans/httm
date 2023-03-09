@@ -166,7 +166,8 @@ function needs_snap {
 	filenames="$1"
 
 	uncut_res="$(printf "$filenames" | httm --last-snap=no-ditto-inclusive --not-so-pretty 2>/dev/null)"
-	[[ $? -eq 0 ]] || print_err_exit "'ounce' failed with a 'httm' lookup error."
+	#[[ $? -eq 0 ]] || print_err_exit "'ounce' failed with a 'httm' lookup error."
+	[[ $? -eq 0 ]] || uncut_res=""
 
 	cut -f1 -d: <<<"$uncut_res"
 }
