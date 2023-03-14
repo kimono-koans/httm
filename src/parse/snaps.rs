@@ -18,6 +18,7 @@
 use std::{fs::read_dir, ops::Deref, path::Path, path::PathBuf, process::Command as ExecProcess};
 
 use hashbrown::HashMap;
+use once_cell::sync::Lazy;
 use proc_mounts::MountIter;
 use rayon::prelude::*;
 use which::which;
@@ -49,25 +50,27 @@ impl Deref for MapOfSnaps {
 impl MapOfSnaps {
     // fans out precompute of snap mounts to the appropriate function based on fstype
     pub fn new(map_of_datasets: &HashMap<PathBuf, DatasetMetadata>) -> HttmResult<Self> {
-        let opt_root_mount_path: Option<&PathBuf> = map_of_datasets
-            .iter()
-            .filter(|(_mount, dataset_info)| matches!(dataset_info.fs_type, FilesystemType::Btrfs))
-            .find(|(_mount, dataset_info)| dataset_info.source.as_str() == "/")
-            .map(|(mount, _dataset_info)| mount);
-
         let map_of_snaps: HashMap<PathBuf, Vec<PathBuf>> = map_of_datasets
             .par_iter()
             .flat_map(|(mount, dataset_info)| {
                 let snap_mounts: HttmResult<Vec<PathBuf>> = match dataset_info.fs_type {
-                    FilesystemType::Zfs => Self::from_defined_mounts(mount, dataset_info),
-                    FilesystemType::Btrfs => match opt_root_mount_path {
-                        Some(root_mount_path) => match dataset_info.mount_type {
-                            MountType::Local => Self::from_btrfs_cmd(mount, root_mount_path),
-                            MountType::Network => Self::from_defined_mounts(mount, dataset_info),
-                        },
-                        None => Self::from_btrfs_cmd(mount, mount),
-                    },
-                    FilesystemType::Nilfs2 => Self::from_defined_mounts(mount, dataset_info),
+                    FilesystemType::Zfs | FilesystemType::Nilfs2 => {
+                        Self::from_defined_mounts(mount, dataset_info)
+                    }
+                    FilesystemType::Btrfs => {
+                        let root_mount_path =
+                            Lazy::new(|| Self::get_btrfs_root_mount_path(map_of_datasets));
+
+                        match root_mount_path.as_ref() {
+                            Some(root_mount_path) => match dataset_info.mount_type {
+                                MountType::Local => Self::from_btrfs_cmd(mount, root_mount_path),
+                                MountType::Network => {
+                                    Self::from_defined_mounts(mount, dataset_info)
+                                }
+                            },
+                            None => Self::from_btrfs_cmd(mount, mount),
+                        }
+                    }
                 };
 
                 snap_mounts.map(|snap_mounts| (mount.clone(), snap_mounts))
@@ -79,6 +82,16 @@ impl MapOfSnaps {
         } else {
             Ok(map_of_snaps.into())
         }
+    }
+
+    fn get_btrfs_root_mount_path(
+        map_of_datasets: &HashMap<PathBuf, DatasetMetadata>,
+    ) -> Option<PathBuf> {
+        map_of_datasets
+            .iter()
+            .filter(|(_mount, dataset_info)| matches!(dataset_info.fs_type, FilesystemType::Btrfs))
+            .find(|(_mount, dataset_info)| dataset_info.source.as_str() == "/")
+            .map(|(mount, _dataset_info)| mount.to_owned())
     }
 
     // build paths to all snap mounts
