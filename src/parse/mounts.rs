@@ -16,6 +16,7 @@
 // that was distributed with this source code.
 
 use std::collections::BTreeMap;
+use std::ops::Deref;
 use std::{path::Path, path::PathBuf, process::Command as ExecProcess};
 
 use hashbrown::{HashMap, HashSet};
@@ -60,6 +61,14 @@ pub struct FilterDirs {
 pub struct MapOfDatasets {
     pub inner: HashMap<PathBuf, DatasetMetadata>,
     pub max_len: usize,
+}
+
+impl Deref for MapOfDatasets {
+    type Target = HashMap<PathBuf, DatasetMetadata>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
 }
 
 pub struct BaseFilesystemInfo {
@@ -308,24 +317,28 @@ impl BaseFilesystemInfo {
         let map_of_snaps: &MapOfSnaps = &self.map_of_snaps;
 
         let btrfs_datasets: Vec<&PathBuf> = map_of_datasets
-            .inner
             .iter()
-            .filter(|(_mount, dataset_info)| dataset_info.fs_type == FilesystemType::Btrfs)
-            .map(|(mount, _dataset_info)| mount)
+            .filter_map(|(mount, dataset_info)| {
+                if dataset_info.fs_type == FilesystemType::Btrfs {
+                    return Some(mount);
+                }
+
+                None
+            })
             .collect();
 
-        if btrfs_datasets.is_empty() {
+        if !btrfs_datasets.is_empty() {
             // since snapshots ZFS reside on multiple datasets
             // never have a common snap path
-            None
-        } else {
             let vec_snaps: Vec<&PathBuf> = btrfs_datasets
                 .into_iter()
                 .filter_map(|mount| map_of_snaps.get(mount))
                 .flatten()
                 .collect();
 
-            get_common_path(vec_snaps)
+            return get_common_path(vec_snaps);
         }
+
+        None
     }
 }
