@@ -309,7 +309,7 @@ impl BaseFilesystemInfo {
 
         let btrfs_datasets: Vec<&PathBuf> = map_of_datasets
             .inner
-            .par_iter()
+            .iter()
             .filter(|(_mount, dataset_info)| dataset_info.fs_type == FilesystemType::Btrfs)
             .map(|(mount, _dataset_info)| mount)
             .collect();
@@ -320,9 +320,9 @@ impl BaseFilesystemInfo {
             None
         } else {
             let vec_snaps: Vec<&PathBuf> = btrfs_datasets
-                .into_par_iter()
+                .into_iter()
                 .filter_map(|mount| map_of_snaps.get(mount))
-                .flat_map(|snap_info| snap_info)
+                .flatten()
                 .collect();
 
             get_common_path(vec_snaps)

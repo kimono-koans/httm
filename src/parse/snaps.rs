@@ -49,19 +49,18 @@ impl Deref for MapOfSnaps {
 impl MapOfSnaps {
     // fans out precompute of snap mounts to the appropriate function based on fstype
     pub fn new(map_of_datasets: &HashMap<PathBuf, DatasetMetadata>) -> HttmResult<Self> {
-        let opt_root_mount_path: Option<&PathBuf> =
-            map_of_datasets
-                .par_iter()
-                .find_map_first(|(mount, dataset_info)| match dataset_info.fs_type {
-                    FilesystemType::Btrfs => {
-                        if dataset_info.source.as_str() == "/" {
-                            Some(mount)
-                        } else {
-                            None
-                        }
-                    }
-                    FilesystemType::Zfs | FilesystemType::Nilfs2 => None,
-                });
+        let opt_root_mount_path: Option<&PathBuf> = map_of_datasets
+            .iter()
+            .find(|(_mount, dataset_info)| {
+                if matches!(dataset_info.fs_type, FilesystemType::Btrfs)
+                    && dataset_info.source.as_str() == "/"
+                {
+                    return true;
+                }
+
+                false
+            })
+            .map(|(mount, _dataset_info)| mount);
 
         let map_of_snaps: HashMap<PathBuf, Vec<PathBuf>> = map_of_datasets
             .par_iter()
