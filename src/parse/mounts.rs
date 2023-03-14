@@ -186,10 +186,8 @@ impl BaseFilesystemInfo {
                             .options
                             .iter()
                             .filter(|line| line.contains('='))
-                            .filter_map(|line| {
-                                line.split_once('=')
-                                    .map(|(key, value)| (key.to_owned(), value.to_owned()))
-                            })
+                            .filter_map(|line| line.split_once('='))
+                            .map(|(key, value)| (key.to_owned(), value.to_owned()))
                             .collect();
 
                         let source = match keyed_options.get("subvol") {
@@ -197,33 +195,23 @@ impl BaseFilesystemInfo {
                             None => mount_info.source.to_string_lossy().into_owned(),
                         };
 
-                        let fs_type = FilesystemType::Btrfs;
-
-                        let mount_type = MountType::Local;
-
                         Either::Left((
                             mount_info.dest,
                             DatasetMetadata {
                                 source,
-                                fs_type,
-                                mount_type,
+                                fs_type: FilesystemType::Btrfs,
+                                mount_type: MountType::Local,
                             },
                         ))
                     }
-                    &NILFS2_FSTYPE => {
-                        let fs_type = FilesystemType::Nilfs2;
-
-                        let mount_type = MountType::Local;
-
-                        Either::Left((
-                            mount_info.dest,
-                            DatasetMetadata {
-                                source: mount_info.source.to_string_lossy().into_owned(),
-                                fs_type,
-                                mount_type,
-                            },
-                        ))
-                    }
+                    &NILFS2_FSTYPE => Either::Left((
+                        mount_info.dest,
+                        DatasetMetadata {
+                            source: mount_info.source.to_string_lossy().into_owned(),
+                            fs_type: FilesystemType::Nilfs2,
+                            mount_type: MountType::Local,
+                        },
+                    )),
                     _ => Either::Right(mount_info.dest),
                 });
 
