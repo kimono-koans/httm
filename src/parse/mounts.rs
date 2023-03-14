@@ -85,7 +85,7 @@ impl BaseFilesystemInfo {
                 .keys()
                 .map(|mount| mount.components().count())
                 .max()
-                .unwrap_or(0);
+                .unwrap_or(usize::MAX);
 
             MapOfDatasets {
                 inner: raw_datasets,
@@ -98,7 +98,7 @@ impl BaseFilesystemInfo {
                 .iter()
                 .map(|dir| dir.components().count())
                 .max()
-                .unwrap_or(0);
+                .unwrap_or(usize::MAX);
 
             FilterDirs {
                 inner: filter_dirs_set,
@@ -175,7 +175,7 @@ impl BaseFilesystemInfo {
                     &BTRFS_FSTYPE => {
                         let keyed_options: BTreeMap<String, String> = mount_info
                             .options
-                            .par_iter()
+                            .iter()
                             .filter(|line| line.contains('='))
                             .filter_map(|line| {
                                 line.split_once('=')
