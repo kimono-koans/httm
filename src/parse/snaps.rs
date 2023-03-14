@@ -51,15 +51,8 @@ impl MapOfSnaps {
     pub fn new(map_of_datasets: &HashMap<PathBuf, DatasetMetadata>) -> HttmResult<Self> {
         let opt_root_mount_path: Option<&PathBuf> = map_of_datasets
             .iter()
-            .find(|(_mount, dataset_info)| {
-                if matches!(dataset_info.fs_type, FilesystemType::Btrfs)
-                    && dataset_info.source.as_str() == "/"
-                {
-                    return true;
-                }
-
-                false
-            })
+            .filter(|(_mount, dataset_info)| matches!(dataset_info.fs_type, FilesystemType::Btrfs))
+            .find(|(_mount, dataset_info)| dataset_info.source.as_str() == "/")
             .map(|(mount, _dataset_info)| mount);
 
         let map_of_snaps: HashMap<PathBuf, Vec<PathBuf>> = map_of_datasets
