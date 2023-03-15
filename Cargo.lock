@@ -460,7 +460,7 @@ dependencies = [
 
 [[package]]
 name = "httm"
-version = "0.23.3"
+version = "0.24.0"
 dependencies = [
  "ansi_term",
  "chrono",
