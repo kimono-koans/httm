@@ -97,44 +97,50 @@ impl InteractiveBrowse {
             InteractiveRecursive::exec(&requested_dir_clone, tx_item.clone(), hangup_rx.clone())
         });
 
-        let opt_multi =
-            GLOBAL_CONFIG.opt_last_snap.is_none() || GLOBAL_CONFIG.opt_preview.is_none();
+        let handle = thread::spawn(move || {
+            let opt_multi =
+                GLOBAL_CONFIG.opt_last_snap.is_none() || GLOBAL_CONFIG.opt_preview.is_none();
 
-        // create the skim component for previews
-        let skim_opts = SkimOptionsBuilder::default()
-            .preview_window(Some("up:50%"))
-            .preview(Some(""))
-            .nosort(true)
-            .exact(GLOBAL_CONFIG.opt_exact)
-            .header(Some("PREVIEW UP: shift+up | PREVIEW DOWN: shift+down\n\
-                        PAGE UP:    page up  | PAGE DOWN:    page down \n\
-                        EXIT:       esc      | SELECT:       enter      | SELECT, MULTIPLE: shift+tab\n\
-                        ──────────────────────────────────────────────────────────────────────────────",
-            ))
-            .multi(opt_multi)
-            .regex(false)
-            .build()
-            .expect("Could not initialized skim options for browse_view");
+            // create the skim component for previews
+            let skim_opts = SkimOptionsBuilder::default()
+                .preview_window(Some("up:50%"))
+                .preview(Some(""))
+                .nosort(true)
+                .exact(GLOBAL_CONFIG.opt_exact)
+                .header(Some("PREVIEW UP: shift+up | PREVIEW DOWN: shift+down\n\
+                            PAGE UP:    page up  | PAGE DOWN:    page down \n\
+                            EXIT:       esc      | SELECT:       enter      | SELECT, MULTIPLE: shift+tab\n\
+                            ──────────────────────────────────────────────────────────────────────────────",
+                ))
+                .multi(opt_multi)
+                .regex(false)
+                .build()
+                .expect("Could not initialized skim options for browse_view");
 
-        // run_with() reads and shows items from the thread stream created above
-        let selected_items = if let Some(output) = Skim::run_with(&skim_opts, Some(rx_item)) {
-            if output.is_abort {
-                eprintln!("httm interactive file browse session was aborted.  Quitting.");
-                std::process::exit(0)
+            // run_with() reads and shows items from the thread stream created above
+            let selected_items = if let Some(output) = Skim::run_with(&skim_opts, Some(rx_item)) {
+                if output.is_abort {
+                    eprintln!("httm interactive file browse session was aborted.  Quitting.");
+                    std::process::exit(0)
+                } else {
+                    output.selected_items
+                }
             } else {
-                output.selected_items
-            }
-        } else {
-            return Err(HttmError::new("httm interactive file browse session failed.").into());
-        };
+                return Err(HttmError::new("httm interactive file browse session failed.").into());
+            };
 
-        // output() converts the filename/raw path to a absolute path string for use elsewhere
-        let output: Vec<String> = selected_items
-            .iter()
-            .map(|i| i.output().into_owned())
-            .collect();
+            // output() converts the filename/raw path to a absolute path string for use elsewhere
+            let output: Vec<String> = selected_items
+                .iter()
+                .map(|i| i.output().into_owned())
+                .collect();
 
-        Ok(output)
+            Ok(output)
+        });
+
+        handle.join().unwrap_or(Err(
+            HttmError::new("Interactive browse thread panicked.").into()
+        ))
     }
 }
 
@@ -440,7 +446,7 @@ pub fn select_restore_view(
     let item_reader_opts = SkimItemReaderOption::default().ansi(true);
     let item_reader = SkimItemReader::new(item_reader_opts);
 
-    let items = item_reader.of_bufread(Cursor::new(preview_buffer.to_owned()));
+    let items = item_reader.of_bufread(Box::new(Cursor::new(preview_buffer.to_owned())));
 
     // run_with() reads and shows items from the thread stream created above
     let selected_items = if let Some(output) = Skim::run_with(&skim_opts, Some(items)) {
