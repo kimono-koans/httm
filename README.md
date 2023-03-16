@@ -62,8 +62,6 @@ For MacOS users, a user from the community (very exciting) has posted a [formula
 
 The `httm` project contains only a few components:
 
-Note: `0.17.10` will be the last release published to [crates.io](https://crates.io) until either `cargo` allows publishing patched dependencies, or my upstream dependencies accept my changes. That means, for now, the install from source method is `cargo install --git ... --tag ...`, if you want to install a version after `0.17.10`.
-
 1. The `httm` executable.  To build and install:
 
     ```bash
