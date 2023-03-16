@@ -47,7 +47,7 @@ serde = { version = "1.0.152", default-features = false }
 serde_json = { version = "1.0.93", features = ["preserve_order"] }
 
 [patch.crates-io]
-skim = { git = "https://github.com/kimono-koans/skim", branch = "httm-vendored" }
+skim = { git = "https://github.com/kimono-koans/two_percent" }
 
 [package.metadata.deb]
 maintainer = "kimono koans <https://github.com/kimono-koans/>"
