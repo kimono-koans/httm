@@ -1096,7 +1096,8 @@ dependencies = [
 [[package]]
 name = "two_percent"
 version = "0.10.4"
-source = "git+https://github.com/kimono-koans/two_percent#44d5ed4cddbfe94243161cec28fb147d62898c88"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fb56293abe765a0cb2e832e35fd55f95369b62850130d740f28ce61aded9b8ed"
 dependencies = [
  "atty",
  "beef",

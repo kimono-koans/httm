@@ -31,7 +31,7 @@ clap = { version = "3.2.8", features = ["cargo"] }
 crossbeam = { version = "0.8.2", default-features = false }
 time = { version = "0.3.17", features = ["formatting", "local-offset"] }
 number_prefix = { version = "0.4.0",  default-features = false }
-skim = { git = "https://github.com/kimono-koans/two_percent", version = "0.10.4", package="two_percent" }
+skim = { version = "0.10.4", package="two_percent" }
 lscolors = { version = "0.13.0", features = ["ansi_term"] }
 terminal_size = { version = "0.2.3", default-features = false }
 which = { version = "4.3.0", default-features = false }
