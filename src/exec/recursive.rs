@@ -18,7 +18,7 @@
 use std::{fs::read_dir, path::Path, sync::Arc};
 
 use rayon::{Scope, ThreadPool};
-use skim::prelude::*;
+use two_percent::prelude::*;
 
 use crate::config::generate::{DeletedMode, ExecMode};
 use crate::data::paths::{BasicDirEntryInfo, PathData};

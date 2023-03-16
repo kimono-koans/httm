@@ -497,9 +497,9 @@ dependencies = [
  "serde",
  "serde_json",
  "simd-adler32",
- "skim",
  "terminal_size",
  "time 0.3.20",
+ "two_percent",
  "which",
  "xattr",
 ]
@@ -563,10 +563,11 @@ dependencies = [
 
 [[package]]
 name = "io-lifetimes"
-version = "1.0.6"
+version = "1.0.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cfa919a82ea574332e2de6e74b4c36e74d41982b335080fa59d4ef31be20fdf3"
+checksum = "76e86b86ae312accbf05ade23ce76b625e0e47a255712b7414037385a1c05380"
 dependencies = [
+ "hermit-abi 0.3.1",
  "libc",
  "windows-sys 0.45.0",
 ]
@@ -941,34 +942,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "238abfbb77c1915110ad968465608b68e869e0772622c9656714e73e5a1a522f"
 
 [[package]]
-name = "skim"
-version = "0.10.4"
-source = "git+https://github.com/kimono-koans/two_percent#ddf4d8a627cd7a5ed09abda950db263fab0e96d5"
-dependencies = [
- "atty",
- "beef",
- "bitflags",
- "chrono",
- "clap",
- "crossbeam",
- "derive_builder",
- "env_logger",
- "fuzzy-matcher",
- "lazy_static",
- "log",
- "nix 0.26.2",
- "once_cell",
- "rayon",
- "regex",
- "shlex",
- "time 0.3.20",
- "timer",
- "tuikit",
- "unicode-width",
- "vte",
-]
-
-[[package]]
 name = "static_assertions"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1118,6 +1091,34 @@ dependencies = [
  "nix 0.24.3",
  "term",
  "unicode-width",
+]
+
+[[package]]
+name = "two_percent"
+version = "0.10.4"
+source = "git+https://github.com/kimono-koans/two_percent#44d5ed4cddbfe94243161cec28fb147d62898c88"
+dependencies = [
+ "atty",
+ "beef",
+ "bitflags",
+ "chrono",
+ "clap",
+ "crossbeam",
+ "derive_builder",
+ "env_logger",
+ "fuzzy-matcher",
+ "lazy_static",
+ "log",
+ "nix 0.26.2",
+ "once_cell",
+ "rayon",
+ "regex",
+ "shlex",
+ "time 0.3.20",
+ "timer",
+ "tuikit",
+ "unicode-width",
+ "vte",
 ]
 
 [[package]]

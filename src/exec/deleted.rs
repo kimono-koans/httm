@@ -18,7 +18,7 @@
 use std::path::Path;
 
 use rayon::Scope;
-use skim::prelude::*;
+use two_percent::prelude::*;
 
 use crate::config::generate::DeletedMode;
 use crate::data::paths::{BasicDirEntryInfo, PathData};

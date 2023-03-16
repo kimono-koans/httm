@@ -18,7 +18,7 @@
 use std::{fs::FileType, path::PathBuf};
 
 use lscolors::Colorable;
-use skim::prelude::*;
+use two_percent::prelude::*;
 
 use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::display_versions::wrapper::VersionsDisplayWrapper;
@@ -109,8 +109,8 @@ impl SkimItem for SelectionCandidate {
     fn output(&self) -> Cow<str> {
         self.text()
     }
-    fn preview(&self, _: PreviewContext<'_>) -> skim::ItemPreview {
+    fn preview(&self, _: PreviewContext<'_>) -> two_percent::ItemPreview {
         let preview_output = self.preview_view().unwrap_or_default();
-        skim::ItemPreview::AnsiText(preview_output)
+        two_percent::ItemPreview::AnsiText(preview_output)
     }
 }
