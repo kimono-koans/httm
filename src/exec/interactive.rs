@@ -18,7 +18,7 @@
 use std::{io::Cursor, path::Path, path::PathBuf, thread};
 
 use crossbeam::channel::unbounded;
-use two_percent::prelude::*;
+use skim::prelude::*;
 
 use crate::config::generate::{ExecMode, InteractiveMode, PrintMode, RestoreMode};
 use crate::data::paths::{PathData, PathMetadata};
@@ -119,7 +119,7 @@ impl InteractiveBrowse {
 
             // run_with() reads and shows items from the thread stream created above
             let selected_items = if let Some(output) =
-                two_percent::Skim::run_with(&skim_opts, Some(rx_item))
+                skim::Skim::run_with(&skim_opts, Some(rx_item))
             {
                 if output.is_abort {
                     eprintln!("httm interactive file browse session was aborted.  Quitting.");
@@ -451,8 +451,7 @@ pub fn select_restore_view(
     let items = item_reader.of_bufread(Box::new(Cursor::new(preview_buffer.to_owned())));
 
     // run_with() reads and shows items from the thread stream created above
-    let selected_items = if let Some(output) = two_percent::Skim::run_with(&skim_opts, Some(items))
-    {
+    let selected_items = if let Some(output) = skim::Skim::run_with(&skim_opts, Some(items)) {
         if output.is_abort {
             eprintln!("httm select/restore/purge session was aborted.  Quitting.");
             std::process::exit(0)
