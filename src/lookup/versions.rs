@@ -110,17 +110,12 @@ impl VersionsMap {
         let all_snap_versions: BTreeMap<PathData, Vec<PathData>> = path_set
             .par_iter()
             .map(|pathdata| {
-                let snaps: Vec<PathData> = snaps_selected_for_search
-                    .iter()
-                    .flat_map(|dataset_type| MostProximateAndOptAlts::new(pathdata, dataset_type))
-                    .flat_map(|datasets_of_interest| {
-                        MostProximateAndOptAlts::get_search_bundles(datasets_of_interest, pathdata)
-                    })
-                    .flatten()
-                    .flat_map(|search_bundle| {
-                        search_bundle.get_versions_processed(&config.uniqueness)
-                    })
-                    .collect();
+                let snaps: Vec<PathData> =
+                    Self::get_search_bundle_iter(pathdata, snaps_selected_for_search)
+                        .flat_map(|search_bundle| {
+                            search_bundle.get_versions_processed(&config.uniqueness)
+                        })
+                        .collect();
                 (pathdata.clone(), snaps)
             })
             .collect();
@@ -128,6 +123,19 @@ impl VersionsMap {
         let versions_map: VersionsMap = all_snap_versions.into();
 
         versions_map
+    }
+
+    pub fn get_search_bundle_iter<'a>(
+        pathdata: &'a PathData,
+        snaps_selected_for_search: &'a [SnapDatasetType],
+    ) -> impl Iterator<Item = RelativePathAndSnapMounts<'a>> {
+        snaps_selected_for_search
+            .iter()
+            .flat_map(|dataset_type| MostProximateAndOptAlts::new(pathdata, dataset_type))
+            .flat_map(|datasets_of_interest| {
+                MostProximateAndOptAlts::get_search_bundles(datasets_of_interest, pathdata)
+            })
+            .flatten()
     }
 
     fn omit_ditto(&mut self) {

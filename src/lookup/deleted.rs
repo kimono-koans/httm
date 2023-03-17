@@ -26,8 +26,10 @@ use hashbrown::{HashMap, HashSet};
 
 use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::library::results::HttmResult;
-use crate::lookup::versions::{MostProximateAndOptAlts, RelativePathAndSnapMounts};
+use crate::lookup::versions::RelativePathAndSnapMounts;
 use crate::GLOBAL_CONFIG;
+
+use super::versions::VersionsMap;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DeletedFilesBundle {
@@ -73,24 +75,17 @@ impl DeletedFilesBundle {
         // we need to make certain that what we return from possibly multiple datasets are unique
         // as these will be the filenames that populate our interactive views, so deduplicate
         // by filename and latest file version here
-        let basic_info_map: HashMap<OsString, BasicDirEntryInfo> = requested_snap_datasets
-            .iter()
-            .flat_map(|dataset_type| {
-                MostProximateAndOptAlts::new(&requested_dir_pathdata, dataset_type)
-            })
-            .flat_map(|datasets_of_interest| {
-                MostProximateAndOptAlts::get_search_bundles(
-                    datasets_of_interest,
-                    &requested_dir_pathdata,
-                )
-            })
-            .flatten()
-            .flat_map(|search_bundle| {
-                Self::get_unique_deleted_for_dir(&requested_dir_pathdata.path_buf, &search_bundle)
-            })
-            .flatten()
-            .map(|basic_info| (basic_info.get_filename().to_os_string(), basic_info))
-            .collect();
+        let basic_info_map: HashMap<OsString, BasicDirEntryInfo> =
+            VersionsMap::get_search_bundle_iter(&requested_dir_pathdata, requested_snap_datasets)
+                .flat_map(|search_bundle| {
+                    Self::get_unique_deleted_for_dir(
+                        &requested_dir_pathdata.path_buf,
+                        &search_bundle,
+                    )
+                })
+                .flatten()
+                .map(|basic_info| (basic_info.get_filename().to_os_string(), basic_info))
+                .collect();
 
         let inner = basic_info_map.into_values().collect();
 
@@ -174,13 +169,7 @@ impl LastInTimeSet {
         let inner: Vec<PathBuf> = path_set
             .iter()
             .filter_map(|pathdata| {
-                snaps_selected_for_search
-                    .iter()
-                    .flat_map(|dataset_type| MostProximateAndOptAlts::new(pathdata, dataset_type))
-                    .flat_map(|datasets_of_interest| {
-                        MostProximateAndOptAlts::get_search_bundles(datasets_of_interest, pathdata)
-                    })
-                    .flatten()
+                VersionsMap::get_search_bundle_iter(pathdata, snaps_selected_for_search)
                     .filter_map(|search_bundle| search_bundle.get_last_version())
                     .max_by_key(|pathdata| pathdata.get_md_infallible().modify_time)
                     .map(|pathdata| pathdata.path_buf)
