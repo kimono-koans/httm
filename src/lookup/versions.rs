@@ -72,7 +72,7 @@ impl DerefMut for VersionsMap {
 
 impl VersionsMap {
     pub fn new(config: &Config, path_set: &[PathData]) -> HttmResult<VersionsMap> {
-        let mut versions_map = Self::exec(config, path_set);
+        let mut versions_map = Self::generate(config, path_set);
 
         // check if all files (snap and live) do not exist, if this is true, then user probably messed up
         // and entered a file that never existed (that is, perhaps a wrong file name)?
@@ -100,7 +100,7 @@ impl VersionsMap {
         Ok(versions_map)
     }
 
-    fn exec(config: &Config, path_set: &[PathData]) -> Self {
+    fn generate(config: &Config, path_set: &[PathData]) -> Self {
         // create vec of all local and replicated backups at once
         let snaps_selected_for_search = GLOBAL_CONFIG
             .dataset_collection
@@ -111,7 +111,7 @@ impl VersionsMap {
             .par_iter()
             .map(|pathdata| {
                 let snaps: Vec<PathData> =
-                    Self::get_search_bundle_iter(pathdata, snaps_selected_for_search)
+                    Self::get_search_bundles(pathdata, snaps_selected_for_search)
                         .flat_map(|search_bundle| {
                             search_bundle.get_versions_processed(&config.uniqueness)
                         })
@@ -125,7 +125,7 @@ impl VersionsMap {
         versions_map
     }
 
-    pub fn get_search_bundle_iter<'a>(
+    pub fn get_search_bundles<'a>(
         pathdata: &'a PathData,
         snaps_selected_for_search: &'a [SnapDatasetType],
     ) -> impl Iterator<Item = RelativePathAndSnapMounts<'a>> {
