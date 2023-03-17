@@ -126,13 +126,17 @@ fn exec() -> HttmResult<()> {
         ExecMode::NonInteractiveRecursive(_) => NonInteractiveRecursiveWrapper::exec(),
         ExecMode::SnapFileMount(snapshot_suffix) => TakeSnapshot::exec(snapshot_suffix),
         ExecMode::SnapsForFiles(opt_filters) => {
-            let snap_name_map = SnapNameMap::exec(opt_filters);
+            let versions_map = VersionsMap::new(&GLOBAL_CONFIG, &GLOBAL_CONFIG.paths)?;
+            let snap_name_map = SnapNameMap::exec(versions_map, opt_filters);
             let printable_map = PrintAsMap::from(&snap_name_map);
             let output_buf = printable_map.to_string();
 
             print_output_buf(output_buf)
         }
-        ExecMode::Purge(opt_filters) => PurgeFiles::exec(opt_filters),
+        ExecMode::Purge(opt_filters) => {
+            let versions_map = VersionsMap::new(&GLOBAL_CONFIG, &GLOBAL_CONFIG.paths)?;
+            PurgeFiles::exec(versions_map, opt_filters)
+        }
         ExecMode::MountsForFiles(mount_display) => {
             let mounts_map = &MountsForFiles::new(mount_display);
             let printable_map: PrintAsMap = mounts_map.into();

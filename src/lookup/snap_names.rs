@@ -22,11 +22,10 @@ use rayon::prelude::*;
 
 use crate::config::generate::ListSnapsFilters;
 use crate::data::paths::PathData;
-use crate::lookup::versions::MostProximateAndOptAlts;
 use crate::parse::aliases::FilesystemType;
 use crate::GLOBAL_CONFIG;
 
-use super::versions::SnapDatasetType;
+use super::versions::VersionsMap;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SnapNameMap {
@@ -48,14 +47,8 @@ impl Deref for SnapNameMap {
 }
 
 impl SnapNameMap {
-    pub fn exec(opt_filters: &Option<ListSnapsFilters>) -> Self {
-        // only purge the proximate dataset
-        let snaps_selected_for_search = GLOBAL_CONFIG
-            .dataset_collection
-            .snaps_selected_for_search
-            .get_value();
-
-        let snap_name_map = Self::get_snap_names(snaps_selected_for_search, opt_filters);
+    pub fn exec(versions_map: VersionsMap, opt_filters: &Option<ListSnapsFilters>) -> Self {
+        let snap_name_map = Self::get_snap_names(versions_map, opt_filters);
 
         snap_name_map.deref().iter().for_each(|(pathdata, snaps)| {
             if snaps.is_empty() {
@@ -71,26 +64,12 @@ impl SnapNameMap {
     }
 
     fn get_snap_names(
-        snaps_selected_for_search: &[SnapDatasetType],
+        version_map: VersionsMap,
         opt_filters: &Option<ListSnapsFilters>,
     ) -> SnapNameMap {
-        let requested_versions = GLOBAL_CONFIG.paths.par_iter().map(|pathdata| {
-            // same way we use the rayon threadpool in versions
-            let snap_versions: Vec<PathData> = snaps_selected_for_search
-                .iter()
-                .flat_map(|dataset_type| MostProximateAndOptAlts::new(pathdata, dataset_type))
-                .flat_map(|datasets_of_interest| {
-                    MostProximateAndOptAlts::get_search_bundles(datasets_of_interest, pathdata)
-                })
-                .flatten()
-                .flat_map(|search_bundle| {
-                    search_bundle.get_versions_processed(&GLOBAL_CONFIG.uniqueness)
-                })
-                .collect();
-            (pathdata.clone(), snap_versions)
-        });
-
-        let inner: BTreeMap<PathData, Vec<String>> = requested_versions
+        let inner: BTreeMap<PathData, Vec<String>> = version_map
+            .inner
+            .into_iter()
             .map(|(pathdata, vec_snaps)| {
                 // use par iter here because no one else is using the global rayon threadpool any more
                 let snap_names: Vec<String> = vec_snaps

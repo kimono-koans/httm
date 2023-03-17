@@ -24,12 +24,16 @@ use crate::config::generate::ListSnapsFilters;
 use crate::exec::interactive::{select_restore_view, ViewMode};
 use crate::library::results::{HttmError, HttmResult};
 use crate::lookup::snap_names::SnapNameMap;
+use crate::lookup::versions::VersionsMap;
 
 pub struct PurgeFiles;
 
 impl PurgeFiles {
-    pub fn exec(opt_filters: &Option<ListSnapsFilters>) -> HttmResult<()> {
-        let snap_name_map: SnapNameMap = SnapNameMap::exec(opt_filters);
+    pub fn exec(
+        versions_map: VersionsMap,
+        opt_filters: &Option<ListSnapsFilters>,
+    ) -> HttmResult<()> {
+        let snap_name_map: SnapNameMap = SnapNameMap::exec(versions_map, opt_filters);
 
         let select_mode = if let Some(filters) = opt_filters {
             filters.select_mode
