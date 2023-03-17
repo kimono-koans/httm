@@ -71,30 +71,32 @@ impl<'a> MountsForFiles<'a> {
     }
 
     pub fn from_raw_paths(raw_vec: &[PathData], mount_display: &'a MountDisplay) -> Self {
+        let snaps_selected_for_search = GLOBAL_CONFIG
+            .dataset_collection
+            .snaps_selected_for_search
+            .get_value();
+
         let map: BTreeMap<PathData, Vec<PathData>> = raw_vec
             .iter()
             .map(|pathdata| {
-                let datasets: Vec<MostProximateAndOptAlts> = GLOBAL_CONFIG
-                    .dataset_collection
-                    .snaps_selected_for_search
-                    .get_value()
+                let datasets: Vec<MostProximateAndOptAlts> = snaps_selected_for_search
                     .iter()
                     .flat_map(|dataset_type| MostProximateAndOptAlts::new(pathdata, dataset_type))
                     .collect();
                 (pathdata.clone(), datasets)
             })
-            .into_group_map_by(|(pathdata, _snap_types_for_search)| pathdata.clone())
+            .into_group_map_by(|(pathdata, _datasets_for_search)| pathdata.clone())
             .into_iter()
-            .map(|(pathdata, vec_snap_types_for_search)| {
-                let datasets: Vec<PathData> = vec_snap_types_for_search
+            .map(|(pathdata, datasets_for_search)| {
+                let datasets: Vec<PathData> = datasets_for_search
                     .into_iter()
-                    .flat_map(|(_proximate_mount, snap_types_for_search)| snap_types_for_search)
-                    .flat_map(|snap_types_for_search| {
-                        snap_types_for_search
+                    .flat_map(|(_proximate_mount, datasets_for_search)| datasets_for_search)
+                    .flat_map(|dataset_for_search| {
+                        dataset_for_search
                             .opt_datasets_of_interest
                             .to_owned()
                             .unwrap_or_else(|| {
-                                vec![snap_types_for_search.proximate_dataset_mount.to_path_buf()]
+                                vec![dataset_for_search.proximate_dataset_mount.to_path_buf()]
                             })
                     })
                     .map(|path| PathData::from(path.as_path()))
