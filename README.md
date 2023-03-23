@@ -251,7 +251,7 @@ alias rm=\"ounce rm\"" >> ~/.zsh_aliases
 ```
 Use [bowie](https://github.com/kimono-koans/httm/blob/master/scripts/bowie.bash), a wrapper script for `httm`, to display the difference between unique snapshot versions and the live file:
 ```bash
-➜ bowie /var/log/syslog
+➜ bowie ~/.zshrc
 /home/kimono/.zshrc
 __
 Files /home/kimono/.zfs/snapshot/snap_2023-02-14-13:42:11_ounceSnapFileMount/.zshrc and /home/kimono/.zshrc differ
