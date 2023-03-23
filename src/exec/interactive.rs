@@ -448,7 +448,7 @@ pub fn select_restore_view(
     let item_reader_opts = SkimItemReaderOption::default().ansi(true);
     let item_reader = SkimItemReader::new(item_reader_opts);
 
-    let items = item_reader.of_bufread(Box::new(Cursor::new(preview_buffer.to_owned())));
+    let items = item_reader.of_bufread(Box::new(Cursor::new(preview_buffer.trim().to_owned())));
 
     // run_with() reads and shows items from the thread stream created above
     let selected_items = if let Some(output) = skim::Skim::run_with(&skim_opts, Some(items)) {
