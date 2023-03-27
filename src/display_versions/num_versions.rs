@@ -28,7 +28,7 @@ impl<'a> VersionsDisplayWrapper<'a> {
         let write_out_buffer: String = self
             .iter()
             .filter_map(|(live_version, snaps)| {
-                let map_padding = if matches!(num_versions_mode, NumVersionsMode::All) {
+                let map_padding = if matches!(num_versions_mode, NumVersionsMode::AllNumerals | NumVersionsMode::AllHistogram) {
                     let printable_map = PrintAsMap::from(&self.map);
                     printable_map.get_map_padding()
                 } else {
@@ -55,7 +55,7 @@ impl<'a> VersionsDisplayWrapper<'a> {
                     "Notification: No paths which have only a single version exist."
                 }
                 // NumVersionsMode::All empty should be dealt with earlier at lookup_exec
-                NumVersionsMode::All => unreachable!(),
+                NumVersionsMode::AllNumerals | NumVersionsMode::AllHistogram => unreachable!(),
             };
             eprintln!("{msg}");
         }
@@ -79,7 +79,7 @@ impl<'a> VersionsDisplayWrapper<'a> {
         };
 
         match num_versions_mode {
-            NumVersionsMode::All => {
+            NumVersionsMode::AllNumerals | NumVersionsMode::AllHistogram => {
                 let num_versions = if is_live_redundant() {
                     snaps.len()
                 } else {
@@ -90,6 +90,17 @@ impl<'a> VersionsDisplayWrapper<'a> {
                     return Some(format!(
                         "{:<width$} : Path does not exist.{}",
                         display_path,
+                        delimiter,
+                        width = padding
+                    ));
+                }
+
+                if matches!(num_versions_mode, NumVersionsMode::AllHistogram) {
+                    let histogram: String = (0..num_versions).map(|_| "*").collect();
+                    return Some(format!(
+                        "{:<width$} : {}{}",
+                        display_path,
+                        histogram,
                         delimiter,
                         width = padding
                     ));
@@ -152,7 +163,7 @@ impl<'a> VersionsDisplayWrapper<'a> {
                             None
                         }
                     }
-                    NumVersionsMode::All => unreachable!(),
+                    NumVersionsMode::AllNumerals | NumVersionsMode::AllHistogram => unreachable!(),
                 }
             }
         }
