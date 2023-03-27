@@ -18,6 +18,7 @@
 use crate::config::generate::NumVersionsMode;
 use crate::data::paths::PathData;
 use crate::display_map::helper::PrintAsMap;
+use crate::lookup::versions::VersionsMap;
 use crate::VersionsDisplayWrapper;
 
 impl<'a> VersionsDisplayWrapper<'a> {
@@ -70,12 +71,6 @@ impl<'a> VersionsDisplayWrapper<'a> {
     ) -> Option<String> {
         let display_path = live_version.path_buf.display();
 
-        let is_live_redundant = || {
-            snaps
-                .iter()
-                .any(|snap_version| live_version.metadata == snap_version.metadata)
-        };
-
         if live_version.metadata.is_none() {
             eprintln!(
                 "{:<width$} : Path does not exist.",
@@ -89,7 +84,7 @@ impl<'a> VersionsDisplayWrapper<'a> {
 
         match num_versions_mode {
             NumVersionsMode::AllGraph => {
-                if !is_live_redundant() {
+                if !VersionsMap::is_live_version_redundant(live_version, snaps) {
                     num_versions += 1
                 };
 
@@ -102,7 +97,7 @@ impl<'a> VersionsDisplayWrapper<'a> {
                 ));
             }
             NumVersionsMode::AllNumerals => {
-                if !is_live_redundant() {
+                if !VersionsMap::is_live_version_redundant(live_version, snaps) {
                     num_versions += 1
                 };
 
@@ -124,14 +119,20 @@ impl<'a> VersionsDisplayWrapper<'a> {
                 }
             }
             NumVersionsMode::Multiple => {
-                if num_versions == 0 || (num_versions == 1 && is_live_redundant()) {
+                if num_versions == 0
+                    || (num_versions == 1
+                        && VersionsMap::is_live_version_redundant(live_version, snaps))
+                {
                     None
                 } else {
                     Some(format!("{display_path}{delimiter}"))
                 }
             }
             NumVersionsMode::SingleAll => {
-                if num_versions == 0 || (num_versions == 1 && is_live_redundant()) {
+                if num_versions == 0
+                    || (num_versions == 1
+                        && VersionsMap::is_live_version_redundant(live_version, snaps))
+                {
                     Some(format!("{display_path}{delimiter}"))
                 } else {
                     None
@@ -145,7 +146,8 @@ impl<'a> VersionsDisplayWrapper<'a> {
                 }
             }
             NumVersionsMode::SingleWithSnap => {
-                if num_versions == 1 && is_live_redundant() {
+                if num_versions == 1 && VersionsMap::is_live_version_redundant(live_version, snaps)
+                {
                     Some(format!("{display_path}{delimiter}"))
                 } else {
                     None

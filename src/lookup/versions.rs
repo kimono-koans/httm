@@ -138,13 +138,19 @@ impl VersionsMap {
             .flatten()
     }
 
+    pub fn is_live_version_redundant(live_pathdata: &PathData, snaps: &[PathData]) -> bool {
+        if let Some(last_snap) = snaps.last() {
+            return last_snap.get_md_infallible() == live_pathdata.get_md_infallible();
+        }
+
+        false
+    }
+
     fn omit_ditto(&mut self) {
         self.iter_mut().for_each(|(pathdata, snaps)| {
             // process omit_ditto before last snap
-            if let Some(last_snap) = snaps.last() {
-                if last_snap.get_md_infallible() == pathdata.get_md_infallible() {
-                    snaps.pop();
-                }
+            if Self::is_live_version_redundant(pathdata, snaps) {
+                snaps.pop();
             }
         });
     }
