@@ -28,7 +28,10 @@ impl<'a> VersionsDisplayWrapper<'a> {
         let write_out_buffer: String = self
             .iter()
             .filter_map(|(live_version, snaps)| {
-                let map_padding = if matches!(num_versions_mode, NumVersionsMode::AllNumerals | NumVersionsMode::AllHistogram) {
+                let map_padding = if matches!(
+                    num_versions_mode,
+                    NumVersionsMode::AllNumerals | NumVersionsMode::AllHistogram
+                ) {
                     let printable_map = PrintAsMap::from(&self.map);
                     printable_map.get_map_padding()
                 } else {
@@ -70,7 +73,7 @@ impl<'a> VersionsDisplayWrapper<'a> {
         snaps: &[PathData],
         padding: usize,
     ) -> Option<String> {
-        let display_path = format!("\"{}\"", live_version.path_buf.display());
+        let display_path = live_version.path_buf.display();
 
         let is_live_redundant = || {
             snaps
@@ -78,33 +81,37 @@ impl<'a> VersionsDisplayWrapper<'a> {
                 .any(|snap_version| live_version.metadata == snap_version.metadata)
         };
 
+        if live_version.metadata.is_none() {
+            return Some(format!(
+                "{:<width$} : Path does not exist.{}",
+                display_path,
+                delimiter,
+                width = padding
+            ));
+        }
+
+        let mut num_versions = snaps.len();
+
         match num_versions_mode {
-            NumVersionsMode::AllNumerals | NumVersionsMode::AllHistogram => {
-                let num_versions = if is_live_redundant() {
-                    snaps.len()
-                } else {
-                    snaps.len() + 1
+            NumVersionsMode::AllHistogram => {
+                if !is_live_redundant() {
+                    num_versions += 1
                 };
 
-                if live_version.metadata.is_none() {
-                    return Some(format!(
-                        "{:<width$} : Path does not exist.{}",
-                        display_path,
-                        delimiter,
-                        width = padding
-                    ));
-                }
+                let histogram: String = (0..num_versions).map(|_| "*").collect();
 
-                if matches!(num_versions_mode, NumVersionsMode::AllHistogram) {
-                    let histogram: String = (0..num_versions).map(|_| "*").collect();
-                    return Some(format!(
-                        "{:<width$} : {}{}",
-                        display_path,
-                        histogram,
-                        delimiter,
-                        width = padding
-                    ));
-                }
+                return Some(format!(
+                    "{:<width$} : {}{}",
+                    display_path,
+                    histogram,
+                    delimiter,
+                    width = padding
+                ));
+            }
+            NumVersionsMode::AllNumerals => {
+                if !is_live_redundant() {
+                    num_versions += 1
+                };
 
                 if num_versions == 1 {
                     Some(format!(
@@ -123,47 +130,32 @@ impl<'a> VersionsDisplayWrapper<'a> {
                     ))
                 }
             }
-            NumVersionsMode::Multiple
-            | NumVersionsMode::SingleAll
-            | NumVersionsMode::SingleNoSnap
-            | NumVersionsMode::SingleWithSnap => {
-                if live_version.metadata.is_none() {
-                    return Some(format!(
-                        "{} : Path does not exist.{}",
-                        display_path, delimiter
-                    ));
+            NumVersionsMode::Multiple => {
+                if snaps.is_empty() || (snaps.len() == 1 && is_live_redundant()) {
+                    None
+                } else {
+                    Some(format!("{display_path}{delimiter}"))
                 }
-
-                match num_versions_mode {
-                    NumVersionsMode::Multiple => {
-                        if snaps.is_empty() || (snaps.len() == 1 && is_live_redundant()) {
-                            None
-                        } else {
-                            Some(format!("{display_path}{delimiter}"))
-                        }
-                    }
-                    NumVersionsMode::SingleAll => {
-                        if snaps.is_empty() || (snaps.len() == 1 && is_live_redundant()) {
-                            Some(format!("{display_path}{delimiter}"))
-                        } else {
-                            None
-                        }
-                    }
-                    NumVersionsMode::SingleNoSnap => {
-                        if snaps.is_empty() {
-                            Some(format!("{display_path}{delimiter}"))
-                        } else {
-                            None
-                        }
-                    }
-                    NumVersionsMode::SingleWithSnap => {
-                        if !snaps.is_empty() && (snaps.len() == 1 && is_live_redundant()) {
-                            Some(format!("{display_path}{delimiter}"))
-                        } else {
-                            None
-                        }
-                    }
-                    NumVersionsMode::AllNumerals | NumVersionsMode::AllHistogram => unreachable!(),
+            }
+            NumVersionsMode::SingleAll => {
+                if snaps.is_empty() || (snaps.len() == 1 && is_live_redundant()) {
+                    Some(format!("{display_path}{delimiter}"))
+                } else {
+                    None
+                }
+            }
+            NumVersionsMode::SingleNoSnap => {
+                if snaps.is_empty() {
+                    Some(format!("{display_path}{delimiter}"))
+                } else {
+                    None
+                }
+            }
+            NumVersionsMode::SingleWithSnap => {
+                if !snaps.is_empty() && (snaps.len() == 1 && is_live_redundant()) {
+                    Some(format!("{display_path}{delimiter}"))
+                } else {
+                    None
                 }
             }
         }
