@@ -25,18 +25,13 @@ impl<'a> VersionsDisplayWrapper<'a> {
         // let delimiter = get_delimiter(config);
         let delimiter = '\n';
 
+        let printable_map = PrintAsMap::from(&self.map);
+
+        let map_padding = printable_map.get_map_padding();
+
         let write_out_buffer: String = self
             .iter()
             .filter_map(|(live_version, snaps)| {
-                let map_padding = if matches!(
-                    num_versions_mode,
-                    NumVersionsMode::AllNumerals | NumVersionsMode::AllHistogram
-                ) {
-                    let printable_map = PrintAsMap::from(&self.map);
-                    printable_map.get_map_padding()
-                } else {
-                    0usize
-                };
                 Self::parse_num_versions(
                     num_versions_mode,
                     delimiter,
@@ -82,12 +77,12 @@ impl<'a> VersionsDisplayWrapper<'a> {
         };
 
         if live_version.metadata.is_none() {
-            return Some(format!(
-                "{:<width$} : Path does not exist.{}",
+            eprintln!(
+                "{:<width$} : Path does not exist.",
                 display_path,
-                delimiter,
                 width = padding
-            ));
+            );
+            return None;
         }
 
         let mut num_versions = snaps.len();
@@ -150,7 +145,7 @@ impl<'a> VersionsDisplayWrapper<'a> {
                 }
             }
             NumVersionsMode::SingleWithSnap => {
-                if num_versions != 0 && (num_versions == 1 && is_live_redundant()) {
+                if num_versions == 1 && is_live_redundant() {
                     Some(format!("{display_path}{delimiter}"))
                 } else {
                     None
