@@ -98,12 +98,10 @@ impl<'a> VersionsDisplayWrapper<'a> {
                     num_versions += 1
                 };
 
-                let histogram: String = (0..num_versions).map(|_| "*").collect();
-
                 return Some(format!(
-                    "{:<width$} : {}{}",
+                    "{:<width$} : {:*<num_versions$}{}",
                     display_path,
-                    histogram,
+                    "",
                     delimiter,
                     width = padding
                 ));
@@ -131,28 +129,28 @@ impl<'a> VersionsDisplayWrapper<'a> {
                 }
             }
             NumVersionsMode::Multiple => {
-                if snaps.is_empty() || (snaps.len() == 1 && is_live_redundant()) {
+                if num_versions == 0 || (num_versions == 1 && is_live_redundant()) {
                     None
                 } else {
                     Some(format!("{display_path}{delimiter}"))
                 }
             }
             NumVersionsMode::SingleAll => {
-                if snaps.is_empty() || (snaps.len() == 1 && is_live_redundant()) {
+                if num_versions == 0 || (num_versions == 1 && is_live_redundant()) {
                     Some(format!("{display_path}{delimiter}"))
                 } else {
                     None
                 }
             }
             NumVersionsMode::SingleNoSnap => {
-                if snaps.is_empty() {
+                if num_versions == 0 {
                     Some(format!("{display_path}{delimiter}"))
                 } else {
                     None
                 }
             }
             NumVersionsMode::SingleWithSnap => {
-                if !snaps.is_empty() && (snaps.len() == 1 && is_live_redundant()) {
+                if num_versions != 0 && (num_versions == 1 && is_live_redundant()) {
                     Some(format!("{display_path}{delimiter}"))
                 } else {
                     None
