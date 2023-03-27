@@ -113,7 +113,7 @@ pub enum LastSnapMode {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum NumVersionsMode {
     AllNumerals,
-    AllHistogram,
+    AllGraph,
     SingleAll,
     SingleNoSnap,
     SingleWithSnap,
@@ -420,13 +420,13 @@ fn parse_args() -> ArgMatches {
             Arg::new("NUM_VERSIONS")
                 .long("num-versions")
                 .default_missing_value("all")
-                .possible_values(["all", "histogram", "single", "single-no-snap", "single-with-snap", "multiple"])
+                .possible_values(["all", "graph", "single", "single-no-snap", "single-with-snap", "multiple"])
                 .min_values(0)
                 .require_equals(true)
                 .help("detect and display the number of unique versions available (e.g. one, \"1\", \
                 version is available if either a snapshot version exists, and is identical to live version, or only a live version exists).  \
                 This argument optionally takes a value.  The default value, \"all\", will print the filename and number of versions, \
-                \"histogram\" will print the filename and a line of characters representing the number of versions, \
+                \"graph\" will print the filename and a line of characters representing the number of versions, \
                 \"single\" will print only filenames which only have one version, \
                 (and \"single-no-snap\" will print those without a snap taken, and \"single-with-snap\" will print those with a snap taken), \
                 and \"multiple\" will print only filenames which only have multiple versions.")
@@ -574,7 +574,7 @@ impl Config {
 
         let opt_num_versions = match matches.value_of("NUM_VERSIONS") {
             Some("" | "all") => Some(NumVersionsMode::AllNumerals),
-            Some("histogram") => Some(NumVersionsMode::AllHistogram),
+            Some("graph") => Some(NumVersionsMode::AllGraph),
             Some("single") => Some(NumVersionsMode::SingleAll),
             Some("single-no-snap") => Some(NumVersionsMode::SingleNoSnap),
             Some("single-with-snap") => Some(NumVersionsMode::SingleWithSnap),

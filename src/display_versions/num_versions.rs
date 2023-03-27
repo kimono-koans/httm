@@ -53,7 +53,7 @@ impl<'a> VersionsDisplayWrapper<'a> {
                     "Notification: No paths which have only a single version exist."
                 }
                 // NumVersionsMode::All empty should be dealt with earlier at lookup_exec
-                NumVersionsMode::AllNumerals | NumVersionsMode::AllHistogram => unreachable!(),
+                NumVersionsMode::AllNumerals | NumVersionsMode::AllGraph => unreachable!(),
             };
             eprintln!("{msg}");
         }
@@ -88,7 +88,7 @@ impl<'a> VersionsDisplayWrapper<'a> {
         let mut num_versions = snaps.len();
 
         match num_versions_mode {
-            NumVersionsMode::AllHistogram => {
+            NumVersionsMode::AllGraph => {
                 if !is_live_redundant() {
                     num_versions += 1
                 };
