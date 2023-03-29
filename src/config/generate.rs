@@ -854,11 +854,12 @@ impl Config {
                 // setting pwd as the path, here, keeps us from waiting on stdin when in certain modes
                 //  is more like Interactive and NonInteractiveRecursive in this respect in requiring only one
                 // input, and waiting on one input from stdin is pretty silly
-                ExecMode::Interactive(_) | ExecMode::NonInteractiveRecursive(_) => {
+                ExecMode::Interactive(_)
+                | ExecMode::NonInteractiveRecursive(_)
+                | ExecMode::RollForward(_) => {
                     vec![pwd.clone()]
                 }
                 ExecMode::Display
-                | ExecMode::RollForward(_)
                 | ExecMode::SnapFileMount(_)
                 | ExecMode::Purge(_)
                 | ExecMode::MountsForFiles(_)
