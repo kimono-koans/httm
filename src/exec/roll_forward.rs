@@ -68,7 +68,8 @@ impl RollForward {
         } else {
             Self::exec_rollback(dataset_name, &pre_exec_snap_name, &zfs_command)?;
 
-            let msg = "httm roll forward failed.  Rolling back to precautionary pre-execution snapshot.";
+            let msg =
+                "httm roll forward failed.  Rolling back to precautionary pre-execution snapshot.";
 
             return Err(HttmError::new(msg).into());
         };
@@ -78,10 +79,15 @@ impl RollForward {
             dataset_name,
             snap_name,
             PrecautionarySnapType::Post,
-        ).map(|_res| ())
+        )
+        .map(|_res| ())
     }
 
-    fn exec_rollback(dataset_name: &str, pre_exec_snap_name: &str, zfs_command: &Path) -> HttmResult<()> {
+    fn exec_rollback(
+        dataset_name: &str,
+        pre_exec_snap_name: &str,
+        zfs_command: &Path,
+    ) -> HttmResult<()> {
         let mut process_args = vec!["rollback", "-r"];
         let full_snap_name = format!("{}@{}", dataset_name, pre_exec_snap_name);
         process_args.push(&full_snap_name);
@@ -301,12 +307,19 @@ impl DiffMap {
                         }
                     }
                     DiffType::Created => {
-                        if pathdata.path_buf.exists() && remove_recursive(&pathdata.path_buf).is_ok() && GLOBAL_CONFIG.opt_debug {
+                        match remove_recursive(&pathdata.path_buf) {
+                            Ok(_) => {}
+                            Err(err) => {
+                                eprintln!("{:?}", err);
+                            }
+                        }
+
+                        if pathdata.path_buf.exists() && GLOBAL_CONFIG.opt_debug {
                             println!("Created File: httm deleted {:?}, a newly created file.", &pathdata.path_buf);
                         }
 
                         if pathdata.path_buf.symlink_metadata().is_ok() {
-                            eprintln!("WARNING: File should not exist {:?}", pathdata.path_buf)
+                            eprintln!("WARNING: File should not exist after deletion {:?}", pathdata.path_buf)
                         }
                     }
                     DiffType::Modified => {

@@ -161,8 +161,8 @@ pub fn remove_recursive(path: &Path) -> HttmResult<()> {
             let file_type = entry.file_type()?;
 
             if !file_type.is_dir() {
-                if path.exists() {
-                    std::fs::remove_file(path)?
+                if entry.path().exists() {
+                    std::fs::remove_file(entry.path())?
                 }
             } else {
                 remove_recursive(&entry.path())?
