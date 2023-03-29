@@ -246,14 +246,13 @@ impl DiffMap {
                 pathdata
                     .get_proximate_dataset(&GLOBAL_CONFIG.dataset_collection.map_of_datasets)
                     .ok()
-                    .map(|proximate_dataset_mount| {
+                    .and_then(|proximate_dataset_mount| {
                         pathdata.get_relative_path(proximate_dataset_mount)
                             .ok()
                             .map(|relative_path| {
                             (pathdata, diff_type, proximate_dataset_mount, relative_path)
                         })
                     })
-                    .flatten()
             })
             .for_each(|(pathdata, diff_type, proximate_dataset_mount, relative_path)| {
                 let snap_file_path: PathBuf = [proximate_dataset_mount, Path::new(".zfs/snapshot"), Path::new(&self.snap_name), relative_path].iter().collect();
@@ -268,7 +267,7 @@ impl DiffMap {
                             }
 
                             if let Ok(new_path_md) = pathdata.path_buf.symlink_metadata() {
-                                if  new_path_md.modified().ok() == snap_file.metadata.map(|md| md.modify_time) {
+                                if new_path_md.modified().ok() != snap_file.metadata.map(|md| md.modify_time) {
                                     eprintln!("WARNING: Metadata mismatch: {:?} !-> {:?}", snap_file.path_buf, pathdata.path_buf)
                                 }
                             }
@@ -292,7 +291,7 @@ impl DiffMap {
                             }
 
                             if let Ok(new_path_md) = pathdata.path_buf.symlink_metadata() {
-                                if  new_path_md.modified().ok() == snap_file.metadata.map(|md| md.modify_time) {
+                                if new_path_md.modified().ok() != snap_file.metadata.map(|md| md.modify_time) {
                                     eprintln!("WARNING: Metadata mismatch: {:?} !-> {:?}", snap_file.path_buf, pathdata.path_buf)
                                 }
                             }
@@ -306,7 +305,7 @@ impl DiffMap {
                         }
 
                         if let Ok(new_path_md) = pathdata.path_buf.symlink_metadata() {
-                            if new_path_md.modified().ok() == pathdata.metadata.map(|md| md.modify_time) {
+                            if new_path_md.modified().ok() != pathdata.metadata.map(|md| md.modify_time) {
                                 eprintln!("WARNING: Metadata mismatch: {:?} !-> {:?}", new_file_name, pathdata.path_buf)
                             }
                         }
