@@ -66,7 +66,11 @@ impl RollForward {
             PrecautionarySnapType::Pre,
         )?;
 
-        diff_map.roll_forward();
+        if let Ok(_) = diff_map.roll_forward() {
+            println!("httm roll forward completed successfully.")
+        } else {
+            eprintln!("httm roll forward failed.  Rolling back to precautionary pre-execution snapshot.")
+        };
 
         RollForward::exec_snap(
             &zfs_command,
@@ -113,7 +117,7 @@ impl RollForward {
     ) -> HttmResult<()> {
         let mut process_args = vec!["snapshot".to_owned()];
 
-        match snap_type {
+        match &snap_type {
             PrecautionarySnapType::Pre => {
                 // all snapshots should have the same timestamp
                 let timestamp = get_date(
@@ -154,8 +158,15 @@ impl RollForward {
 
             Err(HttmError::new(&msg).into())
         } else {
-            let output_buf = format!("httm took a snapshot named: {}\n", &snap_name);
-
+            let output_buf = match &snap_type {
+                PrecautionarySnapType::Pre => {
+                    format!("httm took a pre-execution snapshot named: {}\n", &snap_name)
+                }
+                PrecautionarySnapType::Post(_) => {
+                    format!("httm took a post-execution snapshot named: {}\n", &snap_name)
+                }
+            };
+            
             print_output_buf(output_buf)
         }
     }
@@ -221,11 +232,11 @@ impl DiffMap {
         })
     }
 
-    fn roll_forward(&self) {
+    fn roll_forward(&self) -> HttmResult<()>{
         let snaps_selected_for_search = &[SnapDatasetType::MostProximate];
 
         self.inner
-            .par_iter()
+            .iter()
             .for_each(|(pathdata, diff_type)| {
                 let all_versions: Vec<PathData> = VersionsMap::get_search_bundles(pathdata, snaps_selected_for_search)
                     .flat_map(|search_bundle| search_bundle.get_versions_processed(&ListSnapsOfType::All))
@@ -235,8 +246,9 @@ impl DiffMap {
                     DiffType::Removed => {
                         if let Some(snap_file) = self.find_snap_version(&all_versions) {
                             if copy_recursive(&snap_file, &pathdata.path_buf, true).is_ok() {
-                                println!("Removed File: httm moved {:?} back to its original location: {:?}.", &pathdata.path_buf, snap_file);
-
+                                if GLOBAL_CONFIG.opt_debug {
+                                    println!("Removed File: httm moved {:?} back to its original location: {:?}.", &pathdata.path_buf, snap_file);
+                                }
                             } else {
                                 eprintln!("WARNING: could not overwrite new file")
                             }
@@ -246,7 +258,9 @@ impl DiffMap {
                     }
                     DiffType::Created => {
                         if remove_recursive(&pathdata.path_buf).is_ok() {
-                            println!("Created File: httm deleted {:?}, a newly created file.", &pathdata.path_buf);
+                            if GLOBAL_CONFIG.opt_debug {
+                                println!("Created File: httm deleted {:?}, a newly created file.", &pathdata.path_buf);
+                            }
                         } else {
                             eprintln!("WARNING: could not delete file path: {:?}", &pathdata.path_buf)
                         }
@@ -254,7 +268,9 @@ impl DiffMap {
                     DiffType::Modified => {
                         if let Some(snap_file) = self.find_snap_version(&all_versions) {
                             if copy_recursive(&snap_file, &pathdata.path_buf, true).is_ok() {
-                                println!("Modified File: httm has overwritten {:?} with the file contents from a snapshot: {:?}.", &pathdata.path_buf, snap_file);
+                                if GLOBAL_CONFIG.opt_debug {
+                                    println!("Modified File: httm has overwritten {:?} with the file contents from a snapshot: {:?}.", &pathdata.path_buf, snap_file);
+                                }
                             } else {
                                 eprintln!("WARNING: could not overwrite file path: {:?}", &pathdata.path_buf)
                             }
@@ -264,21 +280,25 @@ impl DiffMap {
                     }
                     DiffType::Renamed(new_file_name) => {
                         if copy_recursive(new_file_name, &pathdata.path_buf, true).is_ok() {
-                            println!("Renamed File: httm moved {:?} back to its original location: {:?}.", new_file_name, &pathdata.path_buf);
+                            if GLOBAL_CONFIG.opt_debug {
+                                println!("Renamed File: httm moved {:?} back to its original location: {:?}.", new_file_name, &pathdata.path_buf);
+                            }
                         } else {
                             eprintln!("WARNING: could not overwrite file path: {:?}", &pathdata.path_buf)
                         }
                     }
                 }
-            })
+            });
+        
+        Ok(())
     }
 
     fn find_snap_version(&self, all_versions: &[PathData]) -> Option<PathBuf> {
         let snap_name_string = OsStr::new(&self.snap_name);
 
         all_versions
-            .iter()
-            .find(|pathdata| {
+            .par_iter()
+            .find_first(|pathdata| {
                 pathdata
                     .path_buf
                     .components()
