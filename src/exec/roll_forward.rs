@@ -158,7 +158,7 @@ impl RollForward {
             }
             PrecautionarySnapType::Post => {
                 let new_snap_name = format!(
-                    "{}@snap_post_{}_httmSnapRollForward",
+                    "{}@snap_post_:{}:_httmSnapRollForward",
                     dataset_name, snap_name
                 );
 
