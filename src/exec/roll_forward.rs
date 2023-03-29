@@ -250,12 +250,12 @@ impl DiffMap {
                 match diff_type {
                     DiffType::Removed => {
                         if let Some(snap_file) = self.find_snap_version(&all_versions) {
-                            if copy_recursive(&snap_file, &pathdata.path_buf, true).is_ok() {
+                            if copy_recursive(&snap_file.path_buf, &pathdata.path_buf, true).is_ok() {
                                 if GLOBAL_CONFIG.opt_debug {
                                     println!("Removed File: httm moved {:?} back to its original location: {:?}.", &pathdata.path_buf, snap_file);
                                 }
 
-                                if pathdata.get_md_infallible() != PathData::from(snap_file.as_path()).get_md_infallible() {
+                                if pathdata.get_md_infallible() != snap_file.get_md_infallible() {
                                     eprintln!("WARNING: Metadata mismatch: {:?} !-> {:?}", snap_file, &pathdata.path_buf)
                                 }
                             } else {
@@ -276,12 +276,12 @@ impl DiffMap {
                     }
                     DiffType::Modified => {
                         if let Some(snap_file) = self.find_snap_version(&all_versions) {
-                            if copy_recursive(&snap_file, &pathdata.path_buf, true).is_ok() {
+                            if copy_recursive(&snap_file.path_buf, &pathdata.path_buf, true).is_ok() {
                                 if GLOBAL_CONFIG.opt_debug {
                                     println!("Modified File: httm has overwritten {:?} with the file contents from a snapshot: {:?}.", &pathdata.path_buf, snap_file);
                                 }
 
-                                if pathdata.get_md_infallible() != PathData::from(snap_file.as_path()).get_md_infallible() {
+                                if pathdata.get_md_infallible() != snap_file.get_md_infallible() {
                                     eprintln!("WARNING: Metadata mismatch: {:?} !-> {:?}", snap_file, &pathdata.path_buf)
                                 }
                             } else {
@@ -310,7 +310,7 @@ impl DiffMap {
         Ok(())
     }
 
-    fn find_snap_version(&self, all_versions: &[PathData]) -> Option<PathBuf> {
+    fn find_snap_version(&self, all_versions: &[PathData]) -> Option<PathData> {
         let snap_name_string = OsStr::new(&self.snap_name);
 
         all_versions
@@ -321,6 +321,6 @@ impl DiffMap {
                     .components()
                     .any(|component| component.as_os_str() == snap_name_string)
             })
-            .map(|pathdata| pathdata.path_buf.clone())
+            .map(|pathdata| pathdata.to_owned())
     }
 }
