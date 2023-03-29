@@ -66,10 +66,12 @@ impl RollForward {
             PrecautionarySnapType::Pre,
         )?;
 
-        if let Ok(_) = diff_map.roll_forward() {
+        if diff_map.roll_forward().is_ok() {
             println!("httm roll forward completed successfully.")
         } else {
-            eprintln!("httm roll forward failed.  Rolling back to precautionary pre-execution snapshot.")
+            eprintln!(
+                "httm roll forward failed.  Rolling back to precautionary pre-execution snapshot."
+            )
         };
 
         RollForward::exec_snap(
@@ -163,10 +165,13 @@ impl RollForward {
                     format!("httm took a pre-execution snapshot named: {}\n", &snap_name)
                 }
                 PrecautionarySnapType::Post(_) => {
-                    format!("httm took a post-execution snapshot named: {}\n", &snap_name)
+                    format!(
+                        "httm took a post-execution snapshot named: {}\n",
+                        &snap_name
+                    )
                 }
             };
-            
+
             print_output_buf(output_buf)
         }
     }
@@ -232,7 +237,7 @@ impl DiffMap {
         })
     }
 
-    fn roll_forward(&self) -> HttmResult<()>{
+    fn roll_forward(&self) -> HttmResult<()> {
         let snaps_selected_for_search = &[SnapDatasetType::MostProximate];
 
         self.inner
@@ -249,20 +254,24 @@ impl DiffMap {
                                 if GLOBAL_CONFIG.opt_debug {
                                     println!("Removed File: httm moved {:?} back to its original location: {:?}.", &pathdata.path_buf, snap_file);
                                 }
+
+                                if pathdata.get_md_infallible() != PathData::from(snap_file.as_path()).get_md_infallible() {
+                                    eprintln!("WARNING: Metadata mismatch: {:?} !-> {:?}", snap_file, &pathdata.path_buf)
+                                }
                             } else {
-                                eprintln!("WARNING: could not overwrite new file")
+                                eprintln!("WARNING: could not overwrite {:?} with snapshot file version {:?}", &pathdata.path_buf, snap_file)
                             }
                         } else {
-                            eprintln!("WARNING: snap_file path does not exist")
+                            eprintln!("WARNING: Snapshot file path for {:?} could not be found.", pathdata.path_buf)
                         }
                     }
                     DiffType::Created => {
-                        if remove_recursive(&pathdata.path_buf).is_ok() {
-                            if GLOBAL_CONFIG.opt_debug {
-                                println!("Created File: httm deleted {:?}, a newly created file.", &pathdata.path_buf);
-                            }
-                        } else {
-                            eprintln!("WARNING: could not delete file path: {:?}", &pathdata.path_buf)
+                        if pathdata.path_buf.exists() && remove_recursive(&pathdata.path_buf).is_ok() && GLOBAL_CONFIG.opt_debug {
+                            println!("Created File: httm deleted {:?}, a newly created file.", &pathdata.path_buf);
+                        }
+
+                        if pathdata.path_buf.exists() {
+                            eprintln!("WARNING: File should not exist {:?}", &pathdata.path_buf)
                         }
                     }
                     DiffType::Modified => {
@@ -271,11 +280,15 @@ impl DiffMap {
                                 if GLOBAL_CONFIG.opt_debug {
                                     println!("Modified File: httm has overwritten {:?} with the file contents from a snapshot: {:?}.", &pathdata.path_buf, snap_file);
                                 }
+
+                                if pathdata.get_md_infallible() != PathData::from(snap_file.as_path()).get_md_infallible() {
+                                    eprintln!("WARNING: Metadata mismatch: {:?} !-> {:?}", snap_file, &pathdata.path_buf)
+                                }
                             } else {
-                                eprintln!("WARNING: could not overwrite file path: {:?}", &pathdata.path_buf)
+                                eprintln!("WARNING: could not overwrite {:?} with snapshot file version {:?}", &pathdata.path_buf, snap_file)
                             }
                         } else {
-                            eprintln!("WARNING: snap_file does not exist")
+                            eprintln!("WARNING: Snapshot file path for {:?} could not be found.", pathdata.path_buf)
                         }
                     }
                     DiffType::Renamed(new_file_name) => {
@@ -283,13 +296,17 @@ impl DiffMap {
                             if GLOBAL_CONFIG.opt_debug {
                                 println!("Renamed File: httm moved {:?} back to its original location: {:?}.", new_file_name, &pathdata.path_buf);
                             }
+
+                            if pathdata.get_md_infallible() != PathData::from(new_file_name.as_path()).get_md_infallible() {
+                                eprintln!("WARNING: Metadata mismatch: {:?} !-> {:?}", new_file_name, &pathdata.path_buf)
+                            }
                         } else {
-                            eprintln!("WARNING: could not overwrite file path: {:?}", &pathdata.path_buf)
+                            eprintln!("WARNING: could not overwrite {:?} with renamed file version {:?}", &pathdata.path_buf, new_file_name)
                         }
                     }
                 }
             });
-        
+
         Ok(())
     }
 
