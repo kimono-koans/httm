@@ -164,6 +164,29 @@ pub fn copy_recursive(src: &Path, dst: &Path, should_preserve: bool) -> HttmResu
     Ok(())
 }
 
+pub fn remove_recursive(path: &Path) -> HttmResult<()> {
+    if PathBuf::from(path).is_dir() {
+        let entries = read_dir(path)?;
+
+        for entry in entries {
+            let entry = entry?;
+            let file_type = entry.file_type()?;
+
+            if !file_type.is_dir() {
+                std::fs::remove_file(entry.path())?
+            } else {
+                remove_recursive(&entry.path())?
+            }
+        }
+
+        std::fs::remove_dir(path)?
+    } else {
+        std::fs::remove_file(path)?
+    }
+
+    Ok(())
+}
+
 pub fn read_stdin() -> HttmResult<Vec<String>> {
     let stdin = std::io::stdin();
     let mut stdin = stdin.lock();

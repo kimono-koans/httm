@@ -27,7 +27,7 @@ use which::which;
 use crate::config::generate::ListSnapsOfType;
 use crate::data::paths::PathData;
 use crate::library::results::{HttmError, HttmResult};
-use crate::library::utility::copy_recursive;
+use crate::library::utility::{copy_recursive, remove_recursive};
 use crate::library::utility::{get_date, DateFormat};
 use crate::lookup::versions::{SnapDatasetType, VersionsMap};
 use crate::print_output_buf;
@@ -51,9 +51,9 @@ impl RollForward {
             .into());
         };
 
-        let (dataset_name, snap_name) = full_snap_name
-            .split_once('@')
-            .expect("Input is not a valid ZFS dataset name.");
+        let (dataset_name, snap_name) = full_snap_name.split_once('@').expect(
+            "A valid ZFS snapshot name requires a '@' separating dataset name and snapshot name.",
+        );
 
         let zfs_diff_str = Self::exec_diff(full_snap_name, &zfs_command)?;
 
@@ -245,13 +245,7 @@ impl DiffMap {
                         }
                     }
                     DiffType::Created => {
-                        if pathdata.path_buf.is_dir() {
-                            if std::fs::remove_dir_all(&pathdata.path_buf).is_ok() {
-                                println!("Created File: httm deleted {:?}, a newly created file.", &pathdata.path_buf);
-                            } else {
-                                eprintln!("WARNING: could not delete file path: {:?}", &pathdata.path_buf)
-                            }
-                        } else if std::fs::remove_file(&pathdata.path_buf).is_ok() {
+                        if remove_recursive(&pathdata.path_buf).is_ok() {
                             println!("Created File: httm deleted {:?}, a newly created file.", &pathdata.path_buf);
                         } else {
                             eprintln!("WARNING: could not delete file path: {:?}", &pathdata.path_buf)
@@ -280,7 +274,7 @@ impl DiffMap {
     }
 
     fn find_snap_version(&self, all_versions: &[PathData]) -> Option<PathBuf> {
-        let os_string = OsStr::new(&self.snap_name);
+        let snap_name_string = OsStr::new(&self.snap_name);
 
         all_versions
             .iter()
@@ -288,7 +282,7 @@ impl DiffMap {
                 pathdata
                     .path_buf
                     .components()
-                    .any(|component| component.as_os_str() == os_string)
+                    .any(|component| component.as_os_str() == snap_name_string)
             })
             .map(|pathdata| pathdata.path_buf.clone())
     }
