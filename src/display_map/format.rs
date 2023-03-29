@@ -35,6 +35,7 @@ impl std::string::ToString for PrintAsMap {
                     json_string.replace("\"inner\": ", "\"snapshot_names\": ")
                 }
                 ExecMode::NonInteractiveRecursive(_)
+                | ExecMode::RollForward(_)
                 | ExecMode::NumVersions(_)
                 | ExecMode::Purge(_)
                 | ExecMode::SnapFileMount(_) => {

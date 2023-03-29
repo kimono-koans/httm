@@ -43,6 +43,7 @@ pub enum ExecMode {
     MountsForFiles(MountDisplay),
     SnapsForFiles(Option<ListSnapsFilters>),
     NumVersions(NumVersionsMode),
+    RollForward(String),
 }
 
 #[derive(Debug, Clone)]
@@ -272,6 +273,18 @@ fn parse_args() -> ArgMatches {
                 Note: This is a ZFS only option.")
                 .conflicts_with_all(&["BROWSE", "RESTORE"])
                 .display_order(12)
+        )
+        .arg(
+            Arg::new("ROLL_FORWARD")
+                .long("roll-forward")
+                .aliases(&["roll"])
+                .takes_value(true)
+                .min_values(1)
+                .require_equals(true)
+                .multiple_values(false)
+                .help("")
+                .conflicts_with_all(&["BROWSE", "RESTORE", "ALT_REPLICATED", "REMOTE_DIR", "LOCAL_DIR"])
+                .display_order(13)
         )
         .arg(
             Arg::new("PURGE")
@@ -690,7 +703,9 @@ impl Config {
             None
         };
 
-        let mut exec_mode = if let Some(num_versions_mode) = opt_num_versions {
+        let mut exec_mode = if let Some(snap_name) = matches.value_of("ROLL_FORWARD") {
+            ExecMode::RollForward(snap_name.to_string())
+        } else if let Some(num_versions_mode) = opt_num_versions {
             ExecMode::NumVersions(num_versions_mode)
         } else if let Some(mount_display) = opt_mount_display {
             ExecMode::MountsForFiles(mount_display)
@@ -843,6 +858,7 @@ impl Config {
                     vec![pwd.clone()]
                 }
                 ExecMode::Display
+                | ExecMode::RollForward(_)
                 | ExecMode::SnapFileMount(_)
                 | ExecMode::Purge(_)
                 | ExecMode::MountsForFiles(_)
@@ -926,6 +942,7 @@ impl Config {
             }
 
             ExecMode::Display
+            | ExecMode::RollForward(_)
             | ExecMode::SnapFileMount(_)
             | ExecMode::Purge(_)
             | ExecMode::MountsForFiles(_)
