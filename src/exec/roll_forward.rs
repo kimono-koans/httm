@@ -41,7 +41,7 @@ pub enum PrecautionarySnapType {
 pub struct RollForward;
 
 impl RollForward {
-    pub fn exec(snap_name: &str) -> HttmResult<()> {
+    pub fn exec(full_snap_name: &str) -> HttmResult<()> {
         let zfs_command = if let Ok(zfs_command) = which("zfs") {
             zfs_command
         } else {
@@ -51,33 +51,67 @@ impl RollForward {
             .into());
         };
 
-        let diff_map = DiffMap::new(&zfs_command, snap_name)?;
+        let (dataset_name, snap_name) = full_snap_name
+            .split_once('@')
+            .expect("Input is not a valid ZFS dataset name.");
 
-        RollForward::snapshot(&zfs_command, snap_name, PrecautionarySnapType::Pre)?;
+        let zfs_diff_str = Self::exec_diff(full_snap_name, &zfs_command)?;
+
+        let diff_map = DiffMap::new(&zfs_diff_str, dataset_name, snap_name)?;
+
+        RollForward::exec_snap(
+            &zfs_command,
+            dataset_name,
+            snap_name,
+            PrecautionarySnapType::Pre,
+        )?;
 
         diff_map.roll_forward()?;
 
-        RollForward::snapshot(
+        RollForward::exec_snap(
             &zfs_command,
+            dataset_name,
             snap_name,
-            PrecautionarySnapType::Post(snap_name.to_owned()),
+            PrecautionarySnapType::Post(full_snap_name.to_owned()),
         )
     }
 
-    fn snapshot(
+    fn exec_diff(full_snapshot_name: &str, zfs_command: &Path) -> HttmResult<String> {
+        let mut process_args = vec!["diff", "-H"];
+        process_args.push(full_snapshot_name);
+
+        let process_output = ExecProcess::new(zfs_command).args(&process_args).output()?;
+        let stderr_string = std::str::from_utf8(&process_output.stderr)?.trim();
+
+        // stderr_string is a string not an error, so here we build an err or output
+        if !stderr_string.is_empty() {
+            let msg = if stderr_string.contains("cannot destroy snapshots: permission denied") {
+                "httm may need root privileges to 'zfs diff' a filesystem".to_owned()
+            } else {
+                "httm was unable to diff the snapshot name. The 'zfs' command issued the following error: ".to_owned() + stderr_string
+            };
+
+            return Err(HttmError::new(&msg).into());
+        }
+
+        let stdout_string = std::str::from_utf8(&process_output.stdout)?.trim();
+
+        if stdout_string.is_empty() {
+            let msg = "No difference between the snap name given and the present state of the filesystem.  Quitting.";
+
+            return Err(HttmError::new(msg).into());
+        }
+
+        Ok(stdout_string.to_owned())
+    }
+
+    fn exec_snap(
         zfs_command: &Path,
+        dataset_name: &str,
         snap_name: &str,
         snap_type: PrecautionarySnapType,
     ) -> HttmResult<()> {
         let mut process_args = vec!["snapshot".to_owned()];
-
-        let dataset = if let Some(dataset) = snap_name.split_once('@') {
-            dataset.0
-        } else {
-            let msg = format!("{} is not a valid ZFS dataset name.", snap_name);
-
-            panic!("{}", &msg)
-        };
 
         match snap_type {
             PrecautionarySnapType::Pre => {
@@ -88,14 +122,17 @@ impl RollForward {
                     DateFormat::Timestamp,
                 );
 
-                let snap_name = format!("{}@snap_pre_{}_httmSnapRollForward", dataset, timestamp);
+                let snap_name = format!(
+                    "{}@snap_pre_{}_httmSnapRollForward",
+                    dataset_name, timestamp
+                );
 
                 process_args.push(snap_name);
             }
-            PrecautionarySnapType::Post(original_snap_name) => {
+            PrecautionarySnapType::Post(_original_snap_name) => {
                 let snap_name = format!(
                     "{}@snap_post_{}_httmSnapRollForward",
-                    dataset, original_snap_name
+                    dataset_name, snap_name
                 );
 
                 process_args.push(snap_name);
@@ -133,15 +170,17 @@ enum DiffType {
     Renamed(PathBuf),
 }
 
+#[allow(dead_code)]
 struct DiffMap {
     inner: BTreeMap<PathData, DiffType>,
+    dataset_name: String,
     snap_name: String,
 }
 
 impl DiffMap {
-    fn new(zfs_command: &Path, snapshot_name: &str) -> HttmResult<Self> {
+    fn new(zfs_diff_str: &str, dataset_name: &str, snap_name: &str) -> HttmResult<Self> {
         let diff_map: BTreeMap<PathData, DiffType> =
-            DiffMap::exec_zfs(snapshot_name, zfs_command)?
+            zfs_diff_str
                 .par_lines()
                 .filter_map(|line| {
                     let split_line: Vec<&str> = line.split('\t').collect();
@@ -177,37 +216,9 @@ impl DiffMap {
 
         Ok(DiffMap {
             inner: diff_map,
-            snap_name: snapshot_name.to_owned(),
+            dataset_name: dataset_name.to_owned(),
+            snap_name: snap_name.to_owned(),
         })
-    }
-
-    fn exec_zfs(snapshot_name: &str, zfs_command: &Path) -> HttmResult<String> {
-        let mut process_args = vec!["-H", "diff"];
-        process_args.push(snapshot_name);
-
-        let process_output = ExecProcess::new(zfs_command).args(&process_args).output()?;
-        let stderr_string = std::str::from_utf8(&process_output.stderr)?.trim();
-
-        // stderr_string is a string not an error, so here we build an err or output
-        if !stderr_string.is_empty() {
-            let msg = if stderr_string.contains("cannot destroy snapshots: permission denied") {
-                "httm may need root privileges to 'zfs diff' a filesystem".to_owned()
-            } else {
-                "httm was unable to diff the snapshot name. The 'zfs' command issued the following error: ".to_owned() + stderr_string
-            };
-
-            return Err(HttmError::new(&msg).into());
-        }
-
-        let stdout_string = std::str::from_utf8(&process_output.stdout)?.trim();
-
-        if stdout_string.is_empty() {
-            let msg = "No difference between the snap name given and the present state of the filesystem.  Quitting.";
-
-            return Err(HttmError::new(msg).into());
-        }
-
-        Ok(stdout_string.to_owned())
     }
 
     fn roll_forward(&self) -> HttmResult<()> {
@@ -222,10 +233,12 @@ impl DiffMap {
 
                 match diff_type {
                     DiffType::Removed => {
-                        let snap_file = self.find_snap_version(&all_versions).unwrap();
-
-                        copy_recursive(&snap_file, &pathdata.path_buf, true)?;
-                        println!("Removed File: httm moved \"{:?}\" back to its original location: \"{:?}\".", &pathdata.path_buf, snap_file);
+                        if let Some(snap_file) = self.find_snap_version(&all_versions) {
+                            copy_recursive(&snap_file, &pathdata.path_buf, true)?;
+                            println!("Removed File: httm moved {:?} back to its original location: {:?}.", &pathdata.path_buf, snap_file);
+                        } else {
+                            eprintln!("WARNING: snap_file does not exist")
+                        }
                     }
                     DiffType::Created => {
                         if pathdata.path_buf.is_dir() {
@@ -233,17 +246,19 @@ impl DiffMap {
                         } else {
                             std::fs::remove_file(&pathdata.path_buf)?;
                         }
-                        println!("Created File: httm deleted \"{:?}\", a newly created file.", &pathdata.path_buf);
+                        println!("Created File: httm deleted {:?}, a newly created file.", &pathdata.path_buf);
                     }
                     DiffType::Modified => {
-                        let snap_file = self.find_snap_version(&all_versions).unwrap();
-
-                        copy_recursive(&snap_file, &pathdata.path_buf, true)?;
-                        println!("Modified File: httm has overwritten \"{:?}\" with the file contents from a snapshot: \"{:?}\".", &pathdata.path_buf, snap_file);
+                        if let Some(snap_file) = self.find_snap_version(&all_versions) {
+                            copy_recursive(&snap_file, &pathdata.path_buf, true)?;
+                            println!("Modified File: httm has overwritten {:?} with the file contents from a snapshot: {:?}.", &pathdata.path_buf, snap_file);
+                        } else {
+                            eprintln!("WARNING: snap_file does not exist")
+                        }
                     }
                     DiffType::Renamed(new_file_name) => {
                         copy_recursive(new_file_name, &pathdata.path_buf, true)?;
-                        println!("Renamed File: httm moved \"{:?}\" back to its original location: \"{:?}\".", new_file_name, &pathdata.path_buf);
+                        println!("Renamed File: httm moved {:?} back to its original location: {:?}.", new_file_name, &pathdata.path_buf);
                     }
                 }
 
@@ -252,13 +267,15 @@ impl DiffMap {
     }
 
     fn find_snap_version(&self, all_versions: &[PathData]) -> Option<PathBuf> {
+        let os_string = OsStr::new(&self.snap_name);
+
         all_versions
             .iter()
             .find(|pathdata| {
                 pathdata
                     .path_buf
                     .components()
-                    .any(|component| component.as_os_str() == OsStr::new(&self.snap_name))
+                    .any(|component| component.as_os_str() == os_string)
             })
             .map(|pathdata| pathdata.path_buf.clone())
     }
