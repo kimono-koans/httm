@@ -305,7 +305,7 @@ impl DiffMap {
                             println!("Created File: httm deleted {:?}, a newly created file.", &pathdata.path_buf);
                         }
 
-                        if pathdata.path_buf.symlink_metadata().is_err() {
+                        if pathdata.path_buf.symlink_metadata().is_ok() {
                             eprintln!("WARNING: File should not exist {:?}", pathdata.path_buf)
                         }
                     }
