@@ -16,7 +16,6 @@
 // that was distributed with this source code.
 
 use std::collections::BTreeMap;
-use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 use std::process::Command as ExecProcess;
 use std::time::SystemTime;
@@ -24,12 +23,10 @@ use std::time::SystemTime;
 use rayon::prelude::*;
 use which::which;
 
-use crate::config::generate::ListSnapsOfType;
 use crate::data::paths::PathData;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{copy_recursive, remove_recursive};
 use crate::library::utility::{get_date, DateFormat};
-use crate::lookup::versions::{SnapDatasetType, VersionsMap};
 use crate::print_output_buf;
 use crate::GLOBAL_CONFIG;
 
@@ -243,31 +240,40 @@ impl DiffMap {
     }
 
     fn roll_forward(&self) -> HttmResult<()> {
-        let snaps_selected_for_search = &[SnapDatasetType::MostProximate];
-
         self.inner
             .iter()
-            .for_each(|(pathdata, diff_type)| {
-                let all_versions: Vec<PathData> = VersionsMap::get_search_bundles(pathdata, snaps_selected_for_search)
-                    .flat_map(|search_bundle| search_bundle.get_versions_processed(&ListSnapsOfType::All))
-                    .collect();
+            .filter_map(|(pathdata, diff_type)| {
+                pathdata
+                    .get_proximate_dataset(&GLOBAL_CONFIG.dataset_collection.map_of_datasets)
+                    .ok()
+                    .map(|proximate_dataset_mount| {
+                        pathdata.get_relative_path(proximate_dataset_mount)
+                            .ok()
+                            .map(|relative_path| {
+                            (pathdata, diff_type, proximate_dataset_mount, relative_path)
+                        })
+                    })
+                    .flatten()
+            })
+            .for_each(|(pathdata, diff_type, proximate_dataset_mount, relative_path)| {
+                let snap_file_path: PathBuf = [proximate_dataset_mount, Path::new(".zfs/snapshot"), Path::new(&self.snap_name), relative_path].iter().collect();
+
+                let snap_file = PathData::from(snap_file_path.as_path());
 
                 match diff_type {
                     DiffType::Removed => {
-                        if let Some(snap_file) = self.find_snap_version(&all_versions) {
-                            if copy_recursive(&snap_file.path_buf, &pathdata.path_buf, true).is_ok() {
-                                if GLOBAL_CONFIG.opt_debug {
-                                    println!("Removed File: httm moved {:?} back to its original location: {:?}.", &pathdata.path_buf, snap_file.path_buf);
-                                }
+                        if copy_recursive(&snap_file.path_buf, &pathdata.path_buf, true).is_ok() {
+                            if GLOBAL_CONFIG.opt_debug {
+                                println!("Removed File: httm moved {:?} back to its original location: {:?}.", &pathdata.path_buf, snap_file.path_buf);
+                            }
 
-                                if pathdata.get_md_infallible() != snap_file.get_md_infallible() {
+                            if let Ok(new_path_md) = pathdata.path_buf.symlink_metadata() {
+                                if  new_path_md.modified().ok() == snap_file.metadata.map(|md| md.modify_time) {
                                     eprintln!("WARNING: Metadata mismatch: {:?} !-> {:?}", snap_file.path_buf, pathdata.path_buf)
                                 }
-                            } else {
-                                eprintln!("WARNING: could not overwrite {:?} with snapshot file version {:?}", &pathdata.path_buf, snap_file.path_buf)
                             }
                         } else {
-                            eprintln!("WARNING: Snapshot file path for {:?} could not be found.", pathdata.path_buf)
+                            eprintln!("WARNING: could not overwrite {:?} with snapshot file version {:?}", &pathdata.path_buf, snap_file.path_buf)
                         }
                     }
                     DiffType::Created => {
@@ -275,57 +281,39 @@ impl DiffMap {
                             println!("Created File: httm deleted {:?}, a newly created file.", &pathdata.path_buf);
                         }
 
-                        if pathdata.path_buf.exists() {
+                        if pathdata.path_buf.symlink_metadata().is_ok() {
                             eprintln!("WARNING: File should not exist {:?}", pathdata.path_buf)
                         }
                     }
                     DiffType::Modified => {
-                        if let Some(snap_file) = self.find_snap_version(&all_versions) {
-                            if copy_recursive(&snap_file.path_buf, &pathdata.path_buf, true).is_ok() {
-                                if GLOBAL_CONFIG.opt_debug {
-                                    println!("Modified File: httm has overwritten {:?} with the file contents from a snapshot: {:?}.", &pathdata.path_buf, snap_file);
-                                }
+                        if copy_recursive(&snap_file.path_buf, &pathdata.path_buf, true).is_ok() {
+                            if GLOBAL_CONFIG.opt_debug {
+                                println!("Modified File: httm has overwritten {:?} with the file contents from a snapshot: {:?}.", &pathdata.path_buf, snap_file);
+                            }
 
-                                if pathdata.get_md_infallible() != snap_file.get_md_infallible() {
+                            if let Ok(new_path_md) = pathdata.path_buf.symlink_metadata() {
+                                if  new_path_md.modified().ok() == snap_file.metadata.map(|md| md.modify_time) {
                                     eprintln!("WARNING: Metadata mismatch: {:?} !-> {:?}", snap_file.path_buf, pathdata.path_buf)
                                 }
-                            } else {
-                                eprintln!("WARNING: could not overwrite {:?} with snapshot file version {:?}", &pathdata.path_buf, snap_file.path_buf)
                             }
                         } else {
-                            eprintln!("WARNING: Snapshot file path for {:?} could not be found.", pathdata.path_buf)
+                            eprintln!("WARNING: could not overwrite {:?} with snapshot file version {:?}", &pathdata.path_buf, snap_file.path_buf)
                         }
                     }
                     DiffType::Renamed(new_file_name) => {
-                        if copy_recursive(new_file_name, &pathdata.path_buf, true).is_ok() {
-                            if GLOBAL_CONFIG.opt_debug {
-                                println!("Renamed File: httm moved {:?} back to its original location: {:?}.", new_file_name, &pathdata.path_buf);
-                            }
+                        if GLOBAL_CONFIG.opt_debug {
+                            println!("Renamed File: httm moved {:?} back to its original location: {:?}.", new_file_name, &pathdata.path_buf);
+                        }
 
-                            if pathdata.get_md_infallible() != PathData::from(new_file_name.as_path()).get_md_infallible() {
-                                eprintln!("WARNING: Metadata mismatch: {:?} !-> {:?}", new_file_name, &pathdata.path_buf)
+                        if let Ok(new_path_md) = pathdata.path_buf.symlink_metadata() {
+                            if new_path_md.modified().ok() == pathdata.metadata.map(|md| md.modify_time) {
+                                eprintln!("WARNING: Metadata mismatch: {:?} !-> {:?}", new_file_name, pathdata.path_buf)
                             }
-                        } else {
-                            eprintln!("WARNING: could not overwrite {:?} with renamed file version {:?}", &pathdata.path_buf, new_file_name)
                         }
                     }
                 }
             });
 
         Ok(())
-    }
-
-    fn find_snap_version(&self, all_versions: &[PathData]) -> Option<PathData> {
-        let snap_name_string = OsStr::new(&self.snap_name);
-
-        all_versions
-            .par_iter()
-            .find_first(|pathdata| {
-                pathdata
-                    .path_buf
-                    .components()
-                    .any(|component| component.as_os_str() == snap_name_string)
-            })
-            .map(|pathdata| pathdata.to_owned())
     }
 }

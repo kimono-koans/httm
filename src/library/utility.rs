@@ -28,8 +28,6 @@ use std::{
 use ansi_term::Style as AnsiTermStyle;
 use crossbeam::channel::{Receiver, TryRecvError};
 use lscolors::{Colorable, LsColors, Style};
-use nix::sys::stat::{stat, utimensat, UtimensatFlags};
-use nix::sys::time::TimeSpec;
 use number_prefix::NumberPrefix;
 use once_cell::sync::Lazy;
 use time::{format_description, OffsetDateTime, UtcOffset};
@@ -106,23 +104,13 @@ fn copy_attributes(src: &Path, dst: &Path) -> HttmResult<()> {
 
     // Timestamps
     {
-        let raw_stat = stat(src)?;
+        use filetime::FileTime;
 
-        let atime = raw_stat.st_atime;
-        let atime_nsec = raw_stat.st_atime_nsec;
-        let mtime = raw_stat.st_mtime;
-        let mtime_nsec = raw_stat.st_mtime_nsec;
+        let mtime = FileTime::from_last_modification_time(&src_metadata);
+        let atime = FileTime::from_last_access_time(&src_metadata);
 
-        let atime_timespec = TimeSpec::new(atime, atime_nsec);
-        let mtime_timespec = TimeSpec::new(mtime, mtime_nsec);
-
-        utimensat(
-            None,
-            dst,
-            &atime_timespec,
-            &mtime_timespec,
-            UtimensatFlags::NoFollowSymlink,
-        )?
+        // does not follow symlinks
+        filetime::set_symlink_file_times(dst, atime, mtime)?
     }
 
     Ok(())
@@ -139,7 +127,7 @@ fn map_io_err(err: io::Error, dst: &Path) -> HttmError {
 }
 
 pub fn copy_recursive(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<()> {
-    if PathBuf::from(src).is_dir() {
+    if src.is_dir() {
         create_dir_all(dst).map_err(|err| map_io_err(err, dst))?;
 
         for entry in read_dir(src)? {
@@ -157,7 +145,7 @@ pub fn copy_recursive(src: &Path, dst: &Path, should_preserve: bool) -> HttmResu
         copy(src, dst).map_err(|err| map_io_err(err, dst))?;
     }
 
-    if should_preserve && cfg!(unix) {
+    if should_preserve {
         copy_attributes(src, dst)?;
     }
 
@@ -165,7 +153,7 @@ pub fn copy_recursive(src: &Path, dst: &Path, should_preserve: bool) -> HttmResu
 }
 
 pub fn remove_recursive(path: &Path) -> HttmResult<()> {
-    if PathBuf::from(path).is_dir() {
+    if path.is_dir() {
         let entries = read_dir(path)?;
 
         for entry in entries {
