@@ -334,7 +334,7 @@ fn parse_args() -> ArgMatches {
                 \"no-ditto-exclusive\", return only a last snap which is not the same as the live version (argument \"--no-ditto\" is an alias for this option), \
                 \"no-ditto-inclusive\", return a last snap which is not the same as the live version, or should none exist, return the live file, and, \
                 \"none\" or \"without\", return the live file only for those files without a last snapshot.")
-                .conflicts_with_all(&["NUM_VERSIONS", "SNAPSHOT", "MOUNT_FOR_FILE", "ALT_REPLICATED", "REMOTE_DIR", "LOCAL_DIR"])
+                .conflicts_with_all(&["NUM_VERSIONS", "SNAPSHOT", "FILE_MOUNT", "ALT_REPLICATED", "REMOTE_DIR", "LOCAL_DIR"])
                 .display_order(15)
         )
         .arg(
