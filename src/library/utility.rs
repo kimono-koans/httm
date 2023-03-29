@@ -165,18 +165,6 @@ pub fn copy_recursive(src: &Path, dst: &Path, should_preserve: bool) -> HttmResu
 }
 
 pub fn remove_recursive(path: &Path) -> HttmResult<()> {
-    if GLOBAL_CONFIG
-        .pwd
-        .path_buf
-        .ancestors()
-        .any(|ancestor| ancestor == path)
-    {
-        return Err(HttmError::new(
-            "Cannot remove the current working directory or any of its ancestors.  Quitting.",
-        )
-        .into());
-    }
-
     if PathBuf::from(path).is_dir() {
         let entries = read_dir(path)?;
 
@@ -185,14 +173,18 @@ pub fn remove_recursive(path: &Path) -> HttmResult<()> {
             let file_type = entry.file_type()?;
 
             if !file_type.is_dir() {
-                std::fs::remove_file(entry.path())?
+                if path.exists() {
+                    std::fs::remove_file(path)?
+                }
             } else {
                 remove_recursive(&entry.path())?
             }
         }
 
-        std::fs::remove_dir_all(path)?
-    } else {
+        if path.exists() {
+            std::fs::remove_dir_all(path)?
+        }
+    } else if path.exists() {
         std::fs::remove_file(path)?
     }
 
