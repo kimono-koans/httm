@@ -35,7 +35,7 @@ use crate::GLOBAL_CONFIG;
 
 pub enum PrecautionarySnapType {
     Pre,
-    Post(String),
+    Post,
 }
 
 pub struct RollForward;
@@ -78,7 +78,7 @@ impl RollForward {
             &zfs_command,
             dataset_name,
             snap_name,
-            PrecautionarySnapType::Post(full_snap_name.to_owned()),
+            PrecautionarySnapType::Post,
         )
     }
 
@@ -135,7 +135,7 @@ impl RollForward {
 
                 process_args.push(new_snap_name);
             }
-            PrecautionarySnapType::Post(_original_snap_name) => {
+            PrecautionarySnapType::Post => {
                 let new_snap_name = format!(
                     "{}@snap_post_{}_httmSnapRollForward",
                     dataset_name, snap_name
@@ -164,7 +164,7 @@ impl RollForward {
                 PrecautionarySnapType::Pre => {
                     format!("httm took a pre-execution snapshot named: {}\n", &snap_name)
                 }
-                PrecautionarySnapType::Post(_) => {
+                PrecautionarySnapType::Post => {
                     format!(
                         "httm took a post-execution snapshot named: {}\n",
                         &snap_name
