@@ -66,7 +66,7 @@ impl RollForward {
             PrecautionarySnapType::Pre,
         )?;
 
-        diff_map.roll_forward()?;
+        diff_map.roll_forward();
 
         RollForward::exec_snap(
             &zfs_command,
@@ -221,12 +221,12 @@ impl DiffMap {
         })
     }
 
-    fn roll_forward(&self) -> HttmResult<()> {
+    fn roll_forward(&self) {
         let snaps_selected_for_search = &[SnapDatasetType::MostProximate];
 
         self.inner
             .par_iter()
-            .try_for_each(|(pathdata, diff_type)| {
+            .for_each(|(pathdata, diff_type)| {
                 let all_versions: Vec<PathData> = VersionsMap::get_search_bundles(pathdata, snaps_selected_for_search)
                     .flat_map(|search_bundle| search_bundle.get_versions_processed(&ListSnapsOfType::All))
                     .collect();
@@ -234,35 +234,48 @@ impl DiffMap {
                 match diff_type {
                     DiffType::Removed => {
                         if let Some(snap_file) = self.find_snap_version(&all_versions) {
-                            copy_recursive(&snap_file, &pathdata.path_buf, true)?;
-                            println!("Removed File: httm moved {:?} back to its original location: {:?}.", &pathdata.path_buf, snap_file);
+                            if copy_recursive(&snap_file, &pathdata.path_buf, true).is_ok() {
+                                println!("Removed File: httm moved {:?} back to its original location: {:?}.", &pathdata.path_buf, snap_file);
+
+                            } else {
+                                eprintln!("WARNING: could not overwrite new file")
+                            }
                         } else {
-                            eprintln!("WARNING: snap_file does not exist")
+                            eprintln!("WARNING: snap_file path does not exist")
                         }
                     }
                     DiffType::Created => {
                         if pathdata.path_buf.is_dir() {
-                            std::fs::remove_dir_all(&pathdata.path_buf)?;
+                            if std::fs::remove_dir_all(&pathdata.path_buf).is_ok() {
+                                println!("Created File: httm deleted {:?}, a newly created file.", &pathdata.path_buf);
+                            } else {
+                                eprintln!("WARNING: could not delete file path: {:?}", &pathdata.path_buf)
+                            }
+                        } else if std::fs::remove_file(&pathdata.path_buf).is_ok() {
+                            println!("Created File: httm deleted {:?}, a newly created file.", &pathdata.path_buf);
                         } else {
-                            std::fs::remove_file(&pathdata.path_buf)?;
+                            eprintln!("WARNING: could not delete file path: {:?}", &pathdata.path_buf)
                         }
-                        println!("Created File: httm deleted {:?}, a newly created file.", &pathdata.path_buf);
                     }
                     DiffType::Modified => {
                         if let Some(snap_file) = self.find_snap_version(&all_versions) {
-                            copy_recursive(&snap_file, &pathdata.path_buf, true)?;
-                            println!("Modified File: httm has overwritten {:?} with the file contents from a snapshot: {:?}.", &pathdata.path_buf, snap_file);
+                            if copy_recursive(&snap_file, &pathdata.path_buf, true).is_ok() {
+                                println!("Modified File: httm has overwritten {:?} with the file contents from a snapshot: {:?}.", &pathdata.path_buf, snap_file);
+                            } else {
+                                eprintln!("WARNING: could not overwrite file path: {:?}", &pathdata.path_buf)
+                            }
                         } else {
                             eprintln!("WARNING: snap_file does not exist")
                         }
                     }
                     DiffType::Renamed(new_file_name) => {
-                        copy_recursive(new_file_name, &pathdata.path_buf, true)?;
-                        println!("Renamed File: httm moved {:?} back to its original location: {:?}.", new_file_name, &pathdata.path_buf);
+                        if copy_recursive(new_file_name, &pathdata.path_buf, true).is_ok() {
+                            println!("Renamed File: httm moved {:?} back to its original location: {:?}.", new_file_name, &pathdata.path_buf);
+                        } else {
+                            eprintln!("WARNING: could not overwrite file path: {:?}", &pathdata.path_buf)
+                        }
                     }
                 }
-
-                Ok(())
             })
     }
 
