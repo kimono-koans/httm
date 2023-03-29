@@ -122,20 +122,20 @@ impl RollForward {
                     DateFormat::Timestamp,
                 );
 
-                let snap_name = format!(
+                let new_snap_name = format!(
                     "{}@snap_pre_{}_httmSnapRollForward",
                     dataset_name, timestamp
                 );
 
-                process_args.push(snap_name);
+                process_args.push(new_snap_name);
             }
             PrecautionarySnapType::Post(_original_snap_name) => {
-                let snap_name = format!(
+                let new_snap_name = format!(
                     "{}@snap_post_{}_httmSnapRollForward",
                     dataset_name, snap_name
                 );
 
-                process_args.push(snap_name);
+                process_args.push(new_snap_name);
             }
         }
 
