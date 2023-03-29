@@ -56,7 +56,7 @@ impl RollForward {
 
         let diff_map = DiffMap::new(&zfs_diff_str, dataset_name, snap_name)?;
 
-        RollForward::exec_snap(
+        let pre_exec_snap_name = RollForward::exec_snap(
             &zfs_command,
             dataset_name,
             snap_name,
@@ -66,9 +66,11 @@ impl RollForward {
         if diff_map.roll_forward().is_ok() {
             println!("httm roll forward completed successfully.")
         } else {
-            eprintln!(
-                "httm roll forward failed.  Rolling back to precautionary pre-execution snapshot."
-            )
+            Self::exec_rollback(dataset_name, &pre_exec_snap_name, &zfs_command)?;
+
+            let msg = "httm roll forward failed.  Rolling back to precautionary pre-execution snapshot.";
+
+            return Err(HttmError::new(msg).into());
         };
 
         RollForward::exec_snap(
@@ -76,7 +78,29 @@ impl RollForward {
             dataset_name,
             snap_name,
             PrecautionarySnapType::Post,
-        )
+        ).map(|_res| ())
+    }
+
+    fn exec_rollback(dataset_name: &str, pre_exec_snap_name: &str, zfs_command: &Path) -> HttmResult<()> {
+        let mut process_args = vec!["rollback", "-r"];
+        let full_snap_name = format!("{}@{}", dataset_name, pre_exec_snap_name);
+        process_args.push(&full_snap_name);
+
+        let process_output = ExecProcess::new(zfs_command).args(&process_args).output()?;
+        let stderr_string = std::str::from_utf8(&process_output.stderr)?.trim();
+
+        // stderr_string is a string not an error, so here we build an err or output
+        if !stderr_string.is_empty() {
+            let msg = if stderr_string.contains("cannot destroy snapshots: permission denied") {
+                "httm may need root privileges to 'zfs rollback' a filesystem".to_owned()
+            } else {
+                "httm was unable to rollback the snapshot name. The 'zfs' command issued the following error: ".to_owned() + stderr_string
+            };
+
+            return Err(HttmError::new(&msg).into());
+        }
+
+        Ok(())
     }
 
     fn exec_diff(full_snapshot_name: &str, zfs_command: &Path) -> HttmResult<String> {
@@ -113,7 +137,7 @@ impl RollForward {
         dataset_name: &str,
         snap_name: &str,
         snap_type: PrecautionarySnapType,
-    ) -> HttmResult<()> {
+    ) -> HttmResult<String> {
         let mut process_args = vec!["snapshot".to_owned()];
 
         let new_snap_name = match &snap_type {
@@ -174,7 +198,8 @@ impl RollForward {
                 }
             };
 
-            print_output_buf(output_buf)
+            print_output_buf(output_buf.clone())?;
+            Ok(output_buf)
         }
     }
 }
