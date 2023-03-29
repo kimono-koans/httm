@@ -119,7 +119,7 @@ impl RollForward {
     ) -> HttmResult<()> {
         let mut process_args = vec!["snapshot".to_owned()];
 
-        match &snap_type {
+        let new_snap_name = match &snap_type {
             PrecautionarySnapType::Pre => {
                 // all snapshots should have the same timestamp
                 let timestamp = get_date(
@@ -133,7 +133,7 @@ impl RollForward {
                     dataset_name, timestamp
                 );
 
-                process_args.push(new_snap_name);
+                new_snap_name
             }
             PrecautionarySnapType::Post => {
                 let new_snap_name = format!(
@@ -141,9 +141,12 @@ impl RollForward {
                     dataset_name, snap_name
                 );
 
-                process_args.push(new_snap_name);
+                new_snap_name
+
             }
-        }
+        };
+
+        process_args.push(new_snap_name.clone());
 
         let process_output = ExecProcess::new(zfs_command).args(&process_args).output()?;
         let stderr_string = std::str::from_utf8(&process_output.stderr)?.trim();
@@ -162,12 +165,12 @@ impl RollForward {
         } else {
             let output_buf = match &snap_type {
                 PrecautionarySnapType::Pre => {
-                    format!("httm took a pre-execution snapshot named: {}\n", &snap_name)
+                    format!("httm took a pre-execution snapshot named: {}\n", &new_snap_name)
                 }
                 PrecautionarySnapType::Post => {
                     format!(
                         "httm took a post-execution snapshot named: {}\n",
-                        &snap_name
+                        &new_snap_name
                     )
                 }
             };
