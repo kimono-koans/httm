@@ -84,7 +84,10 @@ impl RollForward {
                     err
                 );
                 eprintln!("{}", msg);
-                Self::exec_rollback(&pre_exec_snap_name, &zfs_command)?;
+                
+                Self::exec_rollback(&pre_exec_snap_name, &zfs_command).map(|_| {
+                    println!("Rollback succeeded.")
+                })?;
 
                 std::process::exit(1)
             }
