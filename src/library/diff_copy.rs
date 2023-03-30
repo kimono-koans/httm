@@ -57,22 +57,25 @@ use simd_adler32::Adler32;
 
 use crate::library::results::HttmResult;
 
-const CHUNK_SIZE: usize = 8192;
+const CHUNK_SIZE: usize = 65_536;
 
 pub fn diff_copy(src: &Path, dest: &Path) -> HttmResult<()> {
+    let mut just_write = false;
+
     if !Path::new(&dest).exists() {
-        std::fs::copy(src, dest)?;
+        just_write = true;
     }
 
     let src_file = File::open(src)?;
     let mut src_reader = BufReader::with_capacity(CHUNK_SIZE, &src_file);
+
     let dest_file = OpenOptions::new()
         .write(true)
         .read(true)
         .create(true)
         .open(dest)?;
-
     dest_file.set_len(src_file.metadata()?.len())?;
+
     let mut dest_reader = BufReader::with_capacity(CHUNK_SIZE, &dest_file);
     let mut dest_writer = BufWriter::with_capacity(CHUNK_SIZE, &dest_file);
 
@@ -85,7 +88,7 @@ pub fn diff_copy(src: &Path, dest: &Path) -> HttmResult<()> {
         }
         let _ = dest_reader.read(&mut dest_buffer)?;
 
-        if hash(&src_buffer) != hash(&dest_buffer) {
+        if just_write || !is_same_bytes(&src_buffer, &dest_buffer) {
             let _ = dest_writer.write(&src_buffer)?;
         } else {
             dest_writer.seek(SeekFrom::Current(CHUNK_SIZE as i64))?;
@@ -93,6 +96,13 @@ pub fn diff_copy(src: &Path, dest: &Path) -> HttmResult<()> {
     }
 
     Ok(())
+}
+
+#[inline]
+fn is_same_bytes(a_bytes: &[u8; CHUNK_SIZE], b_bytes: &[u8; CHUNK_SIZE]) -> bool {
+    let (a_hash, b_hash): (u32, u32) = rayon::join(|| hash(a_bytes), || hash(b_bytes));
+
+    a_hash == b_hash
 }
 
 #[inline]
