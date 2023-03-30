@@ -285,72 +285,92 @@ impl DiffMap {
                         })
                     })
             })
-            .for_each(|(pathdata, diff_type, proximate_dataset_mount, relative_path)| {
+            .try_for_each(|(pathdata, diff_type, proximate_dataset_mount, relative_path)| {
                 let snap_file_path: PathBuf = [proximate_dataset_mount, Path::new(".zfs/snapshot"), Path::new(&self.snap_name), relative_path].iter().collect();
 
                 let snap_file = PathData::from(snap_file_path.as_path());
 
-                match diff_type {
+                let res: HttmResult<()> = match diff_type {
                     DiffType::Removed => {
-                        if copy_recursive(&snap_file.path_buf, &pathdata.path_buf, true).is_ok() {
-                            if GLOBAL_CONFIG.opt_debug {
-                                println!("Removed File: httm moved {:?} back to its original location: {:?}.", &pathdata.path_buf, snap_file.path_buf);
-                            }
-
-                            if let Ok(new_path_md) = pathdata.path_buf.symlink_metadata() {
-                                if new_path_md.modified().ok() != snap_file.metadata.map(|md| md.modify_time) {
-                                    eprintln!("WARNING: Metadata mismatch: {:?} !-> {:?}", snap_file.path_buf, pathdata.path_buf)
+                        match copy_recursive(&snap_file.path_buf, &pathdata.path_buf, true) {
+                            Ok(_) => {
+                                if GLOBAL_CONFIG.opt_debug {
+                                    println!("Removed File: httm moved {:?} back to its original location: {:?}.", &pathdata.path_buf, snap_file.path_buf);
                                 }
+    
+                                if let Ok(new_path_md) = pathdata.path_buf.symlink_metadata() {
+                                    if new_path_md.modified().ok() != snap_file.metadata.map(|md| md.modify_time) {
+                                        eprintln!("WARNING: Metadata mismatch: {:?} !-> {:?}", snap_file.path_buf, pathdata.path_buf)
+                                    }
+                                }
+                                Ok(())
                             }
-                        } else {
-                            eprintln!("WARNING: could not overwrite {:?} with snapshot file version {:?}", &pathdata.path_buf, snap_file.path_buf)
+                            Err(_) => {
+                                let msg = format!("WARNING: could not overwrite {:?} with snapshot file version {:?}", &pathdata.path_buf, snap_file.path_buf);
+                                Err(HttmError::new(&msg).into())
+                            }
                         }
                     }
                     DiffType::Created => {
                         match remove_recursive(&pathdata.path_buf) {
-                            Ok(_) => {}
-                            Err(err) => {
-                                eprintln!("{:?}", err);
+                            Ok(_) => {
+                                if pathdata.path_buf.exists() && GLOBAL_CONFIG.opt_debug {
+                                    println!("Created File: httm deleted {:?}, a newly created file.", &pathdata.path_buf);
+                                }
+        
+                                if pathdata.path_buf.symlink_metadata().is_ok() {
+                                    eprintln!("WARNING: File should not exist after deletion {:?}", pathdata.path_buf)
+                                }
+                                Ok(())
                             }
-                        }
-
-                        if pathdata.path_buf.exists() && GLOBAL_CONFIG.opt_debug {
-                            println!("Created File: httm deleted {:?}, a newly created file.", &pathdata.path_buf);
-                        }
-
-                        if pathdata.path_buf.symlink_metadata().is_ok() {
-                            eprintln!("WARNING: File should not exist after deletion {:?}", pathdata.path_buf)
+                            Err(err) => {
+                                let msg = format!("{:?}", err);
+                                Err(HttmError::new(&msg).into())
+                            }
                         }
                     }
                     DiffType::Modified => {
-                        if copy_recursive(&snap_file.path_buf, &pathdata.path_buf, true).is_ok() {
-                            if GLOBAL_CONFIG.opt_debug {
-                                println!("Modified File: httm has overwritten {:?} with the file contents from a snapshot: {:?}.", &pathdata.path_buf, snap_file);
-                            }
-
-                            if let Ok(new_path_md) = pathdata.path_buf.symlink_metadata() {
-                                if new_path_md.modified().ok() != snap_file.metadata.map(|md| md.modify_time) {
-                                    eprintln!("WARNING: Metadata mismatch: {:?} !-> {:?}", snap_file.path_buf, pathdata.path_buf)
+                        match copy_recursive(&snap_file.path_buf, &pathdata.path_buf, true) {
+                            Ok(_) => {
+                                if GLOBAL_CONFIG.opt_debug {
+                                    println!("Modified File: httm has overwritten {:?} with the file contents from a snapshot: {:?}.", &pathdata.path_buf, snap_file);
                                 }
+    
+                                if let Ok(new_path_md) = pathdata.path_buf.symlink_metadata() {
+                                    if new_path_md.modified().ok() != snap_file.metadata.map(|md| md.modify_time) {
+                                        eprintln!("WARNING: Metadata mismatch: {:?} !-> {:?}", snap_file.path_buf, pathdata.path_buf)
+                                    }
+                                }
+                                Ok(())
                             }
-                        } else {
-                            eprintln!("WARNING: could not overwrite {:?} with snapshot file version {:?}", &pathdata.path_buf, snap_file.path_buf)
+                            Err(_) => {
+                                let msg = format!("WARNING: could not overwrite {:?} with snapshot file version {:?}", &pathdata.path_buf, snap_file.path_buf);
+                                Err(HttmError::new(&msg).into())
+                            }
                         }
                     }
                     DiffType::Renamed(new_file_name) => {
-                        if GLOBAL_CONFIG.opt_debug {
-                            println!("Renamed File: httm moved {:?} back to its original location: {:?}.", new_file_name, &pathdata.path_buf);
-                        }
+                        match std::fs::rename(new_file_name, &pathdata.path_buf) {
+                            Ok(_) => {
+                                if GLOBAL_CONFIG.opt_debug {
+                                    println!("Renamed File: httm moved {:?} back to its original location: {:?}.", new_file_name, &pathdata.path_buf);
+                                }
 
-                        if let Ok(new_path_md) = pathdata.path_buf.symlink_metadata() {
-                            if new_path_md.modified().ok() != pathdata.metadata.map(|md| md.modify_time) {
-                                eprintln!("WARNING: Metadata mismatch: {:?} !-> {:?}", new_file_name, pathdata.path_buf)
+                                if let Ok(new_path_md) = pathdata.path_buf.symlink_metadata() {
+                                    if new_path_md.modified().ok() != pathdata.metadata.map(|md| md.modify_time) {
+                                        eprintln!("WARNING: Metadata mismatch: {:?} !-> {:?}", new_file_name, pathdata.path_buf)
+                                    }
+                                }
+                                Ok(())
+                            }
+                            Err(_) => {
+                                let msg = format!("WARNING: could not overwrite {:?} with snapshot file version {:?}", &pathdata.path_buf, snap_file.path_buf);
+                                Err(HttmError::new(&msg).into())
                             }
                         }
                     }
-                }
-            });
-
-        Ok(())
+                };
+                res
+            })
     }
 }
