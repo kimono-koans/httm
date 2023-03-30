@@ -313,7 +313,8 @@ impl DiffMap {
                                 }
                                 Ok(())
                             }
-                            Err(_) => {
+                            Err(err) => {
+                                eprintln!("{}", err);
                                 let msg = format!("WARNING: could not overwrite {:?} with snapshot file version {:?}", &pathdata.path_buf, snap_file.path_buf);
                                 Err(HttmError::new(&msg).into())
                             }
@@ -343,7 +344,8 @@ impl DiffMap {
                                 }
                                 Ok(())
                             }
-                            Err(_) => {
+                            Err(err) => {
+                                eprintln!("{}", err);
                                 let msg = format!("WARNING: could not overwrite {:?} with snapshot file version {:?}", &pathdata.path_buf, snap_file.path_buf);
                                 Err(HttmError::new(&msg).into())
                             }
@@ -359,8 +361,9 @@ impl DiffMap {
                                 }
                                 Ok(())
                             }
-                            Err(_) => {
-                                let msg = format!("WARNING: could not overwrite {:?} with snapshot file version {:?}", &pathdata.path_buf, snap_file.path_buf);
+                            Err(err) => {
+                                eprintln!("{}", err);
+                                let msg = format!("WARNING: could not rename {:?} to {:?}", new_file_name, &pathdata.path_buf);
                                 Err(HttmError::new(&msg).into())
                             }
                         }

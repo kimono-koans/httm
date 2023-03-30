@@ -128,9 +128,7 @@ fn map_io_err(err: io::Error, dst: &Path) -> HttmError {
 
 pub fn copy_recursive(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<()> {
     if src.is_dir() {
-        if !dst.exists() {
-            create_dir_all(dst).map_err(|err| map_io_err(err, dst))?;
-        }
+        create_dir_all(dst).map_err(|err| map_io_err(err, dst))?;
 
         if should_preserve {
             copy_attributes(src, dst)?;
@@ -139,15 +137,18 @@ pub fn copy_recursive(src: &Path, dst: &Path, should_preserve: bool) -> HttmResu
         for entry in read_dir(src)? {
             let entry = entry?;
             let file_type = entry.file_type()?;
+            let path = entry.path();
 
             if file_type.is_dir() {
-                copy_recursive(&entry.path(), &dst.join(entry.file_name()), should_preserve)?;
-            } else {
+                if path.exists() {
+                    copy_recursive(&entry.path(), &dst.join(entry.file_name()), should_preserve)?;
+                }
+            } else if path.exists() {
                 copy(entry.path(), dst.join(entry.file_name()))
                     .map_err(|err| map_io_err(err, dst))?;
             }
         }
-    } else {
+    } else if src.exists() {
         copy(src, dst).map_err(|err| map_io_err(err, dst))?;
     }
 
