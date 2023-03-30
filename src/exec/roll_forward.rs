@@ -319,13 +319,13 @@ impl DiffMap {
                             Ok(_) => {
                                 if let Ok(new_path_md) = pathdata.path_buf.symlink_metadata() {
                                     if new_path_md.modified().ok() != snap_file.metadata.map(|md| md.modify_time) {
-                                        eprintln!("WARNING: Metadata mismatch: {:?} !-> {:?}", snap_file.path_buf, pathdata.path_buf)
+                                        let msg = format!("WARNING: Metadata mismatch: {:?} !-> {:?}", snap_file.path_buf, pathdata.path_buf);
+                                        return Err(HttmError::new(&msg).into())
                                     }
                                 }
                                 Ok(())
                             }
-                            Err(err) => {
-                                eprintln!("{}", err);
+                            Err(_err) => {
                                 let msg = format!("WARNING: could not overwrite {:?} with snapshot file version {:?}", &pathdata.path_buf, snap_file.path_buf);
                                 Err(HttmError::new(&msg).into())
                             }
@@ -335,7 +335,8 @@ impl DiffMap {
                         match remove_recursive(&pathdata.path_buf) {
                             Ok(_) => {
                                 if pathdata.path_buf.symlink_metadata().is_ok() {
-                                    eprintln!("WARNING: File should not exist after deletion {:?}", pathdata.path_buf)
+                                    let msg = format!("WARNING: File should not exist after deletion {:?}", pathdata.path_buf);
+                                    return Err(HttmError::new(&msg).into())
                                 }
                                 Ok(())
                             }
@@ -350,7 +351,8 @@ impl DiffMap {
                             Ok(_) => {
                                 if let Ok(new_path_md) = pathdata.path_buf.symlink_metadata() {
                                     if new_path_md.modified().ok() != snap_file.metadata.map(|md| md.modify_time) {
-                                        eprintln!("WARNING: Metadata mismatch: {:?} !-> {:?}", snap_file.path_buf, pathdata.path_buf)
+                                        let msg = format!("WARNING: Metadata mismatch: {:?} !-> {:?}", snap_file.path_buf, pathdata.path_buf);
+                                        return Err(HttmError::new(&msg).into())
                                     }
                                 }
                                 Ok(())
@@ -367,7 +369,8 @@ impl DiffMap {
                             Ok(_) => {
                                 if let Ok(new_path_md) = pathdata.path_buf.symlink_metadata() {
                                     if new_path_md.modified().ok() != pathdata.metadata.map(|md| md.modify_time) {
-                                        eprintln!("WARNING: Metadata mismatch: {:?} !-> {:?}", new_file_name, pathdata.path_buf)
+                                        let msg = format!("WARNING: Metadata mismatch: {:?} !-> {:?}", new_file_name, pathdata.path_buf);
+                                        return Err(HttmError::new(&msg).into())
                                     }
                                 }
                                 Ok(())
@@ -395,16 +398,16 @@ impl DiffMap {
             }
         } else {
             let src_parent = src.parent().unwrap();
-            
+
             let dst_parent = if let Some(dst_parent) = dst.parent() {
                 dst_parent
             } else {
-                // discard 
+                // discard
                 let mut ancestors = dst.ancestors();
                 ancestors.next();
 
                 let parent = ancestors.next().unwrap();
-                
+
                 std::fs::create_dir_all(parent)?;
                 parent
             };
