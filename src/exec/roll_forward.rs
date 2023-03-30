@@ -217,19 +217,39 @@ impl RollForward {
         }
     }
 
+    fn check_stderr(process_handle: &mut Child) {
+        if process_handle.stderr.is_some() {
+            let mut stderr_buffer = std::io::BufReader::new(process_handle.stderr.take().unwrap());
+
+            if stderr_buffer.fill_buf().map(|b| !b.is_empty()).unwrap() {
+                let buffer = stderr_buffer.fill_buf().unwrap().to_vec();
+                let output_buf = std::str::from_utf8(&buffer).unwrap();
+                eprintln!("Error: {}", output_buf);
+                std::process::exit(1);
+            }
+        }
+    }
+
     fn ingest(
         process_handle: &mut Child,
-    ) -> HttmResult<Box<dyn Iterator<Item = (PathData, DiffType)>>> {
-        let source = process_handle.stdout.take().unwrap();
+    ) -> HttmResult<Box<dyn Iterator<Item = (PathData, DiffType)> + '_>> {
+        let stdout_buffer = if let Some(output) = process_handle.stdout.take() {
+            std::io::BufReader::new(output)
+        } else {
+            Self::check_stderr(process_handle);
 
-        let in_buffer = std::io::BufReader::new(source);
+            println!("'zfs diff' did not appear to contain any modified files.  Quitting.");
+            std::process::exit(0);
+        };
 
         let iterator =
-            in_buffer
+            stdout_buffer
                 .lines()
                 .filter_map(|line| line.ok())
-                .filter_map(|line| {
+                .filter_map(move |line| {
                     let split_line: Vec<&str> = line.split('\t').collect();
+
+                    Self::check_stderr(process_handle);
 
                     match split_line.first() {
                         Some(elem) if elem == &"-" => split_line.get(1).map(|path_string| {
