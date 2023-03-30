@@ -140,12 +140,12 @@ pub fn copy_recursive(src: &Path, dst: &Path, should_preserve: bool) -> HttmResu
             let entry_src = entry.path();
             let entry_dst = dst.join(entry.file_name());
 
-            if entry_src.exists()  {
+            if entry_src.exists() {
                 if file_type.is_dir() {
                     copy_recursive(&entry_src, &entry_dst, should_preserve)?;
                 } else {
                     copy(&entry_src, entry_dst).map_err(|err| map_io_err(err, dst))?;
-    
+
                     if should_preserve && entry_src.exists() {
                         copy_attributes(src, dst)?;
                     }
@@ -175,7 +175,7 @@ pub fn remove_recursive(src: &Path) -> HttmResult<()> {
             if path.exists() {
                 if file_type.is_dir() {
                     remove_recursive(&path)?
-                } else  {
+                } else {
                     std::fs::remove_file(path)?
                 }
             }
