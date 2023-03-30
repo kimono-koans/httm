@@ -87,20 +87,11 @@ impl Ord for PathData {
     }
 }
 
-impl From<&Path> for PathData {
-    fn from(path: &Path) -> Self {
+impl<T: AsRef<Path>> From<T> for PathData {
+    fn from(path: T) -> Self {
         // this metadata() function will not traverse symlinks
-        let opt_metadata = symlink_metadata(path).ok();
-        PathData::new(path, opt_metadata)
-    }
-}
-
-impl From<&DirEntry> for PathData {
-    fn from(dir_entry: &DirEntry) -> Self {
-        // this metadata() function will not traverse symlinks
-        let opt_metadata = dir_entry.metadata().ok();
-        let path = dir_entry.path();
-        PathData::new(&path, opt_metadata)
+        let opt_metadata = symlink_metadata(path.as_ref()).ok();
+        PathData::new(path.as_ref(), opt_metadata)
     }
 }
 

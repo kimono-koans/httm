@@ -296,15 +296,15 @@ pub trait HttmIsDir<'a> {
     fn get_path(&'a self) -> &'a Path;
 }
 
-impl<'a> HttmIsDir<'a> for Path {
+impl<T: AsRef<Path>> HttmIsDir<'_> for T {
     fn httm_is_dir(&self) -> bool {
         httm_is_dir(self)
     }
     fn get_filetype(&self) -> Result<FileType, std::io::Error> {
-        Ok(self.metadata()?.file_type())
+        Ok(self.as_ref().metadata()?.file_type())
     }
-    fn get_path(&'a self) -> &'a Path {
-        self
+    fn get_path(&self) -> &Path {
+        self.as_ref()
     }
 }
 
@@ -452,5 +452,49 @@ pub fn display_human_size(size: u64) -> String {
     match NumberPrefix::binary(size) {
         NumberPrefix::Standalone(bytes) => format!("{bytes} bytes"),
         NumberPrefix::Prefixed(prefix, n) => format!("{n:.1} {prefix}B"),
+    }
+}
+
+pub fn compare_modify_time<T>(src: T, dst: T) -> HttmResult<()>
+    where
+        T: CompareModifyTime,
+    {
+        if src.get_opt_metadata() != dst.get_opt_metadata() {
+            let msg = format!(
+                "WARNING: Metadata mismatch: {:?} !-> {:?}",
+                src.get_path(),
+                dst.get_path()
+            );
+            return Err(HttmError::new(&msg).into());
+        }
+        Ok(())
+    }
+
+pub trait CompareModifyTime {
+    fn get_opt_metadata(&self) -> Option<SystemTime>;
+    fn get_path<'a>(&'a self) -> &'a Path;
+}
+
+impl<T: AsRef<Path>> CompareModifyTime for T {
+    fn get_opt_metadata(&self) -> Option<SystemTime> {
+        self.as_ref()
+            .symlink_metadata()
+            .ok()
+            .map(|md| md.modified().ok())
+            .flatten()
+    }
+
+    fn get_path<'a>(&'a self) -> &'a Path {
+        self.as_ref()
+    }
+}
+
+impl CompareModifyTime for PathData {
+    fn get_opt_metadata(&self) -> Option<SystemTime> {
+        self.metadata.map(|md| md.modify_time)
+    }
+
+    fn get_path<'a>(&'a self) -> &'a Path {
+        &self.path_buf.as_path()
     }
 }

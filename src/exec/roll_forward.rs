@@ -27,7 +27,7 @@ use which::which;
 use crate::data::paths::PathData;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{copy_attributes, remove_recursive};
-use crate::library::utility::{get_date, DateFormat};
+use crate::library::utility::{get_date, DateFormat, compare_modify_time};
 use crate::print_output_buf;
 use crate::GLOBAL_CONFIG;
 
@@ -232,7 +232,7 @@ impl RollForward {
 
     fn ingest<'a>(
         process_handle: &'a mut Child,
-    ) -> HttmResult<Box<dyn Iterator<Item = (PathData, DiffType)> + 'a>> {
+    ) -> HttmResult<impl Iterator<Item = (PathData, DiffType)> + 'a> {
         let stdout_buffer = if let Some(output) = process_handle.stdout.take() {
             std::io::BufReader::new(output)
         } else {
@@ -273,7 +273,7 @@ impl RollForward {
                     }
                 });
 
-        Ok(Box::new(iterator))
+        Ok(iterator)
     }
 
     fn roll_forward<I>(stream: I, snap_name: &str, _dataset_name: &str) -> HttmResult<()>
@@ -301,13 +301,7 @@ impl RollForward {
                     DiffType::Removed => {
                         match Self::copy_direct(&snap_file.path_buf, &pathdata.path_buf, true) {
                             Ok(_) => {
-                                if let Ok(new_path_md) = pathdata.path_buf.symlink_metadata() {
-                                    if new_path_md.modified().ok() != snap_file.metadata.map(|md| md.modify_time) {
-                                        let msg = format!("WARNING: Metadata mismatch: {:?} !-> {:?}", snap_file.path_buf, pathdata.path_buf);
-                                        return Err(HttmError::new(&msg).into())
-                                    }
-                                }
-                                Ok(())
+                                compare_modify_time(&snap_file.path_buf, &pathdata.path_buf)
                             }
                             Err(_err) => {
                                 let msg = format!("WARNING: could not overwrite {:?} with snapshot file version {:?}", &pathdata.path_buf, snap_file.path_buf);
@@ -325,7 +319,7 @@ impl RollForward {
                                 Ok(())
                             }
                             Err(err) => {
-                                let msg = format!("{:?}", err);
+                                let msg = format!("WARNING: Removal of file {:?} failed", err);
                                 Err(HttmError::new(&msg).into())
                             }
                         }
@@ -333,13 +327,7 @@ impl RollForward {
                     DiffType::Modified => {
                         match Self::copy_direct(&snap_file.path_buf, &pathdata.path_buf, true) {
                             Ok(_) => {
-                                if let Ok(new_path_md) = pathdata.path_buf.symlink_metadata() {
-                                    if new_path_md.modified().ok() != snap_file.metadata.map(|md| md.modify_time) {
-                                        let msg = format!("WARNING: Metadata mismatch: {:?} !-> {:?}", snap_file.path_buf, pathdata.path_buf);
-                                        return Err(HttmError::new(&msg).into())
-                                    }
-                                }
-                                Ok(())
+                                compare_modify_time(&snap_file.path_buf, &pathdata.path_buf)
                             }
                             Err(err) => {
                                 eprintln!("{}", err);
@@ -351,13 +339,7 @@ impl RollForward {
                     DiffType::Renamed(new_file_name) => {
                         match std::fs::rename(&new_file_name, &pathdata.path_buf) {
                             Ok(_) => {
-                                if let Ok(new_path_md) = pathdata.path_buf.symlink_metadata() {
-                                    if new_path_md.modified().ok() != pathdata.metadata.map(|md| md.modify_time) {
-                                        let msg = format!("WARNING: Metadata mismatch: {:?} !-> {:?}", new_file_name, pathdata.path_buf);
-                                        return Err(HttmError::new(&msg).into())
-                                    }
-                                }
-                                Ok(())
+                                compare_modify_time(new_file_name, pathdata.path_buf)
                             }
                             Err(err) => {
                                 eprintln!("{}", err);
