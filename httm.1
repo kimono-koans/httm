@@ -122,6 +122,12 @@ filtered according to any values specified at LIST_SNAPS.  User may also enable 
 mode to make a granular selection of specific snapshots to purge.  Note: This is a ZFS
 only option.
 .HP
+\fB\-\-roll\-forward\fR
+.IP
+roll forward, instead of rolling back.  httm will copy only files and their attributes that 
+have changed since the specified snapshot, from that snapshot, to the live dataset.  httm will
+also take two precautionary snapshots, before and after the copy, just in case.
+.HP
 \fB\-m\fR, \fB\-\-file\-mount[=\fR<FILE_MOUNT>...]
 .IP
 display the all mount point/s of all dataset/s which contain/s the input file/s.

@@ -39,6 +39,13 @@ pub struct RollForward;
 
 impl RollForward {
     pub fn exec(full_snap_name: &str) -> HttmResult<()> {
+        if !nix::unistd::geteuid().is_root() {
+            return Err(HttmError::new(
+                "Superuser privileges are require to execute a roll forward.",
+            )
+            .into());
+        }
+
         let zfs_command = if let Ok(zfs_command) = which("zfs") {
             zfs_command
         } else {
@@ -48,9 +55,12 @@ impl RollForward {
             .into());
         };
 
-        let (dataset_name, snap_name) = full_snap_name.split_once('@').expect(
-            "A valid ZFS snapshot name requires a '@' separating dataset name and snapshot name.",
-        );
+        let (dataset_name, snap_name) = if let Some(res) = full_snap_name.split_once('@') {
+            res
+        } else {
+            let msg = format!("{} is not a valid data set name.  A valid ZFS snapshot name requires a '@' separating dataset name and snapshot name.", full_snap_name);
+            return Err(HttmError::new(&msg).into());
+        };
 
         let zfs_diff_str = Self::exec_diff(full_snap_name, &zfs_command)?;
 
