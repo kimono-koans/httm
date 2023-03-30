@@ -15,9 +15,11 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::collections::BTreeMap;
+use std::io::BufRead;
 use std::path::{Path, PathBuf};
+use std::process::Child;
 use std::process::Command as ExecProcess;
+use std::process::Stdio;
 use std::time::SystemTime;
 
 use which::which;
@@ -32,6 +34,16 @@ use crate::GLOBAL_CONFIG;
 pub enum PrecautionarySnapType {
     Pre,
     Post,
+}
+
+#[derive(Clone)]
+enum DiffType {
+    Removed,
+    Created,
+    Modified,
+    // zfs diff semantics are: old file name -> new file name
+    // old file name will be the key, and new file name will be stored in the value
+    Renamed(PathBuf),
 }
 
 pub struct RollForward;
@@ -61,9 +73,9 @@ impl RollForward {
             return Err(HttmError::new(&msg).into());
         };
 
-        let zfs_diff_str = Self::exec_diff(full_snap_name, &zfs_command)?;
+        let mut process_handle = Self::exec_diff(full_snap_name, &zfs_command)?;
 
-        let diff_map = DiffMap::new(&zfs_diff_str, dataset_name, snap_name)?;
+        let mut stream = Self::ingest(&mut process_handle)?;
 
         let pre_exec_snap_name = RollForward::exec_snap(
             &zfs_command,
@@ -72,7 +84,7 @@ impl RollForward {
             PrecautionarySnapType::Pre,
         )?;
 
-        match diff_map.roll_forward() {
+        match Self::roll_forward(&mut stream, snap_name, dataset_name) {
             Ok(_) => {
                 println!("httm roll forward completed successfully.");
             }
@@ -121,33 +133,16 @@ impl RollForward {
         Ok(())
     }
 
-    fn exec_diff(full_snapshot_name: &str, zfs_command: &Path) -> HttmResult<String> {
+    fn exec_diff(full_snapshot_name: &str, zfs_command: &Path) -> HttmResult<Child> {
         let mut process_args = vec!["diff", "-H"];
         process_args.push(full_snapshot_name);
 
-        let process_output = ExecProcess::new(zfs_command).args(&process_args).output()?;
-        let stderr_string = std::str::from_utf8(&process_output.stderr)?.trim();
+        let process_handle = ExecProcess::new(zfs_command)
+            .args(&process_args)
+            .stdout(Stdio::piped())
+            .spawn()?;
 
-        // stderr_string is a string not an error, so here we build an err or output
-        if !stderr_string.is_empty() {
-            let msg = if stderr_string.contains("cannot destroy snapshots: permission denied") {
-                "httm may need root privileges to 'zfs diff' a filesystem".to_owned()
-            } else {
-                "httm was unable to diff the snapshot name. The 'zfs' command issued the following error: ".to_owned() + stderr_string
-            };
-
-            return Err(HttmError::new(&msg).into());
-        }
-
-        let stdout_string = std::str::from_utf8(&process_output.stdout)?.trim();
-
-        if stdout_string.is_empty() {
-            let msg = "No difference between the snap name given and the present state of the filesystem.  Quitting.";
-
-            return Err(HttmError::new(msg).into());
-        }
-
-        Ok(stdout_string.to_owned())
+        Ok(process_handle)
     }
 
     fn exec_snap(
@@ -221,30 +216,18 @@ impl RollForward {
             Ok(new_snap_name)
         }
     }
-}
 
-#[derive(Clone)]
-enum DiffType {
-    Removed,
-    Created,
-    Modified,
-    // zfs diff semantics are: old file name -> new file name
-    // old file name will be the key, and new file name will be stored in the value
-    Renamed(PathBuf),
-}
+    fn ingest(
+        process_handle: &mut Child,
+    ) -> HttmResult<Box<dyn Iterator<Item = (PathData, DiffType)>>> {
+        let source = process_handle.stdout.take().unwrap();
 
-#[allow(dead_code)]
-struct DiffMap {
-    inner: Vec<(PathData, DiffType)>,
-    dataset_name: String,
-    snap_name: String,
-}
+        let in_buffer = std::io::BufReader::new(source);
 
-impl DiffMap {
-    fn new(zfs_diff_str: &str, dataset_name: &str, snap_name: &str) -> HttmResult<Self> {
-        let diff_map: BTreeMap<PathData, DiffType> =
-            zfs_diff_str
+        let iterator =
+            in_buffer
                 .lines()
+                .filter_map(|line| line.ok())
                 .filter_map(|line| {
                     let split_line: Vec<&str> = line.split('\t').collect();
 
@@ -268,30 +251,16 @@ impl DiffMap {
                         }),
                         _ => None,
                     }
-                })
-                .collect();
+                });
 
-        if diff_map.is_empty() {
-            let msg = "httm was unable to parse the output of 'zfs diff'.  Quitting.";
-
-            return Err(HttmError::new(msg).into());
-        }
-
-        let mut sorted: Vec<(PathData, DiffType)> = diff_map.into_iter().collect();
-
-        sorted.sort_by_key(|(path, _diff)| path.path_buf.components().count());
-
-        Ok(DiffMap {
-            inner: sorted,
-            dataset_name: dataset_name.to_owned(),
-            snap_name: snap_name.to_owned(),
-        })
+        Ok(Box::new(iterator))
     }
 
-    fn roll_forward(&self) -> HttmResult<()> {
-        self.inner
-            .iter()
-            .filter_map(|(pathdata, diff_type)| {
+    fn roll_forward<I>(stream: I, snap_name: &str, _dataset_name: &str) -> HttmResult<()>
+    where
+        I: Iterator<Item = (PathData, DiffType)>,
+    {
+        stream.filter_map(|(pathdata, diff_type)| {
                 pathdata
                     .get_proximate_dataset(&GLOBAL_CONFIG.dataset_collection.map_of_datasets)
                     .ok()
@@ -299,12 +268,12 @@ impl DiffMap {
                         pathdata.get_relative_path(proximate_dataset_mount)
                             .ok()
                             .map(|relative_path| {
-                            (pathdata, diff_type, proximate_dataset_mount, relative_path)
+                            (pathdata.to_owned(), diff_type.clone(), proximate_dataset_mount.to_owned(), relative_path.to_owned())
                         })
                     })
             })
             .try_for_each(|(pathdata, diff_type, proximate_dataset_mount, relative_path)| {
-                let snap_file_path: PathBuf = [proximate_dataset_mount, Path::new(".zfs/snapshot"), Path::new(&self.snap_name), relative_path].iter().collect();
+                let snap_file_path: PathBuf = [&proximate_dataset_mount, Path::new(".zfs/snapshot"), Path::new(&snap_name), &relative_path].iter().collect();
 
                 let snap_file = PathData::from(snap_file_path.as_path());
 
@@ -365,7 +334,7 @@ impl DiffMap {
                         }
                     }
                     DiffType::Renamed(new_file_name) => {
-                        match std::fs::rename(new_file_name, &pathdata.path_buf) {
+                        match std::fs::rename(&new_file_name, &pathdata.path_buf) {
                             Ok(_) => {
                                 if let Ok(new_path_md) = pathdata.path_buf.symlink_metadata() {
                                     if new_path_md.modified().ok() != pathdata.metadata.map(|md| md.modify_time) {
@@ -388,7 +357,7 @@ impl DiffMap {
     }
 
     // why include here? because I think this only works with the correct semantics
-    // that is -- highest directory levels sorted first
+    // that is -- output from zfs diff,
     pub fn copy_direct(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<()> {
         if src.is_dir() {
             std::fs::create_dir_all(dst)?;
