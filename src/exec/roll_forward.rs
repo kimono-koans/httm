@@ -222,6 +222,7 @@ impl RollForward {
     }
 }
 
+#[derive(Clone)]
 enum DiffType {
     Removed,
     Created,
@@ -283,7 +284,13 @@ impl DiffMap {
     }
 
     fn roll_forward(&self) -> HttmResult<()> {
-        self.inner
+        let mut sorted: Vec<(PathData, DiffType)> = self.inner.clone().into_iter().collect();
+
+        sorted.sort_by_key(|(path, _diff)| path.path_buf.as_os_str().len());
+
+        sorted.reverse();
+
+        sorted
             .iter()
             .filter_map(|(pathdata, diff_type)| {
                 pathdata
