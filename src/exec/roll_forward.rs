@@ -156,15 +156,15 @@ impl RollForward {
     ) -> HttmResult<String> {
         let mut process_args = vec!["snapshot".to_owned()];
 
-        let new_snap_name = match &snap_type {
-            PrecautionarySnapType::Pre => {
-                // all snapshots should have the same timestamp
-                let timestamp = get_date(
+        let timestamp = get_date(
                     GLOBAL_CONFIG.requested_utc_offset,
                     &SystemTime::now(),
                     DateFormat::Timestamp,
                 );
 
+        let new_snap_name = match &snap_type {
+            PrecautionarySnapType::Pre => {
+                // all snapshots should have the same timestamp
                 let new_snap_name = format!(
                     "{}@snap_pre_{}_httmSnapRollForward",
                     dataset_name, timestamp
@@ -174,8 +174,8 @@ impl RollForward {
             }
             PrecautionarySnapType::Post => {
                 let new_snap_name = format!(
-                    "{}@snap_post_:{}:_httmSnapRollForward",
-                    dataset_name, snap_name
+                    "{}@snap_post_{}_:{}:_httmSnapRollForward",
+                    dataset_name, timestamp, snap_name
                 );
 
                 new_snap_name
