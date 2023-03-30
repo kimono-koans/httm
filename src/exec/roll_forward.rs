@@ -394,7 +394,7 @@ impl DiffMap {
                 copy_attributes(src, dst)?;
             }
         } else {
-            let src_parent = src.parent().unwrap_or(src);
+            let src_parent = src.parent().unwrap();
             
             let dst_parent = if let Some(dst_parent) = dst.parent() {
                 dst_parent
