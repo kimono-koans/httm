@@ -130,29 +130,33 @@ pub fn copy_recursive(src: &Path, dst: &Path, should_preserve: bool) -> HttmResu
     if src.is_dir() {
         create_dir_all(dst).map_err(|err| map_io_err(err, dst))?;
 
-        if should_preserve {
+        if should_preserve && src.exists() {
             copy_attributes(src, dst)?;
         }
 
         for entry in read_dir(src)? {
             let entry = entry?;
             let file_type = entry.file_type()?;
-            let path = entry.path();
+            let entry_src = entry.path();
+            let entry_dst = dst.join(entry.file_name());
 
-            if file_type.is_dir() {
-                if path.exists() {
-                    copy_recursive(&entry.path(), &dst.join(entry.file_name()), should_preserve)?;
+            if entry_src.exists()  {
+                if file_type.is_dir() {
+                    copy_recursive(&entry_src, &entry_dst, should_preserve)?;
+                } else {
+                    copy(&entry_src, entry_dst).map_err(|err| map_io_err(err, dst))?;
+    
+                    if should_preserve && entry_src.exists() {
+                        copy_attributes(src, dst)?;
+                    }
                 }
-            } else if path.exists() {
-                copy(entry.path(), dst.join(entry.file_name()))
-                    .map_err(|err| map_io_err(err, dst))?;
             }
         }
     } else if src.exists() {
         copy(src, dst).map_err(|err| map_io_err(err, dst))?;
     }
 
-    if should_preserve {
+    if should_preserve && src.exists() {
         copy_attributes(src, dst)?;
     }
 
@@ -168,10 +172,12 @@ pub fn remove_recursive(src: &Path) -> HttmResult<()> {
             let file_type = entry.file_type()?;
             let path = entry.path();
 
-            if file_type.is_dir() {
-                remove_recursive(&path)?
-            } else if path.exists() {
-                std::fs::remove_file(path)?
+            if path.exists() {
+                if file_type.is_dir() {
+                    remove_recursive(&path)?
+                } else  {
+                    std::fs::remove_file(path)?
+                }
             }
         }
 
