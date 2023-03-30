@@ -20,7 +20,6 @@ use std::path::{Path, PathBuf};
 use std::process::Command as ExecProcess;
 use std::time::SystemTime;
 
-use rayon::prelude::*;
 use which::which;
 
 use crate::data::paths::PathData;
@@ -245,7 +244,7 @@ impl DiffMap {
     fn new(zfs_diff_str: &str, dataset_name: &str, snap_name: &str) -> HttmResult<Self> {
         let diff_map: BTreeMap<PathData, DiffType> =
             zfs_diff_str
-                .par_lines()
+                .lines()
                 .filter_map(|line| {
                     let split_line: Vec<&str> = line.split('\t').collect();
 
@@ -291,7 +290,7 @@ impl DiffMap {
 
     fn roll_forward(&self) -> HttmResult<()> {
         self.inner
-            .par_iter()
+            .iter()
             .filter_map(|(pathdata, diff_type)| {
                 pathdata
                     .get_proximate_dataset(&GLOBAL_CONFIG.dataset_collection.map_of_datasets)
@@ -395,6 +394,13 @@ impl DiffMap {
                 copy_attributes(src, dst)?;
             }
         } else {
+            let src_parent = src.parent().unwrap_or(src);
+            let dst_parent = dst.parent().unwrap_or(dst);
+
+            if should_preserve {
+                copy_attributes(src_parent, dst_parent)?;
+            }
+
             std::fs::copy(src, dst)?;
 
             if should_preserve {
