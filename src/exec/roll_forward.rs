@@ -288,19 +288,14 @@ impl RollForward {
                         pathdata.get_relative_path(proximate_dataset_mount)
                             .ok()
                             .map(|relative_path| {
-                            (pathdata.to_owned(), diff_type.clone(), proximate_dataset_mount.to_owned(), relative_path.to_owned())
+                                let snap_file_path: PathBuf = [proximate_dataset_mount, Path::new(".zfs/snapshot"), Path::new(&snap_name), relative_path].iter().collect();
+
+                            (pathdata.to_owned(), diff_type.clone(), snap_file_path)
                         })
                     })
             })
-            .try_for_each(|(pathdata, diff_type, proximate_dataset_mount, relative_path)| {
-                let snap_file_path: PathBuf = [&proximate_dataset_mount, Path::new(".zfs/snapshot"), Path::new(&snap_name), &relative_path].iter().collect();
-
+            .try_for_each(|(pathdata, diff_type, snap_file_path)| {
                 let snap_file = PathData::from(snap_file_path.as_path());
-
-                // cannot copy the root dataset mount
-                if pathdata.path_buf == proximate_dataset_mount {
-                    return Ok(());
-                }
 
                 let res: HttmResult<()> = match diff_type {
                     DiffType::Removed => {
