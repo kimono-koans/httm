@@ -234,7 +234,7 @@ enum DiffType {
 
 #[allow(dead_code)]
 struct DiffMap {
-    inner: BTreeMap<PathData, DiffType>,
+    inner: Vec<(PathData, DiffType)>,
     dataset_name: String,
     snap_name: String,
 }
@@ -276,21 +276,21 @@ impl DiffMap {
             return Err(HttmError::new(msg).into());
         }
 
+        let mut sorted: Vec<(PathData, DiffType)> = diff_map.into_iter().collect();
+
+        sorted.sort_by_key(|(path, _diff)| path.path_buf.as_os_str().len());
+
+        sorted.reverse();
+
         Ok(DiffMap {
-            inner: diff_map,
+            inner: sorted,
             dataset_name: dataset_name.to_owned(),
             snap_name: snap_name.to_owned(),
         })
     }
 
     fn roll_forward(&self) -> HttmResult<()> {
-        let mut sorted: Vec<(PathData, DiffType)> = self.inner.clone().into_iter().collect();
-
-        sorted.sort_by_key(|(path, _diff)| path.path_buf.as_os_str().len());
-
-        sorted.reverse();
-
-        sorted
+        self.inner
             .iter()
             .filter_map(|(pathdata, diff_type)| {
                 pathdata
