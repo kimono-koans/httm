@@ -130,8 +130,8 @@ pub fn copy_recursive(src: &Path, dst: &Path, should_preserve: bool) -> HttmResu
     if src.is_dir() {
         create_dir_all(dst).map_err(|err| map_io_err(err, dst))?;
 
-        if should_preserve && src.exists() {
-            copy_attributes(src, dst)?;
+        if should_preserve {
+            let _ = copy_attributes(src, dst)?;
         }
 
         for entry in read_dir(src)? {
@@ -146,18 +146,18 @@ pub fn copy_recursive(src: &Path, dst: &Path, should_preserve: bool) -> HttmResu
                 } else {
                     copy(&entry_src, entry_dst).map_err(|err| map_io_err(err, dst))?;
 
-                    if should_preserve && entry_src.exists() {
-                        copy_attributes(src, dst)?;
+                    if should_preserve {
+                        let _ = copy_attributes(src, dst)?;
                     }
                 }
             }
         }
     } else if src.exists() {
         copy(src, dst).map_err(|err| map_io_err(err, dst))?;
-    }
 
-    if should_preserve && src.exists() {
-        copy_attributes(src, dst)?;
+        if should_preserve {
+            let _ = copy_attributes(src, dst)?;
+        }
     }
 
     Ok(())
