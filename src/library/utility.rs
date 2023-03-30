@@ -130,10 +130,10 @@ pub fn copy_recursive(src: &Path, dst: &Path, should_preserve: bool) -> HttmResu
     if src.is_dir() {
         if !dst.exists() {
             create_dir_all(dst).map_err(|err| map_io_err(err, dst))?;
+        }
 
-            if should_preserve {
-                copy_attributes(src, dst)?;
-            }
+        if should_preserve {
+            copy_attributes(src, dst)?;
         }
 
         for entry in read_dir(src)? {
@@ -167,7 +167,7 @@ pub fn remove_recursive(src: &Path) -> HttmResult<()> {
             let file_type = entry.file_type()?;
             let path = entry.path();
 
-            if !file_type.is_dir() {
+            if file_type.is_dir() {
                 remove_recursive(&path)?
             } else if path.exists() {
                 std::fs::remove_file(path)?

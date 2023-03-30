@@ -216,6 +216,7 @@ impl RollForward {
             };
 
             print_output_buf(output_buf)?;
+
             Ok(new_snap_name)
         }
     }
