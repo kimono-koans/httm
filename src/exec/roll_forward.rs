@@ -84,10 +84,9 @@ impl RollForward {
                     err
                 );
                 eprintln!("{}", msg);
-                
-                Self::exec_rollback(&pre_exec_snap_name, &zfs_command).map(|_| {
-                    println!("Rollback succeeded.")
-                })?;
+
+                Self::exec_rollback(&pre_exec_snap_name, &zfs_command)
+                    .map(|_| println!("Rollback succeeded."))?;
 
                 std::process::exit(1)
             }
@@ -281,9 +280,7 @@ impl DiffMap {
 
         let mut sorted: Vec<(PathData, DiffType)> = diff_map.into_iter().collect();
 
-        sorted.sort_by_key(|(path, _diff)| path.path_buf.as_os_str().len());
-
-        sorted.reverse();
+        sorted.sort_by_key(|(path, _diff)| path.path_buf.to_string_lossy().len());
 
         Ok(DiffMap {
             inner: sorted,
@@ -311,6 +308,11 @@ impl DiffMap {
                 let snap_file_path: PathBuf = [proximate_dataset_mount, Path::new(".zfs/snapshot"), Path::new(&self.snap_name), relative_path].iter().collect();
 
                 let snap_file = PathData::from(snap_file_path.as_path());
+
+                // cannot copy the root dataset mount
+                if pathdata.path_buf == proximate_dataset_mount {
+                    return Ok(());
+                }
 
                 let res: HttmResult<()> = match diff_type {
                     DiffType::Removed => {

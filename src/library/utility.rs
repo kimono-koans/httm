@@ -32,7 +32,7 @@ use number_prefix::NumberPrefix;
 use once_cell::sync::Lazy;
 use time::{format_description, OffsetDateTime, UtcOffset};
 
-use crate::config::generate::PrintMode;
+use crate::{config::generate::PrintMode};
 use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::data::selection::SelectionCandidate;
 use crate::library::results::{HttmError, HttmResult};
@@ -131,7 +131,7 @@ pub fn copy_recursive(src: &Path, dst: &Path, should_preserve: bool) -> HttmResu
         create_dir_all(dst).map_err(|err| map_io_err(err, dst))?;
 
         if should_preserve {
-            let _ = copy_attributes(src, dst)?;
+            copy_attributes(src, dst)?;
         }
 
         for entry in read_dir(src)? {
@@ -147,7 +147,7 @@ pub fn copy_recursive(src: &Path, dst: &Path, should_preserve: bool) -> HttmResu
                     copy(&entry_src, entry_dst).map_err(|err| map_io_err(err, dst))?;
 
                     if should_preserve {
-                        let _ = copy_attributes(src, dst)?;
+                        copy_attributes(src, dst)?;
                     }
                 }
             }
@@ -156,7 +156,7 @@ pub fn copy_recursive(src: &Path, dst: &Path, should_preserve: bool) -> HttmResu
         copy(src, dst).map_err(|err| map_io_err(err, dst))?;
 
         if should_preserve {
-            let _ = copy_attributes(src, dst)?;
+            copy_attributes(src, dst)?;
         }
     }
 
