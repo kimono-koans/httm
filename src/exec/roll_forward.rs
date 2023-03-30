@@ -26,8 +26,8 @@ use which::which;
 
 use crate::data::paths::PathData;
 use crate::library::results::{HttmError, HttmResult};
+use crate::library::utility::{compare_modify_time, get_date, DateFormat};
 use crate::library::utility::{copy_attributes, remove_recursive};
-use crate::library::utility::{get_date, DateFormat, compare_modify_time};
 use crate::print_output_buf;
 use crate::GLOBAL_CONFIG;
 
@@ -230,9 +230,9 @@ impl RollForward {
         }
     }
 
-    fn ingest<'a>(
-        process_handle: &'a mut Child,
-    ) -> HttmResult<impl Iterator<Item = (PathData, DiffType)> + 'a> {
+    fn ingest(
+        process_handle: &mut Child,
+    ) -> HttmResult<impl Iterator<Item = (PathData, DiffType)> + '_> {
         let stdout_buffer = if let Some(output) = process_handle.stdout.take() {
             std::io::BufReader::new(output)
         } else {

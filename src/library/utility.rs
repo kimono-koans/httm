@@ -456,23 +456,23 @@ pub fn display_human_size(size: u64) -> String {
 }
 
 pub fn compare_modify_time<T>(src: T, dst: T) -> HttmResult<()>
-    where
-        T: CompareModifyTime,
-    {
-        if src.get_opt_metadata() != dst.get_opt_metadata() {
-            let msg = format!(
-                "WARNING: Metadata mismatch: {:?} !-> {:?}",
-                src.get_path(),
-                dst.get_path()
-            );
-            return Err(HttmError::new(&msg).into());
-        }
-        Ok(())
+where
+    T: CompareModifyTime,
+{
+    if src.get_opt_metadata() != dst.get_opt_metadata() {
+        let msg = format!(
+            "WARNING: Metadata mismatch: {:?} !-> {:?}",
+            src.get_path(),
+            dst.get_path()
+        );
+        return Err(HttmError::new(&msg).into());
     }
+    Ok(())
+}
 
 pub trait CompareModifyTime {
     fn get_opt_metadata(&self) -> Option<SystemTime>;
-    fn get_path<'a>(&'a self) -> &'a Path;
+    fn get_path(&self) -> &Path;
 }
 
 impl<T: AsRef<Path>> CompareModifyTime for T {
@@ -480,11 +480,10 @@ impl<T: AsRef<Path>> CompareModifyTime for T {
         self.as_ref()
             .symlink_metadata()
             .ok()
-            .map(|md| md.modified().ok())
-            .flatten()
+            .and_then(|md| md.modified().ok())
     }
 
-    fn get_path<'a>(&'a self) -> &'a Path {
+    fn get_path(&self) -> &Path {
         self.as_ref()
     }
 }
@@ -494,7 +493,7 @@ impl CompareModifyTime for PathData {
         self.metadata.map(|md| md.modify_time)
     }
 
-    fn get_path<'a>(&'a self) -> &'a Path {
-        &self.path_buf.as_path()
+    fn get_path(&self) -> &Path {
+        self.path_buf.as_path()
     }
 }
