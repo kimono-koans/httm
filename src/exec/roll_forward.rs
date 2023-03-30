@@ -395,7 +395,19 @@ impl DiffMap {
             }
         } else {
             let src_parent = src.parent().unwrap_or(src);
-            let dst_parent = dst.parent().unwrap_or(dst);
+            
+            let dst_parent = if let Some(dst_parent) = dst.parent() {
+                dst_parent
+            } else {
+                // discard 
+                let mut ancestors = dst.ancestors();
+                ancestors.next();
+
+                let parent = ancestors.next().unwrap();
+                
+                std::fs::create_dir_all(parent)?;
+                parent
+            };
 
             if should_preserve {
                 copy_attributes(src_parent, dst_parent)?;
