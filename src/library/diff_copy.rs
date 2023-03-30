@@ -57,7 +57,7 @@ use simd_adler32::Adler32;
 
 use crate::library::results::HttmResult;
 
-const CHUNK_SIZE: usize = 65_536;
+const CHUNK_SIZE: usize = 8_192;
 
 pub fn diff_copy(src: &Path, dest: &Path) -> HttmResult<()> {
     let mut just_write = false;
