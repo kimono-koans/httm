@@ -43,6 +43,7 @@ mod config {
     pub mod install_hot_keys;
 }
 mod library {
+    pub mod diff_copy;
     pub mod iter_extensions;
     pub mod results;
     pub mod utility;

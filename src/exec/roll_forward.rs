@@ -25,6 +25,7 @@ use std::time::SystemTime;
 use which::which;
 
 use crate::data::paths::PathData;
+use crate::library::diff_copy::diff_copy;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{compare_modify_time, get_date, DateFormat};
 use crate::library::utility::{copy_attributes, remove_recursive};
@@ -382,7 +383,7 @@ impl RollForward {
                 copy_attributes(src_parent, dst_parent)?;
             }
 
-            std::fs::copy(src, dst)?;
+            diff_copy(src, dst)?;
 
             if should_preserve {
                 copy_attributes(src, dst)?;
