@@ -73,15 +73,21 @@ impl RollForward {
             PrecautionarySnapType::Pre,
         )?;
 
-        if diff_map.roll_forward().is_ok() {
-            println!("httm roll forward completed successfully.")
-        } else {
-            Self::exec_rollback(dataset_name, &pre_exec_snap_name, &zfs_command)?;
+        match diff_map.roll_forward() {
+            Ok(_) => {
+                println!("httm roll forward completed successfully.");
+            }
+            Err(err) => {
+                let msg = format!(
+                    "httm roll forward failed for the following reason: {}.\n\
+                Attempting roll back to precautionary pre-execution snapshot.",
+                    err
+                );
+                eprintln!("{}", msg);
+                Self::exec_rollback(&pre_exec_snap_name, &zfs_command)?;
 
-            let msg =
-                "httm roll forward failed.  Rolling back to precautionary pre-execution snapshot.";
-
-            return Err(HttmError::new(msg).into());
+                std::process::exit(1)
+            }
         };
 
         RollForward::exec_snap(
@@ -93,14 +99,9 @@ impl RollForward {
         .map(|_res| ())
     }
 
-    fn exec_rollback(
-        dataset_name: &str,
-        pre_exec_snap_name: &str,
-        zfs_command: &Path,
-    ) -> HttmResult<()> {
+    fn exec_rollback(pre_exec_snap_name: &str, zfs_command: &Path) -> HttmResult<()> {
         let mut process_args = vec!["rollback", "-r"];
-        let full_snap_name = format!("{}@{}", dataset_name, pre_exec_snap_name);
-        process_args.push(&full_snap_name);
+        process_args.push(pre_exec_snap_name);
 
         let process_output = ExecProcess::new(zfs_command).args(&process_args).output()?;
         let stderr_string = std::str::from_utf8(&process_output.stderr)?.trim();
@@ -157,10 +158,10 @@ impl RollForward {
         let mut process_args = vec!["snapshot".to_owned()];
 
         let timestamp = get_date(
-                    GLOBAL_CONFIG.requested_utc_offset,
-                    &SystemTime::now(),
-                    DateFormat::Timestamp,
-                );
+            GLOBAL_CONFIG.requested_utc_offset,
+            &SystemTime::now(),
+            DateFormat::Timestamp,
+        );
 
         let new_snap_name = match &snap_type {
             PrecautionarySnapType::Pre => {
@@ -214,7 +215,7 @@ impl RollForward {
                 }
             };
 
-            print_output_buf(output_buf.clone())?;
+            print_output_buf(output_buf)?;
             Ok(new_snap_name)
         }
     }
@@ -304,9 +305,6 @@ impl DiffMap {
                     DiffType::Removed => {
                         match copy_recursive(&snap_file.path_buf, &pathdata.path_buf, true) {
                             Ok(_) => {
-                                if GLOBAL_CONFIG.opt_debug {
-                                    println!("Removed File: httm moved {:?} back to its original location: {:?}.", &pathdata.path_buf, snap_file.path_buf);
-                                }
                                 if let Ok(new_path_md) = pathdata.path_buf.symlink_metadata() {
                                     if new_path_md.modified().ok() != snap_file.metadata.map(|md| md.modify_time) {
                                         eprintln!("WARNING: Metadata mismatch: {:?} !-> {:?}", snap_file.path_buf, pathdata.path_buf)
@@ -323,9 +321,6 @@ impl DiffMap {
                     DiffType::Created => {
                         match remove_recursive(&pathdata.path_buf) {
                             Ok(_) => {
-                                if pathdata.path_buf.exists() && GLOBAL_CONFIG.opt_debug {
-                                    println!("Created File: httm deleted {:?}, a newly created file.", &pathdata.path_buf);
-                                }
                                 if pathdata.path_buf.symlink_metadata().is_ok() {
                                     eprintln!("WARNING: File should not exist after deletion {:?}", pathdata.path_buf)
                                 }
@@ -340,9 +335,6 @@ impl DiffMap {
                     DiffType::Modified => {
                         match copy_recursive(&snap_file.path_buf, &pathdata.path_buf, true) {
                             Ok(_) => {
-                                if GLOBAL_CONFIG.opt_debug {
-                                    println!("Modified File: httm has overwritten {:?} with the file contents from a snapshot: {:?}.", &pathdata.path_buf, snap_file);
-                                }
                                 if let Ok(new_path_md) = pathdata.path_buf.symlink_metadata() {
                                     if new_path_md.modified().ok() != snap_file.metadata.map(|md| md.modify_time) {
                                         eprintln!("WARNING: Metadata mismatch: {:?} !-> {:?}", snap_file.path_buf, pathdata.path_buf)
@@ -359,10 +351,6 @@ impl DiffMap {
                     DiffType::Renamed(new_file_name) => {
                         match std::fs::rename(new_file_name, &pathdata.path_buf) {
                             Ok(_) => {
-                                if GLOBAL_CONFIG.opt_debug {
-                                    println!("Renamed File: httm moved {:?} back to its original location: {:?}.", new_file_name, &pathdata.path_buf);
-                                }
-
                                 if let Ok(new_path_md) = pathdata.path_buf.symlink_metadata() {
                                     if new_path_md.modified().ok() != pathdata.metadata.map(|md| md.modify_time) {
                                         eprintln!("WARNING: Metadata mismatch: {:?} !-> {:?}", new_file_name, pathdata.path_buf)
