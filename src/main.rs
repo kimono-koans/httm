@@ -35,6 +35,7 @@ mod exec {
     pub mod preview;
     pub mod purge;
     pub mod recursive;
+    pub mod roll_forward;
     pub mod snapshot;
 }
 mod config {
@@ -61,6 +62,7 @@ mod parse {
 
 use crate::display_map::helper::PrintAsMap;
 use exec::purge::PurgeFiles;
+use exec::roll_forward::RollForward;
 use exec::snapshot::TakeSnapshot;
 use library::utility::print_output_buf;
 use once_cell::sync::Lazy;
@@ -144,5 +146,6 @@ fn exec() -> HttmResult<()> {
 
             print_output_buf(output_buf)
         }
+        ExecMode::RollForward(snap_name) => RollForward::exec(snap_name),
     }
 }
