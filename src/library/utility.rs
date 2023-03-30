@@ -17,7 +17,7 @@
 
 use std::{
     borrow::Cow,
-    fs::{copy, create_dir, create_dir_all, read_dir, set_permissions, FileType},
+    fs::{copy, create_dir_all, read_dir, set_permissions, FileType},
     io::{self, Read, Write},
     iter::Iterator,
     os::unix::fs::MetadataExt,
@@ -129,11 +129,7 @@ fn map_io_err(err: io::Error, dst: &Path) -> HttmError {
 pub fn copy_recursive(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<()> {
     if src.is_dir() {
         if !dst.exists() {
-            if dst.parent().unwrap().exists() {
-                create_dir(dst).map_err(|err| map_io_err(err, dst))?;
-            } else {
-                create_dir_all(dst).map_err(|err| map_io_err(err, dst))?;
-            }
+            create_dir_all(dst).map_err(|err| map_io_err(err, dst))?;
 
             if should_preserve {
                 copy_attributes(src, dst)?;

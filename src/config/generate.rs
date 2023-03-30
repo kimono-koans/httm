@@ -277,12 +277,13 @@ fn parse_args() -> ArgMatches {
         .arg(
             Arg::new("ROLL_FORWARD")
                 .long("roll-forward")
-                .aliases(&["roll"])
+                .aliases(&["roll", "spring-forward"])
                 .takes_value(true)
                 .min_values(1)
                 .require_equals(true)
                 .multiple_values(false)
-                .help("")
+                .help("roll forward instead of rolling back.  \
+                httm will copy files and their attributes that have changed on the underlying dataset since the specified snapshot.")
                 .conflicts_with_all(&["BROWSE", "RESTORE", "ALT_REPLICATED", "REMOTE_DIR", "LOCAL_DIR"])
                 .display_order(13)
         )
