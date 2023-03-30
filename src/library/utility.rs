@@ -17,7 +17,7 @@
 
 use std::{
     borrow::Cow,
-    fs::{copy, create_dir_all, read_dir, set_permissions, FileType},
+    fs::{copy, create_dir, create_dir_all, read_dir, set_permissions, FileType},
     io::{self, Read, Write},
     iter::Iterator,
     os::unix::fs::MetadataExt,
@@ -128,7 +128,17 @@ fn map_io_err(err: io::Error, dst: &Path) -> HttmError {
 
 pub fn copy_recursive(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<()> {
     if src.is_dir() {
-        create_dir_all(dst).map_err(|err| map_io_err(err, dst))?;
+        if !dst.exists() {
+            if dst.parent().unwrap().exists() {
+                create_dir(dst).map_err(|err| map_io_err(err, dst))?;
+            } else {
+                create_dir_all(dst).map_err(|err| map_io_err(err, dst))?;
+            }
+
+            if should_preserve {
+                copy_attributes(src, dst)?;
+            }
+        }
 
         for entry in read_dir(src)? {
             let entry = entry?;
@@ -163,15 +173,13 @@ pub fn remove_recursive(src: &Path) -> HttmResult<()> {
 
             if !file_type.is_dir() {
                 remove_recursive(&path)?
-            } else {
-                if path.exists() {
-                    std::fs::remove_file(path)?
-                }
+            } else if path.exists() {
+                std::fs::remove_file(path)?
             }
         }
 
         if src.exists() {
-            std::fs::remove_dir_all(src)?
+            std::fs::remove_dir(src)?
         }
     } else if src.exists() {
         std::fs::remove_file(src)?

@@ -297,7 +297,6 @@ impl DiffMap {
                                 if GLOBAL_CONFIG.opt_debug {
                                     println!("Removed File: httm moved {:?} back to its original location: {:?}.", &pathdata.path_buf, snap_file.path_buf);
                                 }
-    
                                 if let Ok(new_path_md) = pathdata.path_buf.symlink_metadata() {
                                     if new_path_md.modified().ok() != snap_file.metadata.map(|md| md.modify_time) {
                                         eprintln!("WARNING: Metadata mismatch: {:?} !-> {:?}", snap_file.path_buf, pathdata.path_buf)
@@ -317,7 +316,6 @@ impl DiffMap {
                                 if pathdata.path_buf.exists() && GLOBAL_CONFIG.opt_debug {
                                     println!("Created File: httm deleted {:?}, a newly created file.", &pathdata.path_buf);
                                 }
-        
                                 if pathdata.path_buf.symlink_metadata().is_ok() {
                                     eprintln!("WARNING: File should not exist after deletion {:?}", pathdata.path_buf)
                                 }
@@ -335,7 +333,6 @@ impl DiffMap {
                                 if GLOBAL_CONFIG.opt_debug {
                                     println!("Modified File: httm has overwritten {:?} with the file contents from a snapshot: {:?}.", &pathdata.path_buf, snap_file);
                                 }
-    
                                 if let Ok(new_path_md) = pathdata.path_buf.symlink_metadata() {
                                     if new_path_md.modified().ok() != snap_file.metadata.map(|md| md.modify_time) {
                                         eprintln!("WARNING: Metadata mismatch: {:?} !-> {:?}", snap_file.path_buf, pathdata.path_buf)
