@@ -230,9 +230,9 @@ impl RollForward {
         }
     }
 
-    fn ingest(
-        process_handle: &mut Child,
-    ) -> HttmResult<Box<dyn Iterator<Item = (PathData, DiffType)> + '_>> {
+    fn ingest<'a>(
+        process_handle: &'a mut Child,
+    ) -> HttmResult<Box<dyn Iterator<Item = (PathData, DiffType)> + 'a>> {
         let stdout_buffer = if let Some(output) = process_handle.stdout.take() {
             std::io::BufReader::new(output)
         } else {
