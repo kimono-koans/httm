@@ -280,7 +280,7 @@ impl DiffMap {
 
         let mut sorted: Vec<(PathData, DiffType)> = diff_map.into_iter().collect();
 
-        sorted.sort_by_key(|(path, _diff)| path.path_buf.to_string_lossy().len());
+        sorted.sort_by_key(|(path, _diff)| path.path_buf.components().count());
 
         Ok(DiffMap {
             inner: sorted,
@@ -291,7 +291,7 @@ impl DiffMap {
 
     fn roll_forward(&self) -> HttmResult<()> {
         self.inner
-            .iter()
+            .par_iter()
             .filter_map(|(pathdata, diff_type)| {
                 pathdata
                     .get_proximate_dataset(&GLOBAL_CONFIG.dataset_collection.map_of_datasets)

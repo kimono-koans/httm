@@ -32,7 +32,7 @@ use number_prefix::NumberPrefix;
 use once_cell::sync::Lazy;
 use time::{format_description, OffsetDateTime, UtcOffset};
 
-use crate::{config::generate::PrintMode};
+use crate::config::generate::PrintMode;
 use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::data::selection::SelectionCandidate;
 use crate::library::results::{HttmError, HttmResult};
