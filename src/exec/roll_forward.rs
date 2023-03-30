@@ -304,7 +304,8 @@ impl RollForward {
                             Ok(_) => {
                                 compare_modify_time(&snap_file.path_buf, &pathdata.path_buf)
                             }
-                            Err(_err) => {
+                            Err(err) => {
+                                eprintln!("{}", err);
                                 let msg = format!("WARNING: could not overwrite {:?} with snapshot file version {:?}", &pathdata.path_buf, snap_file.path_buf);
                                 Err(HttmError::new(&msg).into())
                             }
@@ -320,6 +321,7 @@ impl RollForward {
                                 Ok(())
                             }
                             Err(err) => {
+                                eprintln!("{}", err);
                                 let msg = format!("WARNING: Removal of file {:?} failed", err);
                                 Err(HttmError::new(&msg).into())
                             }
