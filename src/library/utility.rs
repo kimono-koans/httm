@@ -66,7 +66,7 @@ pub fn make_tmp_path(path: &Path) -> PathBuf {
     PathBuf::from(res)
 }
 
-fn copy_attributes(src: &Path, dst: &Path) -> HttmResult<()> {
+pub fn copy_attributes(src: &Path, dst: &Path) -> HttmResult<()> {
     let src_metadata = src.symlink_metadata()?;
 
     // Mode
@@ -152,7 +152,7 @@ pub fn copy_recursive(src: &Path, dst: &Path, should_preserve: bool) -> HttmResu
                 }
             }
         }
-    } else if src.exists() {
+    } else {
         copy(src, dst).map_err(|err| map_io_err(err, dst))?;
 
         if should_preserve {

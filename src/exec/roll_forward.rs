@@ -25,7 +25,7 @@ use which::which;
 
 use crate::data::paths::PathData;
 use crate::library::results::{HttmError, HttmResult};
-use crate::library::utility::{copy_recursive, remove_recursive};
+use crate::library::utility::{copy_attributes, remove_recursive};
 use crate::library::utility::{get_date, DateFormat};
 use crate::print_output_buf;
 use crate::GLOBAL_CONFIG;
@@ -316,7 +316,7 @@ impl DiffMap {
 
                 let res: HttmResult<()> = match diff_type {
                     DiffType::Removed => {
-                        match copy_recursive(&snap_file.path_buf, &pathdata.path_buf, true) {
+                        match Self::copy_direct(&snap_file.path_buf, &pathdata.path_buf, true) {
                             Ok(_) => {
                                 if let Ok(new_path_md) = pathdata.path_buf.symlink_metadata() {
                                     if new_path_md.modified().ok() != snap_file.metadata.map(|md| md.modify_time) {
@@ -347,7 +347,7 @@ impl DiffMap {
                         }
                     }
                     DiffType::Modified => {
-                        match copy_recursive(&snap_file.path_buf, &pathdata.path_buf, true) {
+                        match Self::copy_direct(&snap_file.path_buf, &pathdata.path_buf, true) {
                             Ok(_) => {
                                 if let Ok(new_path_md) = pathdata.path_buf.symlink_metadata() {
                                     if new_path_md.modified().ok() != snap_file.metadata.map(|md| md.modify_time) {
@@ -383,5 +383,25 @@ impl DiffMap {
                 };
                 res
             })
+    }
+
+    // why include here? because I think this only works with the correct semantics
+    // that is -- highest directory levels sorted first
+    pub fn copy_direct(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<()> {
+        if src.is_dir() {
+            std::fs::create_dir_all(dst)?;
+
+            if should_preserve {
+                copy_attributes(src, dst)?;
+            }
+        } else {
+            std::fs::copy(src, dst)?;
+
+            if should_preserve {
+                copy_attributes(src, dst)?;
+            }
+        }
+
+        Ok(())
     }
 }
