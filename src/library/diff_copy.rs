@@ -59,25 +59,24 @@ use crate::library::results::HttmResult;
 
 const CHUNK_SIZE: usize = 8_192;
 
-pub fn diff_copy(src: &Path, dest: &Path) -> HttmResult<()> {
-    let mut just_write = false;
-
-    if !Path::new(&dest).exists() {
-        just_write = true;
+pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
+    if !Path::new(&dst).exists() {
+        let _ = std::fs::copy(src, dst)?;
+        return Ok(());
     }
 
     let src_file = File::open(src)?;
     let mut src_reader = BufReader::with_capacity(CHUNK_SIZE, &src_file);
 
-    let dest_file = OpenOptions::new()
+    let dst_file = OpenOptions::new()
         .write(true)
         .read(true)
         .create(true)
-        .open(dest)?;
-    dest_file.set_len(src_file.metadata()?.len())?;
+        .open(dst)?;
+    dst_file.set_len(src_file.metadata()?.len())?;
 
-    let mut dest_reader = BufReader::with_capacity(CHUNK_SIZE, &dest_file);
-    let mut dest_writer = BufWriter::with_capacity(CHUNK_SIZE, &dest_file);
+    let mut dst_reader = BufReader::with_capacity(CHUNK_SIZE, &dst_file);
+    let mut dst_writer = BufWriter::with_capacity(CHUNK_SIZE, &dst_file);
 
     loop {
         let mut src_buffer = [0; CHUNK_SIZE];
@@ -86,12 +85,12 @@ pub fn diff_copy(src: &Path, dest: &Path) -> HttmResult<()> {
         if src_reader.read(&mut src_buffer)? == 0 {
             break;
         }
-        let _ = dest_reader.read(&mut dest_buffer)?;
+        let _ = dst_reader.read(&mut dest_buffer)?;
 
-        if just_write || !is_same_bytes(&src_buffer, &dest_buffer) {
-            let _ = dest_writer.write(&src_buffer)?;
+        if !is_same_bytes(&src_buffer, &dest_buffer) {
+            let _ = dst_writer.write(&src_buffer)?;
         } else {
-            dest_writer.seek(SeekFrom::Current(CHUNK_SIZE as i64))?;
+            dst_writer.seek(SeekFrom::Current(CHUNK_SIZE as i64))?;
         }
     }
 
