@@ -15,6 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
+use std::cmp::Ordering;
 use std::io::BufRead;
 use std::path::{Path, PathBuf};
 use std::process::Child;
@@ -26,11 +27,43 @@ use which::which;
 
 use crate::data::paths::PathData;
 use crate::library::diff_copy::diff_copy;
+use crate::library::iter_extensions::HttmIter;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{copy_attributes, remove_recursive};
 use crate::library::utility::{get_date, is_metadata_different, DateFormat};
 use crate::print_output_buf;
 use crate::GLOBAL_CONFIG;
+
+#[derive(Clone)]
+struct DiffElements {
+    pathdata: PathData,
+    diff_type: DiffType,
+    time: DiffTime,
+}
+
+#[derive(Clone, PartialEq, Eq)]
+struct DiffTime {
+    secs: u64,
+    nanos: u64,
+}
+
+impl std::cmp::Ord for DiffTime {
+    #[inline]
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        if self.secs == other.secs {
+            return self.nanos.cmp(&other.nanos);
+        }
+
+        self.secs.cmp(&other.secs)
+    }
+}
+
+impl std::cmp::PartialOrd for DiffTime {
+    #[inline]
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
 
 pub enum PrecautionarySnapType {
     Pre,
@@ -85,7 +118,7 @@ impl RollForward {
             PrecautionarySnapType::Pre,
         )?;
 
-        match Self::roll_forward(&mut stream, snap_name, dataset_name) {
+        match Self::roll_forward(&mut stream, snap_name) {
             Ok(_) => {
                 println!("httm roll forward completed successfully.");
             }
@@ -135,7 +168,7 @@ impl RollForward {
     }
 
     fn exec_diff(full_snapshot_name: &str, zfs_command: &Path) -> HttmResult<Child> {
-        let mut process_args = vec!["diff", "-H"];
+        let mut process_args = vec!["diff", "-H", "-t"];
         process_args.push(full_snapshot_name);
 
         let process_handle = ExecProcess::new(zfs_command)
@@ -231,9 +264,7 @@ impl RollForward {
         }
     }
 
-    fn ingest(
-        process_handle: &mut Child,
-    ) -> HttmResult<impl Iterator<Item = (PathData, DiffType)> + '_> {
+    fn ingest(process_handle: &mut Child) -> HttmResult<impl Iterator<Item = DiffElements> + '_> {
         let stdout_buffer = if let Some(output) = process_handle.stdout.take() {
             std::io::BufReader::new(output)
         } else {
@@ -252,42 +283,73 @@ impl RollForward {
 
                     Self::check_stderr(process_handle);
 
-                    match split_line.first() {
-                        Some(elem) if elem == &"-" => split_line.get(1).map(|path_string| {
-                            (PathData::from(Path::new(path_string)), DiffType::Removed)
-                        }),
-                        Some(elem) if elem == &"+" => split_line.get(1).map(|path_string| {
-                            (PathData::from(Path::new(path_string)), DiffType::Created)
-                        }),
-                        Some(elem) if elem == &"M" => split_line.get(1).map(|path_string| {
-                            (PathData::from(Path::new(path_string)), DiffType::Modified)
-                        }),
-                        Some(elem) if elem == &"R" => split_line.get(1).map(|path_string| {
+                    match split_line.get(1) {
+                        Some(elem) if elem == &"-" => split_line.get(2).map(|path_string| {
                             (
                                 PathData::from(Path::new(path_string)),
-                                DiffType::Renamed(PathBuf::from(split_line.get(2).expect(
+                                DiffType::Removed,
+                                Self::parse_time_string(&split_line),
+                            )
+                        }),
+                        Some(elem) if elem == &"+" => split_line.get(2).map(|path_string| {
+                            (
+                                PathData::from(Path::new(path_string)),
+                                DiffType::Created,
+                                Self::parse_time_string(&split_line),
+                            )
+                        }),
+                        Some(elem) if elem == &"M" => split_line.get(2).map(|path_string| {
+                            (
+                                PathData::from(Path::new(path_string)),
+                                DiffType::Modified,
+                                Self::parse_time_string(&split_line),
+                            )
+                        }),
+                        Some(elem) if elem == &"R" => split_line.get(2).map(|path_string| {
+                            (
+                                PathData::from(Path::new(path_string)),
+                                DiffType::Renamed(PathBuf::from(split_line.get(3).expect(
                                     "diff of type rename did not contain a new name value",
                                 ))),
+                                Self::parse_time_string(&split_line),
                             )
                         }),
                         _ => None,
                     }
+                })
+                .map(|(pathdata, diff_type, (secs, nanos))| DiffElements {
+                    pathdata,
+                    diff_type,
+                    time: DiffTime { secs, nanos },
                 });
 
         Ok(iterator)
     }
 
-    fn roll_forward<I>(stream: I, snap_name: &str, _dataset_name: &str) -> HttmResult<()>
+    fn parse_time_string(split_line: &Vec<&str>) -> (u64, u64) {
+        let (secs, nanos) = split_line.first().unwrap().split_once('.').unwrap();
+
+        (secs.parse::<u64>().unwrap(), nanos.parse::<u64>().unwrap())
+    }
+
+    fn roll_forward<I>(stream: I, snap_name: &str) -> HttmResult<()>
     where
-        I: Iterator<Item = (PathData, DiffType)>,
+        I: Iterator<Item = DiffElements>,
     {
         stream
-            .filter_map(|(pathdata, diff_type)| {
-                pathdata
+            .into_group_map_by(|elem| elem.pathdata.clone())
+            .into_iter()
+            .filter_map(|(_key, values)| {
+                let mut new_values = values;
+                new_values.sort_by_key(|elem| elem.time.clone());
+                new_values.into_iter().next()
+            })
+            .filter_map(|elem| {
+                elem.pathdata
                     .get_proximate_dataset(&GLOBAL_CONFIG.dataset_collection.map_of_datasets)
                     .ok()
                     .and_then(|proximate_dataset_mount| {
-                        pathdata
+                        elem.pathdata
                             .get_relative_path(proximate_dataset_mount)
                             .ok()
                             .map(|relative_path| {
@@ -300,32 +362,33 @@ impl RollForward {
                                 .iter()
                                 .collect();
 
-                                (pathdata.to_owned(), diff_type.clone(), snap_file_path)
+                                (elem.clone(), snap_file_path)
                             })
                     })
             })
-            .try_for_each(|(pathdata, diff_type, snap_file_path)| {
+            .try_for_each(|(elem, snap_file_path)| {
                 let snap_file = PathData::from(snap_file_path.as_path());
 
-                match diff_type {
+                match elem.diff_type {
                     DiffType::Removed => {
-                        if let Err(err) = Self::copy_direct(&snap_file.path_buf, &pathdata.path_buf)
+                        if let Err(err) =
+                            Self::copy_direct(&snap_file.path_buf, &elem.pathdata.path_buf)
                         {
                             eprintln!("{}", err);
                             let msg = format!(
                                 "WARNING: could not overwrite {:?} with snapshot file version {:?}",
-                                &pathdata.path_buf, snap_file.path_buf
+                                &elem.pathdata.path_buf, snap_file.path_buf
                             );
                             return Err(HttmError::new(&msg).into());
                         }
-                        is_metadata_different(&snap_file.path_buf, &pathdata.path_buf)
+                        is_metadata_different(&snap_file.path_buf, &elem.pathdata.path_buf)
                     }
-                    DiffType::Created => match remove_recursive(&pathdata.path_buf) {
+                    DiffType::Created => match remove_recursive(&elem.pathdata.path_buf) {
                         Ok(_) => {
-                            if pathdata.path_buf.exists() {
+                            if elem.pathdata.path_buf.exists() {
                                 let msg = format!(
                                     "WARNING: File should not exist after deletion {:?}",
-                                    pathdata.path_buf
+                                    elem.pathdata.path_buf
                                 );
                                 return Err(HttmError::new(&msg).into());
                             }
@@ -338,28 +401,29 @@ impl RollForward {
                         }
                     },
                     DiffType::Modified => {
-                        if let Err(err) = Self::copy_direct(&snap_file.path_buf, &pathdata.path_buf)
+                        if let Err(err) =
+                            Self::copy_direct(&snap_file.path_buf, &elem.pathdata.path_buf)
                         {
                             eprintln!("{}", err);
                             let msg = format!(
                                 "WARNING: could not overwrite {:?} with snapshot file version {:?}",
-                                &pathdata.path_buf, snap_file.path_buf
+                                &elem.pathdata.path_buf, snap_file.path_buf
                             );
                             return Err(HttmError::new(&msg).into());
                         }
-                        is_metadata_different(&snap_file.path_buf, &pathdata.path_buf)
+                        is_metadata_different(&snap_file.path_buf, &elem.pathdata.path_buf)
                     }
                     DiffType::Renamed(new_file_name) => {
-                        if let Err(err) = std::fs::rename(&new_file_name, &pathdata.path_buf) {
+                        if let Err(err) = std::fs::rename(&new_file_name, &elem.pathdata.path_buf) {
                             eprintln!("{}", err);
                             let msg = format!(
                                 "WARNING: could not rename {:?} to {:?}",
-                                new_file_name, &pathdata.path_buf
+                                new_file_name, &elem.pathdata.path_buf
                             );
                             return Err(HttmError::new(&msg).into());
                         }
 
-                        is_metadata_different(&snap_file.path_buf, &pathdata.path_buf)
+                        is_metadata_different(&snap_file.path_buf, &elem.pathdata.path_buf)
                     }
                 }
             })

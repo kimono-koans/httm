@@ -19,8 +19,8 @@ use std::fs::File;
 use std::fs::OpenOptions;
 use std::io::BufReader;
 use std::io::Read;
-use std::path::Path;
 use std::os::unix::fs::FileExt;
+use std::path::Path;
 
 use simd_adler32::Adler32;
 
@@ -31,7 +31,6 @@ const CHUNK_SIZE: usize = 10_000;
 
 pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
     let mut just_write = false;
-
     if !dst.exists() {
         just_write = true;
     }
@@ -64,7 +63,7 @@ pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
         let _ = dst_reader.read(&mut dest_buffer)?;
         total_amt_read += src_amt_read as u64;
 
-        if just_write || !is_same_bytes(&src_buffer, &dest_buffer) {            
+        if just_write || !is_same_bytes(&src_buffer, &dest_buffer) {
             let amt_written = if src_amt_read == CHUNK_SIZE {
                 dst_file.write_at(&src_buffer, cur_pos)?
             } else {
