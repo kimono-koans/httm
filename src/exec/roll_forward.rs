@@ -289,39 +289,38 @@ impl RollForward {
             std::process::exit(0);
         };
 
-        
-
         stdout_buffer
-                .lines()
-                .filter_map(|line| line.ok())
-                .filter_map(move |line| {
-                    let split_line: Vec<&str> = line.split('\t').collect();
+            .lines()
+            .filter_map(|line| line.ok())
+            .filter_map(move |line| {
+                let split_line: Vec<&str> = line.split('\t').collect();
 
-                    Self::check_stderr(process_handle);
+                Self::check_stderr(process_handle);
 
-                    match split_line.get(1) {
-                        Some(elem) if elem == &"-" => split_line.get(2).map(|path_string| {
-                            (
-                                PathData::from(Path::new(path_string)),
-                                DiffType::Removed,
-                                DiffTime::new(&split_line),
-                            )
-                        }),
-                        Some(elem) if elem == &"+" => split_line.get(2).map(|path_string| {
-                            (
-                                PathData::from(Path::new(path_string)),
-                                DiffType::Created,
-                                DiffTime::new(&split_line),
-                            )
-                        }),
-                        Some(elem) if elem == &"M" => split_line.get(2).map(|path_string| {
-                            (
-                                PathData::from(Path::new(path_string)),
-                                DiffType::Modified,
-                                DiffTime::new(&split_line),
-                            )
-                        }),
-                        Some(elem) if elem == &"R" => split_line.get(2).map(|path_string| {
+                match split_line.get(1) {
+                    Some(elem) if elem == &"-" => split_line.get(2).map(|path_string| {
+                        (
+                            PathData::from(Path::new(path_string)),
+                            DiffType::Removed,
+                            DiffTime::new(&split_line),
+                        )
+                    }),
+                    Some(elem) if elem == &"+" => split_line.get(2).map(|path_string| {
+                        (
+                            PathData::from(Path::new(path_string)),
+                            DiffType::Created,
+                            DiffTime::new(&split_line),
+                        )
+                    }),
+                    Some(elem) if elem == &"M" => split_line.get(2).map(|path_string| {
+                        (
+                            PathData::from(Path::new(path_string)),
+                            DiffType::Modified,
+                            DiffTime::new(&split_line),
+                        )
+                    }),
+                    Some(elem) if elem == &"R" => {
+                        split_line.get(2).map(|path_string| {
                             (
                                 PathData::from(Path::new(path_string)),
                                 DiffType::Renamed(PathBuf::from(split_line.get(3).expect(
@@ -329,15 +328,16 @@ impl RollForward {
                                 ))),
                                 DiffTime::new(&split_line),
                             )
-                        }),
-                        _ => None,
+                        })
                     }
-                })
-                .map(|(pathdata, diff_type, time)| DiffElements {
-                    pathdata,
-                    diff_type,
-                    time: time.unwrap(),
-                })
+                    _ => None,
+                }
+            })
+            .map(|(pathdata, diff_type, time)| DiffElements {
+                pathdata,
+                diff_type,
+                time: time.unwrap(),
+            })
     }
 
     fn roll_forward<I>(stream: I, snap_name: &str) -> HttmResult<()>
@@ -345,6 +345,7 @@ impl RollForward {
         I: Iterator<Item = DiffElements>,
     {
         stream
+            // zfs-diff can return multiple file actions for a single inode, here we dedup
             .into_group_map_by(|elem| elem.pathdata.clone())
             .into_iter()
             .filter_map(|(_key, values)| {
@@ -421,16 +422,37 @@ impl RollForward {
                 is_metadata_different(&snap_file.path_buf, &elem.pathdata.path_buf)
             }
             DiffType::Renamed(new_file_name) => {
-                if let Err(err) = std::fs::rename(&new_file_name, &elem.pathdata.path_buf) {
+                // zfs-diff can return multiple file actions for a single inode
+                // since we exclude older file actions, if renamed is the last action,
+                // we should make sure it has the latest data, so a simple rename is not enough
+                if let Err(err) = Self::copy_direct(&snap_file.path_buf, &elem.pathdata.path_buf) {
                     eprintln!("{}", err);
                     let msg = format!(
-                        "WARNING: could not rename {:?} to {:?}",
-                        new_file_name, &elem.pathdata.path_buf
+                        "WARNING: could not overwrite {:?} with snapshot file version {:?}",
+                        &elem.pathdata.path_buf, snap_file.path_buf
                     );
                     return Err(HttmError::new(&msg).into());
                 }
 
-                is_metadata_different(&snap_file.path_buf, &elem.pathdata.path_buf)
+                is_metadata_different(&snap_file.path_buf, &elem.pathdata.path_buf)?;
+
+                match remove_recursive(&new_file_name) {
+                    Ok(_) => {
+                        if new_file_name.exists() {
+                            let msg = format!(
+                                "WARNING: File should not exist after deletion {:?}",
+                                new_file_name
+                            );
+                            return Err(HttmError::new(&msg).into());
+                        }
+                        Ok(())
+                    }
+                    Err(err) => {
+                        eprintln!("{}", err);
+                        let msg = format!("WARNING: Removal of file {:?} failed", err);
+                        Err(HttmError::new(&msg).into())
+                    }
+                }
             }
         }
     }
