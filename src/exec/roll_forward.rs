@@ -300,7 +300,7 @@ impl RollForward {
 
                 let res: HttmResult<()> = match diff_type {
                     DiffType::Removed => {
-                        match Self::copy_direct(&snap_file.path_buf, &pathdata.path_buf, true) {
+                        match Self::copy_direct(&snap_file.path_buf, &pathdata.path_buf) {
                             Ok(_) => {
                                 compare_modify_time(&snap_file.path_buf, &pathdata.path_buf)
                             }
@@ -328,7 +328,7 @@ impl RollForward {
                         }
                     }
                     DiffType::Modified => {
-                        match Self::copy_direct(&snap_file.path_buf, &pathdata.path_buf, true) {
+                        match Self::copy_direct(&snap_file.path_buf, &pathdata.path_buf) {
                             Ok(_) => {
                                 compare_modify_time(&snap_file.path_buf, &pathdata.path_buf)
                             }
@@ -358,38 +358,29 @@ impl RollForward {
 
     // why include here? because I think this only works with the correct semantics
     // that is -- output from zfs diff,
-    pub fn copy_direct(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<()> {
+    pub fn copy_direct(src: &Path, dst: &Path) -> HttmResult<()> {
         if src.is_dir() {
             std::fs::create_dir_all(dst)?;
 
-            if should_preserve {
-                copy_attributes(src, dst)?;
-            }
+            copy_attributes(src, dst)?;
+        } else if src.is_symlink() {
+            let link_target = std::fs::read_link(src)?;
+            std::os::unix::fs::symlink(link_target, dst)?
         } else {
             let src_parent = src.parent().unwrap();
 
-            let dst_parent = if let Some(dst_parent) = dst.parent() {
-                dst_parent
+            let dst_parent = if let Some(parent) = dst.parent() {
+                parent.to_path_buf()
             } else {
-                // discard
-                let mut ancestors = dst.ancestors();
-                ancestors.next();
-
-                let parent = ancestors.next().unwrap();
-
-                std::fs::create_dir_all(parent)?;
+                let mut parent = dst.to_path_buf();
+                parent.pop();
                 parent
             };
 
-            if should_preserve {
-                copy_attributes(src_parent, dst_parent)?;
-            }
+            copy_attributes(src_parent, &dst_parent)?;
 
             diff_copy(src, dst)?;
-
-            if should_preserve {
-                copy_attributes(src, dst)?;
-            }
+            copy_attributes(src, dst)?;
         }
 
         Ok(())
