@@ -24,10 +24,9 @@ use std::path::Path;
 
 use simd_adler32::Adler32;
 
-use crate::library::results::HttmError;
 use crate::library::results::HttmResult;
 
-const CHUNK_SIZE: usize = 10_000;
+const CHUNK_SIZE: usize = 65_536;
 
 pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
     let mut just_write = false;
@@ -50,7 +49,6 @@ pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
     let mut dst_reader = BufReader::with_capacity(CHUNK_SIZE, &dst_file);
 
     let mut cur_pos = 0u64;
-    let mut total_amt_read = 0u64;
 
     let mut src_buffer = [0; CHUNK_SIZE];
     let mut dest_buffer = [0; CHUNK_SIZE];
@@ -61,7 +59,6 @@ pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
             break;
         }
         let _ = dst_reader.read(&mut dest_buffer)?;
-        total_amt_read += src_amt_read as u64;
 
         if just_write || !is_same_bytes(&src_buffer, &dest_buffer) {
             let amt_written = if src_amt_read == CHUNK_SIZE {
@@ -77,16 +74,7 @@ pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
         }
     }
 
-    assert!(cur_pos == total_amt_read);
-
     dst_file.sync_data()?;
-
-    if dst.is_file() {
-        let dst_len = dst_file.metadata()?.len();
-        if src_len != dst_len {
-            return Err(HttmError::new("src_len and dst_len do not match.").into());
-        }
-    }
 
     Ok(())
 }
