@@ -17,7 +17,7 @@
 
 use std::{
     borrow::Cow,
-    fs::{copy, create_dir_all, read_dir, set_permissions, FileType},
+    fs::{read_dir, set_permissions, FileType},
     io::{self, Read, Write},
     iter::Iterator,
     os::unix::fs::MetadataExt,
@@ -34,6 +34,7 @@ use time::{format_description, OffsetDateTime, UtcOffset};
 
 use crate::data::paths::{BasicDirEntryInfo, PathData, PHANTOM_SIZE};
 use crate::data::selection::SelectionCandidate;
+use crate::library::diff_copy::diff_copy;
 use crate::library::results::{HttmError, HttmResult};
 use crate::parse::aliases::FilesystemType;
 use crate::GLOBAL_CONFIG;
@@ -116,23 +117,54 @@ pub fn copy_attributes(src: &Path, dst: &Path) -> HttmResult<()> {
     Ok(())
 }
 
-fn map_io_err(err: io::Error, dst: &Path) -> HttmError {
-    match err.kind() {
-        std::io::ErrorKind::PermissionDenied => {
-            let msg = format!("httm restore failed because the user did not have the correct permissions to restore to: {dst:?}");
-            HttmError::new(&msg)
+pub fn copy_direct(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<()> {
+    if src.is_dir() {
+        if !dst.exists() {
+            std::fs::create_dir_all(dst)?;
         }
-        _ => HttmError::with_context("httm restore failed for the following reason", &err),
+        assert!(dst.exists())
+    } else {
+        // create parent for file to land
+        {
+            let src_parent = src.parent().unwrap();
+
+            let dst_parent = if let Some(parent) = dst.parent() {
+                parent.to_path_buf()
+            } else {
+                let mut parent = dst.to_path_buf();
+                parent.pop();
+                parent
+            };
+
+            if !dst_parent.exists() {
+                std::fs::create_dir_all(&dst_parent)?;
+            }
+
+            if should_preserve {
+                copy_attributes(src_parent, &dst_parent)?;
+            }
+
+            assert!(dst_parent.exists())
+        }
+
+        if src.is_symlink() {
+            let link_target = std::fs::read_link(src)?;
+            std::os::unix::fs::symlink(link_target, dst)?
+        } else {
+            diff_copy(src, dst)?;
+        }
     }
+
+    if should_preserve {
+        copy_attributes(src, dst)?;
+    }
+
+    Ok(())
 }
 
 pub fn copy_recursive(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<()> {
     if src.is_dir() {
-        create_dir_all(dst).map_err(|err| map_io_err(err, dst))?;
-
-        if should_preserve {
-            copy_attributes(src, dst)?;
-        }
+        copy_direct(src, dst, should_preserve)?;
 
         for entry in read_dir(src)? {
             let entry = entry?;
@@ -144,20 +176,12 @@ pub fn copy_recursive(src: &Path, dst: &Path, should_preserve: bool) -> HttmResu
                 if file_type.is_dir() {
                     copy_recursive(&entry_src, &entry_dst, should_preserve)?;
                 } else {
-                    copy(&entry_src, entry_dst).map_err(|err| map_io_err(err, dst))?;
-
-                    if should_preserve {
-                        copy_attributes(src, dst)?;
-                    }
+                    copy_direct(src, dst, should_preserve)?;
                 }
             }
         }
     } else {
-        copy(src, dst).map_err(|err| map_io_err(err, dst))?;
-
-        if should_preserve {
-            copy_attributes(src, dst)?;
-        }
+        copy_direct(src, dst, should_preserve)?;
     }
 
     Ok(())

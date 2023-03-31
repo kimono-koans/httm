@@ -26,10 +26,9 @@ use std::time::SystemTime;
 use which::which;
 
 use crate::data::paths::PathData;
-use crate::library::diff_copy::diff_copy;
 use crate::library::iter_extensions::HttmIter;
 use crate::library::results::{HttmError, HttmResult};
-use crate::library::utility::{copy_attributes, remove_recursive};
+use crate::library::utility::{copy_direct, remove_recursive};
 use crate::library::utility::{get_date, is_metadata_different, DateFormat};
 use crate::print_output_buf;
 use crate::GLOBAL_CONFIG;
@@ -383,7 +382,7 @@ impl RollForward {
 
         match elem.diff_type {
             DiffType::Removed => {
-                if let Err(err) = Self::copy_direct(&snap_file.path_buf, &elem.pathdata.path_buf) {
+                if let Err(err) = copy_direct(&snap_file.path_buf, &elem.pathdata.path_buf, true) {
                     eprintln!("{}", err);
                     let msg = format!(
                         "WARNING: could not overwrite {:?} with snapshot file version {:?}",
@@ -411,7 +410,7 @@ impl RollForward {
                 }
             },
             DiffType::Modified => {
-                if let Err(err) = Self::copy_direct(&snap_file.path_buf, &elem.pathdata.path_buf) {
+                if let Err(err) = copy_direct(&snap_file.path_buf, &elem.pathdata.path_buf, true) {
                     eprintln!("{}", err);
                     let msg = format!(
                         "WARNING: could not overwrite {:?} with snapshot file version {:?}",
@@ -425,7 +424,7 @@ impl RollForward {
                 // zfs-diff can return multiple file actions for a single inode
                 // since we exclude older file actions, if renamed is the last action,
                 // we should make sure it has the latest data, so a simple rename is not enough
-                if let Err(err) = Self::copy_direct(&snap_file.path_buf, &elem.pathdata.path_buf) {
+                if let Err(err) = copy_direct(&snap_file.path_buf, &elem.pathdata.path_buf, true) {
                     eprintln!("{}", err);
                     let msg = format!(
                         "WARNING: could not overwrite {:?} with snapshot file version {:?}",
@@ -455,45 +454,5 @@ impl RollForward {
                 }
             }
         }
-    }
-
-    // why include here? because I think this only works with the correct semantics
-    // that is -- output from zfs diff,
-    pub fn copy_direct(src: &Path, dst: &Path) -> HttmResult<()> {
-        if src.is_dir() {
-            if !dst.exists() {
-                std::fs::create_dir_all(dst)?;
-            }
-            assert!(dst.exists())
-        } else {
-            // create parent for file to land
-            {
-                let src_parent = src.parent().unwrap();
-
-                let dst_parent = if let Some(parent) = dst.parent() {
-                    parent.to_path_buf()
-                } else {
-                    let mut parent = dst.to_path_buf();
-                    parent.pop();
-                    parent
-                };
-
-                if !dst_parent.exists() {
-                    std::fs::create_dir_all(&dst_parent)?;
-                }
-
-                copy_attributes(src_parent, &dst_parent)?;
-                assert!(dst_parent.exists())
-            }
-
-            if src.is_symlink() {
-                let link_target = std::fs::read_link(src)?;
-                std::os::unix::fs::symlink(link_target, dst)?
-            } else {
-                diff_copy(src, dst)?;
-            }
-        }
-
-        copy_attributes(src, dst)
     }
 }
