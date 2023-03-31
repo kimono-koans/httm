@@ -32,7 +32,7 @@ use number_prefix::NumberPrefix;
 use once_cell::sync::Lazy;
 use time::{format_description, OffsetDateTime, UtcOffset};
 
-use crate::config::generate::PrintMode;
+use crate::{config::generate::PrintMode, data::paths::PathMetadata};
 use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::data::selection::SelectionCandidate;
 use crate::library::results::{HttmError, HttmResult};
@@ -455,7 +455,7 @@ pub fn display_human_size(size: u64) -> String {
     }
 }
 
-pub fn compare_modify_time<T>(src: T, dst: T) -> HttmResult<()>
+pub fn compare_metadata<T>(src: T, dst: T) -> HttmResult<()>
 where
     T: CompareModifyTime,
 {
@@ -471,16 +471,14 @@ where
 }
 
 pub trait CompareModifyTime {
-    fn get_opt_metadata(&self) -> Option<SystemTime>;
+    fn get_opt_metadata(&self) -> Option<PathMetadata>;
     fn get_path(&self) -> &Path;
 }
 
 impl<T: AsRef<Path>> CompareModifyTime for T {
-    fn get_opt_metadata(&self) -> Option<SystemTime> {
-        self.as_ref()
-            .symlink_metadata()
-            .ok()
-            .and_then(|md| md.modified().ok())
+    fn get_opt_metadata(&self) -> Option<PathMetadata> {
+        let pathdata = PathData::from(self.as_ref());
+        pathdata.metadata
     }
 
     fn get_path(&self) -> &Path {
@@ -489,8 +487,8 @@ impl<T: AsRef<Path>> CompareModifyTime for T {
 }
 
 impl CompareModifyTime for PathData {
-    fn get_opt_metadata(&self) -> Option<SystemTime> {
-        self.metadata.map(|md| md.modify_time)
+    fn get_opt_metadata(&self) -> Option<PathMetadata> {
+        self.metadata
     }
 
     fn get_path(&self) -> &Path {

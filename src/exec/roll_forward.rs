@@ -27,7 +27,7 @@ use which::which;
 use crate::data::paths::PathData;
 use crate::library::diff_copy::diff_copy;
 use crate::library::results::{HttmError, HttmResult};
-use crate::library::utility::{compare_modify_time, get_date, DateFormat};
+use crate::library::utility::{compare_metadata, get_date, DateFormat};
 use crate::library::utility::{copy_attributes, remove_recursive};
 use crate::print_output_buf;
 use crate::GLOBAL_CONFIG;
@@ -302,7 +302,7 @@ impl RollForward {
                     DiffType::Removed => {
                         match Self::copy_direct(&snap_file.path_buf, &pathdata.path_buf) {
                             Ok(_) => {
-                                compare_modify_time(&snap_file.path_buf, &pathdata.path_buf)
+                                compare_metadata(&snap_file.path_buf, &pathdata.path_buf)
                             }
                             Err(err) => {
                                 eprintln!("{}", err);
@@ -330,7 +330,7 @@ impl RollForward {
                     DiffType::Modified => {
                         match Self::copy_direct(&snap_file.path_buf, &pathdata.path_buf) {
                             Ok(_) => {
-                                compare_modify_time(&snap_file.path_buf, &pathdata.path_buf)
+                                compare_metadata(&snap_file.path_buf, &pathdata.path_buf)
                             }
                             Err(err) => {
                                 eprintln!("{}", err);
@@ -342,7 +342,7 @@ impl RollForward {
                     DiffType::Renamed(new_file_name) => {
                         match std::fs::rename(&new_file_name, &pathdata.path_buf) {
                             Ok(_) => {
-                                compare_modify_time(new_file_name, pathdata.path_buf)
+                                compare_metadata(new_file_name, pathdata.path_buf)
                             }
                             Err(err) => {
                                 eprintln!("{}", err);
