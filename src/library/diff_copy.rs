@@ -56,6 +56,7 @@ use std::path::Path;
 use simd_adler32::Adler32;
 
 use crate::library::results::HttmResult;
+use crate::library::results::HttmError;
 
 const CHUNK_SIZE: usize = 8_192;
 
@@ -73,26 +74,54 @@ pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
         .read(true)
         .create(true)
         .open(dst)?;
-    dst_file.set_len(src_file.metadata()?.len())?;
+    let src_len = src_file.metadata()?.len();
+    dst_file.set_len(src_len)?;
 
     let mut dst_reader = BufReader::with_capacity(CHUNK_SIZE, &dst_file);
     let mut dst_writer = BufWriter::with_capacity(CHUNK_SIZE, &dst_file);
 
-    loop {
-        let mut src_buffer = [0; CHUNK_SIZE];
-        let mut dest_buffer = [0; CHUNK_SIZE];
+    let mut cur_pos = 0u64;
+    let mut total_amt_read = 0u64;
 
-        if src_reader.read(&mut src_buffer)? == 0 {
+    let mut src_buffer = [0; CHUNK_SIZE];
+    let mut dest_buffer = [0; CHUNK_SIZE];
+
+    loop {
+        let src_amt_read = src_reader.read(&mut src_buffer)?;
+
+        if src_amt_read == 0 {
             break;
         }
+
+        total_amt_read += src_amt_read as u64;
+
         let _ = dst_reader.read(&mut dest_buffer)?;
 
         if !is_same_bytes(&src_buffer, &dest_buffer) {
-            let _ = dst_writer.write(&src_buffer)?;
+            let amt_written = if src_amt_read == CHUNK_SIZE {
+                dst_writer.write(&src_buffer)?
+            } else {
+                let mut vec = src_buffer.to_vec();
+                vec.truncate(src_amt_read);
+                dst_writer.write(&vec)?
+            };
+
+            cur_pos += amt_written as u64;
         } else {
-            dst_writer.seek(SeekFrom::Current(CHUNK_SIZE as i64))?;
+            dst_writer.seek(SeekFrom::Current(src_amt_read as i64))?;
+            cur_pos += src_amt_read as u64;
         }
     }
+
+    if cur_pos > total_amt_read {
+        return Err(HttmError::new("Amount written exceeded the source file length.").into());
+    }
+
+    if cur_pos < total_amt_read {
+        return Err(HttmError::new("Amount written was smaller than the source file length.").into());
+    }
+
+    dst_writer.flush()?;
 
     Ok(())
 }
