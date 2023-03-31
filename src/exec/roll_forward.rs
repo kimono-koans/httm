@@ -281,78 +281,84 @@ impl RollForward {
     where
         I: Iterator<Item = (PathData, DiffType)>,
     {
-        stream.filter_map(|(pathdata, diff_type)| {
+        stream
+            .filter_map(|(pathdata, diff_type)| {
                 pathdata
                     .get_proximate_dataset(&GLOBAL_CONFIG.dataset_collection.map_of_datasets)
                     .ok()
                     .and_then(|proximate_dataset_mount| {
-                        pathdata.get_relative_path(proximate_dataset_mount)
+                        pathdata
+                            .get_relative_path(proximate_dataset_mount)
                             .ok()
                             .map(|relative_path| {
-                                let snap_file_path: PathBuf = [proximate_dataset_mount, Path::new(".zfs/snapshot"), Path::new(&snap_name), relative_path].iter().collect();
+                                let snap_file_path: PathBuf = [
+                                    proximate_dataset_mount,
+                                    Path::new(".zfs/snapshot"),
+                                    Path::new(&snap_name),
+                                    relative_path,
+                                ]
+                                .iter()
+                                .collect();
 
-                            (pathdata.to_owned(), diff_type.clone(), snap_file_path)
-                        })
+                                (pathdata.to_owned(), diff_type.clone(), snap_file_path)
+                            })
                     })
             })
             .try_for_each(|(pathdata, diff_type, snap_file_path)| {
                 let snap_file = PathData::from(snap_file_path.as_path());
 
-                let res: HttmResult<()> = match diff_type {
+                match diff_type {
                     DiffType::Removed => {
-                        match Self::copy_direct(&snap_file.path_buf, &pathdata.path_buf) {
-                            Ok(_) => {
-                                compare_metadata(&snap_file.path_buf, &pathdata.path_buf)
-                            }
-                            Err(err) => {
-                                eprintln!("{}", err);
-                                let msg = format!("WARNING: could not overwrite {:?} with snapshot file version {:?}", &pathdata.path_buf, snap_file.path_buf);
-                                Err(HttmError::new(&msg).into())
-                            }
+                        if let Err(err) = Self::copy_direct(&snap_file.path_buf, &pathdata.path_buf)
+                        {
+                            eprintln!("{}", err);
+                            let msg = format!(
+                                "WARNING: could not overwrite {:?} with snapshot file version {:?}",
+                                &pathdata.path_buf, snap_file.path_buf
+                            );
+                            return Err(HttmError::new(&msg).into());
                         }
                     }
-                    DiffType::Created => {
-                        match remove_recursive(&pathdata.path_buf) {
-                            Ok(_) => {
-                                if pathdata.path_buf.symlink_metadata().is_ok() {
-                                    let msg = format!("WARNING: File should not exist after deletion {:?}", pathdata.path_buf);
-                                    return Err(HttmError::new(&msg).into())
-                                }
-                                Ok(())
-                            }
-                            Err(err) => {
-                                eprintln!("{}", err);
-                                let msg = format!("WARNING: Removal of file {:?} failed", err);
-                                Err(HttmError::new(&msg).into())
+                    DiffType::Created => match remove_recursive(&pathdata.path_buf) {
+                        Ok(_) => {
+                            if pathdata.path_buf.exists() {
+                                let msg = format!(
+                                    "WARNING: File should not exist after deletion {:?}",
+                                    pathdata.path_buf
+                                );
+                                return Err(HttmError::new(&msg).into());
                             }
                         }
-                    }
+                        Err(err) => {
+                            eprintln!("{}", err);
+                            let msg = format!("WARNING: Removal of file {:?} failed", err);
+                            return Err(HttmError::new(&msg).into());
+                        }
+                    },
                     DiffType::Modified => {
-                        match Self::copy_direct(&snap_file.path_buf, &pathdata.path_buf) {
-                            Ok(_) => {
-                                compare_metadata(&snap_file.path_buf, &pathdata.path_buf)
-                            }
-                            Err(err) => {
-                                eprintln!("{}", err);
-                                let msg = format!("WARNING: could not overwrite {:?} with snapshot file version {:?}", &pathdata.path_buf, snap_file.path_buf);
-                                Err(HttmError::new(&msg).into())
-                            }
+                        if let Err(err) = Self::copy_direct(&snap_file.path_buf, &pathdata.path_buf)
+                        {
+                            eprintln!("{}", err);
+                            let msg = format!(
+                                "WARNING: could not overwrite {:?} with snapshot file version {:?}",
+                                &pathdata.path_buf, snap_file.path_buf
+                            );
+                            return Err(HttmError::new(&msg).into());
                         }
                     }
                     DiffType::Renamed(new_file_name) => {
-                        match std::fs::rename(&new_file_name, &pathdata.path_buf) {
-                            Ok(_) => {
-                                compare_metadata(new_file_name, pathdata.path_buf)
-                            }
-                            Err(err) => {
-                                eprintln!("{}", err);
-                                let msg = format!("WARNING: could not rename {:?} to {:?}", new_file_name, &pathdata.path_buf);
-                                Err(HttmError::new(&msg).into())
-                            }
+                        if let Err(err) = std::fs::rename(&new_file_name, &pathdata.path_buf) {
+                            eprintln!("{}", err);
+                            let msg = format!(
+                                "WARNING: could not rename {:?} to {:?}",
+                                new_file_name, &pathdata.path_buf
+                            );
+                            return Err(HttmError::new(&msg).into());
                         }
                     }
                 };
-                res
+
+                compare_metadata(&snap_file.path_buf, &pathdata.path_buf)
             })
     }
 

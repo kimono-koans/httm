@@ -32,7 +32,7 @@ use number_prefix::NumberPrefix;
 use once_cell::sync::Lazy;
 use time::{format_description, OffsetDateTime, UtcOffset};
 
-use crate::data::paths::{BasicDirEntryInfo, PathData, PHANTOM_SIZE};
+use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::data::selection::SelectionCandidate;
 use crate::library::results::{HttmError, HttmResult};
 use crate::parse::aliases::FilesystemType;
@@ -477,19 +477,12 @@ pub trait CompareModifyTime {
 
 impl<T: AsRef<Path>> CompareModifyTime for T {
     fn get_opt_metadata(&self) -> Option<PathMetadata> {
-        let pathdata = PathData::from(self.as_ref());
-        pathdata.metadata.map(|md| {
-            let size = if self.as_ref().is_dir() {
-                PHANTOM_SIZE
-            } else {
-                md.size
-            };
-
-            PathMetadata {
-                size,
-                modify_time: md.modify_time,
-            }
-        })
+        if self.as_ref().is_dir() {
+            None
+        } else {
+            let pathdata = PathData::from(self.as_ref());
+            pathdata.metadata
+        }
     }
 
     fn get_path(&self) -> &Path {
@@ -499,18 +492,11 @@ impl<T: AsRef<Path>> CompareModifyTime for T {
 
 impl CompareModifyTime for PathData {
     fn get_opt_metadata(&self) -> Option<PathMetadata> {
-        self.metadata.map(|md| {
-            let size = if self.path_buf.is_dir() {
-                PHANTOM_SIZE
-            } else {
-                md.size
-            };
-
-            PathMetadata {
-                size,
-                modify_time: md.modify_time,
-            }
-        })
+        if self.path_buf.is_dir() {
+            None
+        } else {
+            self.metadata
+        }
     }
 
     fn get_path(&self) -> &Path {
