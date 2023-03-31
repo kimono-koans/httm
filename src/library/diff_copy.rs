@@ -124,6 +124,7 @@ pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
     }
 
     dst_writer.flush()?;
+    dst_file.sync_data()?;
 
     Ok(())
 }

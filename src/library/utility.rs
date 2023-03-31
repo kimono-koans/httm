@@ -455,7 +455,7 @@ pub fn display_human_size(size: u64) -> String {
     }
 }
 
-pub fn compare_metadata<T>(src: T, dst: T) -> HttmResult<()>
+pub fn is_metadata_different<T>(src: T, dst: T) -> HttmResult<()>
 where
     T: CompareModifyTime,
 {

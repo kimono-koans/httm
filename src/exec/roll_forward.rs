@@ -27,8 +27,8 @@ use which::which;
 use crate::data::paths::PathData;
 use crate::library::diff_copy::diff_copy;
 use crate::library::results::{HttmError, HttmResult};
-use crate::library::utility::{compare_metadata, get_date, DateFormat};
 use crate::library::utility::{copy_attributes, remove_recursive};
+use crate::library::utility::{get_date, is_metadata_different, DateFormat};
 use crate::print_output_buf;
 use crate::GLOBAL_CONFIG;
 
@@ -318,6 +318,7 @@ impl RollForward {
                             );
                             return Err(HttmError::new(&msg).into());
                         }
+                        is_metadata_different(&snap_file.path_buf, &pathdata.path_buf)
                     }
                     DiffType::Created => match remove_recursive(&pathdata.path_buf) {
                         Ok(_) => {
@@ -328,11 +329,12 @@ impl RollForward {
                                 );
                                 return Err(HttmError::new(&msg).into());
                             }
+                            Ok(())
                         }
                         Err(err) => {
                             eprintln!("{}", err);
                             let msg = format!("WARNING: Removal of file {:?} failed", err);
-                            return Err(HttmError::new(&msg).into());
+                            Err(HttmError::new(&msg).into())
                         }
                     },
                     DiffType::Modified => {
@@ -345,6 +347,7 @@ impl RollForward {
                             );
                             return Err(HttmError::new(&msg).into());
                         }
+                        is_metadata_different(&snap_file.path_buf, &pathdata.path_buf)
                     }
                     DiffType::Renamed(new_file_name) => {
                         if let Err(err) = std::fs::rename(&new_file_name, &pathdata.path_buf) {
@@ -355,10 +358,10 @@ impl RollForward {
                             );
                             return Err(HttmError::new(&msg).into());
                         }
-                    }
-                };
 
-                compare_metadata(&snap_file.path_buf, &pathdata.path_buf)
+                        is_metadata_different(&snap_file.path_buf, &pathdata.path_buf)
+                    }
+                }
             })
     }
 
@@ -366,29 +369,37 @@ impl RollForward {
     // that is -- output from zfs diff,
     pub fn copy_direct(src: &Path, dst: &Path) -> HttmResult<()> {
         if src.is_dir() {
-            std::fs::create_dir_all(dst)?;
-
-            copy_attributes(src, dst)?;
-        } else if src.is_symlink() {
-            let link_target = std::fs::read_link(src)?;
-            std::os::unix::fs::symlink(link_target, dst)?
+            if !dst.exists() {
+                std::fs::create_dir_all(dst)?;
+            }
         } else {
-            let src_parent = src.parent().unwrap();
+            // create parent for file to land
+            {
+                let src_parent = src.parent().unwrap();
 
-            let dst_parent = if let Some(parent) = dst.parent() {
-                parent.to_path_buf()
+                let dst_parent = if let Some(parent) = dst.parent() {
+                    parent.to_path_buf()
+                } else {
+                    let mut parent = dst.to_path_buf();
+                    parent.pop();
+                    parent
+                };
+
+                if !dst_parent.exists() {
+                    std::fs::create_dir_all(&dst_parent)?;
+                }
+
+                copy_attributes(src_parent, &dst_parent)?;
+            }
+
+            if src.is_symlink() {
+                let link_target = std::fs::read_link(src)?;
+                std::os::unix::fs::symlink(link_target, dst)?
             } else {
-                let mut parent = dst.to_path_buf();
-                parent.pop();
-                parent
-            };
-
-            copy_attributes(src_parent, &dst_parent)?;
-
-            diff_copy(src, dst)?;
-            copy_attributes(src, dst)?;
+                diff_copy(src, dst)?;
+            }
         }
 
-        Ok(())
+        copy_attributes(src, dst)
     }
 }
