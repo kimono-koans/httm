@@ -372,6 +372,7 @@ impl RollForward {
             if !dst.exists() {
                 std::fs::create_dir_all(dst)?;
             }
+            assert!(dst.exists())
         } else {
             // create parent for file to land
             {
@@ -390,6 +391,7 @@ impl RollForward {
                 }
 
                 copy_attributes(src_parent, &dst_parent)?;
+                assert!(dst_parent.exists())
             }
 
             if src.is_symlink() {

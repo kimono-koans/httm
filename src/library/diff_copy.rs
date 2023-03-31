@@ -53,6 +53,7 @@ use std::io::SeekFrom;
 use std::io::Write;
 use std::path::Path;
 
+use nix::NixPath;
 use simd_adler32::Adler32;
 
 use crate::library::results::HttmError;
@@ -62,6 +63,11 @@ const CHUNK_SIZE: usize = 65_536;
 
 pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
     let mut just_write = false;
+
+    if src.len() <= CHUNK_SIZE {
+        std::fs::copy(src, dst)?;
+        return Ok(());
+    }
 
     if !Path::new(&dst).exists() {
         just_write = true;
