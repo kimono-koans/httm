@@ -317,19 +317,26 @@ impl RollForward {
                         _ => None,
                     }
                 })
-                .map(|(pathdata, diff_type, (secs, nanos))| DiffElements {
+                .map(|(pathdata, diff_type, time)| DiffElements {
                     pathdata,
                     diff_type,
-                    time: DiffTime { secs, nanos },
+                    time: time.unwrap(),
                 });
 
         Ok(iterator)
     }
 
-    fn parse_time_string(split_line: &Vec<&str>) -> (u64, u64) {
-        let (secs, nanos) = split_line.first().unwrap().split_once('.').unwrap();
+    fn parse_time_string(split_line: &[&str]) -> HttmResult<DiffTime> {
+        let first = split_line.first().unwrap();
 
-        (secs.parse::<u64>().unwrap(), nanos.parse::<u64>().unwrap())
+        let (secs, nanos) = first.split_once('.').unwrap();
+
+        let time = DiffTime {
+            secs: secs.parse::<u64>().unwrap(),
+            nanos: nanos.parse::<u64>().unwrap(),
+        };
+
+        Ok(time)
     }
 
     fn roll_forward<I>(stream: I, snap_name: &str) -> HttmResult<()>
