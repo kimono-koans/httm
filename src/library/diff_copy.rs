@@ -55,15 +55,16 @@ use std::path::Path;
 
 use simd_adler32::Adler32;
 
-use crate::library::results::HttmResult;
 use crate::library::results::HttmError;
+use crate::library::results::HttmResult;
 
-const CHUNK_SIZE: usize = 8_192;
+const CHUNK_SIZE: usize = 65_536;
 
 pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
+    let mut just_write = false;
+
     if !Path::new(&dst).exists() {
-        let _ = std::fs::copy(src, dst)?;
-        return Ok(());
+        just_write = true;
     }
 
     let src_file = File::open(src)?;
@@ -97,13 +98,12 @@ pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
 
         let _ = dst_reader.read(&mut dest_buffer)?;
 
-        if !is_same_bytes(&src_buffer, &dest_buffer) {
+        if just_write || !is_same_bytes(&src_buffer, &dest_buffer) {
             let amt_written = if src_amt_read == CHUNK_SIZE {
                 dst_writer.write(&src_buffer)?
             } else {
-                let mut vec = src_buffer.to_vec();
-                vec.truncate(src_amt_read);
-                dst_writer.write(&vec)?
+                let range: &[u8] = &src_buffer[0..src_amt_read];
+                dst_writer.write(range)?
             };
 
             cur_pos += amt_written as u64;
@@ -118,7 +118,9 @@ pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
     }
 
     if cur_pos < total_amt_read {
-        return Err(HttmError::new("Amount written was smaller than the source file length.").into());
+        return Err(
+            HttmError::new("Amount written was smaller than the source file length.").into(),
+        );
     }
 
     dst_writer.flush()?;
