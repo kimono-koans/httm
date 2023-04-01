@@ -312,8 +312,7 @@ impl RollForward {
         }
 
         is_metadata_different(src, dst)?;
-        let msg = Blue.paint("Restored ");
-        eprintln!("{}: {:?} -> {:?}", msg, src, dst);
+        eprintln!("{}: {:?} -> {:?}", Blue.paint("Restored "), src, dst);
         Ok(())
     }
 
@@ -332,8 +331,7 @@ impl RollForward {
             }
         }
 
-        let msg = Red.paint("Removed  ");
-        eprintln!("{}: {:?} -> 🗑️", msg, src);
+        eprintln!("{}: {:?} -> 🗑️", Red.paint("Removed  "), src);
         Ok(())
     }
 }
