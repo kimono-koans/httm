@@ -380,70 +380,56 @@ impl RollForward {
 
         match elem.diff_type {
             DiffType::Removed => {
-                let copy_msg = format!(
-                    "WARNING: could not overwrite {:?} with snapshot file version {:?}",
-                    &elem.pathdata.path_buf, snap_file.path_buf
-                );
-
-                Self::copy(&snap_file.path_buf, &elem.pathdata.path_buf, &copy_msg)
+                Self::copy(&snap_file.path_buf, &elem.pathdata.path_buf)
             }
             DiffType::Created => {
-                let remove_msg = format!(
-                    "WARNING: File should not exist after deletion {:?}",
-                    elem.pathdata.path_buf
-                );
-
-                Self::remove(&elem.pathdata.path_buf, &remove_msg)
+                Self::remove(&elem.pathdata.path_buf)
             }
             DiffType::Modified => {
-                let copy_msg = format!(
-                    "WARNING: could not overwrite {:?} with snapshot file version {:?}",
-                    &elem.pathdata.path_buf, snap_file.path_buf
-                );
-
-                Self::copy(&snap_file.path_buf, &elem.pathdata.path_buf, &copy_msg)
+                Self::copy(&snap_file.path_buf, &elem.pathdata.path_buf, )
             }
             DiffType::Renamed(new_file_name) => {
                 // zfs-diff can return multiple file actions for a single inode
                 // since we exclude older file actions, if renamed is the last action,
                 // we should make sure it has the latest data, so a simple rename is not enough
-                let copy_msg = format!(
-                    "WARNING: could not overwrite {:?} with snapshot file version {:?}",
-                    &elem.pathdata.path_buf, snap_file.path_buf
-                );
-
-                Self::copy(&snap_file.path_buf, &elem.pathdata.path_buf, &copy_msg)?;
-
-                let remove_msg = format!(
-                    "WARNING: File should not exist after deletion {:?}",
-                    new_file_name
-                );
-
-                Self::remove(&new_file_name, &remove_msg)
+                Self::copy(&snap_file.path_buf, &elem.pathdata.path_buf)?;
+                Self::remove(&new_file_name)
             }
         }
     }
 
-    fn copy(src: &Path, dst: &Path, err_msg: &str) -> HttmResult<()> {
+    fn copy(src: &Path, dst: &Path) -> HttmResult<()> {
         if let Err(err) = copy_direct(src, dst, true) {
             eprintln!("{}", err);
-            return Err(HttmError::new(err_msg).into());
+            let msg = format!(
+                "WARNING: could not overwrite {:?} with snapshot file version {:?}",
+                dst, src
+            );
+            return Err(HttmError::new(&msg).into());
         }
 
         is_metadata_different(src, dst)
     }
 
-    fn remove(src: &Path, err_msg: &str) -> HttmResult<()> {
+    fn remove(src: &Path) -> HttmResult<()> {
         match remove_recursive(src) {
             Ok(_) => {
                 if src.exists() {
-                    return Err(HttmError::new(err_msg).into());
+                    let msg = format!(
+                        "WARNING: File should not exist after deletion {:?}",
+                        src
+                    );
+                    return Err(HttmError::new(&msg).into());
                 }
                 Ok(())
             }
             Err(err) => {
                 eprintln!("{}", err);
-                Err(HttmError::new(err_msg).into())
+                let msg = format!(
+                    "WARNING: Could not delete file {:?}",
+                    src
+                );
+                Err(HttmError::new(&msg).into())
             }
         }
     }
