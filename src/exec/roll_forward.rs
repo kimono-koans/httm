@@ -184,15 +184,20 @@ impl RollForward {
             let mut stderr_buffer = std::io::BufReader::new(process_handle.stderr.take().unwrap());
 
             let buffer = stderr_buffer.fill_buf().unwrap().to_vec();
-            let output_buf = std::str::from_utf8(&buffer).unwrap();
-            eprint!("Error: {}", output_buf);
-            std::process::exit(1);
+
+            if buffer.is_empty() {
+                return
+            }
+
+            if let Ok(output_buf) = std::str::from_utf8(&buffer) {
+                eprint!("Error: {}", output_buf);
+                std::process::exit(1);
+            }
         }
     }
 
     fn ingest(process_handle: &mut Child) -> HttmResult<impl Iterator<Item = DiffEvent> + '_> {
         let stdout_buffer = if let Some(output) = process_handle.stdout.take() {
-            Self::check_stderr(process_handle);
             std::io::BufReader::new(output)
         } else {
             println!("'zfs diff' did not appear to contain any modified files.  Quitting.");
@@ -228,6 +233,9 @@ impl RollForward {
                     _ => None,
                 }
             });
+
+        Self::check_stderr(process_handle);
+
         Ok(res)
     }
 
