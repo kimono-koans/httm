@@ -316,7 +316,9 @@ impl RollForward {
             return Err(HttmError::new(&msg).into());
         }
 
-        is_metadata_different(src, dst)
+        is_metadata_different(src, dst)?;
+        eprintln!("Restored : {:?} -> {:?}", src, dst);
+        Ok(())
     }
 
     fn remove(src: &Path) -> HttmResult<()> {
@@ -326,13 +328,14 @@ impl RollForward {
                     let msg = format!("WARNING: File should not exist after deletion {:?}", src);
                     return Err(HttmError::new(&msg).into());
                 }
-                Ok(())
             }
             Err(err) => {
                 eprintln!("{}", err);
                 let msg = format!("WARNING: Could not delete file {:?}", src);
-                Err(HttmError::new(&msg).into())
+                return Err(HttmError::new(&msg).into());
             }
         }
+        eprintln!("Removed :  {:?} -> 🗑️", src);
+        Ok(())
     }
 }
