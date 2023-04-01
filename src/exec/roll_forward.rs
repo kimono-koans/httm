@@ -348,35 +348,41 @@ impl RollForward {
                 new_values.into_iter().next()
             })
             .map(|elem| {
-                let snap_file_path = cell.get_or_init(|| {
-                    Self::get_snap_file_path(&elem.pathdata, snap_name)
-                        .expect("Could not obtain snap file path for live version.")
+                let proximate_dataset_mount = cell.get_or_init(|| {
+                    elem.pathdata
+                        .get_proximate_dataset(&GLOBAL_CONFIG.dataset_collection.map_of_datasets)
+                        .expect("Could not obtain proximate dataset mount.")
+                        .to_owned()
                 });
+
+                let snap_file_path =
+                    Self::get_snap_path(&elem.pathdata, snap_name, proximate_dataset_mount)
+                        .expect("Could not obtain snap file path for live version.");
+
                 (elem, snap_file_path)
             })
-            .try_for_each(|(elem, snap_file_path)| Self::diff_action(elem, snap_file_path))
+            .try_for_each(|(elem, snap_file_path)| Self::diff_action(elem, &snap_file_path))
     }
 
-    fn get_snap_file_path(pathdata: &PathData, snap_name: &str) -> Option<PathBuf> {
+    fn get_snap_path(
+        pathdata: &PathData,
+        snap_name: &str,
+        proximate_dataset_mount: &Path,
+    ) -> Option<PathBuf> {
         pathdata
-            .get_proximate_dataset(&GLOBAL_CONFIG.dataset_collection.map_of_datasets)
+            .get_relative_path(proximate_dataset_mount)
             .ok()
-            .and_then(|proximate_dataset_mount| {
-                pathdata
-                    .get_relative_path(proximate_dataset_mount)
-                    .ok()
-                    .map(|relative_path| {
-                        let snap_file_path: PathBuf = [
-                            proximate_dataset_mount,
-                            Path::new(".zfs/snapshot"),
-                            Path::new(&snap_name),
-                            relative_path,
-                        ]
-                        .iter()
-                        .collect();
+            .map(|relative_path| {
+                let snap_file_path: PathBuf = [
+                    proximate_dataset_mount,
+                    Path::new(".zfs/snapshot"),
+                    Path::new(&snap_name),
+                    relative_path,
+                ]
+                .iter()
+                .collect();
 
-                        snap_file_path
-                    })
+                snap_file_path
             })
     }
 
