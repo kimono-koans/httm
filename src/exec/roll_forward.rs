@@ -22,6 +22,7 @@ use std::process::Child;
 use std::process::Command as ExecProcess;
 use std::process::Stdio;
 
+use ansi_term::Colour::{Blue, Red};
 use once_cell::sync::OnceCell;
 use which::which;
 
@@ -317,7 +318,8 @@ impl RollForward {
         }
 
         is_metadata_different(src, dst)?;
-        eprintln!("Restored : {:?} -> {:?}", src, dst);
+        let msg = Blue.paint("Restored ");
+        eprintln!("{}: {:?} -> {:?}", msg, src, dst);
         Ok(())
     }
 
@@ -335,7 +337,9 @@ impl RollForward {
                 return Err(HttmError::new(&msg).into());
             }
         }
-        eprintln!("Removed  :  {:?} -> 🗑️", src);
+
+        let msg = Red.paint("Removed  ");
+        eprintln!("{}: {:?} -> 🗑️", msg, src);
         Ok(())
     }
 }
