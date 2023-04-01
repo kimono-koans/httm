@@ -18,8 +18,11 @@
 use std::fs::File;
 use std::fs::OpenOptions;
 use std::io::BufReader;
+use std::io::BufWriter;
 use std::io::Read;
-use std::os::unix::fs::FileExt;
+use std::io::Seek;
+use std::io::SeekFrom;
+use std::io::Write;
 use std::path::Path;
 
 use simd_adler32::Adler32;
@@ -29,11 +32,6 @@ use crate::library::results::HttmResult;
 const CHUNK_SIZE: usize = 65_536;
 
 pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
-    let mut just_write = false;
-    if !dst.exists() {
-        just_write = true;
-    }
-
     let src_file = File::open(src)?;
     let mut src_reader = BufReader::with_capacity(CHUNK_SIZE, &src_file);
 
@@ -42,14 +40,17 @@ pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
         .read(true)
         .create(true)
         .open(dst)?;
-
     let src_len = src_file.metadata()?.len();
     dst_file.set_len(src_len)?;
-
-    let mut dst_reader = BufReader::with_capacity(CHUNK_SIZE, &dst_file);
+    let mut opt_just_write = if dst.exists() {
+        None
+    } else {
+        let dst_reader = BufReader::with_capacity(CHUNK_SIZE, &dst_file);
+        Some(dst_reader)
+    };
+    let mut dst_writer = BufWriter::with_capacity(CHUNK_SIZE, &dst_file);
 
     let mut cur_pos = 0u64;
-
     let mut src_buffer = [0; CHUNK_SIZE];
     let mut dest_buffer = [0; CHUNK_SIZE];
 
@@ -58,15 +59,20 @@ pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
         if src_amt_read == 0 {
             break;
         }
-        let _ = dst_reader.read(&mut dest_buffer)?;
+        if let Some(ref mut dst_reader) = opt_just_write {
+            let _ = dst_reader.read(&mut dest_buffer)?;
+        }
 
-        if just_write || !is_same_bytes(&src_buffer, &dest_buffer) {
+        if opt_just_write.is_some() || !is_same_bytes(&src_buffer, &dest_buffer) {
+            let _ = dst_writer.seek(SeekFrom::Start(cur_pos))?;
             let amt_written = if src_amt_read == CHUNK_SIZE {
-                dst_file.write_at(&src_buffer, cur_pos)?
+                dst_writer.write(&src_buffer)?
             } else {
                 let range: &[u8] = &src_buffer[0..src_amt_read];
-                dst_file.write_at(range, cur_pos)?
+                dst_writer.write(range)?
             };
+
+            assert!(amt_written == src_amt_read);
 
             cur_pos += amt_written as u64;
         } else {
@@ -74,6 +80,7 @@ pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
         }
     }
 
+    dst_writer.flush()?;
     dst_file.sync_data()?;
 
     Ok(())
