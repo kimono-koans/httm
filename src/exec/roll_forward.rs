@@ -179,23 +179,6 @@ impl RollForward {
         Ok(process_handle)
     }
 
-    fn check_stderr(process_handle: &mut Child) {
-        if process_handle.stderr.is_some() {
-            let mut stderr_buffer = std::io::BufReader::new(process_handle.stderr.take().unwrap());
-
-            let buffer = stderr_buffer.fill_buf().unwrap().to_vec();
-
-            if buffer.is_empty() {
-                return
-            }
-
-            if let Ok(output_buf) = std::str::from_utf8(&buffer) {
-                eprint!("Error: {}", output_buf);
-                std::process::exit(1);
-            }
-        }
-    }
-
     fn ingest(process_handle: &mut Child) -> HttmResult<impl Iterator<Item = DiffEvent> + '_> {
         let stdout_buffer = if let Some(output) = process_handle.stdout.take() {
             std::io::BufReader::new(output)
@@ -234,7 +217,18 @@ impl RollForward {
                 }
             });
 
-        Self::check_stderr(process_handle);
+        if process_handle.stderr.is_some() {
+            let mut stderr_buffer = std::io::BufReader::new(process_handle.stderr.take().unwrap());
+
+            let buffer = stderr_buffer.fill_buf()?;
+
+            if !buffer.is_empty() {
+                if let Ok(output_buf) = std::str::from_utf8(&buffer) {
+                    let msg = format!("Error: {}", output_buf);
+                    return Err(HttmError::new(&msg).into());
+                }
+            }
+        }
 
         Ok(res)
     }
