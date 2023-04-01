@@ -223,8 +223,7 @@ impl RollForward {
 
             if !buffer.is_empty() {
                 if let Ok(output_buf) = std::str::from_utf8(buffer) {
-                    let msg = format!("Error: {}", output_buf);
-                    return Err(HttmError::new(&msg).into());
+                    return Err(HttmError::new(format!("{}", output_buf).trim()).into());
                 }
             }
         }
