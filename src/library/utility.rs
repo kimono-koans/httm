@@ -481,7 +481,7 @@ pub fn display_human_size(size: u64) -> String {
 
 pub fn is_metadata_different<T>(src: T, dst: T) -> HttmResult<()>
 where
-    T: CompareModifyTime,
+    T: ComparePathMetadata,
 {
     if src.get_opt_metadata() != dst.get_opt_metadata() {
         let msg = format!(
@@ -495,12 +495,12 @@ where
     Ok(())
 }
 
-pub trait CompareModifyTime {
+pub trait ComparePathMetadata {
     fn get_opt_metadata(&self) -> Option<PathMetadata>;
     fn get_path(&self) -> &Path;
 }
 
-impl<T: AsRef<Path>> CompareModifyTime for T {
+impl<T: AsRef<Path>> ComparePathMetadata for T {
     fn get_opt_metadata(&self) -> Option<PathMetadata> {
         let pathdata = PathData::from(self.as_ref());
         pathdata.metadata.map(|md| {
@@ -520,7 +520,7 @@ impl<T: AsRef<Path>> CompareModifyTime for T {
     }
 }
 
-impl CompareModifyTime for PathData {
+impl ComparePathMetadata for PathData {
     fn get_opt_metadata(&self) -> Option<PathMetadata> {
         self.metadata.map(|md| {
             if self.path_buf.is_dir() {
