@@ -335,7 +335,7 @@ impl RollForward {
                 return Err(HttmError::new(&msg).into());
             }
         }
-        eprintln!("Removed :  {:?} -> 🗑️", src);
+        eprintln!("Removed  :  {:?} -> 🗑️", src);
         Ok(())
     }
 }
