@@ -34,13 +34,13 @@ use crate::library::utility::{copy_direct, remove_recursive};
 use crate::GLOBAL_CONFIG;
 
 #[derive(Clone)]
-struct DiffElements {
+struct DiffEvent {
     pathdata: PathData,
     diff_type: DiffType,
     time: DiffTime,
 }
 
-impl DiffElements {
+impl DiffEvent {
     fn new(path_string: &str, diff_type: DiffType, time_str: &str) -> Self {
         Self {
             pathdata: PathData::from(Path::new(path_string)),
@@ -190,7 +190,7 @@ impl RollForward {
         }
     }
 
-    fn ingest(process_handle: &mut Child) -> impl Iterator<Item = DiffElements> + '_ {
+    fn ingest(process_handle: &mut Child) -> impl Iterator<Item = DiffEvent> + '_ {
         let stdout_buffer = if let Some(output) = process_handle.stdout.take() {
             std::io::BufReader::new(output)
         } else {
@@ -211,22 +211,22 @@ impl RollForward {
                 let time_str = split_line.first().unwrap();
 
                 match split_line.get(1) {
-                    Some(elem) if elem == &"-" => split_line.get(2).map(|path_string| {
-                        DiffElements::new(path_string, DiffType::Removed, time_str)
+                    Some(event) if event == &"-" => split_line.get(2).map(|path_string| {
+                        DiffEvent::new(path_string, DiffType::Removed, time_str)
                     }),
-                    Some(elem) if elem == &"+" => split_line.get(2).map(|path_string| {
-                        DiffElements::new(path_string, DiffType::Created, time_str)
+                    Some(event) if event == &"+" => split_line.get(2).map(|path_string| {
+                        DiffEvent::new(path_string, DiffType::Created, time_str)
                     }),
-                    Some(elem) if elem == &"M" => split_line.get(2).map(|path_string| {
-                        DiffElements::new(path_string, DiffType::Modified, time_str)
+                    Some(event) if event == &"M" => split_line.get(2).map(|path_string| {
+                        DiffEvent::new(path_string, DiffType::Modified, time_str)
                     }),
-                    Some(elem) if elem == &"R" => split_line.get(2).map(|path_string| {
+                    Some(event) if event == &"R" => split_line.get(2).map(|path_string| {
                         let new_file_name = PathBuf::from(
                             split_line
                                 .get(3)
                                 .expect("diff of type rename did not contain a new name value"),
                         );
-                        DiffElements::new(path_string, DiffType::Renamed(new_file_name), time_str)
+                        DiffEvent::new(path_string, DiffType::Renamed(new_file_name), time_str)
                     }),
                     _ => None,
                 }
@@ -235,34 +235,35 @@ impl RollForward {
 
     fn roll_forward<I>(stream: I, snap_name: &str) -> HttmResult<()>
     where
-        I: Iterator<Item = DiffElements>,
+        I: Iterator<Item = DiffEvent>,
     {
         let cell: OnceCell<PathBuf> = OnceCell::new();
 
         stream
             // zfs-diff can return multiple file actions for a single inode, here we dedup
-            .into_group_map_by(|elem| elem.pathdata.clone())
+            .into_group_map_by(|event| event.pathdata.clone())
             .into_iter()
             .filter_map(|(_key, values)| {
                 let mut new_values = values;
-                new_values.sort_by_key(|elem| elem.time.clone());
+                new_values.sort_by_key(|event| event.time.clone());
                 new_values.into_iter().next()
             })
-            .map(|elem| {
+            .map(|event| {
                 let proximate_dataset_mount = cell.get_or_init(|| {
-                    elem.pathdata
+                    event
+                        .pathdata
                         .get_proximate_dataset(&GLOBAL_CONFIG.dataset_collection.map_of_datasets)
                         .expect("Could not obtain proximate dataset mount.")
                         .to_owned()
                 });
 
                 let snap_file_path =
-                    Self::get_snap_path(&elem.pathdata, snap_name, proximate_dataset_mount)
+                    Self::get_snap_path(&event.pathdata, snap_name, proximate_dataset_mount)
                         .expect("Could not obtain snap file path for live version.");
 
-                (elem, snap_file_path)
+                (event, snap_file_path)
             })
-            .try_for_each(|(elem, snap_file_path)| Self::diff_action(elem, &snap_file_path))
+            .try_for_each(|(event, snap_file_path)| Self::diff_action(event, &snap_file_path))
     }
 
     fn get_snap_path(
@@ -287,18 +288,18 @@ impl RollForward {
             })
     }
 
-    fn diff_action(elem: DiffElements, snap_file_path: &Path) -> HttmResult<()> {
+    fn diff_action(event: DiffEvent, snap_file_path: &Path) -> HttmResult<()> {
         let snap_file = PathData::from(snap_file_path);
 
-        match elem.diff_type {
-            DiffType::Removed => Self::copy(&snap_file.path_buf, &elem.pathdata.path_buf),
-            DiffType::Created => Self::remove(&elem.pathdata.path_buf),
-            DiffType::Modified => Self::copy(&snap_file.path_buf, &elem.pathdata.path_buf),
+        match event.diff_type {
+            DiffType::Removed => Self::copy(&snap_file.path_buf, &event.pathdata.path_buf),
+            DiffType::Created => Self::remove(&event.pathdata.path_buf),
+            DiffType::Modified => Self::copy(&snap_file.path_buf, &event.pathdata.path_buf),
             DiffType::Renamed(new_file_name) => {
                 // zfs-diff can return multiple file actions for a single inode
                 // since we exclude older file actions, if renamed is the last action,
                 // we should make sure it has the latest data, so a simple rename is not enough
-                Self::copy(&snap_file.path_buf, &elem.pathdata.path_buf)?;
+                Self::copy(&snap_file.path_buf, &event.pathdata.path_buf)?;
                 Self::remove(&new_file_name)
             }
         }
