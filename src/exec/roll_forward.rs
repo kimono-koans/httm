@@ -40,6 +40,16 @@ struct DiffElements {
     time: DiffTime,
 }
 
+impl DiffElements {
+    fn new(path_string: &str, diff_type: DiffType, time_str: &str) -> Self {
+        Self {
+            pathdata: PathData::from(Path::new(path_string)),
+            diff_type,
+            time: DiffTime::new(time_str).expect("Could not parse a zfs diff time value."),
+        }
+    }
+}
+
 #[derive(Clone, PartialEq, Eq)]
 struct DiffTime {
     secs: u64,
@@ -47,10 +57,8 @@ struct DiffTime {
 }
 
 impl DiffTime {
-    fn new(split_line: &[&str]) -> Option<DiffTime> {
-        let first = split_line.first()?;
-
-        let (secs, nanos) = first.split_once('.')?;
+    fn new(time_str: &str) -> Option<Self> {
+        let (secs, nanos) = time_str.split_once('.')?;
 
         let time = DiffTime {
             secs: secs.parse::<u64>().ok()?,
@@ -296,46 +304,28 @@ impl RollForward {
 
                 Self::check_stderr(process_handle);
 
+                let time_str = split_line.first().unwrap();
+
                 match split_line.get(1) {
                     Some(elem) if elem == &"-" => split_line.get(2).map(|path_string| {
-                        (
-                            PathData::from(Path::new(path_string)),
-                            DiffType::Removed,
-                            DiffTime::new(&split_line),
-                        )
+                        DiffElements::new(path_string, DiffType::Removed, time_str)
                     }),
                     Some(elem) if elem == &"+" => split_line.get(2).map(|path_string| {
-                        (
-                            PathData::from(Path::new(path_string)),
-                            DiffType::Created,
-                            DiffTime::new(&split_line),
-                        )
+                        DiffElements::new(path_string, DiffType::Created, time_str)
                     }),
                     Some(elem) if elem == &"M" => split_line.get(2).map(|path_string| {
-                        (
-                            PathData::from(Path::new(path_string)),
-                            DiffType::Modified,
-                            DiffTime::new(&split_line),
-                        )
+                        DiffElements::new(path_string, DiffType::Modified, time_str)
                     }),
-                    Some(elem) if elem == &"R" => {
-                        split_line.get(2).map(|path_string| {
-                            (
-                                PathData::from(Path::new(path_string)),
-                                DiffType::Renamed(PathBuf::from(split_line.get(3).expect(
-                                    "diff of type rename did not contain a new name value",
-                                ))),
-                                DiffTime::new(&split_line),
-                            )
-                        })
-                    }
+                    Some(elem) if elem == &"R" => split_line.get(2).map(|path_string| {
+                        let new_file_name = PathBuf::from(
+                            split_line
+                                .get(3)
+                                .expect("diff of type rename did not contain a new name value"),
+                        );
+                        DiffElements::new(path_string, DiffType::Renamed(new_file_name), time_str)
+                    }),
                     _ => None,
                 }
-            })
-            .map(|(pathdata, diff_type, time)| DiffElements {
-                pathdata,
-                diff_type,
-                time: time.unwrap(),
             })
     }
 
@@ -352,29 +342,35 @@ impl RollForward {
                 new_values.sort_by_key(|elem| elem.time.clone());
                 new_values.into_iter().next()
             })
-            .filter_map(|elem| {
-                elem.pathdata
-                    .get_proximate_dataset(&GLOBAL_CONFIG.dataset_collection.map_of_datasets)
-                    .ok()
-                    .and_then(|proximate_dataset_mount| {
-                        elem.pathdata
-                            .get_relative_path(proximate_dataset_mount)
-                            .ok()
-                            .map(|relative_path| {
-                                let snap_file_path: PathBuf = [
-                                    proximate_dataset_mount,
-                                    Path::new(".zfs/snapshot"),
-                                    Path::new(&snap_name),
-                                    relative_path,
-                                ]
-                                .iter()
-                                .collect();
-
-                                (elem.clone(), snap_file_path)
-                            })
-                    })
+            .map(|elem| {
+                let snap_file_path = Self::get_snap_file_path(&elem.pathdata, snap_name)
+                    .expect("Could not obtain snap file path for live version.");
+                (elem, snap_file_path)
             })
             .try_for_each(|(elem, snap_file_path)| Self::diff_action(elem, &snap_file_path))
+    }
+
+    fn get_snap_file_path(pathdata: &PathData, snap_name: &str) -> Option<PathBuf> {
+        pathdata
+            .get_proximate_dataset(&GLOBAL_CONFIG.dataset_collection.map_of_datasets)
+            .ok()
+            .and_then(|proximate_dataset_mount| {
+                pathdata
+                    .get_relative_path(proximate_dataset_mount)
+                    .ok()
+                    .map(|relative_path| {
+                        let snap_file_path: PathBuf = [
+                            proximate_dataset_mount,
+                            Path::new(".zfs/snapshot"),
+                            Path::new(&snap_name),
+                            relative_path,
+                        ]
+                        .iter()
+                        .collect();
+
+                        snap_file_path
+                    })
+            })
     }
 
     fn diff_action(elem: DiffElements, snap_file_path: &Path) -> HttmResult<()> {
