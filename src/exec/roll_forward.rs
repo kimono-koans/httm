@@ -184,13 +184,15 @@ impl RollForward {
 
         let res = stdout_buffer
             .lines()
-            .filter_map(|line| line.ok())
-            .filter_map(move |line| {
+            .map(|line| line.expect("Could not obtain line from string."))
+            .map(move |line| {
                 let split_line: Vec<&str> = line.split('\t').collect();
 
-                let time_str = split_line.first().unwrap();
+                let time_str = split_line
+                    .first()
+                    .expect("Could not obtain a timestamp for diff event.");
 
-                match split_line.get(1) {
+                let res = match split_line.get(1) {
                     Some(event) if event == &"-" => split_line.get(2).map(|path_string| {
                         DiffEvent::new(path_string, DiffType::Removed, time_str)
                     }),
@@ -209,7 +211,9 @@ impl RollForward {
                         DiffEvent::new(path_string, DiffType::Renamed(new_file_name), time_str)
                     }),
                     _ => None,
-                }
+                };
+
+                res.expect("Could not parse diff event from line of zfs diff input.")
             });
 
         if process_handle.stderr.is_some() {
@@ -238,10 +242,13 @@ impl RollForward {
             // zfs-diff can return multiple file actions for a single inode, here we dedup
             .into_group_map_by(|event| event.pathdata.clone())
             .into_iter()
-            .filter_map(|(_key, values)| {
+            .map(|(_key, values)| {
                 let mut new_values = values;
                 new_values.sort_by_key(|event| event.time.clone());
-                new_values.into_iter().next()
+                new_values
+                    .into_iter()
+                    .next()
+                    .expect("Could not obtain first element of group values.")
             })
             .map(|event| {
                 let proximate_dataset_mount = cell.get_or_init(|| {
@@ -303,7 +310,7 @@ impl RollForward {
 
     fn copy(src: &Path, dst: &Path) -> HttmResult<()> {
         if let Err(err) = copy_direct(src, dst, true) {
-            eprintln!("{}", err);
+            eprintln!("Error: {}", err);
             let msg = format!(
                 "WARNING: could not overwrite {:?} with snapshot file version {:?}",
                 dst, src
@@ -325,7 +332,7 @@ impl RollForward {
                 }
             }
             Err(err) => {
-                eprintln!("{}", err);
+                eprintln!("Error: {}", err);
                 let msg = format!("WARNING: Could not delete file {:?}", src);
                 return Err(HttmError::new(&msg).into());
             }
