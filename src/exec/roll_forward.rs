@@ -72,11 +72,13 @@ impl DiffTime {
 impl std::cmp::Ord for DiffTime {
     #[inline]
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        if self.secs == other.secs {
+        let secs_ordering = self.secs.cmp(&other.secs);
+
+        if secs_ordering.is_eq() {
             return self.nanos.cmp(&other.nanos);
         }
 
-        self.secs.cmp(&other.secs)
+        secs_ordering
     }
 }
 
