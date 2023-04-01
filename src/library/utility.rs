@@ -41,6 +41,14 @@ use crate::GLOBAL_CONFIG;
 use crate::{config::generate::PrintMode, data::paths::PathMetadata};
 use crate::{BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_SNAPSHOT_DIRECTORY};
 
+pub fn user_has_effective_root() -> HttmResult<()> {
+    if !nix::unistd::geteuid().is_root() {
+        return Err(HttmError::new("Superuser privileges are require to execute.").into());
+    }
+
+    Ok(())
+}
+
 pub fn get_delimiter() -> char {
     if matches!(GLOBAL_CONFIG.print_mode, PrintMode::RawZero) {
         '\0'

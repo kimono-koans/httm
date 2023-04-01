@@ -30,8 +30,8 @@ use crate::data::paths::PathData;
 use crate::exec::snap_guard::{PrecautionarySnapType, SnapGuard};
 use crate::library::iter_extensions::HttmIter;
 use crate::library::results::{HttmError, HttmResult};
-use crate::library::utility::is_metadata_different;
 use crate::library::utility::{copy_direct, remove_recursive};
+use crate::library::utility::{is_metadata_different, user_has_effective_root};
 use crate::GLOBAL_CONFIG;
 
 #[derive(Clone)]
@@ -104,12 +104,7 @@ pub struct RollForward;
 
 impl RollForward {
     pub fn exec(full_snap_name: &str) -> HttmResult<()> {
-        if !nix::unistd::geteuid().is_root() {
-            return Err(HttmError::new(
-                "Superuser privileges are require to execute a roll forward.",
-            )
-            .into());
-        }
+        user_has_effective_root()?;
 
         let zfs_command = if let Ok(zfs_command) = which("zfs") {
             zfs_command
@@ -223,7 +218,7 @@ impl RollForward {
             let buffer = stderr_buffer.fill_buf()?;
 
             if !buffer.is_empty() {
-                if let Ok(output_buf) = std::str::from_utf8(&buffer) {
+                if let Ok(output_buf) = std::str::from_utf8(buffer) {
                     let msg = format!("Error: {}", output_buf);
                     return Err(HttmError::new(&msg).into());
                 }
