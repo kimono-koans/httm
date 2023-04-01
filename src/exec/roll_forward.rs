@@ -293,7 +293,9 @@ impl RollForward {
 
         match event.diff_type {
             DiffType::Created => Self::remove(&event.pathdata.path_buf),
-            DiffType::Removed | DiffType::Modified => Self::copy(&snap_file.path_buf, &event.pathdata.path_buf),
+            DiffType::Removed | DiffType::Modified => {
+                Self::copy(&snap_file.path_buf, &event.pathdata.path_buf)
+            }
             DiffType::Renamed(new_file_name) => {
                 // zfs-diff can return multiple file actions for a single inode
                 // since we exclude older file actions, if renamed is the last action,
