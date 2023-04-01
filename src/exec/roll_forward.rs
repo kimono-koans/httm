@@ -23,6 +23,7 @@ use std::process::Command as ExecProcess;
 use std::process::Stdio;
 use std::time::SystemTime;
 
+use once_cell::sync::OnceCell;
 use which::which;
 
 use crate::data::paths::PathData;
@@ -335,6 +336,8 @@ impl RollForward {
     where
         I: Iterator<Item = DiffElements>,
     {
+        let cell: OnceCell<PathBuf> = OnceCell::new();
+
         stream
             // zfs-diff can return multiple file actions for a single inode, here we dedup
             .into_group_map_by(|elem| elem.pathdata.clone())
@@ -345,11 +348,13 @@ impl RollForward {
                 new_values.into_iter().next()
             })
             .map(|elem| {
-                let snap_file_path = Self::get_snap_file_path(&elem.pathdata, snap_name)
-                    .expect("Could not obtain snap file path for live version.");
+                let snap_file_path = cell.get_or_init(|| {
+                    Self::get_snap_file_path(&elem.pathdata, snap_name)
+                        .expect("Could not obtain snap file path for live version.")
+                });
                 (elem, snap_file_path)
             })
-            .try_for_each(|(elem, snap_file_path)| Self::diff_action(elem, &snap_file_path))
+            .try_for_each(|(elem, snap_file_path)| Self::diff_action(elem, snap_file_path))
     }
 
     fn get_snap_file_path(pathdata: &PathData, snap_name: &str) -> Option<PathBuf> {
@@ -379,15 +384,9 @@ impl RollForward {
         let snap_file = PathData::from(snap_file_path);
 
         match elem.diff_type {
-            DiffType::Removed => {
-                Self::copy(&snap_file.path_buf, &elem.pathdata.path_buf)
-            }
-            DiffType::Created => {
-                Self::remove(&elem.pathdata.path_buf)
-            }
-            DiffType::Modified => {
-                Self::copy(&snap_file.path_buf, &elem.pathdata.path_buf, )
-            }
+            DiffType::Removed => Self::copy(&snap_file.path_buf, &elem.pathdata.path_buf),
+            DiffType::Created => Self::remove(&elem.pathdata.path_buf),
+            DiffType::Modified => Self::copy(&snap_file.path_buf, &elem.pathdata.path_buf),
             DiffType::Renamed(new_file_name) => {
                 // zfs-diff can return multiple file actions for a single inode
                 // since we exclude older file actions, if renamed is the last action,
@@ -415,20 +414,14 @@ impl RollForward {
         match remove_recursive(src) {
             Ok(_) => {
                 if src.exists() {
-                    let msg = format!(
-                        "WARNING: File should not exist after deletion {:?}",
-                        src
-                    );
+                    let msg = format!("WARNING: File should not exist after deletion {:?}", src);
                     return Err(HttmError::new(&msg).into());
                 }
                 Ok(())
             }
             Err(err) => {
                 eprintln!("{}", err);
-                let msg = format!(
-                    "WARNING: Could not delete file {:?}",
-                    src
-                );
+                let msg = format!("WARNING: Could not delete file {:?}", src);
                 Err(HttmError::new(&msg).into())
             }
         }
