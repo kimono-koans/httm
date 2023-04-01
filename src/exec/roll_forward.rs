@@ -129,7 +129,7 @@ impl RollForward {
 
         let mut process_handle = Self::exec_diff(full_snap_name, &zfs_command)?;
 
-        let mut stream = Self::ingest(&mut process_handle);
+        let mut stream = Self::ingest(&mut process_handle)?;
 
         let pre_exec_snap_name = SnapGuard::exec_snap(
             &zfs_command,
@@ -173,6 +173,7 @@ impl RollForward {
         let process_handle = ExecProcess::new(zfs_command)
             .args(&process_args)
             .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
             .spawn()?;
 
         Ok(process_handle)
@@ -182,32 +183,27 @@ impl RollForward {
         if process_handle.stderr.is_some() {
             let mut stderr_buffer = std::io::BufReader::new(process_handle.stderr.take().unwrap());
 
-            if stderr_buffer.fill_buf().map(|b| !b.is_empty()).unwrap() {
-                let buffer = stderr_buffer.fill_buf().unwrap().to_vec();
-                let output_buf = std::str::from_utf8(&buffer).unwrap();
-                eprintln!("Error: {}", output_buf);
-                std::process::exit(1);
-            }
+            let buffer = stderr_buffer.fill_buf().unwrap().to_vec();
+            let output_buf = std::str::from_utf8(&buffer).unwrap();
+            eprint!("Error: {}", output_buf);
+            std::process::exit(1);
         }
     }
 
-    fn ingest(process_handle: &mut Child) -> impl Iterator<Item = DiffEvent> + '_ {
+    fn ingest(process_handle: &mut Child) -> HttmResult<impl Iterator<Item = DiffEvent> + '_> {
         let stdout_buffer = if let Some(output) = process_handle.stdout.take() {
+            Self::check_stderr(process_handle);
             std::io::BufReader::new(output)
         } else {
-            Self::check_stderr(process_handle);
-
             println!("'zfs diff' did not appear to contain any modified files.  Quitting.");
             std::process::exit(0);
         };
 
-        stdout_buffer
+        let res = stdout_buffer
             .lines()
             .filter_map(|line| line.ok())
             .filter_map(move |line| {
                 let split_line: Vec<&str> = line.split('\t').collect();
-
-                Self::check_stderr(process_handle);
 
                 let time_str = split_line.first().unwrap();
 
@@ -231,7 +227,8 @@ impl RollForward {
                     }),
                     _ => None,
                 }
-            })
+            });
+        Ok(res)
     }
 
     fn roll_forward<I>(stream: I, snap_name: &str) -> HttmResult<()>
