@@ -20,14 +20,19 @@ use std::{io::Cursor, path::Path, path::PathBuf, thread};
 use crossbeam::channel::unbounded;
 use skim::prelude::*;
 
-use crate::config::generate::{ExecMode, InteractiveMode, PrintMode, RestoreMode};
+use crate::config::generate::{
+    ExecMode, InteractiveMode, PrintMode, RestoreMode, RestoreSnapGuard,
+};
 use crate::data::paths::{PathData, PathMetadata};
 use crate::display_versions::wrapper::VersionsDisplayWrapper;
 use crate::exec::preview::PreviewSelection;
 use crate::exec::recursive::InteractiveRecursive;
+use crate::exec::snap_guard::SnapGuard;
+use crate::exec::snap_guard::{AdditionalSnapInfo, PrecautionarySnapType};
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{
-    copy_recursive, get_date, get_delimiter, print_output_buf, DateFormat, Never,
+    copy_recursive, get_date, get_delimiter, print_output_buf, user_has_effective_root,
+    user_has_zfs_allow_snap_priv, DateFormat, Never,
 };
 use crate::lookup::versions::VersionsMap;
 use crate::GLOBAL_CONFIG;
@@ -312,7 +317,41 @@ impl InteractiveRestore {
 
             match user_consent.as_ref() {
                 "YES" | "Y" => {
-                    copy_recursive(&snap_pathdata.path_buf, &new_file_path_buf, should_preserve)?;
+                    if matches!(
+                        GLOBAL_CONFIG.exec_mode,
+                        ExecMode::Interactive(InteractiveMode::Restore(RestoreMode::Overwrite(
+                            RestoreSnapGuard::Guarded
+                        )))
+                    ) && (user_has_effective_root().is_ok()
+                        || user_has_zfs_allow_snap_priv(&new_file_path_buf).is_ok())
+                    {
+                        let pre_exec_snap_name = Self::snap_guard(&new_file_path_buf)?;
+
+                        if let Err(err) = copy_recursive(
+                            &snap_pathdata.path_buf,
+                            &new_file_path_buf,
+                            should_preserve,
+                        ) {
+                            let msg = format!(
+                                "httm restore failed for the following reason: {}.\n\
+                            Attempting roll back to precautionary pre-execution snapshot.",
+                                err
+                            );
+
+                            eprintln!("{}", msg);
+
+                            SnapGuard::exec_rollback(&pre_exec_snap_name)
+                                .map(|_| println!("Rollback succeeded."))?;
+
+                            std::process::exit(1);
+                        }
+                    } else {
+                        copy_recursive(
+                            &snap_pathdata.path_buf,
+                            &new_file_path_buf,
+                            should_preserve,
+                        )?
+                    }
 
                     let result_buffer = format!(
                         "httm copied a file from a snapshot:\n\n\
@@ -322,9 +361,9 @@ impl InteractiveRestore {
                         snap_pathdata.path_buf
                     );
 
-                    break eprintln!("{result_buffer}");
+                    break println!("{result_buffer}");
                 }
-                "NO" | "N" => break eprintln!("User declined restore.  No files were restored."),
+                "NO" | "N" => break println!("User declined restore.  No files were restored."),
                 // if not yes or no, then noop and continue to the next iter of loop
                 _ => {}
             }
@@ -333,11 +372,31 @@ impl InteractiveRestore {
         std::process::exit(0)
     }
 
+    fn snap_guard(new_file_path: &Path) -> HttmResult<String> {
+        let pathdata = PathData::from(new_file_path);
+        let file_name = pathdata.path_buf.to_string_lossy();
+        let dataset_mount =
+            pathdata.get_proximate_dataset(&GLOBAL_CONFIG.dataset_collection.map_of_datasets)?;
+
+        let dataset_name = &GLOBAL_CONFIG
+            .dataset_collection
+            .map_of_datasets
+            .get(dataset_mount)
+            .unwrap()
+            .source;
+
+        SnapGuard::exec_snap(
+            dataset_name,
+            &AdditionalSnapInfo::RestoreFilename(file_name.to_string()),
+            PrecautionarySnapType::PreRestore,
+        )
+    }
+
     fn should_preserve_attributes() -> bool {
         matches!(
             GLOBAL_CONFIG.exec_mode,
             ExecMode::Interactive(InteractiveMode::Restore(
-                RestoreMode::CopyAndPreserve | RestoreMode::Overwrite
+                RestoreMode::CopyAndPreserve | RestoreMode::Overwrite(_)
             ))
         )
     }
@@ -350,7 +409,7 @@ impl InteractiveRestore {
         // build new place to send file
         if matches!(
             GLOBAL_CONFIG.exec_mode,
-            ExecMode::Interactive(InteractiveMode::Restore(RestoreMode::Overwrite))
+            ExecMode::Interactive(InteractiveMode::Restore(RestoreMode::Overwrite(_)))
         ) {
             // instead of just not naming the new file with extra info (date plus "httm_restored") and shoving that new file
             // into the pwd, here, we actually look for the original location of the file to make sure we overwrite it.

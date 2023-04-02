@@ -26,10 +26,8 @@ use hashbrown::{HashMap, HashSet};
 
 use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::library::results::HttmResult;
-use crate::lookup::versions::RelativePathAndSnapMounts;
+use crate::lookup::versions::{RelativePathAndSnapMounts, VersionsMap};
 use crate::GLOBAL_CONFIG;
-
-use super::versions::VersionsMap;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DeletedFilesBundle {

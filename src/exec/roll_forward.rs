@@ -27,7 +27,7 @@ use once_cell::sync::OnceCell;
 use which::which;
 
 use crate::data::paths::PathData;
-use crate::exec::snap_guard::{PrecautionarySnapType, SnapGuard};
+use crate::exec::snap_guard::{AdditionalSnapInfo, PrecautionarySnapType, SnapGuard};
 use crate::library::iter_extensions::HttmIter;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{copy_direct, remove_recursive};
@@ -106,15 +106,6 @@ impl RollForward {
     pub fn exec(full_snap_name: &str) -> HttmResult<()> {
         user_has_effective_root()?;
 
-        let zfs_command = if let Ok(zfs_command) = which("zfs") {
-            zfs_command
-        } else {
-            return Err(HttmError::new(
-                "'zfs' command not found. Make sure the command 'zfs' is in your path.",
-            )
-            .into());
-        };
-
         let (dataset_name, snap_name) = if let Some(res) = full_snap_name.split_once('@') {
             res
         } else {
@@ -122,15 +113,14 @@ impl RollForward {
             return Err(HttmError::new(&msg).into());
         };
 
-        let mut process_handle = Self::exec_diff(full_snap_name, &zfs_command)?;
+        let mut process_handle = Self::exec_diff(full_snap_name)?;
 
         let mut stream = Self::ingest(&mut process_handle)?;
 
         let pre_exec_snap_name = SnapGuard::exec_snap(
-            &zfs_command,
             dataset_name,
-            snap_name,
-            PrecautionarySnapType::Pre,
+            &AdditionalSnapInfo::RollForwardSnapName(snap_name.to_owned()),
+            PrecautionarySnapType::PreRollForward,
         )?;
 
         match Self::roll_forward(&mut stream, snap_name) {
@@ -145,7 +135,7 @@ impl RollForward {
                 );
                 eprintln!("{}", msg);
 
-                SnapGuard::exec_rollback(&pre_exec_snap_name, &zfs_command)
+                SnapGuard::exec_rollback(&pre_exec_snap_name)
                     .map(|_| println!("Rollback succeeded."))?;
 
                 std::process::exit(1)
@@ -153,15 +143,17 @@ impl RollForward {
         };
 
         SnapGuard::exec_snap(
-            &zfs_command,
             dataset_name,
-            snap_name,
-            PrecautionarySnapType::Post,
+            &AdditionalSnapInfo::RollForwardSnapName(snap_name.to_owned()),
+            PrecautionarySnapType::PostRollForward,
         )
         .map(|_res| ())
     }
 
-    fn exec_diff(full_snapshot_name: &str, zfs_command: &Path) -> HttmResult<Child> {
+    fn exec_diff(full_snapshot_name: &str) -> HttmResult<Child> {
+        let zfs_command = which("zfs").map_err(|_err| {
+            HttmError::new("'zfs' command not found. Make sure the command 'zfs' is in your path.")
+        })?;
         let mut process_args = vec!["diff", "-H", "-t"];
         process_args.push(full_snapshot_name);
 
@@ -223,7 +215,7 @@ impl RollForward {
 
             if !buffer.is_empty() {
                 if let Ok(output_buf) = std::str::from_utf8(buffer) {
-                    return Err(HttmError::new(format!("{}", output_buf).trim()).into());
+                    return Err(HttmError::new(output_buf.to_string().trim()).into());
                 }
             }
         }

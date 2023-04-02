@@ -15,9 +15,10 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::path::Path;
 use std::process::Command as ExecProcess;
 use std::time::SystemTime;
+
+use which::which;
 
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{get_date, DateFormat};
@@ -25,14 +26,22 @@ use crate::print_output_buf;
 use crate::GLOBAL_CONFIG;
 
 pub enum PrecautionarySnapType {
-    Pre,
-    Post,
+    PreRollForward,
+    PostRollForward,
+    PreRestore,
+}
+
+pub enum AdditionalSnapInfo {
+    RollForwardSnapName(String),
+    // fyi, this is unused
+    RestoreFilename(String),
 }
 
 pub struct SnapGuard;
 
 impl SnapGuard {
-    pub fn exec_rollback(pre_exec_snap_name: &str, zfs_command: &Path) -> HttmResult<()> {
+    pub fn exec_rollback(pre_exec_snap_name: &str) -> HttmResult<()> {
+        let zfs_command = which("zfs")?;
         let mut process_args = vec!["rollback", "-r"];
         process_args.push(pre_exec_snap_name);
 
@@ -54,11 +63,11 @@ impl SnapGuard {
     }
 
     pub fn exec_snap(
-        zfs_command: &Path,
         dataset_name: &str,
-        snap_name: &str,
+        additional_snap_info: &AdditionalSnapInfo,
         snap_type: PrecautionarySnapType,
     ) -> HttmResult<String> {
+        let zfs_command = which("zfs")?;
         let mut process_args = vec!["snapshot".to_owned()];
 
         let timestamp = get_date(
@@ -67,8 +76,13 @@ impl SnapGuard {
             DateFormat::Timestamp,
         );
 
+        let additional_snap_info_str: &str = match additional_snap_info {
+            AdditionalSnapInfo::RestoreFilename(filename) => filename,
+            AdditionalSnapInfo::RollForwardSnapName(snap_name) => snap_name,
+        };
+
         let new_snap_name = match &snap_type {
-            PrecautionarySnapType::Pre => {
+            PrecautionarySnapType::PreRollForward => {
                 // all snapshots should have the same timestamp
                 let new_snap_name = format!(
                     "{}@snap_pre_{}_httmSnapRollForward",
@@ -77,11 +91,18 @@ impl SnapGuard {
 
                 new_snap_name
             }
-            PrecautionarySnapType::Post => {
+            PrecautionarySnapType::PostRollForward => {
                 let new_snap_name = format!(
                     "{}@snap_post_{}_:{}:_httmSnapRollForward",
-                    dataset_name, timestamp, snap_name
+                    dataset_name, timestamp, additional_snap_info_str
                 );
+
+                new_snap_name
+            }
+            PrecautionarySnapType::PreRestore => {
+                // all snapshots should have the same timestamp
+                let new_snap_name =
+                    format!("{}@snap_pre_{}_httmSnapRestore", dataset_name, timestamp);
 
                 new_snap_name
             }
@@ -105,13 +126,13 @@ impl SnapGuard {
             Err(HttmError::new(&msg).into())
         } else {
             let output_buf = match &snap_type {
-                PrecautionarySnapType::Pre => {
+                PrecautionarySnapType::PreRollForward | PrecautionarySnapType::PreRestore => {
                     format!(
                         "httm took a pre-execution snapshot named: {}\n",
                         &new_snap_name
                     )
                 }
-                PrecautionarySnapType::Post => {
+                PrecautionarySnapType::PostRollForward => {
                     format!(
                         "httm took a post-execution snapshot named: {}\n",
                         &new_snap_name

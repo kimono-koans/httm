@@ -67,10 +67,16 @@ pub enum InteractiveMode {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RestoreSnapGuard {
+    Guarded,
+    NotGuarded,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RestoreMode {
     CopyOnly,
     CopyAndPreserve,
-    Overwrite,
+    Overwrite(RestoreSnapGuard),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -160,14 +166,16 @@ fn parse_args() -> ArgMatches {
                 .long("restore")
                 .takes_value(true)
                 .default_missing_value("copy")
-                .possible_values(["copy", "copy-and-preserve", "overwrite", "yolo"])
+                .possible_values(["copy", "copy-and-preserve", "overwrite", "yolo", "guard"])
                 .min_values(0)
                 .require_equals(true)
                 .help("interactive browse and search a specified directory to display unique file versions.  Continue to another dialog to select a snapshot version to restore.  \
                 This argument optionally takes a value.  Default behavior/value is a non-destructive \"copy\" to the current working directory with a new name, \
                 so as not to overwrite any \"live\" file version.  However, the user may specify \"overwrite\" (or \"yolo\") to restore to the same file location.  Note, \"overwrite\" can be a DESTRUCTIVE operation.  \
                 Overwrite mode will attempt to preserve attributes, like the permissions/mode, timestamps, xattrs and ownership of the selected snapshot file version (this is and will likely remain a UNIX only feature).  \
-                In order to preserve such attributes in \"copy\" mode, specify the \"copy-and-preserve\" value.")
+                In order to preserve such attributes in \"copy\" mode, specify the \"copy-and-preserve\" value.  User may also specify \"guard\".  \
+                Guard mode has the same semantics as \"overwrite\" but will attempt to take a precautionary snapshot before any overwrite action occurs.  \
+                Note: Guard mode is a ZFS only option.")
                 .conflicts_with("SELECT")
                 .display_order(4)
         )
@@ -253,7 +261,7 @@ fn parse_args() -> ArgMatches {
                 .visible_aliases(&["snap-file", "snapshot", "snap-file-mount"])
                 .help("snapshot a file/s most immediate mount.  \
                 This argument optionally takes a value for a snapshot suffix.  The default suffix is 'httmSnapFileMount'.  \
-                Note: This is a ZFS only option.")
+                Note: This is a ZFS only option which requires either superuser or 'zfs allow' privileges.")
                 .conflicts_with_all(&["BROWSE", "SELECT", "RESTORE", "ALT_REPLICATED", "REMOTE_DIR", "LOCAL_DIR"])
                 .display_order(11)
         )
@@ -282,9 +290,11 @@ fn parse_args() -> ArgMatches {
                 .min_values(1)
                 .require_equals(true)
                 .multiple_values(false)
-                .help("roll forward, instead of rolling back.  httm will copy only files and their attributes that \
-                have changed since a specified snapshot, from that snapshot, to its live dataset.  httm will \
-                also take two precautionary snapshots, before and after the copy, just in case.")
+                .help("traditionally 'zfs rollback' is a destructive operation, whereas httm roll-forward is non-destructive.  \
+                httm will copy only files and their attributes that have changed since a specified snapshot, from that snapshot, to its live dataset.  \
+                httm will also take two precautionary snapshots, one before and one after the copy.  \
+                Should the roll forward fail for any reason, httm will roll back to the pre-execution state.  \
+                Note: This is a ZFS only option which requires super user privileges.")
                 .conflicts_with_all(&["BROWSE", "RESTORE", "ALT_REPLICATED", "REMOTE_DIR", "LOCAL_DIR"])
                 .display_order(13)
         )
@@ -619,9 +629,12 @@ impl Config {
 
         let opt_interactive_mode = if matches.is_present("RESTORE") {
             match matches.value_of("RESTORE") {
-                Some("overwrite" | "yolo") => {
-                    Some(InteractiveMode::Restore(RestoreMode::Overwrite))
-                }
+                Some("guard") => Some(InteractiveMode::Restore(RestoreMode::Overwrite(
+                    RestoreSnapGuard::Guarded,
+                ))),
+                Some("overwrite" | "yolo") => Some(InteractiveMode::Restore(
+                    RestoreMode::Overwrite(RestoreSnapGuard::NotGuarded),
+                )),
                 Some("copy-and-preserve") => {
                     Some(InteractiveMode::Restore(RestoreMode::CopyAndPreserve))
                 }
