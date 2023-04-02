@@ -15,9 +15,10 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::path::Path;
 use std::process::Command as ExecProcess;
 use std::time::SystemTime;
+
+use which::which;
 
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{get_date, DateFormat};
@@ -38,7 +39,8 @@ pub enum AdditionalSnapInfo {
 pub struct SnapGuard;
 
 impl SnapGuard {
-    pub fn exec_rollback(pre_exec_snap_name: &str, zfs_command: &Path) -> HttmResult<()> {
+    pub fn exec_rollback(pre_exec_snap_name: &str) -> HttmResult<()> {
+        let zfs_command = which("zfs")?;
         let mut process_args = vec!["rollback", "-r"];
         process_args.push(pre_exec_snap_name);
 
@@ -60,11 +62,11 @@ impl SnapGuard {
     }
 
     pub fn exec_snap(
-        zfs_command: &Path,
         dataset_name: &str,
         additional_snap_info: &AdditionalSnapInfo,
         snap_type: PrecautionarySnapType,
     ) -> HttmResult<String> {
+        let zfs_command = which("zfs")?;
         let mut process_args = vec!["snapshot".to_owned()];
 
         let timestamp = get_date(

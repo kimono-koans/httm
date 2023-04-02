@@ -129,7 +129,6 @@ impl RollForward {
         let mut stream = Self::ingest(&mut process_handle)?;
 
         let pre_exec_snap_name = SnapGuard::exec_snap(
-            &zfs_command,
             dataset_name,
             &AdditionalSnapInfo::RollForwardSnapName(snap_name.to_owned()),
             PrecautionarySnapType::PreRollForward,
@@ -147,7 +146,7 @@ impl RollForward {
                 );
                 eprintln!("{}", msg);
 
-                SnapGuard::exec_rollback(&pre_exec_snap_name, &zfs_command)
+                SnapGuard::exec_rollback(&pre_exec_snap_name)
                     .map(|_| println!("Rollback succeeded."))?;
 
                 std::process::exit(1)
@@ -155,7 +154,6 @@ impl RollForward {
         };
 
         SnapGuard::exec_snap(
-            &zfs_command,
             dataset_name,
             &AdditionalSnapInfo::RollForwardSnapName(snap_name.to_owned()),
             PrecautionarySnapType::PostRollForward,

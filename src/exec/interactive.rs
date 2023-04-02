@@ -19,7 +19,6 @@ use std::{io::Cursor, path::Path, path::PathBuf, thread};
 
 use crossbeam::channel::unbounded;
 use skim::prelude::*;
-use which::which;
 
 use crate::config::generate::{ExecMode, InteractiveMode, PrintMode, RestoreMode};
 use crate::data::paths::{PathData, PathMetadata};
@@ -322,10 +321,33 @@ impl InteractiveRestore {
                     ) && (user_has_effective_root().is_ok()
                         || user_has_zfs_allow_snap_priv(&new_file_path_buf).is_ok())
                     {
-                        Self::snap_guard(&new_file_path_buf)?;
-                    };
+                        let pre_exec_snap_name = Self::snap_guard(&new_file_path_buf)?;
 
-                    copy_recursive(&snap_pathdata.path_buf, &new_file_path_buf, should_preserve)?;
+                        if let Err(err) = copy_recursive(
+                            &snap_pathdata.path_buf,
+                            &new_file_path_buf,
+                            should_preserve,
+                        ) {
+                            let msg = format!(
+                                "httm restore failed for the following reason: {}.\n\
+                            Attempting roll back to precautionary pre-execution snapshot.",
+                                err
+                            );
+
+                            eprintln!("{}", msg);
+
+                            SnapGuard::exec_rollback(&pre_exec_snap_name)
+                                .map(|_| println!("Rollback succeeded."))?;
+
+                            std::process::exit(1);
+                        }
+                    } else {
+                        copy_recursive(
+                            &snap_pathdata.path_buf,
+                            &new_file_path_buf,
+                            should_preserve,
+                        )?
+                    }
 
                     let result_buffer = format!(
                         "httm copied a file from a snapshot:\n\n\
@@ -335,9 +357,9 @@ impl InteractiveRestore {
                         snap_pathdata.path_buf
                     );
 
-                    break eprintln!("{result_buffer}");
+                    break println!("{result_buffer}");
                 }
-                "NO" | "N" => break eprintln!("User declined restore.  No files were restored."),
+                "NO" | "N" => break println!("User declined restore.  No files were restored."),
                 // if not yes or no, then noop and continue to the next iter of loop
                 _ => {}
             }
@@ -346,8 +368,7 @@ impl InteractiveRestore {
         std::process::exit(0)
     }
 
-    fn snap_guard(new_file_path: &Path) -> HttmResult<()> {
-        let zfs_command = which("zfs")?;
+    fn snap_guard(new_file_path: &Path) -> HttmResult<String> {
         let pathdata = PathData::from(new_file_path);
         let file_name = pathdata.path_buf.to_string_lossy();
         let dataset_mount =
@@ -361,12 +382,10 @@ impl InteractiveRestore {
             .source;
 
         SnapGuard::exec_snap(
-            &zfs_command,
             dataset_name,
             &AdditionalSnapInfo::RestoreFilename(file_name.to_string()),
             PrecautionarySnapType::PreRestore,
         )
-        .map(|_res| ())
     }
 
     fn should_preserve_attributes() -> bool {
