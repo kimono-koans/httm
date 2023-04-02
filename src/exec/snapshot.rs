@@ -27,9 +27,9 @@ use crate::lookup::file_mounts::MountsForFiles;
 use crate::parse::aliases::FilesystemType;
 use crate::GLOBAL_CONFIG;
 
-pub struct TakeSnapshot;
+pub struct SnapshotMounts;
 
-impl TakeSnapshot {
+impl SnapshotMounts {
     pub fn exec(requested_snapshot_suffix: &str) -> HttmResult<()> {
         let mounts_for_files: MountsForFiles = MountsForFiles::new(&MountDisplay::Target);
 

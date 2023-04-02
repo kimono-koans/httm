@@ -65,7 +65,7 @@ mod parse {
 use crate::display_map::helper::PrintAsMap;
 use exec::purge::PurgeFiles;
 use exec::roll_forward::RollForward;
-use exec::snapshot::TakeSnapshot;
+use exec::snapshot::SnapshotMounts;
 use library::utility::print_output_buf;
 use once_cell::sync::Lazy;
 
@@ -128,7 +128,7 @@ fn exec() -> HttmResult<()> {
         // ExecMode::NonInteractiveRecursive, ExecMode::SnapFileMount, and ExecMode::MountsForFiles will print their
         // output elsewhere
         ExecMode::NonInteractiveRecursive(_) => NonInteractiveRecursiveWrapper::exec(),
-        ExecMode::SnapFileMount(snapshot_suffix) => TakeSnapshot::exec(snapshot_suffix),
+        ExecMode::SnapFileMount(snapshot_suffix) => SnapshotMounts::exec(snapshot_suffix),
         ExecMode::SnapsForFiles(opt_filters) => {
             let versions_map = VersionsMap::new(&GLOBAL_CONFIG, &GLOBAL_CONFIG.paths)?;
             let snap_name_map = SnapNameMap::exec(versions_map, opt_filters);
