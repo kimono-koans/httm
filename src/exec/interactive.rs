@@ -20,7 +20,7 @@ use std::{io::Cursor, path::Path, path::PathBuf, thread};
 use crossbeam::channel::unbounded;
 use skim::prelude::*;
 
-use crate::config::generate::{ExecMode, InteractiveMode, PrintMode, RestoreMode};
+use crate::config::generate::{ExecMode, InteractiveMode, PrintMode, RestoreMode, RestoreSnapGuard};
 use crate::data::paths::{PathData, PathMetadata};
 use crate::display_versions::wrapper::VersionsDisplayWrapper;
 use crate::exec::preview::PreviewSelection;
@@ -317,7 +317,7 @@ impl InteractiveRestore {
                 "YES" | "Y" => {
                     if matches!(
                         GLOBAL_CONFIG.exec_mode,
-                        ExecMode::Interactive(InteractiveMode::Restore(RestoreMode::Overwrite))
+                        ExecMode::Interactive(InteractiveMode::Restore(RestoreMode::Overwrite(RestoreSnapGuard::Guarded)))
                     ) && (user_has_effective_root().is_ok()
                         || user_has_zfs_allow_snap_priv(&new_file_path_buf).is_ok())
                     {
@@ -392,7 +392,7 @@ impl InteractiveRestore {
         matches!(
             GLOBAL_CONFIG.exec_mode,
             ExecMode::Interactive(InteractiveMode::Restore(
-                RestoreMode::CopyAndPreserve | RestoreMode::Overwrite
+                RestoreMode::CopyAndPreserve | RestoreMode::Overwrite(_)
             ))
         )
     }
@@ -405,7 +405,7 @@ impl InteractiveRestore {
         // build new place to send file
         if matches!(
             GLOBAL_CONFIG.exec_mode,
-            ExecMode::Interactive(InteractiveMode::Restore(RestoreMode::Overwrite))
+            ExecMode::Interactive(InteractiveMode::Restore(RestoreMode::Overwrite(_)))
         ) {
             // instead of just not naming the new file with extra info (date plus "httm_restored") and shoving that new file
             // into the pwd, here, we actually look for the original location of the file to make sure we overwrite it.
