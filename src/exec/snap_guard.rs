@@ -33,6 +33,7 @@ pub enum PrecautionarySnapType {
 
 pub enum AdditionalSnapInfo {
     RollForwardSnapName(String),
+    // fyi, this is unused
     RestoreFilename(String),
 }
 

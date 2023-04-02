@@ -27,14 +27,12 @@ use once_cell::sync::OnceCell;
 use which::which;
 
 use crate::data::paths::PathData;
-use crate::exec::snap_guard::{PrecautionarySnapType, SnapGuard};
+use crate::exec::snap_guard::{AdditionalSnapInfo, PrecautionarySnapType, SnapGuard};
 use crate::library::iter_extensions::HttmIter;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{copy_direct, remove_recursive};
 use crate::library::utility::{is_metadata_different, user_has_effective_root};
 use crate::GLOBAL_CONFIG;
-
-use super::snap_guard::AdditionalSnapInfo;
 
 #[derive(Clone)]
 struct DiffEvent {
