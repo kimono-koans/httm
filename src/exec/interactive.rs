@@ -350,13 +350,19 @@ impl InteractiveRestore {
         let zfs_command = which("zfs")?;
         let pathdata = PathData::from(new_file_path);
         let file_name = pathdata.path_buf.to_string_lossy();
-        let dataset_name = pathdata
-            .get_proximate_dataset(&GLOBAL_CONFIG.dataset_collection.map_of_datasets)?
-            .to_string_lossy();
+        let dataset_mount =
+            pathdata.get_proximate_dataset(&GLOBAL_CONFIG.dataset_collection.map_of_datasets)?;
+
+        let dataset_name = &GLOBAL_CONFIG
+            .dataset_collection
+            .map_of_datasets
+            .get(dataset_mount)
+            .unwrap()
+            .source;
 
         SnapGuard::exec_snap(
             &zfs_command,
-            &dataset_name,
+            dataset_name,
             &AdditionalSnapInfo::RestoreFilename(file_name.to_string()),
             PrecautionarySnapType::PreRestore,
         )
