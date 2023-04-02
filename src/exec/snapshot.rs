@@ -15,10 +15,9 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::{collections::BTreeMap, path::Path, time::SystemTime};
+use std::{collections::BTreeMap, time::SystemTime};
 
 use std::process::Command as ExecProcess;
-use which::which;
 
 use crate::config::generate::{MountDisplay, PrintMode};
 use crate::library::iter_extensions::HttmIter;
@@ -34,21 +33,16 @@ impl TakeSnapshot {
     pub fn exec(requested_snapshot_suffix: &str) -> HttmResult<()> {
         let mounts_for_files: MountsForFiles = MountsForFiles::new(&MountDisplay::Target);
 
-        if let Ok(zfs_command) = which("zfs") {
-            Self::snapshot_mounts(&zfs_command, &mounts_for_files, requested_snapshot_suffix)
-        } else {
-            Err(HttmError::new(
-                "'zfs' command not found. Make sure the command 'zfs' is in your path.",
-            )
-            .into())
-        }
+        Self::snapshot_mounts(&mounts_for_files, requested_snapshot_suffix)
     }
 
     fn snapshot_mounts(
-        zfs_command: &Path,
         mounts_for_files: &MountsForFiles,
         requested_snapshot_suffix: &str,
     ) -> HttmResult<()> {
+        let zfs_command = which::which("zfs").map_err(|_err| {
+            HttmError::new("'zfs' command not found. Make sure the command 'zfs' is in your path.")
+        })?;
         let map_snapshot_names =
             Self::get_snapshot_names(mounts_for_files, requested_snapshot_suffix)?;
 
@@ -56,7 +50,7 @@ impl TakeSnapshot {
             let mut process_args = vec!["snapshot".to_owned()];
             process_args.extend_from_slice(snapshot_names);
 
-            let process_output = ExecProcess::new(zfs_command).args(&process_args).output()?;
+            let process_output = ExecProcess::new(&zfs_command).args(&process_args).output()?;
             let stderr_string = std::str::from_utf8(&process_output.stderr)?.trim();
 
             // stderr_string is a string not an error, so here we build an err or output

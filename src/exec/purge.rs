@@ -15,10 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::path::Path;
 use std::process::Command as ExecProcess;
-
-use which::which;
 
 use crate::config::generate::ListSnapsFilters;
 use crate::exec::interactive::{select_restore_view, ViewMode};
@@ -41,21 +38,10 @@ impl PurgeFiles {
             false
         };
 
-        if let Ok(zfs_command) = which("zfs") {
-            Self::interactive_purge(&zfs_command, &snap_name_map, select_mode)
-        } else {
-            Err(HttmError::new(
-                "'zfs' command not found. Make sure the command 'zfs' is in your path.",
-            )
-            .into())
-        }
+        Self::interactive_purge(&snap_name_map, select_mode)
     }
 
-    fn interactive_purge(
-        zfs_command: &Path,
-        snap_name_map: &SnapNameMap,
-        select_mode: bool,
-    ) -> HttmResult<()> {
+    fn interactive_purge(snap_name_map: &SnapNameMap, select_mode: bool) -> HttmResult<()> {
         let file_names_string: String = snap_name_map
             .keys()
             .map(|key| format!("{:?}\n", key.path_buf))
@@ -95,7 +81,7 @@ impl PurgeFiles {
 
             match user_consent.as_ref() {
                 "YES" | "Y" => {
-                    Self::purge_snaps(zfs_command, snap_name_map)?;
+                    Self::purge_snaps(snap_name_map)?;
 
                     let result_buffer = format!(
                         "httm purged snapshots related to the following file/s:\n\n{}\n\
@@ -115,12 +101,15 @@ impl PurgeFiles {
         std::process::exit(0)
     }
 
-    fn purge_snaps(zfs_command: &Path, snap_name_map: &SnapNameMap) -> HttmResult<()> {
+    fn purge_snaps(snap_name_map: &SnapNameMap) -> HttmResult<()> {
+        let zfs_command = which::which("zfs").map_err(|_err| {
+            HttmError::new("'zfs' command not found. Make sure the command 'zfs' is in your path.")
+        })?;
         snap_name_map.values().flatten().try_for_each( |snapshot_name| {
             let mut process_args = vec!["destroy".to_owned()];
             process_args.push(snapshot_name.clone());
 
-            let process_output = ExecProcess::new(zfs_command).args(&process_args).output()?;
+            let process_output = ExecProcess::new(&zfs_command).args(&process_args).output()?;
             let stderr_string = std::str::from_utf8(&process_output.stderr)?.trim();
 
             // stderr_string is a string not an error, so here we build an err or output
