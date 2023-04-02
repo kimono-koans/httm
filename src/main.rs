@@ -63,7 +63,7 @@ mod parse {
 }
 
 use crate::display_map::helper::PrintAsMap;
-use exec::purge::PurgeFiles;
+use exec::purge::PurgeSnaps;
 use exec::roll_forward::RollForward;
 use exec::snapshot::SnapshotMounts;
 use library::utility::print_output_buf;
@@ -139,7 +139,7 @@ fn exec() -> HttmResult<()> {
         }
         ExecMode::Purge(opt_filters) => {
             let versions_map = VersionsMap::new(&GLOBAL_CONFIG, &GLOBAL_CONFIG.paths)?;
-            PurgeFiles::exec(versions_map, opt_filters)
+            PurgeSnaps::exec(versions_map, opt_filters)
         }
         ExecMode::MountsForFiles(mount_display) => {
             let mounts_map = &MountsForFiles::new(mount_display);

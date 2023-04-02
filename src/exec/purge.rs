@@ -23,9 +23,9 @@ use crate::library::results::{HttmError, HttmResult};
 use crate::lookup::snap_names::SnapNameMap;
 use crate::lookup::versions::VersionsMap;
 
-pub struct PurgeFiles;
+pub struct PurgeSnaps;
 
-impl PurgeFiles {
+impl PurgeSnaps {
     pub fn exec(
         versions_map: VersionsMap,
         opt_filters: &Option<ListSnapsFilters>,
