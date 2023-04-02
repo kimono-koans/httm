@@ -20,7 +20,9 @@ use std::{io::Cursor, path::Path, path::PathBuf, thread};
 use crossbeam::channel::unbounded;
 use skim::prelude::*;
 
-use crate::config::generate::{ExecMode, InteractiveMode, PrintMode, RestoreMode, RestoreSnapGuard};
+use crate::config::generate::{
+    ExecMode, InteractiveMode, PrintMode, RestoreMode, RestoreSnapGuard,
+};
 use crate::data::paths::{PathData, PathMetadata};
 use crate::display_versions::wrapper::VersionsDisplayWrapper;
 use crate::exec::preview::PreviewSelection;
@@ -317,7 +319,9 @@ impl InteractiveRestore {
                 "YES" | "Y" => {
                     if matches!(
                         GLOBAL_CONFIG.exec_mode,
-                        ExecMode::Interactive(InteractiveMode::Restore(RestoreMode::Overwrite(RestoreSnapGuard::Guarded)))
+                        ExecMode::Interactive(InteractiveMode::Restore(RestoreMode::Overwrite(
+                            RestoreSnapGuard::Guarded
+                        )))
                     ) && (user_has_effective_root().is_ok()
                         || user_has_zfs_allow_snap_priv(&new_file_path_buf).is_ok())
                     {

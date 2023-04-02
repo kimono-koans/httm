@@ -108,15 +108,6 @@ impl RollForward {
     pub fn exec(full_snap_name: &str) -> HttmResult<()> {
         user_has_effective_root()?;
 
-        let zfs_command = if let Ok(zfs_command) = which("zfs") {
-            zfs_command
-        } else {
-            return Err(HttmError::new(
-                "'zfs' command not found. Make sure the command 'zfs' is in your path.",
-            )
-            .into());
-        };
-
         let (dataset_name, snap_name) = if let Some(res) = full_snap_name.split_once('@') {
             res
         } else {
@@ -124,7 +115,7 @@ impl RollForward {
             return Err(HttmError::new(&msg).into());
         };
 
-        let mut process_handle = Self::exec_diff(full_snap_name, &zfs_command)?;
+        let mut process_handle = Self::exec_diff(full_snap_name)?;
 
         let mut stream = Self::ingest(&mut process_handle)?;
 
@@ -161,7 +152,10 @@ impl RollForward {
         .map(|_res| ())
     }
 
-    fn exec_diff(full_snapshot_name: &str, zfs_command: &Path) -> HttmResult<Child> {
+    fn exec_diff(full_snapshot_name: &str) -> HttmResult<Child> {
+        let zfs_command = which("zfs").map_err(|_err| {
+            HttmError::new("'zfs' command not found. Make sure the command 'zfs' is in your path.")
+        })?;
         let mut process_args = vec!["diff", "-H", "-t"];
         process_args.push(full_snapshot_name);
 

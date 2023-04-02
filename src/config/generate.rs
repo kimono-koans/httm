@@ -629,12 +629,12 @@ impl Config {
 
         let opt_interactive_mode = if matches.is_present("RESTORE") {
             match matches.value_of("RESTORE") {
-                Some("guard") => {
-                    Some(InteractiveMode::Restore(RestoreMode::Overwrite(RestoreSnapGuard::Guarded)))
-                }
-                Some("overwrite" | "yolo") => {
-                    Some(InteractiveMode::Restore(RestoreMode::Overwrite(RestoreSnapGuard::NotGuarded)))
-                }
+                Some("guard") => Some(InteractiveMode::Restore(RestoreMode::Overwrite(
+                    RestoreSnapGuard::Guarded,
+                ))),
+                Some("overwrite" | "yolo") => Some(InteractiveMode::Restore(
+                    RestoreMode::Overwrite(RestoreSnapGuard::NotGuarded),
+                )),
                 Some("copy-and-preserve") => {
                     Some(InteractiveMode::Restore(RestoreMode::CopyAndPreserve))
                 }
