@@ -98,11 +98,13 @@ impl MapOfSnaps {
 
     // build paths to all snap mounts
     fn from_btrfs_cmd(mount_point_path: &Path, root_mount_path: &Path) -> HttmResult<Vec<PathBuf>> {
-        fn parse(
-            mount_point_path: &Path,
-            root_mount_path: &Path,
-            btrfs_command: &Path,
-        ) -> HttmResult<Vec<PathBuf>> {
+        fn parse(mount_point_path: &Path, root_mount_path: &Path) -> HttmResult<Vec<PathBuf>> {
+            let btrfs_command = which("btrfs").map_err(|_err| {
+                HttmError::new(
+                    "'btrfs' command not found. Make sure the command 'btrfs' is in your path.",
+                )
+            })?;
+
             let exec_command = btrfs_command;
             let arg_path = mount_point_path.to_string_lossy();
             let args = vec!["subvolume", "list", "-a", "-s", &arg_path];
@@ -137,15 +139,7 @@ impl MapOfSnaps {
             Ok(snaps)
         }
 
-        if let Ok(btrfs_command) = which("btrfs") {
-            let snapshot_locations = parse(mount_point_path, root_mount_path, &btrfs_command)?;
-            Ok(snapshot_locations)
-        } else {
-            Err(HttmError::new(
-                "'btrfs' command not found. Make sure the command 'btrfs' is in your path.",
-            )
-            .into())
-        }
+        parse(mount_point_path, root_mount_path)
     }
 
     fn from_defined_mounts(

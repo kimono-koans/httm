@@ -17,7 +17,7 @@
 
 use std::collections::BTreeMap;
 use std::ops::Deref;
-use std::{path::Path, path::PathBuf, process::Command as ExecProcess};
+use std::{path::PathBuf, process::Command as ExecProcess};
 
 use hashbrown::{HashMap, HashSet};
 use proc_mounts::MountIter;
@@ -225,17 +225,30 @@ impl BaseFilesystemInfo {
     // old fashioned parsing for non-Linux systems, nearly as fast, works everywhere with a mount command
     // both methods are much faster than using zfs command
     fn from_mount_cmd() -> HttmResult<(HashMap<PathBuf, DatasetMetadata>, HashSet<PathBuf>)> {
-        fn parse(
-            mount_command: &Path,
-        ) -> HttmResult<(HashMap<PathBuf, DatasetMetadata>, HashSet<PathBuf>)> {
-            let command_output =
-                std::str::from_utf8(&ExecProcess::new(mount_command).output()?.stdout)?.to_owned();
+        fn parse() -> HttmResult<(HashMap<PathBuf, DatasetMetadata>, HashSet<PathBuf>)> {
+            // do we have the necessary commands for search if user has not defined a snap point?
+            // if so run the mount search, if not print some errors
+            let mount_command = which("mount").map_err(|_err| {
+                HttmError::new(
+                    "'mount' command not be found. Make sure the command 'mount' is in your path.",
+                )
+            })?;
+
+            let command_output = &ExecProcess::new(mount_command).output()?;
+
+            let stderr_string = std::str::from_utf8(&command_output.stderr)?;
+
+            if !stderr_string.is_empty() {
+                return Err(HttmError::new(stderr_string).into());
+            }
+
+            let stdout_string = std::str::from_utf8(&command_output.stdout)?;
 
             // parse "mount" for filesystems and mountpoints
             let (map_of_datasets, filter_dirs): (
                 HashMap<PathBuf, DatasetMetadata>,
                 HashSet<PathBuf>,
-            ) = command_output
+            ) = stdout_string
                 .par_lines()
                 // but exclude snapshot mounts.  we want the raw filesystem names.
                 .filter(|line| !line.contains(ZFS_SNAPSHOT_DIRECTORY))
@@ -284,18 +297,7 @@ impl BaseFilesystemInfo {
             }
         }
 
-        // do we have the necessary commands for search if user has not defined a snap point?
-        // if so run the mount search, if not print some errors
-        if let Ok(mount_command) = which("mount") {
-            let (map_of_datasets, filter_dirs) = parse(&mount_command)?;
-
-            Ok((map_of_datasets, filter_dirs))
-        } else {
-            Err(HttmError::new(
-                "'mount' command not be found. Make sure the command 'mount' is in your path.",
-            )
-            .into())
-        }
+        parse()
     }
 
     // if we have some btrfs mounts, we check to see if there is a snap directory in common
