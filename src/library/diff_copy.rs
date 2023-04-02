@@ -29,6 +29,8 @@ use simd_adler32::Adler32;
 
 use crate::library::results::HttmResult;
 
+use super::results::HttmError;
+
 const CHUNK_SIZE: usize = 65_536;
 
 pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
@@ -64,7 +66,12 @@ pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
         }
 
         if opt_just_write.is_some() || !is_same_bytes(&src_buffer, &dest_buffer) {
-            let _ = dst_writer.seek(SeekFrom::Start(cur_pos))?;
+            let seek_pos = dst_writer.seek(SeekFrom::Start(cur_pos))?;
+
+            if seek_pos != cur_pos {
+                return Err(HttmError::new("Seek offset did not match requested offset.").into());
+            }
+
             let amt_written = if src_amt_read == CHUNK_SIZE {
                 dst_writer.write(&src_buffer)?
             } else {
@@ -72,7 +79,12 @@ pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
                 dst_writer.write(range)?
             };
 
-            assert!(amt_written == src_amt_read);
+            if amt_written != src_amt_read {
+                return Err(HttmError::new(
+                    "Amount of bytes read did not match amount of bytes written.",
+                )
+                .into());
+            }
 
             cur_pos += amt_written as u64;
         } else {
