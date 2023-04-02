@@ -34,6 +34,8 @@ use crate::library::utility::{copy_direct, remove_recursive};
 use crate::library::utility::{is_metadata_different, user_has_effective_root};
 use crate::GLOBAL_CONFIG;
 
+use super::snap_guard::AdditionalSnapInfo;
+
 #[derive(Clone)]
 struct DiffEvent {
     pathdata: PathData,
@@ -129,8 +131,8 @@ impl RollForward {
         let pre_exec_snap_name = SnapGuard::exec_snap(
             &zfs_command,
             dataset_name,
-            snap_name,
-            PrecautionarySnapType::Pre,
+            &AdditionalSnapInfo::RollForwardSnapName(snap_name.to_owned()),
+            PrecautionarySnapType::PreRollForward,
         )?;
 
         match Self::roll_forward(&mut stream, snap_name) {
@@ -155,8 +157,8 @@ impl RollForward {
         SnapGuard::exec_snap(
             &zfs_command,
             dataset_name,
-            snap_name,
-            PrecautionarySnapType::Post,
+            &AdditionalSnapInfo::RollForwardSnapName(snap_name.to_owned()),
+            PrecautionarySnapType::PostRollForward,
         )
         .map(|_res| ())
     }
@@ -223,7 +225,7 @@ impl RollForward {
 
             if !buffer.is_empty() {
                 if let Ok(output_buf) = std::str::from_utf8(buffer) {
-                    return Err(HttmError::new(format!("{}", output_buf).trim()).into());
+                    return Err(HttmError::new(output_buf.to_string().trim()).into());
                 }
             }
         }

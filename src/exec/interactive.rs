@@ -19,15 +19,19 @@ use std::{io::Cursor, path::Path, path::PathBuf, thread};
 
 use crossbeam::channel::unbounded;
 use skim::prelude::*;
+use which::which;
 
 use crate::config::generate::{ExecMode, InteractiveMode, PrintMode, RestoreMode};
 use crate::data::paths::{PathData, PathMetadata};
 use crate::display_versions::wrapper::VersionsDisplayWrapper;
 use crate::exec::preview::PreviewSelection;
 use crate::exec::recursive::InteractiveRecursive;
+use crate::exec::snap_guard::SnapGuard;
+use crate::exec::snap_guard::{AdditionalSnapInfo, PrecautionarySnapType};
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{
-    copy_recursive, get_date, get_delimiter, print_output_buf, DateFormat, Never,
+    copy_recursive, get_date, get_delimiter, print_output_buf, user_has_effective_root,
+    user_has_zfs_allow_snap_priv, DateFormat, Never,
 };
 use crate::lookup::versions::VersionsMap;
 use crate::GLOBAL_CONFIG;
@@ -312,6 +316,15 @@ impl InteractiveRestore {
 
             match user_consent.as_ref() {
                 "YES" | "Y" => {
+                    if matches!(
+                        GLOBAL_CONFIG.exec_mode,
+                        ExecMode::Interactive(InteractiveMode::Restore(RestoreMode::Overwrite))
+                    ) && (user_has_effective_root().is_ok()
+                        || user_has_zfs_allow_snap_priv(&new_file_path_buf).is_ok())
+                    {
+                        Self::snap_guard(&new_file_path_buf)?;
+                    };
+
                     copy_recursive(&snap_pathdata.path_buf, &new_file_path_buf, should_preserve)?;
 
                     let result_buffer = format!(
@@ -331,6 +344,23 @@ impl InteractiveRestore {
         }
 
         std::process::exit(0)
+    }
+
+    fn snap_guard(new_file_path: &Path) -> HttmResult<()> {
+        let zfs_command = which("zfs")?;
+        let pathdata = PathData::from(new_file_path);
+        let file_name = pathdata.path_buf.to_string_lossy();
+        let dataset_name = pathdata
+            .get_proximate_dataset(&GLOBAL_CONFIG.dataset_collection.map_of_datasets)?
+            .to_string_lossy();
+
+        SnapGuard::exec_snap(
+            &zfs_command,
+            &dataset_name,
+            &AdditionalSnapInfo::RestoreFilename(file_name.to_string()),
+            PrecautionarySnapType::PreRestore,
+        )
+        .map(|_res| ())
     }
 
     fn should_preserve_attributes() -> bool {

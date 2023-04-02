@@ -31,6 +31,7 @@ use lscolors::{Colorable, LsColors, Style};
 use number_prefix::NumberPrefix;
 use once_cell::sync::Lazy;
 use time::{format_description, OffsetDateTime, UtcOffset};
+use which::which;
 
 use crate::data::paths::{BasicDirEntryInfo, PathData, PHANTOM_SIZE};
 use crate::data::selection::SelectionCandidate;
@@ -40,10 +41,54 @@ use crate::parse::aliases::FilesystemType;
 use crate::GLOBAL_CONFIG;
 use crate::{config::generate::PrintMode, data::paths::PathMetadata};
 use crate::{BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_SNAPSHOT_DIRECTORY};
+use std::process::Command as ExecProcess;
 
 pub fn user_has_effective_root() -> HttmResult<()> {
     if !nix::unistd::geteuid().is_root() {
         return Err(HttmError::new("Superuser privileges are require to execute.").into());
+    }
+
+    Ok(())
+}
+
+pub fn user_has_zfs_allow_snap_priv(new_file_path: &Path) -> HttmResult<()> {
+    let zfs_command = which("zfs")?;
+
+    let pathdata = PathData::from(new_file_path);
+
+    let dataset_mount =
+        pathdata.get_proximate_dataset(&GLOBAL_CONFIG.dataset_collection.map_of_datasets)?;
+
+    let dataset_name = &GLOBAL_CONFIG
+        .dataset_collection
+        .map_of_datasets
+        .get(dataset_mount)
+        .unwrap()
+        .source;
+
+    let mut process_args = vec!["allow"];
+    process_args.push(dataset_name);
+
+    let process_output = ExecProcess::new(zfs_command).args(&process_args).output()?;
+    let stderr_string = std::str::from_utf8(&process_output.stderr)?.trim();
+    let stdout_string = std::str::from_utf8(&process_output.stdout)?.trim();
+
+    // stderr_string is a string not an error, so here we build an err or output
+    if !stderr_string.is_empty() {
+        let msg = "httm was unable to determine 'zfs allow' for the path given. The 'zfs' command issued the following error: ".to_owned() + stderr_string;
+
+        return Err(HttmError::new(&msg).into());
+    }
+
+    let user_name = std::env::var("USER")?;
+
+    if !stdout_string.contains(&user_name)
+        || !stdout_string.contains("mount")
+        || !stdout_string.contains("snapshot")
+    {
+        let msg = "User does not have 'zfs allow' privileges for the path given.";
+
+        return Err(HttmError::new(msg).into());
     }
 
     Ok(())
