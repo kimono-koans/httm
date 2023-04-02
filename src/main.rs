@@ -37,7 +37,7 @@ mod exec {
     pub mod recursive;
     pub mod roll_forward;
     pub mod snap_guard;
-    pub mod snapshot;
+    pub mod snap_mounts;
 }
 mod config {
     pub mod generate;
@@ -65,7 +65,7 @@ mod parse {
 use crate::display_map::helper::PrintAsMap;
 use exec::purge::PurgeSnaps;
 use exec::roll_forward::RollForward;
-use exec::snapshot::SnapshotMounts;
+use exec::snap_mounts::SnapshotMounts;
 use library::utility::print_output_buf;
 use once_cell::sync::Lazy;
 
