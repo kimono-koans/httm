@@ -27,9 +27,8 @@ use crate::data::paths::{PathData, PathMetadata};
 use crate::display_versions::wrapper::VersionsDisplayWrapper;
 use crate::exec::preview::PreviewSelection;
 use crate::exec::recursive::InteractiveRecursive;
-use crate::exec::snap_guard::SnapGuard;
-use crate::exec::snap_guard::{AdditionalSnapInfo, PrecautionarySnapType};
 use crate::library::results::{HttmError, HttmResult};
+use crate::library::snap_guard::{AdditionalSnapInfo, PrecautionarySnapType, SnapGuard};
 use crate::library::utility::{
     copy_recursive, get_date, get_delimiter, print_output_buf, user_has_effective_root,
     user_has_zfs_allow_snap_priv, DateFormat, Never,

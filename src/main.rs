@@ -36,7 +36,6 @@ mod exec {
     pub mod purge;
     pub mod recursive;
     pub mod roll_forward;
-    pub mod snap_guard;
     pub mod snap_mounts;
 }
 mod config {
@@ -47,6 +46,7 @@ mod library {
     pub mod diff_copy;
     pub mod iter_extensions;
     pub mod results;
+    pub mod snap_guard;
     pub mod utility;
 }
 mod lookup {
