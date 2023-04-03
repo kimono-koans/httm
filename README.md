@@ -15,7 +15,7 @@
 * For use with `rsync`-ed non-ZFS/BTRFS/NILFS2 local datasets (like ext4, APFS, or NTFS), not just ZFS/BTRFS/NILFS2.
 * Preview snapshot file versions with a custom command, or by default `diff` compare to the live version
 * Roll *forward* to a previous snapshots, instead of rolling back (avoids destroying interstitial snapshots)
-* List or snapshot the mounts for a file (even trace arbitrary program file opens to snapshot *before* you make changes, with `ounce`!)
+* List or even snapshot the mounts for a file directly
 * List snapshot names, even purge snapshots, which include a file
 * Shortcut features: only display last snapshot, omit duplicates of the live file, etc.
 * Uniqueness level: Like `rsync`, `httm` can determine whether file is unique based solely on metadata, or file checksums
@@ -23,6 +23,7 @@
 * ANSI `ls` colors from your environment
 * Detect and display only categories of the numbers of unique file versions available (multiple, single, single-with-snap..., etc.)
 * Select from several formatting styles (newline, null, tab delimited, JSON, etc.).  Parseable ... or not ...  oh my!
+* Packaged scripts which help you, and show you how to, use `httm`: [ounce](https://github.com/kimono-koans/httm/blob/master/scripts/ounce.bash), [bowie](https://github.com/kimono-koans/httm/blob/master/scripts/bowie.bash), and [nicotine](https://github.com/kimono-koans/httm/blob/master/scripts/nicotine.bash)
 * Supports ZFS/BTRFS/NILFS2 snapshots
 
 Use in combination with you favorite shell's hot keys for even more fun.
@@ -81,7 +82,7 @@ The `httm` project contains only a few components:
     ```bash
     cp ./httm/httm.1 /usr/local/share/man/man1/
     ```
-4. The optional [ounce](https://github.com/kimono-koans/httm/blob/master/scripts/ounce.bash), [bowie](https://github.com/kimono-koans/httm/blob/master/scripts/bowie.bash), and [nicotine](https://github.com/kimono-koans/httm/blob/master/scripts/nicotine.bash) scripts.  See the scripts themselves, and below, in the Example Usage section, for more information.  To install, just copy it to a directory in your path, like so:
+4. The optional  scripts.  See the scripts themselves, and below, in the Example Usage section, for more information.  To install, just copy it to a directory in your path, like so:
 
     ```bash
     cp ./httm/scripts/ounce.bash /usr/local/bin/ounce
@@ -92,7 +93,7 @@ The `httm` project contains only a few components:
 
 ### Caveats
 
-Right now, you will need to use a Unix-ish-y Rust-supported platform to build and install (that is: Linux, Solaris/illumos, the BSDs, MacOS).  Note, your platform *does not* need to support ZFS/BTRFS/NILFS2 to use `httm`.  And there is no fundamental reason a non-interactive Windows version of `httm` could not be built, as it once did build, but Windows platform support is not a priority for me right now.  Contributions from users are, of course, very welcome.
+Right now, you will need to use a Unix-ish-y Rust-supported platform to build and install (that is: Linux, Solaris/illumos, the BSDs, [ounce](https://github.com/kimono-koans/httm/blob/master/scripts/ounce.bash), [bowie](https://github.com/kimono-koans/httm/blob/master/scripts/bowie.bash), and [nicotine](https://github.com/kimono-koans/httm/blob/master/scripts/nicotine.bash)MacOS).  Note, your platform *does not* need to support ZFS/BTRFS/NILFS2 to use `httm`.  And there is no fundamental reason a non-interactive Windows version of `httm` could not be built, as it once did build, but Windows platform support is not a priority for me right now.  Contributions from users are, of course, very welcome.
 
 On FreeBSD, after a fresh minimal install, the interactive modes may not render properly, see the linked [issue](https://github.com/kimono-koans/httm/issues/20) for the fix.
 
@@ -267,7 +268,7 @@ Use [nicotine](https://github.com/kimono-koans/httm/blob/master/scripts/nicotine
 ➜ nicotine .zshrc
 nicotine git archive created successfully: /home/kimono/zshrc-git.tar.gz
 ```
-Roll forward to a previous ZFS snapshot, instead of rolling back (avoids destroying interstitial snapshots):
+Roll *forward* to a previous ZFS snapshot, instead of rolling back (this avoids destroying interstitial snapshots):
 ```bash
 ➜ sudo httm --roll-forward=rpool/scratch@snap_2023-04-01-15:26:06_httmSnapFileMount
 [sudo] password for kimono:
