@@ -14,14 +14,15 @@
 * List file snapshots from remote backup pools (even overlay replicated remote snapshot directories over live directories).
 * For use with `rsync`-ed non-ZFS/BTRFS/NILFS2 local datasets (like ext4, APFS, or NTFS), not just ZFS/BTRFS/NILFS2.
 * Preview snapshot file versions with a custom command, or by default `diff` compare to the live version
-* Roll *forward* to a previous snapshots, instead of rolling back (avoids destroying interstitial snapshots)
 * List or even snapshot the mounts for a file directly
+* Roll *forward* to a previous snapshots, instead of rolling back (avoids destroying interstitial snapshots)
+* Guard any restore actions with precautionary snapshots
 * List snapshot names, even purge snapshots, which include a file
 * Shortcut features: only display last snapshot, omit duplicates of the live file, etc.
-* Uniqueness level: Like `rsync`, `httm` can determine whether file is unique based solely on metadata, or file checksums
+* Uniqueness level: Like `rsync`, `httm` can determine whether file is unique based solely on metadata, or use checksums
 * 3 native interactive modes: browse, select and restore
 * ANSI `ls` colors from your environment
-* Detect and display only categories of the numbers of unique file versions available (multiple, single, single-with-snap..., etc.)
+* Detect and display only categories of the numbers of unique file versions available (`multiple`, `single`, `single-with-snap`,..., etc.)
 * Select from several formatting styles (newline, null, tab delimited, JSON, etc.).  Parseable ... or not ...  oh my!
 * Packaged scripts which help you, and show you how to, use `httm`: [ounce](https://github.com/kimono-koans/httm/blob/master/scripts/ounce.bash), [bowie](https://github.com/kimono-koans/httm/blob/master/scripts/bowie.bash), and [nicotine](https://github.com/kimono-koans/httm/blob/master/scripts/nicotine.bash)
 * Supports ZFS/BTRFS/NILFS2 snapshots
