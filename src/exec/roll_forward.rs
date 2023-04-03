@@ -229,7 +229,13 @@ impl RollForward {
     {
         let cell: OnceCell<PathBuf> = OnceCell::new();
 
-        stream
+        let mut iter_peekable = stream.peekable();
+
+        if iter_peekable.peek().is_none() {
+            return Err(HttmError::new("zfs diff reported no changes").into());
+        }
+
+        iter_peekable
             // zfs-diff can return multiple file actions for a single inode, here we dedup
             .into_group_map_by(|event| event.pathdata.clone())
             .into_iter()
