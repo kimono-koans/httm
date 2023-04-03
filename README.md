@@ -13,14 +13,16 @@
 * List file snapshots from *all* local pools (detect local snapshot versions *as well as* locally replicated snapshot versions)!
 * List file snapshots from remote backup pools (even overlay replicated remote snapshot directories over live directories).
 * For use with `rsync`-ed non-ZFS/BTRFS/NILFS2 local datasets (like ext4, APFS, or NTFS), not just ZFS/BTRFS/NILFS2.
-* Preview snapshot file versions with a custom command, or `diff` compare to the live version
+* Preview snapshot file versions with a custom command, or by default `diff` compare to the live version
+* Roll *forward* to a previous snapshots, instead of rolling back (avoids destroying interstitial snapshots)
+* List or snapshot the mounts for a file (even trace arbitrary program file opens to snapshot *before* you make changes, with `ounce`!)
+* List snapshot names, even purge snapshots, which include a file
+* Shortcut features: only display last snapshot, omit duplicates of the live file, etc.
+* Uniqueness level: Like `rsync`, `httm` can determine whether file is unique based solely on metadata, or file checksums
 * 3 native interactive modes: browse, select and restore
 * ANSI `ls` colors from your environment
-* Non-blocking recursive directory walking (available in all interactive modes)
-* List or snapshot the mounts for a file (even trace arbitrary program file opens to snapshot *before* you make changes, with `ounce`!)
-* List all snapshot names, even purge snapshots, which include a file
-* Detect and display the number of unique file versions available
-* Select from several formatting styles.  Parseable ... or not ...  oh my!
+* Detect and display only categories of the numbers of unique file versions available (multiple, single, single-with-snap..., etc.)
+* Select from several formatting styles (newline, null, tab delimited, JSON, etc.).  Parseable ... or not ...  oh my!
 * Supports ZFS/BTRFS/NILFS2 snapshots
 
 Use in combination with you favorite shell's hot keys for even more fun.
@@ -264,6 +266,15 @@ Use [nicotine](https://github.com/kimono-koans/httm/blob/master/scripts/nicotine
 ```bash
 ➜ nicotine .zshrc
 nicotine git archive created successfully: /home/kimono/zshrc-git.tar.gz
+```
+Roll forward to a previous ZFS snapshot, instead of rolling back (avoids destroying interstitial snapshots):
+```bash
+➜ sudo httm --roll-forward=rpool/scratch@snap_2023-04-01-15:26:06_httmSnapFileMount
+[sudo] password for kimono:
+httm took a pre-execution snapshot named: rpool/scratch@snap_pre_2023-04-01-15:27:38_httmSnapRollForward
+...
+httm roll forward completed successfully.
+httm took a post-execution snapshot named: rpool/scratch@snap_post_2023-04-01-15:28:40_:snap_2023-04-01-15:26:06_httmSnapFileMount:_httmSnapRollForward
 ```
 
 ## Yo, @kimono-koans, where do your snapshots come from?
