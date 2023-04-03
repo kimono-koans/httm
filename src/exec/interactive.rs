@@ -339,7 +339,7 @@ impl InteractiveRestore {
 
                             eprintln!("{}", msg);
 
-                            SnapGuard::exec_rollback(&pre_exec_snap_name)
+                            SnapGuard::rollback(&pre_exec_snap_name)
                                 .map(|_| println!("Rollback succeeded."))?;
 
                             std::process::exit(1);
@@ -384,7 +384,7 @@ impl InteractiveRestore {
             .unwrap()
             .source;
 
-        SnapGuard::exec_snap(
+        SnapGuard::snapshot(
             dataset_name,
             &AdditionalSnapInfo::RestoreFilename(file_name.to_string()),
             PrecautionarySnapType::PreRestore,

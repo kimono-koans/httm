@@ -40,7 +40,7 @@ pub enum AdditionalSnapInfo {
 pub struct SnapGuard;
 
 impl SnapGuard {
-    pub fn exec_rollback(pre_exec_snap_name: &str) -> HttmResult<()> {
+    pub fn rollback(pre_exec_snap_name: &str) -> HttmResult<()> {
         let zfs_command = which("zfs")?;
         let mut process_args = vec!["rollback", "-r"];
         process_args.push(pre_exec_snap_name);
@@ -62,7 +62,7 @@ impl SnapGuard {
         Ok(())
     }
 
-    pub fn exec_snap(
+    pub fn snapshot(
         dataset_name: &str,
         additional_snap_info: &AdditionalSnapInfo,
         snap_type: PrecautionarySnapType,
