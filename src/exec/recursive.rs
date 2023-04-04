@@ -42,7 +42,7 @@ impl NonInteractiveRecursiveWrapper {
 
         match &GLOBAL_CONFIG.opt_requested_dir {
             Some(requested_dir) => {
-                InteractiveRecursive::exec(&requested_dir.path_buf, dummy_skim_tx, hangup_rx);
+                SharedRecursive::exec(&requested_dir.path_buf, dummy_skim_tx, hangup_rx);
             }
             None => {
                 return Err(HttmError::new(
@@ -65,9 +65,9 @@ impl NonInteractiveRecursiveWrapper {
     }
 }
 
-pub struct InteractiveRecursive;
+pub struct SharedRecursive;
 
-impl InteractiveRecursive {
+impl SharedRecursive {
     pub fn exec(requested_dir: &Path, skim_tx: SkimItemSender, hangup_rx: Receiver<Never>) {
         let run = |opt_deleted_scope: Option<&Scope>| {
             Self::main_loop(requested_dir, opt_deleted_scope, &skim_tx, &hangup_rx).unwrap_or_else(
@@ -146,11 +146,7 @@ impl InteractiveRecursive {
 
         Ok(vec_dirs)
     }
-}
 
-pub struct SharedRecursive;
-
-impl SharedRecursive {
     pub fn combine_and_send_entries(
         vec_files: Vec<BasicDirEntryInfo>,
         vec_dirs: &[BasicDirEntryInfo],

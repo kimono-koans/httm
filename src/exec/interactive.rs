@@ -26,7 +26,7 @@ use crate::config::generate::{
 use crate::data::paths::{PathData, PathMetadata};
 use crate::display_versions::wrapper::VersionsDisplayWrapper;
 use crate::exec::preview::PreviewSelection;
-use crate::exec::recursive::InteractiveRecursive;
+use crate::exec::recursive::SharedRecursive;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::snap_guard::{AdditionalSnapInfo, PrecautionarySnapType, SnapGuard};
 use crate::library::utility::{
@@ -98,7 +98,7 @@ impl InteractiveBrowse {
         // thread spawn fn enumerate_directory - permits recursion into dirs without blocking
         thread::spawn(move || {
             // no way to propagate error from closure so exit and explain error here
-            InteractiveRecursive::exec(&requested_dir_clone, tx_item.clone(), hangup_rx.clone())
+            SharedRecursive::exec(&requested_dir_clone, tx_item.clone(), hangup_rx.clone())
         });
 
         let handle = thread::spawn(move || {
