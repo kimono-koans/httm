@@ -153,9 +153,9 @@ fn write_cow(
 
             return Ok(bytes_written);
         }
-        return dst_writer.write(range).map_err(|err| err.into());
+        return Err(HttmError::new("write_cow not supported on your platform").into());
     }
-    Err(HttmError::new("write_cow not supported on your platform").into())
+    dst_writer.write(range).map_err(|err| err.into())
 }
 
 static COW_COMPATIBLE: Lazy<bool> = Lazy::new(|| {
