@@ -24,6 +24,7 @@ use std::io::Seek;
 use std::io::SeekFrom;
 use std::io::Write;
 use std::path::Path;
+use std::os::unix::io::AsRawFd;
 
 use simd_adler32::Adler32;
 
@@ -66,41 +67,52 @@ pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
         }
 
         if opt_just_write.is_some() || !is_same_bytes(&src_buffer, &dest_buffer) {
-                let seek_pos = dst_writer.seek(SeekFrom::Start(cur_pos))?;
+            let seek_pos = dst_writer.seek(SeekFrom::Start(cur_pos))?;
 
-                if seek_pos != cur_pos {
-                    return Err(HttmError::new("Seek offset did not match requested offset.").into());
-                }
+            if seek_pos != cur_pos {
+                return Err(HttmError::new("Seek offset did not match requested offset.").into());
+            }
 
-                if src_amt_read == CHUNK_SIZE {
-                    if *COW_COMPATIBLE && cfg!(target_os = "linux") {
-                        #[cfg(target_os = "linux")]
-                        let amd_written = write_cow(src_file, dst_file, cur_pos, src_amt_read)?;
-                        #[cfg(target_os = "linux")]
-
+            let amt_written = if src_amt_read == CHUNK_SIZE {
+                if cfg!(target_os = "linux") {
+                    if let Ok(amt_written) = write_cow(
+                        src_file.as_raw_fd(),
+                        dst_file.as_raw_fd(),
+                        cur_pos as i64,
+                        src_amt_read,
+                    ) {
+                        amt_written
                     } else {
                         dst_writer.write(&src_buffer)?
                     }
                 } else {
-                    if *COW_COMPATIBLE && cfg!(target_os = "linux") {
-                        #[cfg(target_os = "linux")]
-                        let amd_written = write_cow(src_file, dst_file, cur_pos, src_amt_read)?;
-                        #[cfg(target_os = "linux")]
-
-                    } else {
-                        let range: &[u8] = &src_buffer[0..src_amt_read];
-                        dst_writer.write(range)?
-                    }
-                };
-    
-                if amt_written != src_amt_read {
-                    return Err(HttmError::new(
-                        "Amount of bytes read did not match amount of bytes written.",
-                    )
-                    .into());
+                    dst_writer.write(&src_buffer)?
                 }
-    
-                cur_pos += amt_written as u64;
+            } else if cfg!(target_os = "linux") {
+                if let Ok(amt_written) = write_cow(
+                    src_file.as_raw_fd(),
+                    dst_file.as_raw_fd(),
+                    cur_pos as i64,
+                    src_amt_read,
+                ) {
+                    amt_written
+                } else {
+                    let range: &[u8] = &src_buffer[0..src_amt_read];
+                    dst_writer.write(range)?
+                }
+            } else {
+                let range: &[u8] = &src_buffer[0..src_amt_read];
+                dst_writer.write(range)?
+            };
+
+            if amt_written != src_amt_read {
+                return Err(HttmError::new(
+                    "Amount of bytes read did not match amount of bytes written.",
+                )
+                .into());
+            }
+
+            cur_pos += amt_written as u64;
         } else {
             cur_pos += src_amt_read as u64;
         }
@@ -126,42 +138,49 @@ fn hash(bytes: &[u8; CHUNK_SIZE]) -> u32 {
     hash.write(bytes);
     hash.finish()
 }
+#[allow(unreachable_code, unused_variables)]
+fn write_cow(src_file_fd: i32, dst_file_fd: i32, offset: i64, len: usize) -> HttmResult<usize> {
+    #[cfg(target_os = "linux")]
+    {
+        if *COW_COMPATIBLE {
+            use nix::fcntl::copy_file_range;
 
-#[cfg(target_os = "linux")]
-fn write_cow(src_file: File, dst_file: File, offset: i64, len: usize) -> HttmResult<usize> {
-    use nix::fcntl::copy_file_range;
-    use std::os::unix::io::AsRawFd;
+            let mut src_mutable_offset = offset;
+            let mut dst_mutable_offset = offset;
 
-    let mut src_mutable_offset = offset;
-    let mut dst_mutable_offset = offset;
+            let bytes_written = copy_file_range(
+                src_file_fd,
+                Some(&mut src_mutable_offset),
+                dst_file_fd,
+                Some(&mut dst_mutable_offset),
+                len,
+            )?;
 
-    let bytes_written = copy_file_range(
-        src_file.as_raw_fd(),
-        Some(&mut src_mutable_offset),
-        dst_file.as_raw_fd(),
-        Some(&mut dst_mutable_offset),
-        len,
-    )?;
-
-    Ok(bytes_written)
+            return Ok(bytes_written);
+        }
+        return Err(HttmError::new("write_cow not supported on your platform").into())
+    }
+    Err(HttmError::new("write_cow not supported on your platform").into())
 }
 
-use semver::Version;
 use once_cell::sync::Lazy;
+use semver::Version;
 
+#[allow(dead_code)]
 pub fn version() -> Option<Version> {
     use nix::sys::utsname::*;
 
-    uname().ok().map(|sysinfo| {
-        Version::parse(sysinfo.release().to_string_lossy().as_ref()).ok()
-    }).flatten()
+    uname()
+        .ok()
+        .and_then(|sysinfo| Version::parse(sysinfo.release().to_string_lossy().as_ref()).ok())
 }
 
+#[allow(dead_code)]
 static COW_COMPATIBLE: Lazy<bool> = Lazy::new(|| {
     let version = version().unwrap();
 
     if version.major >= 4 && version.minor >= 5 {
-        return true
+        return true;
     }
 
     false
