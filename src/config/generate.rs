@@ -283,6 +283,17 @@ fn parse_args() -> ArgMatches {
                 .display_order(12)
         )
         .arg(
+            Arg::new("SHOW_DEFRAG")
+                .long("print-defrag")
+                .takes_value(true)
+                .min_values(1)
+                .require_equals(true)
+                .multiple_values(false)
+                .help("")
+                .conflicts_with_all(&["BROWSE", "RESTORE", "ALT_REPLICATED", "REMOTE_DIR", "LOCAL_DIR"])
+                .display_order(13)
+        )
+        .arg(
             Arg::new("ROLL_FORWARD")
                 .long("roll-forward")
                 .aliases(&["roll", "spring", "spring-forward"])

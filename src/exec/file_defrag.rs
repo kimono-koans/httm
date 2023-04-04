@@ -17,24 +17,19 @@
 
 use std::cmp::Ordering;
 use std::io::BufRead;
-use std::path::{Path, PathBuf};
+use std::path::{Path};
 use std::process::Child;
 use std::process::Command as ExecProcess;
 use std::process::Stdio;
 
-use ansi_term::Colour::{Blue, Red};
-use once_cell::sync::OnceCell;
 use which::which;
 
 use crate::data::paths::PathData;
-use crate::library::iter_extensions::HttmIter;
 use crate::library::results::{HttmError, HttmResult};
-use crate::library::snap_guard::{AdditionalSnapInfo, PrecautionarySnapType, SnapGuard};
-use crate::library::utility::{copy_direct, remove_recursive};
-use crate::library::utility::{is_metadata_different, user_has_effective_root};
+use crate::library::utility::user_has_effective_root;
 use crate::GLOBAL_CONFIG;
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 struct BasicBlockLocation {
     vdev: u64,
     offset: u128,
@@ -166,22 +161,22 @@ impl FileDefrag {
     {
         let mut total_num_blocks = 0usize;
         let mut total_num_gaps = 0usize;
+        let mut last = None;
 
-        let mut peekable_iter = stream.peekable();
-
-        for item in peekable_iter {
+        for item in stream {
             total_num_blocks += 1;
 
-            let peeked = peekable_iter.peek().unwrap();
+            let opt_item = Some(item);
 
-            if item.vdev != peeked.vdev {
-               total_num_gaps += 1; 
-            } else {
-                if item.offset + 1 != peeked.offset {
-                    total_num_gaps += 1;
-                }
+            if last.map(|inner: BasicBlockLocation| inner.vdev) != opt_item.map(|inner| inner.vdev) {
+                total_num_gaps += 1; 
+            } else if last.map(|inner: BasicBlockLocation| inner.offset + 1 ) != opt_item.map(|inner| inner.offset) {
+                total_num_gaps += 1;
             }
+
+            last = opt_item;
         }
+            
 
         total_num_gaps.checked_div(total_num_blocks).unwrap()
     }
