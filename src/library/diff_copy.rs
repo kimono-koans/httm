@@ -26,9 +26,9 @@ use std::io::Write;
 use std::os::unix::io::AsRawFd;
 use std::path::Path;
 
-use simd_adler32::Adler32;
 use once_cell::sync::Lazy;
 use semver::Version;
+use simd_adler32::Adler32;
 
 use crate::library::results::HttmResult;
 
@@ -38,15 +38,18 @@ const CHUNK_SIZE: usize = 65_536;
 
 pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
     let src_file = File::open(src)?;
-    let mut src_reader = BufReader::with_capacity(CHUNK_SIZE, &src_file);
-
     let dst_file = OpenOptions::new()
         .write(true)
         .read(true)
         .create(true)
         .open(dst)?;
+    let src_file_fd = src_file.as_raw_fd();
+    let dst_file_fd = dst_file.as_raw_fd();
+
     let src_len = src_file.metadata()?.len();
     dst_file.set_len(src_len)?;
+
+    let mut src_reader = BufReader::with_capacity(CHUNK_SIZE, &src_file);
     let mut opt_just_write = if dst.exists() {
         None
     } else {
@@ -79,8 +82,8 @@ pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
 
             let amt_written = if cfg!(target_os = "linux") {
                 write_cow(
-                    src_file.as_raw_fd(),
-                    dst_file.as_raw_fd(),
+                    src_file_fd,
+                    dst_file_fd,
                     cur_pos as i64,
                     src_amt_read,
                     range,
