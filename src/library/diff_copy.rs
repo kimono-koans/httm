@@ -73,33 +73,14 @@ pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
                 return Err(HttmError::new("Seek offset did not match requested offset.").into());
             }
 
-            let amt_written = if src_amt_read == CHUNK_SIZE {
-                if cfg!(target_os = "linux") {
-                    if let Ok(amt_written) = write_cow(
-                        src_file.as_raw_fd(),
-                        dst_file.as_raw_fd(),
-                        cur_pos as i64,
-                        src_amt_read,
-                    ) {
-                        amt_written
-                    } else {
-                        dst_writer.write(&src_buffer)?
-                    }
-                } else {
-                    dst_writer.write(&src_buffer)?
-                }
-            } else if cfg!(target_os = "linux") {
-                if let Ok(amt_written) = write_cow(
+            let amt_written = if cfg!(target_os = "linux") {
+                write_cow(
                     src_file.as_raw_fd(),
                     dst_file.as_raw_fd(),
                     cur_pos as i64,
                     src_amt_read,
-                ) {
-                    amt_written
-                } else {
-                    let range: &[u8] = &src_buffer[0..src_amt_read];
-                    dst_writer.write(range)?
-                }
+                    &dst_writer,
+                )?
             } else {
                 let range: &[u8] = &src_buffer[0..src_amt_read];
                 dst_writer.write(range)?
@@ -139,7 +120,7 @@ fn hash(bytes: &[u8; CHUNK_SIZE]) -> u32 {
     hash.finish()
 }
 #[allow(unreachable_code, unused_variables)]
-fn write_cow(src_file_fd: i32, dst_file_fd: i32, offset: i64, len: usize) -> HttmResult<usize> {
+fn write_cow(src_file_fd: i32, dst_file_fd: i32, offset: i64, len: usize, dst_writer: &BufWriter<&File>) -> HttmResult<usize> {
     #[cfg(target_os = "linux")]
     {
         if *COW_COMPATIBLE {
@@ -158,7 +139,8 @@ fn write_cow(src_file_fd: i32, dst_file_fd: i32, offset: i64, len: usize) -> Htt
 
             return Ok(bytes_written);
         }
-        return Err(HttmError::new("write_cow not supported on your platform").into())
+        let range: &[u8] = &src_buffer[0..src_amt_read];
+        return dst_writer.write(range)
     }
     Err(HttmError::new("write_cow not supported on your platform").into())
 }
