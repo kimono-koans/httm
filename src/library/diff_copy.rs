@@ -23,10 +23,12 @@ use std::io::Read;
 use std::io::Seek;
 use std::io::SeekFrom;
 use std::io::Write;
-use std::path::Path;
 use std::os::unix::io::AsRawFd;
+use std::path::Path;
 
 use simd_adler32::Adler32;
+use once_cell::sync::Lazy;
+use semver::Version;
 
 use crate::library::results::HttmResult;
 
@@ -73,16 +75,18 @@ pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
                 return Err(HttmError::new("Seek offset did not match requested offset.").into());
             }
 
+            let range: &[u8] = &src_buffer[0..src_amt_read];
+
             let amt_written = if cfg!(target_os = "linux") {
                 write_cow(
                     src_file.as_raw_fd(),
                     dst_file.as_raw_fd(),
                     cur_pos as i64,
                     src_amt_read,
-                    &dst_writer,
+                    range,
+                    &mut dst_writer,
                 )?
             } else {
-                let range: &[u8] = &src_buffer[0..src_amt_read];
                 dst_writer.write(range)?
             };
 
@@ -120,10 +124,17 @@ fn hash(bytes: &[u8; CHUNK_SIZE]) -> u32 {
     hash.finish()
 }
 #[allow(unreachable_code, unused_variables)]
-fn write_cow(src_file_fd: i32, dst_file_fd: i32, offset: i64, len: usize, dst_writer: &BufWriter<&File>) -> HttmResult<usize> {
-    #[cfg(target_os = "linux")]
-    {
-        if *COW_COMPATIBLE {
+fn write_cow(
+    src_file_fd: i32,
+    dst_file_fd: i32,
+    offset: i64,
+    len: usize,
+    range: &[u8],
+    dst_writer: &mut BufWriter<&File>,
+) -> HttmResult<usize> {
+    if *COW_COMPATIBLE {
+        #[cfg(target_os = "linux")]
+        {
             use nix::fcntl::copy_file_range;
 
             let mut src_mutable_offset = offset;
@@ -139,31 +150,29 @@ fn write_cow(src_file_fd: i32, dst_file_fd: i32, offset: i64, len: usize, dst_wr
 
             return Ok(bytes_written);
         }
-        let range: &[u8] = &src_buffer[0..src_amt_read];
-        return dst_writer.write(range)
+        return dst_writer.write(range).map_err(|err| err.into());
     }
     Err(HttmError::new("write_cow not supported on your platform").into())
 }
 
-use once_cell::sync::Lazy;
-use semver::Version;
-
-#[allow(dead_code)]
-pub fn version() -> Option<Version> {
-    use nix::sys::utsname::*;
-
-    uname()
-        .ok()
-        .and_then(|sysinfo| Version::parse(sysinfo.release().to_string_lossy().as_ref()).ok())
-}
-
-#[allow(dead_code)]
 static COW_COMPATIBLE: Lazy<bool> = Lazy::new(|| {
-    let version = version().unwrap();
+    fn version() -> Option<Version> {
+        use nix::sys::utsname::*;
 
-    if version.major >= 4 && version.minor >= 5 {
-        return true;
+        uname()
+            .ok()
+            .and_then(|sysinfo| Version::parse(sysinfo.release().to_string_lossy().as_ref()).ok())
     }
 
-    false
+    let opt_version = version();
+
+    match opt_version {
+        Some(version) => {
+            if version.major >= 4 && version.minor >= 5 {
+                return true;
+            }
+            false
+        }
+        None => false,
+    }
 });
