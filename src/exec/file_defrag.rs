@@ -34,7 +34,7 @@ use crate::library::utility::{copy_direct, remove_recursive};
 use crate::library::utility::{is_metadata_different, user_has_effective_root};
 use crate::GLOBAL_CONFIG;
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 struct BasicBlockLocation {
     vdev: u64,
     offset: u128,
@@ -54,52 +54,33 @@ impl std::cmp::Ord for BasicBlockLocation {
     }
 }
 
+impl std::cmp::PartialOrd for BasicBlockLocation {
+    #[inline]
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))  
+    }
+}
+
 pub struct FileDefrag;
 
 impl FileDefrag {
-    pub fn exec(full_snap_name: &str) -> HttmResult<()> {
+    pub fn exec(path: &Path) -> HttmResult<()> {
         user_has_effective_root()?;
 
         let pathdata = PathData::from(path);
-        let proximate_dataset_mount = pathdata.get_proximate_dataset(GLOBAL_CONFIG.dataset_collection.map_of_datasets)?;
-        let relative_path = pathdata.get_relative_path(proximate_dataset_mount);
-        let dataset_name = Self::get_dataset_path(proximate_dataset_mount);
+        let proximate_dataset_mount = pathdata.get_proximate_dataset(&GLOBAL_CONFIG.dataset_collection.map_of_datasets)?;
+        let relative_path = pathdata.get_relative_path(proximate_dataset_mount)?;
+        let dataset_name = Self::get_dataset_path(proximate_dataset_mount)?;
 
-        let mut process_handle = Self::exec_diff(proximate_dataset_name, relative_path)?;
+        let mut process_handle = Self::exec_debug(&dataset_name, relative_path)?;
 
         let mut stream = Self::ingest(&mut process_handle)?;
+        let fragmentation = Self::get_fragmentation(&mut stream);
 
-        let pre_exec_snap_name = SnapGuard::snapshot(
-            dataset_name,
-            &AdditionalSnapInfo::RollForwardSnapName(snap_name.to_owned()),
-            PrecautionarySnapType::PreRollForward,
-        )?;
+        eprintln!("Fragmentation Level: {}", fragmentation);
 
-        match Self::roll_forward(&mut stream, snap_name) {
-            Ok(_) => {
-                println!("httm roll forward completed successfully.");
-            }
-            Err(err) => {
-                let msg = format!(
-                    "httm roll forward failed for the following reason: {}.\n\
-                Attempting roll back to precautionary pre-execution snapshot.",
-                    err
-                );
-                eprintln!("{}", msg);
+        Ok(())
 
-                SnapGuard::rollback(&pre_exec_snap_name)
-                    .map(|_| println!("Rollback succeeded."))?;
-
-                std::process::exit(1)
-            }
-        };
-
-        SnapGuard::snapshot(
-            dataset_name,
-            &AdditionalSnapInfo::RollForwardSnapName(snap_name.to_owned()),
-            PrecautionarySnapType::PostRollForward,
-        )
-        .map(|_res| ())
     }
 
     fn exec_debug(
@@ -111,8 +92,10 @@ impl FileDefrag {
         })?;
         let mut process_args = vec!["-vvvvv", "-O"];
 
+        let relpath_str = relative_path.to_string_lossy();
+
         process_args.push(proximate_dataset_name);
-        process_args.push(relative_path.to_string_lossy());
+        process_args.push(relpath_str.as_ref());
 
         let process_handle = ExecProcess::new(zfs_command)
             .args(&process_args)
@@ -124,15 +107,19 @@ impl FileDefrag {
     }
 
     fn get_dataset_path(
-        pathdata: &PathData,
         proximate_dataset_mount: &Path,
-    ) -> Option<PathBuf> {
+    ) -> HttmResult<String> {
         let opt_dataset_info = GLOBAL_CONFIG
             .dataset_collection
             .map_of_datasets
             .get(proximate_dataset_mount);
 
-        opt_dataset_info.map(|info| info.source)
+        match opt_dataset_info {
+            Some(info) => Ok(info.source.clone()),
+            None => {
+                Err(HttmError::new("Could not determine dataset path.").into())
+            }
+        }
     }
 
     fn ingest(process_handle: &mut Child) -> HttmResult<impl Iterator<Item = BasicBlockLocation> + '_> {
@@ -148,13 +135,13 @@ impl FileDefrag {
             .map(|line| line.expect("Could not obtain line from string."))
             .filter(|line| line.contains("L0 "))
             .map(move |line| {
-                let (lhs, _rhs) = line.split("L0 ").unwrap().split(' ').unwrap();
+                let (lhs, _rhs) = line.split_once("L0 ").unwrap().1.split_once(' ').unwrap();
 
-                let vec: Vec<&str> = lhs.split(':');
+                let vec: Vec<&str> = lhs.split(':').collect();
 
                 BasicBlockLocation {
-                    vdev: u64::from_str_radix(vec.get(0).unwrap()).unwrap(),
-                    offset: u128::from_str_radix(vec.get(1).unwrap()).unwrap(),
+                    vdev: u64::from_str_radix(vec.get(0).unwrap(), 16).unwrap(),
+                    offset: u128::from_str_radix(vec.get(1).unwrap(), 16).unwrap(),
                 }
             });
 
@@ -173,14 +160,30 @@ impl FileDefrag {
         Ok(res)
     }
 
-    fn print_fragmentation<I>(stream: I) -> HttmResult<()>
+    fn get_fragmentation<I>(stream: I) -> usize
     where
-        I: Iterator<Item = DiffEvent>,
+        I: Iterator<Item = BasicBlockLocation>,
     {
-        let mut vec = stream.into_iter().collect();
-        vec.sort();
+        let mut total_num_blocks = 0usize;
+        let mut total_num_gaps = 0usize;
 
-        
+        let mut peekable_iter = stream.peekable();
+
+        for item in peekable_iter {
+            total_num_blocks += 1;
+
+            let peeked = peekable_iter.peek().unwrap();
+
+            if item.vdev != peeked.vdev {
+               total_num_gaps += 1; 
+            } else {
+                if item.offset + 1 != peeked.offset {
+                    total_num_gaps += 1;
+                }
+            }
+        }
+
+        total_num_gaps.checked_div(total_num_blocks).unwrap()
     }
         
 }

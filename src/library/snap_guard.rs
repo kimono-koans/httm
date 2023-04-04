@@ -29,12 +29,14 @@ pub enum PrecautionarySnapType {
     PreRollForward,
     PostRollForward,
     PreRestore,
+    PreDefrag,
 }
 
 pub enum AdditionalSnapInfo {
     RollForwardSnapName(String),
     // fyi, this is unused
     RestoreFilename(String),
+    Defrag,
 }
 
 pub struct SnapGuard;
@@ -64,7 +66,7 @@ impl SnapGuard {
 
     pub fn snapshot(
         dataset_name: &str,
-        additional_snap_info: &AdditionalSnapInfo,
+        additional_snap_info: &Option<AdditionalSnapInfo>,
         snap_type: PrecautionarySnapType,
     ) -> HttmResult<String> {
         let zfs_command = which("zfs")?;
@@ -77,8 +79,9 @@ impl SnapGuard {
         );
 
         let additional_snap_info_str: &str = match additional_snap_info {
-            AdditionalSnapInfo::RestoreFilename(filename) => filename,
-            AdditionalSnapInfo::RollForwardSnapName(snap_name) => snap_name,
+            Some(AdditionalSnapInfo::RestoreFilename(filename)) => filename,
+            Some(AdditionalSnapInfo::RollForwardSnapName(snap_name)) => snap_name,
+            _ => "none",
         };
 
         let new_snap_name = match &snap_type {
@@ -86,6 +89,15 @@ impl SnapGuard {
                 // all snapshots should have the same timestamp
                 let new_snap_name = format!(
                     "{}@snap_pre_{}_httmSnapRollForward",
+                    dataset_name, timestamp
+                );
+
+                new_snap_name
+            }
+            PrecautionarySnapType::PreDefrag => {
+                // all snapshots should have the same timestamp
+                let new_snap_name = format!(
+                    "{}@snap_pre_{}_httmSnapDefrag",
                     dataset_name, timestamp
                 );
 
@@ -126,7 +138,7 @@ impl SnapGuard {
             Err(HttmError::new(&msg).into())
         } else {
             let output_buf = match &snap_type {
-                PrecautionarySnapType::PreRollForward | PrecautionarySnapType::PreRestore => {
+                PrecautionarySnapType::PreRollForward | PrecautionarySnapType::PreRestore | PrecautionarySnapType::PreDefrag => {
                     format!(
                         "httm took a pre-execution snapshot named: {}\n",
                         &new_snap_name

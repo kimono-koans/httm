@@ -386,7 +386,7 @@ impl InteractiveRestore {
 
         SnapGuard::snapshot(
             dataset_name,
-            &AdditionalSnapInfo::RestoreFilename(file_name.to_string()),
+            &Some(AdditionalSnapInfo::RestoreFilename(file_name.to_string())),
             PrecautionarySnapType::PreRestore,
         )
     }

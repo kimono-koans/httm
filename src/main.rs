@@ -36,6 +36,7 @@ mod exec {
     pub mod purge;
     pub mod recursive;
     pub mod roll_forward;
+    pub mod file_defrag;
     pub mod snap_mounts;
 }
 mod config {

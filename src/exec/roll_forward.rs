@@ -119,7 +119,7 @@ impl RollForward {
 
         let pre_exec_snap_name = SnapGuard::snapshot(
             dataset_name,
-            &AdditionalSnapInfo::RollForwardSnapName(snap_name.to_owned()),
+            &Some(AdditionalSnapInfo::RollForwardSnapName(snap_name.to_owned())),
             PrecautionarySnapType::PreRollForward,
         )?;
 
@@ -144,7 +144,7 @@ impl RollForward {
 
         SnapGuard::snapshot(
             dataset_name,
-            &AdditionalSnapInfo::RollForwardSnapName(snap_name.to_owned()),
+            &Some(AdditionalSnapInfo::RollForwardSnapName(snap_name.to_owned())),
             PrecautionarySnapType::PostRollForward,
         )
         .map(|_res| ())
