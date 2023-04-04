@@ -80,7 +80,7 @@ pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
 
             let range: &[u8] = &src_buffer[0..src_amt_read];
 
-            let amt_written = if cfg!(target_os = "linux") {
+            let amt_written = if *COW_COMPATIBLE {
                 write_cow(
                     src_file_fd,
                     dst_file_fd,
@@ -135,25 +135,25 @@ fn write_cow(
     range: &[u8],
     dst_writer: &mut BufWriter<&File>,
 ) -> HttmResult<usize> {
-    if *COW_COMPATIBLE {
-        #[cfg(target_os = "linux")]
-        {
-            use nix::fcntl::copy_file_range;
+    #[cfg(target_os = "linux")]
+    {
+        use nix::fcntl::copy_file_range;
 
-            let mut src_mutable_offset = offset;
-            let mut dst_mutable_offset = offset;
+        let mut src_mutable_offset = offset;
+        let mut dst_mutable_offset = offset;
 
-            let bytes_written = copy_file_range(
-                src_file_fd,
-                Some(&mut src_mutable_offset),
-                dst_file_fd,
-                Some(&mut dst_mutable_offset),
-                len,
-            )?;
+        let res = copy_file_range(
+            src_file_fd,
+            Some(&mut src_mutable_offset),
+            dst_file_fd,
+            Some(&mut dst_mutable_offset),
+            len,
+        );
 
-            return Ok(bytes_written);
+        match res {
+            Ok(bytes_written) => return Ok(bytes_written),
+            Err(_err) => return dst_writer.write(range).map_err(|err| err.into()),
         }
-        return Err(HttmError::new("write_cow not supported on your platform").into());
     }
     dst_writer.write(range).map_err(|err| err.into())
 }
@@ -167,9 +167,7 @@ static COW_COMPATIBLE: Lazy<bool> = Lazy::new(|| {
             .and_then(|sysinfo| Version::parse(sysinfo.release().to_string_lossy().as_ref()).ok())
     }
 
-    let opt_version = version();
-
-    match opt_version {
+    let vers_compatible = match version() {
         Some(version) => {
             if version.major >= 4 && version.minor >= 5 {
                 return true;
@@ -177,5 +175,7 @@ static COW_COMPATIBLE: Lazy<bool> = Lazy::new(|| {
             false
         }
         None => false,
-    }
+    };
+
+    vers_compatible && cfg!(target_os = "linux")
 });
