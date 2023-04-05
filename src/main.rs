@@ -36,7 +36,7 @@ mod exec {
     pub mod purge;
     pub mod recursive;
     pub mod roll_forward;
-    pub mod file_defrag;
+    pub mod frag_ratio;
     pub mod snap_mounts;
 }
 mod config {
@@ -64,6 +64,7 @@ mod parse {
 }
 
 use crate::display_map::helper::PrintAsMap;
+use exec::frag_ratio::FragRatio;
 use exec::purge::PurgeSnaps;
 use exec::roll_forward::RollForward;
 use exec::snap_mounts::SnapshotMounts;
@@ -150,5 +151,6 @@ fn exec() -> HttmResult<()> {
             print_output_buf(output_buf)
         }
         ExecMode::RollForward(snap_name) => RollForward::exec(snap_name),
+        ExecMode::FragRatio => FragRatio::exec(),
     }
 }

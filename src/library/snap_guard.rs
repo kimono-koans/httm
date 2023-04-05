@@ -36,7 +36,6 @@ pub enum AdditionalSnapInfo {
     RollForwardSnapName(String),
     // fyi, this is unused
     RestoreFilename(String),
-    Defrag,
 }
 
 pub struct SnapGuard;

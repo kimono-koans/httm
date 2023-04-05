@@ -37,6 +37,7 @@ impl std::string::ToString for PrintAsMap {
                 ExecMode::NonInteractiveRecursive(_)
                 | ExecMode::RollForward(_)
                 | ExecMode::NumVersions(_)
+                | ExecMode::FragRatio
                 | ExecMode::Purge(_)
                 | ExecMode::SnapFileMount(_) => {
                     unreachable!(

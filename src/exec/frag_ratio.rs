@@ -56,13 +56,21 @@ impl std::cmp::PartialOrd for BasicBlockLocation {
     }
 }
 
-pub struct FileDefrag;
+pub struct FragRatio;
 
-impl FileDefrag {
-    pub fn exec(path: &Path) -> HttmResult<()> {
+impl FragRatio {
+    pub fn exec() -> HttmResult<()> {
         user_has_effective_root()?;
 
-        let pathdata = PathData::from(path);
+        GLOBAL_CONFIG
+            .paths
+            .iter()
+            .try_for_each(|path| {
+                Self::per_path(&path)
+            })
+    }
+
+    pub fn per_path(pathdata: &PathData) -> HttmResult<()> {
         let proximate_dataset_mount = pathdata.get_proximate_dataset(&GLOBAL_CONFIG.dataset_collection.map_of_datasets)?;
         let relative_path = pathdata.get_relative_path(proximate_dataset_mount)?;
         let dataset_name = Self::get_dataset_path(proximate_dataset_mount)?;
@@ -130,7 +138,9 @@ impl FileDefrag {
             .map(|line| line.expect("Could not obtain line from string."))
             .filter(|line| line.contains("L0 "))
             .map(move |line| {
-                let (lhs, _rhs) = line.split_once("L0 ").unwrap().1.split_once(' ').unwrap();
+                let (lhs, rhs) = line.split_once("L0 ").unwrap().1.split_once(' ').unwrap();
+                
+                .split_once("B=").unwrap().1.split_once(' ').unwrap();
 
                 let vec: Vec<&str> = lhs.split(':').collect();
 
@@ -163,22 +173,37 @@ impl FileDefrag {
         let mut total_num_gaps = 0usize;
         let mut last = None;
 
-        for item in stream {
+        let mut vec: Vec<BasicBlockLocation> = stream.collect();
+        vec.sort();
+
+        for item in vec {
             total_num_blocks += 1;
 
             let opt_item = Some(item);
-
-            if last.map(|inner: BasicBlockLocation| inner.vdev) != opt_item.map(|inner| inner.vdev) {
-                total_num_gaps += 1; 
-            } else if last.map(|inner: BasicBlockLocation| inner.offset + 1 ) != opt_item.map(|inner| inner.offset) {
+        
+            if last.map(|inner: BasicBlockLocation| {
+                println!("{}", inner.offset);
+                inner.offset + 1
+            } ) != opt_item.map(|inner| {
+                println!("{}", inner.offset);
+                inner.offset
+            }) {
                 total_num_gaps += 1;
+            } else {
+                ()
             }
 
             last = opt_item;
+            println!("{}/{}", total_num_gaps, total_num_blocks)
         }
             
+        if total_num_blocks == 0 {
+            total_num_blocks = 1;
+        }
 
-        total_num_gaps.checked_div(total_num_blocks).unwrap()
+        let res = ( total_num_gaps as f64 / total_num_blocks as f64) * 100f64;
+
+        res as usize
     }
         
 }

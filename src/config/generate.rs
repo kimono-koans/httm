@@ -44,6 +44,7 @@ pub enum ExecMode {
     SnapsForFiles(Option<ListSnapsFilters>),
     NumVersions(NumVersionsMode),
     RollForward(String),
+    FragRatio,
 }
 
 #[derive(Debug, Clone)]
@@ -283,12 +284,9 @@ fn parse_args() -> ArgMatches {
                 .display_order(12)
         )
         .arg(
-            Arg::new("SHOW_DEFRAG")
-                .long("print-defrag")
-                .takes_value(true)
-                .min_values(1)
-                .require_equals(true)
-                .multiple_values(false)
+            Arg::new("FRAG_RATIO")
+                .long("frag-ratio")
+                .aliases(&["frag"])
                 .help("")
                 .conflicts_with_all(&["BROWSE", "RESTORE", "ALT_REPLICATED", "REMOTE_DIR", "LOCAL_DIR"])
                 .display_order(13)
@@ -729,7 +727,9 @@ impl Config {
             None
         };
 
-        let mut exec_mode = if let Some(snap_name) = matches.value_of("ROLL_FORWARD") {
+        let mut exec_mode = if matches.is_present("FRAG_RATIO") {
+            ExecMode::FragRatio
+        } else if let Some(snap_name) = matches.value_of("ROLL_FORWARD") {
             ExecMode::RollForward(snap_name.to_string())
         } else if let Some(num_versions_mode) = opt_num_versions {
             ExecMode::NumVersions(num_versions_mode)
@@ -890,6 +890,7 @@ impl Config {
                 | ExecMode::Purge(_)
                 | ExecMode::MountsForFiles(_)
                 | ExecMode::SnapsForFiles(_)
+                | ExecMode::FragRatio
                 | ExecMode::NumVersions(_) => read_stdin()?
                     .par_iter()
                     .map(|string| PathData::from(Path::new(&string)))
@@ -974,6 +975,7 @@ impl Config {
             | ExecMode::Purge(_)
             | ExecMode::MountsForFiles(_)
             | ExecMode::SnapsForFiles(_)
+            | ExecMode::FragRatio
             | ExecMode::NumVersions(_) => {
                 // in non-interactive mode / display mode, requested dir is just a file
                 // like every other file and pwd must be the requested working dir.
