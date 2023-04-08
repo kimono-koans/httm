@@ -28,7 +28,7 @@ use crate::display_versions::wrapper::VersionsDisplayWrapper;
 use crate::exec::preview::PreviewSelection;
 use crate::exec::recursive::SharedRecursive;
 use crate::library::results::{HttmError, HttmResult};
-use crate::library::snap_guard::{AdditionalSnapInfo, PrecautionarySnapType, SnapGuard};
+use crate::library::snap_guard::{PrecautionarySnapType, SnapGuard};
 use crate::library::utility::{
     copy_recursive, get_date, get_delimiter, print_output_buf, user_has_effective_root,
     user_has_zfs_allow_snap_priv, DateFormat, Never,
@@ -373,7 +373,6 @@ impl InteractiveRestore {
 
     fn snap_guard(new_file_path: &Path) -> HttmResult<String> {
         let pathdata = PathData::from(new_file_path);
-        let file_name = pathdata.path_buf.to_string_lossy();
         let dataset_mount =
             pathdata.get_proximate_dataset(&GLOBAL_CONFIG.dataset_collection.map_of_datasets)?;
 
@@ -384,11 +383,7 @@ impl InteractiveRestore {
             .unwrap()
             .source;
 
-        SnapGuard::snapshot(
-            dataset_name,
-            &AdditionalSnapInfo::RestoreFilename(file_name.to_string()),
-            PrecautionarySnapType::PreRestore,
-        )
+        SnapGuard::snapshot(dataset_name, PrecautionarySnapType::PreRestore)
     }
 
     fn should_preserve_attributes() -> bool {
