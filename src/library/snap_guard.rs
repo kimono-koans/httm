@@ -15,11 +15,13 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
+use std::path::Path;
 use std::process::Command as ExecProcess;
 use std::time::SystemTime;
 
 use which::which;
 
+use crate::data::paths::PathData;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{get_date, DateFormat};
 use crate::print_output_buf;
@@ -31,32 +33,31 @@ pub enum PrecautionarySnapType {
     PreRestore,
 }
 
-pub struct SnapGuard;
+impl TryFrom<&Path> for SnapGuard {
+    type Error = Box<dyn std::error::Error + Send + Sync>;
+
+    fn try_from(path: &Path) -> HttmResult<Self> {
+        let pathdata = PathData::from(path);
+        let dataset_mount =
+            pathdata.get_proximate_dataset(&GLOBAL_CONFIG.dataset_collection.map_of_datasets)?;
+
+        let dataset_name = &GLOBAL_CONFIG
+            .dataset_collection
+            .map_of_datasets
+            .get(dataset_mount)
+            .unwrap()
+            .source;
+
+        SnapGuard::new(dataset_name, PrecautionarySnapType::PreRestore)
+    }
+}
+
+pub struct SnapGuard {
+    inner: String,
+}
 
 impl SnapGuard {
-    pub fn rollback(pre_exec_snap_name: &str) -> HttmResult<()> {
-        let zfs_command = which("zfs")?;
-        let mut process_args = vec!["rollback", "-r"];
-        process_args.push(pre_exec_snap_name);
-
-        let process_output = ExecProcess::new(zfs_command).args(&process_args).output()?;
-        let stderr_string = std::str::from_utf8(&process_output.stderr)?.trim();
-
-        // stderr_string is a string not an error, so here we build an err or output
-        if !stderr_string.is_empty() {
-            let msg = if stderr_string.contains("cannot destroy snapshots: permission denied") {
-                "httm may need root privileges to 'zfs rollback' a filesystem".to_owned()
-            } else {
-                "httm was unable to rollback the snapshot name. The 'zfs' command issued the following error: ".to_owned() + stderr_string
-            };
-
-            return Err(HttmError::new(&msg).into());
-        }
-
-        Ok(())
-    }
-
-    pub fn snapshot(dataset_name: &str, snap_type: PrecautionarySnapType) -> HttmResult<String> {
+    pub fn new(dataset_name: &str, snap_type: PrecautionarySnapType) -> HttmResult<Self> {
         let zfs_command = which("zfs")?;
         let mut process_args = vec!["snapshot".to_owned()];
 
@@ -127,7 +128,31 @@ impl SnapGuard {
 
             print_output_buf(output_buf)?;
 
-            Ok(new_snap_name)
+            Ok(SnapGuard {
+                inner: new_snap_name,
+            })
         }
+    }
+
+    pub fn rollback(&self) -> HttmResult<()> {
+        let zfs_command = which("zfs")?;
+        let mut process_args = vec!["rollback", "-r"];
+        process_args.push(&self.inner);
+
+        let process_output = ExecProcess::new(zfs_command).args(&process_args).output()?;
+        let stderr_string = std::str::from_utf8(&process_output.stderr)?.trim();
+
+        // stderr_string is a string not an error, so here we build an err or output
+        if !stderr_string.is_empty() {
+            let msg = if stderr_string.contains("cannot destroy snapshots: permission denied") {
+                "httm may need root privileges to 'zfs rollback' a filesystem".to_owned()
+            } else {
+                "httm was unable to rollback the snapshot name. The 'zfs' command issued the following error: ".to_owned() + stderr_string
+            };
+
+            return Err(HttmError::new(&msg).into());
+        }
+
+        Ok(())
     }
 }

@@ -28,7 +28,7 @@ use crate::display_versions::wrapper::VersionsDisplayWrapper;
 use crate::exec::preview::PreviewSelection;
 use crate::exec::recursive::SharedRecursive;
 use crate::library::results::{HttmError, HttmResult};
-use crate::library::snap_guard::{PrecautionarySnapType, SnapGuard};
+use crate::library::snap_guard::SnapGuard;
 use crate::library::utility::{
     copy_recursive, get_date, get_delimiter, print_output_buf, user_has_effective_root,
     user_has_zfs_allow_snap_priv, DateFormat, Never,
@@ -324,7 +324,8 @@ impl InteractiveRestore {
                     ) && (user_has_effective_root().is_ok()
                         || user_has_zfs_allow_snap_priv(&new_file_path_buf).is_ok())
                     {
-                        let pre_exec_snap_name = Self::snap_guard(&new_file_path_buf)?;
+                        let snap_guard: SnapGuard =
+                            SnapGuard::try_from(new_file_path_buf.as_path())?;
 
                         if let Err(err) = copy_recursive(
                             &snap_pathdata.path_buf,
@@ -339,7 +340,8 @@ impl InteractiveRestore {
 
                             eprintln!("{}", msg);
 
-                            SnapGuard::rollback(&pre_exec_snap_name)
+                            snap_guard
+                                .rollback()
                                 .map(|_| println!("Rollback succeeded."))?;
 
                             std::process::exit(1);
@@ -369,21 +371,6 @@ impl InteractiveRestore {
         }
 
         std::process::exit(0)
-    }
-
-    fn snap_guard(new_file_path: &Path) -> HttmResult<String> {
-        let pathdata = PathData::from(new_file_path);
-        let dataset_mount =
-            pathdata.get_proximate_dataset(&GLOBAL_CONFIG.dataset_collection.map_of_datasets)?;
-
-        let dataset_name = &GLOBAL_CONFIG
-            .dataset_collection
-            .map_of_datasets
-            .get(dataset_mount)
-            .unwrap()
-            .source;
-
-        SnapGuard::snapshot(dataset_name, PrecautionarySnapType::PreRestore)
     }
 
     fn should_preserve_attributes() -> bool {

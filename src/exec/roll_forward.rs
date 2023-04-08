@@ -117,8 +117,8 @@ impl RollForward {
 
         let mut stream = Self::ingest(&mut process_handle)?;
 
-        let pre_exec_snap_name =
-            SnapGuard::snapshot(dataset_name, PrecautionarySnapType::PreRollForward)?;
+        let snap_guard: SnapGuard =
+            SnapGuard::new(dataset_name, PrecautionarySnapType::PreRollForward)?;
 
         match Self::roll_forward(&mut stream, snap_name) {
             Ok(_) => {
@@ -132,14 +132,15 @@ impl RollForward {
                 );
                 eprintln!("{}", msg);
 
-                SnapGuard::rollback(&pre_exec_snap_name)
+                snap_guard
+                    .rollback()
                     .map(|_| println!("Rollback succeeded."))?;
 
                 std::process::exit(1)
             }
         };
 
-        SnapGuard::snapshot(
+        SnapGuard::new(
             dataset_name,
             PrecautionarySnapType::PostRollForward(snap_name.to_owned()),
         )
