@@ -81,13 +81,10 @@ impl SnapNameMap {
                     .filter(|snap| {
                         if let Some(filters) = opt_filters {
                             if let Some(names) = &filters.name_filters {
-                                names.iter().any(|pattern| snap.contains(pattern))
-                            } else {
-                                true
+                                return names.iter().any(|pattern| snap.contains(pattern));
                             }
-                        } else {
-                            true
                         }
+                        true
                     })
                     .collect();
 
