@@ -337,11 +337,39 @@ impl<'a> RelativePathAndSnapMounts<'a> {
         })
     }
 
+    pub fn get_versions_processed(&'a self, uniqueness: &ListSnapsOfType) -> Vec<PathData> {
+        let all_versions = self.get_versions_unprocessed();
+
+        let sorted_versions: Vec<PathData> = match uniqueness {
+            ListSnapsOfType::All => {
+                let mut versions: Vec<PathData> = all_versions.collect();
+
+                versions.sort_unstable_by(|a, b| {
+                    let a_md = a.get_md_infallible();
+                    let b_md = b.get_md_infallible();
+
+                    (a_md.modify_time, a_md.size).cmp(&(b_md.modify_time, b_md.size))
+                });
+
+                versions
+            }
+            uniqueness => Self::into_unique_versions(all_versions, uniqueness),
+        };
+
+        sorted_versions
+    }
+
+    pub fn get_last_version(&self) -> Option<PathData> {
+        let mut sorted_versions = self.get_versions_processed(&ListSnapsOfType::All);
+
+        let res: Option<PathData> = sorted_versions.pop();
+
+        res
+    }
+
     fn get_versions_unprocessed(&'a self) -> impl ParallelIterator<Item = PathData> + 'a {
         // get the DirEntry for our snapshot path which will have all our possible
         // snapshots, like so: .zfs/snapshots/<some snap name>/
-        //
-        // BTreeMap will then remove duplicates with the same system modify time and size/file len
         self
             .snap_mounts
             .par_iter()
@@ -368,53 +396,16 @@ impl<'a> RelativePathAndSnapMounts<'a> {
             })
     }
 
+    // remove duplicates with the same system modify time and size/file len (or contents! See --uniqueness)
     #[allow(clippy::mutable_key_type)]
-    pub fn get_versions_processed(&self, uniqueness: &ListSnapsOfType) -> Vec<PathData> {
-        // get the DirEntry for our snapshot path which will have all our possible
-        // snapshots, like so: .zfs/snapshots/<some snap name>/
-        //
-        // BTreeMap will then remove duplicates with the same system modify time and size/file len
-        fn into_unique_versions<'a>(
-            iter: impl ParallelIterator<Item = PathData> + 'a,
-            snaps_of_type: &ListSnapsOfType,
-        ) -> Vec<PathData> {
-            let versions: BTreeSet<CompareVersionsContainer> = iter
-                .filter_map(|pathdata| {
-                    pathdata
-                        .metadata
-                        .map(|_metadata| CompareVersionsContainer::new(pathdata, snaps_of_type))
-                })
-                .collect();
+    fn into_unique_versions(
+        iter: impl ParallelIterator<Item = PathData> + 'a,
+        snaps_of_type: &ListSnapsOfType,
+    ) -> Vec<PathData> {
+        let versions: BTreeSet<CompareVersionsContainer> = iter
+            .map(|pathdata| CompareVersionsContainer::new(pathdata, snaps_of_type))
+            .collect();
 
-            versions.into_iter().map(PathData::from).collect()
-        }
-
-        let all_versions = self.get_versions_unprocessed();
-
-        let sorted_versions: Vec<PathData> = match uniqueness {
-            ListSnapsOfType::All => {
-                let mut versions: Vec<PathData> = all_versions.collect();
-
-                versions.sort_unstable_by(|a, b| {
-                    let a_md = a.get_md_infallible();
-                    let b_md = b.get_md_infallible();
-
-                    (a_md.modify_time, a_md.size).cmp(&(b_md.modify_time, b_md.size))
-                });
-
-                versions
-            }
-            uniqueness => into_unique_versions(all_versions, uniqueness),
-        };
-
-        sorted_versions
-    }
-
-    pub fn get_last_version(&self) -> Option<PathData> {
-        let mut sorted_versions = self.get_versions_processed(&ListSnapsOfType::All);
-
-        let res: Option<PathData> = sorted_versions.pop();
-
-        res
+        versions.into_iter().map(PathData::from).collect()
     }
 }
