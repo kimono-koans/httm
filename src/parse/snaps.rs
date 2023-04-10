@@ -98,48 +98,44 @@ impl MapOfSnaps {
 
     // build paths to all snap mounts
     fn from_btrfs_cmd(mount_point_path: &Path, root_mount_path: &Path) -> HttmResult<Vec<PathBuf>> {
-        fn parse(mount_point_path: &Path, root_mount_path: &Path) -> HttmResult<Vec<PathBuf>> {
-            let btrfs_command = which("btrfs").map_err(|_err| {
-                HttmError::new(
-                    "'btrfs' command not found. Make sure the command 'btrfs' is in your path.",
-                )
-            })?;
+        let btrfs_command = which("btrfs").map_err(|_err| {
+            HttmError::new(
+                "'btrfs' command not found. Make sure the command 'btrfs' is in your path.",
+            )
+        })?;
 
-            let exec_command = btrfs_command;
-            let arg_path = mount_point_path.to_string_lossy();
-            let args = vec!["subvolume", "list", "-a", "-s", &arg_path];
+        let exec_command = btrfs_command;
+        let arg_path = mount_point_path.to_string_lossy();
+        let args = vec!["subvolume", "list", "-a", "-s", &arg_path];
 
-            // must exec for each mount, probably a better way by calling into a lib
-            let command_output =
-                std::str::from_utf8(&ExecProcess::new(exec_command).args(&args).output()?.stdout)?
-                    .to_owned();
+        // must exec for each mount, probably a better way by calling into a lib
+        let command_output =
+            std::str::from_utf8(&ExecProcess::new(exec_command).args(&args).output()?.stdout)?
+                .to_owned();
 
-            let snaps = command_output
-                .par_lines()
-                .filter_map(|line| line.split_once("path "))
-                .map(
-                    |(_first, snap_path)| match snap_path.strip_prefix("<FS_TREE>/") {
-                        Some(fs_tree_path) => {
-                            // "<FS_TREE>/" should be the root path
-                            root_mount_path.join(fs_tree_path)
-                        }
-                        None => {
-                            // btrfs sub list -a -s output includes the sub name (eg @home)
-                            // when that sub could be mounted anywhere, so we remove here
-                            let snap_path_parsed: PathBuf =
-                                Path::new(snap_path).components().skip(1).collect();
+        let snaps = command_output
+            .par_lines()
+            .filter_map(|line| line.split_once("path "))
+            .map(
+                |(_first, snap_path)| match snap_path.strip_prefix("<FS_TREE>/") {
+                    Some(fs_tree_path) => {
+                        // "<FS_TREE>/" should be the root path
+                        root_mount_path.join(fs_tree_path)
+                    }
+                    None => {
+                        // btrfs sub list -a -s output includes the sub name (eg @home)
+                        // when that sub could be mounted anywhere, so we remove here
+                        let snap_path_parsed: PathBuf =
+                            Path::new(snap_path).components().skip(1).collect();
 
-                            mount_point_path.join(snap_path_parsed)
-                        }
-                    },
-                )
-                .filter(|snapshot_location| snapshot_location.exists())
-                .collect();
+                        mount_point_path.join(snap_path_parsed)
+                    }
+                },
+            )
+            .filter(|snapshot_location| snapshot_location.exists())
+            .collect();
 
-            Ok(snaps)
-        }
-
-        parse(mount_point_path, root_mount_path)
+        Ok(snaps)
     }
 
     fn from_defined_mounts(
