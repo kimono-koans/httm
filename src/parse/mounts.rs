@@ -225,79 +225,73 @@ impl BaseFilesystemInfo {
     // old fashioned parsing for non-Linux systems, nearly as fast, works everywhere with a mount command
     // both methods are much faster than using zfs command
     fn from_mount_cmd() -> HttmResult<(HashMap<PathBuf, DatasetMetadata>, HashSet<PathBuf>)> {
-        fn parse() -> HttmResult<(HashMap<PathBuf, DatasetMetadata>, HashSet<PathBuf>)> {
-            // do we have the necessary commands for search if user has not defined a snap point?
-            // if so run the mount search, if not print some errors
-            let mount_command = which("mount").map_err(|_err| {
-                HttmError::new(
-                    "'mount' command not be found. Make sure the command 'mount' is in your path.",
-                )
-            })?;
+        // do we have the necessary commands for search if user has not defined a snap point?
+        // if so run the mount search, if not print some errors
+        let mount_command = which("mount").map_err(|_err| {
+            HttmError::new(
+                "'mount' command not be found. Make sure the command 'mount' is in your path.",
+            )
+        })?;
 
-            let command_output = &ExecProcess::new(mount_command).output()?;
+        let command_output = &ExecProcess::new(mount_command).output()?;
 
-            let stderr_string = std::str::from_utf8(&command_output.stderr)?;
+        let stderr_string = std::str::from_utf8(&command_output.stderr)?;
 
-            if !stderr_string.is_empty() {
-                return Err(HttmError::new(stderr_string).into());
-            }
-
-            let stdout_string = std::str::from_utf8(&command_output.stdout)?;
-
-            // parse "mount" for filesystems and mountpoints
-            let (map_of_datasets, filter_dirs): (
-                HashMap<PathBuf, DatasetMetadata>,
-                HashSet<PathBuf>,
-            ) = stdout_string
-                .par_lines()
-                // but exclude snapshot mounts.  we want the raw filesystem names.
-                .filter(|line| !line.contains(ZFS_SNAPSHOT_DIRECTORY))
-                // where to split, to just have the src and dest of mounts
-                .filter_map(|line|
-                    // GNU Linux mount output
-                    if line.contains("type") {
-                        line.split_once(" type")
-                    // Busybox and BSD mount output
-                    } else {
-                        line.split_once(" (")
-                    }
-                )
-                .map(|(filesystem_and_mount,_)| filesystem_and_mount )
-                // mount cmd includes and " on " between src and dest of mount
-                .filter_map(|filesystem_and_mount| filesystem_and_mount.split_once(" on "))
-                .map(|(filesystem, mount)| (filesystem.to_owned(), PathBuf::from(mount)))
-                // sanity check: does the filesystem exist and have a ZFS hidden dir? if not, filter it out
-                // and flip around, mount should key of key/value
-                .partition_map(|(filesystem, mount)| {
-                    match get_fs_type_from_hidden_dir(&mount) {
-                        Some(FilesystemType::Zfs) => {
-                            Either::Left((mount, DatasetMetadata {
-                                source: filesystem,
-                                fs_type: FilesystemType::Zfs,
-                                mount_type: MountType::Local
-                            }))
-                        },
-                        Some(FilesystemType::Btrfs) => {
-                            Either::Left((mount, DatasetMetadata{
-                                source: filesystem,
-                                fs_type: FilesystemType::Btrfs,
-                                mount_type: MountType::Local
-                            }))
-                        },
-                        _ => {
-                            Either::Right(mount)
-                        }
-                    }
-                });
-
-            if map_of_datasets.is_empty() {
-                Err(HttmError::new("httm could not find any valid datasets on the system.").into())
-            } else {
-                Ok((map_of_datasets, filter_dirs))
-            }
+        if !stderr_string.is_empty() {
+            return Err(HttmError::new(stderr_string).into());
         }
 
-        parse()
+        let stdout_string = std::str::from_utf8(&command_output.stdout)?;
+
+        // parse "mount" for filesystems and mountpoints
+        let (map_of_datasets, filter_dirs): (HashMap<PathBuf, DatasetMetadata>, HashSet<PathBuf>) =
+            stdout_string
+            .par_lines()
+            // but exclude snapshot mounts.  we want the raw filesystem names.
+            .filter(|line| !line.contains(ZFS_SNAPSHOT_DIRECTORY))
+            // where to split, to just have the src and dest of mounts
+            .filter_map(|line|
+                // GNU Linux mount output
+                if line.contains("type") {
+                    line.split_once(" type")
+                // Busybox and BSD mount output
+                } else {
+                    line.split_once(" (")
+                }
+            )
+            .map(|(filesystem_and_mount,_)| filesystem_and_mount )
+            // mount cmd includes and " on " between src and dest of mount
+            .filter_map(|filesystem_and_mount| filesystem_and_mount.split_once(" on "))
+            .map(|(filesystem, mount)| (filesystem.to_owned(), PathBuf::from(mount)))
+            // sanity check: does the filesystem exist and have a ZFS hidden dir? if not, filter it out
+            // and flip around, mount should key of key/value
+            .partition_map(|(filesystem, mount)| {
+                match get_fs_type_from_hidden_dir(&mount) {
+                    Some(FilesystemType::Zfs) => {
+                        Either::Left((mount, DatasetMetadata {
+                            source: filesystem,
+                            fs_type: FilesystemType::Zfs,
+                            mount_type: MountType::Local
+                        }))
+                    },
+                    Some(FilesystemType::Btrfs) => {
+                        Either::Left((mount, DatasetMetadata{
+                            source: filesystem,
+                            fs_type: FilesystemType::Btrfs,
+                            mount_type: MountType::Local
+                        }))
+                    },
+                    _ => {
+                        Either::Right(mount)
+                    }
+                }
+            });
+
+        if map_of_datasets.is_empty() {
+            Err(HttmError::new("httm could not find any valid datasets on the system.").into())
+        } else {
+            Ok((map_of_datasets, filter_dirs))
+        }
     }
 
     // if we have some btrfs mounts, we check to see if there is a snap directory in common
