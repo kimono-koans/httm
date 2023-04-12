@@ -46,7 +46,7 @@ impl SpawnDeletedThread {
 
         deleted_scope.spawn(move |_| {
             let _ = Self::enumerate(&requested_dir_clone, &skim_tx_clone, &hangup_rx_clone);
-        });
+        })
     }
 
     // deleted file search for all modes

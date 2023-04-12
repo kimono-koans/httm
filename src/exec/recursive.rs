@@ -47,7 +47,7 @@ impl RecursiveSearch {
                 .build()
                 .expect("Could not initialize rayon threadpool for recursive deleted search");
 
-            pool.scope(|deleted_scope| {
+            pool.in_place_scope(|deleted_scope| {
                 Self::run_enumerate_loop(requested_dir, skim_tx, hangup_rx, Some(deleted_scope))
             })
         } else {
