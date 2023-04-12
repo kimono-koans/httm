@@ -33,114 +33,10 @@ use crate::VersionsMap;
 use crate::GLOBAL_CONFIG;
 use crate::{BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_HIDDEN_DIRECTORY};
 
-pub struct NonInteractiveRecursiveWrapper;
-
-impl NonInteractiveRecursiveWrapper {
-    #[allow(unused_variables)]
-    pub fn exec() -> HttmResult<()> {
-        // won't be sending anything anywhere, this just allows us to reuse enumerate_directory
-        let (dummy_skim_tx, _): (SkimItemSender, SkimItemReceiver) = unbounded();
-        let (hangup_tx, hangup_rx): (Sender<Never>, Receiver<Never>) = bounded(0);
-
-        match &GLOBAL_CONFIG.opt_requested_dir {
-            Some(requested_dir) => {
-                SharedRecursive::exec(&requested_dir.path_buf, dummy_skim_tx, hangup_rx);
-            }
-            None => {
-                return Err(HttmError::new(
-                    "requested_dir should never be None in Display Recursive mode",
-                )
-                .into())
-            }
-        }
-
-        Ok(())
-    }
-
-    fn print(entries: Vec<BasicDirEntryInfo>) -> HttmResult<()> {
-        let pseudo_live_set: Vec<PathData> = entries.iter().map(PathData::from).collect();
-
-        let versions_map = VersionsMap::new(&GLOBAL_CONFIG, &pseudo_live_set)?;
-        let output_buf = VersionsDisplayWrapper::from(&GLOBAL_CONFIG, versions_map).to_string();
-
-        print_output_buf(output_buf)
-    }
-}
-
-pub struct RecurseLiveFiles {
-    inner: Vec<BasicDirEntryInfo>,
-}
-
-impl RecurseLiveFiles {
-    fn exec(
-        requested_dir: &Path,
-        opt_deleted_scope: Option<&Scope>,
-        skim_tx: &SkimItemSender,
-        hangup_rx: &Receiver<Never>,
-    ) -> HttmResult<()> {
-        // runs once for non-recursive but also "primes the pump"
-        // for recursive to have items available, also only place an
-        // error can stop execution
-        let mut queue: Vec<BasicDirEntryInfo> =
-            Self::new(requested_dir, opt_deleted_scope, skim_tx, hangup_rx)?.into_inner();
-
-        if GLOBAL_CONFIG.opt_recursive {
-            // condition kills iter when user has made a selection
-            // pop_back makes this a LIFO queue which is supposedly better for caches
-            while let Some(item) = queue.pop() {
-                // no errors will be propagated in recursive mode
-                // far too likely to run into a dir we don't have permissions to view
-                if let Ok(item) = Self::new(&item.path, opt_deleted_scope, skim_tx, hangup_rx) {
-                    queue.append(&mut item.into_inner())
-                }
-            }
-        }
-
-        Ok(())
-    }
-
-    fn into_inner(self) -> Vec<BasicDirEntryInfo> {
-        self.inner
-    }
-
-    fn new(
-        requested_dir: &Path,
-        opt_deleted_scope: Option<&Scope>,
-        skim_tx: &SkimItemSender,
-        hangup_rx: &Receiver<Never>,
-    ) -> HttmResult<RecurseLiveFiles> {
-        // combined entries will be sent or printed, but we need the vec_dirs to recurse
-        let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
-            SharedRecursive::get_entries_partitioned(requested_dir)?;
-
-        SharedRecursive::combine_and_send_entries(
-            vec_files,
-            &vec_dirs,
-            false,
-            requested_dir,
-            skim_tx,
-        )?;
-
-        if let Some(deleted_scope) = opt_deleted_scope {
-            SpawnDeletedThread::exec(requested_dir, deleted_scope, skim_tx, hangup_rx);
-        }
-
-        Ok(RecurseLiveFiles { inner: vec_dirs })
-    }
-}
-
 pub struct SharedRecursive;
 
 impl SharedRecursive {
     pub fn exec(requested_dir: &Path, skim_tx: SkimItemSender, hangup_rx: Receiver<Never>) {
-        let run_enumerate_loop = |opt_deleted_scope: Option<&Scope>| {
-            RecurseLiveFiles::exec(requested_dir, opt_deleted_scope, &skim_tx, &hangup_rx)
-                .unwrap_or_else(|error| {
-                    eprintln!("Error: {error}");
-                    std::process::exit(1)
-                });
-        };
-
         if GLOBAL_CONFIG.opt_deleted_mode.is_some() {
             // thread pool allows deleted to have its own scope, which means
             // all threads must complete before the scope exits.  this is important
@@ -150,10 +46,27 @@ impl SharedRecursive {
                 .build()
                 .expect("Could not initialize rayon threadpool for recursive deleted search");
 
-            pool.scope(|deleted_scope| run_enumerate_loop(Some(deleted_scope)));
+            pool.scope(|deleted_scope| {
+                Self::run_enumerate_loop(requested_dir, skim_tx, hangup_rx, Some(deleted_scope))
+            });
         } else {
-            run_enumerate_loop(None)
+            Self::run_enumerate_loop(requested_dir, skim_tx, hangup_rx, None)
         }
+    }
+
+    fn run_enumerate_loop(
+        requested_dir: &Path,
+        skim_tx: SkimItemSender,
+        hangup_rx: Receiver<Never>,
+        opt_deleted_scope: Option<&Scope>,
+    ) {
+        // this runs the main loop for live file searches, see the referenced struct below
+        // we are in our own detached system thread, so print error and exit if error trickles up
+        RecurseLiveFiles::exec(requested_dir, opt_deleted_scope, &skim_tx, &hangup_rx)
+            .unwrap_or_else(|error| {
+                eprintln!("Error: {error}");
+                std::process::exit(1)
+            });
     }
 
     pub fn combine_and_send_entries(
@@ -329,5 +242,99 @@ impl SharedRecursive {
                 skim_tx.try_send(Arc::new(SelectionCandidate::new(basic_info, is_phantom)))
             })
             .map_err(std::convert::Into::into)
+    }
+}
+
+// this is the main loop to recurse all live files
+pub struct RecurseLiveFiles;
+
+impl RecurseLiveFiles {
+    fn exec(
+        requested_dir: &Path,
+        opt_deleted_scope: Option<&Scope>,
+        skim_tx: &SkimItemSender,
+        hangup_rx: &Receiver<Never>,
+    ) -> HttmResult<()> {
+        // runs once for non-recursive but also "primes the pump"
+        // for recursive to have items available, also only place an
+        // error can stop execution
+        let mut queue: Vec<BasicDirEntryInfo> =
+            Self::new(requested_dir, opt_deleted_scope, skim_tx, hangup_rx)?;
+
+        if GLOBAL_CONFIG.opt_recursive {
+            // condition kills iter when user has made a selection
+            // pop_back makes this a LIFO queue which is supposedly better for caches
+            while let Some(item) = queue.pop() {
+                // no errors will be propagated in recursive mode
+                // far too likely to run into a dir we don't have permissions to view
+                if let Ok(mut item) = Self::new(&item.path, opt_deleted_scope, skim_tx, hangup_rx) {
+                    queue.append(&mut item)
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    #[allow(clippy::new_ret_no_self)]
+    fn new(
+        requested_dir: &Path,
+        opt_deleted_scope: Option<&Scope>,
+        skim_tx: &SkimItemSender,
+        hangup_rx: &Receiver<Never>,
+    ) -> HttmResult<Vec<BasicDirEntryInfo>> {
+        // combined entries will be sent or printed, but we need the vec_dirs to recurse
+        let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
+            SharedRecursive::get_entries_partitioned(requested_dir)?;
+
+        SharedRecursive::combine_and_send_entries(
+            vec_files,
+            &vec_dirs,
+            false,
+            requested_dir,
+            skim_tx,
+        )?;
+
+        if let Some(deleted_scope) = opt_deleted_scope {
+            SpawnDeletedThread::exec(requested_dir, deleted_scope, skim_tx, hangup_rx);
+        }
+
+        Ok(vec_dirs)
+    }
+}
+
+// this is wrapper for non-interactive searches, which will be executed through the SharedRecursive fns
+// here we disable the skim transmitter, etc., because we will simply be printing anything we find
+pub struct NonInteractiveRecursiveWrapper;
+
+impl NonInteractiveRecursiveWrapper {
+    #[allow(unused_variables)]
+    pub fn exec() -> HttmResult<()> {
+        // won't be sending anything anywhere, this just allows us to reuse enumerate_directory
+        let (dummy_skim_tx, _): (SkimItemSender, SkimItemReceiver) = unbounded();
+        let (hangup_tx, hangup_rx): (Sender<Never>, Receiver<Never>) = bounded(0);
+
+        match &GLOBAL_CONFIG.opt_requested_dir {
+            Some(requested_dir) => {
+                SharedRecursive::exec(&requested_dir.path_buf, dummy_skim_tx, hangup_rx);
+            }
+            None => {
+                return Err(HttmError::new(
+                    "requested_dir should never be None in Display Recursive mode",
+                )
+                .into())
+            }
+        }
+
+        Ok(())
+    }
+
+    fn print(entries: Vec<BasicDirEntryInfo>) -> HttmResult<()> {
+        let pseudo_live_set: Vec<PathData> = entries.iter().map(PathData::from).collect();
+
+        let versions_map = VersionsMap::new(&GLOBAL_CONFIG, &pseudo_live_set)?;
+        let output_buf = VersionsDisplayWrapper::from(&GLOBAL_CONFIG, versions_map).to_string();
+
+        print_output_buf(output_buf)
     }
 }
