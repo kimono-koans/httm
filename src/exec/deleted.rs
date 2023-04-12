@@ -15,7 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use rayon::Scope;
 use skim::prelude::*;
@@ -122,60 +122,85 @@ impl SpawnDeletedThread {
         skim_tx: &SkimItemSender,
         hangup_rx: &Receiver<Never>,
     ) -> HttmResult<()> {
-        fn recurse_behind_deleted_dir(
-            dir_name: &Path,
-            from_deleted_dir: &Path,
-            from_requested_dir: &Path,
-            skim_tx: &SkimItemSender,
-            hangup_rx: &Receiver<Never>,
-        ) -> HttmResult<()> {
-            // check -- should deleted threads keep working?
-            // exit/error on disconnected channel, which closes
-            // at end of browse scope
-            if is_channel_closed(hangup_rx) {
-                return Err(HttmError::new("Thread requested to quit.  Quitting.").into());
-            }
-
-            // deleted_dir_on_snap is the path from the deleted dir on the snapshot
-            // pseudo_live_dir is the path from the fake, deleted directory that once was
-            let deleted_dir_on_snap = &from_deleted_dir.to_path_buf().join(dir_name);
-            let pseudo_live_dir = &from_requested_dir.to_path_buf().join(dir_name);
-
-            let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
-                SharedRecursive::get_entries_partitioned(deleted_dir_on_snap)?;
-
-            SharedRecursive::combine_and_send_entries(
-                vec_files,
-                &vec_dirs,
-                true,
-                pseudo_live_dir,
-                skim_tx,
-            )?;
-
-            // now recurse!
-            // don't propagate errors, errors we are most concerned about
-            // are transmission errors, which are handled elsewhere
-            vec_dirs.into_iter().try_for_each(|basic_info| {
-                let dir_name = Path::new(basic_info.get_filename());
-                recurse_behind_deleted_dir(
-                    dir_name,
-                    deleted_dir_on_snap,
-                    pseudo_live_dir,
+        let mut queue = match &deleted_dir.file_name() {
+            Some(dir_name) => {
+                vec![RecurseBehindDeletedDir::new(
+                    Path::new(dir_name),
+                    deleted_dir.parent().unwrap_or_else(|| Path::new("/")),
+                    requested_dir,
                     skim_tx,
                     hangup_rx,
-                )
-            })
+                )?]
+            }
+            None => return Err(HttmError::new("Not a valid directory name!").into()),
+        };
+
+        while let Some(item) = queue.pop() {
+            let res: HttmResult<Vec<RecurseBehindDeletedDir>> = item
+                .vec_dirs
+                .into_iter()
+                .map(|basic_info| {
+                    let dir_name = Path::new(basic_info.get_filename());
+                    RecurseBehindDeletedDir::new(
+                        dir_name,
+                        &item.deleted_dir_on_snap,
+                        &item.pseudo_live_dir,
+                        skim_tx,
+                        hangup_rx,
+                    )
+                })
+                .collect();
+
+            if let Ok(mut new_item) = res {
+                queue.append(&mut new_item)
+            }
         }
 
-        match &deleted_dir.file_name() {
-            Some(dir_name) => recurse_behind_deleted_dir(
-                Path::new(dir_name),
-                deleted_dir.parent().unwrap_or_else(|| Path::new("/")),
-                requested_dir,
-                skim_tx,
-                hangup_rx,
-            ),
-            None => Err(HttmError::new("Not a valid file name!").into()),
+        Ok(())
+    }
+}
+
+struct RecurseBehindDeletedDir {
+    vec_dirs: Vec<BasicDirEntryInfo>,
+    deleted_dir_on_snap: PathBuf,
+    pseudo_live_dir: PathBuf,
+}
+
+impl RecurseBehindDeletedDir {
+    fn new(
+        dir_name: &Path,
+        from_deleted_dir: &Path,
+        from_requested_dir: &Path,
+        skim_tx: &SkimItemSender,
+        hangup_rx: &Receiver<Never>,
+    ) -> HttmResult<RecurseBehindDeletedDir> {
+        // check -- should deleted threads keep working?
+        // exit/error on disconnected channel, which closes
+        // at end of browse scope
+        if is_channel_closed(hangup_rx) {
+            return Err(HttmError::new("Thread requested to quit.  Quitting.").into());
         }
+
+        // deleted_dir_on_snap is the path from the deleted dir on the snapshot
+        // pseudo_live_dir is the path from the fake, deleted directory that once was
+        let deleted_dir_on_snap = from_deleted_dir.to_path_buf().join(dir_name);
+        let pseudo_live_dir = from_requested_dir.to_path_buf().join(dir_name);
+
+        let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
+            SharedRecursive::get_entries_partitioned(&deleted_dir_on_snap)?;
+
+        SharedRecursive::combine_and_send_entries(
+            vec_files,
+            &vec_dirs,
+            true,
+            &pseudo_live_dir,
+            skim_tx,
+        )?;
+
+        Ok(RecurseBehindDeletedDir {
+            vec_dirs,
+            deleted_dir_on_snap,
+            pseudo_live_dir,
+        })
     }
 }
