@@ -97,12 +97,12 @@ impl InteractiveBrowse {
         let (hangup_tx, hangup_rx): (Sender<Never>, Receiver<Never>) = bounded(0);
 
         // thread spawn fn enumerate_directory - permits recursion into dirs without blocking
-        thread::spawn(move || {
+        let background_handle = thread::spawn(move || {
             // no way to propagate error from closure so exit and explain error here
             RecursiveSearch::exec(&requested_dir_clone, tx_item.clone(), hangup_rx.clone())
         });
 
-        let handle = thread::spawn(move || {
+        let display_handle = thread::spawn(move || {
             let opt_multi =
                 GLOBAL_CONFIG.opt_last_snap.is_none() || GLOBAL_CONFIG.opt_preview.is_none();
 
@@ -136,6 +136,9 @@ impl InteractiveBrowse {
                 return Err(HttmError::new("httm interactive file browse session failed.").into());
             };
 
+            // hangup the channel so the background recursive search can gracefully cleanup and exit
+            drop(hangup_tx);
+
             // output() converts the filename/raw path to a absolute path string for use elsewhere
             let output: Vec<String> = selected_items
                 .iter()
@@ -145,7 +148,11 @@ impl InteractiveBrowse {
             Ok(output)
         });
 
-        handle.join().unwrap_or(Err(
+        background_handle
+            .join()
+            .map_err(|_err| HttmError::new("Background browse thread panicked."))?;
+
+        display_handle.join().unwrap_or(Err(
             HttmError::new("Interactive browse thread panicked.").into()
         ))
     }

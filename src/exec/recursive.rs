@@ -49,7 +49,7 @@ impl RecursiveSearch {
 
             pool.scope(|deleted_scope| {
                 Self::run_enumerate_loop(requested_dir, skim_tx, hangup_rx, Some(deleted_scope))
-            });
+            })
         } else {
             Self::run_enumerate_loop(requested_dir, skim_tx, hangup_rx, None)
         }
