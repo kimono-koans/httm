@@ -193,7 +193,7 @@ impl SharedRecursive {
     }
 
     pub fn is_entry_dir(entry: &BasicDirEntryInfo) -> bool {
-        // must do is_dir() look up on file type as look up on path will traverse links!
+        // must do is_dir() look up on DirEntry file_type() as look up on Path will traverse links!
         if GLOBAL_CONFIG.opt_no_traverse {
             if let Ok(file_type) = entry.get_filetype() {
                 return file_type.is_dir();
