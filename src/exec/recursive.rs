@@ -65,35 +65,12 @@ impl NonInteractiveRecursiveWrapper {
     }
 }
 
-pub struct SharedRecursive;
+pub struct RecurseLiveFiles {
+    inner: Vec<BasicDirEntryInfo>,
+}
 
-impl SharedRecursive {
-    pub fn exec(requested_dir: &Path, skim_tx: SkimItemSender, hangup_rx: Receiver<Never>) {
-        let run_enumerate_loop = |opt_deleted_scope: Option<&Scope>| {
-            Self::main_loop(requested_dir, opt_deleted_scope, &skim_tx, &hangup_rx).unwrap_or_else(
-                |error| {
-                    eprintln!("Error: {error}");
-                    std::process::exit(1)
-                },
-            );
-        };
-
-        if GLOBAL_CONFIG.opt_deleted_mode.is_some() {
-            // thread pool allows deleted to have its own scope, which means
-            // all threads must complete before the scope exits.  this is important
-            // for display recursive searches as the live enumeration will end before
-            // all deleted threads have completed
-            let pool: ThreadPool = rayon::ThreadPoolBuilder::new()
-                .build()
-                .expect("Could not initialize rayon threadpool for recursive deleted search");
-
-            pool.scope(|deleted_scope| run_enumerate_loop(Some(deleted_scope)));
-        } else {
-            run_enumerate_loop(None)
-        }
-    }
-
-    fn main_loop(
+impl RecurseLiveFiles {
+    fn exec(
         requested_dir: &Path,
         opt_deleted_scope: Option<&Scope>,
         skim_tx: &SkimItemSender,
@@ -103,7 +80,7 @@ impl SharedRecursive {
         // for recursive to have items available, also only place an
         // error can stop execution
         let mut queue: Vec<BasicDirEntryInfo> =
-            Self::enumerate(requested_dir, opt_deleted_scope, skim_tx, hangup_rx)?;
+            Self::new(requested_dir, opt_deleted_scope, skim_tx, hangup_rx)?.into_inner();
 
         if GLOBAL_CONFIG.opt_recursive {
             // condition kills iter when user has made a selection
@@ -111,10 +88,8 @@ impl SharedRecursive {
             while let Some(item) = queue.pop() {
                 // no errors will be propagated in recursive mode
                 // far too likely to run into a dir we don't have permissions to view
-                if let Ok(mut vec_dirs) =
-                    Self::enumerate(&item.path, opt_deleted_scope, skim_tx, hangup_rx)
-                {
-                    queue.append(&mut vec_dirs)
+                if let Ok(item) = Self::new(&item.path, opt_deleted_scope, skim_tx, hangup_rx) {
+                    queue.append(&mut item.into_inner())
                 }
             }
         }
@@ -122,12 +97,16 @@ impl SharedRecursive {
         Ok(())
     }
 
-    fn enumerate(
+    fn into_inner(self) -> Vec<BasicDirEntryInfo> {
+        self.inner
+    }
+
+    fn new(
         requested_dir: &Path,
         opt_deleted_scope: Option<&Scope>,
         skim_tx: &SkimItemSender,
         hangup_rx: &Receiver<Never>,
-    ) -> HttmResult<Vec<BasicDirEntryInfo>> {
+    ) -> HttmResult<RecurseLiveFiles> {
         // combined entries will be sent or printed, but we need the vec_dirs to recurse
         let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
             SharedRecursive::get_entries_partitioned(requested_dir)?;
@@ -144,7 +123,35 @@ impl SharedRecursive {
             SpawnDeletedThread::exec(requested_dir, deleted_scope, skim_tx, hangup_rx);
         }
 
-        Ok(vec_dirs)
+        Ok(RecurseLiveFiles { inner: vec_dirs })
+    }
+}
+
+pub struct SharedRecursive;
+
+impl SharedRecursive {
+    pub fn exec(requested_dir: &Path, skim_tx: SkimItemSender, hangup_rx: Receiver<Never>) {
+        let run_enumerate_loop = |opt_deleted_scope: Option<&Scope>| {
+            RecurseLiveFiles::exec(requested_dir, opt_deleted_scope, &skim_tx, &hangup_rx)
+                .unwrap_or_else(|error| {
+                    eprintln!("Error: {error}");
+                    std::process::exit(1)
+                });
+        };
+
+        if GLOBAL_CONFIG.opt_deleted_mode.is_some() {
+            // thread pool allows deleted to have its own scope, which means
+            // all threads must complete before the scope exits.  this is important
+            // for display recursive searches as the live enumeration will end before
+            // all deleted threads have completed
+            let pool: ThreadPool = rayon::ThreadPoolBuilder::new()
+                .build()
+                .expect("Could not initialize rayon threadpool for recursive deleted search");
+
+            pool.scope(|deleted_scope| run_enumerate_loop(Some(deleted_scope)));
+        } else {
+            run_enumerate_loop(None)
+        }
     }
 
     pub fn combine_and_send_entries(
