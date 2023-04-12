@@ -134,7 +134,7 @@ impl RecurseBehindDeletedDir {
         if is_channel_closed(hangup_rx) {
             return Ok(());
         }
-        
+
         let mut queue = match &deleted_dir.file_name() {
             Some(dir_name) => {
                 let from_deleted_dir = deleted_dir
@@ -152,8 +152,7 @@ impl RecurseBehindDeletedDir {
         };
 
         while let Some(item) = queue.pop() {
-            item
-                .vec_dirs
+            item.vec_dirs
                 .iter()
                 .take_while(|_| {
                     // check -- should deleted threads keep working?
@@ -170,9 +169,7 @@ impl RecurseBehindDeletedDir {
                         skim_tx,
                     )
                 })
-                .try_for_each(|res| {
-                    res.map(|item| queue.push(item))
-                })?
+                .try_for_each(|res| res.map(|item| queue.push(item)))?
         }
 
         Ok(())
