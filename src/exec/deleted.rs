@@ -97,7 +97,7 @@ impl SpawnDeletedThread {
 
             let last_in_time_set = LastInTimeSet::new(&path_set);
 
-            last_in_time_set.iter().try_for_each(|deleted_dir| {
+            return last_in_time_set.iter().try_for_each(|deleted_dir| {
                 RecurseBehindDeletedDir::exec(
                     deleted_dir.as_path(),
                     requested_dir,
@@ -105,9 +105,9 @@ impl SpawnDeletedThread {
                     hangup_rx,
                 )
             })
-        } else {
-            Ok(())
         }
+        
+        Ok(())
     }
 }
 
