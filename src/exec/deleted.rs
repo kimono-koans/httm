@@ -59,7 +59,7 @@ impl SpawnDeletedThread {
         // exit/error on disconnected channel, which closes
         // at end of browse scope
         if is_channel_closed(hangup_rx) {
-            return Err(HttmError::new("Thread requested to quit.  Quitting.").into());
+            return Ok(());
         }
 
         // obtain all unique deleted, unordered, unsorted, will need to fix
@@ -104,9 +104,9 @@ impl SpawnDeletedThread {
                     skim_tx,
                     hangup_rx,
                 )
-            })
+            });
         }
-        
+
         Ok(())
     }
 }
@@ -149,7 +149,7 @@ impl RecurseBehindDeletedDir {
             // exit/error on disconnected channel, which closes
             // at end of browse scope
             if is_channel_closed(hangup_rx) {
-                return Err(HttmError::new("Thread requested to quit.  Quitting.").into());
+                break;
             }
 
             let res: HttmResult<Vec<RecurseBehindDeletedDir>> = item
