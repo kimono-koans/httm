@@ -62,7 +62,7 @@ impl RecursiveSearch {
     ) {
         // this runs the main loop for live file searches, see the referenced struct below
         // we are in our own detached system thread, so print error and exit if error trickles up
-        RecurseMainLoop::exec(requested_dir, opt_deleted_scope, &skim_tx, &hangup_rx)
+        RecursiveMainLoop::exec(requested_dir, opt_deleted_scope, &skim_tx, &hangup_rx)
             .unwrap_or_else(|error| {
                 eprintln!("Error: {error}");
                 std::process::exit(1)
@@ -70,10 +70,10 @@ impl RecursiveSearch {
     }
 }
 
-// this is the main loop to recurse all live files
-pub struct RecurseMainLoop;
+// this is the main loop to recurse all files
+pub struct RecursiveMainLoop;
 
-impl RecurseMainLoop {
+impl RecursiveMainLoop {
     fn exec(
         requested_dir: &Path,
         opt_deleted_scope: Option<&Scope>,
