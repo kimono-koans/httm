@@ -20,6 +20,7 @@ use std::{
     ffi::OsStr,
     fs::{symlink_metadata, DirEntry, File, FileType, Metadata},
     io::BufReader,
+    ops::Deref,
     path::{Path, PathBuf},
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -30,6 +31,7 @@ use serde::{Serialize, Serializer};
 use simd_adler32::bufread::adler32;
 
 use crate::parse::mounts::MapOfDatasets;
+use crate::parse::mounts::MaxLen;
 use crate::{config::generate::ListSnapsOfType, parse::aliases::MapOfAliases};
 use crate::{
     config::generate::PrintMode,
@@ -183,8 +185,8 @@ impl PathData {
         // we map to return the key, instead of the value
         self.path_buf
             .ancestors()
-            .skip_while(|ancestor| ancestor.components().count() > map_of_datasets.max_len)
-            .find(|ancestor| map_of_datasets.inner.contains_key(*ancestor))
+            .skip_while(|ancestor| ancestor.components().count() > map_of_datasets.get_max_len())
+            .find(|ancestor| map_of_datasets.deref().contains_key(*ancestor))
             .ok_or_else(|| {
                 HttmError::new(
                     "httm could not identify any qualifying dataset.  \

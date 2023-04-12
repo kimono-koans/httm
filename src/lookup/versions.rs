@@ -38,7 +38,7 @@ use crate::{
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VersionsMap {
-    pub inner: BTreeMap<PathData, Vec<PathData>>,
+    inner: BTreeMap<PathData, Vec<PathData>>,
 }
 
 impl From<BTreeMap<PathData, Vec<PathData>>> for VersionsMap {
@@ -70,6 +70,10 @@ impl DerefMut for VersionsMap {
 }
 
 impl VersionsMap {
+    pub fn into_inner(self) -> BTreeMap<PathData, Vec<PathData>> {
+        self.inner
+    }
+
     pub fn new(config: &Config, path_set: &[PathData]) -> HttmResult<VersionsMap> {
         let mut versions_map = Self::generate_map(config, path_set);
 

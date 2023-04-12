@@ -28,8 +28,8 @@ use crate::GLOBAL_CONFIG;
 
 #[derive(Debug)]
 pub struct MountsForFiles<'a> {
-    pub inner: BTreeMap<PathData, Vec<PathData>>,
-    pub mount_display: &'a MountDisplay,
+    inner: BTreeMap<PathData, Vec<PathData>>,
+    mount_display: &'a MountDisplay,
 }
 
 impl<'a> From<MountsForFiles<'a>> for VersionsMap {
@@ -47,6 +47,10 @@ impl<'a> Deref for MountsForFiles<'a> {
 }
 
 impl<'a> MountsForFiles<'a> {
+    pub fn get_mount_display(&self) -> &'a MountDisplay {
+        self.mount_display
+    }
+
     pub fn new(mount_display: &'a MountDisplay) -> Self {
         // we only check for phantom files in "mount for file" mode because
         // people should be able to search for deleted files in other modes

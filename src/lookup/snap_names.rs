@@ -68,7 +68,7 @@ impl SnapNameMap {
         opt_filters: &Option<ListSnapsFilters>,
     ) -> SnapNameMap {
         let inner: BTreeMap<PathData, Vec<String>> = version_map
-            .inner
+            .into_inner()
             .into_iter()
             .map(|(pathdata, vec_snaps)| {
                 // use par iter here because no one else is using the global rayon threadpool any more
@@ -137,7 +137,7 @@ impl DeconstructedSnapPathData {
         let opt_dataset_md = GLOBAL_CONFIG
             .dataset_collection
             .map_of_datasets
-            .inner
+            .deref()
             .get(dataset_path);
 
         match opt_dataset_md {

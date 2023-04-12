@@ -15,6 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
+use std::ops::Deref;
 use std::{fs::read_dir, path::Path, sync::Arc};
 
 use rayon::{Scope, ThreadPool};
@@ -27,6 +28,7 @@ use crate::display_versions::wrapper::VersionsDisplayWrapper;
 use crate::exec::deleted::SpawnDeletedThread;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{print_output_buf, HttmIsDir, Never};
+use crate::parse::mounts::MaxLen;
 use crate::VersionsMap;
 use crate::GLOBAL_CONFIG;
 use crate::{BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_HIDDEN_DIRECTORY};
@@ -254,14 +256,14 @@ impl SharedRecursive {
 
         // finally : is a non-supported dataset?
         // bailout easily if path is larger than max_filter_dir len
-        if path.components().count() > GLOBAL_CONFIG.dataset_collection.filter_dirs.max_len {
+        if path.components().count() > GLOBAL_CONFIG.dataset_collection.filter_dirs.get_max_len() {
             return false;
         }
 
         GLOBAL_CONFIG
             .dataset_collection
             .filter_dirs
-            .inner
+            .deref()
             .contains(path)
     }
 

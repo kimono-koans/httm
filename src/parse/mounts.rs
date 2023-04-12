@@ -53,14 +53,32 @@ pub struct DatasetMetadata {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FilterDirs {
-    pub inner: HashSet<PathBuf>,
-    pub max_len: usize,
+    inner: HashSet<PathBuf>,
+    max_len: usize,
+}
+
+impl Deref for FilterDirs {
+    type Target = HashSet<PathBuf>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+pub trait MaxLen {
+    fn get_max_len(&self) -> usize;
+}
+
+impl MaxLen for FilterDirs {
+    fn get_max_len(&self) -> usize {
+        self.max_len
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MapOfDatasets {
-    pub inner: HashMap<PathBuf, DatasetMetadata>,
-    pub max_len: usize,
+    inner: HashMap<PathBuf, DatasetMetadata>,
+    max_len: usize,
 }
 
 impl Deref for MapOfDatasets {
@@ -68,6 +86,12 @@ impl Deref for MapOfDatasets {
 
     fn deref(&self) -> &Self::Target {
         &self.inner
+    }
+}
+
+impl MaxLen for MapOfDatasets {
+    fn get_max_len(&self) -> usize {
+        self.max_len
     }
 }
 

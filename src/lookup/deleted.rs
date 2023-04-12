@@ -48,16 +48,14 @@ impl Deref for DeletedFilesBundle {
     }
 }
 
-impl DeletedFilesBundle {
-    pub fn into_inner(self) -> Vec<BasicDirEntryInfo> {
-        self.inner
-    }
-}
-
 // deleted_lookup_exec is a dumb function/module if we want to rank outputs, get last in time, etc.
 // we do that elsewhere.  deleted is simply about finding at least one version of a deleted file
 // this, believe it or not, will be faster
 impl DeletedFilesBundle {
+    pub fn into_inner(self) -> Vec<BasicDirEntryInfo> {
+        self.inner
+    }
+
     pub fn new(requested_dir: &Path) -> Self {
         // we always need a requesting dir because we are comparing the files in the
         // requesting dir to those of their relative dirs on snapshots
