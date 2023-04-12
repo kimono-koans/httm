@@ -152,7 +152,7 @@ impl RecurseBehindDeletedDir {
         };
 
         while let Some(item) = queue.pop() {
-            let res: HttmResult<Vec<RecurseBehindDeletedDir>> = item
+            item
                 .vec_dirs
                 .iter()
                 .take_while(|_| {
@@ -170,11 +170,9 @@ impl RecurseBehindDeletedDir {
                         skim_tx,
                     )
                 })
-                .collect();
-
-            if let Ok(mut new_item) = res {
-                queue.append(&mut new_item)
-            }
+                .try_for_each(|res| {
+                    res.map(|item| queue.push(item))
+                })?
         }
 
         Ok(())
