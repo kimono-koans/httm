@@ -27,6 +27,7 @@ use crate::data::selection::SelectionCandidate;
 use crate::display_versions::wrapper::VersionsDisplayWrapper;
 use crate::exec::deleted::SpawnDeletedThread;
 use crate::library::results::{HttmError, HttmResult};
+use crate::library::utility::is_channel_closed;
 use crate::library::utility::{print_output_buf, HttmIsDir, Never};
 use crate::parse::mounts::MaxLen;
 use crate::VersionsMap;
@@ -90,6 +91,13 @@ impl RecursiveMainLoop {
             // condition kills iter when user has made a selection
             // pop_back makes this a LIFO queue which is supposedly better for caches
             while let Some(item) = queue.pop() {
+                // check -- should deleted threads keep working?
+                // exit/error on disconnected channel, which closes
+                // at end of browse scope
+                if is_channel_closed(hangup_rx) {
+                    break;
+                }
+
                 // no errors will be propagated in recursive mode
                 // far too likely to run into a dir we don't have permissions to view
                 if let Ok(mut item) = Self::new(&item.path, opt_deleted_scope, skim_tx, hangup_rx) {
