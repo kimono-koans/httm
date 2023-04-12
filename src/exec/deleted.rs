@@ -129,13 +129,19 @@ impl SpawnDeletedThread {
                     deleted_dir.parent().unwrap_or_else(|| Path::new("/")),
                     requested_dir,
                     skim_tx,
-                    hangup_rx,
                 )?]
             }
             None => return Err(HttmError::new("Not a valid directory name!").into()),
         };
 
         while let Some(item) = queue.pop() {
+            // check -- should deleted threads keep working?
+            // exit/error on disconnected channel, which closes
+            // at end of browse scope
+            if is_channel_closed(hangup_rx) {
+                return Err(HttmError::new("Thread requested to quit.  Quitting.").into());
+            }
+
             let res: HttmResult<Vec<RecurseBehindDeletedDir>> = item
                 .vec_dirs
                 .into_iter()
@@ -146,7 +152,6 @@ impl SpawnDeletedThread {
                         &item.deleted_dir_on_snap,
                         &item.pseudo_live_dir,
                         skim_tx,
-                        hangup_rx,
                     )
                 })
                 .collect();
@@ -172,15 +177,7 @@ impl RecurseBehindDeletedDir {
         from_deleted_dir: &Path,
         from_requested_dir: &Path,
         skim_tx: &SkimItemSender,
-        hangup_rx: &Receiver<Never>,
     ) -> HttmResult<RecurseBehindDeletedDir> {
-        // check -- should deleted threads keep working?
-        // exit/error on disconnected channel, which closes
-        // at end of browse scope
-        if is_channel_closed(hangup_rx) {
-            return Err(HttmError::new("Thread requested to quit.  Quitting.").into());
-        }
-
         // deleted_dir_on_snap is the path from the deleted dir on the snapshot
         // pseudo_live_dir is the path from the fake, deleted directory that once was
         let deleted_dir_on_snap = from_deleted_dir.to_path_buf().join(dir_name);
