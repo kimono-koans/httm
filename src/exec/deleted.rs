@@ -98,11 +98,9 @@ impl SpawnDeletedThread {
             let last_in_time_set = LastInTimeSet::new(&path_set);
 
             last_in_time_set.iter().try_for_each(|deleted_dir| {
-                let requested_dir_clone = requested_dir.to_path_buf();
-
-                Self::get_entries_behind_deleted_dir(
+                RecurseBehindDeletedDir::exec(
                     deleted_dir.as_path(),
-                    &requested_dir_clone,
+                    requested_dir,
                     skim_tx,
                     hangup_rx,
                 )
@@ -111,12 +109,20 @@ impl SpawnDeletedThread {
             Ok(())
         }
     }
+}
 
+struct RecurseBehindDeletedDir {
+    vec_dirs: Vec<BasicDirEntryInfo>,
+    deleted_dir_on_snap: PathBuf,
+    pseudo_live_dir: PathBuf,
+}
+
+impl RecurseBehindDeletedDir {
     // searches for all files behind the dirs that have been deleted
     // recurses over all dir entries and creates pseudo live versions
     // for them all, policy is to use the latest snapshot version before
     // deletion
-    fn get_entries_behind_deleted_dir(
+    fn exec(
         deleted_dir: &Path,
         requested_dir: &Path,
         skim_tx: &SkimItemSender,
@@ -124,10 +130,14 @@ impl SpawnDeletedThread {
     ) -> HttmResult<()> {
         let mut queue = match &deleted_dir.file_name() {
             Some(dir_name) => {
+                let from_deleted_dir = deleted_dir
+                    .parent()
+                    .ok_or_else(|| HttmError::new("Not a valid directory name!"))?;
+                let from_requested_dir = requested_dir;
                 vec![RecurseBehindDeletedDir::new(
                     Path::new(dir_name),
-                    deleted_dir.parent().unwrap_or_else(|| Path::new("/")),
-                    requested_dir,
+                    from_deleted_dir,
+                    from_requested_dir,
                     skim_tx,
                 )?]
             }
@@ -144,7 +154,7 @@ impl SpawnDeletedThread {
 
             let res: HttmResult<Vec<RecurseBehindDeletedDir>> = item
                 .vec_dirs
-                .into_iter()
+                .iter()
                 .map(|basic_info| {
                     let dir_name = Path::new(basic_info.get_filename());
                     RecurseBehindDeletedDir::new(
@@ -163,15 +173,7 @@ impl SpawnDeletedThread {
 
         Ok(())
     }
-}
 
-struct RecurseBehindDeletedDir {
-    vec_dirs: Vec<BasicDirEntryInfo>,
-    deleted_dir_on_snap: PathBuf,
-    pseudo_live_dir: PathBuf,
-}
-
-impl RecurseBehindDeletedDir {
     fn new(
         dir_name: &Path,
         from_deleted_dir: &Path,

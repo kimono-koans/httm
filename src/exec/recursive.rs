@@ -69,7 +69,7 @@ pub struct SharedRecursive;
 
 impl SharedRecursive {
     pub fn exec(requested_dir: &Path, skim_tx: SkimItemSender, hangup_rx: Receiver<Never>) {
-        let run = |opt_deleted_scope: Option<&Scope>| {
+        let run_enumerate_loop = |opt_deleted_scope: Option<&Scope>| {
             Self::main_loop(requested_dir, opt_deleted_scope, &skim_tx, &hangup_rx).unwrap_or_else(
                 |error| {
                     eprintln!("Error: {error}");
@@ -87,9 +87,9 @@ impl SharedRecursive {
                 .build()
                 .expect("Could not initialize rayon threadpool for recursive deleted search");
 
-            pool.scope(|deleted_scope| run(Some(deleted_scope)));
+            pool.scope(|deleted_scope| run_enumerate_loop(Some(deleted_scope)));
         } else {
-            run(None)
+            run_enumerate_loop(None)
         }
     }
 
@@ -103,7 +103,7 @@ impl SharedRecursive {
         // for recursive to have items available, also only place an
         // error can stop execution
         let mut queue: Vec<BasicDirEntryInfo> =
-            Self::enumerate_directory(requested_dir, opt_deleted_scope, skim_tx, hangup_rx)?;
+            Self::enumerate(requested_dir, opt_deleted_scope, skim_tx, hangup_rx)?;
 
         if GLOBAL_CONFIG.opt_recursive {
             // condition kills iter when user has made a selection
@@ -112,7 +112,7 @@ impl SharedRecursive {
                 // no errors will be propagated in recursive mode
                 // far too likely to run into a dir we don't have permissions to view
                 if let Ok(mut vec_dirs) =
-                    Self::enumerate_directory(&item.path, opt_deleted_scope, skim_tx, hangup_rx)
+                    Self::enumerate(&item.path, opt_deleted_scope, skim_tx, hangup_rx)
                 {
                     queue.append(&mut vec_dirs)
                 }
@@ -122,7 +122,7 @@ impl SharedRecursive {
         Ok(())
     }
 
-    fn enumerate_directory(
+    fn enumerate(
         requested_dir: &Path,
         opt_deleted_scope: Option<&Scope>,
         skim_tx: &SkimItemSender,
