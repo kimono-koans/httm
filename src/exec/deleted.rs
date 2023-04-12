@@ -128,6 +128,13 @@ impl RecurseBehindDeletedDir {
         skim_tx: &SkimItemSender,
         hangup_rx: &Receiver<Never>,
     ) -> HttmResult<()> {
+        // check -- should deleted threads keep working?
+        // exit/error on disconnected channel, which closes
+        // at end of browse scope
+        if is_channel_closed(hangup_rx) {
+            return Ok(());
+        }
+        
         let mut queue = match &deleted_dir.file_name() {
             Some(dir_name) => {
                 let from_deleted_dir = deleted_dir
