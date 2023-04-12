@@ -156,9 +156,9 @@ impl SpawnDeletedThread {
             // don't propagate errors, errors we are most concerned about
             // are transmission errors, which are handled elsewhere
             vec_dirs.into_iter().try_for_each(|basic_info| {
-                let file_name = Path::new(basic_info.get_filename());
+                let dir_name = Path::new(basic_info.get_filename());
                 recurse_behind_deleted_dir(
-                    file_name,
+                    dir_name,
                     deleted_dir_on_snap,
                     pseudo_live_dir,
                     skim_tx,
