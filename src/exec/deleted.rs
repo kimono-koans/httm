@@ -141,23 +141,27 @@ impl RecurseBehindDeletedDir {
                     .parent()
                     .ok_or_else(|| HttmError::new("Not a valid directory name!"))?;
                 let from_requested_dir = requested_dir;
-                vec![RecurseBehindDeletedDir::new(
+                if let Ok(res) = RecurseBehindDeletedDir::new(
                     Path::new(dir_name),
                     from_deleted_dir,
                     from_requested_dir,
                     skim_tx,
-                )?]
+                ) {
+                    vec![res]
+                } else {
+                    Vec::new()
+                }
             }
             None => return Err(HttmError::new("Not a valid directory name!").into()),
         };
 
         while let Some(item) = queue.pop() {
             item.vec_dirs
-                .iter()
+                .into_iter()
                 .take_while(|_| {
                     // check -- should deleted threads keep working?
                     // exit/error on disconnected channel, which closes
-                    // at end of browse scope
+                    // at xwend of browse scope
                     !is_channel_closed(hangup_rx)
                 })
                 .map(|basic_info| {
@@ -169,7 +173,13 @@ impl RecurseBehindDeletedDir {
                         skim_tx,
                     )
                 })
-                .try_for_each(|res| res.map(|item| queue.push(item)))?
+                .try_for_each(|res| {
+                    res.map(|item| {
+                        if !item.vec_dirs.is_empty() {
+                            queue.push(item)
+                        }
+                    })
+                })?
         }
 
         Ok(())
