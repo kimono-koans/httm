@@ -149,7 +149,7 @@ impl RecurseBehindDeletedDir {
                 ) {
                     vec![res]
                 } else {
-                    Vec::new()
+                    return Ok(());
                 }
             }
             None => return Err(HttmError::new("Not a valid directory name!").into()),
