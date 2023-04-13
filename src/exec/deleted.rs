@@ -161,7 +161,7 @@ impl RecurseBehindDeletedDir {
                 .take_while(|_| {
                     // check -- should deleted threads keep working?
                     // exit/error on disconnected channel, which closes
-                    // at xwend of browse scope
+                    // at end of browse scope
                     !is_channel_closed(hangup_rx)
                 })
                 .map(|basic_info| {
