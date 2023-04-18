@@ -15,6 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
+use std::collections::LinkedList;
 use std::path::{Path, PathBuf};
 
 use rayon::Scope;
@@ -147,7 +148,7 @@ impl RecurseBehindDeletedDir {
                     from_requested_dir,
                     skim_tx,
                 ) {
-                    vec![res]
+                    LinkedList::from([res])
                 } else {
                     return Ok(());
                 }
@@ -155,7 +156,7 @@ impl RecurseBehindDeletedDir {
             None => return Err(HttmError::new("Not a valid directory name!").into()),
         };
 
-        while let Some(item) = queue.pop() {
+        while let Some(item) = queue.pop_back() {
             item.vec_dirs
                 .into_iter()
                 .take_while(|_| {
@@ -176,7 +177,7 @@ impl RecurseBehindDeletedDir {
                 .try_for_each(|res| {
                     res.map(|item| {
                         if !item.vec_dirs.is_empty() {
-                            queue.push(item)
+                            queue.push_back(item)
                         }
                     })
                 })?

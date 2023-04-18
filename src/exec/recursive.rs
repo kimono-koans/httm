@@ -15,6 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
+use std::collections::LinkedList;
 use std::ops::Deref;
 use std::{fs::read_dir, path::Path, sync::Arc};
 
@@ -84,13 +85,15 @@ impl RecursiveMainLoop {
         // runs once for non-recursive but also "primes the pump"
         // for recursive to have items available, also only place an
         // error can stop execution
-        let mut queue: Vec<BasicDirEntryInfo> =
-            Self::new(requested_dir, opt_deleted_scope, skim_tx, hangup_rx)?;
+        let mut queue: LinkedList<BasicDirEntryInfo> =
+            Self::new(requested_dir, opt_deleted_scope, skim_tx, hangup_rx)?
+                .into_iter()
+                .collect();
 
         if GLOBAL_CONFIG.opt_recursive {
             // condition kills iter when user has made a selection
             // pop_back makes this a LIFO queue which is supposedly better for caches
-            while let Some(item) = queue.pop() {
+            while let Some(item) = queue.pop_back() {
                 // check -- should deleted threads keep working?
                 // exit/error on disconnected channel, which closes
                 // at end of browse scope
@@ -100,8 +103,8 @@ impl RecursiveMainLoop {
 
                 // no errors will be propagated in recursive mode
                 // far too likely to run into a dir we don't have permissions to view
-                if let Ok(mut item) = Self::new(&item.path, opt_deleted_scope, skim_tx, hangup_rx) {
-                    queue.append(&mut item)
+                if let Ok(items) = Self::new(&item.path, opt_deleted_scope, skim_tx, hangup_rx) {
+                    queue.extend(items)
                 }
             }
         }
