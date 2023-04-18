@@ -392,10 +392,15 @@ impl<'a> RelativePathAndSnapMounts<'a> {
         snaps_of_type: &ListSnapsOfType,
     ) -> Vec<PathData> {
         match snaps_of_type {
-            ListSnapsOfType::All => iter
-                .map(|pathdata| CompareVersionsContainer::new(pathdata, snaps_of_type))
-                .map(PathData::from)
-                .collect(),
+            ListSnapsOfType::All => {
+                let mut sorted_versions: Vec<CompareVersionsContainer> = iter
+                    .map(|pathdata| CompareVersionsContainer::new(pathdata, snaps_of_type))
+                    .collect();
+
+                sorted_versions.par_sort_unstable();
+
+                sorted_versions.into_iter().map(PathData::from).collect()
+            }
             ListSnapsOfType::UniqueContents | ListSnapsOfType::UniqueMetadata => {
                 let unique_and_sorted_versions: BTreeSet<CompareVersionsContainer> = iter
                     .map(|pathdata| CompareVersionsContainer::new(pathdata, snaps_of_type))

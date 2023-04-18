@@ -315,8 +315,7 @@ impl CompareVersionsContainer {
     pub fn new(pathdata: PathData, snaps_of_type: &ListSnapsOfType) -> Self {
         let opt_hash = match snaps_of_type {
             ListSnapsOfType::UniqueContents => Some(OnceCell::new()),
-            ListSnapsOfType::UniqueMetadata => None,
-            _ => unreachable!(),
+            ListSnapsOfType::UniqueMetadata | ListSnapsOfType::All => None,
         };
 
         CompareVersionsContainer { pathdata, opt_hash }
