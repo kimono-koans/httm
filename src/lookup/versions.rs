@@ -16,7 +16,6 @@
 // that was distributed with this source code.
 
 use std::{
-    cmp::Ord,
     collections::{BTreeMap, BTreeSet},
     io::ErrorKind,
     ops::Deref,
@@ -344,7 +343,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
     pub fn get_versions_processed(&'a self, uniqueness: &ListSnapsOfType) -> Vec<PathData> {
         let all_versions = self.get_versions_unprocessed();
 
-        let sorted_versions: Vec<PathData> = Self::into_unique_versions(all_versions, uniqueness);
+        let sorted_versions: Vec<PathData> = Self::process_versions(all_versions, uniqueness);
 
         sorted_versions
     }
@@ -388,29 +387,25 @@ impl<'a> RelativePathAndSnapMounts<'a> {
 
     // remove duplicates with the same system modify time and size/file len (or contents! See --uniqueness)
     #[allow(clippy::mutable_key_type)]
-    fn into_unique_versions(
+    fn process_versions(
         iter: impl ParallelIterator<Item = PathData>,
         snaps_of_type: &ListSnapsOfType,
     ) -> Vec<PathData> {
         match snaps_of_type {
             ListSnapsOfType::All => {
-                let mut versions: Vec<PathData> = iter.collect();
+                
 
-                versions.sort_unstable_by(|a, b| {
-                    let a_md = a.get_md_infallible();
-                    let b_md = b.get_md_infallible();
-
-                    (a_md.modify_time, a_md.size).cmp(&(b_md.modify_time, b_md.size))
-                });
-
-                versions
+                iter
+                    .map(|pathdata| CompareVersionsContainer::new(pathdata, snaps_of_type))
+                    .map(PathData::from)
+                    .collect()
             }
-            snaps_of_type => {
-                let sorted: BTreeSet<CompareVersionsContainer> = iter
+            ListSnapsOfType::UniqueContents | ListSnapsOfType::UniqueMetadata => {
+                let unique_and_sorted_versions: BTreeSet<CompareVersionsContainer> = iter
                     .map(|pathdata| CompareVersionsContainer::new(pathdata, snaps_of_type))
                     .collect();
 
-                sorted
+                unique_and_sorted_versions
                     .into_iter()
                     .map(PathData::from)
                     .collect()
