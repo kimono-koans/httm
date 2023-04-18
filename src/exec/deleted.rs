@@ -46,12 +46,12 @@ impl SpawnDeletedThread {
         let hangup_rx_clone = hangup_rx.clone();
 
         deleted_scope.spawn(move |_| {
-            let _ = Self::enumerate(&requested_dir_clone, &skim_tx_clone, &hangup_rx_clone);
+            let _ = Self::enter_directory(&requested_dir_clone, &skim_tx_clone, &hangup_rx_clone);
         })
     }
 
     // deleted file search for all modes
-    fn enumerate(
+    fn enter_directory(
         requested_dir: &Path,
         skim_tx: &SkimItemSender,
         hangup_rx: &Receiver<Never>,
@@ -96,7 +96,7 @@ impl SpawnDeletedThread {
                 .map(|basic_info| PathData::from(&basic_info))
                 .collect();
 
-            return LastInTimeSet::new(&path_set).try_for_each(|deleted_dir| {
+            return LastInTimeSet::exec(&path_set).try_for_each(|deleted_dir| {
                 RecurseBehindDeletedDir::exec(
                     deleted_dir.as_path(),
                     requested_dir,
@@ -140,7 +140,7 @@ impl RecurseBehindDeletedDir {
                     .parent()
                     .ok_or_else(|| HttmError::new("Not a valid directory name!"))?;
                 let from_requested_dir = requested_dir;
-                if let Ok(res) = RecurseBehindDeletedDir::new(
+                if let Ok(res) = RecurseBehindDeletedDir::enter_directory(
                     Path::new(dir_name),
                     from_deleted_dir,
                     from_requested_dir,
@@ -165,7 +165,7 @@ impl RecurseBehindDeletedDir {
                 })
                 .map(|basic_info| {
                     let dir_name = Path::new(basic_info.get_filename());
-                    RecurseBehindDeletedDir::new(
+                    RecurseBehindDeletedDir::enter_directory(
                         dir_name,
                         &item.deleted_dir_on_snap,
                         &item.pseudo_live_dir,
@@ -184,7 +184,7 @@ impl RecurseBehindDeletedDir {
         Ok(())
     }
 
-    fn new(
+    fn enter_directory(
         dir_name: &Path,
         from_deleted_dir: &Path,
         from_requested_dir: &Path,

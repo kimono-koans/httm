@@ -86,7 +86,7 @@ impl RecursiveMainLoop {
         // for recursive to have items available, also only place an
         // error can stop execution
         let mut queue: LinkedList<BasicDirEntryInfo> =
-            Self::new(requested_dir, opt_deleted_scope, skim_tx, hangup_rx)?
+            Self::enter_directory(requested_dir, opt_deleted_scope, skim_tx, hangup_rx)?
                 .into_iter()
                 .collect();
 
@@ -103,7 +103,9 @@ impl RecursiveMainLoop {
 
                 // no errors will be propagated in recursive mode
                 // far too likely to run into a dir we don't have permissions to view
-                if let Ok(items) = Self::new(&item.path, opt_deleted_scope, skim_tx, hangup_rx) {
+                if let Ok(items) =
+                    Self::enter_directory(&item.path, opt_deleted_scope, skim_tx, hangup_rx)
+                {
                     queue.extend(items)
                 }
             }
@@ -113,7 +115,7 @@ impl RecursiveMainLoop {
     }
 
     #[allow(clippy::new_ret_no_self)]
-    fn new(
+    fn enter_directory(
         requested_dir: &Path,
         opt_deleted_scope: Option<&Scope>,
         skim_tx: &SkimItemSender,

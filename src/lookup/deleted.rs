@@ -144,7 +144,7 @@ impl LastInTimeSet {
 
     // this fn is also missing parallel iter fns, to make the searches more responsive
     // by leaving parallel search for the interactive views
-    pub fn new(path_set: &[PathData]) -> impl Iterator<Item = PathBuf> + '_ {
+    pub fn exec(path_set: &[PathData]) -> impl Iterator<Item = PathBuf> + '_ {
         // create vec of all local and replicated backups at once
         let snaps_selected_for_search = GLOBAL_CONFIG
             .dataset_collection
