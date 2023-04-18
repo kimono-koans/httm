@@ -145,7 +145,7 @@ impl InteractiveBrowse {
             // output() converts the filename/raw path to a absolute path string for use elsewhere
             let output: Vec<PathData> = selected_items
                 .iter()
-                .map(|i| PathData::from(PathBuf::from(i.output().to_string())))
+                .map(|i| PathData::from(Path::new(&i.output().to_string())))
                 .collect();
 
             Ok(output)
