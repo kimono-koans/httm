@@ -15,6 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
+use std::thread::JoinHandle;
 use std::{io::Cursor, path::Path, path::PathBuf, thread};
 
 use crossbeam::channel::unbounded;
@@ -41,19 +42,20 @@ pub struct InteractiveBrowse;
 
 impl InteractiveBrowse {
     pub fn exec(interactive_mode: &InteractiveMode) -> HttmResult<Vec<PathData>> {
-        let paths_selected_in_browse = match &GLOBAL_CONFIG.opt_requested_dir {
+        let (_background_handle, paths_selected_in_browse) = match &GLOBAL_CONFIG.opt_requested_dir
+        {
             // collect string paths from what we get from lookup_view
             Some(requested_dir) => {
-                // loop until user selects a valid path
-                loop {
-                    let selected_pathdata = InteractiveBrowse::browse_view(requested_dir)?
-                        .into_iter()
-                        .map(|path_string| PathData::from(Path::new(&path_string)))
-                        .collect::<Vec<PathData>>();
-                    if !selected_pathdata.is_empty() {
-                        break selected_pathdata;
-                    }
+                let (background_handle, selected_pathdata) =
+                    InteractiveBrowse::browse_view(requested_dir)?;
+                if selected_pathdata.is_empty() {
+                    return Err(HttmError::new(
+                        "None of the selected strings could be converted to paths.",
+                    )
+                    .into());
                 }
+
+                (background_handle, selected_pathdata)
             }
             None => {
                 // go to interactive_select early if user has already requested a file
@@ -90,15 +92,14 @@ impl InteractiveBrowse {
     }
 
     #[allow(unused_variables)]
-    fn browse_view(requested_dir: &PathData) -> HttmResult<Vec<String>> {
+    fn browse_view(requested_dir: &PathData) -> HttmResult<(JoinHandle<()>, Vec<PathData>)> {
         // prep thread spawn
         let requested_dir_clone = requested_dir.path_buf.clone();
         let (tx_item, rx_item): (SkimItemSender, SkimItemReceiver) = unbounded();
         let (hangup_tx, hangup_rx): (Sender<Never>, Receiver<Never>) = bounded(0);
 
         // thread spawn fn enumerate_directory - permits recursion into dirs without blocking
-        // let background_handle =
-        thread::spawn(move || {
+        let background_handle = thread::spawn(move || {
             // no way to propagate error from closure so exit and explain error here
             RecursiveSearch::exec(&requested_dir_clone, tx_item.clone(), hangup_rx.clone())
         });
@@ -124,38 +125,36 @@ impl InteractiveBrowse {
                 .expect("Could not initialized skim options for browse_view");
 
             // run_with() reads and shows items from the thread stream created above
-            let selected_items = if let Some(output) =
-                skim::Skim::run_with(&skim_opts, Some(rx_item))
-            {
-                if output.is_abort {
-                    eprintln!("httm interactive file browse session was aborted.  Quitting.");
-                    std::process::exit(0)
+            let selected_items =
+                if let Some(output) = skim::Skim::run_with(&skim_opts, Some(rx_item)) {
+                    if output.is_abort {
+                        eprintln!("httm interactive file browse session was aborted.  Quitting.");
+                        std::process::exit(0)
+                    } else {
+                        output.selected_items
+                    }
                 } else {
-                    output.selected_items
-                }
-            } else {
-                return Err(HttmError::new("httm interactive file browse session failed.").into());
-            };
+                    return Err(HttmError::new(
+                        "httm interactive file browse session failed.",
+                    ));
+                };
 
             // hangup the channel so the background recursive search can gracefully cleanup and exit
             drop(hangup_tx);
 
             // output() converts the filename/raw path to a absolute path string for use elsewhere
-            let output: Vec<String> = selected_items
+            let output: Vec<PathData> = selected_items
                 .iter()
-                .map(|i| i.output().into_owned())
+                .map(|i| PathData::from(PathBuf::from(i.output().to_string())))
                 .collect();
 
             Ok(output)
         });
 
-        // background_handle
-        //    .join()
-        //    .map_err(|_err| HttmError::new("Background browse thread panicked."))?;
-
-        display_handle.join().unwrap_or(Err(
-            HttmError::new("Interactive browse thread panicked.").into()
-        ))
+        match display_handle.join() {
+            Ok(selection_res) => Ok((background_handle, selection_res?)),
+            Err(_) => Err(HttmError::new("Interactive browse thread panicked.").into()),
+        }
     }
 }
 
