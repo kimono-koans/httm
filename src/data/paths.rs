@@ -275,6 +275,12 @@ impl From<CompareVersionsContainer> for PathData {
     }
 }
 
+impl From<CompareVersionsContainer> for PathBuf {
+    fn from(container: CompareVersionsContainer) -> Self {
+        container.pathdata.path_buf
+    }
+}
+
 impl PartialOrd for CompareVersionsContainer {
     #[inline]
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {

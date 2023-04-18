@@ -344,21 +344,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
     pub fn get_versions_processed(&'a self, uniqueness: &ListSnapsOfType) -> Vec<PathData> {
         let all_versions = self.get_versions_unprocessed();
 
-        let sorted_versions: Vec<PathData> = match uniqueness {
-            ListSnapsOfType::All => {
-                let mut versions: Vec<PathData> = all_versions.collect();
-
-                versions.sort_unstable_by(|a, b| {
-                    let a_md = a.get_md_infallible();
-                    let b_md = b.get_md_infallible();
-
-                    (a_md.modify_time, a_md.size).cmp(&(b_md.modify_time, b_md.size))
-                });
-
-                versions
-            }
-            uniqueness => Self::into_unique_versions(all_versions, uniqueness),
-        };
+        let sorted_versions: Vec<PathData> = Self::into_unique_versions(all_versions, uniqueness);
 
         sorted_versions
     }
@@ -403,13 +389,32 @@ impl<'a> RelativePathAndSnapMounts<'a> {
     // remove duplicates with the same system modify time and size/file len (or contents! See --uniqueness)
     #[allow(clippy::mutable_key_type)]
     fn into_unique_versions(
-        iter: impl ParallelIterator<Item = PathData> + 'a,
+        iter: impl ParallelIterator<Item = PathData>,
         snaps_of_type: &ListSnapsOfType,
     ) -> Vec<PathData> {
-        let versions: BTreeSet<CompareVersionsContainer> = iter
-            .map(|pathdata| CompareVersionsContainer::new(pathdata, snaps_of_type))
-            .collect();
+        match snaps_of_type {
+            ListSnapsOfType::All => {
+                let mut versions: Vec<PathData> = iter.collect();
 
-        versions.into_iter().map(PathData::from).collect()
+                versions.sort_unstable_by(|a, b| {
+                    let a_md = a.get_md_infallible();
+                    let b_md = b.get_md_infallible();
+
+                    (a_md.modify_time, a_md.size).cmp(&(b_md.modify_time, b_md.size))
+                });
+
+                versions
+            }
+            snaps_of_type => {
+                let sorted: BTreeSet<CompareVersionsContainer> = iter
+                    .map(|pathdata| CompareVersionsContainer::new(pathdata, snaps_of_type))
+                    .collect();
+
+                sorted
+                    .into_iter()
+                    .map(PathData::from)
+                    .collect()
+            }
+        }
     }
 }
