@@ -96,9 +96,7 @@ impl SpawnDeletedThread {
                 .map(|basic_info| PathData::from(&basic_info))
                 .collect();
 
-            let last_in_time_set = LastInTimeSet::new(&path_set);
-
-            return last_in_time_set.iter().try_for_each(|deleted_dir| {
+            return LastInTimeSet::new(&path_set).try_for_each(|deleted_dir| {
                 RecurseBehindDeletedDir::exec(
                     deleted_dir.as_path(),
                     requested_dir,

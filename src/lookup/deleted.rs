@@ -134,18 +134,7 @@ impl DeletedFilesBundle {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct LastInTimeSet {
-    inner: Vec<PathBuf>,
-}
-
-impl Deref for LastInTimeSet {
-    type Target = Vec<PathBuf>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.inner
-    }
-}
+pub struct LastInTimeSet;
 
 impl LastInTimeSet {
     // this is very similar to VersionsMap, but of course returns only last in time
@@ -155,23 +144,18 @@ impl LastInTimeSet {
 
     // this fn is also missing parallel iter fns, to make the searches more responsive
     // by leaving parallel search for the interactive views
-    pub fn new(path_set: &[PathData]) -> Self {
+    pub fn new(path_set: &[PathData]) -> impl Iterator<Item = PathBuf> + '_ {
         // create vec of all local and replicated backups at once
         let snaps_selected_for_search = GLOBAL_CONFIG
             .dataset_collection
             .snaps_selected_for_search
             .get_value();
 
-        let inner: Vec<PathBuf> = path_set
-            .iter()
-            .filter_map(|pathdata| {
-                VersionsMap::get_search_bundles(pathdata, snaps_selected_for_search)
-                    .filter_map(|search_bundle| search_bundle.get_last_version())
-                    .max_by_key(|pathdata| pathdata.get_md_infallible().modify_time)
-                    .map(|pathdata| pathdata.path_buf)
-            })
-            .collect();
-
-        Self { inner }
+        path_set.iter().filter_map(|pathdata| {
+            VersionsMap::get_search_bundles(pathdata, snaps_selected_for_search)
+                .filter_map(|search_bundle| search_bundle.get_last_version())
+                .max_by_key(|pathdata| pathdata.get_md_infallible().modify_time)
+                .map(|pathdata| pathdata.path_buf)
+        })
     }
 }
