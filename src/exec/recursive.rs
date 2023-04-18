@@ -114,7 +114,6 @@ impl RecursiveMainLoop {
         Ok(())
     }
 
-    #[allow(clippy::new_ret_no_self)]
     fn enter_directory(
         requested_dir: &Path,
         opt_deleted_scope: Option<&Scope>,
