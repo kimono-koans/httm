@@ -94,7 +94,7 @@ The `httm` project contains only a few components:
 
 ### Caveats
 
-Right now, you will need to use a Unix-ish-y Rust-supported platform to build and install (that is: Linux, Solaris/illumos, the BSDs, [ounce](https://github.com/kimono-koans/httm/blob/master/scripts/ounce.bash), [bowie](https://github.com/kimono-koans/httm/blob/master/scripts/bowie.bash), and [nicotine](https://github.com/kimono-koans/httm/blob/master/scripts/nicotine.bash)MacOS).  Note, your platform *does not* need to support ZFS/BTRFS/NILFS2 to use `httm`.  And there is no fundamental reason a non-interactive Windows version of `httm` could not be built, as it once did build, but Windows platform support is not a priority for me right now.  Contributions from users are, of course, very welcome.
+Right now, you will need to use a Unix-ish-y Rust-supported platform to build and install (that is: Linux, Solaris/illumos, the BSDs, [ounce](https://github.com/kimono-koans/httm/blob/master/scripts/ounce.bash), [bowie](https://github.com/kimono-koans/httm/blob/master/scripts/bowie.bash), and [nicotine](https://github.com/kimono-koans/httm/blob/master/scripts/nicotine.bash)).  Note, your platform *does not* need to support ZFS/BTRFS/NILFS2 to use `httm`.  And there is no fundamental reason a non-interactive Windows version of `httm` could not be built, as it once did build, but Windows platform support is not a priority for me right now.  Contributions from users are, of course, very welcome.
 
 On FreeBSD, after a fresh minimal install, the interactive modes may not render properly, see the linked [issue](https://github.com/kimono-koans/httm/issues/20) for the fix.
 
@@ -264,7 +264,7 @@ Files /home/kimono/.zfs/snapshot/snap_2023-02-14-13:42:11_ounceSnapFileMount/.zs
 ---
 >	# If you come from bash you might have to change your $PATH.
 ```
-Use [nicotine](https://github.com/kimono-koans/httm/blob/master/scripts/nicotine.bash), a wrapper script for `httm`, to convert unique snapshot file versions to a `git` archives:
+Use [nicotine](https://github.com/kimono-koans/httm/blob/master/scripts/nicotine.bash), a wrapper script for `httm`, to convert unique snapshot file versions to `git` archives:
 ```bash
 ➜ nicotine .zshrc
 nicotine git archive created successfully: /home/kimono/zshrc-git.tar.gz
