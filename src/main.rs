@@ -131,7 +131,7 @@ fn exec() -> HttmResult<()> {
         ExecMode::SnapFileMount(snapshot_suffix) => SnapshotMounts::exec(snapshot_suffix),
         ExecMode::SnapsForFiles(opt_filters) => {
             let versions_map = VersionsMap::new(&GLOBAL_CONFIG, &GLOBAL_CONFIG.paths)?;
-            let snap_name_map = SnapNameMap::exec(versions_map, opt_filters);
+            let snap_name_map = SnapNameMap::new(versions_map, opt_filters);
             let printable_map = PrintAsMap::from(&snap_name_map);
             let output_buf = printable_map.to_string();
 

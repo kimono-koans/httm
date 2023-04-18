@@ -47,7 +47,7 @@ impl Deref for SnapNameMap {
 }
 
 impl SnapNameMap {
-    pub fn exec(versions_map: VersionsMap, opt_filters: &Option<ListSnapsFilters>) -> Self {
+    pub fn new(versions_map: VersionsMap, opt_filters: &Option<ListSnapsFilters>) -> Self {
         let snap_name_map = Self::get_snap_names(versions_map, opt_filters);
 
         snap_name_map.deref().iter().for_each(|(pathdata, snaps)| {

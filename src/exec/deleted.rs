@@ -26,7 +26,7 @@ use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::exec::recursive::SharedRecursive;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{is_channel_closed, Never};
-use crate::lookup::deleted::{DeletedFilesBundle, LastInTimeSet};
+use crate::lookup::deleted::{DeletedFileSet, LastInTimeSet};
 use crate::GLOBAL_CONFIG;
 
 pub struct SpawnDeletedThread;
@@ -64,11 +64,11 @@ impl SpawnDeletedThread {
         }
 
         // obtain all unique deleted, unordered, unsorted, will need to fix
-        let vec_deleted = DeletedFilesBundle::new(requested_dir);
+        let vec_deleted = DeletedFileSet::get(requested_dir);
 
         // combined entries will be sent or printed, but we need the vec_dirs to recurse
-        let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
-            vec_deleted.into_inner().into_iter().partition(|entry| {
+        let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) = vec_deleted
+            .partition(|entry| {
                 // no need to traverse symlinks in deleted search
                 SharedRecursive::is_entry_dir(entry)
             });
@@ -96,7 +96,7 @@ impl SpawnDeletedThread {
                 .map(|basic_info| PathData::from(&basic_info))
                 .collect();
 
-            return LastInTimeSet::exec(&path_set).try_for_each(|deleted_dir| {
+            return LastInTimeSet::get(&path_set).try_for_each(|deleted_dir| {
                 RecurseBehindDeletedDir::exec(
                     deleted_dir.as_path(),
                     requested_dir,
