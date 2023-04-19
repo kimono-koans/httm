@@ -20,12 +20,12 @@ use std::{collections::BTreeMap, ops::Deref};
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
 
-use crate::GLOBAL_CONFIG;
-use crate::config::generate::{Config, ExecMode, PrintMode, BulkExclusion};
+use crate::config::generate::{BulkExclusion, Config, ExecMode, PrintMode};
 use crate::data::paths::PathData;
 use crate::display_map::helper::PrintAsMap;
 use crate::library::utility::get_delimiter;
 use crate::lookup::versions::VersionsMap;
+use crate::GLOBAL_CONFIG;
 
 pub struct VersionsDisplayWrapper<'a> {
     pub config: &'a Config,
@@ -99,26 +99,18 @@ impl<'a> Serialize for VersionsDisplayWrapper<'a> {
         // add live file key to values if needed before serializing
         let new_map: BTreeMap<String, Vec<PathData>> = self
             .deref()
-            .iter()
-            .map(|(key, values)| {
-                match &GLOBAL_CONFIG.opt_bulk_exclusion {
-                    Some(res) => {
-                        match res {
-                            BulkExclusion::NoLive => {
-                                (key.path_buf.to_string_lossy().to_string(), values.to_owned())
-                            },
-                            BulkExclusion::NoSnap => {
-                                (key.path_buf.to_string_lossy().to_string(), vec![key.to_owned()])
-                            },
-                        }
-                    },
-                    None => {
-                        let mut new_values = values.to_owned();
-                        new_values.push(key.to_owned());
-                        (key.path_buf.to_string_lossy().to_string(), new_values)
-                    }
+            .clone()
+            .into_iter()
+            .map(|(key, values)| match &GLOBAL_CONFIG.opt_bulk_exclusion {
+                Some(res) => match res {
+                    BulkExclusion::NoLive => (key.path_buf.display().to_string(), values),
+                    BulkExclusion::NoSnap => (key.path_buf.display().to_string(), vec![key]),
+                },
+                None => {
+                    let mut new_values = values;
+                    new_values.push(key.clone());
+                    (key.path_buf.display().to_string(), new_values)
                 }
-                
             })
             .collect();
 
