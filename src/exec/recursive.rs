@@ -160,10 +160,6 @@ impl SharedRecursive {
         combined.extend_from_slice(vec_dirs);
 
         let entries = match is_phantom {
-            PathProvenance::IsPhantom => {
-                // deleted - phantom
-                Self::get_pseudo_live_versions(combined, requested_dir)
-            }
             PathProvenance::FromLiveDataset => {
                 // live - not phantom
                 match GLOBAL_CONFIG.opt_deleted_mode {
@@ -179,6 +175,10 @@ impl SharedRecursive {
                         combined
                     }
                 }
+            }
+            PathProvenance::IsPhantom => {
+                // deleted - phantom
+                Self::get_pseudo_live_versions(combined, requested_dir)
             }
         };
 
