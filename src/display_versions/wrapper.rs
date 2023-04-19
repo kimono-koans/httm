@@ -102,10 +102,8 @@ impl<'a> Serialize for VersionsDisplayWrapper<'a> {
             .clone()
             .into_iter()
             .map(|(key, values)| match &GLOBAL_CONFIG.opt_bulk_exclusion {
-                Some(res) => match res {
-                    BulkExclusion::NoLive => (key.path_buf.display().to_string(), values),
-                    BulkExclusion::NoSnap => (key.path_buf.display().to_string(), vec![key]),
-                },
+                Some(BulkExclusion::NoLive) => (key.path_buf.display().to_string(), values),
+                Some(BulkExclusion::NoSnap) => (key.path_buf.display().to_string(), vec![key]),
                 None => {
                     let mut new_values = values;
                     new_values.push(key.clone());
