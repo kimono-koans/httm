@@ -23,7 +23,7 @@ use skim::prelude::*;
 
 use crate::config::generate::DeletedMode;
 use crate::data::paths::{BasicDirEntryInfo, PathData};
-use crate::exec::recursive::SharedRecursive;
+use crate::exec::recursive::{PathProvenance, SharedRecursive};
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{is_channel_closed, Never};
 use crate::lookup::deleted::{DeletedFileSet, LastInTimeSet};
@@ -76,7 +76,7 @@ impl SpawnDeletedThread {
         SharedRecursive::combine_and_send_entries(
             vec_files,
             &vec_dirs,
-            true,
+            PathProvenance::IsPhantom,
             requested_dir,
             skim_tx,
         )?;
@@ -201,7 +201,7 @@ impl RecurseBehindDeletedDir {
         SharedRecursive::combine_and_send_entries(
             vec_files,
             &vec_dirs,
-            true,
+            PathProvenance::IsPhantom,
             &pseudo_live_dir,
             skim_tx,
         )?;

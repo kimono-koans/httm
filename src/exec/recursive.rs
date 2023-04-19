@@ -35,6 +35,12 @@ use crate::VersionsMap;
 use crate::GLOBAL_CONFIG;
 use crate::{BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_HIDDEN_DIRECTORY};
 
+#[derive(Clone, Copy)]
+pub enum PathProvenance {
+    FromLiveDataset,
+    IsPhantom,
+}
+
 pub struct RecursiveSearch;
 
 impl RecursiveSearch {
@@ -127,7 +133,7 @@ impl RecursiveMainLoop {
         SharedRecursive::combine_and_send_entries(
             vec_files,
             &vec_dirs,
-            false,
+            PathProvenance::FromLiveDataset,
             requested_dir,
             skim_tx,
         )?;
@@ -146,29 +152,32 @@ impl SharedRecursive {
     pub fn combine_and_send_entries(
         vec_files: Vec<BasicDirEntryInfo>,
         vec_dirs: &[BasicDirEntryInfo],
-        is_phantom: bool,
+        is_phantom: PathProvenance,
         requested_dir: &Path,
         skim_tx: &SkimItemSender,
     ) -> HttmResult<()> {
         let mut combined = vec_files;
         combined.extend_from_slice(vec_dirs);
 
-        let entries = if is_phantom {
-            // deleted - phantom
-            Self::get_pseudo_live_versions(combined, requested_dir)
-        } else {
-            // live - not phantom
-            match GLOBAL_CONFIG.opt_deleted_mode {
-                Some(DeletedMode::Only) => return Ok(()),
-                Some(DeletedMode::DepthOfOne | DeletedMode::All) | None => {
-                    // never show live files is display recursive/deleted only file mode
-                    if matches!(
-                        GLOBAL_CONFIG.exec_mode,
-                        ExecMode::NonInteractiveRecursive(_)
-                    ) {
-                        return Ok(());
+        let entries = match is_phantom {
+            PathProvenance::IsPhantom => {
+                // deleted - phantom
+                Self::get_pseudo_live_versions(combined, requested_dir)
+            }
+            PathProvenance::FromLiveDataset => {
+                // live - not phantom
+                match GLOBAL_CONFIG.opt_deleted_mode {
+                    Some(DeletedMode::Only) => return Ok(()),
+                    Some(DeletedMode::DepthOfOne | DeletedMode::All) | None => {
+                        // never show live files is display recursive/deleted only file mode
+                        if matches!(
+                            GLOBAL_CONFIG.exec_mode,
+                            ExecMode::NonInteractiveRecursive(_)
+                        ) {
+                            return Ok(());
+                        }
+                        combined
                     }
-                    combined
                 }
             }
         };
@@ -272,7 +281,7 @@ impl SharedRecursive {
 
     fn display_or_transmit(
         entries: Vec<BasicDirEntryInfo>,
-        is_phantom: bool,
+        is_phantom: PathProvenance,
         skim_tx: &SkimItemSender,
     ) -> HttmResult<()> {
         // send to the interactive view, or print directly, never return back
@@ -305,7 +314,7 @@ impl SharedRecursive {
 
     fn transmit(
         entries: Vec<BasicDirEntryInfo>,
-        is_phantom: bool,
+        is_phantom: PathProvenance,
         skim_tx: &SkimItemSender,
     ) -> HttmResult<()> {
         // don't want a par_iter here because it will block and wait for all

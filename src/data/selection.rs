@@ -22,6 +22,7 @@ use skim::prelude::*;
 
 use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::display_versions::wrapper::VersionsDisplayWrapper;
+use crate::exec::recursive::PathProvenance;
 use crate::library::results::HttmResult;
 use crate::library::utility::paint_string;
 use crate::{VersionsMap, GLOBAL_CONFIG};
@@ -36,7 +37,7 @@ pub struct SelectionCandidate {
 }
 
 impl SelectionCandidate {
-    pub fn new(basic_info: BasicDirEntryInfo, is_phantom: bool) -> Self {
+    pub fn new(basic_info: BasicDirEntryInfo, is_phantom: PathProvenance) -> Self {
         // here save space of bool/padding instead of an "is_phantom: bool"
         //
         // issue: conflate not having a file_type as phantom
@@ -44,10 +45,9 @@ impl SelectionCandidate {
         //
         // std lib docs don't give much indication as to
         // when file_type() fails?  Doesn't seem to be a problem?
-        let file_type = if is_phantom {
-            None
-        } else {
-            basic_info.file_type
+        let file_type = match is_phantom {
+            PathProvenance::FromLiveDataset => basic_info.file_type,
+            PathProvenance::IsPhantom => None,
         };
 
         SelectionCandidate {
