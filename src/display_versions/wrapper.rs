@@ -20,7 +20,8 @@ use std::{collections::BTreeMap, ops::Deref};
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
 
-use crate::config::generate::{Config, ExecMode, PrintMode};
+use crate::GLOBAL_CONFIG;
+use crate::config::generate::{Config, ExecMode, PrintMode, BulkExclusion};
 use crate::data::paths::PathData;
 use crate::display_map::helper::PrintAsMap;
 use crate::library::utility::get_delimiter;
@@ -95,13 +96,29 @@ impl<'a> Serialize for VersionsDisplayWrapper<'a> {
         // 3 is the number of fields in the struct.
         let mut state = serializer.serialize_struct("VersionMap", 1)?;
 
+        // add live file key to values if needed before serializing
         let new_map: BTreeMap<String, Vec<PathData>> = self
             .deref()
             .iter()
             .map(|(key, values)| {
-                let mut new_values = values.to_owned();
-                new_values.push(key.to_owned());
-                (key.path_buf.to_string_lossy().to_string(), new_values)
+                match &GLOBAL_CONFIG.opt_bulk_exclusion {
+                    Some(res) => {
+                        match res {
+                            BulkExclusion::NoLive => {
+                                (key.path_buf.to_string_lossy().to_string(), values.to_owned())
+                            },
+                            BulkExclusion::NoSnap => {
+                                (key.path_buf.to_string_lossy().to_string(), vec![key.to_owned()])
+                            },
+                        }
+                    },
+                    None => {
+                        let mut new_values = values.to_owned();
+                        new_values.push(key.to_owned());
+                        (key.path_buf.to_string_lossy().to_string(), new_values)
+                    }
+                }
+                
             })
             .collect();
 
