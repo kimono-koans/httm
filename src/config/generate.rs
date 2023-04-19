@@ -31,7 +31,7 @@ use crate::data::filesystem_info::FilesystemInfo;
 use crate::data::paths::PathData;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{read_stdin, HttmIsDir};
-use crate::ROOT_DIRECTORY;
+use crate::{MAIN_POOL, ROOT_DIRECTORY};
 
 #[derive(Debug, Clone)]
 pub enum ExecMode {
@@ -504,7 +504,7 @@ fn parse_args() -> ArgMatches {
         .get_matches()
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Config {
     pub paths: Vec<PathData>,
     pub opt_recursive: bool,
@@ -855,15 +855,19 @@ impl Config {
         pwd: &PathData,
     ) -> HttmResult<Vec<PathData>> {
         let mut paths = if let Some(input_files) = opt_os_values {
-            input_files
-                .par_bridge()
-                .map(Path::new)
-                // canonicalize() on a deleted relative path will not exist,
-                // so we have to join with the pwd to make a path that
-                // will exist on a snapshot
-                .map(|path| canonicalize(path).unwrap_or_else(|_| pwd.clone().path_buf.join(path)))
-                .map(|path| PathData::from(path.as_path()))
-                .collect()
+            MAIN_POOL.install(|| {
+                input_files
+                    .par_bridge()
+                    .map(Path::new)
+                    // canonicalize() on a deleted relative path will not exist,
+                    // so we have to join with the pwd to make a path that
+                    // will exist on a snapshot
+                    .map(|path| {
+                        canonicalize(path).unwrap_or_else(|_| pwd.clone().path_buf.join(path))
+                    })
+                    .map(|path| PathData::from(path.as_path()))
+                    .collect()
+            })
         } else {
             match exec_mode {
                 // setting pwd as the path, here, keeps us from waiting on stdin when in certain modes
@@ -879,10 +883,16 @@ impl Config {
                 | ExecMode::Purge(_)
                 | ExecMode::MountsForFiles(_)
                 | ExecMode::SnapsForFiles(_)
-                | ExecMode::NumVersions(_) => read_stdin()?
-                    .par_iter()
-                    .map(|string| PathData::from(Path::new(&string)))
-                    .collect(),
+                | ExecMode::NumVersions(_) => {
+                    let res: HttmResult<Vec<PathData>> = MAIN_POOL.install(|| {
+                        Ok(read_stdin()?
+                            .par_iter()
+                            .map(|string| PathData::from(Path::new(&string)))
+                            .collect())
+                    });
+
+                    res?
+                }
             }
         };
 

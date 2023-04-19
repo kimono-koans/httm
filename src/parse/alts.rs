@@ -22,6 +22,7 @@ use rayon::prelude::*;
 
 use crate::library::results::{HttmError, HttmResult};
 use crate::parse::mounts::MapOfDatasets;
+use crate::MAIN_POOL;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MapOfAlts {
@@ -51,14 +52,16 @@ impl Deref for MapOfAlts {
 impl MapOfAlts {
     // instead of looking up, precompute possible alt replicated mounts before exec
     pub fn new(map_of_datasets: &MapOfDatasets) -> Self {
-        let res: HashMap<PathBuf, AltMetadata> = map_of_datasets
-            .deref()
-            .par_iter()
-            .flat_map(|(mount, _dataset_info)| {
-                Self::get_alt_replicated_from_mount(mount, map_of_datasets)
-                    .map(|datasets| (mount.clone(), datasets))
-            })
-            .collect();
+        let res: HashMap<PathBuf, AltMetadata> = MAIN_POOL.install(|| {
+            map_of_datasets
+                .deref()
+                .par_iter()
+                .flat_map(|(mount, _dataset_info)| {
+                    Self::get_alt_replicated_from_mount(mount, map_of_datasets)
+                        .map(|datasets| (mount.clone(), datasets))
+                })
+                .collect()
+        });
 
         res.into()
     }
@@ -78,18 +81,20 @@ impl MapOfAlts {
         // find a filesystem that ends with our most local filesystem name
         // but which has a prefix, like a different pool name: rpool might be
         // replicated to tank/rpool
-        let mut alt_replicated_mounts: Vec<PathBuf> = map_of_datasets
-            .deref()
-            .par_iter()
-            .filter(|(_mount, dataset_info)| {
-                dataset_info.source != proximate_dataset_fs_name
-                    && dataset_info
-                        .source
-                        .ends_with(proximate_dataset_fs_name.as_str())
-            })
-            .map(|(mount, _fsname)| mount)
-            .cloned()
-            .collect();
+        let mut alt_replicated_mounts: Vec<PathBuf> = MAIN_POOL.install(|| {
+            map_of_datasets
+                .deref()
+                .par_iter()
+                .filter(|(_mount, dataset_info)| {
+                    dataset_info.source != proximate_dataset_fs_name
+                        && dataset_info
+                            .source
+                            .ends_with(proximate_dataset_fs_name.as_str())
+                })
+                .map(|(mount, _fsname)| mount)
+                .cloned()
+                .collect()
+        });
 
         if alt_replicated_mounts.is_empty() {
             // could not find the any replicated mounts

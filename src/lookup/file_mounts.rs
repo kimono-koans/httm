@@ -24,7 +24,7 @@ use crate::config::generate::MountDisplay;
 use crate::data::paths::PathData;
 use crate::library::iter_extensions::HttmIter;
 use crate::lookup::versions::{MostProximateAndOptAlts, VersionsMap};
-use crate::GLOBAL_CONFIG;
+use crate::{GLOBAL_CONFIG, MAIN_POOL};
 
 #[derive(Debug)]
 pub struct MountsForFiles<'a> {
@@ -54,11 +54,14 @@ impl<'a> MountsForFiles<'a> {
     pub fn new(mount_display: &'a MountDisplay) -> Self {
         // we only check for phantom files in "mount for file" mode because
         // people should be able to search for deleted files in other modes
-        let (non_phantom_files, phantom_files): (Vec<PathData>, Vec<PathData>) = GLOBAL_CONFIG
-            .paths
-            .clone()
-            .into_par_iter()
-            .partition(|pathdata| pathdata.metadata.is_some());
+        let (non_phantom_files, phantom_files): (Vec<PathData>, Vec<PathData>) =
+            MAIN_POOL.install(|| {
+                GLOBAL_CONFIG
+                    .paths
+                    .clone()
+                    .into_par_iter()
+                    .partition(|pathdata| pathdata.metadata.is_some())
+            });
 
         if !phantom_files.is_empty() {
             eprintln!(

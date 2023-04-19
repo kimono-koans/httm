@@ -197,8 +197,6 @@ impl PathData {
     }
 
     pub fn get_alias_dataset<'a>(&self, map_of_alias: &'a MapOfAliases) -> Option<&'a Path> {
-        // find_map_first should return the first seq result with a par_iter
-        // but not with a par_bridge
         self.path_buf.ancestors().find_map(|ancestor| {
             map_of_alias
                 .get(ancestor)

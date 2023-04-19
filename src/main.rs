@@ -67,7 +67,9 @@ use exec::purge::PurgeSnaps;
 use exec::roll_forward::RollForward;
 use exec::snap_mounts::SnapshotMounts;
 use library::utility::print_output_buf;
+
 use once_cell::sync::Lazy;
+use rayon::ThreadPool;
 
 use crate::config::generate::{Config, ExecMode};
 use crate::lookup::file_mounts::MountsForFiles;
@@ -85,6 +87,12 @@ pub const BTRFS_SNAPPER_HIDDEN_DIRECTORY: &str = ".snapshots";
 pub const BTRFS_SNAPPER_SUFFIX: &str = "snapshot";
 pub const ROOT_DIRECTORY: &str = "/";
 pub const NILFS2_SNAPSHOT_ID_KEY: &str = "cp=";
+
+static MAIN_POOL: Lazy<ThreadPool> = Lazy::new(|| {
+    rayon::ThreadPoolBuilder::new()
+        .build()
+        .expect("Could not initialize main rayon threadpool")
+});
 
 fn main() {
     match exec() {

@@ -25,7 +25,6 @@ use std::{
 
 use rayon::prelude::*;
 
-use crate::library::results::{HttmError, HttmResult};
 use crate::{
     config::generate::ListSnapsOfType,
     data::paths::{CompareVersionsContainer, PathData},
@@ -33,6 +32,10 @@ use crate::{
 use crate::{
     config::generate::{BulkExclusion, Config, LastSnapMode},
     GLOBAL_CONFIG,
+};
+use crate::{
+    library::results::{HttmError, HttmResult},
+    MAIN_POOL,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -359,7 +362,8 @@ impl<'a> RelativePathAndSnapMounts<'a> {
     fn get_versions_unprocessed(&'a self) -> impl ParallelIterator<Item = PathData> + 'a {
         // get the DirEntry for our snapshot path which will have all our possible
         // snapshots, like so: .zfs/snapshots/<some snap name>/
-        self
+        MAIN_POOL.install(|| {
+            self
             .snap_mounts
             .par_iter()
             .map(|path| path.join(self.relative_path))
@@ -383,6 +387,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
                     },
                 }
             })
+        })
     }
 
     // remove duplicates with the same system modify time and size/file len (or contents! See --uniqueness)

@@ -23,7 +23,7 @@ use rayon::prelude::*;
 use crate::config::generate::ListSnapsFilters;
 use crate::data::paths::PathData;
 use crate::parse::aliases::FilesystemType;
-use crate::GLOBAL_CONFIG;
+use crate::{GLOBAL_CONFIG, MAIN_POOL};
 
 use super::versions::VersionsMap;
 
@@ -72,21 +72,23 @@ impl SnapNameMap {
             .into_iter()
             .map(|(pathdata, vec_snaps)| {
                 // use par iter here because no one else is using the global rayon threadpool any more
-                let snap_names: Vec<String> = vec_snaps
-                    .into_par_iter()
-                    .filter_map(|pathdata| {
-                        DeconstructedSnapPathData::new(&pathdata, false)
-                            .map(|deconstructed| deconstructed.snap_name)
-                    })
-                    .filter(|snap| {
-                        if let Some(filters) = opt_filters {
-                            if let Some(names) = &filters.name_filters {
-                                return names.iter().any(|pattern| snap.contains(pattern));
+                let snap_names: Vec<String> = MAIN_POOL.install(|| {
+                    vec_snaps
+                        .into_par_iter()
+                        .filter_map(|pathdata| {
+                            DeconstructedSnapPathData::new(&pathdata, false)
+                                .map(|deconstructed| deconstructed.snap_name)
+                        })
+                        .filter(|snap| {
+                            if let Some(filters) = opt_filters {
+                                if let Some(names) = &filters.name_filters {
+                                    return names.iter().any(|pattern| snap.contains(pattern));
+                                }
                             }
-                        }
-                        true
-                    })
-                    .collect();
+                            true
+                        })
+                        .collect()
+                });
 
                 (pathdata, snap_names)
             })

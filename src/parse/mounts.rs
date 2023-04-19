@@ -29,7 +29,7 @@ use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{get_common_path, get_fs_type_from_hidden_dir};
 use crate::parse::aliases::FilesystemType;
 use crate::parse::snaps::MapOfSnaps;
-use crate::{NILFS2_SNAPSHOT_ID_KEY, ZFS_SNAPSHOT_DIRECTORY};
+use crate::{MAIN_POOL, NILFS2_SNAPSHOT_ID_KEY, ZFS_SNAPSHOT_DIRECTORY};
 
 pub const ZFS_FSTYPE: &str = "zfs";
 pub const NILFS2_FSTYPE: &str = "nilfs2";
@@ -149,95 +149,100 @@ impl BaseFilesystemInfo {
     // parsing from proc mounts is both faster and necessary for certain btrfs features
     // for instance, allows us to read subvolumes mounts, like "/@" or "/@home"
     fn from_proc_mounts() -> HttmResult<(HashMap<PathBuf, DatasetMetadata>, HashSet<PathBuf>)> {
-        let (map_of_datasets, filter_dirs): (HashMap<PathBuf, DatasetMetadata>, HashSet<PathBuf>) =
-            MountIter::new()?
-                .par_bridge()
-                .flatten()
-                // but exclude snapshot mounts.  we want only the raw filesystems
-                .filter(|mount_info| {
-                    if mount_info.fstype.as_str() == ZFS_FSTYPE
-                        && mount_info
-                            .dest
-                            .to_string_lossy()
-                            .contains(ZFS_SNAPSHOT_DIRECTORY)
-                    {
-                        return false;
-                    }
-
-                    if mount_info.fstype.as_str() == NILFS2_FSTYPE
-                        && mount_info
-                            .options
-                            .iter()
-                            .any(|opt| opt.contains(NILFS2_SNAPSHOT_ID_KEY))
-                    {
-                        return false;
-                    }
-
-                    true
-                })
-                .partition_map(|mount_info| match &mount_info.fstype.as_str() {
-                    &ZFS_FSTYPE => Either::Left((
-                        mount_info.dest,
-                        DatasetMetadata {
-                            source: mount_info.source.to_string_lossy().into_owned(),
-                            fs_type: FilesystemType::Zfs,
-                            mount_type: MountType::Local,
-                        },
-                    )),
-                    &SMB_FSTYPE | &AFP_FSTYPE | &NFS_FSTYPE => {
-                        match get_fs_type_from_hidden_dir(&mount_info.dest) {
-                            Some(FilesystemType::Zfs) => Either::Left((
-                                mount_info.dest,
-                                DatasetMetadata {
-                                    source: mount_info.source.to_string_lossy().into_owned(),
-                                    fs_type: FilesystemType::Zfs,
-                                    mount_type: MountType::Network,
-                                },
-                            )),
-                            Some(FilesystemType::Btrfs) => Either::Left((
-                                mount_info.dest,
-                                DatasetMetadata {
-                                    source: mount_info.source.to_string_lossy().into_owned(),
-                                    fs_type: FilesystemType::Btrfs,
-                                    mount_type: MountType::Network,
-                                },
-                            )),
-                            _ => Either::Right(mount_info.dest),
+        let res: HttmResult<(HashMap<PathBuf, DatasetMetadata>, HashSet<PathBuf>)> = MAIN_POOL
+            .install(|| {
+                Ok(MountIter::new()?
+                    .par_bridge()
+                    .flatten()
+                    // but exclude snapshot mounts.  we want only the raw filesystems
+                    .filter(|mount_info| {
+                        if mount_info.fstype.as_str() == ZFS_FSTYPE
+                            && mount_info
+                                .dest
+                                .to_string_lossy()
+                                .contains(ZFS_SNAPSHOT_DIRECTORY)
+                        {
+                            return false;
                         }
-                    }
-                    &BTRFS_FSTYPE => {
-                        let keyed_options: BTreeMap<String, String> = mount_info
-                            .options
-                            .iter()
-                            .filter(|line| line.contains('='))
-                            .filter_map(|line| line.split_once('='))
-                            .map(|(key, value)| (key.to_owned(), value.to_owned()))
-                            .collect();
 
-                        let source = match keyed_options.get("subvol") {
-                            Some(subvol) => subvol.clone(),
-                            None => mount_info.source.to_string_lossy().into_owned(),
-                        };
+                        if mount_info.fstype.as_str() == NILFS2_FSTYPE
+                            && mount_info
+                                .options
+                                .iter()
+                                .any(|opt| opt.contains(NILFS2_SNAPSHOT_ID_KEY))
+                        {
+                            return false;
+                        }
 
-                        Either::Left((
+                        true
+                    })
+                    .partition_map(|mount_info| match &mount_info.fstype.as_str() {
+                        &ZFS_FSTYPE => Either::Left((
                             mount_info.dest,
                             DatasetMetadata {
-                                source,
-                                fs_type: FilesystemType::Btrfs,
+                                source: mount_info.source.to_string_lossy().into_owned(),
+                                fs_type: FilesystemType::Zfs,
                                 mount_type: MountType::Local,
                             },
-                        ))
-                    }
-                    &NILFS2_FSTYPE => Either::Left((
-                        mount_info.dest,
-                        DatasetMetadata {
-                            source: mount_info.source.to_string_lossy().into_owned(),
-                            fs_type: FilesystemType::Nilfs2,
-                            mount_type: MountType::Local,
-                        },
-                    )),
-                    _ => Either::Right(mount_info.dest),
-                });
+                        )),
+                        &SMB_FSTYPE | &AFP_FSTYPE | &NFS_FSTYPE => {
+                            match get_fs_type_from_hidden_dir(&mount_info.dest) {
+                                Some(FilesystemType::Zfs) => Either::Left((
+                                    mount_info.dest,
+                                    DatasetMetadata {
+                                        source: mount_info.source.to_string_lossy().into_owned(),
+                                        fs_type: FilesystemType::Zfs,
+                                        mount_type: MountType::Network,
+                                    },
+                                )),
+                                Some(FilesystemType::Btrfs) => Either::Left((
+                                    mount_info.dest,
+                                    DatasetMetadata {
+                                        source: mount_info.source.to_string_lossy().into_owned(),
+                                        fs_type: FilesystemType::Btrfs,
+                                        mount_type: MountType::Network,
+                                    },
+                                )),
+                                _ => Either::Right(mount_info.dest),
+                            }
+                        }
+                        &BTRFS_FSTYPE => {
+                            let keyed_options: BTreeMap<String, String> = mount_info
+                                .options
+                                .iter()
+                                .filter(|line| line.contains('='))
+                                .filter_map(|line| line.split_once('='))
+                                .map(|(key, value)| (key.to_owned(), value.to_owned()))
+                                .collect();
+
+                            let source = match keyed_options.get("subvol") {
+                                Some(subvol) => subvol.clone(),
+                                None => mount_info.source.to_string_lossy().into_owned(),
+                            };
+
+                            Either::Left((
+                                mount_info.dest,
+                                DatasetMetadata {
+                                    source,
+                                    fs_type: FilesystemType::Btrfs,
+                                    mount_type: MountType::Local,
+                                },
+                            ))
+                        }
+                        &NILFS2_FSTYPE => Either::Left((
+                            mount_info.dest,
+                            DatasetMetadata {
+                                source: mount_info.source.to_string_lossy().into_owned(),
+                                fs_type: FilesystemType::Nilfs2,
+                                mount_type: MountType::Local,
+                            },
+                        )),
+                        _ => Either::Right(mount_info.dest),
+                    }))
+            });
+
+        let (map_of_datasets, filter_dirs): (HashMap<PathBuf, DatasetMetadata>, HashSet<PathBuf>) =
+            res?;
 
         if map_of_datasets.is_empty() {
             Err(HttmError::new("httm could not find any valid datasets on the system.").into())
@@ -269,48 +274,49 @@ impl BaseFilesystemInfo {
 
         // parse "mount" for filesystems and mountpoints
         let (map_of_datasets, filter_dirs): (HashMap<PathBuf, DatasetMetadata>, HashSet<PathBuf>) =
-            stdout_string
-            .par_lines()
-            // but exclude snapshot mounts.  we want the raw filesystem names.
-            .filter(|line| !line.contains(ZFS_SNAPSHOT_DIRECTORY))
-            // where to split, to just have the src and dest of mounts
-            .filter_map(|line|
-                // GNU Linux mount output
-                if line.contains("type") {
-                    line.split_once(" type")
-                // Busybox and BSD mount output
-                } else {
-                    line.split_once(" (")
-                }
-            )
-            .map(|(filesystem_and_mount,_)| filesystem_and_mount )
-            // mount cmd includes and " on " between src and dest of mount
-            .filter_map(|filesystem_and_mount| filesystem_and_mount.split_once(" on "))
-            .map(|(filesystem, mount)| (filesystem.to_owned(), PathBuf::from(mount)))
-            // sanity check: does the filesystem exist and have a ZFS hidden dir? if not, filter it out
-            // and flip around, mount should key of key/value
-            .partition_map(|(filesystem, mount)| {
-                match get_fs_type_from_hidden_dir(&mount) {
-                    Some(FilesystemType::Zfs) => {
-                        Either::Left((mount, DatasetMetadata {
-                            source: filesystem,
-                            fs_type: FilesystemType::Zfs,
-                            mount_type: MountType::Local
-                        }))
-                    },
-                    Some(FilesystemType::Btrfs) => {
-                        Either::Left((mount, DatasetMetadata{
-                            source: filesystem,
-                            fs_type: FilesystemType::Btrfs,
-                            mount_type: MountType::Local
-                        }))
-                    },
-                    _ => {
-                        Either::Right(mount)
+            MAIN_POOL.install(|| {
+                stdout_string
+                .par_lines()
+                // but exclude snapshot mounts.  we want the raw filesystem names.
+                .filter(|line| !line.contains(ZFS_SNAPSHOT_DIRECTORY))
+                // where to split, to just have the src and dest of mounts
+                .filter_map(|line|
+                    // GNU Linux mount output
+                    if line.contains("type") {
+                        line.split_once(" type")
+                    // Busybox and BSD mount output
+                    } else {
+                        line.split_once(" (")
                     }
-                }
+                )
+                .map(|(filesystem_and_mount,_)| filesystem_and_mount )
+                // mount cmd includes and " on " between src and dest of mount
+                .filter_map(|filesystem_and_mount| filesystem_and_mount.split_once(" on "))
+                .map(|(filesystem, mount)| (filesystem.to_owned(), PathBuf::from(mount)))
+                // sanity check: does the filesystem exist and have a ZFS hidden dir? if not, filter it out
+                // and flip around, mount should key of key/value
+                .partition_map(|(filesystem, mount)| {
+                    match get_fs_type_from_hidden_dir(&mount) {
+                        Some(FilesystemType::Zfs) => {
+                            Either::Left((mount, DatasetMetadata {
+                                source: filesystem,
+                                fs_type: FilesystemType::Zfs,
+                                mount_type: MountType::Local
+                            }))
+                        },
+                        Some(FilesystemType::Btrfs) => {
+                            Either::Left((mount, DatasetMetadata{
+                                source: filesystem,
+                                fs_type: FilesystemType::Btrfs,
+                                mount_type: MountType::Local
+                            }))
+                        },
+                        _ => {
+                            Either::Right(mount)
+                        }
+                    }
+                })
             });
-
         if map_of_datasets.is_empty() {
             Err(HttmError::new("httm could not find any valid datasets on the system.").into())
         } else {

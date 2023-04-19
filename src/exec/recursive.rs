@@ -19,7 +19,7 @@ use std::collections::LinkedList;
 use std::ops::Deref;
 use std::{fs::read_dir, path::Path, sync::Arc};
 
-use rayon::{Scope, ThreadPool};
+use rayon::Scope;
 use skim::prelude::*;
 
 use crate::config::generate::{DeletedMode, ExecMode};
@@ -31,8 +31,8 @@ use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::is_channel_closed;
 use crate::library::utility::{print_output_buf, HttmIsDir, Never};
 use crate::parse::mounts::MaxLen;
-use crate::VersionsMap;
 use crate::GLOBAL_CONFIG;
+use crate::{VersionsMap, MAIN_POOL};
 use crate::{BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_HIDDEN_DIRECTORY};
 
 pub struct RecursiveSearch;
@@ -44,11 +44,7 @@ impl RecursiveSearch {
             // all threads must complete before the scope exits.  this is important
             // for display recursive searches as the live enumeration will end before
             // all deleted threads have completed
-            let pool: ThreadPool = rayon::ThreadPoolBuilder::new()
-                .build()
-                .expect("Could not initialize rayon threadpool for recursive deleted search");
-
-            pool.in_place_scope(|deleted_scope| {
+            MAIN_POOL.in_place_scope(|deleted_scope| {
                 Self::run_enumerate_loop(requested_dir, skim_tx, hangup_rx, Some(deleted_scope))
             })
         } else {
@@ -308,8 +304,6 @@ impl SharedRecursive {
         is_phantom: bool,
         skim_tx: &SkimItemSender,
     ) -> HttmResult<()> {
-        // don't want a par_iter here because it will block and wait for all
-        // results, instead of printing and recursing into the subsequent dirs
         entries
             .into_iter()
             .try_for_each(|basic_info| {
