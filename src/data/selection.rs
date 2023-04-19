@@ -37,22 +37,22 @@ pub struct SelectionCandidate {
 
 impl SelectionCandidate {
     pub fn new(basic_info: BasicDirEntryInfo, is_phantom: bool) -> Self {
+        // here save space of bool/padding instead of an "is_phantom: bool"
+        //
+        // issue: conflate not having a file_type as phantom
+        // for purposes of coloring the file_name/path only?
+        //
+        // std lib docs don't give much indication as to
+        // when file_type() fails?  Doesn't seem to be a problem?
+        let file_type = if is_phantom {
+            None
+        } else {
+            basic_info.file_type
+        };
+
         SelectionCandidate {
             path: basic_info.path,
-            // here save space of bool/padding instead of an "is_phantom: bool"
-            //
-            // issue: conflate not having a file_type as phantom
-            // for purposes of coloring the file_name/path only?
-            //
-            // std lib docs don't give much indication as to
-            // when file_type() fails?  Doesn't seem to be a problem?
-            file_type: {
-                if is_phantom {
-                    None
-                } else {
-                    basic_info.file_type
-                }
-            },
+            file_type,
         }
     }
 
