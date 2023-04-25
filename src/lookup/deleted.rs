@@ -29,13 +29,13 @@ use crate::lookup::versions::{RelativePathAndSnapMounts, VersionsMap};
 use crate::GLOBAL_CONFIG;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct DeletedFileSet;
+pub struct DeletedFilesIter;
 
 // deleted_lookup_exec is a dumb function/module if we want to rank outputs, get last in time, etc.
 // we do that elsewhere.  deleted is simply about finding at least one version of a deleted file
 // this, believe it or not, will be faster
-impl DeletedFileSet {
-    pub fn get(requested_dir: &Path) -> impl Iterator<Item = BasicDirEntryInfo> + '_ {
+impl DeletedFilesIter {
+    pub fn from(requested_dir: &Path) -> impl Iterator<Item = BasicDirEntryInfo> + '_ {
         // we always need a requesting dir because we are comparing the files in the
         // requesting dir to those of their relative dirs on snapshots
         let requested_dir_pathdata = PathData::from(requested_dir);
@@ -121,7 +121,7 @@ impl LastInTimeSet {
 
     // this fn is also missing parallel iter fns, to make the searches more responsive
     // by leaving parallel search for the interactive views
-    pub fn get(path_set: &[PathData]) -> impl Iterator<Item = PathBuf> + '_ {
+    pub fn from(path_set: &[PathData]) -> impl Iterator<Item = PathBuf> + '_ {
         // create vec of all local and replicated backups at once
         let snaps_selected_for_search = GLOBAL_CONFIG
             .dataset_collection
