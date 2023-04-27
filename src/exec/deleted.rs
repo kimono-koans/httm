@@ -16,7 +16,6 @@
 // that was distributed with this source code.
 
 use std::collections::LinkedList;
-use std::ops::DerefMut;
 use std::path::{Path, PathBuf};
 
 use rayon::Scope;
@@ -65,11 +64,11 @@ impl SpawnDeletedThread {
         }
 
         // obtain all unique deleted, unordered, unsorted, will need to fix
-        let mut vec_deleted = DeletedFilesIter::from(requested_dir);
+        let vec_deleted = DeletedFilesIter::from(requested_dir).into_inner();
 
         // combined entries will be sent or printed, but we need the vec_dirs to recurse
         let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
-            vec_deleted.deref_mut().partition(|entry| {
+            vec_deleted.into_iter().partition(|entry| {
                 // no need to traverse symlinks in deleted search
                 SharedRecursive::is_entry_dir(entry)
             });
@@ -98,7 +97,8 @@ impl SpawnDeletedThread {
                 .collect();
 
             return LastInTimeSet::from(path_set)
-                .deref_mut()
+                .into_inner()
+                .into_iter()
                 .try_for_each(|deleted_dir| {
                     RecurseBehindDeletedDir::exec(
                         deleted_dir.as_path(),
