@@ -18,6 +18,7 @@
 use std::{
     ffi::OsString,
     fs::read_dir,
+    ops::{Deref, DerefMut},
     path::{Path, PathBuf},
 };
 
@@ -28,14 +29,26 @@ use crate::library::results::HttmResult;
 use crate::lookup::versions::{RelativePathAndSnapMounts, VersionsMap};
 use crate::GLOBAL_CONFIG;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct DeletedFilesIter;
+pub struct DeletedFilesIter {
+    inner: Box<dyn Iterator<Item = BasicDirEntryInfo>>,
+}
 
-// deleted_lookup_exec is a dumb function/module if we want to rank outputs, get last in time, etc.
-// we do that elsewhere.  deleted is simply about finding at least one version of a deleted file
-// this, believe it or not, will be faster
-impl DeletedFilesIter {
-    pub fn from(requested_dir: &Path) -> impl Iterator<Item = BasicDirEntryInfo> + '_ {
+impl Deref for DeletedFilesIter {
+    type Target = Box<dyn Iterator<Item = BasicDirEntryInfo>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+impl DerefMut for DeletedFilesIter {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.inner
+    }
+}
+
+impl From<&Path> for DeletedFilesIter {
+    fn from(requested_dir: &Path) -> Self {
         // we always need a requesting dir because we are comparing the files in the
         // requesting dir to those of their relative dirs on snapshots
         let requested_dir_pathdata = PathData::from(requested_dir);
@@ -62,9 +75,16 @@ impl DeletedFilesIter {
                 .map(|basic_info| (basic_info.get_filename().to_os_string(), basic_info))
                 .collect();
 
-        basic_info_map.into_values()
+        Self {
+            inner: Box::new(basic_info_map.into_values()),
+        }
     }
+}
 
+// deleted_lookup_exec is a dumb function/module if we want to rank outputs, get last in time, etc.
+// we do that elsewhere.  deleted is simply about finding at least one version of a deleted file
+// this, believe it or not, will be faster
+impl DeletedFilesIter {
     fn get_unique_deleted_for_dir(
         requested_dir: &Path,
         search_bundle: &RelativePathAndSnapMounts,
