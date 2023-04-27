@@ -66,6 +66,10 @@ impl SpawnDeletedThread {
         // obtain all unique deleted, unordered, unsorted, will need to fix
         let vec_deleted = DeletedFilesIter::from(requested_dir).into_inner();
 
+        if vec_deleted.is_empty() {
+            return Ok(());
+        }
+
         // combined entries will be sent or printed, but we need the vec_dirs to recurse
         let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
             vec_deleted.into_iter().partition(|entry| {
