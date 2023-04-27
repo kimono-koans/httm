@@ -16,7 +16,6 @@
 // that was distributed with this source code.
 
 use std::collections::LinkedList;
-use std::ops::DerefMut;
 use std::path::{Path, PathBuf};
 
 use rayon::Scope;
@@ -65,11 +64,15 @@ impl SpawnDeletedThread {
         }
 
         // obtain all unique deleted, unordered, unsorted, will need to fix
-        let mut vec_deleted = DeletedFilesIter::from(requested_dir);
+        let vec_deleted = DeletedFilesIter::from(requested_dir).into_inner();
+
+        if vec_deleted.is_empty() {
+            return Ok(());
+        }
 
         // combined entries will be sent or printed, but we need the vec_dirs to recurse
         let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
-            vec_deleted.deref_mut().partition(|entry| {
+            vec_deleted.into_iter().partition(|entry| {
                 // no need to traverse symlinks in deleted search
                 SharedRecursive::is_entry_dir(entry)
             });
@@ -98,7 +101,8 @@ impl SpawnDeletedThread {
                 .collect();
 
             return LastInTimeSet::from(path_set)
-                .deref_mut()
+                .into_inner()
+                .into_iter()
                 .try_for_each(|deleted_dir| {
                     RecurseBehindDeletedDir::exec(
                         deleted_dir.as_path(),
@@ -142,16 +146,17 @@ impl RecurseBehindDeletedDir {
                 let from_deleted_dir = deleted_dir
                     .parent()
                     .ok_or_else(|| HttmError::new("Not a valid directory name!"))?;
+
                 let from_requested_dir = requested_dir;
-                if let Ok(res) = RecurseBehindDeletedDir::enter_directory(
+
+                match RecurseBehindDeletedDir::enter_directory(
                     Path::new(dir_name),
                     from_deleted_dir,
                     from_requested_dir,
                     skim_tx,
                 ) {
-                    LinkedList::from([res])
-                } else {
-                    return Ok(());
+                    Ok(res) if !res.vec_dirs.is_empty() => LinkedList::from([res]),
+                    _ => return Ok(()),
                 }
             }
             None => return Err(HttmError::new("Not a valid directory name!").into()),

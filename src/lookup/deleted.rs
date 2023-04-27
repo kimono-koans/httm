@@ -18,7 +18,6 @@
 use std::{
     ffi::OsString,
     fs::read_dir,
-    ops::{Deref, DerefMut},
     path::{Path, PathBuf},
 };
 
@@ -29,22 +28,9 @@ use crate::library::results::HttmResult;
 use crate::lookup::versions::{RelativePathAndSnapMounts, VersionsMap};
 use crate::GLOBAL_CONFIG;
 
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct DeletedFilesIter {
-    inner: Box<dyn Iterator<Item = BasicDirEntryInfo>>,
-}
-
-impl Deref for DeletedFilesIter {
-    type Target = Box<dyn Iterator<Item = BasicDirEntryInfo>>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.inner
-    }
-}
-
-impl DerefMut for DeletedFilesIter {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.inner
-    }
+    inner: Vec<BasicDirEntryInfo>,
 }
 
 impl From<&Path> for DeletedFilesIter {
@@ -76,7 +62,7 @@ impl From<&Path> for DeletedFilesIter {
                 .collect();
 
         Self {
-            inner: Box::new(basic_info_map.into_values()),
+            inner: basic_info_map.into_values().collect(),
         }
     }
 }
@@ -85,10 +71,14 @@ impl From<&Path> for DeletedFilesIter {
 // we do that elsewhere.  deleted is simply about finding at least one version of a deleted file
 // this, believe it or not, will be faster
 impl DeletedFilesIter {
+    pub fn into_inner(self) -> Vec<BasicDirEntryInfo> {
+        self.inner
+    }
+
     fn get_unique_deleted_for_dir(
         requested_dir: &Path,
         search_bundle: &RelativePathAndSnapMounts,
-    ) -> HttmResult<impl Iterator<Item = BasicDirEntryInfo>> {
+    ) -> HttmResult<Vec<BasicDirEntryInfo>> {
         // get all local entries we need to compare against these to know
         // what is a deleted file
         //
@@ -102,16 +92,16 @@ impl DeletedFilesIter {
             Self::get_unique_snap_filenames(search_bundle.snap_mounts, search_bundle.relative_path);
 
         // compare local filenames to all unique snap filenames - none values are unique, here
-        let all_deleted_versions =
-            unique_snap_filenames
-                .into_iter()
-                .filter_map(move |(file_name, basic_info)| {
-                    if !local_filenames_set.contains(&file_name) {
-                        Some(basic_info)
-                    } else {
-                        None
-                    }
-                });
+        let all_deleted_versions = unique_snap_filenames
+            .into_iter()
+            .filter_map(move |(file_name, basic_info)| {
+                if !local_filenames_set.contains(&file_name) {
+                    Some(basic_info)
+                } else {
+                    None
+                }
+            })
+            .collect();
 
         Ok(all_deleted_versions)
     }
@@ -131,22 +121,9 @@ impl DeletedFilesIter {
     }
 }
 
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct LastInTimeSet {
-    inner: Box<dyn Iterator<Item = PathBuf>>,
-}
-
-impl Deref for LastInTimeSet {
-    type Target = Box<dyn Iterator<Item = PathBuf>>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.inner
-    }
-}
-
-impl DerefMut for LastInTimeSet {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.inner
-    }
+    inner: Vec<PathBuf>,
 }
 
 impl From<Vec<PathData>> for LastInTimeSet {
@@ -164,15 +141,22 @@ impl From<Vec<PathData>> for LastInTimeSet {
             .snaps_selected_for_search
             .get_value();
 
-        let unboxed_iter = path_set.into_iter().filter_map(|pathdata| {
-            VersionsMap::get_search_bundles(&pathdata, snaps_selected_for_search)
-                .filter_map(|search_bundle| search_bundle.get_last_version())
-                .max_by_key(|pathdata| pathdata.get_md_infallible().modify_time)
-                .map(|pathdata| pathdata.path_buf)
-        });
+        let res = path_set
+            .into_iter()
+            .filter_map(|pathdata| {
+                VersionsMap::get_search_bundles(&pathdata, snaps_selected_for_search)
+                    .filter_map(|search_bundle| search_bundle.get_last_version())
+                    .max_by_key(|pathdata| pathdata.get_md_infallible().modify_time)
+                    .map(|pathdata| pathdata.path_buf)
+            })
+            .collect();
 
-        Self {
-            inner: Box::new(unboxed_iter),
-        }
+        Self { inner: res }
+    }
+}
+
+impl LastInTimeSet {
+    pub fn into_inner(self) -> Vec<PathBuf> {
+        self.inner
     }
 }
