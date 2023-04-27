@@ -97,14 +97,16 @@ impl SpawnDeletedThread {
                 .map(|basic_info| PathData::from(&basic_info))
                 .collect();
 
-            return LastInTimeSet::from(&path_set).try_for_each(|deleted_dir| {
-                RecurseBehindDeletedDir::exec(
-                    deleted_dir.as_path(),
-                    requested_dir,
-                    skim_tx,
-                    hangup_rx,
-                )
-            });
+            return LastInTimeSet::from(path_set)
+                .deref_mut()
+                .try_for_each(|deleted_dir| {
+                    RecurseBehindDeletedDir::exec(
+                        deleted_dir.as_path(),
+                        requested_dir,
+                        skim_tx,
+                        hangup_rx,
+                    )
+                });
         }
 
         Ok(())
