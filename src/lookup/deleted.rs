@@ -164,7 +164,7 @@ impl From<Vec<PathData>> for LastInTimeSet {
             .snaps_selected_for_search
             .get_value();
 
-        let unboxed = path_set.into_iter().filter_map(|pathdata| {
+        let unboxed_iter = path_set.into_iter().filter_map(|pathdata| {
             VersionsMap::get_search_bundles(&pathdata, snaps_selected_for_search)
                 .filter_map(|search_bundle| search_bundle.get_last_version())
                 .max_by_key(|pathdata| pathdata.get_md_infallible().modify_time)
@@ -172,7 +172,7 @@ impl From<Vec<PathData>> for LastInTimeSet {
         });
 
         Self {
-            inner: Box::new(unboxed),
+            inner: Box::new(unboxed_iter),
         }
     }
 }
