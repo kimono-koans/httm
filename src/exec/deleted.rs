@@ -146,16 +146,17 @@ impl RecurseBehindDeletedDir {
                 let from_deleted_dir = deleted_dir
                     .parent()
                     .ok_or_else(|| HttmError::new("Not a valid directory name!"))?;
+
                 let from_requested_dir = requested_dir;
-                if let Ok(res) = RecurseBehindDeletedDir::enter_directory(
+
+                match RecurseBehindDeletedDir::enter_directory(
                     Path::new(dir_name),
                     from_deleted_dir,
                     from_requested_dir,
                     skim_tx,
                 ) {
-                    LinkedList::from([res])
-                } else {
-                    return Ok(());
+                    Ok(res) if !res.vec_dirs.is_empty() => LinkedList::from([res]),
+                    _ => return Ok(()),
                 }
             }
             None => return Err(HttmError::new("Not a valid directory name!").into()),
