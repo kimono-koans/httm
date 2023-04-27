@@ -78,7 +78,7 @@ impl DeletedFilesIter {
     fn get_unique_deleted_for_dir(
         requested_dir: &Path,
         search_bundle: &RelativePathAndSnapMounts,
-    ) -> HttmResult<impl Iterator<Item = BasicDirEntryInfo>> {
+    ) -> HttmResult<Vec<BasicDirEntryInfo>> {
         // get all local entries we need to compare against these to know
         // what is a deleted file
         //
@@ -92,16 +92,16 @@ impl DeletedFilesIter {
             Self::get_unique_snap_filenames(search_bundle.snap_mounts, search_bundle.relative_path);
 
         // compare local filenames to all unique snap filenames - none values are unique, here
-        let all_deleted_versions =
-            unique_snap_filenames
-                .into_iter()
-                .filter_map(move |(file_name, basic_info)| {
-                    if !local_filenames_set.contains(&file_name) {
-                        Some(basic_info)
-                    } else {
-                        None
-                    }
-                });
+        let all_deleted_versions = unique_snap_filenames
+            .into_iter()
+            .filter_map(move |(file_name, basic_info)| {
+                if !local_filenames_set.contains(&file_name) {
+                    Some(basic_info)
+                } else {
+                    None
+                }
+            })
+            .collect();
 
         Ok(all_deleted_versions)
     }
