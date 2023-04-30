@@ -18,7 +18,7 @@
 use std::thread::JoinHandle;
 use std::{io::Cursor, path::Path, path::PathBuf, thread};
 
-use crossbeam::channel::unbounded;
+use crossbeam_channel::unbounded;
 use skim::prelude::*;
 
 use crate::config::generate::{

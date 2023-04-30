@@ -26,7 +26,7 @@ use std::{
 };
 
 use ansi_term::Style as AnsiTermStyle;
-use crossbeam::channel::{Receiver, TryRecvError};
+use crossbeam_channel::{Receiver, TryRecvError};
 use lscolors::{Colorable, LsColors, Style};
 use number_prefix::NumberPrefix;
 use once_cell::sync::Lazy;
