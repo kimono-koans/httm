@@ -500,7 +500,6 @@ name = "httm"
 version = "0.26.1"
 dependencies = [
  "ansi_term",
- "chrono",
  "clap",
  "crossbeam",
  "exacl",
