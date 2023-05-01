@@ -148,8 +148,6 @@ impl InteractiveBrowse {
             Ok(output)
         });
 
-        let _ = background_handle.join();
-
         match display_handle.join() {
             Ok(selection_res) => Ok(selection_res?),
             Err(_) => Err(HttmError::new("Interactive browse thread panicked.").into()),
