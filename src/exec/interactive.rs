@@ -15,6 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
+use std::thread::JoinHandle;
 use std::{io::Cursor, path::Path, path::PathBuf, thread};
 
 use crossbeam_channel::unbounded;
@@ -41,10 +42,10 @@ pub struct InteractiveBrowse;
 
 impl InteractiveBrowse {
     pub fn exec(interactive_mode: &InteractiveMode) -> HttmResult<Vec<PathData>> {
-        let paths_selected_in_browse = match &GLOBAL_CONFIG.opt_requested_dir {
+        let (_background_handle, paths_selected_in_browse) = match &GLOBAL_CONFIG.opt_requested_dir {
             // collect string paths from what we get from lookup_view
             Some(requested_dir) => {
-                let selected_pathdata = InteractiveBrowse::browse_view(requested_dir)?;
+                let (background_handle, selected_pathdata) = InteractiveBrowse::browse_view(requested_dir)?;
                 if selected_pathdata.is_empty() {
                     return Err(HttmError::new(
                         "None of the selected strings could be converted to paths.",
@@ -52,7 +53,7 @@ impl InteractiveBrowse {
                     .into());
                 }
 
-                selected_pathdata
+                (background_handle, selected_pathdata)
             }
             None => {
                 // go to interactive_select early if user has already requested a file
@@ -89,7 +90,7 @@ impl InteractiveBrowse {
     }
 
     #[allow(unused_variables)]
-    fn browse_view(requested_dir: &PathData) -> HttmResult<Vec<PathData>> {
+    fn browse_view(requested_dir: &PathData) -> HttmResult<(JoinHandle<()>, Vec<PathData>)> {
         // prep thread spawn
         let requested_dir_clone = requested_dir.path_buf.clone();
         let (tx_item, rx_item): (SkimItemSender, SkimItemReceiver) = unbounded();
@@ -149,7 +150,7 @@ impl InteractiveBrowse {
         });
 
         match display_handle.join() {
-            Ok(selection_res) => Ok(selection_res?),
+            Ok(selection_res) => Ok((background_handle, selection_res?)),
             Err(_) => Err(HttmError::new("Interactive browse thread panicked.").into()),
         }
     }
