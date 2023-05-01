@@ -1058,8 +1058,6 @@ dependencies = [
 [[package]]
 name = "two_percent"
 version = "0.10.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2d9a052d616cfcf04c3a40fc20a46cf8ec933c37bef608176c2a09606597300d"
 dependencies = [
  "atty",
  "beef",
