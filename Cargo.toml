@@ -26,13 +26,13 @@ exacl = { version = "0.10.0", optional=true }
 
 [dependencies]
 simd-adler32 = { version = "0.3.4", default-features = false, features = ["std"] }
-ansi_term = { version = "0.12.1", default-features = false }
 clap = { version = "3.2.25", features = ["cargo"] }
 crossbeam-channel = { version = "0.5.8", default-features = false }
 time = { version = "0.3.17", features = ["formatting", "local-offset"] }
 number_prefix = { version = "0.4.0",  default-features = false }
 skim = { version = "0.10.6", package="two_percent" }
-lscolors = { version = "0.14.0", features = ["ansi_term"] }
+nu-ansi-term = { version = "0.47.0", default-features = false }
+lscolors = { version = "0.14.0", default-features = false, features = ["nu-ansi-term"] }
 terminal_size = { version = "0.2.3", default-features = false }
 which = { version = "4.3.0", default-features = false }
 rayon = { version = "1.6.0", default-features = false }

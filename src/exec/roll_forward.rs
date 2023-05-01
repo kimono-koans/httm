@@ -22,7 +22,7 @@ use std::process::Child;
 use std::process::Command as ExecProcess;
 use std::process::Stdio;
 
-use ansi_term::Colour::{Blue, Red};
+use nu_ansi_term::Color::{Blue, Red};
 use once_cell::sync::OnceCell;
 use which::which;
 
