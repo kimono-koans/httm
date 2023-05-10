@@ -42,10 +42,12 @@ pub struct InteractiveBrowse;
 
 impl InteractiveBrowse {
     pub fn exec(interactive_mode: &InteractiveMode) -> HttmResult<Vec<PathData>> {
-        let (_background_handle, paths_selected_in_browse) = match &GLOBAL_CONFIG.opt_requested_dir {
+        let (_background_handle, paths_selected_in_browse) = match &GLOBAL_CONFIG.opt_requested_dir
+        {
             // collect string paths from what we get from lookup_view
             Some(requested_dir) => {
-                let (background_handle, selected_pathdata) = InteractiveBrowse::browse_view(requested_dir)?;
+                let (background_handle, selected_pathdata) =
+                    InteractiveBrowse::browse_view(requested_dir)?;
                 if selected_pathdata.is_empty() {
                     return Err(HttmError::new(
                         "None of the selected strings could be converted to paths.",

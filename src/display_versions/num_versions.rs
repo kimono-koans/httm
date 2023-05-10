@@ -88,13 +88,13 @@ impl<'a> VersionsDisplayWrapper<'a> {
                     num_versions += 1
                 };
 
-                return Some(format!(
+                Some(format!(
                     "{:<width$} : {:*<num_versions$}{}",
                     display_path,
                     "",
                     delimiter,
                     width = padding
-                ));
+                ))
             }
             NumVersionsMode::AllNumerals => {
                 if !VersionsMap::is_live_version_redundant(live_version, snaps) {
