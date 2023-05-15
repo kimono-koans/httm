@@ -98,7 +98,7 @@ impl InteractiveBrowse {
         let (hangup_tx, hangup_rx): (Sender<Never>, Receiver<Never>) = bounded(0);
 
         // thread spawn fn enumerate_directory - permits recursion into dirs without blocking
-        let background_handle = thread::spawn(move || {
+        let _background_handle = thread::spawn(move || {
             // no way to propagate error from closure so exit and explain error here
             RecursiveSearch::exec(&requested_dir_clone, tx_item.clone(), hangup_rx.clone())
         });
@@ -148,10 +148,6 @@ impl InteractiveBrowse {
                 .collect();
 
             Ok(output)
-        });
-
-        let _ = thread::spawn(|| {
-            background_handle.join()
         });
 
         match display_handle.join() {
