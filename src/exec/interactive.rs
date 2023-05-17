@@ -98,7 +98,7 @@ impl InteractiveBrowse {
         let (hangup_tx, hangup_rx): (Sender<Never>, Receiver<Never>) = bounded(0);
 
         // thread spawn fn enumerate_directory - permits recursion into dirs without blocking
-        let _background_handle = thread::spawn(move || {
+        let background_handle = thread::spawn(move || {
             // no way to propagate error from closure so exit and explain error here
             RecursiveSearch::exec(&requested_dir_clone, tx_item.clone(), hangup_rx.clone())
         });
@@ -126,6 +126,9 @@ impl InteractiveBrowse {
             // run_with() reads and shows items from the thread stream created above
             let selected_items =
                 if let Some(output) = skim::Skim::run_with(&skim_opts, Some(rx_item)) {
+                    // hangup the channel so the background recursive search can gracefully cleanup and exit
+                    drop(hangup_tx);
+                    
                     if output.is_abort {
                         eprintln!("httm interactive file browse session was aborted.  Quitting.");
                         std::process::exit(0)
@@ -138,9 +141,6 @@ impl InteractiveBrowse {
                     ));
                 };
 
-            // hangup the channel so the background recursive search can gracefully cleanup and exit
-            drop(hangup_tx);
-
             // output() converts the filename/raw path to a absolute path string for use elsewhere
             let output: Vec<PathData> = selected_items
                 .iter()
@@ -151,7 +151,10 @@ impl InteractiveBrowse {
         });
 
         match display_handle.join() {
-            Ok(selection_res) => Ok(selection_res?),
+            Ok(selection_res) => {
+                let _ = background_handle.join();
+                Ok(selection_res?)
+            },
             Err(_) => Err(HttmError::new("Interactive browse thread panicked.").into()),
         }
     }
@@ -495,7 +498,7 @@ pub fn select_restore_view(
     let item_reader_opts = SkimItemReaderOption::default().ansi(true);
     let item_reader = SkimItemReader::new(item_reader_opts);
 
-    let items = item_reader.of_bufread(Box::new(Cursor::new(preview_buffer.trim().to_owned())));
+    let (items, _opt_handle) = item_reader.of_bufread(Box::new(Cursor::new(preview_buffer.trim().to_owned())));
 
     // run_with() reads and shows items from the thread stream created above
     let selected_items = if let Some(output) = skim::Skim::run_with(&skim_opts, Some(items)) {
