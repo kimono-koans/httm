@@ -400,10 +400,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3f9eec918d3f24069decb9af1554cad7c880e2da24a9afd88aca000531ab82c1"
 
 [[package]]
-name = "fuzzy-matcher"
-version = "0.3.7"
+name = "fuzzy-muff"
+version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "54614a3312934d066701a80f20f15fa3b56d67ac7722b39eea5b4c9dd1d66c94"
+checksum = "78581639d8dbaf18b8ef8a5bfd303d80a3ebca9f1d7c31c519e8edb76d2dd580"
 dependencies = [
  "thread_local",
 ]
@@ -1057,7 +1057,9 @@ dependencies = [
 
 [[package]]
 name = "two_percent"
-version = "0.10.8"
+version = "0.10.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5282c8d5cd8aaf75ddec266479ad6cd63f29b7820e75102490e094125ca91aad"
 dependencies = [
  "atty",
  "beef",
@@ -1067,7 +1069,7 @@ dependencies = [
  "crossbeam-channel",
  "derive_builder",
  "env_logger",
- "fuzzy-matcher",
+ "fuzzy-muff",
  "lazy_static",
  "log",
  "nix 0.26.2",
