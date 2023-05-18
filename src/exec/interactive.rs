@@ -37,6 +37,7 @@ use crate::library::utility::{
 use crate::lookup::versions::VersionsMap;
 use crate::GLOBAL_CONFIG;
 
+#[derive(Debug)]
 pub struct InteractiveBrowse {
     pub selected_pathdata: Vec<PathData>,
     pub opt_background_handle: Option<JoinHandle<()>>,
@@ -74,11 +75,7 @@ impl InteractiveBrowse {
                             opt_background_handle: None,
                         };
 
-                        InteractiveSelect::exec(
-                            browse_result,
-                            interactive_mode,
-                        )?;
-                        unreachable!("interactive select never returns so unreachable here")
+                        browse_result
                     }
                     // Config::from should never allow us to have an instance where we don't
                     // have at least one path to use
