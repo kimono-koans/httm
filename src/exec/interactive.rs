@@ -15,6 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
+use std::thread::JoinHandle;
 use std::{io::Cursor, path::Path, path::PathBuf, thread};
 
 use crossbeam_channel::unbounded;
@@ -34,27 +35,33 @@ use crate::library::utility::{
 };
 use crate::lookup::versions::VersionsMap;
 use crate::GLOBAL_CONFIG;
+use crate::exec::recursive::RecursiveSearch;
 
-use super::recursive::RecursiveSearch;
-
-pub struct InteractiveBrowse;
+pub struct InteractiveBrowse {
+    pub selected_pathdata: Vec<PathData>,
+    pub background_handle: Option<JoinHandle<()>>,
+}
 
 impl InteractiveBrowse {
+    pub fn new(requested_dir: &PathData) -> HttmResult<Self> {
+        InteractiveBrowse::browse_view(requested_dir)
+    }
+
     pub fn exec(interactive_mode: &InteractiveMode) -> HttmResult<Vec<PathData>> {
-        let paths_selected_in_browse= match &GLOBAL_CONFIG.opt_requested_dir
+        let browse_result = match &GLOBAL_CONFIG.opt_requested_dir
         {
             // collect string paths from what we get from lookup_view
             Some(requested_dir) => {
-                let selected_pathdata =
-                    InteractiveBrowse::browse_view(requested_dir)?;
-                if selected_pathdata.is_empty() {
+                let browse_result =
+                    InteractiveBrowse::new(requested_dir)?;
+                if browse_result.selected_pathdata.is_empty() {
                     return Err(HttmError::new(
                         "None of the selected strings could be converted to paths.",
                     )
                     .into());
                 }
 
-                selected_pathdata
+                browse_result
             }
             None => {
                 // go to interactive_select early if user has already requested a file
@@ -63,8 +70,14 @@ impl InteractiveBrowse {
                 match GLOBAL_CONFIG.paths.get(0) {
                     Some(first_path) => {
                         let selected_file = first_path.clone();
+
+                        let browse_result = Self {
+                            selected_pathdata: vec![selected_file],
+                            background_handle: None,
+                        };
+
                         InteractiveSelect::exec(
-                            &[selected_file],
+                            browse_result,
                             interactive_mode,
                         )?;
                         unreachable!("interactive select never returns so unreachable here")
@@ -82,16 +95,16 @@ impl InteractiveBrowse {
         // or continue down the interactive rabbit hole?
         match interactive_mode {
             InteractiveMode::Restore(_) | InteractiveMode::Select => {
-                InteractiveSelect::exec(&paths_selected_in_browse, interactive_mode)?;
+                InteractiveSelect::exec(browse_result, interactive_mode)?;
                 unreachable!()
             }
             // InteractiveMode::Browse executes back through fn exec() in main.rs
-            InteractiveMode::Browse => Ok(paths_selected_in_browse),
+            InteractiveMode::Browse => Ok(browse_result.selected_pathdata),
         }
     }
 
     #[allow(unused_variables)]
-    fn browse_view(requested_dir: &PathData) -> HttmResult<Vec<PathData>> {
+    fn browse_view(requested_dir: &PathData) -> HttmResult<Self> {
         // prep thread spawn
         let requested_dir_clone = requested_dir.path_buf.clone();
         let (tx_item, rx_item): (SkimItemSender, SkimItemReceiver) = unbounded();
@@ -151,9 +164,12 @@ impl InteractiveBrowse {
         });
 
         match display_handle.join() {
-            Ok(selection_res) => {
-                let _ = background_handle.join();
-                Ok(selection_res?)
+            Ok(selected_pathdata) => {
+                let res = InteractiveBrowse {
+                    selected_pathdata: selected_pathdata?,
+                    background_handle: Some(background_handle),
+                };
+                Ok(res)
             },
             Err(_) => Err(HttmError::new("Interactive browse thread panicked.").into()),
         }
@@ -164,14 +180,14 @@ struct InteractiveSelect;
 
 impl InteractiveSelect {
     fn exec(
-        paths_selected_in_browse: &[PathData],
+        browse_result: InteractiveBrowse,
         interactive_mode: &InteractiveMode,
     ) -> HttmResult<()> {
-        let versions_map = VersionsMap::new(&GLOBAL_CONFIG, paths_selected_in_browse)?;
+        let versions_map = VersionsMap::new(&GLOBAL_CONFIG, &browse_result.selected_pathdata)?;
 
         // snap and live set has no snaps
         if versions_map.is_empty() {
-            let paths: Vec<String> = paths_selected_in_browse
+            let paths: Vec<String> = browse_result.selected_pathdata
                 .iter()
                 .map(|path| path.path_buf.to_string_lossy().to_string())
                 .collect();
@@ -184,17 +200,16 @@ impl InteractiveSelect {
         }
 
         let path_string = if GLOBAL_CONFIG.opt_last_snap.is_some() {
-            Self::get_last_snap(paths_selected_in_browse, &versions_map)?
+            Self::get_last_snap(&browse_result.selected_pathdata, &versions_map)?
         } else {
             // same stuff we do at fn exec, snooze...
-            let display_config = GLOBAL_CONFIG.generate_display_config(paths_selected_in_browse);
+            let display_config = GLOBAL_CONFIG.generate_display_config(&browse_result.selected_pathdata);
 
             let display_map = VersionsDisplayWrapper::from(&display_config, versions_map);
 
             let selection_buffer = display_map.to_string();
 
-            let opt_live_version: Option<String> = paths_selected_in_browse
-                .as_ref()
+            let opt_live_version: Option<String> = browse_result.selected_pathdata
                 .get(0)
                 .map(|pathdata| pathdata.path_buf.to_string_lossy().into_owned());
 
@@ -221,6 +236,10 @@ impl InteractiveSelect {
             }
         };
 
+        browse_result.background_handle.map(|handle| {
+            handle.join()
+        }); 
+
         // continue to interactive_restore or print and exit here?
         if matches!(interactive_mode, InteractiveMode::Restore(_)) {
             // one only allow one to select one path string during select
@@ -228,7 +247,7 @@ impl InteractiveSelect {
             // it later during restore if opt_overwrite is selected
             Ok(InteractiveRestore::exec(
                 &path_string,
-                paths_selected_in_browse,
+                &browse_result.selected_pathdata,
             )?)
         } else {
             Ok(Self::print_selection(&path_string)?)
