@@ -27,6 +27,7 @@ use crate::config::generate::{
 use crate::data::paths::{PathData, PathMetadata};
 use crate::display_versions::wrapper::VersionsDisplayWrapper;
 use crate::exec::preview::PreviewSelection;
+use crate::exec::recursive::RecursiveSearch;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::snap_guard::SnapGuard;
 use crate::library::utility::{
@@ -35,11 +36,10 @@ use crate::library::utility::{
 };
 use crate::lookup::versions::VersionsMap;
 use crate::GLOBAL_CONFIG;
-use crate::exec::recursive::RecursiveSearch;
 
 pub struct InteractiveBrowse {
     pub selected_pathdata: Vec<PathData>,
-    pub background_handle: Option<JoinHandle<()>>,
+    pub opt_background_handle: Option<JoinHandle<()>>,
 }
 
 impl InteractiveBrowse {
@@ -48,12 +48,10 @@ impl InteractiveBrowse {
     }
 
     pub fn exec(interactive_mode: &InteractiveMode) -> HttmResult<Vec<PathData>> {
-        let browse_result = match &GLOBAL_CONFIG.opt_requested_dir
-        {
+        let browse_result = match &GLOBAL_CONFIG.opt_requested_dir {
             // collect string paths from what we get from lookup_view
             Some(requested_dir) => {
-                let browse_result =
-                    InteractiveBrowse::new(requested_dir)?;
+                let browse_result = InteractiveBrowse::new(requested_dir)?;
                 if browse_result.selected_pathdata.is_empty() {
                     return Err(HttmError::new(
                         "None of the selected strings could be converted to paths.",
@@ -73,7 +71,7 @@ impl InteractiveBrowse {
 
                         let browse_result = Self {
                             selected_pathdata: vec![selected_file],
-                            background_handle: None,
+                            opt_background_handle: None,
                         };
 
                         InteractiveSelect::exec(
@@ -141,7 +139,7 @@ impl InteractiveBrowse {
                 if let Some(output) = skim::Skim::run_with(&skim_opts, Some(rx_item)) {
                     // hangup the channel so the background recursive search can gracefully cleanup and exit
                     drop(hangup_tx);
-                    
+
                     if output.is_abort {
                         eprintln!("httm interactive file browse session was aborted.  Quitting.");
                         std::process::exit(0)
@@ -167,10 +165,10 @@ impl InteractiveBrowse {
             Ok(selected_pathdata) => {
                 let res = InteractiveBrowse {
                     selected_pathdata: selected_pathdata?,
-                    background_handle: Some(background_handle),
+                    opt_background_handle: Some(background_handle),
                 };
                 Ok(res)
-            },
+            }
             Err(_) => Err(HttmError::new("Interactive browse thread panicked.").into()),
         }
     }
@@ -187,7 +185,8 @@ impl InteractiveSelect {
 
         // snap and live set has no snaps
         if versions_map.is_empty() {
-            let paths: Vec<String> = browse_result.selected_pathdata
+            let paths: Vec<String> = browse_result
+                .selected_pathdata
                 .iter()
                 .map(|path| path.path_buf.to_string_lossy().to_string())
                 .collect();
@@ -203,13 +202,15 @@ impl InteractiveSelect {
             Self::get_last_snap(&browse_result.selected_pathdata, &versions_map)?
         } else {
             // same stuff we do at fn exec, snooze...
-            let display_config = GLOBAL_CONFIG.generate_display_config(&browse_result.selected_pathdata);
+            let display_config =
+                GLOBAL_CONFIG.generate_display_config(&browse_result.selected_pathdata);
 
             let display_map = VersionsDisplayWrapper::from(&display_config, versions_map);
 
             let selection_buffer = display_map.to_string();
 
-            let opt_live_version: Option<String> = browse_result.selected_pathdata
+            let opt_live_version: Option<String> = browse_result
+                .selected_pathdata
                 .get(0)
                 .map(|pathdata| pathdata.path_buf.to_string_lossy().into_owned());
 
@@ -236,9 +237,9 @@ impl InteractiveSelect {
             }
         };
 
-        browse_result.background_handle.map(|handle| {
-            handle.join()
-        }); 
+        browse_result
+            .opt_background_handle
+            .map(|handle| handle.join());
 
         // continue to interactive_restore or print and exit here?
         if matches!(interactive_mode, InteractiveMode::Restore(_)) {
@@ -517,7 +518,8 @@ pub fn select_restore_view(
     let item_reader_opts = SkimItemReaderOption::default().ansi(true);
     let item_reader = SkimItemReader::new(item_reader_opts);
 
-    let (items, _opt_handle) = item_reader.of_bufread(Box::new(Cursor::new(preview_buffer.trim().to_owned())));
+    let (items, _opt_handle) =
+        item_reader.of_bufread(Box::new(Cursor::new(preview_buffer.trim().to_owned())));
 
     // run_with() reads and shows items from the thread stream created above
     let selected_items = if let Some(output) = skim::Skim::run_with(&skim_opts, Some(items)) {
