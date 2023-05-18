@@ -112,7 +112,7 @@ fn exec() -> HttmResult<()> {
     match &GLOBAL_CONFIG.exec_mode {
         // ExecMode::Interactive *may* return back to this function to be printed
         ExecMode::Interactive(interactive_mode) => {
-            let browse_result = InteractiveBrowse::exec(interactive_mode)?;
+            let browse_result = InteractiveBrowse::new(interactive_mode)?;
             let versions_map = VersionsMap::new(&GLOBAL_CONFIG, &browse_result)?;
             let output_buf = VersionsDisplayWrapper::from(&GLOBAL_CONFIG, versions_map).to_string();
 
