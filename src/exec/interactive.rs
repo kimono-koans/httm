@@ -118,11 +118,6 @@ impl InteractiveBrowseResult {
         let background_handle = thread::spawn(move || {
             // no way to propagate error from closure so exit and explain error here
             RecursiveSearch::exec(&requested_dir_clone, tx_item.clone(), hangup_rx.clone());
-
-            #[cfg(target_os = "linux")]
-            unsafe {
-                let _ = libc::malloc_trim(0);
-            };
         });
 
         let display_handle = thread::spawn(move || {
