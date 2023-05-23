@@ -99,6 +99,11 @@ impl InteractiveBrowseResult {
             }
         };
 
+        #[cfg(target_os = "linux")]
+        unsafe {
+            let _ = libc::malloc_trim(0);
+        };
+
         Ok(browse_result)
     }
 
@@ -112,7 +117,12 @@ impl InteractiveBrowseResult {
         // thread spawn fn enumerate_directory - permits recursion into dirs without blocking
         let background_handle = thread::spawn(move || {
             // no way to propagate error from closure so exit and explain error here
-            RecursiveSearch::exec(&requested_dir_clone, tx_item.clone(), hangup_rx.clone())
+            RecursiveSearch::exec(&requested_dir_clone, tx_item.clone(), hangup_rx.clone());
+
+            #[cfg(target_os = "linux")]
+            unsafe {
+                let _ = libc::malloc_trim(0);
+            };
         });
 
         let display_handle = thread::spawn(move || {
@@ -164,6 +174,11 @@ impl InteractiveBrowseResult {
 
         match display_handle.join() {
             Ok(selected_pathdata) => {
+                #[cfg(target_os = "linux")]
+                unsafe {
+                    let _ = libc::malloc_trim(0);
+                };
+
                 let res = Self {
                     selected_pathdata: selected_pathdata?,
                     opt_background_handle: Some(background_handle),
@@ -238,9 +253,7 @@ impl InteractiveSelect {
             }
         };
 
-        browse_result
-            .opt_background_handle
-            .map(|handle| handle.join());
+        if let Some(handle) = browse_result.opt_background_handle { let _ = handle.join(); }
 
         // continue to interactive_restore or print and exit here?
         if matches!(interactive_mode, InteractiveMode::Restore(_)) {

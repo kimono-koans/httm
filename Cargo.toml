@@ -30,7 +30,8 @@ clap = { version = "3.2.25", features = ["cargo"] }
 crossbeam-channel = { version = "0.5.8", default-features = false }
 time = { version = "0.3.21", features = ["formatting", "local-offset"] }
 number_prefix = { version = "0.4.0",  default-features = false }
-skim = { version = "0.10.13", package="two_percent" }
+#skim = { version = "0.10.13", package="two_percent" }
+skim = { path = "../two_percent", package="two_percent" }
 nu-ansi-term = { version = "0.47.0", default-features = false }
 lscolors = { version = "0.14.0", default-features = false, features = ["nu-ansi-term"] }
 terminal_size = { version = "0.2.6", default-features = false }
@@ -45,6 +46,7 @@ xattr = { version = "1.0.0", default-features = false }
 serde = { version = "1.0.163", default-features = false }
 serde_json = { version = "1.0.96", features = ["preserve_order"] }
 filetime = { version = "0.2.21", default-features = false }
+libc = { version = "0.2.144", default-features = false }
 
 [patch.crates-io]
 timer = { git = "https://github.com/kimono-koans/timer.rs" }
