@@ -66,12 +66,12 @@ impl InteractiveBrowse {
                     Some(first_path) => {
                         let selected_file = first_path.clone();
 
-                        let browse_result = Self {
+                        
+
+                        Self {
                             selected_pathdata: vec![selected_file],
                             opt_background_handle: None,
-                        };
-
-                        browse_result
+                        }
                     }
                     // Config::from should never allow us to have an instance where we don't
                     // have at least one path to use
