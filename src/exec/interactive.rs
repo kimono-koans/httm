@@ -37,18 +37,37 @@ use crate::library::utility::{
 use crate::lookup::versions::VersionsMap;
 use crate::GLOBAL_CONFIG;
 
+pub struct InteractiveBrowse;
+
+impl InteractiveBrowse {
+    pub fn exec(interactive_mode: &InteractiveMode) -> HttmResult<Vec<PathData>> {
+        let browse_result = InteractiveBrowseResult::new()?;
+
+        // do we return back to our main exec function to print,
+        // or continue down the interactive rabbit hole?
+        match interactive_mode {
+            InteractiveMode::Restore(_) | InteractiveMode::Select => {
+                InteractiveSelect::exec(browse_result, interactive_mode)?;
+                unreachable!()
+            }
+            // InteractiveMode::Browse executes back through fn exec() in main.rs
+            InteractiveMode::Browse => Ok(browse_result.selected_pathdata),
+        }
+    }
+}
+
 #[derive(Debug)]
-pub struct InteractiveBrowse {
+pub struct InteractiveBrowseResult {
     pub selected_pathdata: Vec<PathData>,
     pub opt_background_handle: Option<JoinHandle<()>>,
 }
 
-impl InteractiveBrowse {
-    pub fn new(interactive_mode: &InteractiveMode) -> HttmResult<Vec<PathData>> {
+impl InteractiveBrowseResult {
+    pub fn new() -> HttmResult<Self> {
         let browse_result = match &GLOBAL_CONFIG.opt_requested_dir {
             // collect string paths from what we get from lookup_view
             Some(requested_dir) => {
-                let browse_result = InteractiveBrowse::browse_view(requested_dir)?;
+                let browse_result = Self::browse_view(requested_dir)?;
                 if browse_result.selected_pathdata.is_empty() {
                     return Err(HttmError::new(
                         "None of the selected strings could be converted to paths.",
@@ -66,8 +85,6 @@ impl InteractiveBrowse {
                     Some(first_path) => {
                         let selected_file = first_path.clone();
 
-                        
-
                         Self {
                             selected_pathdata: vec![selected_file],
                             opt_background_handle: None,
@@ -82,16 +99,7 @@ impl InteractiveBrowse {
             }
         };
 
-        // do we return back to our main exec function to print,
-        // or continue down the interactive rabbit hole?
-        match interactive_mode {
-            InteractiveMode::Restore(_) | InteractiveMode::Select => {
-                InteractiveSelect::exec(browse_result, interactive_mode)?;
-                unreachable!()
-            }
-            // InteractiveMode::Browse executes back through fn exec() in main.rs
-            InteractiveMode::Browse => Ok(browse_result.selected_pathdata),
-        }
+        Ok(browse_result)
     }
 
     #[allow(unused_variables)]
@@ -156,7 +164,7 @@ impl InteractiveBrowse {
 
         match display_handle.join() {
             Ok(selected_pathdata) => {
-                let res = InteractiveBrowse {
+                let res = Self {
                     selected_pathdata: selected_pathdata?,
                     opt_background_handle: Some(background_handle),
                 };
@@ -171,7 +179,7 @@ struct InteractiveSelect;
 
 impl InteractiveSelect {
     fn exec(
-        browse_result: InteractiveBrowse,
+        browse_result: InteractiveBrowseResult,
         interactive_mode: &InteractiveMode,
     ) -> HttmResult<()> {
         let versions_map = VersionsMap::new(&GLOBAL_CONFIG, &browse_result.selected_pathdata)?;
