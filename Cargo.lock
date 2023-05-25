@@ -1003,9 +1003,9 @@ dependencies = [
 
 [[package]]
 name = "two_percent"
-version = "0.10.15"
+version = "0.10.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fcaa9132f5bb74d04ad86cf677e8f0191fca725ea5ff5b5803e1e17ecbe30336"
+checksum = "d03dc3b406d98745c788e50e320c588748dffdbfe3c4eaf43ab63bd09d4ccc97"
 dependencies = [
  "atty",
  "bitflags 2.3.1",
