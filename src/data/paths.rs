@@ -21,7 +21,7 @@ use std::{
     fs::{symlink_metadata, DirEntry, File, FileType, Metadata},
     io::BufReader,
     path::{Path, PathBuf},
-    time::{SystemTime, UNIX_EPOCH},
+    time::{SystemTime},
 };
 
 use once_cell::sync::OnceCell;
@@ -118,14 +118,16 @@ impl PathData {
         };
 
         // call symlink_metadata, as we need to resolve symlinks to get non-"phantom" metadata
-        let metadata = opt_metadata.map(|md| {
+        let metadata = opt_metadata.and_then(|md| {
             let len = md.len();
             // may fail on systems that don't collect a modify time
-            let time = Self::get_modify_time(&md);
-            PathMetadata {
-                size: len,
-                modify_time: time,
-            }
+            let opt_time = Self::get_modify_time(&md);
+            opt_time.map(|time| {
+                PathMetadata {
+                    size: len,
+                    modify_time: time,
+                }
+            })
         });
 
         PathData {
@@ -136,12 +138,12 @@ impl PathData {
 
     // using ctime instead of mtime might be more correct as mtime can be trivially changed from user space
     // but I think we want to use mtime here? People should be able to make a snapshot "unique" with only mtime?
-    fn get_modify_time(md: &Metadata) -> SystemTime {
+    fn get_modify_time(md: &Metadata) -> Option<SystemTime> {
         //#[cfg(not(unix))]
         // return md.modified().unwrap_or(UNIX_EPOCH);
         //#[cfg(unix)]
         //return UNIX_EPOCH + time::Duration::new(md.ctime(), md.ctime_nsec() as i32);
-        md.modified().unwrap_or(UNIX_EPOCH)
+        md.modified().ok()
     }
 
     #[inline]
