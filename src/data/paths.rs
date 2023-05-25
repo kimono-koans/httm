@@ -20,7 +20,6 @@ use std::{
     ffi::OsStr,
     fs::{symlink_metadata, DirEntry, File, FileType, Metadata},
     io::BufReader,
-    ops::Deref,
     path::{Path, PathBuf},
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -186,7 +185,7 @@ impl PathData {
         self.path_buf
             .ancestors()
             .skip_while(|ancestor| ancestor.components().count() > map_of_datasets.get_max_len())
-            .find(|ancestor| map_of_datasets.deref().contains_key(*ancestor))
+            .find(|ancestor| map_of_datasets.contains_key(*ancestor))
             .ok_or_else(|| {
                 HttmError::new(
                     "httm could not identify any qualifying dataset.  \
