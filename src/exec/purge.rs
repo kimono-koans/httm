@@ -53,7 +53,7 @@ impl PurgeSnaps {
                 .flatten()
                 .map(|value| format!("{value}\n"))
                 .collect();
-            select_restore_view(&buffer, ViewMode::Select(None), true)?
+            select_restore_view(&buffer, &ViewMode::Select(None), true)?
         } else {
             snap_name_map.values().flatten().cloned().collect()
         };
@@ -75,9 +75,8 @@ impl PurgeSnaps {
 
         // loop until user consents or doesn't
         loop {
-            let user_consent =
-                select_restore_view(&preview_buffer, ViewMode::RestoreOrPurge, false)?[0]
-                    .to_ascii_uppercase();
+            let user_consent = select_restore_view(&preview_buffer, &ViewMode::Purge, false)?[0]
+                .to_ascii_uppercase();
 
             match user_consent.as_ref() {
                 "YES" | "Y" => {

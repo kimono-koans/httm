@@ -67,7 +67,7 @@ impl InteractiveBrowseResult {
         let browse_result = match &GLOBAL_CONFIG.opt_requested_dir {
             // collect string paths from what we get from lookup_view
             Some(requested_dir) => {
-                let browse_result = Self::browse_view(requested_dir)?;
+                let browse_result = Self::browse_view(requested_dir, ViewMode::Browse)?;
                 if browse_result.selected_pathdata.is_empty() {
                     return Err(HttmError::new(
                         "None of the selected strings could be converted to paths.",
@@ -108,7 +108,7 @@ impl InteractiveBrowseResult {
     }
 
     #[allow(unused_variables)]
-    fn browse_view(requested_dir: &PathData) -> HttmResult<Self> {
+    fn browse_view(requested_dir: &PathData, view_mode: ViewMode) -> HttmResult<Self> {
         // prep thread spawn
         let requested_dir_clone = requested_dir.path_buf.clone();
         let (tx_item, rx_item): (SkimItemSender, SkimItemReceiver) = unbounded();
@@ -124,17 +124,15 @@ impl InteractiveBrowseResult {
             let opt_multi =
                 GLOBAL_CONFIG.opt_last_snap.is_none() || GLOBAL_CONFIG.opt_preview.is_none();
 
+            let header = view_mode.print_header();
+
             // create the skim component for previews
             let skim_opts = SkimOptionsBuilder::default()
                 .preview_window(Some("up:50%"))
                 .preview(Some(""))
                 .nosort(true)
                 .exact(GLOBAL_CONFIG.opt_exact)
-                .header(Some("PREVIEW UP: shift+up | PREVIEW DOWN: shift+down\n\
-                            PAGE UP:    page up  | PAGE DOWN:    page down \n\
-                            EXIT:       esc      | SELECT:       enter      | SELECT, MULTIPLE: shift+tab\n\
-                            ──────────────────────────────────────────────────────────────────────────────",
-                ))
+                .header(Some(&header))
                 .multi(opt_multi)
                 .regex(false)
                 .build()
@@ -230,7 +228,7 @@ impl InteractiveSelect {
                 // get the file name
                 let requested_file_name = select_restore_view(
                     &selection_buffer,
-                    ViewMode::Select(opt_live_version.clone()),
+                    &ViewMode::Select(opt_live_version.clone()),
                     false,
                 )?;
                 // ... we want everything between the quotes
@@ -351,9 +349,8 @@ impl InteractiveRestore {
 
         // loop until user consents or doesn't
         loop {
-            let user_consent =
-                select_restore_view(&preview_buffer, ViewMode::RestoreOrPurge, false)?[0]
-                    .to_ascii_uppercase();
+            let user_consent = select_restore_view(&preview_buffer, &ViewMode::Restore, false)?[0]
+                .to_ascii_uppercase();
 
             match user_consent.as_ref() {
                 "YES" | "Y" => {
@@ -494,16 +491,41 @@ impl InteractiveRestore {
 }
 
 pub enum ViewMode {
+    Browse,
     Select(Option<String>),
-    RestoreOrPurge,
+    Restore,
+    Purge,
+}
+
+impl ViewMode {
+    fn print_header(&self) -> String {
+        format!(
+            "PREVIEW UP: shift+up | PREVIEW DOWN: shift+down | {}\n\
+        PAGE UP:    page up  | PAGE DOWN:    page down \n\
+        EXIT:       esc      | SELECT:       enter      | SELECT, MULTIPLE: shift+tab\n\
+        ──────────────────────────────────────────────────────────────────────────────",
+            self.print_mode()
+        )
+    }
+
+    fn print_mode(&self) -> &str {
+        match self {
+            ViewMode::Browse => "====> [ Browse Mode ] <====",
+            ViewMode::Select(_) => "====> [ Select Mode ] <====",
+            ViewMode::Restore => "====> [ Restore Mode ] <====",
+            ViewMode::Purge => "====> [ Purge Mode ] <====",
+        }
+    }
 }
 
 pub fn select_restore_view(
     preview_buffer: &str,
-    view_mode: ViewMode,
+    view_mode: &ViewMode,
     multi: bool,
 ) -> HttmResult<Vec<String>> {
     let preview_selection = PreviewSelection::new(view_mode)?;
+
+    let header = view_mode.print_header();
 
     // build our browse view - less to do than before - no previews, looking through one 'lil buffer
     let skim_opts = SkimOptionsBuilder::default()
@@ -517,12 +539,7 @@ pub fn select_restore_view(
         .multi(multi)
         .regex(false)
         .tiebreak(Some("length,index".to_string()))
-        .header(Some(
-            "PREVIEW UP: shift+up | PREVIEW DOWN: shift+down\n\
-                PAGE UP:    page up  | PAGE DOWN:    page down \n\
-                EXIT:       esc      | SELECT:       enter      | SELECT, MULTIPLE: shift+tab\n\
-                ──────────────────────────────────────────────────────────────────────────────",
-        ))
+        .header(Some(&header))
         .build()
         .expect("Could not initialized skim options for select_restore_view");
 

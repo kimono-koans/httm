@@ -29,7 +29,7 @@ pub struct PreviewSelection {
 }
 
 impl PreviewSelection {
-    pub fn new(view_mode: ViewMode) -> HttmResult<Self> {
+    pub fn new(view_mode: &ViewMode) -> HttmResult<Self> {
         //let (opt_preview_window, opt_preview_command) =
         let res = match &GLOBAL_CONFIG.opt_preview {
             Some(defined_command) if matches!(view_mode, ViewMode::Select(_)) => {
@@ -43,7 +43,7 @@ impl PreviewSelection {
                     opt_preview_window: Some("up:50%".to_owned()),
                     opt_preview_command: Some(Self::parse_preview_command(
                         defined_command,
-                        &opt_live_version,
+                        opt_live_version,
                     )?),
                 }
             }
