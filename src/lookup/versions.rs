@@ -341,7 +341,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
     }
 
     pub fn get_versions_processed(&'a self, uniqueness: &ListSnapsOfType) -> Vec<PathData> {
-        let all_versions = self.get_versions_unprocessed();
+        let all_versions = self.get_versions_unprocessed(uniqueness);
 
         let sorted_versions: Vec<PathData> = Self::process_versions(all_versions, uniqueness);
 
@@ -356,7 +356,10 @@ impl<'a> RelativePathAndSnapMounts<'a> {
         res
     }
 
-    fn get_versions_unprocessed(&'a self) -> impl ParallelIterator<Item = PathData> + 'a {
+    fn get_versions_unprocessed(
+        &'a self,
+        uniqueness: &'a ListSnapsOfType,
+    ) -> impl ParallelIterator<Item = CompareVersionsContainer> + 'a {
         // get the DirEntry for our snapshot path which will have all our possible
         // snapshots, like so: .zfs/snapshots/<some snap name>/
         self
@@ -365,7 +368,9 @@ impl<'a> RelativePathAndSnapMounts<'a> {
             .map(|path| path.join(self.relative_path))
             .filter_map(|joined_path| {
                 match joined_path.symlink_metadata() {
-                    Ok(md) => Some(PathData::new(joined_path.as_path(), Some(md))),
+                    Ok(md) => {
+                        Some(CompareVersionsContainer::new(PathData::new(joined_path.as_path(), Some(md)), uniqueness))
+                    },
                     Err(err) => {
                         match err.kind() {
                             // if we do not have permissions to read the snapshot directories
@@ -388,23 +393,19 @@ impl<'a> RelativePathAndSnapMounts<'a> {
     // remove duplicates with the same system modify time and size/file len (or contents! See --uniqueness)
     #[allow(clippy::mutable_key_type)]
     fn process_versions(
-        iter: impl ParallelIterator<Item = PathData>,
+        iter: impl ParallelIterator<Item = CompareVersionsContainer>,
         snaps_of_type: &ListSnapsOfType,
     ) -> Vec<PathData> {
         match snaps_of_type {
             ListSnapsOfType::All => {
-                let mut sorted_versions: Vec<CompareVersionsContainer> = iter
-                    .map(|pathdata| CompareVersionsContainer::new(pathdata, snaps_of_type))
-                    .collect();
+                let mut sorted_versions: Vec<CompareVersionsContainer> = iter.collect();
 
                 sorted_versions.par_sort_unstable();
 
                 sorted_versions.into_iter().map(PathData::from).collect()
             }
             ListSnapsOfType::UniqueContents | ListSnapsOfType::UniqueMetadata => {
-                let unique_and_sorted_versions: BTreeSet<CompareVersionsContainer> = iter
-                    .map(|pathdata| CompareVersionsContainer::new(pathdata, snaps_of_type))
-                    .collect();
+                let unique_and_sorted_versions: BTreeSet<CompareVersionsContainer> = iter.collect();
 
                 unique_and_sorted_versions
                     .into_iter()

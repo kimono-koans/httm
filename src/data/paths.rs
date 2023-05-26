@@ -21,7 +21,7 @@ use std::{
     fs::{symlink_metadata, DirEntry, File, FileType, Metadata},
     io::BufReader,
     path::{Path, PathBuf},
-    time::{SystemTime},
+    time::SystemTime,
 };
 
 use once_cell::sync::OnceCell;
@@ -122,11 +122,9 @@ impl PathData {
             let len = md.len();
             // may fail on systems that don't collect a modify time
             let opt_time = Self::get_modify_time(&md);
-            opt_time.map(|time| {
-                PathMetadata {
-                    size: len,
-                    modify_time: time,
-                }
+            opt_time.map(|time| PathMetadata {
+                size: len,
+                modify_time: time,
             })
         });
 

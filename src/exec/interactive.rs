@@ -248,7 +248,9 @@ impl InteractiveSelect {
             }
         };
 
-        if let Some(handle) = browse_result.opt_background_handle { let _ = handle.join(); }
+        if let Some(handle) = browse_result.opt_background_handle {
+            let _ = handle.join();
+        }
 
         // continue to interactive_restore or print and exit here?
         if matches!(interactive_mode, InteractiveMode::Restore(_)) {
