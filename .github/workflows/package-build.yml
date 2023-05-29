@@ -21,7 +21,7 @@ jobs:
     - name: Install cargo-deb
       run: cargo install cargo-deb
     - name: Build package with cargo-deb
-      run: cargo deb --separate-debug-symbols -- --locked --features "glibc_only"
+      run: cargo deb --separate-debug-symbols -- --locked
     - name: Install alien
       run: sudo apt-get install -y alien
     - name: Convert deb to rpm with alien

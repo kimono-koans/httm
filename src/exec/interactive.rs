@@ -100,6 +100,7 @@ impl InteractiveBrowseResult {
         };
 
         #[cfg(target_os = "linux")]
+        #[cfg(target_env = "gnu")]
         unsafe {
             let _ = libc::malloc_trim(0);
         };
@@ -168,7 +169,7 @@ impl InteractiveBrowseResult {
         match display_handle.join() {
             Ok(selected_pathdata) => {
                 #[cfg(target_os = "linux")]
-                #[cfg(features = "glibc_only")]
+                #[cfg(target_env = "gnu")]
                 unsafe {
                     let _ = libc::malloc_trim(0);
                 };
