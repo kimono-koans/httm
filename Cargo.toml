@@ -20,6 +20,7 @@ debug = true
 # acls feature - requires libacl1-dev to build
 [features]
 acls = ["exacl"]
+glibc_only = []
 
 [target.'cfg(unix)'.dependencies]
 exacl = { version = "0.10.0", optional=true }

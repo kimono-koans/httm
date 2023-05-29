@@ -168,6 +168,7 @@ impl InteractiveBrowseResult {
         match display_handle.join() {
             Ok(selected_pathdata) => {
                 #[cfg(target_os = "linux")]
+                #[cfg(features = "glibc_only")]
                 unsafe {
                     let _ = libc::malloc_trim(0);
                 };
