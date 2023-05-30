@@ -13,14 +13,14 @@
 * List file snapshots from *all* local pools (detect local snapshot versions *as well as* locally replicated snapshot versions)!
 * List file snapshots from remote backup pools (even overlay replicated remote snapshot directories over live directories).
 * For use with `rsync`-ed non-ZFS/BTRFS/NILFS2 local datasets (like ext4, APFS, or NTFS), not just ZFS/BTRFS/NILFS2.
-* Preview snapshot file versions with a custom command, or by default `diff` compare to the live version
+* Optionally preview snapshot file versions with a custom command (default is a `diff` compare to the live version)
 * List or even snapshot the mounts for a file directly
 * Roll *forward* to a previous snapshots, instead of rolling back (avoids destroying interstitial snapshots)
 * Guard any restore actions with precautionary snapshots
 * List snapshot names, even purge snapshots, which include a file
 * Shortcut features: only display last snapshot, omit duplicates of the live file, etc.
 * Uniqueness level: Like `rsync`, `httm` can determine whether file is unique based solely on metadata, or use checksums
-* 3 native interactive modes: browse, select and restore
+* 4 native interactive modes: browse, select, purge and restore
 * ANSI `ls` colors from your environment
 * Detect and display only categories of the numbers of unique file versions available (`multiple`, `single`, `single-with-snap`,..., etc.)
 * Select from several formatting styles (newline, null, tab delimited, JSON, etc.).  Parseable ... or not ...  oh my!
@@ -83,7 +83,7 @@ The `httm` project contains only a few components:
     ```bash
     cp ./httm/httm.1 /usr/local/share/man/man1/
     ```
-4. The optional  scripts.  See the scripts themselves, and below, in the Example Usage section, for more information.  To install, just copy it to a directory in your path, like so:
+4. The optional  scripts.  See the scripts ([ounce](https://github.com/kimono-koans/httm/blob/master/scripts/ounce.bash), [bowie](https://github.com/kimono-koans/httm/blob/master/scripts/bowie.bash), and [nicotine](https://github.com/kimono-koans/httm/blob/master/scripts/nicotine.bash)) themselves, and below, in the Example Usage section or follow the links, for more information.  To install, just copy it to a directory in your path, like so:
 
     ```bash
     cp ./httm/scripts/ounce.bash /usr/local/bin/ounce
@@ -94,7 +94,7 @@ The `httm` project contains only a few components:
 
 ### Caveats
 
-Right now, you will need to use a Unix-ish-y Rust-supported platform to build and install (that is: Linux, Solaris/illumos, the BSDs, [ounce](https://github.com/kimono-koans/httm/blob/master/scripts/ounce.bash), [bowie](https://github.com/kimono-koans/httm/blob/master/scripts/bowie.bash), and [nicotine](https://github.com/kimono-koans/httm/blob/master/scripts/nicotine.bash)).  Note, your platform *does not* need to support ZFS/BTRFS/NILFS2 to use `httm`.  And there is no fundamental reason a non-interactive Windows version of `httm` could not be built, as it once did build, but Windows platform support is not a priority for me right now.  Contributions from users are, of course, very welcome.
+Right now, you will need to use a Unix-ish-y Rust-supported platform to build and install (that is: Linux, Solaris/illumos, the BSDs).  Note, your platform *does not* need to support ZFS/BTRFS/NILFS2 to use `httm`.  And there is no fundamental reason a non-interactive Windows version of `httm` could not be built, as it once did build, but Windows platform support is not a priority for me right now.  Contributions from users are, of course, very welcome.
 
 On FreeBSD, after a fresh minimal install, the interactive modes may not render properly, see the linked [issue](https://github.com/kimono-koans/httm/issues/20) for the fix.
 
