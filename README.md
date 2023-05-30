@@ -83,7 +83,7 @@ The `httm` project contains only a few components:
     ```bash
     cp ./httm/httm.1 /usr/local/share/man/man1/
     ```
-4. The optional  scripts.  See the scripts ([ounce](https://github.com/kimono-koans/httm/blob/master/scripts/ounce.bash), [bowie](https://github.com/kimono-koans/httm/blob/master/scripts/bowie.bash), and [nicotine](https://github.com/kimono-koans/httm/blob/master/scripts/nicotine.bash)) themselves, and below, in the Example Usage section or follow the links, for more information.  To install, just copy it to a directory in your path, like so:
+4. The optional scripts.  See script usage below, in the Example Usage section, or follow the links ([ounce](https://github.com/kimono-koans/httm/blob/master/scripts/ounce.bash), [bowie](https://github.com/kimono-koans/httm/blob/master/scripts/bowie.bash), and [nicotine](https://github.com/kimono-koans/httm/blob/master/scripts/nicotine.bash)), for more information.  To install, just copy it to a directory in your path, like so:
 
     ```bash
     cp ./httm/scripts/ounce.bash /usr/local/bin/ounce
