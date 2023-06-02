@@ -879,10 +879,7 @@ impl Config {
                 | ExecMode::Purge(_)
                 | ExecMode::MountsForFiles(_)
                 | ExecMode::SnapsForFiles(_)
-                | ExecMode::NumVersions(_) => read_stdin()?
-                    .par_iter()
-                    .map(|string| PathData::from(Path::new(&string)))
-                    .collect(),
+                | ExecMode::NumVersions(_) => read_stdin()?,
             }
         };
 

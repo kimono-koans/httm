@@ -268,7 +268,7 @@ pub fn remove_recursive(src: &Path) -> HttmResult<()> {
     Ok(())
 }
 
-pub fn read_stdin() -> HttmResult<Vec<String>> {
+pub fn read_stdin() -> HttmResult<Vec<PathData>> {
     let stdin = std::io::stdin();
     let mut stdin = stdin.lock();
     let mut buffer = Vec::new();
@@ -276,12 +276,13 @@ pub fn read_stdin() -> HttmResult<Vec<String>> {
 
     let buffer_string = std::str::from_utf8(&buffer)?;
 
-    let broken_string: Vec<String> = if buffer_string.contains(['\n', '\0']) {
+    let broken_string = if buffer_string.contains(['\n', '\0']) {
         // always split on newline or null char, if available
         buffer_string
             .split(&['\n', '\0'])
             .filter(|s| !s.is_empty())
-            .map(std::borrow::ToOwned::to_owned)
+            .map(Path::new)
+            .map(PathData::from)
             .collect()
     } else if buffer_string.contains('\"') {
         buffer_string
@@ -290,13 +291,15 @@ pub fn read_stdin() -> HttmResult<Vec<String>> {
             .map(str::trim)
             // remove any empty strings
             .filter(|s| !s.is_empty())
-            .map(std::borrow::ToOwned::to_owned)
-            .collect::<Vec<String>>()
+            .map(Path::new)
+            .map(PathData::from)
+            .collect()
     } else {
         buffer_string
             .split_ascii_whitespace()
             .filter(|s| !s.is_empty())
-            .map(std::borrow::ToOwned::to_owned)
+            .map(Path::new)
+            .map(PathData::from)
             .collect()
     };
 
