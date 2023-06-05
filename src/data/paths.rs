@@ -158,26 +158,25 @@ impl PathData {
 
     pub fn get_relative_path<'a>(&'a self, proximate_dataset_mount: &Path) -> HttmResult<&'a Path> {
         // path strip, if aliased
+        // fallback if unable to find an alias or strip a prefix
+        // (each an indication we should not be trying aliases)
         if let Some(map_of_aliases) = &GLOBAL_CONFIG.dataset_collection.opt_map_of_aliases {
-            let opt_aliased_local_dir = map_of_aliases
+            if let Some(alias) = map_of_aliases
                 .iter()
                 // do a search for a key with a value
                 .find_map(|(local_dir, alias_info)| {
                     if alias_info.remote_dir == proximate_dataset_mount {
-                        Some(local_dir)
-                    } else {
-                        None
+                        return Some(local_dir)
                     }
-                });
 
-            // fallback if unable to find an alias or strip a prefix
-            // (each an indication we should not be trying aliases)
-            if let Some(local_dir) = opt_aliased_local_dir {
-                if let Ok(alias_stripped_path) = self.path_buf.strip_prefix(local_dir) {
-                    return Ok(alias_stripped_path);
+                    None
+                }).map(|local_dir| {
+                    self.path_buf.strip_prefix(local_dir).ok()
+                }).flatten() {
+                    return Ok(alias)
                 }
-            }
         }
+        
         // default path strip
         Ok(self.path_buf.strip_prefix(proximate_dataset_mount)?)
     }
