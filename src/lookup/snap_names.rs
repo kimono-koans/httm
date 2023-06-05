@@ -50,7 +50,7 @@ impl SnapNameMap {
     pub fn new(versions_map: VersionsMap, opt_filters: &Option<ListSnapsFilters>) -> Self {
         let snap_name_map = Self::snap_names(versions_map, opt_filters);
 
-        snap_name_map.deref().iter().for_each(|(pathdata, snaps)| {
+        snap_name_map.iter().for_each(|(pathdata, snaps)| {
             if snaps.is_empty() {
                 let msg = format!(
                     "httm could not find any snapshots for the file specified: {:?}",
@@ -134,7 +134,6 @@ impl DeconstructedSnapPathData {
         let opt_dataset_md = GLOBAL_CONFIG
             .dataset_collection
             .map_of_datasets
-            .deref()
             .get(dataset_path);
 
         match opt_dataset_md {

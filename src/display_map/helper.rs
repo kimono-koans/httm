@@ -53,7 +53,7 @@ impl Serialize for PrintAsMap {
     {
         let mut state = serializer.serialize_struct("PrintAsMap", 1)?;
 
-        state.serialize_field("inner", &self.deref())?;
+        state.serialize_field("inner", &self)?;
         state.end()
     }
 }
@@ -71,7 +71,6 @@ impl<'a> From<&MountsForFiles<'a>> for PrintAsMap {
                             let opt_md = &GLOBAL_CONFIG
                                 .dataset_collection
                                 .map_of_datasets
-                                .deref()
                                 .get(&value.path_buf);
                             opt_md.map(|md| md.source.clone())
                         }
@@ -116,7 +115,7 @@ impl From<&SnapNameMap> for PrintAsMap {
 
 impl PrintAsMap {
     pub fn map_padding(&self) -> usize {
-        self.deref().keys().max_by_key(|key| key.len()).map_or_else(
+        self.keys().max_by_key(|key| key.len()).map_or_else(
             || QUOTATION_MARKS_LEN,
             |key| key.len() + QUOTATION_MARKS_LEN,
         )

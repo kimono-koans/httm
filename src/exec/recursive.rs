@@ -15,7 +15,6 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::ops::Deref;
 use std::{fs::read_dir, path::Path, sync::Arc};
 
 use rayon::{Scope, ThreadPool};
@@ -253,11 +252,7 @@ impl SharedRecursive {
             return false;
         }
 
-        GLOBAL_CONFIG
-            .dataset_collection
-            .filter_dirs
-            .deref()
-            .contains(path)
+        GLOBAL_CONFIG.dataset_collection.filter_dirs.contains(path)
     }
 
     // this function creates dummy "live versions" values to match deleted files

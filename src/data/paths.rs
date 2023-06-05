@@ -283,7 +283,6 @@ impl From<CompareVersionsContainer> for PathData {
     }
 }
 
-
 impl PartialOrd for CompareVersionsContainer {
     #[inline]
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {

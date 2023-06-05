@@ -15,7 +15,6 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::ops::Deref;
 use std::{collections::BTreeMap, time::SystemTime};
 
 use std::process::Command as ExecProcess;
@@ -98,7 +97,7 @@ impl SnapshotMounts {
             .map(|mount| {
             let dataset: String = match &GLOBAL_CONFIG.dataset_collection.opt_map_of_aliases {
                 None => {
-                    match GLOBAL_CONFIG.dataset_collection.map_of_datasets.deref().get(&mount.path_buf) {
+                    match GLOBAL_CONFIG.dataset_collection.map_of_datasets.get(&mount.path_buf) {
                         Some(dataset_info) => {
                             if let FilesystemType::Zfs = dataset_info.fs_type {
                                 Ok(dataset_info.source.clone())
