@@ -171,8 +171,7 @@ impl PathData {
 
                     None
                 })
-                .map(|local_dir| self.path_buf.strip_prefix(local_dir).ok())
-                .flatten()
+                .and_then(|local_dir| self.path_buf.strip_prefix(local_dir).ok())
             {
                 return Ok(alias);
             }

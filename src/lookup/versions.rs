@@ -241,11 +241,11 @@ impl<'a> MostProximateAndOptAlts<'a> {
         // will compare the most proximate dataset to our our canonical path and the difference
         // between ZFS mount point and the canonical path is the path we will use to search the
         // hidden snapshot dirs
-        let proximate_dataset_mount: &Path = &GLOBAL_CONFIG
+        let proximate_dataset_mount: &Path = GLOBAL_CONFIG
             .dataset_collection
             .opt_map_of_aliases
             .as_ref()
-            .and_then(|map_of_aliases| pathdata.get_alias_dataset(&map_of_aliases))
+            .and_then(|map_of_aliases| pathdata.get_alias_dataset(map_of_aliases))
             .unwrap_or({
                 pathdata.get_proximate_dataset(&GLOBAL_CONFIG.dataset_collection.map_of_datasets)?
             });
@@ -258,20 +258,21 @@ impl<'a> MostProximateAndOptAlts<'a> {
                     opt_datasets_of_interest: &None,
                 }
             }
-            SnapDatasetType::AltReplicated => match &GLOBAL_CONFIG.dataset_collection.opt_map_of_alts {
-                Some(map_of_alts) => match map_of_alts.get(proximate_dataset_mount) {
-                    Some(snap_types_for_search) => {
-                        MostProximateAndOptAlts {
-                            proximate_dataset_mount: &snap_types_for_search.proximate_dataset_mount,
-                            opt_datasets_of_interest: &snap_types_for_search.opt_datasets_of_interest,
-                        }
-                    },
-                    None => return Err(HttmError::new("If you are here a map of alts is missing for a supplied mount, \
-                    this is fine as we should just flatten/ignore this error.").into()),
-                },
-                None => unreachable!("If config option alt-replicated is specified, then a map of alts should have been generated, \
-                if you are here such a map is missing."),
-            },
+            SnapDatasetType::AltReplicated => GLOBAL_CONFIG
+                .dataset_collection
+                .opt_map_of_alts
+                .as_ref()
+                .and_then(|map_of_alts| map_of_alts.get(proximate_dataset_mount))
+                .map(|snap_types_for_search| Self {
+                    proximate_dataset_mount: &snap_types_for_search.proximate_dataset_mount,
+                    opt_datasets_of_interest: &snap_types_for_search.opt_datasets_of_interest,
+                })
+                .ok_or({
+                    HttmError::new(
+                        "If you are here a map of alts is missing for a supplied mount, \
+                    this is fine as we should just flatten/ignore this error.",
+                    )
+                })?,
         };
 
         Ok(most_proximate_opt_alts)
