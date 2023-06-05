@@ -85,9 +85,7 @@ impl<'a> MountsForFiles<'a> {
             .map(|pathdata| {
                 let datasets: Vec<MostProximateAndOptAlts> = snaps_selected_for_search
                     .iter()
-                    .flat_map(|dataset_type| {
-                        MostProximateAndOptAlts::new(pathdata, dataset_type, &None)
-                    })
+                    .flat_map(|dataset_type| MostProximateAndOptAlts::new(pathdata, dataset_type))
                     .collect();
                 (pathdata.clone(), datasets)
             })
