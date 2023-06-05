@@ -55,7 +55,7 @@ impl MapOfAlts {
             .deref()
             .par_iter()
             .flat_map(|(mount, _dataset_info)| {
-                Self::get_alt_replicated_from_mount(mount, map_of_datasets)
+                Self::alt_replicated_from_mount(mount, map_of_datasets)
                     .map(|datasets| (mount.clone(), datasets))
             })
             .collect();
@@ -63,7 +63,7 @@ impl MapOfAlts {
         res.into()
     }
 
-    fn get_alt_replicated_from_mount(
+    fn alt_replicated_from_mount(
         proximate_dataset_mount: &Path,
         map_of_datasets: &MapOfDatasets,
     ) -> HttmResult<AltMetadata> {

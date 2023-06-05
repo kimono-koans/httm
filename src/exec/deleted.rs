@@ -168,7 +168,7 @@ impl RecurseBehindDeletedDir {
                     !is_channel_closed(hangup_rx)
                 })
                 .map(|basic_info| {
-                    let dir_name = Path::new(basic_info.get_filename());
+                    let dir_name = Path::new(basic_info.filename());
                     RecurseBehindDeletedDir::enter_directory(
                         dir_name,
                         &item.deleted_dir_on_snap,
@@ -200,7 +200,7 @@ impl RecurseBehindDeletedDir {
         let pseudo_live_dir = from_requested_dir.to_path_buf().join(dir_name);
 
         let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
-            SharedRecursive::get_entries_partitioned(&deleted_dir_on_snap)?;
+            SharedRecursive::entries_partitioned(&deleted_dir_on_snap)?;
 
         SharedRecursive::combine_and_send_entries(
             vec_files,

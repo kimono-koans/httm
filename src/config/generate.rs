@@ -706,7 +706,7 @@ impl Config {
             }
 
             if let Some(values) = matches.value_of("LIST_SNAPS") {
-                Some(Self::get_snap_filters(values, select_mode)?)
+                Some(Self::snap_filters(values, select_mode)?)
             } else {
                 Some(ListSnapsFilters {
                     select_mode,
@@ -751,15 +751,15 @@ impl Config {
         }
 
         // current working directory will be helpful in a number of places
-        let pwd = Self::get_pwd()?;
+        let pwd = Self::pwd()?;
 
         // paths are immediately converted to our PathData struct
         let paths: Vec<PathData> =
-            Self::get_paths(matches.values_of_os("INPUT_FILES"), &exec_mode, &pwd)?;
+            Self::paths(matches.values_of_os("INPUT_FILES"), &exec_mode, &pwd)?;
 
         // for exec_modes in which we can only take a single directory, process how we handle those here
         let opt_requested_dir: Option<PathData> =
-            Self::get_opt_requested_dir(&mut exec_mode, &mut opt_deleted_mode, &paths, &pwd)?;
+            Self::opt_requested_dir(&mut exec_mode, &mut opt_deleted_mode, &paths, &pwd)?;
 
         if !matches!(opt_deleted_mode, None | Some(DeletedMode::All)) && !opt_recursive {
             return Err(HttmError::new(
@@ -831,7 +831,7 @@ impl Config {
         Ok(config)
     }
 
-    pub fn get_pwd() -> HttmResult<PathData> {
+    pub fn pwd() -> HttmResult<PathData> {
         if let Ok(pwd) = std::env::current_dir() {
             Ok(PathData::from(pwd))
         } else {
@@ -842,7 +842,7 @@ impl Config {
         }
     }
 
-    pub fn get_paths(
+    pub fn paths(
         opt_os_values: Option<OsValues>,
         exec_mode: &ExecMode,
         pwd: &PathData,
@@ -891,7 +891,7 @@ impl Config {
         Ok(paths)
     }
 
-    pub fn get_opt_requested_dir(
+    pub fn opt_requested_dir(
         exec_mode: &mut ExecMode,
         deleted_mode: &mut Option<DeletedMode>,
         paths: &[PathData],
@@ -962,7 +962,7 @@ impl Config {
         Ok(res)
     }
 
-    pub fn get_snap_filters(values: &str, select_mode: bool) -> HttmResult<ListSnapsFilters> {
+    pub fn snap_filters(values: &str, select_mode: bool) -> HttmResult<ListSnapsFilters> {
         let mut raw = values.trim_end().split(',');
 
         let omit_num_snaps = if let Some(value) = raw.next() {

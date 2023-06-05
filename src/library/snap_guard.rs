@@ -23,7 +23,7 @@ use which::which;
 
 use crate::data::paths::PathData;
 use crate::library::results::{HttmError, HttmResult};
-use crate::library::utility::{get_date, DateFormat};
+use crate::library::utility::{date_string, DateFormat};
 use crate::print_output_buf;
 use crate::GLOBAL_CONFIG;
 
@@ -39,7 +39,7 @@ impl TryFrom<&Path> for SnapGuard {
     fn try_from(path: &Path) -> HttmResult<Self> {
         let pathdata = PathData::from(path);
         let dataset_mount =
-            pathdata.get_proximate_dataset(&GLOBAL_CONFIG.dataset_collection.map_of_datasets)?;
+            pathdata.proximate_dataset(&GLOBAL_CONFIG.dataset_collection.map_of_datasets)?;
 
         let dataset_name = &GLOBAL_CONFIG
             .dataset_collection
@@ -61,7 +61,7 @@ impl SnapGuard {
         let zfs_command = which("zfs")?;
         let mut process_args = vec!["snapshot".to_owned()];
 
-        let timestamp = get_date(
+        let timestamp = date_string(
             GLOBAL_CONFIG.requested_utc_offset,
             &SystemTime::now(),
             DateFormat::Timestamp,

@@ -125,7 +125,7 @@ impl RecursiveMainLoop {
     ) -> HttmResult<Vec<BasicDirEntryInfo>> {
         // combined entries will be sent or printed, but we need the vec_dirs to recurse
         let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
-            SharedRecursive::get_entries_partitioned(requested_dir)?;
+            SharedRecursive::entries_partitioned(requested_dir)?;
 
         SharedRecursive::combine_and_send_entries(
             vec_files,
@@ -175,14 +175,14 @@ impl SharedRecursive {
             }
             PathProvenance::IsPhantom => {
                 // deleted - phantom
-                Self::get_pseudo_live_versions(combined, requested_dir)
+                Self::pseudo_live_versions(combined, requested_dir)
             }
         };
 
         Self::display_or_transmit(entries, is_phantom, skim_tx)
     }
 
-    pub fn get_entries_partitioned(
+    pub fn entries_partitioned(
         requested_dir: &Path,
     ) -> HttmResult<(Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>)> {
         // separates entries into dirs and files
@@ -195,10 +195,10 @@ impl SharedRecursive {
                 if GLOBAL_CONFIG.opt_no_filter {
                     return true;
                 } else if GLOBAL_CONFIG.opt_no_hidden
-                    && entry.get_filename().to_string_lossy().starts_with('.')
+                    && entry.filename().to_string_lossy().starts_with('.')
                 {
                     return false;
-                } else if let Ok(file_type) = entry.get_filetype() {
+                } else if let Ok(file_type) = entry.filetype() {
                     if file_type.is_dir() {
                         return !Self::is_filter_dir(entry);
                     }
@@ -213,7 +213,7 @@ impl SharedRecursive {
     pub fn is_entry_dir(entry: &BasicDirEntryInfo) -> bool {
         // must do is_dir() look up on DirEntry file_type() as look up on Path will traverse links!
         if GLOBAL_CONFIG.opt_no_traverse {
-            if let Ok(file_type) = entry.get_filetype() {
+            if let Ok(file_type) = entry.filetype() {
                 return file_type.is_dir();
             }
         }
@@ -249,7 +249,7 @@ impl SharedRecursive {
 
         // finally : is a non-supported dataset?
         // bailout easily if path is larger than max_filter_dir len
-        if path.components().count() > GLOBAL_CONFIG.dataset_collection.filter_dirs.get_max_len() {
+        if path.components().count() > GLOBAL_CONFIG.dataset_collection.filter_dirs.max_len() {
             return false;
         }
 
@@ -263,7 +263,7 @@ impl SharedRecursive {
     // this function creates dummy "live versions" values to match deleted files
     // which have been found on snapshots, we return to the user "the path that
     // once was" in their browse panel
-    fn get_pseudo_live_versions(
+    fn pseudo_live_versions(
         entries: Vec<BasicDirEntryInfo>,
         pseudo_live_dir: &Path,
     ) -> Vec<BasicDirEntryInfo> {

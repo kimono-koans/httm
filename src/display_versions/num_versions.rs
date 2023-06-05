@@ -28,7 +28,7 @@ impl<'a> VersionsDisplayWrapper<'a> {
 
         let printable_map = PrintAsMap::from(&self.map);
 
-        let map_padding = printable_map.get_map_padding();
+        let map_padding = printable_map.map_padding();
 
         let write_out_buffer: String = self
             .iter()

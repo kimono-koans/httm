@@ -23,7 +23,7 @@ use std::process::Command as ExecProcess;
 use crate::config::generate::{MountDisplay, PrintMode};
 use crate::library::iter_extensions::HttmIter;
 use crate::library::results::{HttmError, HttmResult};
-use crate::library::utility::{get_date, get_delimiter, print_output_buf, DateFormat};
+use crate::library::utility::{date_string, delimiter, print_output_buf, DateFormat};
 use crate::lookup::file_mounts::MountsForFiles;
 use crate::parse::aliases::FilesystemType;
 use crate::GLOBAL_CONFIG;
@@ -44,8 +44,7 @@ impl SnapshotMounts {
         let zfs_command = which::which("zfs").map_err(|_err| {
             HttmError::new("'zfs' command not found. Make sure the command 'zfs' is in your path.")
         })?;
-        let map_snapshot_names =
-            Self::get_snapshot_names(mounts_for_files, requested_snapshot_suffix)?;
+        let map_snapshot_names = Self::snapshot_names(mounts_for_files, requested_snapshot_suffix)?;
 
         map_snapshot_names.iter().try_for_each( |(_pool_name, snapshot_names)| {
             let mut process_args = vec!["snapshot".to_owned()];
@@ -68,7 +67,7 @@ impl SnapshotMounts {
                     .iter()
                     .map(|snap_name| {
                         if matches!(GLOBAL_CONFIG.print_mode, PrintMode::RawNewline | PrintMode::RawZero)  {
-                            let delimiter = get_delimiter();
+                            let delimiter = delimiter();
                             format!("{}{delimiter}", &snap_name)
                         } else {
                             format!("httm took a snapshot named: {}\n", &snap_name)
@@ -82,12 +81,12 @@ impl SnapshotMounts {
         Ok(())
     }
 
-    fn get_snapshot_names(
+    fn snapshot_names(
         mounts_for_files: &MountsForFiles,
         requested_snapshot_suffix: &str,
     ) -> HttmResult<BTreeMap<String, Vec<String>>> {
         // all snapshots should have the same timestamp
-        let timestamp = get_date(
+        let timestamp = date_string(
             GLOBAL_CONFIG.requested_utc_offset,
             &SystemTime::now(),
             DateFormat::Timestamp,

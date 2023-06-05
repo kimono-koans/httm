@@ -18,7 +18,7 @@
 use crate::config::generate::{ExecMode, PrintMode};
 use crate::display_map::helper::PrintAsMap;
 use crate::display_versions::format::NOT_SO_PRETTY_FIXED_WIDTH_PADDING;
-use crate::library::utility::get_delimiter;
+use crate::library::utility::delimiter;
 use crate::GLOBAL_CONFIG;
 
 impl std::string::ToString for PrintAsMap {
@@ -54,7 +54,7 @@ impl std::string::ToString for PrintAsMap {
                 .values()
                 .flatten()
                 .map(|value| {
-                    let delimiter = get_delimiter();
+                    let delimiter = delimiter();
                     format!("{value}{delimiter}")
                 })
                 .collect::<String>(),
@@ -74,7 +74,7 @@ impl PrintAsMap {
 
         match res {
             Ok(s) => {
-                let delimiter = get_delimiter();
+                let delimiter = delimiter();
                 format!("{s}{delimiter}")
             }
             Err(error) => {
@@ -85,7 +85,7 @@ impl PrintAsMap {
     }
 
     pub fn format(&self) -> String {
-        let padding = self.get_map_padding();
+        let padding = self.map_padding();
 
         let write_out_buffer = self
             .iter()

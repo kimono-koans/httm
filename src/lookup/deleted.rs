@@ -42,7 +42,7 @@ impl From<&Path> for DeletedFiles {
         let requested_snap_datasets = GLOBAL_CONFIG
             .dataset_collection
             .snaps_selected_for_search
-            .get_value();
+            .as_slice();
 
         // create vec of all local and replicated backups at once
         //
@@ -55,10 +55,10 @@ impl From<&Path> for DeletedFiles {
                 requested_snap_datasets,
             )
             .flat_map(|search_bundle| {
-                Self::get_unique_deleted_for_dir(&requested_dir_pathdata.path_buf, &search_bundle)
+                Self::unique_deleted_for_dir(&requested_dir_pathdata.path_buf, &search_bundle)
             })
             .flatten()
-            .map(|basic_info| (basic_info.get_filename().to_os_string(), basic_info))
+            .map(|basic_info| (basic_info.filename().to_os_string(), basic_info))
             .collect();
 
         Self {
@@ -75,7 +75,7 @@ impl DeletedFiles {
         self.inner
     }
 
-    fn get_unique_deleted_for_dir(
+    fn unique_deleted_for_dir(
         requested_dir: &Path,
         search_bundle: &RelativePathAndSnapMounts,
     ) -> HttmResult<Vec<BasicDirEntryInfo>> {
@@ -89,7 +89,7 @@ impl DeletedFiles {
             .collect();
 
         let unique_snap_filenames: HashMap<OsString, BasicDirEntryInfo> =
-            Self::get_unique_snap_filenames(search_bundle.snap_mounts, search_bundle.relative_path);
+            Self::unique_snap_filenames(search_bundle.snap_mounts, search_bundle.relative_path);
 
         // compare local filenames to all unique snap filenames - none values are unique, here
         let all_deleted_versions = unique_snap_filenames
@@ -106,7 +106,7 @@ impl DeletedFiles {
         Ok(all_deleted_versions)
     }
 
-    fn get_unique_snap_filenames(
+    fn unique_snap_filenames(
         mounts: &[PathBuf],
         relative_path: &Path,
     ) -> HashMap<OsString, BasicDirEntryInfo> {
@@ -139,14 +139,14 @@ impl From<Vec<PathData>> for LastInTimeSet {
         let snaps_selected_for_search = GLOBAL_CONFIG
             .dataset_collection
             .snaps_selected_for_search
-            .get_value();
+            .as_slice();
 
         let res = path_set
             .iter()
             .filter_map(|pathdata| {
                 VersionsMap::search_bundles_from_pathdata(pathdata, snaps_selected_for_search)
-                    .filter_map(|search_bundle| search_bundle.get_last_version())
-                    .max_by_key(|pathdata| pathdata.get_md_infallible().modify_time)
+                    .filter_map(|search_bundle| search_bundle.last_version())
+                    .max_by_key(|pathdata| pathdata.md_infallible().modify_time)
                     .map(|pathdata| pathdata.path_buf)
             })
             .collect();

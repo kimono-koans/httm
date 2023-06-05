@@ -22,8 +22,8 @@ use terminal_size::{terminal_size, Height, Width};
 
 use crate::config::generate::{BulkExclusion, Config, PrintMode};
 use crate::data::paths::{PathData, PHANTOM_DATE, PHANTOM_SIZE};
-use crate::library::utility::get_delimiter;
-use crate::library::utility::{display_human_size, get_date, paint_string, DateFormat};
+use crate::library::utility::delimiter;
+use crate::library::utility::{date_string, display_human_size, paint_string, DateFormat};
 use crate::VersionsDisplayWrapper;
 // 2 space wide padding - used between date and size, and size and path
 pub const PRETTY_FIXED_WIDTH_PADDING: &str = "  ";
@@ -64,7 +64,7 @@ impl<'a> VersionsDisplayWrapper<'a> {
                         display_set.format(self.config, &padding_collection)
                     }
                     PrintMode::RawNewline | PrintMode::RawZero => {
-                        let delimiter = get_delimiter();
+                        let delimiter = delimiter();
 
                         display_set
                             .iter()
@@ -166,7 +166,7 @@ impl PathData {
         padding_collection: &PaddingCollection,
     ) -> String {
         // obtain metadata for timestamp and size
-        let metadata = self.get_md_infallible();
+        let metadata = self.md_infallible();
 
         // tab delimited if "no pretty", no border lines, and no colors
         let (display_size, display_path, display_padding) =
@@ -217,7 +217,7 @@ impl PathData {
             };
 
         let display_date = if self.metadata.is_some() {
-            Cow::Owned(get_date(
+            Cow::Owned(date_string(
                 config.requested_utc_offset,
                 &metadata.modify_time,
                 DateFormat::Display,
@@ -246,10 +246,10 @@ impl PaddingCollection {
         let (size_padding_len, fancy_border_len) = display_set.iter().flatten().fold(
             (0usize, 0usize),
             |(mut size_padding_len, mut fancy_border_len), pathdata| {
-                let metadata = pathdata.get_md_infallible();
+                let metadata = pathdata.md_infallible();
 
                 let (display_date, display_size, display_path) = {
-                    let date = get_date(
+                    let date = date_string(
                         config.requested_utc_offset,
                         &metadata.modify_time,
                         DateFormat::Display,
@@ -277,12 +277,12 @@ impl PaddingCollection {
             },
         );
 
-        let fancy_border_string: String = Self::get_fancy_border_string(fancy_border_len);
+        let fancy_border_string: String = Self::fancy_border_string(fancy_border_len);
 
         let phantom_date_pad_str = format!(
             "{:<width$}",
             "",
-            width = get_date(
+            width = date_string(
                 config.requested_utc_offset,
                 &PHANTOM_DATE,
                 DateFormat::Display
@@ -303,7 +303,7 @@ impl PaddingCollection {
         }
     }
 
-    fn get_fancy_border_string(fancy_border_len: usize) -> String {
+    fn fancy_border_string(fancy_border_len: usize) -> String {
         let get_max_sized_border = || {
             // Active below is the most idiomatic Rust, but it maybe slower than the commented portion
             // (0..fancy_border_len).map(|_| "─").collect()

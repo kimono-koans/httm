@@ -31,7 +31,7 @@ use crate::exec::recursive::RecursiveSearch;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::snap_guard::SnapGuard;
 use crate::library::utility::{
-    copy_recursive, get_date, get_delimiter, print_output_buf, user_has_effective_root,
+    copy_recursive, date_string, delimiter, print_output_buf, user_has_effective_root,
     user_has_zfs_allow_snap_priv, DateFormat, Never,
 };
 use crate::lookup::versions::VersionsMap;
@@ -210,7 +210,7 @@ impl InteractiveSelect {
         }
 
         let path_string = if GLOBAL_CONFIG.opt_last_snap.is_some() {
-            Self::get_last_snap(&browse_result.selected_pathdata, &versions_map)?
+            Self::last_snap(&browse_result.selected_pathdata, &versions_map)?
         } else {
             // same stuff we do at fn exec, snooze...
             let display_config =
@@ -267,7 +267,7 @@ impl InteractiveSelect {
     }
 
     fn print_selection(path_string: &str) -> HttmResult<()> {
-        let delimiter = get_delimiter();
+        let delimiter = delimiter();
 
         let output_buf = if matches!(
             GLOBAL_CONFIG.print_mode,
@@ -283,7 +283,7 @@ impl InteractiveSelect {
         std::process::exit(0)
     }
 
-    fn get_last_snap(
+    fn last_snap(
         paths_selected_in_browse: &[PathData],
         versions_map: &VersionsMap,
     ) -> HttmResult<String> {
@@ -297,8 +297,8 @@ impl InteractiveSelect {
             .flatten()
             .filter(|snap_version| {
                 if GLOBAL_CONFIG.opt_omit_ditto {
-                    snap_version.get_md_infallible().modify_time
-                        != live_version.get_md_infallible().modify_time
+                    snap_version.md_infallible().modify_time
+                        != live_version.md_infallible().modify_time
                 } else {
                     true
                 }
@@ -472,7 +472,7 @@ impl InteractiveRestore {
 
             let new_filename = snap_filename
                 + ".httm_restored."
-                + &get_date(
+                + &date_string(
                     GLOBAL_CONFIG.requested_utc_offset,
                     &snap_path_metadata.modify_time,
                     DateFormat::Timestamp,

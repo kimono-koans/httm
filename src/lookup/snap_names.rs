@@ -48,7 +48,7 @@ impl Deref for SnapNameMap {
 
 impl SnapNameMap {
     pub fn new(versions_map: VersionsMap, opt_filters: &Option<ListSnapsFilters>) -> Self {
-        let snap_name_map = Self::get_snap_names(versions_map, opt_filters);
+        let snap_name_map = Self::snap_names(versions_map, opt_filters);
 
         snap_name_map.deref().iter().for_each(|(pathdata, snaps)| {
             if snaps.is_empty() {
@@ -63,10 +63,7 @@ impl SnapNameMap {
         snap_name_map
     }
 
-    fn get_snap_names(
-        version_map: VersionsMap,
-        opt_filters: &Option<ListSnapsFilters>,
-    ) -> SnapNameMap {
+    fn snap_names(version_map: VersionsMap, opt_filters: &Option<ListSnapsFilters>) -> SnapNameMap {
         let inner: BTreeMap<PathData, Vec<String>> = version_map
             .into_inner()
             .into_iter()

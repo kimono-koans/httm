@@ -40,7 +40,7 @@ use crate::{
     },
 };
 use crate::{
-    library::utility::{display_human_size, get_date},
+    library::utility::{date_string, display_human_size},
     GLOBAL_CONFIG,
 };
 
@@ -62,7 +62,7 @@ impl From<&DirEntry> for BasicDirEntryInfo {
 }
 
 impl BasicDirEntryInfo {
-    pub fn get_filename(&self) -> &OsStr {
+    pub fn filename(&self) -> &OsStr {
         self.path.file_name().unwrap_or_default()
     }
 }
@@ -103,7 +103,7 @@ impl From<BasicDirEntryInfo> for PathData {
         // this metadata() function will not traverse symlinks
         let opt_metadata = basic_info.path.metadata().ok();
         let path = basic_info.path;
-        let path_metadata = Self::get_opt_metadata(opt_metadata);
+        let path_metadata = Self::opt_metadata(opt_metadata);
 
         Self {
             path_buf: path,
@@ -120,7 +120,7 @@ impl PathData {
         // of input files in Config::from for deleted relative paths, etc.
         let absolute_path: PathBuf = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
 
-        let path_metadata = Self::get_opt_metadata(opt_metadata);
+        let path_metadata = Self::opt_metadata(opt_metadata);
 
         PathData {
             path_buf: absolute_path,
@@ -129,11 +129,11 @@ impl PathData {
     }
 
     // call symlink_metadata, as we need to resolve symlinks to get non-"phantom" metadata
-    fn get_opt_metadata(opt_metadata: Option<Metadata>) -> Option<PathMetadata> {
+    fn opt_metadata(opt_metadata: Option<Metadata>) -> Option<PathMetadata> {
         opt_metadata.and_then(|md| {
             let len = md.len();
             // may fail on systems that don't collect a modify time
-            let opt_time = Self::get_modify_time(&md);
+            let opt_time = Self::modify_time(&md);
             opt_time.map(|time| PathMetadata {
                 size: len,
                 modify_time: time,
@@ -143,7 +143,7 @@ impl PathData {
 
     // using ctime instead of mtime might be more correct as mtime can be trivially changed from user space
     // but I think we want to use mtime here? People should be able to make a snapshot "unique" with only mtime?
-    fn get_modify_time(md: &Metadata) -> Option<SystemTime> {
+    fn modify_time(md: &Metadata) -> Option<SystemTime> {
         //#[cfg(not(unix))]
         // return md.modified().unwrap_or(UNIX_EPOCH);
         //#[cfg(unix)]
@@ -152,11 +152,11 @@ impl PathData {
     }
 
     #[inline]
-    pub fn get_md_infallible(&self) -> PathMetadata {
+    pub fn md_infallible(&self) -> PathMetadata {
         self.metadata.unwrap_or(PHANTOM_PATH_METADATA)
     }
 
-    pub fn get_relative_path<'a>(&'a self, proximate_dataset_mount: &Path) -> HttmResult<&'a Path> {
+    pub fn relative_path<'a>(&'a self, proximate_dataset_mount: &Path) -> HttmResult<&'a Path> {
         // path strip, if aliased
         // fallback if unable to find an alias or strip a prefix
         // (each an indication we should not be trying aliases)
@@ -181,7 +181,7 @@ impl PathData {
         Ok(self.path_buf.strip_prefix(proximate_dataset_mount)?)
     }
 
-    pub fn get_proximate_dataset<'a>(
+    pub fn proximate_dataset<'a>(
         &'a self,
         map_of_datasets: &MapOfDatasets,
     ) -> HttmResult<&'a Path> {
@@ -189,7 +189,7 @@ impl PathData {
         // ancestors() iterates in this top-down order, when a value: dataset/fstype is available
         // we map to return the key, instead of the value
 
-        let dataset_max_len = map_of_datasets.get_max_len();
+        let dataset_max_len = map_of_datasets.max_len();
 
         self.path_buf
             .ancestors()
@@ -204,7 +204,7 @@ impl PathData {
             })
     }
 
-    pub fn get_alias_dataset<'a>(&self, map_of_alias: &'a MapOfAliases) -> Option<&'a Path> {
+    pub fn alias_dataset<'a>(&self, map_of_alias: &'a MapOfAliases) -> Option<&'a Path> {
         // find_map_first should return the first seq result with a par_iter
         // but not with a par_bridge
         self.path_buf.ancestors().find_map(|ancestor| {
@@ -243,7 +243,7 @@ impl Serialize for PathMetadata {
             state.serialize_field("modify_time", &self.modify_time)?;
         } else {
             let size = display_human_size(self.size);
-            let date = get_date(
+            let date = date_string(
                 GLOBAL_CONFIG.requested_utc_offset,
                 &self.modify_time,
                 DateFormat::Display,
@@ -299,8 +299,8 @@ impl PartialOrd for CompareVersionsContainer {
 impl Ord for CompareVersionsContainer {
     #[inline]
     fn cmp(&self, other: &Self) -> Ordering {
-        let self_md = self.pathdata.get_md_infallible();
-        let other_md = other.pathdata.get_md_infallible();
+        let self_md = self.pathdata.md_infallible();
+        let other_md = other.pathdata.md_infallible();
 
         if self_md.modify_time == other_md.modify_time {
             return self_md.size.cmp(&other_md.size);
@@ -348,7 +348,7 @@ impl CompareVersionsContainer {
                     return Ok(*hash_value);
                 }
 
-                Self::get_path_hash(&self.pathdata.path_buf)
+                Self::path_hash(&self.pathdata.path_buf)
                     .map(|hash| *self_hash_cell.get_or_init(|| hash))
             },
             || {
@@ -356,7 +356,7 @@ impl CompareVersionsContainer {
                     return Ok(*hash_value);
                 }
 
-                Self::get_path_hash(&other.pathdata.path_buf)
+                Self::path_hash(&other.pathdata.path_buf)
                     .map(|hash| *other_hash_cell.get_or_init(|| hash))
             },
         );
@@ -370,7 +370,7 @@ impl CompareVersionsContainer {
         false
     }
 
-    fn get_path_hash(path: &Path) -> HttmResult<u32> {
+    fn path_hash(path: &Path) -> HttmResult<u32> {
         const IN_BUFFER_SIZE: usize = 131_072;
 
         let self_file = File::open(path)?;

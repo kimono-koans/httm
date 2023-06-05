@@ -65,7 +65,7 @@ impl<'a> From<&MountsForFiles<'a>> for PrintAsMap {
             .map(|(key, values)| {
                 let res = values
                     .iter()
-                    .filter_map(|value| match mounts_for_files.get_mount_display() {
+                    .filter_map(|value| match mounts_for_files.mount_display() {
                         MountDisplay::Target => Some(value.path_buf.to_string_lossy().to_string()),
                         MountDisplay::Source => {
                             let opt_md = &GLOBAL_CONFIG
@@ -76,7 +76,7 @@ impl<'a> From<&MountsForFiles<'a>> for PrintAsMap {
                             opt_md.map(|md| md.source.clone())
                         }
                         MountDisplay::RelativePath => {
-                            let opt_rel_path = key.get_relative_path(value.path_buf.as_path()).ok();
+                            let opt_rel_path = key.relative_path(value.path_buf.as_path()).ok();
                             opt_rel_path.map(|path| path.to_string_lossy().to_string())
                         }
                     })
@@ -115,7 +115,7 @@ impl From<&SnapNameMap> for PrintAsMap {
 }
 
 impl PrintAsMap {
-    pub fn get_map_padding(&self) -> usize {
+    pub fn map_padding(&self) -> usize {
         self.deref().keys().max_by_key(|key| key.len()).map_or_else(
             || QUOTATION_MARKS_LEN,
             |key| key.len() + QUOTATION_MARKS_LEN,

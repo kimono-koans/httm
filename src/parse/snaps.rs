@@ -60,7 +60,7 @@ impl MapOfSnaps {
                         Self::from_defined_mounts(mount, dataset_info)
                     }
                     FilesystemType::Btrfs => {
-                        root_mount_path.get_or_init(|| Self::get_btrfs_root(map_of_datasets));
+                        root_mount_path.get_or_init(|| Self::btrfs_root(map_of_datasets));
 
                         match root_mount_path
                             .get()
@@ -88,7 +88,7 @@ impl MapOfSnaps {
         }
     }
 
-    fn get_btrfs_root(map_of_datasets: &HashMap<PathBuf, DatasetMetadata>) -> Option<&PathBuf> {
+    fn btrfs_root(map_of_datasets: &HashMap<PathBuf, DatasetMetadata>) -> Option<&PathBuf> {
         map_of_datasets
             .iter()
             .filter(|(_mount, dataset_info)| dataset_info.fs_type == FilesystemType::Btrfs)

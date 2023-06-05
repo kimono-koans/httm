@@ -248,13 +248,13 @@ impl RollForward {
                 let proximate_dataset_mount = cell.get_or_init(|| {
                     event
                         .pathdata
-                        .get_proximate_dataset(&GLOBAL_CONFIG.dataset_collection.map_of_datasets)
+                        .proximate_dataset(&GLOBAL_CONFIG.dataset_collection.map_of_datasets)
                         .expect("Could not obtain proximate dataset mount.")
                         .to_owned()
                 });
 
                 let snap_file_path =
-                    Self::get_snap_path(&event.pathdata, snap_name, proximate_dataset_mount)
+                    Self::snap_path(&event.pathdata, snap_name, proximate_dataset_mount)
                         .expect("Could not obtain snap file path for live version.");
 
                 (event, snap_file_path)
@@ -262,13 +262,13 @@ impl RollForward {
             .try_for_each(|(event, snap_file_path)| Self::diff_action(event, &snap_file_path))
     }
 
-    fn get_snap_path(
+    fn snap_path(
         pathdata: &PathData,
         snap_name: &str,
         proximate_dataset_mount: &Path,
     ) -> Option<PathBuf> {
         pathdata
-            .get_relative_path(proximate_dataset_mount)
+            .relative_path(proximate_dataset_mount)
             .ok()
             .map(|relative_path| {
                 let snap_file_path: PathBuf = [

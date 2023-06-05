@@ -47,7 +47,7 @@ impl<'a> Deref for MountsForFiles<'a> {
 }
 
 impl<'a> MountsForFiles<'a> {
-    pub fn get_mount_display(&self) -> &'a MountDisplay {
+    pub fn mount_display(&self) -> &'a MountDisplay {
         self.mount_display
     }
 
@@ -78,7 +78,7 @@ impl<'a> MountsForFiles<'a> {
         let snaps_selected_for_search = GLOBAL_CONFIG
             .dataset_collection
             .snaps_selected_for_search
-            .get_value();
+            .as_slice();
 
         let map: BTreeMap<PathData, Vec<PathData>> = raw_vec
             .iter()

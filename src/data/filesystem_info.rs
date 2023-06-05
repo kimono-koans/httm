@@ -58,7 +58,7 @@ impl FilesystemInfo {
         let base_fs_info = BaseFilesystemInfo::new()?;
 
         // for a collection of btrfs mounts, indicates a common snapshot directory to ignore
-        let opt_common_snap_dir = base_fs_info.get_common_snap_dir();
+        let opt_common_snap_dir = base_fs_info.common_snap_dir();
 
         // only create a map of alts if necessary
         let opt_map_of_alts = if opt_alt_replicated {

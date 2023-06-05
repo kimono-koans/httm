@@ -23,7 +23,7 @@ use serde::{Serialize, Serializer};
 use crate::config::generate::{BulkExclusion, Config, ExecMode, PrintMode};
 use crate::data::paths::PathData;
 use crate::display_map::helper::PrintAsMap;
-use crate::library::utility::get_delimiter;
+use crate::library::utility::delimiter;
 use crate::lookup::versions::VersionsMap;
 use crate::GLOBAL_CONFIG;
 
@@ -77,7 +77,7 @@ impl<'a> VersionsDisplayWrapper<'a> {
 
         match res {
             Ok(s) => {
-                let delimiter = get_delimiter();
+                let delimiter = delimiter();
                 format!("{s}{delimiter}")
             }
             Err(error) => {

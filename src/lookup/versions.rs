@@ -107,7 +107,7 @@ impl VersionsMap {
         let snaps_selected_for_search = GLOBAL_CONFIG
             .dataset_collection
             .snaps_selected_for_search
-            .get_value();
+            .as_slice();
 
         let all_snap_versions: BTreeMap<PathData, Vec<PathData>> = path_set
             .par_iter()
@@ -115,7 +115,7 @@ impl VersionsMap {
                 let snaps: Vec<PathData> =
                     Self::search_bundles_from_pathdata(pathdata, snaps_selected_for_search)
                         .flat_map(|search_bundle| {
-                            search_bundle.get_versions_processed(&config.uniqueness)
+                            search_bundle.versions_processed(&config.uniqueness)
                         })
                         .collect();
                 (pathdata.clone(), snaps)
@@ -142,7 +142,7 @@ impl VersionsMap {
 
     pub fn is_live_version_redundant(live_pathdata: &PathData, snaps: &[PathData]) -> bool {
         if let Some(last_snap) = snaps.last() {
-            return last_snap.get_md_infallible() == live_pathdata.get_md_infallible();
+            return last_snap.md_infallible() == live_pathdata.md_infallible();
         }
 
         false
@@ -163,13 +163,11 @@ impl VersionsMap {
                 // if last() is some, then should be able to unwrap pop()
                 Some(last) => match last_snap_mode {
                     LastSnapMode::Any => vec![snaps.pop().unwrap()],
-                    LastSnapMode::DittoOnly
-                        if pathdata.get_md_infallible() == last.get_md_infallible() =>
-                    {
+                    LastSnapMode::DittoOnly if pathdata.md_infallible() == last.md_infallible() => {
                         vec![snaps.pop().unwrap()]
                     }
                     LastSnapMode::NoDittoExclusive | LastSnapMode::NoDittoInclusive
-                        if pathdata.get_md_infallible() != last.get_md_infallible() =>
+                        if pathdata.md_infallible() != last.md_infallible() =>
                     {
                         vec![snaps.pop().unwrap()]
                     }
@@ -209,7 +207,7 @@ pub static INCLUDE_ALTS: &[SnapDatasetType] = [
 pub static ONLY_PROXIMATE: &[SnapDatasetType] = [SnapDatasetType::MostProximate].as_slice();
 
 impl SnapsSelectedForSearch {
-    pub fn get_value(&self) -> &[SnapDatasetType] {
+    pub fn as_slice(&self) -> &[SnapDatasetType] {
         match self {
             SnapsSelectedForSearch::IncludeAltReplicated => INCLUDE_ALTS,
             SnapsSelectedForSearch::MostProximateOnly => ONLY_PROXIMATE,
@@ -245,9 +243,9 @@ impl<'a> MostProximateAndOptAlts<'a> {
             .dataset_collection
             .opt_map_of_aliases
             .as_ref()
-            .and_then(|map_of_aliases| pathdata.get_alias_dataset(map_of_aliases))
+            .and_then(|map_of_aliases| pathdata.alias_dataset(map_of_aliases))
             .unwrap_or({
-                pathdata.get_proximate_dataset(&GLOBAL_CONFIG.dataset_collection.map_of_datasets)?
+                pathdata.proximate_dataset(&GLOBAL_CONFIG.dataset_collection.map_of_datasets)?
             });
 
         let res: Self = match requested_dataset_type {
@@ -320,7 +318,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
         //
         // for native searches the prefix is are the dirs below the most proximate dataset
         // for user specified dirs/aliases these are specified by the user
-        let relative_path = pathdata.get_relative_path(proximate_dataset_mount)?;
+        let relative_path = pathdata.relative_path(proximate_dataset_mount)?;
 
         let snap_mounts = GLOBAL_CONFIG
             .dataset_collection
@@ -339,23 +337,23 @@ impl<'a> RelativePathAndSnapMounts<'a> {
         })
     }
 
-    pub fn get_versions_processed(&'a self, uniqueness: &ListSnapsOfType) -> Vec<PathData> {
-        let all_versions = self.get_versions_unprocessed(uniqueness);
+    pub fn versions_processed(&'a self, uniqueness: &ListSnapsOfType) -> Vec<PathData> {
+        let all_versions = self.versions_unprocessed(uniqueness);
 
         let sorted_versions: Vec<PathData> = Self::process_versions(all_versions, uniqueness);
 
         sorted_versions
     }
 
-    pub fn get_last_version(&self) -> Option<PathData> {
-        let mut sorted_versions = self.get_versions_processed(&ListSnapsOfType::All);
+    pub fn last_version(&self) -> Option<PathData> {
+        let mut sorted_versions = self.versions_processed(&ListSnapsOfType::All);
 
         let res: Option<PathData> = sorted_versions.pop();
 
         res
     }
 
-    fn get_versions_unprocessed(
+    fn versions_unprocessed(
         &'a self,
         uniqueness: &'a ListSnapsOfType,
     ) -> impl ParallelIterator<Item = CompareVersionsContainer> + 'a {

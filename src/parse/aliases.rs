@@ -20,7 +20,7 @@ use std::{ffi::OsString, ops::Deref, path::Path, path::PathBuf};
 use hashbrown::HashMap;
 
 use crate::library::results::{HttmError, HttmResult};
-use crate::library::utility::get_fs_type_from_hidden_dir;
+use crate::library::utility::fs_type_from_hidden_dir;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum FilesystemType {
@@ -121,7 +121,7 @@ impl MapOfAliases {
                 }
             })
             .filter_map(|(local_dir, remote_dir)| {
-                get_fs_type_from_hidden_dir(&remote_dir)
+                fs_type_from_hidden_dir(&remote_dir)
                     .map(|fs_type| {
                         (
                             local_dir,

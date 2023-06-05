@@ -57,7 +57,7 @@ pub fn user_has_zfs_allow_snap_priv(new_file_path: &Path) -> HttmResult<()> {
     let pathdata = PathData::from(new_file_path);
 
     let dataset_mount =
-        pathdata.get_proximate_dataset(&GLOBAL_CONFIG.dataset_collection.map_of_datasets)?;
+        pathdata.proximate_dataset(&GLOBAL_CONFIG.dataset_collection.map_of_datasets)?;
 
     let dataset_name = &GLOBAL_CONFIG
         .dataset_collection
@@ -94,7 +94,7 @@ pub fn user_has_zfs_allow_snap_priv(new_file_path: &Path) -> HttmResult<()> {
     Ok(())
 }
 
-pub fn get_delimiter() -> char {
+pub fn delimiter() -> char {
     if matches!(GLOBAL_CONFIG.print_mode, PrintMode::RawZero) {
         '\0'
     } else {
@@ -306,7 +306,7 @@ pub fn read_stdin() -> HttmResult<Vec<PathData>> {
     Ok(broken_string)
 }
 
-pub fn get_common_path<I, P>(paths: I) -> Option<PathBuf>
+pub fn find_common_path<I, P>(paths: I) -> Option<PathBuf>
 where
     I: IntoIterator<Item = P>,
     P: AsRef<Path>,
@@ -348,9 +348,9 @@ pub fn httm_is_dir<'a, T>(entry: &'a T) -> bool
 where
     T: HttmIsDir<'a> + ?Sized,
 {
-    let path = entry.get_path();
+    let path = entry.path();
 
-    match entry.get_filetype() {
+    match entry.filetype() {
         Ok(file_type) => match file_type {
             file_type if file_type.is_dir() => true,
             file_type if file_type.is_file() => false,
@@ -372,18 +372,18 @@ where
 
 pub trait HttmIsDir<'a> {
     fn httm_is_dir(&self) -> bool;
-    fn get_filetype(&self) -> Result<FileType, std::io::Error>;
-    fn get_path(&'a self) -> &'a Path;
+    fn filetype(&self) -> Result<FileType, std::io::Error>;
+    fn path(&'a self) -> &'a Path;
 }
 
 impl<T: AsRef<Path>> HttmIsDir<'_> for T {
     fn httm_is_dir(&self) -> bool {
         httm_is_dir(self)
     }
-    fn get_filetype(&self) -> Result<FileType, std::io::Error> {
+    fn filetype(&self) -> Result<FileType, std::io::Error> {
         Ok(self.as_ref().metadata()?.file_type())
     }
-    fn get_path(&self) -> &Path {
+    fn path(&self) -> &Path {
         self.as_ref()
     }
 }
@@ -392,10 +392,10 @@ impl<'a> HttmIsDir<'a> for PathData {
     fn httm_is_dir(&self) -> bool {
         httm_is_dir(self)
     }
-    fn get_filetype(&self) -> Result<FileType, std::io::Error> {
+    fn filetype(&self) -> Result<FileType, std::io::Error> {
         Ok(self.path_buf.metadata()?.file_type())
     }
-    fn get_path(&'a self) -> &'a Path {
+    fn path(&'a self) -> &'a Path {
         &self.path_buf
     }
 }
@@ -404,14 +404,14 @@ impl<'a> HttmIsDir<'a> for BasicDirEntryInfo {
     fn httm_is_dir(&self) -> bool {
         httm_is_dir(self)
     }
-    fn get_filetype(&self) -> Result<FileType, std::io::Error> {
+    fn filetype(&self) -> Result<FileType, std::io::Error> {
         //  of course, this is a placeholder error, we just need an error to report back
         //  why not store the error in the struct instead?  because it's more complex.  it might
         //  make it harder to copy around etc
         self.file_type
             .ok_or_else(|| io::Error::from(io::ErrorKind::NotFound))
     }
-    fn get_path(&'a self) -> &'a Path {
+    fn path(&'a self) -> &'a Path {
         &self.path
     }
 }
@@ -427,12 +427,12 @@ pub fn paint_string<T>(path: T, display_name: &str) -> Cow<str>
 where
     T: PaintString,
 {
-    if path.get_is_phantom() {
+    if path.is_phantom() {
         // paint all other phantoms/deleted files the same color, light pink
         return Cow::Owned(PHANTOM_STYLE.paint(display_name).to_string());
     }
 
-    if let Some(style) = path.get_ls_style() {
+    if let Some(style) = path.ls_style() {
         let ansi_style: &AnsiTermStyle = &Style::to_nu_ansi_term_style(style);
         return Cow::Owned(ansi_style.paint(display_name).to_string());
     }
@@ -443,29 +443,29 @@ where
 }
 
 pub trait PaintString {
-    fn get_ls_style(&self) -> Option<&'_ lscolors::style::Style>;
-    fn get_is_phantom(&self) -> bool;
+    fn ls_style(&self) -> Option<&'_ lscolors::style::Style>;
+    fn is_phantom(&self) -> bool;
 }
 
 impl PaintString for &PathData {
-    fn get_ls_style(&self) -> Option<&lscolors::style::Style> {
+    fn ls_style(&self) -> Option<&lscolors::style::Style> {
         ENV_LS_COLORS.style_for_path(&self.path_buf)
     }
-    fn get_is_phantom(&self) -> bool {
+    fn is_phantom(&self) -> bool {
         self.metadata.is_none()
     }
 }
 
 impl PaintString for &SelectionCandidate {
-    fn get_ls_style(&self) -> Option<&lscolors::style::Style> {
+    fn ls_style(&self) -> Option<&lscolors::style::Style> {
         ENV_LS_COLORS.style_for(self)
     }
-    fn get_is_phantom(&self) -> bool {
+    fn is_phantom(&self) -> bool {
         self.file_type().is_none()
     }
 }
 
-pub fn get_fs_type_from_hidden_dir(dataset_mount: &Path) -> Option<FilesystemType> {
+pub fn fs_type_from_hidden_dir(dataset_mount: &Path) -> Option<FilesystemType> {
     // set fstype, known by whether there is a ZFS hidden snapshot dir in the root dir
     if dataset_mount
         .join(ZFS_SNAPSHOT_DIRECTORY)
@@ -494,14 +494,14 @@ static DATE_FORMAT_DISPLAY: &str =
     "[weekday repr:short] [month repr:short] [day] [hour]:[minute]:[second] [year]";
 static DATE_FORMAT_TIMESTAMP: &str = "[year]-[month]-[day]-[hour]:[minute]:[second]";
 
-pub fn get_date(
+pub fn date_string(
     utc_offset: UtcOffset,
     system_time: &SystemTime,
     date_format: DateFormat,
 ) -> String {
     let date_time: OffsetDateTime = (*system_time).into();
 
-    let parsed_format = format_description::parse(get_date_format(&date_format))
+    let parsed_format = format_description::parse(date_string_format(&date_format))
         .expect("timestamp date format is invalid");
 
     let raw_string = date_time
@@ -519,7 +519,7 @@ pub fn get_date(
     raw_string
 }
 
-fn get_date_format<'a>(format: &DateFormat) -> &'a str {
+fn date_string_format<'a>(format: &DateFormat) -> &'a str {
     match format {
         DateFormat::Display => DATE_FORMAT_DISPLAY,
         DateFormat::Timestamp => DATE_FORMAT_TIMESTAMP,
@@ -539,11 +539,11 @@ pub fn is_metadata_different<T>(src: T, dst: T) -> HttmResult<()>
 where
     T: ComparePathMetadata,
 {
-    if src.get_opt_metadata() != dst.get_opt_metadata() {
+    if src.opt_metadata() != dst.opt_metadata() {
         let msg = format!(
             "WARNING: Metadata mismatch: {:?} !-> {:?}",
-            src.get_path(),
-            dst.get_path()
+            src.path(),
+            dst.path()
         );
         return Err(HttmError::new(&msg).into());
     }
@@ -552,12 +552,12 @@ where
 }
 
 pub trait ComparePathMetadata {
-    fn get_opt_metadata(&self) -> Option<PathMetadata>;
-    fn get_path(&self) -> &Path;
+    fn opt_metadata(&self) -> Option<PathMetadata>;
+    fn path(&self) -> &Path;
 }
 
 impl<T: AsRef<Path>> ComparePathMetadata for T {
-    fn get_opt_metadata(&self) -> Option<PathMetadata> {
+    fn opt_metadata(&self) -> Option<PathMetadata> {
         let pathdata = PathData::from(self.as_ref());
         pathdata.metadata.map(|md| {
             if self.as_ref().is_dir() {
@@ -571,13 +571,13 @@ impl<T: AsRef<Path>> ComparePathMetadata for T {
         })
     }
 
-    fn get_path(&self) -> &Path {
+    fn path(&self) -> &Path {
         self.as_ref()
     }
 }
 
 impl ComparePathMetadata for PathData {
-    fn get_opt_metadata(&self) -> Option<PathMetadata> {
+    fn opt_metadata(&self) -> Option<PathMetadata> {
         self.metadata.map(|md| {
             if self.path_buf.is_dir() {
                 PathMetadata {
@@ -590,7 +590,7 @@ impl ComparePathMetadata for PathData {
         })
     }
 
-    fn get_path(&self) -> &Path {
+    fn path(&self) -> &Path {
         self.path_buf.as_path()
     }
 }

@@ -26,7 +26,7 @@ use rayon::prelude::*;
 use which::which;
 
 use crate::library::results::{HttmError, HttmResult};
-use crate::library::utility::{get_common_path, get_fs_type_from_hidden_dir};
+use crate::library::utility::{find_common_path, fs_type_from_hidden_dir};
 use crate::parse::aliases::FilesystemType;
 use crate::parse::snaps::MapOfSnaps;
 use crate::{NILFS2_SNAPSHOT_ID_KEY, ZFS_SNAPSHOT_DIRECTORY};
@@ -66,11 +66,11 @@ impl Deref for FilterDirs {
 }
 
 pub trait MaxLen {
-    fn get_max_len(&self) -> usize;
+    fn max_len(&self) -> usize;
 }
 
 impl MaxLen for FilterDirs {
-    fn get_max_len(&self) -> usize {
+    fn max_len(&self) -> usize {
         self.max_len
     }
 }
@@ -90,7 +90,7 @@ impl Deref for MapOfDatasets {
 }
 
 impl MaxLen for MapOfDatasets {
-    fn get_max_len(&self) -> usize {
+    fn max_len(&self) -> usize {
         self.max_len
     }
 }
@@ -185,7 +185,7 @@ impl BaseFilesystemInfo {
                         },
                     )),
                     &SMB_FSTYPE | &AFP_FSTYPE | &NFS_FSTYPE => {
-                        match get_fs_type_from_hidden_dir(&mount_info.dest) {
+                        match fs_type_from_hidden_dir(&mount_info.dest) {
                             Some(FilesystemType::Zfs) => Either::Left((
                                 mount_info.dest,
                                 DatasetMetadata {
@@ -290,7 +290,7 @@ impl BaseFilesystemInfo {
             // sanity check: does the filesystem exist and have a ZFS hidden dir? if not, filter it out
             // and flip around, mount should key of key/value
             .partition_map(|(filesystem, mount)| {
-                match get_fs_type_from_hidden_dir(&mount) {
+                match fs_type_from_hidden_dir(&mount) {
                     Some(FilesystemType::Zfs) => {
                         Either::Left((mount, DatasetMetadata {
                             source: filesystem,
@@ -320,7 +320,7 @@ impl BaseFilesystemInfo {
 
     // if we have some btrfs mounts, we check to see if there is a snap directory in common
     // so we can hide that common path from searches later
-    pub fn get_common_snap_dir(&self) -> Option<PathBuf> {
+    pub fn common_snap_dir(&self) -> Option<PathBuf> {
         let map_of_datasets: &MapOfDatasets = &self.map_of_datasets;
         let map_of_snaps: &MapOfSnaps = &self.map_of_snaps;
 
@@ -344,7 +344,7 @@ impl BaseFilesystemInfo {
                 .flatten()
                 .collect();
 
-            return get_common_path(vec_snaps);
+            return find_common_path(vec_snaps);
         }
 
         None
