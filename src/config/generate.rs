@@ -17,7 +17,7 @@
 
 use std::fs::canonicalize;
 use std::ops::Index;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use clap::OsValues;
 use rayon::prelude::*;
@@ -833,14 +833,7 @@ impl Config {
 
     pub fn get_pwd() -> HttmResult<PathData> {
         if let Ok(pwd) = std::env::current_dir() {
-            if let Ok(path) = PathBuf::from(&pwd).canonicalize() {
-                Ok(PathData::from(path.as_path()))
-            } else {
-                Err(
-                    HttmError::new("Could not obtain a canonical path for your working directory")
-                        .into(),
-                )
-            }
+            Ok(PathData::from(pwd))
         } else {
             Err(HttmError::new(
                 "Working directory does not exist or your do not have permissions to access it.",
