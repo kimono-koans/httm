@@ -107,15 +107,11 @@ impl From<&BasicDirEntryInfo> for PathData {
 
 impl PathData {
     pub fn new(path: &Path, opt_metadata: Option<Metadata>) -> Self {
-        let absolute_path: PathBuf = if path.is_relative() {
-            // canonicalize() on any path that DNE will throw an error
-            //
-            // in general we handle those cases elsewhere, like the ingest
-            // of input files in Config::from for deleted relative paths, etc.
-            path.canonicalize().unwrap_or_else(|_| path.to_path_buf())
-        } else {
-            path.to_path_buf()
-        };
+        // canonicalize() on any path that DNE will throw an error
+        //
+        // in general we handle those cases elsewhere, like the ingest
+        // of input files in Config::from for deleted relative paths, etc.
+        let absolute_path: PathBuf = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
 
         // call symlink_metadata, as we need to resolve symlinks to get non-"phantom" metadata
         let metadata = opt_metadata.and_then(|md| {
