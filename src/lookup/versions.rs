@@ -241,18 +241,16 @@ impl<'a> MostProximateAndOptAlts<'a> {
         // will compare the most proximate dataset to our our canonical path and the difference
         // between ZFS mount point and the canonical path is the path we will use to search the
         // hidden snapshot dirs
-        let proximate_dataset_mount = match &GLOBAL_CONFIG.dataset_collection.opt_map_of_aliases {
-            Some(map_of_aliases) => match pathdata.get_alias_dataset(map_of_aliases) {
-                Some(alias_snap_dir) => alias_snap_dir,
-                None => pathdata
-                    .get_proximate_dataset(&GLOBAL_CONFIG.dataset_collection.map_of_datasets)?,
-            },
-            None => {
+        let proximate_dataset_mount: &Path = &GLOBAL_CONFIG
+            .dataset_collection
+            .opt_map_of_aliases
+            .as_ref()
+            .and_then(|map_of_aliases| pathdata.get_alias_dataset(&map_of_aliases))
+            .unwrap_or({
                 pathdata.get_proximate_dataset(&GLOBAL_CONFIG.dataset_collection.map_of_datasets)?
-            }
-        };
+            });
 
-        let snap_types_for_search: MostProximateAndOptAlts = match requested_dataset_type {
+        let most_proximate_opt_alts: Self = match requested_dataset_type {
             SnapDatasetType::MostProximate => {
                 // just return the same dataset when in most proximate mode
                 Self {
@@ -276,7 +274,7 @@ impl<'a> MostProximateAndOptAlts<'a> {
             },
         };
 
-        Ok(snap_types_for_search)
+        Ok(most_proximate_opt_alts)
     }
 
     pub fn into_search_bundles<'b>(

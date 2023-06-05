@@ -166,17 +166,18 @@ impl PathData {
                 // do a search for a key with a value
                 .find_map(|(local_dir, alias_info)| {
                     if alias_info.remote_dir == proximate_dataset_mount {
-                        return Some(local_dir)
+                        return Some(local_dir);
                     }
 
                     None
-                }).map(|local_dir| {
-                    self.path_buf.strip_prefix(local_dir).ok()
-                }).flatten() {
-                    return Ok(alias)
-                }
+                })
+                .map(|local_dir| self.path_buf.strip_prefix(local_dir).ok())
+                .flatten()
+            {
+                return Ok(alias);
+            }
         }
-        
+
         // default path strip
         Ok(self.path_buf.strip_prefix(proximate_dataset_mount)?)
     }

@@ -50,16 +50,16 @@ impl From<&Path> for DeletedFiles {
         // as these will be the filenames that populate our interactive views, so deduplicate
         // by filename and latest file version here
         let basic_info_map: HashMap<OsString, BasicDirEntryInfo> =
-            VersionsMap::search_bundles_from_pathdata(&requested_dir_pathdata, requested_snap_datasets)
-                .flat_map(|search_bundle| {
-                    Self::get_unique_deleted_for_dir(
-                        &requested_dir_pathdata.path_buf,
-                        &search_bundle,
-                    )
-                })
-                .flatten()
-                .map(|basic_info| (basic_info.get_filename().to_os_string(), basic_info))
-                .collect();
+            VersionsMap::search_bundles_from_pathdata(
+                &requested_dir_pathdata,
+                requested_snap_datasets,
+            )
+            .flat_map(|search_bundle| {
+                Self::get_unique_deleted_for_dir(&requested_dir_pathdata.path_buf, &search_bundle)
+            })
+            .flatten()
+            .map(|basic_info| (basic_info.get_filename().to_os_string(), basic_info))
+            .collect();
 
         Self {
             inner: basic_info_map.into_values().collect(),
