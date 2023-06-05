@@ -162,14 +162,14 @@ impl VersionsMap {
             *snaps = match snaps.last() {
                 // if last() is some, then should be able to unwrap pop()
                 Some(last) => match last_snap_mode {
-                    LastSnapMode::Any => vec![snaps.pop().unwrap()],
+                    LastSnapMode::Any => vec![last.to_owned()],
                     LastSnapMode::DittoOnly if pathdata.md_infallible() == last.md_infallible() => {
-                        vec![snaps.pop().unwrap()]
+                        vec![last.to_owned()]
                     }
                     LastSnapMode::NoDittoExclusive | LastSnapMode::NoDittoInclusive
                         if pathdata.md_infallible() != last.md_infallible() =>
                     {
-                        vec![snaps.pop().unwrap()]
+                        vec![last.to_owned()]
                     }
                     _ => Vec::new(),
                 },
