@@ -250,7 +250,7 @@ impl<'a> MostProximateAndOptAlts<'a> {
                 pathdata.get_proximate_dataset(&GLOBAL_CONFIG.dataset_collection.map_of_datasets)?
             });
 
-        let most_proximate_opt_alts: Self = match requested_dataset_type {
+        let res: Self = match requested_dataset_type {
             SnapDatasetType::MostProximate => {
                 // just return the same dataset when in most proximate mode
                 Self {
@@ -269,13 +269,13 @@ impl<'a> MostProximateAndOptAlts<'a> {
                 })
                 .ok_or({
                     HttmError::new(
-                        "If you are here a map of alts is missing for a supplied mount, \
+                        "If you are here, a map of alts is missing for a supplied mount, \
                     this is fine as we should just flatten/ignore this error.",
                     )
                 })?,
         };
 
-        Ok(most_proximate_opt_alts)
+        Ok(res)
     }
 
     pub fn into_search_bundles<'b>(
