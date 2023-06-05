@@ -94,10 +94,7 @@ impl SpawnDeletedThread {
             && !vec_dirs.is_empty()
         {
             // get latest in time per our policy
-            let path_set: Vec<PathData> = vec_dirs
-                .into_iter()
-                .map(PathData::from)
-                .collect();
+            let path_set: Vec<PathData> = vec_dirs.into_iter().map(PathData::from).collect();
 
             return LastInTimeSet::from(path_set)
                 .into_inner()

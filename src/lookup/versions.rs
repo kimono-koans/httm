@@ -109,17 +109,19 @@ impl VersionsMap {
             .snaps_selected_for_search
             .get_value();
 
-        let opt_proximate_dataset_mount_for_set = VersionsMap::proximate_dataset_mount_for_set(&path_set);
+        let opt_proximate_dataset_mount_for_set =
+            VersionsMap::proximate_dataset_mount_for_set(path_set);
 
         let all_snap_versions: BTreeMap<PathData, Vec<PathData>> = path_set
             .par_iter()
             .map(|pathdata| {
-                let snaps: Vec<PathData> =
-                    Self::search_bundles_from_pathdata(pathdata, snaps_selected_for_search, &opt_proximate_dataset_mount_for_set)
-                        .flat_map(|search_bundle| {
-                            search_bundle.get_versions_processed(&config.uniqueness)
-                        })
-                        .collect();
+                let snaps: Vec<PathData> = Self::search_bundles_from_pathdata(
+                    pathdata,
+                    snaps_selected_for_search,
+                    &opt_proximate_dataset_mount_for_set,
+                )
+                .flat_map(|search_bundle| search_bundle.get_versions_processed(&config.uniqueness))
+                .collect();
                 (pathdata.clone(), snaps)
             })
             .collect();
@@ -129,17 +131,19 @@ impl VersionsMap {
         versions_map
     }
 
-    pub fn proximate_dataset_mount_for_set<'a>(set: &'a [PathData]) -> Option<&'a Path> {
+    pub fn proximate_dataset_mount_for_set(set: &[PathData]) -> Option<&Path> {
         let mut iter = set.iter();
 
         if let Some(first) = iter.next() {
             let first_parent = first.path_buf.parent();
-            if iter.into_iter().all(|pathdata| {
-                first_parent == pathdata.path_buf.parent()
-            }) {
-                return first.get_proximate_dataset(&GLOBAL_CONFIG.dataset_collection.map_of_datasets).ok()
+            if iter
+                .all(|pathdata| first_parent == pathdata.path_buf.parent())
+            {
+                return first
+                    .get_proximate_dataset(&GLOBAL_CONFIG.dataset_collection.map_of_datasets)
+                    .ok();
             }
-        } 
+        }
 
         None
     }
@@ -151,7 +155,13 @@ impl VersionsMap {
     ) -> impl Iterator<Item = RelativePathAndSnapMounts<'a>> {
         snaps_selected_for_search
             .iter()
-            .flat_map(|dataset_type| MostProximateAndOptAlts::new(pathdata, dataset_type, opt_proximate_dataset_mount_for_set))
+            .flat_map(|dataset_type| {
+                MostProximateAndOptAlts::new(
+                    pathdata,
+                    dataset_type,
+                    opt_proximate_dataset_mount_for_set,
+                )
+            })
             .flat_map(|datasets_of_interest| {
                 MostProximateAndOptAlts::into_search_bundles(datasets_of_interest, pathdata)
             })
@@ -245,7 +255,7 @@ impl<'a> MostProximateAndOptAlts<'a> {
     pub fn new(
         pathdata: &'a PathData,
         requested_dataset_type: &SnapDatasetType,
-        opt_proximate_dataset_mount_for_set: &'a Option<&Path>
+        opt_proximate_dataset_mount_for_set: &'a Option<&Path>,
     ) -> HttmResult<Self> {
         // here, we take our file path and get back possibly multiple ZFS dataset mountpoints
         // and our most proximate dataset mount point (which is always the same) for
@@ -267,7 +277,8 @@ impl<'a> MostProximateAndOptAlts<'a> {
             .and_then(|map_of_aliases| pathdata.get_alias_dataset(map_of_aliases))
             .unwrap_or({
                 opt_proximate_dataset_mount_for_set.unwrap_or({
-                    pathdata.get_proximate_dataset(&GLOBAL_CONFIG.dataset_collection.map_of_datasets)?
+                    pathdata
+                        .get_proximate_dataset(&GLOBAL_CONFIG.dataset_collection.map_of_datasets)?
                 })
             });
 
