@@ -96,7 +96,7 @@ impl VersionsMap {
         }
 
         if let Some(last_snap_mode) = &config.opt_last_snap {
-            versions_map.get_last_snap(last_snap_mode)
+            versions_map.last_snap(last_snap_mode)
         }
 
         Ok(versions_map)
@@ -157,7 +157,7 @@ impl VersionsMap {
         });
     }
 
-    fn get_last_snap(&mut self, last_snap_mode: &LastSnapMode) {
+    fn last_snap(&mut self, last_snap_mode: &LastSnapMode) {
         self.iter_mut().for_each(|(pathdata, snaps)| {
             *snaps = match snaps.last() {
                 // if last() is some, then should be able to unwrap pop()
