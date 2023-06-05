@@ -53,6 +53,7 @@ impl From<&Path> for DeletedFiles {
             VersionsMap::search_bundles_from_pathdata(
                 &requested_dir_pathdata,
                 requested_snap_datasets,
+                &None,
             )
             .flat_map(|search_bundle| {
                 Self::get_unique_deleted_for_dir(&requested_dir_pathdata.path_buf, &search_bundle)
@@ -141,10 +142,12 @@ impl From<Vec<PathData>> for LastInTimeSet {
             .snaps_selected_for_search
             .get_value();
 
+        let opt_proximate_dataset_mount_for_set = VersionsMap::proximate_dataset_mount_for_set(&path_set);
+
         let res = path_set
-            .into_iter()
+            .iter()
             .filter_map(|pathdata| {
-                VersionsMap::search_bundles_from_pathdata(&pathdata, snaps_selected_for_search)
+                VersionsMap::search_bundles_from_pathdata(&pathdata, snaps_selected_for_search, &opt_proximate_dataset_mount_for_set)
                     .filter_map(|search_bundle| search_bundle.get_last_version())
                     .max_by_key(|pathdata| pathdata.get_md_infallible().modify_time)
                     .map(|pathdata| pathdata.path_buf)
