@@ -50,7 +50,7 @@ impl From<&Path> for DeletedFiles {
         // as these will be the filenames that populate our interactive views, so deduplicate
         // by filename and latest file version here
         let basic_info_map: HashMap<OsString, BasicDirEntryInfo> =
-            VersionsMap::get_relative_path_snap_mounts(&requested_dir_pathdata, requested_snap_datasets)
+            VersionsMap::search_bundle_from_pathdata(&requested_dir_pathdata, requested_snap_datasets)
                 .flat_map(|search_bundle| {
                     Self::get_unique_deleted_for_dir(
                         &requested_dir_pathdata.path_buf,
@@ -144,7 +144,7 @@ impl From<Vec<PathData>> for LastInTimeSet {
         let res = path_set
             .into_iter()
             .filter_map(|pathdata| {
-                VersionsMap::get_relative_path_snap_mounts(&pathdata, snaps_selected_for_search)
+                VersionsMap::search_bundle_from_pathdata(&pathdata, snaps_selected_for_search)
                     .filter_map(|search_bundle| search_bundle.get_last_version())
                     .max_by_key(|pathdata| pathdata.get_md_infallible().modify_time)
                     .map(|pathdata| pathdata.path_buf)

@@ -113,7 +113,7 @@ impl VersionsMap {
             .par_iter()
             .map(|pathdata| {
                 let snaps: Vec<PathData> =
-                    Self::get_relative_path_snap_mounts(pathdata, snaps_selected_for_search)
+                    Self::search_bundle_from_pathdata(pathdata, snaps_selected_for_search)
                         .flat_map(|search_bundle| {
                             search_bundle.get_versions_processed(&config.uniqueness)
                         })
@@ -127,7 +127,7 @@ impl VersionsMap {
         versions_map
     }
 
-    pub fn get_relative_path_snap_mounts<'a>(
+    pub fn search_bundle_from_pathdata<'a>(
         pathdata: &'a PathData,
         snaps_selected_for_search: &'a [SnapDatasetType],
     ) -> impl Iterator<Item = RelativePathAndSnapMounts<'a>> {
@@ -135,7 +135,7 @@ impl VersionsMap {
             .iter()
             .flat_map(|dataset_type| MostProximateAndOptAlts::new(pathdata, dataset_type))
             .flat_map(|datasets_of_interest| {
-                MostProximateAndOptAlts::get_search_bundles(datasets_of_interest, pathdata)
+                MostProximateAndOptAlts::into_search_bundles(datasets_of_interest, pathdata)
             })
             .flatten()
     }
@@ -279,7 +279,7 @@ impl<'a> MostProximateAndOptAlts<'a> {
         Ok(snap_types_for_search)
     }
 
-    pub fn get_search_bundles<'b>(
+    pub fn into_search_bundles<'b>(
         datasets_of_interest: MostProximateAndOptAlts<'b>,
         pathdata: &'b PathData,
     ) -> HttmResult<Vec<RelativePathAndSnapMounts<'b>>> {
