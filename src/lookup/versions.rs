@@ -113,7 +113,7 @@ impl VersionsMap {
             .par_iter()
             .map(|pathdata| {
                 let snaps: Vec<PathData> =
-                    Self::search_bundle_from_pathdata(pathdata, snaps_selected_for_search)
+                    Self::search_bundles_from_pathdata(pathdata, snaps_selected_for_search)
                         .flat_map(|search_bundle| {
                             search_bundle.get_versions_processed(&config.uniqueness)
                         })
@@ -127,7 +127,7 @@ impl VersionsMap {
         versions_map
     }
 
-    pub fn search_bundle_from_pathdata<'a>(
+    pub fn search_bundles_from_pathdata<'a>(
         pathdata: &'a PathData,
         snaps_selected_for_search: &'a [SnapDatasetType],
     ) -> impl Iterator<Item = RelativePathAndSnapMounts<'a>> {
