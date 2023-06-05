@@ -96,7 +96,7 @@ impl SpawnDeletedThread {
             // get latest in time per our policy
             let path_set: Vec<PathData> = vec_dirs
                 .into_iter()
-                .map(|basic_info| PathData::from(&basic_info))
+                .map(|basic_info| PathData::from(basic_info))
                 .collect();
 
             return LastInTimeSet::from(path_set)

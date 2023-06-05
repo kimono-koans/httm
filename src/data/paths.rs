@@ -96,12 +96,19 @@ impl<T: AsRef<Path>> From<T> for PathData {
     }
 }
 
-impl From<&BasicDirEntryInfo> for PathData {
-    fn from(basic_info: &BasicDirEntryInfo) -> Self {
+// don't use new(), because DirEntry includes the canonical path
+// saves a few stat/md calls
+impl From<BasicDirEntryInfo> for PathData {
+    fn from(basic_info: BasicDirEntryInfo) -> Self {
         // this metadata() function will not traverse symlinks
         let opt_metadata = basic_info.path.metadata().ok();
-        let path = &basic_info.path;
-        PathData::new(path.as_path(), opt_metadata)
+        let path = basic_info.path;
+        let path_metadata = Self::get_opt_metadata(opt_metadata);
+        
+        Self {
+            path_buf: path,
+            metadata: path_metadata,
+        }
     }
 }
 
@@ -113,8 +120,17 @@ impl PathData {
         // of input files in Config::from for deleted relative paths, etc.
         let absolute_path: PathBuf = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
 
-        // call symlink_metadata, as we need to resolve symlinks to get non-"phantom" metadata
-        let metadata = opt_metadata.and_then(|md| {
+        let path_metadata = Self::get_opt_metadata(opt_metadata);
+
+        PathData {
+            path_buf: absolute_path,
+            metadata: path_metadata,
+        }
+    }
+
+    // call symlink_metadata, as we need to resolve symlinks to get non-"phantom" metadata
+    fn get_opt_metadata(opt_metadata: Option<Metadata>) -> Option<PathMetadata> {
+        opt_metadata.and_then(|md| {
             let len = md.len();
             // may fail on systems that don't collect a modify time
             let opt_time = Self::get_modify_time(&md);
@@ -122,12 +138,7 @@ impl PathData {
                 size: len,
                 modify_time: time,
             })
-        });
-
-        PathData {
-            path_buf: absolute_path,
-            metadata,
-        }
+        })
     }
 
     // using ctime instead of mtime might be more correct as mtime can be trivially changed from user space
