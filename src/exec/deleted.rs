@@ -25,7 +25,7 @@ use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::exec::recursive::{PathProvenance, SharedRecursive};
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{is_channel_closed, Never};
-use crate::lookup::deleted::{DeletedFilesIter, LastInTimeSet};
+use crate::lookup::deleted::{DeletedFiles, LastInTimeSet};
 use crate::GLOBAL_CONFIG;
 
 pub struct SpawnDeletedThread;
@@ -63,7 +63,7 @@ impl SpawnDeletedThread {
         }
 
         // obtain all unique deleted, unordered, unsorted, will need to fix
-        let vec_deleted = DeletedFilesIter::from(requested_dir).into_inner();
+        let vec_deleted = DeletedFiles::from(requested_dir).into_inner();
 
         if vec_deleted.is_empty() {
             return Ok(());

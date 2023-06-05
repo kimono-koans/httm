@@ -29,11 +29,11 @@ use crate::lookup::versions::{RelativePathAndSnapMounts, VersionsMap};
 use crate::GLOBAL_CONFIG;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub struct DeletedFilesIter {
+pub struct DeletedFiles {
     inner: Vec<BasicDirEntryInfo>,
 }
 
-impl From<&Path> for DeletedFilesIter {
+impl From<&Path> for DeletedFiles {
     fn from(requested_dir: &Path) -> Self {
         // we always need a requesting dir because we are comparing the files in the
         // requesting dir to those of their relative dirs on snapshots
@@ -70,7 +70,7 @@ impl From<&Path> for DeletedFilesIter {
 // deleted_lookup_exec is a dumb function/module if we want to rank outputs, get last in time, etc.
 // we do that elsewhere.  deleted is simply about finding at least one version of a deleted file
 // this, believe it or not, will be faster
-impl DeletedFilesIter {
+impl DeletedFiles {
     pub fn into_inner(self) -> Vec<BasicDirEntryInfo> {
         self.inner
     }
