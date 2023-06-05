@@ -104,7 +104,7 @@ impl From<BasicDirEntryInfo> for PathData {
         let opt_metadata = basic_info.path.metadata().ok();
         let path = basic_info.path;
         let path_metadata = Self::get_opt_metadata(opt_metadata);
-        
+
         Self {
             path_buf: path,
             metadata: path_metadata,
@@ -189,9 +189,12 @@ impl PathData {
         // for /usr/bin, we prefer the most proximate: /usr/bin to /usr and /
         // ancestors() iterates in this top-down order, when a value: dataset/fstype is available
         // we map to return the key, instead of the value
+
+        let dataset_max_len = map_of_datasets.get_max_len();
+
         self.path_buf
             .ancestors()
-            .skip_while(|ancestor| ancestor.components().count() > map_of_datasets.get_max_len())
+            .skip_while(|ancestor| ancestor.components().count() > dataset_max_len)
             .find(|ancestor| map_of_datasets.contains_key(*ancestor))
             .ok_or_else(|| {
                 HttmError::new(
@@ -307,7 +310,7 @@ impl Ord for CompareVersionsContainer {
         // if files, differ re mtime, but have same size, we test by bytes whether the same
         if self_md.size == other_md.size
             && self.opt_hash.is_some()
-            && other.opt_hash.is_some()
+            // if above is true/false then "&& other.opt_hash.is_some()" is the same
             && self.is_same_file(other)
         {
             return Ordering::Equal;
