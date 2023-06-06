@@ -868,7 +868,6 @@ impl Config {
         let mut paths = if let Some(input_files) = opt_os_values {
             input_files
                 .par_bridge()
-                .map(Path::new)
                 // canonicalize() on a deleted relative path will not exist,
                 // so we have to join with the pwd to make a path that
                 // will exist on a snapshot
