@@ -66,7 +66,7 @@ impl VersionsMap {
     }
 
     pub fn new(config: &Config, path_set: &[PathData]) -> HttmResult<VersionsMap> {
-        let mut versions_map = Self::generate_map(config, path_set);
+        let mut versions_map = Self::unprocessed_map(config, path_set);
 
         // check if all files (snap and live) do not exist, if this is true, then user probably messed up
         // and entered a file that never existed (that is, perhaps a wrong file name)?
@@ -94,7 +94,7 @@ impl VersionsMap {
         Ok(versions_map)
     }
 
-    fn generate_map(config: &Config, path_set: &[PathData]) -> Self {
+    fn unprocessed_map(config: &Config, path_set: &[PathData]) -> Self {
         // create vec of all local and replicated backups at once
         let snaps_selected_for_search = GLOBAL_CONFIG
             .dataset_collection
