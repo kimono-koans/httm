@@ -403,8 +403,9 @@ fn parse_args() -> ArgMatches {
                 .display_order(22)
         )
         .arg(
-            Arg::new("SAME_FILESYSTEM")
-                .long("same-filesystem")
+            Arg::new("ONE_FILESYSTEM")
+                .long("one-filesystem")
+                .aliases(&["same-filesystem", "single-filesystem"])
                 .requires("RECURSIVE")
                 .help("limit recursive search to file and directories on the same filesystem/device as the target directory.")
                 .display_order(23)
@@ -522,7 +523,7 @@ pub struct Config {
     pub opt_omit_ditto: bool,
     pub opt_no_hidden: bool,
     pub opt_json: bool,
-    pub opt_same_filesystem: bool,
+    pub opt_one_filesystem: bool,
     pub uniqueness: ListSnapsOfType,
     pub opt_bulk_exclusion: Option<BulkExclusion>,
     pub opt_last_snap: Option<LastSnapMode>,
@@ -590,7 +591,7 @@ impl Config {
         }
 
         // force a raw mode if one is not set for no_snap mode
-        let opt_same_filesystem = matches.is_present("SAME_FILESYSTEM");
+        let opt_one_filesystem = matches.is_present("ONE_FILESYSTEM");
         let opt_recursive = matches.is_present("RECURSIVE");
 
         let opt_exact = matches.is_present("EXACT");
@@ -771,9 +772,9 @@ impl Config {
         let opt_requested_dir: Option<PathData> =
             Self::opt_requested_dir(&mut exec_mode, &mut opt_deleted_mode, &paths, &pwd)?;
 
-        if opt_same_filesystem && opt_requested_dir.is_none() {
+        if opt_one_filesystem && opt_requested_dir.is_none() {
             return Err(HttmError::new(
-                "SAME_FILESYSTEM requires a requested path for RECURSIVE search",
+                "ONE_FILESYSTEM requires a requested path for RECURSIVE search",
             )
             .into());
         }
@@ -835,7 +836,7 @@ impl Config {
             opt_last_snap,
             opt_preview,
             opt_json,
-            opt_same_filesystem,
+            opt_one_filesystem,
             uniqueness,
             requested_utc_offset,
             exec_mode,
@@ -1029,7 +1030,7 @@ impl Config {
             opt_no_traverse: false,
             opt_no_hidden: false,
             opt_json: false,
-            opt_same_filesystem: false,
+            opt_one_filesystem: false,
             opt_bulk_exclusion: None,
             opt_last_snap: None,
             opt_preview: None,
