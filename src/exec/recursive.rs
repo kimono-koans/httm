@@ -15,8 +15,10 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
+use std::os::unix::fs::MetadataExt;
 use std::{fs::read_dir, path::Path, sync::Arc};
 
+use once_cell::sync::OnceCell;
 use rayon::{Scope, ThreadPool};
 use skim::prelude::*;
 
@@ -32,6 +34,8 @@ use crate::parse::mounts::MaxLen;
 use crate::VersionsMap;
 use crate::GLOBAL_CONFIG;
 use crate::{BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_HIDDEN_DIRECTORY};
+
+static OPT_REQUESTED_DIR_DEV: OnceCell<Option<u64>> = OnceCell::new();
 
 #[derive(Clone, Copy)]
 pub enum PathProvenance {
@@ -193,15 +197,43 @@ impl SharedRecursive {
             .filter(|entry| {
                 if GLOBAL_CONFIG.opt_no_filter {
                     return true;
-                } else if GLOBAL_CONFIG.opt_no_hidden
+                }
+
+                if GLOBAL_CONFIG.opt_no_hidden
                     && entry.filename().to_string_lossy().starts_with('.')
                 {
                     return false;
-                } else if let Ok(file_type) = entry.filetype() {
+                }
+
+                if GLOBAL_CONFIG.opt_same_filesystem {
+                    let opt_requested_dir_device = OPT_REQUESTED_DIR_DEV.get_or_init(|| {
+                        GLOBAL_CONFIG
+                            .opt_requested_dir
+                            .as_ref()
+                            .expect(
+                                "opt_requested_dir should be Some value at this point in execution",
+                            )
+                            .path_buf
+                            .symlink_metadata()
+                            .ok()
+                            .map(|md| md.dev())
+                    });
+
+                    if let Some(requested_dir_device) = opt_requested_dir_device {
+                        if let Ok(path_md) = entry.path.symlink_metadata() {
+                            if *requested_dir_device != path_md.dev() {
+                                return false;
+                            }
+                        }
+                    }
+                }
+
+                if let Ok(file_type) = entry.filetype() {
                     if file_type.is_dir() {
                         return !Self::is_filter_dir(entry);
                     }
                 }
+
                 true
             })
             .partition(Self::is_entry_dir);
