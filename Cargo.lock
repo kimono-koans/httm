@@ -23,12 +23,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "allocator-api2"
-version = "0.2.14"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c4f263788a35611fba42eb41ff811c5d0360c58b97402570312a350736e2542e"
-
-[[package]]
 name = "android_system_properties"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -383,12 +377,11 @@ checksum = "8a9ee70c43aaf417c914396645a0fa852624801b24ebb7ae78fe8272889ac888"
 
 [[package]]
 name = "hashbrown"
-version = "0.14.0"
+version = "0.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2c6201b9ff9fd90a5a3bac2e56a830d0caa509576f0e503818ee82c181b3437a"
+checksum = "43a3c133739dddd0d2990f9a4bdf8eb4b21ef50e4851ca85ab661199821d510e"
 dependencies = [
  "ahash",
- "allocator-api2",
  "rayon",
 ]
 
@@ -418,18 +411,18 @@ checksum = "fed44880c466736ef9a5c5b5facefb5ed0785676d0c02d612db14e54f0d84286"
 
 [[package]]
 name = "httm"
-version = "0.28.0"
+version = "0.27.2"
 dependencies = [
  "clap",
  "crossbeam-channel",
  "exacl",
  "filetime",
- "hashbrown 0.14.0",
+ "hashbrown 0.13.2",
  "indicatif",
  "libc",
  "lscolors",
  "nix 0.26.2",
- "nu-ansi-term 0.48.0",
+ "nu-ansi-term",
  "number_prefix",
  "once_cell",
  "proc-mounts",
@@ -571,7 +564,7 @@ version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "18a9df1d1fb6d9e92fa043e9eb9a3ecf6892c7b542bae5137cd1e419e40aa8bf"
 dependencies = [
- "nu-ansi-term 0.47.0",
+ "nu-ansi-term",
 ]
 
 [[package]]
@@ -630,15 +623,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1df031e117bca634c262e9bd3173776844b6c17a90b3741c9163663b4385af76"
 dependencies = [
  "windows-sys 0.45.0",
-]
-
-[[package]]
-name = "nu-ansi-term"
-version = "0.48.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "db8e83967c32f9210ce85ac7e9c4b731048c1f51c4262e08bad01af30097a424"
-dependencies = [
- "windows-sys 0.48.0",
 ]
 
 [[package]]
