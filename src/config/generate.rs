@@ -771,6 +771,13 @@ impl Config {
         let opt_requested_dir: Option<PathData> =
             Self::opt_requested_dir(&mut exec_mode, &mut opt_deleted_mode, &paths, &pwd)?;
 
+        if opt_same_filesystem && opt_requested_dir.is_none() {
+            return Err(HttmError::new(
+                "SAME_FILESYSTEM requires a requested path for RECURSIVE search",
+            )
+            .into());
+        }
+
         // doesn't make sense to follow symlinks when you're searching the whole system,
         // so we disable our bespoke "when to traverse symlinks" algo here, or if requested.
         let opt_no_traverse = matches.is_present("NO_TRAVERSE") || {

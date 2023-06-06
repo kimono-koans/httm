@@ -18,7 +18,7 @@
 use std::os::unix::fs::MetadataExt;
 use std::{fs::read_dir, path::Path, sync::Arc};
 
-use once_cell::sync::OnceCell;
+use once_cell::sync::Lazy;
 use rayon::{Scope, ThreadPool};
 use skim::prelude::*;
 
@@ -35,7 +35,16 @@ use crate::VersionsMap;
 use crate::GLOBAL_CONFIG;
 use crate::{BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_HIDDEN_DIRECTORY};
 
-static OPT_REQUESTED_DIR_DEV: OnceCell<Option<u64>> = OnceCell::new();
+static OPT_REQUESTED_DIR_DEV: Lazy<u64> = Lazy::new(|| {
+    GLOBAL_CONFIG
+        .opt_requested_dir
+        .as_ref()
+        .expect("opt_requested_dir should be Some value at this point in execution")
+        .path_buf
+        .symlink_metadata()
+        .expect("Cannot read metadata for directory requested for search.")
+        .dev()
+});
 
 #[derive(Clone, Copy)]
 pub enum PathProvenance {
@@ -206,24 +215,15 @@ impl SharedRecursive {
                 }
 
                 if GLOBAL_CONFIG.opt_same_filesystem {
-                    let opt_requested_dir_device = OPT_REQUESTED_DIR_DEV.get_or_init(|| {
-                        GLOBAL_CONFIG
-                            .opt_requested_dir
-                            .as_ref()
-                            .expect(
-                                "opt_requested_dir should be Some value at this point in execution",
-                            )
-                            .path_buf
-                            .symlink_metadata()
-                            .ok()
-                            .map(|md| md.dev())
-                    });
-
-                    if let Some(requested_dir_device) = opt_requested_dir_device {
+                    if let Some(requested_dir_dev) = Lazy::get(&OPT_REQUESTED_DIR_DEV) {
                         if let Ok(path_md) = entry.path.symlink_metadata() {
-                            if *requested_dir_device != path_md.dev() {
+                            if *requested_dir_dev != path_md.dev() {
                                 return false;
                             }
+                        } else {
+                            // if we can't read the metadata for a path,
+                            // we probably shouldn't show it either
+                            return false;
                         }
                     }
                 }
