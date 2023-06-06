@@ -917,40 +917,35 @@ impl Config {
             ExecMode::Interactive(_) | ExecMode::NonInteractiveRecursive(_) => {
                 match paths.len() {
                     0 => Some(pwd.clone()),
+                    // use our bespoke is_dir fn for determining whether a dir here see pub httm_is_dir
+                    // safe to index as we know the paths len is 1
+                    1 if paths[0].httm_is_dir() => Some(paths[0].clone()),
+                    // handle non-directories
                     1 => {
-                        // safe to index as we know the paths len is 1
-                        let pathdata = &paths[0];
-
-                        // use our bespoke is_dir fn for determining whether a dir here see pub httm_is_dir
-                        if pathdata.httm_is_dir() {
-                            Some(pathdata.clone())
-                        // and then we take all comers here because may be a deleted file that DNE on a live version
-                        } else {
-                            match exec_mode {
-                                ExecMode::Interactive(ref interactive_mode) => {
-                                    match interactive_mode {
-                                        InteractiveMode::Browse => {
-                                            // doesn't make sense to have a non-dir in these modes
-                                            return Err(HttmError::new(
-                                                        "Path specified is not a directory, and therefore not suitable for browsing.",
-                                                    )
-                                                    .into());
-                                        }
-                                        InteractiveMode::Restore(_) | InteractiveMode::Select => {
-                                            // non-dir file will just cause us to skip the lookup phase
-                                            None
-                                        }
+                        match exec_mode {
+                            ExecMode::Interactive(ref interactive_mode) => {
+                                match interactive_mode {
+                                    InteractiveMode::Browse => {
+                                        // doesn't make sense to have a non-dir in these modes
+                                        return Err(HttmError::new(
+                                                    "Path specified is not a directory, and therefore not suitable for browsing.",
+                                                )
+                                                .into());
+                                    }
+                                    InteractiveMode::Restore(_) | InteractiveMode::Select => {
+                                        // non-dir file will just cause us to skip the lookup phase
+                                        None
                                     }
                                 }
-                                // silently disable NonInteractiveRecursive when path given is not a directory
-                                // switch to a standard Display mode
-                                ExecMode::NonInteractiveRecursive(_) => {
-                                    *exec_mode = ExecMode::Display;
-                                    *deleted_mode = None;
-                                    None
-                                }
-                                _ => unreachable!(),
                             }
+                            // silently disable NonInteractiveRecursive when path given is not a directory
+                            // switch to a standard Display mode
+                            ExecMode::NonInteractiveRecursive(_) => {
+                                *exec_mode = ExecMode::Display;
+                                *deleted_mode = None;
+                                None
+                            }
+                            _ => unreachable!(),
                         }
                     }
                     n if n > 1 => return Err(HttmError::new(
