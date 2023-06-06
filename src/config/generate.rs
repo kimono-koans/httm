@@ -15,7 +15,6 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::fs::canonicalize;
 use std::ops::Index;
 use std::path::Path;
 
@@ -873,8 +872,7 @@ impl Config {
                 // canonicalize() on a deleted relative path will not exist,
                 // so we have to join with the pwd to make a path that
                 // will exist on a snapshot
-                .map(|path| canonicalize(path).unwrap_or_else(|_| pwd.clone().path_buf.join(path)))
-                .map(|path| PathData::from(path.as_path()))
+                .map(|path| PathData::from(path))
                 .collect()
         } else {
             match exec_mode {
