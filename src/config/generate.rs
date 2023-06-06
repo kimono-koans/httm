@@ -405,7 +405,7 @@ fn parse_args() -> ArgMatches {
         .arg(
             Arg::new("ONE_FILESYSTEM")
                 .long("one-filesystem")
-                .aliases(&["same-filesystem", "single-filesystem"])
+                .aliases(&["same-filesystem", "single-filesystem", "one-fs", "onefs"])
                 .requires("RECURSIVE")
                 .help("limit recursive search to file and directories on the same filesystem/device as the target directory.")
                 .display_order(23)
