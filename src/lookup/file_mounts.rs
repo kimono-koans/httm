@@ -23,19 +23,13 @@ use rayon::prelude::*;
 use crate::config::generate::MountDisplay;
 use crate::data::paths::PathData;
 use crate::library::iter_extensions::HttmIter;
-use crate::lookup::versions::{MostProximateAndOptAlts, VersionsMap};
+use crate::lookup::versions::MostProximateAndOptAlts;
 use crate::GLOBAL_CONFIG;
 
 #[derive(Debug)]
 pub struct MountsForFiles<'a> {
     inner: BTreeMap<PathData, Vec<PathData>>,
     mount_display: &'a MountDisplay,
-}
-
-impl<'a> From<MountsForFiles<'a>> for VersionsMap {
-    fn from(map: MountsForFiles) -> Self {
-        map.inner.into()
-    }
 }
 
 impl<'a> Deref for MountsForFiles<'a> {

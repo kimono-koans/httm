@@ -46,14 +46,6 @@ impl From<BTreeMap<PathData, Vec<PathData>>> for VersionsMap {
     }
 }
 
-impl From<(PathData, Vec<PathData>)> for VersionsMap {
-    fn from(tuple: (PathData, Vec<PathData>)) -> Self {
-        Self {
-            inner: BTreeMap::from([tuple]),
-        }
-    }
-}
-
 impl Deref for VersionsMap {
     type Target = BTreeMap<PathData, Vec<PathData>>;
 
