@@ -403,18 +403,26 @@ fn parse_args() -> ArgMatches {
                 .display_order(22)
         )
         .arg(
+            Arg::new("ONE_FILESYSTEM")
+                .long("one-filesystem")
+                .aliases(&["same-filesystem", "single-filesystem", "one-fs", "onefs"])
+                .requires("RECURSIVE")
+                .help("limit recursive search to file and directories on the same filesystem/device as the target directory.")
+                .display_order(23)
+        )
+        .arg(
             Arg::new("NO_TRAVERSE")
                 .long("no-traverse")
                 .help("in recursive mode, don't traverse symlinks.  Although httm does its best to prevent searching pathologically recursive symlink-ed paths, \
                 here, you may disable symlink traversal completely.  NOTE: httm will never traverse symlinks when a requested recursive search is on the root/base directory (\"/\").")
-                .display_order(23)
+                .display_order(24)
         )
         .arg(
             Arg::new("NO_LIVE")
                 .long("no-live")
                 .visible_aliases(&["dead", "disco"])
                 .help("only display information concerning snapshot versions (display no information regarding live versions of files or directories).")
-                .display_order(24)
+                .display_order(25)
         )
         .arg(
             Arg::new("NO_SNAP")
@@ -424,7 +432,7 @@ fn parse_args() -> ArgMatches {
                 Useful for finding the \"files that once were\" and displaying only those pseudo-live/zombie files.")
                 .conflicts_with_all(&["BROWSE", "SELECT", "RESTORE", "SNAPSHOT", "LAST_SNAP", "NOT_SO_PRETTY"])
                 .requires("DELETED")
-                .display_order(25)
+                .display_order(26)
         )
         .arg(
             Arg::new("MAP_ALIASES")
@@ -439,7 +447,7 @@ fn parse_args() -> ArgMatches {
                 .use_value_delimiter(true)
                 .takes_value(true)
                 .value_parser(clap::builder::ValueParser::os_string())
-                .display_order(26)
+                .display_order(27)
         )
         .arg(
             Arg::new("NUM_VERSIONS")
@@ -456,7 +464,7 @@ fn parse_args() -> ArgMatches {
                 (and \"single-no-snap\" will print those without a snap taken, and \"single-with-snap\" will print those with a snap taken), \
                 and \"multiple\" will print only filenames which only have multiple versions.")
                 .conflicts_with_all(&["LAST_SNAP", "BROWSE", "SELECT", "RESTORE", "RECURSIVE", "SNAPSHOT", "NOT_SO_PRETTY", "NO_LIVE", "NO_SNAP", "OMIT_DITTO", "RAW", "ZEROS"])
-                .display_order(27)
+                .display_order(28)
         )
         .arg(
             Arg::new("REMOTE_DIR")
@@ -467,7 +475,7 @@ fn parse_args() -> ArgMatches {
                 (directory which contains a \".snapshots\" directory), such as the local mount point for a remote share.  You may also set via the HTTM_REMOTE_DIR environment variable.")
                 .takes_value(true)
                 .value_parser(clap::builder::ValueParser::os_string())
-                .display_order(28)
+                .display_order(29)
         )
         .arg(
             Arg::new("LOCAL_DIR")
@@ -480,26 +488,26 @@ fn parse_args() -> ArgMatches {
                 .requires("REMOTE_DIR")
                 .takes_value(true)
                 .value_parser(clap::builder::ValueParser::os_string())
-                .display_order(29)
+                .display_order(30)
         )
         .arg(
             Arg::new("UTC")
                 .long("utc")
                 .help("use UTC for date display and timestamps")
-                .display_order(30)
+                .display_order(31)
         )
         .arg(
             Arg::new("DEBUG")
                 .long("debug")
                 .help("print configuration and debugging info")
-                .display_order(31)
+                .display_order(32)
         )
         .arg(
             Arg::new("ZSH_HOT_KEYS")
                 .long("install-zsh-hot-keys")
                 .help("install zsh hot keys to the users home directory, and then exit")
                 .exclusive(true)
-                .display_order(32)
+                .display_order(33)
         )
         .get_matches()
 }
@@ -515,6 +523,7 @@ pub struct Config {
     pub opt_omit_ditto: bool,
     pub opt_no_hidden: bool,
     pub opt_json: bool,
+    pub opt_one_filesystem: bool,
     pub uniqueness: ListSnapsOfType,
     pub opt_bulk_exclusion: Option<BulkExclusion>,
     pub opt_last_snap: Option<LastSnapMode>,
@@ -582,7 +591,9 @@ impl Config {
         }
 
         // force a raw mode if one is not set for no_snap mode
+        let opt_one_filesystem = matches.is_present("ONE_FILESYSTEM");
         let opt_recursive = matches.is_present("RECURSIVE");
+
         let opt_exact = matches.is_present("EXACT");
         let opt_no_filter = matches.is_present("NO_FILTER");
         let opt_debug = matches.is_present("DEBUG");
@@ -761,6 +772,23 @@ impl Config {
         let opt_requested_dir: Option<PathData> =
             Self::opt_requested_dir(&mut exec_mode, &mut opt_deleted_mode, &paths, &pwd)?;
 
+        if opt_one_filesystem && opt_requested_dir.is_none() {
+            return Err(HttmError::new(
+                "ONE_FILESYSTEM requires a requested path for RECURSIVE search",
+            )
+            .into());
+        }
+
+        // doesn't make sense to follow symlinks when you're searching the whole system,
+        // so we disable our bespoke "when to traverse symlinks" algo here, or if requested.
+        let opt_no_traverse = matches.is_present("NO_TRAVERSE") || {
+            if let Some(user_requested_dir) = opt_requested_dir.as_ref() {
+                user_requested_dir.path_buf.as_path() == Path::new(ROOT_DIRECTORY)
+            } else {
+                false
+            }
+        };
+
         if !matches!(opt_deleted_mode, None | Some(DeletedMode::All)) && !opt_recursive {
             return Err(HttmError::new(
                 "Deleted modes other than \"all\" require recursive mode is enabled.  Quitting.",
@@ -783,16 +811,6 @@ impl Config {
                 HttmError::new("LAST_SNAP is not available in Display Recursive Mode.").into(),
             );
         }
-
-        // doesn't make sense to follow symlinks when you're searching the whole system,
-        // so we disable our bespoke "when to traverse symlinks" algo here, or if requested.
-        let opt_no_traverse = matches.is_present("NO_TRAVERSE") || {
-            if let Some(user_requested_dir) = opt_requested_dir.as_ref() {
-                user_requested_dir.path_buf.as_path() == Path::new(ROOT_DIRECTORY)
-            } else {
-                false
-            }
-        };
 
         // obtain a map of datasets, a map of snapshot directories, and possibly a map of
         // alternate filesystems and map of aliases if the user requests
@@ -818,6 +836,7 @@ impl Config {
             opt_last_snap,
             opt_preview,
             opt_json,
+            opt_one_filesystem,
             uniqueness,
             requested_utc_offset,
             exec_mode,
@@ -1011,6 +1030,7 @@ impl Config {
             opt_no_traverse: false,
             opt_no_hidden: false,
             opt_json: false,
+            opt_one_filesystem: false,
             opt_bulk_exclusion: None,
             opt_last_snap: None,
             opt_preview: None,

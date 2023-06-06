@@ -15,8 +15,10 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
+use std::os::unix::fs::MetadataExt;
 use std::{fs::read_dir, path::Path, sync::Arc};
 
+use once_cell::sync::Lazy;
 use rayon::{Scope, ThreadPool};
 use skim::prelude::*;
 
@@ -32,6 +34,17 @@ use crate::parse::mounts::MaxLen;
 use crate::VersionsMap;
 use crate::GLOBAL_CONFIG;
 use crate::{BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_HIDDEN_DIRECTORY};
+
+static OPT_REQUESTED_DIR_DEV: Lazy<u64> = Lazy::new(|| {
+    GLOBAL_CONFIG
+        .opt_requested_dir
+        .as_ref()
+        .expect("opt_requested_dir should be Some value at this point in execution")
+        .path_buf
+        .symlink_metadata()
+        .expect("Cannot read metadata for directory requested for search.")
+        .dev()
+});
 
 #[derive(Clone, Copy)]
 pub enum PathProvenance {
@@ -193,15 +206,36 @@ impl SharedRecursive {
             .filter(|entry| {
                 if GLOBAL_CONFIG.opt_no_filter {
                     return true;
-                } else if GLOBAL_CONFIG.opt_no_hidden
+                }
+
+                if GLOBAL_CONFIG.opt_no_hidden
                     && entry.filename().to_string_lossy().starts_with('.')
                 {
                     return false;
-                } else if let Ok(file_type) = entry.filetype() {
+                }
+
+                if GLOBAL_CONFIG.opt_one_filesystem {
+                    if let Some(requested_dir_dev) = Lazy::get(&OPT_REQUESTED_DIR_DEV) {
+                        match entry.path.symlink_metadata() {
+                            Ok(path_md) if *requested_dir_dev != path_md.dev() => {
+                                return false;
+                            }
+                            Ok(_) => {}
+                            Err(_) => {
+                                // if we can't read the metadata for a path,
+                                // we probably shouldn't show it either
+                                return false;
+                            }
+                        }
+                    }
+                }
+
+                if let Ok(file_type) = entry.filetype() {
                     if file_type.is_dir() {
                         return !Self::is_filter_dir(entry);
                     }
                 }
+
                 true
             })
             .partition(Self::is_entry_dir);
