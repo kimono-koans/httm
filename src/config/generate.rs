@@ -204,13 +204,6 @@ fn parse_args() -> ArgMatches {
                 .display_order(6)
         )
         .arg(
-            Arg::new("SAME_FILESYSTEM")
-                .long("same-filesystem")
-                .requires("RECURSIVE")
-                .help("limit recursive search to file and directories on the same filesystem as the target directory.")
-                .display_order(6)
-        )
-        .arg(
             Arg::new("ALT_REPLICATED")
                 .short('a')
                 .long("alt-replicated")
@@ -410,18 +403,25 @@ fn parse_args() -> ArgMatches {
                 .display_order(22)
         )
         .arg(
+            Arg::new("SAME_FILESYSTEM")
+                .long("same-filesystem")
+                .requires("RECURSIVE")
+                .help("limit recursive search to file and directories on the same filesystem/device as the target directory.")
+                .display_order(23)
+        )
+        .arg(
             Arg::new("NO_TRAVERSE")
                 .long("no-traverse")
                 .help("in recursive mode, don't traverse symlinks.  Although httm does its best to prevent searching pathologically recursive symlink-ed paths, \
                 here, you may disable symlink traversal completely.  NOTE: httm will never traverse symlinks when a requested recursive search is on the root/base directory (\"/\").")
-                .display_order(23)
+                .display_order(24)
         )
         .arg(
             Arg::new("NO_LIVE")
                 .long("no-live")
                 .visible_aliases(&["dead", "disco"])
                 .help("only display information concerning snapshot versions (display no information regarding live versions of files or directories).")
-                .display_order(24)
+                .display_order(25)
         )
         .arg(
             Arg::new("NO_SNAP")
@@ -431,7 +431,7 @@ fn parse_args() -> ArgMatches {
                 Useful for finding the \"files that once were\" and displaying only those pseudo-live/zombie files.")
                 .conflicts_with_all(&["BROWSE", "SELECT", "RESTORE", "SNAPSHOT", "LAST_SNAP", "NOT_SO_PRETTY"])
                 .requires("DELETED")
-                .display_order(25)
+                .display_order(26)
         )
         .arg(
             Arg::new("MAP_ALIASES")
@@ -446,7 +446,7 @@ fn parse_args() -> ArgMatches {
                 .use_value_delimiter(true)
                 .takes_value(true)
                 .value_parser(clap::builder::ValueParser::os_string())
-                .display_order(26)
+                .display_order(27)
         )
         .arg(
             Arg::new("NUM_VERSIONS")
@@ -463,7 +463,7 @@ fn parse_args() -> ArgMatches {
                 (and \"single-no-snap\" will print those without a snap taken, and \"single-with-snap\" will print those with a snap taken), \
                 and \"multiple\" will print only filenames which only have multiple versions.")
                 .conflicts_with_all(&["LAST_SNAP", "BROWSE", "SELECT", "RESTORE", "RECURSIVE", "SNAPSHOT", "NOT_SO_PRETTY", "NO_LIVE", "NO_SNAP", "OMIT_DITTO", "RAW", "ZEROS"])
-                .display_order(27)
+                .display_order(28)
         )
         .arg(
             Arg::new("REMOTE_DIR")
@@ -474,7 +474,7 @@ fn parse_args() -> ArgMatches {
                 (directory which contains a \".snapshots\" directory), such as the local mount point for a remote share.  You may also set via the HTTM_REMOTE_DIR environment variable.")
                 .takes_value(true)
                 .value_parser(clap::builder::ValueParser::os_string())
-                .display_order(28)
+                .display_order(29)
         )
         .arg(
             Arg::new("LOCAL_DIR")
@@ -487,26 +487,26 @@ fn parse_args() -> ArgMatches {
                 .requires("REMOTE_DIR")
                 .takes_value(true)
                 .value_parser(clap::builder::ValueParser::os_string())
-                .display_order(29)
+                .display_order(30)
         )
         .arg(
             Arg::new("UTC")
                 .long("utc")
                 .help("use UTC for date display and timestamps")
-                .display_order(30)
+                .display_order(31)
         )
         .arg(
             Arg::new("DEBUG")
                 .long("debug")
                 .help("print configuration and debugging info")
-                .display_order(31)
+                .display_order(32)
         )
         .arg(
             Arg::new("ZSH_HOT_KEYS")
                 .long("install-zsh-hot-keys")
                 .help("install zsh hot keys to the users home directory, and then exit")
                 .exclusive(true)
-                .display_order(32)
+                .display_order(33)
         )
         .get_matches()
 }
