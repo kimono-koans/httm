@@ -358,7 +358,6 @@ where
                 // canonicalize will read_link/resolve the link for us
                 match path.canonicalize() {
                     Ok(link_target) if !link_target.is_dir() => false,
-                    Ok(link_target) if link_target.starts_with(path) => false,
                     Ok(link_target) => path.ancestors().all(|ancestor| ancestor != link_target),
                     // we get an error? still pass the path on, as we get a good path from the dir entry
                     _ => false,
