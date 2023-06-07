@@ -104,12 +104,12 @@ impl VersionsMap {
         let all_snap_versions: BTreeMap<PathData, Vec<PathData>> = path_set
             .par_iter()
             .map(|pathdata| {
-                let snaps: Vec<PathData> = snaps_selected_for_search
-                    .iter()
-                    .flat_map(|dataset_type| MostProximateAndOptAlts::new(pathdata, dataset_type))
-                    .flat_map(|most| RelativePathAndSnapMounts::new(pathdata, &most))
-                    .flat_map(|search_bundle| search_bundle.versions_processed(&config.uniqueness))
-                    .collect();
+                let snaps: Vec<PathData> =
+                    Self::search_bundles_from_pathdata(pathdata, snaps_selected_for_search)
+                        .flat_map(|search_bundle| {
+                            search_bundle.versions_processed(&config.uniqueness)
+                        })
+                        .collect();
                 (pathdata.clone(), snaps)
             })
             .collect();
@@ -117,6 +117,19 @@ impl VersionsMap {
         let versions_map: VersionsMap = all_snap_versions.into();
 
         versions_map
+    }
+
+    pub fn search_bundles_from_pathdata<'a>(
+        pathdata: &'a PathData,
+        snaps_selected_for_search: &'a [SnapDatasetType],
+    ) -> impl Iterator<Item = RelativePathAndSnapMounts<'a>> {
+        snaps_selected_for_search
+            .iter()
+            .flat_map(|dataset_type| MostProximateAndOptAlts::new(pathdata, dataset_type))
+            .flat_map(|datasets_of_interest| {
+                MostProximateAndOptAlts::into_search_bundles(datasets_of_interest, pathdata)
+            })
+            .flatten()
     }
 
     pub fn is_live_version_redundant(live_pathdata: &PathData, snaps: &[PathData]) -> bool {
@@ -218,14 +231,17 @@ impl<'a> MostProximateAndOptAlts<'a> {
         // will compare the most proximate dataset to our our canonical path and the difference
         // between ZFS mount point and the canonical path is the path we will use to search the
         // hidden snapshot dirs
-        let proximate_dataset_mount: &Path = GLOBAL_CONFIG
+        let proximate_dataset_mount: &Path = match GLOBAL_CONFIG
             .dataset_collection
             .opt_map_of_aliases
             .as_ref()
             .and_then(|map_of_aliases| pathdata.alias_dataset(map_of_aliases))
-            .unwrap_or({
+        {
+            Some(alias_dataset) => alias_dataset,
+            None => {
                 pathdata.proximate_dataset(&GLOBAL_CONFIG.dataset_collection.map_of_datasets)?
-            });
+            }
+        };
 
         let res: Self = match requested_dataset_type {
             SnapDatasetType::MostProximate => {
@@ -254,41 +270,61 @@ impl<'a> MostProximateAndOptAlts<'a> {
 
         Ok(res)
     }
+
+    pub fn into_search_bundles<'b>(
+        datasets_of_interest: MostProximateAndOptAlts<'b>,
+        pathdata: &'b PathData,
+    ) -> HttmResult<Vec<RelativePathAndSnapMounts<'b>>> {
+        let proximate_dataset_mount = datasets_of_interest.proximate_dataset_mount;
+
+        match datasets_of_interest.opt_datasets_of_interest {
+            Some(datasets) => datasets
+                .iter()
+                .map(|dataset_of_interest| {
+                    RelativePathAndSnapMounts::new(
+                        pathdata,
+                        proximate_dataset_mount,
+                        dataset_of_interest,
+                    )
+                })
+                .collect(),
+            None => Ok(vec![RelativePathAndSnapMounts::new(
+                pathdata,
+                proximate_dataset_mount,
+                proximate_dataset_mount,
+            )?]),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct RelativePathAndSnapMounts<'a> {
     pub relative_path: &'a Path,
-    pub snap_mounts: Vec<PathBuf>,
+    pub snap_mounts: &'a Vec<PathBuf>,
 }
 
 impl<'a> RelativePathAndSnapMounts<'a> {
-    pub fn new(
+    fn new(
         pathdata: &'a PathData,
-        most_proximate_and_opt_alts: &MostProximateAndOptAlts,
+        proximate_dataset_mount: &'a Path,
+        dataset_of_interest: &Path,
     ) -> HttmResult<Self> {
         // building our relative path by removing parent below the snap dir
         //
         // for native searches the prefix is are the dirs below the most proximate dataset
         // for user specified dirs/aliases these are specified by the user
-        let relative_path =
-            pathdata.relative_path(most_proximate_and_opt_alts.proximate_dataset_mount)?;
+        let relative_path = pathdata.relative_path(proximate_dataset_mount)?;
 
-        let snap_mounts = match most_proximate_and_opt_alts.opt_datasets_of_interest {
-            None => GLOBAL_CONFIG
-                .dataset_collection
-                .map_of_snaps
-                .get(most_proximate_and_opt_alts.proximate_dataset_mount)
-                .cloned()
-                .unwrap_or_default(),
-            Some(datasets) => datasets
-                .iter()
-                .filter_map(|dataset| GLOBAL_CONFIG.dataset_collection.map_of_snaps.get(dataset))
-                .into_iter()
-                .flatten()
-                .cloned()
-                .collect(),
-        };
+        let snap_mounts = GLOBAL_CONFIG
+            .dataset_collection
+            .map_of_snaps
+            .get(dataset_of_interest)
+            .ok_or_else(|| {
+                HttmError::new(
+                    "httm could find no snap mount for your files.  \
+                Iterator should just ignore/flatten this error.",
+                )
+            })?;
 
         Ok(Self {
             relative_path,
