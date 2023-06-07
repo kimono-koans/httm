@@ -25,7 +25,6 @@ use crate::data::paths::PathData;
 use crate::display_map::helper::PrintAsMap;
 use crate::library::utility::delimiter;
 use crate::lookup::versions::VersionsMap;
-use crate::GLOBAL_CONFIG;
 
 pub struct VersionsDisplayWrapper<'a> {
     pub config: &'a Config,
@@ -101,7 +100,7 @@ impl<'a> Serialize for VersionsDisplayWrapper<'a> {
             .deref()
             .clone()
             .into_iter()
-            .map(|(key, values)| match &GLOBAL_CONFIG.opt_bulk_exclusion {
+            .map(|(key, values)| match &self.config.opt_bulk_exclusion {
                 Some(BulkExclusion::NoLive) => (key.path_buf.display().to_string(), values),
                 Some(BulkExclusion::NoSnap) => (key.path_buf.display().to_string(), vec![key]),
                 None => {
