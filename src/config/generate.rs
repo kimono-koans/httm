@@ -871,7 +871,7 @@ impl Config {
                 // canonicalize() on a deleted relative path will not exist,
                 // so we have to join with the pwd to make a path that
                 // will exist on a snapshot
-                .map(|path| PathData::from(path))
+                .map(PathData::from)
                 .collect()
         } else {
             match exec_mode {

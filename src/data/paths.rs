@@ -103,7 +103,7 @@ impl From<BasicDirEntryInfo> for PathData {
         // this metadata() function will not traverse symlinks
         let opt_metadata = basic_info.path.metadata().ok();
         let path = basic_info.path;
-        let path_metadata = Self::opt_metadata(opt_metadata);
+        let path_metadata = Self::opt_path_metadata(opt_metadata);
 
         Self {
             path_buf: path,
@@ -120,7 +120,7 @@ impl PathData {
         // of input files in Config::from for deleted relative paths, etc.
         let absolute_path: PathBuf = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
 
-        let path_metadata = Self::opt_metadata(opt_metadata);
+        let path_metadata = Self::opt_path_metadata(opt_metadata);
 
         PathData {
             path_buf: absolute_path,
@@ -129,7 +129,7 @@ impl PathData {
     }
 
     // call symlink_metadata, as we need to resolve symlinks to get non-"phantom" metadata
-    fn opt_metadata(opt_metadata: Option<Metadata>) -> Option<PathMetadata> {
+    fn opt_path_metadata(opt_metadata: Option<Metadata>) -> Option<PathMetadata> {
         opt_metadata.and_then(|md| {
             let len = md.len();
             // may fail on systems that don't collect a modify time
@@ -160,25 +160,29 @@ impl PathData {
         // path strip, if aliased
         // fallback if unable to find an alias or strip a prefix
         // (each an indication we should not be trying aliases)
-        if let Some(map_of_aliases) = &GLOBAL_CONFIG.dataset_collection.opt_map_of_aliases {
-            if let Some(alias) = map_of_aliases
-                .iter()
-                // do a search for a key with a value
-                .find_map(|(local_dir, alias_info)| {
-                    if alias_info.remote_dir == proximate_dataset_mount {
-                        return Some(local_dir);
-                    }
+        match &GLOBAL_CONFIG
+            .dataset_collection
+            .opt_map_of_aliases
+            .as_ref()
+            .and_then(|map_of_aliases| {
+                map_of_aliases
+                    .iter()
+                    // do a search for a key with a value
+                    .find_map(|(local_dir, alias_info)| {
+                        if alias_info.remote_dir == proximate_dataset_mount {
+                            return Some(local_dir);
+                        }
 
-                    None
-                })
-                .and_then(|local_dir| self.path_buf.strip_prefix(local_dir).ok())
-            {
-                return Ok(alias);
+                        None
+                    })
+                    .and_then(|local_dir| self.path_buf.strip_prefix(local_dir).ok())
+            }) {
+            Some(alias) => Ok(alias),
+            None => {
+                // default path strip
+                Ok(self.path_buf.strip_prefix(proximate_dataset_mount)?)
             }
         }
-
-        // default path strip
-        Ok(self.path_buf.strip_prefix(proximate_dataset_mount)?)
     }
 
     pub fn proximate_dataset<'a>(

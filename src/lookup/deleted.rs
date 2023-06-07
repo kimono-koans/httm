@@ -25,7 +25,7 @@ use hashbrown::{HashMap, HashSet};
 
 use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::library::results::HttmResult;
-use crate::lookup::versions::{RelativePathAndSnapMounts, VersionsMap};
+use crate::lookup::versions::{MostProximateAndOptAlts, RelativePathAndSnapMounts};
 use crate::GLOBAL_CONFIG;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -49,11 +49,12 @@ impl From<&Path> for DeletedFiles {
         // we need to make certain that what we return from possibly multiple datasets are unique
         // as these will be the filenames that populate our interactive views, so deduplicate
         // by filename and latest file version here
-        let basic_info_map: HashMap<OsString, BasicDirEntryInfo> =
-            VersionsMap::search_bundles_from_pathdata(
-                &requested_dir_pathdata,
-                requested_snap_datasets,
-            )
+        let basic_info_map: HashMap<OsString, BasicDirEntryInfo> = requested_snap_datasets
+            .iter()
+            .flat_map(|dataset_type| {
+                MostProximateAndOptAlts::new(&requested_dir_pathdata, dataset_type)
+            })
+            .flat_map(|most| RelativePathAndSnapMounts::new(&requested_dir_pathdata, &most))
             .flat_map(|search_bundle| {
                 Self::unique_deleted_for_dir(&requested_dir_pathdata.path_buf, &search_bundle)
             })
@@ -89,7 +90,10 @@ impl DeletedFiles {
             .collect();
 
         let unique_snap_filenames: HashMap<OsString, BasicDirEntryInfo> =
-            Self::unique_snap_filenames(search_bundle.snap_mounts, search_bundle.relative_path);
+            Self::unique_snap_filenames(
+                search_bundle.snap_mounts.as_slice(),
+                search_bundle.relative_path,
+            );
 
         // compare local filenames to all unique snap filenames - none values are unique, here
         let all_deleted_versions = unique_snap_filenames
@@ -144,7 +148,10 @@ impl From<Vec<PathData>> for LastInTimeSet {
         let res = path_set
             .iter()
             .filter_map(|pathdata| {
-                VersionsMap::search_bundles_from_pathdata(pathdata, snaps_selected_for_search)
+                snaps_selected_for_search
+                    .iter()
+                    .flat_map(|dataset_type| MostProximateAndOptAlts::new(pathdata, dataset_type))
+                    .flat_map(|most| RelativePathAndSnapMounts::new(pathdata, &most))
                     .filter_map(|search_bundle| search_bundle.last_version())
                     .max_by_key(|pathdata| pathdata.md_infallible().modify_time)
                     .map(|pathdata| pathdata.path_buf)
