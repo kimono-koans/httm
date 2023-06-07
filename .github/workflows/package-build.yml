@@ -1,9 +1,9 @@
-name: Build Debian/Redhat packages
+name: release
 
 on:
   push:
     # Pattern matched against refs/tags
-    tags:        
+    tags:
       - '*'           # Push events to every tag not containing /
       # Allow manual triggering
   workflow_dispatch:
@@ -12,7 +12,7 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
+  debian:
     runs-on: ubuntu-20.04
 
     steps:
@@ -32,6 +32,16 @@ jobs:
       if: ${{startsWith(github.ref, 'refs/tags/') }}
       with:
           files: target/debian/httm*.*
+
+  brew:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: mislav/bump-homebrew-formula-action@v2
+        with:
+          # A PR will be sent to github.com/Homebrew/homebrew-core to update this formula:
+          formula-name: httm
+        env:
+          COMMITTER_TOKEN: ${{ secrets.COMMITTER_TOKEN }}
 
   # publish:
   #   runs-on: ubuntu-20.04
