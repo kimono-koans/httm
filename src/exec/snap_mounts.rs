@@ -129,7 +129,7 @@ impl SnapshotMounts {
             .into_group_map_by(|snapshot_name| {
                 let (pool_name, _rest) = snapshot_name
                     .split_once('/')
-                    .unwrap_or((snapshot_name.as_ref(), snapshot_name.as_ref()));
+                    .unwrap_or_else(|| (snapshot_name.as_ref(), snapshot_name.as_ref()));
                 pool_name.to_owned()
             })
             .iter_mut()

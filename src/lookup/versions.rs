@@ -261,7 +261,7 @@ impl<'a> MostProximateAndOptAlts<'a> {
                     proximate_dataset_mount: &snap_types_for_search.proximate_dataset_mount,
                     opt_datasets_of_interest: &snap_types_for_search.opt_datasets_of_interest,
                 })
-                .ok_or({
+                .ok_or_else(|| {
                     HttmError::new(
                         "If you are here, a map of alts is missing for a supplied mount, \
                     this is fine as we should just flatten/ignore this error.",
