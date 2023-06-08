@@ -119,6 +119,7 @@ impl VersionsMap {
         versions_map
     }
 
+    #[inline(always)]
     pub fn search_bundles_from_pathdata<'a>(
         pathdata: &'a PathData,
         snaps_selected_for_search: &'a [SnapDatasetType],
@@ -392,7 +393,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
             ListSnapsOfType::All => {
                 let mut sorted_versions: Vec<CompareVersionsContainer> = iter.collect();
 
-                sorted_versions.par_sort_unstable();
+                sorted_versions.sort_unstable();
 
                 sorted_versions.into_iter().map(PathData::from).collect()
             }
