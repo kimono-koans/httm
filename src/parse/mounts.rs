@@ -178,8 +178,8 @@ impl BaseFilesystemInfo {
 
                     true
                 })
-                .partition_map(|mount_info| match &mount_info.fstype.as_str() {
-                    &ZFS_FSTYPE => Either::Left((
+                .partition_map(|mount_info| match mount_info.fstype.as_str() {
+                    ZFS_FSTYPE => Either::Left((
                         mount_info.dest,
                         DatasetMetadata {
                             source: mount_info.source.into_os_string(),
@@ -187,7 +187,7 @@ impl BaseFilesystemInfo {
                             mount_type: MountType::Local,
                         },
                     )),
-                    &SMB_FSTYPE | &AFP_FSTYPE | &NFS_FSTYPE => {
+                    SMB_FSTYPE | AFP_FSTYPE | NFS_FSTYPE => {
                         match fs_type_from_hidden_dir(&mount_info.dest) {
                             Some(FilesystemType::Zfs) => Either::Left((
                                 mount_info.dest,
@@ -208,7 +208,7 @@ impl BaseFilesystemInfo {
                             _ => Either::Right(mount_info.dest),
                         }
                     }
-                    &BTRFS_FSTYPE => {
+                    BTRFS_FSTYPE => {
                         let keyed_options: BTreeMap<String, String> = mount_info
                             .options
                             .iter()
@@ -231,7 +231,7 @@ impl BaseFilesystemInfo {
                             },
                         ))
                     }
-                    &NILFS2_FSTYPE => Either::Left((
+                    NILFS2_FSTYPE => Either::Left((
                         mount_info.dest,
                         DatasetMetadata {
                             source: mount_info.source.into_os_string(),
