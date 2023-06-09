@@ -115,10 +115,10 @@ impl MapOfAliases {
                             dir
                         )
                         });
-                    None
-                } else {
-                    Some((local_dir, snap_dir))
+                    return None
                 }
+                
+                Some((local_dir, snap_dir))
             })
             .filter_map(|(local_dir, remote_dir)| {
                 fs_type_from_hidden_dir(&remote_dir)
