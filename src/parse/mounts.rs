@@ -328,11 +328,11 @@ impl BaseFilesystemInfo {
         let map_of_snaps: &MapOfSnaps = &self.map_of_snaps;
 
         if map_of_datasets
-            .iter()
+            .par_iter()
             .any(|(_mount, dataset_info)| dataset_info.fs_type == FilesystemType::Btrfs)
         {
             let vec_snaps: Vec<&PathBuf> = map_of_datasets
-                .iter()
+                .par_iter()
                 .filter(|(_mount, dataset_info)| {
                     if dataset_info.fs_type == FilesystemType::Btrfs {
                         return true;

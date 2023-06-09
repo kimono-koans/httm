@@ -131,11 +131,9 @@ impl PathData {
     // call symlink_metadata, as we need to resolve symlinks to get non-"phantom" metadata
     fn opt_metadata(opt_metadata: Option<Metadata>) -> Option<PathMetadata> {
         opt_metadata.and_then(|md| {
-            let len = md.len();
             // may fail on systems that don't collect a modify time
-            let opt_time = Self::modify_time(&md);
-            opt_time.map(|time| PathMetadata {
-                size: len,
+            Self::modify_time(&md).map(|time| PathMetadata {
+                size: md.len(),
                 modify_time: time,
             })
         })
