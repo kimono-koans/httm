@@ -95,12 +95,12 @@ impl SnapshotMounts {
             .iter()
             .flat_map(|(_pathdata, datasets)| datasets)
             .map(|mount| {
-            let dataset: String = match &GLOBAL_CONFIG.dataset_collection.opt_map_of_aliases {
+            let dataset = match &GLOBAL_CONFIG.dataset_collection.opt_map_of_aliases {
                 None => {
                     match GLOBAL_CONFIG.dataset_collection.map_of_datasets.get(&mount.path_buf) {
                         Some(dataset_info) => {
                             if let FilesystemType::Zfs = dataset_info.fs_type {
-                                Ok(dataset_info.source.clone())
+                                Ok(dataset_info.source.to_string_lossy())
                             } else {
                                 Err(HttmError::new("httm does not currently support snapshot-ing non-ZFS filesystems."))
                             }

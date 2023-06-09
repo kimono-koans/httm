@@ -26,7 +26,9 @@ use which::which;
 use crate::library::results::{HttmError, HttmResult};
 use crate::parse::aliases::FilesystemType;
 use crate::parse::mounts::{DatasetMetadata, MountType};
-use crate::{BTRFS_SNAPPER_HIDDEN_DIRECTORY, BTRFS_SNAPPER_SUFFIX, ZFS_SNAPSHOT_DIRECTORY};
+use crate::{
+    BTRFS_SNAPPER_HIDDEN_DIRECTORY, BTRFS_SNAPPER_SUFFIX, ROOT_DIRECTORY, ZFS_SNAPSHOT_DIRECTORY,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MapOfSnaps {
@@ -89,10 +91,12 @@ impl MapOfSnaps {
     }
 
     fn btrfs_root(map_of_datasets: &HashMap<PathBuf, DatasetMetadata>) -> Option<&PathBuf> {
+        let root_dir = Path::new(ROOT_DIRECTORY);
+
         map_of_datasets
             .iter()
             .filter(|(_mount, dataset_info)| dataset_info.fs_type == FilesystemType::Btrfs)
-            .find(|(_mount, dataset_info)| dataset_info.source.as_str() == "/")
+            .find(|(_mount, dataset_info)| dataset_info.source == root_dir)
             .map(|(mount, _dataset_info)| mount)
     }
 

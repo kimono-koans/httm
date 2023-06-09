@@ -139,7 +139,7 @@ impl DeconstructedSnapPathData {
         match opt_dataset_md {
             Some(md) if md.fs_type == FilesystemType::Zfs => {
                 opt_split.map(|(snap, relpath)| DeconstructedSnapPathData {
-                    snap_name: format!("{}@{snap}", md.source),
+                    snap_name: format!("{}@{snap}", md.source.to_string_lossy()),
                     relpath: if include_relative_path {
                         Some(PathBuf::from(relpath))
                     } else {

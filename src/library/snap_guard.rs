@@ -48,7 +48,10 @@ impl TryFrom<&Path> for SnapGuard {
             .unwrap()
             .source;
 
-        SnapGuard::new(dataset_name, PrecautionarySnapType::PreRestore)
+        SnapGuard::new(
+            &dataset_name.to_string_lossy(),
+            PrecautionarySnapType::PreRestore,
+        )
     }
 }
 

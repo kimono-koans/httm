@@ -67,6 +67,7 @@ pub fn user_has_zfs_allow_snap_priv(new_file_path: &Path) -> HttmResult<()> {
         .source;
 
     let mut process_args = vec!["allow"];
+    let dataset_name = &dataset_name.to_string_lossy();
     process_args.push(dataset_name);
 
     let process_output = ExecProcess::new(zfs_command).args(&process_args).output()?;

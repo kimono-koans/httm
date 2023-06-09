@@ -46,7 +46,7 @@ pub enum MountType {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DatasetMetadata {
-    pub source: String,
+    pub source: PathBuf,
     pub fs_type: FilesystemType,
     pub mount_type: MountType,
 }
@@ -179,7 +179,7 @@ impl BaseFilesystemInfo {
                     &ZFS_FSTYPE => Either::Left((
                         mount_info.dest,
                         DatasetMetadata {
-                            source: mount_info.source.to_string_lossy().into_owned(),
+                            source: mount_info.source,
                             fs_type: FilesystemType::Zfs,
                             mount_type: MountType::Local,
                         },
@@ -189,7 +189,7 @@ impl BaseFilesystemInfo {
                             Some(FilesystemType::Zfs) => Either::Left((
                                 mount_info.dest,
                                 DatasetMetadata {
-                                    source: mount_info.source.to_string_lossy().into_owned(),
+                                    source: mount_info.source,
                                     fs_type: FilesystemType::Zfs,
                                     mount_type: MountType::Network,
                                 },
@@ -197,7 +197,7 @@ impl BaseFilesystemInfo {
                             Some(FilesystemType::Btrfs) => Either::Left((
                                 mount_info.dest,
                                 DatasetMetadata {
-                                    source: mount_info.source.to_string_lossy().into_owned(),
+                                    source: mount_info.source,
                                     fs_type: FilesystemType::Btrfs,
                                     mount_type: MountType::Network,
                                 },
@@ -215,8 +215,8 @@ impl BaseFilesystemInfo {
                             .collect();
 
                         let source = match keyed_options.get("subvol") {
-                            Some(subvol) => subvol.clone(),
-                            None => mount_info.source.to_string_lossy().into_owned(),
+                            Some(subvol) => PathBuf::from(subvol),
+                            None => mount_info.source,
                         };
 
                         Either::Left((
@@ -231,7 +231,7 @@ impl BaseFilesystemInfo {
                     &NILFS2_FSTYPE => Either::Left((
                         mount_info.dest,
                         DatasetMetadata {
-                            source: mount_info.source.to_string_lossy().into_owned(),
+                            source: mount_info.source,
                             fs_type: FilesystemType::Nilfs2,
                             mount_type: MountType::Local,
                         },
@@ -286,21 +286,21 @@ impl BaseFilesystemInfo {
             .map(|(filesystem_and_mount,_)| filesystem_and_mount )
             // mount cmd includes and " on " between src and dest of mount
             .filter_map(|filesystem_and_mount| filesystem_and_mount.split_once(" on "))
-            .map(|(filesystem, mount)| (filesystem.to_owned(), PathBuf::from(mount)))
+            .map(|(filesystem, mount)| (PathBuf::from(filesystem), PathBuf::from(mount)))
             // sanity check: does the filesystem exist and have a ZFS hidden dir? if not, filter it out
             // and flip around, mount should key of key/value
-            .partition_map(|(filesystem, mount)| {
+            .partition_map(|(source, mount)| {
                 match fs_type_from_hidden_dir(&mount) {
                     Some(FilesystemType::Zfs) => {
                         Either::Left((mount, DatasetMetadata {
-                            source: filesystem,
+                            source,
                             fs_type: FilesystemType::Zfs,
                             mount_type: MountType::Local
                         }))
                     },
                     Some(FilesystemType::Btrfs) => {
                         Either::Left((mount, DatasetMetadata{
-                            source: filesystem,
+                            source,
                             fs_type: FilesystemType::Btrfs,
                             mount_type: MountType::Local
                         }))
