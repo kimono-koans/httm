@@ -326,7 +326,7 @@ fn cmp_path<A: AsRef<Path>, B: AsRef<Path>>(a: A, b: B) -> Option<PathBuf> {
         .map(|(a_path, _b_path)| a_path)
         .collect();
 
-    if !common_path.as_os_str().is_empty() && common_path.as_os_str() != RootDir.as_os_str() {
+    if common_path.components().count() > 1 {
         Some(common_path)
     } else {
         None
