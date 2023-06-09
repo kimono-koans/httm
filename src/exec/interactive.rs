@@ -552,22 +552,20 @@ pub fn select_restore_view(
         item_reader.of_bufread(Box::new(Cursor::new(preview_buffer.trim().to_owned())));
 
     // run_with() reads and shows items from the thread stream created above
-    let selected_items = if let Some(output) = skim::Skim::run_with(&skim_opts, Some(items)) {
-        if output.is_abort {
+    let res = match skim::Skim::run_with(&skim_opts, Some(items)) {
+        Some(output) if output.is_abort => {
             eprintln!("httm select/restore/purge session was aborted.  Quitting.");
-            std::process::exit(0)
-        } else {
-            output.selected_items
+            std::process::exit(0);
         }
-    } else {
-        return Err(HttmError::new("httm select/restore/purge session failed.").into());
+        Some(output) => output
+            .selected_items
+            .iter()
+            .map(|i| i.output().into_owned())
+            .collect(),
+        None => {
+            return Err(HttmError::new("httm select/restore/purge session failed.").into());
+        }
     };
 
-    // output() converts the filename/raw path to a absolute path string for use elsewhere
-    let output = selected_items
-        .iter()
-        .map(|i| i.output().into_owned())
-        .collect();
-
-    Ok(output)
+    Ok(res)
 }

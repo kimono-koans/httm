@@ -559,13 +559,13 @@ impl<T: AsRef<Path>> ComparePathMetadata for T {
         let pathdata = PathData::from(self.as_ref());
         pathdata.metadata.map(|md| {
             if self.as_ref().is_dir() {
-                PathMetadata {
+                return PathMetadata {
                     modify_time: md.modify_time,
                     size: PHANTOM_SIZE,
-                }
-            } else {
-                md
+                };
             }
+
+            md
         })
     }
 
@@ -578,17 +578,17 @@ impl ComparePathMetadata for PathData {
     fn opt_metadata(&self) -> Option<PathMetadata> {
         self.metadata.map(|md| {
             if self.path_buf.is_dir() {
-                PathMetadata {
+                return PathMetadata {
                     modify_time: md.modify_time,
                     size: PHANTOM_SIZE,
-                }
-            } else {
-                md
+                };
             }
+
+            md
         })
     }
 
     fn path(&self) -> &Path {
-        self.path_buf.as_path()
+        &self.path_buf
     }
 }
