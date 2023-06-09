@@ -140,30 +140,29 @@ impl InteractiveBrowseResult {
                 .expect("Could not initialized skim options for browse_view");
 
             // run_with() reads and shows items from the thread stream created above
-            let selected_items =
-                if let Some(output) = skim::Skim::run_with(&skim_opts, Some(rx_item)) {
+            let res = match skim::Skim::run_with(&skim_opts, Some(rx_item)) {
+                Some(output) if output.is_abort => {
+                    eprintln!("httm interactive file browse session was aborted.  Quitting.");
+                    std::process::exit(0)
+                }
+                Some(output) => {
                     // hangup the channel so the background recursive search can gracefully cleanup and exit
                     drop(hangup_tx);
 
-                    if output.is_abort {
-                        eprintln!("httm interactive file browse session was aborted.  Quitting.");
-                        std::process::exit(0)
-                    } else {
-                        output.selected_items
-                    }
-                } else {
+                    output
+                        .selected_items
+                        .iter()
+                        .map(|i| PathData::from(Path::new(&i.output().to_string())))
+                        .collect()
+                }
+                None => {
                     return Err(HttmError::new(
                         "httm interactive file browse session failed.",
                     ));
-                };
+                }
+            };
 
-            // output() converts the filename/raw path to a absolute path string for use elsewhere
-            let output: Vec<PathData> = selected_items
-                .iter()
-                .map(|i| PathData::from(Path::new(&i.output().to_string())))
-                .collect();
-
-            Ok(output)
+            Ok(res)
         });
 
         match display_handle.join() {
