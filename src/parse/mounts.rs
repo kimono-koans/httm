@@ -327,23 +327,20 @@ impl BaseFilesystemInfo {
         let map_of_datasets: &MapOfDatasets = &self.map_of_datasets;
         let map_of_snaps: &MapOfSnaps = &self.map_of_snaps;
 
-        let btrfs_datasets: Vec<&PathBuf> = map_of_datasets
+        if map_of_datasets
             .iter()
-            .filter_map(|(mount, dataset_info)| {
-                if dataset_info.fs_type == FilesystemType::Btrfs {
-                    return Some(mount);
-                }
+            .any(|(_mount, dataset_info)| dataset_info.fs_type == FilesystemType::Btrfs)
+        {
+            let vec_snaps: Vec<&PathBuf> = map_of_datasets
+                .iter()
+                .filter(|(_mount, dataset_info)| {
+                    if dataset_info.fs_type == FilesystemType::Btrfs {
+                        return true;
+                    }
 
-                None
-            })
-            .collect();
-
-        if !btrfs_datasets.is_empty() {
-            // since snapshots ZFS reside on multiple datasets
-            // never have a common snap path
-            let vec_snaps: Vec<&PathBuf> = btrfs_datasets
-                .into_iter()
-                .filter_map(|mount| map_of_snaps.get(mount))
+                    false
+                })
+                .filter_map(|(mount, _dataset_info)| map_of_snaps.get(mount))
                 .flatten()
                 .collect();
 
