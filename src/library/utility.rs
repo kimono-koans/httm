@@ -21,7 +21,7 @@ use std::{
     io::{self, Read, Write},
     iter::Iterator,
     os::unix::fs::MetadataExt,
-    path::{Component::RootDir, Path, PathBuf},
+    path::{Path, PathBuf},
     time::SystemTime,
 };
 
