@@ -73,7 +73,6 @@ pub trait MaxLen {
 }
 
 impl MaxLen for FilterDirs {
-    #[inline(always)]
     fn max_len(&self) -> usize {
         self.max_len
     }
@@ -94,7 +93,6 @@ impl Deref for MapOfDatasets {
 }
 
 impl MaxLen for MapOfDatasets {
-    #[inline(always)]
     fn max_len(&self) -> usize {
         self.max_len
     }
