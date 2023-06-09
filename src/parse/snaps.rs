@@ -165,7 +165,7 @@ impl MapOfSnaps {
                 MountIter::new()?
                     .flatten()
                     .par_bridge()
-                    .filter(|mount_info| mount_info.source.as_path() == source_path)
+                    .filter(|mount_info| mount_info.source == source_path)
                     .filter(|mount_info| mount_info.options.iter().any(|opt| opt.contains("cp=")))
                     .map(|mount_info| mount_info.dest)
                     .collect()
