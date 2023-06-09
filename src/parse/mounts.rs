@@ -16,7 +16,6 @@
 // that was distributed with this source code.
 
 use std::collections::BTreeMap;
-use std::ffi::OsString;
 use std::ops::Deref;
 use std::{path::PathBuf, process::Command as ExecProcess};
 
@@ -45,11 +44,9 @@ pub enum MountType {
     Network,
 }
 
-// Why use an OsString instead of a PathBuf for the source?
-// Because ZFS sources aren't paths, and most/many fs sources aren't either
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DatasetMetadata {
-    pub source: OsString,
+    pub source: PathBuf,
     pub fs_type: FilesystemType,
     pub mount_type: MountType,
 }
@@ -182,7 +179,7 @@ impl BaseFilesystemInfo {
                     ZFS_FSTYPE => Either::Left((
                         mount_info.dest,
                         DatasetMetadata {
-                            source: mount_info.source.into_os_string(),
+                            source: mount_info.source,
                             fs_type: FilesystemType::Zfs,
                             mount_type: MountType::Local,
                         },
@@ -192,7 +189,7 @@ impl BaseFilesystemInfo {
                             Some(FilesystemType::Zfs) => Either::Left((
                                 mount_info.dest,
                                 DatasetMetadata {
-                                    source: mount_info.source.into_os_string(),
+                                    source: mount_info.source,
                                     fs_type: FilesystemType::Zfs,
                                     mount_type: MountType::Network,
                                 },
@@ -200,7 +197,7 @@ impl BaseFilesystemInfo {
                             Some(FilesystemType::Btrfs) => Either::Left((
                                 mount_info.dest,
                                 DatasetMetadata {
-                                    source: mount_info.source.into_os_string(),
+                                    source: mount_info.source,
                                     fs_type: FilesystemType::Btrfs,
                                     mount_type: MountType::Network,
                                 },
@@ -218,8 +215,8 @@ impl BaseFilesystemInfo {
                             .collect();
 
                         let source = match keyed_options.get("subvol") {
-                            Some(subvol) => OsString::from(subvol),
-                            None => mount_info.source.into_os_string(),
+                            Some(subvol) => PathBuf::from(subvol),
+                            None => mount_info.source,
                         };
 
                         Either::Left((
@@ -234,7 +231,7 @@ impl BaseFilesystemInfo {
                     NILFS2_FSTYPE => Either::Left((
                         mount_info.dest,
                         DatasetMetadata {
-                            source: mount_info.source.into_os_string(),
+                            source: mount_info.source,
                             fs_type: FilesystemType::Nilfs2,
                             mount_type: MountType::Local,
                         },
@@ -289,7 +286,7 @@ impl BaseFilesystemInfo {
             .map(|(filesystem_and_mount,_)| filesystem_and_mount )
             // mount cmd includes and " on " between src and dest of mount
             .filter_map(|filesystem_and_mount| filesystem_and_mount.split_once(" on "))
-            .map(|(filesystem, mount)| (OsString::from(filesystem), PathBuf::from(mount)))
+            .map(|(filesystem, mount)| (PathBuf::from(filesystem), PathBuf::from(mount)))
             // sanity check: does the filesystem exist and have a ZFS hidden dir? if not, filter it out
             // and flip around, mount should key of key/value
             .partition_map(|(source, mount)| {
