@@ -282,7 +282,6 @@ pub fn read_stdin() -> HttmResult<Vec<PathData>> {
         buffer_string
             .split(&['\n', '\0'])
             .filter(|s| !s.is_empty())
-            .map(Path::new)
             .map(PathData::from)
             .collect()
     } else if buffer_string.contains('\"') {
@@ -292,14 +291,12 @@ pub fn read_stdin() -> HttmResult<Vec<PathData>> {
             .map(str::trim)
             // remove any empty strings
             .filter(|s| !s.is_empty())
-            .map(Path::new)
             .map(PathData::from)
             .collect()
     } else {
         buffer_string
             .split_ascii_whitespace()
             .filter(|s| !s.is_empty())
-            .map(Path::new)
             .map(PathData::from)
             .collect()
     };
