@@ -67,17 +67,15 @@ impl<'a> From<&MountsForFiles<'a>> for PrintAsMap {
                     .iter()
                     .filter_map(|value| match mounts_for_files.mount_display() {
                         MountDisplay::Target => Some(value.path_buf.to_string_lossy()),
-                        MountDisplay::Source => {
-                            let opt_md = &GLOBAL_CONFIG
-                                .dataset_collection
-                                .map_of_datasets
-                                .get(&value.path_buf);
-                            opt_md.map(|md| md.source.to_string_lossy())
-                        }
-                        MountDisplay::RelativePath => {
-                            let opt_rel_path = key.relative_path(value.path_buf.as_path()).ok();
-                            opt_rel_path.map(|path| path.to_string_lossy())
-                        }
+                        MountDisplay::Source => GLOBAL_CONFIG
+                            .dataset_collection
+                            .map_of_datasets
+                            .get(&value.path_buf)
+                            .map(|md| md.source.to_string_lossy()),
+                        MountDisplay::RelativePath => key
+                            .relative_path(value.path_buf.as_path())
+                            .ok()
+                            .map(|path| path.to_string_lossy()),
                     })
                     .map(|s| s.to_string())
                     .collect();
