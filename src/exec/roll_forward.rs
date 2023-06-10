@@ -151,8 +151,7 @@ impl RollForward {
         let zfs_command = which("zfs").map_err(|_err| {
             HttmError::new("'zfs' command not found. Make sure the command 'zfs' is in your path.")
         })?;
-        let mut process_args = vec!["diff", "-H", "-t"];
-        process_args.push(full_snapshot_name);
+        let process_args = vec!["diff", "-H", "-t", full_snapshot_name];
 
         let process_handle = ExecProcess::new(zfs_command)
             .args(&process_args)

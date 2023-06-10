@@ -62,7 +62,6 @@ pub struct SnapGuard {
 impl SnapGuard {
     pub fn new(dataset_name: &str, snap_type: PrecautionarySnapType) -> HttmResult<Self> {
         let zfs_command = which("zfs")?;
-        let mut process_args = vec!["snapshot".to_owned()];
 
         let timestamp = date_string(
             GLOBAL_CONFIG.requested_utc_offset,
@@ -97,7 +96,7 @@ impl SnapGuard {
             }
         };
 
-        process_args.push(new_snap_name.clone());
+        let process_args = vec!["snapshot".to_owned(), new_snap_name.clone()];
 
         let process_output = ExecProcess::new(zfs_command).args(&process_args).output()?;
         let stderr_string = std::str::from_utf8(&process_output.stderr)?.trim();
@@ -139,8 +138,7 @@ impl SnapGuard {
 
     pub fn rollback(&self) -> HttmResult<()> {
         let zfs_command = which("zfs")?;
-        let mut process_args = vec!["rollback", "-r"];
-        process_args.push(&self.inner);
+        let process_args = vec!["rollback", "-r", &self.inner];
 
         let process_output = ExecProcess::new(zfs_command).args(&process_args).output()?;
         let stderr_string = std::str::from_utf8(&process_output.stderr)?.trim();

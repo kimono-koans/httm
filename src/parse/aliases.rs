@@ -117,7 +117,7 @@ impl MapOfAliases {
                         });
                     return None
                 }
-                
+
                 Some((local_dir, snap_dir))
             })
             .filter_map(|(local_dir, remote_dir)| {

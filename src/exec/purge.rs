@@ -105,8 +105,7 @@ impl PurgeSnaps {
             HttmError::new("'zfs' command not found. Make sure the command 'zfs' is in your path.")
         })?;
         snap_name_map.values().flatten().try_for_each( |snapshot_name| {
-            let mut process_args = vec!["destroy".to_owned()];
-            process_args.push(snapshot_name.clone());
+            let process_args = vec!["destroy".to_owned(), snapshot_name.clone()];
 
             let process_output = ExecProcess::new(&zfs_command).args(&process_args).output()?;
             let stderr_string = std::str::from_utf8(&process_output.stderr)?.trim();
