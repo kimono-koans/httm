@@ -206,12 +206,12 @@ impl BaseFilesystemInfo {
                         }
                     }
                     BTRFS_FSTYPE => {
-                        let keyed_options: BTreeMap<String, String> = mount_info
+                        let keyed_options: BTreeMap<&str, &str> = mount_info
                             .options
                             .iter()
                             .filter(|line| line.contains('='))
                             .filter_map(|line| line.split_once('='))
-                            .map(|(key, value)| (key.to_owned(), value.to_owned()))
+                            .map(|(key, value)| (key, value))
                             .collect();
 
                         let source = match keyed_options.get("subvol") {
