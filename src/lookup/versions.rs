@@ -121,9 +121,7 @@ impl VersionsMap {
         snaps_selected_for_search
             .iter()
             .flat_map(|dataset_type| MostProximateAndOptAlts::new(pathdata, dataset_type))
-            .flat_map(|datasets_of_interest| {
-                MostProximateAndOptAlts::into_search_bundles(datasets_of_interest, pathdata)
-            })
+            .flat_map(|datasets_of_interest| datasets_of_interest.into_search_bundles(pathdata))
             .flatten()
     }
 
@@ -267,13 +265,13 @@ impl<'a> MostProximateAndOptAlts<'a> {
         Ok(res)
     }
 
-    pub fn into_search_bundles<'b>(
-        datasets_of_interest: MostProximateAndOptAlts<'b>,
-        pathdata: &'b PathData,
-    ) -> HttmResult<Vec<RelativePathAndSnapMounts<'b>>> {
-        let proximate_dataset_mount = datasets_of_interest.proximate_dataset_mount;
+    pub fn into_search_bundles(
+        &self,
+        pathdata: &'a PathData,
+    ) -> HttmResult<Vec<RelativePathAndSnapMounts<'a>>> {
+        let proximate_dataset_mount = self.proximate_dataset_mount;
 
-        match datasets_of_interest.opt_datasets_of_interest {
+        match self.opt_datasets_of_interest {
             Some(datasets) => datasets
                 .iter()
                 .map(|dataset_of_interest| {
