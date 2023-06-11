@@ -331,7 +331,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
     pub fn versions_processed(&'a self, uniqueness: &ListSnapsOfType) -> Vec<PathData> {
         let all_versions = self.versions_unprocessed(uniqueness);
 
-        let sorted_versions: Vec<PathData> = Self::process_versions(all_versions, uniqueness);
+        let sorted_versions: Vec<PathData> = Self::sort_dedup_versions(all_versions, uniqueness);
 
         sorted_versions
     }
@@ -379,8 +379,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
     }
 
     // remove duplicates with the same system modify time and size/file len (or contents! See --uniqueness)
-    #[allow(clippy::mutable_key_type)]
-    fn process_versions(
+    fn sort_dedup_versions(
         iter: impl ParallelIterator<Item = CompareVersionsContainer>,
         snaps_of_type: &ListSnapsOfType,
     ) -> Vec<PathData> {
