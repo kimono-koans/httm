@@ -22,7 +22,6 @@ mod data {
 }
 mod display_map {
     pub mod format;
-    pub mod helper;
 }
 mod display_versions {
     pub mod format;
@@ -62,7 +61,7 @@ mod parse {
     pub mod snaps;
 }
 
-use crate::display_map::helper::PrintAsMap;
+use crate::display_map::format::PrintAsMap;
 use exec::purge::PurgeSnaps;
 use exec::roll_forward::RollForward;
 use exec::snap_mounts::SnapshotMounts;

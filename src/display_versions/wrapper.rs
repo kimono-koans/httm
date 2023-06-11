@@ -22,7 +22,7 @@ use serde::{Serialize, Serializer};
 
 use crate::config::generate::{BulkExclusion, Config, ExecMode, PrintMode};
 use crate::data::paths::PathData;
-use crate::display_map::helper::PrintAsMap;
+use crate::display_map::format::PrintAsMap;
 use crate::library::utility::delimiter;
 use crate::lookup::versions::VersionsMap;
 

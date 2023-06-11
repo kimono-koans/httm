@@ -17,7 +17,7 @@
 
 use crate::config::generate::NumVersionsMode;
 use crate::data::paths::PathData;
-use crate::display_map::helper::PrintAsMap;
+use crate::display_map::format::PrintAsMap;
 use crate::lookup::versions::VersionsMap;
 use crate::VersionsDisplayWrapper;
 
