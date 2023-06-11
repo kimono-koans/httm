@@ -120,6 +120,7 @@ pub enum DisplaySetType {
 }
 
 impl From<usize> for DisplaySetType {
+    #[inline]
     fn from(value: usize) -> Self {
         match value {
             idx if idx == 0 => DisplaySetType::IsSnap,
