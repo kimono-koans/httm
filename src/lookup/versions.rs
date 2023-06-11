@@ -329,17 +329,13 @@ impl<'a> RelativePathAndSnapMounts<'a> {
     pub fn versions_processed(&'a self, uniqueness: &ListSnapsOfType) -> Vec<PathData> {
         let all_versions = self.versions_unprocessed(uniqueness);
 
-        let sorted_versions: Vec<PathData> = Self::sort_dedup_versions(all_versions, uniqueness);
-
-        sorted_versions
+        Self::sort_dedup_versions(all_versions, uniqueness)
     }
 
     pub fn last_version(&self) -> Option<PathData> {
         let mut sorted_versions = self.versions_processed(&ListSnapsOfType::All);
 
-        let res: Option<PathData> = sorted_versions.pop();
-
-        res
+        sorted_versions.pop()
     }
 
     fn versions_unprocessed(
