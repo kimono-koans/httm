@@ -16,7 +16,7 @@
 // that was distributed with this source code.
 
 use std::{
-    collections::{BTreeMap, BTreeSet},
+    collections::BTreeMap,
     io::ErrorKind,
     ops::Deref,
     ops::DerefMut,
@@ -384,21 +384,14 @@ impl<'a> RelativePathAndSnapMounts<'a> {
         iter: impl ParallelIterator<Item = CompareVersionsContainer>,
         snaps_of_type: &ListSnapsOfType,
     ) -> Vec<PathData> {
+        let mut versions: Vec<CompareVersionsContainer> = iter.collect();
+        versions.sort_unstable();
+
         match snaps_of_type {
-            ListSnapsOfType::All => {
-                let mut sorted_versions: Vec<CompareVersionsContainer> = iter.collect();
-
-                sorted_versions.sort_unstable();
-
-                sorted_versions.into_iter().map(PathData::from).collect()
-            }
+            ListSnapsOfType::All => versions.into_iter().map(PathData::from).collect(),
             ListSnapsOfType::UniqueContents | ListSnapsOfType::UniqueMetadata => {
-                let unique_and_sorted_versions: BTreeSet<CompareVersionsContainer> = iter.collect();
-
-                unique_and_sorted_versions
-                    .into_iter()
-                    .map(PathData::from)
-                    .collect()
+                versions.dedup();
+                versions.into_iter().map(PathData::from).collect()
             }
         }
     }
