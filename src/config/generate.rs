@@ -819,7 +819,6 @@ impl Config {
             matches.value_of_os("LOCAL_DIR"),
             matches.values_of_os("MAP_ALIASES"),
             &pwd,
-            &exec_mode,
         )?;
 
         let config = Config {

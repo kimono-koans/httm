@@ -66,22 +66,16 @@ impl VersionsMap {
     }
 
     pub fn new(config: &Config, path_set: &[PathData]) -> HttmResult<VersionsMap> {
-        // create vec of all local and replicated backups at once
-        let snaps_selected_for_search = GLOBAL_CONFIG
-            .dataset_collection
-            .snaps_selected_for_search
-            .as_slice();
-
         let all_snap_versions: BTreeMap<PathData, Vec<PathData>> = path_set
             .par_iter()
-            .map(|pathdata| {
-                let snaps: Vec<PathData> =
-                    Self::search_bundles_from_pathdata(pathdata, snaps_selected_for_search)
-                        .flat_map(|search_bundle| {
-                            search_bundle.versions_processed(&config.uniqueness)
-                        })
-                        .collect();
-                (pathdata.clone(), snaps)
+            .flat_map(MostProximateAndOptAlts::new)
+            .map(|most_prox_opt_alts| most_prox_opt_alts.into_search_bundles())
+            .flatten()
+            .map(|search_bundle| {
+                (
+                    search_bundle.pathdata.clone(),
+                    search_bundle.versions_processed(&config.uniqueness),
+                )
             })
             .collect();
 
@@ -111,18 +105,6 @@ impl VersionsMap {
         }
 
         Ok(versions_map)
-    }
-
-    #[inline(always)]
-    pub fn search_bundles_from_pathdata<'a>(
-        pathdata: &'a PathData,
-        snaps_selected_for_search: &'a [SnapDatasetType],
-    ) -> impl Iterator<Item = RelativePathAndSnapMounts<'a>> {
-        snaps_selected_for_search
-            .iter()
-            .flat_map(|dataset_type| MostProximateAndOptAlts::new(pathdata, dataset_type))
-            .flat_map(|datasets_of_interest| datasets_of_interest.into_search_bundles(pathdata))
-            .flatten()
     }
 
     pub fn is_live_version_redundant(live_pathdata: &PathData, snaps: &[PathData]) -> bool {
@@ -169,49 +151,15 @@ impl VersionsMap {
     }
 }
 
-#[derive(Copy, Debug, Clone, PartialEq, Eq)]
-pub enum SnapDatasetType {
-    MostProximate,
-    AltReplicated,
-}
-
-#[derive(Copy, Debug, Clone, PartialEq, Eq)]
-pub enum SnapsSelectedForSearch {
-    MostProximateOnly,
-    IncludeAltReplicated,
-}
-
-// alt replicated should come first,
-// so as to be at the top of results
-pub static INCLUDE_ALTS: &[SnapDatasetType] = [
-    SnapDatasetType::AltReplicated,
-    SnapDatasetType::MostProximate,
-]
-.as_slice();
-
-pub static ONLY_PROXIMATE: &[SnapDatasetType] = [SnapDatasetType::MostProximate].as_slice();
-
-impl SnapsSelectedForSearch {
-    #[inline(always)]
-    pub fn as_slice(&self) -> &[SnapDatasetType] {
-        match self {
-            SnapsSelectedForSearch::IncludeAltReplicated => INCLUDE_ALTS,
-            SnapsSelectedForSearch::MostProximateOnly => ONLY_PROXIMATE,
-        }
-    }
-}
-
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct MostProximateAndOptAlts<'a> {
+    pub pathdata: &'a PathData,
     pub proximate_dataset_mount: &'a Path,
-    pub opt_datasets_of_interest: &'a Option<Vec<PathBuf>>,
+    pub datasets_of_interest: Vec<PathBuf>,
 }
 
 impl<'a> MostProximateAndOptAlts<'a> {
-    pub fn new(
-        pathdata: &'a PathData,
-        requested_dataset_type: &SnapDatasetType,
-    ) -> HttmResult<Self> {
+    pub fn new(pathdata: &'a PathData) -> HttmResult<Self> {
         // here, we take our file path and get back possibly multiple ZFS dataset mountpoints
         // and our most proximate dataset mount point (which is always the same) for
         // a single file
@@ -237,62 +185,53 @@ impl<'a> MostProximateAndOptAlts<'a> {
             }
         };
 
-        let res: Self = match requested_dataset_type {
-            SnapDatasetType::MostProximate => {
-                // just return the same dataset when in most proximate mode
+        let res: Self = match GLOBAL_CONFIG
+            .dataset_collection
+            .opt_map_of_alts
+            .as_ref()
+            .and_then(|map_of_alts| map_of_alts.get(proximate_dataset_mount))
+            .and_then(|alt_metadata| alt_metadata.opt_datasets_of_interest.clone())
+        {
+            Some(mut datasets_of_interest) => {
+                datasets_of_interest.push(proximate_dataset_mount.to_path_buf());
+
                 Self {
+                    pathdata,
                     proximate_dataset_mount,
-                    opt_datasets_of_interest: &None,
+                    datasets_of_interest,
                 }
             }
-            SnapDatasetType::AltReplicated => GLOBAL_CONFIG
-                .dataset_collection
-                .opt_map_of_alts
-                .as_ref()
-                .and_then(|map_of_alts| map_of_alts.get(proximate_dataset_mount))
-                .map(|snap_types_for_search| Self {
-                    proximate_dataset_mount: &snap_types_for_search.proximate_dataset_mount,
-                    opt_datasets_of_interest: &snap_types_for_search.opt_datasets_of_interest,
-                })
-                .ok_or_else(|| {
-                    HttmError::new(
-                        "If you are here, a map of alts is missing for a supplied mount, \
-                    this is fine as we should just flatten/ignore this error.",
-                    )
-                })?,
+
+            None => Self {
+                pathdata,
+                proximate_dataset_mount,
+                datasets_of_interest: vec![proximate_dataset_mount.to_path_buf()],
+            },
         };
 
         Ok(res)
     }
 
-    pub fn into_search_bundles(
-        &self,
-        pathdata: &'a PathData,
-    ) -> HttmResult<Vec<RelativePathAndSnapMounts<'a>>> {
-        let proximate_dataset_mount = self.proximate_dataset_mount;
+    pub fn into_search_bundles(self) -> Vec<RelativePathAndSnapMounts<'a>> {
+        let res = self
+            .datasets_of_interest
+            .iter()
+            .flat_map(|dataset_of_interest| {
+                RelativePathAndSnapMounts::new(
+                    self.pathdata,
+                    self.proximate_dataset_mount,
+                    dataset_of_interest,
+                )
+            })
+            .collect();
 
-        match self.opt_datasets_of_interest {
-            Some(datasets) => datasets
-                .iter()
-                .map(|dataset_of_interest| {
-                    RelativePathAndSnapMounts::new(
-                        pathdata,
-                        proximate_dataset_mount,
-                        dataset_of_interest,
-                    )
-                })
-                .collect(),
-            None => Ok(vec![RelativePathAndSnapMounts::new(
-                pathdata,
-                proximate_dataset_mount,
-                proximate_dataset_mount,
-            )?]),
-        }
+        res
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct RelativePathAndSnapMounts<'a> {
+    pub pathdata: &'a PathData,
     pub relative_path: &'a Path,
     pub snap_mounts: &'a Vec<PathBuf>,
 }
@@ -321,6 +260,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
             })?;
 
         Ok(Self {
+            pathdata,
             relative_path,
             snap_mounts,
         })
@@ -373,6 +313,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
     }
 
     // remove duplicates with the same system modify time and size/file len (or contents! See --uniqueness)
+    #[allow(clippy::mutable_key_type)]
     fn sort_dedup_versions(
         iter: impl ParallelIterator<Item = CompareVersionsContainer>,
         snaps_of_type: &ListSnapsOfType,

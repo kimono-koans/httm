@@ -22,7 +22,6 @@ use rayon::prelude::*;
 
 use crate::config::generate::MountDisplay;
 use crate::data::paths::PathData;
-use crate::library::iter_extensions::HttmIter;
 use crate::lookup::versions::MostProximateAndOptAlts;
 use crate::GLOBAL_CONFIG;
 
@@ -69,39 +68,18 @@ impl<'a> MountsForFiles<'a> {
     }
 
     pub fn from_raw_paths(raw_vec: &[PathData], mount_display: &'a MountDisplay) -> Self {
-        let snaps_selected_for_search = GLOBAL_CONFIG
-            .dataset_collection
-            .snaps_selected_for_search
-            .as_slice();
-
         let map: BTreeMap<PathData, Vec<PathData>> = raw_vec
             .iter()
-            .map(|pathdata| {
-                let datasets: Vec<MostProximateAndOptAlts> = snaps_selected_for_search
+            .flat_map(MostProximateAndOptAlts::new)
+            .map(|most_prox| {
+                let vec = most_prox
+                    .datasets_of_interest
                     .iter()
-                    .flat_map(|dataset_type| MostProximateAndOptAlts::new(pathdata, dataset_type))
+                    .map(PathData::from)
                     .collect();
-                (pathdata.clone(), datasets)
+                (most_prox.pathdata.clone(), vec)
             })
-            .into_group_map_by(|(pathdata, _datasets_for_search)| pathdata.clone())
-            .into_iter()
-            .map(|(pathdata, datasets_for_search)| {
-                let datasets: Vec<PathData> = datasets_for_search
-                    .into_iter()
-                    .flat_map(|(_proximate_mount, datasets_for_search)| datasets_for_search)
-                    .flat_map(|dataset_for_search| {
-                        dataset_for_search
-                            .opt_datasets_of_interest
-                            .to_owned()
-                            .unwrap_or_else(|| {
-                                vec![dataset_for_search.proximate_dataset_mount.to_path_buf()]
-                            })
-                    })
-                    .map(|path| PathData::from(path.as_path()))
-                    .rev()
-                    .collect();
-                (pathdata, datasets)
-            })
+            .rev()
             .collect();
 
         Self {

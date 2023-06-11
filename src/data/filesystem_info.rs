@@ -19,10 +19,8 @@ use std::{ffi::OsStr, path::PathBuf};
 
 use clap::OsValues;
 
-use crate::config::generate::ExecMode;
 use crate::data::paths::PathData;
 use crate::library::results::HttmResult;
-use crate::lookup::versions::SnapsSelectedForSearch;
 use crate::parse::aliases::MapOfAliases;
 use crate::parse::alts::MapOfAlts;
 use crate::parse::mounts::{BaseFilesystemInfo, FilterDirs, MapOfDatasets};
@@ -42,8 +40,6 @@ pub struct FilesystemInfo {
     pub opt_map_of_aliases: Option<MapOfAliases>,
     // opt single dir to to be filtered re: btrfs common snap dir
     pub opt_common_snap_dir: Option<PathBuf>,
-    // vec of two enum variants - most proximate and alt replicated, or just most proximate
-    pub snaps_selected_for_search: SnapsSelectedForSearch,
 }
 
 impl FilesystemInfo {
@@ -53,7 +49,6 @@ impl FilesystemInfo {
         opt_local_dir: Option<&OsStr>,
         opt_map_aliases: Option<OsValues>,
         pwd: &PathData,
-        exec_mode: &ExecMode,
     ) -> HttmResult<FilesystemInfo> {
         let base_fs_info = BaseFilesystemInfo::new()?;
 
@@ -113,14 +108,6 @@ impl FilesystemInfo {
             None
         };
 
-        // don't want to request alt replicated mounts in snap mode
-        let snaps_selected_for_search =
-            if opt_alt_replicated && !matches!(exec_mode, ExecMode::SnapFileMount(_)) {
-                SnapsSelectedForSearch::IncludeAltReplicated
-            } else {
-                SnapsSelectedForSearch::MostProximateOnly
-            };
-
         Ok(FilesystemInfo {
             map_of_datasets: base_fs_info.map_of_datasets,
             map_of_snaps: base_fs_info.map_of_snaps,
@@ -128,7 +115,6 @@ impl FilesystemInfo {
             opt_map_of_alts,
             opt_common_snap_dir,
             opt_map_of_aliases,
-            snaps_selected_for_search,
         })
     }
 }

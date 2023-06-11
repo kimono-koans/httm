@@ -63,7 +63,7 @@ impl SpawnDeletedThread {
         }
 
         // obtain all unique deleted, unordered, unsorted, will need to fix
-        let vec_deleted = DeletedFiles::from(requested_dir).into_inner();
+        let vec_deleted = DeletedFiles::try_from(requested_dir)?.into_inner();
 
         if vec_deleted.is_empty() {
             return Ok(());
@@ -96,7 +96,7 @@ impl SpawnDeletedThread {
             // get latest in time per our policy
             let path_set: Vec<PathData> = vec_dirs.into_iter().map(PathData::from).collect();
 
-            return LastInTimeSet::from(path_set)
+            return LastInTimeSet::try_from(path_set)?
                 .into_inner()
                 .into_iter()
                 .try_for_each(|deleted_dir| {

@@ -25,24 +25,20 @@ use hashbrown::{HashMap, HashSet};
 
 use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::library::results::HttmResult;
-use crate::lookup::versions::{RelativePathAndSnapMounts, VersionsMap};
-use crate::GLOBAL_CONFIG;
+use crate::lookup::versions::{MostProximateAndOptAlts, RelativePathAndSnapMounts};
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct DeletedFiles {
     inner: Vec<BasicDirEntryInfo>,
 }
 
-impl From<&Path> for DeletedFiles {
-    fn from(requested_dir: &Path) -> Self {
+impl TryFrom<&Path> for DeletedFiles {
+    type Error = Box<dyn std::error::Error + Send + Sync>;
+
+    fn try_from(requested_dir: &Path) -> HttmResult<Self> {
         // we always need a requesting dir because we are comparing the files in the
         // requesting dir to those of their relative dirs on snapshots
         let requested_dir_pathdata = PathData::from(requested_dir);
-
-        let requested_snap_datasets = GLOBAL_CONFIG
-            .dataset_collection
-            .snaps_selected_for_search
-            .as_slice();
 
         // create vec of all local and replicated backups at once
         //
@@ -50,20 +46,19 @@ impl From<&Path> for DeletedFiles {
         // as these will be the filenames that populate our interactive views, so deduplicate
         // by filename and latest file version here
         let basic_info_map: HashMap<OsString, BasicDirEntryInfo> =
-            VersionsMap::search_bundles_from_pathdata(
-                &requested_dir_pathdata,
-                requested_snap_datasets,
-            )
-            .flat_map(|search_bundle| {
-                Self::unique_deleted_for_dir(&requested_dir_pathdata.path_buf, &search_bundle)
-            })
-            .flatten()
-            .map(|basic_info| (basic_info.filename().to_os_string(), basic_info))
-            .collect();
+            MostProximateAndOptAlts::new(&requested_dir_pathdata)?
+                .into_search_bundles()
+                .into_iter()
+                .flat_map(|search_bundle| {
+                    Self::unique_deleted_for_dir(&requested_dir_pathdata.path_buf, &search_bundle)
+                })
+                .flatten()
+                .map(|basic_info| (basic_info.filename().to_os_string(), basic_info))
+                .collect();
 
-        Self {
+        Ok(Self {
             inner: basic_info_map.into_values().collect(),
-        }
+        })
     }
 }
 
@@ -126,7 +121,9 @@ pub struct LastInTimeSet {
     inner: Vec<PathBuf>,
 }
 
-impl From<Vec<PathData>> for LastInTimeSet {
+impl TryFrom<Vec<PathData>> for LastInTimeSet {
+    type Error = Box<dyn std::error::Error + Send + Sync>;
+
     // this is very similar to VersionsMap, but of course returns only last in time
     // for directory paths during deleted searches.  it's important to have a policy, here,
     // last in time, for which directory we return during deleted searches, because
@@ -134,24 +131,21 @@ impl From<Vec<PathData>> for LastInTimeSet {
 
     // this fn is also missing parallel iter fns, to make the searches more responsive
     // by leaving parallel search for the interactive views
-    fn from(path_set: Vec<PathData>) -> Self {
-        // create vec of all local and replicated backups at once
-        let snaps_selected_for_search = GLOBAL_CONFIG
-            .dataset_collection
-            .snaps_selected_for_search
-            .as_slice();
-
+    fn try_from(path_set: Vec<PathData>) -> HttmResult<Self> {
         let res = path_set
             .iter()
-            .filter_map(|pathdata| {
-                VersionsMap::search_bundles_from_pathdata(pathdata, snaps_selected_for_search)
+            .flat_map(MostProximateAndOptAlts::new)
+            .map(|most_prox_opt_alts| most_prox_opt_alts.into_search_bundles())
+            .filter_map(|versions_map| {
+                versions_map
+                    .into_iter()
                     .filter_map(|search_bundle| search_bundle.last_version())
                     .max_by_key(|pathdata| pathdata.md_infallible().modify_time)
                     .map(|pathdata| pathdata.path_buf)
             })
             .collect();
 
-        Self { inner: res }
+        Ok(Self { inner: res })
     }
 }
 
