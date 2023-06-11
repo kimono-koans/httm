@@ -74,6 +74,7 @@ impl MapOfSnaps {
                                     Self::from_defined_mounts(mount, dataset_info)
                                 }
                             },
+                            // imagine system that use btrfs as a non-root fs, like your test system!
                             None => Self::from_btrfs_cmd(mount, mount),
                         }
                     }
@@ -93,6 +94,7 @@ impl MapOfSnaps {
     fn btrfs_root(map_of_datasets: &HashMap<PathBuf, DatasetMetadata>) -> Option<&PathBuf> {
         let root_dir = Path::new(ROOT_DIRECTORY);
 
+        // can't use a get() because what if the root dir is another fs type
         map_of_datasets
             .iter()
             .filter(|(_mount, dataset_info)| dataset_info.fs_type == FilesystemType::Btrfs)
@@ -101,7 +103,7 @@ impl MapOfSnaps {
     }
 
     // build paths to all snap mounts
-    fn from_btrfs_cmd(mount_point_path: &Path, root_mount_path: &Path) -> HttmResult<Vec<PathBuf>> {
+    fn from_btrfs_cmd(mount_point_path: &Path, base_mount_path: &Path) -> HttmResult<Vec<PathBuf>> {
         let btrfs_command = which("btrfs").map_err(|_err| {
             HttmError::new(
                 "'btrfs' command not found. Make sure the command 'btrfs' is in your path.",
@@ -124,7 +126,7 @@ impl MapOfSnaps {
                 |(_first, snap_path)| match snap_path.strip_prefix("<FS_TREE>/") {
                     Some(fs_tree_path) => {
                         // "<FS_TREE>/" should be the root path
-                        root_mount_path.join(fs_tree_path)
+                        base_mount_path.join(fs_tree_path)
                     }
                     None => {
                         // btrfs sub list -a -s output includes the sub name (eg @home)
