@@ -25,7 +25,7 @@ use hashbrown::{HashMap, HashSet};
 
 use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::library::results::HttmResult;
-use crate::lookup::versions::{MostProximateAndOptAlts, RelativePathAndSnapMounts};
+use crate::lookup::versions::{ProximateAndOptAlts, RelativePathAndSnapMounts};
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct DeletedFiles {
@@ -46,7 +46,7 @@ impl TryFrom<&Path> for DeletedFiles {
         // as these will be the filenames that populate our interactive views, so deduplicate
         // by filename and latest file version here
         let basic_info_map: HashMap<OsString, BasicDirEntryInfo> =
-            MostProximateAndOptAlts::new(&requested_dir_pathdata)?
+            ProximateAndOptAlts::new(&requested_dir_pathdata)?
                 .into_search_bundles()
                 .into_iter()
                 .flat_map(|search_bundle| {
@@ -134,8 +134,8 @@ impl TryFrom<Vec<PathData>> for LastInTimeSet {
     fn try_from(path_set: Vec<PathData>) -> HttmResult<Self> {
         let res = path_set
             .iter()
-            .flat_map(MostProximateAndOptAlts::new)
-            .map(|most_prox_opt_alts| most_prox_opt_alts.into_search_bundles())
+            .flat_map(ProximateAndOptAlts::new)
+            .map(|prox_opt_alts| prox_opt_alts.into_search_bundles())
             .filter_map(|versions_map| {
                 versions_map
                     .into_iter()
