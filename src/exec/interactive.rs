@@ -441,7 +441,8 @@ impl InteractiveRestore {
                     Some(versions_map) => {
                         versions_map.values().flatten().find_map(|pathdata| {
                             if pathdata == snap_pathdata {
-                                // safe to index into request, known len of 2 for set, keys and values, known len of 1 for request
+                                // SAFETY: safe to index into request, known len of 2 for set,
+                                // keys and values, known len of 1 for request
                                 let original_live_pathdata =
                                     versions_map.keys().next().unwrap().clone();
                                 Some(original_live_pathdata)

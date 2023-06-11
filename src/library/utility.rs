@@ -33,13 +33,16 @@ use once_cell::sync::Lazy;
 use time::{format_description, OffsetDateTime, UtcOffset};
 use which::which;
 
-use crate::data::paths::{BasicDirEntryInfo, PathData, PHANTOM_SIZE};
 use crate::data::selection::SelectionCandidate;
 use crate::library::diff_copy::diff_copy;
 use crate::library::results::{HttmError, HttmResult};
 use crate::parse::aliases::FilesystemType;
 use crate::GLOBAL_CONFIG;
 use crate::{config::generate::PrintMode, data::paths::PathMetadata};
+use crate::{
+    data::paths::{BasicDirEntryInfo, PathData, PHANTOM_SIZE},
+    ROOT_DIRECTORY,
+};
 use crate::{BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_SNAPSHOT_DIRECTORY};
 use std::process::Command as ExecProcess;
 
@@ -59,12 +62,14 @@ pub fn user_has_zfs_allow_snap_priv(new_file_path: &Path) -> HttmResult<()> {
     let dataset_mount =
         pathdata.proximate_dataset(&GLOBAL_CONFIG.dataset_collection.map_of_datasets)?;
 
-    let dataset_name = &GLOBAL_CONFIG
+    let dataset_name = match GLOBAL_CONFIG
         .dataset_collection
         .map_of_datasets
         .get(dataset_mount)
-        .unwrap()
-        .source;
+    {
+        Some(md) => &md.source,
+        None => return Err(HttmError::new("Could not obtain source dataset for mount: ").into()),
+    };
 
     let dataset_name = &dataset_name.to_string_lossy();
     let process_args = vec!["allow", dataset_name];
@@ -179,7 +184,8 @@ pub fn copy_direct(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<
     } else {
         // create parent for file to land
         {
-            let src_parent = src.parent().unwrap();
+            // file should always have a parent?
+            let src_parent = src.parent().unwrap_or_else(|| Path::new(ROOT_DIRECTORY));
 
             let dst_parent = if let Some(parent) = dst.parent() {
                 parent.to_path_buf()

@@ -41,12 +41,16 @@ impl TryFrom<&Path> for SnapGuard {
         let dataset_mount =
             pathdata.proximate_dataset(&GLOBAL_CONFIG.dataset_collection.map_of_datasets)?;
 
-        let dataset_name = &GLOBAL_CONFIG
+        let dataset_name = match GLOBAL_CONFIG
             .dataset_collection
             .map_of_datasets
             .get(dataset_mount)
-            .unwrap()
-            .source;
+        {
+            Some(md) => &md.source,
+            None => {
+                return Err(HttmError::new("Could not obtain source dataset for mount: ").into())
+            }
+        };
 
         SnapGuard::new(
             &dataset_name.to_string_lossy(),
