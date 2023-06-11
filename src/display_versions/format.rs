@@ -70,8 +70,7 @@ impl<'a> VersionsDisplayWrapper<'a> {
                             .iter()
                             .enumerate()
                             .map(|(idx, snap_or_live_set)| {
-                                let display_set_type: DisplaySetType = idx.into();
-                                (display_set_type, snap_or_live_set)
+                                (DisplaySetType::from(idx), snap_or_live_set)
                             })
                             .filter(|(display_set_type, _snap_or_live_set)| {
                                 display_set_type.filter_bulk_exclusions(self.config)
@@ -154,10 +153,7 @@ impl<'a> DisplaySet<'a> {
         // get the display buffer for each set snaps and live
         self.iter()
             .enumerate()
-            .map(|(idx, snap_or_live_set)| {
-                let display_set_type: DisplaySetType = idx.into();
-                (display_set_type, snap_or_live_set)
-            })
+            .map(|(idx, snap_or_live_set)| (DisplaySetType::from(idx), snap_or_live_set))
             .filter(|(display_set_type, _snap_or_live_set)| {
                 display_set_type.filter_bulk_exclusions(config)
             })
