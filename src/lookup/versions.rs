@@ -66,7 +66,26 @@ impl VersionsMap {
     }
 
     pub fn new(config: &Config, path_set: &[PathData]) -> HttmResult<VersionsMap> {
-        let mut versions_map = Self::initial_map(config, path_set);
+        // create vec of all local and replicated backups at once
+        let snaps_selected_for_search = GLOBAL_CONFIG
+            .dataset_collection
+            .snaps_selected_for_search
+            .as_slice();
+
+        let all_snap_versions: BTreeMap<PathData, Vec<PathData>> = path_set
+            .par_iter()
+            .map(|pathdata| {
+                let snaps: Vec<PathData> =
+                    Self::search_bundles_from_pathdata(pathdata, snaps_selected_for_search)
+                        .flat_map(|search_bundle| {
+                            search_bundle.versions_processed(&config.uniqueness)
+                        })
+                        .collect();
+                (pathdata.clone(), snaps)
+            })
+            .collect();
+
+        let mut versions_map: VersionsMap = all_snap_versions.into();
 
         // check if all files (snap and live) do not exist, if this is true, then user probably messed up
         // and entered a file that never existed (that is, perhaps a wrong file name)?
@@ -92,31 +111,6 @@ impl VersionsMap {
         }
 
         Ok(versions_map)
-    }
-
-    fn initial_map(config: &Config, path_set: &[PathData]) -> Self {
-        // create vec of all local and replicated backups at once
-        let snaps_selected_for_search = GLOBAL_CONFIG
-            .dataset_collection
-            .snaps_selected_for_search
-            .as_slice();
-
-        let all_snap_versions: BTreeMap<PathData, Vec<PathData>> = path_set
-            .par_iter()
-            .map(|pathdata| {
-                let snaps: Vec<PathData> =
-                    Self::search_bundles_from_pathdata(pathdata, snaps_selected_for_search)
-                        .flat_map(|search_bundle| {
-                            search_bundle.versions_processed(&config.uniqueness)
-                        })
-                        .collect();
-                (pathdata.clone(), snaps)
-            })
-            .collect();
-
-        let versions_map: VersionsMap = all_snap_versions.into();
-
-        versions_map
     }
 
     #[inline(always)]
