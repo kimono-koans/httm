@@ -345,7 +345,7 @@ impl PaddingCollection {
             Some((Width(width), Height(_height))) => {
                 let width_as_usize = width as usize;
 
-                if width_as_usize >= fancy_border_len {
+                if width_as_usize < fancy_border_len {
                     // Active below is the most idiomatic Rust, but it maybe slower than the commented portion
                     // (0..width as usize).map(|_| "─").collect()
                     return format!("{:─<width_as_usize$}\n", "");
