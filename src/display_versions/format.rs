@@ -69,8 +69,12 @@ impl<'a> VersionsDisplayWrapper<'a> {
                         display_set
                             .iter()
                             .enumerate()
-                            .filter(|(idx, _snap_or_live_set)| {
-                                filter_bulk_exclusions(idx, self.config)
+                            .map(|(idx, snap_or_live_set)| {
+                                let display_set_type: DisplaySetType = idx.into();
+                                (display_set_type, snap_or_live_set)
+                            })
+                            .filter(|(display_set_type, _snap_or_live_set)| {
+                                display_set_type.filter_bulk_exclusions(self.config)
                             })
                             .map(|(_idx, snap_or_live_set)| {
                                 snap_or_live_set
@@ -109,15 +113,38 @@ impl<'a> Deref for DisplaySet<'a> {
     }
 }
 
-#[inline]
-fn filter_bulk_exclusions(idx: &usize, config: &Config) -> bool {
-    let is_snap_set = idx == &0;
-    let is_live_set = idx == &1;
+#[derive(Debug, Clone)]
+pub enum DisplaySetType {
+    IsLive,
+    IsSnap,
+}
 
-    match config.opt_bulk_exclusion {
-        Some(BulkExclusion::NoLive) if is_live_set => false,
-        Some(BulkExclusion::NoSnap) if is_snap_set => false,
-        _ => true,
+impl From<usize> for DisplaySetType {
+    fn from(value: usize) -> Self {
+        match value {
+            idx if idx == 0 => DisplaySetType::IsSnap,
+            idx if idx == 1 => DisplaySetType::IsLive,
+            _ => unreachable!(),
+        }
+    }
+}
+
+impl DisplaySetType {
+    #[inline]
+    fn filter_bulk_exclusions(&self, config: &Config) -> bool {
+        match &self {
+            DisplaySetType::IsLive
+                if matches!(config.opt_bulk_exclusion, Some(BulkExclusion::NoLive)) =>
+            {
+                false
+            }
+            DisplaySetType::IsSnap
+                if matches!(config.opt_bulk_exclusion, Some(BulkExclusion::NoSnap)) =>
+            {
+                false
+            }
+            _ => true,
+        }
     }
 }
 
@@ -126,23 +153,27 @@ impl<'a> DisplaySet<'a> {
         // get the display buffer for each set snaps and live
         self.iter()
             .enumerate()
-            .filter(|(idx, _snap_or_live_set)| filter_bulk_exclusions(idx, config))
+            .map(|(idx, snap_or_live_set)| {
+                let display_set_type: DisplaySetType = idx.into();
+                (display_set_type, snap_or_live_set)
+            })
+            .filter(|(display_set_type, _snap_or_live_set)| {
+                display_set_type.filter_bulk_exclusions(config)
+            })
             .fold(
                 String::new(),
-                |mut display_set_buffer, (idx, snap_or_live_set)| {
-                    // a DisplaySet is an array of 2 - idx 0 are the snaps, 1 is the live versions
-                    let is_snap_set = idx == 0;
-                    let is_live_set = idx == 1;
-
+                |mut display_set_buffer, (display_set_type, snap_or_live_set)| {
                     let component_buffer: String = snap_or_live_set
                         .iter()
-                        .map(|pathdata| pathdata.format(config, is_live_set, padding_collection))
+                        .map(|pathdata| {
+                            pathdata.format(config, &display_set_type, padding_collection)
+                        })
                         .collect();
 
                     // add each buffer to the set - print fancy border string above, below and between sets
                     if matches!(config.print_mode, PrintMode::FormattedNotPretty) {
                         display_set_buffer += &component_buffer;
-                    } else if is_snap_set {
+                    } else if matches!(display_set_type, DisplaySetType::IsSnap) {
                         display_set_buffer += &padding_collection.fancy_border_string;
                         if !component_buffer.is_empty() {
                             display_set_buffer += &component_buffer;
@@ -162,7 +193,7 @@ impl PathData {
     pub fn format(
         &self,
         config: &Config,
-        is_live_set: bool,
+        display_set_type: &DisplaySetType,
         padding_collection: &PaddingCollection,
     ) -> String {
         // obtain metadata for timestamp and size
@@ -199,12 +230,15 @@ impl PathData {
                 };
                 let path = {
                     let path_buf = &self.path_buf;
+
                     // paint the live strings with ls colors - idx == 1 is 2nd or live set
-                    let painted_path_str = if is_live_set {
-                        paint_string(self, path_buf.to_str().unwrap_or_default())
-                    } else {
-                        path_buf.to_string_lossy()
+                    let painted_path_str = match display_set_type {
+                        DisplaySetType::IsLive => {
+                            paint_string(self, path_buf.to_str().unwrap_or_default())
+                        }
+                        DisplaySetType::IsSnap => path_buf.to_string_lossy(),
                     };
+
                     Cow::Owned(format!(
                         "\"{:<width$}\"",
                         painted_path_str,
