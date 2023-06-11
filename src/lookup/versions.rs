@@ -68,7 +68,7 @@ impl VersionsMap {
     pub fn new(config: &Config, path_set: &[PathData]) -> HttmResult<VersionsMap> {
         let all_snap_versions: BTreeMap<PathData, Vec<PathData>> = path_set
             .par_iter()
-            .flat_map(ProximateAndOptAlts::new)
+            .flat_map(ProximateDatasetAndOptAlts::new)
             .map(|prox_opt_alts| prox_opt_alts.into_search_bundles())
             .flatten()
             .map(|search_bundle| {
@@ -152,13 +152,13 @@ impl VersionsMap {
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
-pub struct ProximateAndOptAlts<'a> {
+pub struct ProximateDatasetAndOptAlts<'a> {
     pub pathdata: &'a PathData,
     pub proximate_dataset_mount: &'a Path,
     pub datasets_of_interest: Vec<PathBuf>,
 }
 
-impl<'a> ProximateAndOptAlts<'a> {
+impl<'a> ProximateDatasetAndOptAlts<'a> {
     pub fn new(pathdata: &'a PathData) -> HttmResult<Self> {
         // here, we take our file path and get back possibly multiple ZFS dataset mountpoints
         // and our most proximate dataset mount point (which is always the same) for

@@ -22,7 +22,7 @@ use rayon::prelude::*;
 
 use crate::config::generate::MountDisplay;
 use crate::data::paths::PathData;
-use crate::lookup::versions::ProximateAndOptAlts;
+use crate::lookup::versions::ProximateDatasetAndOptAlts;
 use crate::GLOBAL_CONFIG;
 
 #[derive(Debug)]
@@ -70,7 +70,7 @@ impl<'a> MountsForFiles<'a> {
     pub fn from_raw_paths(raw_vec: &[PathData], mount_display: &'a MountDisplay) -> Self {
         let map: BTreeMap<PathData, Vec<PathData>> = raw_vec
             .iter()
-            .flat_map(ProximateAndOptAlts::new)
+            .flat_map(ProximateDatasetAndOptAlts::new)
             .map(|prox_opt_alts| {
                 let vec = prox_opt_alts
                     .datasets_of_interest
