@@ -211,7 +211,6 @@ impl BaseFilesystemInfo {
                             .iter()
                             .filter(|line| line.contains('='))
                             .filter_map(|line| line.split_once('='))
-                            .map(|(key, value)| (key, value))
                             .collect();
 
                         let source = match keyed_options.get("subvol") {
