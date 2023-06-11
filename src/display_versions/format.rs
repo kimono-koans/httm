@@ -197,8 +197,8 @@ impl PathData {
         let metadata = self.md_infallible();
 
         // tab delimited if "no pretty", no border lines, and no colors
-        let (display_size, display_path, display_padding) =
-            if matches!(&config.print_mode, PrintMode::FormattedNotPretty) {
+        let (display_size, display_path, display_padding) = match &config.print_mode {
+            PrintMode::FormattedNotPretty => {
                 // displays blanks for phantom values, equaling their dummy lens and dates.
                 //
                 // we use a dummy instead of a None value here.  Basically, sometimes, we want
@@ -211,8 +211,9 @@ impl PathData {
                 let path = self.path_buf.to_string_lossy();
                 let padding = NOT_SO_PRETTY_FIXED_WIDTH_PADDING;
                 (size, path, padding)
-            // print with padding and pretty border lines and ls colors
-            } else {
+            }
+            _ => {
+                // print with padding and pretty border lines and ls colors
                 let size = {
                     let size = if self.metadata.is_some() {
                         Cow::Owned(display_human_size(metadata.size))
@@ -245,7 +246,8 @@ impl PathData {
                 // displays blanks for phantom values, equaling their dummy lens and dates.
                 let padding = PRETTY_FIXED_WIDTH_PADDING;
                 (size, path, padding)
-            };
+            }
+        };
 
         let display_date = if self.metadata.is_some() {
             Cow::Owned(date_string(
