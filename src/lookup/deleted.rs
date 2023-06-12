@@ -18,6 +18,7 @@
 use std::{
     ffi::OsString,
     fs::read_dir,
+    ops::Deref,
     path::{Path, PathBuf},
 };
 
@@ -121,6 +122,14 @@ pub struct LastInTimeSet {
     inner: Vec<PathBuf>,
 }
 
+impl Deref for LastInTimeSet {
+    type Target = Vec<PathBuf>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
 impl TryFrom<Vec<PathData>> for LastInTimeSet {
     type Error = Box<dyn std::error::Error + Send + Sync>;
 
@@ -146,11 +155,5 @@ impl TryFrom<Vec<PathData>> for LastInTimeSet {
             .collect();
 
         Ok(Self { inner: res })
-    }
-}
-
-impl LastInTimeSet {
-    pub fn into_inner(self) -> Vec<PathBuf> {
-        self.inner
     }
 }
