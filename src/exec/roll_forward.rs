@@ -32,7 +32,7 @@ use crate::library::results::{HttmError, HttmResult};
 use crate::library::snap_guard::{PrecautionarySnapType, SnapGuard};
 use crate::library::utility::{copy_direct, remove_recursive};
 use crate::library::utility::{is_metadata_different, user_has_effective_root};
-use crate::GLOBAL_CONFIG;
+use crate::{GLOBAL_CONFIG, ZFS_SNAPSHOT_DIRECTORY};
 
 #[derive(Clone)]
 struct DiffEvent {
@@ -273,7 +273,7 @@ impl RollForward {
             .map(|relative_path| {
                 let snap_file_path: PathBuf = [
                     proximate_dataset_mount,
-                    Path::new(".zfs/snapshot"),
+                    Path::new(ZFS_SNAPSHOT_DIRECTORY),
                     Path::new(&snap_name),
                     relative_path,
                 ]
