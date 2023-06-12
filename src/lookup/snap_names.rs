@@ -124,10 +124,10 @@ impl DeconstructedSnapPathData {
     fn new(pathdata: &PathData, include_relative_path: bool) -> Option<Self> {
         let path_string = &pathdata.path_buf.to_string_lossy();
 
-        let (dataset_path, opt_split) = if let Some((lhs, rhs)) =
+        let (dataset_path, (snap, relpath)) = if let Some((lhs, rhs)) =
             path_string.split_once(&format!("{ZFS_SNAPSHOT_DIRECTORY}/"))
         {
-            (Path::new(lhs), rhs.split_once('/'))
+            (Path::new(lhs), rhs.split_once('/').unwrap_or((rhs, "")))
         } else {
             return None;
         };
@@ -138,16 +138,14 @@ impl DeconstructedSnapPathData {
             .get(dataset_path);
 
         match opt_dataset_md {
-            Some(md) if md.fs_type == FilesystemType::Zfs => {
-                opt_split.map(|(snap, relpath)| DeconstructedSnapPathData {
-                    snap_name: format!("{}@{snap}", md.source.to_string_lossy()),
-                    relpath: if include_relative_path {
-                        Some(PathBuf::from(relpath))
-                    } else {
-                        None
-                    },
-                })
-            }
+            Some(md) if md.fs_type == FilesystemType::Zfs => Some(DeconstructedSnapPathData {
+                snap_name: format!("{}@{snap}", md.source.to_string_lossy()),
+                relpath: if include_relative_path {
+                    Some(PathBuf::from(relpath))
+                } else {
+                    None
+                },
+            }),
             Some(_md) => {
                 eprintln!("WARNING: {pathdata:?} is located on a non-ZFS dataset.  httm can only list snapshot names for ZFS datasets.");
                 None
