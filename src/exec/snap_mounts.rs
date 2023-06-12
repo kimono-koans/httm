@@ -127,10 +127,10 @@ impl SnapshotMounts {
         let map_snapshot_names: BTreeMap<String, Vec<String>> = vec_snapshot_names
             .into_iter()
             .into_group_map_by(|snapshot_name| {
-                let (pool_name, _rest) = snapshot_name
-                    .split_once('/')
-                    .unwrap_or_else(|| (snapshot_name.as_ref(), snapshot_name.as_ref()));
-                pool_name.to_owned()
+                Self::pool_from_snap_name(snapshot_name).unwrap_or_else(|err| {
+                    eprintln!("{}", err);
+                    std::process::exit(1)
+                })
             })
             .iter_mut()
             .map(|(key, group)| {
@@ -140,6 +140,26 @@ impl SnapshotMounts {
             })
             .collect();
 
+        if map_snapshot_names.is_empty() {
+            eprintln!("httm could not generate a valid names to snapshot.  Quitting");
+            std::process::exit(0)
+        }
+
         Ok(map_snapshot_names)
+    }
+
+    fn pool_from_snap_name(snapshot_name: &str) -> HttmResult<String> {
+        // split on "/" why?  because a snap looks like: rpool/kimono@snap...
+        // splits according to pool name, then the rest of the snap name
+        match snapshot_name.split_once('/') {
+            Some((pool_name, _the_rest)) => Ok(pool_name.into()),
+            None => match snapshot_name.split_once('@') {
+                Some((pool_name, _the_rest)) => Ok(pool_name.into()),
+                None => {
+                    let msg = format!("Could not determine pool name from constructed snapshot name: {snapshot_name}");
+                    Err(HttmError::new(&msg).into())
+                }
+            },
+        }
     }
 }
