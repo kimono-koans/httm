@@ -23,7 +23,7 @@ use rayon::prelude::*;
 use crate::config::generate::ListSnapsFilters;
 use crate::data::paths::PathData;
 use crate::parse::aliases::FilesystemType;
-use crate::GLOBAL_CONFIG;
+use crate::{GLOBAL_CONFIG, ZFS_SNAPSHOT_DIRECTORY};
 
 use super::versions::VersionsMap;
 
@@ -125,7 +125,7 @@ impl DeconstructedSnapPathData {
         let path_string = &pathdata.path_buf.to_string_lossy();
 
         let (dataset_path, opt_split) =
-            if let Some((lhs, rhs)) = path_string.split_once(".zfs/snapshot/") {
+            if let Some((lhs, rhs)) = path_string.split_once(ZFS_SNAPSHOT_DIRECTORY) {
                 (Path::new(lhs), rhs.split_once('/'))
             } else {
                 return None;
