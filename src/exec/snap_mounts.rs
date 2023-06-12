@@ -123,7 +123,7 @@ impl SnapshotMounts {
 
         if vec_snapshot_names.is_empty() {
             return Err(HttmError::new(
-                "httm could not generate any valid snapshot names from requested input.  Quitting",
+                "httm could not generate any valid snapshot names from requested input.  Quitting.",
             )
             .into());
         }
@@ -148,7 +148,7 @@ impl SnapshotMounts {
             .collect();
 
         if map_snapshot_names.is_empty() {
-            return Err(HttmError::new("httm could not generate a valid map of snapshot names from the requested input.  Quitting").into());
+            return Err(HttmError::new("httm could not generate a valid map of snapshot names from the requested input.  Quitting.").into());
         }
 
         Ok(map_snapshot_names)
@@ -164,7 +164,7 @@ impl SnapshotMounts {
             },
             None => {
                 let msg = format!(
-                    "Could not determine pool name from constructed snapshot name: {snapshot_name}"
+                    "Could not determine pool name from the constructed snapshot name: {snapshot_name}"
                 );
                 Err(HttmError::new(&msg).into())
             }
