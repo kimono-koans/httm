@@ -15,6 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
+use std::fmt::format;
 use std::path::{Path, PathBuf};
 use std::{collections::BTreeMap, ops::Deref};
 
@@ -124,12 +125,13 @@ impl DeconstructedSnapPathData {
     fn new(pathdata: &PathData, include_relative_path: bool) -> Option<Self> {
         let path_string = &pathdata.path_buf.to_string_lossy();
 
-        let (dataset_path, opt_split) =
-            if let Some((lhs, rhs)) = path_string.split_once(ZFS_SNAPSHOT_DIRECTORY) {
-                (Path::new(lhs), rhs.split_once('/'))
-            } else {
-                return None;
-            };
+        let (dataset_path, opt_split) = if let Some((lhs, rhs)) =
+            path_string.split_once(&format!("{}/", ZFS_SNAPSHOT_DIRECTORY))
+        {
+            (Path::new(lhs), rhs.split_once('/'))
+        } else {
+            return None;
+        };
 
         let opt_dataset_md = GLOBAL_CONFIG
             .dataset_collection
