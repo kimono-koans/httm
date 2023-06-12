@@ -16,7 +16,7 @@
 // that was distributed with this source code.
 
 use std::cmp::Ordering;
-use std::io::BufRead;
+use std::io::{BufRead, Read};
 use std::path::{Path, PathBuf};
 use std::process::Child;
 use std::process::Command as ExecProcess;
@@ -205,14 +205,15 @@ impl RollForward {
             });
 
         if process_handle.stderr.is_some() {
-            let mut stderr_buffer = std::io::BufReader::new(process_handle.stderr.take().unwrap());
+            let mut stderr_buffer = String::new();
+            process_handle
+                .stderr
+                .take()
+                .unwrap()
+                .read_to_string(&mut stderr_buffer)?;
 
-            let buffer = stderr_buffer.fill_buf()?;
-
-            if !buffer.is_empty() {
-                if let Ok(output_buf) = std::str::from_utf8(buffer) {
-                    return Err(HttmError::new(output_buf.to_string().trim()).into());
-                }
+            if !stderr_buffer.is_empty() {
+                return Err(HttmError::new(stderr_buffer.trim()).into());
             }
         }
 
