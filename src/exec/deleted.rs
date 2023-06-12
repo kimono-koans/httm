@@ -15,7 +15,6 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::ops::Deref;
 use std::path::{Path, PathBuf};
 
 use rayon::Scope;
@@ -98,7 +97,6 @@ impl SpawnDeletedThread {
             let path_set: Vec<PathData> = vec_dirs.into_iter().map(PathData::from).collect();
 
             return LastInTimeSet::try_from(path_set)?
-                .deref()
                 .iter()
                 .try_for_each(|deleted_dir| {
                     RecurseBehindDeletedDir::exec(
