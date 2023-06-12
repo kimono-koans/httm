@@ -121,6 +121,13 @@ impl SnapshotMounts {
             Ok(snapshot_name)
         }).collect::<Result<Vec<String>, HttmError>>()?;
 
+        if vec_snapshot_names.is_empty() {
+            eprintln!(
+                "httm could not generate any valid snapshot names from requested input.  Quitting"
+            );
+            std::process::exit(0)
+        }
+
         // why all this garbage with BTreeMaps, etc.? ZFS will not allow one to take snapshots
         // with the same name, at the same time, across pools.  Since we don't really care, we break
         // the snapshots into groups by pool name and then just take snapshots for each pool
@@ -141,7 +148,7 @@ impl SnapshotMounts {
             .collect();
 
         if map_snapshot_names.is_empty() {
-            eprintln!("httm could not generate a valid names to snapshot.  Quitting");
+            eprintln!("httm could not generate a valid map of snapshot names from the requested input.  Quitting");
             std::process::exit(0)
         }
 
