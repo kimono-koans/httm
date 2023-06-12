@@ -122,10 +122,10 @@ impl SnapshotMounts {
         }).collect::<Result<Vec<String>, HttmError>>()?;
 
         if vec_snapshot_names.is_empty() {
-            eprintln!(
-                "httm could not generate any valid snapshot names from requested input.  Quitting"
-            );
-            std::process::exit(0)
+            return Err(HttmError::new(
+                "httm could not generate any valid snapshot names from requested input.  Quitting",
+            )
+            .into());
         }
 
         // why all this garbage with BTreeMaps, etc.? ZFS will not allow one to take snapshots
@@ -148,8 +148,7 @@ impl SnapshotMounts {
             .collect();
 
         if map_snapshot_names.is_empty() {
-            eprintln!("httm could not generate a valid map of snapshot names from the requested input.  Quitting");
-            std::process::exit(0)
+            return Err(HttmError::new("httm could not generate a valid map of snapshot names from the requested input.  Quitting").into());
         }
 
         Ok(map_snapshot_names)
