@@ -15,17 +15,16 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::{collections::BTreeMap, ops::Deref};
 
 use rayon::prelude::*;
 
 use crate::config::generate::ListSnapsFilters;
 use crate::data::paths::PathData;
+use crate::lookup::versions::VersionsMap;
 use crate::parse::aliases::FilesystemType;
 use crate::{GLOBAL_CONFIG, ZFS_SNAPSHOT_DIRECTORY};
-
-use super::versions::VersionsMap;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SnapNameMap {
@@ -72,7 +71,7 @@ impl SnapNameMap {
                 let snap_names: Vec<String> = vec_snaps
                     .into_par_iter()
                     .filter_map(|pathdata| {
-                        DeconstructedSnapPathData::new(&pathdata, false)
+                        DeconstructedSnapPathData::new(&pathdata)
                             .map(|deconstructed| deconstructed.snap_name)
                     })
                     .filter(|snap| {
@@ -117,14 +116,13 @@ impl SnapNameMap {
 #[allow(dead_code)]
 pub struct DeconstructedSnapPathData {
     snap_name: String,
-    relpath: Option<PathBuf>,
 }
 
 impl DeconstructedSnapPathData {
-    fn new(pathdata: &PathData, include_relative_path: bool) -> Option<Self> {
+    fn new(pathdata: &PathData) -> Option<Self> {
         let path_string = &pathdata.path_buf.to_string_lossy();
 
-        let (dataset_path, (snap, relpath)) = if let Some((lhs, rhs)) =
+        let (dataset_path, (snap, _relpath)) = if let Some((lhs, rhs)) =
             path_string.split_once(&format!("{ZFS_SNAPSHOT_DIRECTORY}/"))
         {
             (Path::new(lhs), rhs.split_once('/').unwrap_or((rhs, "")))
@@ -140,11 +138,6 @@ impl DeconstructedSnapPathData {
         match opt_dataset_md {
             Some(md) if md.fs_type == FilesystemType::Zfs => Some(DeconstructedSnapPathData {
                 snap_name: format!("{}@{snap}", md.source.to_string_lossy()),
-                relpath: if include_relative_path {
-                    Some(PathBuf::from(relpath))
-                } else {
-                    None
-                },
             }),
             Some(_md) => {
                 eprintln!("WARNING: {pathdata:?} is located on a non-ZFS dataset.  httm can only list snapshot names for ZFS datasets.");
