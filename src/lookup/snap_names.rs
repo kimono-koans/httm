@@ -51,7 +51,7 @@ impl SnapNameMap {
         versions_map: VersionsMap,
         opt_filters: &Option<ListSnapsFilters>,
     ) -> HttmResult<Self> {
-        let mut inner: BTreeMap<PathData, Vec<String>> = versions_map
+        let res: HttmResult<BTreeMap<PathData, Vec<String>>> = versions_map
             .into_inner()
             .into_iter()
             .filter(|(pathdata, snaps)| {
@@ -83,33 +83,31 @@ impl SnapNameMap {
 
                 (pathdata, snap_names)
             })
-            .collect();
-
-        if inner.is_empty() {
-            return Err(HttmError::new("All valid paths have been filtered, likely because all have no snapshots. Quitting.").into());
-        }
-
-        // you *could* filter above but you wouldn't be able to return a result as easily
-        if let Some(mode_filter) = opt_filters {
-            if mode_filter.omit_num_snaps != 0 {
-                let res: HttmResult<()> = inner
-                    .iter_mut()
-                    .try_for_each(|(_pathdata, snaps)| {
-                        let opt_amt_less = snaps.len().checked_sub(mode_filter.omit_num_snaps);
+            .map(|(pathdata, mut vec_snaps)| {
+                // you *could* filter above but you wouldn't be able to return a result as easily
+                if let Some(mode_filter) = opt_filters {
+                    if mode_filter.omit_num_snaps != 0 {
+                        let opt_amt_less = vec_snaps.len().checked_sub(mode_filter.omit_num_snaps);
 
                         match opt_amt_less {
                             Some(amt_less) => {
-                                let _ = snaps.split_off(amt_less);
-                                Ok(())
+                                let _ = vec_snaps.split_off(amt_less);
                             }
                             None => {
-                                Err(HttmError::new("Number of snapshots requested to omit larger than number of snapshots.").into())
+                                return Err(HttmError::new("Number of snapshots requested to omit larger than number of snapshots.").into())
                             }
                         }
-                    });
+                    }
+                }
 
-                res?
-            }
+                Ok((pathdata, vec_snaps))
+            })
+            .collect();
+
+        let inner = res?;
+
+        if inner.is_empty() {
+            return Err(HttmError::new("All valid paths have been filtered, likely because all have no snapshots. Quitting.").into());
         }
 
         Ok(inner.into())
