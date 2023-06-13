@@ -54,11 +54,23 @@ impl SnapNameMap {
         let mut inner: BTreeMap<PathData, Vec<String>> = versions_map
             .into_inner()
             .into_iter()
+            .filter(|(pathdata, snaps)| {
+                if snaps.is_empty() {
+                    let msg = format!(
+                        "httm could not find any snapshots for the file specified: {:?}",
+                        pathdata.path_buf
+                    );
+                    eprintln!("WARNING: {msg}");
+                    return false;
+                }
+
+                true
+            })
             .map(|(pathdata, vec_snaps)| {
                 // use par iter here because no one else is using the global rayon threadpool any more
                 let snap_names: Vec<String> = vec_snaps
                     .into_par_iter()
-                    .filter_map(|pathdata| Self::deconstruct_snap_names(&pathdata))
+                    .filter_map(|pathdata| Self::deconstruct_snap_paths(&pathdata))
                     .filter(|snap| {
                         if let Some(filters) = opt_filters {
                             if let Some(names) = &filters.name_filters {
@@ -73,37 +85,37 @@ impl SnapNameMap {
             })
             .collect();
 
+        if inner.is_empty() {
+            return Err(HttmError::new("All valid paths have been filtered, likely because all have no snapshots. Quitting.").into());
+        }
+
+        // you *could* filter above but you wouldn't be able to return a result as easily
         if let Some(mode_filter) = opt_filters {
             if mode_filter.omit_num_snaps != 0 {
-                let res: HttmResult<()> = inner.iter_mut().try_for_each(|(_pathdata, snaps)| {
-                    let snaps_len = snaps.len();
-                    let opt_amt_less = snaps_len.checked_sub(mode_filter.omit_num_snaps);
-                    if let Some(amt_less) = opt_amt_less {
-                        let _ = snaps.split_off(amt_less);
-                        Ok(())
-                    } else {
-                        Err(HttmError::new("Number of snapshots requested to omit larger than number of snapshots.").into())
-                    }
-                });
+                let res: HttmResult<()> = inner
+                    .iter_mut()
+                    .try_for_each(|(_pathdata, snaps)| {
+                        let opt_amt_less = snaps.len().checked_sub(mode_filter.omit_num_snaps);
+
+                        match opt_amt_less {
+                            Some(amt_less) => {
+                                let _ = snaps.split_off(amt_less);
+                                Ok(())
+                            }
+                            None => {
+                                Err(HttmError::new("Number of snapshots requested to omit larger than number of snapshots.").into())
+                            }
+                        }
+                    });
 
                 res?
             }
         }
 
-        inner.iter().for_each(|(pathdata, snaps)| {
-            if snaps.is_empty() {
-                let msg = format!(
-                    "httm could not find any snapshots for the file specified: {:?}",
-                    pathdata.path_buf
-                );
-                eprintln!("WARNING: {msg}");
-            }
-        });
-
         Ok(inner.into())
     }
 
-    fn deconstruct_snap_names(pathdata: &PathData) -> Option<String> {
+    fn deconstruct_snap_paths(pathdata: &PathData) -> Option<String> {
         let path_string = &pathdata.path_buf.to_string_lossy();
 
         let (dataset_path, (snap, _relpath)) = if let Some((lhs, rhs)) =
