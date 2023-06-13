@@ -342,7 +342,7 @@ impl CompareVersionsContainer {
                     return Ok(*hash_value);
                 }
 
-                Self::path_hash(&self.pathdata.path_buf)
+                AHashFileReader::try_from(self.pathdata.path_buf.as_path())
                     .map(|hash| *self_hash_cell.get_or_init(|| hash.into_inner()))
             },
             || {
@@ -350,7 +350,7 @@ impl CompareVersionsContainer {
                     return Ok(*hash_value);
                 }
 
-                Self::path_hash(&other.pathdata.path_buf)
+                AHashFileReader::try_from(other.pathdata.path_buf.as_path())
                     .map(|hash| *other_hash_cell.get_or_init(|| hash.into_inner()))
             },
         );
@@ -363,16 +363,6 @@ impl CompareVersionsContainer {
 
         false
     }
-
-    fn path_hash(path: &Path) -> HttmResult<AHashFileReader> {
-        const IN_BUFFER_SIZE: usize = 131_072;
-
-        let self_file = File::open(path)?;
-
-        let mut self_reader = BufReader::with_capacity(IN_BUFFER_SIZE, self_file);
-
-        AHashFileReader::try_from(&mut self_reader)
-    }
 }
 
 struct AHashFileReader {
@@ -380,15 +370,23 @@ struct AHashFileReader {
 }
 
 impl AHashFileReader {
+    #[inline(always)]
     fn into_inner(self) -> u64 {
         self.hash
     }
 }
 
-impl TryFrom<&mut BufReader<std::fs::File>> for AHashFileReader {
+impl TryFrom<&Path> for AHashFileReader {
     type Error = Box<dyn std::error::Error + Send + Sync>;
 
-    fn try_from(reader: &mut BufReader<std::fs::File>) -> HttmResult<Self> {
+    #[inline(always)]
+    fn try_from(path: &Path) -> HttmResult<Self> {
+        const IN_BUFFER_SIZE: usize = 131_072;
+
+        let file = File::open(path)?;
+
+        let mut reader = BufReader::with_capacity(IN_BUFFER_SIZE, file);
+
         let mut hash = AHasher::default();
 
         loop {
