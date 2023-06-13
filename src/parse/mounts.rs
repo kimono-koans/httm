@@ -29,7 +29,7 @@ use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{find_common_path, fs_type_from_hidden_dir};
 use crate::parse::aliases::FilesystemType;
 use crate::parse::snaps::MapOfSnaps;
-use crate::{NILFS2_SNAPSHOT_ID_KEY, ZFS_SNAPSHOT_DIRECTORY};
+use crate::{NILFS2_SNAPSHOT_ID_KEY, ZFS_HIDDEN_DIRECTORY};
 
 pub const ZFS_FSTYPE: &str = "zfs";
 pub const NILFS2_FSTYPE: &str = "nilfs2";
@@ -159,7 +159,7 @@ impl BaseFilesystemInfo {
                         && mount_info
                             .dest
                             .to_string_lossy()
-                            .contains(ZFS_SNAPSHOT_DIRECTORY)
+                            .contains(ZFS_HIDDEN_DIRECTORY)
                     {
                         return false;
                     }
@@ -271,7 +271,7 @@ impl BaseFilesystemInfo {
             stdout_string
             .par_lines()
             // but exclude snapshot mounts.  we want the raw filesystem names.
-            .filter(|line| !line.contains(ZFS_SNAPSHOT_DIRECTORY))
+            .filter(|line| !line.contains(ZFS_HIDDEN_DIRECTORY))
             // where to split, to just have the src and dest of mounts
             .filter_map(|line|
                 // GNU Linux mount output
