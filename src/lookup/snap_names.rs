@@ -53,7 +53,7 @@ impl SnapNameMap {
     ) -> HttmResult<Self> {
         let inner: BTreeMap<PathData, Vec<String>> = versions_map
             .into_inner()
-            .into_iter()
+            .into_par_iter()
             .filter(|(pathdata, snaps)| {
                 if snaps.is_empty() {
                     let msg = format!(
