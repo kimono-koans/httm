@@ -27,7 +27,9 @@ use std::{
 use once_cell::sync::OnceCell;
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
-use simd_adler32::bufread::adler32;
+
+use ahash::AHasher;
+use std::hash::Hasher;
 
 use crate::parse::mounts::MapOfDatasets;
 use crate::parse::mounts::MaxLen;
@@ -272,7 +274,7 @@ pub const PHANTOM_PATH_METADATA: PathMetadata = PathMetadata {
 #[derive(Eq, PartialEq)]
 pub struct CompareVersionsContainer {
     pathdata: PathData,
-    opt_hash: Option<OnceCell<u32>>,
+    opt_hash: Option<OnceCell<u64>>,
 }
 
 impl From<CompareVersionsContainer> for PathData {
@@ -334,14 +336,14 @@ impl CompareVersionsContainer {
             .as_ref()
             .expect("opt_hash should be check prior to this point and must be Some");
 
-        let (self_hash, other_hash): (HttmResult<u32>, HttmResult<u32>) = rayon::join(
+        let (self_hash, other_hash): (HttmResult<u64>, HttmResult<u64>) = rayon::join(
             || {
                 if let Some(hash_value) = self_hash_cell.get() {
                     return Ok(*hash_value);
                 }
 
                 Self::path_hash(&self.pathdata.path_buf)
-                    .map(|hash| *self_hash_cell.get_or_init(|| hash))
+                    .map(|hash| *self_hash_cell.get_or_init(|| hash.into_inner()))
             },
             || {
                 if let Some(hash_value) = other_hash_cell.get() {
@@ -349,7 +351,7 @@ impl CompareVersionsContainer {
                 }
 
                 Self::path_hash(&other.pathdata.path_buf)
-                    .map(|hash| *other_hash_cell.get_or_init(|| hash))
+                    .map(|hash| *other_hash_cell.get_or_init(|| hash.into_inner()))
             },
         );
 
@@ -362,13 +364,62 @@ impl CompareVersionsContainer {
         false
     }
 
-    fn path_hash(path: &Path) -> HttmResult<u32> {
+    fn path_hash(path: &Path) -> HttmResult<AHashFileReader> {
         const IN_BUFFER_SIZE: usize = 131_072;
 
         let self_file = File::open(path)?;
 
         let mut self_reader = BufReader::with_capacity(IN_BUFFER_SIZE, self_file);
 
-        adler32(&mut self_reader).map_err(|err| err.into())
+        AHashFileReader::try_from(&mut self_reader)
+    }
+}
+
+use std::io::BufRead;
+use std::io::ErrorKind;
+
+struct AHashFileReader {
+    hash: u64,
+}
+
+impl AHashFileReader {
+    fn into_inner(self) -> u64 {
+        self.hash
+    }
+}
+
+impl TryFrom<&mut BufReader<std::fs::File>> for AHashFileReader {
+    type Error = Box<dyn std::error::Error + Send + Sync>;
+
+    fn try_from(reader: &mut BufReader<std::fs::File>) -> HttmResult<Self> {
+        let mut hash = AHasher::default();
+
+        loop {
+            let consumed = match reader.fill_buf() {
+                Ok(buf) => {
+                    if buf.is_empty() {
+                        let res = Self {
+                            hash: hash.finish(),
+                        };
+                        return Ok(res);
+                    }
+
+                    hash.write(buf);
+                    buf.len()
+                }
+                Err(err) => match err.kind() {
+                    ErrorKind::Interrupted => continue,
+                    ErrorKind::UnexpectedEof => {
+                        let res = Self {
+                            hash: hash.finish(),
+                        };
+                        return Ok(res);
+                    }
+                    _ => return Err(err.into()),
+                },
+            };
+
+            reader.consume(consumed);
+        }
     }
 }
