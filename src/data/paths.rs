@@ -19,7 +19,7 @@ use std::{
     cmp::{Ord, Ordering, PartialOrd},
     ffi::OsStr,
     fs::{symlink_metadata, DirEntry, File, FileType, Metadata},
-    io::BufReader,
+    io::{BufRead, BufReader, ErrorKind},
     path::{Path, PathBuf},
     time::SystemTime,
 };
@@ -374,9 +374,6 @@ impl CompareVersionsContainer {
         AHashFileReader::try_from(&mut self_reader)
     }
 }
-
-use std::io::BufRead;
-use std::io::ErrorKind;
 
 struct AHashFileReader {
     hash: u64,
