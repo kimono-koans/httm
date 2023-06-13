@@ -58,7 +58,7 @@ impl<'a> MountsForFiles<'a> {
 
                 true
             })
-            .flat_map(|pathdata| ProximateDatasetAndOptAlts::new(&pathdata))
+            .flat_map(ProximateDatasetAndOptAlts::new)
             .map(|prox_opt_alts| {
                 let vec = prox_opt_alts
                     .datasets_of_interest
