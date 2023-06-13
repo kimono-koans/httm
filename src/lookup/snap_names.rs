@@ -84,7 +84,6 @@ impl SnapNameMap {
                 (pathdata, snap_names)
             })
             .map(|(pathdata, mut vec_snaps)| {
-                // you *could* filter above but you wouldn't be able to return a result as easily
                 if let Some(mode_filter) = opt_filters {
                     if mode_filter.omit_num_snaps != 0 {
                         let opt_amt_less = vec_snaps.len().checked_sub(mode_filter.omit_num_snaps);
