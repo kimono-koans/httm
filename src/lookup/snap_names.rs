@@ -51,7 +51,7 @@ impl SnapNameMap {
         versions_map: VersionsMap,
         opt_filters: &Option<ListSnapsFilters>,
     ) -> HttmResult<Self> {
-        let res: HttmResult<BTreeMap<PathData, Vec<String>>> = versions_map
+        let inner: BTreeMap<PathData, Vec<String>> = versions_map
             .into_inner()
             .into_iter()
             .filter(|(pathdata, snaps)| {
@@ -102,9 +102,7 @@ impl SnapNameMap {
 
                 Ok((pathdata, vec_snaps))
             })
-            .collect();
-
-        let inner = res?;
+            .collect::<HttmResult<_>>()?;
 
         if inner.is_empty() {
             return Err(HttmError::new("All valid paths have been filtered, likely because all have no snapshots. Quitting.").into());
