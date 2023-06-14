@@ -71,7 +71,7 @@ pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
             break;
         }
 
-        // read same amt from dest file, if it exists, to compare 
+        // read same amt from dest file, if it exists, to compare
         if let Some(ref mut dst_reader) = opt_just_write {
             let _ = dst_reader.read(&mut dest_buffer)?;
         }
