@@ -16,7 +16,7 @@
 // that was distributed with this source code.
 
 use std::cmp::Ordering;
-use std::io::{BufRead, Read};
+use std::io::BufRead;
 use std::path::{Path, PathBuf};
 use std::process::Child;
 use std::process::Command as ExecProcess;
@@ -113,12 +113,12 @@ impl RollForward {
             return Err(HttmError::new(&msg).into());
         };
 
+        let snap_guard: SnapGuard =
+            SnapGuard::new(dataset_name, PrecautionarySnapType::PreRollForward)?;
+
         let mut process_handle = Self::exec_diff(full_snap_name)?;
 
         let mut stream = Self::ingest(&mut process_handle)?;
-
-        let snap_guard: SnapGuard =
-            SnapGuard::new(dataset_name, PrecautionarySnapType::PreRollForward)?;
 
         match Self::roll_forward(&mut stream, snap_name) {
             Ok(_) => {
@@ -156,68 +156,55 @@ impl RollForward {
         let process_handle = ExecProcess::new(zfs_command)
             .args(&process_args)
             .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
+            .stderr(Stdio::inherit())
             .spawn()?;
 
         Ok(process_handle)
     }
 
     fn ingest(process_handle: &mut Child) -> HttmResult<impl Iterator<Item = DiffEvent> + '_> {
-        let stdout_buffer = if let Some(output) = process_handle.stdout.take() {
-            std::io::BufReader::new(output)
+        let res = if let Some(output) = process_handle.stdout.take() {
+            let stdout_buffer = std::io::BufReader::new(output);
+
+            let ret = stdout_buffer
+                .lines()
+                .map(|line| line.expect("Could not obtain line from string."))
+                .filter_map(move |line| {
+                    let split_line: Vec<&str> = line.split('\t').collect();
+
+                    let time_str = split_line
+                        .first()
+                        .expect("Could not obtain a timestamp for diff event.");
+
+                    let res = match split_line.get(1) {
+                        Some(event) if event == &"-" => split_line.get(2).map(|path_string| {
+                            DiffEvent::new(path_string, DiffType::Removed, time_str)
+                        }),
+                        Some(event) if event == &"+" => split_line.get(2).map(|path_string| {
+                            DiffEvent::new(path_string, DiffType::Created, time_str)
+                        }),
+                        Some(event) if event == &"M" => split_line.get(2).map(|path_string| {
+                            DiffEvent::new(path_string, DiffType::Modified, time_str)
+                        }),
+                        Some(event) if event == &"R" => split_line.get(2).map(|path_string| {
+                            let new_file_name =
+                                PathBuf::from(split_line.get(3).expect(
+                                    "diff of type rename did not contain a new name value",
+                                ));
+                            DiffEvent::new(path_string, DiffType::Renamed(new_file_name), time_str)
+                        }),
+                        _ => panic!("Error: Not a 'zfs diff' event: {}", line),
+                    };
+
+                    res
+                });
+
+            Ok(ret)
         } else {
-            println!("'zfs diff' did not appear to contain any modified files.  Quitting.");
-            std::process::exit(0);
+            Err(HttmError::new("'zfs diff' reported no changes to dataset").into())
         };
 
-        let res = stdout_buffer
-            .lines()
-            .map(|line| line.expect("Could not obtain line from string."))
-            .map(move |line| {
-                let split_line: Vec<&str> = line.split('\t').collect();
-
-                let time_str = split_line
-                    .first()
-                    .expect("Could not obtain a timestamp for diff event.");
-
-                let res = match split_line.get(1) {
-                    Some(event) if event == &"-" => split_line.get(2).map(|path_string| {
-                        DiffEvent::new(path_string, DiffType::Removed, time_str)
-                    }),
-                    Some(event) if event == &"+" => split_line.get(2).map(|path_string| {
-                        DiffEvent::new(path_string, DiffType::Created, time_str)
-                    }),
-                    Some(event) if event == &"M" => split_line.get(2).map(|path_string| {
-                        DiffEvent::new(path_string, DiffType::Modified, time_str)
-                    }),
-                    Some(event) if event == &"R" => split_line.get(2).map(|path_string| {
-                        let new_file_name = PathBuf::from(
-                            split_line
-                                .get(3)
-                                .expect("diff of type rename did not contain a new name value"),
-                        );
-                        DiffEvent::new(path_string, DiffType::Renamed(new_file_name), time_str)
-                    }),
-                    _ => None,
-                };
-
-                res.expect("Could not parse diff event from line of zfs diff input.")
-            });
-
-        if process_handle.stderr.is_some() {
-            let mut stderr_buffer = String::new();
-            process_handle
-                .stderr
-                .take()
-                .unwrap()
-                .read_to_string(&mut stderr_buffer)?;
-
-            if !stderr_buffer.is_empty() {
-                return Err(HttmError::new(stderr_buffer.trim()).into());
-            }
-        }
-
-        Ok(res)
+        res
     }
 
     fn roll_forward<I>(stream: I, snap_name: &str) -> HttmResult<()>
@@ -229,7 +216,7 @@ impl RollForward {
         let mut iter_peekable = stream.peekable();
 
         if iter_peekable.peek().is_none() {
-            return Err(HttmError::new("zfs diff reported no changes").into());
+            return Err(HttmError::new("'zfs diff' reported no changes to dataset").into());
         }
 
         iter_peekable
