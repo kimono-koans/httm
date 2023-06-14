@@ -25,8 +25,7 @@ use std::io::SeekFrom;
 use std::io::Write;
 use std::path::Path;
 
-use ahash::AHasher;
-use std::hash::Hasher;
+use simd_adler32::Adler32;
 
 use crate::library::results::HttmResult;
 
@@ -101,14 +100,14 @@ pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
 
 #[inline]
 fn is_same_bytes(a_bytes: &[u8; CHUNK_SIZE], b_bytes: &[u8; CHUNK_SIZE]) -> bool {
-    let (a_hash, b_hash): (u64, u64) = rayon::join(|| hash(a_bytes), || hash(b_bytes));
+    let (a_hash, b_hash): (u32, u32) = rayon::join(|| hash(a_bytes), || hash(b_bytes));
 
     a_hash == b_hash
 }
 
 #[inline]
-fn hash(bytes: &[u8; CHUNK_SIZE]) -> u64 {
-    let mut hash = AHasher::default();
+fn hash(bytes: &[u8; CHUNK_SIZE]) -> u32 {
+    let mut hash = Adler32::default();
 
     hash.write(bytes);
     hash.finish()

@@ -28,8 +28,7 @@ use once_cell::sync::OnceCell;
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
 
-use ahash::AHasher;
-use std::hash::Hasher;
+use simd_adler32::Adler32;
 
 use crate::parse::mounts::MapOfDatasets;
 use crate::parse::mounts::MaxLen;
@@ -274,7 +273,7 @@ pub const PHANTOM_PATH_METADATA: PathMetadata = PathMetadata {
 #[derive(Eq, PartialEq)]
 pub struct CompareVersionsContainer {
     pathdata: PathData,
-    opt_hash: Option<OnceCell<u64>>,
+    opt_hash: Option<OnceCell<u32>>,
 }
 
 impl From<CompareVersionsContainer> for PathData {
@@ -336,7 +335,7 @@ impl CompareVersionsContainer {
             .as_ref()
             .expect("opt_hash should be check prior to this point and must be Some");
 
-        let (self_hash, other_hash): (HttmResult<u64>, HttmResult<u64>) = rayon::join(
+        let (self_hash, other_hash): (HttmResult<u32>, HttmResult<u32>) = rayon::join(
             || {
                 if let Some(hash_value) = self_hash_cell.get() {
                     return Ok(*hash_value);
@@ -366,12 +365,12 @@ impl CompareVersionsContainer {
 }
 
 struct AHashFileReader {
-    hash: u64,
+    hash: u32,
 }
 
 impl AHashFileReader {
     #[inline(always)]
-    fn into_inner(self) -> u64 {
+    fn into_inner(self) -> u32 {
         self.hash
     }
 }
@@ -387,7 +386,7 @@ impl TryFrom<&Path> for AHashFileReader {
 
         let mut reader = BufReader::with_capacity(IN_BUFFER_SIZE, file);
 
-        let mut hash = AHasher::default();
+        let mut hash = Adler32::default();
 
         loop {
             let consumed = match reader.fill_buf() {
