@@ -341,7 +341,7 @@ impl CompareVersionsContainer {
                     return Ok(*hash_value);
                 }
 
-                AHashFileReader::try_from(self.pathdata.path_buf.as_path())
+                HashFromFile::try_from(self.pathdata.path_buf.as_path())
                     .map(|hash| *self_hash_cell.get_or_init(|| hash.into_inner()))
             },
             || {
@@ -349,7 +349,7 @@ impl CompareVersionsContainer {
                     return Ok(*hash_value);
                 }
 
-                AHashFileReader::try_from(other.pathdata.path_buf.as_path())
+                HashFromFile::try_from(other.pathdata.path_buf.as_path())
                     .map(|hash| *other_hash_cell.get_or_init(|| hash.into_inner()))
             },
         );
@@ -364,18 +364,18 @@ impl CompareVersionsContainer {
     }
 }
 
-struct AHashFileReader {
+struct HashFromFile {
     hash: u32,
 }
 
-impl AHashFileReader {
+impl HashFromFile {
     #[inline(always)]
     fn into_inner(self) -> u32 {
         self.hash
     }
 }
 
-impl TryFrom<&Path> for AHashFileReader {
+impl TryFrom<&Path> for HashFromFile {
     type Error = Box<dyn std::error::Error + Send + Sync>;
 
     #[inline(always)]
