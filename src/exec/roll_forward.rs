@@ -34,7 +34,7 @@ use crate::library::utility::{copy_direct, remove_recursive};
 use crate::library::utility::{is_metadata_different, user_has_effective_root};
 use crate::{GLOBAL_CONFIG, ZFS_SNAPSHOT_DIRECTORY};
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 struct DiffEvent {
     pathdata: PathData,
     diff_type: DiffType,
@@ -51,7 +51,7 @@ impl DiffEvent {
     }
 }
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 struct DiffTime {
     secs: u64,
     nanos: u64,
@@ -90,7 +90,7 @@ impl std::cmp::PartialOrd for DiffTime {
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 enum DiffType {
     Removed,
     Created,
@@ -151,7 +151,9 @@ impl RollForward {
         let zfs_command = which("zfs").map_err(|_err| {
             HttmError::new("'zfs' command not found. Make sure the command 'zfs' is in your path.")
         })?;
-        let process_args = vec!["diff", "-H", "-t", full_snapshot_name];
+
+        // -H: tab separated, -t: Specify time, -h: Normalize paths (don't use escape codes)
+        let process_args = vec!["diff", "-H", "-t", "-h", full_snapshot_name];
 
         let process_handle = ExecProcess::new(zfs_command)
             .args(&process_args)
@@ -193,7 +195,7 @@ impl RollForward {
                                 ));
                             DiffEvent::new(path_string, DiffType::Renamed(new_file_name), time_str)
                         }),
-                        _ => panic!("Error: Not a 'zfs diff' event: {}", line),
+                        _ => panic!("Could not parse diff event."),
                     };
 
                     res
@@ -217,18 +219,23 @@ impl RollForward {
             return Err(HttmError::new("'zfs diff' reported no changes to dataset").into());
         }
 
-        iter_peekable
-            // zfs-diff can return multiple file actions for a single inode, here we dedup
-            .into_group_map_by(|event| event.pathdata.clone())
+        // zfs-diff can return multiple file actions for a single inode, here we dedup
+        let mut group_map: Vec<(PathBuf, Vec<DiffEvent>)> = iter_peekable
+            .into_group_map_by(|event| event.pathdata.path_buf.clone())
             .into_iter()
-            .map(|(_key, values)| {
-                let mut new_values = values;
-                new_values.sort_by_key(|event| event.time.clone());
-                new_values
-                    .into_iter()
-                    .next()
-                    .expect("Could not obtain first element of group values.")
+            .collect();
+
+        // now sort by number of components, want to build from the bottom up, do less dir creation, etc.
+        group_map.sort_by_key(|(key, _values)| key.components().count());
+
+        // into iter and reverse because we want to go smallest first
+        group_map
+            .into_iter()
+            .map(|(_key, mut values)| {
+                values.sort_by_key(|event| event.time.clone());
+                values.pop()
             })
+            .flatten()
             .map(|event| {
                 let proximate_dataset_mount = cell.get_or_init(|| {
                     event
@@ -244,15 +251,15 @@ impl RollForward {
 
                 (event, snap_file_path)
             })
-            .try_for_each(|(event, snap_file_path)| Self::diff_action(event, &snap_file_path))
+            .try_for_each(|(event, snap_file_path)| Self::diff_action(&event, &snap_file_path))
     }
 
     fn snap_path(
-        pathdata: &PathData,
+        event_pathdata: &PathData,
         snap_name: &str,
         proximate_dataset_mount: &Path,
     ) -> Option<PathBuf> {
-        pathdata
+        event_pathdata
             .relative_path(proximate_dataset_mount)
             .ok()
             .map(|relative_path| {
@@ -269,20 +276,20 @@ impl RollForward {
             })
     }
 
-    fn diff_action(event: DiffEvent, snap_file_path: &Path) -> HttmResult<()> {
+    fn diff_action(event: &DiffEvent, snap_file_path: &Path) -> HttmResult<()> {
         let snap_file = PathData::from(snap_file_path);
 
-        match event.diff_type {
-            DiffType::Created => Self::remove(&event.pathdata.path_buf),
+        match &event.diff_type {
             DiffType::Removed | DiffType::Modified => {
                 Self::copy(&snap_file.path_buf, &event.pathdata.path_buf)
             }
+            DiffType::Created => Self::remove(&snap_file.path_buf, &event.pathdata.path_buf),
             DiffType::Renamed(new_file_name) => {
                 // zfs-diff can return multiple file actions for a single inode
                 // since we exclude older file actions, if renamed is the last action,
                 // we should make sure it has the latest data, so a simple rename is not enough
-                Self::copy(&snap_file.path_buf, &event.pathdata.path_buf)?;
-                Self::remove(&new_file_name)
+                Self::remove(&snap_file.path_buf, &new_file_name)
+                //Self::copy(&snap_file.path_buf, &event.pathdata.path_buf)
             }
         }
     }
@@ -302,22 +309,27 @@ impl RollForward {
         Ok(())
     }
 
-    fn remove(src: &Path) -> HttmResult<()> {
-        match remove_recursive(src) {
+    fn remove(src: &Path, dst: &Path) -> HttmResult<()> {
+        match remove_recursive(dst) {
             Ok(_) => {
-                if src.exists() {
-                    let msg = format!("WARNING: File should not exist after deletion {:?}", src);
+                if dst.exists() {
+                    let msg = format!("WARNING: File should not exist after deletion {:?}", dst);
                     return Err(HttmError::new(&msg).into());
                 }
             }
             Err(err) => {
                 eprintln!("Error: {}", err);
-                let msg = format!("WARNING: Could not delete file {:?}", src);
+                let msg = format!("WARNING: Could not delete file {:?}", dst);
                 return Err(HttmError::new(&msg).into());
             }
         }
 
-        eprintln!("{}: {:?} -> 🗑️", Red.paint("Removed  "), src);
+        eprintln!("{}: {:?} -> 🗑️", Red.paint("Removed  "), dst);
+
+        if src.exists() {
+            Self::copy(src, dst)?
+        }
+
         Ok(())
     }
 }

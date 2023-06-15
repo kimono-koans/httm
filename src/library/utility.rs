@@ -17,7 +17,7 @@
 
 use std::{
     borrow::Cow,
-    fs::{read_dir, set_permissions, FileType},
+    fs::{create_dir_all, read_dir, set_permissions, FileType},
     io::{self, Read, Write},
     iter::Iterator,
     os::unix::fs::MetadataExt,
@@ -33,16 +33,13 @@ use once_cell::sync::Lazy;
 use time::{format_description, OffsetDateTime, UtcOffset};
 use which::which;
 
+use crate::data::paths::{BasicDirEntryInfo, PathData, PHANTOM_SIZE};
 use crate::data::selection::SelectionCandidate;
 use crate::library::diff_copy::diff_copy;
 use crate::library::results::{HttmError, HttmResult};
 use crate::parse::aliases::FilesystemType;
 use crate::GLOBAL_CONFIG;
 use crate::{config::generate::PrintMode, data::paths::PathMetadata};
-use crate::{
-    data::paths::{BasicDirEntryInfo, PathData, PHANTOM_SIZE},
-    ROOT_DIRECTORY,
-};
 use crate::{BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_SNAPSHOT_DIRECTORY};
 use std::process::Command as ExecProcess;
 
@@ -175,43 +172,66 @@ pub fn copy_attributes(src: &Path, dst: &Path) -> HttmResult<()> {
     Ok(())
 }
 
-pub fn copy_direct(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<()> {
-    if src.is_dir() {
-        if !dst.exists() {
-            std::fs::create_dir_all(dst)?;
-        }
-        assert!(dst.exists())
-    } else {
-        // create parent for file to land
-        {
-            // file should always have a parent?
-            let src_parent = src.parent().unwrap_or_else(|| Path::new(ROOT_DIRECTORY));
+fn create_dir_with_ancestors(
+    src_pathdata: &PathData,
+    dst_pathdata: &PathData,
+    should_preserve: bool,
+) -> HttmResult<()> {
+    let proximate_dataset_mount =
+        dst_pathdata.proximate_dataset(&GLOBAL_CONFIG.dataset_collection.map_of_datasets)?;
 
-            let dst_parent = if let Some(parent) = dst.parent() {
-                parent.to_path_buf()
-            } else {
-                let mut parent = dst.to_path_buf();
-                parent.pop();
-                parent
-            };
+    let relative_path_components_len = dst_pathdata
+        .relative_path(proximate_dataset_mount)?
+        .to_path_buf()
+        .components()
+        .count();
 
-            if !dst_parent.exists() {
-                std::fs::create_dir_all(&dst_parent)?;
-            }
+    if !dst_pathdata.path_buf.exists() {
+        create_dir_all(&dst_pathdata.path_buf)?;
+    }
 
+    let res: HttmResult<()> = src_pathdata
+        .path_buf
+        .ancestors()
+        .zip(dst_pathdata.path_buf.ancestors())
+        .take(relative_path_components_len)
+        .map(|(src_ancestor, dst_ancestor)| {
             if should_preserve {
-                copy_attributes(src_parent, &dst_parent)?;
+                copy_attributes(src_ancestor, dst_ancestor)?;
             }
 
-            assert!(dst_parent.exists())
-        }
+            Ok(())
+        })
+        .collect();
 
-        if src.is_symlink() {
-            let link_target = std::fs::read_link(src)?;
-            std::os::unix::fs::symlink(link_target, dst)?
-        } else {
-            diff_copy(src, dst)?;
+    res
+}
+
+pub fn copy_direct(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<()> {
+    // create parent for file to land
+
+    let src_pathdata = PathData::from(src);
+    let dst_pathdata = PathData::from(dst);
+
+    if let Some(src_parent) = src_pathdata.path_buf.parent() {
+        if let Some(dst_parent) = dst_pathdata.path_buf.parent() {
+            let src_parent_pathdata = src_parent.into();
+            let dst_parent_pathdata = dst_parent.into();
+            create_dir_with_ancestors(&src_parent_pathdata, &dst_parent_pathdata, should_preserve)?;
         }
+    }
+
+    if src.is_dir() {
+        create_dir_with_ancestors(&src_pathdata, &dst_pathdata, should_preserve)?;
+    }
+
+    if src.is_symlink() {
+        let link_target = std::fs::read_link(src)?;
+        std::os::unix::fs::symlink(link_target, dst)?;
+    }
+
+    if src.is_file() {
+        diff_copy(src, dst)?;
     }
 
     if should_preserve {
