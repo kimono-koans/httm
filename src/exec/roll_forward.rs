@@ -163,7 +163,9 @@ impl RollForward {
     }
 
     fn ingest(process_handle: &mut Child) -> HttmResult<impl Iterator<Item = DiffEvent> + '_> {
-        let res = if let Some(output) = process_handle.stdout.take() {
+        
+
+        if let Some(output) = process_handle.stdout.take() {
             let stdout_buffer = std::io::BufReader::new(output);
 
             let ret = stdout_buffer
@@ -202,9 +204,7 @@ impl RollForward {
             Ok(ret)
         } else {
             Err(HttmError::new("'zfs diff' reported no changes to dataset").into())
-        };
-
-        res
+        }
     }
 
     fn roll_forward<I>(stream: I, snap_name: &str) -> HttmResult<()>
