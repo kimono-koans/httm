@@ -145,8 +145,8 @@ impl TryFrom<Vec<PathData>> for LastInTimeSet {
             .iter()
             .flat_map(ProximateDatasetAndOptAlts::new)
             .map(|prox_opt_alts| prox_opt_alts.into_search_bundles())
-            .filter_map(|versions_map| {
-                versions_map
+            .filter_map(|relative_paths_snap_mounts| {
+                relative_paths_snap_mounts
                     .into_iter()
                     .filter_map(|search_bundle| search_bundle.last_version())
                     .max_by_key(|pathdata| pathdata.md_infallible().modify_time)
