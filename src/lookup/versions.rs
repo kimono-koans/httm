@@ -75,6 +75,7 @@ impl VersionsMap {
                 let key = prox_opt_alts.pathdata.clone();
                 let values = prox_opt_alts
                     .into_search_bundles()
+                    .par_bridge()
                     .map(|relative_path_snap_mounts| {
                         relative_path_snap_mounts.versions_processed(&config.uniqueness)
                     })
