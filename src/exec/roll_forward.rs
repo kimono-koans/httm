@@ -163,8 +163,6 @@ impl RollForward {
     }
 
     fn ingest(process_handle: &mut Child) -> HttmResult<impl Iterator<Item = DiffEvent> + '_> {
-        
-
         if let Some(output) = process_handle.stdout.take() {
             let stdout_buffer = std::io::BufReader::new(output);
 
