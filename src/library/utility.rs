@@ -213,25 +213,29 @@ pub fn copy_direct(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<
     let src_pathdata = PathData::from(src);
     let dst_pathdata = PathData::from(dst);
 
-    if let Some(src_parent) = src_pathdata.path_buf.parent() {
-        if let Some(dst_parent) = dst_pathdata.path_buf.parent() {
-            let src_parent_pathdata = src_parent.into();
-            let dst_parent_pathdata = dst_parent.into();
-            create_dir_with_ancestors(&src_parent_pathdata, &dst_parent_pathdata, should_preserve)?;
-        }
-    }
-
     if src.is_dir() {
         create_dir_with_ancestors(&src_pathdata, &dst_pathdata, should_preserve)?;
-    }
+    } else {
+        if let Some(src_parent) = src_pathdata.path_buf.parent() {
+            if let Some(dst_parent) = dst_pathdata.path_buf.parent() {
+                let src_parent_pathdata = src_parent.into();
+                let dst_parent_pathdata = dst_parent.into();
+                create_dir_with_ancestors(
+                    &src_parent_pathdata,
+                    &dst_parent_pathdata,
+                    should_preserve,
+                )?;
+            }
+        }
 
-    if src.is_symlink() {
-        let link_target = std::fs::read_link(src)?;
-        std::os::unix::fs::symlink(link_target, dst)?;
-    }
+        if src.is_symlink() {
+            let link_target = std::fs::read_link(src)?;
+            std::os::unix::fs::symlink(link_target, dst)?;
+        }
 
-    if src.is_file() {
-        diff_copy(src, dst)?;
+        if src.is_file() {
+            diff_copy(src, dst)?;
+        }
     }
 
     if should_preserve {
