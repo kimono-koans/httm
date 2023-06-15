@@ -279,18 +279,16 @@ impl RollForward {
     fn diff_action(event: &DiffEvent, snap_file_path: &Path) -> HttmResult<()> {
         let snap_file = PathData::from(snap_file_path);
 
+        // zfs-diff can return multiple file actions for a single inode
+        // since we exclude older file actions, if rename or created is the last action,
+        // we should make sure it has the latest data, so a simple rename is not enough
+        // this is internal to the fn Self::remove()
         match &event.diff_type {
             DiffType::Removed | DiffType::Modified => {
                 Self::copy(&snap_file.path_buf, &event.pathdata.path_buf)
             }
             DiffType::Created => Self::remove(&snap_file.path_buf, &event.pathdata.path_buf),
-            DiffType::Renamed(new_file_name) => {
-                // zfs-diff can return multiple file actions for a single inode
-                // since we exclude older file actions, if renamed is the last action,
-                // we should make sure it has the latest data, so a simple rename is not enough
-                Self::remove(&snap_file.path_buf, &new_file_name)
-                //Self::copy(&snap_file.path_buf, &event.pathdata.path_buf)
-            }
+            DiffType::Renamed(new_file_name) => Self::remove(&snap_file.path_buf, &new_file_name),
         }
     }
 
