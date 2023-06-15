@@ -69,13 +69,18 @@ impl VersionsMap {
         let all_snap_versions: BTreeMap<PathData, Vec<PathData>> = path_set
             .par_iter()
             .flat_map(ProximateDatasetAndOptAlts::new)
-            .map(|prox_opt_alts| prox_opt_alts.into_search_bundles())
-            .flatten()
-            .map(|search_bundle| {
-                (
-                    search_bundle.pathdata.clone(),
-                    search_bundle.versions_processed(&config.uniqueness),
-                )
+            .map(|prox_opt_alts| {
+                // don't want to flatten this iter here b/c
+                // we want to keep these values with this key
+                let key = prox_opt_alts.pathdata.clone();
+                let values = prox_opt_alts
+                    .into_search_bundles()
+                    .map(|relative_path_snap_mounts| {
+                        relative_path_snap_mounts.versions_processed(&config.uniqueness)
+                    })
+                    .flatten()
+                    .collect();
+                (key, values)
             })
             .collect();
 
@@ -212,20 +217,16 @@ impl<'a> ProximateDatasetAndOptAlts<'a> {
         Ok(res)
     }
 
-    pub fn into_search_bundles(self) -> Vec<RelativePathAndSnapMounts<'a>> {
-        let res = self
-            .datasets_of_interest
-            .iter()
+    pub fn into_search_bundles(self) -> impl Iterator<Item = RelativePathAndSnapMounts<'a>> {
+        self.datasets_of_interest
+            .into_iter()
             .flat_map(|dataset_of_interest| {
                 RelativePathAndSnapMounts::new(
                     self.pathdata,
                     self.proximate_dataset_mount,
-                    dataset_of_interest,
+                    &dataset_of_interest,
                 )
             })
-            .collect();
-
-        res
     }
 }
 
