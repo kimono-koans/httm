@@ -264,9 +264,9 @@ impl RollForward {
     }
 
     fn preserve_hard_links(roll_config: &RollForwardConfig, snap_name: &str) -> HttmResult<()> {
-        let mut hard_link_map = HardLinkMap::new(roll_config, snap_name)?;
+        let mut map = HardLinkMap::new(roll_config, snap_name)?;
 
-        hard_link_map.preserve_links()
+        PreserveHardLinks::exec(&mut map)
     }
 
     fn snap_path(
@@ -449,32 +449,19 @@ impl HardLinkMap {
                 snap_dataset_mount
             })
     }
+}
 
-    fn live_path(
-        snap_path: &Path,
-        snap_name: &str,
-        proximate_dataset_mount: &Path,
-    ) -> Option<PathBuf> {
-        snap_path
-            .strip_prefix(proximate_dataset_mount)
-            .ok()
-            .and_then(|path| path.strip_prefix(ZFS_SNAPSHOT_DIRECTORY).ok())
-            .and_then(|path| path.strip_prefix(snap_name).ok())
-            .map(|relative_path| {
-                [proximate_dataset_mount, relative_path]
-                    .into_iter()
-                    .collect()
-            })
-    }
+struct PreserveHardLinks;
 
-    fn preserve_links(&mut self) -> HttmResult<()> {
-        self.inner.iter_mut().try_for_each(|(_key, values)| {
+impl PreserveHardLinks {
+    fn exec(map: &mut HardLinkMap) -> HttmResult<()> {
+        map.inner.iter_mut().try_for_each(|(_key, values)| {
             let live_paths: Vec<PathBuf> = values
                 .iter()
                 .filter_map(|snap_path| {
                     let live_path = Self::live_path(
                         snap_path,
-                        &self.snap_name,
+                        &map.snap_name,
                         ROLL_FORWARD_PROXIMATE_DATASET
                             .get()
                             .expect("Unable to determine proximate dataset mount, which should be available at this point in execution."),
@@ -514,6 +501,23 @@ impl HardLinkMap {
         })
     }
 
+    fn live_path(
+        snap_path: &Path,
+        snap_name: &str,
+        proximate_dataset_mount: &Path,
+    ) -> Option<PathBuf> {
+        snap_path
+            .strip_prefix(proximate_dataset_mount)
+            .ok()
+            .and_then(|path| path.strip_prefix(ZFS_SNAPSHOT_DIRECTORY).ok())
+            .and_then(|path| path.strip_prefix(snap_name).ok())
+            .map(|relative_path| {
+                [proximate_dataset_mount, relative_path]
+                    .into_iter()
+                    .collect()
+            })
+    }
+
     fn hard_link(original: &Path, link: &Path) -> HttmResult<()> {
         match std::fs::hard_link(original, link) {
             Ok(_) => {
@@ -534,3 +538,4 @@ impl HardLinkMap {
         Ok(())
     }
 }
+
