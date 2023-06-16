@@ -287,8 +287,8 @@ impl RollForward {
             DiffType::Removed | DiffType::Modified => {
                 Self::copy(&snap_file.path_buf, &event.pathdata.path_buf)
             }
-            DiffType::Created => Self::remove(&snap_file.path_buf, &event.pathdata.path_buf),
-            DiffType::Renamed(new_file_name) => Self::remove(&snap_file.path_buf, &new_file_name),
+            DiffType::Created => Self::overwrite_or_remove(&snap_file.path_buf, &event.pathdata.path_buf),
+            DiffType::Renamed(new_file_name) => Self::overwrite_or_remove(&snap_file.path_buf, &new_file_name),
         }
     }
 
@@ -307,7 +307,11 @@ impl RollForward {
         Ok(())
     }
 
-    fn remove(src: &Path, dst: &Path) -> HttmResult<()> {
+    fn overwrite_or_remove(src: &Path, dst: &Path) -> HttmResult<()> {
+        if src.exists() {
+            return Self::copy(src, dst);
+        }
+
         match remove_recursive(dst) {
             Ok(_) => {
                 if dst.exists() {
@@ -323,10 +327,6 @@ impl RollForward {
         }
 
         eprintln!("{}: {:?} -> 🗑️", Red.paint("Removed  "), dst);
-
-        if src.exists() {
-            Self::copy(src, dst)?
-        }
 
         Ok(())
     }
