@@ -234,7 +234,7 @@ impl RollForward {
                         .first()
                         .expect("Could not obtain a timestamp for diff event.");
 
-                    let res = match split_line.get(1) {
+                    match split_line.get(1) {
                         Some(event) if event == &"-" => split_line.get(2).map(|path_string| {
                             DiffEvent::new(path_string, DiffType::Removed, time_str)
                         }),
@@ -252,9 +252,7 @@ impl RollForward {
                             DiffEvent::new(path_string, DiffType::Renamed(new_file_name), time_str)
                         }),
                         _ => panic!("Could not parse diff event."),
-                    };
-
-                    res
+                    }
                 });
 
             Ok(ret)
@@ -474,7 +472,7 @@ impl HardLinkMap {
     }
 
     fn process(&mut self) -> HttmResult<()> {
-        let res: HttmResult<()> = self.inner.iter_mut().try_for_each(|(_key, values)| {
+        self.inner.iter_mut().try_for_each(|(_key, values)| {
             let live_paths: Vec<PathBuf> = values
                 .iter()
                 .filter_map(|snap_path| {
@@ -490,7 +488,7 @@ impl HardLinkMap {
                 })
                 .collect();
 
-            let ret = live_paths.iter().try_for_each(|live_path| {
+            live_paths.iter().try_for_each(|live_path| {
                 if !live_path.exists() {
                     // I'm not sure this is necessary, but here we don't just find an existing path.
                     // We find the oldest created path and assume this is our "original" path
@@ -513,12 +511,8 @@ impl HardLinkMap {
                 }
 
                 Ok(())
-            });
-
-            ret
-        });
-
-        res
+            })
+        })
     }
 
     fn hard_link(original: &Path, link: &Path) -> HttmResult<()> {
