@@ -484,8 +484,14 @@ impl HardLinkMap {
                 })
                 .collect();
 
-            live_paths.iter().try_for_each(|live_path| {
-                if !live_path.exists() {
+            let mut peekable = live_paths.iter().filter(|live_path| !live_path.exists()).peekable();
+
+            if peekable.peek().is_none() {
+                println!("No hard links found which require preservation.");
+                return Ok(())
+            }
+            
+            peekable.try_for_each(|live_path| {
                     // I'm not sure this is necessary, but here we don't just find an existing path.
                     // We find the oldest created path and assume this is our "original" path
                     let opt_original = live_paths
@@ -504,9 +510,6 @@ impl HardLinkMap {
                             .into())
                         }
                     }
-                }
-
-                Ok(())
             })
         })
     }
