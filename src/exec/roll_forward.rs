@@ -122,6 +122,9 @@ impl RollForward {
             return Err(HttmError::new(&msg).into());
         };
 
+        ROLL_FORWARD_PROXIMATE_DATASET
+            .get_or_init(|| Self::proximate_dataset_mount(dataset_name).unwrap());
+
         let snap_guard: SnapGuard =
             SnapGuard::new(dataset_name, PrecautionarySnapType::PreRollForward)?;
 
@@ -150,6 +153,15 @@ impl RollForward {
             PrecautionarySnapType::PostRollForward(snap_name.to_owned()),
         )
         .map(|_res| ())
+    }
+
+    fn proximate_dataset_mount(dataset_name: &str) -> Option<PathBuf> {
+        GLOBAL_CONFIG
+            .dataset_collection
+            .map_of_datasets
+            .iter()
+            .find(|(_mount, md)| md.source == PathBuf::from(dataset_name))
+            .map(|(mount, _)| mount.to_owned())
     }
 
     fn exec_diff(full_snapshot_name: &str) -> HttmResult<Child> {
@@ -211,6 +223,12 @@ impl RollForward {
     }
 
     fn roll_forward(roll_config: &RollForwardConfig, snap_name: &str) -> HttmResult<()> {
+        let roll_config_clone = roll_config.clone();
+        let snap_name_clone = snap_name.to_string();
+
+        let hard_link_handle =
+            std::thread::spawn(|| HardLinkMap::new(roll_config_clone, snap_name_clone));
+
         let mut process_handle = Self::exec_diff(&roll_config.full_snap_name)?;
 
         let stream = Self::ingest(&mut process_handle)?;
@@ -224,11 +242,7 @@ impl RollForward {
         // zfs-diff can return multiple file actions for a single inode, here we dedup
         eprintln!("Building a map of ZFS filesystem events since the specified snapshot:");
         let mut group_map: Vec<(PathBuf, Vec<DiffEvent>)> = iter_peekable
-            .map(|event| {
-                // tick on progress
-                roll_config.progress_bar.tick();
-                event
-            })
+            .map(|event| event)
             .into_group_map_by(|event| event.pathdata.path_buf.clone())
             .into_iter()
             .collect();
@@ -260,11 +274,11 @@ impl RollForward {
             })
             .try_for_each(|(event, snap_file_path)| Self::diff_action(&event, &snap_file_path))?;
 
-        Self::preserve_hard_links(roll_config, snap_name)
-    }
+        let joined = hard_link_handle
+            .join()
+            .map_err(|_err| HttmError::new("Thread panicked!"))?;
 
-    fn preserve_hard_links(roll_config: &RollForwardConfig, snap_name: &str) -> HttmResult<()> {
-        let mut map = HardLinkMap::new(roll_config, snap_name)?;
+        let mut map = joined?;
 
         PreserveHardLinks::exec(&mut map)
     }
@@ -366,8 +380,8 @@ struct InodeAndNumLinks {
 }
 
 impl HardLinkMap {
-    fn new(roll_config: &RollForwardConfig, snap_name: &str) -> HttmResult<Self> {
-        let snap_dataset = Self::snap_dataset(snap_name).ok_or(HttmError::new(
+    fn new(roll_config: RollForwardConfig, snap_name: String) -> HttmResult<Self> {
+        let snap_dataset = Self::snap_dataset(&snap_name).ok_or(HttmError::new(
             "Unable to determine snapshot dataset mount.",
         ))?;
 
@@ -381,7 +395,6 @@ impl HardLinkMap {
 
         // condition kills iter when user has made a selection
         // pop_back makes this a LIFO queue which is supposedly better for caches
-        eprintln!("Building a map of filesystem hard links for preservation:");
         while let Some(item) = queue.pop() {
             // no errors will be propagated in recursive mode
             // far too likely to run into a dir we don't have permissions to view
