@@ -122,11 +122,7 @@ impl RollForward {
         let snap_guard: SnapGuard =
             SnapGuard::new(dataset_name, PrecautionarySnapType::PreRollForward)?;
 
-        let mut process_handle = Self::exec_diff(&roll_config.full_snap_name)?;
-
-        let mut stream = Self::ingest(&mut process_handle)?;
-
-        match Self::roll_forward(&mut stream, snap_name) {
+        match Self::roll_forward(roll_config, snap_name) {
             Ok(_) => {
                 println!("httm roll forward completed successfully.");
             }
@@ -145,10 +141,6 @@ impl RollForward {
                 std::process::exit(1)
             }
         };
-
-        let mut hard_link_map = HardLinkMap::new(snap_name)?;
-
-        hard_link_map.process()?;
 
         SnapGuard::new(
             dataset_name,
@@ -172,6 +164,54 @@ impl RollForward {
             .spawn()?;
 
         Ok(process_handle)
+    }
+
+    fn roll_forward(roll_config: &RollForwardConfig, snap_name: &str) -> HttmResult<()> {
+        let mut process_handle = Self::exec_diff(&roll_config.full_snap_name)?;
+
+        let stream = Self::ingest(&mut process_handle)?;
+
+        let mut iter_peekable = stream.peekable();
+
+        if iter_peekable.peek().is_none() {
+            return Err(HttmError::new("'zfs diff' reported no changes to dataset").into());
+        }
+
+        // zfs-diff can return multiple file actions for a single inode, here we dedup
+        let mut group_map: Vec<(PathBuf, Vec<DiffEvent>)> = iter_peekable
+            .into_group_map_by(|event| event.pathdata.path_buf.clone())
+            .into_iter()
+            .collect();
+
+        // now sort by number of components, want to build from the bottom up, do less dir creation, etc.
+        group_map.sort_by_key(|(key, _values)| key.components().count());
+
+        // into iter and reverse because we want to go smallest first
+        group_map
+            .into_iter()
+            .map(|(_key, mut values)| {
+                values.sort_by_key(|event| event.time.clone());
+                values.pop()
+            })
+            .flatten()
+            .map(|event| {
+                let proximate_dataset_mount = PROXIMATE_DATASET_MOUNT.get_or_init(|| {
+                    event
+                        .pathdata
+                        .proximate_dataset(&GLOBAL_CONFIG.dataset_collection.map_of_datasets)
+                        .expect("Could not obtain proximate dataset mount.")
+                        .to_owned()
+                });
+
+                let snap_file_path =
+                    Self::snap_path(&event.pathdata, snap_name, proximate_dataset_mount)
+                        .expect("Could not obtain snap file path for live version.");
+
+                (event, snap_file_path)
+            })
+            .try_for_each(|(event, snap_file_path)| Self::diff_action(&event, &snap_file_path))?;
+
+        Self::preserve_hard_links(snap_name)
     }
 
     fn ingest(process_handle: &mut Child) -> HttmResult<impl Iterator<Item = DiffEvent> + '_> {
@@ -217,49 +257,10 @@ impl RollForward {
         }
     }
 
-    fn roll_forward<I>(stream: I, snap_name: &str) -> HttmResult<()>
-    where
-        I: Iterator<Item = DiffEvent>,
-    {
-        let mut iter_peekable = stream.peekable();
+    fn preserve_hard_links(snap_name: &str) -> HttmResult<()> {
+        let mut hard_link_map = HardLinkMap::new(snap_name)?;
 
-        if iter_peekable.peek().is_none() {
-            return Err(HttmError::new("'zfs diff' reported no changes to dataset").into());
-        }
-
-        // zfs-diff can return multiple file actions for a single inode, here we dedup
-        let mut group_map: Vec<(PathBuf, Vec<DiffEvent>)> = iter_peekable
-            .into_group_map_by(|event| event.pathdata.path_buf.clone())
-            .into_iter()
-            .collect();
-
-        // now sort by number of components, want to build from the bottom up, do less dir creation, etc.
-        group_map.sort_by_key(|(key, _values)| key.components().count());
-
-        // into iter and reverse because we want to go smallest first
-        group_map
-            .into_iter()
-            .map(|(_key, mut values)| {
-                values.sort_by_key(|event| event.time.clone());
-                values.pop()
-            })
-            .flatten()
-            .map(|event| {
-                let proximate_dataset_mount = PROXIMATE_DATASET_MOUNT.get_or_init(|| {
-                    event
-                        .pathdata
-                        .proximate_dataset(&GLOBAL_CONFIG.dataset_collection.map_of_datasets)
-                        .expect("Could not obtain proximate dataset mount.")
-                        .to_owned()
-                });
-
-                let snap_file_path =
-                    Self::snap_path(&event.pathdata, snap_name, proximate_dataset_mount)
-                        .expect("Could not obtain snap file path for live version.");
-
-                (event, snap_file_path)
-            })
-            .try_for_each(|(event, snap_file_path)| Self::diff_action(&event, &snap_file_path))
+        hard_link_map.process()
     }
 
     fn snap_path(
