@@ -16,7 +16,9 @@
 // that was distributed with this source code.
 
 use std::cmp::Ordering;
+use std::fs::read_dir;
 use std::io::BufRead;
+use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 use std::process::Child;
 use std::process::Command as ExecProcess;
@@ -28,6 +30,7 @@ use once_cell::sync::OnceCell;
 use which::which;
 
 use crate::config::generate::RollForwardConfig;
+use crate::data::paths::BasicDirEntryInfo;
 use crate::data::paths::PathData;
 use crate::library::iter_extensions::HttmIter;
 use crate::library::results::{HttmError, HttmResult};
@@ -195,11 +198,10 @@ impl RollForward {
         // into iter and reverse because we want to go smallest first
         group_map
             .into_iter()
-            .map(|(_key, mut values)| {
+            .flat_map(|(_key, mut values)| {
                 values.sort_by_key(|event| event.time.clone());
                 values.pop()
             })
-            .flatten()
             .map(|event| {
                 let proximate_dataset_mount = ROLL_FORWARD_PROXIMATE_DATASET.get_or_init(|| {
                     event
@@ -304,7 +306,7 @@ impl RollForward {
                 Self::overwrite_or_remove(&snap_file.path_buf, &event.pathdata.path_buf)
             }
             DiffType::Renamed(new_file_name) => {
-                Self::overwrite_or_remove(&snap_file.path_buf, &new_file_name)
+                Self::overwrite_or_remove(&snap_file.path_buf, new_file_name)
             }
         }
     }
@@ -351,13 +353,8 @@ impl RollForward {
     }
 }
 
-use crate::data::paths::BasicDirEntryInfo;
-use std::fs::read_dir;
-use std::os::unix::fs::MetadataExt;
-
 // key: inode, values: Paths
 struct HardLinkMap {
-    _snap_dataset: PathBuf,
     snap_name: String,
     inner: HashMap<InodeAndNumLinks, Vec<PathBuf>>,
 }
@@ -370,12 +367,12 @@ struct InodeAndNumLinks {
 
 impl HardLinkMap {
     fn new(roll_config: &RollForwardConfig, snap_name: &str) -> HttmResult<Self> {
-        let snap_dataset = Self::snap_dataset(&snap_name).ok_or(HttmError::new(
+        let snap_dataset = Self::snap_dataset(snap_name).ok_or(HttmError::new(
             "Unable to determine snapshot dataset mount.",
         ))?;
 
         let constructed = BasicDirEntryInfo {
-            path: snap_dataset.to_path_buf(),
+            path: snap_dataset,
             file_type: None,
         };
 
@@ -432,7 +429,6 @@ impl HardLinkMap {
         }
 
         Ok(Self {
-            _snap_dataset: snap_dataset,
             snap_name: snap_name.to_string(),
             inner,
         })
@@ -455,7 +451,7 @@ impl HardLinkMap {
     }
 
     fn live_path(
-        snap_path: &PathBuf,
+        snap_path: &Path,
         snap_name: &str,
         proximate_dataset_mount: &Path,
     ) -> Option<PathBuf> {
@@ -500,7 +496,7 @@ impl HardLinkMap {
                         });
 
                     match opt_original {
-                        Some(original) => return Self::hard_link(&original, live_path),
+                        Some(original) => return Self::hard_link(original, live_path),
                         None => {
                             return Err(HttmError::new(
                                 "Unable to find live path to use as link source.",

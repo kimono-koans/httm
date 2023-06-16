@@ -195,14 +195,13 @@ fn create_dir_with_ancestors(
         .ancestors()
         .zip(dst_pathdata.path_buf.ancestors())
         .take(relative_path_components_len)
-        .map(|(src_ancestor, dst_ancestor)| {
+        .try_for_each(|(src_ancestor, dst_ancestor)| {
             if should_preserve {
                 copy_attributes(src_ancestor, dst_ancestor)?;
             }
 
             Ok(())
-        })
-        .collect();
+        });
 
     res
 }
