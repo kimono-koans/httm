@@ -258,13 +258,7 @@ impl RollForward {
                 values.pop()
             })
             .map(|event| {
-                let proximate_dataset_mount = ROLL_FORWARD_PROXIMATE_DATASET.get_or_init(|| {
-                    event
-                        .pathdata
-                        .proximate_dataset(&GLOBAL_CONFIG.dataset_collection.map_of_datasets)
-                        .expect("Could not obtain proximate dataset mount.")
-                        .to_owned()
-                });
+                let proximate_dataset_mount = ROLL_FORWARD_PROXIMATE_DATASET.get().expect("Unable to determine proximate dataset mount, which should be available at this point in execution.");
 
                 let snap_file_path =
                     Self::snap_path(&event.pathdata, snap_name, proximate_dataset_mount)
