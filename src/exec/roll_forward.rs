@@ -178,7 +178,13 @@ impl RollForward {
         }
 
         // zfs-diff can return multiple file actions for a single inode, here we dedup
+        eprintln!("Building map of file events:");
         let mut group_map: Vec<(PathBuf, Vec<DiffEvent>)> = iter_peekable
+            .map(|event| {
+                // tick on progress
+                roll_config.progress_bar.tick();
+                event
+            })
             .into_group_map_by(|event| event.pathdata.path_buf.clone())
             .into_iter()
             .collect();
@@ -211,7 +217,7 @@ impl RollForward {
             })
             .try_for_each(|(event, snap_file_path)| Self::diff_action(&event, &snap_file_path))?;
 
-        Self::preserve_hard_links(snap_name)
+        Self::preserve_hard_links(roll_config, snap_name)
     }
 
     fn ingest(process_handle: &mut Child) -> HttmResult<impl Iterator<Item = DiffEvent> + '_> {
@@ -257,8 +263,8 @@ impl RollForward {
         }
     }
 
-    fn preserve_hard_links(snap_name: &str) -> HttmResult<()> {
-        let mut hard_link_map = HardLinkMap::new(snap_name)?;
+    fn preserve_hard_links(roll_config: &RollForwardConfig, snap_name: &str) -> HttmResult<()> {
+        let mut hard_link_map = HardLinkMap::new(roll_config, snap_name)?;
 
         hard_link_map.process()
     }
@@ -365,7 +371,7 @@ struct InodeAndNumLinks {
 }
 
 impl HardLinkMap {
-    fn new(snap_name: &str) -> HttmResult<Self> {
+    fn new(roll_config: &RollForwardConfig, snap_name: &str) -> HttmResult<Self> {
         // runs once for non-recursive but also "primes the pump"
         // for recursive to have items available, also only place an
         // error can stop execution
@@ -399,8 +405,14 @@ impl HardLinkMap {
             combined.extend_from_slice(&vec_dirs);
             queue.extend_from_slice(&vec_dirs);
 
+            eprintln!("Building map of filesystem hard links:");
             combined
                 .into_iter()
+                .map(|entry| {
+                    // tick over on each entry
+                    roll_config.progress_bar.tick();
+                    entry
+                })
                 .filter_map(|entry| entry.path.metadata().ok().map(|md| (entry.path, md)))
                 .filter_map(|(path, md)| {
                     let nlink = md.nlink();
@@ -484,11 +496,13 @@ impl HardLinkMap {
 
             let ret = live_paths.iter().try_for_each(|live_path| {
                 if !live_path.exists() {
+                    // I'm not sure this is necessary, but here we don't just find an existing path.
+                    // We find the oldest created path and assume this is our "original" path
                     let opt_original = live_paths
                         .iter()
                         .filter(|path| path.exists())
                         .max_by(|a, b| {
-                            a.metadata().unwrap().created().unwrap().cmp(&b.metadata().unwrap().created().unwrap())
+                            a.metadata().ok().and_then(|md| md.created().ok()).cmp(&b.metadata().ok().and_then(|md| md.created().ok()))
                         });
 
                     match opt_original {
