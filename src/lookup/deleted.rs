@@ -49,7 +49,6 @@ impl TryFrom<&Path> for DeletedFiles {
         let basic_info_map: HashMap<OsString, BasicDirEntryInfo> =
             ProximateDatasetAndOptAlts::new(&requested_dir_pathdata)?
                 .into_search_bundles()
-                .into_iter()
                 .flat_map(|search_bundle| {
                     Self::unique_deleted_for_dir(&requested_dir_pathdata.path_buf, &search_bundle)
                 })

@@ -42,7 +42,13 @@ pub enum ExecMode {
     MountsForFiles(MountDisplay),
     SnapsForFiles(Option<ListSnapsFilters>),
     NumVersions(NumVersionsMode),
-    RollForward(String),
+    RollForward(RollForwardConfig),
+}
+
+#[derive(Debug, Clone)]
+pub struct RollForwardConfig {
+    pub full_snap_name: String,
+    pub progress_bar: indicatif::ProgressBar,
 }
 
 #[derive(Debug, Clone)]
@@ -293,9 +299,7 @@ fn parse_args() -> ArgMatches {
                 httm will copy only files and their attributes that have changed since a specified snapshot, from that snapshot, to its live dataset.  \
                 httm will also take two precautionary snapshots, one before and one after the copy.  \
                 Should the roll forward fail for any reason, httm will roll back to the pre-execution state.  \
-                Caveats: This is a ZFS only option which requires super user privileges.  \
-                Roll forward is entirely dependent upon the 'diff' feature of ZFS.  \
-                Therefore, for instance, this feature may fail to account for hard links, or may account for such links in unintuitive ways.")
+                Caveats: This is a ZFS only option which requires super user privileges.")
                 .conflicts_with_all(&["BROWSE", "RESTORE", "ALT_REPLICATED", "REMOTE_DIR", "LOCAL_DIR"])
                 .display_order(13)
         )
@@ -730,8 +734,14 @@ impl Config {
             None
         };
 
-        let mut exec_mode = if let Some(snap_name) = matches.value_of("ROLL_FORWARD") {
-            ExecMode::RollForward(snap_name.to_string())
+        let mut exec_mode = if let Some(full_snap_name) = matches.value_of("ROLL_FORWARD") {
+            let progress_bar: ProgressBar = indicatif::ProgressBar::new_spinner();
+            let roll_config: RollForwardConfig = RollForwardConfig {
+                full_snap_name: full_snap_name.to_string(),
+                progress_bar,
+            };
+
+            ExecMode::RollForward(roll_config)
         } else if let Some(num_versions_mode) = opt_num_versions {
             ExecMode::NumVersions(num_versions_mode)
         } else if let Some(mount_display) = opt_mount_display {

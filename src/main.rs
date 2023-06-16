@@ -147,6 +147,6 @@ fn exec() -> HttmResult<()> {
 
             print_output_buf(output_buf)
         }
-        ExecMode::RollForward(snap_name) => RollForward::exec(snap_name),
+        ExecMode::RollForward(roll_config) => RollForward::exec(roll_config),
     }
 }
