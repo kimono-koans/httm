@@ -178,7 +178,7 @@ impl RollForward {
         }
 
         // zfs-diff can return multiple file actions for a single inode, here we dedup
-        eprintln!("Building map of file events:");
+        eprintln!("Building diff map of ZFS filesystem events:");
         let mut group_map: Vec<(PathBuf, Vec<DiffEvent>)> = iter_peekable
             .map(|event| {
                 // tick on progress
@@ -390,6 +390,7 @@ impl HardLinkMap {
 
         // condition kills iter when user has made a selection
         // pop_back makes this a LIFO queue which is supposedly better for caches
+        eprintln!("Building map of filesystem hard links for replacement:");
         while let Some(item) = queue.pop() {
             // no errors will be propagated in recursive mode
             // far too likely to run into a dir we don't have permissions to view
@@ -405,7 +406,6 @@ impl HardLinkMap {
             combined.extend_from_slice(&vec_dirs);
             queue.extend_from_slice(&vec_dirs);
 
-            eprintln!("Building map of filesystem hard links:");
             combined
                 .into_iter()
                 .map(|entry| {
