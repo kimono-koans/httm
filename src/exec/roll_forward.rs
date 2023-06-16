@@ -484,7 +484,12 @@ impl HardLinkMap {
 
             let ret = live_paths.iter().try_for_each(|live_path| {
                 if !live_path.exists() {
-                    let opt_original = live_paths.iter().find(|path| path.exists());
+                    let opt_original = live_paths
+                        .iter()
+                        .filter(|path| path.exists())
+                        .max_by(|a, b| {
+                            a.metadata().unwrap().created().unwrap().cmp(&b.metadata().unwrap().created().unwrap())
+                        });
 
                     match opt_original {
                         Some(original) => return Self::hard_link(&original, live_path),
@@ -521,7 +526,7 @@ impl HardLinkMap {
             }
         }
 
-        eprintln!("{}: {:?} -> 🗑️", Yellow.paint("Linked  "), link);
+        eprintln!("{}: {:?} -> {:?}", Yellow.paint("Linked  "), original, link);
 
         Ok(())
     }
