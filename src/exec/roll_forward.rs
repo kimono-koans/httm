@@ -308,6 +308,10 @@ impl RollForward {
     }
 
     fn remove(src: &Path, dst: &Path) -> HttmResult<()> {
+        if src.exists() {
+            return Self::copy(src, dst);
+        }
+
         match remove_recursive(dst) {
             Ok(_) => {
                 if dst.exists() {
@@ -323,10 +327,6 @@ impl RollForward {
         }
 
         eprintln!("{}: {:?} -> 🗑️", Red.paint("Removed  "), dst);
-
-        if src.exists() {
-            Self::copy(src, dst)?
-        }
 
         Ok(())
     }
