@@ -47,7 +47,7 @@ pub enum ExecMode {
 
 #[derive(Debug, Clone)]
 pub struct RollForwardConfig {
-    pub snap_name: String,
+    pub full_snap_name: String,
     pub progress_bar: indicatif::ProgressBar,
 }
 
@@ -736,10 +736,10 @@ impl Config {
             None
         };
 
-        let mut exec_mode = if let Some(snap_name) = matches.value_of("ROLL_FORWARD") {
+        let mut exec_mode = if let Some(full_snap_name) = matches.value_of("ROLL_FORWARD") {
             let progress_bar: ProgressBar = indicatif::ProgressBar::new_spinner();
             let roll_config: RollForwardConfig = RollForwardConfig {
-                snap_name: snap_name.to_string(),
+                full_snap_name: full_snap_name.to_string(),
                 progress_bar,
             };
 

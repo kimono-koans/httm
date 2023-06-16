@@ -23,17 +23,17 @@ use std::process::Command as ExecProcess;
 use std::process::Stdio;
 
 use hashbrown::HashMap;
-use nu_ansi_term::Color::{Blue, Red};
+use nu_ansi_term::Color::{Blue, Red, Yellow};
 use once_cell::sync::OnceCell;
 use which::which;
 
+use crate::config::generate::RollForwardConfig;
 use crate::data::paths::PathData;
 use crate::library::iter_extensions::HttmIter;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::snap_guard::{PrecautionarySnapType, SnapGuard};
 use crate::library::utility::{copy_direct, remove_recursive};
 use crate::library::utility::{is_metadata_different, user_has_effective_root};
-use crate::lookup::snap_names;
 use crate::{GLOBAL_CONFIG, ZFS_SNAPSHOT_DIRECTORY};
 
 static PROXIMATE_DATASET_MOUNT: OnceCell<PathBuf> = OnceCell::new();
@@ -107,20 +107,22 @@ enum DiffType {
 pub struct RollForward;
 
 impl RollForward {
-    pub fn exec(full_snap_name: &str) -> HttmResult<()> {
+    pub fn exec(roll_config: &RollForwardConfig) -> HttmResult<()> {
         user_has_effective_root()?;
 
-        let (dataset_name, snap_name) = if let Some(res) = full_snap_name.split_once('@') {
+        let (dataset_name, snap_name) = if let Some(res) =
+            roll_config.full_snap_name.split_once('@')
+        {
             res
         } else {
-            let msg = format!("{} is not a valid data set name.  A valid ZFS snapshot name requires a '@' separating dataset name and snapshot name.", full_snap_name);
+            let msg = format!("{} is not a valid data set name.  A valid ZFS snapshot name requires a '@' separating dataset name and snapshot name.", roll_config.full_snap_name);
             return Err(HttmError::new(&msg).into());
         };
 
         let snap_guard: SnapGuard =
             SnapGuard::new(dataset_name, PrecautionarySnapType::PreRollForward)?;
 
-        let mut process_handle = Self::exec_diff(full_snap_name)?;
+        let mut process_handle = Self::exec_diff(&roll_config.full_snap_name)?;
 
         let mut stream = Self::ingest(&mut process_handle)?;
 
@@ -144,27 +146,15 @@ impl RollForward {
             }
         };
 
+        let mut hard_link_map = HardLinkMap::new(snap_name)?;
+
+        hard_link_map.process()?;
+
         SnapGuard::new(
             dataset_name,
             PrecautionarySnapType::PostRollForward(snap_name.to_owned()),
         )
         .map(|_res| ())
-    }
-
-    fn snap_dataset(snap_name: &str) -> Option<PathBuf> {
-        PROXIMATE_DATASET_MOUNT
-            .get()
-            .map(|proximate_dataset_mount| {
-                let snap_dataset_mount: PathBuf = [
-                    proximate_dataset_mount,
-                    Path::new(ZFS_SNAPSHOT_DIRECTORY),
-                    Path::new(&snap_name),
-                ]
-                .iter()
-                .collect();
-
-                snap_dataset_mount
-            })
     }
 
     fn exec_diff(full_snapshot_name: &str) -> HttmResult<Child> {
@@ -330,10 +320,12 @@ impl RollForward {
     }
 
     fn overwrite_or_remove(src: &Path, dst: &Path) -> HttmResult<()> {
+        // overwrite
         if src.exists() {
             return Self::copy(src, dst);
         }
 
+        // or remove
         match remove_recursive(dst) {
             Ok(_) => {
                 if dst.exists() {
@@ -359,8 +351,9 @@ use std::fs::read_dir;
 use std::os::unix::fs::MetadataExt;
 
 // key: inode, values: Paths
-struct CopyHardLinks {
-    snap_dataset: PathBuf,
+struct HardLinkMap {
+    _snap_dataset: PathBuf,
+    snap_name: String,
     inner: HashMap<InodeAndNumLinks, Vec<PathBuf>>,
 }
 
@@ -370,13 +363,13 @@ struct InodeAndNumLinks {
     nlink: u64,
 }
 
-impl CopyHardLinks {
-    fn exec(snap_name: &str) -> HttmResult<Self> {
+impl HardLinkMap {
+    fn new(snap_name: &str) -> HttmResult<Self> {
         // runs once for non-recursive but also "primes the pump"
         // for recursive to have items available, also only place an
         // error can stop execution
 
-        let snap_dataset = RollForward::snap_dataset(&snap_name).unwrap();
+        let snap_dataset = Self::snap_dataset(&snap_name).unwrap();
 
         let constructed = BasicDirEntryInfo {
             path: snap_dataset.to_path_buf(),
@@ -429,23 +422,106 @@ impl CopyHardLinks {
         }
 
         Ok(Self {
-            snap_dataset,
+            _snap_dataset: snap_dataset,
+            snap_name: snap_name.to_string(),
             inner,
         })
     }
 
-    fn process(&self) {
-        self.inner.iter().filter_map(|(key, values)| {
-            if key.nlink as usize != values.len() {
-                eprintln!(
-                    "Number of nlinks: {} does not match the number of linked files: {}",
-                    key.nlink,
-                    values.len()
-                );
-                None
-            } else {
-                Some((key, values))
+    fn snap_dataset(snap_name: &str) -> Option<PathBuf> {
+        PROXIMATE_DATASET_MOUNT
+            .get()
+            .map(|proximate_dataset_mount| {
+                let snap_dataset_mount: PathBuf = [
+                    proximate_dataset_mount,
+                    Path::new(ZFS_SNAPSHOT_DIRECTORY),
+                    Path::new(&snap_name),
+                ]
+                .iter()
+                .collect();
+
+                snap_dataset_mount
+            })
+    }
+
+    fn live_path(
+        snap_path: &PathBuf,
+        snap_name: &str,
+        proximate_dataset_mount: &Path,
+    ) -> Option<PathBuf> {
+        snap_path
+            .strip_prefix(proximate_dataset_mount)
+            .ok()
+            .and_then(|path| path.strip_prefix(ZFS_SNAPSHOT_DIRECTORY).ok())
+            .and_then(|path| path.strip_prefix(snap_name).ok())
+            .map(|relative_path| {
+                [proximate_dataset_mount, relative_path]
+                    .into_iter()
+                    .collect()
+            })
+    }
+
+    fn process(&mut self) -> HttmResult<()> {
+        let res: HttmResult<()> = self.inner.iter_mut().try_for_each(|(_key, values)| {
+            let live_paths: Vec<PathBuf> = values
+                .iter()
+                .filter_map(|snap_path| {
+                    let live_path = Self::live_path(
+                        snap_path,
+                        &self.snap_name,
+                        PROXIMATE_DATASET_MOUNT.get().unwrap(),
+                    );
+
+                    live_path
+                })
+                .collect();
+
+            let ret = live_paths.iter().try_for_each(|live_path| {
+                if !live_path.exists() {
+                    eprintln!(
+                        "WARNING: Path Does Not Exist on Target/Live Dataset: {:?}",
+                        live_path
+                    );
+
+                    let opt_original = live_paths.iter().find(|path| path.exists());
+
+                    match opt_original {
+                        Some(original) => return Self::hard_link(&original, live_path),
+                        None => {
+                            return Err(HttmError::new(
+                                "Unable to find live path to use as link source.",
+                            )
+                            .into())
+                        }
+                    }
+                }
+
+                Ok(())
+            });
+
+            ret
+        });
+
+        res
+    }
+
+    fn hard_link(original: &Path, link: &Path) -> HttmResult<()> {
+        match std::fs::hard_link(original, link) {
+            Ok(_) => {
+                if !link.exists() {
+                    let msg = format!("WARNING: Target link should exist after linking {:?}", link);
+                    return Err(HttmError::new(&msg).into());
+                }
             }
-        }).;
+            Err(err) => {
+                eprintln!("Error: {}", err);
+                let msg = format!("WARNING: Could not link file {:?}", link);
+                return Err(HttmError::new(&msg).into());
+            }
+        }
+
+        eprintln!("{}: {:?} -> 🗑️", Yellow.paint("Linked  "), link);
+
+        Ok(())
     }
 }
