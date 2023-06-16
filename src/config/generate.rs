@@ -293,7 +293,9 @@ fn parse_args() -> ArgMatches {
                 httm will copy only files and their attributes that have changed since a specified snapshot, from that snapshot, to its live dataset.  \
                 httm will also take two precautionary snapshots, one before and one after the copy.  \
                 Should the roll forward fail for any reason, httm will roll back to the pre-execution state.  \
-                Note: This is a ZFS only option which requires super user privileges.")
+                Note: This is a ZFS only option which requires super user privileges.  \
+                Caveats: Roll forward is entirely dependent upon the 'diff' feature of ZFS.  \
+                Therefore, this feature may fail to account for hard links, or may only account for them in unintuitive ways.")
                 .conflicts_with_all(&["BROWSE", "RESTORE", "ALT_REPLICATED", "REMOTE_DIR", "LOCAL_DIR"])
                 .display_order(13)
         )
