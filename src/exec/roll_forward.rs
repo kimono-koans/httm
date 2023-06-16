@@ -455,7 +455,9 @@ struct PreserveHardLinks;
 
 impl PreserveHardLinks {
     fn exec(map: &mut HardLinkMap) -> HttmResult<()> {
-        map.inner.iter_mut().try_for_each(|(_key, values)| {
+        let mut none_preserved = true;
+
+        let res = map.inner.iter_mut().try_for_each(|(_key, values)| {
             let live_paths: Vec<PathBuf> = values
                 .iter()
                 .filter_map(|snap_path| {
@@ -471,14 +473,7 @@ impl PreserveHardLinks {
                 })
                 .collect();
 
-            let mut peekable = live_paths.iter().filter(|live_path| !live_path.exists()).peekable();
-
-            if peekable.peek().is_none() {
-                println!("No hard links found which require preservation.");
-                return Ok(())
-            }
-            
-            peekable.try_for_each(|live_path| {
+            live_paths.iter().filter(|live_path| !live_path.exists()).try_for_each(|live_path| {
                     // I'm not sure this is necessary, but here we don't just find an existing path.
                     // We find the oldest created path and assume this is our "original" path
                     let opt_original = live_paths
@@ -489,7 +484,10 @@ impl PreserveHardLinks {
                         });
 
                     match opt_original {
-                        Some(original) => return Self::hard_link(original, live_path),
+                        Some(original) => {
+                            none_preserved = false;
+                            return Self::hard_link(original, live_path)
+                        },
                         None => {
                             return Err(HttmError::new(
                                 "Unable to find live path to use as link source.",
@@ -498,7 +496,14 @@ impl PreserveHardLinks {
                         }
                     }
             })
-        })
+        });
+
+        if none_preserved {
+            println!("No hard links found which require preservation.");
+            return Ok(());
+        }
+
+        res
     }
 
     fn live_path(
@@ -538,4 +543,3 @@ impl PreserveHardLinks {
         Ok(())
     }
 }
-
