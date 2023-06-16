@@ -33,7 +33,10 @@ use crate::library::results::{HttmError, HttmResult};
 use crate::library::snap_guard::{PrecautionarySnapType, SnapGuard};
 use crate::library::utility::{copy_direct, remove_recursive};
 use crate::library::utility::{is_metadata_different, user_has_effective_root};
+use crate::lookup::snap_names;
 use crate::{GLOBAL_CONFIG, ZFS_SNAPSHOT_DIRECTORY};
+
+static PROXIMATE_DATASET_MOUNT: OnceCell<PathBuf> = OnceCell::new();
 
 #[derive(Debug, Clone)]
 struct DiffEvent {
@@ -148,6 +151,22 @@ impl RollForward {
         .map(|_res| ())
     }
 
+    fn snap_dataset(snap_name: &str) -> Option<PathBuf> {
+        PROXIMATE_DATASET_MOUNT
+            .get()
+            .map(|proximate_dataset_mount| {
+                let snap_dataset_mount: PathBuf = [
+                    proximate_dataset_mount,
+                    Path::new(ZFS_SNAPSHOT_DIRECTORY),
+                    Path::new(&snap_name),
+                ]
+                .iter()
+                .collect();
+
+                snap_dataset_mount
+            })
+    }
+
     fn exec_diff(full_snapshot_name: &str) -> HttmResult<Child> {
         let zfs_command = which("zfs").map_err(|_err| {
             HttmError::new("'zfs' command not found. Make sure the command 'zfs' is in your path.")
@@ -212,8 +231,6 @@ impl RollForward {
     where
         I: Iterator<Item = DiffEvent>,
     {
-        let cell: OnceCell<PathBuf> = OnceCell::new();
-
         let mut iter_peekable = stream.peekable();
 
         if iter_peekable.peek().is_none() {
@@ -238,7 +255,7 @@ impl RollForward {
             })
             .flatten()
             .map(|event| {
-                let proximate_dataset_mount = cell.get_or_init(|| {
+                let proximate_dataset_mount = PROXIMATE_DATASET_MOUNT.get_or_init(|| {
                     event
                         .pathdata
                         .proximate_dataset(&GLOBAL_CONFIG.dataset_collection.map_of_datasets)
@@ -338,11 +355,12 @@ impl RollForward {
 }
 
 use crate::data::paths::BasicDirEntryInfo;
-use crate::exec::recursive::SharedRecursive;
+use std::fs::read_dir;
 use std::os::unix::fs::MetadataExt;
 
 // key: inode, values: Paths
 struct CopyHardLinks {
+    snap_dataset: PathBuf,
     inner: HashMap<InodeAndNumLinks, Vec<PathBuf>>,
 }
 
@@ -353,13 +371,15 @@ struct InodeAndNumLinks {
 }
 
 impl CopyHardLinks {
-    fn exec(requested_dir: &Path) -> HttmResult<Self> {
+    fn exec(snap_name: &str) -> HttmResult<Self> {
         // runs once for non-recursive but also "primes the pump"
         // for recursive to have items available, also only place an
         // error can stop execution
 
+        let snap_dataset = RollForward::snap_dataset(&snap_name).unwrap();
+
         let constructed = BasicDirEntryInfo {
-            path: requested_dir.to_path_buf(),
+            path: snap_dataset.to_path_buf(),
             file_type: None,
         };
 
@@ -372,7 +392,12 @@ impl CopyHardLinks {
             // no errors will be propagated in recursive mode
             // far too likely to run into a dir we don't have permissions to view
             let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
-                SharedRecursive::entries_partitioned(&item.path)?;
+                read_dir(item.path)?
+                    .flatten()
+                    // checking file_type on dir entries is always preferable
+                    // as it is much faster than a metadata call on the path
+                    .map(|dir_entry| BasicDirEntryInfo::from(&dir_entry))
+                    .partition(|dir_entry| dir_entry.path.is_dir());
 
             let mut combined = vec_files;
             combined.extend_from_slice(&vec_dirs);
@@ -403,6 +428,24 @@ impl CopyHardLinks {
                 });
         }
 
-        Ok(Self { inner })
+        Ok(Self {
+            snap_dataset,
+            inner,
+        })
+    }
+
+    fn process(&self) {
+        self.inner.iter().filter_map(|(key, values)| {
+            if key.nlink as usize != values.len() {
+                eprintln!(
+                    "Number of nlinks: {} does not match the number of linked files: {}",
+                    key.nlink,
+                    values.len()
+                );
+                None
+            } else {
+                Some((key, values))
+            }
+        }).;
     }
 }
