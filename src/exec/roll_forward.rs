@@ -309,7 +309,7 @@ impl RollForward {
         if let Err(err) = copy_direct(src, dst, true) {
             eprintln!("Error: {}", err);
             let msg = format!(
-                "WARNING: could not overwrite {:?} with snapshot file version {:?}",
+                "Could not overwrite {:?} with snapshot file version {:?}",
                 dst, src
             );
             return Err(HttmError::new(&msg).into());
@@ -330,13 +330,13 @@ impl RollForward {
         match remove_recursive(dst) {
             Ok(_) => {
                 if dst.exists() {
-                    let msg = format!("WARNING: File should not exist after deletion {:?}", dst);
+                    let msg = format!("File should not exist after deletion {:?}", dst);
                     return Err(HttmError::new(&msg).into());
                 }
             }
             Err(err) => {
                 eprintln!("Error: {}", err);
-                let msg = format!("WARNING: Could not delete file {:?}", dst);
+                let msg = format!("Could not delete file {:?}", dst);
                 return Err(HttmError::new(&msg).into());
             }
         }
@@ -479,11 +479,6 @@ impl HardLinkMap {
 
             let ret = live_paths.iter().try_for_each(|live_path| {
                 if !live_path.exists() {
-                    eprintln!(
-                        "WARNING: Path Does Not Exist on Target/Live Dataset: {:?}",
-                        live_path
-                    );
-
                     let opt_original = live_paths.iter().find(|path| path.exists());
 
                     match opt_original {
@@ -510,13 +505,13 @@ impl HardLinkMap {
         match std::fs::hard_link(original, link) {
             Ok(_) => {
                 if !link.exists() {
-                    let msg = format!("WARNING: Target link should exist after linking {:?}", link);
+                    let msg = format!("Target link should exist after linking {:?}", link);
                     return Err(HttmError::new(&msg).into());
                 }
             }
             Err(err) => {
                 eprintln!("Error: {}", err);
-                let msg = format!("WARNING: Could not link file {:?}", link);
+                let msg = format!("Could not link file {:?}", link);
                 return Err(HttmError::new(&msg).into());
             }
         }
