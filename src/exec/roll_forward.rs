@@ -36,7 +36,7 @@ use crate::library::utility::{copy_direct, remove_recursive};
 use crate::library::utility::{is_metadata_different, user_has_effective_root};
 use crate::{GLOBAL_CONFIG, ZFS_SNAPSHOT_DIRECTORY};
 
-static PROXIMATE_DATASET_MOUNT: OnceCell<PathBuf> = OnceCell::new();
+static ROLL_FORWARD_PROXIMATE_DATASET: OnceCell<PathBuf> = OnceCell::new();
 
 #[derive(Debug, Clone)]
 struct DiffEvent {
@@ -195,7 +195,7 @@ impl RollForward {
             })
             .flatten()
             .map(|event| {
-                let proximate_dataset_mount = PROXIMATE_DATASET_MOUNT.get_or_init(|| {
+                let proximate_dataset_mount = ROLL_FORWARD_PROXIMATE_DATASET.get_or_init(|| {
                     event
                         .pathdata
                         .proximate_dataset(&GLOBAL_CONFIG.dataset_collection.map_of_datasets)
@@ -370,7 +370,9 @@ impl HardLinkMap {
         // for recursive to have items available, also only place an
         // error can stop execution
 
-        let snap_dataset = Self::snap_dataset(&snap_name).unwrap();
+        let snap_dataset = Self::snap_dataset(&snap_name).ok_or(HttmError::new(
+            "Unable to determine snapshot dataset mount.",
+        ))?;
 
         let constructed = BasicDirEntryInfo {
             path: snap_dataset.to_path_buf(),
@@ -403,6 +405,7 @@ impl HardLinkMap {
                 .filter_map(|(path, md)| {
                     let nlink = md.nlink();
 
+                    // filter files without multiple hard links
                     if nlink <= 1 {
                         return None;
                     }
@@ -430,7 +433,7 @@ impl HardLinkMap {
     }
 
     fn snap_dataset(snap_name: &str) -> Option<PathBuf> {
-        PROXIMATE_DATASET_MOUNT
+        ROLL_FORWARD_PROXIMATE_DATASET
             .get()
             .map(|proximate_dataset_mount| {
                 let snap_dataset_mount: PathBuf = [
@@ -470,7 +473,9 @@ impl HardLinkMap {
                     let live_path = Self::live_path(
                         snap_path,
                         &self.snap_name,
-                        PROXIMATE_DATASET_MOUNT.get().unwrap(),
+                        ROLL_FORWARD_PROXIMATE_DATASET
+                            .get()
+                            .expect("Unable to determine proximate dataset mount, which should be available at this point in execution."),
                     );
 
                     live_path
