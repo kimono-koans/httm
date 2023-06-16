@@ -22,6 +22,7 @@ use std::process::Child;
 use std::process::Command as ExecProcess;
 use std::process::Stdio;
 
+use hashbrown::HashMap;
 use nu_ansi_term::Color::{Blue, Red};
 use once_cell::sync::OnceCell;
 use which::which;
@@ -287,8 +288,12 @@ impl RollForward {
             DiffType::Removed | DiffType::Modified => {
                 Self::copy(&snap_file.path_buf, &event.pathdata.path_buf)
             }
-            DiffType::Created => Self::remove(&snap_file.path_buf, &event.pathdata.path_buf),
-            DiffType::Renamed(new_file_name) => Self::remove(&snap_file.path_buf, &new_file_name),
+            DiffType::Created => {
+                Self::overwrite_or_remove(&snap_file.path_buf, &event.pathdata.path_buf)
+            }
+            DiffType::Renamed(new_file_name) => {
+                Self::overwrite_or_remove(&snap_file.path_buf, &new_file_name)
+            }
         }
     }
 
@@ -307,7 +312,11 @@ impl RollForward {
         Ok(())
     }
 
-    fn remove(src: &Path, dst: &Path) -> HttmResult<()> {
+    fn overwrite_or_remove(src: &Path, dst: &Path) -> HttmResult<()> {
+        if src.exists() {
+            return Self::copy(src, dst);
+        }
+
         match remove_recursive(dst) {
             Ok(_) => {
                 if dst.exists() {
@@ -324,10 +333,76 @@ impl RollForward {
 
         eprintln!("{}: {:?} -> 🗑️", Red.paint("Removed  "), dst);
 
-        if src.exists() {
-            Self::copy(src, dst)?
+        Ok(())
+    }
+}
+
+use crate::data::paths::BasicDirEntryInfo;
+use crate::exec::recursive::SharedRecursive;
+use std::os::unix::fs::MetadataExt;
+
+// key: inode, values: Paths
+struct CopyHardLinks {
+    inner: HashMap<InodeAndNumLinks, Vec<PathBuf>>,
+}
+
+#[derive(Eq, PartialEq, Hash)]
+struct InodeAndNumLinks {
+    ino: u64,
+    nlink: u64,
+}
+
+impl CopyHardLinks {
+    fn exec(requested_dir: &Path) -> HttmResult<Self> {
+        // runs once for non-recursive but also "primes the pump"
+        // for recursive to have items available, also only place an
+        // error can stop execution
+
+        let constructed = BasicDirEntryInfo {
+            path: requested_dir.to_path_buf(),
+            file_type: None,
+        };
+
+        let mut queue: Vec<BasicDirEntryInfo> = vec![constructed];
+        let mut inner: HashMap<InodeAndNumLinks, Vec<PathBuf>> = HashMap::new();
+
+        // condition kills iter when user has made a selection
+        // pop_back makes this a LIFO queue which is supposedly better for caches
+        while let Some(item) = queue.pop() {
+            // no errors will be propagated in recursive mode
+            // far too likely to run into a dir we don't have permissions to view
+            let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
+                SharedRecursive::entries_partitioned(&item.path)?;
+
+            let mut combined = vec_files;
+            combined.extend_from_slice(&vec_dirs);
+            queue.extend_from_slice(&vec_dirs);
+
+            combined
+                .into_iter()
+                .filter_map(|entry| entry.path.metadata().ok().map(|md| (entry.path, md)))
+                .filter_map(|(path, md)| {
+                    let nlink = md.nlink();
+
+                    if nlink <= 1 {
+                        return None;
+                    }
+
+                    let key = InodeAndNumLinks {
+                        ino: md.ino(),
+                        nlink,
+                    };
+
+                    Some((path, key))
+                })
+                .for_each(|(path, key)| match inner.get_mut(&key) {
+                    Some(values) => values.push(path),
+                    None => {
+                        let _ = inner.insert_unique_unchecked(key, vec![path]);
+                    }
+                });
         }
 
-        Ok(())
+        Ok(Self { inner })
     }
 }
