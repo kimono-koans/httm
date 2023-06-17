@@ -472,7 +472,7 @@ impl HardLinkMap {
                     let nlink = md.nlink();
 
                     // filter files without multiple hard links
-                    if nlink <= 1 {
+                    if !path.is_file() || nlink <= 1 {
                         return None;
                     }
 
