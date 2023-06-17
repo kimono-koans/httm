@@ -272,11 +272,9 @@ impl RollForward {
             })
             .try_for_each(|(event, snap_file_path)| Self::diff_action(&event, &snap_file_path))?;
 
-        let joined = hard_link_handle
+        let mut map = hard_link_handle
             .join()
-            .map_err(|_err| HttmError::new("Thread panicked!"))?;
-
-        let mut map = joined?;
+            .map_err(|_err| HttmError::new("Thread panicked!"))??;
 
         PreserveHardLinks::exec(&mut map)
     }
