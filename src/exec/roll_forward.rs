@@ -23,6 +23,7 @@ use std::path::{Path, PathBuf};
 use std::process::Child;
 use std::process::Command as ExecProcess;
 use std::process::Stdio;
+use std::thread::JoinHandle;
 
 use hashbrown::HashMap;
 use nu_ansi_term::Color::{Blue, Red, Yellow};
@@ -225,10 +226,27 @@ impl RollForward {
         }
     }
 
-    fn roll_forward(roll_config: &RollForwardConfig, snap_name: &str) -> HttmResult<()> {
-        let snap_name_clone = snap_name.to_string();
+    fn spawn_preserve_links(
+        snap_name: &str,
+    ) -> (
+        JoinHandle<HttmResult<HardLinkMap>>,
+        JoinHandle<HttmResult<HardLinkMap>>,
+    ) {
+        let snap_dataset = Self::snap_dataset(&snap_name)
+            .ok_or(HttmError::new(
+                "Unable to determine snapshot dataset mount.",
+            ))
+            .unwrap();
 
-        let hard_link_handle = std::thread::spawn(|| HardLinkMap::new(snap_name_clone));
+        let snap_handle = std::thread::spawn(move || HardLinkMap::new(&snap_dataset));
+        let live_handle =
+            std::thread::spawn(|| HardLinkMap::new(ROLL_FORWARD_PROXIMATE_DATASET.get().unwrap()));
+
+        (snap_handle, live_handle)
+    }
+
+    fn roll_forward(roll_config: &RollForwardConfig, snap_name: &str) -> HttmResult<()> {
+        let (snap_handle, live_handle) = Self::spawn_preserve_links(snap_name);
 
         let mut process_handle = Self::exec_diff(&roll_config.full_snap_name)?;
 
@@ -272,11 +290,11 @@ impl RollForward {
             })
             .try_for_each(|(event, snap_file_path)| Self::diff_action(&event, &snap_file_path))?;
 
-        let mut map = hard_link_handle
+        let mut map = snap_handle
             .join()
             .map_err(|_err| HttmError::new("Thread panicked!"))??;
 
-        PreserveHardLinks::exec(&mut map)
+        PreserveHardLinks::exec(&mut map, snap_name)
     }
 
     fn snap_path(
@@ -336,6 +354,22 @@ impl RollForward {
         Ok(())
     }
 
+    fn snap_dataset(snap_name: &str) -> Option<PathBuf> {
+        ROLL_FORWARD_PROXIMATE_DATASET
+            .get()
+            .map(|proximate_dataset_mount| {
+                let snap_dataset_mount: PathBuf = [
+                    proximate_dataset_mount,
+                    Path::new(ZFS_SNAPSHOT_DIRECTORY),
+                    Path::new(&snap_name),
+                ]
+                .iter()
+                .collect();
+
+                snap_dataset_mount
+            })
+    }
+
     fn overwrite_or_remove(src: &Path, dst: &Path) -> HttmResult<()> {
         // overwrite
         if src.exists() {
@@ -365,7 +399,6 @@ impl RollForward {
 
 // key: inode, values: Paths
 struct HardLinkMap {
-    snap_name: String,
     inner: HashMap<InodeAndNumLinks, Vec<PathBuf>>,
 }
 
@@ -376,13 +409,9 @@ struct InodeAndNumLinks {
 }
 
 impl HardLinkMap {
-    fn new(snap_name: String) -> HttmResult<Self> {
-        let snap_dataset = Self::snap_dataset(&snap_name).ok_or(HttmError::new(
-            "Unable to determine snapshot dataset mount.",
-        ))?;
-
+    fn new(requested_path: &Path) -> HttmResult<Self> {
         let constructed = BasicDirEntryInfo {
-            path: snap_dataset,
+            path: requested_path.to_path_buf(),
             file_type: None,
         };
 
@@ -440,33 +469,19 @@ impl HardLinkMap {
                 });
         }
 
-        Ok(Self {
-            snap_name: snap_name.to_string(),
-            inner,
-        })
+        Ok(Self { inner })
     }
+}
 
-    fn snap_dataset(snap_name: &str) -> Option<PathBuf> {
-        ROLL_FORWARD_PROXIMATE_DATASET
-            .get()
-            .map(|proximate_dataset_mount| {
-                let snap_dataset_mount: PathBuf = [
-                    proximate_dataset_mount,
-                    Path::new(ZFS_SNAPSHOT_DIRECTORY),
-                    Path::new(&snap_name),
-                ]
-                .iter()
-                .collect();
-
-                snap_dataset_mount
-            })
-    }
+enum PreserveHardLinksHandleType<'a> {
+    Live(HardLinkMap),
+    Snap((HardLinkMap, &'a str)),
 }
 
 struct PreserveHardLinks;
 
 impl PreserveHardLinks {
-    fn exec(map: &mut HardLinkMap) -> HttmResult<()> {
+    fn exec(map: &mut HardLinkMap, snap_name: &str) -> HttmResult<()> {
         let mut none_preserved = true;
 
         let res = map.inner.iter_mut().try_for_each(|(_key, values)| {
@@ -475,7 +490,7 @@ impl PreserveHardLinks {
                 .map(|snap_path| {
                     let live_path = Self::live_path(
                         snap_path,
-                        &map.snap_name,
+                        &snap_name,
                         ROLL_FORWARD_PROXIMATE_DATASET
                             .get()
                             .expect("Unable to determine proximate dataset mount, which should be available at this point in execution."),
