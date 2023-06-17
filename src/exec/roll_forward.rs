@@ -463,6 +463,14 @@ impl HardLinkMap {
 
             combined
                 .into_iter()
+                .filter(|entry| {
+                    // hard links are not dirs or symlinks, must look like regular file
+                    if let Some(ft) = entry.file_type {
+                        return !ft.is_file();
+                    }
+
+                    false
+                })
                 .map(|entry| {
                     let md = entry.path.metadata().expect("Could not obtain metadata");
 
@@ -472,7 +480,7 @@ impl HardLinkMap {
                     let nlink = md.nlink();
 
                     // filter files without multiple hard links
-                    if !path.is_file() || nlink <= 1 {
+                    if nlink <= 1 {
                         return None;
                     }
 
