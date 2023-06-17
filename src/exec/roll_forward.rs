@@ -493,6 +493,7 @@ struct PreserveHardLinks;
 impl PreserveHardLinks {
     fn exec(map: &mut HardLinkMap, snap_name: &str, map_type: PreserveHardLinksMapType) -> HttmResult<()> {
         let mut none_preserved = true;
+        let mut none_removed = true;
 
         let ret = match map_type {
             PreserveHardLinksMapType::Live => {
@@ -506,7 +507,7 @@ impl PreserveHardLinks {
                         })
                         .filter(|(live_path, snap_path)| !snap_path.exists() && live_path.exists())
                         .try_for_each(|(live_path, _snap_path)| {
-                            none_preserved = false;
+                            none_removed = false;
                             RollForward::remove(&live_path)
                         })
                 });
@@ -557,7 +558,12 @@ impl PreserveHardLinks {
         };
 
         if none_preserved {
-            println!("No hard links found which require preservation or removal.");
+            println!("No hard links found which require preservation.");
+            return Ok(());
+        }
+
+        if none_removed {
+            println!("No hard links found which require removal.");
             return Ok(());
         }
 
