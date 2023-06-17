@@ -27,6 +27,7 @@ use std::process::Stdio;
 use hashbrown::HashMap;
 use nu_ansi_term::Color::{Blue, Red, Yellow};
 use once_cell::sync::OnceCell;
+use rayon::prelude::*;
 use which::which;
 
 use crate::config::generate::RollForwardConfig;
@@ -253,7 +254,7 @@ impl RollForward {
 
         // into iter and reverse because we want to go smallest first
         group_map
-            .into_iter()
+            .into_par_iter()
             .flat_map(|(_key, mut values)| {
                 values.sort_by_key(|event| event.time.clone());
                 values.pop()
@@ -407,7 +408,15 @@ impl HardLinkMap {
 
             combined
                 .into_iter()
-                .filter_map(|entry| entry.path.metadata().ok().map(|md| (entry.path, md)))
+                .map(|entry| {
+                    let md = entry
+                        .path
+                        .metadata()
+                        .ok()
+                        .expect("Could not obtain metadata");
+
+                    (entry.path, md)
+                })
                 .filter_map(|(path, md)| {
                     let nlink = md.nlink();
 
@@ -463,14 +472,14 @@ impl PreserveHardLinks {
         let res = map.inner.iter_mut().try_for_each(|(_key, values)| {
             let live_paths: Vec<PathBuf> = values
                 .iter()
-                .filter_map(|snap_path| {
+                .map(|snap_path| {
                     let live_path = Self::live_path(
                         snap_path,
                         &map.snap_name,
                         ROLL_FORWARD_PROXIMATE_DATASET
                             .get()
                             .expect("Unable to determine proximate dataset mount, which should be available at this point in execution."),
-                    );
+                    ).expect("Could obtain live path for");
 
                     live_path
                 })
