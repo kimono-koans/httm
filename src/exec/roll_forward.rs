@@ -528,24 +528,26 @@ impl PreserveHardLinks {
             .expect("Unable to determine proximate dataset mount, which should be available at this point in execution.");
 
         let ret = match map.map_type {
-            HardLinkMapType::Live => map.inner.iter_mut().try_for_each(|(_key, values)| {
-                let res = values
-                    .iter()
-                    .map(|live_path| {
-                        let snap_path = RollForward::snap_path(
-                            &PathData::from(live_path),
-                            &map.snap_name,
-                            proximate_dataset_mount,
-                        )
-                        .expect("Could not obtain snap path for live path");
+            HardLinkMapType::Live => {
+                let res = map.inner.iter_mut().try_for_each(|(_key, values)| {
+                    values
+                        .iter()
+                        .map(|live_path| {
+                            let snap_path = RollForward::snap_path(
+                                &PathData::from(live_path),
+                                &map.snap_name,
+                                proximate_dataset_mount,
+                            )
+                            .expect("Could not obtain snap path for live path");
 
-                        (live_path.clone(), snap_path)
-                    })
-                    .filter(|(live_path, snap_path)| !snap_path.exists() && live_path.exists())
-                    .try_for_each(|(live_path, _snap_path)| {
-                        none_removed = false;
-                        RollForward::remove(&live_path)
-                    });
+                            (live_path.clone(), snap_path)
+                        })
+                        .filter(|(live_path, snap_path)| !snap_path.exists() && live_path.exists())
+                        .try_for_each(|(live_path, _snap_path)| {
+                            none_removed = false;
+                            RollForward::remove(&live_path)
+                        })
+                });
 
                 if none_removed {
                     println!("No hard links found which require removal.");
@@ -553,11 +555,11 @@ impl PreserveHardLinks {
                 } else {
                     res
                 }
-            }),
+            }
             HardLinkMapType::Snap => {
                 let mut none_preserved = true;
 
-                map.inner.iter_mut().try_for_each(|(_key, values)| {
+                let res = map.inner.iter_mut().try_for_each(|(_key, values)| {
                     let live_paths: Vec<PathBuf> = values
                         .iter()
                         .map(|snap_path| {
@@ -566,7 +568,7 @@ impl PreserveHardLinks {
                         })
                         .collect();
 
-                    let res = live_paths
+                    live_paths
                         .iter()
                         .filter(|live_path| !live_path.exists())
                         .try_for_each(|live_path| {
@@ -584,15 +586,15 @@ impl PreserveHardLinks {
                                 )
                                 .into()),
                             }
-                        });
+                        })
+                });
 
-                    if none_preserved {
-                        println!("No hard links found which require preservation.");
-                        return Ok(());
-                    } else {
-                        res
-                    }
-                })
+                if none_preserved {
+                    println!("No hard links found which require preservation.");
+                    return Ok(());
+                } else {
+                    res
+                }
             }
         };
 
