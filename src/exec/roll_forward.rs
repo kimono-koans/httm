@@ -223,11 +223,9 @@ impl RollForward {
     }
 
     fn roll_forward(roll_config: &RollForwardConfig, snap_name: &str) -> HttmResult<()> {
-        let roll_config_clone = roll_config.clone();
         let snap_name_clone = snap_name.to_string();
 
-        let hard_link_handle =
-            std::thread::spawn(|| HardLinkMap::new(roll_config_clone, snap_name_clone));
+        let hard_link_handle = std::thread::spawn(|| HardLinkMap::new(snap_name_clone));
 
         let mut process_handle = Self::exec_diff(&roll_config.full_snap_name)?;
 
@@ -242,7 +240,10 @@ impl RollForward {
         // zfs-diff can return multiple file actions for a single inode, here we dedup
         eprintln!("Building a map of ZFS filesystem events since the specified snapshot:");
         let mut group_map: Vec<(PathBuf, Vec<DiffEvent>)> = iter_peekable
-            .map(|event| event)
+            .map(|event| {
+                roll_config.progress_bar.tick();
+                event
+            })
             .into_group_map_by(|event| event.pathdata.path_buf.clone())
             .into_iter()
             .collect();
@@ -374,7 +375,7 @@ struct InodeAndNumLinks {
 }
 
 impl HardLinkMap {
-    fn new(roll_config: RollForwardConfig, snap_name: String) -> HttmResult<Self> {
+    fn new(snap_name: String) -> HttmResult<Self> {
         let snap_dataset = Self::snap_dataset(&snap_name).ok_or(HttmError::new(
             "Unable to determine snapshot dataset mount.",
         ))?;
@@ -406,11 +407,6 @@ impl HardLinkMap {
 
             combined
                 .into_iter()
-                .map(|entry| {
-                    // tick over on each entry
-                    roll_config.progress_bar.tick();
-                    entry
-                })
                 .filter_map(|entry| entry.path.metadata().ok().map(|md| (entry.path, md)))
                 .filter_map(|(path, md)| {
                     let nlink = md.nlink();
