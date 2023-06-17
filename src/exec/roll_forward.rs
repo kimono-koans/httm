@@ -290,19 +290,25 @@ impl RollForward {
             })
             .try_for_each(|(event, snap_file_path)| Self::diff_action(&event, &snap_file_path))?;
 
-        let mut map = snap_handle
+        let mut snap_map = snap_handle
             .join()
             .map_err(|_err| HttmError::new("Thread panicked!"))??;
 
-        PreserveHardLinks::exec(&mut map, snap_name)
+        PreserveHardLinks::exec(&mut snap_map, snap_name, PreserveHardLinksMapType::Snap)?;
+
+        let mut live_map = live_handle
+            .join()
+            .map_err(|_err| HttmError::new("Thread panicked!"))??;
+
+        PreserveHardLinks::exec(&mut live_map, snap_name, PreserveHardLinksMapType::Live)
     }
 
     fn snap_path(
-        event_pathdata: &PathData,
+        pathdata: &PathData,
         snap_name: &str,
         proximate_dataset_mount: &Path,
     ) -> Option<PathBuf> {
-        event_pathdata
+        pathdata
             .relative_path(proximate_dataset_mount)
             .ok()
             .map(|relative_path| {
@@ -377,6 +383,10 @@ impl RollForward {
         }
 
         // or remove
+        Self::remove(dst)
+    }
+
+    fn remove(dst: &Path) -> HttmResult<()> {
         match remove_recursive(dst) {
             Ok(_) => {
                 if dst.exists() {
@@ -473,61 +483,86 @@ impl HardLinkMap {
     }
 }
 
-enum PreserveHardLinksHandleType<'a> {
-    Live(HardLinkMap),
-    Snap((HardLinkMap, &'a str)),
+enum PreserveHardLinksMapType {
+    Live,
+    Snap,
 }
 
 struct PreserveHardLinks;
 
 impl PreserveHardLinks {
-    fn exec(map: &mut HardLinkMap, snap_name: &str) -> HttmResult<()> {
+    fn exec(map: &mut HardLinkMap, snap_name: &str, map_type: PreserveHardLinksMapType) -> HttmResult<()> {
         let mut none_preserved = true;
 
-        let res = map.inner.iter_mut().try_for_each(|(_key, values)| {
-            let live_paths: Vec<PathBuf> = values
-                .iter()
-                .map(|snap_path| {
-                    let live_path = Self::live_path(
-                        snap_path,
-                        &snap_name,
-                        ROLL_FORWARD_PROXIMATE_DATASET
-                            .get()
-                            .expect("Unable to determine proximate dataset mount, which should be available at this point in execution."),
-                    ).expect("Could obtain live path for");
-
-                    live_path
-                })
-                .collect();
-
-            live_paths.iter().filter(|live_path| !live_path.exists()).try_for_each(|live_path| {
-                    // I'm not sure this is necessary, but here we don't just find an existing path.
-                    // We find the oldest created path and assume this is our "original" path
-                    let opt_original = live_paths
+        let ret = match map_type {
+            PreserveHardLinksMapType::Live => {
+                let res = map.inner.iter_mut().try_for_each(|(_key, values)| {
+                    values
                         .iter()
-                        .find(|path| path.exists());
-
-                    match opt_original {
-                        Some(original) => {
+                        .map(|live_path| {
+                            let snap_path = RollForward::snap_path(&PathData::from(live_path), snap_name, ROLL_FORWARD_PROXIMATE_DATASET.get().unwrap()).unwrap();
+        
+                            (live_path.clone(), snap_path)
+                        })
+                        .filter(|(live_path, snap_path)| !snap_path.exists() && live_path.exists())
+                        .try_for_each(|(live_path, _snap_path)| {
                             none_preserved = false;
-                            return Self::hard_link(original, live_path)
-                        },
-                        None => {
-                            return Err(HttmError::new(
-                                "Unable to find live path to use as link source.",
-                            )
-                            .into())
-                        }
-                    }
-            })
-        });
+                            RollForward::remove(&live_path)
+                        })
+                });
+
+                res
+            },
+            PreserveHardLinksMapType::Snap => {
+                let res = map.inner.iter_mut().try_for_each(|(_key, values)| {
+                    let live_paths: Vec<PathBuf> = values
+                        .iter()
+                        .map(|snap_path| {
+                            let live_path = Self::live_path(
+                                snap_path,
+                                &snap_name,
+                                ROLL_FORWARD_PROXIMATE_DATASET
+                                    .get()
+                                    .expect("Unable to determine proximate dataset mount, which should be available at this point in execution."),
+                            ).expect("Could obtain live path for");
+        
+                            live_path
+                        })
+                        .collect();
+        
+                    live_paths.iter().filter(|live_path| !live_path.exists()).try_for_each(|live_path| {
+                            // I'm not sure this is necessary, but here we don't just find an existing path.
+                            // We find the oldest created path and assume this is our "original" path
+                            let opt_original = live_paths
+                                .iter()
+                                .find(|path| path.exists());
+        
+                            match opt_original {
+                                Some(original) => {
+                                    none_preserved = false;
+                                    return Self::hard_link(original, live_path)
+                                },
+                                None => {
+                                    return Err(HttmError::new(
+                                        "Unable to find live path to use as link source.",
+                                    )
+                                    .into())
+                                }
+                            }
+                    })
+                });
+        
+                res
+            },
+        };
 
         if none_preserved {
-            println!("No hard links found which require preservation.");
+            println!("No hard links found which require preservation or removal.");
             return Ok(());
         }
 
-        res
+        ret
+
     }
 
     fn live_path(
