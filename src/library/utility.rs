@@ -134,9 +134,8 @@ pub fn copy_attributes(src: &Path, dst: &Path) -> HttmResult<()> {
     #[cfg(feature = "acls")]
     {
         if let Ok(acls) = exacl::getfacl(src, None) {
-            let _ = acls
-                .into_iter()
-                .try_for_each(|acl| exacl::setfacl(&[dst], &[acl], None));
+            acls.into_iter()
+                .try_for_each(|acl| exacl::setfacl(&[dst], &[acl], None))?;
         }
     }
 
@@ -151,10 +150,10 @@ pub fn copy_attributes(src: &Path, dst: &Path) -> HttmResult<()> {
     // XAttrs
     {
         if let Ok(xattrs) = xattr::list(src) {
-            let _ = xattrs
+            xattrs
                 .flat_map(|attr| xattr::get(src, attr.clone()).map(|opt_value| (attr, opt_value)))
                 .filter_map(|(attr, opt_value)| opt_value.map(|value| (attr, value)))
-                .try_for_each(|(attr, value)| xattr::set(dst, attr, value.as_slice()));
+                .try_for_each(|(attr, value)| xattr::set(dst, attr, value.as_slice()))?
         }
     }
 
@@ -190,7 +189,7 @@ fn create_dir_with_ancestors(
         create_dir_all(&dst_pathdata.path_buf)?;
     }
 
-    let res: HttmResult<()> = src_pathdata
+    src_pathdata
         .path_buf
         .ancestors()
         .zip(dst_pathdata.path_buf.ancestors())
@@ -201,9 +200,7 @@ fn create_dir_with_ancestors(
             }
 
             Ok(())
-        });
-
-    res
+        })
 }
 
 pub fn copy_direct(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<()> {
