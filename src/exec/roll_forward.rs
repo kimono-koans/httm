@@ -238,9 +238,19 @@ impl RollForward {
             ))
             .unwrap();
 
-        let snap_handle = std::thread::spawn(move || HardLinkMap::new(&snap_dataset));
-        let live_handle =
-            std::thread::spawn(|| HardLinkMap::new(ROLL_FORWARD_PROXIMATE_DATASET.get().unwrap()));
+        let snap_name_clone1 = snap_name.to_string();
+        let snap_name_clone2 = snap_name.to_string();
+
+        let snap_handle = std::thread::spawn(move || {
+            HardLinkMap::new(&snap_dataset, snap_name_clone1, HardLinkMapType::Snap)
+        });
+        let live_handle = std::thread::spawn(move || {
+            HardLinkMap::new(
+                ROLL_FORWARD_PROXIMATE_DATASET.get().unwrap(),
+                snap_name_clone2,
+                HardLinkMapType::Live,
+            )
+        });
 
         (snap_handle, live_handle)
     }
@@ -294,13 +304,13 @@ impl RollForward {
             .join()
             .map_err(|_err| HttmError::new("Thread panicked!"))??;
 
-        PreserveHardLinks::exec(&mut snap_map, snap_name, PreserveHardLinksMapType::Snap)?;
+        PreserveHardLinks::exec(&mut snap_map)?;
 
         let mut live_map = live_handle
             .join()
             .map_err(|_err| HttmError::new("Thread panicked!"))??;
 
-        PreserveHardLinks::exec(&mut live_map, snap_name, PreserveHardLinksMapType::Live)
+        PreserveHardLinks::exec(&mut live_map)
     }
 
     fn snap_path(
@@ -410,6 +420,8 @@ impl RollForward {
 // key: inode, values: Paths
 struct HardLinkMap {
     inner: HashMap<InodeAndNumLinks, Vec<PathBuf>>,
+    snap_name: String,
+    map_type: HardLinkMapType,
 }
 
 #[derive(Eq, PartialEq, Hash)]
@@ -419,7 +431,11 @@ struct InodeAndNumLinks {
 }
 
 impl HardLinkMap {
-    fn new(requested_path: &Path) -> HttmResult<Self> {
+    fn new(
+        requested_path: &Path,
+        snap_name: String,
+        map_type: HardLinkMapType,
+    ) -> HttmResult<Self> {
         let constructed = BasicDirEntryInfo {
             path: requested_path.to_path_buf(),
             file_type: None,
@@ -479,11 +495,15 @@ impl HardLinkMap {
                 });
         }
 
-        Ok(Self { inner })
+        Ok(Self {
+            inner,
+            snap_name,
+            map_type,
+        })
     }
 }
 
-enum PreserveHardLinksMapType {
+enum HardLinkMapType {
     Live,
     Snap,
 }
@@ -491,11 +511,7 @@ enum PreserveHardLinksMapType {
 struct PreserveHardLinks;
 
 impl PreserveHardLinks {
-    fn exec(
-        map: &mut HardLinkMap,
-        snap_name: &str,
-        map_type: PreserveHardLinksMapType,
-    ) -> HttmResult<()> {
+    fn exec(map: &mut HardLinkMap) -> HttmResult<()> {
         let mut none_preserved = true;
         let mut none_removed = true;
 
@@ -503,35 +519,33 @@ impl PreserveHardLinks {
             .get()
             .expect("Unable to determine proximate dataset mount, which should be available at this point in execution.");
 
-        let ret = match map_type {
-            PreserveHardLinksMapType::Live => {
-                map.inner.iter_mut().try_for_each(|(_key, values)| {
-                    values
-                        .iter()
-                        .map(|live_path| {
-                            let snap_path = RollForward::snap_path(
-                                &PathData::from(live_path),
-                                snap_name,
-                                proximate_dataset_mount,
-                            )
-                            .expect("Could not obtain snap path for live path");
+        let ret = match map.map_type {
+            HardLinkMapType::Live => map.inner.iter_mut().try_for_each(|(_key, values)| {
+                values
+                    .iter()
+                    .map(|live_path| {
+                        let snap_path = RollForward::snap_path(
+                            &PathData::from(live_path),
+                            &map.snap_name,
+                            proximate_dataset_mount,
+                        )
+                        .expect("Could not obtain snap path for live path");
 
-                            (live_path.clone(), snap_path)
-                        })
-                        .filter(|(live_path, snap_path)| !snap_path.exists() && live_path.exists())
-                        .try_for_each(|(live_path, _snap_path)| {
-                            none_removed = false;
-                            RollForward::remove(&live_path)
-                        })
-                })
-            }
-            PreserveHardLinksMapType::Snap => {
+                        (live_path.clone(), snap_path)
+                    })
+                    .filter(|(live_path, snap_path)| !snap_path.exists() && live_path.exists())
+                    .try_for_each(|(live_path, _snap_path)| {
+                        none_removed = false;
+                        RollForward::remove(&live_path)
+                    })
+            }),
+            HardLinkMapType::Snap => {
                 map.inner.iter_mut().try_for_each(|(_key, values)| {
                     let live_paths: Vec<PathBuf> = values
                         .iter()
                         .map(|snap_path| {
                             let live_path =
-                                Self::live_path(snap_path, &snap_name, proximate_dataset_mount)
+                                Self::live_path(snap_path, &map.snap_name, proximate_dataset_mount)
                                     .expect("Could obtain live path for snap path");
 
                             live_path
