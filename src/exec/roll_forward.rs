@@ -282,6 +282,15 @@ impl RollForward {
         // now sort by number of components, want to build from the bottom up, do less dir creation, etc.
         group_map.sort_by_key(|(key, _values)| key.components().count());
 
+        // need to wait for these to finish before executing any diff_action
+        let mut snap_map = snap_handle
+            .join()
+            .map_err(|_err| HttmError::new("Thread panicked!"))??;
+
+        let mut live_map = live_handle
+            .join()
+            .map_err(|_err| HttmError::new("Thread panicked!"))??;
+
         // into iter and reverse because we want to go smallest first
         group_map
             .into_par_iter()
@@ -300,16 +309,7 @@ impl RollForward {
             })
             .try_for_each(|(event, snap_file_path)| Self::diff_action(&event, &snap_file_path))?;
 
-        let mut snap_map = snap_handle
-            .join()
-            .map_err(|_err| HttmError::new("Thread panicked!"))??;
-
         PreserveHardLinks::exec(&mut snap_map)?;
-
-        let mut live_map = live_handle
-            .join()
-            .map_err(|_err| HttmError::new("Thread panicked!"))??;
-
         PreserveHardLinks::exec(&mut live_map)
     }
 
