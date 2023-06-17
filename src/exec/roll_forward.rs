@@ -490,10 +490,7 @@ impl PreserveHardLinks {
                     // We find the oldest created path and assume this is our "original" path
                     let opt_original = live_paths
                         .iter()
-                        .filter(|path| path.exists())
-                        .max_by(|a, b| {
-                            a.metadata().ok().and_then(|md| md.created().ok()).cmp(&b.metadata().ok().and_then(|md| md.created().ok()))
-                        });
+                        .find(|path| path.exists());
 
                     match opt_original {
                         Some(original) => {
