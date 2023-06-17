@@ -232,7 +232,7 @@ impl RollForward {
         JoinHandle<HttmResult<HardLinkMap>>,
         JoinHandle<HttmResult<HardLinkMap>>,
     ) {
-        let snap_dataset = Self::snap_dataset(&snap_name)
+        let snap_dataset = Self::snap_dataset(snap_name)
             .ok_or(HttmError::new(
                 "Unable to determine snapshot dataset mount.",
             ))
@@ -464,11 +464,7 @@ impl HardLinkMap {
             combined
                 .into_iter()
                 .map(|entry| {
-                    let md = entry
-                        .path
-                        .metadata()
-                        .ok()
-                        .expect("Could not obtain metadata");
+                    let md = entry.path.metadata().expect("Could not obtain metadata");
 
                     (entry.path, md)
                 })
@@ -544,11 +540,8 @@ impl PreserveHardLinks {
                     let live_paths: Vec<PathBuf> = values
                         .iter()
                         .map(|snap_path| {
-                            let live_path =
-                                Self::live_path(snap_path, &map.snap_name, proximate_dataset_mount)
-                                    .expect("Could obtain live path for snap path");
-
-                            live_path
+                            Self::live_path(snap_path, &map.snap_name, proximate_dataset_mount)
+                                .expect("Could obtain live path for snap path")
                         })
                         .collect();
 
@@ -565,12 +558,10 @@ impl PreserveHardLinks {
                                     none_preserved = false;
                                     return Self::hard_link(original, live_path);
                                 }
-                                None => {
-                                    return Err(HttmError::new(
-                                        "Unable to find live path to use as link source.",
-                                    )
-                                    .into())
-                                }
+                                None => Err(HttmError::new(
+                                    "Unable to find live path to use as link source.",
+                                )
+                                .into()),
                             }
                         })
                 })
