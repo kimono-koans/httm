@@ -442,7 +442,7 @@ impl HardLinkMap {
         };
 
         let mut queue: Vec<BasicDirEntryInfo> = vec![constructed];
-        let mut inner: HashMap<InodeAndNumLinks, Vec<PathBuf>> = HashMap::new();
+        let mut tmp: HashMap<InodeAndNumLinks, Vec<PathBuf>> = HashMap::new();
 
         // condition kills iter when user has made a selection
         // pop_back makes this a LIFO queue which is supposedly better for caches
@@ -480,9 +480,9 @@ impl HardLinkMap {
                     let nlink = md.nlink();
 
                     // filter files without multiple hard links
-                    if nlink <= 1 {
-                        return None;
-                    }
+                    // if nlink <= 1 {
+                    //     return None;
+                    // }
 
                     let key = InodeAndNumLinks {
                         ino: md.ino(),
@@ -491,13 +491,18 @@ impl HardLinkMap {
 
                     Some((path, key))
                 })
-                .for_each(|(path, key)| match inner.get_mut(&key) {
+                .for_each(|(path, key)| match tmp.get_mut(&key) {
                     Some(values) => values.push(path),
                     None => {
-                        let _ = inner.insert_unique_unchecked(key, vec![path]);
+                        let _ = tmp.insert_unique_unchecked(key, vec![path]);
                     }
                 });
         }
+
+        let inner = tmp
+            .into_iter()
+            .filter(|(_key, values)| values.len() > 1)
+            .collect();
 
         Ok(Self {
             inner,
@@ -516,7 +521,6 @@ struct PreserveHardLinks;
 
 impl PreserveHardLinks {
     fn exec(map: &mut HardLinkMap) -> HttmResult<()> {
-        let mut none_preserved = true;
         let mut none_removed = true;
 
         let proximate_dataset_mount = ROLL_FORWARD_PROXIMATE_DATASET
@@ -525,7 +529,7 @@ impl PreserveHardLinks {
 
         let ret = match map.map_type {
             HardLinkMapType::Live => map.inner.iter_mut().try_for_each(|(_key, values)| {
-                values
+                let res = values
                     .iter()
                     .map(|live_path| {
                         let snap_path = RollForward::snap_path(
@@ -541,9 +545,18 @@ impl PreserveHardLinks {
                     .try_for_each(|(live_path, _snap_path)| {
                         none_removed = false;
                         RollForward::remove(&live_path)
-                    })
+                    });
+
+                if none_removed {
+                    println!("No hard links found which require removal.");
+                    return Ok(());
+                } else {
+                    res
+                }
             }),
             HardLinkMapType::Snap => {
+                let mut none_preserved = true;
+
                 map.inner.iter_mut().try_for_each(|(_key, values)| {
                     let live_paths: Vec<PathBuf> = values
                         .iter()
@@ -553,7 +566,7 @@ impl PreserveHardLinks {
                         })
                         .collect();
 
-                    live_paths
+                    let res = live_paths
                         .iter()
                         .filter(|live_path| !live_path.exists())
                         .try_for_each(|live_path| {
@@ -571,20 +584,17 @@ impl PreserveHardLinks {
                                 )
                                 .into()),
                             }
-                        })
+                        });
+
+                    if none_preserved {
+                        println!("No hard links found which require preservation.");
+                        return Ok(());
+                    } else {
+                        res
+                    }
                 })
             }
         };
-
-        if none_preserved {
-            println!("No hard links found which require preservation.");
-            return Ok(());
-        }
-
-        if none_removed {
-            println!("No hard links found which require removal.");
-            return Ok(());
-        }
 
         ret
     }
