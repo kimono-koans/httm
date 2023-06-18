@@ -535,35 +535,40 @@ impl PreserveHardLinks {
                 let mut none_preserved = true;
 
                 let res = map.inner.iter().try_for_each(|(_key, values)| {
-                    let live_paths: Vec<PathBuf> = values
+                    let complemented_paths: Vec<(PathBuf, &PathBuf)> = values
                         .iter()
                         .map(|snap_path| {
-                            Self::live_path(
+                            let live_path = Self::live_path(
                                 snap_path,
                                 &map.snap_name,
                                 &roll_forward.proximate_dataset_mount,
                             )
-                            .expect("Could obtain live path for snap path")
+                            .expect("Could obtain live path for snap path");
+
+                            (live_path, snap_path)
                         })
                         .collect();
 
-                    live_paths
+                    complemented_paths
                         .iter()
-                        .filter(|live_path| !live_path.exists())
-                        .try_for_each(|live_path| {
+                        .filter(|(live_path, _snap_path)| !live_path.exists())
+                        .try_for_each(|(live_path, snap_path)| {
                             // I'm not sure this is necessary, but here we don't just find an existing path.
                             // We find the oldest created path and assume this is our "original" path
-                            let opt_original = live_paths.iter().find(|path| path.exists());
+                            let opt_original = complemented_paths
+                                .iter()
+                                .map(|(live, _snap)| live)
+                                .find(|path| path.exists());
 
                             match opt_original {
                                 Some(original) => {
                                     none_preserved = false;
-                                    return Self::hard_link(original, live_path);
+                                    Self::hard_link(original, live_path)
                                 }
-                                None => Err(HttmError::new(
-                                    "Unable to find live path to use as link source.",
-                                )
-                                .into()),
+                                None => {
+                                    none_preserved = false;
+                                    RollForward::copy(snap_path, live_path)
+                                }
                             }
                         })
                 });
