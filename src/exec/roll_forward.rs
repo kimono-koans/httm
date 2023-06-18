@@ -443,7 +443,7 @@ impl HardLinkMap {
         };
 
         let mut queue: Vec<BasicDirEntryInfo> = vec![constructed];
-        let mut inner: HashMap<u64, Vec<PathBuf>> = HashMap::new();
+        let mut tmp: HashMap<u64, Vec<PathBuf>> = HashMap::new();
 
         // condition kills iter when user has made a selection
         // pop_back makes this a LIFO queue which is supposedly better for caches
@@ -472,28 +472,19 @@ impl HardLinkMap {
 
                     false
                 })
-                .map(|entry| {
-                    let md = entry.path.metadata().expect("Could not obtain metadata");
-
-                    (entry.path, md)
-                })
-                .filter_map(|(path, md)| {
-                    let nlink = md.nlink();
-
-                    // filter files without multiple hard links
-                    if nlink <= 1 {
-                        return None;
-                    }
-
-                    Some((path, md.ino()))
-                })
-                .for_each(|(path, key)| match inner.get_mut(&key) {
-                    Some(values) => values.push(path),
-                    None => {
-                        let _ = inner.insert_unique_unchecked(key, vec![path]);
-                    }
+                .into_group_map_by(|entry| {
+                    entry
+                        .path
+                        .metadata()
+                        .expect("Could not obtain metadata")
+                        .ino()
                 });
         }
+
+        let inner = tmp
+            .drain()
+            .filter(|(_ino, entries)| entries.len() > 1)
+            .collect();
 
         Ok(Self {
             inner,
