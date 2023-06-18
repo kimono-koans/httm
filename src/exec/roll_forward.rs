@@ -385,8 +385,20 @@ impl RollForward {
             return Self::copy(src, dst);
         }
 
-        // or remove
+        // skip/filter potential hard links
+        if let Ok(src_md) = src.metadata() {
+            if src_md.nlink() > 1 {
+                return Ok(());
+            }
+        }
 
+        if let Ok(dst_md) = dst.metadata() {
+            if dst_md.nlink() > 1 {
+                return Ok(());
+            }
+        }
+
+        // or remove
         Self::remove(dst)
     }
 
