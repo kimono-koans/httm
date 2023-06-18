@@ -522,7 +522,7 @@ impl PreserveHardLinks {
                                 .snap_path(&PathData::from(live_path))
                                 .expect("Could not obtain snap path for live path");
 
-                            (live_path.clone(), snap_path)
+                            (live_path, snap_path)
                         })
                         .filter(|(live_path, snap_path)| !snap_path.exists() && live_path.exists())
                         .try_for_each(|(live_path, _snap_path)| {
