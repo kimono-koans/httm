@@ -27,6 +27,7 @@ use std::thread::JoinHandle;
 
 use hashbrown::HashMap;
 use nu_ansi_term::Color::{Blue, Red, Yellow};
+use rayon::prelude::*;
 use which::which;
 
 use crate::config::generate::RollForwardConfig;
@@ -283,7 +284,7 @@ impl RollForward {
             .collect();
 
         // now sort by number of components, want to build from the bottom up, do less dir creation, etc.
-        group_map.sort_by_key(|(key, _values)| key.components().count());
+        group_map.par_sort_unstable_by_key(|(key, _values)| key.components().count());
 
         // need to wait for these to finish before executing any diff_action
         let mut snap_map = snap_handle
@@ -296,7 +297,7 @@ impl RollForward {
 
         // into iter and reverse because we want to go largest first
         group_map
-            .into_iter()
+            .into_par_iter()
             .flat_map(|(_key, mut values)| {
                 values.sort_by_key(|event| event.time.clone());
                 values.pop()
