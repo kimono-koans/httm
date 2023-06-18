@@ -517,7 +517,7 @@ impl PreserveHardLinks {
 
                             (live_path, snap_path)
                         })
-                        .filter(|(live_path, snap_path)| !snap_path.exists() && live_path.exists())
+                        .filter(|(_live_path, snap_path)| !snap_path.exists())
                         .try_for_each(|(live_path, _snap_path)| {
                             none_removed = false;
                             RollForward::remove(&live_path)
@@ -553,22 +553,16 @@ impl PreserveHardLinks {
                         .iter()
                         .filter(|(live_path, _snap_path)| !live_path.exists())
                         .try_for_each(|(live_path, snap_path)| {
-                            // I'm not sure this is necessary, but here we don't just find an existing path.
-                            // We find the oldest created path and assume this is our "original" path
+                            none_preserved = false;
+
                             let opt_original = complemented_paths
                                 .iter()
                                 .map(|(live, _snap)| live)
                                 .find(|path| path.exists());
 
                             match opt_original {
-                                Some(original) => {
-                                    none_preserved = false;
-                                    Self::hard_link(original, live_path)
-                                }
-                                None => {
-                                    none_preserved = false;
-                                    RollForward::copy(snap_path, live_path)
-                                }
+                                Some(original) => Self::hard_link(original, live_path),
+                                None => RollForward::copy(snap_path, live_path),
                             }
                         })
                 });
