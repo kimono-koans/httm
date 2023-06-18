@@ -57,7 +57,7 @@ impl DiffEvent {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 struct DiffTime {
     secs: u64,
     nanos: u64,
@@ -298,8 +298,9 @@ impl RollForward {
         // into iter and reverse because we want to go largest first
         group_map
             .into_par_iter()
+            .rev()
             .flat_map(|(_key, mut values)| {
-                values.sort_by_key(|event| event.time.clone());
+                values.sort_by_key(|event| event.time);
                 values.pop()
             })
             .map(|event| {
