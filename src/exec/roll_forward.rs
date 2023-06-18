@@ -381,22 +381,20 @@ impl RollForward {
     }
 
     fn overwrite_or_remove(src: &Path, dst: &Path) -> HttmResult<()> {
-        // overwrite
-        if src.exists() {
-            return Self::copy(src, dst);
-        }
-
         // skip/filter potential hard links
-        if let Ok(src_md) = src.metadata() {
-            if src_md.nlink() > 1 {
-                return Ok(());
-            }
-        }
-
         if let Ok(dst_md) = dst.metadata() {
             if dst_md.nlink() > 1 {
                 return Ok(());
             }
+        }
+
+        // overwrite
+        if let Ok(src_md) = src.metadata() {
+            if src_md.nlink() > 1 {
+                return Ok(());
+            }
+
+            return Self::copy(src, dst);
         }
 
         // or remove
