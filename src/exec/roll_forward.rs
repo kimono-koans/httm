@@ -26,7 +26,6 @@ use std::process::Stdio;
 use std::thread::JoinHandle;
 
 use hashbrown::HashMap;
-use lscolors::Colorable;
 use nu_ansi_term::Color::{Blue, Red, Yellow};
 use rayon::prelude::*;
 use which::which;
