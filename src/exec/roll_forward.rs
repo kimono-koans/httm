@@ -27,7 +27,6 @@ use std::thread::JoinHandle;
 
 use hashbrown::HashMap;
 use nu_ansi_term::Color::{Blue, Red, Yellow};
-use once_cell::sync::OnceCell;
 use rayon::prelude::*;
 use which::which;
 
@@ -40,8 +39,6 @@ use crate::library::snap_guard::{PrecautionarySnapType, SnapGuard};
 use crate::library::utility::{copy_direct, remove_recursive};
 use crate::library::utility::{is_metadata_different, user_has_effective_root};
 use crate::{GLOBAL_CONFIG, ZFS_SNAPSHOT_DIRECTORY};
-
-static ROLL_FORWARD_PROXIMATE_DATASET: OnceCell<PathBuf> = OnceCell::new();
 
 #[derive(Debug, Clone)]
 struct DiffEvent {
@@ -109,12 +106,15 @@ enum DiffType {
     Renamed(PathBuf),
 }
 
-pub struct RollForward;
+pub struct RollForward {
+    dataset_name: String,
+    snap_name: String,
+    roll_config: RollForwardConfig,
+    proximate_dataset_mount: PathBuf,
+}
 
 impl RollForward {
-    pub fn exec(roll_config: &RollForwardConfig) -> HttmResult<()> {
-        user_has_effective_root()?;
-
+    pub fn new(roll_config: RollForwardConfig) -> HttmResult<Self> {
         let (dataset_name, snap_name) = if let Some(res) =
             roll_config.full_snap_name.split_once('@')
         {
@@ -124,13 +124,29 @@ impl RollForward {
             return Err(HttmError::new(&msg).into());
         };
 
-        ROLL_FORWARD_PROXIMATE_DATASET
-            .get_or_init(|| Self::proximate_dataset_mount(dataset_name).unwrap());
+        let proximate_dataset_mount = GLOBAL_CONFIG
+            .dataset_collection
+            .map_of_datasets
+            .iter()
+            .find(|(_mount, md)| md.source == PathBuf::from(&dataset_name))
+            .map(|(mount, _)| mount.to_owned())
+            .ok_or_else(|| HttmError::new("Could not determine proximate dataset mount"))?;
+
+        Ok(Self {
+            dataset_name: dataset_name.to_string(),
+            snap_name: snap_name.to_string(),
+            roll_config,
+            proximate_dataset_mount,
+        })
+    }
+
+    pub fn exec(&self) -> HttmResult<()> {
+        user_has_effective_root()?;
 
         let snap_guard: SnapGuard =
-            SnapGuard::new(dataset_name, PrecautionarySnapType::PreRollForward)?;
+            SnapGuard::new(&self.dataset_name, PrecautionarySnapType::PreRollForward)?;
 
-        match Self::roll_forward(roll_config, snap_name) {
+        match Self::roll_forward(self) {
             Ok(_) => {
                 println!("httm roll forward completed successfully.");
             }
@@ -151,22 +167,13 @@ impl RollForward {
         };
 
         SnapGuard::new(
-            dataset_name,
-            PrecautionarySnapType::PostRollForward(snap_name.to_owned()),
+            &self.dataset_name,
+            PrecautionarySnapType::PostRollForward(self.snap_name.to_owned()),
         )
         .map(|_res| ())
     }
 
-    fn proximate_dataset_mount(dataset_name: &str) -> Option<PathBuf> {
-        GLOBAL_CONFIG
-            .dataset_collection
-            .map_of_datasets
-            .iter()
-            .find(|(_mount, md)| md.source == PathBuf::from(dataset_name))
-            .map(|(mount, _)| mount.to_owned())
-    }
-
-    fn exec_diff(full_snapshot_name: &str) -> HttmResult<Child> {
+    fn zfs_diff_cmd(full_snapshot_name: &str) -> HttmResult<Child> {
         let zfs_command = which("zfs").map_err(|_err| {
             HttmError::new("'zfs' command not found. Make sure the command 'zfs' is in your path.")
         })?;
@@ -227,26 +234,23 @@ impl RollForward {
     }
 
     fn spawn_preserve_links(
-        snap_name: &str,
+        &self,
     ) -> (
         JoinHandle<HttmResult<HardLinkMap>>,
         JoinHandle<HttmResult<HardLinkMap>>,
     ) {
-        let snap_dataset = Self::snap_dataset(snap_name)
-            .ok_or(HttmError::new(
-                "Unable to determine snapshot dataset mount.",
-            ))
-            .unwrap();
+        let snap_dataset = self.snap_dataset();
 
-        let snap_name_clone1 = snap_name.to_string();
-        let snap_name_clone2 = snap_name.to_string();
+        let snap_name_clone1 = self.snap_name.clone();
+        let snap_name_clone2 = self.snap_name.clone();
+        let proximate_dataset_mount = self.proximate_dataset_mount.clone();
 
         let snap_handle = std::thread::spawn(move || {
             HardLinkMap::new(&snap_dataset, snap_name_clone1, HardLinkMapType::Snap)
         });
         let live_handle = std::thread::spawn(move || {
             HardLinkMap::new(
-                ROLL_FORWARD_PROXIMATE_DATASET.get().unwrap(),
+                &proximate_dataset_mount,
                 snap_name_clone2,
                 HardLinkMapType::Live,
             )
@@ -255,10 +259,10 @@ impl RollForward {
         (snap_handle, live_handle)
     }
 
-    fn roll_forward(roll_config: &RollForwardConfig, snap_name: &str) -> HttmResult<()> {
-        let (snap_handle, live_handle) = Self::spawn_preserve_links(snap_name);
+    fn roll_forward(&self) -> HttmResult<()> {
+        let (snap_handle, live_handle) = self.spawn_preserve_links();
 
-        let mut process_handle = Self::exec_diff(&roll_config.full_snap_name)?;
+        let mut process_handle = Self::zfs_diff_cmd(&self.roll_config.full_snap_name)?;
 
         let stream = Self::ingest(&mut process_handle)?;
 
@@ -272,7 +276,7 @@ impl RollForward {
         eprintln!("Building a map of ZFS filesystem events since the specified snapshot:");
         let mut group_map: Vec<(PathBuf, Vec<DiffEvent>)> = iter_peekable
             .map(|event| {
-                roll_config.progress_bar.tick();
+                self.roll_config.progress_bar.tick();
                 event
             })
             .into_group_map_by(|event| event.pathdata.path_buf.clone())
@@ -299,33 +303,29 @@ impl RollForward {
                 values.pop()
             })
             .map(|event| {
-                let proximate_dataset_mount = ROLL_FORWARD_PROXIMATE_DATASET.get().expect("Unable to determine proximate dataset mount, which should be available at this point in execution.");
-
-                let snap_file_path =
-                    Self::snap_path(&event.pathdata, snap_name, proximate_dataset_mount)
-                        .expect("Could not obtain snap file path for live version.");
+                let snap_file_path = self
+                    .snap_path(&event.pathdata)
+                    .expect("Could not obtain snap file path for live version.");
 
                 (event, snap_file_path)
             })
-            .try_for_each(|(event, snap_file_path)| Self::diff_action(&event, &snap_file_path))?;
+            .try_for_each(|(event, snap_file_path)| {
+                Self::diff_action(&self, &event, &snap_file_path)
+            })?;
 
-        PreserveHardLinks::exec(&mut snap_map)?;
-        PreserveHardLinks::exec(&mut live_map)
+        PreserveHardLinks::exec(&mut snap_map, &self)?;
+        PreserveHardLinks::exec(&mut live_map, &self)
     }
 
-    fn snap_path(
-        pathdata: &PathData,
-        snap_name: &str,
-        proximate_dataset_mount: &Path,
-    ) -> Option<PathBuf> {
+    fn snap_path(&self, pathdata: &PathData) -> Option<PathBuf> {
         pathdata
-            .relative_path(proximate_dataset_mount)
+            .relative_path(&self.proximate_dataset_mount)
             .ok()
             .map(|relative_path| {
                 let snap_file_path: PathBuf = [
-                    proximate_dataset_mount,
+                    self.proximate_dataset_mount.as_path(),
                     Path::new(ZFS_SNAPSHOT_DIRECTORY),
-                    Path::new(&snap_name),
+                    Path::new(&self.snap_name),
                     relative_path,
                 ]
                 .iter()
@@ -335,7 +335,7 @@ impl RollForward {
             })
     }
 
-    fn diff_action(event: &DiffEvent, snap_file_path: &Path) -> HttmResult<()> {
+    fn diff_action(&self, event: &DiffEvent, snap_file_path: &Path) -> HttmResult<()> {
         let snap_file = PathData::from(snap_file_path);
 
         // zfs-diff can return multiple file actions for a single inode
@@ -370,20 +370,14 @@ impl RollForward {
         Ok(())
     }
 
-    fn snap_dataset(snap_name: &str) -> Option<PathBuf> {
-        ROLL_FORWARD_PROXIMATE_DATASET
-            .get()
-            .map(|proximate_dataset_mount| {
-                let snap_dataset_mount: PathBuf = [
-                    proximate_dataset_mount,
-                    Path::new(ZFS_SNAPSHOT_DIRECTORY),
-                    Path::new(&snap_name),
-                ]
-                .iter()
-                .collect();
-
-                snap_dataset_mount
-            })
+    fn snap_dataset(&self) -> PathBuf {
+        [
+            self.proximate_dataset_mount.as_path(),
+            Path::new(ZFS_SNAPSHOT_DIRECTORY),
+            Path::new(&self.snap_name),
+        ]
+        .iter()
+        .collect()
     }
 
     fn overwrite_or_remove(src: &Path, dst: &Path) -> HttmResult<()> {
@@ -393,6 +387,7 @@ impl RollForward {
         }
 
         // or remove
+
         Self::remove(dst)
     }
 
@@ -520,12 +515,8 @@ enum HardLinkMapType {
 struct PreserveHardLinks;
 
 impl PreserveHardLinks {
-    fn exec(map: &mut HardLinkMap) -> HttmResult<()> {
+    fn exec(map: &mut HardLinkMap, roll_forward: &RollForward) -> HttmResult<()> {
         let mut none_removed = true;
-
-        let proximate_dataset_mount = ROLL_FORWARD_PROXIMATE_DATASET
-            .get()
-            .expect("Unable to determine proximate dataset mount, which should be available at this point in execution.");
 
         let ret = match map.map_type {
             HardLinkMapType::Live => {
@@ -533,12 +524,9 @@ impl PreserveHardLinks {
                     values
                         .iter()
                         .map(|live_path| {
-                            let snap_path = RollForward::snap_path(
-                                &PathData::from(live_path),
-                                &map.snap_name,
-                                proximate_dataset_mount,
-                            )
-                            .expect("Could not obtain snap path for live path");
+                            let snap_path = roll_forward
+                                .snap_path(&PathData::from(live_path))
+                                .expect("Could not obtain snap path for live path");
 
                             (live_path.clone(), snap_path)
                         })
@@ -563,8 +551,12 @@ impl PreserveHardLinks {
                     let live_paths: Vec<PathBuf> = values
                         .iter()
                         .map(|snap_path| {
-                            Self::live_path(snap_path, &map.snap_name, proximate_dataset_mount)
-                                .expect("Could obtain live path for snap path")
+                            Self::live_path(
+                                snap_path,
+                                &map.snap_name,
+                                &roll_forward.proximate_dataset_mount,
+                            )
+                            .expect("Could obtain live path for snap path")
                         })
                         .collect();
 
