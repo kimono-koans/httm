@@ -510,12 +510,12 @@ enum HardLinkMapType {
 struct PreserveHardLinks;
 
 impl PreserveHardLinks {
-    fn exec(map: &mut HardLinkMap, roll_forward: &RollForward) -> HttmResult<()> {
+    fn exec(map: &HardLinkMap, roll_forward: &RollForward) -> HttmResult<()> {
         let mut none_removed = true;
 
         let ret = match map.map_type {
             HardLinkMapType::Live => {
-                let res = map.inner.iter_mut().try_for_each(|(_key, values)| {
+                let res = map.inner.iter().try_for_each(|(_key, values)| {
                     values
                         .iter()
                         .map(|live_path| {
@@ -542,7 +542,7 @@ impl PreserveHardLinks {
             HardLinkMapType::Snap => {
                 let mut none_preserved = true;
 
-                let res = map.inner.iter_mut().try_for_each(|(_key, values)| {
+                let res = map.inner.iter().try_for_each(|(_key, values)| {
                     let live_paths: Vec<PathBuf> = values
                         .iter()
                         .map(|snap_path| {
