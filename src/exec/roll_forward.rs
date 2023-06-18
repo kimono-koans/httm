@@ -413,15 +413,9 @@ impl RollForward {
 
 // key: inode, values: Paths
 struct HardLinkMap {
-    inner: HashMap<InodeAndNumLinks, Vec<PathBuf>>,
+    inner: HashMap<u64, Vec<PathBuf>>,
     snap_name: String,
     map_type: HardLinkMapType,
-}
-
-#[derive(Eq, PartialEq, Hash)]
-struct InodeAndNumLinks {
-    ino: u64,
-    nlink: u64,
 }
 
 impl HardLinkMap {
@@ -436,7 +430,7 @@ impl HardLinkMap {
         };
 
         let mut queue: Vec<BasicDirEntryInfo> = vec![constructed];
-        let mut inner: HashMap<InodeAndNumLinks, Vec<PathBuf>> = HashMap::new();
+        let mut inner: HashMap<u64, Vec<PathBuf>> = HashMap::new();
 
         // condition kills iter when user has made a selection
         // pop_back makes this a LIFO queue which is supposedly better for caches
@@ -478,12 +472,7 @@ impl HardLinkMap {
                         return None;
                     }
 
-                    let key = InodeAndNumLinks {
-                        ino: md.ino(),
-                        nlink,
-                    };
-
-                    Some((path, key))
+                    Some((path, md.ino()))
                 })
                 .for_each(|(path, key)| match inner.get_mut(&key) {
                     Some(values) => values.push(path),
