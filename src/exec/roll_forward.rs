@@ -437,7 +437,7 @@ impl HardLinkMap {
         };
 
         let mut queue: Vec<BasicDirEntryInfo> = vec![constructed];
-        let mut tmp: HashMap<InodeAndNumLinks, Vec<PathBuf>> = HashMap::new();
+        let mut inner: HashMap<InodeAndNumLinks, Vec<PathBuf>> = HashMap::new();
 
         // condition kills iter when user has made a selection
         // pop_back makes this a LIFO queue which is supposedly better for caches
@@ -475,9 +475,9 @@ impl HardLinkMap {
                     let nlink = md.nlink();
 
                     // filter files without multiple hard links
-                    // if nlink <= 1 {
-                    //     return None;
-                    // }
+                    if nlink <= 1 {
+                        return None;
+                    }
 
                     let key = InodeAndNumLinks {
                         ino: md.ino(),
@@ -486,18 +486,13 @@ impl HardLinkMap {
 
                     Some((path, key))
                 })
-                .for_each(|(path, key)| match tmp.get_mut(&key) {
+                .for_each(|(path, key)| match inner.get_mut(&key) {
                     Some(values) => values.push(path),
                     None => {
-                        let _ = tmp.insert_unique_unchecked(key, vec![path]);
+                        let _ = inner.insert_unique_unchecked(key, vec![path]);
                     }
                 });
         }
-
-        let inner = tmp
-            .into_iter()
-            .filter(|(_key, values)| values.len() > 1)
-            .collect();
 
         Ok(Self {
             inner,
