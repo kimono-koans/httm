@@ -26,6 +26,7 @@ use std::process::Stdio;
 use std::thread::JoinHandle;
 
 use hashbrown::HashMap;
+use lscolors::Colorable;
 use nu_ansi_term::Color::{Blue, Red, Yellow};
 use rayon::prelude::*;
 use which::which;
@@ -391,11 +392,31 @@ impl RollForward {
             if src_md.nlink() > 1 {
                 return Ok(());
             }
+
+            if let Some(src_parent) = src.parent() {
+                if read_dir(src_parent)?
+                    .flatten()
+                    .filter_map(|path| path.metadata().ok())
+                    .any(|md| md.ino() == src_md.ino())
+                {
+                    return Ok(());
+                }
+            }
         }
 
         if let Ok(dst_md) = dst.metadata() {
             if dst_md.nlink() > 1 {
                 return Ok(());
+            }
+
+            if let Some(dst_parent) = dst.parent() {
+                if read_dir(dst_parent)?
+                    .flatten()
+                    .filter_map(|path| path.metadata().ok())
+                    .any(|md| md.ino() == dst_md.ino())
+                {
+                    return Ok(());
+                }
             }
         }
 
