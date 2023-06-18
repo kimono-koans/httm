@@ -27,7 +27,6 @@ use std::thread::JoinHandle;
 
 use hashbrown::HashMap;
 use nu_ansi_term::Color::{Blue, Red, Yellow};
-use rayon::prelude::*;
 use which::which;
 
 use crate::config::generate::RollForwardConfig;
@@ -295,9 +294,9 @@ impl RollForward {
             .join()
             .map_err(|_err| HttmError::new("Thread panicked!"))??;
 
-        // into iter and reverse because we want to go smallest first
+        // into iter and reverse because we want to go largest first
         group_map
-            .into_par_iter()
+            .into_iter()
             .flat_map(|(_key, mut values)| {
                 values.sort_by_key(|event| event.time.clone());
                 values.pop()
