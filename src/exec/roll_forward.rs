@@ -511,10 +511,10 @@ struct PreserveHardLinks;
 
 impl PreserveHardLinks {
     fn exec(map: &HardLinkMap, roll_forward: &RollForward) -> HttmResult<()> {
-        let mut none_removed = true;
-
         let ret = match map.map_type {
             HardLinkMapType::Live => {
+                let mut none_removed: bool = true;
+
                 let res = map.inner.iter().try_for_each(|(_key, values)| {
                     values
                         .iter()
