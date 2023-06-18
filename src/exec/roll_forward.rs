@@ -26,7 +26,7 @@ use std::process::Stdio;
 use std::thread::JoinHandle;
 
 use hashbrown::HashMap;
-use nu_ansi_term::Color::{Blue, Red, Yellow};
+use nu_ansi_term::Color::{Blue, Green, Red, Yellow};
 use rayon::prelude::*;
 use which::which;
 
@@ -314,8 +314,8 @@ impl RollForward {
                 Self::diff_action(&self, &event, &snap_file_path)
             })?;
 
-        PreserveHardLinks::exec(&mut snap_map, &self)?;
-        PreserveHardLinks::exec(&mut live_map, &self)
+        PreserveHardLinks::exec(&mut live_map, &self)?;
+        PreserveHardLinks::exec(&mut snap_map, &self)
     }
 
     fn snap_path(&self, pathdata: &PathData) -> Option<PathBuf> {
@@ -465,25 +465,24 @@ impl HardLinkMap {
             combined
                 .into_iter()
                 .filter(|entry| {
-                    // hard links are not dirs or symlinks, must look like regular file
                     if let Some(ft) = entry.file_type {
-                        return !ft.is_file();
+                        return ft.is_file();
                     }
 
                     false
                 })
-                .into_group_map_by(|entry| {
-                    entry
-                        .path
-                        .metadata()
-                        .expect("Could not obtain metadata")
-                        .ino()
+                .filter_map(|entry| entry.path.metadata().ok().map(|md| (md.ino(), entry)))
+                .for_each(|(ino, entry)| match tmp.get_mut(&ino) {
+                    Some(values) => values.push(entry.path),
+                    None => {
+                        let _ = tmp.insert(ino, vec![entry.path]);
+                    }
                 });
         }
 
         let inner = tmp
-            .drain()
-            .filter(|(_ino, entries)| entries.len() > 1)
+            .into_iter()
+            .filter(|(_ino, values)| values.len() > 1 || values[0].metadata().unwrap().nlink() > 1)
             .collect();
 
         Ok(Self {
@@ -520,7 +519,7 @@ impl PreserveHardLinks {
                         .filter(|(_live_path, snap_path)| !snap_path.exists())
                         .try_for_each(|(live_path, _snap_path)| {
                             none_removed = false;
-                            RollForward::remove(&live_path)
+                            Self::rm_hard_link(&live_path)
                         })
                 });
 
@@ -549,20 +548,23 @@ impl PreserveHardLinks {
                         })
                         .collect();
 
+                    let mut opt_original = complemented_paths
+                        .iter()
+                        .map(|(live, _snap)| live)
+                        .find(|path| path.exists());
+
                     complemented_paths
                         .iter()
                         .filter(|(live_path, _snap_path)| !live_path.exists())
                         .try_for_each(|(live_path, snap_path)| {
                             none_preserved = false;
 
-                            let opt_original = complemented_paths
-                                .iter()
-                                .map(|(live, _snap)| live)
-                                .find(|path| path.exists());
-
                             match opt_original {
                                 Some(original) => Self::hard_link(original, live_path),
-                                None => RollForward::copy(snap_path, live_path),
+                                None => {
+                                    opt_original = Some(live_path);
+                                    RollForward::copy(snap_path, live_path)
+                                }
                             }
                         })
                 });
@@ -612,6 +614,26 @@ impl PreserveHardLinks {
         }
 
         eprintln!("{}: {:?} -> {:?}", Yellow.paint("Linked  "), original, link);
+
+        Ok(())
+    }
+
+    fn rm_hard_link(link: &Path) -> HttmResult<()> {
+        match remove_recursive(link) {
+            Ok(_) => {
+                if link.exists() {
+                    let msg = format!("Target link should not exist after removal {:?}", link);
+                    return Err(HttmError::new(&msg).into());
+                }
+            }
+            Err(err) => {
+                eprintln!("Error: {}", err);
+                let msg = format!("Could not remove link {:?}", link);
+                return Err(HttmError::new(&msg).into());
+            }
+        }
+
+        eprintln!("{}: {:?} -> 🗑️", Green.paint("Unlinked  "), link);
 
         Ok(())
     }
