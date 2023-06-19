@@ -382,13 +382,6 @@ impl RollForward {
     }
 
     fn overwrite_or_remove(src: &Path, dst: &Path) -> HttmResult<()> {
-        // skip/filter potential hard links
-        if let Ok(dst_md) = dst.metadata() {
-            if dst_md.nlink() > 1 && dst_md.is_file() {
-                return Ok(());
-            }
-        }
-
         // overwrite
         if let Ok(src_md) = src.metadata() {
             // skip/filter potential hard links
