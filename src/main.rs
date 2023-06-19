@@ -147,8 +147,6 @@ fn exec() -> HttmResult<()> {
 
             print_output_buf(output_buf)
         }
-        ExecMode::RollForward(roll_config) => {
-            RollForward::new(roll_config.clone())?.exec()
-        }
+        ExecMode::RollForward(roll_config) => RollForward::new(roll_config.clone())?.exec(),
     }
 }

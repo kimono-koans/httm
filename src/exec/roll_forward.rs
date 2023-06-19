@@ -287,11 +287,11 @@ impl RollForward {
         group_map.par_sort_unstable_by_key(|(key, _values)| key.components().count());
 
         // need to wait for these to finish before executing any diff_action
-        let mut snap_map = snap_handle
+        let snap_map = snap_handle
             .join()
             .map_err(|_err| HttmError::new("Thread panicked!"))??;
 
-        let mut live_map = live_handle
+        let live_map = live_handle
             .join()
             .map_err(|_err| HttmError::new("Thread panicked!"))??;
 
@@ -311,11 +311,11 @@ impl RollForward {
                 (event, snap_file_path)
             })
             .try_for_each(|(event, snap_file_path)| {
-                Self::diff_action(&self, &event, &snap_file_path)
+                Self::diff_action(self, &event, &snap_file_path)
             })?;
 
-        PreserveHardLinks::exec(&mut live_map, &self)?;
-        PreserveHardLinks::exec(&mut snap_map, &self)
+        PreserveHardLinks::exec(&live_map, self)?;
+        PreserveHardLinks::exec(&snap_map, self)
     }
 
     fn snap_path(&self, pathdata: &PathData) -> Option<PathBuf> {
@@ -519,7 +519,7 @@ impl PreserveHardLinks {
                         .filter(|(_live_path, snap_path)| !snap_path.exists())
                         .try_for_each(|(live_path, _snap_path)| {
                             none_removed = false;
-                            Self::rm_hard_link(&live_path)
+                            Self::rm_hard_link(live_path)
                         })
                 });
 
