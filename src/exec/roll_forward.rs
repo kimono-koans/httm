@@ -345,7 +345,7 @@ impl RollForward {
         // this is internal to the fn Self::remove()
         match &event.diff_type {
             DiffType::Removed | DiffType::Modified => {
-                Self::copy(&snap_file.path_buf, &event.pathdata.path_buf)
+                Self::overwrite_or_copy(&snap_file.path_buf, &event.pathdata.path_buf)
             }
             DiffType::Created => {
                 Self::overwrite_or_remove(&snap_file.path_buf, &event.pathdata.path_buf)
@@ -354,6 +354,27 @@ impl RollForward {
                 Self::overwrite_or_remove(&snap_file.path_buf, new_file_name)
             }
         }
+    }
+
+    fn overwrite_or_copy(src: &Path, dst: &Path) -> HttmResult<()> {
+        // skip/filter potential hard links
+        if let Ok(dst_md) = dst.metadata() {
+            if dst_md.nlink() > 1 && dst_md.is_file() {
+                return Ok(());
+            }
+        }
+
+        // overwrite
+        if let Ok(src_md) = src.metadata() {
+            // skip/filter potential hard links
+            if src_md.nlink() > 1 && src_md.is_file() {
+                return Ok(());
+            }
+
+            return Self::copy(src, dst);
+        }
+
+        Self::copy(src, dst)
     }
 
     fn copy(src: &Path, dst: &Path) -> HttmResult<()> {
