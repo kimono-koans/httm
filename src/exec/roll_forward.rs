@@ -468,7 +468,15 @@ impl HardLinkMap {
 
         let inner = tmp
             .into_iter()
-            .filter(|(_ino, values)| values.len() > 1 || values[0].metadata().unwrap().nlink() > 1)
+            .filter(|(_ino, values)| {
+                values.len() > 1 || {
+                    if let Some(md) = values.get(0).and_then(|path| path.metadata().ok()) {
+                        md.nlink() > 1
+                    } else {
+                        false
+                    }
+                }
+            })
             .collect();
 
         Ok(Self {
