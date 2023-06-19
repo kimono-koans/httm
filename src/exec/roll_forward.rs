@@ -36,13 +36,13 @@ use crate::data::paths::PathData;
 use crate::library::iter_extensions::HttmIter;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::snap_guard::{PrecautionarySnapType, SnapGuard};
-use crate::library::utility::{copy_direct, remove_recursive};
+use crate::library::utility::{copy_attributes, copy_direct, remove_recursive};
 use crate::library::utility::{is_metadata_different, user_has_effective_root};
 use crate::{GLOBAL_CONFIG, ZFS_SNAPSHOT_DIRECTORY};
 
 #[derive(Debug, Clone)]
 struct DiffEvent {
-    pathdata: PathData,
+    path_buf: PathBuf,
     diff_type: DiffType,
     time: DiffTime,
 }
@@ -50,7 +50,7 @@ struct DiffEvent {
 impl DiffEvent {
     fn new(path_string: &str, diff_type: DiffType, time_str: &str) -> Self {
         Self {
-            pathdata: PathData::from(Path::new(path_string)),
+            path_buf: PathBuf::from(&path_string),
             diff_type,
             time: DiffTime::new(time_str).expect("Could not parse a zfs diff time value."),
         }
@@ -279,7 +279,7 @@ impl RollForward {
                 self.roll_config.progress_bar.tick();
                 event
             })
-            .into_group_map_by(|event| event.pathdata.path_buf.clone())
+            .into_group_map_by(|event| event.path_buf.clone())
             .into_iter()
             .collect();
 
@@ -305,7 +305,7 @@ impl RollForward {
             })
             .map(|event| {
                 let snap_file_path = self
-                    .snap_path(&event.pathdata)
+                    .snap_path(&event.path_buf)
                     .expect("Could not obtain snap file path for live version.");
 
                 (event, snap_file_path)
@@ -318,8 +318,8 @@ impl RollForward {
         PreserveHardLinks::exec(&snap_map, self)
     }
 
-    fn snap_path(&self, pathdata: &PathData) -> Option<PathBuf> {
-        pathdata
+    fn snap_path(&self, path: &Path) -> Option<PathBuf> {
+        PathData::from(path)
             .relative_path(&self.proximate_dataset_mount)
             .ok()
             .map(|relative_path| {
@@ -345,11 +345,9 @@ impl RollForward {
         // this is internal to the fn Self::remove()
         match &event.diff_type {
             DiffType::Removed | DiffType::Modified => {
-                Self::copy(&snap_file.path_buf, &event.pathdata.path_buf)
+                Self::copy(&snap_file.path_buf, &event.path_buf)
             }
-            DiffType::Created => {
-                Self::overwrite_or_remove(&snap_file.path_buf, &event.pathdata.path_buf)
-            }
+            DiffType::Created => Self::overwrite_or_remove(&snap_file.path_buf, &event.path_buf),
             DiffType::Renamed(new_file_name) => {
                 Self::overwrite_or_remove(&snap_file.path_buf, new_file_name)
             }
@@ -382,20 +380,8 @@ impl RollForward {
     }
 
     fn overwrite_or_remove(src: &Path, dst: &Path) -> HttmResult<()> {
-        // skip/filter potential hard links
-        if let Ok(dst_md) = dst.metadata() {
-            if dst_md.nlink() > 1 && dst_md.is_file() {
-                return Ok(());
-            }
-        }
-
         // overwrite
-        if let Ok(src_md) = src.metadata() {
-            // skip/filter potential hard links
-            if src_md.nlink() > 1 && src_md.is_file() {
-                return Ok(());
-            }
-
+        if src.exists() {
             return Self::copy(src, dst);
         }
 
@@ -511,12 +497,12 @@ impl PreserveHardLinks {
                         .iter()
                         .map(|live_path| {
                             let snap_path = roll_forward
-                                .snap_path(&PathData::from(live_path))
+                                .snap_path(live_path)
                                 .expect("Could not obtain snap path for live path");
 
                             (live_path, snap_path)
                         })
-                        .filter(|(_live_path, snap_path)| !snap_path.exists())
+                        .filter(|(live_path, snap_path)| live_path.exists() && !snap_path.exists())
                         .try_for_each(|(live_path, _snap_path)| {
                             none_removed = false;
                             Self::rm_hard_link(live_path)
@@ -555,12 +541,16 @@ impl PreserveHardLinks {
 
                     complemented_paths
                         .iter()
-                        .filter(|(live_path, _snap_path)| !live_path.exists())
+                        .filter(|(live_path, snap_path)| snap_path.exists() && !live_path.exists())
                         .try_for_each(|(live_path, snap_path)| {
                             none_preserved = false;
 
                             match opt_original {
-                                Some(original) => Self::hard_link(original, live_path),
+                                Some(original) if original != live_path => {
+                                    RollForward::remove(&live_path)?;
+                                    Self::hard_link(original, live_path)
+                                }
+                                Some(_original) => Ok(()),
                                 None => {
                                     opt_original = Some(live_path);
                                     RollForward::copy(snap_path, live_path)
@@ -612,6 +602,8 @@ impl PreserveHardLinks {
                 return Err(HttmError::new(&msg).into());
             }
         }
+
+        copy_attributes(original, link)?;
 
         eprintln!("{}: {:?} -> {:?}", Yellow.paint("Linked  "), original, link);
 
