@@ -558,10 +558,15 @@ pub fn display_human_size(size: u64) -> String {
     }
 }
 
-pub fn is_metadata_different<T>(src: T, dst: T) -> HttmResult<()>
+pub fn is_metadata_same<T>(src: T, dst: T) -> HttmResult<()>
 where
     T: ComparePathMetadata,
 {
+    if src.opt_metadata().is_none() {
+        let msg = format!("WARNING: Metadata not found: {:?}", src.path());
+        return Err(HttmError::new(&msg).into());
+    }
+
     if src.opt_metadata() != dst.opt_metadata() {
         let msg = format!(
             "WARNING: Metadata mismatch: {:?} !-> {:?}",

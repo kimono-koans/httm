@@ -16,7 +16,7 @@
 // that was distributed with this source code.
 
 use std::cmp::Ordering;
-use std::fs::read_dir;
+use std::fs::{read_dir, remove_file};
 use std::io::BufRead;
 use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
@@ -25,7 +25,7 @@ use std::process::Command as ExecProcess;
 use std::process::Stdio;
 use std::thread::JoinHandle;
 
-use hashbrown::HashMap;
+use hashbrown::{HashMap, HashSet};
 use nu_ansi_term::Color::{Blue, Green, Red, Yellow};
 use rayon::prelude::*;
 use which::which;
@@ -37,7 +37,7 @@ use crate::library::iter_extensions::HttmIter;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::snap_guard::{PrecautionarySnapType, SnapGuard};
 use crate::library::utility::{copy_attributes, copy_direct, remove_recursive};
-use crate::library::utility::{is_metadata_different, user_has_effective_root};
+use crate::library::utility::{is_metadata_same, user_has_effective_root};
 use crate::{GLOBAL_CONFIG, ZFS_SNAPSHOT_DIRECTORY};
 
 #[derive(Debug, Clone)]
@@ -49,8 +49,10 @@ struct DiffEvent {
 
 impl DiffEvent {
     fn new(path_string: &str, diff_type: DiffType, time_str: &str) -> Self {
+        let path_buf = PathBuf::from(&path_string);
+
         Self {
-            path_buf: PathBuf::from(&path_string),
+            path_buf,
             diff_type,
             time: DiffTime::new(time_str).expect("Could not parse a zfs diff time value."),
         }
@@ -295,6 +297,12 @@ impl RollForward {
             .join()
             .map_err(|_err| HttmError::new("Thread panicked!"))??;
 
+        PreserveHardLinks::preserve_orphans(
+            &live_map.remainder,
+            &snap_map.remainder,
+            self.to_owned(),
+        )?;
+
         // into iter and reverse because we want to go largest first
         group_map
             .into_par_iter()
@@ -303,6 +311,7 @@ impl RollForward {
                 values.sort_by_key(|event| event.time);
                 values.pop()
             })
+            .filter(|event| event.path_buf.exists())
             .map(|event| {
                 let snap_file_path = self
                     .snap_path(&event.path_buf)
@@ -314,8 +323,8 @@ impl RollForward {
                 Self::diff_action(self, &event, &snap_file_path)
             })?;
 
-        PreserveHardLinks::exec(&live_map, self)?;
-        PreserveHardLinks::exec(&snap_map, self)
+        PreserveHardLinks::preserve_links(&live_map, self)?;
+        PreserveHardLinks::preserve_links(&snap_map, self)
     }
 
     fn snap_path(&self, path: &Path) -> Option<PathBuf> {
@@ -337,19 +346,15 @@ impl RollForward {
     }
 
     fn diff_action(&self, event: &DiffEvent, snap_file_path: &Path) -> HttmResult<()> {
-        let snap_file = PathData::from(snap_file_path);
-
         // zfs-diff can return multiple file actions for a single inode
         // since we exclude older file actions, if rename or created is the last action,
         // we should make sure it has the latest data, so a simple rename is not enough
         // this is internal to the fn Self::remove()
         match &event.diff_type {
-            DiffType::Removed | DiffType::Modified => {
-                Self::copy(&snap_file.path_buf, &event.path_buf)
-            }
-            DiffType::Created => Self::overwrite_or_remove(&snap_file.path_buf, &event.path_buf),
+            DiffType::Removed | DiffType::Modified => Self::copy(&snap_file_path, &event.path_buf),
+            DiffType::Created => Self::overwrite_or_remove(&snap_file_path, &event.path_buf),
             DiffType::Renamed(new_file_name) => {
-                Self::overwrite_or_remove(&snap_file.path_buf, new_file_name)
+                Self::overwrite_or_remove(&snap_file_path, new_file_name)
             }
         }
     }
@@ -364,7 +369,7 @@ impl RollForward {
             return Err(HttmError::new(&msg).into());
         }
 
-        is_metadata_different(src, dst)?;
+        is_metadata_same(src, dst)?;
         eprintln!("{}: {:?} -> {:?}", Blue.paint("Restored "), src, dst);
         Ok(())
     }
@@ -390,6 +395,11 @@ impl RollForward {
     }
 
     fn remove(dst: &Path) -> HttmResult<()> {
+        // overwrite
+        if !dst.exists() {
+            return Ok(());
+        }
+
         match remove_recursive(dst) {
             Ok(_) => {
                 if dst.exists() {
@@ -412,7 +422,8 @@ impl RollForward {
 
 // key: inode, values: Paths
 struct HardLinkMap {
-    inner: HashMap<u64, Vec<PathBuf>>,
+    link_map: HashMap<u64, Vec<BasicDirEntryInfo>>,
+    remainder: HashSet<PathBuf>,
     snap_name: String,
     map_type: HardLinkMapType,
 }
@@ -429,7 +440,7 @@ impl HardLinkMap {
         };
 
         let mut queue: Vec<BasicDirEntryInfo> = vec![constructed];
-        let mut tmp: HashMap<u64, Vec<PathBuf>> = HashMap::new();
+        let mut tmp: HashMap<u64, Vec<BasicDirEntryInfo>> = HashMap::new();
 
         // condition kills iter when user has made a selection
         // pop_back makes this a LIFO queue which is supposedly better for caches
@@ -452,35 +463,40 @@ impl HardLinkMap {
                 .into_iter()
                 .filter(|entry| {
                     if let Some(ft) = entry.file_type {
-                        return ft.is_file();
+                        return ft.is_file() || {
+                            ft.is_dir()
+                                && read_dir(&entry.path)
+                                    .map(|mut read_dir| read_dir.next().is_none())
+                                    .unwrap_or(false)
+                        };
                     }
 
                     false
                 })
                 .filter_map(|entry| entry.path.metadata().ok().map(|md| (md.ino(), entry)))
                 .for_each(|(ino, entry)| match tmp.get_mut(&ino) {
-                    Some(values) => values.push(entry.path),
+                    Some(values) => values.push(entry),
                     None => {
-                        let _ = tmp.insert(ino, vec![entry.path]);
+                        let _ = tmp.insert(ino, vec![entry]);
                     }
                 });
         }
 
-        let inner = tmp
+        let (link_map, remain_tmp): (
+            HashMap<u64, Vec<BasicDirEntryInfo>>,
+            HashMap<u64, Vec<BasicDirEntryInfo>>,
+        ) = tmp.into_iter().partition(|(_ino, values)| {
+            values.len() > 1 && !values[0].file_type.map(|ft| ft.is_dir()).unwrap_or(false)
+        });
+
+        let remainder = remain_tmp
             .into_iter()
-            .filter(|(_ino, values)| {
-                values.len() > 1 || {
-                    if let Some(md) = values.get(0).and_then(|path| path.metadata().ok()) {
-                        md.nlink() > 1
-                    } else {
-                        false
-                    }
-                }
-            })
+            .flat_map(|(_ino, vec)| vec.into_iter().map(|entry: BasicDirEntryInfo| entry.path))
             .collect();
 
         Ok(Self {
-            inner,
+            link_map,
+            remainder,
             snap_name,
             map_type,
         })
@@ -495,50 +511,50 @@ enum HardLinkMapType {
 struct PreserveHardLinks;
 
 impl PreserveHardLinks {
-    fn exec(map: &HardLinkMap, roll_forward: &RollForward) -> HttmResult<()> {
+    fn preserve_links(map: &HardLinkMap, roll_forward: &RollForward) -> HttmResult<()> {
         let ret = match map.map_type {
             HardLinkMapType::Live => {
                 let mut none_removed: bool = true;
 
-                let res = map.inner.iter().try_for_each(|(_key, values)| {
+                map.link_map.iter().try_for_each(|(_key, values)| {
                     values
                         .iter()
                         .map(|live_path| {
                             let snap_path = roll_forward
-                                .snap_path(live_path)
+                                .snap_path(&live_path.path)
                                 .expect("Could not obtain snap path for live path");
 
                             (live_path, snap_path)
                         })
-                        .filter(|(live_path, snap_path)| live_path.exists() && !snap_path.exists())
+                        .filter(|(_live_path, snap_path)| !snap_path.exists())
                         .try_for_each(|(live_path, _snap_path)| {
                             none_removed = false;
-                            Self::rm_hard_link(live_path)
+                            Self::rm_hard_link(&live_path.path)
                         })
-                });
+                })?;
 
                 if none_removed {
                     println!("No hard links found which require removal.");
                     return Ok(());
-                } else {
-                    res
                 }
+
+                Ok(())
             }
             HardLinkMapType::Snap => {
                 let mut none_preserved = true;
 
-                let res = map.inner.iter().try_for_each(|(_key, values)| {
+                map.link_map.iter().try_for_each(|(_key, values)| {
                     let complemented_paths: Vec<(PathBuf, &PathBuf)> = values
                         .iter()
                         .map(|snap_path| {
                             let live_path = Self::live_path(
-                                snap_path,
+                                &snap_path.path,
                                 &map.snap_name,
                                 &roll_forward.proximate_dataset_mount,
                             )
                             .expect("Could obtain live path for snap path");
 
-                            (live_path, snap_path)
+                            (live_path, &snap_path.path)
                         })
                         .collect();
 
@@ -549,34 +565,76 @@ impl PreserveHardLinks {
 
                     complemented_paths
                         .iter()
-                        .filter(|(live_path, snap_path)| snap_path.exists() && !live_path.exists())
+                        .filter(|(_live_path, snap_path)| snap_path.exists())
                         .try_for_each(|(live_path, snap_path)| {
                             none_preserved = false;
 
                             match opt_original {
-                                Some(original) if original != live_path => {
-                                    RollForward::remove(&live_path)?;
-                                    Self::hard_link(original, live_path)
+                                Some(original) if original == live_path => {
+                                    RollForward::copy(snap_path, live_path)
                                 }
-                                Some(_original) => Ok(()),
+                                Some(original) => Self::hard_link(original, live_path),
                                 None => {
                                     opt_original = Some(live_path);
                                     RollForward::copy(snap_path, live_path)
                                 }
                             }
                         })
-                });
+                })?;
 
                 if none_preserved {
                     println!("No hard links found which require preservation.");
                     return Ok(());
-                } else {
-                    res
                 }
+
+                Ok(())
             }
         };
 
         ret
+    }
+
+    fn preserve_orphans(
+        live_set: &HashSet<PathBuf>,
+        snap_set: &HashSet<PathBuf>,
+        roll_forward: &RollForward,
+    ) -> HttmResult<()> {
+        // in self but not in other
+        let snap_to_live: HashSet<PathBuf> = snap_set
+            .into_par_iter()
+            .map(|snap_path| {
+                let live_path = Self::live_path(
+                    snap_path,
+                    &roll_forward.snap_name,
+                    &roll_forward.proximate_dataset_mount,
+                )
+                .expect("Could obtain live path for snap path");
+
+                live_path
+            })
+            .collect();
+
+        let live_diff = live_set.difference(&snap_to_live);
+        let snap_diff = snap_to_live.difference(live_set);
+
+        // means we want to delete these
+        live_diff
+            .into_iter()
+            .par_bridge()
+            .try_for_each(|path| RollForward::remove(path))?;
+
+        // means we want to copy these
+        snap_diff
+            .into_iter()
+            .par_bridge()
+            .try_for_each(|live_path| {
+                let snap_path = RollForward::snap_path(&roll_forward, &live_path)
+                    .expect("Could not covert to snap path.");
+
+                RollForward::copy(&snap_path, &live_path)
+            })?;
+
+        Ok(())
     }
 
     fn live_path(
@@ -597,29 +655,43 @@ impl PreserveHardLinks {
     }
 
     fn hard_link(original: &Path, link: &Path) -> HttmResult<()> {
-        match std::fs::hard_link(original, link) {
-            Ok(_) => {
-                if !link.exists() {
-                    let msg = format!("Target link should exist after linking {:?}", link);
-                    return Err(HttmError::new(&msg).into());
+        if !original.exists() {
+            let msg = format!(
+                "Cannot link because original path does not exists: {:?}",
+                original
+            );
+            return Err(HttmError::new(&msg).into());
+        }
+
+        if link.exists() {
+            if let Ok(og_md) = original.metadata() {
+                if let Ok(link_md) = link.metadata() {
+                    if og_md.ino() == link_md.ino() {
+                        return Ok(());
+                    }
                 }
             }
-            Err(err) => {
+
+            remove_file(link)?
+        }
+
+        if let Err(err) = std::fs::hard_link(original, link) {
+            if !link.exists() {
                 eprintln!("Error: {}", err);
-                let msg = format!("Could not link file {:?}", link);
+                let msg = format!("Could not link file {:?} to {:?}", original, link);
                 return Err(HttmError::new(&msg).into());
             }
         }
 
         copy_attributes(original, link)?;
-
+        is_metadata_same(original, link)?;
         eprintln!("{}: {:?} -> {:?}", Yellow.paint("Linked  "), original, link);
 
         Ok(())
     }
 
     fn rm_hard_link(link: &Path) -> HttmResult<()> {
-        match remove_recursive(link) {
+        match std::fs::remove_file(link) {
             Ok(_) => {
                 if link.exists() {
                     let msg = format!("Target link should not exist after removal {:?}", link);
@@ -627,9 +699,11 @@ impl PreserveHardLinks {
                 }
             }
             Err(err) => {
-                eprintln!("Error: {}", err);
-                let msg = format!("Could not remove link {:?}", link);
-                return Err(HttmError::new(&msg).into());
+                if link.exists() {
+                    eprintln!("Error: {}", err);
+                    let msg = format!("Could not remove link {:?}", link);
+                    return Err(HttmError::new(&msg).into());
+                }
             }
         }
 
