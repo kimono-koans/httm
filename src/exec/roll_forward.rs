@@ -247,15 +247,10 @@ impl RollForward {
         let snap_name_clone2 = self.snap_name.clone();
         let proximate_dataset_mount = self.proximate_dataset_mount.clone();
 
-        let snap_handle = std::thread::spawn(move || {
-            HardLinkMap::new(&snap_dataset, snap_name_clone1, HardLinkMapType::Snap)
-        });
+        let snap_handle =
+            std::thread::spawn(move || HardLinkMap::new(&snap_dataset, snap_name_clone1));
         let live_handle = std::thread::spawn(move || {
-            HardLinkMap::new(
-                &proximate_dataset_mount,
-                snap_name_clone2,
-                HardLinkMapType::Live,
-            )
+            HardLinkMap::new(&proximate_dataset_mount, snap_name_clone2)
         });
 
         (snap_handle, live_handle)
@@ -297,11 +292,9 @@ impl RollForward {
             .join()
             .map_err(|_err| HttmError::new("Thread panicked!"))??;
 
-        PreserveHardLinks::preserve_orphans(
-            &live_map.remainder,
-            &snap_map.remainder,
-            self.to_owned(),
-        )?;
+        let preserve_hard_links = PreserveHardLinks::new(&live_map, &snap_map, self.to_owned())?;
+
+        preserve_hard_links.preserve_orphans()?;
 
         // into iter and reverse because we want to go largest first
         group_map
@@ -323,8 +316,8 @@ impl RollForward {
                 Self::diff_action(self, &event, &snap_file_path)
             })?;
 
-        PreserveHardLinks::preserve_links(&live_map, self)?;
-        PreserveHardLinks::preserve_links(&snap_map, self)
+        preserve_hard_links.preserve_live_links()?;
+        preserve_hard_links.preserve_snap_links()
     }
 
     fn snap_path(&self, path: &Path) -> Option<PathBuf> {
@@ -425,15 +418,10 @@ struct HardLinkMap {
     link_map: HashMap<u64, Vec<BasicDirEntryInfo>>,
     remainder: HashSet<PathBuf>,
     snap_name: String,
-    map_type: HardLinkMapType,
 }
 
 impl HardLinkMap {
-    fn new(
-        requested_path: &Path,
-        snap_name: String,
-        map_type: HardLinkMapType,
-    ) -> HttmResult<Self> {
+    fn new(requested_path: &Path, snap_name: String) -> HttmResult<Self> {
         let constructed = BasicDirEntryInfo {
             path: requested_path.to_path_buf(),
             file_type: None,
@@ -498,115 +486,125 @@ impl HardLinkMap {
             link_map,
             remainder,
             snap_name,
-            map_type,
         })
     }
 }
 
-enum HardLinkMapType {
-    Live,
-    Snap,
+struct PreserveHardLinks<'a> {
+    live_map: &'a HardLinkMap,
+    snap_map: &'a HardLinkMap,
+    roll_forward: &'a RollForward,
 }
 
-struct PreserveHardLinks;
-
-impl PreserveHardLinks {
-    fn preserve_links(map: &HardLinkMap, roll_forward: &RollForward) -> HttmResult<()> {
-        let ret = match map.map_type {
-            HardLinkMapType::Live => {
-                let mut none_removed: bool = true;
-
-                map.link_map.iter().try_for_each(|(_key, values)| {
-                    values
-                        .iter()
-                        .map(|live_path| {
-                            let snap_path = roll_forward
-                                .snap_path(&live_path.path)
-                                .expect("Could not obtain snap path for live path");
-
-                            (live_path, snap_path)
-                        })
-                        .filter(|(_live_path, snap_path)| !snap_path.exists())
-                        .try_for_each(|(live_path, _snap_path)| {
-                            none_removed = false;
-                            Self::rm_hard_link(&live_path.path)
-                        })
-                })?;
-
-                if none_removed {
-                    println!("No hard links found which require removal.");
-                    return Ok(());
-                }
-
-                Ok(())
-            }
-            HardLinkMapType::Snap => {
-                let mut none_preserved = true;
-
-                map.link_map.iter().try_for_each(|(_key, values)| {
-                    let complemented_paths: Vec<(PathBuf, &PathBuf)> = values
-                        .iter()
-                        .map(|snap_path| {
-                            let live_path = Self::live_path(
-                                &snap_path.path,
-                                &map.snap_name,
-                                &roll_forward.proximate_dataset_mount,
-                            )
-                            .expect("Could obtain live path for snap path");
-
-                            (live_path, &snap_path.path)
-                        })
-                        .collect();
-
-                    let mut opt_original = complemented_paths
-                        .iter()
-                        .map(|(live, _snap)| live)
-                        .find(|path| path.exists());
-
-                    complemented_paths
-                        .iter()
-                        .filter(|(_live_path, snap_path)| snap_path.exists())
-                        .try_for_each(|(live_path, snap_path)| {
-                            none_preserved = false;
-
-                            match opt_original {
-                                Some(original) if original == live_path => {
-                                    RollForward::copy(snap_path, live_path)
-                                }
-                                Some(original) => Self::hard_link(original, live_path),
-                                None => {
-                                    opt_original = Some(live_path);
-                                    RollForward::copy(snap_path, live_path)
-                                }
-                            }
-                        })
-                })?;
-
-                if none_preserved {
-                    println!("No hard links found which require preservation.");
-                    return Ok(());
-                }
-
-                Ok(())
-            }
-        };
-
-        ret
+impl<'a> PreserveHardLinks<'a> {
+    fn new(
+        live_map: &'a HardLinkMap,
+        snap_map: &'a HardLinkMap,
+        roll_forward: &'a RollForward,
+    ) -> HttmResult<Self> {
+        Ok(Self {
+            live_map,
+            snap_map,
+            roll_forward,
+        })
     }
 
-    fn preserve_orphans(
-        live_set: &HashSet<PathBuf>,
-        snap_set: &HashSet<PathBuf>,
-        roll_forward: &RollForward,
-    ) -> HttmResult<()> {
+    fn preserve_live_links(&self) -> HttmResult<()> {
+        let mut none_removed: bool = true;
+
+        self.live_map
+            .link_map
+            .iter()
+            .try_for_each(|(_key, values)| {
+                values
+                    .iter()
+                    .map(|live_path| {
+                        let snap_path = self
+                            .roll_forward
+                            .snap_path(&live_path.path)
+                            .expect("Could not obtain snap path for live path");
+
+                        (live_path, snap_path)
+                    })
+                    .filter(|(_live_path, snap_path)| !snap_path.exists())
+                    .try_for_each(|(live_path, _snap_path)| {
+                        none_removed = false;
+                        Self::rm_hard_link(&live_path.path)
+                    })
+            })?;
+
+        if none_removed {
+            println!("No hard links found which require removal.");
+            return Ok(());
+        }
+
+        Ok(())
+    }
+
+    fn preserve_snap_links(&self) -> HttmResult<()> {
+        let mut none_preserved = true;
+
+        self.snap_map
+            .link_map
+            .iter()
+            .try_for_each(|(_key, values)| {
+                let complemented_paths: Vec<(PathBuf, &PathBuf)> = values
+                    .iter()
+                    .map(|snap_path| {
+                        let live_path = Self::live_path(
+                            &snap_path.path,
+                            &self.snap_map.snap_name,
+                            &self.roll_forward.proximate_dataset_mount,
+                        )
+                        .expect("Could obtain live path for snap path");
+
+                        (live_path, &snap_path.path)
+                    })
+                    .collect();
+
+                let mut opt_original = complemented_paths
+                    .iter()
+                    .map(|(live, _snap)| live)
+                    .find(|path| path.exists());
+
+                complemented_paths
+                    .iter()
+                    .filter(|(_live_path, snap_path)| snap_path.exists())
+                    .try_for_each(|(live_path, snap_path)| {
+                        none_preserved = false;
+
+                        match opt_original {
+                            Some(original) if original == live_path => {
+                                RollForward::copy(snap_path, live_path)
+                            }
+                            Some(original) => Self::hard_link(original, live_path),
+                            None => {
+                                opt_original = Some(live_path);
+                                RollForward::copy(snap_path, live_path)
+                            }
+                        }
+                    })
+            })?;
+
+        if none_preserved {
+            println!("No hard links found which require preservation.");
+            return Ok(());
+        }
+
+        Ok(())
+    }
+
+    fn preserve_orphans(&self) -> HttmResult<()> {
         // in self but not in other
-        let snap_to_live: HashSet<PathBuf> = snap_set
-            .into_par_iter()
+        let snap_to_live: HashSet<PathBuf> = self
+            .snap_map
+            .remainder
+            .par_iter()
             .map(|snap_path| {
                 let live_path = Self::live_path(
-                    snap_path,
-                    &roll_forward.snap_name,
-                    &roll_forward.proximate_dataset_mount,
+                    &snap_path,
+                    &self.roll_forward.snap_name,
+                    &self.roll_forward.proximate_dataset_mount,
                 )
                 .expect("Could obtain live path for snap path");
 
@@ -614,8 +612,8 @@ impl PreserveHardLinks {
             })
             .collect();
 
-        let live_diff = live_set.difference(&snap_to_live);
-        let snap_diff = snap_to_live.difference(live_set);
+        let live_diff = self.live_map.remainder.difference(&snap_to_live);
+        let snap_diff = snap_to_live.difference(&self.live_map.remainder);
 
         // means we want to delete these
         live_diff
@@ -628,7 +626,7 @@ impl PreserveHardLinks {
             .into_iter()
             .par_bridge()
             .try_for_each(|live_path| {
-                let snap_path = RollForward::snap_path(&roll_forward, &live_path)
+                let snap_path = RollForward::snap_path(&self.roll_forward, &live_path)
                     .expect("Could not covert to snap path.");
 
                 RollForward::copy(&snap_path, &live_path)
