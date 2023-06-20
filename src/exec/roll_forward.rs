@@ -148,7 +148,7 @@ impl RollForward {
         let snap_guard: SnapGuard =
             SnapGuard::new(&self.dataset_name, PrecautionarySnapType::PreRollForward)?;
 
-        match Self::roll_forward(self) {
+        match self.roll_forward() {
             Ok(_) => {
                 println!("httm roll forward completed successfully.");
             }
@@ -175,13 +175,13 @@ impl RollForward {
         .map(|_res| ())
     }
 
-    fn zfs_diff_cmd(full_snapshot_name: &str) -> HttmResult<Child> {
+    fn zfs_diff_cmd(&self) -> HttmResult<Child> {
         let zfs_command = which("zfs").map_err(|_err| {
             HttmError::new("'zfs' command not found. Make sure the command 'zfs' is in your path.")
         })?;
 
         // -H: tab separated, -t: Specify time, -h: Normalize paths (don't use escape codes)
-        let process_args = vec!["diff", "-H", "-t", "-h", full_snapshot_name];
+        let process_args = vec!["diff", "-H", "-t", "-h", &self.roll_config.full_snap_name];
 
         let process_handle = ExecProcess::new(zfs_command)
             .args(&process_args)
@@ -243,15 +243,10 @@ impl RollForward {
     ) {
         let snap_dataset = self.snap_dataset();
 
-        let snap_name_clone1 = self.snap_name.clone();
-        let snap_name_clone2 = self.snap_name.clone();
         let proximate_dataset_mount = self.proximate_dataset_mount.clone();
 
-        let snap_handle =
-            std::thread::spawn(move || HardLinkMap::new(&snap_dataset, snap_name_clone1));
-        let live_handle = std::thread::spawn(move || {
-            HardLinkMap::new(&proximate_dataset_mount, snap_name_clone2)
-        });
+        let snap_handle = std::thread::spawn(move || HardLinkMap::new(&snap_dataset));
+        let live_handle = std::thread::spawn(move || HardLinkMap::new(&proximate_dataset_mount));
 
         (snap_handle, live_handle)
     }
@@ -259,7 +254,7 @@ impl RollForward {
     fn roll_forward(&self) -> HttmResult<()> {
         let (snap_handle, live_handle) = self.spawn_preserve_links();
 
-        let mut process_handle = Self::zfs_diff_cmd(&self.roll_config.full_snap_name)?;
+        let mut process_handle = self.zfs_diff_cmd()?;
 
         let stream = Self::ingest(&mut process_handle)?;
 
@@ -312,9 +307,7 @@ impl RollForward {
 
                 (event, snap_file_path)
             })
-            .try_for_each(|(event, snap_file_path)| {
-                Self::diff_action(self, &event, &snap_file_path)
-            })?;
+            .try_for_each(|(event, snap_file_path)| self.diff_action(&event, &snap_file_path))?;
 
         preserve_hard_links.preserve_live_links()?;
         preserve_hard_links.preserve_snap_links()
@@ -417,11 +410,10 @@ impl RollForward {
 struct HardLinkMap {
     link_map: HashMap<u64, Vec<BasicDirEntryInfo>>,
     remainder: HashSet<PathBuf>,
-    snap_name: String,
 }
 
 impl HardLinkMap {
-    fn new(requested_path: &Path, snap_name: String) -> HttmResult<Self> {
+    fn new(requested_path: &Path) -> HttmResult<Self> {
         let constructed = BasicDirEntryInfo {
             path: requested_path.to_path_buf(),
             file_type: None,
@@ -485,7 +477,6 @@ impl HardLinkMap {
         Ok(Self {
             link_map,
             remainder,
-            snap_name,
         })
     }
 }
@@ -551,12 +542,9 @@ impl<'a> PreserveHardLinks<'a> {
                 let complemented_paths: Vec<(PathBuf, &PathBuf)> = values
                     .iter()
                     .map(|snap_path| {
-                        let live_path = Self::live_path(
-                            &snap_path.path,
-                            &self.snap_map.snap_name,
-                            &self.roll_forward.proximate_dataset_mount,
-                        )
-                        .expect("Could obtain live path for snap path");
+                        let live_path = self
+                            .live_path(&snap_path.path)
+                            .expect("Could obtain live path for snap path");
 
                         (live_path, &snap_path.path)
                     })
@@ -601,12 +589,9 @@ impl<'a> PreserveHardLinks<'a> {
             .remainder
             .par_iter()
             .map(|snap_path| {
-                let live_path = Self::live_path(
-                    &snap_path,
-                    &self.roll_forward.snap_name,
-                    &self.roll_forward.proximate_dataset_mount,
-                )
-                .expect("Could obtain live path for snap path");
+                let live_path = self
+                    .live_path(&snap_path)
+                    .expect("Could obtain live path for snap path");
 
                 live_path
             })
@@ -635,20 +620,19 @@ impl<'a> PreserveHardLinks<'a> {
         Ok(())
     }
 
-    fn live_path(
-        snap_path: &Path,
-        snap_name: &str,
-        proximate_dataset_mount: &Path,
-    ) -> Option<PathBuf> {
+    fn live_path(&self, snap_path: &Path) -> Option<PathBuf> {
         snap_path
-            .strip_prefix(proximate_dataset_mount)
+            .strip_prefix(&self.roll_forward.proximate_dataset_mount)
             .ok()
             .and_then(|path| path.strip_prefix(ZFS_SNAPSHOT_DIRECTORY).ok())
-            .and_then(|path| path.strip_prefix(snap_name).ok())
+            .and_then(|path| path.strip_prefix(&self.roll_forward.snap_name).ok())
             .map(|relative_path| {
-                [proximate_dataset_mount, relative_path]
-                    .into_iter()
-                    .collect()
+                [
+                    self.roll_forward.proximate_dataset_mount.as_path(),
+                    relative_path,
+                ]
+                .into_iter()
+                .collect()
             })
     }
 
