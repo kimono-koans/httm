@@ -193,47 +193,56 @@ impl RollForward {
     }
 
     fn ingest(
-        process_handle: &mut Option<ChildStdout>,
-    ) -> HttmResult<impl Iterator<Item = DiffEvent> + '_> {
+        output: &mut Option<ChildStdout>,
+    ) -> HttmResult<impl Iterator<Item = HttmResult<DiffEvent>> + '_> {
         const IN_BUFFER_SIZE: usize = 65_536;
 
-        if let Some(output) = process_handle {
-            let stdout_buffer = std::io::BufReader::with_capacity(IN_BUFFER_SIZE, output);
+        match output {
+            Some(output) => {
+                let stdout_buffer = std::io::BufReader::with_capacity(IN_BUFFER_SIZE, output);
 
-            let ret = stdout_buffer
-                .lines()
-                .map(|line| line.expect("Could not obtain line from string."))
-                .filter_map(move |line| {
-                    let split_line: Vec<&str> = line.split('\t').collect();
+                let ret = stdout_buffer
+                    .lines()
+                    .map(|line| line.unwrap())
+                    .map(|line| Self::ingest_by_line(&line));
 
-                    let time_str = split_line
-                        .first()
-                        .expect("Could not obtain a timestamp for diff event.");
+                Ok(ret)
+            }
+            None => Err(HttmError::new("'zfs diff' reported no changes to dataset").into()),
+        }
+    }
 
-                    match split_line.get(1) {
-                        Some(event) if event == &"-" => split_line.get(2).map(|path_string| {
-                            DiffEvent::new(path_string, DiffType::Removed, time_str)
-                        }),
-                        Some(event) if event == &"+" => split_line.get(2).map(|path_string| {
-                            DiffEvent::new(path_string, DiffType::Created, time_str)
-                        }),
-                        Some(event) if event == &"M" => split_line.get(2).map(|path_string| {
-                            DiffEvent::new(path_string, DiffType::Modified, time_str)
-                        }),
-                        Some(event) if event == &"R" => split_line.get(2).map(|path_string| {
-                            let new_file_name =
-                                PathBuf::from(split_line.get(3).expect(
-                                    "diff of type rename did not contain a new name value",
-                                ));
-                            DiffEvent::new(path_string, DiffType::Renamed(new_file_name), time_str)
-                        }),
-                        _ => panic!("Could not parse diff event."),
-                    }
-                });
+    fn ingest_by_line(line: &str) -> HttmResult<DiffEvent> {
+        let split_line: Vec<&str> = line.split('\t').collect();
 
-            Ok(ret)
-        } else {
-            Err(HttmError::new("'zfs diff' reported no changes to dataset").into())
+        let time_str = split_line.first().ok_or(HttmError::new(
+            "Could not obtain a timestamp for diff event.",
+        ))?;
+
+        let diff_type = split_line.get(1).ok_or(HttmError::new(
+            "Could not obtain a diff type for diff event.",
+        ))?;
+
+        let path = split_line
+            .get(2)
+            .ok_or(HttmError::new("Could not obtain a path for diff event."))?;
+
+        match diff_type {
+            event if event == &"-" => Ok(DiffEvent::new(path, DiffType::Removed, time_str)),
+            event if event == &"+" => Ok(DiffEvent::new(path, DiffType::Created, time_str)),
+            event if event == &"M" => Ok(DiffEvent::new(path, DiffType::Modified, time_str)),
+            event if event == &"R" => {
+                let new_file_name = split_line
+                    .get(3)
+                    .ok_or("Could not obtain a new file name for diff event.")?;
+
+                Ok(DiffEvent::new(
+                    path,
+                    DiffType::Renamed(PathBuf::from(new_file_name)),
+                    time_str,
+                ))
+            }
+            _ => Err(HttmError::new("Could not parse diff event").into()),
         }
     }
 
@@ -276,6 +285,7 @@ impl RollForward {
                 self.roll_config.progress_bar.tick();
                 event
             })
+            .map(|res| res.unwrap())
             .into_group_map_by(|event| event.path_buf.clone())
             .into_iter()
             .collect();
@@ -352,10 +362,10 @@ impl RollForward {
         // we should make sure it has the latest data, so a simple rename is not enough
         // this is internal to the fn Self::remove()
         match &event.diff_type {
-            DiffType::Removed | DiffType::Modified => Self::copy(&snap_file_path, &event.path_buf),
-            DiffType::Created => Self::overwrite_or_remove(&snap_file_path, &event.path_buf),
+            DiffType::Removed | DiffType::Modified => Self::copy(snap_file_path, &event.path_buf),
+            DiffType::Created => Self::overwrite_or_remove(snap_file_path, &event.path_buf),
             DiffType::Renamed(new_file_name) => {
-                Self::overwrite_or_remove(&snap_file_path, new_file_name)
+                Self::overwrite_or_remove(snap_file_path, new_file_name)
             }
         }
     }
@@ -604,11 +614,11 @@ impl<'a> PreserveHardLinks<'a> {
             .remainder
             .par_iter()
             .map(|snap_path| {
-                let live_path = self
-                    .live_path(&snap_path)
-                    .expect("Could obtain live path for snap path");
+                
 
-                live_path
+                self
+                    .live_path(snap_path)
+                    .expect("Could obtain live path for snap path")
             })
             .collect();
 
@@ -626,10 +636,10 @@ impl<'a> PreserveHardLinks<'a> {
             .into_iter()
             .par_bridge()
             .try_for_each(|live_path| {
-                let snap_path = RollForward::snap_path(&self.roll_forward, &live_path)
+                let snap_path = RollForward::snap_path(self.roll_forward, live_path)
                     .expect("Could not covert to snap path.");
 
-                RollForward::copy(&snap_path, &live_path)
+                RollForward::copy(&snap_path, live_path)
             })?;
 
         Ok(())
