@@ -201,10 +201,10 @@ impl RollForward {
             Some(output) => {
                 let stdout_buffer = std::io::BufReader::with_capacity(IN_BUFFER_SIZE, output);
 
-                let ret = stdout_buffer
-                    .lines()
-                    .map(|line| line.unwrap())
-                    .map(|line| Self::ingest_by_line(&line));
+                let ret = stdout_buffer.lines().map(|res| {
+                    res.map_err(|e| e.into())
+                        .and_then(|line| Self::ingest_by_line(&line))
+                });
 
                 Ok(ret)
             }
@@ -280,12 +280,13 @@ impl RollForward {
 
         // zfs-diff can return multiple file actions for a single inode, here we dedup
         eprintln!("Building a map of ZFS filesystem events since the specified snapshot:");
+        let mut parse_errors = vec![];
         let mut group_map: Vec<(PathBuf, Vec<DiffEvent>)> = iter_peekable
             .map(|event| {
                 self.roll_config.progress_bar.tick();
                 event
             })
-            .map(|res| res.unwrap())
+            .filter_map(|res| res.map_err(|e| parse_errors.push(e)).ok())
             .into_group_map_by(|event| event.path_buf.clone())
             .into_iter()
             .collect();
@@ -298,6 +299,11 @@ impl RollForward {
                 let msg = format!("'zfs diff' command reported an error: {}", buf);
                 return Err(HttmError::new(&msg).into());
             }
+        }
+
+        if !parse_errors.is_empty() {
+            let msg: String = parse_errors.into_iter().map(|e| e.to_string()).collect();
+            return Err(HttmError::new(&msg).into());
         }
 
         // now sort by number of components, want to build from the bottom up, do less dir creation, etc.
@@ -614,10 +620,7 @@ impl<'a> PreserveHardLinks<'a> {
             .remainder
             .par_iter()
             .map(|snap_path| {
-                
-
-                self
-                    .live_path(snap_path)
+                self.live_path(snap_path)
                     .expect("Could obtain live path for snap path")
             })
             .collect();
