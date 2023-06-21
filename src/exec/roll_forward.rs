@@ -48,14 +48,14 @@ struct DiffEvent {
 }
 
 impl DiffEvent {
-    fn new(path_string: &str, diff_type: DiffType, time_str: &str) -> Self {
+    fn new(path_string: &str, diff_type: DiffType, time_str: &str) -> HttmResult<Self> {
         let path_buf = PathBuf::from(&path_string);
 
-        Self {
+        Ok(Self {
             path_buf,
             diff_type,
-            time: DiffTime::new(time_str).expect("Could not parse a zfs diff time value."),
-        }
+            time: DiffTime::new(time_str)?,
+        })
     }
 }
 
@@ -66,15 +66,17 @@ struct DiffTime {
 }
 
 impl DiffTime {
-    fn new(time_str: &str) -> Option<Self> {
-        let (secs, nanos) = time_str.split_once('.')?;
+    fn new(time_str: &str) -> HttmResult<Self> {
+        let (secs, nanos) = time_str
+            .split_once('.')
+            .ok_or(HttmError::new("Could not split time string."))?;
 
         let time = DiffTime {
-            secs: secs.parse::<u64>().ok()?,
-            nanos: nanos.parse::<u64>().ok()?,
+            secs: secs.parse::<u64>()?,
+            nanos: nanos.parse::<u64>()?,
         };
 
-        Some(time)
+        Ok(time)
     }
 }
 
@@ -228,19 +230,19 @@ impl RollForward {
             .ok_or(HttmError::new("Could not obtain a path for diff event."))?;
 
         match diff_type {
-            event if event == &"-" => Ok(DiffEvent::new(path, DiffType::Removed, time_str)),
-            event if event == &"+" => Ok(DiffEvent::new(path, DiffType::Created, time_str)),
-            event if event == &"M" => Ok(DiffEvent::new(path, DiffType::Modified, time_str)),
+            event if event == &"-" => DiffEvent::new(path, DiffType::Removed, time_str),
+            event if event == &"+" => DiffEvent::new(path, DiffType::Created, time_str),
+            event if event == &"M" => DiffEvent::new(path, DiffType::Modified, time_str),
             event if event == &"R" => {
                 let new_file_name = split_line
                     .get(3)
                     .ok_or("Could not obtain a new file name for diff event.")?;
 
-                Ok(DiffEvent::new(
+                DiffEvent::new(
                     path,
                     DiffType::Renamed(PathBuf::from(new_file_name)),
                     time_str,
-                ))
+                )
             }
             _ => Err(HttmError::new("Could not parse diff event").into()),
         }
@@ -330,15 +332,13 @@ impl RollForward {
                 values.sort_by_key(|event| event.time);
                 values.pop()
             })
-            .filter(|event| event.path_buf.exists())
-            .map(|event| {
-                let snap_file_path = self
-                    .snap_path(&event.path_buf)
-                    .expect("Could not obtain snap file path for live version.");
+            .try_for_each(|event| {
+                let snap_file_path = self.snap_path(&event.path_buf).ok_or_else(|| {
+                    HttmError::new("Could not obtain snap file path for live version.")
+                })?;
 
-                (event, snap_file_path)
-            })
-            .try_for_each(|(event, snap_file_path)| self.diff_action(&event, &snap_file_path))?;
+                self.diff_action(&event, &snap_file_path)
+            })?;
 
         preserve_hard_links.preserve_live_links()?;
         preserve_hard_links.preserve_snap_links()
@@ -538,21 +538,19 @@ impl<'a> PreserveHardLinks<'a> {
             .link_map
             .iter()
             .try_for_each(|(_key, values)| {
-                values
-                    .iter()
-                    .map(|live_path| {
-                        let snap_path = self
-                            .roll_forward
-                            .snap_path(&live_path.path)
-                            .expect("Could not obtain snap path for live path");
+                values.iter().try_for_each(|live_path| {
+                    let snap_path: HttmResult<PathBuf> = self
+                        .roll_forward
+                        .snap_path(&live_path.path)
+                        .ok_or(HttmError::new("Could obtain live path for snap path").into());
 
-                        (live_path, snap_path)
-                    })
-                    .filter(|(_live_path, snap_path)| !snap_path.exists())
-                    .try_for_each(|(live_path, _snap_path)| {
+                    if !snap_path?.exists() {
                         none_removed = false;
-                        Self::rm_hard_link(&live_path.path)
-                    })
+                        return Self::rm_hard_link(&live_path.path);
+                    }
+
+                    Ok(())
+                })
             })?;
 
         if none_removed {
@@ -575,11 +573,11 @@ impl<'a> PreserveHardLinks<'a> {
                     .map(|snap_path| {
                         let live_path = self
                             .live_path(&snap_path.path)
-                            .expect("Could obtain live path for snap path");
+                            .ok_or(HttmError::new("Could obtain live path for snap path").into());
 
-                        (live_path, &snap_path.path)
+                        live_path.map(|live| (live, &snap_path.path))
                     })
-                    .collect();
+                    .collect::<HttmResult<Vec<(PathBuf, &PathBuf)>>>()?;
 
                 let mut opt_original = complemented_paths
                     .iter()
@@ -621,9 +619,9 @@ impl<'a> PreserveHardLinks<'a> {
             .par_iter()
             .map(|snap_path| {
                 self.live_path(snap_path)
-                    .expect("Could obtain live path for snap path")
+                    .ok_or(HttmError::new("Could obtain live path for snap path").into())
             })
-            .collect();
+            .collect::<HttmResult<HashSet<PathBuf>>>()?;
 
         let live_diff = self.live_map.remainder.difference(&snap_to_live);
         let snap_diff = snap_to_live.difference(&self.live_map.remainder);
@@ -639,10 +637,11 @@ impl<'a> PreserveHardLinks<'a> {
             .into_iter()
             .par_bridge()
             .try_for_each(|live_path| {
-                let snap_path = RollForward::snap_path(self.roll_forward, live_path)
-                    .expect("Could not covert to snap path.");
+                let snap_path: HttmResult<PathBuf> =
+                    RollForward::snap_path(self.roll_forward, live_path)
+                        .ok_or(HttmError::new("Could obtain live path for snap path").into());
 
-                RollForward::copy(&snap_path, live_path)
+                RollForward::copy(&snap_path?, live_path)
             })?;
 
         Ok(())
