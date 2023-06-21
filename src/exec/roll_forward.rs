@@ -49,7 +49,7 @@ struct DiffEvent {
 
 impl DiffEvent {
     fn new(path_string: &str, diff_type: DiffType, time_str: &str) -> HttmResult<Self> {
-        let path_buf = PathBuf::from(&path_string);
+        let path_buf = Path::new(&path_string).canonicalize()?;
 
         Ok(Self {
             path_buf,
