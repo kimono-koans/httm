@@ -69,7 +69,7 @@ impl SnapNameMap {
             .map(|(pathdata, vec_snaps)| {
                 // use par iter here because no one else is using the global rayon threadpool any more
                 let snap_names: Vec<String> = vec_snaps
-                    .into_par_iter()
+                    .par_iter()
                     .filter_map(|pathdata| Self::deconstruct_snap_paths(&pathdata))
                     .filter(|snap| {
                         if let Some(filters) = opt_filters {

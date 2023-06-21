@@ -326,12 +326,9 @@ impl RollForward {
 
         // into iter and reverse because we want to go largest first
         group_map
-            .into_par_iter()
+            .par_iter()
             .rev()
-            .flat_map(|(_key, mut values)| {
-                values.sort_by_key(|event| event.time);
-                values.pop()
-            })
+            .flat_map(|(_key, values)| values.iter().max_by_key(|event| event.time))
             .try_for_each(|event| {
                 let snap_file_path = self.snap_path(&event.path_buf).ok_or_else(|| {
                     HttmError::new("Could not obtain snap file path for live version.")
