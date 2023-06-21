@@ -177,6 +177,87 @@ impl RollForward {
         .map(|_res| ())
     }
 
+    fn roll_forward(&self) -> HttmResult<()> {
+        let (snap_handle, live_handle) = self.spawn_preserve_links();
+
+        let mut process_handle = self.zfs_diff_cmd()?;
+
+        let opt_stderr = process_handle.stderr.take();
+        let mut opt_stdout = process_handle.stdout.take();
+
+        let stream = Self::ingest(&mut opt_stdout)?;
+
+        let mut iter_peekable = stream.peekable();
+
+        if iter_peekable.peek().is_none() {
+            return Err(HttmError::new("'zfs diff' reported no changes to dataset").into());
+        }
+
+        // zfs-diff can return multiple file actions for a single inode, here we dedup
+        eprintln!("Building a map of ZFS filesystem events since the specified snapshot:");
+        let mut parse_errors = vec![];
+        let mut group_map: Vec<(PathBuf, Vec<DiffEvent>)> = iter_peekable
+            .map(|event| {
+                self.roll_config.progress_bar.tick();
+                event
+            })
+            .filter_map(|res| res.map_err(|e| parse_errors.push(e)).ok())
+            .into_group_map_by(|event| event.path_buf.clone())
+            .into_iter()
+            .collect();
+
+        if let Some(mut stderr) = opt_stderr {
+            let mut buf = String::new();
+            stderr.read_to_string(&mut buf)?;
+
+            if !buf.is_empty() {
+                let msg = format!("'zfs diff' command reported an error: {}", buf);
+                return Err(HttmError::new(&msg).into());
+            }
+        }
+
+        if !parse_errors.is_empty() {
+            let msg: String = parse_errors.into_iter().map(|e| e.to_string()).collect();
+            return Err(HttmError::new(&msg).into());
+        }
+
+        // now sort by number of components, want to build from the bottom up, do less dir creation, etc.
+        group_map.par_sort_unstable_by_key(|(key, _values)| key.components().count());
+
+        // need to wait for these to finish before executing any diff_action
+        let snap_map = snap_handle
+            .join()
+            .map_err(|_err| HttmError::new("Thread panicked!"))??;
+
+        let live_map = live_handle
+            .join()
+            .map_err(|_err| HttmError::new("Thread panicked!"))??;
+
+        let preserve_hard_links = PreserveHardLinks::new(&live_map, &snap_map, self.to_owned())?;
+
+        eprintln!("Preserving possibly previously linked orphans:");
+        preserve_hard_links.preserve_orphans()?;
+
+        // into iter and reverse because we want to go largest first
+        eprintln!("Reversing all 'zfs diff' actions:");
+        group_map
+            .par_iter()
+            .rev()
+            .flat_map(|(_key, values)| values.iter().max_by_key(|event| event.time))
+            .try_for_each(|event| {
+                let snap_file_path = self.snap_path(&event.path_buf).ok_or_else(|| {
+                    HttmError::new("Could not obtain snap file path for live version.")
+                })?;
+
+                self.diff_action(event, &snap_file_path)
+            })?;
+
+        eprintln!("Removing unnecessary links on the live dataset:");
+        preserve_hard_links.preserve_live_links()?;
+        eprintln!("Preserving necessary links from the snapshot dataset:");
+        preserve_hard_links.preserve_snap_links()
+    }
+
     fn zfs_diff_cmd(&self) -> HttmResult<Child> {
         let zfs_command = which("zfs").map_err(|_err| {
             HttmError::new("'zfs' command not found. Make sure the command 'zfs' is in your path.")
@@ -262,83 +343,6 @@ impl RollForward {
         let live_handle = std::thread::spawn(move || HardLinkMap::new(&proximate_dataset_mount));
 
         (snap_handle, live_handle)
-    }
-
-    fn roll_forward(&self) -> HttmResult<()> {
-        let (snap_handle, live_handle) = self.spawn_preserve_links();
-
-        let mut process_handle = self.zfs_diff_cmd()?;
-
-        let opt_stderr = process_handle.stderr.take();
-        let mut opt_stdout = process_handle.stdout.take();
-
-        let stream = Self::ingest(&mut opt_stdout)?;
-
-        let mut iter_peekable = stream.peekable();
-
-        if iter_peekable.peek().is_none() {
-            return Err(HttmError::new("'zfs diff' reported no changes to dataset").into());
-        }
-
-        // zfs-diff can return multiple file actions for a single inode, here we dedup
-        eprintln!("Building a map of ZFS filesystem events since the specified snapshot:");
-        let mut parse_errors = vec![];
-        let mut group_map: Vec<(PathBuf, Vec<DiffEvent>)> = iter_peekable
-            .map(|event| {
-                self.roll_config.progress_bar.tick();
-                event
-            })
-            .filter_map(|res| res.map_err(|e| parse_errors.push(e)).ok())
-            .into_group_map_by(|event| event.path_buf.clone())
-            .into_iter()
-            .collect();
-
-        if let Some(mut stderr) = opt_stderr {
-            let mut buf = String::new();
-            stderr.read_to_string(&mut buf)?;
-
-            if !buf.is_empty() {
-                let msg = format!("'zfs diff' command reported an error: {}", buf);
-                return Err(HttmError::new(&msg).into());
-            }
-        }
-
-        if !parse_errors.is_empty() {
-            let msg: String = parse_errors.into_iter().map(|e| e.to_string()).collect();
-            return Err(HttmError::new(&msg).into());
-        }
-
-        // now sort by number of components, want to build from the bottom up, do less dir creation, etc.
-        group_map.par_sort_unstable_by_key(|(key, _values)| key.components().count());
-
-        // need to wait for these to finish before executing any diff_action
-        let snap_map = snap_handle
-            .join()
-            .map_err(|_err| HttmError::new("Thread panicked!"))??;
-
-        let live_map = live_handle
-            .join()
-            .map_err(|_err| HttmError::new("Thread panicked!"))??;
-
-        let preserve_hard_links = PreserveHardLinks::new(&live_map, &snap_map, self.to_owned())?;
-
-        preserve_hard_links.preserve_orphans()?;
-
-        // into iter and reverse because we want to go largest first
-        group_map
-            .par_iter()
-            .rev()
-            .flat_map(|(_key, values)| values.iter().max_by_key(|event| event.time))
-            .try_for_each(|event| {
-                let snap_file_path = self.snap_path(&event.path_buf).ok_or_else(|| {
-                    HttmError::new("Could not obtain snap file path for live version.")
-                })?;
-
-                self.diff_action(&event, &snap_file_path)
-            })?;
-
-        preserve_hard_links.preserve_live_links()?;
-        preserve_hard_links.preserve_snap_links()
     }
 
     fn snap_path(&self, path: &Path) -> Option<PathBuf> {
