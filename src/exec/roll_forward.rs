@@ -17,12 +17,12 @@
 
 use std::cmp::Ordering;
 use std::fs::{read_dir, remove_file};
-use std::io::BufRead;
+use std::io::{BufRead, Read};
 use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
-use std::process::Child;
 use std::process::Command as ExecProcess;
 use std::process::Stdio;
+use std::process::{Child, ChildStdout};
 use std::thread::JoinHandle;
 
 use hashbrown::{HashMap, HashSet};
@@ -192,10 +192,12 @@ impl RollForward {
         Ok(process_handle)
     }
 
-    fn ingest(process_handle: &mut Child) -> HttmResult<impl Iterator<Item = DiffEvent> + '_> {
+    fn ingest(
+        process_handle: &mut Option<ChildStdout>,
+    ) -> HttmResult<impl Iterator<Item = DiffEvent> + '_> {
         const IN_BUFFER_SIZE: usize = 65_536;
 
-        if let Some(output) = process_handle.stdout.take() {
+        if let Some(output) = process_handle {
             let stdout_buffer = std::io::BufReader::with_capacity(IN_BUFFER_SIZE, output);
 
             let ret = stdout_buffer
@@ -256,7 +258,10 @@ impl RollForward {
 
         let mut process_handle = self.zfs_diff_cmd()?;
 
-        let stream = Self::ingest(&mut process_handle)?;
+        let opt_stderr = process_handle.stderr.take();
+        let mut opt_stdout = process_handle.stdout.take();
+
+        let stream = Self::ingest(&mut opt_stdout)?;
 
         let mut iter_peekable = stream.peekable();
 
@@ -274,6 +279,16 @@ impl RollForward {
             .into_group_map_by(|event| event.path_buf.clone())
             .into_iter()
             .collect();
+
+        if let Some(mut stderr) = opt_stderr {
+            let mut buf = String::new();
+            stderr.read_to_string(&mut buf)?;
+
+            if !buf.is_empty() {
+                let msg = format!("'zfs diff' command reported an error: {}", buf);
+                return Err(HttmError::new(&msg).into());
+            }
+        }
 
         // now sort by number of components, want to build from the bottom up, do less dir creation, etc.
         group_map.par_sort_unstable_by_key(|(key, _values)| key.components().count());
