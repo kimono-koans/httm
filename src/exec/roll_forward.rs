@@ -555,7 +555,7 @@ impl<'a> PreserveHardLinks<'a> {
             })?;
 
         if none_removed {
-            println!("No hard links found which require removal.");
+            eprintln!("No hard links found which require removal.");
             return Ok(());
         }
 
