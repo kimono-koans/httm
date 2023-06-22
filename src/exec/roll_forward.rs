@@ -651,26 +651,19 @@ impl<'a> PreserveHardLinks<'a> {
         // means we want to delete these
         live_diff
             .clone()
-            .into_iter()
             .par_bridge()
             .try_for_each(|path| RollForward::remove(path))?;
 
         // means we want to copy these
-        snap_diff
-            .clone()
-            .into_iter()
-            .par_bridge()
-            .try_for_each(|live_path| {
-                let snap_path: HttmResult<PathBuf> =
-                    RollForward::snap_path(self.roll_forward, live_path).ok_or_else(|| {
-                        HttmError::new("Could obtain live path for snap path").into()
-                    });
+        snap_diff.clone().par_bridge().try_for_each(|live_path| {
+            let snap_path: HttmResult<PathBuf> =
+                RollForward::snap_path(self.roll_forward, live_path)
+                    .ok_or_else(|| HttmError::new("Could obtain live path for snap path").into());
 
-                RollForward::copy(&snap_path?, live_path)
-            })?;
+            RollForward::copy(&snap_path?, live_path)
+        })?;
 
-        let combined: HashSet<&PathBuf> =
-            live_diff.into_iter().chain(snap_diff.into_iter()).collect();
+        let combined: HashSet<&PathBuf> = live_diff.chain(snap_diff).collect();
 
         Ok(combined)
     }
