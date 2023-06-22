@@ -236,7 +236,8 @@ impl RollForward {
         let preserve_hard_links = PreserveHardLinks::new(&live_map, &snap_map, self.to_owned())?;
 
         eprintln!("Preserving possibly previously linked orphans:");
-        let mut exclude_as_handled = preserve_hard_links.preserve_orphans()?;
+        let snaps_to_live = preserve_hard_links.snaps_to_live()?;
+        let mut exclude_as_handled = preserve_hard_links.preserve_orphans(&snaps_to_live)?;
         eprintln!("Removing unnecessary links on the live dataset:");
         preserve_hard_links.preserve_live_links()?;
         eprintln!("Preserving necessary links from the snapshot dataset:");
@@ -247,7 +248,7 @@ impl RollForward {
                 .link_map
                 .values()
                 .flatten()
-                .map(|entry| entry.path.clone()),
+                .map(|entry| &entry.path),
         );
 
         exclude_as_handled.extend(
@@ -255,11 +256,11 @@ impl RollForward {
                 .link_map
                 .values()
                 .flatten()
-                .map(|entry| entry.path.clone()),
+                .map(|entry| &entry.path),
         );
 
         // into iter and reverse because we want to go largest first
-        eprintln!("Reversing all 'zfs diff' actions:");
+        eprintln!("Reversing 'zfs diff' actions:");
         group_map
             .par_iter()
             .rev()
@@ -628,20 +629,24 @@ impl<'a> PreserveHardLinks<'a> {
         Ok(())
     }
 
-    fn preserve_orphans(&self) -> HttmResult<HashSet<PathBuf>> {
+    fn snaps_to_live(&self) -> HttmResult<HashSet<PathBuf>> {
         // in self but not in other
-        let snap_to_live: HashSet<PathBuf> = self
-            .snap_map
+        self.snap_map
             .remainder
             .par_iter()
             .map(|snap_path| {
                 self.live_path(snap_path)
                     .ok_or_else(|| HttmError::new("Could obtain live path for snap path").into())
             })
-            .collect::<HttmResult<HashSet<PathBuf>>>()?;
+            .collect::<HttmResult<HashSet<PathBuf>>>()
+    }
 
-        let live_diff = self.live_map.remainder.difference(&snap_to_live);
-        let snap_diff = snap_to_live.difference(&self.live_map.remainder);
+    fn preserve_orphans(
+        &'a self,
+        snaps_to_live: &'a HashSet<PathBuf>,
+    ) -> HttmResult<HashSet<&'a PathBuf>> {
+        let live_diff = self.live_map.remainder.difference(&snaps_to_live);
+        let snap_diff = snaps_to_live.difference(&self.live_map.remainder);
 
         // means we want to delete these
         live_diff
@@ -664,11 +669,8 @@ impl<'a> PreserveHardLinks<'a> {
                 RollForward::copy(&snap_path?, live_path)
             })?;
 
-        let combined: HashSet<PathBuf> = live_diff
-            .into_iter()
-            .chain(snap_diff.into_iter())
-            .cloned()
-            .collect();
+        let combined: HashSet<&PathBuf> =
+            live_diff.into_iter().chain(snap_diff.into_iter()).collect();
 
         Ok(combined)
     }
