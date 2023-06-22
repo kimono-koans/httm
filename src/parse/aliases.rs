@@ -75,28 +75,28 @@ impl MapOfAliases {
             (snap_dir, local_dir)
         });
 
-        let mut aliases_iter: Vec<(PathBuf, PathBuf)> = match opt_input_aliases {
-            Some(input_aliases) => {
-                let res: Option<Vec<(PathBuf, PathBuf)>> = input_aliases
-                    .iter()
-                    .map(|alias| {
-                        alias
-                            .split_once(':')
-                            .map(|(first, rest)| (PathBuf::from(first), PathBuf::from(rest)))
-                    })
-                    .collect();
+        let mut aliases_iter: Vec<(PathBuf, PathBuf)> =
+            match opt_input_aliases {
+                Some(input_aliases) => {
+                    let res: Option<Vec<(PathBuf, PathBuf)>> = input_aliases
+                        .iter()
+                        .map(|alias| {
+                            alias
+                                .split_once(':')
+                                .map(|(first, rest)| (PathBuf::from(first), PathBuf::from(rest)))
+                        })
+                        .collect();
 
-                match res.ok_or_else(|| {
-                    HttmError::new(
-                        "Must use specified delimiter (':') between aliases for MAP_ALIASES.",
-                    )
-                }) {
-                    Ok(res) => res,
-                    Err(err) => return Err(err.into()),
+                    match res {
+                        Some(res) => res,
+                        None => return Err(HttmError::new(
+                            "Must use specified delimiter (':') between aliases for MAP_ALIASES.",
+                        )
+                        .into()),
+                    }
                 }
-            }
-            None => Vec::new(),
-        };
+                None => Vec::new(),
+            };
 
         if let Some(value) = snap_point {
             aliases_iter.push(value)
