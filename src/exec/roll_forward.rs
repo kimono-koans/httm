@@ -236,26 +236,42 @@ impl RollForward {
         let preserve_hard_links = PreserveHardLinks::new(&live_map, &snap_map, self.to_owned())?;
 
         eprintln!("Preserving possibly previously linked orphans:");
-        preserve_hard_links.preserve_orphans()?;
+        let mut exclude_as_handled = preserve_hard_links.preserve_orphans()?;
         eprintln!("Removing unnecessary links on the live dataset:");
         preserve_hard_links.preserve_live_links()?;
         eprintln!("Preserving necessary links from the snapshot dataset:");
         preserve_hard_links.preserve_snap_links()?;
 
+        exclude_as_handled.extend(
+            live_map
+                .link_map
+                .values()
+                .flatten()
+                .map(|entry| entry.path.clone()),
+        );
+
+        exclude_as_handled.extend(
+            snap_map
+                .link_map
+                .values()
+                .flatten()
+                .map(|entry| entry.path.clone()),
+        );
+
         // into iter and reverse because we want to go largest first
         eprintln!("Reversing all 'zfs diff' actions:");
-        group_map.par_chunks(512).rev().try_for_each(|chunk| {
-            chunk
-                .into_iter()
-                .flat_map(|(_key, values)| values.iter().max_by_key(|event| event.time))
-                .try_for_each(|event| {
-                    let snap_file_path = self.snap_path(&event.path_buf).ok_or_else(|| {
-                        HttmError::new("Could not obtain snap file path for live version.")
-                    })?;
+        group_map
+            .par_iter()
+            .rev()
+            .flat_map(|(_key, values)| values.iter().max_by_key(|event| event.time))
+            .filter(|event| !exclude_as_handled  .contains(&event.path_buf))
+            .try_for_each(|event| {
+                let snap_file_path = self.snap_path(&event.path_buf).ok_or_else(|| {
+                    HttmError::new("Could not obtain snap file path for live version.")
+                })?;
 
-                    self.diff_action(event, &snap_file_path)
-                })
-        })
+                self.diff_action(event, &snap_file_path)
+            })
     }
 
     fn zfs_diff_cmd(&self) -> HttmResult<Child> {
@@ -612,7 +628,7 @@ impl<'a> PreserveHardLinks<'a> {
         Ok(())
     }
 
-    fn preserve_orphans(&self) -> HttmResult<()> {
+    fn preserve_orphans(&self) -> HttmResult<HashSet<PathBuf>> {
         // in self but not in other
         let snap_to_live: HashSet<PathBuf> = self
             .snap_map
@@ -629,12 +645,14 @@ impl<'a> PreserveHardLinks<'a> {
 
         // means we want to delete these
         live_diff
+            .clone()
             .into_iter()
             .par_bridge()
             .try_for_each(|path| RollForward::remove(path))?;
 
         // means we want to copy these
         snap_diff
+            .clone()
             .into_iter()
             .par_bridge()
             .try_for_each(|live_path| {
@@ -646,7 +664,13 @@ impl<'a> PreserveHardLinks<'a> {
                 RollForward::copy(&snap_path?, live_path)
             })?;
 
-        Ok(())
+        let combined: HashSet<PathBuf> = live_diff
+            .into_iter()
+            .chain(snap_diff.into_iter())
+            .cloned()
+            .collect();
+
+        Ok(combined)
     }
 
     fn live_path(&self, snap_path: &Path) -> Option<PathBuf> {
