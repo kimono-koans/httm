@@ -237,25 +237,25 @@ impl RollForward {
 
         eprintln!("Preserving possibly previously linked orphans:");
         preserve_hard_links.preserve_orphans()?;
-
-        // into iter and reverse because we want to go largest first
-        eprintln!("Reversing all 'zfs diff' actions:");
-        group_map
-            .par_iter()
-            .rev()
-            .flat_map(|(_key, values)| values.iter().max_by_key(|event| event.time))
-            .try_for_each(|event| {
-                let snap_file_path = self.snap_path(&event.path_buf).ok_or_else(|| {
-                    HttmError::new("Could not obtain snap file path for live version.")
-                })?;
-
-                self.diff_action(event, &snap_file_path)
-            })?;
-
         eprintln!("Removing unnecessary links on the live dataset:");
         preserve_hard_links.preserve_live_links()?;
         eprintln!("Preserving necessary links from the snapshot dataset:");
-        preserve_hard_links.preserve_snap_links()
+        preserve_hard_links.preserve_snap_links()?;
+
+        // into iter and reverse because we want to go largest first
+        eprintln!("Reversing all 'zfs diff' actions:");
+        group_map.par_chunks(512).rev().try_for_each(|chunk| {
+            chunk
+                .into_iter()
+                .flat_map(|(_key, values)| values.iter().max_by_key(|event| event.time))
+                .try_for_each(|event| {
+                    let snap_file_path = self.snap_path(&event.path_buf).ok_or_else(|| {
+                        HttmError::new("Could not obtain snap file path for live version.")
+                    })?;
+
+                    self.diff_action(event, &snap_file_path)
+                })
+        })
     }
 
     fn zfs_diff_cmd(&self) -> HttmResult<Child> {
@@ -298,13 +298,13 @@ impl RollForward {
     fn ingest_by_line(line: &str) -> HttmResult<DiffEvent> {
         let split_line: Vec<&str> = line.split('\t').collect();
 
-        let time_str = split_line.first().ok_or(HttmError::new(
-            "Could not obtain a timestamp for diff event.",
-        ))?;
+        let time_str = split_line
+            .first()
+            .ok_or_else(|| HttmError::new("Could not obtain a timestamp for diff event."))?;
 
-        let diff_type = split_line.get(1).ok_or(HttmError::new(
-            "Could not obtain a diff type for diff event.",
-        ))?;
+        let diff_type = split_line
+            .get(1)
+            .ok_or_else(|| HttmError::new("Could not obtain a diff type for diff event."))?;
 
         let path = split_line
             .get(2)
