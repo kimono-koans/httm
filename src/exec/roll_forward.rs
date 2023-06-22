@@ -264,7 +264,7 @@ impl RollForward {
             .par_iter()
             .rev()
             .flat_map(|(_key, values)| values.iter().max_by_key(|event| event.time))
-            .filter(|event| !exclude_as_handled  .contains(&event.path_buf))
+            .filter(|event| !exclude_as_handled.contains(&event.path_buf))
             .try_for_each(|event| {
                 let snap_file_path = self.snap_path(&event.path_buf).ok_or_else(|| {
                     HttmError::new("Could not obtain snap file path for live version.")
