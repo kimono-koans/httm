@@ -187,16 +187,16 @@ impl RollForward {
 
         let stream = Self::ingest(&mut opt_stdout)?;
 
-        let mut iter_peekable = stream.peekable();
+        let mut stream_peekable = stream.peekable();
 
-        if iter_peekable.peek().is_none() {
+        if stream_peekable.peek().is_none() {
             return Err(HttmError::new("'zfs diff' reported no changes to dataset").into());
         }
 
         // zfs-diff can return multiple file actions for a single inode, here we dedup
         eprintln!("Building a map of ZFS filesystem events since the specified snapshot:");
         let mut parse_errors = vec![];
-        let mut group_map: Vec<(PathBuf, Vec<DiffEvent>)> = iter_peekable
+        let mut group_map: Vec<(PathBuf, Vec<DiffEvent>)> = stream_peekable
             .map(|event| {
                 self.roll_config.progress_bar.tick();
                 event
@@ -237,34 +237,19 @@ impl RollForward {
 
         eprintln!("Preserving possibly previously linked orphans:");
         let snaps_to_live = preserve_hard_links.snaps_to_live()?;
-        let mut exclude_as_handled = preserve_hard_links.preserve_orphans(&snaps_to_live)?;
+        let mut exclusions = preserve_hard_links.preserve_orphans(&snaps_to_live)?;
+        Self::exclusions(&mut exclusions, &live_map, &snap_map);
         eprintln!("Removing unnecessary links on the live dataset:");
         preserve_hard_links.preserve_live_links()?;
         eprintln!("Preserving necessary links from the snapshot dataset:");
         preserve_hard_links.preserve_snap_links()?;
-
-        exclude_as_handled.extend(
-            live_map
-                .link_map
-                .values()
-                .flatten()
-                .map(|entry| &entry.path),
-        );
-
-        exclude_as_handled.extend(
-            snap_map
-                .link_map
-                .values()
-                .flatten()
-                .map(|entry| &entry.path),
-        );
 
         // into iter and reverse because we want to go largest first
         eprintln!("Reversing 'zfs diff' actions:");
         group_map
             .par_iter()
             .rev()
-            .filter(|(key, _values)| !exclude_as_handled.contains(&key))
+            .filter(|(key, _values)| !exclusions.contains(&key))
             .flat_map(|(_key, values)| values.iter().max_by_key(|event| event.time))
             .try_for_each(|event| {
                 let snap_file_path = self.snap_path(&event.path_buf).ok_or_else(|| {
@@ -273,6 +258,28 @@ impl RollForward {
 
                 self.diff_action(event, &snap_file_path)
             })
+    }
+
+    fn exclusions<'a>(
+        potential_orphans: &mut HashSet<&'a PathBuf>,
+        live_map: &'a HardLinkMap,
+        snap_map: &'a HardLinkMap,
+    ) {
+        potential_orphans.extend(
+            live_map
+                .link_map
+                .values()
+                .flatten()
+                .map(|entry| &entry.path),
+        );
+
+        potential_orphans.extend(
+            snap_map
+                .link_map
+                .values()
+                .flatten()
+                .map(|entry| &entry.path),
+        );
     }
 
     fn zfs_diff_cmd(&self) -> HttmResult<Child> {
