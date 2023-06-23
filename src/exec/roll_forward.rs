@@ -23,6 +23,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command as ExecProcess;
 use std::process::Stdio;
 use std::process::{Child, ChildStdout};
+use std::sync::atomic::AtomicBool;
 use std::thread::JoinHandle;
 
 use hashbrown::{HashMap, HashSet};
@@ -239,10 +240,10 @@ impl RollForward {
         let snaps_to_live = preserve_hard_links.snaps_to_live()?;
         let mut exclusions = preserve_hard_links.preserve_orphans(&snaps_to_live)?;
         Self::exclusions(&mut exclusions, &live_map, &snap_map);
-        
+
         eprintln!("Removing unnecessary links on the live dataset:");
         preserve_hard_links.preserve_live_links()?;
-        
+
         eprintln!("Preserving necessary links from the snapshot dataset:");
         preserve_hard_links.preserve_snap_links()?;
 
@@ -559,7 +560,7 @@ impl<'a> PreserveHardLinks<'a> {
     }
 
     fn preserve_live_links(&self) -> HttmResult<()> {
-        let mut none_removed: bool = true;
+        let none_removed = AtomicBool::new(true);
 
         self.live_map
             .link_map
@@ -572,7 +573,7 @@ impl<'a> PreserveHardLinks<'a> {
                         });
 
                     if !snap_path?.exists() {
-                        none_removed = false;
+                        none_removed.store(false, std::sync::atomic::Ordering::Relaxed);
                         return Self::rm_hard_link(&live_path.path);
                     }
 
@@ -580,7 +581,7 @@ impl<'a> PreserveHardLinks<'a> {
                 })
             })?;
 
-        if none_removed {
+        if none_removed.load(std::sync::atomic::Ordering::Relaxed) {
             eprintln!("No hard links found which require removal.");
             return Ok(());
         }
@@ -589,11 +590,11 @@ impl<'a> PreserveHardLinks<'a> {
     }
 
     fn preserve_snap_links(&self) -> HttmResult<()> {
-        let mut none_preserved = true;
+        let none_preserved = AtomicBool::new(true);
 
         self.snap_map
             .link_map
-            .iter()
+            .par_iter()
             .try_for_each(|(_key, values)| {
                 let complemented_paths: Vec<(PathBuf, &PathBuf)> = values
                     .iter()
@@ -615,7 +616,7 @@ impl<'a> PreserveHardLinks<'a> {
                     .iter()
                     .filter(|(_live_path, snap_path)| snap_path.exists())
                     .try_for_each(|(live_path, snap_path)| {
-                        none_preserved = false;
+                        none_preserved.store(false, std::sync::atomic::Ordering::Relaxed);
 
                         match opt_original {
                             Some(original) if original == live_path => {
@@ -630,7 +631,7 @@ impl<'a> PreserveHardLinks<'a> {
                     })
             })?;
 
-        if none_preserved {
+        if none_preserved.load(std::sync::atomic::Ordering::Relaxed) {
             println!("No hard links found which require preservation.");
             return Ok(());
         }
