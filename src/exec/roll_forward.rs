@@ -643,7 +643,7 @@ impl<'a> PreserveHardLinks<'a> {
         &'a self,
         snaps_to_live: &'a HashSet<PathBuf>,
     ) -> HttmResult<HashSet<&'a PathBuf>> {
-        let live_diff = self.live_map.remainder.difference(&snaps_to_live);
+        let live_diff = self.live_map.remainder.difference(snaps_to_live);
         let snap_diff = snaps_to_live.difference(&self.live_map.remainder);
 
         // means we want to delete these
