@@ -516,8 +516,9 @@ impl HardLinkMap {
         ) = tmp.into_iter().partition(|(_ino, values)| values.len() > 1);
 
         let remainder = remain_tmp
-            .into_iter()
-            .flat_map(|(_ino, vec)| vec.into_iter().map(|entry: BasicDirEntryInfo| entry.path))
+            .into_values()
+            .flatten()
+            .map(|entry| entry.path)
             .collect();
 
         Ok(Self {
