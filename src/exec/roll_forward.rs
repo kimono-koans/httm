@@ -239,8 +239,10 @@ impl RollForward {
         let snaps_to_live = preserve_hard_links.snaps_to_live()?;
         let mut exclusions = preserve_hard_links.preserve_orphans(&snaps_to_live)?;
         Self::exclusions(&mut exclusions, &live_map, &snap_map);
+        
         eprintln!("Removing unnecessary links on the live dataset:");
         preserve_hard_links.preserve_live_links()?;
+        
         eprintln!("Preserving necessary links from the snapshot dataset:");
         preserve_hard_links.preserve_snap_links()?;
 
