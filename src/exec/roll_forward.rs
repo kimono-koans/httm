@@ -197,15 +197,13 @@ impl RollForward {
         // zfs-diff can return multiple file actions for a single inode, here we dedup
         eprintln!("Building a map of ZFS filesystem events since the specified snapshot:");
         let mut parse_errors = vec![];
-        let mut group_map: Vec<(PathBuf, Vec<DiffEvent>)> = stream_peekable
+        let group_map = stream_peekable
             .map(|event| {
                 self.roll_config.progress_bar.tick();
                 event
             })
             .filter_map(|res| res.map_err(|e| parse_errors.push(e)).ok())
-            .into_group_map_by(|event| event.path_buf.clone())
-            .into_iter()
-            .collect();
+            .into_group_map_by(|event| event.path_buf.clone());
 
         if let Some(mut stderr) = opt_stderr {
             let mut buf = String::new();
@@ -221,9 +219,6 @@ impl RollForward {
             let msg: String = parse_errors.into_iter().map(|e| e.to_string()).collect();
             return Err(HttmError::new(&msg).into());
         }
-
-        // now sort by number of components, want to build from the bottom up, do less dir creation, etc.
-        group_map.par_sort_unstable_by_key(|(key, _values)| key.components().count());
 
         // need to wait for these to finish before executing any diff_action
         let snap_map = snap_handle
@@ -251,8 +246,7 @@ impl RollForward {
         eprintln!("Reversing 'zfs diff' actions:");
         group_map
             .par_iter()
-            .rev()
-            .filter(|(key, _values)| !exclusions.contains(&key))
+            .filter(|(key, _values)| !exclusions.contains(key))
             .flat_map(|(_key, values)| values.iter().max_by_key(|event| event.time))
             .try_for_each(|event| {
                 let snap_file_path = self.snap_path(&event.path_buf).ok_or_else(|| {
