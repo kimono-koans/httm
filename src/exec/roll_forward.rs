@@ -513,9 +513,7 @@ impl HardLinkMap {
         let (link_map, remain_tmp): (
             HashMap<u64, Vec<BasicDirEntryInfo>>,
             HashMap<u64, Vec<BasicDirEntryInfo>>,
-        ) = tmp.into_iter().partition(|(_ino, values)| {
-            values.len() > 1 && !values[0].file_type.map(|ft| ft.is_dir()).unwrap_or(false)
-        });
+        ) = tmp.into_iter().partition(|(_ino, values)| values.len() > 1);
 
         let remainder = remain_tmp
             .into_iter()
