@@ -496,12 +496,7 @@ impl HardLinkMap {
                 .into_iter()
                 .filter(|entry| {
                     if let Some(ft) = entry.file_type {
-                        return ft.is_file() || {
-                            ft.is_dir()
-                                && read_dir(&entry.path)
-                                    .map(|mut read_dir| read_dir.next().is_none())
-                                    .unwrap_or(false)
-                        };
+                        return ft.is_file();
                     }
 
                     false
