@@ -37,11 +37,14 @@ use crate::library::utility::{
 use crate::lookup::versions::VersionsMap;
 use crate::GLOBAL_CONFIG;
 
-pub struct InteractiveBrowse;
+pub struct InteractiveBrowse {
+    pub selected_pathdata: Vec<PathData>,
+    pub opt_background_handle: Option<JoinHandle<()>>,
+}
 
 impl InteractiveBrowse {
     pub fn exec(interactive_mode: &InteractiveMode) -> HttmResult<Vec<PathData>> {
-        let browse_result = InteractiveBrowseResult::new()?;
+        let browse_result = Self::new()?;
 
         // do we return back to our main exec function to print,
         // or continue down the interactive rabbit hole?
@@ -54,16 +57,8 @@ impl InteractiveBrowse {
             InteractiveMode::Browse => Ok(browse_result.selected_pathdata),
         }
     }
-}
 
-#[derive(Debug)]
-pub struct InteractiveBrowseResult {
-    pub selected_pathdata: Vec<PathData>,
-    pub opt_background_handle: Option<JoinHandle<()>>,
-}
-
-impl InteractiveBrowseResult {
-    pub fn new() -> HttmResult<Self> {
+    fn new() -> HttmResult<Self> {
         let browse_result = match &GLOBAL_CONFIG.opt_requested_dir {
             // collect string paths from what we get from lookup_view
             Some(requested_dir) => {
@@ -99,13 +94,21 @@ impl InteractiveBrowseResult {
             }
         };
 
+        Ok(browse_result)
+    }
+
+    fn shutdown_background_thread(&mut self) -> HttmResult<()> {
+        if let Some(handle) = self.opt_background_handle.take() {
+            let _ = handle.join();
+        }
+
         #[cfg(target_os = "linux")]
         #[cfg(target_env = "gnu")]
         unsafe {
             let _ = libc::malloc_trim(0);
         };
 
-        Ok(browse_result)
+        Ok(())
     }
 
     #[allow(unused_variables)]
@@ -167,12 +170,6 @@ impl InteractiveBrowseResult {
 
         match display_handle.join() {
             Ok(selected_pathdata) => {
-                #[cfg(target_os = "linux")]
-                #[cfg(target_env = "gnu")]
-                unsafe {
-                    let _ = libc::malloc_trim(0);
-                };
-
                 let res = Self {
                     selected_pathdata: selected_pathdata?,
                     opt_background_handle: Some(background_handle),
@@ -188,7 +185,7 @@ struct InteractiveSelect;
 
 impl InteractiveSelect {
     fn exec(
-        browse_result: InteractiveBrowseResult,
+        mut browse_result: InteractiveBrowse,
         interactive_mode: &InteractiveMode,
     ) -> HttmResult<()> {
         let versions_map = VersionsMap::new(&GLOBAL_CONFIG, &browse_result.selected_pathdata)?;
@@ -248,9 +245,7 @@ impl InteractiveSelect {
             }
         };
 
-        if let Some(handle) = browse_result.opt_background_handle {
-            let _ = handle.join();
-        }
+        browse_result.shutdown_background_thread()?;
 
         // continue to interactive_restore or print and exit here?
         if matches!(interactive_mode, InteractiveMode::Restore(_)) {
