@@ -227,11 +227,12 @@ impl InteractiveSelect {
             // loop until user selects a valid snapshot version
             loop {
                 // get the file name
-                let requested_file_name = select_restore_view(
+                let requested_file_name = SelectionView::new(
+                    ViewMode::Select(opt_live_version.clone()),
                     &selection_buffer,
-                    &ViewMode::Select(opt_live_version.clone()),
                     false,
-                )?;
+                )
+                .view()?;
                 // ... we want everything between the quotes
                 let broken_string: Vec<_> = requested_file_name[0].split_terminator('"').collect();
                 // ... and the file is the 2nd item or the indexed "1" object
@@ -350,7 +351,8 @@ impl InteractiveRestore {
 
         // loop until user consents or doesn't
         loop {
-            let user_consent = select_restore_view(&preview_buffer, &ViewMode::Restore, false)?[0]
+            let user_consent = SelectionView::new(ViewMode::Restore, &preview_buffer, false)
+                .view()?[0]
                 .to_ascii_uppercase();
 
             match user_consent.as_ref() {
@@ -520,52 +522,69 @@ impl ViewMode {
     }
 }
 
-pub fn select_restore_view(
-    preview_buffer: &str,
-    view_mode: &ViewMode,
+pub struct SelectionView<'a> {
+    view_mode: ViewMode,
+    selection_buffer: &'a str,
     multi: bool,
-) -> HttmResult<Vec<String>> {
-    let preview_selection = PreviewSelection::new(view_mode)?;
+}
 
-    let header = view_mode.print_header();
-
-    // build our browse view - less to do than before - no previews, looking through one 'lil buffer
-    let skim_opts = SkimOptionsBuilder::default()
-        .preview_window(preview_selection.opt_preview_window.as_deref())
-        .preview(preview_selection.opt_preview_command.as_deref())
-        .disabled(true)
-        .tac(true)
-        .nosort(true)
-        .tabstop(Some("4"))
-        .exact(true)
-        .multi(multi)
-        .regex(false)
-        .tiebreak(Some("length,index".to_string()))
-        .header(Some(&header))
-        .build()
-        .expect("Could not initialized skim options for select_restore_view");
-
-    let item_reader_opts = SkimItemReaderOption::default().ansi(true);
-    let item_reader = SkimItemReader::new(item_reader_opts);
-
-    let (items, _opt_handle) =
-        item_reader.of_bufread(Box::new(Cursor::new(preview_buffer.trim().to_owned())));
-
-    // run_with() reads and shows items from the thread stream created above
-    let res = match skim::Skim::run_with(&skim_opts, Some(items)) {
-        Some(output) if output.is_abort => {
-            eprintln!("httm select/restore/purge session was aborted.  Quitting.");
-            std::process::exit(0);
+impl<'a> SelectionView<'a> {
+    pub fn new(view_mode: ViewMode, selection_buffer: &'a str, multi: bool) -> Self {
+        Self {
+            view_mode,
+            selection_buffer,
+            multi,
         }
-        Some(output) => output
-            .selected_items
-            .iter()
-            .map(|i| i.output().into_owned())
-            .collect(),
-        None => {
-            return Err(HttmError::new("httm select/restore/purge session failed.").into());
-        }
-    };
+    }
 
-    Ok(res)
+    pub fn view(&self) -> HttmResult<Vec<String>> {
+        if matches!(self.view_mode, ViewMode::Browse) {
+            return Err(HttmError::new("View method invalid in Browse mode").into());
+        }
+
+        let preview_selection = PreviewSelection::new(&self.view_mode)?;
+
+        let header = self.view_mode.print_header();
+
+        // build our browse view - less to do than before - no previews, looking through one 'lil buffer
+        let skim_opts = SkimOptionsBuilder::default()
+            .preview_window(preview_selection.opt_preview_window.as_deref())
+            .preview(preview_selection.opt_preview_command.as_deref())
+            .disabled(true)
+            .tac(true)
+            .nosort(true)
+            .tabstop(Some("4"))
+            .exact(true)
+            .multi(self.multi)
+            .regex(false)
+            .tiebreak(Some("length,index".to_string()))
+            .header(Some(&header))
+            .build()
+            .expect("Could not initialized skim options for select_restore_view");
+
+        let item_reader_opts = SkimItemReaderOption::default().ansi(true);
+        let item_reader = SkimItemReader::new(item_reader_opts);
+
+        let (items, _opt_handle) = item_reader.of_bufread(Box::new(Cursor::new(
+            self.selection_buffer.trim().to_owned(),
+        )));
+
+        // run_with() reads and shows items from the thread stream created above
+        let res = match skim::Skim::run_with(&skim_opts, Some(items)) {
+            Some(output) if output.is_abort => {
+                eprintln!("httm select/restore/purge session was aborted.  Quitting.");
+                std::process::exit(0);
+            }
+            Some(output) => output
+                .selected_items
+                .iter()
+                .map(|i| i.output().into_owned())
+                .collect(),
+            None => {
+                return Err(HttmError::new("httm select/restore/purge session failed.").into());
+            }
+        };
+
+        Ok(res)
+    }
 }
