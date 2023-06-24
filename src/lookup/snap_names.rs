@@ -70,11 +70,11 @@ impl SnapNameMap {
                 // use par iter here because no one else is using the global rayon threadpool any more
                 let snap_names: Vec<String> = vec_snaps
                     .par_iter()
-                    .filter_map(Self::deconstruct_snap_paths)
-                    .filter(|snap| {
+                    .filter_map(Self::snap_paths_to_snap_names)
+                    .filter(|snap_name| {
                         if let Some(filters) = opt_filters {
                             if let Some(names) = &filters.name_filters {
-                                return names.iter().any(|pattern| snap.contains(pattern));
+                                return names.iter().any(|pattern| snap_name.contains(pattern));
                             }
                         }
                         true
@@ -110,7 +110,7 @@ impl SnapNameMap {
         Ok(inner.into())
     }
 
-    fn deconstruct_snap_paths(pathdata: &PathData) -> Option<String> {
+    fn snap_paths_to_snap_names(pathdata: &PathData) -> Option<String> {
         let path_string = &pathdata.path_buf.to_string_lossy();
 
         let (dataset_path, (snap, _relpath)) = if let Some((lhs, rhs)) =
