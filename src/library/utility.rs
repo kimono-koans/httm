@@ -22,6 +22,7 @@ use std::{
     iter::Iterator,
     os::unix::fs::MetadataExt,
     path::{Path, PathBuf},
+    thread::JoinHandle,
     time::SystemTime,
 };
 
@@ -42,6 +43,18 @@ use crate::GLOBAL_CONFIG;
 use crate::{config::generate::PrintMode, data::paths::PathMetadata};
 use crate::{BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_SNAPSHOT_DIRECTORY};
 use std::process::Command as ExecProcess;
+
+pub fn shutdown_background_thread<T>(handle: JoinHandle<T>) -> HttmResult<T> {
+    let res = handle.join();
+
+    #[cfg(target_os = "linux")]
+    #[cfg(target_env = "gnu")]
+    unsafe {
+        let _ = libc::malloc_trim(0);
+    };
+
+    res.map_err(|_| HttmError::new("Thread panicked!").into())
+}
 
 pub fn user_has_effective_root() -> HttmResult<()> {
     if !nix::unistd::geteuid().is_root() {

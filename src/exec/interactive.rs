@@ -31,8 +31,8 @@ use crate::exec::recursive::RecursiveSearch;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::snap_guard::SnapGuard;
 use crate::library::utility::{
-    copy_recursive, date_string, delimiter, print_output_buf, user_has_effective_root,
-    user_has_zfs_allow_snap_priv, DateFormat, Never,
+    copy_recursive, date_string, delimiter, print_output_buf, shutdown_background_thread,
+    user_has_effective_root, user_has_zfs_allow_snap_priv, DateFormat, Never,
 };
 use crate::lookup::versions::VersionsMap;
 use crate::GLOBAL_CONFIG;
@@ -97,20 +97,6 @@ impl InteractiveBrowse {
         Ok(browse_result)
     }
 
-    fn shutdown_background_thread(&mut self) -> HttmResult<()> {
-        if let Some(handle) = self.opt_background_handle.take() {
-            let _ = handle.join();
-        }
-
-        #[cfg(target_os = "linux")]
-        #[cfg(target_env = "gnu")]
-        unsafe {
-            let _ = libc::malloc_trim(0);
-        };
-
-        Ok(())
-    }
-
     #[allow(unused_variables)]
     fn browse_view(requested_dir: &PathData, view_mode: ViewMode) -> HttmResult<Self> {
         // prep thread spawn
@@ -168,7 +154,7 @@ impl InteractiveBrowse {
             Ok(res)
         });
 
-        match display_handle.join() {
+        match shutdown_background_thread(display_handle) {
             Ok(selected_pathdata) => {
                 let res = Self {
                     selected_pathdata: selected_pathdata?,
@@ -245,7 +231,9 @@ impl InteractiveSelect {
             }
         };
 
-        browse_result.shutdown_background_thread()?;
+        if let Some(handle) = browse_result.opt_background_handle.take() {
+            shutdown_background_thread(handle)?;
+        }
 
         // continue to interactive_restore or print and exit here?
         if matches!(interactive_mode, InteractiveMode::Restore(_)) {
