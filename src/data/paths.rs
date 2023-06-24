@@ -102,7 +102,7 @@ impl<T: AsRef<Path>> From<T> for PathData {
 impl From<BasicDirEntryInfo> for PathData {
     fn from(basic_info: BasicDirEntryInfo) -> Self {
         // this metadata() function will not traverse symlinks
-        let opt_metadata = basic_info.path.metadata().ok();
+        let opt_metadata = basic_info.path.symlink_metadata().ok();
         let path = basic_info.path;
         let path_metadata = Self::opt_metadata(opt_metadata);
 
@@ -341,7 +341,7 @@ impl CompareVersionsContainer {
                     return Ok(*hash_value);
                 }
 
-                HashFromFile::try_from(self.pathdata.path_buf.as_path())
+                HashFromFile::new(self.pathdata.path_buf.as_path())
                     .map(|hash| *self_hash_cell.get_or_init(|| hash.into_inner()))
             },
             || {
@@ -349,7 +349,7 @@ impl CompareVersionsContainer {
                     return Ok(*hash_value);
                 }
 
-                HashFromFile::try_from(other.pathdata.path_buf.as_path())
+                HashFromFile::new(other.pathdata.path_buf.as_path())
                     .map(|hash| *other_hash_cell.get_or_init(|| hash.into_inner()))
             },
         );
@@ -375,11 +375,8 @@ impl HashFromFile {
     }
 }
 
-impl TryFrom<&Path> for HashFromFile {
-    type Error = Box<dyn std::error::Error + Send + Sync>;
-
-    #[inline(always)]
-    fn try_from(path: &Path) -> HttmResult<Self> {
+impl HashFromFile {
+    fn new(path: &Path) -> HttmResult<Self> {
         const IN_BUFFER_SIZE: usize = 131_072;
 
         let file = File::open(path)?;
