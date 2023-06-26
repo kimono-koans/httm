@@ -33,7 +33,7 @@ use once_cell::sync::Lazy;
 use time::{format_description, OffsetDateTime, UtcOffset};
 use which::which;
 
-use crate::data::paths::{BasicDirEntryInfo, PathData, PHANTOM_SIZE};
+use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::data::selection::SelectionCandidate;
 use crate::library::diff_copy::diff_copy;
 use crate::library::results::{HttmError, HttmResult};
@@ -176,6 +176,18 @@ fn create_dir_with_ancestors(
     dst_pathdata: &PathData,
     should_preserve: bool,
 ) -> HttmResult<()> {
+    if !dst_pathdata.path_buf.exists() {
+        create_dir_all(&dst_pathdata.path_buf)?;
+    }
+
+    if should_preserve {
+        preserve_recursive(src_pathdata, dst_pathdata)?;
+    }
+
+    Ok(())
+}
+
+fn preserve_recursive(src_pathdata: &PathData, dst_pathdata: &PathData) -> HttmResult<()> {
     let proximate_dataset_mount =
         dst_pathdata.proximate_dataset(&GLOBAL_CONFIG.dataset_collection.map_of_datasets)?;
 
@@ -185,22 +197,12 @@ fn create_dir_with_ancestors(
         .components()
         .count();
 
-    if !dst_pathdata.path_buf.exists() {
-        create_dir_all(&dst_pathdata.path_buf)?;
-    }
-
     src_pathdata
         .path_buf
         .ancestors()
         .zip(dst_pathdata.path_buf.ancestors())
         .take(relative_path_components_len)
-        .try_for_each(|(src_ancestor, dst_ancestor)| {
-            if should_preserve {
-                copy_attributes(src_ancestor, dst_ancestor)?;
-            }
-
-            Ok(())
-        })
+        .try_for_each(|(src_ancestor, dst_ancestor)| copy_attributes(src_ancestor, dst_ancestor))
 }
 
 pub fn copy_direct(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<()> {
@@ -235,7 +237,7 @@ pub fn copy_direct(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<
     }
 
     if should_preserve {
-        copy_attributes(src, dst)?;
+        preserve_recursive(&src_pathdata, &dst_pathdata)?;
     }
 
     Ok(())
@@ -587,38 +589,10 @@ pub trait ComparePathMetadata {
 impl<T: AsRef<Path>> ComparePathMetadata for T {
     fn opt_metadata(&self) -> Option<PathMetadata> {
         let pathdata = PathData::from(self.as_ref());
-        pathdata.metadata.map(|md| {
-            if self.as_ref().is_dir() {
-                return PathMetadata {
-                    modify_time: md.modify_time,
-                    size: PHANTOM_SIZE,
-                };
-            }
-
-            md
-        })
+        pathdata.metadata
     }
 
     fn path(&self) -> &Path {
         self.as_ref()
-    }
-}
-
-impl ComparePathMetadata for PathData {
-    fn opt_metadata(&self) -> Option<PathMetadata> {
-        self.metadata.map(|md| {
-            if self.path_buf.is_dir() {
-                return PathMetadata {
-                    modify_time: md.modify_time,
-                    size: PHANTOM_SIZE,
-                };
-            }
-
-            md
-        })
-    }
-
-    fn path(&self) -> &Path {
-        &self.path_buf
     }
 }
