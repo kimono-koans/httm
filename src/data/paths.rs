@@ -102,7 +102,7 @@ impl<T: AsRef<Path>> From<T> for PathData {
 impl From<BasicDirEntryInfo> for PathData {
     fn from(basic_info: BasicDirEntryInfo) -> Self {
         // this metadata() function will not traverse symlinks
-        let opt_metadata = basic_info.path.metadata().ok();
+        let opt_metadata = basic_info.path.symlink_metadata().ok();
         let path = basic_info.path;
         let path_metadata = Self::opt_metadata(opt_metadata);
 

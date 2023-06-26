@@ -562,7 +562,13 @@ impl HardLinkMap {
 
                     false
                 })
-                .filter_map(|entry| entry.path.metadata().ok().map(|md| (md.ino(), entry)))
+                .filter_map(|entry| {
+                    entry
+                        .path
+                        .symlink_metadata()
+                        .ok()
+                        .map(|md| (md.ino(), entry))
+                })
                 .for_each(|(ino, entry)| match tmp.get_mut(&ino) {
                     Some(values) => values.push(entry),
                     None => {
@@ -756,8 +762,8 @@ impl<'a> PreserveHardLinks<'a> {
         }
 
         if link.exists() {
-            if let Ok(og_md) = original.metadata() {
-                if let Ok(link_md) = link.metadata() {
+            if let Ok(og_md) = original.symlink_metadata() {
+                if let Ok(link_md) = link.symlink_metadata() {
                     if og_md.ino() == link_md.ino() {
                         return Ok(());
                     }
