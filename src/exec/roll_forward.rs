@@ -37,7 +37,7 @@ use crate::data::paths::PathData;
 use crate::library::iter_extensions::HttmIter;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::snap_guard::{PrecautionarySnapType, SnapGuard};
-use crate::library::utility::{copy_attributes, copy_direct, remove_recursive};
+use crate::library::utility::{copy_direct, remove_recursive};
 use crate::library::utility::{is_metadata_same, user_has_effective_root};
 use crate::{GLOBAL_CONFIG, ZFS_SNAPSHOT_DIRECTORY};
 
@@ -197,13 +197,17 @@ impl RollForward {
         // zfs-diff can return multiple file actions for a single inode, here we dedup
         eprintln!("Building a map of ZFS filesystem events since the specified snapshot:");
         let mut parse_errors = vec![];
-        let group_map = stream_peekable
+        let mut group_map: Vec<(PathBuf, Vec<DiffEvent>)> = stream_peekable
             .map(|event| {
                 self.roll_config.progress_bar.tick();
                 event
             })
             .filter_map(|res| res.map_err(|e| parse_errors.push(e)).ok())
-            .into_group_map_by(|event| event.path_buf.clone());
+            .into_group_map_by(|event| event.path_buf.clone())
+            .into_iter()
+            .collect();
+
+        group_map.sort_unstable_by_key(|(key, _values)| key.components().count());
 
         if let Some(mut stderr) = opt_stderr {
             let mut buf = String::new();
@@ -254,7 +258,10 @@ impl RollForward {
                 })?;
 
                 self.diff_action(event, &snap_file_path)
-            })
+            })?;
+
+        eprintln!("Verifying path names and metadata match snapshot source:");
+        self.verify()
     }
 
     fn exclusions<'a>(
@@ -290,7 +297,7 @@ impl RollForward {
         let process_handle = ExecProcess::new(zfs_command)
             .args(&process_args)
             .stdout(Stdio::piped())
-            .stderr(Stdio::inherit())
+            .stderr(Stdio::piped())
             .spawn()?;
 
         Ok(process_handle)
@@ -323,19 +330,15 @@ impl RollForward {
             .first()
             .ok_or_else(|| HttmError::new("Could not obtain a timestamp for diff event."))?;
 
-        let diff_type = split_line
-            .get(1)
-            .ok_or_else(|| HttmError::new("Could not obtain a diff type for diff event."))?;
-
         let path = split_line
             .get(2)
             .ok_or_else(|| HttmError::new("Could not obtain a path for diff event."))?;
 
-        match diff_type {
-            event if event == &"-" => DiffEvent::new(path, DiffType::Removed, time_str),
-            event if event == &"+" => DiffEvent::new(path, DiffType::Created, time_str),
-            event if event == &"M" => DiffEvent::new(path, DiffType::Modified, time_str),
-            event if event == &"R" => {
+        match split_line.get(1) {
+            Some(&"-") => DiffEvent::new(path, DiffType::Removed, time_str),
+            Some(&"+") => DiffEvent::new(path, DiffType::Created, time_str),
+            Some(&"M") => DiffEvent::new(path, DiffType::Modified, time_str),
+            Some(&"R") => {
                 let new_file_name = split_line.get(3).ok_or_else(|| {
                     HttmError::new("Could not obtain a new file name for diff event.")
                 })?;
@@ -346,6 +349,7 @@ impl RollForward {
                     time_str,
                 )
             }
+            Some(_) => Err(HttmError::new("Could not obtain a diff type for diff event.").into()),
             _ => Err(HttmError::new("Could not parse diff event").into()),
         }
     }
@@ -408,7 +412,6 @@ impl RollForward {
             return Err(HttmError::new(&msg).into());
         }
 
-        is_metadata_same(src, dst)?;
         eprintln!("{}: {:?} -> {:?}", Blue.paint("Restored "), src, dst);
         Ok(())
     }
@@ -457,6 +460,70 @@ impl RollForward {
 
         Ok(())
     }
+
+    fn verify(&self) -> HttmResult<()> {
+        let snap_dataset = self.snap_dataset();
+
+        let constructed = BasicDirEntryInfo {
+            path: snap_dataset,
+            file_type: None,
+        };
+
+        let mut queue: Vec<BasicDirEntryInfo> = vec![constructed];
+
+        // condition kills iter when user has made a selection
+        // pop_back makes this a LIFO queue which is supposedly better for caches
+        while let Some(item) = queue.pop() {
+            // no errors will be propagated in recursive mode
+            // far too likely to run into a dir we don't have permissions to view
+            let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
+                read_dir(item.path)?
+                    .flatten()
+                    // checking file_type on dir entries is always preferable
+                    // as it is much faster than a metadata call on the path
+                    .map(|dir_entry| BasicDirEntryInfo::from(&dir_entry))
+                    .partition(|dir_entry| dir_entry.path.is_dir());
+
+            let mut combined = vec_files;
+            combined.extend_from_slice(&vec_dirs);
+            queue.extend_from_slice(&vec_dirs);
+
+            combined
+                .into_iter()
+                .map(|snap_entry| {
+                    self.roll_config.progress_bar.tick();
+                    snap_entry
+                })
+                .try_for_each(|snap_entry| {
+                    let live_path = self
+                        .live_path(&snap_entry.path)
+                        .ok_or_else(|| HttmError::new("Could not obtain live path"))?;
+
+                    //if is_metadata_same(&snap_entry.path, &live_path).is_err() {
+                    //    copy_attributes(&snap_entry.path, &live_path)?;
+                    //    return
+                    is_metadata_same(snap_entry.path, live_path)
+                    //}
+
+                    //Ok(())
+                })?;
+        }
+
+        Ok(())
+    }
+
+    fn live_path(&self, snap_path: &Path) -> Option<PathBuf> {
+        snap_path
+            .strip_prefix(&self.proximate_dataset_mount)
+            .ok()
+            .and_then(|path| path.strip_prefix(ZFS_SNAPSHOT_DIRECTORY).ok())
+            .and_then(|path| path.strip_prefix(&self.snap_name).ok())
+            .map(|relative_path| {
+                [self.proximate_dataset_mount.as_path(), relative_path]
+                    .into_iter()
+                    .collect()
+            })
+    }
 }
 
 // key: inode, values: Paths
@@ -501,7 +568,13 @@ impl HardLinkMap {
 
                     false
                 })
-                .filter_map(|entry| entry.path.metadata().ok().map(|md| (md.ino(), entry)))
+                .filter_map(|entry| {
+                    entry
+                        .path
+                        .symlink_metadata()
+                        .ok()
+                        .map(|md| (md.ino(), entry))
+                })
                 .for_each(|(ino, entry)| match tmp.get_mut(&ino) {
                     Some(values) => values.push(entry),
                     None => {
@@ -595,10 +668,13 @@ impl<'a> PreserveHardLinks<'a> {
                     })
                     .collect::<HttmResult<Vec<(PathBuf, &PathBuf)>>>()?;
 
-                let mut opt_original = complemented_paths
-                    .iter()
-                    .map(|(live, _snap)| live)
-                    .find(|path| path.exists());
+                let mut opt_original = complemented_paths.iter().find_map(|(live, _snap)| {
+                    if live.exists() {
+                        Some(live)
+                    } else {
+                        None
+                    }
+                });
 
                 complemented_paths
                     .iter()
@@ -692,8 +768,8 @@ impl<'a> PreserveHardLinks<'a> {
         }
 
         if link.exists() {
-            if let Ok(og_md) = original.metadata() {
-                if let Ok(link_md) = link.metadata() {
+            if let Ok(og_md) = original.symlink_metadata() {
+                if let Ok(link_md) = link.symlink_metadata() {
                     if og_md.ino() == link_md.ino() {
                         return Ok(());
                     }
@@ -711,8 +787,6 @@ impl<'a> PreserveHardLinks<'a> {
             }
         }
 
-        copy_attributes(original, link)?;
-        is_metadata_same(original, link)?;
         eprintln!("{}: {:?} -> {:?}", Yellow.paint("Linked  "), original, link);
 
         Ok(())
