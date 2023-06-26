@@ -499,7 +499,13 @@ impl RollForward {
                         .live_path(&snap_entry.path)
                         .ok_or_else(|| HttmError::new("Could not obtain live path"))?;
 
+                    //if is_metadata_same(&snap_entry.path, &live_path).is_err() {
+                    //    copy_attributes(&snap_entry.path, &live_path)?;
+                    //    return
                     is_metadata_same(snap_entry.path, live_path)
+                    //}
+
+                    //Ok(())
                 })?;
         }
 
