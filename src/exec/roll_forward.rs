@@ -290,7 +290,7 @@ impl RollForward {
         let process_handle = ExecProcess::new(zfs_command)
             .args(&process_args)
             .stdout(Stdio::piped())
-            .stderr(Stdio::inherit())
+            .stderr(Stdio::piped())
             .spawn()?;
 
         Ok(process_handle)
