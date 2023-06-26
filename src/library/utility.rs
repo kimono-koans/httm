@@ -34,7 +34,7 @@ use once_cell::sync::Lazy;
 use time::{format_description, OffsetDateTime, UtcOffset};
 use which::which;
 
-use crate::data::paths::{BasicDirEntryInfo, PathData, PHANTOM_DATE, PHANTOM_SIZE};
+use crate::data::paths::{BasicDirEntryInfo, PathData, PHANTOM_SIZE};
 use crate::data::selection::SelectionCandidate;
 use crate::library::diff_copy::diff_copy;
 use crate::library::results::{HttmError, HttmResult};
@@ -595,25 +595,6 @@ impl<T: AsRef<Path>> ComparePathMetadata for T {
         pathdata.metadata.map(|md| {
             if self.as_ref().is_dir() {
                 return PathMetadata {
-                    modify_time: PHANTOM_DATE,
-                    size: PHANTOM_SIZE,
-                };
-            }
-
-            md
-        })
-    }
-
-    fn path(&self) -> &Path {
-        self.as_ref()
-    }
-}
-
-impl ComparePathMetadata for PathData {
-    fn opt_metadata(&self) -> Option<PathMetadata> {
-        self.metadata.map(|md| {
-            if self.path_buf.is_dir() {
-                return PathMetadata {
                     modify_time: md.modify_time,
                     size: PHANTOM_SIZE,
                 };
@@ -624,6 +605,6 @@ impl ComparePathMetadata for PathData {
     }
 
     fn path(&self) -> &Path {
-        &self.path_buf
+        self.as_ref()
     }
 }

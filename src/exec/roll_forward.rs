@@ -197,13 +197,17 @@ impl RollForward {
         // zfs-diff can return multiple file actions for a single inode, here we dedup
         eprintln!("Building a map of ZFS filesystem events since the specified snapshot:");
         let mut parse_errors = vec![];
-        let group_map = stream_peekable
+        let mut group_map: Vec<(PathBuf, Vec<DiffEvent>)> = stream_peekable
             .map(|event| {
                 self.roll_config.progress_bar.tick();
                 event
             })
             .filter_map(|res| res.map_err(|e| parse_errors.push(e)).ok())
-            .into_group_map_by(|event| event.path_buf.clone());
+            .into_group_map_by(|event| event.path_buf.clone())
+            .into_iter()
+            .collect();
+
+        group_map.sort_unstable_by_key(|(key, _values)| key.components().count());
 
         if let Some(mut stderr) = opt_stderr {
             let mut buf = String::new();
@@ -408,7 +412,6 @@ impl RollForward {
             return Err(HttmError::new(&msg).into());
         }
 
-        is_metadata_same(src, dst)?;
         eprintln!("{}: {:?} -> {:?}", Blue.paint("Restored "), src, dst);
         Ok(())
     }
@@ -772,7 +775,6 @@ impl<'a> PreserveHardLinks<'a> {
             }
         }
 
-        is_metadata_same(original, link)?;
         eprintln!("{}: {:?} -> {:?}", Yellow.paint("Linked  "), original, link);
 
         Ok(())
