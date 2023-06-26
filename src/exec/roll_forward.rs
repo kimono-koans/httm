@@ -287,6 +287,7 @@ impl RollForward {
             queue.extend_from_slice(&vec_dirs);
 
             combined.into_iter().try_for_each(|entry| {
+                self.roll_config.progress_bar.tick();
                 let live_path = self
                     .live_path(&entry.path)
                     .ok_or_else(|| HttmError::new("Could not generate live path"))?;
