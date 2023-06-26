@@ -197,15 +197,16 @@ fn create_dir_with_ancestors(src: &Path, dst: &Path, should_preserve: bool) -> H
 }
 
 fn preserve_attr_recursive(src: &Path, dst: &Path) -> HttmResult<()> {
-    let src_pathdata = PathData::from(src);
+    let dst_pathdata = PathData::from(dst);
 
     let proximate_dataset_mount =
-        src_pathdata.proximate_dataset(&GLOBAL_CONFIG.dataset_collection.map_of_datasets)?;
+        dst_pathdata.proximate_dataset(&GLOBAL_CONFIG.dataset_collection.map_of_datasets)?;
 
-    let src_relative = src_pathdata.relative_path(proximate_dataset_mount)?;
+    let dst_relative = dst_pathdata.relative_path(proximate_dataset_mount)?;
 
-    dst.ancestors()
-        .zip(src_relative.ancestors())
+    dst_relative
+        .ancestors()
+        .zip(src.ancestors())
         .try_for_each(|(dst_ancestor, src_ancestor)| copy_attributes(src_ancestor, dst_ancestor))
 }
 
