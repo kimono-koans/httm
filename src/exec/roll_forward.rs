@@ -37,7 +37,7 @@ use crate::data::paths::PathData;
 use crate::library::iter_extensions::HttmIter;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::snap_guard::{PrecautionarySnapType, SnapGuard};
-use crate::library::utility::{copy_attributes, copy_direct, remove_recursive};
+use crate::library::utility::{copy_direct, remove_recursive};
 use crate::library::utility::{is_metadata_same, user_has_effective_root};
 use crate::{GLOBAL_CONFIG, ZFS_SNAPSHOT_DIRECTORY};
 
@@ -254,7 +254,10 @@ impl RollForward {
                 })?;
 
                 self.diff_action(event, &snap_file_path)
-            })
+            })?;
+
+        eprintln!("Verifying path names and metadata match snapshot source:");
+        self.verify()
     }
 
     fn exclusions<'a>(
@@ -453,6 +456,64 @@ impl RollForward {
         eprintln!("{}: {:?} -> 🗑️", Red.paint("Removed  "), dst);
 
         Ok(())
+    }
+
+    fn verify(&self) -> HttmResult<()> {
+        let snap_dataset = self.snap_dataset();
+
+        let constructed = BasicDirEntryInfo {
+            path: snap_dataset,
+            file_type: None,
+        };
+
+        let mut queue: Vec<BasicDirEntryInfo> = vec![constructed];
+
+        // condition kills iter when user has made a selection
+        // pop_back makes this a LIFO queue which is supposedly better for caches
+        while let Some(item) = queue.pop() {
+            // no errors will be propagated in recursive mode
+            // far too likely to run into a dir we don't have permissions to view
+            let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
+                read_dir(item.path)?
+                    .flatten()
+                    // checking file_type on dir entries is always preferable
+                    // as it is much faster than a metadata call on the path
+                    .map(|dir_entry| BasicDirEntryInfo::from(&dir_entry))
+                    .partition(|dir_entry| dir_entry.path.is_dir());
+
+            let mut combined = vec_files;
+            combined.extend_from_slice(&vec_dirs);
+            queue.extend_from_slice(&vec_dirs);
+
+            combined
+                .into_iter()
+                .map(|snap_entry| {
+                    self.roll_config.progress_bar.tick();
+                    snap_entry
+                })
+                .try_for_each(|snap_entry| {
+                    let live_path = self
+                        .live_path(&snap_entry.path)
+                        .ok_or_else(|| HttmError::new("Could not obtain live path"))?;
+
+                    is_metadata_same(snap_entry.path, live_path)
+                })?;
+        }
+
+        Ok(())
+    }
+
+    fn live_path(&self, snap_path: &Path) -> Option<PathBuf> {
+        snap_path
+            .strip_prefix(&self.proximate_dataset_mount)
+            .ok()
+            .and_then(|path| path.strip_prefix(ZFS_SNAPSHOT_DIRECTORY).ok())
+            .and_then(|path| path.strip_prefix(&self.snap_name).ok())
+            .map(|relative_path| {
+                [self.proximate_dataset_mount.as_path(), relative_path]
+                    .into_iter()
+                    .collect()
+            })
     }
 }
 
@@ -711,7 +772,6 @@ impl<'a> PreserveHardLinks<'a> {
             }
         }
 
-        copy_attributes(original, link)?;
         is_metadata_same(original, link)?;
         eprintln!("{}: {:?} -> {:?}", Yellow.paint("Linked  "), original, link);
 

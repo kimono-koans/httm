@@ -34,7 +34,7 @@ use once_cell::sync::Lazy;
 use time::{format_description, OffsetDateTime, UtcOffset};
 use which::which;
 
-use crate::data::paths::{BasicDirEntryInfo, PathData, PHANTOM_SIZE};
+use crate::data::paths::{BasicDirEntryInfo, PathData, PHANTOM_DATE, PHANTOM_SIZE};
 use crate::data::selection::SelectionCandidate;
 use crate::library::diff_copy::diff_copy;
 use crate::library::results::{HttmError, HttmResult};
@@ -189,6 +189,22 @@ fn create_dir_with_ancestors(
     dst_pathdata: &PathData,
     should_preserve: bool,
 ) -> HttmResult<()> {
+    if !dst_pathdata.path_buf.exists() {
+        create_dir_all(&dst_pathdata.path_buf)?;
+    }
+
+    if should_preserve {
+        preserve_attr_rec(src_pathdata, dst_pathdata, should_preserve)?
+    }
+
+    Ok(())
+}
+
+fn preserve_attr_rec(
+    src_pathdata: &PathData,
+    dst_pathdata: &PathData,
+    should_preserve: bool,
+) -> HttmResult<()> {
     let proximate_dataset_mount =
         dst_pathdata.proximate_dataset(&GLOBAL_CONFIG.dataset_collection.map_of_datasets)?;
 
@@ -197,10 +213,6 @@ fn create_dir_with_ancestors(
         .to_path_buf()
         .components()
         .count();
-
-    if !dst_pathdata.path_buf.exists() {
-        create_dir_all(&dst_pathdata.path_buf)?;
-    }
 
     src_pathdata
         .path_buf
@@ -248,7 +260,7 @@ pub fn copy_direct(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<
     }
 
     if should_preserve {
-        copy_attributes(src, dst)?;
+        preserve_attr_rec(&src_pathdata, &dst_pathdata, should_preserve)?
     }
 
     Ok(())
@@ -603,7 +615,7 @@ impl<T: AsRef<Path>> ComparePathMetadata for T {
         pathdata.metadata.map(|md| {
             if self.as_ref().is_dir() {
                 return PathMetadata {
-                    modify_time: md.modify_time,
+                    modify_time: PHANTOM_DATE,
                     size: PHANTOM_SIZE,
                 };
             }
