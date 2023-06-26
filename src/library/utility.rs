@@ -22,7 +22,6 @@ use std::{
     iter::Iterator,
     os::unix::fs::MetadataExt,
     path::{Path, PathBuf},
-    thread::JoinHandle,
     time::SystemTime,
 };
 
@@ -34,7 +33,7 @@ use once_cell::sync::Lazy;
 use time::{format_description, OffsetDateTime, UtcOffset};
 use which::which;
 
-use crate::data::paths::{BasicDirEntryInfo, PathData};
+use crate::data::paths::{BasicDirEntryInfo, PathData, PHANTOM_SIZE};
 use crate::data::selection::SelectionCandidate;
 use crate::library::diff_copy::diff_copy;
 use crate::library::results::{HttmError, HttmResult};
@@ -43,18 +42,6 @@ use crate::GLOBAL_CONFIG;
 use crate::{config::generate::PrintMode, data::paths::PathMetadata};
 use crate::{BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_SNAPSHOT_DIRECTORY};
 use std::process::Command as ExecProcess;
-
-pub fn shutdown_background_thread<T>(handle: JoinHandle<T>) -> HttmResult<T> {
-    let res = handle.join();
-
-    #[cfg(target_os = "linux")]
-    #[cfg(target_env = "gnu")]
-    unsafe {
-        let _ = libc::malloc_trim(0);
-    };
-
-    res.map_err(|_| HttmError::new("Thread panicked!").into())
-}
 
 pub fn user_has_effective_root() -> HttmResult<()> {
     if !nix::unistd::geteuid().is_root() {
@@ -184,44 +171,56 @@ pub fn copy_attributes(src: &Path, dst: &Path) -> HttmResult<()> {
     Ok(())
 }
 
-fn create_dir_with_ancestors(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<()> {
-    if !dst.exists() {
-        create_dir_all(&dst)?;
-    }
-
-    if should_preserve {
-        preserve_attr_recursive(src, dst)?
-    }
-
-    Ok(())
-}
-
-fn preserve_attr_recursive(src: &Path, dst: &Path) -> HttmResult<()> {
-    let dst_pathdata = PathData::from(dst);
-
+fn create_dir_with_ancestors(
+    src_pathdata: &PathData,
+    dst_pathdata: &PathData,
+    should_preserve: bool,
+) -> HttmResult<()> {
     let proximate_dataset_mount =
         dst_pathdata.proximate_dataset(&GLOBAL_CONFIG.dataset_collection.map_of_datasets)?;
 
-    let dst_relative = dst_pathdata.relative_path(proximate_dataset_mount)?;
+    let relative_path_components_len = dst_pathdata
+        .relative_path(proximate_dataset_mount)?
+        .to_path_buf()
+        .components()
+        .count();
 
-    dst_relative
+    if !dst_pathdata.path_buf.exists() {
+        create_dir_all(&dst_pathdata.path_buf)?;
+    }
+
+    src_pathdata
+        .path_buf
         .ancestors()
-        .zip(src.ancestors())
-        .try_for_each(|(dst_ancestor, src_ancestor)| copy_attributes(src_ancestor, dst_ancestor))
+        .zip(dst_pathdata.path_buf.ancestors())
+        .take(relative_path_components_len)
+        .try_for_each(|(src_ancestor, dst_ancestor)| {
+            if should_preserve {
+                copy_attributes(src_ancestor, dst_ancestor)?;
+            }
+
+            Ok(())
+        })
 }
 
 pub fn copy_direct(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<()> {
-    // canonicalize() on any path that DNE will throw an error
-    let src_canonical = src.canonicalize().unwrap_or_else(|_| src.to_path_buf());
-    let dst_canonical = dst.canonicalize().unwrap_or_else(|_| dst.to_path_buf());
+    // create parent for file to land
+
+    let src_pathdata = PathData::from(src);
+    let dst_pathdata = PathData::from(dst);
 
     if src.is_dir() {
-        create_dir_with_ancestors(&src_canonical, &dst_canonical, should_preserve)?;
+        create_dir_with_ancestors(&src_pathdata, &dst_pathdata, should_preserve)?;
     } else {
-        // create parent for file to land
-        if let Some(src_parent) = src_canonical.parent() {
-            if let Some(dst_parent) = dst_canonical.parent() {
-                create_dir_with_ancestors(&src_parent, &dst_parent, should_preserve)?;
+        if let Some(src_parent) = src_pathdata.path_buf.parent() {
+            if let Some(dst_parent) = dst_pathdata.path_buf.parent() {
+                let src_parent_pathdata = src_parent.into();
+                let dst_parent_pathdata = dst_parent.into();
+                create_dir_with_ancestors(
+                    &src_parent_pathdata,
+                    &dst_parent_pathdata,
+                    should_preserve,
+                )?;
             }
         }
 
@@ -236,7 +235,7 @@ pub fn copy_direct(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<
     }
 
     if should_preserve {
-        preserve_attr_recursive(&src_canonical, &dst_canonical)?
+        copy_attributes(src, dst)?;
     }
 
     Ok(())
@@ -405,7 +404,7 @@ impl<T: AsRef<Path>> HttmIsDir<'_> for T {
         httm_is_dir(self)
     }
     fn filetype(&self) -> Result<FileType, std::io::Error> {
-        Ok(self.as_ref().symlink_metadata()?.file_type())
+        Ok(self.as_ref().metadata()?.file_type())
     }
     fn path(&self) -> &Path {
         self.as_ref()
@@ -417,7 +416,7 @@ impl<'a> HttmIsDir<'a> for PathData {
         httm_is_dir(self)
     }
     fn filetype(&self) -> Result<FileType, std::io::Error> {
-        Ok(self.path_buf.symlink_metadata()?.file_type())
+        Ok(self.path_buf.metadata()?.file_type())
     }
     fn path(&'a self) -> &'a Path {
         &self.path_buf
@@ -493,13 +492,13 @@ pub fn fs_type_from_hidden_dir(dataset_mount: &Path) -> Option<FilesystemType> {
     // set fstype, known by whether there is a ZFS hidden snapshot dir in the root dir
     if dataset_mount
         .join(ZFS_SNAPSHOT_DIRECTORY)
-        .symlink_metadata()
+        .metadata()
         .is_ok()
     {
         Some(FilesystemType::Zfs)
     } else if dataset_mount
         .join(BTRFS_SNAPPER_HIDDEN_DIRECTORY)
-        .symlink_metadata()
+        .metadata()
         .is_ok()
     {
         Some(FilesystemType::Btrfs)
@@ -588,10 +587,38 @@ pub trait ComparePathMetadata {
 impl<T: AsRef<Path>> ComparePathMetadata for T {
     fn opt_metadata(&self) -> Option<PathMetadata> {
         let pathdata = PathData::from(self.as_ref());
-        pathdata.metadata
+        pathdata.metadata.map(|md| {
+            if self.as_ref().is_dir() {
+                return PathMetadata {
+                    modify_time: md.modify_time,
+                    size: PHANTOM_SIZE,
+                };
+            }
+
+            md
+        })
     }
 
     fn path(&self) -> &Path {
         self.as_ref()
+    }
+}
+
+impl ComparePathMetadata for PathData {
+    fn opt_metadata(&self) -> Option<PathMetadata> {
+        self.metadata.map(|md| {
+            if self.path_buf.is_dir() {
+                return PathMetadata {
+                    modify_time: md.modify_time,
+                    size: PHANTOM_SIZE,
+                };
+            }
+
+            md
+        })
+    }
+
+    fn path(&self) -> &Path {
+        &self.path_buf
     }
 }
