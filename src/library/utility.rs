@@ -136,7 +136,7 @@ pub fn make_tmp_path(path: &Path) -> PathBuf {
 }
 
 pub fn copy_attributes(src: &Path, dst: &Path) -> HttmResult<()> {
-    let src_metadata = src.symlink_metadata()?;
+    let src_metadata = src.metadata()?;
 
     // Mode
     {
