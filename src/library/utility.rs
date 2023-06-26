@@ -34,7 +34,7 @@ use once_cell::sync::Lazy;
 use time::{format_description, OffsetDateTime, UtcOffset};
 use which::which;
 
-use crate::data::paths::{BasicDirEntryInfo, PathData, PHANTOM_SIZE};
+use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::data::selection::SelectionCandidate;
 use crate::library::diff_copy::diff_copy;
 use crate::library::results::{HttmError, HttmResult};
