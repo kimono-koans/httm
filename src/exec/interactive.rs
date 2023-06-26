@@ -31,20 +31,17 @@ use crate::exec::recursive::RecursiveSearch;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::snap_guard::SnapGuard;
 use crate::library::utility::{
-    copy_recursive, date_string, delimiter, print_output_buf, shutdown_background_thread,
-    user_has_effective_root, user_has_zfs_allow_snap_priv, DateFormat, Never,
+    copy_recursive, date_string, delimiter, print_output_buf, user_has_effective_root,
+    user_has_zfs_allow_snap_priv, DateFormat, Never,
 };
 use crate::lookup::versions::VersionsMap;
 use crate::GLOBAL_CONFIG;
 
-pub struct InteractiveBrowse {
-    pub selected_pathdata: Vec<PathData>,
-    pub opt_background_handle: Option<JoinHandle<()>>,
-}
+pub struct InteractiveBrowse;
 
 impl InteractiveBrowse {
     pub fn exec(interactive_mode: &InteractiveMode) -> HttmResult<Vec<PathData>> {
-        let browse_result = Self::new()?;
+        let browse_result = InteractiveBrowseResult::new()?;
 
         // do we return back to our main exec function to print,
         // or continue down the interactive rabbit hole?
@@ -57,8 +54,16 @@ impl InteractiveBrowse {
             InteractiveMode::Browse => Ok(browse_result.selected_pathdata),
         }
     }
+}
 
-    fn new() -> HttmResult<Self> {
+#[derive(Debug)]
+pub struct InteractiveBrowseResult {
+    pub selected_pathdata: Vec<PathData>,
+    pub opt_background_handle: Option<JoinHandle<()>>,
+}
+
+impl InteractiveBrowseResult {
+    pub fn new() -> HttmResult<Self> {
         let browse_result = match &GLOBAL_CONFIG.opt_requested_dir {
             // collect string paths from what we get from lookup_view
             Some(requested_dir) => {
@@ -92,6 +97,12 @@ impl InteractiveBrowse {
                     ),
                 }
             }
+        };
+
+        #[cfg(target_os = "linux")]
+        #[cfg(target_env = "gnu")]
+        unsafe {
+            let _ = libc::malloc_trim(0);
         };
 
         Ok(browse_result)
@@ -154,8 +165,14 @@ impl InteractiveBrowse {
             Ok(res)
         });
 
-        match shutdown_background_thread(display_handle) {
+        match display_handle.join() {
             Ok(selected_pathdata) => {
+                #[cfg(target_os = "linux")]
+                #[cfg(target_env = "gnu")]
+                unsafe {
+                    let _ = libc::malloc_trim(0);
+                };
+
                 let res = Self {
                     selected_pathdata: selected_pathdata?,
                     opt_background_handle: Some(background_handle),
@@ -171,7 +188,7 @@ struct InteractiveSelect;
 
 impl InteractiveSelect {
     fn exec(
-        mut browse_result: InteractiveBrowse,
+        browse_result: InteractiveBrowseResult,
         interactive_mode: &InteractiveMode,
     ) -> HttmResult<()> {
         let versions_map = VersionsMap::new(&GLOBAL_CONFIG, &browse_result.selected_pathdata)?;
@@ -210,12 +227,11 @@ impl InteractiveSelect {
             // loop until user selects a valid snapshot version
             loop {
                 // get the file name
-                let requested_file_name = SelectionView::new(
-                    ViewMode::Select(opt_live_version.clone()),
+                let requested_file_name = select_restore_view(
                     &selection_buffer,
+                    &ViewMode::Select(opt_live_version.clone()),
                     false,
-                )
-                .view()?;
+                )?;
                 // ... we want everything between the quotes
                 let broken_string: Vec<_> = requested_file_name[0].split_terminator('"').collect();
                 // ... and the file is the 2nd item or the indexed "1" object
@@ -231,8 +247,8 @@ impl InteractiveSelect {
             }
         };
 
-        if let Some(handle) = browse_result.opt_background_handle.take() {
-            shutdown_background_thread(handle)?;
+        if let Some(handle) = browse_result.opt_background_handle {
+            let _ = handle.join();
         }
 
         // continue to interactive_restore or print and exit here?
@@ -334,8 +350,7 @@ impl InteractiveRestore {
 
         // loop until user consents or doesn't
         loop {
-            let user_consent = SelectionView::new(ViewMode::Restore, &preview_buffer, false)
-                .view()?[0]
+            let user_consent = select_restore_view(&preview_buffer, &ViewMode::Restore, false)?[0]
                 .to_ascii_uppercase();
 
             match user_consent.as_ref() {
@@ -505,69 +520,52 @@ impl ViewMode {
     }
 }
 
-pub struct SelectionView<'a> {
-    view_mode: ViewMode,
-    selection_buffer: &'a str,
+pub fn select_restore_view(
+    preview_buffer: &str,
+    view_mode: &ViewMode,
     multi: bool,
-}
+) -> HttmResult<Vec<String>> {
+    let preview_selection = PreviewSelection::new(view_mode)?;
 
-impl<'a> SelectionView<'a> {
-    pub fn new(view_mode: ViewMode, selection_buffer: &'a str, multi: bool) -> Self {
-        Self {
-            view_mode,
-            selection_buffer,
-            multi,
+    let header = view_mode.print_header();
+
+    // build our browse view - less to do than before - no previews, looking through one 'lil buffer
+    let skim_opts = SkimOptionsBuilder::default()
+        .preview_window(preview_selection.opt_preview_window.as_deref())
+        .preview(preview_selection.opt_preview_command.as_deref())
+        .disabled(true)
+        .tac(true)
+        .nosort(true)
+        .tabstop(Some("4"))
+        .exact(true)
+        .multi(multi)
+        .regex(false)
+        .tiebreak(Some("length,index".to_string()))
+        .header(Some(&header))
+        .build()
+        .expect("Could not initialized skim options for select_restore_view");
+
+    let item_reader_opts = SkimItemReaderOption::default().ansi(true);
+    let item_reader = SkimItemReader::new(item_reader_opts);
+
+    let (items, _opt_handle) =
+        item_reader.of_bufread(Box::new(Cursor::new(preview_buffer.trim().to_owned())));
+
+    // run_with() reads and shows items from the thread stream created above
+    let res = match skim::Skim::run_with(&skim_opts, Some(items)) {
+        Some(output) if output.is_abort => {
+            eprintln!("httm select/restore/purge session was aborted.  Quitting.");
+            std::process::exit(0);
         }
-    }
-
-    pub fn view(&self) -> HttmResult<Vec<String>> {
-        if matches!(self.view_mode, ViewMode::Browse) {
-            return Err(HttmError::new("View method invalid in Browse mode").into());
+        Some(output) => output
+            .selected_items
+            .iter()
+            .map(|i| i.output().into_owned())
+            .collect(),
+        None => {
+            return Err(HttmError::new("httm select/restore/purge session failed.").into());
         }
+    };
 
-        let preview_selection = PreviewSelection::new(&self.view_mode)?;
-
-        let header = self.view_mode.print_header();
-
-        // build our browse view - less to do than before - no previews, looking through one 'lil buffer
-        let skim_opts = SkimOptionsBuilder::default()
-            .preview_window(preview_selection.opt_preview_window.as_deref())
-            .preview(preview_selection.opt_preview_command.as_deref())
-            .disabled(true)
-            .tac(true)
-            .nosort(true)
-            .tabstop(Some("4"))
-            .exact(true)
-            .multi(self.multi)
-            .regex(false)
-            .tiebreak(Some("length,index".to_string()))
-            .header(Some(&header))
-            .build()
-            .expect("Could not initialized skim options for select_restore_view");
-
-        let item_reader_opts = SkimItemReaderOption::default().ansi(true);
-        let item_reader = SkimItemReader::new(item_reader_opts);
-
-        let (items, _opt_handle) = item_reader.of_bufread(Box::new(Cursor::new(
-            self.selection_buffer.trim().to_owned(),
-        )));
-
-        // run_with() reads and shows items from the thread stream created above
-        let res = match skim::Skim::run_with(&skim_opts, Some(items)) {
-            Some(output) if output.is_abort => {
-                eprintln!("httm select/restore/purge session was aborted.  Quitting.");
-                std::process::exit(0);
-            }
-            Some(output) => output
-                .selected_items
-                .iter()
-                .map(|i| i.output().into_owned())
-                .collect(),
-            None => {
-                return Err(HttmError::new("httm select/restore/purge session failed.").into());
-            }
-        };
-
-        Ok(res)
-    }
+    Ok(res)
 }

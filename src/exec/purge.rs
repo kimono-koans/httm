@@ -18,8 +18,7 @@
 use std::process::Command as ExecProcess;
 
 use crate::config::generate::ListSnapsFilters;
-use crate::exec::interactive::SelectionView;
-use crate::exec::interactive::ViewMode;
+use crate::exec::interactive::{select_restore_view, ViewMode};
 use crate::library::results::{HttmError, HttmResult};
 use crate::lookup::snap_names::SnapNameMap;
 use crate::lookup::versions::VersionsMap;
@@ -54,7 +53,7 @@ impl PurgeSnaps {
                 .flatten()
                 .map(|value| format!("{value}\n"))
                 .collect();
-            SelectionView::new(ViewMode::Select(None), &buffer, false).view()?
+            select_restore_view(&buffer, &ViewMode::Select(None), true)?
         } else {
             snap_name_map.values().flatten().cloned().collect()
         };
@@ -76,8 +75,7 @@ impl PurgeSnaps {
 
         // loop until user consents or doesn't
         loop {
-            let user_consent = SelectionView::new(ViewMode::Purge, &preview_buffer, false)
-                .view()?[0]
+            let user_consent = select_restore_view(&preview_buffer, &ViewMode::Purge, false)?[0]
                 .to_ascii_uppercase();
 
             match user_consent.as_ref() {
