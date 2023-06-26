@@ -592,16 +592,7 @@ pub trait ComparePathMetadata {
 impl<T: AsRef<Path>> ComparePathMetadata for T {
     fn opt_metadata(&self) -> Option<PathMetadata> {
         let pathdata = PathData::from(self.as_ref());
-        pathdata.metadata.map(|md| {
-            if self.as_ref().is_dir() {
-                return PathMetadata {
-                    modify_time: md.modify_time,
-                    size: PHANTOM_SIZE,
-                };
-            }
-
-            md
-        })
+        pathdata.metadata
     }
 
     fn path(&self) -> &Path {
