@@ -194,13 +194,13 @@ fn create_dir_with_ancestors(
     }
 
     if should_preserve {
-        preserve_attr_rec(src_pathdata, dst_pathdata)?
+        preserve_attr_recursive(src_pathdata, dst_pathdata)?
     }
 
     Ok(())
 }
 
-fn preserve_attr_rec(src_pathdata: &PathData, dst_pathdata: &PathData) -> HttmResult<()> {
+fn preserve_attr_recursive(src_pathdata: &PathData, dst_pathdata: &PathData) -> HttmResult<()> {
     let proximate_dataset_mount =
         dst_pathdata.proximate_dataset(&GLOBAL_CONFIG.dataset_collection.map_of_datasets)?;
 
@@ -250,7 +250,7 @@ pub fn copy_direct(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<
     }
 
     if should_preserve {
-        preserve_attr_rec(&src_pathdata, &dst_pathdata)?
+        preserve_attr_recursive(&src_pathdata, &dst_pathdata)?
     }
 
     Ok(())
