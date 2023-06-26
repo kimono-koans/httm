@@ -215,13 +215,14 @@ fn preserve_attr_recursive(src: &Path, dst: &Path) -> HttmResult<()> {
 }
 
 pub fn copy_direct(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<()> {
-    // create parent for file to land
-    let src_canonical = src.canonicalize()?;
-    let dst_canonical = dst.canonicalize()?;
+    // canonicalize() on any path that DNE will throw an error
+    let src_canonical = src.canonicalize().unwrap_or_else(|_| src.to_path_buf());
+    let dst_canonical = dst.canonicalize().unwrap_or_else(|_| dst.to_path_buf());
 
     if src.is_dir() {
         create_dir_with_ancestors(&src_canonical, &dst_canonical, should_preserve)?;
     } else {
+        // create parent for file to land
         if let Some(src_parent) = src_canonical.parent() {
             if let Some(dst_parent) = dst_canonical.parent() {
                 create_dir_with_ancestors(&src_parent, &dst_parent, should_preserve)?;
