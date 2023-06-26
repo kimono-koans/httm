@@ -206,7 +206,7 @@ fn preserve_attr_recursive(src: &Path, dst: &Path) -> HttmResult<()> {
 
     dst.ancestors()
         .zip(src_relative.ancestors())
-        .try_for_each(|(src_ancestor, dst_ancestor)| copy_attributes(src_ancestor, dst_ancestor))
+        .try_for_each(|(dst_ancestor, src_ancestor)| copy_attributes(src_ancestor, dst_ancestor))
 }
 
 pub fn copy_direct(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<()> {
