@@ -194,17 +194,13 @@ fn create_dir_with_ancestors(
     }
 
     if should_preserve {
-        preserve_attr_rec(src_pathdata, dst_pathdata, should_preserve)?
+        preserve_attr_rec(src_pathdata, dst_pathdata)?
     }
 
     Ok(())
 }
 
-fn preserve_attr_rec(
-    src_pathdata: &PathData,
-    dst_pathdata: &PathData,
-    should_preserve: bool,
-) -> HttmResult<()> {
+fn preserve_attr_rec(src_pathdata: &PathData, dst_pathdata: &PathData) -> HttmResult<()> {
     let proximate_dataset_mount =
         dst_pathdata.proximate_dataset(&GLOBAL_CONFIG.dataset_collection.map_of_datasets)?;
 
@@ -219,13 +215,7 @@ fn preserve_attr_rec(
         .ancestors()
         .zip(dst_pathdata.path_buf.ancestors())
         .take(relative_path_components_len)
-        .try_for_each(|(src_ancestor, dst_ancestor)| {
-            if should_preserve {
-                copy_attributes(src_ancestor, dst_ancestor)?;
-            }
-
-            Ok(())
-        })
+        .try_for_each(|(src_ancestor, dst_ancestor)| copy_attributes(src_ancestor, dst_ancestor))
 }
 
 pub fn copy_direct(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<()> {
@@ -260,7 +250,7 @@ pub fn copy_direct(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<
     }
 
     if should_preserve {
-        preserve_attr_rec(&src_pathdata, &dst_pathdata, should_preserve)?
+        preserve_attr_rec(&src_pathdata, &dst_pathdata)?
     }
 
     Ok(())
