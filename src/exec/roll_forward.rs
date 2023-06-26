@@ -462,7 +462,6 @@ impl RollForward {
             return Err(HttmError::new(&msg).into());
         }
 
-        is_metadata_same(src, dst)?;
         eprintln!("{}: {:?} -> {:?}", Blue.paint("Restored "), src, dst);
         Ok(())
     }
@@ -766,7 +765,6 @@ impl<'a> PreserveHardLinks<'a> {
         }
 
         copy_attributes(original, link)?;
-        is_metadata_same(original, link)?;
         eprintln!("{}: {:?} -> {:?}", Yellow.paint("Linked  "), original, link);
 
         Ok(())
