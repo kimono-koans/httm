@@ -592,10 +592,13 @@ impl<'a> PreserveHardLinks<'a> {
                     })
                     .collect::<HttmResult<Vec<(PathBuf, &PathBuf)>>>()?;
 
-                let mut opt_original = complemented_paths
-                    .iter()
-                    .map(|(live, _snap)| live)
-                    .find(|path| path.exists());
+                let mut opt_original = complemented_paths.iter().find_map(|(live, _snap)| {
+                    if live.exists() {
+                        Some(live)
+                    } else {
+                        None
+                    }
+                });
 
                 complemented_paths
                     .iter()
