@@ -673,7 +673,7 @@ impl<'a> PreserveHardLinks<'a> {
                             Some(original) if original == live_path => {
                                 RollForward::copy(snap_path, live_path)
                             }
-                            Some(original) => Self::hard_link(original, live_path),
+                            Some(original) => self.hard_link(original, live_path),
                             None => {
                                 opt_original = Some(live_path);
                                 RollForward::copy(snap_path, live_path)
@@ -745,7 +745,7 @@ impl<'a> PreserveHardLinks<'a> {
             })
     }
 
-    fn hard_link(original: &Path, link: &Path) -> HttmResult<()> {
+    fn hard_link(&self, original: &Path, link: &Path) -> HttmResult<()> {
         if !original.exists() {
             let msg = format!(
                 "Cannot link because original path does not exists: {:?}",
@@ -776,7 +776,11 @@ impl<'a> PreserveHardLinks<'a> {
             }
         }
 
-        preserve_recursive(&original, &link)?;
+        if let Some(snap_path) = self.roll_forward.snap_path(link) {
+            preserve_recursive(&snap_path, &link)?;
+        } else {
+            return Err(HttmError::new("Could not obtain snap path").into());
+        }
 
         eprintln!("{}: {:?} -> {:?}", Yellow.paint("Linked  "), original, link);
 
