@@ -190,13 +190,14 @@ fn preserve_recursive(src: &Path, dst: &Path) -> HttmResult<()> {
 }
 
 pub fn copy_direct(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<()> {
-    // create parent for file to land
-
     if src.is_dir() {
         create_dir_all(&dst)?;
     } else {
         if let Some(dst_parent) = dst.parent() {
             create_dir_all(&dst_parent)?;
+        } else {
+            let msg = format!("Could not detect a parent for destination file: {:?}", dst);
+            return Err(HttmError::new(&msg).into());
         }
 
         if src.is_symlink() {
