@@ -165,7 +165,7 @@ pub fn copy_attributes(src: &Path, dst: &Path) -> HttmResult<()> {
         let atime = FileTime::from_last_access_time(&src_metadata);
 
         // does not follow symlinks
-        filetime::set_file_times(dst, atime, mtime)?
+        filetime::set_symlink_file_times(dst, atime, mtime)?
     }
 
     Ok(())
