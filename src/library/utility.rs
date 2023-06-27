@@ -193,12 +193,7 @@ pub fn copy_direct(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<
     if src.is_dir() {
         create_dir_all(&dst)?;
     } else {
-        if let Some(dst_parent) = dst.parent() {
-            create_dir_all(&dst_parent)?;
-        } else {
-            let msg = format!("Could not detect a parent for destination file: {:?}", dst);
-            return Err(HttmError::new(&msg).into());
-        }
+        generate_dst_parent(&dst)?;
 
         if src.is_symlink() {
             let link_target = std::fs::read_link(src)?;
@@ -212,6 +207,17 @@ pub fn copy_direct(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<
 
     if should_preserve {
         preserve_recursive(&src, &dst)?;
+    }
+
+    Ok(())
+}
+
+pub fn generate_dst_parent(dst: &Path) -> HttmResult<()> {
+    if let Some(dst_parent) = dst.parent() {
+        create_dir_all(&dst_parent)?;
+    } else {
+        let msg = format!("Could not detect a parent for destination file: {:?}", dst);
+        return Err(HttmError::new(&msg).into());
     }
 
     Ok(())

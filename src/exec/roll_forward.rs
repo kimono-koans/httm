@@ -16,7 +16,7 @@
 // that was distributed with this source code.
 
 use std::cmp::Ordering;
-use std::fs::{read_dir, remove_file};
+use std::fs::read_dir;
 use std::io::{BufRead, Read};
 use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
@@ -37,6 +37,7 @@ use crate::data::paths::PathData;
 use crate::library::iter_extensions::HttmIter;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::snap_guard::{PrecautionarySnapType, SnapGuard};
+use crate::library::utility::generate_dst_parent;
 use crate::library::utility::{copy_attributes, copy_direct, remove_recursive};
 use crate::library::utility::{is_metadata_same, user_has_effective_root};
 use crate::{GLOBAL_CONFIG, ZFS_SNAPSHOT_DIRECTORY};
@@ -761,8 +762,10 @@ impl<'a> PreserveHardLinks<'a> {
                 }
             }
 
-            remove_file(link)?
+            Self::rm_hard_link(link)?
         }
+
+        generate_dst_parent(link)?;
 
         if let Err(err) = std::fs::hard_link(original, link) {
             if !link.exists() {
