@@ -165,7 +165,7 @@ pub fn copy_attributes(src: &Path, dst: &Path) -> HttmResult<()> {
         let atime = FileTime::from_last_access_time(&src_metadata);
 
         // does not follow symlinks
-        filetime::set_symlink_file_times(dst, atime, mtime)?
+        filetime::set_file_times(dst, atime, mtime)?
     }
 
     Ok(())
@@ -406,7 +406,7 @@ impl<T: AsRef<Path>> HttmIsDir<'_> for T {
         httm_is_dir(self)
     }
     fn filetype(&self) -> Result<FileType, std::io::Error> {
-        Ok(self.as_ref().metadata()?.file_type())
+        Ok(self.as_ref().symlink_metadata()?.file_type())
     }
     fn path(&self) -> &Path {
         self.as_ref()
@@ -418,7 +418,7 @@ impl<'a> HttmIsDir<'a> for PathData {
         httm_is_dir(self)
     }
     fn filetype(&self) -> Result<FileType, std::io::Error> {
-        Ok(self.path_buf.metadata()?.file_type())
+        Ok(self.path_buf.symlink_metadata()?.file_type())
     }
     fn path(&'a self) -> &'a Path {
         &self.path_buf
@@ -494,13 +494,13 @@ pub fn fs_type_from_hidden_dir(dataset_mount: &Path) -> Option<FilesystemType> {
     // set fstype, known by whether there is a ZFS hidden snapshot dir in the root dir
     if dataset_mount
         .join(ZFS_SNAPSHOT_DIRECTORY)
-        .metadata()
+        .symlink_metadata()
         .is_ok()
     {
         Some(FilesystemType::Zfs)
     } else if dataset_mount
         .join(BTRFS_SNAPPER_HIDDEN_DIRECTORY)
-        .metadata()
+        .symlink_metadata()
         .is_ok()
     {
         Some(FilesystemType::Btrfs)

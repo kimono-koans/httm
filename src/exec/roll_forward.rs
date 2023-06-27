@@ -746,8 +746,8 @@ impl<'a> PreserveHardLinks<'a> {
         }
 
         if link.exists() {
-            if let Ok(og_md) = original.metadata() {
-                if let Ok(link_md) = link.metadata() {
+            if let Ok(og_md) = original.symlink_metadata() {
+                if let Ok(link_md) = link.symlink_metadata() {
                     if og_md.ino() == link_md.ino() {
                         return Ok(());
                     }
