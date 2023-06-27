@@ -38,6 +38,7 @@ use crate::library::iter_extensions::HttmIter;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::snap_guard::{PrecautionarySnapType, SnapGuard};
 use crate::library::utility::generate_dst_parent;
+use crate::library::utility::preserve_recursive;
 use crate::library::utility::{copy_attributes, copy_direct, remove_recursive};
 use crate::library::utility::{is_metadata_same, user_has_effective_root};
 use crate::{GLOBAL_CONFIG, ZFS_SNAPSHOT_DIRECTORY};
@@ -762,7 +763,7 @@ impl<'a> PreserveHardLinks<'a> {
                 }
             }
 
-            Self::rm_hard_link(link)?
+            remove_recursive(link)?
         }
 
         generate_dst_parent(link)?;
@@ -775,14 +776,15 @@ impl<'a> PreserveHardLinks<'a> {
             }
         }
 
-        copy_attributes(original, link)?;
+        preserve_recursive(&original, &link)?;
+
         eprintln!("{}: {:?} -> {:?}", Yellow.paint("Linked  "), original, link);
 
         Ok(())
     }
 
     fn rm_hard_link(link: &Path) -> HttmResult<()> {
-        match std::fs::remove_file(link) {
+        match remove_recursive(link) {
             Ok(_) => {
                 if link.exists() {
                     let msg = format!("Target link should not exist after removal {:?}", link);

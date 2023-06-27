@@ -171,7 +171,7 @@ pub fn copy_attributes(src: &Path, dst: &Path) -> HttmResult<()> {
     Ok(())
 }
 
-fn preserve_recursive(src: &Path, dst: &Path) -> HttmResult<()> {
+pub fn preserve_recursive(src: &Path, dst: &Path) -> HttmResult<()> {
     let dst_pathdata: PathData = dst.into();
 
     let proximate_dataset_mount =
@@ -267,7 +267,7 @@ pub fn remove_recursive(src: &Path) -> HttmResult<()> {
         }
 
         if src.exists() {
-            std::fs::remove_dir(src)?
+            std::fs::remove_dir_all(src)?
         }
     } else if src.exists() {
         std::fs::remove_file(src)?
