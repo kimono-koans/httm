@@ -255,7 +255,7 @@ impl RollForward {
                     HttmError::new("Could not obtain snap file path for live version.")
                 })?;
 
-                self.diff_action(event, &snap_file_path, &exclusions)
+                self.diff_action(event, &snap_file_path)
             })?;
         eprintln!("Verifying roll forward actions:");
         self.verify()
@@ -448,12 +448,7 @@ impl RollForward {
             })
     }
 
-    fn diff_action(
-        &self,
-        event: &DiffEvent,
-        snap_file_path: &Path,
-        exclusions: &HashSet<&PathBuf>,
-    ) -> HttmResult<()> {
+    fn diff_action(&self, event: &DiffEvent, snap_file_path: &Path) -> HttmResult<()> {
         // zfs-diff can return multiple file actions for a single inode
         // since we exclude older file actions, if rename or created is the last action,
         // we should make sure it has the latest data, so a simple rename is not enough
@@ -462,10 +457,7 @@ impl RollForward {
             DiffType::Removed | DiffType::Modified => Self::copy(snap_file_path, &event.path_buf),
             DiffType::Created => Self::overwrite_or_remove(snap_file_path, &event.path_buf),
             DiffType::Renamed(new_file_name) => {
-                if !exclusions.contains(new_file_name) {
-                    Self::remove(new_file_name)?;
-                }
-                Self::copy(snap_file_path, &event.path_buf)
+                Self::overwrite_or_remove(snap_file_path, new_file_name)
             }
         }
     }
