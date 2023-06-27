@@ -292,7 +292,14 @@ impl RollForward {
                     .live_path(&entry.path)
                     .ok_or_else(|| HttmError::new("Could not generate live path"))?;
 
-                is_metadata_same(entry.path, live_path)
+                // sometimes modify time is not properly copied or gets rewritten
+                // by th OS while we are making all these changes, here we retry
+                if is_metadata_same(&entry.path, &live_path).is_err() {
+                    copy_attributes(&entry.path, &live_path)?;
+                    return is_metadata_same(entry.path, live_path);
+                }
+
+                Ok(())
             })?;
         }
 
