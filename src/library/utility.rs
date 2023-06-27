@@ -171,23 +171,9 @@ pub fn copy_attributes(src: &Path, dst: &Path) -> HttmResult<()> {
     Ok(())
 }
 
-fn create_dir_with_ancestors(
-    src_pathdata: &PathData,
-    dst_pathdata: &PathData,
-    should_preserve: bool,
-) -> HttmResult<()> {
-    if !dst_pathdata.path_buf.exists() {
-        create_dir_all(&dst_pathdata.path_buf)?;
-    }
+fn preserve_recursive(src: &Path, dst: &Path) -> HttmResult<()> {
+    let dst_pathdata: PathData = dst.into();
 
-    if should_preserve {
-        preserve_recursive(src_pathdata, dst_pathdata)?;
-    }
-
-    Ok(())
-}
-
-fn preserve_recursive(src_pathdata: &PathData, dst_pathdata: &PathData) -> HttmResult<()> {
     let proximate_dataset_mount =
         dst_pathdata.proximate_dataset(&GLOBAL_CONFIG.dataset_collection.map_of_datasets)?;
 
@@ -197,10 +183,8 @@ fn preserve_recursive(src_pathdata: &PathData, dst_pathdata: &PathData) -> HttmR
         .components()
         .count();
 
-    src_pathdata
-        .path_buf
-        .ancestors()
-        .zip(dst_pathdata.path_buf.ancestors())
+    src.ancestors()
+        .zip(dst.ancestors())
         .take(relative_path_components_len)
         .try_for_each(|(src_ancestor, dst_ancestor)| copy_attributes(src_ancestor, dst_ancestor))
 }
@@ -208,22 +192,11 @@ fn preserve_recursive(src_pathdata: &PathData, dst_pathdata: &PathData) -> HttmR
 pub fn copy_direct(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<()> {
     // create parent for file to land
 
-    let src_pathdata = PathData::from(src);
-    let dst_pathdata = PathData::from(dst);
-
     if src.is_dir() {
-        create_dir_with_ancestors(&src_pathdata, &dst_pathdata, should_preserve)?;
+        create_dir_all(&dst)?;
     } else {
-        if let Some(src_parent) = src_pathdata.path_buf.parent() {
-            if let Some(dst_parent) = dst_pathdata.path_buf.parent() {
-                let src_parent_pathdata = src_parent.into();
-                let dst_parent_pathdata = dst_parent.into();
-                create_dir_with_ancestors(
-                    &src_parent_pathdata,
-                    &dst_parent_pathdata,
-                    should_preserve,
-                )?;
-            }
+        if let Some(dst_parent) = dst.parent() {
+            create_dir_all(&dst_parent)?;
         }
 
         if src.is_symlink() {
@@ -237,7 +210,7 @@ pub fn copy_direct(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<
     }
 
     if should_preserve {
-        preserve_recursive(&src_pathdata, &dst_pathdata)?;
+        preserve_recursive(&src, &dst)?;
     }
 
     Ok(())
