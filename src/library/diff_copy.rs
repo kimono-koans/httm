@@ -17,9 +17,10 @@
 
 use std::fs::File;
 use std::fs::OpenOptions;
+use std::io::BufRead;
 use std::io::BufReader;
 use std::io::BufWriter;
-use std::io::Read;
+use std::io::ErrorKind;
 use std::io::Seek;
 use std::io::SeekFrom;
 use std::io::Write;
@@ -54,47 +55,59 @@ pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
     } else {
         None
     };
+
     let mut dst_writer = BufWriter::with_capacity(CHUNK_SIZE, &dst_file);
 
     // cur pos - byte offset in file,
     let mut cur_pos = 0u64;
-    // buffers are the reusable buffers for reads to, writes from src and dst
-    let mut src_buffer = [0; CHUNK_SIZE];
-    let mut dst_buffer = [0; CHUNK_SIZE];
 
-    while cur_pos < src_len {
-        // read (size of buffer amt) from src, and dst if it exists
-        let src_amt_read = src_reader.read(&mut src_buffer)?;
+    loop {
+        let src_amt_read = match src_reader.fill_buf() {
+            Ok(src_read) => {
+                // read (size of buffer amt) from src, and dst if it exists
+                let src_amt_read = src_read.len();
 
-        // if nothing left to read from file, break
-        if src_amt_read == 0 {
-            continue;
-        }
+                // if nothing left to read from file, break
+                if src_amt_read == 0 {
+                    break;
+                }
 
-        // read same amt from dst file, if it exists, to compare
-        if let Some(ref mut dst_reader) = opt_dst_exists {
-            let _ = dst_reader.read(&mut dst_buffer);
-        }
+                // read same amt from dst file, if it exists, to compare
+                let opt_dst_read = opt_dst_exists
+                    .as_mut()
+                    .and_then(|dst_reader| dst_reader.fill_buf().ok());
 
-        // write if dst doesn't exist or src, or if src and dst buffers do not match
-        if opt_dst_exists.is_none() || !is_same_bytes(&src_buffer, &dst_buffer) {
-            // seek to current byte offset in dst writer
-            let seek_pos = dst_writer.seek(SeekFrom::Start(cur_pos))?;
+                // write if dst doesn't exist or src, or if src and dst buffers do not match
+                if opt_dst_read.is_none() || !is_same_bytes(&src_read, &opt_dst_read.unwrap()) {
+                    // seek to current byte offset in dst writer
+                    let seek_pos = dst_writer.seek(SeekFrom::Start(cur_pos))?;
 
-            assert!(seek_pos == cur_pos);
+                    assert!(seek_pos == cur_pos);
 
-            // write only amt read - imagine we read less than the amt of the buffer
-            // don't write past the end of the file with junk data at the end of the buffer
-            let range: &[u8] = &src_buffer[0..src_amt_read];
-            let amt_written = dst_writer.write(range)?;
+                    // write only amt read - imagine we read less than the amt of the buffer
+                    // don't write past the end of the file with junk data at the end of the buffer
+                    let amt_written = dst_writer.write(src_read)?;
 
-            assert!(amt_written == src_amt_read);
+                    assert!(amt_written == src_amt_read);
 
-            // set current byte offset to either amt written or read if no write occurred
-            cur_pos += amt_written as u64;
-        } else {
-            cur_pos += src_amt_read as u64;
-        }
+                    // set current byte offset to either amt written or read if no write occurred
+                    cur_pos += amt_written as u64;
+                } else {
+                    cur_pos += src_amt_read as u64;
+                }
+
+                src_amt_read
+            }
+            Err(err) => match err.kind() {
+                ErrorKind::Interrupted => continue,
+                ErrorKind::UnexpectedEof => {
+                    return Ok(());
+                }
+                _ => return Err(err.into()),
+            },
+        };
+
+        src_reader.consume(src_amt_read);
     }
 
     // re docs, both a flush and a sync seem to be required re consistency
@@ -105,14 +118,14 @@ pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
 }
 
 #[inline]
-fn is_same_bytes(a_bytes: &[u8; CHUNK_SIZE], b_bytes: &[u8; CHUNK_SIZE]) -> bool {
+fn is_same_bytes(a_bytes: &[u8], b_bytes: &[u8]) -> bool {
     let (a_hash, b_hash): (u32, u32) = rayon::join(|| hash(a_bytes), || hash(b_bytes));
 
     a_hash == b_hash
 }
 
 #[inline]
-fn hash(bytes: &[u8; CHUNK_SIZE]) -> u32 {
+fn hash(bytes: &[u8]) -> u32 {
     let mut hash = Adler32::default();
 
     hash.write(bytes);
