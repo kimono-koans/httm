@@ -255,7 +255,7 @@ impl RollForward {
                     HttmError::new("Could not obtain snap file path for live version.")
                 })?;
 
-                if matches!(&event.diff_type, DiffType::Renamed(new_file) if !exclusions.contains(&new_file))
+                if !matches!(&event.diff_type, DiffType::Renamed(new_file) if !exclusions.contains(&new_file))
                 {
                     return self.diff_action(event, &snap_file_path);
                 }
@@ -465,7 +465,17 @@ impl RollForward {
             DiffType::Removed | DiffType::Modified => Self::copy(snap_file_path, &event.path_buf),
             DiffType::Created => Self::overwrite_or_remove(snap_file_path, &event.path_buf),
             DiffType::Renamed(new_file_name) => {
-                Self::overwrite_or_remove(snap_file_path, new_file_name)
+                let snap_new_file_name = self.snap_path(&new_file_name).ok_or_else(|| {
+                    HttmError::new("Could not obtain snap file path for live version.")
+                })?;
+
+                Self::overwrite_or_remove(&snap_new_file_name, new_file_name)?;
+
+                if snap_file_path.exists() {
+                    Self::copy(&snap_file_path, &event.path_buf)?
+                }
+
+                Ok(())
             }
         }
     }
