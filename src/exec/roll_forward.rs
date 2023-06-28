@@ -387,19 +387,17 @@ impl RollForward {
             .first()
             .ok_or_else(|| HttmError::new("Could not obtain a timestamp for diff event."))?;
 
-        let diff_type = split_line
-            .get(1)
-            .ok_or_else(|| HttmError::new("Could not obtain a diff type for diff event."))?;
+        let diff_type = split_line.get(1);
 
         let path = split_line
             .get(2)
             .ok_or_else(|| HttmError::new("Could not obtain a path for diff event."))?;
 
         match diff_type {
-            event if event == &"-" => DiffEvent::new(path, DiffType::Removed, time_str),
-            event if event == &"+" => DiffEvent::new(path, DiffType::Created, time_str),
-            event if event == &"M" => DiffEvent::new(path, DiffType::Modified, time_str),
-            event if event == &"R" => {
+            Some(&"-") => DiffEvent::new(path, DiffType::Removed, time_str),
+            Some(&"+") => DiffEvent::new(path, DiffType::Created, time_str),
+            Some(&"M") => DiffEvent::new(path, DiffType::Modified, time_str),
+            Some(&"R") => {
                 let new_file_name = split_line.get(3).ok_or_else(|| {
                     HttmError::new("Could not obtain a new file name for diff event.")
                 })?;
