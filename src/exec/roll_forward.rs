@@ -255,7 +255,7 @@ impl RollForward {
                     HttmError::new("Could not obtain snap file path for live version.")
                 })?;
 
-                if !matches!(&event.diff_type, DiffType::Renamed(new_file) if !exclusions.contains(&new_file))
+                if !matches!(&event.diff_type, DiffType::Renamed(new_file) if exclusions.contains(&new_file))
                 {
                     return self.diff_action(event, &snap_file_path);
                 }
