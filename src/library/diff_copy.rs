@@ -86,15 +86,10 @@ pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
 
                     // write only amt read - imagine we read less than the amt of the buffer
                     // don't write past the end of the file with junk data at the end of the buffer
-                    let amt_written = dst_writer.write(src_read)?;
-
-                    assert!(amt_written == src_amt_read);
-
-                    // set current byte offset to either amt written or read if no write occurred
-                    cur_pos += amt_written as u64;
-                } else {
-                    cur_pos += src_amt_read as u64;
+                    dst_writer.write_all(src_read)?;
                 }
+
+                cur_pos += src_amt_read as u64;
 
                 src_amt_read
             }
