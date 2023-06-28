@@ -78,8 +78,6 @@ pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
             if dst_amt_read == 0 {
                 continue;
             }
-
-            assert!(src_buffer == dst_buffer);
         }
 
         // write if dst doesn't exist or src, or if src and dst buffers do not match
