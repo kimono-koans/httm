@@ -46,24 +46,24 @@ pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
     dst_file.set_len(src_len)?;
 
     // create destination file writer and maybe reader
-    // only include dest file reader if the dest file exists
+    // only include dst file reader if the dst file exists
     // otherwise we just write to that location
-    let mut opt_just_write = if dst.exists() {
-        None
-    } else {
+    let mut opt_dst_exists = if dst.exists() {
         let dst_reader = BufReader::with_capacity(CHUNK_SIZE, &dst_file);
         Some(dst_reader)
+    } else {
+        None
     };
     let mut dst_writer = BufWriter::with_capacity(CHUNK_SIZE, &dst_file);
 
     // cur pos - byte offset in file,
     let mut cur_pos = 0u64;
-    // buffers are the reusable buffers for reads to, writes from src and dest
+    // buffers are the reusable buffers for reads to, writes from src and dst
     let mut src_buffer = [0; CHUNK_SIZE];
-    let mut dest_buffer = [0; CHUNK_SIZE];
+    let mut dst_buffer = [0; CHUNK_SIZE];
 
     while cur_pos < src_len {
-        // read (size of buffer amt) from src, and dest if it exists
+        // read (size of buffer amt) from src, and dst if it exists
         let src_amt_read = src_reader.read(&mut src_buffer)?;
 
         // if nothing left to read from file, break
@@ -71,14 +71,20 @@ pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
             continue;
         }
 
-        // read same amt from dest file, if it exists, to compare
-        if let Some(ref mut dst_reader) = opt_just_write {
-            let _ = dst_reader.read(&mut dest_buffer)?;
+        // read same amt from dst file, if it exists, to compare
+        if let Some(ref mut dst_reader) = opt_dst_exists {
+            let dst_amt_read = dst_reader.read(&mut dst_buffer)?;
+
+            if dst_amt_read == 0 {
+                continue;
+            }
+
+            assert!(src_buffer == dst_buffer);
         }
 
-        // write if dest doesn't exist or src, or if src and dest buffers do not match
-        if opt_just_write.is_some() || !is_same_bytes(&src_buffer, &dest_buffer) {
-            // seek to current byte offset in dest writer
+        // write if dst doesn't exist or src, or if src and dst buffers do not match
+        if opt_dst_exists.is_none() || !is_same_bytes(&src_buffer, &dst_buffer) {
+            // seek to current byte offset in dst writer
             let seek_pos = dst_writer.seek(SeekFrom::Start(cur_pos))?;
 
             assert!(seek_pos == cur_pos);
