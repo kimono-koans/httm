@@ -49,20 +49,14 @@ pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
     // create destination file writer and maybe reader
     // only include dst file reader if the dst file exists
     // otherwise we just write to that location
-    let mut opt_dst_exists = if dst.exists() {
-        let dst_reader = BufReader::with_capacity(CHUNK_SIZE, &dst_file);
-        Some(dst_reader)
-    } else {
-        None
-    };
-
+    let mut dst_reader = BufReader::with_capacity(CHUNK_SIZE, &dst_file);
     let mut dst_writer = BufWriter::with_capacity(CHUNK_SIZE, &dst_file);
 
     // cur pos - byte offset in file,
     let mut cur_pos = 0u64;
 
     loop {
-        let src_amt_read = match src_reader.fill_buf() {
+        let (src_amt_read, dst_amt_read) = match src_reader.fill_buf() {
             Ok(src_read) => {
                 // read (size of buffer amt) from src, and dst if it exists
                 let src_amt_read = src_read.len();
@@ -73,25 +67,36 @@ pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
                 }
 
                 // read same amt from dst file, if it exists, to compare
-                let opt_dst_read = opt_dst_exists
-                    .as_mut()
-                    .and_then(|dst_reader| dst_reader.fill_buf().ok());
+                let dst_amt_read = match dst_reader.fill_buf() {
+                    Ok(dst_read) => {
+                        let dst_amt_read = dst_read.len();
 
-                // write if dst doesn't exist or src, or if src and dst buffers do not match
-                if opt_dst_read.is_none() || !is_same_bytes(&src_read, &opt_dst_read.unwrap()) {
-                    // seek to current byte offset in dst writer
-                    let seek_pos = dst_writer.seek(SeekFrom::Start(cur_pos))?;
+                        // write if dst doesn't exist or src, or if src and dst buffers do not match
+                        if !is_same_bytes(&src_read, &dst_read) {
+                            // seek to current byte offset in dst writer
+                            let seek_pos = dst_writer.seek(SeekFrom::Start(cur_pos))?;
 
-                    assert!(seek_pos == cur_pos);
+                            assert!(seek_pos == cur_pos);
 
-                    // write only amt read - imagine we read less than the amt of the buffer
-                    // don't write past the end of the file with junk data at the end of the buffer
-                    dst_writer.write_all(src_read)?;
-                }
+                            // write only amt read - imagine we read less than the amt of the buffer
+                            // don't write past the end of the file with junk data at the end of the buffer
+                            dst_writer.write_all(src_read)?;
 
-                cur_pos += src_amt_read as u64;
+                            cur_pos += src_amt_read as u64;
+                        }
 
-                src_amt_read
+                        dst_amt_read
+                    }
+                    Err(err) => match err.kind() {
+                        ErrorKind::Interrupted => continue,
+                        ErrorKind::UnexpectedEof => {
+                            return Ok(());
+                        }
+                        _ => return Err(err.into()),
+                    },
+                };
+
+                (src_amt_read, dst_amt_read)
             }
             Err(err) => match err.kind() {
                 ErrorKind::Interrupted => continue,
@@ -103,6 +108,7 @@ pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
         };
 
         src_reader.consume(src_amt_read);
+        dst_reader.consume(dst_amt_read);
     }
 
     // re docs, both a flush and a sync seem to be required re consistency
