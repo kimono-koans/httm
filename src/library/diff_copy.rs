@@ -62,13 +62,13 @@ pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
     let mut src_buffer = [0; CHUNK_SIZE];
     let mut dest_buffer = [0; CHUNK_SIZE];
 
-    loop {
+    while cur_pos < src_len {
         // read (size of buffer amt) from src, and dest if it exists
         let src_amt_read = src_reader.read(&mut src_buffer)?;
 
         // if nothing left to read from file, break
         if src_amt_read == 0 {
-            break;
+            continue;
         }
 
         // read same amt from dest file, if it exists, to compare
