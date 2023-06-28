@@ -81,9 +81,9 @@ pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
                             // write only amt read - imagine we read less than the amt of the buffer
                             // don't write past the end of the file with junk data at the end of the buffer
                             dst_writer.write_all(src_read)?;
-
-                            cur_pos += src_amt_read as u64;
                         }
+
+                        cur_pos += src_amt_read as u64;
 
                         dst_amt_read
                     }
