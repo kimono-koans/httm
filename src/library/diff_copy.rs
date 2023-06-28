@@ -38,6 +38,7 @@ pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
     let mut src_reader = BufReader::with_capacity(CHUNK_SIZE, &src_file);
 
     // create destination if it doesn't exist
+    let dst_existed = dst.exists();
     let dst_file = OpenOptions::new()
         .write(true)
         .read(true)
@@ -71,15 +72,12 @@ pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
                     Ok(dst_read) => {
                         let dst_amt_read = dst_read.len();
 
-                        // write if dst doesn't exist or src, or if src and dst buffers do not match
-                        if !is_same_bytes(&src_read, &dst_read) {
+                        if !dst_existed || !is_same_bytes(&src_read, &dst_read) {
                             // seek to current byte offset in dst writer
                             let seek_pos = dst_writer.seek(SeekFrom::Start(cur_pos))?;
 
                             assert!(seek_pos == cur_pos);
 
-                            // write only amt read - imagine we read less than the amt of the buffer
-                            // don't write past the end of the file with junk data at the end of the buffer
                             dst_writer.write_all(src_read)?;
                         }
 
