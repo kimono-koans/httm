@@ -73,11 +73,7 @@ pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
 
         // read same amt from dst file, if it exists, to compare
         if let Some(ref mut dst_reader) = opt_dst_exists {
-            let dst_amt_read = dst_reader.read(&mut dst_buffer)?;
-
-            if dst_amt_read == 0 {
-                continue;
-            }
+            let _ = dst_reader.read(&mut dst_buffer);
         }
 
         // write if dst doesn't exist or src, or if src and dst buffers do not match
