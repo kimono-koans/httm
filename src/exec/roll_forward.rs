@@ -303,7 +303,12 @@ impl RollForward {
                 // sometimes modify time is not properly copied or gets rewritten
                 // by th OS while we are making all these changes, here we retry
                 if is_metadata_same(&entry.path, &live_path).is_err() {
-                    copy_attributes(&entry.path, &live_path)?;
+                    if entry.path.exists() {
+                        copy_direct(&entry.path, &live_path, true)?;
+                    } else {
+                        remove_recursive(&live_path)?;
+                    }
+
                     return is_metadata_same(entry.path, live_path);
                 }
 
