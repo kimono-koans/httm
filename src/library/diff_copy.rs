@@ -62,7 +62,6 @@ pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
                 // read (size of buffer amt) from src, and dst if it exists
                 let src_amt_read = src_read.len();
 
-                // if nothing left to read from file, break
                 if src_amt_read == 0 {
                     break;
                 }
@@ -72,17 +71,12 @@ pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
                     Ok(dst_read) => {
                         let dst_amt_read = dst_read.len();
 
-                        if src_amt_read != dst_amt_read {
-                            continue;
-                        }
-
+                        // set explicit limit on possible infinite loop
                         if !dst_existed || !is_same_bytes(&src_read, &dst_read) {
                             // seek to current byte offset in dst writer
-                            let seek_pos = dst_writer.seek(SeekFrom::Start(cur_pos))?;
+                            let _seek_pos = dst_writer.seek(SeekFrom::Start(cur_pos))?;
 
-                            assert!(seek_pos == cur_pos);
-
-                            dst_writer.write_all(src_read)?;
+                            dst_writer.write_all(src_read)?
                         }
 
                         cur_pos += src_amt_read as u64;
@@ -92,7 +86,7 @@ pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
                     Err(err) => match err.kind() {
                         ErrorKind::Interrupted => continue,
                         ErrorKind::UnexpectedEof => {
-                            return Ok(());
+                            break;
                         }
                         _ => return Err(err.into()),
                     },
@@ -103,7 +97,7 @@ pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
             Err(err) => match err.kind() {
                 ErrorKind::Interrupted => continue,
                 ErrorKind::UnexpectedEof => {
-                    return Ok(());
+                    break;
                 }
                 _ => return Err(err.into()),
             },
