@@ -72,7 +72,7 @@ pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
                     Ok(dst_read) => {
                         let dst_amt_read = dst_read.len();
 
-                        if src_amt_read == dst_amt_read {
+                        if src_amt_read != dst_amt_read {
                             continue;
                         }
 
