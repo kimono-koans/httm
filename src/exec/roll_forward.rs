@@ -39,7 +39,7 @@ use crate::library::results::{HttmError, HttmResult};
 use crate::library::snap_guard::{PrecautionarySnapType, SnapGuard};
 use crate::library::utility::generate_dst_parent;
 use crate::library::utility::preserve_recursive;
-use crate::library::utility::{copy_attributes, copy_direct, remove_recursive};
+use crate::library::utility::{copy_direct, remove_recursive};
 use crate::library::utility::{is_metadata_same, user_has_effective_root};
 use crate::{GLOBAL_CONFIG, ZFS_SNAPSHOT_DIRECTORY};
 
