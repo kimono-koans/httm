@@ -251,13 +251,9 @@ impl RollForward {
             .filter(|(key, _values)| !exclusions.contains(key))
             .flat_map(|(_key, values)| values.iter().max_by_key(|event| event.time))
             .try_for_each(|event| {
-                let snap_file_path = self.snap_path(&event.path_buf).ok_or_else(|| {
-                    HttmError::new("Could not obtain snap file path for live version.")
-                })?;
-
                 if !matches!(&event.diff_type, DiffType::Renamed(new_file) if exclusions.contains(&new_file))
                 {
-                    return self.diff_action(event, &snap_file_path);
+                    return self.diff_action(event);
                 }
 
                 Ok(())
@@ -460,15 +456,18 @@ impl RollForward {
     fn diff_action(
         &self,
         event: &DiffEvent,
-        snap_file_path: &Path,
     ) -> HttmResult<()> {
+        let snap_file_path = self.snap_path(&event.path_buf).ok_or_else(|| {
+            HttmError::new("Could not obtain snap file path for live version.")
+        })?;
+
         // zfs-diff can return multiple file actions for a single inode
         // since we exclude older file actions, if rename or created is the last action,
         // we should make sure it has the latest data, so a simple rename is not enough
         // this is internal to the fn Self::remove()
         match &event.diff_type {
-            DiffType::Removed | DiffType::Modified => Self::copy(snap_file_path, &event.path_buf),
-            DiffType::Created => Self::overwrite_or_remove(snap_file_path, &event.path_buf),
+            DiffType::Removed | DiffType::Modified => Self::copy(&snap_file_path, &event.path_buf),
+            DiffType::Created => Self::overwrite_or_remove(&snap_file_path, &event.path_buf),
             DiffType::Renamed(new_file_name) => {
                 let snap_new_file_name = self.snap_path(&new_file_name).ok_or_else(|| {
                     HttmError::new("Could not obtain snap file path for live version.")
