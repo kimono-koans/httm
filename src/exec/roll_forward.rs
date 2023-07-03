@@ -275,39 +275,33 @@ impl RollForward {
         // condition kills iter when user has made a selection
         // pop_back makes this a LIFO queue which is supposedly better for caches
         while let Some(item) = queue.pop() {
-            // no errors will be propagated in recursive mode
-            // far too likely to run into a dir we don't have permissions to view
-            let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
-                read_dir(item.path)?
+            let (mut vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
+                read_dir(&item.path)?
                     .flatten()
                     // checking file_type on dir entries is always preferable
                     // as it is much faster than a metadata call on the path
                     .map(|dir_entry| BasicDirEntryInfo::from(&dir_entry))
                     .partition(|dir_entry| dir_entry.path.is_dir());
 
-            let mut combined = vec_files;
-            combined.extend_from_slice(&vec_dirs);
-            queue.extend_from_slice(&vec_dirs);
+            // change attrs on dir when at the top of a dir tree, so not over written from above
+            if vec_dirs.is_empty() {
+                let live_path = self
+                    .live_path(&item.path)
+                    .ok_or_else(|| HttmError::new("Could not generate live path"))?;
 
-            combined.into_iter().try_for_each(|entry| {
+                preserve_recursive(&item.path, &live_path)?
+            }
+
+            queue.append(&mut vec_dirs);
+
+            // only verify non-directories
+            vec_files.into_iter().try_for_each(|entry| {
                 self.roll_config.progress_bar.tick();
                 let live_path = self
                     .live_path(&entry.path)
                     .ok_or_else(|| HttmError::new("Could not generate live path"))?;
-
-                // sometimes modify time is not properly copied or gets rewritten
-                // by th OS while we are making all these changes, here we retry
-                if is_metadata_same(&entry.path, &live_path).is_err() {
-                    if entry.path.exists() {
-                        copy_direct(&entry.path, &live_path, true)?;
-                    } else {
-                        remove_recursive(&live_path)?;
-                    }
-
-                    return is_metadata_same(entry.path, live_path);
-                }
-
-                Ok(())
+                
+                is_metadata_same(&entry.path, &live_path)
             })?;
         }
 

@@ -549,6 +549,13 @@ where
         return Err(HttmError::new(&msg).into());
     }
 
+    if src.path().is_symlink() {
+        if src.path().read_link().ok() != dst.path().read_link().ok() {
+            let msg = format!("WARNING: Symlink do not match: {:?}", src.path());
+            return Err(HttmError::new(&msg).into());
+        }
+    }
+
     if src.opt_metadata() != dst.opt_metadata() {
         let msg = format!(
             "WARNING: Metadata mismatch: {:?} !-> {:?}",
