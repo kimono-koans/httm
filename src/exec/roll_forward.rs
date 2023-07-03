@@ -640,12 +640,12 @@ impl<'a> PreserveHardLinks<'a> {
             .iter()
             .try_for_each(|(_key, values)| {
                 values.iter().try_for_each(|live_path| {
-                    let snap_path: HttmResult<PathBuf> =
+                    let snap_path =
                         self.roll_forward.snap_path(&live_path.path).ok_or_else(|| {
-                            HttmError::new("Could obtain live path for snap path").into()
-                        });
+                            HttmError::new("Could obtain live path for snap path")
+                        })?;
 
-                    if !snap_path?.exists() {
+                    if !snap_path.exists() {
                         none_removed.store(false, std::sync::atomic::Ordering::Relaxed);
                         return Self::rm_hard_link(&live_path.path);
                     }
