@@ -741,7 +741,7 @@ impl<'a> PreserveHardLinks<'a> {
         live_diff
             .clone()
             .par_bridge()
-            .try_for_each(|path| RollForward::remove(path))?;
+            .try_for_each(|path| Self::rm_hard_link(path))?;
 
         // means we want to copy these
         snap_diff.clone().par_bridge().try_for_each(|live_path| {
@@ -761,12 +761,12 @@ impl<'a> PreserveHardLinks<'a> {
             .clone()
             .par_bridge()
             .try_for_each(|live_path| {
-                let snap_path =
-                    RollForward::snap_path(self.roll_forward, live_path)
-                        .ok_or_else(|| HttmError::new("Could obtain live path for snap path"))?;
+                // let snap_path =
+                //     RollForward::snap_path(self.roll_forward, live_path)
+                //         .ok_or_else(|| HttmError::new("Could obtain live path for snap path"))?;
                 
-                RollForward::remove(live_path)?;
-                RollForward::copy(&snap_path, live_path)
+                Self::rm_hard_link(live_path)
+                //RollForward::copy(&snap_path, live_path)
             })?;
 
         let combined = live_diff.chain(snap_diff).chain(orphans_intersection).cloned().collect();
