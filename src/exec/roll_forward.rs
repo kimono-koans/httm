@@ -234,8 +234,7 @@ impl RollForward {
         let preserve_hard_links = PreserveHardLinks::new(&live_map, &snap_map, self.to_owned())?;
 
         eprintln!("Preserving possibly previously linked orphans:");
-        let snaps_to_live = preserve_hard_links.snaps_to_live()?;
-        let mut exclusions = preserve_hard_links.preserve_orphans(&snaps_to_live)?;
+        let mut exclusions = preserve_hard_links.preserve_orphans()?;
         Self::exclusions(&mut exclusions, &live_map, &snap_map);
 
         eprintln!("Removing unnecessary links on the live dataset:");
@@ -248,10 +247,10 @@ impl RollForward {
         eprintln!("Reversing 'zfs diff' actions:");
         group_map
             .par_iter()
-            .filter(|(key, _values)| !exclusions.contains(key))
+            .filter(|(key, _values)| !exclusions.contains(key.as_path()))
             .flat_map(|(_key, values)| values.iter().max_by_key(|event| event.time))
             .try_for_each(|event| {
-                if !matches!(&event.diff_type, DiffType::Renamed(new_file) if exclusions.contains(&new_file))
+                if !matches!(&event.diff_type, DiffType::Renamed(new_file) if exclusions.contains(new_file))
                 {
                     return self.diff_action(event);
                 }
@@ -329,7 +328,7 @@ impl RollForward {
     }
 
     fn exclusions<'a>(
-        potential_orphans: &mut HashSet<&'a PathBuf>,
+        potential_orphans: &mut HashSet<PathBuf>,
         live_map: &'a HardLinkMap,
         snap_map: &'a HardLinkMap,
     ) {
@@ -338,7 +337,7 @@ impl RollForward {
                 .link_map
                 .values()
                 .flatten()
-                .map(|entry| &entry.path),
+                .map(|entry| entry.path.clone()),
         );
 
         potential_orphans.extend(
@@ -346,7 +345,7 @@ impl RollForward {
                 .link_map
                 .values()
                 .flatten()
-                .map(|entry| &entry.path),
+                .map(|entry| entry.path.clone()),
         );
     }
 
@@ -712,7 +711,7 @@ impl<'a> PreserveHardLinks<'a> {
         Ok(())
     }
 
-    fn snaps_to_live(&self) -> HttmResult<HashSet<PathBuf>> {
+    fn snaps_to_live_remainder(&self) -> HttmResult<HashSet<PathBuf>> {
         // in self but not in other
         self.snap_map
             .remainder
@@ -724,12 +723,25 @@ impl<'a> PreserveHardLinks<'a> {
             .collect::<HttmResult<HashSet<PathBuf>>>()
     }
 
+    fn snaps_to_live_map(&self) -> HttmResult<HashSet<PathBuf>> {
+        // in self but not in other
+        self.snap_map
+            .link_map
+            .par_iter()
+            .flat_map(|(_key, values)| values)
+            .map(|snap_entry| {
+                self.live_path(&snap_entry.path)
+                    .ok_or_else(|| HttmError::new("Could obtain live path for snap path").into())
+            })
+            .collect::<HttmResult<HashSet<PathBuf>>>()
+    }
+
     fn preserve_orphans(
         &'a self,
-        snaps_to_live: &'a HashSet<PathBuf>,
-    ) -> HttmResult<HashSet<&'a PathBuf>> {
-        let live_diff = self.live_map.remainder.difference(snaps_to_live);
-        let snap_diff = snaps_to_live.difference(&self.live_map.remainder);
+    ) -> HttmResult<HashSet<PathBuf>> {
+        let snaps_to_live_remainder = self.snaps_to_live_remainder()?;
+        let live_diff = self.live_map.remainder.difference(&snaps_to_live_remainder);
+        let snap_diff = snaps_to_live_remainder.difference(&self.live_map.remainder);
 
         // means we want to delete these
         live_diff
@@ -746,7 +758,24 @@ impl<'a> PreserveHardLinks<'a> {
             RollForward::copy(&snap_path?, live_path)
         })?;
 
-        let combined: HashSet<&PathBuf> = live_diff.chain(snap_diff).collect();
+        let snaps_to_live_map= self.snaps_to_live_map()?;
+        let live_map_as_set: HashSet<PathBuf> = self.live_map.link_map.iter().flat_map(|(_key, values)| values).map(|entry| entry.path.clone()).collect();
+
+        let orphans_intersection = live_map_as_set.intersection(&snaps_to_live_map);
+
+        orphans_intersection
+            .clone()
+            .par_bridge()
+            .try_for_each(|live_path| {
+                let snap_path =
+                    RollForward::snap_path(self.roll_forward, live_path)
+                        .ok_or_else(|| HttmError::new("Could obtain live path for snap path"))?;
+                
+                RollForward::remove(live_path)?;
+                RollForward::copy(&snap_path, live_path)
+            })?;
+
+        let combined = live_diff.chain(snap_diff).chain(orphans_intersection).cloned().collect();
 
         Ok(combined)
     }
