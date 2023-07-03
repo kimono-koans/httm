@@ -737,13 +737,13 @@ impl<'a> PreserveHardLinks<'a> {
         let live_diff = self.live_map.remainder.difference(&snaps_to_live_remainder);
         let snap_diff = snaps_to_live_remainder.difference(&self.live_map.remainder);
 
-        // means we want to delete these
+        // only on live dataset - means we want to delete these
         live_diff
             .clone()
             .par_bridge()
             .try_for_each(|path| Self::rm_hard_link(path))?;
 
-        // means we want to copy these
+        // only on snap dataset - means we want to copy these
         snap_diff.clone().par_bridge().try_for_each(|live_path| {
             let snap_path: HttmResult<PathBuf> =
                 RollForward::snap_path(self.roll_forward, live_path)
@@ -757,16 +757,13 @@ impl<'a> PreserveHardLinks<'a> {
 
         let orphans_intersection = live_map_as_set.intersection(&snaps_to_live_map);
 
+        // this is repeating the step of orphaning a link
+        // intersection is removed and recreated later, leaving dangling hard links 
         orphans_intersection
             .clone()
             .par_bridge()
             .try_for_each(|live_path| {
-                // let snap_path =
-                //     RollForward::snap_path(self.roll_forward, live_path)
-                //         .ok_or_else(|| HttmError::new("Could obtain live path for snap path"))?;
-                
                 Self::rm_hard_link(live_path)
-                //RollForward::copy(&snap_path, live_path)
             })?;
 
         let combined = live_diff.chain(snap_diff).chain(orphans_intersection).cloned().collect();
