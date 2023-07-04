@@ -741,7 +741,7 @@ impl<'a> PreserveHardLinks<'a> {
         live_diff
             .clone()
             .par_bridge()
-            .try_for_each(|path| Self::rm_hard_link(path))?;
+            .try_for_each(|path| RollForward::remove(path))?;
 
         // only on snap dataset - means we want to copy these
         snap_diff.clone().par_bridge().try_for_each(|live_path| {
