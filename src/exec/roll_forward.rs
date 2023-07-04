@@ -753,7 +753,7 @@ impl<'a> PreserveHardLinks<'a> {
         })?;
 
         let snaps_to_live_map= self.snaps_to_live_map()?;
-        let live_map_as_set: HashSet<PathBuf> = self.live_map.link_map.values().flatten().map(|entry| entry.path.clone()).collect();
+        let live_map_as_set: HashSet<PathBuf> = self.live_map.link_map.clone().into_values().flatten().map(|entry| entry.path).collect();
 
         let orphans_intersection = live_map_as_set.intersection(&snaps_to_live_map);
 
