@@ -257,14 +257,10 @@ impl RollForward {
         let mut first_pass: Vec<PathBuf> = vec![snap_dataset.clone()];
         let mut second_pass = Vec::new();
 
-        // condition kills iter when user has made a selection
-        // pop_back makes this a LIFO queue which is supposedly better for caches
         eprint!("Verifying files and symlinks: ");
         while let Some(item) = first_pass.pop() {
             let (vec_dirs, vec_files): (Vec<PathBuf>, Vec<PathBuf>) = read_dir(&item)?
                 .flatten()
-                // checking file_type on dir entries is always preferable
-                // as it is much faster than a metadata call on the path
                 .map(|dir_entry| dir_entry.path())
                 .partition(|path| path.is_dir());
 
@@ -280,7 +276,7 @@ impl RollForward {
             first_pass.extend(vec_dirs.clone());
             second_pass.extend(vec_dirs);
 
-            // first only verify non-directories
+            // first pass only verify non-directories
             vec_files.into_iter().try_for_each(|path| {
                 self.roll_config.progress_bar.tick();
                 let live_path = self
@@ -294,12 +290,15 @@ impl RollForward {
         eprintln!("OK");
 
         eprint!("Verifying directories: ");
+        // copy attributes for base dataset, our recursive attr copy does stops
+        // before including the base dataset
         let live_dataset = self
             .live_path(&snap_dataset)
             .ok_or_else(|| HttmError::new("Could not generate live path"))?;
 
         copy_attributes(&snap_dataset, &live_dataset)?;
 
+        // 2nd pass checks dirs
         second_pass.into_iter().try_for_each(|path| {
             self.roll_config.progress_bar.tick();
             let live_path = self
