@@ -37,8 +37,8 @@ use crate::data::paths::PathData;
 use crate::library::iter_extensions::HttmIter;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::snap_guard::{PrecautionarySnapType, SnapGuard};
-use crate::library::utility::generate_dst_parent;
 use crate::library::utility::preserve_recursive;
+use crate::library::utility::{copy_attributes, generate_dst_parent};
 use crate::library::utility::{copy_direct, remove_recursive};
 use crate::library::utility::{is_metadata_same, user_has_effective_root};
 use crate::{GLOBAL_CONFIG, ZFS_SNAPSHOT_DIRECTORY};
@@ -197,7 +197,7 @@ impl RollForward {
         }
 
         // zfs-diff can return multiple file actions for a single inode, here we dedup
-        eprintln!("Building a map of ZFS filesystem events since the specified snapshot:");
+        eprintln!("Building a map of ZFS filesystem events since the specified snapshot.");
         let mut parse_errors = vec![];
         let group_map = stream_peekable
             .map(|event| {
@@ -206,14 +206,17 @@ impl RollForward {
             })
             .filter_map(|res| res.map_err(|e| parse_errors.push(e)).ok())
             .into_group_map_by(|event| event.path_buf.clone());
+        self.roll_config.progress_bar.finish_and_clear();
 
+        // These errors basically don't matter.  Most are of the form:
+        // "Unable to determine path or stats for object 99694 in ...: File exists"
+        // Here, we print only as NOTICE
         if let Some(mut stderr) = opt_stderr {
             let mut buf = String::new();
             stderr.read_to_string(&mut buf)?;
 
             if !buf.is_empty() {
-                let msg = format!("'zfs diff' command reported an error: {}", buf);
-                return Err(HttmError::new(&msg).into());
+                eprintln!("NOTICE: 'zfs diff' command reported an error.  Ordinarily, these are inconsequential:\n{}", buf.trim());
             }
         }
 
@@ -232,78 +235,81 @@ impl RollForward {
             .map_err(|_err| HttmError::new("Thread panicked!"))??;
 
         let preserve_hard_links = PreserveHardLinks::new(&live_map, &snap_map, self.to_owned())?;
-
-        eprintln!("Preserving possibly previously linked orphans:");
-        let mut exclusions = preserve_hard_links.preserve_orphans()?;
-        Self::exclusions(&mut exclusions, &live_map, &snap_map);
-
-        eprintln!("Removing unnecessary links on the live dataset:");
-        preserve_hard_links.preserve_live_links()?;
-
-        eprintln!("Preserving necessary links from the snapshot dataset:");
-        preserve_hard_links.preserve_snap_links()?;
+        let exclusions = preserve_hard_links.exec()?;
 
         // into iter and reverse because we want to go largest first
-        eprintln!("Reversing 'zfs diff' actions:");
+        eprintln!("Reversing 'zfs diff' actions.");
         group_map
             .par_iter()
             .filter(|(key, _values)| !exclusions.contains(key.as_path()))
             .flat_map(|(_key, values)| values.iter().max_by_key(|event| event.time))
-            .try_for_each(|event| {
-                if !matches!(&event.diff_type, DiffType::Renamed(new_file) if exclusions.contains(new_file))
-                {
-                    return self.diff_action(event);
-                }
-
-                Ok(())
-                
+            .try_for_each(|event| match &event.diff_type {
+                DiffType::Renamed(new_file) if exclusions.contains(new_file) => Ok(()),
+                _ => self.diff_action(event),
             })?;
-        eprintln!("Verifying roll forward actions:");
+
         self.verify()
     }
 
     fn verify(&self) -> HttmResult<()> {
         let snap_dataset = self.snap_dataset();
 
-        let constructed = BasicDirEntryInfo {
-            path: snap_dataset,
-            file_type: None,
-        };
-
-        let mut queue: Vec<BasicDirEntryInfo> = vec![constructed];
+        let mut first_pass: Vec<PathBuf> = vec![snap_dataset.clone()];
+        let mut second_pass = Vec::new();
 
         // condition kills iter when user has made a selection
         // pop_back makes this a LIFO queue which is supposedly better for caches
-        while let Some(item) = queue.pop() {
-            let (mut vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
-                read_dir(&item.path)?
-                    .flatten()
-                    // checking file_type on dir entries is always preferable
-                    // as it is much faster than a metadata call on the path
-                    .map(|dir_entry| BasicDirEntryInfo::from(&dir_entry))
-                    .partition(|dir_entry| dir_entry.path.is_dir());
+        eprint!("Verifying files and symlinks: ");
+        while let Some(item) = first_pass.pop() {
+            let (vec_dirs, vec_files): (Vec<PathBuf>, Vec<PathBuf>) = read_dir(&item)?
+                .flatten()
+                // checking file_type on dir entries is always preferable
+                // as it is much faster than a metadata call on the path
+                .map(|dir_entry| dir_entry.path())
+                .partition(|path| path.is_dir());
 
             // change attrs on dir when at the top of a dir tree, so not over written from above
             if vec_dirs.is_empty() {
                 let live_path = self
-                    .live_path(&item.path)
+                    .live_path(&item)
                     .ok_or_else(|| HttmError::new("Could not generate live path"))?;
 
-                preserve_recursive(&item.path, &live_path)?
+                preserve_recursive(&item, &live_path)?
             }
 
-            queue.append(&mut vec_dirs);
+            first_pass.extend(vec_dirs.clone());
+            second_pass.extend(vec_dirs);
 
-            // only verify non-directories
-            vec_files.into_iter().try_for_each(|entry| {
+            // first only verify non-directories
+            vec_files.into_iter().try_for_each(|path| {
                 self.roll_config.progress_bar.tick();
                 let live_path = self
-                    .live_path(&entry.path)
+                    .live_path(&path)
                     .ok_or_else(|| HttmError::new("Could not generate live path"))?;
-                
-                is_metadata_same(&entry.path, &live_path)
+
+                is_metadata_same(&path, &live_path)
             })?;
         }
+        self.roll_config.progress_bar.finish_and_clear();
+        eprintln!("OK");
+
+        eprint!("Verifying directories: ");
+        let live_dataset = self
+            .live_path(&snap_dataset)
+            .ok_or_else(|| HttmError::new("Could not generate live path"))?;
+
+        copy_attributes(&snap_dataset, &live_dataset)?;
+
+        second_pass.into_iter().try_for_each(|path| {
+            self.roll_config.progress_bar.tick();
+            let live_path = self
+                .live_path(&path)
+                .ok_or_else(|| HttmError::new("Could not generate live path"))?;
+
+            is_metadata_same(&path, &live_path)
+        })?;
+        self.roll_config.progress_bar.finish_and_clear();
+        eprintln!("OK");
 
         Ok(())
     }
@@ -321,28 +327,6 @@ impl RollForward {
             })
     }
 
-    fn exclusions<'a>(
-        potential_orphans: &mut HashSet<PathBuf>,
-        live_map: &'a HardLinkMap,
-        snap_map: &'a HardLinkMap,
-    ) {
-        potential_orphans.extend(
-            live_map
-                .link_map
-                .values()
-                .flatten()
-                .map(|entry| entry.path.clone()),
-        );
-
-        potential_orphans.extend(
-            snap_map
-                .link_map
-                .values()
-                .flatten()
-                .map(|entry| entry.path.clone()),
-        );
-    }
-
     fn zfs_diff_cmd(&self) -> HttmResult<Child> {
         let zfs_command = which("zfs").map_err(|_err| {
             HttmError::new("'zfs' command not found. Make sure the command 'zfs' is in your path.")
@@ -354,7 +338,7 @@ impl RollForward {
         let process_handle = ExecProcess::new(zfs_command)
             .args(&process_args)
             .stdout(Stdio::piped())
-            .stderr(Stdio::inherit())
+            .stderr(Stdio::piped())
             .spawn()?;
 
         Ok(process_handle)
@@ -446,13 +430,10 @@ impl RollForward {
             })
     }
 
-    fn diff_action(
-        &self,
-        event: &DiffEvent,
-    ) -> HttmResult<()> {
-        let snap_file_path = self.snap_path(&event.path_buf).ok_or_else(|| {
-            HttmError::new("Could not obtain snap file path for live version.")
-        })?;
+    fn diff_action(&self, event: &DiffEvent) -> HttmResult<()> {
+        let snap_file_path = self
+            .snap_path(&event.path_buf)
+            .ok_or_else(|| HttmError::new("Could not obtain snap file path for live version."))?;
 
         // zfs-diff can return multiple file actions for a single inode
         // since we exclude older file actions, if rename or created is the last action,
@@ -625,18 +606,51 @@ impl<'a> PreserveHardLinks<'a> {
         })
     }
 
-    fn preserve_live_links(&self) -> HttmResult<()> {
+    fn exec(&self) -> HttmResult<HashSet<PathBuf>> {
+        eprintln!("Removing and preserving the difference between live and snap orphans.");
+        let mut exclusions = self.diff_orphans()?;
+
+        eprintln!("Removing the intersection of the live and snap hard link maps to generate snap orphans.");
+        let intersection = self.remove_map_intersection()?;
+        exclusions.extend(intersection);
+
+        eprintln!("Removing additional unnecessary links on the live dataset.");
+        self.remove_live_links()?;
+        exclusions.extend(
+            self.live_map
+                .link_map
+                .clone()
+                .into_values()
+                .flatten()
+                .map(|entry| entry.path),
+        );
+
+        eprintln!("Preserving necessary links from the snapshot dataset.");
+        self.preserve_snap_links()?;
+        exclusions.extend(
+            self.snap_map
+                .link_map
+                .clone()
+                .into_values()
+                .flatten()
+                .map(|entry| entry.path),
+        );
+
+        Ok(exclusions)
+    }
+
+    fn remove_live_links(&self) -> HttmResult<()> {
         let none_removed = AtomicBool::new(true);
 
         self.live_map
             .link_map
-            .iter()
+            .par_iter()
             .try_for_each(|(_key, values)| {
                 values.iter().try_for_each(|live_path| {
-                    let snap_path =
-                        self.roll_forward.snap_path(&live_path.path).ok_or_else(|| {
-                            HttmError::new("Could obtain live path for snap path")
-                        })?;
+                    let snap_path = self
+                        .roll_forward
+                        .snap_path(&live_path.path)
+                        .ok_or_else(|| HttmError::new("Could obtain live path for snap path"))?;
 
                     if !snap_path.exists() {
                         none_removed.store(false, std::sync::atomic::Ordering::Relaxed);
@@ -665,9 +679,10 @@ impl<'a> PreserveHardLinks<'a> {
                 let complemented_paths: Vec<(PathBuf, &PathBuf)> = values
                     .iter()
                     .map(|snap_path| {
-                        let live_path = self.live_path(&snap_path.path).ok_or_else(|| {
-                            HttmError::new("Could obtain live path for snap path").into()
-                        });
+                        let live_path =
+                            self.roll_forward.live_path(&snap_path.path).ok_or_else(|| {
+                                HttmError::new("Could obtain live path for snap path").into()
+                            });
 
                         live_path.map(|live| (live, &snap_path.path))
                     })
@@ -711,7 +726,8 @@ impl<'a> PreserveHardLinks<'a> {
             .remainder
             .par_iter()
             .map(|snap_path| {
-                self.live_path(snap_path)
+                self.roll_forward
+                    .live_path(snap_path)
                     .ok_or_else(|| HttmError::new("Could obtain live path for snap path").into())
             })
             .collect::<HttmResult<HashSet<PathBuf>>>()
@@ -724,15 +740,14 @@ impl<'a> PreserveHardLinks<'a> {
             .par_iter()
             .flat_map(|(_key, values)| values)
             .map(|snap_entry| {
-                self.live_path(&snap_entry.path)
+                self.roll_forward
+                    .live_path(&snap_entry.path)
                     .ok_or_else(|| HttmError::new("Could obtain live path for snap path").into())
             })
             .collect::<HttmResult<HashSet<PathBuf>>>()
     }
 
-    fn preserve_orphans(
-        &'a self,
-    ) -> HttmResult<HashSet<PathBuf>> {
+    fn diff_orphans(&'a self) -> HttmResult<HashSet<PathBuf>> {
         let snaps_to_live_remainder = self.snaps_to_live_remainder()?;
         let live_diff = self.live_map.remainder.difference(&snaps_to_live_remainder);
         let snap_diff = snaps_to_live_remainder.difference(&self.live_map.remainder);
@@ -752,39 +767,34 @@ impl<'a> PreserveHardLinks<'a> {
             RollForward::copy(&snap_path?, live_path)
         })?;
 
-        let snaps_to_live_map= self.snaps_to_live_map()?;
-        let live_map_as_set: HashSet<PathBuf> = self.live_map.link_map.clone().into_values().flatten().map(|entry| entry.path).collect();
-
-        let orphans_intersection = live_map_as_set.intersection(&snaps_to_live_map);
-
-        // this is repeating the step of orphaning a link
-        // intersection is removed and recreated later, leaving dangling hard links 
-        orphans_intersection
-            .clone()
-            .par_bridge()
-            .try_for_each(|live_path| {
-                Self::rm_hard_link(live_path)
-            })?;
-
-        let combined = live_diff.chain(snap_diff).chain(orphans_intersection).cloned().collect();
+        let combined = live_diff.chain(snap_diff).cloned().collect();
 
         Ok(combined)
     }
 
-    fn live_path(&self, snap_path: &Path) -> Option<PathBuf> {
-        snap_path
-            .strip_prefix(&self.roll_forward.proximate_dataset_mount)
-            .ok()
-            .and_then(|path| path.strip_prefix(ZFS_SNAPSHOT_DIRECTORY).ok())
-            .and_then(|path| path.strip_prefix(&self.roll_forward.snap_name).ok())
-            .map(|relative_path| {
-                [
-                    self.roll_forward.proximate_dataset_mount.as_path(),
-                    relative_path,
-                ]
-                .into_iter()
-                .collect()
-            })
+    fn remove_map_intersection(&self) -> HttmResult<HashSet<PathBuf>> {
+        let snaps_to_live_map = self.snaps_to_live_map()?;
+        let live_map_as_set: HashSet<PathBuf> = self
+            .live_map
+            .link_map
+            .clone()
+            .into_values()
+            .flatten()
+            .map(|entry| entry.path)
+            .collect();
+
+        let orphans_intersection = live_map_as_set.intersection(&snaps_to_live_map);
+
+        // this is repeating the step of orphaning a link
+        // intersection is removed and recreated later, leaving dangling hard links
+        orphans_intersection
+            .clone()
+            .par_bridge()
+            .try_for_each(|live_path| Self::rm_hard_link(live_path))?;
+
+        let res = orphans_intersection.cloned().collect();
+
+        Ok(res)
     }
 
     fn hard_link(&self, original: &Path, link: &Path) -> HttmResult<()> {
