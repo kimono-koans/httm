@@ -180,20 +180,14 @@ impl RollForward {
         .map(|_res| ())
     }
 
-    fn zfs_diff_std_err(opt_stderr: Option<ChildStderr>) -> HttmResult<()> {
-        // These errors usually don't matter.  Most are of the form:
-        // "Unable to determine path or stats for object 99694 in ...: File exists"
-        // Here, we print only as NOTICE
-        if let Some(mut stderr) = opt_stderr {
-            let mut buf = String::new();
-            stderr.read_to_string(&mut buf)?;
+    fn zfs_diff_std_err(opt_stderr: Option<ChildStderr>) -> HttmResult<String> {
+        let mut buf = String::new();
 
-            if !buf.is_empty() {
-                eprintln!("NOTICE: 'zfs diff' command reported an error.  Ordinarily, these are inconsequential: {}", buf.trim());
-            }
+        if let Some(mut stderr) = opt_stderr {
+            stderr.read_to_string(&mut buf)?;
         }
 
-        Ok(())
+        Ok(buf)
     }
 
     fn roll_forward(&self) -> HttmResult<()> {
@@ -209,8 +203,13 @@ impl RollForward {
         let mut stream_peekable = stream.peekable();
 
         if stream_peekable.peek().is_none() {
-            Self::zfs_diff_std_err(opt_stderr)?;
-            return Err(HttmError::new("'zfs diff' reported no changes to dataset").into());
+            let msg = Self::zfs_diff_std_err(opt_stderr)?;
+            
+            if msg.is_empty() {
+                return Err(HttmError::new("'zfs diff' reported no changes to dataset").into());
+            }
+
+            return Err(HttmError::new(&msg).into());
         }
 
         // zfs-diff can return multiple file actions for a single inode, here we dedup
@@ -225,7 +224,14 @@ impl RollForward {
             .into_group_map_by(|event| event.path_buf.clone());
         self.roll_config.progress_bar.finish_and_clear();
 
-        Self::zfs_diff_std_err(opt_stderr)?;
+        // These errors usually don't matter, if we make it this far.  Most are of the form:
+        // "Unable to determine path or stats for object 99694 in ...: File exists"
+        // Here, we print only as NOTICE
+        if let Ok(buf) = Self::zfs_diff_std_err(opt_stderr) {
+            if !buf.is_empty() {
+                eprintln!("NOTICE: 'zfs diff' command reported an error.  Ordinarily, these are inconsequential: {}", buf.trim());
+            }
+        }
 
         if !parse_errors.is_empty() {
             let msg: String = parse_errors.into_iter().map(|e| e.to_string()).collect();
