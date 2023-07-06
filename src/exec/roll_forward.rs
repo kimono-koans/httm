@@ -204,7 +204,7 @@ impl RollForward {
 
         if stream_peekable.peek().is_none() {
             let msg = Self::zfs_diff_std_err(opt_stderr)?;
-            
+
             if msg.is_empty() {
                 return Err(HttmError::new("'zfs diff' reported no changes to dataset").into());
             }
@@ -229,7 +229,7 @@ impl RollForward {
         // Here, we print only as NOTICE
         if let Ok(buf) = Self::zfs_diff_std_err(opt_stderr) {
             if !buf.is_empty() {
-                eprintln!("NOTICE: 'zfs diff' command reported an error.  Ordinarily, these are inconsequential: {}", buf.trim());
+                eprintln!("NOTICE: 'zfs diff' reported an error.  At this point of execution, these are usually inconsequential: {}", buf.trim());
             }
         }
 
