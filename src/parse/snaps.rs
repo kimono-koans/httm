@@ -112,7 +112,7 @@ impl MapOfSnaps {
                     .filter(|snap| snap.exists())
                     .collect()
             })
-            .unwrap_or_else(|| Vec::new());
+            .ok_or_else(|| HttmError::new("No snaps found!"))?;
 
         Ok(snaps)
     }
