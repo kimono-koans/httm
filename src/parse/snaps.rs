@@ -112,7 +112,10 @@ impl MapOfSnaps {
                     .filter(|snap| snap.exists())
                     .collect()
             })
-            .ok_or_else(|| HttmError::new("No snaps found!"))?;
+            .ok_or_else(|| {
+                let msg = format!("No snaps found for mount: {:?}", mount);
+                HttmError::new(&msg)
+            })?;
 
         Ok(snaps)
     }
