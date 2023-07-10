@@ -59,7 +59,7 @@ impl InteractiveBrowse {
         }
     }
 
-    pub fn browse() -> HttmResult<Self> {
+    fn browse() -> HttmResult<Self> {
         let browse_result = match &GLOBAL_CONFIG.opt_requested_dir {
             // collect string paths from what we get from lookup_view
             Some(requested_dir) => {
