@@ -37,11 +37,15 @@ use crate::library::utility::{
 use crate::lookup::versions::VersionsMap;
 use crate::GLOBAL_CONFIG;
 
-pub struct InteractiveBrowse;
+#[derive(Debug)]
+pub struct InteractiveBrowse {
+    pub selected_pathdata: Vec<PathData>,
+    pub opt_background_handle: Option<JoinHandle<()>>,
+}
 
 impl InteractiveBrowse {
-    pub fn exec(interactive_mode: &InteractiveMode) -> HttmResult<Vec<PathData>> {
-        let browse_result = InteractiveBrowseResult::new()?;
+    pub fn new(interactive_mode: &InteractiveMode) -> HttmResult<Vec<PathData>> {
+        let browse_result = Self::browse()?;
 
         // do we return back to our main exec function to print,
         // or continue down the interactive rabbit hole?
@@ -54,16 +58,8 @@ impl InteractiveBrowse {
             InteractiveMode::Browse => Ok(browse_result.selected_pathdata),
         }
     }
-}
 
-#[derive(Debug)]
-pub struct InteractiveBrowseResult {
-    pub selected_pathdata: Vec<PathData>,
-    pub opt_background_handle: Option<JoinHandle<()>>,
-}
-
-impl InteractiveBrowseResult {
-    pub fn new() -> HttmResult<Self> {
+    pub fn browse() -> HttmResult<Self> {
         let browse_result = match &GLOBAL_CONFIG.opt_requested_dir {
             // collect string paths from what we get from lookup_view
             Some(requested_dir) => {
@@ -188,7 +184,7 @@ struct InteractiveSelect;
 
 impl InteractiveSelect {
     fn exec(
-        browse_result: InteractiveBrowseResult,
+        browse_result: InteractiveBrowse,
         interactive_mode: &InteractiveMode,
     ) -> HttmResult<()> {
         let versions_map = VersionsMap::new(&GLOBAL_CONFIG, &browse_result.selected_pathdata)?;
