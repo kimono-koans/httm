@@ -54,7 +54,7 @@ impl PurgeSnaps {
                 .map(|value| format!("{value}\n"))
                 .collect();
             let view_mode = &ViewMode::Select(None);
-            view_mode.view(&buffer, true)?
+            view_mode.select(&buffer, true)?
         } else {
             snap_name_map.values().flatten().cloned().collect()
         };
@@ -77,7 +77,7 @@ impl PurgeSnaps {
         // loop until user consents or doesn't
         loop {
             let view_mode = &ViewMode::Purge;
-            let user_consent = view_mode.view(&preview_buffer, false)?[0].to_ascii_uppercase();
+            let user_consent = view_mode.select(&preview_buffer, false)?[0].to_ascii_uppercase();
 
             match user_consent.as_ref() {
                 "YES" | "Y" => {
