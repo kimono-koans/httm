@@ -159,8 +159,7 @@ impl PathData {
         // path strip, if aliased
         // fallback if unable to find an alias or strip a prefix
         // (each an indication we should not be trying aliases)
-
-        match GLOBAL_CONFIG
+        let res = match GLOBAL_CONFIG
             .dataset_collection
             .opt_map_of_aliases
             .as_deref()
@@ -177,10 +176,12 @@ impl PathData {
                     })
                     .and_then(|local_dir| self.path_buf.strip_prefix(local_dir).ok())
             }) {
-            Some(alias) => Ok(alias),
+            Some(alias) => alias,
             // default path strip
-            None => Ok(self.path_buf.strip_prefix(proximate_dataset_mount)?),
-        }
+            None => self.path_buf.strip_prefix(proximate_dataset_mount)?,
+        };
+
+        Ok(res)
     }
 
     pub fn proximate_dataset<'a>(
