@@ -44,8 +44,8 @@ pub struct InteractiveBrowse {
 }
 
 impl InteractiveBrowse {
-    pub fn new(interactive_mode: &InteractiveMode) -> HttmResult<Vec<PathData>> {
-        let browse_result = Self::browse()?;
+    pub fn exec(interactive_mode: &InteractiveMode) -> HttmResult<Vec<PathData>> {
+        let browse_result = Self::new()?;
 
         // do we return back to our main exec function to print,
         // or continue down the interactive rabbit hole?
@@ -59,7 +59,7 @@ impl InteractiveBrowse {
         }
     }
 
-    fn browse() -> HttmResult<InteractiveBrowse> {
+    fn new() -> HttmResult<InteractiveBrowse> {
         let browse_result = match &GLOBAL_CONFIG.opt_requested_dir {
             // collect string paths from what we get from lookup_view
             Some(requested_dir) => {
