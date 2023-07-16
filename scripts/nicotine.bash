@@ -96,6 +96,58 @@ prep_exec() {
 	)" ]] || print_err_exit "'httm' is required to execute 'nicotine'.  Please check that 'httm' is in your path."
 }
 
+function copy_add_commit {
+	local debug=$1
+	shift
+	local path="$1"
+	shift
+	local dest_dir="$1"
+	shift
+
+	if [[ -d "$path" ]]; then 
+		cp -a "$path" "$dest_dir/"
+		# return early -- only commit files not directories
+		return 0
+	else
+		cp -a "$path" "$dest_dir"
+	fi
+
+	if [[ $debug = true ]]; then
+		git add --all "$dest_dir"
+		git commit -m "httm commit from ZFS snapshot" --date "$(date -d "$(stat -c %y $path)")" || true
+	else
+		git add --all "$dest_dir" > /dev/null
+		git commit -q -m "httm commit from ZFS snapshot" --date "$(date -d "$(stat -c %y $path)")" > /dev/null || true
+	fi
+}
+
+function get_unique_versions {
+	local debug=$1
+	shift
+	local path="$1"
+	shift
+	local dest_dir="$1"
+	shift
+
+	local -a version_list
+
+	# all we care about is unique file versions, unique directory versions aren't useful
+	# in this context, as we are recursing and commiting every file we find, we can skip 
+	# commiting all directory versions we find
+	[[ -d "$path" ]] || while read -r line; do
+		version_list+=("$line")
+	done <<<"$(httm -n --omit-ditto "$path")"
+
+	# see above, one/zero version indicates $path has no snaps
+	if [[ -d "$path" ]] || [[ ${#version_list[@]} -eq 0 ]] || [[ ${#version_list[@]} -eq 1 ]]; then
+		copy_add_commit $debug "$path" "$dest_dir"
+	else
+		for version in "${version_list[@]}"; do
+			copy_add_commit $debug "$version" "$dest_dir"
+		done
+	fi
+}
+
 function traverse {
 	local debug=$1
 	shift
@@ -104,55 +156,27 @@ function traverse {
 	local dest_dir="$1"
 	shift
 
+	get_unique_versions $debug "$path" "$dest_dir"
+
+	# return early - if is file, can't traverse
+	[[ -d "$path" ]] || return 0
+
 	local -a dir_entries=()
- 
+	local basename="$(basename "$path")"
+
 	while read -r line; do
-		dir_entries+=("$line")
-	done <<<"$(find "$path" -not -wholename "./.git*" -print0 | httm --omit-ditto --not-so-pretty | cut -f1,3 | sort)"
+		[[ -z "$line" ]] || dir_entries+=("$line")
+	done <<<"$(find "$path" -mindepth 1 -maxdepth 1)"
 
 	# return early - empty dir
 	[[ ${#dir_entries[@]} -ne 0 ]] || return 0
 
-	local previous_date=""
-
-	for dated_entry in "${dir_entries[@]}"; do
-		local date="$(echo "$dated_entry" | cut -f1)"
-		local entry="$(echo "$dated_entry" | cut -f2)"
-		local relative_path="$(realpath --relative-to="$path" "$entry")"
-
-		if [[ "$relative_path" == *".zfs"* ]]; then
-  			relative_path="$(echo $relative_path | cut -d'/' -f5)"
-		fi
-
-		local destination="$dest_dir/$relative_path"
-		local parent="$(dirname "$destination")"
-
+	for entry in "${dir_entries[@]}"; do
 		if [[ -d "$entry" ]]; then
-			cp -a "$entry" "$parent/"
+			traverse $debug "$entry" "$dest_dir/$basename"
 		else
-			mkdir -p "$parent"
-			cp -a "$entry" "$destination"
+			get_unique_versions $debug "$entry" "$dest_dir/$basename"
 		fi
-
-		if [[ $debug = true ]]; then
-			git add --all "$destination" || true
-		else
-			git add --all "$destination" > /dev/null || true
-		fi
-
-		if [[ -z "$previous_date" ]]; then
-			previous_date="$date"
-    	fi
-
-		if [[ "$previous_date" != "$date" ]]; then
-			if [[ $debug = true ]]; then
-				git commit -m "httm commit from ZFS snapshot" --date "$(date -d "$(stat -c %y "$destination")")" || true
-			else
-				git commit -q -m "httm commit from ZFS snapshot" --date "$(date -d "$(stat -c %y "$destination")")" || true
-			fi
-		fi
-
-		previous_date="$date"
 	done
 }
 
