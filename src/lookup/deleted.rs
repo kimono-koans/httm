@@ -33,10 +33,8 @@ pub struct DeletedFiles {
     inner: Vec<BasicDirEntryInfo>,
 }
 
-impl TryFrom<&Path> for DeletedFiles {
-    type Error = Box<dyn std::error::Error + Send + Sync>;
-
-    fn try_from(requested_dir: &Path) -> HttmResult<Self> {
+impl DeletedFiles {
+    pub fn new(requested_dir: &Path) -> HttmResult<Self> {
         // we always need a requesting dir because we are comparing the files in the
         // requesting dir to those of their relative dirs on snapshots
         let requested_dir_pathdata = PathData::from(requested_dir);
@@ -60,12 +58,10 @@ impl TryFrom<&Path> for DeletedFiles {
             inner: basic_info_map.into_values().collect(),
         })
     }
-}
 
-// deleted_lookup_exec is a dumb function/module if we want to rank outputs, get last in time, etc.
-// we do that elsewhere.  deleted is simply about finding at least one version of a deleted file
-// this, believe it or not, will be faster
-impl DeletedFiles {
+    // deleted_lookup_exec is a dumb function/module if we want to rank outputs, get last in time, etc.
+    // we do that elsewhere.  deleted is simply about finding at least one version of a deleted file
+    // this, believe it or not, will be faster
     pub fn into_inner(self) -> Vec<BasicDirEntryInfo> {
         self.inner
     }
@@ -129,9 +125,7 @@ impl Deref for LastInTimeSet {
     }
 }
 
-impl TryFrom<Vec<PathData>> for LastInTimeSet {
-    type Error = Box<dyn std::error::Error + Send + Sync>;
-
+impl LastInTimeSet {
     // this is very similar to VersionsMap, but of course returns only last in time
     // for directory paths during deleted searches.  it's important to have a policy, here,
     // last in time, for which directory we return during deleted searches, because
@@ -139,7 +133,7 @@ impl TryFrom<Vec<PathData>> for LastInTimeSet {
 
     // this fn is also missing parallel iter fns, to make the searches more responsive
     // by leaving parallel search for the interactive views
-    fn try_from(path_set: Vec<PathData>) -> HttmResult<Self> {
+    pub fn new(path_set: Vec<PathData>) -> HttmResult<Self> {
         let res = path_set
             .iter()
             .flat_map(ProximateDatasetAndOptAlts::new)
