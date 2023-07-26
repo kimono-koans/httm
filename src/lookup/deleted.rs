@@ -33,6 +33,9 @@ pub struct DeletedFiles {
     inner: Vec<BasicDirEntryInfo>,
 }
 
+// deleted lookup is a dumb impl. if we want to rank outputs, get last in time, etc.
+// we do that elsewhere.  deleted is simply about finding at least one version of a deleted file
+// this, believe it or not, will be faster
 impl DeletedFiles {
     pub fn new(requested_dir: &Path) -> HttmResult<Self> {
         // we always need a requesting dir because we are comparing the files in the
@@ -59,9 +62,6 @@ impl DeletedFiles {
         })
     }
 
-    // deleted_lookup_exec is a dumb function/module if we want to rank outputs, get last in time, etc.
-    // we do that elsewhere.  deleted is simply about finding at least one version of a deleted file
-    // this, believe it or not, will be faster
     pub fn into_inner(self) -> Vec<BasicDirEntryInfo> {
         self.inner
     }
