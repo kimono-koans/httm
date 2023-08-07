@@ -23,9 +23,9 @@ use crate::library::results::{HttmError, HttmResult};
 use crate::lookup::snap_names::SnapNameMap;
 use crate::lookup::versions::VersionsMap;
 
-pub struct PurgeSnaps;
+pub struct PruneSnaps;
 
-impl PurgeSnaps {
+impl PruneSnaps {
     pub fn exec(
         versions_map: VersionsMap,
         opt_filters: &Option<ListSnapsFilters>,
@@ -38,10 +38,10 @@ impl PurgeSnaps {
             false
         };
 
-        Self::interactive_purge(&snap_name_map, select_mode)
+        Self::interactive_prune(&snap_name_map, select_mode)
     }
 
-    fn interactive_purge(snap_name_map: &SnapNameMap, select_mode: bool) -> HttmResult<()> {
+    fn interactive_prune(snap_name_map: &SnapNameMap, select_mode: bool) -> HttmResult<()> {
         let file_names_string: String = snap_name_map
             .keys()
             .map(|key| format!("{:?}\n", key.path_buf))
@@ -65,7 +65,7 @@ impl PurgeSnaps {
             .collect();
 
         let preview_buffer = format!(
-            "User has requested snapshots related to the following file/s be purged:\n\n{}\n\
+            "User has requested snapshots related to the following file/s be pruned:\n\n{}\n\
             httm will destroy the following snapshot/s:\n\n{}\n\
             Before httm destroys these snapshot/s, it would like your consent. Continue? (YES/NO)\n\
             ─────────────────────────────────────────────────────────────────────────────\n\
@@ -76,23 +76,23 @@ impl PurgeSnaps {
 
         // loop until user consents or doesn't
         loop {
-            let view_mode = &ViewMode::Purge;
+            let view_mode = &ViewMode::Prune;
             let user_consent = view_mode.select(&preview_buffer, false)?[0].to_ascii_uppercase();
 
             match user_consent.as_ref() {
                 "YES" | "Y" => {
-                    Self::purge_snaps(snap_name_map)?;
+                    Self::prune_snaps(snap_name_map)?;
 
                     let result_buffer = format!(
-                        "httm purged snapshots related to the following file/s:\n\n{}\n\
+                        "httm pruned snapshots related to the following file/s:\n\n{}\n\
                         By destroying the following snapshot/s:\n\n{}\n\
-                        Purge completed successfully.",
+                        Prune completed successfully.",
                         file_names_string, snap_names_string
                     );
 
                     break eprintln!("{result_buffer}");
                 }
-                "NO" | "N" => break eprintln!("User declined purge.  No files were purged."),
+                "NO" | "N" => break eprintln!("User declined prune.  No files were pruned."),
                 // if not yes or no, then noop and continue to the next iter of loop
                 _ => {}
             }
@@ -101,7 +101,7 @@ impl PurgeSnaps {
         std::process::exit(0)
     }
 
-    fn purge_snaps(snap_name_map: &SnapNameMap) -> HttmResult<()> {
+    fn prune_snaps(snap_name_map: &SnapNameMap) -> HttmResult<()> {
         let zfs_command = which::which("zfs").map_err(|_err| {
             HttmError::new("'zfs' command not found. Make sure the command 'zfs' is in your path.")
         })?;

@@ -38,7 +38,7 @@ pub enum ExecMode {
     NonInteractiveRecursive(indicatif::ProgressBar),
     Display,
     SnapFileMount(String),
-    Purge(Option<ListSnapsFilters>),
+    Prune(Option<ListSnapsFilters>),
     MountsForFiles(MountDisplay),
     SnapsForFiles(Option<ListSnapsFilters>),
     NumVersions(NumVersionsMode),
@@ -304,13 +304,14 @@ fn parse_args() -> ArgMatches {
                 .display_order(13)
         )
         .arg(
-            Arg::new("PURGE")
-                .long("purge")
-                .help("purge all snapshot/s which contain the input file/s on that file's most immediate mount via \"zfs destroy\".  \
+            Arg::new("PRUNE")
+                .long("prune")
+                .aliases(&["purge"])
+                .help("prune all snapshot/s which contain the input file/s on that file's most immediate mount via \"zfs destroy\".  \
                 \"zfs destroy\" is a DESTRUCTIVE operation which *does not* only apply to the file in question, but the entire snapshot upon which it resides.  \
                 Careless use may cause you to lose snapshot data you care about.  \
                 This argument requires and will be filtered according to any values specified at LIST_SNAPS.  \
-                User may also enable SELECT mode to make a granular selection of specific snapshots to purge.  \
+                User may also enable SELECT mode to make a granular selection of specific snapshots to prune.  \
                 Note: This is a ZFS only option.")
                 .conflicts_with_all(&["BROWSE", "RESTORE", "ALT_REPLICATED", "REMOTE_DIR", "LOCAL_DIR"])
                 .requires("LIST_SNAPS")
@@ -709,11 +710,11 @@ impl Config {
             };
 
         let opt_snap_mode_filters = if matches.is_present("LIST_SNAPS") {
-            // allow selection of snaps to purge in purge mode
+            // allow selection of snaps to prune in prune mode
             let select_mode = matches!(opt_interactive_mode, Some(InteractiveMode::Select));
 
-            if !matches.is_present("PURGE") && select_mode {
-                eprintln!("Select mode for listed snapshots only available in PURGE mode.")
+            if !matches.is_present("PRUNE") && select_mode {
+                eprintln!("Select mode for listed snapshots only available in PRUNE mode.")
             }
 
             // default to listing all snaps in list snaps mode if unset
@@ -746,8 +747,8 @@ impl Config {
             ExecMode::NumVersions(num_versions_mode)
         } else if let Some(mount_display) = opt_mount_display {
             ExecMode::MountsForFiles(mount_display)
-        } else if matches.is_present("PURGE") {
-            ExecMode::Purge(opt_snap_mode_filters)
+        } else if matches.is_present("PRUNE") {
+            ExecMode::Prune(opt_snap_mode_filters)
         } else if opt_snap_mode_filters.is_some() {
             ExecMode::SnapsForFiles(opt_snap_mode_filters)
         } else if let Some(requested_snapshot_suffix) = opt_snap_file_mount {
@@ -896,7 +897,7 @@ impl Config {
                 }
                 ExecMode::Display
                 | ExecMode::SnapFileMount(_)
-                | ExecMode::Purge(_)
+                | ExecMode::Prune(_)
                 | ExecMode::MountsForFiles(_)
                 | ExecMode::SnapsForFiles(_)
                 | ExecMode::NumVersions(_) => read_stdin()?,
@@ -972,7 +973,7 @@ impl Config {
             ExecMode::Display
             | ExecMode::RollForward(_)
             | ExecMode::SnapFileMount(_)
-            | ExecMode::Purge(_)
+            | ExecMode::Prune(_)
             | ExecMode::MountsForFiles(_)
             | ExecMode::SnapsForFiles(_)
             | ExecMode::NumVersions(_) => {

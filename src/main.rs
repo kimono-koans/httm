@@ -32,7 +32,7 @@ mod exec {
     pub mod deleted;
     pub mod interactive;
     pub mod preview;
-    pub mod purge;
+    pub mod prune;
     pub mod recursive;
     pub mod roll_forward;
     pub mod snap_mounts;
@@ -62,7 +62,7 @@ mod parse {
 }
 
 use crate::display_map::format::PrintAsMap;
-use exec::purge::PurgeSnaps;
+use exec::prune::PruneSnaps;
 use exec::roll_forward::RollForward;
 use exec::snap_mounts::SnapshotMounts;
 use library::utility::print_output_buf;
@@ -136,9 +136,9 @@ fn exec() -> HttmResult<()> {
 
             print_output_buf(output_buf)
         }
-        ExecMode::Purge(opt_filters) => {
+        ExecMode::Prune(opt_filters) => {
             let versions_map = VersionsMap::new(&GLOBAL_CONFIG, &GLOBAL_CONFIG.paths)?;
-            PurgeSnaps::exec(versions_map, opt_filters)
+            PruneSnaps::exec(versions_map, opt_filters)
         }
         ExecMode::MountsForFiles(mount_display) => {
             let mounts_map = &MountsForFiles::new(mount_display);

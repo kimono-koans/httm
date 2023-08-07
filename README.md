@@ -17,10 +17,10 @@
 * List or even snapshot the mounts for a file directly
 * Roll *forward* to a previous snapshots, instead of rolling back (avoids destroying interstitial snapshots)
 * Guard any restore actions with precautionary snapshots
-* List snapshot names, even purge snapshots, which include a file
+* List snapshot names, even prune snapshots, which include a file name
 * Shortcut features: only display last snapshot, omit duplicates of the live file, etc.
 * Uniqueness level: Like `rsync`, `httm` can determine whether file is unique based solely on metadata, or use checksums
-* 4 native interactive modes: browse, select, purge and restore
+* 4 native interactive modes: browse, select, prune and restore
 * ANSI `ls` colors from your environment
 * Detect and display only categories of the numbers of unique file versions available (`multiple`, `single`, `single-with-snap`,..., etc.)
 * Select from several formatting styles (newline, null, tab delimited, JSON, etc.).  Parseable ... or not ...  oh my!
@@ -73,16 +73,19 @@ The `httm` project contains only a few components:
     latest="(wget -nv -O - "https://api.github.com/repos/kimono-koans/httm/releases/latest" 2>/dev/null | grep tag_name | cut -d: -f2 | cut -d'"' -f2)"
     cargo install --git https://github.com/kimono-koans/httm.git --tag "$latest"
     ```
+
 2. The optional `zsh` hot-key bindings: Use `ESC+s` to select snapshots filenames to be dropped to your command line (for instance after the `cat` command), or use `ESC+m` to browse for all of a file's snapshots. After you install the `httm` binary, to copy the hot key script to your home directory, and source that script within your `.zshrc`:
 
     ```bash
     httm --install-zsh-hot-keys
     ```
+
 3. The optional `man` page: `cargo` has no native facilities for man page installation (though it may in the future!).  You can use `manpath` to see the various directories your system uses and decide which directory works best for you.  To install, just copy it to a directory in your `man` path, like so:
 
     ```bash
     cp ./httm/httm.1 /usr/local/share/man/man1/
     ```
+
 4. The optional scripts.  See script usage below, in the Example Usage section, or follow the links ([ounce](https://github.com/kimono-koans/httm/blob/master/scripts/ounce.bash), [bowie](https://github.com/kimono-koans/httm/blob/master/scripts/bowie.bash), and [nicotine](https://github.com/kimono-koans/httm/blob/master/scripts/nicotine.bash)), for more information.  To install, just copy it to a directory in your path, like so:
 
     ```bash
@@ -105,78 +108,109 @@ On some Linux distributions, which include old versions of `libc`, `cargo` may r
 Note: Users may need to use `sudo` (or equivalent) to view versions on BTRFS or NILFS2 datasets, as BTRFS or NILFS2 snapshots may require root permissions in order to be visible.
 
 Like other UNIX utilities (such as `cat`, `uniq`, `sort`), if you include no path/s as arguments, then `httm` will pause waiting for input on stdin:
+
 ```bash
 # Press CTRL+C to send a SIGINT and quit the program
 ➜ httm 
 # Pipe output of find command to httm
 ➜ find . -maxdepth 1 | httm
 ```
+
 Print all unique versions of your history file:
+
 ```bash
 ➜ httm ~/.histfile
 ```
+
 Print all unique versions of your history file, as formatted JSON:
+
 ```bash
 ➜ httm --json ~/.histfile
 ```
+
 Print all files on snapshots deleted from your home directory, recursive:
+
 ```bash
 ➜ httm -d -R ~
 ```
+
 Print all files on snapshots deleted from your home directory, recursive, newline delimited, piped to a text file:
+
 ```bash
 # pseudo live file versions
 ➜ httm -d -n -R --no-snap ~ > pseudo-live-versions.txt
 # unique snapshot versions
 ➜ httm -d -n -R --no-live ~ > deleted-unique-versions.txt
 ```
+
 Browse all files in your home directory, recursively, and view unique versions on local snapshots:
+
 ```bash
 ➜ httm -i -R ~
 ```
+
 Browse all files deleted from your home directory, recursively, and view unique versions on all local and alternative replicated dataset snapshots:
+
 ```bash
 ➜ httm -d=only -i -a -R ~
 ```
+
 Browse all files in your home directory, recursively, and view unique versions on local snapshots, to select and ultimately restore to your working directory:
+
 ```bash
 ➜ httm -r -R ~
 ```
+
 View unique versions of a file for recovery (shortcut, no need to browse a directory):
+
 ```bash
 ➜ httm -r /var/log/samba/log.smbd
 ```
+
 View `bowie`-formatted `diff` of each unique snapshot of `~/.zshrc` against the live file version:
+
 ```bash
 ➜ httm --preview -s ~/.zshrc
 ```
+
 View `cat` output of each unique snapshot of `~/.zshrc`:
+
 ```bash
 ➜ httm --preview="cat {snap_file}" -s ~/.zshrc
 ```
+
 Recover the last-in-time unique file version (shortcut, no need to browse a directory or select from among other unique versions):
+
 ```bash
 ➜ httm -l -r /var/log/samba/log.smbd
 ```
+
 Snapshot the dataset upon which `/etc/samba/smb.conf` is located:
+
 ```bash
 ➜ sudo httm -S /etc/samba/smb.conf
-``` 
+```
+
 Browse all files, recursively, in a folder backed up via `rsync` to a remote share, and view unique versions on remote snapshots directly (only available for BTRFS Snapper and ZFS datasets).  
+
 ```bash
 # mount the share
 ➜ open smb://<your name>@<your remote share>.local/Home
 # execute httm
 ➜ httm -i -R /Volumes/Home
 ```
+
 Browse all files, recursively, in your MacOS home directory backed up via `rsync` to a ZFS or BTRFS Snapper remote share, shared via `smbd`, and view unique versions on remote snapshots. Note: The difference from above is, here, you're browsing files from a "live" directory:
+
 ```bash
 # mount the share
 ➜ open smb://<your name>@<your remote share>.local/Home
 # execute httm
 ➜ httm -i -R --map-aliases /Users/<your name>:/Volumes/Home ~
 ```
+
 View the differences between each unique snapshot version of the `httm` `man` page and each previous version (this simple script is the basis for [bowie](https://github.com/kimono-koans/httm/blob/master/scripts/bowie.bash)):
+
 ```bash
 filename="./httm/httm.1"
 # previous version is unset
@@ -197,11 +231,15 @@ for current_version in $(httm -n --omit-ditto $filename); do
     previous_version="$current_version"
 done
 ```
+
 Create a simple `tar` archive of all unique versions of your `/var/log/syslog`:
+
 ```bash
 ➜ httm -n --omit-ditto /var/log/syslog | tar -zcvf all-versions-syslog.tar.gz -T -
 ```
+
 Create a *kinda fancy* `tar` archive of all unique versions of your `/var/log/syslog`:
+
 ```bash
 file="/var/log/syslog"
 dir_name="${$(dirname $file)/\//}"
@@ -214,7 +252,9 @@ tar \
 --show-transformed-names \
 -zcvf "all-versions-$(basename $file).tar.gz" -T  -
 ```
+
 Create a *super fancy* `git` archive of all unique versions of `/var/log/syslog` (this simple script is the basis for [nicotine](https://github.com/kimono-koans/httm/blob/master/scripts/nicotine.bash)):
+
 ```bash
 # create variable for file name
 file="/var/log/syslog"
@@ -233,7 +273,9 @@ tar -zcvf "../all-versions-$(basename $file).tar.gz" "./"
 # and to view
 git log --stat
 ```
+
 Use [ounce](https://github.com/kimono-koans/httm/blob/master/scripts/ounce.bash) (codename: "dimebag"), a wrapper script for `httm`, for no mental overhead, non-periodic dynamic snapshots:
+
 ```bash
 # request ZFS snapshot privileges
 ➜ ounce --give-priv
@@ -253,23 +295,29 @@ alias emacs=\"ounce --trace emacs\"
 alias nano=\"ounce --trace nano\"
 alias rm=\"ounce rm\"" >> ~/.zsh_aliases
 ```
+
 Use [bowie](https://github.com/kimono-koans/httm/blob/master/scripts/bowie.bash), a wrapper script for `httm`, to display the difference between unique snapshot versions and the live file:
+
 ```bash
 ➜ bowie ~/.zshrc
 /home/kimono/.zshrc
 __
 Files /home/kimono/.zfs/snapshot/snap_2023-02-14-13:42:11_ounceSnapFileMount/.zshrc and /home/kimono/.zshrc differ
 1c1
-<	### If you come from bash you might have to change your $PATH.
+< ### If you come from bash you might have to change your $PATH.
 ---
->	# If you come from bash you might have to change your $PATH.
+> # If you come from bash you might have to change your $PATH.
 ```
+
 Use [nicotine](https://github.com/kimono-koans/httm/blob/master/scripts/nicotine.bash), a wrapper script for `httm`, to convert unique snapshot file versions to `git` archives:
+
 ```bash
 ➜ nicotine .zshrc
 nicotine git archive created successfully: /home/kimono/zshrc-git.tar.gz
 ```
+
 Roll *forward* to a previous ZFS snapshot, instead of rolling back (this avoids destroying interstitial snapshots):
+
 ```bash
 ➜ sudo httm --roll-forward=rpool/scratch@snap_2023-04-01-15:26:06_httmSnapFileMount
 [sudo] password for kimono:

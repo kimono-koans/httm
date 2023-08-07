@@ -131,7 +131,7 @@ impl std::string::ToString for PrintAsMap {
                 ExecMode::NonInteractiveRecursive(_)
                 | ExecMode::RollForward(_)
                 | ExecMode::NumVersions(_)
-                | ExecMode::Purge(_)
+                | ExecMode::Prune(_)
                 | ExecMode::SnapFileMount(_) => {
                     unreachable!(
                         "JSON print should not be available in the selected {:?} execution mode.",

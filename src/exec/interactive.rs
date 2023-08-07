@@ -415,7 +415,7 @@ pub enum ViewMode {
     Browse,
     Select(Option<String>),
     Restore,
-    Purge,
+    Prune,
 }
 
 impl ViewMode {
@@ -434,7 +434,7 @@ impl ViewMode {
             ViewMode::Browse => "====> [ Browse Mode ] <====",
             ViewMode::Select(_) => "====> [ Select Mode ] <====",
             ViewMode::Restore => "====> [ Restore Mode ] <====",
-            ViewMode::Purge => "====> [ Purge Mode ] <====",
+            ViewMode::Prune => "====> [ Prune Mode ] <====",
         }
     }
 
@@ -542,7 +542,7 @@ impl ViewMode {
         // run_with() reads and shows items from the thread stream created above
         let res = match skim::Skim::run_with(&skim_opts, Some(items)) {
             Some(output) if output.is_abort => {
-                eprintln!("httm select/restore/purge session was aborted.  Quitting.");
+                eprintln!("httm select/restore/prune session was aborted.  Quitting.");
                 std::process::exit(0);
             }
             Some(output) => output
@@ -551,7 +551,7 @@ impl ViewMode {
                 .map(|i| i.output().into_owned())
                 .collect(),
             None => {
-                return Err(HttmError::new("httm select/restore/purge session failed.").into());
+                return Err(HttmError::new("httm select/restore/prune session failed.").into());
             }
         };
 
