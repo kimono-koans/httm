@@ -72,7 +72,7 @@ pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
                         let dst_amt_read = dst_read.len();
 
                         // set explicit limit on possible infinite loop
-                        if !dst_existed || !is_same_bytes(&src_read, &dst_read) {
+                        if !dst_existed || !is_same_bytes(src_read, dst_read) {
                             // seek to current byte offset in dst writer
                             let _seek_pos = dst_writer.seek(SeekFrom::Start(cur_pos))?;
 

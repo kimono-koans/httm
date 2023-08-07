@@ -455,7 +455,7 @@ impl RollForward {
             DiffType::Removed | DiffType::Modified => Self::copy(&snap_file_path, &event.path_buf),
             DiffType::Created => Self::overwrite_or_remove(&snap_file_path, &event.path_buf),
             DiffType::Renamed(new_file_name) => {
-                let snap_new_file_name = self.snap_path(&new_file_name).ok_or_else(|| {
+                let snap_new_file_name = self.snap_path(new_file_name).ok_or_else(|| {
                     HttmError::new("Could not obtain snap file path for live version.")
                 })?;
 
@@ -841,7 +841,7 @@ impl<'a> PreserveHardLinks<'a> {
         }
 
         if let Some(snap_path) = self.roll_forward.snap_path(link) {
-            preserve_recursive(&snap_path, &link)?;
+            preserve_recursive(&snap_path, link)?;
         } else {
             return Err(HttmError::new("Could not obtain snap path").into());
         }

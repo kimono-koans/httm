@@ -191,9 +191,9 @@ pub fn preserve_recursive(src: &Path, dst: &Path) -> HttmResult<()> {
 
 pub fn copy_direct(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<()> {
     if src.is_dir() {
-        create_dir_all(&dst)?;
+        create_dir_all(dst)?;
     } else {
-        generate_dst_parent(&dst)?;
+        generate_dst_parent(dst)?;
 
         if src.is_symlink() {
             let link_target = std::fs::read_link(src)?;
@@ -206,7 +206,7 @@ pub fn copy_direct(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<
     }
 
     if should_preserve {
-        preserve_recursive(&src, &dst)?;
+        preserve_recursive(src, dst)?;
     }
 
     Ok(())
@@ -214,7 +214,7 @@ pub fn copy_direct(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<
 
 pub fn generate_dst_parent(dst: &Path) -> HttmResult<()> {
     if let Some(dst_parent) = dst.parent() {
-        create_dir_all(&dst_parent)?;
+        create_dir_all(dst_parent)?;
     } else {
         let msg = format!("Could not detect a parent for destination file: {:?}", dst);
         return Err(HttmError::new(&msg).into());
@@ -549,11 +549,9 @@ where
         return Err(HttmError::new(&msg).into());
     }
 
-    if src.path().is_symlink() {
-        if src.path().read_link().ok() != dst.path().read_link().ok() {
-            let msg = format!("WARNING: Symlink do not match: {:?}", src.path());
-            return Err(HttmError::new(&msg).into());
-        }
+    if src.path().is_symlink() && src.path().read_link().ok() != dst.path().read_link().ok() {
+        let msg = format!("WARNING: Symlink do not match: {:?}", src.path());
+        return Err(HttmError::new(&msg).into());
     }
 
     if src.opt_metadata() != dst.opt_metadata() {
