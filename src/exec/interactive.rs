@@ -96,12 +96,6 @@ impl InteractiveBrowse {
             }
         };
 
-        #[cfg(target_os = "linux")]
-        #[cfg(target_env = "gnu")]
-        unsafe {
-            let _ = libc::malloc_trim(0);
-        };
-
         Ok(browse_result)
     }
 }
@@ -496,11 +490,7 @@ impl ViewMode {
 
         match display_handle.join() {
             Ok(selected_pathdata) => {
-                #[cfg(target_os = "linux")]
-                #[cfg(target_env = "gnu")]
-                unsafe {
-                    let _ = libc::malloc_trim(0);
-                };
+                Self::malloc_trim();
 
                 let res = InteractiveBrowse {
                     selected_pathdata: selected_pathdata?,
@@ -510,6 +500,14 @@ impl ViewMode {
             }
             Err(_) => Err(HttmError::new("Interactive browse thread panicked.").into()),
         }
+    }
+
+    fn malloc_trim() {
+        #[cfg(target_os = "linux")]
+        #[cfg(target_env = "gnu")]
+        unsafe {
+            let _ = libc::malloc_trim(0);
+        };
     }
 
     pub fn select(&self, preview_buffer: &str, multi: bool) -> HttmResult<Vec<String>> {

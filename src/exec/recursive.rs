@@ -56,6 +56,21 @@ pub struct RecursiveSearch;
 
 impl RecursiveSearch {
     pub fn exec(requested_dir: &Path, skim_tx: SkimItemSender, hangup_rx: Receiver<Never>) {
+        fn run_enumerate_loop(
+            requested_dir: &Path,
+            skim_tx: SkimItemSender,
+            hangup_rx: Receiver<Never>,
+            opt_deleted_scope: Option<&Scope>,
+        ) {
+            // this runs the main loop for live file searches, see the referenced struct below
+            // we are in our own detached system thread, so print error and exit if error trickles up
+            RecursiveMainLoop::exec(requested_dir, opt_deleted_scope, &skim_tx, &hangup_rx)
+                .unwrap_or_else(|error| {
+                    eprintln!("Error: {error}");
+                    std::process::exit(1)
+                });
+        }
+
         if GLOBAL_CONFIG.opt_deleted_mode.is_some() {
             // thread pool allows deleted to have its own scope, which means
             // all threads must complete before the scope exits.  this is important
@@ -66,26 +81,11 @@ impl RecursiveSearch {
                 .expect("Could not initialize rayon threadpool for recursive deleted search");
 
             pool.in_place_scope(|deleted_scope| {
-                Self::run_enumerate_loop(requested_dir, skim_tx, hangup_rx, Some(deleted_scope))
+                run_enumerate_loop(requested_dir, skim_tx, hangup_rx, Some(deleted_scope))
             })
         } else {
-            Self::run_enumerate_loop(requested_dir, skim_tx, hangup_rx, None)
+            run_enumerate_loop(requested_dir, skim_tx, hangup_rx, None)
         }
-    }
-
-    fn run_enumerate_loop(
-        requested_dir: &Path,
-        skim_tx: SkimItemSender,
-        hangup_rx: Receiver<Never>,
-        opt_deleted_scope: Option<&Scope>,
-    ) {
-        // this runs the main loop for live file searches, see the referenced struct below
-        // we are in our own detached system thread, so print error and exit if error trickles up
-        RecursiveMainLoop::exec(requested_dir, opt_deleted_scope, &skim_tx, &hangup_rx)
-            .unwrap_or_else(|error| {
-                eprintln!("Error: {error}");
-                std::process::exit(1)
-            });
     }
 }
 
