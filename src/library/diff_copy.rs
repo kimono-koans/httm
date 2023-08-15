@@ -68,7 +68,7 @@ pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
     let mut cur_pos = 0u64;
 
     loop {
-        let (src_amt_read, dst_amt_read) = match src_reader.fill_buf() {
+        match src_reader.fill_buf() {
             Ok(src_read) => {
                 // read (size of buffer amt) from src, and dst if it exists
                 let src_amt_read = src_read.len();
@@ -114,7 +114,8 @@ pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
 
                 cur_pos += src_amt_read as u64;
 
-                (src_amt_read, dst_amt_read)
+                src_reader.consume(src_amt_read);
+                dst_reader.consume(dst_amt_read);
             }
             Err(err) => match err.kind() {
                 ErrorKind::Interrupted => continue,
@@ -124,9 +125,6 @@ pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
                 _ => return Err(err.into()),
             },
         };
-
-        src_reader.consume(src_amt_read);
-        dst_reader.consume(dst_amt_read);
     }
 
     // re docs, both a flush and a sync seem to be required re consistency
