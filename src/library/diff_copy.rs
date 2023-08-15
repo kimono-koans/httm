@@ -31,11 +31,10 @@ use simd_adler32::Adler32;
 use crate::library::results::HttmResult;
 
 const CHUNK_SIZE: usize = 65_536;
-const NONE_READ: usize = 0;
 
 enum DstFileState {
     Exists,
-    DoesNotExist(usize),
+    DoesNotExist,
 }
 
 pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
@@ -47,7 +46,7 @@ pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
     let dst_exists = if dst.exists() {
         DstFileState::Exists
     } else {
-        DstFileState::DoesNotExist(NONE_READ)
+        DstFileState::DoesNotExist
     };
 
     let dst_file = OpenOptions::new()
@@ -77,14 +76,12 @@ pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
                     break;
                 }
 
-                let dst_amt_read = match dst_exists {
-                    DstFileState::DoesNotExist(none_read) => {
+                match dst_exists {
+                    DstFileState::DoesNotExist => {
                         // seek to current byte offset in dst writer
                         let _seek_pos = dst_writer.seek(SeekFrom::Start(cur_pos))?;
 
                         dst_writer.write_all(src_read)?;
-
-                        none_read
                     }
                     DstFileState::Exists => {
                         // read same amt from dst file, if it exists, to compare
@@ -99,7 +96,7 @@ pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
                                     dst_writer.write_all(src_read)?
                                 }
 
-                                dst_amt_read
+                                dst_reader.consume(dst_amt_read);
                             }
                             Err(err) => match err.kind() {
                                 ErrorKind::Interrupted => continue,
@@ -115,7 +112,6 @@ pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
                 cur_pos += src_amt_read as u64;
 
                 src_reader.consume(src_amt_read);
-                dst_reader.consume(dst_amt_read);
             }
             Err(err) => match err.kind() {
                 ErrorKind::Interrupted => continue,
