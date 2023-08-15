@@ -92,10 +92,6 @@ pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
                             Ok(dst_read) => {
                                 let dst_amt_read = dst_read.len();
 
-                                if dst_amt_read == 0 {
-                                    break;
-                                }
-
                                 if !is_same_bytes(src_read, dst_read) {
                                     // seek to current byte offset in dst writer
                                     let _seek_pos = dst_writer.seek(SeekFrom::Start(cur_pos))?;
