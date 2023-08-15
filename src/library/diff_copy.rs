@@ -31,6 +31,12 @@ use simd_adler32::Adler32;
 use crate::library::results::HttmResult;
 
 const CHUNK_SIZE: usize = 65_536;
+const NONE_READ: usize = 0;
+
+enum DstFileState {
+    Exists,
+    DoesNotExist(usize),
+}
 
 pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
     // create source file reader
@@ -38,7 +44,12 @@ pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
     let mut src_reader = BufReader::with_capacity(CHUNK_SIZE, &src_file);
 
     // create destination if it doesn't exist
-    let dst_existed = dst.exists();
+    let dst_exists = if dst.exists() {
+        DstFileState::Exists
+    } else {
+        DstFileState::DoesNotExist(NONE_READ)
+    };
+
     let dst_file = OpenOptions::new()
         .write(true)
         .read(true)
@@ -66,31 +77,46 @@ pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
                     break;
                 }
 
-                // read same amt from dst file, if it exists, to compare
-                let dst_amt_read = match dst_reader.fill_buf() {
-                    Ok(dst_read) => {
-                        let dst_amt_read = dst_read.len();
+                let dst_amt_read = match dst_exists {
+                    DstFileState::DoesNotExist(none_read) => {
+                        // seek to current byte offset in dst writer
+                        let _seek_pos = dst_writer.seek(SeekFrom::Start(cur_pos))?;
 
-                        // set explicit limit on possible infinite loop
-                        if !dst_existed || !is_same_bytes(src_read, dst_read) {
-                            // seek to current byte offset in dst writer
-                            let _seek_pos = dst_writer.seek(SeekFrom::Start(cur_pos))?;
+                        dst_writer.write_all(src_read)?;
 
-                            dst_writer.write_all(src_read)?
-                        }
-
-                        cur_pos += src_amt_read as u64;
-
-                        dst_amt_read
+                        none_read
                     }
-                    Err(err) => match err.kind() {
-                        ErrorKind::Interrupted => continue,
-                        ErrorKind::UnexpectedEof => {
-                            break;
+                    DstFileState::Exists => {
+                        // read same amt from dst file, if it exists, to compare
+                        match dst_reader.fill_buf() {
+                            Ok(dst_read) => {
+                                let dst_amt_read = dst_read.len();
+
+                                if dst_amt_read == 0 {
+                                    break;
+                                }
+
+                                if !is_same_bytes(src_read, dst_read) {
+                                    // seek to current byte offset in dst writer
+                                    let _seek_pos = dst_writer.seek(SeekFrom::Start(cur_pos))?;
+
+                                    dst_writer.write_all(src_read)?
+                                }
+
+                                dst_amt_read
+                            }
+                            Err(err) => match err.kind() {
+                                ErrorKind::Interrupted => continue,
+                                ErrorKind::UnexpectedEof => {
+                                    break;
+                                }
+                                _ => return Err(err.into()),
+                            },
                         }
-                        _ => return Err(err.into()),
-                    },
+                    }
                 };
+
+                cur_pos += src_amt_read as u64;
 
                 (src_amt_read, dst_amt_read)
             }
