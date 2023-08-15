@@ -345,7 +345,7 @@ impl CompareVersionsContainer {
                     return Ok(*hash_value);
                 }
 
-                HashFromFile::try_from(self.pathdata.path_buf.as_path())
+                HashFromFile::new(self.pathdata.path_buf.as_path())
                     .map(|hash| *self_hash_cell.get_or_init(|| hash.into_inner()))
             },
             || {
@@ -353,7 +353,7 @@ impl CompareVersionsContainer {
                     return Ok(*hash_value);
                 }
 
-                HashFromFile::try_from(other.pathdata.path_buf.as_path())
+                HashFromFile::new(other.pathdata.path_buf.as_path())
                     .map(|hash| *other_hash_cell.get_or_init(|| hash.into_inner()))
             },
         );
@@ -374,16 +374,7 @@ struct HashFromFile {
 
 impl HashFromFile {
     #[inline(always)]
-    fn into_inner(self) -> u32 {
-        self.hash
-    }
-}
-
-impl TryFrom<&Path> for HashFromFile {
-    type Error = Box<dyn std::error::Error + Send + Sync>;
-
-    #[inline(always)]
-    fn try_from(path: &Path) -> HttmResult<Self> {
+    fn new(path: &Path) -> HttmResult<Self> {
         const IN_BUFFER_SIZE: usize = 131_072;
 
         let file = File::open(path)?;
@@ -419,5 +410,10 @@ impl TryFrom<&Path> for HashFromFile {
 
             reader.consume(consumed);
         }
+    }
+
+    #[inline(always)]
+    fn into_inner(self) -> u32 {
+        self.hash
     }
 }
