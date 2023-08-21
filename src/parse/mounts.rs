@@ -285,6 +285,7 @@ impl BaseFilesystemInfo {
                         let opt_mount = rest.split_once(" (");
                         opt_mount.map(|mount| (filesystem, mount.0))
                     // illumos has no clear delimiter except the next space
+                    // and swaps the mount and filesystem in the output!
                     } else {
                         let mount = filesystem;
                         let opt_filesystem = rest.split_once(" ");
