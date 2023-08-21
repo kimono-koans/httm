@@ -288,7 +288,7 @@ impl BaseFilesystemInfo {
                     } else {
                         let mount = filesystem;
                         let opt_filesystem = rest.split_once(" ");
-                        opt_filesystem.map(|real_fs| (real_fs.0, mount))
+                        opt_filesystem.map(|fs| (fs.0, mount))
                     }
                 })
                 .map(|(filesystem, mount)| (PathBuf::from(filesystem), PathBuf::from(mount)))
