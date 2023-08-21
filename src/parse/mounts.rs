@@ -277,17 +277,19 @@ impl BaseFilesystemInfo {
                 // where to split, to just have the src and dest of mounts
                 .filter_map(|(filesystem, rest)| {
                     // GNU Linux mount output
-                    let opt_mount = if rest.contains("type") {
-                        rest.split_once(" type")
+                    if rest.contains("type") {
+                        let opt_mount = rest.split_once(" type");
+                        opt_mount.map(|mount| (filesystem, mount.0))
                     // Busybox and BSD mount output
                     } else if rest.contains(" (") {
-                        rest.split_once(" (")
+                        let opt_mount = rest.split_once(" (");
+                        opt_mount.map(|mount| (filesystem, mount.0))
                     // illumos has no clear delimiter except the next space
                     } else {
-                        rest.split_once(" ")
-                    };
-
-                    opt_mount.map(|mount| (filesystem, mount.0))
+                        let mount = filesystem;
+                        let opt_filesystem = rest.split_once(" ");
+                        opt_filesystem.map(|real_fs| (real_fs.0, mount))
+                    }
                 })
                 .map(|(filesystem, mount)| (PathBuf::from(filesystem), PathBuf::from(mount)))
                 // sanity check: does the filesystem exist and have a ZFS hidden dir? if not, filter it out
