@@ -56,7 +56,7 @@ pub struct RecursiveSearch;
 
 impl RecursiveSearch {
     pub fn exec(requested_dir: &Path, skim_tx: SkimItemSender, hangup_rx: Receiver<Never>) {
-        fn run_enumerate_loop(
+        fn run_loop(
             requested_dir: &Path,
             skim_tx: SkimItemSender,
             hangup_rx: Receiver<Never>,
@@ -81,10 +81,10 @@ impl RecursiveSearch {
                 .expect("Could not initialize rayon threadpool for recursive deleted search");
 
             pool.in_place_scope(|deleted_scope| {
-                run_enumerate_loop(requested_dir, skim_tx, hangup_rx, Some(deleted_scope))
+                run_loop(requested_dir, skim_tx, hangup_rx, Some(deleted_scope))
             })
         } else {
-            run_enumerate_loop(requested_dir, skim_tx, hangup_rx, None)
+            run_loop(requested_dir, skim_tx, hangup_rx, None)
         }
     }
 }
