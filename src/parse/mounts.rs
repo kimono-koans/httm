@@ -269,46 +269,48 @@ impl BaseFilesystemInfo {
         // parse "mount" for filesystems and mountpoints
         let (map_of_datasets, filter_dirs): (HashMap<PathBuf, DatasetMetadata>, HashSet<PathBuf>) =
             stdout_string
-            .par_lines()
-            // but exclude snapshot mounts.  we want the raw filesystem names.
-            .filter(|line| !line.contains(ZFS_HIDDEN_DIRECTORY))
-            // where to split, to just have the src and dest of mounts
-            .filter_map(|line|
-                // GNU Linux mount output
-                if line.contains("type") {
-                    line.split_once(" type")
-                // Busybox and BSD mount output
-                } else {
-                    line.split_once(" (")
-                }
-            )
-            .map(|(filesystem_and_mount,_)| filesystem_and_mount )
-            // mount cmd includes and " on " between src and dest of mount
-            .filter_map(|filesystem_and_mount| filesystem_and_mount.split_once(" on "))
-            .map(|(filesystem, mount)| (PathBuf::from(filesystem), PathBuf::from(mount)))
-            // sanity check: does the filesystem exist and have a ZFS hidden dir? if not, filter it out
-            // and flip around, mount should key of key/value
-            .partition_map(|(source, mount)| {
-                match fs_type_from_hidden_dir(&mount) {
-                    Some(FilesystemType::Zfs) => {
-                        Either::Left((mount, DatasetMetadata {
+                .par_lines()
+                // but exclude snapshot mounts.  we want the raw filesystem names.
+                .filter(|line| !line.contains(ZFS_HIDDEN_DIRECTORY))
+                // mount cmd includes and " on " between src and rest
+                .filter_map(|line| line.split_once(" on "))
+                // where to split, to just have the src and dest of mounts
+                .filter_map(|(filesystem, rest)| {
+                    // GNU Linux mount output
+                    let opt_mount = if rest.contains("type") {
+                        rest.split_once(" type")
+                    // Busybox and BSD mount output
+                    } else if rest.contains(" (") {
+                        rest.split_once(" (")
+                    // illumos has no clear delimiter except the next space
+                    } else {
+                        rest.split_once(" ")
+                    };
+
+                    opt_mount.map(|mount| (filesystem, mount.0))
+                })
+                .map(|(filesystem, mount)| (PathBuf::from(filesystem), PathBuf::from(mount)))
+                // sanity check: does the filesystem exist and have a ZFS hidden dir? if not, filter it out
+                // and flip around, mount should key of key/value
+                .partition_map(|(source, mount)| match fs_type_from_hidden_dir(&mount) {
+                    Some(FilesystemType::Zfs) => Either::Left((
+                        mount,
+                        DatasetMetadata {
                             source,
                             fs_type: FilesystemType::Zfs,
-                            mount_type: MountType::Local
-                        }))
-                    },
-                    Some(FilesystemType::Btrfs) => {
-                        Either::Left((mount, DatasetMetadata{
+                            mount_type: MountType::Local,
+                        },
+                    )),
+                    Some(FilesystemType::Btrfs) => Either::Left((
+                        mount,
+                        DatasetMetadata {
                             source,
                             fs_type: FilesystemType::Btrfs,
-                            mount_type: MountType::Local
-                        }))
-                    },
-                    _ => {
-                        Either::Right(mount)
-                    }
-                }
-            });
+                            mount_type: MountType::Local,
+                        },
+                    )),
+                    _ => Either::Right(mount),
+                });
 
         if map_of_datasets.is_empty() {
             Err(HttmError::new("httm could not find any valid datasets on the system.").into())
