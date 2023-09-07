@@ -1,7 +1,7 @@
 [package]
 name = "httm" 
 authors = ["Robert Swinford <robert.swinford@gmail.com>"]
-version = "0.30.0"
+version = "0.30.1"
 edition = "2021"
 keywords = ["zfs", "backup", "restore", "cli-utility", "snapshot"]
 description = "A CLI tool for viewing snapshot file versions on ZFS and btrfs datasets"
@@ -40,7 +40,7 @@ indicatif =  { version = "0.17.3", default-features = false }
 proc-mounts = { version = "0.3.0", default-features = false }
 once_cell = { version = "1.17.1", default-features = false }
 hashbrown = { version = "0.14.0", default-features = false, features = ["rayon", "ahash", "inline-more"] }
-nix = { version = "0.26.2", default-features = false, features = ["fs", "user"] }
+nix = { version = "0.27.1", default-features = false, features = ["fs", "user"] }
 xattr = { version = "1.0.0", default-features = false }
 serde = { version = "1.0.163", default-features = false }
 serde_json = { version = "1.0.96", default-features = false, features = ["preserve_order"] }
