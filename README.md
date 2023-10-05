@@ -146,13 +146,13 @@ Print all files on snapshots deleted from your home directory, recursive, newlin
 Browse all files in your home directory, recursively, and view unique versions on local snapshots:
 
 ```bash
-➜ httm -i -R ~
+➜ httm -b -R ~
 ```
 
 Browse all files deleted from your home directory, recursively, and view unique versions on all local and alternative replicated dataset snapshots:
 
 ```bash
-➜ httm -d=only -i -a -R ~
+➜ httm -d=only -b -a -R ~
 ```
 
 Browse all files in your home directory, recursively, and view unique versions on local snapshots, to select and ultimately restore to your working directory:
@@ -197,7 +197,7 @@ Browse all files, recursively, in a folder backed up via `rsync` to a remote sha
 # mount the share
 ➜ open smb://<your name>@<your remote share>.local/Home
 # execute httm
-➜ httm -i -R /Volumes/Home
+➜ httm -b -R /Volumes/Home
 ```
 
 Browse all files, recursively, in your MacOS home directory backed up via `rsync` to a ZFS or BTRFS Snapper remote share, shared via `smbd`, and view unique versions on remote snapshots. Note: The difference from above is, here, you're browsing files from a "live" directory:
@@ -206,7 +206,7 @@ Browse all files, recursively, in your MacOS home directory backed up via `rsync
 # mount the share
 ➜ open smb://<your name>@<your remote share>.local/Home
 # execute httm
-➜ httm -i -R --map-aliases /Users/<your name>:/Volumes/Home ~
+➜ httm -b -R --map-aliases /Users/<your name>:/Volumes/Home ~
 ```
 
 View the differences between each unique snapshot version of the `httm` `man` page and each previous version (this simple script is the basis for [bowie](https://github.com/kimono-koans/httm/blob/master/scripts/bowie.bash)):
