@@ -22,8 +22,8 @@ use terminal_size::{terminal_size, Height, Width};
 
 use crate::config::generate::{BulkExclusion, Config, PrintMode};
 use crate::data::paths::{PathData, PHANTOM_DATE, PHANTOM_SIZE};
-use crate::library::utility::delimiter;
 use crate::library::utility::{date_string, display_human_size, paint_string, DateFormat};
+use crate::library::utility::{delimiter, path_contains_filter_dir};
 use crate::VersionsDisplayWrapper;
 // 2 space wide padding - used between date and size, and size and path
 pub const PRETTY_FIXED_WIDTH_PADDING: &str = "  ";
@@ -172,8 +172,36 @@ impl<'a> DisplaySet<'a> {
                         display_set_buffer += &component_buffer;
                     } else if matches!(display_set_type, DisplaySetType::IsSnap) {
                         display_set_buffer += &padding_collection.fancy_border_string;
+
                         if !component_buffer.is_empty() {
                             display_set_buffer += &component_buffer;
+                            display_set_buffer += &padding_collection.fancy_border_string;
+                        } else {
+                            let live_pathdata = self.inner[1][0];
+
+                            let opt_live_pathdata = live_pathdata
+                                .proximate_dataset(&config.dataset_collection.map_of_datasets)
+                                .ok();
+
+                            let warning = match opt_live_pathdata.and_then(|dataset_of_interest| {
+                                config
+                                    .dataset_collection
+                                    .map_of_snaps
+                                    .get(dataset_of_interest)
+                            }) {
+                                None => "WARN: The file's dataset is not a supported filesystem.\n",
+                                Some(_vec) if path_contains_filter_dir(&live_pathdata.path_buf) => {
+                                    "WARN: The file's dataset is not a supported filesystem.\n"
+                                }
+                                Some(vec) if vec.is_empty() => {
+                                    "WARN: No snapshots exist for the file's specified dataset.\n"
+                                }
+                                Some(_vec) => {
+                                    "WARN: No snapshot version exists for the specified file.\n"
+                                }
+                            };
+
+                            display_set_buffer += warning;
                             display_set_buffer += &padding_collection.fancy_border_string;
                         }
                     } else {

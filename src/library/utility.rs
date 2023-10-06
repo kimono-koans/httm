@@ -20,6 +20,7 @@ use std::{
     fs::{create_dir_all, read_dir, set_permissions, FileType},
     io::{self, Read, Write},
     iter::Iterator,
+    ops::Deref,
     os::unix::fs::MetadataExt,
     path::{Path, PathBuf},
     time::SystemTime,
@@ -585,4 +586,13 @@ impl<T: AsRef<Path>> ComparePathMetadata for T {
     fn path(&self) -> &Path {
         self.as_ref()
     }
+}
+
+pub fn path_contains_filter_dir(path: &Path) -> bool {
+    GLOBAL_CONFIG
+        .dataset_collection
+        .filter_dirs
+        .deref()
+        .iter()
+        .any(|filter_dir| path.starts_with(filter_dir))
 }
