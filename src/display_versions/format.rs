@@ -190,6 +190,9 @@ impl<'a> DisplaySet<'a> {
                                     .get(dataset_of_interest)
                             }) {
                                 None => "WARN: The file's dataset is not a supported filesystem.\n",
+                                // below is necessary because root fs "/" could or could not be the most proximate fs
+                                // for instance, if root fs is on a supported filesystem, and the file is not "/sys/fs",
+                                // a search of datasets will report "/" as the most proximate filesystem, not None as you might suppose
                                 Some(_vec) if path_contains_filter_dir(&live_pathdata.path_buf) => {
                                     "WARN: The file's dataset is not a supported filesystem.\n"
                                 }
