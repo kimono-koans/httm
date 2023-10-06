@@ -179,30 +179,7 @@ impl<'a> DisplaySet<'a> {
                         } else {
                             let live_pathdata = self.inner[1][0];
 
-                            let opt_live_pathdata = live_pathdata
-                                .proximate_dataset(&config.dataset_collection.map_of_datasets)
-                                .ok();
-
-                            let warning = match opt_live_pathdata.and_then(|dataset_of_interest| {
-                                config
-                                    .dataset_collection
-                                    .map_of_snaps
-                                    .get(dataset_of_interest)
-                            }) {
-                                None => "WARN: The file's dataset is not a supported filesystem.\n",
-                                // below is necessary because root fs "/" could or could not be the most proximate fs
-                                // for instance, if root fs is on a supported filesystem, and the file is not "/sys/fs",
-                                // a search of datasets will report "/" as the most proximate filesystem, not None as you might suppose
-                                Some(_vec) if path_contains_filter_dir(&live_pathdata.path_buf) => {
-                                    "WARN: The file's dataset is not a supported filesystem.\n"
-                                }
-                                Some(vec) if vec.is_empty() => {
-                                    "WARN: No snapshots exist for the file's specified dataset.\n"
-                                }
-                                Some(_vec) => {
-                                    "WARN: No snapshot version exists for the specified file.\n"
-                                }
-                            };
+                            let warning = live_pathdata.warning_underlying_snaps(config);
 
                             display_set_buffer += warning;
                             display_set_buffer += &padding_collection.fancy_border_string;
@@ -294,6 +271,31 @@ impl PathData {
             "{}{}{}{}{}\n",
             display_date, display_padding, display_size, display_padding, display_path
         )
+    }
+
+    fn warning_underlying_snaps<'a>(&'a self, config: &Config) -> &'a str {
+        let opt_live_pathdata = self
+            .proximate_dataset(&config.dataset_collection.map_of_datasets)
+            .ok();
+
+        match opt_live_pathdata.and_then(|dataset_of_interest| {
+            config
+                .dataset_collection
+                .map_of_snaps
+                .get(dataset_of_interest)
+        }) {
+            None => "WARN: The file's dataset is not a supported filesystem.\n",
+            // below is necessary because root fs "/" could or could not be the most proximate fs
+            // for instance, if root fs is on a supported filesystem, and the file is not "/sys/fs",
+            // a search of datasets will report "/" as the most proximate filesystem, not None as you might suppose
+            Some(_vec) if path_contains_filter_dir(&self.path_buf) => {
+                "WARN: The file's dataset is not a supported filesystem.\n"
+            }
+            Some(vec) if vec.is_empty() => {
+                "WARN: No snapshots exist for the file's specified dataset.\n"
+            }
+            Some(_vec) => "WARN: No snapshot version exists for the specified file.\n",
+        }
     }
 }
 
