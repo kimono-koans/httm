@@ -151,6 +151,8 @@ impl DisplaySetType {
 impl<'a> DisplaySet<'a> {
     pub fn format(&self, config: &Config, padding_collection: &PaddingCollection) -> String {
         // get the display buffer for each set snaps and live
+        let mut border: String = padding_collection.fancy_border_string.clone();
+
         self.iter()
             .enumerate()
             .map(|(idx, snap_or_live_set)| (DisplaySetType::from(idx), snap_or_live_set))
@@ -171,22 +173,28 @@ impl<'a> DisplaySet<'a> {
                     if matches!(config.print_mode, PrintMode::FormattedNotPretty) {
                         display_set_buffer += &component_buffer;
                     } else if matches!(display_set_type, DisplaySetType::IsSnap) {
-                        display_set_buffer += &padding_collection.fancy_border_string;
-
                         if !component_buffer.is_empty() {
+                            display_set_buffer += &border;
                             display_set_buffer += &component_buffer;
-                            display_set_buffer += &padding_collection.fancy_border_string;
+                            display_set_buffer += &border;
                         } else {
                             let live_pathdata = self.inner[1][0];
 
                             let warning = live_pathdata.warning_underlying_snaps(config);
+                            let warning_len = warning.len();
+                            let border_len = border.len();
 
+                            if warning_len > border_len {
+                                border = format!("{:─<warning_len$}\n", "");
+                            }
+
+                            display_set_buffer += &border;
                             display_set_buffer += warning;
-                            display_set_buffer += &padding_collection.fancy_border_string;
+                            display_set_buffer += &border;
                         }
                     } else {
                         display_set_buffer += &component_buffer;
-                        display_set_buffer += &padding_collection.fancy_border_string;
+                        display_set_buffer += &border;
                     }
                     display_set_buffer
                 },
