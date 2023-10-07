@@ -150,6 +150,8 @@ impl DisplaySetType {
 
 impl<'a> DisplaySet<'a> {
     pub fn format(&self, config: &Config, padding_collection: &PaddingCollection) -> String {
+        let mut border: String = padding_collection.fancy_border_string.to_string();
+
         // get the display buffer for each set snaps and live
         self.iter()
             .enumerate()
@@ -158,11 +160,8 @@ impl<'a> DisplaySet<'a> {
                 display_set_type.filter_bulk_exclusions(config)
             })
             .fold(
-                (
-                    String::new(),
-                    padding_collection.fancy_border_string.to_string(),
-                ),
-                |(mut display_set_buffer, mut border), (display_set_type, snap_or_live_set)| {
+                String::new(),
+                |mut display_set_buffer, (display_set_type, snap_or_live_set)| {
                     let component_buffer: String = snap_or_live_set
                         .iter()
                         .map(|pathdata| {
@@ -183,10 +182,10 @@ impl<'a> DisplaySet<'a> {
 
                             let warning = live_pathdata.warning_underlying_snaps(config);
                             let warning_len = warning.len();
-                            let pathdata_len = live_pathdata.path_buf.as_os_str().len();
+                            let live_pathdata_len = live_pathdata.path_buf.as_os_str().len();
 
-                            if warning_len.gt(&pathdata_len) {
-                                border = format!("{:─<warning_len$}\n", "")
+                            if warning_len.gt(&live_pathdata_len) {
+                                border = format!("{:─<warning_len$}\n", border.trim_end())
                             }
 
                             display_set_buffer += &border;
@@ -198,10 +197,9 @@ impl<'a> DisplaySet<'a> {
                         display_set_buffer += &border;
                     }
 
-                    (display_set_buffer, border)
+                    display_set_buffer
                 },
             )
-            .0
     }
 }
 
