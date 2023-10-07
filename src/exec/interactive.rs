@@ -523,7 +523,7 @@ impl ViewMode {
         };
     }
 
-    pub fn select(&self, preview_buffer: &str, multi: bool) -> HttmResult<Vec<String>> {
+    pub fn select(&self, preview_buffer: &str, opt_multi: bool) -> HttmResult<Vec<String>> {
         let preview_selection = PreviewSelection::new(self)?;
 
         let header = self.print_header();
@@ -537,7 +537,7 @@ impl ViewMode {
             .nosort(true)
             .tabstop(Some("4"))
             .exact(true)
-            .multi(multi)
+            .multi(opt_multi)
             .regex(false)
             .tiebreak(Some("length,index".to_string()))
             .header(Some(&header))
