@@ -130,6 +130,7 @@ impl std::string::ToString for PrintAsMap {
                 }
                 ExecMode::NonInteractiveRecursive(_)
                 | ExecMode::RollForward(_)
+                | ExecMode::GroupRollback(_)
                 | ExecMode::NumVersions(_)
                 | ExecMode::Prune(_)
                 | ExecMode::SnapFileMount(_) => {

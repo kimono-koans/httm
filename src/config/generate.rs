@@ -43,6 +43,7 @@ pub enum ExecMode {
     SnapsForFiles(Option<ListSnapsFilters>),
     NumVersions(NumVersionsMode),
     RollForward(RollForwardConfig),
+    GroupRollback(Option<String>),
 }
 
 #[derive(Debug, Clone)]
@@ -299,6 +300,19 @@ fn parse_args() -> ArgMatches {
                 httm will copy only files and their attributes that have changed since a specified snapshot, from that snapshot, to its live dataset.  \
                 httm will also take two precautionary snapshots, one before and one after the copy.  \
                 Should the roll forward fail for any reason, httm will roll back to the pre-execution state.  \
+                Caveats: This is a ZFS only option which requires super user privileges.")
+                .conflicts_with_all(&["BROWSE", "RESTORE", "ALT_REPLICATED", "REMOTE_DIR", "LOCAL_DIR"])
+                .display_order(13)
+        )
+        .arg(
+            Arg::new("GROUP_ROLLBACK")
+                .long("group-rollback")
+                .takes_value(true)
+                .min_values(0)
+                .require_equals(true)
+                .multiple_values(false)
+                .help("interactively rollback multiple datasets with the same snap name.\
+                This option takes a value which filters upon those snap names which contain that value.\
                 Caveats: This is a ZFS only option which requires super user privileges.")
                 .conflicts_with_all(&["BROWSE", "RESTORE", "ALT_REPLICATED", "REMOTE_DIR", "LOCAL_DIR"])
                 .display_order(13)
@@ -735,7 +749,13 @@ impl Config {
             None
         };
 
-        let mut exec_mode = if let Some(full_snap_name) = matches.value_of("ROLL_FORWARD") {
+        let mut exec_mode = if matches.is_present("GROUP_ROLLBACK") {
+            ExecMode::GroupRollback(
+                matches
+                    .value_of("GROUP_ROLLBACK")
+                    .map(|value| value.to_string()),
+            )
+        } else if let Some(full_snap_name) = matches.value_of("ROLL_FORWARD") {
             let progress_bar: ProgressBar = indicatif::ProgressBar::new_spinner();
             let roll_config: RollForwardConfig = RollForwardConfig {
                 full_snap_name: full_snap_name.to_string(),
@@ -892,6 +912,7 @@ impl Config {
                 // input, and waiting on one input from stdin is pretty silly
                 ExecMode::Interactive(_)
                 | ExecMode::NonInteractiveRecursive(_)
+                | ExecMode::GroupRollback(_)
                 | ExecMode::RollForward(_) => {
                     vec![pwd.clone()]
                 }
@@ -972,6 +993,7 @@ impl Config {
 
             ExecMode::Display
             | ExecMode::RollForward(_)
+            | ExecMode::GroupRollback(_)
             | ExecMode::SnapFileMount(_)
             | ExecMode::Prune(_)
             | ExecMode::MountsForFiles(_)

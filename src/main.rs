@@ -30,6 +30,7 @@ mod display_versions {
 }
 mod exec {
     pub mod deleted;
+    pub mod group_rollback;
     pub mod interactive;
     pub mod preview;
     pub mod prune;
@@ -62,6 +63,7 @@ mod parse {
 }
 
 use crate::display_map::format::PrintAsMap;
+use exec::group_rollback::GroupRollback;
 use exec::prune::PruneSnaps;
 use exec::roll_forward::RollForward;
 use exec::snap_mounts::SnapshotMounts;
@@ -148,5 +150,6 @@ fn exec() -> HttmResult<()> {
             print_output_buf(output_buf)
         }
         ExecMode::RollForward(roll_config) => RollForward::new(roll_config.clone())?.exec(),
+        ExecMode::GroupRollback(filter_name) => GroupRollback::new(filter_name),
     }
 }
