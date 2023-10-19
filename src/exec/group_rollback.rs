@@ -3,17 +3,34 @@ use std::path::PathBuf;
 
 use hashbrown::HashMap;
 
-use crate::data::paths::PathData;
 use crate::library::iter_extensions::HttmIter;
 use crate::library::results::HttmResult;
 use crate::library::utility::deconstruct_snap_paths;
 use crate::parse::aliases::FilesystemType;
 use crate::GLOBAL_CONFIG;
 
+pub struct GroupRollbackMap {
+    inner: HashMap<String, Vec<PathBuf>>,
+}
+
+impl From<HashMap<String, Vec<PathBuf>>> for GroupRollbackMap {
+    fn from(map: HashMap<String, Vec<PathBuf>>) -> Self {
+        Self { inner: map }
+    }
+}
+
+impl Deref for GroupRollbackMap {
+    type Target = HashMap<String, Vec<PathBuf>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
 pub struct GroupRollback;
 
 impl GroupRollback {
-    pub fn new(opt_filter_name: &Option<String>) -> HttmResult<()> {
+    pub fn exec(opt_filter_name: &Option<String>) -> HttmResult<()> {
         let group_rollback_map: HashMap<String, Vec<PathBuf>> = GLOBAL_CONFIG
             .dataset_collection
             .map_of_snaps
@@ -23,7 +40,7 @@ impl GroupRollback {
                 let parsed_values: Vec<String> = values
                     .iter()
                     .filter_map(|path| {
-                        deconstruct_snap_paths(&PathData::from(&path)).and_then(|snap_string| {
+                        deconstruct_snap_paths(&path).and_then(|snap_string| {
                             snap_string
                                 .split_once('@')
                                 .map(|(_lhs, rhs)| rhs.to_string())
@@ -40,10 +57,10 @@ impl GroupRollback {
                     })
                     .collect();
 
-                (key.clone(), parsed_values)
+                (key, parsed_values)
             })
             .filter_map(|(key, values)| {
-                let md = GLOBAL_CONFIG.dataset_collection.map_of_datasets.get(&key);
+                let md = GLOBAL_CONFIG.dataset_collection.map_of_datasets.get(key);
 
                 md.and_then(|md| {
                     if !matches!(md.fs_type, FilesystemType::Zfs) {

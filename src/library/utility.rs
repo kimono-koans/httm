@@ -597,8 +597,8 @@ pub fn path_contains_filter_dir(path: &Path) -> bool {
         .any(|filter_dir| path.starts_with(filter_dir))
 }
 
-pub fn deconstruct_snap_paths(pathdata: &PathData) -> Option<String> {
-    let path_string = &pathdata.path_buf.to_string_lossy();
+pub fn deconstruct_snap_paths(path: &PathBuf) -> Option<String> {
+    let path_string = &path.to_string_lossy();
 
     let (dataset_path, (snap, _relpath)) =
         if let Some((lhs, rhs)) = path_string.split_once(&format!("{ZFS_SNAPSHOT_DIRECTORY}/")) {
@@ -617,7 +617,7 @@ pub fn deconstruct_snap_paths(pathdata: &PathData) -> Option<String> {
             Some(format!("{}@{snap}", md.source.to_string_lossy()))
         }
         Some(_md) => {
-            eprintln!("WARNING: {pathdata:?} is located on a non-ZFS dataset.  httm can only list snapshot names for ZFS datasets.");
+            eprintln!("WARNING: {path:?} is located on a non-ZFS dataset.  httm can only list snapshot names for ZFS datasets.");
             None
         }
         _ => None,

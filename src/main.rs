@@ -150,6 +150,6 @@ fn exec() -> HttmResult<()> {
             print_output_buf(output_buf)
         }
         ExecMode::RollForward(roll_config) => RollForward::new(roll_config.clone())?.exec(),
-        ExecMode::GroupRollback(filter_name) => GroupRollback::new(filter_name),
+        ExecMode::GroupRollback(filter_name) => GroupRollback::exec(filter_name),
     }
 }
