@@ -596,3 +596,30 @@ pub fn path_contains_filter_dir(path: &Path) -> bool {
         .iter()
         .any(|filter_dir| path.starts_with(filter_dir))
 }
+
+pub fn deconstruct_snap_paths(path: &Path) -> Option<String> {
+    let path_string = &path.to_string_lossy();
+
+    let (dataset_path, (snap, _relpath)) =
+        if let Some((lhs, rhs)) = path_string.split_once(&format!("{ZFS_SNAPSHOT_DIRECTORY}/")) {
+            (Path::new(lhs), rhs.split_once('/').unwrap_or((rhs, "")))
+        } else {
+            return None;
+        };
+
+    let opt_dataset_md = GLOBAL_CONFIG
+        .dataset_collection
+        .map_of_datasets
+        .get(dataset_path);
+
+    match opt_dataset_md {
+        Some(md) if md.fs_type == FilesystemType::Zfs => {
+            Some(format!("{}@{snap}", md.source.to_string_lossy()))
+        }
+        Some(_md) => {
+            eprintln!("WARNING: {path:?} is located on a non-ZFS dataset.  httm can only list snapshot names for ZFS datasets.");
+            None
+        }
+        _ => None,
+    }
+}
