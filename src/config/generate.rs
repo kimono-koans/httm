@@ -342,6 +342,7 @@ fn parse_args() -> ArgMatches {
                 .long("last-snap")
                 .takes_value(true)
                 .default_missing_value("any")
+                .visible_aliases(&["last", "latest"])
                 .possible_values(["any", "ditto", "no-ditto", "no-ditto-exclusive", "no-ditto-inclusive", "none", "without"])
                 .min_values(0)
                 .require_equals(true)
