@@ -41,7 +41,7 @@ use crate::{
     },
 };
 use crate::{
-    library::utility::{date_string, display_human_size},
+    library::utility::{date_string, display_human_size, pwd},
     GLOBAL_CONFIG,
 };
 
@@ -119,7 +119,15 @@ impl PathData {
         //
         // in general we handle those cases elsewhere, like the ingest
         // of input files in Config::from for deleted relative paths, etc.
-        let absolute_path: PathBuf = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
+        let absolute_path: PathBuf = if let Ok(canonical_path) = path.canonicalize() {
+            canonical_path
+        } else {
+            if let Ok(pwd) = pwd() {
+                pwd.path_buf.join(path)
+            } else {
+                path.to_path_buf()
+            }
+        };
 
         let path_metadata = Self::opt_metadata(opt_metadata);
 

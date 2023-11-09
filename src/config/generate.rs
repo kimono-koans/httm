@@ -29,7 +29,7 @@ use crate::config::install_hot_keys::install_hot_keys;
 use crate::data::filesystem_info::FilesystemInfo;
 use crate::data::paths::PathData;
 use crate::library::results::{HttmError, HttmResult};
-use crate::library::utility::{read_stdin, HttmIsDir};
+use crate::library::utility::{pwd, read_stdin, HttmIsDir};
 use crate::ROOT_DIRECTORY;
 
 #[derive(Debug, Clone)]
@@ -775,7 +775,7 @@ impl Config {
         }
 
         // current working directory will be helpful in a number of places
-        let pwd = Self::pwd()?;
+        let pwd = pwd()?;
 
         // paths are immediately converted to our PathData struct
         let paths: Vec<PathData> =
@@ -860,17 +860,6 @@ impl Config {
         };
 
         Ok(config)
-    }
-
-    pub fn pwd() -> HttmResult<PathData> {
-        if let Ok(pwd) = std::env::current_dir() {
-            Ok(PathData::from(pwd))
-        } else {
-            Err(HttmError::new(
-                "Working directory does not exist or your do not have permissions to access it.",
-            )
-            .into())
-        }
     }
 
     pub fn paths(
