@@ -76,8 +76,7 @@ impl SelectionCandidate {
                 &GLOBAL_CONFIG
                     .opt_requested_dir
                     .as_ref()
-                    .expect("requested_dir should never be None in Interactive Browse mode")
-                    .path_buf,
+                    .expect("requested_dir should never be None in Interactive Browse mode"),
             )
             .unwrap_or(&self.path)
             .to_string_lossy()

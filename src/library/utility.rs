@@ -624,9 +624,9 @@ pub fn deconstruct_snap_paths(path: &Path) -> Option<String> {
     }
 }
 
-pub fn pwd() -> HttmResult<PathData> {
+pub fn pwd() -> HttmResult<PathBuf> {
     if let Ok(pwd) = std::env::current_dir() {
-        Ok(PathData::from(pwd))
+        Ok(pwd)
     } else {
         Err(HttmError::new(
             "Working directory does not exist or your do not have permissions to access it.",

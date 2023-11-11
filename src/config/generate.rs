@@ -16,7 +16,7 @@
 // that was distributed with this source code.
 
 use std::ops::Index;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use clap::OsValues;
 use rayon::prelude::*;
@@ -536,12 +536,12 @@ pub struct Config {
     pub opt_last_snap: Option<LastSnapMode>,
     pub opt_preview: Option<String>,
     pub opt_deleted_mode: Option<DeletedMode>,
-    pub opt_requested_dir: Option<PathData>,
+    pub opt_requested_dir: Option<PathBuf>,
     pub requested_utc_offset: UtcOffset,
     pub exec_mode: ExecMode,
     pub print_mode: PrintMode,
     pub dataset_collection: FilesystemInfo,
-    pub pwd: PathData,
+    pub pwd: PathBuf,
 }
 
 impl Config {
@@ -782,7 +782,7 @@ impl Config {
             Self::paths(matches.values_of_os("INPUT_FILES"), &exec_mode, &pwd)?;
 
         // for exec_modes in which we can only take a single directory, process how we handle those here
-        let opt_requested_dir: Option<PathData> =
+        let opt_requested_dir: Option<PathBuf> =
             Self::opt_requested_dir(&mut exec_mode, &mut opt_deleted_mode, &paths, &pwd)?;
 
         if opt_one_filesystem && opt_requested_dir.is_none() {
@@ -796,7 +796,7 @@ impl Config {
         // so we disable our bespoke "when to traverse symlinks" algo here, or if requested.
         let opt_no_traverse = matches.is_present("NO_TRAVERSE") || {
             if let Some(user_requested_dir) = opt_requested_dir.as_ref() {
-                user_requested_dir.path_buf.as_path() == Path::new(ROOT_DIRECTORY)
+                user_requested_dir.as_path() == Path::new(ROOT_DIRECTORY)
             } else {
                 false
             }
@@ -865,7 +865,7 @@ impl Config {
     pub fn paths(
         opt_os_values: Option<OsValues>,
         exec_mode: &ExecMode,
-        pwd: &PathData,
+        pwd: &Path,
     ) -> HttmResult<Vec<PathData>> {
         let mut paths = if let Some(input_files) = opt_os_values {
             input_files
@@ -883,7 +883,7 @@ impl Config {
                 ExecMode::Interactive(_)
                 | ExecMode::NonInteractiveRecursive(_)
                 | ExecMode::RollForward(_) => {
-                    vec![pwd.clone()]
+                    vec![PathData::from(pwd)]
                 }
                 ExecMode::Display
                 | ExecMode::SnapFileMount(_)
@@ -913,15 +913,15 @@ impl Config {
         exec_mode: &mut ExecMode,
         deleted_mode: &mut Option<DeletedMode>,
         paths: &[PathData],
-        pwd: &PathData,
-    ) -> HttmResult<Option<PathData>> {
+        pwd: &Path,
+    ) -> HttmResult<Option<PathBuf>> {
         let res = match exec_mode {
             ExecMode::Interactive(_) | ExecMode::NonInteractiveRecursive(_) => {
                 match paths.len() {
-                    0 => Some(pwd.clone()),
+                    0 => Some(pwd.to_path_buf()),
                     // use our bespoke is_dir fn for determining whether a dir here see pub httm_is_dir
                     // safe to index as we know the paths len is 1
-                    1 if paths[0].httm_is_dir() => Some(paths[0].clone()),
+                    1 if paths[0].httm_is_dir() => Some(paths[0].path_buf.clone()),
                     // handle non-directories
                     1 => {
                         match exec_mode {

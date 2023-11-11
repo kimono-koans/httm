@@ -120,7 +120,7 @@ impl PathData {
                     canonical_path
                 } else {
                     if let Ok(pwd) = pwd() {
-                        pwd.path_buf.join(path)
+                        pwd.join(path)
                     } else {
                         path.to_path_buf()
                     }
@@ -135,7 +135,7 @@ impl PathData {
             }
             None => {
                 let canonical_path: PathBuf = if let Ok(pwd) = pwd() {
-                    pwd.path_buf.join(path)
+                    pwd.join(path)
                 } else {
                     path.to_path_buf()
                 };

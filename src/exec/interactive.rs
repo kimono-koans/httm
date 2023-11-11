@@ -403,7 +403,7 @@ impl InteractiveRestore {
                     &snap_path_metadata.modify_time,
                     DateFormat::Timestamp,
                 );
-            let new_file_dir = GLOBAL_CONFIG.pwd.path_buf.clone();
+            let new_file_dir = GLOBAL_CONFIG.pwd.as_path();
             let new_file_path_buf: PathBuf = new_file_dir.join(new_filename);
 
             // don't let the user rewrite one restore over another in non-overwrite mode
@@ -445,9 +445,9 @@ impl ViewMode {
         }
     }
 
-    fn browse(&self, requested_dir: &PathData) -> HttmResult<InteractiveBrowse> {
+    fn browse(&self, requested_dir: &Path) -> HttmResult<InteractiveBrowse> {
         // prep thread spawn
-        let requested_dir_clone = requested_dir.path_buf.clone();
+        let requested_dir_clone = requested_dir.to_path_buf();
         let (tx_item, rx_item): (SkimItemSender, SkimItemReceiver) = unbounded();
         let (hangup_tx, hangup_rx): (Sender<Never>, Receiver<Never>) = bounded(0);
 

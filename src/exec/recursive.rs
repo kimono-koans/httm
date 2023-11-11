@@ -40,7 +40,6 @@ static OPT_REQUESTED_DIR_DEV: Lazy<u64> = Lazy::new(|| {
         .opt_requested_dir
         .as_ref()
         .expect("opt_requested_dir should be Some value at this point in execution")
-        .path_buf
         .symlink_metadata()
         .expect("Cannot read metadata for directory requested for search.")
         .dev()
@@ -275,7 +274,7 @@ impl SharedRecursive {
 
         // check whether user requested this dir specifically, then we will show
         if let Some(user_requested_dir) = GLOBAL_CONFIG.opt_requested_dir.as_ref() {
-            if user_requested_dir.path_buf.as_path() == path {
+            if user_requested_dir.as_path() == path {
                 return false;
             }
         }
@@ -367,7 +366,7 @@ impl NonInteractiveRecursiveWrapper {
 
         match &GLOBAL_CONFIG.opt_requested_dir {
             Some(requested_dir) => {
-                RecursiveSearch::exec(&requested_dir.path_buf, dummy_skim_tx, hangup_rx);
+                RecursiveSearch::exec(&requested_dir, dummy_skim_tx, hangup_rx);
             }
             None => {
                 return Err(HttmError::new(
