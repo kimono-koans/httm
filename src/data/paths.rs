@@ -104,12 +104,7 @@ impl From<BasicDirEntryInfo> for PathData {
         // this metadata() function will not traverse symlinks
         let opt_metadata = basic_info.path.symlink_metadata().ok();
         let path = basic_info.path;
-        let path_metadata = Self::opt_metadata(opt_metadata);
-
-        Self {
-            path_buf: path,
-            metadata: path_metadata,
-        }
+        Self::new(&path, opt_metadata)
     }
 }
 
@@ -119,32 +114,46 @@ impl PathData {
         //
         // in general we handle those cases elsewhere, like the ingest
         // of input files in Config::from for deleted relative paths, etc.
-        let absolute_path: PathBuf = if let Ok(canonical_path) = path.canonicalize() {
-            canonical_path
-        } else {
-            if let Ok(pwd) = pwd() {
-                pwd.path_buf.join(path)
-            } else {
-                path.to_path_buf()
+        match opt_metadata {
+            Some(md) => {
+                let canonical_path: PathBuf = if let Ok(canonical_path) = path.canonicalize() {
+                    canonical_path
+                } else {
+                    if let Ok(pwd) = pwd() {
+                        pwd.path_buf.join(path)
+                    } else {
+                        path.to_path_buf()
+                    }
+                };
+
+                let path_metadata = Self::opt_metadata(md);
+
+                PathData {
+                    path_buf: canonical_path,
+                    metadata: path_metadata,
+                }
             }
-        };
+            None => {
+                let canonical_path: PathBuf = if let Ok(pwd) = pwd() {
+                    pwd.path_buf.join(path)
+                } else {
+                    path.to_path_buf()
+                };
 
-        let path_metadata = Self::opt_metadata(opt_metadata);
-
-        PathData {
-            path_buf: absolute_path,
-            metadata: path_metadata,
+                PathData {
+                    path_buf: canonical_path,
+                    metadata: None,
+                }
+            }
         }
     }
 
     // call symlink_metadata, as we need to resolve symlinks to get non-"phantom" metadata
-    fn opt_metadata(opt_metadata: Option<Metadata>) -> Option<PathMetadata> {
-        opt_metadata.and_then(|md| {
-            // may fail on systems that don't collect a modify time
-            Self::modify_time(&md).map(|time| PathMetadata {
-                size: md.len(),
-                modify_time: time,
-            })
+    fn opt_metadata(md: Metadata) -> Option<PathMetadata> {
+        // may fail on systems that don't collect a modify time
+        Self::modify_time(&md).map(|time| PathMetadata {
+            size: md.len(),
+            modify_time: time,
         })
     }
 
