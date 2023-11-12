@@ -122,6 +122,9 @@ check_not_identical() {
 	[[ "$previous_version" != "$current_version" ]] ||
 		print_err_exit "The selected/last version and live file are the same file."
 
+	[[ -n "$current_version" ]] ||
+		print_err_exit "The selected/last version and live file are 'diff'-identical."
+
 	[[ -n "$(diff -q "$previous_version" "$current_version")" ]] ||
 		print_err_exit "The selected/last version and live file are 'diff'-identical, but have different modification times.  Perhaps try --all."
 }
