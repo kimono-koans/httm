@@ -92,7 +92,7 @@ show_all_changes() {
 
 	# check if versions array is not empty
 	if [[ ${#all_versions[@]} -eq 0 ]]; then
-		print_err "No previous version available for: $filename"
+		print_err "No previous snapshot version available for: $filename"
 		return 0
 	elif [[ ${#all_versions[@]} -eq 1 ]]; then
 		show_single_change "$filename" "last"
@@ -120,13 +120,13 @@ check_not_identical() {
 	local previous_version="$2"
 
 	[[ "$previous_version" != "$current_version" ]] ||
-		print_err_exit "The selected/last version and live file are the same file."
+		print_err_exit "The selected/last snapshot version and live file are the same file."
 
 	[[ -n "$current_version" ]] ||
-		print_err_exit "The selected/last version and live file are 'diff'-identical."
+		print_err_exit "The only snapshot version and live file are 'diff'-identical."
 
 	[[ -n "$(diff -q "$previous_version" "$current_version")" ]] ||
-		print_err_exit "The selected/last version and live file are 'diff'-identical, but have different modification times.  Perhaps try --all."
+		print_err_exit "The selected/last snapshot version and live file are 'diff'-identical, but have different modification times.  Perhaps try --all."
 }
 
 show_single_change() {
@@ -149,9 +149,9 @@ show_direct() {
 	display_header "$current_version"
 
 	if [[ "$previous_version" == "$current_version" ]]; then
-		printf "The selected/last version and live file are the same file."
+		printf "The selected/last snapshot version and live file are the same file."
 	elif [[ -z "$(diff -q "$previous_version" "$current_version")" ]]; then
-		printf "The selected/last version and live file are 'diff'-identical, but have different modification times.  Perhaps try --all."
+		printf "The selected/last snapshot version and live file are 'diff'-identical, but have different modification times.  Perhaps try --all."
 	else
 		display_diff "$previous_version" "$current_version"
 	fi
@@ -177,7 +177,7 @@ display_diff() {
 		# print the difference between that current version and previous_version
 		(diff --color=always -T "$previous_version" "$current_version" || true)
 	else
-		print_err "No previous version available for: $current_version"
+		print_err "No previous snapshot version available for: $current_version"
 	fi
 }
 
