@@ -366,7 +366,7 @@ impl NonInteractiveRecursiveWrapper {
 
         match &GLOBAL_CONFIG.opt_requested_dir {
             Some(requested_dir) => {
-                RecursiveSearch::exec(&requested_dir, dummy_skim_tx, hangup_rx);
+                RecursiveSearch::exec(requested_dir, dummy_skim_tx, hangup_rx);
             }
             None => {
                 return Err(HttmError::new(

@@ -118,12 +118,10 @@ impl PathData {
             Some(md) => {
                 let canonical_path: PathBuf = if let Ok(canonical_path) = path.canonicalize() {
                     canonical_path
+                } else if let Ok(pwd) = pwd() {
+                    pwd.join(path)
                 } else {
-                    if let Ok(pwd) = pwd() {
-                        pwd.join(path)
-                    } else {
-                        path.to_path_buf()
-                    }
+                    path.to_path_buf()
                 };
 
                 let path_metadata = Self::opt_metadata(md);

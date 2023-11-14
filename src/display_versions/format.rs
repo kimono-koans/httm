@@ -75,15 +75,11 @@ impl<'a> VersionsDisplayWrapper<'a> {
                             .filter(|(display_set_type, _snap_or_live_set)| {
                                 display_set_type.filter_bulk_exclusions(self.config)
                             })
-                            .map(|(_idx, snap_or_live_set)| {
-                                snap_or_live_set
-                                    .iter()
-                                    .map(|pathdata| {
-                                        format!("{}{delimiter}", pathdata.path_buf.display())
-                                    })
-                                    .collect::<String>()
+                            .flat_map(|(_idx, snap_or_live_set)| snap_or_live_set)
+                            .fold(String::new(), |mut buffer, pathdata| {
+                                buffer += &format!("{}{}", pathdata.path_buf.display(), delimiter);
+                                buffer
                             })
-                            .collect()
                     }
                 }
             })
@@ -122,8 +118,8 @@ impl From<usize> for DisplaySetType {
     #[inline]
     fn from(value: usize) -> Self {
         match value {
-            idx if idx == 0 => DisplaySetType::IsSnap,
-            idx if idx == 1 => DisplaySetType::IsLive,
+            0 => DisplaySetType::IsSnap,
+            1 => DisplaySetType::IsLive,
             _ => unreachable!(),
         }
     }

@@ -143,15 +143,17 @@ impl std::string::ToString for PrintAsMap {
             return res;
         }
 
+        let delimiter = delimiter();
+
         match &GLOBAL_CONFIG.print_mode {
-            PrintMode::RawNewline | PrintMode::RawZero => self
-                .values()
-                .flatten()
-                .map(|value| {
-                    let delimiter = delimiter();
-                    format!("{value}{delimiter}")
-                })
-                .collect::<String>(),
+            PrintMode::RawNewline | PrintMode::RawZero => {
+                self.values()
+                    .flatten()
+                    .fold(String::new(), |mut buffer, value| {
+                        buffer += format!("{value}{delimiter}").as_str();
+                        buffer
+                    })
+            }
             PrintMode::FormattedDefault | PrintMode::FormattedNotPretty => self.format(),
         }
     }

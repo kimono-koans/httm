@@ -42,27 +42,21 @@ impl PruneSnaps {
     }
 
     fn interactive_prune(snap_name_map: &SnapNameMap, select_mode: bool) -> HttmResult<()> {
-        let file_names_string: String = snap_name_map
-            .keys()
-            .map(|key| format!("{:?}\n", key.path_buf))
-            .collect();
+        let file_names_string: String =
+            snap_name_map.keys().fold(String::new(), |mut buffer, key| {
+                buffer += format!("{:?}\n", key.path_buf).as_str();
+                buffer
+            });
 
         let snap_names: Vec<String> = if select_mode {
-            let buffer: String = snap_name_map
-                .values()
-                .flatten()
-                .map(|value| format!("{value}\n"))
-                .collect();
+            let buffer: String = snap_name_map.values().flatten().cloned().collect();
             let view_mode = &ViewMode::Select(None);
             view_mode.select(&buffer, true)?
         } else {
             snap_name_map.values().flatten().cloned().collect()
         };
 
-        let snap_names_string: String = snap_names
-            .iter()
-            .map(|value| format!("{value}\n"))
-            .collect();
+        let snap_names_string: String = snap_names.into_iter().collect();
 
         let preview_buffer = format!(
             "User has requested snapshots related to the following file/s be pruned:\n\n{}\n\
