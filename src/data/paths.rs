@@ -124,7 +124,7 @@ impl PathData {
                     path.to_path_buf()
                 };
 
-                let path_metadata = Self::opt_metadata(md);
+                let path_metadata = Self::opt_metadata(&md);
 
                 PathData {
                     path_buf: canonical_path,
@@ -147,9 +147,9 @@ impl PathData {
     }
 
     // call symlink_metadata, as we need to resolve symlinks to get non-"phantom" metadata
-    fn opt_metadata(md: Metadata) -> Option<PathMetadata> {
+    fn opt_metadata(md: &Metadata) -> Option<PathMetadata> {
         // may fail on systems that don't collect a modify time
-        Self::modify_time(&md).map(|time| PathMetadata {
+        Self::modify_time(md).map(|time| PathMetadata {
             size: md.len(),
             modify_time: time,
         })
