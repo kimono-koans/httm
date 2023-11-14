@@ -301,7 +301,11 @@ impl PathData {
                 "WARN: The file's dataset is not a supported filesystem.\n"
             }
             Some(vec) if vec.is_empty() => {
-                "WARN: No snapshots exist for the file's specified dataset.\n"
+                if config.opt_omit_ditto {
+                    "WARN: Omitting the only snapshot version available, which is identical to the live file.\n"
+                } else {
+                    "WARN: No snapshots exist for the file's specified dataset.\n"
+                }
             }
             Some(_vec) => "WARN: No snapshot version exists for the specified file.\n",
         }
