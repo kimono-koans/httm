@@ -128,7 +128,7 @@ Print all unique versions of your history file, as formatted JSON:
 ➜ httm --json ~/.histfile
 ```
 
-`httm` seeks to be a good Unix citizen, which means -- you *should* use the other Unix utilities to organize your queries how you like them.  `find` is especially useful:
+`httm` seeks to be a good Unix citizen, which means -- you *should* use the other Unix utilities to organize your queries how you like them.  `find` and `awk` is especially useful here:
 
 ```bash
 # print all unique versions of your `/var/log/syslog` file, newline delimited
@@ -137,10 +137,11 @@ Print all unique versions of your history file, as formatted JSON:
 # httm usually sorts snapshot versions in chronological order, oldest to newest,
 # but since these are just paths/strings you may choose to sort them differently.
 #
-# here, we print all unique versions of your `/var/log/syslog` file, omitting any 
-# snapshot versions which are the same as the live file version, then print the 
-# snapshot version's size in bytes first, and then reverse sort by its size
-➜ httm -n --omit-ditto /var/log/syslog | xargs -I{} find '{}' -printf '%s\t%p\n' | sort -rn
+# her, print all unique versions of your `/var/log/syslog` file, omitting any 
+# snapshot versions which are the same as the live file version, then print each 
+# snapshot version's size in bytes first, then reverse sort by its size, then remove
+# the number of bytes, leaving only the paths in their new sorted order
+➜ httm -n --omit-ditto /var/log/syslog | xargs -I{} find '{}' -printf '%s\t%p\n' | sort -rn | awk 'BEGIN {FS="\t"}; {print $2}'
 ```
 
 Print all files on snapshots deleted from your home directory, recursive:
