@@ -128,6 +128,21 @@ Print all unique versions of your history file, as formatted JSON:
 ➜ httm --json ~/.histfile
 ```
 
+`httm` seeks to be a good Unix citizen, which means -- you *should* use the other Unix utilities to organize your queries how you like them.  `find` is especially useful:
+
+```bash
+# print all unique versions of your `/var/log/syslog` file, newline delimited
+# piped to `find` to print only versions with modify times of less than 1 day.
+➜ httm -n /var/log/syslog | xargs -I{} find '{}' -mtime -1
+# httm usually sorts snapshot versions in chronological order, oldest to newest,
+# but since these are just paths/strings you may choose to sort them differently.
+#
+# here, we print all unique versions of your `/var/log/syslog` file, omitting any 
+# snapshot versions which are the same as the live file version, then print the 
+# snapshot version's size in bytes first, and then reverse sort by its size
+➜ httm -n --omit-ditto /var/log/syslog | xargs -I{} find '{}' -printf '%s\t%p\n' | sort -rn
+```
+
 Print all files on snapshots deleted from your home directory, recursive:
 
 ```bash
