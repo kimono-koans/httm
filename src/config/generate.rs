@@ -267,7 +267,7 @@ fn parse_args() -> ArgMatches {
                 .help("snapshot a file/s most immediate mount.  \
                 This argument optionally takes a value for a snapshot suffix.  The default suffix is 'httmSnapFileMount'.  \
                 Note: This is a ZFS only option which requires either superuser or 'zfs allow' privileges.")
-                .exclusive(true)
+                .conflicts_with_all(&["BROWSE", "SELECT", "RESTORE", "ALT_REPLICATED", "REMOTE_DIR", "LOCAL_DIR"])
                 .display_order(11)
         )
         .arg(
@@ -300,7 +300,7 @@ fn parse_args() -> ArgMatches {
                 httm will also take two precautionary snapshots, one before and one after the copy.  \
                 Should the roll forward fail for any reason, httm will roll back to the pre-execution state.  \
                 Caveats: This is a ZFS only option which requires super user privileges.")
-                .exclusive(true)
+                .conflicts_with_all(&["BROWSE", "RESTORE", "ALT_REPLICATED", "REMOTE_DIR", "LOCAL_DIR"])
                 .display_order(13)
         )
         .arg(
