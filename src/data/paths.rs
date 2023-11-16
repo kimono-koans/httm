@@ -24,6 +24,7 @@ use std::{
     time::SystemTime,
 };
 
+use once_cell::sync::Lazy;
 use once_cell::sync::OnceCell;
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
@@ -207,11 +208,12 @@ impl PathData {
         // ancestors() iterates in this top-down order, when a value: dataset/fstype is available
         // we map to return the key, instead of the value
 
-        let dataset_max_len = map_of_datasets.max_len();
+        static DATASET_MAX_LEN: Lazy<usize> =
+            Lazy::new(|| GLOBAL_CONFIG.dataset_collection.map_of_datasets.max_len());
 
         self.path_buf
             .ancestors()
-            .skip_while(|ancestor| ancestor.components().count() > dataset_max_len)
+            .skip_while(|ancestor| ancestor.components().count() > *DATASET_MAX_LEN)
             .find(|ancestor| map_of_datasets.contains_key(*ancestor))
             .ok_or_else(|| {
                 HttmError::new(
