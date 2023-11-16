@@ -1,5 +1,5 @@
 pkgname=httm
-pkgver=0.17.8
+pkgver=0.30.4
 pkgrel=1
 pkgdesc="Prints the size, date and locations of available unique versions (deduplicated by modify time and size) of files residing on ZFS or BTRFS snapshots."
 arch=('x86_64')
@@ -9,7 +9,7 @@ groups=('utility')
 options=('!strip' '!emptydirs')
 makedepends=('cargo')
 source=("${pkgname}-${pkgver}.tar.gz::https://static.crates.io/crates/$pkgname/$pkgname-$pkgver.crate")
-sha512sums=('c3b3ff151f569b467a32163d98dd4dc0a8386fc958216bbc618a06bf88797d3cd37155de6bef7661c8c3ae57a678f8e92a7ac44cf1ff96502ab803876288c31e')
+sha512sums=('9d59655ace19d07c79234363037f3dffbd542ab6d2a7ec1ff83afc3450dac61bb5c8e443482645b6eb1e7fdb6a15346033ef87449678b75c2af0d676d286c57c')
 
 prepare() {
 	cd "${srcdir}/${pkgname}-${pkgver}"
@@ -35,6 +35,9 @@ package(){
 
 	# install ounce script
 	install -Dm755 "${srcdir}/${pkgname}-${pkgver}/scripts/ounce.bash" "${pkgdir}/usr/bin/ounce"
+
+	# install nicotine script
+	install -Dm755 "${srcdir}/${pkgname}-${pkgver}/scripts/nicotine.bash" "${pkgdir}/usr/bin/nicotine"
 
 	# install man page
 	install -Dm644 "${srcdir}/${pkgname}-${pkgver}/${pkgname}.1" "${pkgdir}/usr/share/man/man1/${pkgname}.1"
