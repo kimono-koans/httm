@@ -279,9 +279,12 @@ impl SharedRecursive {
             }
         }
 
+        static FILTER_DIRS_MAX_LEN: Lazy<usize> =
+            Lazy::new(|| GLOBAL_CONFIG.dataset_collection.filter_dirs.max_len());
+
         // finally : is a non-supported dataset?
         // bailout easily if path is larger than max_filter_dir len
-        if path.components().count() > GLOBAL_CONFIG.dataset_collection.filter_dirs.max_len() {
+        if path.components().count() > *FILTER_DIRS_MAX_LEN {
             return false;
         }
 
