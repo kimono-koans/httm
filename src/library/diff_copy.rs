@@ -26,9 +26,16 @@ use std::io::SeekFrom;
 use std::io::Write;
 use std::path::Path;
 
+use clone_file::clone_file;
 use simd_adler32::Adler32;
 
+use crate::config::generate::ListSnapsOfType;
+use crate::data::paths::CompareVersionsContainer;
+use crate::data::paths::PathData;
 use crate::library::results::HttmResult;
+use crate::GLOBAL_CONFIG;
+
+use super::results::HttmError;
 
 const CHUNK_SIZE: usize = 65_536;
 
@@ -38,6 +45,18 @@ enum DstFileState {
 }
 
 pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
+    // attempt zero copy clone, unless user has specified no clones
+    if !GLOBAL_CONFIG.opt_no_clones {
+        match clone_file(src, dst) {
+            Ok(_) => return Ok(()),
+            Err(err) => {
+                if GLOBAL_CONFIG.opt_debug {
+                    eprintln!("DEBUG: File clone failed for the following reason: {}\nDEBUG: Falling back to default diff copy behavior.", err);
+                }
+            }
+        }
+    }
+
     // create source file reader
     let src_file = File::open(src)?;
     let mut src_reader = BufReader::with_capacity(CHUNK_SIZE, &src_file);
@@ -54,6 +73,7 @@ pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
         .read(true)
         .create(true)
         .open(dst)?;
+
     let src_len = src_file.metadata()?.len();
     dst_file.set_len(src_len)?;
 
@@ -126,6 +146,28 @@ pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
     // re docs, both a flush and a sync seem to be required re consistency
     dst_writer.flush()?;
     dst_file.sync_data()?;
+
+    if GLOBAL_CONFIG.opt_debug {
+        let src_test =
+            CompareVersionsContainer::new(PathData::from(src), &ListSnapsOfType::UniqueContents);
+        let dst_test =
+            CompareVersionsContainer::new(PathData::from(dst), &ListSnapsOfType::UniqueContents);
+
+        if src_test.is_same_file(&dst_test) {
+            eprintln!(
+                "DEBUG: Copy successful.  File contents of {} and {} are the same.",
+                src.display(),
+                dst.display()
+            );
+        } else {
+            let msg = format!(
+                "Copy failed.  File contents of {} and {} are NOT the same.",
+                src.display(),
+                dst.display()
+            );
+            return Err(HttmError::new(&msg).into());
+        }
+    }
 
     Ok(())
 }

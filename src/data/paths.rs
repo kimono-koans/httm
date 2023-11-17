@@ -345,7 +345,7 @@ impl CompareVersionsContainer {
 
     #[inline]
     #[allow(unused_assignments)]
-    fn is_same_file(&self, other: &Self) -> bool {
+    pub fn is_same_file(&self, other: &Self) -> bool {
         // SAFETY: Unwrap will fail on opt_hash is None, here we've guarded this above
         let self_hash_cell = self
             .opt_hash
