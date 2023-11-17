@@ -161,7 +161,7 @@ pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
             );
         } else {
             let msg = format!(
-                "ERROR: Copy failed.  File contents of {} and {} are NOT the same.",
+                "Copy failed.  File contents of {} and {} are NOT the same.",
                 src.display(),
                 dst.display()
             );
