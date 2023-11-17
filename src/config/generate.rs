@@ -506,8 +506,8 @@ fn parse_args() -> ArgMatches {
         .arg(
             Arg::new("NO_CLONES")
                 .long("no-clones")
-                .help("ordinarily, when copying files from snapshots, httm will attempt a zero copy \"reflink\" clone on systems that support it.  \
-                Here, you may disable that attempt to use clones, and force httm to use the fall back diff copy behavior.  \
+                .help("ordinarily, when copying files from snapshots, httm will first attempt a zero copy \"reflink\" clone on systems that support it.  \
+                Here, you may disable that behavior, and force httm to fall back to the default diff copy behavior.  \
                 You may also set an environment variable to any value, \"HTTM_NO_FICLONE\" to disable.")
                 .display_order(32)
         )
