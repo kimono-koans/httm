@@ -26,6 +26,7 @@ use std::io::SeekFrom;
 use std::io::Write;
 use std::path::Path;
 
+use clone_file::clone_file;
 use simd_adler32::Adler32;
 
 use crate::library::results::HttmResult;
@@ -38,6 +39,11 @@ enum DstFileState {
 }
 
 pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
+    // attempt zero copy
+    if let Ok(_) = clone_file(src, dst) {
+        return Ok(());
+    }
+
     // create source file reader
     let src_file = File::open(src)?;
     let mut src_reader = BufReader::with_capacity(CHUNK_SIZE, &src_file);
@@ -54,6 +60,7 @@ pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
         .read(true)
         .create(true)
         .open(dst)?;
+
     let src_len = src_file.metadata()?.len();
     dst_file.set_len(src_len)?;
 
