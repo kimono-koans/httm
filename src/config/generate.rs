@@ -504,17 +504,25 @@ fn parse_args() -> ArgMatches {
                 .display_order(31)
         )
         .arg(
+            Arg::new("NO_CLONES")
+                .long("no-clones")
+                .help("ordinarily, when copying files from snapshots, httm will attempt a zero copy \"reflink\" clone on systems that support it.  \
+                Here, you may disable that attempt to use clones, and force httm to use the fall back diff copy behavior.  \
+                You may also set an environment variable to any value, \"HTTM_NO_FICLONE\" to disable.")
+                .display_order(32)
+        )
+        .arg(
             Arg::new("DEBUG")
                 .long("debug")
                 .help("print configuration and debugging info")
-                .display_order(32)
+                .display_order(33)
         )
         .arg(
             Arg::new("ZSH_HOT_KEYS")
                 .long("install-zsh-hot-keys")
                 .help("install zsh hot keys to the users home directory, and then exit")
                 .exclusive(true)
-                .display_order(33)
+                .display_order(34)
         )
         .get_matches()
 }
@@ -531,6 +539,7 @@ pub struct Config {
     pub opt_no_hidden: bool,
     pub opt_json: bool,
     pub opt_one_filesystem: bool,
+    pub opt_no_clones: bool,
     pub uniqueness: ListSnapsOfType,
     pub opt_bulk_exclusion: Option<BulkExclusion>,
     pub opt_last_snap: Option<LastSnapMode>,
@@ -605,6 +614,8 @@ impl Config {
         let opt_no_filter = matches.is_present("NO_FILTER");
         let opt_debug = matches.is_present("DEBUG");
         let opt_no_hidden = matches.is_present("FILTER_HIDDEN");
+        let opt_no_clones =
+            matches.is_present("NO_CLONES") || std::env::var_os("HTTM_NO_FICLONE").is_some();
 
         let opt_last_snap = match matches.value_of("LAST_SNAP") {
             Some("" | "any") => Some(LastSnapMode::Any),
@@ -849,6 +860,7 @@ impl Config {
             opt_preview,
             opt_json,
             opt_one_filesystem,
+            opt_no_clones,
             uniqueness,
             requested_utc_offset,
             exec_mode,
@@ -1025,6 +1037,7 @@ impl Config {
             opt_no_hidden: false,
             opt_json: false,
             opt_one_filesystem: false,
+            opt_no_clones: false,
             opt_bulk_exclusion: None,
             opt_last_snap: None,
             opt_preview: None,
