@@ -41,6 +41,8 @@ use super::results::HttmError;
 
 const CHUNK_SIZE: usize = 65_536;
 
+static IS_CLONE_COMPATIBLE: AtomicBool = AtomicBool::new(true);
+
 enum DstFileState {
     Exists,
     DoesNotExist,
@@ -66,8 +68,6 @@ pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
         .open(dst)?;
     let dst_fd = dst_file.as_fd();
     dst_file.set_len(src_len)?;
-
-    static IS_CLONE_COMPATIBLE: AtomicBool = AtomicBool::new(true);
 
     let amt_written = if GLOBAL_CONFIG.opt_no_clones
         || !IS_CLONE_COMPATIBLE.load(std::sync::atomic::Ordering::Relaxed)
@@ -142,17 +142,21 @@ fn write_loop(src_file: &File, dst_file: &File, dst_exists: DstFileState) -> Htt
                     break;
                 }
 
-                match dst_exists {
-                    DstFileState::DoesNotExist => {
-                        // seek to current byte offset in dst writer
-                        let seek_pos = dst_writer.seek(SeekFrom::Start(cur_pos))?;
+                let write_to_offset = {
+                    // seek to current byte offset in dst writer
+                    let seek_pos = dst_writer.seek(SeekFrom::Start(cur_pos))?;
 
-                        if seek_pos != cur_pos {
-                            continue;
-                        }
-
-                        amt_written += dst_writer.write(src_read)?;
+                    if seek_pos != cur_pos {
+                        let msg =
+                            format!("Could not seek to offset in destination file: {}", cur_pos);
+                        return Err(HttmError::new(&msg).into());
                     }
+
+                    amt_written += dst_writer.write(src_read)?;
+                };
+
+                match dst_exists {
+                    DstFileState::DoesNotExist => write_to_offset,
                     DstFileState::Exists => {
                         // read same amt from dst file, if it exists, to compare
                         match dst_reader.fill_buf() {
@@ -160,14 +164,7 @@ fn write_loop(src_file: &File, dst_file: &File, dst_exists: DstFileState) -> Htt
                                 let dst_amt_read = dst_read.len();
 
                                 if !is_same_bytes(src_read, dst_read) {
-                                    // seek to current byte offset in dst writer
-                                    let seek_pos = dst_writer.seek(SeekFrom::Start(cur_pos))?;
-
-                                    if seek_pos != cur_pos {
-                                        continue;
-                                    }
-
-                                    amt_written += dst_writer.write(src_read)?;
+                                    write_to_offset
                                 }
 
                                 dst_reader.consume(dst_amt_read);
