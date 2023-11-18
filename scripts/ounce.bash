@@ -247,7 +247,7 @@ function exec_args {
 	# check if filenames array is not empty
 	[[ ${#filenames_array[@]} -ne 0 ]] || return 0
 
-	printf -v filenames_string "%s\n" "${filenames_array[@]}"
+	printf -v filenames_string "%s\0" "${filenames_array[@]}"
 	[[ -n "$filenames_string" ]] || print_err_exit "bash could not covert file names from array to string."
 
 	# now, httm will dynamically determine the location of
