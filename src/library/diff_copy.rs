@@ -83,6 +83,13 @@ pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
             }
             _ => {
                 IS_CLONE_COMPATIBLE.store(false, std::sync::atomic::Ordering::Relaxed);
+                if GLOBAL_CONFIG.opt_debug {
+                    eprintln!(
+                        "DEBUG: copy_file_range call unsuccessful.  \
+                    IS_CLONE_COMPATIBLE variable has been modified to: \"{:?}\".",
+                        IS_CLONE_COMPATIBLE.load(std::sync::atomic::Ordering::Relaxed)
+                    );
+                }
                 write_loop(&src_file, &dst_file, dst_exists)?
             }
         }
