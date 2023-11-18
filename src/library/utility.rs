@@ -196,13 +196,17 @@ pub fn copy_direct(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<
     } else {
         generate_dst_parent(dst)?;
 
-        if src.is_symlink() {
-            let link_target = std::fs::read_link(src)?;
-            std::os::unix::fs::symlink(link_target, dst)?;
-        }
-
         if src.is_file() {
             diff_copy(src, dst)?;
+        } else if src.is_symlink() {
+            let link_target = std::fs::read_link(src)?;
+            std::os::unix::fs::symlink(link_target, dst)?;
+        } else {
+            let msg = format!(
+                "Source is neither a regular file nor a symlink to a regular file: \"{}\"",
+                src.display()
+            );
+            return Err(HttmError::new(&msg).into());
         }
     }
 
