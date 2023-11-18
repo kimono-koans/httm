@@ -18,7 +18,7 @@
 use std::{
     borrow::Cow,
     fs::{create_dir_all, read_dir, set_permissions, FileType},
-    io::{self, Read, Write},
+    io::{Read, Write},
     iter::Iterator,
     ops::Deref,
     os::unix::fs::MetadataExt,
@@ -419,7 +419,7 @@ impl<'a> HttmIsDir<'a> for BasicDirEntryInfo {
         //  why not store the error in the struct instead?  because it's more complex.  it might
         //  make it harder to copy around etc
         self.file_type
-            .ok_or_else(|| io::Error::from(io::ErrorKind::NotFound))
+            .ok_or_else(|| std::io::Error::from(std::io::ErrorKind::NotFound))
     }
     fn path(&'a self) -> &'a Path {
         &self.path
