@@ -163,7 +163,9 @@ fn write_loop(src_file: &File, dst_file: &File, dst_exists: DstFileState) -> Htt
                             Ok(dst_read) => {
                                 let dst_amt_read = dst_read.len();
 
-                                if !is_same_bytes(src_read, dst_read) {
+                                if is_same_bytes(src_read, dst_read) {
+                                    amt_written += dst_amt_read;
+                                } else {
                                     write_to_offset
                                 }
 
