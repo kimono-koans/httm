@@ -69,22 +69,31 @@ pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
 
     static IS_CLONE_COMPATIBLE: AtomicBool = AtomicBool::new(true);
 
-    if GLOBAL_CONFIG.opt_no_clones
+    let amt_written = if GLOBAL_CONFIG.opt_no_clones
         || !IS_CLONE_COMPATIBLE.load(std::sync::atomic::Ordering::Relaxed)
     {
         write_loop(&src_file, &dst_file, dst_exists)?
     } else {
         match httm_copy_file_range(src_fd, dst_fd, 0 as i64, src_len as usize) {
-            Ok(res) if res as u64 == src_len => {
+            Ok(amt_written) if amt_written as u64 == src_len => {
                 if GLOBAL_CONFIG.opt_debug {
                     eprintln!("DEBUG: copy_file_range call successful.");
                 }
+                amt_written
             }
             _ => {
                 IS_CLONE_COMPATIBLE.store(false, std::sync::atomic::Ordering::Relaxed);
-                write_loop(&src_file, &dst_file, dst_exists)?;
+                write_loop(&src_file, &dst_file, dst_exists)?
             }
         }
+    };
+
+    if amt_written != src_len as usize {
+        let msg = format!(
+            "Amount written (\"{}\") != Source length (\"{}\").  Quitting.",
+            amt_written, src_len
+        );
+        return Err(HttmError::new(&msg).into());
     }
 
     if GLOBAL_CONFIG.opt_debug {
@@ -109,7 +118,7 @@ fn hash(bytes: &[u8]) -> u32 {
     hash.finish()
 }
 
-fn write_loop(src_file: &File, dst_file: &File, dst_exists: DstFileState) -> HttmResult<()> {
+fn write_loop(src_file: &File, dst_file: &File, dst_exists: DstFileState) -> HttmResult<usize> {
     // create destination file writer and maybe reader
     // only include dst file reader if the dst file exists
     // otherwise we just write to that location
@@ -119,6 +128,9 @@ fn write_loop(src_file: &File, dst_file: &File, dst_exists: DstFileState) -> Htt
 
     // cur pos - byte offset in file,
     let mut cur_pos = 0u64;
+
+    // return value
+    let mut amt_written = 0usize;
 
     loop {
         match src_reader.fill_buf() {
@@ -133,9 +145,13 @@ fn write_loop(src_file: &File, dst_file: &File, dst_exists: DstFileState) -> Htt
                 match dst_exists {
                     DstFileState::DoesNotExist => {
                         // seek to current byte offset in dst writer
-                        let _seek_pos = dst_writer.seek(SeekFrom::Start(cur_pos))?;
+                        let seek_pos = dst_writer.seek(SeekFrom::Start(cur_pos))?;
 
-                        let _res = dst_writer.write(src_read)?;
+                        if seek_pos != cur_pos {
+                            continue;
+                        }
+
+                        amt_written += dst_writer.write(src_read)?;
                     }
                     DstFileState::Exists => {
                         // read same amt from dst file, if it exists, to compare
@@ -145,9 +161,13 @@ fn write_loop(src_file: &File, dst_file: &File, dst_exists: DstFileState) -> Htt
 
                                 if !is_same_bytes(src_read, dst_read) {
                                     // seek to current byte offset in dst writer
-                                    let _seek_pos = dst_writer.seek(SeekFrom::Start(cur_pos))?;
+                                    let seek_pos = dst_writer.seek(SeekFrom::Start(cur_pos))?;
 
-                                    let _res = dst_writer.write(src_read)?;
+                                    if seek_pos != cur_pos {
+                                        continue;
+                                    }
+
+                                    amt_written += dst_writer.write(src_read)?;
                                 }
 
                                 dst_reader.consume(dst_amt_read);
@@ -180,7 +200,7 @@ fn write_loop(src_file: &File, dst_file: &File, dst_exists: DstFileState) -> Htt
     // re docs, both a flush and a sync seem to be required re consistency
     dst_file.sync_data()?;
 
-    Ok(())
+    Ok(amt_written)
 }
 
 #[allow(unreachable_code, unused_variables)]
