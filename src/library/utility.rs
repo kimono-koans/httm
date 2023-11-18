@@ -203,7 +203,7 @@ pub fn copy_direct(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<
             std::os::unix::fs::symlink(link_target, dst)?;
         } else {
             let msg = format!(
-                "Source is neither a regular file nor a symlink to a regular file: \"{}\"",
+                "Source path is neither a regular file nor a symlink to a regular file: \"{}\"",
                 src.display()
             );
             return Err(HttmError::new(&msg).into());
