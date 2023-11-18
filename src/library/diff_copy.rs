@@ -27,6 +27,7 @@ use std::io::Write;
 use std::os::fd::AsFd;
 use std::os::fd::BorrowedFd;
 use std::path::Path;
+use std::sync::atomic::AtomicBool;
 
 use simd_adler32::Adler32;
 
@@ -66,17 +67,24 @@ pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
     let dst_fd = dst_file.as_fd();
     dst_file.set_len(src_len)?;
 
-    if GLOBAL_CONFIG.opt_no_clones {
+    static IS_CLONE_COMPATIBLE: AtomicBool = AtomicBool::new(true);
+
+    if GLOBAL_CONFIG.opt_no_clones
+        || !IS_CLONE_COMPATIBLE.load(std::sync::atomic::Ordering::Relaxed)
+    {
+        write_loop(&src_file, &dst_file, dst_exists)?
+    } else {
         match httm_copy_file_range(src_fd, dst_fd, 0 as i64, src_len as usize) {
             Ok(res) if res as u64 == src_len => {
-                eprintln!("DEBUG: copy_file_range call successful.");
+                if GLOBAL_CONFIG.opt_debug {
+                    eprintln!("DEBUG: copy_file_range call successful.");
+                }
             }
             _ => {
+                IS_CLONE_COMPATIBLE.store(false, std::sync::atomic::Ordering::Relaxed);
                 write_loop(&src_file, &dst_file, dst_exists)?;
             }
         }
-    } else {
-        write_loop(&src_file, &dst_file, dst_exists)?
     }
 
     if GLOBAL_CONFIG.opt_debug {
