@@ -508,7 +508,7 @@ fn parse_args() -> ArgMatches {
                 .long("no-clones")
                 .help("ordinarily, when copying files from snapshots, httm will first attempt a zero copy \"reflink\" clone on systems that support it.  \
                 Here, you may disable that behavior, and force httm to use the fall back diff copy behavior as the default.  \
-                You may also set an environment variable to any value, \"HTTM_NO_FICLONE\" to disable.")
+                You may also set an environment variable to any value, \"HTTM_NO_CLONE\" to disable.")
                 .display_order(32)
         )
         .arg(
@@ -615,7 +615,7 @@ impl Config {
         let opt_debug = matches.is_present("DEBUG");
         let opt_no_hidden = matches.is_present("FILTER_HIDDEN");
         let opt_no_clones =
-            matches.is_present("NO_CLONES") || std::env::var_os("HTTM_NO_FICLONE").is_some();
+            matches.is_present("NO_CLONES") || std::env::var_os("HTTM_NO_CLONE").is_some();
 
         let opt_last_snap = match matches.value_of("LAST_SNAP") {
             Some("" | "any") => Some(LastSnapMode::Any),
