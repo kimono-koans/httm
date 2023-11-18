@@ -130,7 +130,7 @@ fn write_loop(src_file: &File, dst_file: &File, dst_exists: DstFileState) -> Htt
     let mut cur_pos = 0u64;
 
     // return value
-    let mut amt_written = 0usize;
+    let mut bytes_processed = 0usize;
 
     loop {
         match src_reader.fill_buf() {
@@ -152,7 +152,7 @@ fn write_loop(src_file: &File, dst_file: &File, dst_exists: DstFileState) -> Htt
                         return Err(HttmError::new(&msg).into());
                     }
 
-                    amt_written += dst_writer.write(src_read)?;
+                    bytes_processed += dst_writer.write(src_read)?;
                 };
 
                 match dst_exists {
@@ -164,7 +164,7 @@ fn write_loop(src_file: &File, dst_file: &File, dst_exists: DstFileState) -> Htt
                                 let dst_amt_read = dst_read.len();
 
                                 if is_same_bytes(src_read, dst_read) {
-                                    amt_written += dst_amt_read;
+                                    bytes_processed += dst_amt_read;
                                 } else {
                                     write_to_offset
                                 }
@@ -199,7 +199,7 @@ fn write_loop(src_file: &File, dst_file: &File, dst_exists: DstFileState) -> Htt
     // re docs, both a flush and a sync seem to be required re consistency
     dst_file.sync_data()?;
 
-    Ok(amt_written)
+    Ok(bytes_processed)
 }
 
 #[allow(unreachable_code, unused_variables)]
