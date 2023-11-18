@@ -66,32 +66,18 @@ pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
     let dst_fd = dst_file.as_fd();
     dst_file.set_len(src_len)?;
 
-    match httm_copy_file_range(src_fd, dst_fd, 0 as i64, src_len as usize) {
-        Ok(res) if res as u64 == src_len => {
-            eprintln!("DEBUG: copy_file_range call successful.");
+    if GLOBAL_CONFIG.opt_no_clones {
+        match httm_copy_file_range(src_fd, dst_fd, 0 as i64, src_len as usize) {
+            Ok(res) if res as u64 == src_len => {
+                eprintln!("DEBUG: copy_file_range call successful.");
+            }
+            _ => {
+                write_loop(&src_file, &dst_file, dst_exists)?;
+            }
         }
-        _ => {
-            // create destination file writer and maybe reader
-            // only include dst file reader if the dst file exists
-            // otherwise we just write to that location
-            let mut src_reader = BufReader::with_capacity(CHUNK_SIZE, &src_file);
-            let mut dst_reader = BufReader::with_capacity(CHUNK_SIZE, &dst_file);
-            let mut dst_writer = BufWriter::with_capacity(CHUNK_SIZE, &dst_file);
-
-            write_loop(
-                &mut src_reader,
-                &mut dst_reader,
-                &mut dst_writer,
-                dst_exists,
-            )?;
-
-            // re docs, both a flush and a sync seem to be required re consistency
-            dst_writer.flush()?;
-        }
+    } else {
+        write_loop(&src_file, &dst_file, dst_exists)?
     }
-
-    // re docs, both a flush and a sync seem to be required re consistency
-    dst_file.sync_data()?;
 
     if GLOBAL_CONFIG.opt_debug {
         confirm(src, dst)?
@@ -115,12 +101,14 @@ fn hash(bytes: &[u8]) -> u32 {
     hash.finish()
 }
 
-fn write_loop(
-    src_reader: &mut BufReader<&File>,
-    dst_reader: &mut BufReader<&File>,
-    dst_writer: &mut BufWriter<&File>,
-    dst_exists: DstFileState,
-) -> HttmResult<()> {
+fn write_loop(src_file: &File, dst_file: &File, dst_exists: DstFileState) -> HttmResult<()> {
+    // create destination file writer and maybe reader
+    // only include dst file reader if the dst file exists
+    // otherwise we just write to that location
+    let mut src_reader = BufReader::with_capacity(CHUNK_SIZE, src_file);
+    let mut dst_reader = BufReader::with_capacity(CHUNK_SIZE, dst_file);
+    let mut dst_writer = BufWriter::with_capacity(CHUNK_SIZE, dst_file);
+
     // cur pos - byte offset in file,
     let mut cur_pos = 0u64;
 
@@ -180,6 +168,9 @@ fn write_loop(
             },
         };
     }
+
+    // re docs, both a flush and a sync seem to be required re consistency
+    dst_file.sync_data()?;
 
     Ok(())
 }
