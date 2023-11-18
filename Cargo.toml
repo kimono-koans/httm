@@ -40,13 +40,12 @@ indicatif =  { version = "0.17.7", default-features = false }
 proc-mounts = { version = "0.3.0", default-features = false }
 once_cell = { version = "1.18.0", default-features = false }
 hashbrown = { version = "0.14.2", default-features = false, features = ["rayon", "ahash", "inline-more"] }
-nix = { version = "0.27.1", default-features = false, features = ["fs", "user", "ioctl"] }
+nix = { version = "0.27.1", default-features = false, features = ["fs", "user", "zerocopy"] }
 xattr = { version = "1.0.1", default-features = false }
 serde = { version = "1.0.192", default-features = false }
 serde_json = { version = "1.0.108", default-features = false, features = ["preserve_order"] }
 filetime = { version = "0.2.22", default-features = false }
 libc = { version = "0.2.150", default-features = false }
-clone-file = { version = "0.1.0", default-features = false }
 
 [patch.crates-io]
 timer = { git = "https://github.com/kimono-koans/timer.rs" }
