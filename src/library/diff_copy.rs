@@ -142,33 +142,26 @@ fn write_loop(src_file: &File, dst_file: &File, dst_exists: DstFileState) -> Htt
                     break;
                 }
 
-                let write_to_offset = {
-                    // seek to current byte offset in dst writer
-                    let seek_pos = dst_writer.seek(SeekFrom::Start(cur_pos))?;
-
-                    if seek_pos != cur_pos {
-                        let msg =
-                            format!("Could not seek to offset in destination file: {}", cur_pos);
-                        return Err(HttmError::new(&msg).into());
-                    }
-
-                    bytes_processed += dst_writer.write(src_read)?;
-                };
-
                 match dst_exists {
-                    DstFileState::DoesNotExist => write_to_offset,
+                    DstFileState::DoesNotExist => {
+                        write_to_offset(&mut dst_writer, src_read, cur_pos, &mut bytes_processed)?
+                    }
                     DstFileState::Exists => {
                         // read same amt from dst file, if it exists, to compare
                         match dst_reader.fill_buf() {
                             Ok(dst_read) => {
-                                let dst_amt_read = dst_read.len();
-
                                 if is_same_bytes(src_read, dst_read) {
                                     bytes_processed += src_amt_read;
                                 } else {
-                                    write_to_offset
+                                    write_to_offset(
+                                        &mut dst_writer,
+                                        src_read,
+                                        cur_pos,
+                                        &mut bytes_processed,
+                                    )?
                                 }
 
+                                let dst_amt_read = dst_read.len();
                                 dst_reader.consume(dst_amt_read);
                             }
                             Err(err) => match err.kind() {
@@ -200,6 +193,25 @@ fn write_loop(src_file: &File, dst_file: &File, dst_exists: DstFileState) -> Htt
     dst_file.sync_data()?;
 
     Ok(bytes_processed)
+}
+
+fn write_to_offset(
+    dst_writer: &mut BufWriter<&File>,
+    src_read: &[u8],
+    cur_pos: u64,
+    bytes_processed: &mut usize,
+) -> HttmResult<()> {
+    // seek to current byte offset in dst writer
+    let seek_pos = dst_writer.seek(SeekFrom::Start(cur_pos))?;
+
+    if seek_pos != cur_pos {
+        let msg = format!("Could not seek to offset in destination file: {}", cur_pos);
+        return Err(HttmError::new(&msg).into());
+    }
+
+    *bytes_processed += dst_writer.write(src_read)?;
+
+    Ok(())
 }
 
 #[allow(unreachable_code, unused_variables)]
