@@ -71,15 +71,6 @@ impl<'a> VersionsDisplayWrapper<'a> {
     ) -> Option<String> {
         let display_path = live_version.path_buf.display();
 
-        if live_version.metadata.is_none() {
-            eprintln!(
-                "{:<width$} : Path does not exist.",
-                display_path,
-                width = padding
-            );
-            return None;
-        }
-
         let mut num_versions = snaps.len();
 
         match num_versions_mode {
@@ -101,22 +92,13 @@ impl<'a> VersionsDisplayWrapper<'a> {
                     num_versions += 1
                 };
 
-                if num_versions == 1 {
-                    Some(format!(
-                        "{:<width$} : 1 Version available.{}",
-                        display_path,
-                        delimiter,
-                        width = padding
-                    ))
-                } else {
-                    Some(format!(
-                        "{:<width$} : {} Versions available.{}",
-                        display_path,
-                        num_versions,
-                        delimiter,
-                        width = padding
-                    ))
-                }
+                Some(format!(
+                    "{:<width$} : {}{}",
+                    display_path,
+                    num_versions,
+                    delimiter,
+                    width = padding
+                ))
             }
             NumVersionsMode::Multiple => {
                 if num_versions == 0
