@@ -35,11 +35,14 @@ impl<'a> VersionsDisplayWrapper<'a> {
 
         let total_num_paths = self.len();
 
+        let print_mode = &GLOBAL_CONFIG.print_mode;
+
         let write_out_buffer: String = self
             .iter()
             .filter_map(|(live_version, snaps)| {
                 Self::parse_num_versions(
                     num_versions_mode,
+                    print_mode,
                     delimiter,
                     live_version,
                     snaps,
@@ -70,6 +73,7 @@ impl<'a> VersionsDisplayWrapper<'a> {
 
     fn parse_num_versions(
         num_versions_mode: &NumVersionsMode,
+        print_mode: &PrintMode,
         delimiter: char,
         live_version: &PathData,
         snaps: &[PathData],
@@ -86,7 +90,7 @@ impl<'a> VersionsDisplayWrapper<'a> {
                     num_versions += 1
                 };
 
-                match GLOBAL_CONFIG.print_mode {
+                match print_mode {
                     PrintMode::FormattedDefault => Some(format!(
                         "{:<width$} : {:*<num_versions$}{}",
                         display_path,
@@ -104,7 +108,7 @@ impl<'a> VersionsDisplayWrapper<'a> {
                     num_versions += 1
                 };
 
-                match GLOBAL_CONFIG.print_mode {
+                match print_mode {
                     PrintMode::FormattedDefault => Some(format!(
                         "{:<width$} : {}{}",
                         display_path,
