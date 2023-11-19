@@ -470,7 +470,7 @@ fn parse_args() -> ArgMatches {
                 \"single\" will print only filenames which only have one version, \
                 (and \"single-no-snap\" will print those without a snap taken, and \"single-with-snap\" will print those with a snap taken), \
                 and \"multiple\" will print only filenames which only have multiple versions.")
-                .conflicts_with_all(&["LAST_SNAP", "BROWSE", "SELECT", "RESTORE", "RECURSIVE", "SNAPSHOT", "NOT_SO_PRETTY", "NO_LIVE", "NO_SNAP", "OMIT_DITTO", "RAW", "ZEROS"])
+                .conflicts_with_all(&["LAST_SNAP", "BROWSE", "SELECT", "RESTORE", "RECURSIVE", "SNAPSHOT", "NO_LIVE", "NO_SNAP", "OMIT_DITTO"])
                 .display_order(28)
         )
         .arg(
@@ -635,6 +635,12 @@ impl Config {
             Some("multiple") => Some(NumVersionsMode::Multiple),
             _ => None,
         };
+
+        if matches!(opt_num_versions, Some(NumVersionsMode::AllGraph))
+            && !matches!(print_mode, PrintMode::FormattedDefault)
+        {
+            return Err(HttmError::new("The NUM_VERSIONS graph mode and the RAW or ZEROS display modes are an invalid combination.").into());
+        }
 
         let opt_mount_display = match matches.value_of("FILE_MOUNT") {
             Some("" | "target" | "directory") => Some(MountDisplay::Target),
