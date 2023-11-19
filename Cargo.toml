@@ -30,7 +30,7 @@ clap = { version = "3.2.25", default-features = false, features = ["cargo"] }
 crossbeam-channel = { version = "0.5.8", default-features = false }
 time = { version = "0.3.21", default-features = false, features = ["formatting", "local-offset"] }
 number_prefix = { version = "0.4.0",  default-features = false }
-skim = { version "0.10.26", package="two_percent" }
+skim = { version = "0.10.26", package="two_percent" }
 nu-ansi-term = { version = "0.49.0", default-features = false }
 lscolors = { version = "0.15.0", default-features = false, features = ["nu-ansi-term"] }
 terminal_size = { version = "0.3.0", default-features = false }
