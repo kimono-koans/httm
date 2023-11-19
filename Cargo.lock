@@ -1041,7 +1041,9 @@ dependencies = [
 
 [[package]]
 name = "two_percent"
-version = "0.10.24"
+version = "0.10.26"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "11efe74230160fb478a3b718446177396cf9b6524cebd861db4338df2cd6c6cf"
 dependencies = [
  "atty",
  "bitflags 2.4.1",
@@ -1053,6 +1055,7 @@ dependencies = [
  "env_logger",
  "fuzzy-muff",
  "lazy_static",
+ "libc",
  "log",
  "nix 0.27.1",
  "rayon",
