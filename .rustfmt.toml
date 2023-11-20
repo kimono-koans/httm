@@ -1,4 +1,4 @@
-tab_spaces = 2
+tab_spaces = 4
 edition = "2021"
 imports_layout = "HorizontalVertical"
 imports_granularity = "Module"
