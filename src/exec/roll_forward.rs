@@ -21,8 +21,13 @@ use crate::library::iter_extensions::HttmIter;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::snap_guard::{PrecautionarySnapType, SnapGuard};
 use crate::library::utility::{
-    copy_attributes, copy_direct, generate_dst_parent, is_metadata_same, preserve_recursive,
-    remove_recursive, user_has_effective_root,
+    copy_attributes,
+    copy_direct,
+    generate_dst_parent,
+    is_metadata_same,
+    preserve_recursive,
+    remove_recursive,
+    user_has_effective_root,
 };
 use crate::{GLOBAL_CONFIG, ZFS_SNAPSHOT_DIRECTORY};
 use hashbrown::{HashMap, HashSet};

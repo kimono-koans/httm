@@ -16,7 +16,11 @@
 // that was distributed with this source code.
 
 use crate::config::generate::{
-    ExecMode, InteractiveMode, PrintMode, RestoreMode, RestoreSnapGuard,
+    ExecMode,
+    InteractiveMode,
+    PrintMode,
+    RestoreMode,
+    RestoreSnapGuard,
 };
 use crate::data::paths::{PathData, PathMetadata};
 use crate::display_versions::wrapper::VersionsDisplayWrapper;
@@ -25,8 +29,14 @@ use crate::exec::recursive::RecursiveSearch;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::snap_guard::SnapGuard;
 use crate::library::utility::{
-    copy_recursive, date_string, delimiter, print_output_buf, user_has_effective_root,
-    user_has_zfs_allow_snap_priv, DateFormat, Never,
+    copy_recursive,
+    date_string,
+    delimiter,
+    print_output_buf,
+    user_has_effective_root,
+    user_has_zfs_allow_snap_priv,
+    DateFormat,
+    Never,
 };
 use crate::lookup::versions::VersionsMap;
 use crate::GLOBAL_CONFIG;
