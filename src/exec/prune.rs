@@ -25,76 +25,80 @@ use std::process::Command as ExecProcess;
 pub struct PruneSnaps;
 
 impl PruneSnaps {
-  pub fn exec(versions_map: VersionsMap, opt_filters: &Option<ListSnapsFilters>) -> HttmResult<()> {
-    let snap_name_map: SnapNameMap = SnapNameMap::new(versions_map, opt_filters)?;
+    pub fn exec(
+        versions_map: VersionsMap,
+        opt_filters: &Option<ListSnapsFilters>,
+    ) -> HttmResult<()> {
+        let snap_name_map: SnapNameMap = SnapNameMap::new(versions_map, opt_filters)?;
 
-    let select_mode = if let Some(filters) = opt_filters {
-      filters.select_mode
-    } else {
-      false
-    };
+        let select_mode = if let Some(filters) = opt_filters {
+            filters.select_mode
+        } else {
+            false
+        };
 
-    Self::interactive_prune(&snap_name_map, select_mode)
-  }
+        Self::interactive_prune(&snap_name_map, select_mode)
+    }
 
-  fn interactive_prune(snap_name_map: &SnapNameMap, select_mode: bool) -> HttmResult<()> {
-    let file_names_string: String = snap_name_map.keys().fold(String::new(), |mut buffer, key| {
-      buffer += format!("{:?}\n", key.path_buf).as_str();
-      buffer
-    });
+    fn interactive_prune(snap_name_map: &SnapNameMap, select_mode: bool) -> HttmResult<()> {
+        let file_names_string: String =
+            snap_name_map.keys().fold(String::new(), |mut buffer, key| {
+                buffer += format!("{:?}\n", key.path_buf).as_str();
+                buffer
+            });
 
-    let snap_names: Vec<String> = if select_mode {
-      let buffer: String = snap_name_map.values().flatten().cloned().collect();
-      let view_mode = &ViewMode::Select(None);
-      view_mode.select(&buffer, true)?
-    } else {
-      snap_name_map.values().flatten().cloned().collect()
-    };
+        let snap_names: Vec<String> = if select_mode {
+            let buffer: String = snap_name_map.values().flatten().cloned().collect();
+            let view_mode = &ViewMode::Select(None);
+            view_mode.select(&buffer, true)?
+        } else {
+            snap_name_map.values().flatten().cloned().collect()
+        };
 
-    let snap_names_string: String = snap_names.into_iter().collect();
+        let snap_names_string: String = snap_names.into_iter().collect();
 
-    let preview_buffer = format!(
-      "User has requested snapshots related to the following file/s be pruned:\n\n{}\n\
+        let preview_buffer = format!(
+            "User has requested snapshots related to the following file/s be pruned:\n\n{}\n\
             httm will destroy the following snapshot/s:\n\n{}\n\
             Before httm destroys these snapshot/s, it would like your consent. Continue? (YES/NO)\n\
             ─────────────────────────────────────────────────────────────────────────────\n\
             YES\n\
             NO",
-      file_names_string, snap_names_string
-    );
+            file_names_string, snap_names_string
+        );
 
-    // loop until user consents or doesn't
-    loop {
-      let view_mode = &ViewMode::Prune;
-      let user_consent = view_mode.select(&preview_buffer, false)?[0].to_ascii_uppercase();
+        // loop until user consents or doesn't
+        loop {
+            let view_mode = &ViewMode::Prune;
+            let user_consent = view_mode.select(&preview_buffer, false)?[0].to_ascii_uppercase();
 
-      match user_consent.as_ref() {
-        "YES" | "Y" => {
-          Self::prune_snaps(snap_name_map)?;
+            match user_consent.as_ref() {
+                "YES" | "Y" => {
+                    Self::prune_snaps(snap_name_map)?;
 
-          let result_buffer = format!(
-            "httm pruned snapshots related to the following file/s:\n\n{}\n\
+                    let result_buffer = format!(
+                        "httm pruned snapshots related to the following file/s:\n\n{}\n\
                         By destroying the following snapshot/s:\n\n{}\n\
                         Prune completed successfully.",
-            file_names_string, snap_names_string
-          );
+                        file_names_string, snap_names_string
+                    );
 
-          break eprintln!("{result_buffer}");
+                    break eprintln!("{result_buffer}");
+                }
+                "NO" | "N" => break eprintln!("User declined prune.  No files were pruned."),
+                // if not yes or no, then noop and continue to the next iter of loop
+                _ => {}
+            }
         }
-        "NO" | "N" => break eprintln!("User declined prune.  No files were pruned."),
-        // if not yes or no, then noop and continue to the next iter of loop
-        _ => {}
-      }
+
+        std::process::exit(0)
     }
 
-    std::process::exit(0)
-  }
-
-  fn prune_snaps(snap_name_map: &SnapNameMap) -> HttmResult<()> {
-    let zfs_command = which::which("zfs").map_err(|_err| {
-      HttmError::new("'zfs' command not found. Make sure the command 'zfs' is in your path.")
-    })?;
-    snap_name_map
+    fn prune_snaps(snap_name_map: &SnapNameMap) -> HttmResult<()> {
+        let zfs_command = which::which("zfs").map_err(|_err| {
+            HttmError::new("'zfs' command not found. Make sure the command 'zfs' is in your path.")
+        })?;
+        snap_name_map
       .values()
       .flatten()
       .try_for_each(|snapshot_name| {
@@ -120,5 +124,5 @@ impl PruneSnaps {
           Ok(())
         }
       })
-  }
+    }
 }

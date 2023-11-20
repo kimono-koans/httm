@@ -54,55 +54,55 @@ use std::hash::Hash;
 use std::iter::Iterator;
 
 pub trait HttmIter: Iterator {
-  fn into_group_map<K, V>(self) -> HashMap<K, Vec<V>>
-  where
-    Self: Iterator<Item = (K, V)> + Sized,
-    K: Hash + Eq,
-  {
-    group_map::into_group_map(self)
-  }
+    fn into_group_map<K, V>(self) -> HashMap<K, Vec<V>>
+    where
+        Self: Iterator<Item = (K, V)> + Sized,
+        K: Hash + Eq,
+    {
+        group_map::into_group_map(self)
+    }
 
-  fn into_group_map_by<K, V, F>(self, f: F) -> HashMap<K, Vec<V>>
-  where
-    Self: Iterator<Item = V> + Sized,
-    K: Hash + Eq,
-    F: Fn(&V) -> K,
-  {
-    group_map::into_group_map_by(self, f)
-  }
+    fn into_group_map_by<K, V, F>(self, f: F) -> HashMap<K, Vec<V>>
+    where
+        Self: Iterator<Item = V> + Sized,
+        K: Hash + Eq,
+        F: Fn(&V) -> K,
+    {
+        group_map::into_group_map_by(self, f)
+    }
 }
 
 impl<T: ?Sized> HttmIter for T where T: Iterator {}
 
 pub mod group_map {
-  use hashbrown::HashMap;
-  use std::hash::Hash;
-  use std::iter::Iterator;
+    use hashbrown::HashMap;
+    use std::hash::Hash;
+    use std::iter::Iterator;
 
-  pub fn into_group_map<I, K, V>(iter: I) -> HashMap<K, Vec<V>>
-  where
-    I: Iterator<Item = (K, V)>,
-    K: Hash + Eq,
-  {
-    let mut lookup: HashMap<K, Vec<V>> = HashMap::with_capacity(iter.size_hint().0);
+    pub fn into_group_map<I, K, V>(iter: I) -> HashMap<K, Vec<V>>
+    where
+        I: Iterator<Item = (K, V)>,
+        K: Hash + Eq,
+    {
+        let mut lookup: HashMap<K, Vec<V>> = HashMap::with_capacity(iter.size_hint().0);
 
-    iter.for_each(|(key, val)| match lookup.get_mut(&key) {
-      Some(vec_val) => {
-        vec_val.push(val);
-      }
-      None => {
-        lookup.insert_unique_unchecked(key, [val].into());
-      }
-    });
+        iter.for_each(|(key, val)| match lookup.get_mut(&key) {
+            Some(vec_val) => {
+                vec_val.push(val);
+            }
+            None => {
+                lookup.insert_unique_unchecked(key, [val].into());
+            }
+        });
 
-    lookup
-  }
+        lookup
+    }
 
-  pub fn into_group_map_by<I, K, V>(iter: I, f: impl Fn(&V) -> K) -> HashMap<K, Vec<V>>
-  where
-    I: Iterator<Item = V>,
-    K: Hash + Eq,
-  {
-    into_group_map(iter.map(|v| (f(&v), v)))
-  }
+    pub fn into_group_map_by<I, K, V>(iter: I, f: impl Fn(&V) -> K) -> HashMap<K, Vec<V>>
+    where
+        I: Iterator<Item = V>,
+        K: Hash + Eq,
+    {
+        into_group_map(iter.map(|v| (f(&v), v)))
+    }
 }

@@ -30,106 +30,106 @@ use time::UtcOffset;
 
 #[derive(Debug, Clone)]
 pub enum ExecMode {
-  Interactive(InteractiveMode),
-  NonInteractiveRecursive(indicatif::ProgressBar),
-  Display,
-  SnapFileMount(String),
-  Prune(Option<ListSnapsFilters>),
-  MountsForFiles(MountDisplay),
-  SnapsForFiles(Option<ListSnapsFilters>),
-  NumVersions(NumVersionsMode),
-  RollForward(RollForwardConfig),
+    Interactive(InteractiveMode),
+    NonInteractiveRecursive(indicatif::ProgressBar),
+    Display,
+    SnapFileMount(String),
+    Prune(Option<ListSnapsFilters>),
+    MountsForFiles(MountDisplay),
+    SnapsForFiles(Option<ListSnapsFilters>),
+    NumVersions(NumVersionsMode),
+    RollForward(RollForwardConfig),
 }
 
 #[derive(Debug, Clone)]
 pub struct RollForwardConfig {
-  pub full_snap_name: String,
-  pub progress_bar: indicatif::ProgressBar,
+    pub full_snap_name: String,
+    pub progress_bar: indicatif::ProgressBar,
 }
 
 #[derive(Debug, Clone)]
 pub enum BulkExclusion {
-  NoLive,
-  NoSnap,
+    NoLive,
+    NoSnap,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MountDisplay {
-  Target,
-  Source,
-  RelativePath,
+    Target,
+    Source,
+    RelativePath,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum InteractiveMode {
-  Browse,
-  Select,
-  Restore(RestoreMode),
+    Browse,
+    Select,
+    Restore(RestoreMode),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RestoreSnapGuard {
-  Guarded,
-  NotGuarded,
+    Guarded,
+    NotGuarded,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RestoreMode {
-  CopyOnly,
-  CopyAndPreserve,
-  Overwrite(RestoreSnapGuard),
+    CopyOnly,
+    CopyAndPreserve,
+    Overwrite(RestoreSnapGuard),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PrintMode {
-  FormattedDefault,
-  FormattedNotPretty,
-  RawNewline,
-  RawZero,
+    FormattedDefault,
+    FormattedNotPretty,
+    RawNewline,
+    RawZero,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DeletedMode {
-  DepthOfOne,
-  All,
-  Only,
+    DepthOfOne,
+    All,
+    Only,
 }
 
 #[derive(Debug, Clone)]
 pub enum ListSnapsOfType {
-  All,
-  UniqueMetadata,
-  UniqueContents,
+    All,
+    UniqueMetadata,
+    UniqueContents,
 }
 
 #[derive(Debug, Clone)]
 pub struct ListSnapsFilters {
-  pub select_mode: bool,
-  pub omit_num_snaps: usize,
-  pub name_filters: Option<Vec<String>>,
+    pub select_mode: bool,
+    pub omit_num_snaps: usize,
+    pub name_filters: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LastSnapMode {
-  Any,
-  Without,
-  DittoOnly,
-  NoDittoExclusive,
-  NoDittoInclusive,
+    Any,
+    Without,
+    DittoOnly,
+    NoDittoExclusive,
+    NoDittoInclusive,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum NumVersionsMode {
-  AllNumerals,
-  AllGraph,
-  SingleAll,
-  SingleNoSnap,
-  SingleWithSnap,
-  Multiple,
+    AllNumerals,
+    AllGraph,
+    SingleAll,
+    SingleNoSnap,
+    SingleWithSnap,
+    Multiple,
 }
 
 fn parse_args() -> ArgMatches {
-  clap::Command::new(crate_name!())
+    clap::Command::new(crate_name!())
         .about("httm prints the size, date and corresponding locations of available unique versions of files residing on snapshots.  \
         May also be used interactively to select and restore from such versions, and even to snapshot datasets which contain certain files.")
         .version(crate_version!())
@@ -525,529 +525,533 @@ fn parse_args() -> ArgMatches {
 
 #[derive(Debug, Clone)]
 pub struct Config {
-  pub paths: Vec<PathData>,
-  pub opt_recursive: bool,
-  pub opt_exact: bool,
-  pub opt_no_filter: bool,
-  pub opt_debug: bool,
-  pub opt_no_traverse: bool,
-  pub opt_omit_ditto: bool,
-  pub opt_no_hidden: bool,
-  pub opt_json: bool,
-  pub opt_one_filesystem: bool,
-  pub opt_no_clones: bool,
-  pub uniqueness: ListSnapsOfType,
-  pub opt_bulk_exclusion: Option<BulkExclusion>,
-  pub opt_last_snap: Option<LastSnapMode>,
-  pub opt_preview: Option<String>,
-  pub opt_deleted_mode: Option<DeletedMode>,
-  pub opt_requested_dir: Option<PathBuf>,
-  pub requested_utc_offset: UtcOffset,
-  pub exec_mode: ExecMode,
-  pub print_mode: PrintMode,
-  pub dataset_collection: FilesystemInfo,
-  pub pwd: PathBuf,
+    pub paths: Vec<PathData>,
+    pub opt_recursive: bool,
+    pub opt_exact: bool,
+    pub opt_no_filter: bool,
+    pub opt_debug: bool,
+    pub opt_no_traverse: bool,
+    pub opt_omit_ditto: bool,
+    pub opt_no_hidden: bool,
+    pub opt_json: bool,
+    pub opt_one_filesystem: bool,
+    pub opt_no_clones: bool,
+    pub uniqueness: ListSnapsOfType,
+    pub opt_bulk_exclusion: Option<BulkExclusion>,
+    pub opt_last_snap: Option<LastSnapMode>,
+    pub opt_preview: Option<String>,
+    pub opt_deleted_mode: Option<DeletedMode>,
+    pub opt_requested_dir: Option<PathBuf>,
+    pub requested_utc_offset: UtcOffset,
+    pub exec_mode: ExecMode,
+    pub print_mode: PrintMode,
+    pub dataset_collection: FilesystemInfo,
+    pub pwd: PathBuf,
 }
 
 impl Config {
-  pub fn new() -> HttmResult<Self> {
-    let arg_matches = parse_args();
-    let config = Config::from_matches(&arg_matches)?;
-    if config.opt_debug {
-      eprintln!("{config:#?}");
-    }
-    Ok(config)
-  }
-
-  fn from_matches(matches: &ArgMatches) -> HttmResult<Self> {
-    if matches.is_present("ZSH_HOT_KEYS") {
-      install_hot_keys()?
+    pub fn new() -> HttmResult<Self> {
+        let arg_matches = parse_args();
+        let config = Config::from_matches(&arg_matches)?;
+        if config.opt_debug {
+            eprintln!("{config:#?}");
+        }
+        Ok(config)
     }
 
-    let requested_utc_offset = if matches.is_present("UTC") {
-      UtcOffset::UTC
-    } else {
-      // this fn is surprisingly finicky. it needs to be done
-      // when program is not multithreaded, etc., so we don't even print an
-      // error and we just default to UTC if something fails
-      UtcOffset::current_local_offset().unwrap_or(UtcOffset::UTC)
-    };
+    fn from_matches(matches: &ArgMatches) -> HttmResult<Self> {
+        if matches.is_present("ZSH_HOT_KEYS") {
+            install_hot_keys()?
+        }
 
-    let opt_json = matches.is_present("JSON");
+        let requested_utc_offset = if matches.is_present("UTC") {
+            UtcOffset::UTC
+        } else {
+            // this fn is surprisingly finicky. it needs to be done
+            // when program is not multithreaded, etc., so we don't even print an
+            // error and we just default to UTC if something fails
+            UtcOffset::current_local_offset().unwrap_or(UtcOffset::UTC)
+        };
 
-    let mut print_mode = if matches.is_present("ZEROS") {
-      PrintMode::RawZero
-    } else if matches.is_present("RAW") {
-      PrintMode::RawNewline
-    } else if matches.is_present("NOT_SO_PRETTY") {
-      PrintMode::FormattedNotPretty
-    } else {
-      PrintMode::FormattedDefault
-    };
+        let opt_json = matches.is_present("JSON");
 
-    let opt_bulk_exclusion = if matches.is_present("NO_LIVE") {
-      Some(BulkExclusion::NoLive)
-    } else if matches.is_present("NO_SNAP") {
-      Some(BulkExclusion::NoSnap)
-    } else {
-      None
-    };
+        let mut print_mode = if matches.is_present("ZEROS") {
+            PrintMode::RawZero
+        } else if matches.is_present("RAW") {
+            PrintMode::RawNewline
+        } else if matches.is_present("NOT_SO_PRETTY") {
+            PrintMode::FormattedNotPretty
+        } else {
+            PrintMode::FormattedDefault
+        };
 
-    if let Some(BulkExclusion::NoSnap) = opt_bulk_exclusion {
-      if let PrintMode::FormattedNotPretty | PrintMode::FormattedDefault = print_mode {
-        return Err(
-          HttmError::new("NO_SNAP is only available if RAW or ZEROS are specified.").into(),
-        );
-      }
-    }
+        let opt_bulk_exclusion = if matches.is_present("NO_LIVE") {
+            Some(BulkExclusion::NoLive)
+        } else if matches.is_present("NO_SNAP") {
+            Some(BulkExclusion::NoSnap)
+        } else {
+            None
+        };
 
-    // force a raw mode if one is not set for no_snap mode
-    let opt_one_filesystem = matches.is_present("ONE_FILESYSTEM");
-    let opt_recursive = matches.is_present("RECURSIVE");
+        if let Some(BulkExclusion::NoSnap) = opt_bulk_exclusion {
+            if let PrintMode::FormattedNotPretty | PrintMode::FormattedDefault = print_mode {
+                return Err(HttmError::new(
+                    "NO_SNAP is only available if RAW or ZEROS are specified.",
+                )
+                .into());
+            }
+        }
 
-    let opt_exact = matches.is_present("EXACT");
-    let opt_no_filter = matches.is_present("NO_FILTER");
-    let opt_debug = matches.is_present("DEBUG");
-    let opt_no_hidden = matches.is_present("FILTER_HIDDEN");
-    let opt_no_clones =
-      matches.is_present("NO_CLONES") || std::env::var_os("HTTM_NO_CLONE").is_some();
+        // force a raw mode if one is not set for no_snap mode
+        let opt_one_filesystem = matches.is_present("ONE_FILESYSTEM");
+        let opt_recursive = matches.is_present("RECURSIVE");
 
-    let opt_last_snap = match matches.value_of("LAST_SNAP") {
-      Some("" | "any") => Some(LastSnapMode::Any),
-      Some("none" | "without") => Some(LastSnapMode::Without),
-      Some("ditto") => Some(LastSnapMode::DittoOnly),
-      Some("no-ditto-inclusive") => Some(LastSnapMode::NoDittoInclusive),
-      Some("no-ditto-exclusive" | "no-ditto") => Some(LastSnapMode::NoDittoExclusive),
-      _ => None,
-    };
+        let opt_exact = matches.is_present("EXACT");
+        let opt_no_filter = matches.is_present("NO_FILTER");
+        let opt_debug = matches.is_present("DEBUG");
+        let opt_no_hidden = matches.is_present("FILTER_HIDDEN");
+        let opt_no_clones =
+            matches.is_present("NO_CLONES") || std::env::var_os("HTTM_NO_CLONE").is_some();
 
-    let opt_num_versions = match matches.value_of("NUM_VERSIONS") {
-      Some("" | "all") => Some(NumVersionsMode::AllNumerals),
-      Some("graph") => Some(NumVersionsMode::AllGraph),
-      Some("single") => Some(NumVersionsMode::SingleAll),
-      Some("single-no-snap") => Some(NumVersionsMode::SingleNoSnap),
-      Some("single-with-snap") => Some(NumVersionsMode::SingleWithSnap),
-      Some("multiple") => Some(NumVersionsMode::Multiple),
-      _ => None,
-    };
+        let opt_last_snap = match matches.value_of("LAST_SNAP") {
+            Some("" | "any") => Some(LastSnapMode::Any),
+            Some("none" | "without") => Some(LastSnapMode::Without),
+            Some("ditto") => Some(LastSnapMode::DittoOnly),
+            Some("no-ditto-inclusive") => Some(LastSnapMode::NoDittoInclusive),
+            Some("no-ditto-exclusive" | "no-ditto") => Some(LastSnapMode::NoDittoExclusive),
+            _ => None,
+        };
 
-    if matches!(opt_num_versions, Some(NumVersionsMode::AllGraph))
-      && !matches!(print_mode, PrintMode::FormattedDefault)
-    {
-      return Err(HttmError::new("The NUM_VERSIONS graph mode and the RAW or ZEROS display modes are an invalid combination.").into());
-    }
+        let opt_num_versions = match matches.value_of("NUM_VERSIONS") {
+            Some("" | "all") => Some(NumVersionsMode::AllNumerals),
+            Some("graph") => Some(NumVersionsMode::AllGraph),
+            Some("single") => Some(NumVersionsMode::SingleAll),
+            Some("single-no-snap") => Some(NumVersionsMode::SingleNoSnap),
+            Some("single-with-snap") => Some(NumVersionsMode::SingleWithSnap),
+            Some("multiple") => Some(NumVersionsMode::Multiple),
+            _ => None,
+        };
 
-    let opt_mount_display = match matches.value_of("FILE_MOUNT") {
-      Some("" | "target" | "directory") => Some(MountDisplay::Target),
-      Some("source" | "device" | "dataset") => Some(MountDisplay::Source),
-      Some("relative-path" | "relative" | "relpath") => Some(MountDisplay::RelativePath),
-      _ => None,
-    };
+        if matches!(opt_num_versions, Some(NumVersionsMode::AllGraph))
+            && !matches!(print_mode, PrintMode::FormattedDefault)
+        {
+            return Err(HttmError::new("The NUM_VERSIONS graph mode and the RAW or ZEROS display modes are an invalid combination.").into());
+        }
 
-    let opt_preview = match matches.value_of("PREVIEW") {
-      Some("" | "default") => Some("default".to_owned()),
-      Some(user_defined) => Some(user_defined.to_owned()),
-      None => None,
-    };
+        let opt_mount_display = match matches.value_of("FILE_MOUNT") {
+            Some("" | "target" | "directory") => Some(MountDisplay::Target),
+            Some("source" | "device" | "dataset") => Some(MountDisplay::Source),
+            Some("relative-path" | "relative" | "relpath") => Some(MountDisplay::RelativePath),
+            _ => None,
+        };
 
-    let mut opt_deleted_mode = match matches.value_of("DELETED") {
-      Some("" | "all") => Some(DeletedMode::All),
-      Some("single") => Some(DeletedMode::DepthOfOne),
-      Some("only") => Some(DeletedMode::Only),
-      _ => None,
-    };
+        let opt_preview = match matches.value_of("PREVIEW") {
+            Some("" | "default") => Some("default".to_owned()),
+            Some(user_defined) => Some(user_defined.to_owned()),
+            None => None,
+        };
 
-    let opt_interactive_mode = if matches.is_present("RESTORE") {
-      match matches.value_of("RESTORE") {
-        Some("guard") => Some(InteractiveMode::Restore(RestoreMode::Overwrite(
-          RestoreSnapGuard::Guarded,
-        ))),
-        Some("overwrite" | "yolo") => Some(InteractiveMode::Restore(RestoreMode::Overwrite(
-          RestoreSnapGuard::NotGuarded,
-        ))),
-        Some("copy-and-preserve") => Some(InteractiveMode::Restore(RestoreMode::CopyAndPreserve)),
-        Some(_) | None => Some(InteractiveMode::Restore(RestoreMode::CopyOnly)),
-      }
-    } else if matches.is_present("SELECT") {
-      Some(InteractiveMode::Select)
-    } else if matches.is_present("BROWSE") {
-      Some(InteractiveMode::Browse)
-    } else {
-      None
-    };
+        let mut opt_deleted_mode = match matches.value_of("DELETED") {
+            Some("" | "all") => Some(DeletedMode::All),
+            Some("single") => Some(DeletedMode::DepthOfOne),
+            Some("only") => Some(DeletedMode::Only),
+            _ => None,
+        };
 
-    let mut uniqueness = match matches.value_of("UNIQUENESS") {
-      Some("all" | "no-filter") => ListSnapsOfType::All,
-      Some("contents") => ListSnapsOfType::UniqueContents,
-      Some("metadata" | _) | None => ListSnapsOfType::UniqueMetadata,
-    };
+        let opt_interactive_mode = if matches.is_present("RESTORE") {
+            match matches.value_of("RESTORE") {
+                Some("guard") => Some(InteractiveMode::Restore(RestoreMode::Overwrite(
+                    RestoreSnapGuard::Guarded,
+                ))),
+                Some("overwrite" | "yolo") => Some(InteractiveMode::Restore(
+                    RestoreMode::Overwrite(RestoreSnapGuard::NotGuarded),
+                )),
+                Some("copy-and-preserve") => {
+                    Some(InteractiveMode::Restore(RestoreMode::CopyAndPreserve))
+                }
+                Some(_) | None => Some(InteractiveMode::Restore(RestoreMode::CopyOnly)),
+            }
+        } else if matches.is_present("SELECT") {
+            Some(InteractiveMode::Select)
+        } else if matches.is_present("BROWSE") {
+            Some(InteractiveMode::Browse)
+        } else {
+            None
+        };
 
-    if opt_no_hidden && !opt_recursive && opt_interactive_mode.is_none() {
-      return Err(HttmError::new(
+        let mut uniqueness = match matches.value_of("UNIQUENESS") {
+            Some("all" | "no-filter") => ListSnapsOfType::All,
+            Some("contents") => ListSnapsOfType::UniqueContents,
+            Some("metadata" | _) | None => ListSnapsOfType::UniqueMetadata,
+        };
+
+        if opt_no_hidden && !opt_recursive && opt_interactive_mode.is_none() {
+            return Err(HttmError::new(
                 "FILTER_HIDDEN is only available if either an interactive mode or recursive mode is specified.",
             )
             .into());
-    }
-
-    if opt_preview.is_some() && matches!(opt_interactive_mode, Some(InteractiveMode::Browse) | None)
-    {
-      return Err(HttmError::new("PREVIEW is only available in Select or Restore modes").into());
-    }
-
-    // if in last snap and select mode we will want to return a raw value,
-    // better to have this here.  It's more confusing if we work this logic later, I think.
-    if opt_last_snap.is_some() && matches!(opt_interactive_mode, Some(InteractiveMode::Select)) {
-      print_mode = PrintMode::RawNewline
-    }
-
-    let opt_snap_file_mount = if let Some(requested_snapshot_suffix) = matches.value_of("SNAPSHOT")
-    {
-      if requested_snapshot_suffix == "httmSnapFileMount" {
-        Some(requested_snapshot_suffix.to_owned())
-      } else if requested_snapshot_suffix.contains(char::is_whitespace) {
-        return Err(
-          HttmError::new("httm will only accept snapshot suffixes which don't contain whitespace")
-            .into(),
-        );
-      } else {
-        Some(requested_snapshot_suffix.to_owned())
-      }
-    } else {
-      None
-    };
-
-    let opt_snap_mode_filters = if matches.is_present("LIST_SNAPS") {
-      // allow selection of snaps to prune in prune mode
-      let select_mode = matches!(opt_interactive_mode, Some(InteractiveMode::Select));
-
-      if !matches.is_present("PRUNE") && select_mode {
-        eprintln!("Select mode for listed snapshots only available in PRUNE mode.")
-      }
-
-      // default to listing all snaps in list snaps mode if unset
-      if !matches.is_present("UNIQUENESS") {
-        uniqueness = ListSnapsOfType::All;
-      }
-
-      if let Some(values) = matches.value_of("LIST_SNAPS") {
-        Some(Self::snap_filters(values, select_mode)?)
-      } else {
-        Some(ListSnapsFilters {
-          select_mode,
-          omit_num_snaps: 0usize,
-          name_filters: None,
-        })
-      }
-    } else {
-      None
-    };
-
-    let mut exec_mode = if let Some(full_snap_name) = matches.value_of("ROLL_FORWARD") {
-      let progress_bar: ProgressBar = indicatif::ProgressBar::new_spinner();
-      let roll_config: RollForwardConfig = RollForwardConfig {
-        full_snap_name: full_snap_name.to_string(),
-        progress_bar,
-      };
-
-      ExecMode::RollForward(roll_config)
-    } else if let Some(num_versions_mode) = opt_num_versions {
-      ExecMode::NumVersions(num_versions_mode)
-    } else if let Some(mount_display) = opt_mount_display {
-      ExecMode::MountsForFiles(mount_display)
-    } else if matches.is_present("PRUNE") {
-      ExecMode::Prune(opt_snap_mode_filters)
-    } else if opt_snap_mode_filters.is_some() {
-      ExecMode::SnapsForFiles(opt_snap_mode_filters)
-    } else if let Some(requested_snapshot_suffix) = opt_snap_file_mount {
-      ExecMode::SnapFileMount(requested_snapshot_suffix)
-    } else if let Some(interactive_mode) = opt_interactive_mode {
-      ExecMode::Interactive(interactive_mode)
-    } else if opt_deleted_mode.is_some() {
-      let progress_bar: ProgressBar = indicatif::ProgressBar::new_spinner();
-      ExecMode::NonInteractiveRecursive(progress_bar)
-    } else {
-      ExecMode::Display
-    };
-
-    if opt_recursive {
-      if matches!(exec_mode, ExecMode::Display) {
-        return Err(HttmError::new("RECURSIVE not available in Display Mode.").into());
-      }
-    } else if opt_no_filter {
-      return Err(
-        HttmError::new("NO_FILTER only available when recursive search is enabled.").into(),
-      );
-    }
-
-    // current working directory will be helpful in a number of places
-    let pwd = pwd()?;
-
-    // paths are immediately converted to our PathData struct
-    let paths: Vec<PathData> = Self::paths(matches.values_of_os("INPUT_FILES"), &exec_mode, &pwd)?;
-
-    // for exec_modes in which we can only take a single directory, process how we handle those here
-    let opt_requested_dir: Option<PathBuf> =
-      Self::opt_requested_dir(&mut exec_mode, &mut opt_deleted_mode, &paths, &pwd)?;
-
-    if opt_one_filesystem && opt_requested_dir.is_none() {
-      return Err(
-        HttmError::new("ONE_FILESYSTEM requires a requested path for RECURSIVE search").into(),
-      );
-    }
-
-    // doesn't make sense to follow symlinks when you're searching the whole system,
-    // so we disable our bespoke "when to traverse symlinks" algo here, or if requested.
-    let opt_no_traverse = matches.is_present("NO_TRAVERSE") || {
-      if let Some(user_requested_dir) = opt_requested_dir.as_ref() {
-        user_requested_dir.as_path() == Path::new(ROOT_DIRECTORY)
-      } else {
-        false
-      }
-    };
-
-    if !matches!(opt_deleted_mode, None | Some(DeletedMode::All)) && !opt_recursive {
-      return Err(
-        HttmError::new(
-          "Deleted modes other than \"all\" require recursive mode is enabled.  Quitting.",
-        )
-        .into(),
-      );
-    }
-
-    let opt_omit_ditto = matches.is_present("OMIT_DITTO");
-
-    // opt_omit_identical doesn't make sense in Display Recursive mode as no live files will exists?
-    if opt_omit_ditto && matches!(exec_mode, ExecMode::NonInteractiveRecursive(_)) {
-      return Err(
-        HttmError::new(
-          "OMIT_DITTO not available when a deleted recursive search is specified.  Quitting.",
-        )
-        .into(),
-      );
-    }
-
-    if opt_last_snap.is_some() && matches!(exec_mode, ExecMode::NonInteractiveRecursive(_)) {
-      return Err(HttmError::new("LAST_SNAP is not available in Display Recursive Mode.").into());
-    }
-
-    // obtain a map of datasets, a map of snapshot directories, and possibly a map of
-    // alternate filesystems and map of aliases if the user requests
-    let dataset_collection = FilesystemInfo::new(
-      matches.is_present("ALT_REPLICATED"),
-      matches.value_of_os("REMOTE_DIR"),
-      matches.value_of_os("LOCAL_DIR"),
-      matches.values_of_os("MAP_ALIASES"),
-      &pwd,
-    )?;
-
-    let config = Config {
-      paths,
-      opt_bulk_exclusion,
-      opt_recursive,
-      opt_exact,
-      opt_no_filter,
-      opt_debug,
-      opt_no_traverse,
-      opt_omit_ditto,
-      opt_no_hidden,
-      opt_last_snap,
-      opt_preview,
-      opt_json,
-      opt_one_filesystem,
-      opt_no_clones,
-      uniqueness,
-      requested_utc_offset,
-      exec_mode,
-      print_mode,
-      opt_deleted_mode,
-      dataset_collection,
-      pwd,
-      opt_requested_dir,
-    };
-
-    Ok(config)
-  }
-
-  pub fn paths(
-    opt_os_values: Option<OsValues>,
-    exec_mode: &ExecMode,
-    pwd: &Path,
-  ) -> HttmResult<Vec<PathData>> {
-    let mut paths = if let Some(input_files) = opt_os_values {
-      input_files
-        .par_bridge()
-        // canonicalize() on a deleted relative path will not exist,
-        // so we have to join with the pwd to make a path that
-        // will exist on a snapshot
-        .map(PathData::from)
-        .collect()
-    } else {
-      match exec_mode {
-        // setting pwd as the path, here, keeps us from waiting on stdin when in certain modes
-        //  is more like Interactive and NonInteractiveRecursive in this respect in requiring only one
-        // input, and waiting on one input from stdin is pretty silly
-        ExecMode::Interactive(_)
-        | ExecMode::NonInteractiveRecursive(_)
-        | ExecMode::RollForward(_) => {
-          vec![PathData::from(pwd)]
         }
-        ExecMode::Display
-        | ExecMode::SnapFileMount(_)
-        | ExecMode::Prune(_)
-        | ExecMode::MountsForFiles(_)
-        | ExecMode::SnapsForFiles(_)
-        | ExecMode::NumVersions(_) => read_stdin()?,
-      }
-    };
 
-    // deduplicate pathdata and sort if in display mode --
-    // so input of ./.z* and ./.zshrc will only print ./.zshrc once
-    paths = if paths.len() > 1 {
-      paths.sort_unstable();
-      // dedup needs to be sorted/ordered first to work (not like a BTreeMap)
-      paths.dedup();
+        if opt_preview.is_some()
+            && matches!(opt_interactive_mode, Some(InteractiveMode::Browse) | None)
+        {
+            return Err(
+                HttmError::new("PREVIEW is only available in Select or Restore modes").into(),
+            );
+        }
 
-      paths
-    } else {
-      paths
-    };
+        // if in last snap and select mode we will want to return a raw value,
+        // better to have this here.  It's more confusing if we work this logic later, I think.
+        if opt_last_snap.is_some() && matches!(opt_interactive_mode, Some(InteractiveMode::Select))
+        {
+            print_mode = PrintMode::RawNewline
+        }
 
-    Ok(paths)
-  }
-
-  pub fn opt_requested_dir(
-    exec_mode: &mut ExecMode,
-    deleted_mode: &mut Option<DeletedMode>,
-    paths: &[PathData],
-    pwd: &Path,
-  ) -> HttmResult<Option<PathBuf>> {
-    let res = match exec_mode {
-      ExecMode::Interactive(_) | ExecMode::NonInteractiveRecursive(_) => {
-        match paths.len() {
-          0 => Some(pwd.to_path_buf()),
-          // use our bespoke is_dir fn for determining whether a dir here see pub httm_is_dir
-          // safe to index as we know the paths len is 1
-          1 if paths[0].httm_is_dir() => Some(paths[0].path_buf.clone()),
-          // handle non-directories
-          1 => {
-            match exec_mode {
-              ExecMode::Interactive(ref interactive_mode) => {
-                match interactive_mode {
-                  InteractiveMode::Browse => {
-                    // doesn't make sense to have a non-dir in these modes
+        let opt_snap_file_mount =
+            if let Some(requested_snapshot_suffix) = matches.value_of("SNAPSHOT") {
+                if requested_snapshot_suffix == "httmSnapFileMount" {
+                    Some(requested_snapshot_suffix.to_owned())
+                } else if requested_snapshot_suffix.contains(char::is_whitespace) {
                     return Err(HttmError::new(
+                        "httm will only accept snapshot suffixes which don't contain whitespace",
+                    )
+                    .into());
+                } else {
+                    Some(requested_snapshot_suffix.to_owned())
+                }
+            } else {
+                None
+            };
+
+        let opt_snap_mode_filters = if matches.is_present("LIST_SNAPS") {
+            // allow selection of snaps to prune in prune mode
+            let select_mode = matches!(opt_interactive_mode, Some(InteractiveMode::Select));
+
+            if !matches.is_present("PRUNE") && select_mode {
+                eprintln!("Select mode for listed snapshots only available in PRUNE mode.")
+            }
+
+            // default to listing all snaps in list snaps mode if unset
+            if !matches.is_present("UNIQUENESS") {
+                uniqueness = ListSnapsOfType::All;
+            }
+
+            if let Some(values) = matches.value_of("LIST_SNAPS") {
+                Some(Self::snap_filters(values, select_mode)?)
+            } else {
+                Some(ListSnapsFilters {
+                    select_mode,
+                    omit_num_snaps: 0usize,
+                    name_filters: None,
+                })
+            }
+        } else {
+            None
+        };
+
+        let mut exec_mode = if let Some(full_snap_name) = matches.value_of("ROLL_FORWARD") {
+            let progress_bar: ProgressBar = indicatif::ProgressBar::new_spinner();
+            let roll_config: RollForwardConfig = RollForwardConfig {
+                full_snap_name: full_snap_name.to_string(),
+                progress_bar,
+            };
+
+            ExecMode::RollForward(roll_config)
+        } else if let Some(num_versions_mode) = opt_num_versions {
+            ExecMode::NumVersions(num_versions_mode)
+        } else if let Some(mount_display) = opt_mount_display {
+            ExecMode::MountsForFiles(mount_display)
+        } else if matches.is_present("PRUNE") {
+            ExecMode::Prune(opt_snap_mode_filters)
+        } else if opt_snap_mode_filters.is_some() {
+            ExecMode::SnapsForFiles(opt_snap_mode_filters)
+        } else if let Some(requested_snapshot_suffix) = opt_snap_file_mount {
+            ExecMode::SnapFileMount(requested_snapshot_suffix)
+        } else if let Some(interactive_mode) = opt_interactive_mode {
+            ExecMode::Interactive(interactive_mode)
+        } else if opt_deleted_mode.is_some() {
+            let progress_bar: ProgressBar = indicatif::ProgressBar::new_spinner();
+            ExecMode::NonInteractiveRecursive(progress_bar)
+        } else {
+            ExecMode::Display
+        };
+
+        if opt_recursive {
+            if matches!(exec_mode, ExecMode::Display) {
+                return Err(HttmError::new("RECURSIVE not available in Display Mode.").into());
+            }
+        } else if opt_no_filter {
+            return Err(HttmError::new(
+                "NO_FILTER only available when recursive search is enabled.",
+            )
+            .into());
+        }
+
+        // current working directory will be helpful in a number of places
+        let pwd = pwd()?;
+
+        // paths are immediately converted to our PathData struct
+        let paths: Vec<PathData> =
+            Self::paths(matches.values_of_os("INPUT_FILES"), &exec_mode, &pwd)?;
+
+        // for exec_modes in which we can only take a single directory, process how we handle those here
+        let opt_requested_dir: Option<PathBuf> =
+            Self::opt_requested_dir(&mut exec_mode, &mut opt_deleted_mode, &paths, &pwd)?;
+
+        if opt_one_filesystem && opt_requested_dir.is_none() {
+            return Err(HttmError::new(
+                "ONE_FILESYSTEM requires a requested path for RECURSIVE search",
+            )
+            .into());
+        }
+
+        // doesn't make sense to follow symlinks when you're searching the whole system,
+        // so we disable our bespoke "when to traverse symlinks" algo here, or if requested.
+        let opt_no_traverse = matches.is_present("NO_TRAVERSE") || {
+            if let Some(user_requested_dir) = opt_requested_dir.as_ref() {
+                user_requested_dir.as_path() == Path::new(ROOT_DIRECTORY)
+            } else {
+                false
+            }
+        };
+
+        if !matches!(opt_deleted_mode, None | Some(DeletedMode::All)) && !opt_recursive {
+            return Err(HttmError::new(
+                "Deleted modes other than \"all\" require recursive mode is enabled.  Quitting.",
+            )
+            .into());
+        }
+
+        let opt_omit_ditto = matches.is_present("OMIT_DITTO");
+
+        // opt_omit_identical doesn't make sense in Display Recursive mode as no live files will exists?
+        if opt_omit_ditto && matches!(exec_mode, ExecMode::NonInteractiveRecursive(_)) {
+            return Err(HttmError::new(
+                "OMIT_DITTO not available when a deleted recursive search is specified.  Quitting.",
+            )
+            .into());
+        }
+
+        if opt_last_snap.is_some() && matches!(exec_mode, ExecMode::NonInteractiveRecursive(_)) {
+            return Err(
+                HttmError::new("LAST_SNAP is not available in Display Recursive Mode.").into(),
+            );
+        }
+
+        // obtain a map of datasets, a map of snapshot directories, and possibly a map of
+        // alternate filesystems and map of aliases if the user requests
+        let dataset_collection = FilesystemInfo::new(
+            matches.is_present("ALT_REPLICATED"),
+            matches.value_of_os("REMOTE_DIR"),
+            matches.value_of_os("LOCAL_DIR"),
+            matches.values_of_os("MAP_ALIASES"),
+            &pwd,
+        )?;
+
+        let config = Config {
+            paths,
+            opt_bulk_exclusion,
+            opt_recursive,
+            opt_exact,
+            opt_no_filter,
+            opt_debug,
+            opt_no_traverse,
+            opt_omit_ditto,
+            opt_no_hidden,
+            opt_last_snap,
+            opt_preview,
+            opt_json,
+            opt_one_filesystem,
+            opt_no_clones,
+            uniqueness,
+            requested_utc_offset,
+            exec_mode,
+            print_mode,
+            opt_deleted_mode,
+            dataset_collection,
+            pwd,
+            opt_requested_dir,
+        };
+
+        Ok(config)
+    }
+
+    pub fn paths(
+        opt_os_values: Option<OsValues>,
+        exec_mode: &ExecMode,
+        pwd: &Path,
+    ) -> HttmResult<Vec<PathData>> {
+        let mut paths = if let Some(input_files) = opt_os_values {
+            input_files
+                .par_bridge()
+                // canonicalize() on a deleted relative path will not exist,
+                // so we have to join with the pwd to make a path that
+                // will exist on a snapshot
+                .map(PathData::from)
+                .collect()
+        } else {
+            match exec_mode {
+                // setting pwd as the path, here, keeps us from waiting on stdin when in certain modes
+                //  is more like Interactive and NonInteractiveRecursive in this respect in requiring only one
+                // input, and waiting on one input from stdin is pretty silly
+                ExecMode::Interactive(_)
+                | ExecMode::NonInteractiveRecursive(_)
+                | ExecMode::RollForward(_) => {
+                    vec![PathData::from(pwd)]
+                }
+                ExecMode::Display
+                | ExecMode::SnapFileMount(_)
+                | ExecMode::Prune(_)
+                | ExecMode::MountsForFiles(_)
+                | ExecMode::SnapsForFiles(_)
+                | ExecMode::NumVersions(_) => read_stdin()?,
+            }
+        };
+
+        // deduplicate pathdata and sort if in display mode --
+        // so input of ./.z* and ./.zshrc will only print ./.zshrc once
+        paths = if paths.len() > 1 {
+            paths.sort_unstable();
+            // dedup needs to be sorted/ordered first to work (not like a BTreeMap)
+            paths.dedup();
+
+            paths
+        } else {
+            paths
+        };
+
+        Ok(paths)
+    }
+
+    pub fn opt_requested_dir(
+        exec_mode: &mut ExecMode,
+        deleted_mode: &mut Option<DeletedMode>,
+        paths: &[PathData],
+        pwd: &Path,
+    ) -> HttmResult<Option<PathBuf>> {
+        let res = match exec_mode {
+            ExecMode::Interactive(_) | ExecMode::NonInteractiveRecursive(_) => {
+                match paths.len() {
+                    0 => Some(pwd.to_path_buf()),
+                    // use our bespoke is_dir fn for determining whether a dir here see pub httm_is_dir
+                    // safe to index as we know the paths len is 1
+                    1 if paths[0].httm_is_dir() => Some(paths[0].path_buf.clone()),
+                    // handle non-directories
+                    1 => {
+                        match exec_mode {
+                            ExecMode::Interactive(ref interactive_mode) => {
+                                match interactive_mode {
+                                    InteractiveMode::Browse => {
+                                        // doesn't make sense to have a non-dir in these modes
+                                        return Err(HttmError::new(
                                                     "Path specified is not a directory, and therefore not suitable for browsing.",
                                                 )
                                                 .into());
-                  }
-                  InteractiveMode::Restore(_) | InteractiveMode::Select => {
-                    // non-dir file will just cause us to skip the lookup phase
-                    None
-                  }
+                                    }
+                                    InteractiveMode::Restore(_) | InteractiveMode::Select => {
+                                        // non-dir file will just cause us to skip the lookup phase
+                                        None
+                                    }
+                                }
+                            }
+                            // silently disable NonInteractiveRecursive when path given is not a directory
+                            // switch to a standard Display mode
+                            ExecMode::NonInteractiveRecursive(_) => {
+                                *exec_mode = ExecMode::Display;
+                                *deleted_mode = None;
+                                None
+                            }
+                            _ => unreachable!(),
+                        }
+                    }
+                    n if n > 1 => return Err(HttmError::new(
+                        "May only specify one path in the display recursive or interactive modes.",
+                    )
+                    .into()),
+                    _ => {
+                        unreachable!()
+                    }
                 }
-              }
-              // silently disable NonInteractiveRecursive when path given is not a directory
-              // switch to a standard Display mode
-              ExecMode::NonInteractiveRecursive(_) => {
-                *exec_mode = ExecMode::Display;
-                *deleted_mode = None;
-                None
-              }
-              _ => unreachable!(),
             }
-          }
-          n if n > 1 => {
-            return Err(
-              HttmError::new(
-                "May only specify one path in the display recursive or interactive modes.",
-              )
-              .into(),
-            )
-          }
-          _ => {
-            unreachable!()
-          }
-        }
-      }
 
-      ExecMode::Display
-      | ExecMode::RollForward(_)
-      | ExecMode::SnapFileMount(_)
-      | ExecMode::Prune(_)
-      | ExecMode::MountsForFiles(_)
-      | ExecMode::SnapsForFiles(_)
-      | ExecMode::NumVersions(_) => {
-        // in non-interactive mode / display mode, requested dir is just a file
-        // like every other file and pwd must be the requested working dir.
-        None
-      }
-    };
-    Ok(res)
-  }
-
-  pub fn snap_filters(values: &str, select_mode: bool) -> HttmResult<ListSnapsFilters> {
-    let mut raw = values.trim_end().split(',');
-
-    let omit_num_snaps = if let Some(value) = raw.next() {
-      if let Ok(number) = value.parse::<usize>() {
-        number
-      } else {
-        return Err(HttmError::new("Invalid max snaps given. Quitting.").into());
-      }
-    } else {
-      0usize
-    };
-
-    let rest: Vec<&str> = raw.collect();
-
-    let name_filters = if !rest.is_empty() {
-      if rest.len() == 1usize && rest.index(0) == &"none" {
-        None
-      } else if rest.len() == 1usize && rest.index(0) == &"native" {
-        Some(vec![
-          "ounceSnapFileMount".to_owned(),
-          "httmSnapFileMount".to_owned(),
-        ])
-      } else {
-        Some(rest.iter().map(|item| (*item).to_string()).collect())
-      }
-    } else {
-      None
-    };
-
-    Ok(ListSnapsFilters {
-      select_mode,
-      omit_num_snaps,
-      name_filters,
-    })
-  }
-
-  // use an associated function here because we may need this display again elsewhere
-  pub fn generate_display_config(&self, paths_selected: &[PathData]) -> Self {
-    // generate a config for a preview display only
-    Config {
-      paths: paths_selected.to_vec(),
-      opt_recursive: false,
-      opt_exact: false,
-      opt_no_filter: false,
-      opt_debug: false,
-      opt_no_traverse: false,
-      opt_no_hidden: false,
-      opt_json: false,
-      opt_one_filesystem: false,
-      opt_no_clones: false,
-      opt_bulk_exclusion: None,
-      opt_last_snap: None,
-      opt_preview: None,
-      opt_deleted_mode: None,
-      uniqueness: ListSnapsOfType::UniqueMetadata,
-      opt_omit_ditto: self.opt_omit_ditto,
-      requested_utc_offset: self.requested_utc_offset,
-      exec_mode: ExecMode::Display,
-      print_mode: PrintMode::FormattedDefault,
-      dataset_collection: self.dataset_collection.clone(),
-      pwd: self.pwd.clone(),
-      opt_requested_dir: self.opt_requested_dir.clone(),
+            ExecMode::Display
+            | ExecMode::RollForward(_)
+            | ExecMode::SnapFileMount(_)
+            | ExecMode::Prune(_)
+            | ExecMode::MountsForFiles(_)
+            | ExecMode::SnapsForFiles(_)
+            | ExecMode::NumVersions(_) => {
+                // in non-interactive mode / display mode, requested dir is just a file
+                // like every other file and pwd must be the requested working dir.
+                None
+            }
+        };
+        Ok(res)
     }
-  }
+
+    pub fn snap_filters(values: &str, select_mode: bool) -> HttmResult<ListSnapsFilters> {
+        let mut raw = values.trim_end().split(',');
+
+        let omit_num_snaps = if let Some(value) = raw.next() {
+            if let Ok(number) = value.parse::<usize>() {
+                number
+            } else {
+                return Err(HttmError::new("Invalid max snaps given. Quitting.").into());
+            }
+        } else {
+            0usize
+        };
+
+        let rest: Vec<&str> = raw.collect();
+
+        let name_filters = if !rest.is_empty() {
+            if rest.len() == 1usize && rest.index(0) == &"none" {
+                None
+            } else if rest.len() == 1usize && rest.index(0) == &"native" {
+                Some(vec![
+                    "ounceSnapFileMount".to_owned(),
+                    "httmSnapFileMount".to_owned(),
+                ])
+            } else {
+                Some(rest.iter().map(|item| (*item).to_string()).collect())
+            }
+        } else {
+            None
+        };
+
+        Ok(ListSnapsFilters {
+            select_mode,
+            omit_num_snaps,
+            name_filters,
+        })
+    }
+
+    // use an associated function here because we may need this display again elsewhere
+    pub fn generate_display_config(&self, paths_selected: &[PathData]) -> Self {
+        // generate a config for a preview display only
+        Config {
+            paths: paths_selected.to_vec(),
+            opt_recursive: false,
+            opt_exact: false,
+            opt_no_filter: false,
+            opt_debug: false,
+            opt_no_traverse: false,
+            opt_no_hidden: false,
+            opt_json: false,
+            opt_one_filesystem: false,
+            opt_no_clones: false,
+            opt_bulk_exclusion: None,
+            opt_last_snap: None,
+            opt_preview: None,
+            opt_deleted_mode: None,
+            uniqueness: ListSnapsOfType::UniqueMetadata,
+            opt_omit_ditto: self.opt_omit_ditto,
+            requested_utc_offset: self.requested_utc_offset,
+            exec_mode: ExecMode::Display,
+            print_mode: PrintMode::FormattedDefault,
+            dataset_collection: self.dataset_collection.clone(),
+            pwd: self.pwd.clone(),
+            opt_requested_dir: self.opt_requested_dir.clone(),
+        }
+    }
 }
