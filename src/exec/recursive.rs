@@ -15,345 +15,339 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::os::unix::fs::MetadataExt;
-use std::{fs::read_dir, path::Path, sync::Arc};
-
-use once_cell::sync::Lazy;
-use rayon::{Scope, ThreadPool};
-use skim::prelude::*;
-
 use crate::config::generate::{DeletedMode, ExecMode};
 use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::data::selection::SelectionCandidate;
 use crate::display_versions::wrapper::VersionsDisplayWrapper;
 use crate::exec::deleted::SpawnDeletedThread;
 use crate::library::results::{HttmError, HttmResult};
-use crate::library::utility::is_channel_closed;
-use crate::library::utility::{print_output_buf, HttmIsDir, Never};
+use crate::library::utility::{is_channel_closed, print_output_buf, HttmIsDir, Never};
 use crate::parse::mounts::MaxLen;
-use crate::VersionsMap;
-use crate::GLOBAL_CONFIG;
-use crate::{BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_HIDDEN_DIRECTORY};
+use crate::{VersionsMap, BTRFS_SNAPPER_HIDDEN_DIRECTORY, GLOBAL_CONFIG, ZFS_HIDDEN_DIRECTORY};
+use once_cell::sync::Lazy;
+use rayon::{Scope, ThreadPool};
+use skim::prelude::*;
+use std::fs::read_dir;
+use std::os::unix::fs::MetadataExt;
+use std::path::Path;
+use std::sync::Arc;
 
 static OPT_REQUESTED_DIR_DEV: Lazy<u64> = Lazy::new(|| {
-    GLOBAL_CONFIG
-        .opt_requested_dir
-        .as_ref()
-        .expect("opt_requested_dir should be Some value at this point in execution")
-        .symlink_metadata()
-        .expect("Cannot read metadata for directory requested for search.")
-        .dev()
+  GLOBAL_CONFIG
+    .opt_requested_dir
+    .as_ref()
+    .expect("opt_requested_dir should be Some value at this point in execution")
+    .symlink_metadata()
+    .expect("Cannot read metadata for directory requested for search.")
+    .dev()
 });
 
 #[derive(Clone, Copy)]
 pub enum PathProvenance {
-    FromLiveDataset,
-    IsPhantom,
+  FromLiveDataset,
+  IsPhantom,
 }
 
 pub struct RecursiveSearch;
 
 impl RecursiveSearch {
-    pub fn exec(requested_dir: &Path, skim_tx: SkimItemSender, hangup_rx: Receiver<Never>) {
-        fn run_loop(
-            requested_dir: &Path,
-            skim_tx: SkimItemSender,
-            hangup_rx: Receiver<Never>,
-            opt_deleted_scope: Option<&Scope>,
-        ) {
-            // this runs the main loop for live file searches, see the referenced struct below
-            // we are in our own detached system thread, so print error and exit if error trickles up
-            RecursiveMainLoop::exec(requested_dir, opt_deleted_scope, &skim_tx, &hangup_rx)
-                .unwrap_or_else(|error| {
-                    eprintln!("Error: {error}");
-                    std::process::exit(1)
-                });
-        }
-
-        if GLOBAL_CONFIG.opt_deleted_mode.is_some() {
-            // thread pool allows deleted to have its own scope, which means
-            // all threads must complete before the scope exits.  this is important
-            // for display recursive searches as the live enumeration will end before
-            // all deleted threads have completed
-            let pool: ThreadPool = rayon::ThreadPoolBuilder::new()
-                .build()
-                .expect("Could not initialize rayon threadpool for recursive deleted search");
-
-            pool.in_place_scope(|deleted_scope| {
-                run_loop(requested_dir, skim_tx, hangup_rx, Some(deleted_scope))
-            })
-        } else {
-            run_loop(requested_dir, skim_tx, hangup_rx, None)
-        }
+  pub fn exec(requested_dir: &Path, skim_tx: SkimItemSender, hangup_rx: Receiver<Never>) {
+    fn run_loop(
+      requested_dir: &Path,
+      skim_tx: SkimItemSender,
+      hangup_rx: Receiver<Never>,
+      opt_deleted_scope: Option<&Scope>,
+    ) {
+      // this runs the main loop for live file searches, see the referenced struct below
+      // we are in our own detached system thread, so print error and exit if error trickles up
+      RecursiveMainLoop::exec(requested_dir, opt_deleted_scope, &skim_tx, &hangup_rx)
+        .unwrap_or_else(|error| {
+          eprintln!("Error: {error}");
+          std::process::exit(1)
+        });
     }
+
+    if GLOBAL_CONFIG.opt_deleted_mode.is_some() {
+      // thread pool allows deleted to have its own scope, which means
+      // all threads must complete before the scope exits.  this is important
+      // for display recursive searches as the live enumeration will end before
+      // all deleted threads have completed
+      let pool: ThreadPool = rayon::ThreadPoolBuilder::new()
+        .build()
+        .expect("Could not initialize rayon threadpool for recursive deleted search");
+
+      pool.in_place_scope(|deleted_scope| {
+        run_loop(requested_dir, skim_tx, hangup_rx, Some(deleted_scope))
+      })
+    } else {
+      run_loop(requested_dir, skim_tx, hangup_rx, None)
+    }
+  }
 }
 
 // this is the main loop to recurse all files
 pub struct RecursiveMainLoop;
 
 impl RecursiveMainLoop {
-    fn exec(
-        requested_dir: &Path,
-        opt_deleted_scope: Option<&Scope>,
-        skim_tx: &SkimItemSender,
-        hangup_rx: &Receiver<Never>,
-    ) -> HttmResult<()> {
-        // runs once for non-recursive but also "primes the pump"
-        // for recursive to have items available, also only place an
-        // error can stop execution
-        let mut queue: Vec<BasicDirEntryInfo> =
-            Self::enter_directory(requested_dir, opt_deleted_scope, skim_tx, hangup_rx)?;
+  fn exec(
+    requested_dir: &Path,
+    opt_deleted_scope: Option<&Scope>,
+    skim_tx: &SkimItemSender,
+    hangup_rx: &Receiver<Never>,
+  ) -> HttmResult<()> {
+    // runs once for non-recursive but also "primes the pump"
+    // for recursive to have items available, also only place an
+    // error can stop execution
+    let mut queue: Vec<BasicDirEntryInfo> =
+      Self::enter_directory(requested_dir, opt_deleted_scope, skim_tx, hangup_rx)?;
 
-        if GLOBAL_CONFIG.opt_recursive {
-            // condition kills iter when user has made a selection
-            // pop_back makes this a LIFO queue which is supposedly better for caches
-            while let Some(item) = queue.pop() {
-                // check -- should deleted threads keep working?
-                // exit/error on disconnected channel, which closes
-                // at end of browse scope
-                if is_channel_closed(hangup_rx) {
-                    break;
-                }
-
-                // no errors will be propagated in recursive mode
-                // far too likely to run into a dir we don't have permissions to view
-                if let Ok(items) =
-                    Self::enter_directory(&item.path, opt_deleted_scope, skim_tx, hangup_rx)
-                {
-                    queue.extend(items)
-                }
-            }
+    if GLOBAL_CONFIG.opt_recursive {
+      // condition kills iter when user has made a selection
+      // pop_back makes this a LIFO queue which is supposedly better for caches
+      while let Some(item) = queue.pop() {
+        // check -- should deleted threads keep working?
+        // exit/error on disconnected channel, which closes
+        // at end of browse scope
+        if is_channel_closed(hangup_rx) {
+          break;
         }
 
-        Ok(())
-    }
-
-    fn enter_directory(
-        requested_dir: &Path,
-        opt_deleted_scope: Option<&Scope>,
-        skim_tx: &SkimItemSender,
-        hangup_rx: &Receiver<Never>,
-    ) -> HttmResult<Vec<BasicDirEntryInfo>> {
-        // combined entries will be sent or printed, but we need the vec_dirs to recurse
-        let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
-            SharedRecursive::entries_partitioned(requested_dir)?;
-
-        SharedRecursive::combine_and_send_entries(
-            vec_files,
-            &vec_dirs,
-            PathProvenance::FromLiveDataset,
-            requested_dir,
-            skim_tx,
-        )?;
-
-        if let Some(deleted_scope) = opt_deleted_scope {
-            SpawnDeletedThread::exec(requested_dir, deleted_scope, skim_tx, hangup_rx);
+        // no errors will be propagated in recursive mode
+        // far too likely to run into a dir we don't have permissions to view
+        if let Ok(items) = Self::enter_directory(&item.path, opt_deleted_scope, skim_tx, hangup_rx)
+        {
+          queue.extend(items)
         }
-
-        Ok(vec_dirs)
+      }
     }
+
+    Ok(())
+  }
+
+  fn enter_directory(
+    requested_dir: &Path,
+    opt_deleted_scope: Option<&Scope>,
+    skim_tx: &SkimItemSender,
+    hangup_rx: &Receiver<Never>,
+  ) -> HttmResult<Vec<BasicDirEntryInfo>> {
+    // combined entries will be sent or printed, but we need the vec_dirs to recurse
+    let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
+      SharedRecursive::entries_partitioned(requested_dir)?;
+
+    SharedRecursive::combine_and_send_entries(
+      vec_files,
+      &vec_dirs,
+      PathProvenance::FromLiveDataset,
+      requested_dir,
+      skim_tx,
+    )?;
+
+    if let Some(deleted_scope) = opt_deleted_scope {
+      SpawnDeletedThread::exec(requested_dir, deleted_scope, skim_tx, hangup_rx);
+    }
+
+    Ok(vec_dirs)
+  }
 }
 
 pub struct SharedRecursive;
 
 impl SharedRecursive {
-    pub fn combine_and_send_entries(
-        vec_files: Vec<BasicDirEntryInfo>,
-        vec_dirs: &[BasicDirEntryInfo],
-        is_phantom: PathProvenance,
-        requested_dir: &Path,
-        skim_tx: &SkimItemSender,
-    ) -> HttmResult<()> {
-        let mut combined = vec_files;
-        combined.extend_from_slice(vec_dirs);
+  pub fn combine_and_send_entries(
+    vec_files: Vec<BasicDirEntryInfo>,
+    vec_dirs: &[BasicDirEntryInfo],
+    is_phantom: PathProvenance,
+    requested_dir: &Path,
+    skim_tx: &SkimItemSender,
+  ) -> HttmResult<()> {
+    let mut combined = vec_files;
+    combined.extend_from_slice(vec_dirs);
 
-        let entries = match is_phantom {
-            PathProvenance::FromLiveDataset => {
-                // live - not phantom
-                match GLOBAL_CONFIG.opt_deleted_mode {
-                    Some(DeletedMode::Only) => return Ok(()),
-                    Some(DeletedMode::DepthOfOne | DeletedMode::All) | None => {
-                        // never show live files is display recursive/deleted only file mode
-                        if matches!(
-                            GLOBAL_CONFIG.exec_mode,
-                            ExecMode::NonInteractiveRecursive(_)
-                        ) {
-                            return Ok(());
-                        }
-                        combined
-                    }
-                }
+    let entries = match is_phantom {
+      PathProvenance::FromLiveDataset => {
+        // live - not phantom
+        match GLOBAL_CONFIG.opt_deleted_mode {
+          Some(DeletedMode::Only) => return Ok(()),
+          Some(DeletedMode::DepthOfOne | DeletedMode::All) | None => {
+            // never show live files is display recursive/deleted only file mode
+            if matches!(
+              GLOBAL_CONFIG.exec_mode,
+              ExecMode::NonInteractiveRecursive(_)
+            ) {
+              return Ok(());
             }
-            PathProvenance::IsPhantom => {
-                // deleted - phantom
-                Self::pseudo_live_versions(combined, requested_dir)
-            }
-        };
+            combined
+          }
+        }
+      }
+      PathProvenance::IsPhantom => {
+        // deleted - phantom
+        Self::pseudo_live_versions(combined, requested_dir)
+      }
+    };
 
-        Self::display_or_transmit(entries, is_phantom, skim_tx)
-    }
+    Self::display_or_transmit(entries, is_phantom, skim_tx)
+  }
 
-    pub fn entries_partitioned(
-        requested_dir: &Path,
-    ) -> HttmResult<(Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>)> {
-        // separates entries into dirs and files
-        let (vec_dirs, vec_files) = read_dir(requested_dir)?
-            .flatten()
-            // checking file_type on dir entries is always preferable
-            // as it is much faster than a metadata call on the path
-            .map(|dir_entry| BasicDirEntryInfo::from(&dir_entry))
-            .filter(|entry| {
-                if GLOBAL_CONFIG.opt_no_filter {
-                    return true;
-                }
-
-                if GLOBAL_CONFIG.opt_no_hidden
-                    && entry.filename().to_string_lossy().starts_with('.')
-                {
-                    return false;
-                }
-
-                if GLOBAL_CONFIG.opt_one_filesystem {
-                    if let Some(requested_dir_dev) = Lazy::get(&OPT_REQUESTED_DIR_DEV) {
-                        match entry.path.symlink_metadata() {
-                            Ok(path_md) if *requested_dir_dev != path_md.dev() => {
-                                return false;
-                            }
-                            Ok(_) => {}
-                            Err(_) => {
-                                // if we can't read the metadata for a path,
-                                // we probably shouldn't show it either
-                                return false;
-                            }
-                        }
-                    }
-                }
-
-                if let Ok(file_type) = entry.filetype() {
-                    if file_type.is_dir() {
-                        return !Self::is_filter_dir(entry);
-                    }
-                }
-
-                true
-            })
-            .partition(Self::is_entry_dir);
-
-        Ok((vec_dirs, vec_files))
-    }
-
-    pub fn is_entry_dir(entry: &BasicDirEntryInfo) -> bool {
-        // must do is_dir() look up on DirEntry file_type() as look up on Path will traverse links!
-        if GLOBAL_CONFIG.opt_no_traverse {
-            if let Ok(file_type) = entry.filetype() {
-                return file_type.is_dir();
-            }
+  pub fn entries_partitioned(
+    requested_dir: &Path,
+  ) -> HttmResult<(Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>)> {
+    // separates entries into dirs and files
+    let (vec_dirs, vec_files) = read_dir(requested_dir)?
+      .flatten()
+      // checking file_type on dir entries is always preferable
+      // as it is much faster than a metadata call on the path
+      .map(|dir_entry| BasicDirEntryInfo::from(&dir_entry))
+      .filter(|entry| {
+        if GLOBAL_CONFIG.opt_no_filter {
+          return true;
         }
 
-        entry.httm_is_dir()
-    }
-
-    fn is_filter_dir(entry: &BasicDirEntryInfo) -> bool {
-        // FYI path is always a relative path, but no need to canonicalize as
-        // partial eq for paths is comparison of components iter
-        let path = entry.path.as_path();
-
-        // never check the hidden snapshot directory for live files (duh)
-        // didn't think this was possible until I saw a SMB share return
-        // a .zfs dir entry
-        if path.ends_with(ZFS_HIDDEN_DIRECTORY) || path.ends_with(BTRFS_SNAPPER_HIDDEN_DIRECTORY) {
-            return true;
+        if GLOBAL_CONFIG.opt_no_hidden && entry.filename().to_string_lossy().starts_with('.') {
+          return false;
         }
 
-        // is a common btrfs snapshot dir?
-        if let Some(common_snap_dir) = &GLOBAL_CONFIG.dataset_collection.opt_common_snap_dir {
-            if path == *common_snap_dir {
-                return true;
-            }
-        }
-
-        // check whether user requested this dir specifically, then we will show
-        if let Some(user_requested_dir) = GLOBAL_CONFIG.opt_requested_dir.as_ref() {
-            if user_requested_dir.as_path() == path {
+        if GLOBAL_CONFIG.opt_one_filesystem {
+          if let Some(requested_dir_dev) = Lazy::get(&OPT_REQUESTED_DIR_DEV) {
+            match entry.path.symlink_metadata() {
+              Ok(path_md) if *requested_dir_dev != path_md.dev() => {
                 return false;
+              }
+              Ok(_) => {}
+              Err(_) => {
+                // if we can't read the metadata for a path,
+                // we probably shouldn't show it either
+                return false;
+              }
             }
+          }
         }
 
-        static FILTER_DIRS_MAX_LEN: Lazy<usize> =
-            Lazy::new(|| GLOBAL_CONFIG.dataset_collection.filter_dirs.max_len());
-
-        // finally : is a non-supported dataset?
-        // bailout easily if path is larger than max_filter_dir len
-        if path.components().count() > *FILTER_DIRS_MAX_LEN {
-            return false;
+        if let Ok(file_type) = entry.filetype() {
+          if file_type.is_dir() {
+            return !Self::is_filter_dir(entry);
+          }
         }
 
-        GLOBAL_CONFIG.dataset_collection.filter_dirs.contains(path)
+        true
+      })
+      .partition(Self::is_entry_dir);
+
+    Ok((vec_dirs, vec_files))
+  }
+
+  pub fn is_entry_dir(entry: &BasicDirEntryInfo) -> bool {
+    // must do is_dir() look up on DirEntry file_type() as look up on Path will traverse links!
+    if GLOBAL_CONFIG.opt_no_traverse {
+      if let Ok(file_type) = entry.filetype() {
+        return file_type.is_dir();
+      }
     }
 
-    // this function creates dummy "live versions" values to match deleted files
-    // which have been found on snapshots, we return to the user "the path that
-    // once was" in their browse panel
-    fn pseudo_live_versions(
-        entries: Vec<BasicDirEntryInfo>,
-        pseudo_live_dir: &Path,
-    ) -> Vec<BasicDirEntryInfo> {
-        entries
-            .into_iter()
-            .map(|basic_info| BasicDirEntryInfo {
-                path: pseudo_live_dir.join(basic_info.path.file_name().unwrap_or_default()),
-                file_type: basic_info.file_type,
-            })
-            .collect()
+    entry.httm_is_dir()
+  }
+
+  fn is_filter_dir(entry: &BasicDirEntryInfo) -> bool {
+    // FYI path is always a relative path, but no need to canonicalize as
+    // partial eq for paths is comparison of components iter
+    let path = entry.path.as_path();
+
+    // never check the hidden snapshot directory for live files (duh)
+    // didn't think this was possible until I saw a SMB share return
+    // a .zfs dir entry
+    if path.ends_with(ZFS_HIDDEN_DIRECTORY) || path.ends_with(BTRFS_SNAPPER_HIDDEN_DIRECTORY) {
+      return true;
     }
 
-    fn display_or_transmit(
-        entries: Vec<BasicDirEntryInfo>,
-        is_phantom: PathProvenance,
-        skim_tx: &SkimItemSender,
-    ) -> HttmResult<()> {
-        // send to the interactive view, or print directly, never return back
-        match &GLOBAL_CONFIG.exec_mode {
-            ExecMode::Interactive(_) => Self::transmit(entries, is_phantom, skim_tx)?,
-            ExecMode::NonInteractiveRecursive(progress_bar) => {
-                if entries.is_empty() {
-                    if GLOBAL_CONFIG.opt_recursive {
-                        progress_bar.tick();
-                    } else {
-                        eprintln!(
-                            "NOTICE: httm could not find any deleted files at this directory level.  \
+    // is a common btrfs snapshot dir?
+    if let Some(common_snap_dir) = &GLOBAL_CONFIG.dataset_collection.opt_common_snap_dir {
+      if path == *common_snap_dir {
+        return true;
+      }
+    }
+
+    // check whether user requested this dir specifically, then we will show
+    if let Some(user_requested_dir) = GLOBAL_CONFIG.opt_requested_dir.as_ref() {
+      if user_requested_dir.as_path() == path {
+        return false;
+      }
+    }
+
+    static FILTER_DIRS_MAX_LEN: Lazy<usize> =
+      Lazy::new(|| GLOBAL_CONFIG.dataset_collection.filter_dirs.max_len());
+
+    // finally : is a non-supported dataset?
+    // bailout easily if path is larger than max_filter_dir len
+    if path.components().count() > *FILTER_DIRS_MAX_LEN {
+      return false;
+    }
+
+    GLOBAL_CONFIG.dataset_collection.filter_dirs.contains(path)
+  }
+
+  // this function creates dummy "live versions" values to match deleted files
+  // which have been found on snapshots, we return to the user "the path that
+  // once was" in their browse panel
+  fn pseudo_live_versions(
+    entries: Vec<BasicDirEntryInfo>,
+    pseudo_live_dir: &Path,
+  ) -> Vec<BasicDirEntryInfo> {
+    entries
+      .into_iter()
+      .map(|basic_info| BasicDirEntryInfo {
+        path: pseudo_live_dir.join(basic_info.path.file_name().unwrap_or_default()),
+        file_type: basic_info.file_type,
+      })
+      .collect()
+  }
+
+  fn display_or_transmit(
+    entries: Vec<BasicDirEntryInfo>,
+    is_phantom: PathProvenance,
+    skim_tx: &SkimItemSender,
+  ) -> HttmResult<()> {
+    // send to the interactive view, or print directly, never return back
+    match &GLOBAL_CONFIG.exec_mode {
+      ExecMode::Interactive(_) => Self::transmit(entries, is_phantom, skim_tx)?,
+      ExecMode::NonInteractiveRecursive(progress_bar) => {
+        if entries.is_empty() {
+          if GLOBAL_CONFIG.opt_recursive {
+            progress_bar.tick();
+          } else {
+            eprintln!(
+              "NOTICE: httm could not find any deleted files at this directory level.  \
                         Perhaps try specifying a deleted mode in combination with \"--recursive\"."
-                        )
-                    }
-                } else {
-                    NonInteractiveRecursiveWrapper::print(entries)?;
+            )
+          }
+        } else {
+          NonInteractiveRecursiveWrapper::print(entries)?;
 
-                    // keeps spinner from squashing last line of output
-                    if GLOBAL_CONFIG.opt_recursive {
-                        eprintln!();
-                    }
-                }
-            }
-            _ => unreachable!(),
+          // keeps spinner from squashing last line of output
+          if GLOBAL_CONFIG.opt_recursive {
+            eprintln!();
+          }
         }
-
-        Ok(())
+      }
+      _ => unreachable!(),
     }
 
-    fn transmit(
-        entries: Vec<BasicDirEntryInfo>,
-        is_phantom: PathProvenance,
-        skim_tx: &SkimItemSender,
-    ) -> HttmResult<()> {
-        // don't want a par_iter here because it will block and wait for all
-        // results, instead of printing and recursing into the subsequent dirs
-        entries
-            .into_iter()
-            .try_for_each(|basic_info| {
-                skim_tx.try_send(Arc::new(SelectionCandidate::new(basic_info, is_phantom)))
-            })
-            .map_err(std::convert::Into::into)
-    }
+    Ok(())
+  }
+
+  fn transmit(
+    entries: Vec<BasicDirEntryInfo>,
+    is_phantom: PathProvenance,
+    skim_tx: &SkimItemSender,
+  ) -> HttmResult<()> {
+    // don't want a par_iter here because it will block and wait for all
+    // results, instead of printing and recursing into the subsequent dirs
+    entries
+      .into_iter()
+      .try_for_each(|basic_info| {
+        skim_tx.try_send(Arc::new(SelectionCandidate::new(basic_info, is_phantom)))
+      })
+      .map_err(std::convert::Into::into)
+  }
 }
 
 // this is wrapper for non-interactive searches, which will be executed through the SharedRecursive fns
@@ -361,33 +355,32 @@ impl SharedRecursive {
 pub struct NonInteractiveRecursiveWrapper;
 
 impl NonInteractiveRecursiveWrapper {
-    #[allow(unused_variables)]
-    pub fn exec() -> HttmResult<()> {
-        // won't be sending anything anywhere, this just allows us to reuse enumerate_directory
-        let (dummy_skim_tx, _): (SkimItemSender, SkimItemReceiver) = unbounded();
-        let (hangup_tx, hangup_rx): (Sender<Never>, Receiver<Never>) = bounded(0);
+  #[allow(unused_variables)]
+  pub fn exec() -> HttmResult<()> {
+    // won't be sending anything anywhere, this just allows us to reuse enumerate_directory
+    let (dummy_skim_tx, _): (SkimItemSender, SkimItemReceiver) = unbounded();
+    let (hangup_tx, hangup_rx): (Sender<Never>, Receiver<Never>) = bounded(0);
 
-        match &GLOBAL_CONFIG.opt_requested_dir {
-            Some(requested_dir) => {
-                RecursiveSearch::exec(requested_dir, dummy_skim_tx, hangup_rx);
-            }
-            None => {
-                return Err(HttmError::new(
-                    "requested_dir should never be None in Display Recursive mode",
-                )
-                .into())
-            }
-        }
-
-        Ok(())
+    match &GLOBAL_CONFIG.opt_requested_dir {
+      Some(requested_dir) => {
+        RecursiveSearch::exec(requested_dir, dummy_skim_tx, hangup_rx);
+      }
+      None => {
+        return Err(
+          HttmError::new("requested_dir should never be None in Display Recursive mode").into(),
+        )
+      }
     }
 
-    fn print(entries: Vec<BasicDirEntryInfo>) -> HttmResult<()> {
-        let pseudo_live_set: Vec<PathData> = entries.into_iter().map(PathData::from).collect();
+    Ok(())
+  }
 
-        let versions_map = VersionsMap::new(&GLOBAL_CONFIG, &pseudo_live_set)?;
-        let output_buf = VersionsDisplayWrapper::from(&GLOBAL_CONFIG, versions_map).to_string();
+  fn print(entries: Vec<BasicDirEntryInfo>) -> HttmResult<()> {
+    let pseudo_live_set: Vec<PathData> = entries.into_iter().map(PathData::from).collect();
 
-        print_output_buf(output_buf)
-    }
+    let versions_map = VersionsMap::new(&GLOBAL_CONFIG, &pseudo_live_set)?;
+    let output_buf = VersionsDisplayWrapper::from(&GLOBAL_CONFIG, versions_map).to_string();
+
+    print_output_buf(output_buf)
+  }
 }
