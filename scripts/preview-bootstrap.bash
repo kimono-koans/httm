@@ -46,7 +46,7 @@ prep_exec() {
 }
 
 is_border_line() {
-	let raw_input=""
+	local raw_input=""
 	raw_input="$1"
 
 	# not a well formed line of text, probably a border line
