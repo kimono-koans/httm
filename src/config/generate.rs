@@ -220,7 +220,8 @@ fn parse_args() -> ArgMatches {
                 .long("preview")
                 .help("user may specify a command to preview snapshots while in select view.  This argument optionally takes a value specifying the command to be executed.  \
                 The default value/command, if no command value specified, is a 'bowie' formatted 'diff'.  \
-                User defined commands must specify the snapshot file name \"{snap_file}\" and the live file name \"{live_file}\" within their shell command.")
+                User defined commands must specify the snapshot file name \"{snap_file}\" and the live file name \"{live_file}\" within their shell command.  \
+                NOTE: 'bash' is required to bootstrap any preview script, even if user defined preview commands or script is written in a different language.")
                 .takes_value(true)
                 .min_values(0)
                 .require_equals(true)

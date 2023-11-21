@@ -1,6 +1,6 @@
 [package]
 name = "httm" 
-authors = ["Robert Swinford <robert.swinford (at) gmail.com>"]
+authors = ["Robert Swinford <robert.swinford <...at...> gmail.com>"]
 version = "0.31.2"
 edition = "2021"
 keywords = ["zfs", "backup", "restore", "cli-utility", "snapshot"]

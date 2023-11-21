@@ -117,19 +117,19 @@ impl PreviewSelection {
             }
         };
 
-        let res = match which("cut") {
+        match which("cut") {
             Ok(_) => {
-                format!(
-                    "snap_file=\"`echo {{}} | cut -d'\"' -f2`\"; if test -f \"$snap_file\" || test -d \"$snap_file\" || test -L \"$snap_file\"; then exec 0<&-; {command} 2>&1; else printf \"WARN: A required parameter \'snap_file\' is not found or is invalid.\"; fi"
-                )
+                let script = include_str!("../../scripts/preview-bootstrap.bash");
+
+                let res = script.replace("{command}", &command);
+
+                Ok(res)
             }
             Err(_) => {
                 return Err(
                     HttmError::new("'cut' executable could not be found in the user's PATH. 'cut' is necessary for executing a preview command.").into(),
                 )
             }
-        };
-
-        Ok(res)
+        }
     }
 }
