@@ -63,9 +63,11 @@ bootstrap_preview() {
 
 	[[ -n $raw_input ]] || print_err_exit "Selection is empty."
 
+	# check does the string contain quotes around the path name
 	is_fancy_border_line $raw_input
 
-    snap_file="$(echo $raw_input | cut -d'"' -f2)"
+	# remove first and last chars in string in case they are also quotes
+    snap_file="$(echo ${raw_input:1:-1} | cut -d'"' -f2)"
 
     [[ -n "$snap_file" ]] || print_err_exit "Path is empty."
 
