@@ -29,6 +29,7 @@ use crate::library::utility::{
     user_has_zfs_allow_snap_priv, DateFormat, Never,
 };
 use crate::lookup::versions::VersionsMap;
+use crate::Config;
 use crate::GLOBAL_CONFIG;
 use crossbeam_channel::unbounded;
 use skim::prelude::*;
@@ -128,8 +129,7 @@ impl InteractiveSelect {
             Self::last_snap(&browse_result.selected_pathdata, &versions_map)?
         } else {
             // same stuff we do at fn exec, snooze...
-            let display_config =
-                GLOBAL_CONFIG.generate_display_config(&browse_result.selected_pathdata);
+            let display_config = Config::from(browse_result.selected_pathdata.clone());
 
             let display_map = VersionsDisplayWrapper::from(&display_config, versions_map);
 

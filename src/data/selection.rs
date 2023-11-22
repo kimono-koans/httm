@@ -15,16 +15,20 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
+use crate::config::generate::ListSnapsOfType;
+use crate::config::generate::PrintMode;
 use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::display_versions::wrapper::VersionsDisplayWrapper;
 use crate::exec::recursive::PathProvenance;
 use crate::library::results::HttmResult;
 use crate::library::utility::paint_string;
-use crate::{VersionsMap, GLOBAL_CONFIG};
+use crate::{Config, ExecMode, VersionsMap, GLOBAL_CONFIG};
 use lscolors::Colorable;
 use skim::prelude::*;
 use std::fs::FileType;
 use std::path::PathBuf;
+
+use std::path::Path;
 
 // these represent the items ready for selection and preview
 // contains everything one needs to request preview and paint with
@@ -56,11 +60,8 @@ impl SelectionCandidate {
     }
 
     fn preview_view(&self) -> HttmResult<String> {
-        let config = &GLOBAL_CONFIG;
-        let paths_selected = &[PathData::from(self.path.as_path())];
-
         // generate a config for display
-        let display_config = config.generate_display_config(paths_selected);
+        let display_config: Config = Config::from(self.path.as_path());
 
         // finally run search on those paths
         let versions_map = VersionsMap::new(&display_config, &display_config.paths)?;
@@ -69,7 +70,7 @@ impl SelectionCandidate {
         Ok(output_buf)
     }
 
-    fn generate_display_name(&self) -> Cow<str> {
+    fn display_name(&self) -> Cow<str> {
         self.path
             .strip_prefix(
                 GLOBAL_CONFIG
@@ -102,7 +103,7 @@ impl SkimItem for SelectionCandidate {
         self.path.to_string_lossy()
     }
     fn display(&self, _context: DisplayContext<'_>) -> AnsiString {
-        AnsiString::parse(&paint_string(self, &self.generate_display_name()))
+        AnsiString::parse(&paint_string(self, &self.display_name()))
     }
     fn output(&self) -> Cow<str> {
         self.text()
@@ -110,5 +111,44 @@ impl SkimItem for SelectionCandidate {
     fn preview(&self, _: PreviewContext<'_>) -> skim::ItemPreview {
         let preview_output = self.preview_view().unwrap_or_default();
         skim::ItemPreview::AnsiText(preview_output)
+    }
+}
+
+impl From<Vec<PathData>> for Config {
+    fn from(vec: Vec<PathData>) -> Config {
+        let config = &GLOBAL_CONFIG;
+        // generate a config for a preview display only
+        Self {
+            paths: vec,
+            opt_recursive: false,
+            opt_exact: false,
+            opt_no_filter: false,
+            opt_debug: false,
+            opt_no_traverse: false,
+            opt_no_hidden: false,
+            opt_json: false,
+            opt_one_filesystem: false,
+            opt_no_clones: false,
+            opt_bulk_exclusion: None,
+            opt_last_snap: None,
+            opt_preview: None,
+            opt_deleted_mode: None,
+            uniqueness: ListSnapsOfType::UniqueMetadata,
+            opt_omit_ditto: config.opt_omit_ditto,
+            requested_utc_offset: config.requested_utc_offset,
+            exec_mode: ExecMode::Display,
+            print_mode: PrintMode::FormattedDefault,
+            dataset_collection: config.dataset_collection.clone(),
+            pwd: config.pwd.clone(),
+            opt_requested_dir: config.opt_requested_dir.clone(),
+        }
+    }
+}
+
+impl From<&Path> for Config {
+    fn from(path: &Path) -> Config {
+        let vec = vec![PathData::from(path)];
+
+        Config::from(vec)
     }
 }
