@@ -16,11 +16,7 @@
 // that was distributed with this source code.
 
 use crate::config::generate::{
-    ExecMode,
-    InteractiveMode,
-    PrintMode,
-    RestoreMode,
-    RestoreSnapGuard,
+    ExecMode, InteractiveMode, PrintMode, RestoreMode, RestoreSnapGuard,
 };
 use crate::data::paths::{PathData, PathMetadata};
 use crate::display_versions::wrapper::VersionsDisplayWrapper;
@@ -29,14 +25,8 @@ use crate::exec::recursive::RecursiveSearch;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::snap_guard::SnapGuard;
 use crate::library::utility::{
-    copy_recursive,
-    date_string,
-    delimiter,
-    print_output_buf,
-    user_has_effective_root,
-    user_has_zfs_allow_snap_priv,
-    DateFormat,
-    Never,
+    copy_recursive, date_string, delimiter, print_output_buf, user_has_effective_root,
+    user_has_zfs_allow_snap_priv, DateFormat, Never,
 };
 use crate::lookup::versions::VersionsMap;
 use crate::{Config, GLOBAL_CONFIG};
@@ -470,7 +460,7 @@ impl ViewMode {
 
         let display_handle = thread::spawn(move || {
             let opt_multi =
-                GLOBAL_CONFIG.opt_last_snap.is_none() && GLOBAL_CONFIG.opt_preview.is_none();
+                GLOBAL_CONFIG.opt_last_snap.is_none() || GLOBAL_CONFIG.opt_preview.is_none();
 
             // create the skim component for previews
             let skim_opts = SkimOptionsBuilder::default()
