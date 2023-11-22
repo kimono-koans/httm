@@ -15,8 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::config::generate::ListSnapsOfType;
-use crate::config::generate::PrintMode;
+use crate::config::generate::{ListSnapsOfType, PrintMode};
 use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::display_versions::wrapper::VersionsDisplayWrapper;
 use crate::exec::recursive::PathProvenance;
