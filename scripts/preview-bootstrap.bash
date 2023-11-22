@@ -54,11 +54,11 @@ is_fancy_border_line() {
 }
 
 bootstrap_preview() {
-    prep_exec
+	prep_exec
 
 	local raw_input=""
 	local snap_file=""
-	
+
 	raw_input={}
 
 	[[ -n $raw_input ]] || print_err_exit "Selection is empty."
@@ -67,14 +67,15 @@ bootstrap_preview() {
 	is_fancy_border_line $raw_input
 
 	# remove first and last chars in string in case they are also quotes
-    snap_file="$(echo ${raw_input:1:-1} | cut -d'"' -f2)"
+	# possible we drop good chars, but these chars are unnecessary
+	snap_file="$(echo ${raw_input:1:-1} | cut -d'"' -f2)"
 
-    [[ -n "$snap_file" ]] || print_err_exit "Path is empty."
+	[[ -n "$snap_file" ]] || print_err_exit "Path is empty."
 
-    [[ -f "$snap_file" ]] || [[ -d "$snap_file" ]] || [[ -L "$snap_file" ]] || print_err_exit "Path does not refer to a valid file, link or directory." 
-    
-    exec 0<&-
-    {command} 2>&1
+	[[ -f "$snap_file" ]] || [[ -d "$snap_file" ]] || [[ -L "$snap_file" ]] || print_err_exit "Path does not refer to a valid file, link or directory." 
+
+	exec 0<&-
+	{command} 2>&1
 }
 
 bootstrap_preview
