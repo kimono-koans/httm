@@ -45,11 +45,11 @@ prep_exec() {
 	)" ]] || print_err_exit "'cut' is required to execute 'httm --preview'.  Please check that 'cut' is in your path."
 }
 
-is_border_line() {
+is_fancy_border_line() {
 	local raw_input=""
-	raw_input="$1"
+	raw_input=$1
 
-	# not a well formed line of text, probably a border line
+	# is border line? is not a well formed line of text, probably a border line
 	[[ "$( echo $raw_input | grep -c '"' )" -gt 0 ]] || graceful_shutdown
 }
 
@@ -59,11 +59,11 @@ bootstrap_preview() {
 	local raw_input=""
 	local snap_file=""
 	
-	raw_input="{}"
+	raw_input={}
 
-	[[ -n "$raw_input" ]] || print_err_exit "Selection is empty."
+	[[ -n $raw_input ]] || print_err_exit "Selection is empty."
 
-	is_border_line "$raw_input"
+	is_fancy_border_line $raw_input
 
     snap_file="$(echo $raw_input | cut -d'"' -f2)"
 
