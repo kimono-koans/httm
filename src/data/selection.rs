@@ -28,8 +28,6 @@ use skim::prelude::*;
 use std::fs::FileType;
 use std::path::PathBuf;
 
-use std::path::Path;
-
 // these represent the items ready for selection and preview
 // contains everything one needs to request preview and paint with
 // LsColors -- see preview_view, preview for how preview is done
@@ -61,7 +59,7 @@ impl SelectionCandidate {
 
     fn preview_view(&self) -> HttmResult<String> {
         // generate a config for display
-        let display_config: Config = Config::from(self.path.as_path());
+        let display_config: Config = Config::from(self);
 
         // finally run search on those paths
         let versions_map = VersionsMap::new(&display_config, &display_config.paths)?;
@@ -145,9 +143,9 @@ impl From<Vec<PathData>> for Config {
     }
 }
 
-impl From<&Path> for Config {
-    fn from(path: &Path) -> Config {
-        let vec = vec![PathData::from(path)];
+impl From<&SelectionCandidate> for Config {
+    fn from(selection_candidate: &SelectionCandidate) -> Config {
+        let vec = vec![PathData::from(&selection_candidate.path)];
 
         Config::from(vec)
     }
