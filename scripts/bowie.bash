@@ -187,7 +187,6 @@ exec_main() {
 
 	# declare our variables
 	local mode="last"
-	local canonical_path=""
 
 	[[ $# -ge 1 ]] || print_usage
 	[[ "$1" != "-h" && "$1" != "--help" ]] || print_usage
@@ -214,31 +213,25 @@ exec_main() {
 	[[ ${#@} -ne 0 ]] || print_err_exit "No filenames specified.  Quitting."
 
 	if [[ "$mode" == "direct" ]]; then
-		local var1=""
-		var1="$(readlink -e $1 2>/dev/null)"
-		[[ -n  "$var1" ]] || print_err_exit "Could not determine canonical path for: $1"
-		previous_version="$var1"
+		[[ -n "$1" ]] || print_err_exit "First required file name is unset.  Quitting." 
+		[[ -n "$2" ]] || print_err_exit "Second required file name is unset.  Quitting."
 
-		local var2=""
-		var2="$(readlink -e $2 2>/dev/null)"
-		[[ -n "$var2" ]] || print_err_exit "Could not determine canonical path for: $2"
-		current_version="$var2"
+		local previous_version="$( readlink -e "$1" 2>/dev/null )"
+		[[ -n "$previous_version" ]] || print_err_exit "Could not determine canonical path for: "$previous_version".  Quitting."
+
+		local current_version="$( readlink -e "$2" 2>/dev/null )"
+		[[ -n "$current_version" ]] || print_err_exit "Could not determine canonical path for: "$current_version".  Quitting."
 
 		show_direct "$previous_version" "$current_version"
 		exit 0
 	fi
 
 	for a; do
-		local var3=""
-		var3="$(readlink -e "$a")"
-		[[ -n "$var3" ]] || print_err_exit "Could not determine canonical path for: $a"
-		canonical_path="$var3"
+		[[ -n "$a" ]] || ( print_err "File name is empty: "$a"." && continue )
 
-		[[ -n "$canonical_path" ]] || continue
-		if [[ ! -f "$canonical_path" ]]; then 
-			print_err "Skipping path which is not a file: $a"
-			continue
-		fi
+		local canonical_path="$( readlink -e "$a")"
+		[[ -n "${canonical_path}" ]] || ( print_err "Could not determine canonical path for: "$a"." && continue )
+		[[ -f "${canonical_path}" ]] || ( print_err "Skipping path which is not a file: "$a"." && continue )
 		
 		if [[ "$mode" == "all" ]]; then
 			show_all_changes "$canonical_path"
