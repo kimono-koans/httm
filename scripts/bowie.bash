@@ -214,28 +214,25 @@ exec_main() {
 	[[ ${#@} -ne 0 ]] || print_err_exit "No filenames specified.  Quitting."
 
 	if [[ "$mode" == "direct" ]]; then
-		previous_version="$(
-			readlink -e "$1" 2>/dev/null
-			[[ $? -eq 0 ]] ||
-				(print_err "Could not determine canonical path for: $1")
-		)"
+		local var1=""
+		var1="$(readlink -e $1 2>/dev/null)"
+		[[ -n  "$var1" ]] || print_err_exit "Could not determine canonical path for: $1"
+		previous_version="$var1"
 
-		current_version="$(
-			readlink -e "$2" 2>/dev/null
-			[[ $? -eq 0 ]] ||
-				(print_err "Could not determine canonical path for: $2")
-		)"
+		local var2=""
+		var2="$(readlink -e $2 2>/dev/null)"
+		[[ -n "$var2" ]] || print_err_exit "Could not determine canonical path for: $2"
+		current_version="$var2"
 
 		show_direct "$previous_version" "$current_version"
 		exit 0
 	fi
 
 	for a; do
-		canonical_path="$(
-			readlink -e "$a" 2>/dev/null
-			[[ $? -eq 0 ]] ||
-				(print_err "Could not determine canonical path for: $a")
-		)"
+		local var3=""
+		var3="$(readlink -e "$a")"
+		[[ -n "$var3" ]] || print_err_exit "Could not determine canonical path for: $a"
+		canonical_path="$var3"
 
 		[[ -n "$canonical_path" ]] || continue
 		if [[ ! -f "$canonical_path" ]]; then 
