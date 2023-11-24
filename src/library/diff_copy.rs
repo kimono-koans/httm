@@ -20,16 +20,38 @@ use crate::config::generate::ListSnapsOfType;
 use crate::data::paths::{CompareVersionsContainer, PathData};
 use crate::library::results::HttmResult;
 use crate::GLOBAL_CONFIG;
+use once_cell::sync::Lazy;
 use simd_adler32::Adler32;
 use std::fs::{File, OpenOptions};
 use std::io::{BufRead, BufReader, BufWriter, ErrorKind, Seek, SeekFrom, Write};
 use std::os::fd::{AsFd, BorrowedFd};
 use std::path::Path;
+use std::process::Command as ExecProcess;
 use std::sync::atomic::AtomicBool;
 
 const CHUNK_SIZE: usize = 65_536;
 
-static IS_CLONE_COMPATIBLE: AtomicBool = AtomicBool::new(true);
+static IS_CLONE_COMPATIBLE: Lazy<AtomicBool> = Lazy::new(|| {
+    if let Ok(zfs_command) = which::which("zfs") {
+        let Ok(process_output) = ExecProcess::new(zfs_command).arg("-V").output() else {
+            return AtomicBool::new(false);
+        };
+
+        if !process_output.stderr.is_empty() {
+            return AtomicBool::new(false);
+        }
+
+        let Ok(stdout) = std::str::from_utf8(&process_output.stdout) else {
+            return AtomicBool::new(false);
+        };
+
+        if stdout.contains("zfs-2.2") || stdout.contains("zfs-kmod-2.2") {
+            return AtomicBool::new(false);
+        }
+    }
+
+    AtomicBool::new(true)
+});
 
 enum DstFileState {
     Exists,
