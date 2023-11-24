@@ -66,7 +66,7 @@ impl PreviewSelection {
                     format!("bowie --direct \"$snap_file\" \"{live_version}\"")
                 },
                 _ => match which("cat") {
-                    Ok(_) => "cat \"$snap_file\"".to_string(),
+                    Ok(_) => "if [[ -s \"$snap_file\" ]]; then cat \"$snap_file\"; else printf \"WARN: \"$snap_file\" is empty\"; fi".to_string(),
                     Err(_) => {
                         return Err(HttmError::new(
                             "'cat' executable could not be found in the user's PATH. 'cat' is necessary for executing a bare preview command.",
