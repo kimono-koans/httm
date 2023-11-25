@@ -227,11 +227,22 @@ exec_main() {
 	fi
 
 	for a; do
-		[[ -n "$a" ]] || ( print_err "File name is empty: "$a"." && continue )
+		if [[ -z "$a" ]]; then
+			print_err "File name is empty: "$a"."
+			continue
+		fi
 
 		local canonical_path="$( readlink -e "$a")"
-		[[ -n "${canonical_path}" ]] || ( print_err "Could not determine canonical path for: "$a"." && continue )
-		[[ -f "${canonical_path}" ]] || ( print_err "Skipping path which is not a file: "$a"." && continue )
+		
+		if [[ -z "${canonical_path}" ]]; then
+			print_err "Could not determine canonical path for: "$a"."
+			continue
+		fi
+		
+		if [[ ! -f "${canonical_path}" ]]; then
+			print_err "Skipping path which is not a file: "$a"."
+			continue
+		fi
 		
 		if [[ "$mode" == "all" ]]; then
 			show_all_changes "$canonical_path"
