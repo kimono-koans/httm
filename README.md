@@ -170,18 +170,20 @@ View unique versions of a file for recovery (shortcut, no need to browse a direc
 `httm` also seeks to be a good Unix citizen, which means -- you *should* use the other Unix utilities to organize your queries how you like them.  `find` and `awk` are especially useful here:
 
 ```bash
+# search for the text "pattern" among snapshots of httm manpage
+➜ httm -n --omit-ditto /usr/share/man/man1/httm.1.gz | xargs rg "pattern" -z
+
 # print all unique versions of your `/var/log/syslog` file, 
 # newline delimited piped to `find` to print only versions 
 # with modify times of less than 1 day from right now.
-➜ httm -n /var/log/syslog | xargs -I{} find '{}' -mtime -1
+➜ httm -n --omit-ditto /var/log/syslog | xargs -I{} find '{}' -mtime -1
 
 # httm usually sorts snapshot versions in chronological order, 
 # oldest to newest, but since these are just paths/strings 
 # you may choose to sort them differently.
 #
 # here, print all unique versions of your `/var/log/syslog` file, 
-# omitting any snapshot versions which are the same as the live 
-# file version, then print each snapshot version's size in bytes first, 
+# then print each snapshot version's size in bytes first, 
 # then reverse sort by its size, then remove the number of bytes, 
 # leaving only the paths in their new sorted order
 ➜ httm -n --omit-ditto /var/log/syslog | xargs -I{} find '{}' -printf '%s\t%p\n' | \
