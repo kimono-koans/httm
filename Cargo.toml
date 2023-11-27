@@ -14,6 +14,13 @@ documentation = "https://github.com/kimono-koans/httm/blob/master/README.md"
 [badges]
 maintenance = { status = "actively-developed" }
 
+[profile.deb]
+lto = true
+opt-level = "z"
+codegen-units = 1
+panic = "abort"
+inherits = "release"
+
 # acls feature - requires libacl1-dev to build
 [features]
 acls = ["exacl"]
