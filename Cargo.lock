@@ -935,7 +935,9 @@ dependencies = [
 
 [[package]]
 name = "two_percent"
-version = "0.10.32"
+version = "0.10.33"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5e99e6bcbbf74ba1dbae813336d95187ffae31ed6b7fa5c835b7ce88da0c7a67"
 dependencies = [
  "bitflags 2.4.1",
  "chrono",
