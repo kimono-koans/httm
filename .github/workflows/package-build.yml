@@ -23,7 +23,7 @@ jobs:
     - name: Build package with cargo-deb
       env:
         RUSTFLAGS: "-Zlocation-detail=none"
-      run: cargo deb --separate-debug-symbols -- --locked
+      run: cargo deb --install --separate-debug-symbols --profile deb -- --locked
     - name: Install alien
       run: sudo apt-get install -y alien
     - name: Convert deb to rpm with alien
