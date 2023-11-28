@@ -171,7 +171,8 @@ fn parse_args() -> ArgMatches {
                 .require_equals(true)
                 .help("interactive browse and search a specified directory to display unique file versions.  \
                 Continue to another dialog to select a snapshot version to dump to stdout.  This argument optionally takes a value.  \
-                Default behavior/value is to print the path name, but, if the path is a file, the user can attempt to print the file's contents by giving the value \"contents\", or print the PREVIEW output by giving the value \"preview\".")
+                Default behavior/value is to simply print the path name, but, if the path is a file, the user can print the file's contents by giving the value \"contents\", \
+                or print the PREVIEW output by giving the value \"preview\".")
                 .conflicts_with("RESTORE")
                 .display_order(3)
         )
