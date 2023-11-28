@@ -21,6 +21,12 @@ codegen-units = 1
 panic = "abort"
 inherits = "release"
 
+[target.x86_64-unknown-linux-gnu]
+rustflags = ["-Ctarget-cpu=native"]
+
+[target.aarch64-apple-darwin]
+rustflags = ["-Ctarget-cpu=native"]
+
 # acls feature - requires libacl1-dev to build
 [features]
 acls = ["exacl"]
