@@ -16,7 +16,7 @@
 // that was distributed with this source code.
 
 use crate::config::generate::{
-    ExecMode, InteractiveMode, PrintMode, RestoreMode, RestoreSnapGuard,
+    ExecMode, InteractiveMode, PrintMode, RestoreMode, RestoreSnapGuard, SelectMode,
 };
 use crate::data::paths::{PathData, PathMetadata};
 use crate::display_versions::wrapper::VersionsDisplayWrapper;
@@ -32,8 +32,9 @@ use crate::lookup::versions::VersionsMap;
 use crate::{Config, GLOBAL_CONFIG};
 use crossbeam_channel::unbounded;
 use skim::prelude::*;
-use std::io::Cursor;
+use std::io::{Cursor, Read};
 use std::path::{Path, PathBuf};
+use std::process::Command as ExecProcess;
 use std::thread;
 use std::thread::JoinHandle;
 
@@ -50,7 +51,7 @@ impl InteractiveBrowse {
         // do we return back to our main exec function to print,
         // or continue down the interactive rabbit hole?
         match interactive_mode {
-            InteractiveMode::Restore(_) | InteractiveMode::Select => {
+            InteractiveMode::Restore(_) | InteractiveMode::Select(_) => {
                 InteractiveSelect::exec(browse_result, interactive_mode)?;
                 unreachable!()
             }
@@ -177,34 +178,102 @@ impl InteractiveSelect {
         }
 
         // continue to interactive_restore or print and exit here?
-        if matches!(interactive_mode, InteractiveMode::Restore(_)) {
+        match interactive_mode {
             // one only allow one to select one path string during select
             // but we retain paths_selected_in_browse because we may need
             // it later during restore if opt_overwrite is selected
-            Ok(InteractiveRestore::exec(
+            InteractiveMode::Restore(_) => Ok(InteractiveRestore::exec(
                 &path_string,
                 &browse_result.selected_pathdata,
-            )?)
-        } else {
-            Ok(Self::print_selection(&path_string)?)
+            )?),
+            InteractiveMode::Select(select_mode) => match select_mode {
+                SelectMode::Path => {
+                    let delimiter = delimiter();
+
+                    let output_buf = if matches!(
+                        GLOBAL_CONFIG.print_mode,
+                        PrintMode::RawNewline | PrintMode::RawZero
+                    ) {
+                        format!("{path_string}{delimiter}")
+                    } else {
+                        format!("\"{path_string}\"{delimiter}")
+                    };
+
+                    print_output_buf(output_buf)?;
+
+                    std::process::exit(0)
+                }
+                SelectMode::Contents => {
+                    let path = Path::new(&path_string);
+                    if !path.is_file() {
+                        let msg = format!("Path is not a file: {:?}", path);
+                        return Err(HttmError::new(&msg).into());
+                    }
+                    let mut f = std::fs::File::open(path)?;
+                    let mut contents = String::new();
+                    f.read_to_string(&mut contents)?;
+
+                    print_output_buf(contents)?;
+
+                    std::process::exit(0)
+                }
+                SelectMode::Preview => {
+                    let path = Path::new(&path_string);
+
+                    let opt_live_version: Option<String> = browse_result
+                        .selected_pathdata
+                        .get(0)
+                        .map(|pathdata| pathdata.path_buf.to_string_lossy().into_owned());
+
+                    let view_mode = &ViewMode::Select(opt_live_version.clone());
+
+                    let preview_selection = PreviewSelection::new(view_mode)?;
+
+                    let cmd = if let Some(command) = preview_selection.opt_preview_command {
+                        command.replace("$snap_file", &format!("{:?}", path))
+                    } else {
+                        return Err(HttmError::new("Could not parse preview command").into());
+                    };
+
+                    let env_command =
+                        which::which("env").unwrap_or_else(|_| PathBuf::from("/usr/bin/env"));
+
+                    let spawned = ExecProcess::new(env_command)
+                        .arg("bash")
+                        .arg("-c")
+                        .arg(cmd)
+                        .stdout(std::process::Stdio::piped())
+                        .stderr(std::process::Stdio::piped())
+                        .spawn()?;
+
+                    if let Some(mut stderr) = spawned.stderr {
+                        let mut output_buf = String::new();
+                        stderr.read_to_string(&mut output_buf)?;
+                        if !output_buf.is_empty() {
+                            eprintln!("{}", &output_buf)
+                        }
+                    }
+
+                    match spawned.stdout {
+                        Some(mut stdout) => {
+                            let mut output_buf = String::new();
+                            stdout.read_to_string(&mut output_buf)?;
+                            print_output_buf(output_buf)?;
+                        }
+                        None => {
+                            let msg = format!(
+                                "Preview command output was empty for path: {:?}",
+                                path_string
+                            );
+                            return Err(HttmError::new(&msg).into());
+                        }
+                    }
+
+                    std::process::exit(0);
+                }
+            },
+            _ => unreachable!(),
         }
-    }
-
-    fn print_selection(path_string: &str) -> HttmResult<()> {
-        let delimiter = delimiter();
-
-        let output_buf = if matches!(
-            GLOBAL_CONFIG.print_mode,
-            PrintMode::RawNewline | PrintMode::RawZero
-        ) {
-            format!("{path_string}{delimiter}")
-        } else {
-            format!("\"{path_string}\"{delimiter}")
-        };
-
-        print_output_buf(output_buf)?;
-
-        std::process::exit(0)
     }
 
     fn last_snap(
