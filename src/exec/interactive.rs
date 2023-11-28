@@ -101,13 +101,30 @@ impl InteractiveBrowse {
     }
 }
 
-struct InteractiveSelect;
+struct InteractiveSelect {
+    snap_path_string: String,
+    paths_selected_in_browse: Vec<PathData>,
+}
 
 impl InteractiveSelect {
     fn exec(
         browse_result: InteractiveBrowse,
         interactive_mode: &InteractiveMode,
     ) -> HttmResult<()> {
+        // continue to interactive_restore or print and exit here?
+        let select_result = Self::new(browse_result)?;
+
+        match interactive_mode {
+            // one only allow one to select one path string during select
+            // but we retain paths_selected_in_browse because we may need
+            // it later during restore if opt_overwrite is selected
+            InteractiveMode::Restore(_) => InteractiveRestore::exec(select_result),
+            InteractiveMode::Select(select_mode) => select_result.print_selection(select_mode),
+            InteractiveMode::Browse => unreachable!(),
+        }
+    }
+
+    fn new(browse_result: InteractiveBrowse) -> HttmResult<Self> {
         let versions_map = VersionsMap::new(&GLOBAL_CONFIG, &browse_result.selected_pathdata)?;
 
         // snap and live set has no snaps
@@ -125,7 +142,7 @@ impl InteractiveSelect {
             return Err(HttmError::new(&msg).into());
         }
 
-        let path_string = if GLOBAL_CONFIG.opt_last_snap.is_some() {
+        let snap_path_string = if GLOBAL_CONFIG.opt_last_snap.is_some() {
             Self::last_snap(&browse_result.selected_pathdata, &versions_map)?
         } else {
             // same stuff we do at fn exec, snooze...
@@ -173,55 +190,36 @@ impl InteractiveSelect {
             }
         };
 
+        let paths_selected_in_browse = browse_result.selected_pathdata;
+
         if let Some(handle) = browse_result.opt_background_handle {
             let _ = handle.join();
         }
 
-        // continue to interactive_restore or print and exit here?
-        match interactive_mode {
-            // one only allow one to select one path string during select
-            // but we retain paths_selected_in_browse because we may need
-            // it later during restore if opt_overwrite is selected
-            InteractiveMode::Restore(_) => Ok(InteractiveRestore::exec(
-                &path_string,
-                &browse_result.selected_pathdata,
-            )?),
-            InteractiveMode::Select(select_mode) => {
-                Self::print_selection(select_mode, &path_string, &browse_result.selected_pathdata)
-            }
-            InteractiveMode::Browse => unreachable!(),
-        }
+        Ok(Self {
+            snap_path_string,
+            paths_selected_in_browse,
+        })
     }
 
-    fn print_selection(
-        select_mode: &SelectMode,
-        path_string: &str,
-        selected_pathdata: &Vec<PathData>,
-    ) -> HttmResult<()> {
+    fn print_selection(&self, select_mode: &SelectMode) -> HttmResult<()> {
+        let snap_path = Path::new(&self.snap_path_string);
+
         match select_mode {
             SelectMode::Path => {
                 let delimiter = delimiter();
-
-                let output_buf = if matches!(
-                    GLOBAL_CONFIG.print_mode,
-                    PrintMode::RawNewline | PrintMode::RawZero
-                ) {
-                    format!("{path_string}{delimiter}")
-                } else {
-                    format!("\"{path_string}\"{delimiter}")
-                };
+                let output_buf = format!("{:?}{delimiter}", snap_path);
 
                 print_output_buf(output_buf)?;
 
                 std::process::exit(0)
             }
             SelectMode::Contents => {
-                let path = Path::new(&path_string);
-                if !path.is_file() {
-                    let msg = format!("Path is not a file: {:?}", path);
+                if !snap_path.is_file() {
+                    let msg = format!("Path is not a file: {:?}", snap_path);
                     return Err(HttmError::new(&msg).into());
                 }
-                let mut f = std::fs::File::open(path)?;
+                let mut f = std::fs::File::open(snap_path)?;
                 let mut contents = String::new();
                 f.read_to_string(&mut contents)?;
 
@@ -230,9 +228,8 @@ impl InteractiveSelect {
                 std::process::exit(0)
             }
             SelectMode::Preview => {
-                let path = Path::new(&path_string);
-
-                let opt_live_version: Option<String> = selected_pathdata
+                let opt_live_version: Option<String> = self
+                    .paths_selected_in_browse
                     .get(0)
                     .map(|pathdata| pathdata.path_buf.to_string_lossy().into_owned());
 
@@ -241,7 +238,7 @@ impl InteractiveSelect {
                 let preview_selection = PreviewSelection::new(view_mode)?;
 
                 let cmd = if let Some(command) = preview_selection.opt_preview_command {
-                    command.replace("$snap_file", &format!("{:?}", path))
+                    command.replace("$snap_file", &format!("{:?}", snap_path))
                 } else {
                     return Err(HttmError::new("Could not parse preview command").into());
                 };
@@ -272,10 +269,8 @@ impl InteractiveSelect {
                         print_output_buf(output_buf)?;
                     }
                     None => {
-                        let msg = format!(
-                            "Preview command output was empty for path: {:?}",
-                            path_string
-                        );
+                        let msg =
+                            format!("Preview command output was empty for path: {:?}", snap_path);
                         return Err(HttmError::new(&msg).into());
                     }
                 }
@@ -318,12 +313,12 @@ impl InteractiveSelect {
 struct InteractiveRestore;
 
 impl InteractiveRestore {
-    fn exec(parsed_str: &str, paths_selected_in_browse: &[PathData]) -> HttmResult<()> {
+    fn exec(select_result: InteractiveSelect) -> HttmResult<()> {
         // build pathdata from selection buffer parsed string
         //
         // request is also sanity check for snap path exists below when we check
         // if snap_pathdata is_phantom below
-        let snap_pathdata = PathData::from(Path::new(&parsed_str));
+        let snap_pathdata = PathData::from(Path::new(&select_result.snap_path_string));
 
         // sanity check -- snap version has good metadata?
         let snap_path_metadata = snap_pathdata
@@ -332,7 +327,7 @@ impl InteractiveRestore {
 
         // build new place to send file
         let new_file_path_buf = Self::build_new_file_path(
-            paths_selected_in_browse,
+            &select_result.paths_selected_in_browse,
             &snap_pathdata,
             &snap_path_metadata,
         )?;
