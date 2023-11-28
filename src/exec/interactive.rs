@@ -16,7 +16,7 @@
 // that was distributed with this source code.
 
 use crate::config::generate::{
-    ExecMode, InteractiveMode, PrintMode, RestoreMode, RestoreSnapGuard, SelectMode,
+    ExecMode, InteractiveMode, RestoreMode, RestoreSnapGuard, SelectMode,
 };
 use crate::data::paths::{PathData, PathMetadata};
 use crate::display_versions::wrapper::VersionsDisplayWrapper;
