@@ -400,12 +400,12 @@ dependencies = [
  "rayon",
  "serde",
  "serde_json",
- "simd-adler32",
  "terminal_size",
  "time",
  "two_percent",
  "which",
  "xattr",
+ "xxhash-rust",
 ]
 
 [[package]]
@@ -790,12 +790,6 @@ dependencies = [
  "ryu",
  "serde",
 ]
-
-[[package]]
-name = "simd-adler32"
-version = "0.3.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d66dc143e6b11c1eddc06d5c423cfc97062865baf299914ab64caa38182078fe"
 
 [[package]]
 name = "strsim"
@@ -1244,6 +1238,12 @@ checksum = "f4686009f71ff3e5c4dbcf1a282d0a44db3f021ba69350cd42086b3e5f1c6985"
 dependencies = [
  "libc",
 ]
+
+[[package]]
+name = "xxhash-rust"
+version = "0.8.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9828b178da53440fa9c766a3d2f73f7cf5d0ac1fe3980c1e5018d899fd19e07b"
 
 [[package]]
 name = "zerocopy"

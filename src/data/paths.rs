@@ -21,10 +21,14 @@ use crate::library::utility::{date_string, display_human_size, pwd, DateFormat};
 use crate::parse::aliases::MapOfAliases;
 use crate::parse::mounts::{MapOfDatasets, MaxLen};
 use crate::GLOBAL_CONFIG;
+
 use once_cell::sync::{Lazy, OnceCell};
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
-use simd_adler32::Adler32;
+
+use std::hash::Hasher;
+use xxhash_rust::xxh3::Xxh3;
+
 use std::cmp::{Ord, Ordering, PartialOrd};
 use std::ffi::OsStr;
 use std::fs::{symlink_metadata, DirEntry, File, FileType, Metadata};
@@ -280,7 +284,7 @@ pub const PHANTOM_PATH_METADATA: PathMetadata = PathMetadata {
 #[derive(Eq, PartialEq)]
 pub struct CompareVersionsContainer {
     pathdata: PathData,
-    opt_hash: Option<OnceCell<u32>>,
+    opt_hash: Option<OnceCell<u64>>,
 }
 
 impl From<CompareVersionsContainer> for PathData {
@@ -342,7 +346,7 @@ impl CompareVersionsContainer {
             .as_ref()
             .expect("opt_hash should be check prior to this point and must be Some");
 
-        let (self_hash, other_hash): (HttmResult<u32>, HttmResult<u32>) = rayon::join(
+        let (self_hash, other_hash): (HttmResult<u64>, HttmResult<u64>) = rayon::join(
             || {
                 if let Some(hash_value) = self_hash_cell.get() {
                     return Ok(*hash_value);
@@ -372,7 +376,7 @@ impl CompareVersionsContainer {
 }
 
 struct HashFromFile {
-    hash: u32,
+    hash: u64,
 }
 
 impl HashFromFile {
@@ -384,7 +388,7 @@ impl HashFromFile {
 
         let mut reader = BufReader::with_capacity(IN_BUFFER_SIZE, file);
 
-        let mut hash = Adler32::default();
+        let mut hash = Xxh3::default();
 
         loop {
             let consumed = match reader.fill_buf() {
@@ -416,7 +420,7 @@ impl HashFromFile {
     }
 
     #[inline(always)]
-    fn into_inner(self) -> u32 {
+    fn into_inner(self) -> u64 {
         self.hash
     }
 }

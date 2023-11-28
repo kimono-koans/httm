@@ -20,8 +20,11 @@ use crate::config::generate::ListSnapsOfType;
 use crate::data::paths::{CompareVersionsContainer, PathData};
 use crate::library::results::HttmResult;
 use crate::GLOBAL_CONFIG;
+
 use once_cell::sync::Lazy;
-use simd_adler32::Adler32;
+use std::hash::Hasher;
+use xxhash_rust::xxh3::Xxh3;
+
 use std::fs::{File, OpenOptions};
 use std::io::{BufRead, BufReader, BufWriter, ErrorKind, Seek, SeekFrom, Write};
 use std::os::fd::{AsFd, BorrowedFd};
@@ -122,14 +125,14 @@ pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
 
 #[inline]
 fn is_same_bytes(a_bytes: &[u8], b_bytes: &[u8]) -> bool {
-    let (a_hash, b_hash): (u32, u32) = rayon::join(|| hash(a_bytes), || hash(b_bytes));
+    let (a_hash, b_hash): (u64, u64) = rayon::join(|| hash(a_bytes), || hash(b_bytes));
 
     a_hash == b_hash
 }
 
 #[inline]
-fn hash(bytes: &[u8]) -> u32 {
-    let mut hash = Adler32::default();
+fn hash(bytes: &[u8]) -> u64 {
+    let mut hash = Xxh3::default();
 
     hash.write(bytes);
     hash.finish()
