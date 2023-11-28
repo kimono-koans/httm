@@ -16,7 +16,7 @@
 // that was distributed with this source code.
 
 use crate::config::generate::{
-    ExecMode, InteractiveMode, RestoreMode, RestoreSnapGuard, SelectMode,
+    ExecMode, InteractiveMode, PrintMode, RestoreMode, RestoreSnapGuard, SelectMode,
 };
 use crate::data::paths::{PathData, PathMetadata};
 use crate::display_versions::wrapper::VersionsDisplayWrapper;
@@ -208,7 +208,14 @@ impl InteractiveSelect {
         match select_mode {
             SelectMode::Path => {
                 let delimiter = delimiter();
-                let output_buf = format!("{:?}{delimiter}", snap_path);
+                let output_buf = match GLOBAL_CONFIG.print_mode {
+                    PrintMode::RawNewline | PrintMode::RawZero => {
+                        format!("{}{delimiter}", self.snap_path_string)
+                    }
+                    PrintMode::FormattedDefault | PrintMode::FormattedNotPretty => {
+                        format!("\"{}\"{delimiter}", self.snap_path_string)
+                    }
+                };
 
                 print_output_buf(output_buf)?;
 
