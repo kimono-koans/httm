@@ -16,7 +16,7 @@
 // that was distributed with this source code.
 
 use crate::config::generate::{
-    ExecMode, InteractiveMode, PrintMode, RestoreMode, RestoreSnapGuard,
+    ExecMode, InteractiveMode, RestoreMode, RestoreSnapGuard, SelectMode,
 };
 use crate::data::paths::{PathData, PathMetadata};
 use crate::display_versions::wrapper::VersionsDisplayWrapper;
@@ -32,8 +32,9 @@ use crate::lookup::versions::VersionsMap;
 use crate::{Config, GLOBAL_CONFIG};
 use crossbeam_channel::unbounded;
 use skim::prelude::*;
-use std::io::Cursor;
+use std::io::{Cursor, Read};
 use std::path::{Path, PathBuf};
+use std::process::Command as ExecProcess;
 use std::thread;
 use std::thread::JoinHandle;
 
@@ -50,7 +51,7 @@ impl InteractiveBrowse {
         // do we return back to our main exec function to print,
         // or continue down the interactive rabbit hole?
         match interactive_mode {
-            InteractiveMode::Restore(_) | InteractiveMode::Select => {
+            InteractiveMode::Restore(_) | InteractiveMode::Select(_) => {
                 InteractiveSelect::exec(browse_result, interactive_mode)?;
                 unreachable!()
             }
@@ -100,13 +101,30 @@ impl InteractiveBrowse {
     }
 }
 
-struct InteractiveSelect;
+struct InteractiveSelect {
+    snap_path_string: String,
+    paths_selected_in_browse: Vec<PathData>,
+}
 
 impl InteractiveSelect {
     fn exec(
         browse_result: InteractiveBrowse,
         interactive_mode: &InteractiveMode,
     ) -> HttmResult<()> {
+        // continue to interactive_restore or print and exit here?
+        let select_result = Self::new(browse_result)?;
+
+        match interactive_mode {
+            // one only allow one to select one path string during select
+            // but we retain paths_selected_in_browse because we may need
+            // it later during restore if opt_overwrite is selected
+            InteractiveMode::Restore(_) => InteractiveRestore::exec(select_result),
+            InteractiveMode::Select(select_mode) => select_result.print_selection(select_mode),
+            InteractiveMode::Browse => unreachable!(),
+        }
+    }
+
+    fn new(browse_result: InteractiveBrowse) -> HttmResult<Self> {
         let versions_map = VersionsMap::new(&GLOBAL_CONFIG, &browse_result.selected_pathdata)?;
 
         // snap and live set has no snaps
@@ -124,7 +142,7 @@ impl InteractiveSelect {
             return Err(HttmError::new(&msg).into());
         }
 
-        let path_string = if GLOBAL_CONFIG.opt_last_snap.is_some() {
+        let snap_path_string = if GLOBAL_CONFIG.opt_last_snap.is_some() {
             Self::last_snap(&browse_result.selected_pathdata, &versions_map)?
         } else {
             // same stuff we do at fn exec, snooze...
@@ -172,39 +190,94 @@ impl InteractiveSelect {
             }
         };
 
+        let paths_selected_in_browse = browse_result.selected_pathdata;
+
         if let Some(handle) = browse_result.opt_background_handle {
             let _ = handle.join();
         }
 
-        // continue to interactive_restore or print and exit here?
-        if matches!(interactive_mode, InteractiveMode::Restore(_)) {
-            // one only allow one to select one path string during select
-            // but we retain paths_selected_in_browse because we may need
-            // it later during restore if opt_overwrite is selected
-            Ok(InteractiveRestore::exec(
-                &path_string,
-                &browse_result.selected_pathdata,
-            )?)
-        } else {
-            Ok(Self::print_selection(&path_string)?)
-        }
+        Ok(Self {
+            snap_path_string,
+            paths_selected_in_browse,
+        })
     }
 
-    fn print_selection(path_string: &str) -> HttmResult<()> {
-        let delimiter = delimiter();
+    fn print_selection(&self, select_mode: &SelectMode) -> HttmResult<()> {
+        let snap_path = Path::new(&self.snap_path_string);
 
-        let output_buf = if matches!(
-            GLOBAL_CONFIG.print_mode,
-            PrintMode::RawNewline | PrintMode::RawZero
-        ) {
-            format!("{path_string}{delimiter}")
-        } else {
-            format!("\"{path_string}\"{delimiter}")
-        };
+        match select_mode {
+            SelectMode::Path => {
+                let delimiter = delimiter();
+                let output_buf = format!("{:?}{delimiter}", snap_path);
 
-        print_output_buf(output_buf)?;
+                print_output_buf(output_buf)?;
 
-        std::process::exit(0)
+                std::process::exit(0)
+            }
+            SelectMode::Contents => {
+                if !snap_path.is_file() {
+                    let msg = format!("Path is not a file: {:?}", snap_path);
+                    return Err(HttmError::new(&msg).into());
+                }
+                let mut f = std::fs::File::open(snap_path)?;
+                let mut contents = String::new();
+                f.read_to_string(&mut contents)?;
+
+                print_output_buf(contents)?;
+
+                std::process::exit(0)
+            }
+            SelectMode::Preview => {
+                let opt_live_version: Option<String> = self
+                    .paths_selected_in_browse
+                    .get(0)
+                    .map(|pathdata| pathdata.path_buf.to_string_lossy().into_owned());
+
+                let view_mode = &ViewMode::Select(opt_live_version.clone());
+
+                let preview_selection = PreviewSelection::new(view_mode)?;
+
+                let cmd = if let Some(command) = preview_selection.opt_preview_command {
+                    command.replace("$snap_file", &format!("{:?}", snap_path))
+                } else {
+                    return Err(HttmError::new("Could not parse preview command").into());
+                };
+
+                let env_command =
+                    which::which("env").unwrap_or_else(|_| PathBuf::from("/usr/bin/env"));
+
+                let spawned = ExecProcess::new(env_command)
+                    .arg("bash")
+                    .arg("-c")
+                    .arg(cmd)
+                    .stdout(std::process::Stdio::piped())
+                    .stderr(std::process::Stdio::piped())
+                    .spawn()?;
+
+                if let Some(mut stderr) = spawned.stderr {
+                    let mut output_buf = String::new();
+                    stderr.read_to_string(&mut output_buf)?;
+                    if !output_buf.is_empty() {
+                        eprintln!("{}", &output_buf)
+                    }
+                }
+
+                match spawned.stdout {
+                    Some(mut stdout) => {
+                        let mut output_buf = String::new();
+                        stdout.read_to_string(&mut output_buf)?;
+                        print_output_buf(output_buf)?;
+                    }
+                    None => {
+                        let msg =
+                            format!("Preview command output was empty for path: {:?}", snap_path);
+                        return Err(HttmError::new(&msg).into());
+                    }
+                }
+
+                std::process::exit(0);
+            }
+        }
     }
 
     fn last_snap(
@@ -240,12 +313,12 @@ impl InteractiveSelect {
 struct InteractiveRestore;
 
 impl InteractiveRestore {
-    fn exec(parsed_str: &str, paths_selected_in_browse: &[PathData]) -> HttmResult<()> {
+    fn exec(select_result: InteractiveSelect) -> HttmResult<()> {
         // build pathdata from selection buffer parsed string
         //
         // request is also sanity check for snap path exists below when we check
         // if snap_pathdata is_phantom below
-        let snap_pathdata = PathData::from(Path::new(&parsed_str));
+        let snap_pathdata = PathData::from(Path::new(&select_result.snap_path_string));
 
         // sanity check -- snap version has good metadata?
         let snap_path_metadata = snap_pathdata
@@ -254,7 +327,7 @@ impl InteractiveRestore {
 
         // build new place to send file
         let new_file_path_buf = Self::build_new_file_path(
-            paths_selected_in_browse,
+            &select_result.paths_selected_in_browse,
             &snap_pathdata,
             &snap_path_metadata,
         )?;

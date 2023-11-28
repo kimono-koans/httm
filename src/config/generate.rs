@@ -63,7 +63,7 @@ pub enum MountDisplay {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum InteractiveMode {
     Browse,
-    Select,
+    Select(SelectMode),
     Restore(RestoreMode),
 }
 
@@ -71,6 +71,13 @@ pub enum InteractiveMode {
 pub enum RestoreSnapGuard {
     Guarded,
     NotGuarded,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SelectMode {
+    Path,
+    Contents,
+    Preview,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -157,7 +164,15 @@ fn parse_args() -> ArgMatches {
             Arg::new("SELECT")
                 .short('s')
                 .long("select")
-                .help("interactive browse and search a specified directory to display unique file versions.  Continue to another dialog to select a snapshot version to dump to stdout.")
+                .takes_value(true)
+                .default_missing_value("path")
+                .possible_values(["path", "contents", "preview"])
+                .min_values(0)
+                .require_equals(true)
+                .help("interactive browse and search a specified directory to display unique file versions.  \
+                Continue to another dialog to select a snapshot version to dump to stdout.  This argument optionally takes a value.  \
+                Default behavior/value is to simply print the path name, but, if the path is a file, the user can print the file's contents by giving the value \"contents\", \
+                or print the PREVIEW output by giving the value \"preview\".")
                 .conflicts_with("RESTORE")
                 .display_order(3)
         )
@@ -673,7 +688,11 @@ impl Config {
                 Some(_) | None => Some(InteractiveMode::Restore(RestoreMode::CopyOnly)),
             }
         } else if matches.is_present("SELECT") {
-            Some(InteractiveMode::Select)
+            match matches.value_of("SELECT") {
+                Some("contents") => Some(InteractiveMode::Select(SelectMode::Contents)),
+                Some("preview") => Some(InteractiveMode::Select(SelectMode::Preview)),
+                Some(_) | None => Some(InteractiveMode::Select(SelectMode::Path)),
+            }
         } else if matches.is_present("BROWSE") {
             Some(InteractiveMode::Browse)
         } else {
@@ -703,7 +722,8 @@ impl Config {
 
         // if in last snap and select mode we will want to return a raw value,
         // better to have this here.  It's more confusing if we work this logic later, I think.
-        if opt_last_snap.is_some() && matches!(opt_interactive_mode, Some(InteractiveMode::Select))
+        if opt_last_snap.is_some()
+            && matches!(opt_interactive_mode, Some(InteractiveMode::Select(_)))
         {
             print_mode = PrintMode::RawNewline
         }
@@ -726,7 +746,7 @@ impl Config {
 
         let opt_snap_mode_filters = if matches.is_present("LIST_SNAPS") {
             // allow selection of snaps to prune in prune mode
-            let select_mode = matches!(opt_interactive_mode, Some(InteractiveMode::Select));
+            let select_mode = matches!(opt_interactive_mode, Some(InteractiveMode::Select(_)));
 
             if !matches.is_present("PRUNE") && select_mode {
                 eprintln!("Select mode for listed snapshots only available in PRUNE mode.")
@@ -949,7 +969,7 @@ impl Config {
                                                 )
                                                 .into());
                                     }
-                                    InteractiveMode::Restore(_) | InteractiveMode::Select => {
+                                    InteractiveMode::Restore(_) | InteractiveMode::Select(_) => {
                                         // non-dir file will just cause us to skip the lookup phase
                                         None
                                     }
