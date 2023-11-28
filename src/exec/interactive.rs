@@ -186,93 +186,102 @@ impl InteractiveSelect {
                 &path_string,
                 &browse_result.selected_pathdata,
             )?),
-            InteractiveMode::Select(select_mode) => match select_mode {
-                SelectMode::Path => {
-                    let delimiter = delimiter();
+            InteractiveMode::Select(select_mode) => {
+                Self::print_selection(select_mode, &path_string, &browse_result.selected_pathdata)
+            }
+            InteractiveMode::Browse => unreachable!(),
+        }
+    }
 
-                    let output_buf = if matches!(
-                        GLOBAL_CONFIG.print_mode,
-                        PrintMode::RawNewline | PrintMode::RawZero
-                    ) {
-                        format!("{path_string}{delimiter}")
-                    } else {
-                        format!("\"{path_string}\"{delimiter}")
-                    };
+    fn print_selection(
+        select_mode: &SelectMode,
+        path_string: &str,
+        selected_pathdata: &Vec<PathData>,
+    ) -> HttmResult<()> {
+        match select_mode {
+            SelectMode::Path => {
+                let delimiter = delimiter();
 
-                    print_output_buf(output_buf)?;
+                let output_buf = if matches!(
+                    GLOBAL_CONFIG.print_mode,
+                    PrintMode::RawNewline | PrintMode::RawZero
+                ) {
+                    format!("{path_string}{delimiter}")
+                } else {
+                    format!("\"{path_string}\"{delimiter}")
+                };
 
-                    std::process::exit(0)
+                print_output_buf(output_buf)?;
+
+                std::process::exit(0)
+            }
+            SelectMode::Contents => {
+                let path = Path::new(&path_string);
+                if !path.is_file() {
+                    let msg = format!("Path is not a file: {:?}", path);
+                    return Err(HttmError::new(&msg).into());
                 }
-                SelectMode::Contents => {
-                    let path = Path::new(&path_string);
-                    if !path.is_file() {
-                        let msg = format!("Path is not a file: {:?}", path);
+                let mut f = std::fs::File::open(path)?;
+                let mut contents = String::new();
+                f.read_to_string(&mut contents)?;
+
+                print_output_buf(contents)?;
+
+                std::process::exit(0)
+            }
+            SelectMode::Preview => {
+                let path = Path::new(&path_string);
+
+                let opt_live_version: Option<String> = selected_pathdata
+                    .get(0)
+                    .map(|pathdata| pathdata.path_buf.to_string_lossy().into_owned());
+
+                let view_mode = &ViewMode::Select(opt_live_version.clone());
+
+                let preview_selection = PreviewSelection::new(view_mode)?;
+
+                let cmd = if let Some(command) = preview_selection.opt_preview_command {
+                    command.replace("$snap_file", &format!("{:?}", path))
+                } else {
+                    return Err(HttmError::new("Could not parse preview command").into());
+                };
+
+                let env_command =
+                    which::which("env").unwrap_or_else(|_| PathBuf::from("/usr/bin/env"));
+
+                let spawned = ExecProcess::new(env_command)
+                    .arg("bash")
+                    .arg("-c")
+                    .arg(cmd)
+                    .stdout(std::process::Stdio::piped())
+                    .stderr(std::process::Stdio::piped())
+                    .spawn()?;
+
+                if let Some(mut stderr) = spawned.stderr {
+                    let mut output_buf = String::new();
+                    stderr.read_to_string(&mut output_buf)?;
+                    if !output_buf.is_empty() {
+                        eprintln!("{}", &output_buf)
+                    }
+                }
+
+                match spawned.stdout {
+                    Some(mut stdout) => {
+                        let mut output_buf = String::new();
+                        stdout.read_to_string(&mut output_buf)?;
+                        print_output_buf(output_buf)?;
+                    }
+                    None => {
+                        let msg = format!(
+                            "Preview command output was empty for path: {:?}",
+                            path_string
+                        );
                         return Err(HttmError::new(&msg).into());
                     }
-                    let mut f = std::fs::File::open(path)?;
-                    let mut contents = String::new();
-                    f.read_to_string(&mut contents)?;
-
-                    print_output_buf(contents)?;
-
-                    std::process::exit(0)
                 }
-                SelectMode::Preview => {
-                    let path = Path::new(&path_string);
 
-                    let opt_live_version: Option<String> = browse_result
-                        .selected_pathdata
-                        .get(0)
-                        .map(|pathdata| pathdata.path_buf.to_string_lossy().into_owned());
-
-                    let view_mode = &ViewMode::Select(opt_live_version.clone());
-
-                    let preview_selection = PreviewSelection::new(view_mode)?;
-
-                    let cmd = if let Some(command) = preview_selection.opt_preview_command {
-                        command.replace("$snap_file", &format!("{:?}", path))
-                    } else {
-                        return Err(HttmError::new("Could not parse preview command").into());
-                    };
-
-                    let env_command =
-                        which::which("env").unwrap_or_else(|_| PathBuf::from("/usr/bin/env"));
-
-                    let spawned = ExecProcess::new(env_command)
-                        .arg("bash")
-                        .arg("-c")
-                        .arg(cmd)
-                        .stdout(std::process::Stdio::piped())
-                        .stderr(std::process::Stdio::piped())
-                        .spawn()?;
-
-                    if let Some(mut stderr) = spawned.stderr {
-                        let mut output_buf = String::new();
-                        stderr.read_to_string(&mut output_buf)?;
-                        if !output_buf.is_empty() {
-                            eprintln!("{}", &output_buf)
-                        }
-                    }
-
-                    match spawned.stdout {
-                        Some(mut stdout) => {
-                            let mut output_buf = String::new();
-                            stdout.read_to_string(&mut output_buf)?;
-                            print_output_buf(output_buf)?;
-                        }
-                        None => {
-                            let msg = format!(
-                                "Preview command output was empty for path: {:?}",
-                                path_string
-                            );
-                            return Err(HttmError::new(&msg).into());
-                        }
-                    }
-
-                    std::process::exit(0);
-                }
-            },
-            _ => unreachable!(),
+                std::process::exit(0);
+            }
         }
     }
 
