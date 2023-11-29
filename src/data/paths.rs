@@ -188,11 +188,20 @@ impl PathData {
         // but what about snapshot paths?
         // here we strip the additional snapshot VFS bits and make them look like live versions
         if self.is_snap_path() {
-            let snapshot_stripped_set = relative_path.strip_prefix(ZFS_SNAPSHOT_DIRECTORY)?;
-            if let Some(snapshot_name) = snapshot_stripped_set.components().next() {
-                let res = snapshot_stripped_set.strip_prefix(snapshot_name)?;
-                return Ok(res);
-            };
+            if let Ok(snapshot_stripped_set) = relative_path.strip_prefix(ZFS_SNAPSHOT_DIRECTORY) {
+                if let Some(snapshot_name) = snapshot_stripped_set.components().next() {
+                    if let Ok(res) = snapshot_stripped_set.strip_prefix(snapshot_name) {
+                        return Ok(res);
+                    }
+                }
+            }
+
+            let msg = format!(
+                "Could not parse relative path for snapshot path: {:?}",
+                self.path_buf
+            );
+
+            return Err(HttmError::new(&msg).into());
         }
 
         Ok(relative_path)
