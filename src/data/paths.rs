@@ -18,9 +18,11 @@
 use crate::config::generate::{ListSnapsOfType, PrintMode};
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{date_string, display_human_size, pwd, DateFormat};
+use crate::parse::aliases::FilesystemType;
 use crate::parse::aliases::MapOfAliases;
 use crate::parse::mounts::{MapOfDatasets, MaxLen};
 use crate::{GLOBAL_CONFIG, ZFS_SNAPSHOT_DIRECTORY};
+
 use once_cell::sync::{Lazy, OnceCell};
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
@@ -185,7 +187,7 @@ impl PathData {
 
         // but what about snapshot paths?
         // here we strip the additional snapshot VFS bits and make them look like live versions
-        if relative_path.starts_with(ZFS_SNAPSHOT_DIRECTORY) {
+        if self.is_snap_path() {
             let snapshot_stripped_set = relative_path.strip_prefix(ZFS_SNAPSHOT_DIRECTORY)?;
             if let Some(snapshot_name) = snapshot_stripped_set.components().next() {
                 let res = snapshot_stripped_set.strip_prefix(snapshot_name)?;
@@ -228,6 +230,62 @@ impl PathData {
                 .get(ancestor)
                 .map(|alias_info| alias_info.remote_dir.as_path())
         })
+    }
+
+    pub fn snap_path_to_target(&self, proximate_dataset_mount: &Path) -> Option<PathBuf> {
+        if self.is_snap_path() {
+            if let Ok(relative) = self.relative_path(proximate_dataset_mount) {
+                let target: PathBuf = self
+                    .path_buf
+                    .ancestors()
+                    .zip(relative.ancestors())
+                    .skip_while(|(a_path, b_path)| a_path == b_path)
+                    .map(|(a_path, _b_path)| a_path)
+                    .collect();
+
+                return Some(target);
+            }
+        }
+
+        None
+    }
+
+    pub fn snap_path_to_snap_source(&self) -> Option<String> {
+        if self.is_snap_path() {
+            return None;
+        }
+
+        let path_string = &self.path_buf.to_string_lossy();
+
+        let (dataset_path, (snap, _relpath)) = if let Some((lhs, rhs)) =
+            path_string.split_once(&format!("{ZFS_SNAPSHOT_DIRECTORY}/"))
+        {
+            (Path::new(lhs), rhs.split_once('/').unwrap_or((rhs, "")))
+        } else {
+            return None;
+        };
+
+        let opt_dataset_md = GLOBAL_CONFIG
+            .dataset_collection
+            .map_of_datasets
+            .get(dataset_path);
+
+        match opt_dataset_md {
+            Some(md) if md.fs_type == FilesystemType::Zfs => {
+                Some(format!("{}@{snap}", md.source.to_string_lossy()))
+            }
+            Some(_md) => {
+                eprintln!("WARNING: {:?} is located on a non-ZFS dataset.  httm can only list snapshot names for ZFS datasets.", self.path_buf);
+                None
+            }
+            _ => None,
+        }
+    }
+
+    pub fn is_snap_path(&self) -> bool {
+        self.path_buf
+            .to_string_lossy()
+            .contains(ZFS_SNAPSHOT_DIRECTORY)
     }
 }
 

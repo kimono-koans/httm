@@ -18,7 +18,6 @@
 use crate::config::generate::ListSnapsFilters;
 use crate::data::paths::PathData;
 use crate::library::results::{HttmError, HttmResult};
-use crate::library::utility::deconstruct_snap_paths;
 use crate::lookup::versions::VersionsMap;
 use rayon::prelude::*;
 use std::collections::BTreeMap;
@@ -67,7 +66,7 @@ impl SnapNameMap {
                 // use par iter here because no one else is using the global rayon threadpool any more
                 let snap_names: Vec<String> = vec_snaps
                     .par_iter()
-                    .filter_map(|pd| deconstruct_snap_paths(&pd.path_buf))
+                    .filter_map(|pd| pd.snap_path_to_snap_source())
                     .filter(|snap| {
                         if let Some(filters) = opt_filters {
                             if let Some(names) = &filters.name_filters {

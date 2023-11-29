@@ -17,15 +17,13 @@
 
 use crate::config::generate::{ExecMode, MountDisplay, PrintMode};
 use crate::display_versions::format::{NOT_SO_PRETTY_FIXED_WIDTH_PADDING, QUOTATION_MARKS_LEN};
-use crate::library::utility::deconstruct_snap_paths;
 use crate::library::utility::delimiter;
-use crate::{MountsForFiles, SnapNameMap, VersionsMap, GLOBAL_CONFIG, ZFS_SNAPSHOT_DIRECTORY};
+use crate::{MountsForFiles, SnapNameMap, VersionsMap, GLOBAL_CONFIG};
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
 use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::ops::Deref;
-use std::path::PathBuf;
 
 #[derive(Debug)]
 pub struct PrintAsMap {
@@ -67,22 +65,9 @@ impl<'a> From<&MountsForFiles<'a>> for PrintAsMap {
                     .iter()
                     .filter_map(|value| match mounts_for_files.mount_display() {
                         MountDisplay::Target => {
-                            if key
-                                .path_buf
-                                .to_string_lossy()
-                                .contains(ZFS_SNAPSHOT_DIRECTORY)
-                            {
-                                if let Ok(relative) = key.relative_path(&value.path_buf.as_path()) {
-                                    let target: PathBuf = key
-                                        .path_buf
-                                        .ancestors()
-                                        .zip(relative.ancestors())
-                                        .skip_while(|(a_path, b_path)| a_path == b_path)
-                                        .map(|(a_path, _b_path)| a_path)
-                                        .collect();
-
-                                    return Some(Cow::Owned(target.to_string_lossy().to_string()));
-                                }
+                            if let Some(target) = key.snap_path_to_target(&value.path_buf) {
+                                let res = target.to_string_lossy().to_string();
+                                return Some(Cow::Owned(res));
                             }
 
                             Some(value.path_buf.to_string_lossy())
@@ -92,7 +77,7 @@ impl<'a> From<&MountsForFiles<'a>> for PrintAsMap {
                             .map_of_datasets
                             .get(&value.path_buf)
                             .map(|md| {
-                                if let Some(snap_source) = deconstruct_snap_paths(&key.path_buf) {
+                                if let Some(snap_source) = key.snap_path_to_snap_source() {
                                     return Cow::Owned(snap_source);
                                 }
 
