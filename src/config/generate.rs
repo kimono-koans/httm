@@ -913,7 +913,14 @@ impl Config {
                 .filter_map(|pd| {
                     // but what about snapshot paths?
                     // here we strip the additional snapshot VFS bits and make them look like live versions
-                    if !matches!(exec_mode, ExecMode::MountsForFiles(_)) && pd.is_snap_path() {
+                    if !matches!(
+                        exec_mode,
+                        ExecMode::MountsForFiles(_)
+                            | ExecMode::SnapFileMount(_)
+                            | ExecMode::Prune(_)
+                            | ExecMode::SnapsForFiles(_)
+                    ) && pd.is_snap_path()
+                    {
                         if let Some((proximate_dataset_mount, relative_and_snap_name)) = pd
                             .path_buf
                             .to_string_lossy()
