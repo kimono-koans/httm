@@ -22,6 +22,7 @@ use crate::library::utility::delimiter;
 use crate::{MountsForFiles, SnapNameMap, VersionsMap, GLOBAL_CONFIG};
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
+use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::ops::Deref;
 
@@ -66,7 +67,7 @@ impl<'a> From<&MountsForFiles<'a>> for PrintAsMap {
                 let res = values
                     .iter()
                     .filter_map(|value| match mounts_for_files.mount_display() {
-                        MountDisplay::Target => Some(value.path_buf.to_string_lossy().to_string()),
+                        MountDisplay::Target => Some(value.path_buf.to_string_lossy()),
                         MountDisplay::Source => GLOBAL_CONFIG
                             .dataset_collection
                             .map_of_datasets
@@ -77,17 +78,18 @@ impl<'a> From<&MountsForFiles<'a>> for PrintAsMap {
                                     .to_string_lossy()
                                     .contains(ZFS_SNAPSHOT_DIRECTORY)
                                 {
-                                    if let Some(snap_path) = deconstruct_snap_paths(&key.path_buf) {
-                                        return snap_path;
+                                    if let Some(snap_source) = deconstruct_snap_paths(&key.path_buf)
+                                    {
+                                        return Cow::Owned(snap_source);
                                     }
                                 }
 
-                                md.source.to_string_lossy().to_string()
+                                md.source.to_string_lossy()
                             }),
                         MountDisplay::RelativePath => key
                             .relative_path(value.path_buf.as_path())
                             .ok()
-                            .map(|path| path.to_string_lossy().to_string()),
+                            .map(|path| path.to_string_lossy()),
                     })
                     .map(|s| s.to_string())
                     .collect();
