@@ -20,7 +20,7 @@ use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{date_string, display_human_size, pwd, DateFormat};
 use crate::parse::aliases::MapOfAliases;
 use crate::parse::mounts::{MapOfDatasets, MaxLen};
-use crate::GLOBAL_CONFIG;
+use crate::{GLOBAL_CONFIG, ZFS_SNAPSHOT_DIRECTORY};
 use once_cell::sync::{Lazy, OnceCell};
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
@@ -161,7 +161,7 @@ impl PathData {
         // path strip, if aliased
         // fallback if unable to find an alias or strip a prefix
         // (each an indication we should not be trying aliases)
-        let res = match GLOBAL_CONFIG
+        let relative_path = match GLOBAL_CONFIG
             .dataset_collection
             .opt_map_of_aliases
             .as_deref()
@@ -183,7 +183,17 @@ impl PathData {
             None => self.path_buf.strip_prefix(proximate_dataset_mount)?,
         };
 
-        Ok(res)
+        // but what about snapshot paths?
+        // here we strip the additional snapshot VFS bits and make them look like live versions
+        if relative_path.starts_with(ZFS_SNAPSHOT_DIRECTORY) {
+            let snapshot_stripped_set = relative_path.strip_prefix(ZFS_SNAPSHOT_DIRECTORY)?;
+            if let Some(snapshot_name) = snapshot_stripped_set.components().next() {
+                let res = snapshot_stripped_set.strip_prefix(snapshot_name)?;
+                return Ok(res);
+            };
+        }
+
+        Ok(relative_path)
     }
 
     pub fn proximate_dataset<'a>(

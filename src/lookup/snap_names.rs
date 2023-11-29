@@ -86,18 +86,18 @@ impl SnapNameMap {
                         let opt_amt_less = vec_snaps.len().checked_sub(mode_filter.omit_num_snaps);
 
                         match opt_amt_less {
-              Some(amt_less) => {
-                let _ = vec_snaps.split_off(amt_less);
-              }
-              None => {
-                return Err(
-                  HttmError::new(
-                    "Number of snapshots requested to omit larger than number of snapshots.",
-                  )
-                  .into(),
-                )
-              }
-            }
+                            Some(amt_less) => {
+                                let _ = vec_snaps.split_off(amt_less);
+                            }
+                            None => {
+                                return Err(
+                                HttmError::new(
+                                    "Number of snapshots requested to omit larger than number of snapshots.",
+                                )
+                                .into(),
+                                )
+                            }
+                        }
                     }
                 }
 
