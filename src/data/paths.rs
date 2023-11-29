@@ -224,7 +224,7 @@ impl PathData {
 
     pub fn snap_path_to_target(&self, proximate_dataset_mount: &Path) -> Option<PathBuf> {
         if self.is_snap_path() {
-            if let Ok(relative) = self.relative_path(proximate_dataset_mount) {
+            if let Ok(relative) = self.relative_path_from_snap_path(proximate_dataset_mount) {
                 let target: PathBuf = self
                     .path_buf
                     .ancestors()

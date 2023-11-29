@@ -914,13 +914,13 @@ impl Config {
                     // but what about snapshot paths?
                     // here we strip the additional snapshot VFS bits and make them look like live versions
                     if !matches!(exec_mode, ExecMode::MountsForFiles(_)) && pd.is_snap_path() {
-                        if let Some((proximate_dataset_mount, relative_and_snapname)) = pd
+                        if let Some((proximate_dataset_mount, relative_and_snap_name)) = pd
                             .path_buf
                             .to_string_lossy()
                             .split_once(&format!("{ZFS_SNAPSHOT_DIRECTORY}/"))
                         {
                             if let Some((_snap_name, relative)) =
-                                relative_and_snapname.split_once("/")
+                                relative_and_snap_name.split_once("/")
                             {
                                 let joined = PathBuf::from(proximate_dataset_mount)
                                     .join(Path::new(relative));
