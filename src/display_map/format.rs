@@ -66,8 +66,7 @@ impl<'a> From<&MountsForFiles<'a>> for PrintAsMap {
                     .filter_map(|value| match mounts_for_files.mount_display() {
                         MountDisplay::Target => {
                             if let Some(target) = key.snap_path_to_target(&value.path_buf) {
-                                let res = target.to_string_lossy().to_string();
-                                return Some(Cow::Owned(res));
+                                return Some(Cow::Owned(target.to_string_lossy().to_string()));
                             }
 
                             Some(value.path_buf.to_string_lossy())
