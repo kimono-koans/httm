@@ -927,8 +927,6 @@ impl Config {
                                 return Some(PathData::from(joined));
                             }
                         }
-
-                        return None;
                     }
 
                     Some(pd)
