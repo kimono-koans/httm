@@ -258,10 +258,6 @@ impl PathData {
     }
 
     pub fn snap_path_to_snap_source(&self) -> Option<String> {
-        if self.is_snap_path() {
-            return None;
-        }
-
         let path_string = &self.path_buf.to_string_lossy();
 
         let (dataset_path, (snap, _relpath)) = if let Some((lhs, rhs)) =
