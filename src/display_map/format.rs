@@ -19,12 +19,13 @@ use crate::config::generate::{ExecMode, MountDisplay, PrintMode};
 use crate::display_versions::format::{NOT_SO_PRETTY_FIXED_WIDTH_PADDING, QUOTATION_MARKS_LEN};
 use crate::library::utility::deconstruct_snap_paths;
 use crate::library::utility::delimiter;
-use crate::{MountsForFiles, SnapNameMap, VersionsMap, GLOBAL_CONFIG};
+use crate::{MountsForFiles, SnapNameMap, VersionsMap, GLOBAL_CONFIG, ZFS_SNAPSHOT_DIRECTORY};
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
 use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::ops::Deref;
+use std::path::PathBuf;
 
 #[derive(Debug)]
 pub struct PrintAsMap {
@@ -65,7 +66,27 @@ impl<'a> From<&MountsForFiles<'a>> for PrintAsMap {
                 let res = values
                     .iter()
                     .filter_map(|value| match mounts_for_files.mount_display() {
-                        MountDisplay::Target => Some(value.path_buf.to_string_lossy()),
+                        MountDisplay::Target => {
+                            if key
+                                .path_buf
+                                .to_string_lossy()
+                                .contains(ZFS_SNAPSHOT_DIRECTORY)
+                            {
+                                if let Ok(relative) = key.relative_path(&value.path_buf.as_path()) {
+                                    let target: PathBuf = key
+                                        .path_buf
+                                        .ancestors()
+                                        .zip(relative.ancestors())
+                                        .skip_while(|(a_path, b_path)| a_path == b_path)
+                                        .map(|(a_path, _b_path)| a_path)
+                                        .collect();
+
+                                    return Some(Cow::Owned(target.to_string_lossy().to_string()));
+                                }
+                            }
+
+                            Some(value.path_buf.to_string_lossy())
+                        }
                         MountDisplay::Source => GLOBAL_CONFIG
                             .dataset_collection
                             .map_of_datasets
