@@ -26,8 +26,6 @@ use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::ops::Deref;
 
-use crate::ZFS_SNAPSHOT_DIRECTORY;
-
 #[derive(Debug)]
 pub struct PrintAsMap {
     inner: BTreeMap<String, Vec<String>>,
@@ -73,15 +71,8 @@ impl<'a> From<&MountsForFiles<'a>> for PrintAsMap {
                             .map_of_datasets
                             .get(&value.path_buf)
                             .map(|md| {
-                                if key
-                                    .path_buf
-                                    .to_string_lossy()
-                                    .contains(ZFS_SNAPSHOT_DIRECTORY)
-                                {
-                                    if let Some(snap_source) = deconstruct_snap_paths(&key.path_buf)
-                                    {
-                                        return Cow::Owned(snap_source);
-                                    }
+                                if let Some(snap_source) = deconstruct_snap_paths(&key.path_buf) {
+                                    return Cow::Owned(snap_source);
                                 }
 
                                 md.source.to_string_lossy()
