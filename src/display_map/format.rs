@@ -83,7 +83,7 @@ impl<'a> From<&MountsForFiles<'a>> for PrintAsMap {
                                 md.source.to_string_lossy()
                             }),
                         MountDisplay::RelativePath => {
-                            if let Some(relative_path) =
+                            if let Ok(relative_path) =
                                 key.relative_path_from_snap_path(&value.path_buf)
                             {
                                 return Some(Cow::Owned(

@@ -240,22 +240,21 @@ impl PathData {
         None
     }
 
-    pub fn relative_path_from_snap_path(&self, proximate_dataset_mount: &Path) -> Option<PathBuf> {
+    pub fn relative_path_from_snap_path(
+        &self,
+        proximate_dataset_mount: &Path,
+    ) -> HttmResult<PathBuf> {
         if self.is_snap_path() {
-            if let Ok(relative_path) = self.relative_path(proximate_dataset_mount) {
-                if let Ok(snapshot_stripped_set) =
-                    relative_path.strip_prefix(ZFS_SNAPSHOT_DIRECTORY)
-                {
-                    if let Some(snapshot_name) = snapshot_stripped_set.components().next() {
-                        if let Ok(res) = snapshot_stripped_set.strip_prefix(snapshot_name) {
-                            return Some(res.to_path_buf());
-                        }
-                    }
-                }
+            let relative_path = self.relative_path(proximate_dataset_mount)?;
+            let snapshot_stripped_set = relative_path.strip_prefix(ZFS_SNAPSHOT_DIRECTORY)?;
+            if let Some(snapshot_name) = snapshot_stripped_set.components().next() {
+                let res = snapshot_stripped_set.strip_prefix(snapshot_name)?;
+                return Ok(res.to_path_buf());
             }
         }
 
-        None
+        let msg = format!("Path is not a snap path: {:?}", self.path_buf);
+        Err(HttmError::new(&msg).into())
     }
 
     pub fn snap_path_to_snap_source(&self) -> Option<String> {
