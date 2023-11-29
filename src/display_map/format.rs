@@ -82,10 +82,19 @@ impl<'a> From<&MountsForFiles<'a>> for PrintAsMap {
 
                                 md.source.to_string_lossy()
                             }),
-                        MountDisplay::RelativePath => key
-                            .relative_path(value.path_buf.as_path())
-                            .ok()
-                            .map(|path| path.to_string_lossy()),
+                        MountDisplay::RelativePath => {
+                            if let Some(relative_path) =
+                                key.relative_path_from_snap_path(&value.path_buf)
+                            {
+                                return Some(Cow::Owned(
+                                    relative_path.to_string_lossy().to_string(),
+                                ));
+                            }
+
+                            key.relative_path(&value.path_buf)
+                                .ok()
+                                .map(|path| path.to_string_lossy())
+                        }
                     })
                     .map(|s| s.to_string())
                     .collect();

@@ -21,6 +21,7 @@ use crate::data::paths::PathData;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{pwd, read_stdin, HttmIsDir};
 use crate::ROOT_DIRECTORY;
+use crate::ZFS_SNAPSHOT_DIRECTORY;
 use clap::{crate_name, crate_version, Arg, ArgMatches, OsValues};
 use indicatif::ProgressBar;
 use rayon::prelude::*;
@@ -909,6 +910,29 @@ impl Config {
                 // so we have to join with the pwd to make a path that
                 // will exist on a snapshot
                 .map(PathData::from)
+                .filter_map(|pd| {
+                    // but what about snapshot paths?
+                    // here we strip the additional snapshot VFS bits and make them look like live versions
+                    if !matches!(exec_mode, ExecMode::MountsForFiles(_)) && pd.is_snap_path() {
+                        if let Some((proximate_dataset_mount, relative_and_snapname)) = pd
+                            .path_buf
+                            .to_string_lossy()
+                            .split_once(&format!("{ZFS_SNAPSHOT_DIRECTORY}/"))
+                        {
+                            if let Some((_snap_name, relative)) =
+                                relative_and_snapname.split_once("/")
+                            {
+                                let joined = PathBuf::from(proximate_dataset_mount)
+                                    .join(Path::new(relative));
+                                return Some(PathData::from(joined));
+                            }
+                        }
+
+                        return None;
+                    }
+
+                    Some(pd)
+                })
                 .collect()
         } else {
             match exec_mode {

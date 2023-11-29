@@ -185,25 +185,6 @@ impl PathData {
             None => self.path_buf.strip_prefix(proximate_dataset_mount)?,
         };
 
-        // but what about snapshot paths?
-        // here we strip the additional snapshot VFS bits and make them look like live versions
-        if self.is_snap_path() {
-            if let Ok(snapshot_stripped_set) = relative_path.strip_prefix(ZFS_SNAPSHOT_DIRECTORY) {
-                if let Some(snapshot_name) = snapshot_stripped_set.components().next() {
-                    if let Ok(res) = snapshot_stripped_set.strip_prefix(snapshot_name) {
-                        return Ok(res);
-                    }
-                }
-            }
-
-            let msg = format!(
-                "Could not parse relative path for snapshot path: {:?}",
-                self.path_buf
-            );
-
-            return Err(HttmError::new(&msg).into());
-        }
-
         Ok(relative_path)
     }
 
@@ -253,6 +234,24 @@ impl PathData {
                     .collect();
 
                 return Some(target);
+            }
+        }
+
+        None
+    }
+
+    pub fn relative_path_from_snap_path(&self, proximate_dataset_mount: &Path) -> Option<PathBuf> {
+        if self.is_snap_path() {
+            if let Ok(relative_path) = self.relative_path(proximate_dataset_mount) {
+                if let Ok(snapshot_stripped_set) =
+                    relative_path.strip_prefix(ZFS_SNAPSHOT_DIRECTORY)
+                {
+                    if let Some(snapshot_name) = snapshot_stripped_set.components().next() {
+                        if let Ok(res) = snapshot_stripped_set.strip_prefix(snapshot_name) {
+                            return Some(res.to_path_buf());
+                        }
+                    }
+                }
             }
         }
 
