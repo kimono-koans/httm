@@ -174,12 +174,9 @@ impl InteractiveSelect {
                 // get the file name
                 let requested_file_name = view_mode.select(&selection_buffer, false)?;
                 // ... we want everything between the quotes
-                let Some(first_match) = requested_file_name.get(0) else {
-                    return Err(HttmError::new(
-                        "Could not obtain a first match for the selected input",
-                    )
-                    .into());
-                };
+                let first_match = requested_file_name.get(0).ok_or_else(|| {
+                    HttmError::new("Could not obtain a first match for the selected input")
+                })?;
 
                 // this could be a parsing error, but is most likely the user selecting a pretty border line
                 let Some(path_string) = first_match
@@ -371,9 +368,9 @@ impl InteractiveRestore {
 
             let selection = view_mode.select(&preview_buffer, false)?;
 
-            let Some(user_consent) = selection.get(0) else {
-                return Err(HttmError::new("Could not obtain the first match selected.").into());
-            };
+            let user_consent = selection
+                .get(0)
+                .ok_or_else(|| HttmError::new("Could not obtain the first match selected."))?;
 
             match user_consent.to_ascii_uppercase().as_ref() {
                 "YES" | "Y" => {

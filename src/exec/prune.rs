@@ -73,9 +73,9 @@ impl PruneSnaps {
 
             let selection = view_mode.select(&preview_buffer, false)?;
 
-            let Some(user_consent) = selection.get(0) else {
-                return Err(HttmError::new("Could not obtain the first match selected").into());
-            };
+            let user_consent = selection
+                .get(0)
+                .ok_or_else(|| HttmError::new("Could not obtain the first match selected"))?;
 
             match user_consent.to_ascii_uppercase().as_ref() {
                 "YES" | "Y" => {
