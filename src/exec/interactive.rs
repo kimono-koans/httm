@@ -258,7 +258,7 @@ impl InteractiveSelect {
                         .ok()
                         .map(|path| path.to_string_lossy().to_string());
 
-                let view_mode = &ViewMode::Select(opt_live_version.clone());
+                let view_mode = &ViewMode::Select(opt_live_version);
 
                 let preview_selection = PreviewSelection::new(view_mode)?;
 
