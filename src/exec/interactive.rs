@@ -181,14 +181,13 @@ impl InteractiveSelect {
                     .into());
                 };
 
+                // this could be a parsing error, but is most likely the user selecting a pretty border line
                 let Some(path_string) = first_match
                     .split_once("\"")
                     .and_then(|(_lhs, rhs)| rhs.rsplit_once("\""))
                     .map(|(lhs, _rhs)| lhs)
                 else {
-                    return Err(
-                        HttmError::new("Could not obtain valid path from selected input").into(),
-                    );
+                    continue;
                 };
 
                 // and cannot select a 'live' version or other invalid value.
