@@ -104,17 +104,20 @@ pub fn install_hot_keys() -> HttmResult<()> {
             ) {
                 Ok(_) => {
                     eprintln!("httm: zsh hot keys were installed successfully.");
-                    std::process::exit(0)
                 }
                 Err(err) => {
-                    Err(HttmError::with_context("httm: could not move .httm-key-bindings.zsh.tmp to .httm-key-bindings.zsh for the following reason: ", &err).into())
+                    return Err(HttmError::with_context("httm: could not move .httm-key-bindings.zsh.tmp to .httm-key-bindings.zsh for the following reason: ", &err).into())
                 }
             }
         }
-        Err(err) => Err(HttmError::with_context(
-            "Opening ~/.httm-key-bindings.zsh.tmp file failed for the following reason: ",
-            &err,
-        )
-        .into()),
+        Err(err) => {
+            return Err(HttmError::with_context(
+                "Opening ~/.httm-key-bindings.zsh.tmp file failed for the following reason: ",
+                &err,
+            )
+            .into())
+        }
     }
+
+    std::process::exit(0)
 }

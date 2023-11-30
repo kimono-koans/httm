@@ -118,10 +118,12 @@ impl InteractiveSelect {
             // one only allow one to select one path string during select
             // but we retain paths_selected_in_browse because we may need
             // it later during restore if opt_overwrite is selected
-            InteractiveMode::Restore(_) => InteractiveRestore::exec(select_result),
-            InteractiveMode::Select(select_mode) => select_result.print_selections(select_mode),
+            InteractiveMode::Restore(_) => InteractiveRestore::exec(select_result)?,
+            InteractiveMode::Select(select_mode) => select_result.print_selections(select_mode)?,
             InteractiveMode::Browse => unreachable!(),
         }
+
+        std::process::exit(0);
     }
 
     fn new(browse_result: InteractiveBrowse) -> HttmResult<Self> {
@@ -219,7 +221,7 @@ impl InteractiveSelect {
             .map(Path::new)
             .try_for_each(|snap_path| self.print_snap_path(snap_path, select_mode))?;
 
-        std::process::exit(0);
+        Ok(())
     }
 
     fn print_snap_path(&self, snap_path: &Path, select_mode: &SelectMode) -> HttmResult<()> {

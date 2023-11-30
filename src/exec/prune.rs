@@ -38,7 +38,9 @@ impl PruneSnaps {
             false
         };
 
-        Self::interactive_prune(&snap_name_map, select_mode)
+        Self::interactive_prune(&snap_name_map, select_mode)?;
+
+        std::process::exit(0)
     }
 
     fn interactive_prune(snap_name_map: &SnapNameMap, select_mode: bool) -> HttmResult<()> {
@@ -97,7 +99,7 @@ impl PruneSnaps {
             }
         }
 
-        std::process::exit(0)
+        Ok(())
     }
 
     fn prune_snaps(snap_name_map: &SnapNameMap) -> HttmResult<()> {
