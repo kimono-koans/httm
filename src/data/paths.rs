@@ -222,47 +222,57 @@ impl PathData {
         })
     }
 
-    pub fn snap_path_to_target(&self, proximate_dataset_mount: &Path) -> Option<PathBuf> {
-        if self.is_snap_path() {
-            if let Ok(relative) = self.snap_path_to_relative_path(proximate_dataset_mount) {
-                let target: PathBuf = self
-                    .path_buf
-                    .ancestors()
-                    .zip(relative.ancestors())
-                    .skip_while(|(a_path, b_path)| a_path == b_path)
-                    .map(|(a_path, _b_path)| a_path)
-                    .collect();
+    pub fn is_snap_path(&self) -> bool {
+        self.path_buf
+            .to_string_lossy()
+            .contains(ZFS_SNAPSHOT_DIRECTORY)
+    }
+}
 
-                return Some(target);
-            }
+pub struct SnapPathData<'a> {
+    inner: &'a PathData,
+}
+
+impl<'a> SnapPathData<'a> {
+    pub fn new(pathdata: &'a PathData) -> Option<Self> {
+        if !pathdata.is_snap_path() {
+            return None;
+        }
+
+        Some(Self { inner: pathdata })
+    }
+
+    pub fn target(&self, proximate_dataset_mount: &Path) -> Option<PathBuf> {
+        if let Ok(relative) = self.relative_path(proximate_dataset_mount) {
+            let target: PathBuf = self
+                .inner
+                .path_buf
+                .ancestors()
+                .zip(relative.ancestors())
+                .skip_while(|(a_path, b_path)| a_path == b_path)
+                .map(|(a_path, _b_path)| a_path)
+                .collect();
+
+            return Some(target);
         }
 
         None
     }
 
-    pub fn snap_path_to_relative_path(
-        &self,
-        proximate_dataset_mount: &Path,
-    ) -> HttmResult<PathBuf> {
-        if self.is_snap_path() {
-            let relative_path = self.relative_path(proximate_dataset_mount)?;
-            let snapshot_stripped_set = relative_path.strip_prefix(ZFS_SNAPSHOT_DIRECTORY)?;
-            if let Some(snapshot_name) = snapshot_stripped_set.components().next() {
-                let res = snapshot_stripped_set.strip_prefix(snapshot_name)?;
-                return Ok(res.to_path_buf());
-            }
+    pub fn relative_path(&self, proximate_dataset_mount: &Path) -> HttmResult<PathBuf> {
+        let relative_path = self.inner.relative_path(proximate_dataset_mount)?;
+        let snapshot_stripped_set = relative_path.strip_prefix(ZFS_SNAPSHOT_DIRECTORY)?;
+        if let Some(snapshot_name) = snapshot_stripped_set.components().next() {
+            let res = snapshot_stripped_set.strip_prefix(snapshot_name)?;
+            return Ok(res.to_path_buf());
         }
 
-        let msg = format!("Path is not a snap path: {:?}", self.path_buf);
+        let msg = format!("Path is not a snap path: {:?}", self.inner.path_buf);
         Err(HttmError::new(&msg).into())
     }
 
-    pub fn snap_path_to_snap_source(&self) -> Option<String> {
-        if !self.is_snap_path() {
-            return None;
-        }
-
-        let path_string = &self.path_buf.to_string_lossy();
+    pub fn source(&self) -> Option<String> {
+        let path_string = &self.inner.path_buf.to_string_lossy();
 
         let (dataset_path, relative_and_snap) =
             path_string.split_once(&format!("{ZFS_SNAPSHOT_DIRECTORY}/"))?;
@@ -278,20 +288,14 @@ impl PathData {
                 Some(format!("{}@{snap_name}", md.source.to_string_lossy()))
             }
             Some(_md) => {
-                eprintln!("WARNING: {:?} is located on a non-ZFS dataset.  httm can only list snapshot names for ZFS datasets.", self.path_buf);
+                eprintln!("WARNING: {:?} is located on a non-ZFS dataset.  httm can only list snapshot names for ZFS datasets.", self.inner.path_buf);
                 None
             }
             _ => {
-                eprintln!("WARNING: {:?} is not located on a discoverable dataset.  httm can only list snapshot names for ZFS datasets.", self.path_buf);
+                eprintln!("WARNING: {:?} is not located on a discoverable dataset.  httm can only list snapshot names for ZFS datasets.", self.inner.path_buf);
                 None
             }
         }
-    }
-
-    pub fn is_snap_path(&self) -> bool {
-        self.path_buf
-            .to_string_lossy()
-            .contains(ZFS_SNAPSHOT_DIRECTORY)
     }
 }
 

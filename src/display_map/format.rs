@@ -16,6 +16,7 @@
 // that was distributed with this source code.
 
 use crate::config::generate::{ExecMode, MountDisplay, PrintMode};
+use crate::data::paths::SnapPathData;
 use crate::display_versions::format::{NOT_SO_PRETTY_FIXED_WIDTH_PADDING, QUOTATION_MARKS_LEN};
 use crate::library::utility::delimiter;
 use crate::{MountsForFiles, SnapNameMap, VersionsMap, GLOBAL_CONFIG};
@@ -65,7 +66,9 @@ impl<'a> From<&MountsForFiles<'a>> for PrintAsMap {
                     .iter()
                     .filter_map(|value| match mounts_for_files.mount_display() {
                         MountDisplay::Target => {
-                            if let Some(target) = key.snap_path_to_target(&value.path_buf) {
+                            if let Some(target) =
+                                SnapPathData::new(key).and_then(|spd| spd.target(&value.path_buf))
+                            {
                                 return Some(Cow::Owned(target.to_string_lossy().to_string()));
                             }
 
@@ -76,15 +79,17 @@ impl<'a> From<&MountsForFiles<'a>> for PrintAsMap {
                             .map_of_datasets
                             .get(&value.path_buf)
                             .map(|md| {
-                                if let Some(snap_source) = key.snap_path_to_snap_source() {
+                                if let Some(snap_source) =
+                                    SnapPathData::new(key).and_then(|spd| spd.source())
+                                {
                                     return Cow::Owned(snap_source);
                                 }
 
                                 md.source.to_string_lossy()
                             }),
                         MountDisplay::RelativePath => {
-                            if let Some(relative_path) =
-                                key.snap_path_to_relative_path(&value.path_buf).ok()
+                            if let Some(relative_path) = SnapPathData::new(key)
+                                .and_then(|spd| spd.relative_path(&value.path_buf).ok())
                             {
                                 return Some(Cow::Owned(
                                     relative_path.to_string_lossy().to_string(),
