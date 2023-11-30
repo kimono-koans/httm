@@ -16,12 +16,7 @@
 // that was distributed with this source code.
 
 use crate::config::generate::{
-    ExecMode,
-    InteractiveMode,
-    PrintMode,
-    RestoreMode,
-    RestoreSnapGuard,
-    SelectMode,
+    ExecMode, InteractiveMode, PrintMode, RestoreMode, RestoreSnapGuard, SelectMode,
 };
 use crate::data::paths::{PathData, PathMetadata};
 use crate::display_versions::wrapper::VersionsDisplayWrapper;
@@ -30,14 +25,8 @@ use crate::exec::recursive::RecursiveSearch;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::snap_guard::SnapGuard;
 use crate::library::utility::{
-    copy_recursive,
-    date_string,
-    delimiter,
-    print_output_buf,
-    user_has_effective_root,
-    user_has_zfs_allow_snap_priv,
-    DateFormat,
-    Never,
+    copy_recursive, date_string, delimiter, print_output_buf, user_has_effective_root,
+    user_has_zfs_allow_snap_priv, DateFormat, Never,
 };
 use crate::lookup::versions::VersionsMap;
 use crate::{Config, GLOBAL_CONFIG};
@@ -655,7 +644,7 @@ impl ViewMode {
         let item_reader_opts = SkimItemReaderOption::default().ansi(true);
         let item_reader = SkimItemReader::new(item_reader_opts);
 
-        let (items, opt_handle) =
+        let (items, opt_ingest_handle) =
             item_reader.of_bufread(Box::new(Cursor::new(preview_buffer.trim().to_owned())));
 
         // run_with() reads and shows items from the thread stream created above
@@ -674,7 +663,7 @@ impl ViewMode {
             }
         };
 
-        if let Some(handle) = opt_handle {
+        if let Some(handle) = opt_ingest_handle {
             let _ = handle.join();
         };
 
