@@ -913,13 +913,7 @@ impl Config {
                     // but what about snapshot paths?
                     // here we strip the additional snapshot VFS bits and make them look like live versions
                     if let Some(spd) = SnapPathData::new(&pd) {
-                        if !matches!(
-                            exec_mode,
-                            ExecMode::MountsForFiles(_)
-                                | ExecMode::SnapFileMount(_)
-                                | ExecMode::Prune(_)
-                                | ExecMode::SnapsForFiles(_)
-                        ) {
+                        if !matches!(exec_mode, ExecMode::MountsForFiles(_)) {
                             return spd.live_path();
                         }
                     }
