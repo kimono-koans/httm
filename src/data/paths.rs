@@ -297,6 +297,22 @@ impl<'a> SnapPathData<'a> {
             }
         }
     }
+
+    pub fn live_path(&self) -> Option<PathData> {
+        if let Some((proximate_dataset_mount, relative_and_snap_name)) = self
+            .inner
+            .path_buf
+            .to_string_lossy()
+            .split_once(&format!("{ZFS_SNAPSHOT_DIRECTORY}/"))
+        {
+            if let Some((_snap_name, relative)) = relative_and_snap_name.split_once("/") {
+                let joined = PathBuf::from(proximate_dataset_mount).join(Path::new(relative));
+                return Some(PathData::from(joined));
+            }
+        }
+
+        None
+    }
 }
 
 impl Serialize for PathData {
