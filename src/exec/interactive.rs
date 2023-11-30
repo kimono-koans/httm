@@ -16,12 +16,7 @@
 // that was distributed with this source code.
 
 use crate::config::generate::{
-    ExecMode,
-    InteractiveMode,
-    PrintMode,
-    RestoreMode,
-    RestoreSnapGuard,
-    SelectMode,
+    ExecMode, InteractiveMode, PrintMode, RestoreMode, RestoreSnapGuard, SelectMode,
 };
 use crate::data::paths::{PathData, PathMetadata};
 use crate::display_versions::wrapper::VersionsDisplayWrapper;
@@ -30,14 +25,8 @@ use crate::exec::recursive::RecursiveSearch;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::snap_guard::SnapGuard;
 use crate::library::utility::{
-    copy_recursive,
-    date_string,
-    delimiter,
-    print_output_buf,
-    user_has_effective_root,
-    user_has_zfs_allow_snap_priv,
-    DateFormat,
-    Never,
+    copy_recursive, date_string, delimiter, print_output_buf, user_has_effective_root,
+    user_has_zfs_allow_snap_priv, DateFormat, Never,
 };
 use crate::lookup::versions::VersionsMap;
 use crate::{Config, GLOBAL_CONFIG};
@@ -380,9 +369,14 @@ impl InteractiveRestore {
         // loop until user consents or doesn't
         loop {
             let view_mode = &ViewMode::Restore;
-            let user_consent = view_mode.select(&preview_buffer, false)?[0].to_ascii_uppercase();
 
-            match user_consent.as_ref() {
+            let selection = view_mode.select(&preview_buffer, false)?;
+
+            let Some(user_consent) = selection.get(0) else {
+                return Err(HttmError::new("Could not obtain the first match selected.").into());
+            };
+
+            match user_consent.to_ascii_uppercase().as_ref() {
                 "YES" | "Y" => {
                     if matches!(
                         GLOBAL_CONFIG.exec_mode,
