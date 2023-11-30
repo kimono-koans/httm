@@ -306,8 +306,9 @@ impl<'a> SnapPathData<'a> {
             .split_once(&format!("{ZFS_SNAPSHOT_DIRECTORY}/"))
         {
             if let Some((_snap_name, relative)) = relative_and_snap_name.split_once("/") {
-                let joined = PathBuf::from(proximate_dataset_mount).join(Path::new(relative));
-                return Some(PathData::from(joined));
+                return Some(PathData::from(
+                    PathBuf::from(proximate_dataset_mount).join(Path::new(relative)),
+                ));
             }
         }
 
