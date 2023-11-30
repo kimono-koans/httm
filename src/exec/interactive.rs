@@ -550,8 +550,7 @@ impl ViewMode {
         let header: String = self.print_header();
 
         let display_handle = thread::spawn(move || {
-            let opt_multi =
-                GLOBAL_CONFIG.opt_last_snap.is_none() && GLOBAL_CONFIG.opt_preview.is_none();
+            let opt_multi = GLOBAL_CONFIG.opt_preview.is_none();
 
             // create the skim component for previews
             let skim_opts = SkimOptionsBuilder::default()
