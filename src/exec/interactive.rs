@@ -158,14 +158,22 @@ impl InteractiveSelect {
                 }
             });
 
-            // loop until user selects a valid snapshot version
-            loop {
-                let opt_live_version: Option<String> = browse_result
+            let opt_live_version: Option<String> = if GLOBAL_CONFIG.opt_last_snap.is_none()
+                || GLOBAL_CONFIG.opt_preview.is_none()
+                || browse_result.selected_pathdata.len() > 1
+            {
+                None
+            } else {
+                browse_result
                     .selected_pathdata
                     .get(0)
-                    .map(|pathdata| pathdata.path_buf.to_string_lossy().into_owned());
+                    .map(|pathdata| pathdata.path_buf.to_string_lossy().into_owned())
+            };
 
-                let view_mode = ViewMode::Select(opt_live_version);
+            let view_mode = ViewMode::Select(opt_live_version);
+
+            // loop until user selects a valid snapshot version
+            loop {
                 // get the file name
                 let requested_file_names =
                     view_mode.select(&selection_buffer, InteractiveMultiSelect::On)?;
@@ -618,8 +626,6 @@ impl ViewMode {
         let header = self.print_header();
 
         let opt_multi = match opt_multi {
-            InteractiveMultiSelect::On if GLOBAL_CONFIG.opt_last_snap.is_none() => false,
-            InteractiveMultiSelect::On if GLOBAL_CONFIG.opt_preview.is_none() => false,
             InteractiveMultiSelect::On => true,
             InteractiveMultiSelect::Off => false,
         };
