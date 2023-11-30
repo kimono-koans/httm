@@ -152,25 +152,20 @@ impl InteractiveSelect {
 
             let selection_buffer = display_map.to_string();
 
-            let opt_live_version: Option<String> = browse_result
-                .selected_pathdata
-                .get(0)
-                .map(|pathdata| pathdata.path_buf.to_string_lossy().into_owned());
-
-            if display_map.map.values().all(|snaps| snaps.is_empty()) {
-                if let Some(live_version) = opt_live_version {
-                    eprintln!(
-                        "WARN: Since {:?} has no snapshots available, quitting.",
-                        live_version
-                    );
-                    print_output_buf(selection_buffer)?;
-                    std::process::exit(0)
+            display_map.map.iter().for_each(|(live, snaps)| {
+                if snaps.is_empty() {
+                    eprintln!("WARN: Path {:?} has no snapshots available.", live)
                 }
-            }
+            });
 
             // loop until user selects a valid snapshot version
             loop {
-                let view_mode = &ViewMode::Select(opt_live_version.clone());
+                let opt_live_version: Option<String> = browse_result
+                    .selected_pathdata
+                    .get(0)
+                    .map(|pathdata| pathdata.path_buf.to_string_lossy().into_owned());
+
+                let view_mode = ViewMode::Select(opt_live_version);
                 // get the file name
                 let requested_file_names =
                     view_mode.select(&selection_buffer, InteractiveMultiSelect::On)?;
@@ -253,10 +248,10 @@ impl InteractiveSelect {
                 Ok(())
             }
             SelectMode::Preview => {
-                let opt_live_version: Option<String> = self
-                    .paths_selected_in_browse
-                    .get(0)
-                    .map(|pathdata| pathdata.path_buf.to_string_lossy().into_owned());
+                let opt_live_version: Option<String> =
+                    opt_live_version(&PathData::from(snap_path), &self.paths_selected_in_browse)
+                        .ok()
+                        .map(|path| path.to_string_lossy().to_string());
 
                 let view_mode = &ViewMode::Select(opt_live_version.clone());
 
@@ -463,27 +458,8 @@ impl InteractiveRestore {
             // into the pwd, here, we actually look for the original location of the file to make sure we overwrite it.
             // so, if you were in /etc and wanted to restore /etc/samba/smb.conf, httm will make certain to overwrite
             // at /etc/samba/smb.conf
-            match SnapPathGuard::new(snap_pathdata) {
-                Some(original_live_pathdata) => return Ok(original_live_pathdata.path_buf.clone()),
-                None => {
-                    return paths_selected_in_browse
-                        .iter()
-                        .max_by_key(|live_path| {
-                            snap_pathdata
-                                .path_buf
-                                .ancestors()
-                                .zip(live_path.path_buf.ancestors())
-                                .take_while(|(a_path, b_path)| a_path == b_path)
-                                .count()
-                        })
-                        .map(|pd| pd.path_buf.clone())
-                        .ok_or_else(|| {
-                            HttmError::new(
-                            "httm unable to determine original file path in overwrite mode.  Quitting.",
-                        ).into()
-                        });
-                }
-            }
+
+            return opt_live_version(snap_pathdata, paths_selected_in_browse);
         }
 
         let snap_filename = snap_pathdata
@@ -642,6 +618,8 @@ impl ViewMode {
         let header = self.print_header();
 
         let opt_multi = match opt_multi {
+            InteractiveMultiSelect::On if GLOBAL_CONFIG.opt_last_snap.is_none() => false,
+            InteractiveMultiSelect::On if GLOBAL_CONFIG.opt_preview.is_none() => false,
             InteractiveMultiSelect::On => true,
             InteractiveMultiSelect::Off => false,
         };
@@ -695,5 +673,33 @@ impl ViewMode {
         }
 
         Ok(res)
+    }
+}
+
+pub fn opt_live_version(
+    snap_pathdata: &PathData,
+    paths_selected_in_browse: &Vec<PathData>,
+) -> HttmResult<PathBuf> {
+    match SnapPathGuard::new(snap_pathdata) {
+        Some(original_live_pathdata) => return Ok(original_live_pathdata.path_buf.clone()),
+        None => {
+            return paths_selected_in_browse
+                .iter()
+                .max_by_key(|live_path| {
+                    snap_pathdata
+                        .path_buf
+                        .ancestors()
+                        .zip(live_path.path_buf.ancestors())
+                        .take_while(|(a_path, b_path)| a_path == b_path)
+                        .count()
+                })
+                .map(|pd| pd.path_buf.clone())
+                .ok_or_else(|| {
+                    HttmError::new(
+                        "httm unable to determine original file path in overwrite mode.  Quitting.",
+                    )
+                    .into()
+                });
+        }
     }
 }
