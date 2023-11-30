@@ -463,60 +463,61 @@ impl InteractiveRestore {
             // into the pwd, here, we actually look for the original location of the file to make sure we overwrite it.
             // so, if you were in /etc and wanted to restore /etc/samba/smb.conf, httm will make certain to overwrite
             // at /etc/samba/smb.conf
-            let Some(original_live_pathdata) = SnapPathGuard::new(snap_pathdata) else {
-                return paths_selected_in_browse
-                    .iter()
-                    .max_by_key(|live_path| {
-                        snap_pathdata
-                            .path_buf
-                            .ancestors()
-                            .zip(live_path.path_buf.ancestors())
-                            .take_while(|(a_path, b_path)| a_path == b_path)
-                            .count()
-                    })
-                    .map(|pd| pd.path_buf.clone())
-                    .ok_or_else(|| {
-                        HttmError::new(
-                        "httm unable to determine original file path in overwrite mode.  Quitting.",
-                    ).into()
-                    });
-            };
+            match SnapPathGuard::new(snap_pathdata) {
+                Some(original_live_pathdata) => return Ok(original_live_pathdata.path_buf.clone()),
+                None => {
+                    return paths_selected_in_browse
+                        .iter()
+                        .max_by_key(|live_path| {
+                            snap_pathdata
+                                .path_buf
+                                .ancestors()
+                                .zip(live_path.path_buf.ancestors())
+                                .take_while(|(a_path, b_path)| a_path == b_path)
+                                .count()
+                        })
+                        .map(|pd| pd.path_buf.clone())
+                        .ok_or_else(|| {
+                            HttmError::new(
+                            "httm unable to determine original file path in overwrite mode.  Quitting.",
+                        ).into()
+                        });
+                }
+            }
+        }
 
-            Ok(original_live_pathdata.path_buf.clone())
-        } else {
-            let snap_filename = snap_pathdata
-                .path_buf
-                .file_name()
-                .expect("Could not obtain a file name for the snap file version of path given")
-                .to_string_lossy()
-                .into_owned();
+        let snap_filename = snap_pathdata
+            .path_buf
+            .file_name()
+            .expect("Could not obtain a file name for the snap file version of path given")
+            .to_string_lossy()
+            .into_owned();
 
-            let Some(snap_metadata) = snap_pathdata.metadata else {
-                let msg = format!(
-                    "Source location: {:?} does not exist on disk Quitting.",
-                    snap_pathdata.path_buf
-                );
-                return Err(HttmError::new(&msg).into());
-            };
+        let Some(snap_metadata) = snap_pathdata.metadata else {
+            let msg = format!(
+                "Source location: {:?} does not exist on disk Quitting.",
+                snap_pathdata.path_buf
+            );
+            return Err(HttmError::new(&msg).into());
+        };
 
-            let new_filename = snap_filename
-                + ".httm_restored."
-                + &date_string(
-                    GLOBAL_CONFIG.requested_utc_offset,
-                    &snap_metadata.modify_time,
-                    DateFormat::Timestamp,
-                );
-            let new_file_dir = GLOBAL_CONFIG.pwd.as_path();
-            let new_file_path_buf: PathBuf = new_file_dir.join(new_filename);
+        let new_filename = snap_filename
+            + ".httm_restored."
+            + &date_string(
+                GLOBAL_CONFIG.requested_utc_offset,
+                &snap_metadata.modify_time,
+                DateFormat::Timestamp,
+            );
+        let new_file_dir = GLOBAL_CONFIG.pwd.as_path();
+        let new_file_path_buf: PathBuf = new_file_dir.join(new_filename);
 
-            // don't let the user rewrite one restore over another in non-overwrite mode
-            if new_file_path_buf.exists() {
-                Err(
+        // don't let the user rewrite one restore over another in non-overwrite mode
+        if new_file_path_buf.exists() {
+            Err(
                     HttmError::new("httm will not restore to that file, as a file with the same path name already exists. Quitting.").into(),
                 )
-            } else {
-                Ok(new_file_path_buf)
-            }
+        } else {
+            Ok(new_file_path_buf)
         }
     }
 }
