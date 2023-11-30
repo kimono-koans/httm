@@ -158,10 +158,7 @@ impl InteractiveSelect {
                 }
             });
 
-            let opt_live_version: Option<String> = if GLOBAL_CONFIG.opt_last_snap.is_none()
-                || GLOBAL_CONFIG.opt_preview.is_none()
-                || browse_result.selected_pathdata.len() > 1
-            {
+            let opt_live_version: Option<String> = if browse_result.selected_pathdata.len() > 1 {
                 None
             } else {
                 browse_result
@@ -554,7 +551,7 @@ impl ViewMode {
 
         let display_handle = thread::spawn(move || {
             let opt_multi =
-                GLOBAL_CONFIG.opt_last_snap.is_none() || GLOBAL_CONFIG.opt_preview.is_none();
+                GLOBAL_CONFIG.opt_last_snap.is_none() && GLOBAL_CONFIG.opt_preview.is_none();
 
             // create the skim component for previews
             let skim_opts = SkimOptionsBuilder::default()
