@@ -102,7 +102,7 @@ impl InteractiveBrowse {
 }
 
 struct InteractiveSelect {
-    snap_path_string: String,
+    snap_path_strings: Vec<String>,
     paths_selected_in_browse: Vec<PathData>,
 }
 
@@ -142,8 +142,8 @@ impl InteractiveSelect {
             return Err(HttmError::new(&msg).into());
         }
 
-        let snap_path_string = if GLOBAL_CONFIG.opt_last_snap.is_some() {
-            Self::last_snap(&browse_result.selected_pathdata, &versions_map)?
+        let snap_path_strings = if GLOBAL_CONFIG.opt_last_snap.is_some() {
+            Self::last_snaps(&browse_result.selected_pathdata, &versions_map)?
         } else {
             // same stuff we do at fn exec, snooze...
             let display_config = Config::from(browse_result.selected_pathdata.clone());
@@ -173,23 +173,24 @@ impl InteractiveSelect {
                 let view_mode = &ViewMode::Select(opt_live_version.clone());
                 // get the file name
                 let requested_file_names = view_mode.select(&selection_buffer, true)?;
-                // ... we want everything between the quotes
 
-                // and cannot select a 'live' version or other invalid value.
                 break requested_file_names
                     .iter()
                     .filter_map(|selection| {
+                        // ... we want everything between the quotes
                         selection
                             .split_once("\"")
                             .and_then(|(_lhs, rhs)| rhs.rsplit_once("\""))
                             .map(|(lhs, _rhs)| lhs)
                     })
                     .filter(|selection_buffer| {
+                        // and cannot select a 'live' version or other invalid value.
                         display_map
                             .keys()
                             .all(|key| key.path_buf.as_path() != Path::new(selection_buffer))
                     })
-                    .collect();
+                    .map(|selection_buffer| selection_buffer.to_string())
+                    .collect::<Vec<String>>();
             }
         };
 
@@ -200,123 +201,126 @@ impl InteractiveSelect {
         }
 
         Ok(Self {
-            snap_path_string,
+            snap_path_strings,
             paths_selected_in_browse,
         })
     }
 
     fn print_selection(&self, select_mode: &SelectMode) -> HttmResult<()> {
-        let snap_path = Path::new(&self.snap_path_string);
+        self.snap_path_strings
+            .iter()
+            .map(Path::new)
+            .try_for_each(|snap_path| match select_mode {
+                SelectMode::Path => {
+                    let delimiter = delimiter();
+                    let output_buf = match GLOBAL_CONFIG.print_mode {
+                        PrintMode::RawNewline | PrintMode::RawZero => {
+                            format!("{}{delimiter}", snap_path.to_string_lossy())
+                        }
+                        PrintMode::FormattedDefault | PrintMode::FormattedNotPretty => {
+                            format!("\"{}\"{delimiter}", snap_path.to_string_lossy())
+                        }
+                    };
 
-        match select_mode {
-            SelectMode::Path => {
-                let delimiter = delimiter();
-                let output_buf = match GLOBAL_CONFIG.print_mode {
-                    PrintMode::RawNewline | PrintMode::RawZero => {
-                        format!("{}{delimiter}", self.snap_path_string)
-                    }
-                    PrintMode::FormattedDefault | PrintMode::FormattedNotPretty => {
-                        format!("\"{}\"{delimiter}", self.snap_path_string)
-                    }
-                };
+                    print_output_buf(output_buf).map_err(|err| err.into());
 
-                print_output_buf(output_buf)?;
-
-                std::process::exit(0)
-            }
-            SelectMode::Contents => {
-                if !snap_path.is_file() {
-                    let msg = format!("Path is not a file: {:?}", snap_path);
-                    return Err(HttmError::new(&msg).into());
+                    Ok(())
                 }
-                let mut f = std::fs::File::open(snap_path)?;
-                let mut contents = String::new();
-                f.read_to_string(&mut contents)?;
-
-                print_output_buf(contents)?;
-
-                std::process::exit(0)
-            }
-            SelectMode::Preview => {
-                let opt_live_version: Option<String> = self
-                    .paths_selected_in_browse
-                    .get(0)
-                    .map(|pathdata| pathdata.path_buf.to_string_lossy().into_owned());
-
-                let view_mode = &ViewMode::Select(opt_live_version.clone());
-
-                let preview_selection = PreviewSelection::new(view_mode)?;
-
-                let cmd = if let Some(command) = preview_selection.opt_preview_command {
-                    command.replace("$snap_file", &format!("{:?}", snap_path))
-                } else {
-                    return Err(HttmError::new("Could not parse preview command").into());
-                };
-
-                let env_command =
-                    which::which("env").unwrap_or_else(|_| PathBuf::from("/usr/bin/env"));
-
-                let spawned = ExecProcess::new(env_command)
-                    .arg("bash")
-                    .arg("-c")
-                    .arg(cmd)
-                    .stdout(std::process::Stdio::piped())
-                    .stderr(std::process::Stdio::piped())
-                    .spawn()?;
-
-                if let Some(mut stderr) = spawned.stderr {
-                    let mut output_buf = String::new();
-                    stderr.read_to_string(&mut output_buf)?;
-                    if !output_buf.is_empty() {
-                        eprintln!("{}", &output_buf)
-                    }
-                }
-
-                match spawned.stdout {
-                    Some(mut stdout) => {
-                        let mut output_buf = String::new();
-                        stdout.read_to_string(&mut output_buf)?;
-                        print_output_buf(output_buf)?;
-                    }
-                    None => {
-                        let msg =
-                            format!("Preview command output was empty for path: {:?}", snap_path);
+                SelectMode::Contents => {
+                    if !snap_path.is_file() {
+                        let msg = format!("Path is not a file: {:?}", snap_path);
                         return Err(HttmError::new(&msg).into());
                     }
-                }
+                    let mut f = std::fs::File::open(snap_path)?;
+                    let mut contents = String::new();
+                    f.read_to_string(&mut contents)?;
 
-                std::process::exit(0);
-            }
-        }
+                    print_output_buf(contents)?;
+
+                    Ok(())
+                }
+                SelectMode::Preview => {
+                    let opt_live_version: Option<String> = self
+                        .paths_selected_in_browse
+                        .get(0)
+                        .map(|pathdata| pathdata.path_buf.to_string_lossy().into_owned());
+
+                    let view_mode = &ViewMode::Select(opt_live_version.clone());
+
+                    let preview_selection = PreviewSelection::new(view_mode)?;
+
+                    let cmd = if let Some(command) = preview_selection.opt_preview_command {
+                        command.replace("$snap_file", &format!("{:?}", snap_path))
+                    } else {
+                        return Err(HttmError::new("Could not parse preview command").into());
+                    };
+
+                    let env_command =
+                        which::which("env").unwrap_or_else(|_| PathBuf::from("/usr/bin/env"));
+
+                    let spawned = ExecProcess::new(env_command)
+                        .arg("bash")
+                        .arg("-c")
+                        .arg(cmd)
+                        .stdout(std::process::Stdio::piped())
+                        .stderr(std::process::Stdio::piped())
+                        .spawn()?;
+
+                    if let Some(mut stderr) = spawned.stderr {
+                        let mut output_buf = String::new();
+                        stderr.read_to_string(&mut output_buf)?;
+                        if !output_buf.is_empty() {
+                            eprintln!("{}", &output_buf)
+                        }
+                    }
+
+                    match spawned.stdout {
+                        Some(mut stdout) => {
+                            let mut output_buf = String::new();
+                            stdout.read_to_string(&mut output_buf)?;
+                            print_output_buf(output_buf)?;
+                        }
+                        None => {
+                            let msg = format!(
+                                "Preview command output was empty for path: {:?}",
+                                snap_path
+                            );
+                            return Err(HttmError::new(&msg).into());
+                        }
+                    }
+
+                    Ok(())
+                }
+            });
+
+        std::process::exit(0);
     }
 
-    fn last_snap(
+    fn last_snaps(
         paths_selected_in_browse: &[PathData],
         versions_map: &VersionsMap,
-    ) -> HttmResult<String> {
+    ) -> HttmResult<Vec<String>> {
         // should be good to index into both, there is a known known 2nd vec,
-        let live_version = &paths_selected_in_browse
-            .get(0)
-            .expect("ExecMode::LiveSnap should always have exactly one path.");
-
-        let last_snap = versions_map
-            .values()
-            .flatten()
-            .filter(|snap_version| {
-                if GLOBAL_CONFIG.opt_omit_ditto {
-                    snap_version.md_infallible().modify_time
-                        != live_version.md_infallible().modify_time
-                } else {
-                    true
-                }
+        let last_snaps: Vec<String> = paths_selected_in_browse
+            .iter()
+            .filter_map(|live_version| {
+                versions_map
+                    .values()
+                    .flatten()
+                    .filter(|snap_version| {
+                        if GLOBAL_CONFIG.opt_omit_ditto {
+                            snap_version.md_infallible().modify_time
+                                != live_version.md_infallible().modify_time
+                        } else {
+                            true
+                        }
+                    })
+                    .last()
             })
-            .last()
-            .ok_or_else(|| HttmError::new("No last snapshot for the requested input file exists."))?
-            .path_buf
-            .to_string_lossy()
-            .into_owned();
+            .map(|snap| snap.path_buf.to_string_lossy().into_owned())
+            .collect();
 
-        Ok(last_snap)
+        Ok(last_snaps)
     }
 }
 
