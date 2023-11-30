@@ -352,15 +352,6 @@ impl InteractiveRestore {
         // if snap_pathdata is_phantom below
         let snap_pathdata = PathData::from(Path::new(snap_path_string));
 
-        // sanity check -- snap version has good metadata?
-        if snap_pathdata.metadata.is_none() {
-            let msg = format!(
-                "Source location: {:?} does not exist on disk Quitting.",
-                snap_path_string
-            );
-            return Err(HttmError::new(&msg).into());
-        }
-
         // build new place to send file
         let new_file_path_buf =
             Self::build_new_file_path(&snap_pathdata, paths_selected_in_browse)?;
@@ -500,11 +491,19 @@ impl InteractiveRestore {
                 .to_string_lossy()
                 .into_owned();
 
+            let Some(snap_metadata) = snap_pathdata.metadata else {
+                let msg = format!(
+                    "Source location: {:?} does not exist on disk Quitting.",
+                    snap_pathdata.path_buf
+                );
+                return Err(HttmError::new(&msg).into());
+            };
+
             let new_filename = snap_filename
                 + ".httm_restored."
                 + &date_string(
                     GLOBAL_CONFIG.requested_utc_offset,
-                    &snap_pathdata.md_infallible().modify_time,
+                    &snap_metadata.modify_time,
                     DateFormat::Timestamp,
                 );
             let new_file_dir = GLOBAL_CONFIG.pwd.as_path();
