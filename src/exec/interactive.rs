@@ -176,16 +176,31 @@ impl InteractiveSelect {
                 // get the file name
                 let requested_file_name = view_mode.select(&selection_buffer, false)?;
                 // ... we want everything between the quotes
-                let broken_string: Vec<_> = requested_file_name[0].split_terminator('"').collect();
-                // ... and the file is the 2nd item or the indexed "1" object
-                if let Some(path_string) = broken_string.get(1) {
-                    // and cannot select a 'live' version or other invalid value.
-                    if display_map.map.iter().all(|(live_version, _snaps)| {
-                        Path::new(path_string) != live_version.path_buf.as_path()
-                    }) {
-                        // return string from the loop
-                        break (*path_string).to_string();
-                    }
+                let Some(first_match) = requested_file_name.get(0) else {
+                    return Err(HttmError::new(
+                        "Could not obtain a first match for the selected input",
+                    )
+                    .into());
+                };
+
+                let Some(path_string) = first_match
+                    .split_once("\"")
+                    .and_then(|(_lhs, rhs)| rhs.rsplit_once("\""))
+                    .map(|(lhs, _rhs)| lhs)
+                else {
+                    return Err(
+                        HttmError::new("Could not obtain valid path from selected input").into(),
+                    );
+                };
+
+                // and cannot select a 'live' version or other invalid value.
+                if display_map
+                    .map
+                    .keys()
+                    .all(|live_version| Path::new(path_string) != live_version.path_buf.as_path())
+                {
+                    // return string from the loop
+                    break path_string.to_string();
                 }
             }
         };
