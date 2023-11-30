@@ -172,7 +172,8 @@ impl InteractiveSelect {
             loop {
                 let view_mode = &ViewMode::Select(opt_live_version.clone());
                 // get the file name
-                let requested_file_names = view_mode.select(&selection_buffer, true)?;
+                let requested_file_names =
+                    view_mode.select(&selection_buffer, InteractiveMultiSelect::On)?;
 
                 break requested_file_names
                     .iter()
@@ -373,7 +374,7 @@ impl InteractiveRestore {
         loop {
             let view_mode = &ViewMode::Restore;
 
-            let selection = view_mode.select(&preview_buffer, false)?;
+            let selection = view_mode.select(&preview_buffer, InteractiveMultiSelect::Off)?;
 
             let user_consent = selection
                 .get(0)
@@ -429,13 +430,15 @@ impl InteractiveRestore {
 
                     break println!("{result_buffer}");
                 }
-                "NO" | "N" => break println!("User declined restore.  No files were restored."),
+                "NO" | "N" => {
+                    break println!("User declined restore of: {:?}", snap_pathdata.path_buf)
+                }
                 // if not yes or no, then noop and continue to the next iter of loop
                 _ => {}
             }
         }
 
-        std::process::exit(0)
+        Ok(())
     }
 
     fn should_preserve_attributes() -> bool {
@@ -500,6 +503,11 @@ pub enum ViewMode {
     Select(Option<String>),
     Restore,
     Prune,
+}
+
+pub enum InteractiveMultiSelect {
+    On,
+    Off,
 }
 
 impl ViewMode {
@@ -600,10 +608,19 @@ impl ViewMode {
         };
     }
 
-    pub fn select(&self, preview_buffer: &str, opt_multi: bool) -> HttmResult<Vec<String>> {
+    pub fn select(
+        &self,
+        preview_buffer: &str,
+        opt_multi: InteractiveMultiSelect,
+    ) -> HttmResult<Vec<String>> {
         let preview_selection = PreviewSelection::new(self)?;
 
         let header = self.print_header();
+
+        let opt_multi = match opt_multi {
+            InteractiveMultiSelect::On => true,
+            InteractiveMultiSelect::Off => false,
+        };
 
         // build our browse view - less to do than before - no previews, looking through one 'lil buffer
         let skim_opts = SkimOptionsBuilder::default()
