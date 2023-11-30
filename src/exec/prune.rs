@@ -72,9 +72,9 @@ impl PruneSnaps {
             let view_mode = ViewMode::Prune;
 
             let selection = view_mode.select(&preview_buffer, false)?;
-            
+
             let Some(user_consent) = selection.get(0) else {
-                return Err(HttmError::new("Could not obtain the first match selected").into())
+                return Err(HttmError::new("Could not obtain the first match selected").into());
             };
 
             match user_consent.to_ascii_uppercase().as_ref() {
@@ -103,7 +103,7 @@ impl PruneSnaps {
         let zfs_command = which::which("zfs").map_err(|_err| {
             HttmError::new("'zfs' command not found. Make sure the command 'zfs' is in your path.")
         })?;
-        
+
         snap_name_map
             .values()
             .flatten()
@@ -113,7 +113,6 @@ impl PruneSnaps {
                 let process_output = ExecProcess::new(&zfs_command)
                     .args(&process_args)
                     .output()?;
-                
                 let stderr_string = std::str::from_utf8(&process_output.stderr)?.trim();
 
                 // stderr_string is a string not an error, so here we build an err or output
