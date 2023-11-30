@@ -157,17 +157,15 @@ impl InteractiveSelect {
                 .get(0)
                 .map(|pathdata| pathdata.path_buf.to_string_lossy().into_owned());
 
-            if let Some((live_version, _snaps)) = display_map
-                .map
-                .iter()
-                .find(|(_live_version, snaps)| snaps.is_empty())
-            {
-                eprintln!(
-                    "ERROR: Since {:?} has no snapshots available, quitting selection mode.",
-                    live_version.path_buf
-                );
-                print_output_buf(selection_buffer)?;
-                std::process::exit(1)
+            if display_map.map.values().all(|snaps| snaps.is_empty()) {
+                if let Some(live_version) = opt_live_version {
+                    eprintln!(
+                        "WARN: Since {:?} has no snapshots available, quitting.",
+                        live_version
+                    );
+                    print_output_buf(selection_buffer)?;
+                    std::process::exit(0)
+                }
             }
 
             // loop until user selects a valid snapshot version
@@ -197,7 +195,7 @@ impl InteractiveSelect {
                 if display_map
                     .map
                     .keys()
-                    .all(|live_version| Path::new(path_string) != live_version.path_buf.as_path())
+                    .all(|live_version| path_string != live_version.path_buf.to_string_lossy())
                 {
                     // return string from the loop
                     break path_string.to_string();
