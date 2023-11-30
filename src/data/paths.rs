@@ -258,30 +258,33 @@ impl PathData {
     }
 
     pub fn snap_path_to_snap_source(&self) -> Option<String> {
+        if !self.is_snap_path() {
+            return None;
+        }
+
         let path_string = &self.path_buf.to_string_lossy();
 
-        let (dataset_path, (snap, _relpath)) = if let Some((lhs, rhs)) =
-            path_string.split_once(&format!("{ZFS_SNAPSHOT_DIRECTORY}/"))
-        {
-            (Path::new(lhs), rhs.split_once('/').unwrap_or((rhs, "")))
-        } else {
-            return None;
-        };
+        let (dataset_path, relative_and_snap) =
+            path_string.split_once(&format!("{ZFS_SNAPSHOT_DIRECTORY}/"))?;
 
-        let opt_dataset_md = GLOBAL_CONFIG
+        let (snap_name, _relative) = relative_and_snap.split_once('/')?;
+
+        match GLOBAL_CONFIG
             .dataset_collection
             .map_of_datasets
-            .get(dataset_path);
-
-        match opt_dataset_md {
+            .get(Path::new(dataset_path))
+        {
             Some(md) if md.fs_type == FilesystemType::Zfs => {
-                Some(format!("{}@{snap}", md.source.to_string_lossy()))
+                Some(format!("{}@{snap_name}", md.source.to_string_lossy()))
             }
             Some(_md) => {
                 eprintln!("WARNING: {:?} is located on a non-ZFS dataset.  httm can only list snapshot names for ZFS datasets.", self.path_buf);
                 None
             }
-            _ => None,
+            _ => {
+                eprintln!("WARNING: {:?} is not located on a discoverable dataset.  httm can only list snapshot names for ZFS datasets.", self.path_buf);
+                None
+            }
         }
     }
 
