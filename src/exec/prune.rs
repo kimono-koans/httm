@@ -69,10 +69,15 @@ impl PruneSnaps {
 
         // loop until user consents or doesn't
         loop {
-            let view_mode = &ViewMode::Prune;
-            let user_consent = view_mode.select(&preview_buffer, false)?[0].to_ascii_uppercase();
+            let view_mode = ViewMode::Prune;
 
-            match user_consent.as_ref() {
+            let selection = view_mode.select(&preview_buffer, false)?;
+            
+            let Some(user_consent) = selection.get(0) else {
+                return Err(HttmError::new("Could not obtain the first match selected").into())
+            };
+
+            match user_consent.to_ascii_uppercase().as_ref() {
                 "YES" | "Y" => {
                     Self::prune_snaps(snap_name_map)?;
 
@@ -98,31 +103,33 @@ impl PruneSnaps {
         let zfs_command = which::which("zfs").map_err(|_err| {
             HttmError::new("'zfs' command not found. Make sure the command 'zfs' is in your path.")
         })?;
+        
         snap_name_map
-      .values()
-      .flatten()
-      .try_for_each(|snapshot_name| {
-        let process_args = vec!["destroy".to_owned(), snapshot_name.clone()];
+            .values()
+            .flatten()
+            .try_for_each(|snapshot_name| {
+                let process_args = vec!["destroy".to_owned(), snapshot_name.clone()];
 
-        let process_output = ExecProcess::new(&zfs_command)
-          .args(&process_args)
-          .output()?;
-        let stderr_string = std::str::from_utf8(&process_output.stderr)?.trim();
+                let process_output = ExecProcess::new(&zfs_command)
+                    .args(&process_args)
+                    .output()?;
+                
+                let stderr_string = std::str::from_utf8(&process_output.stderr)?.trim();
 
-        // stderr_string is a string not an error, so here we build an err or output
-        if !stderr_string.is_empty() {
-          let msg = if stderr_string.contains("cannot destroy snapshots: permission denied") {
-            "httm must have root privileges to destroy a snapshot filesystem".to_owned()
-          } else {
-            "httm was unable to destroy snapshots. The 'zfs' command issued the following error: "
-              .to_owned()
-              + stderr_string
-          };
+                // stderr_string is a string not an error, so here we build an err or output
+                if !stderr_string.is_empty() {
+                    let msg = if stderr_string.contains("cannot destroy snapshots: permission denied") {
+                        "httm must have root privileges to destroy a snapshot filesystem".to_owned()
+                    } else {
+                        "httm was unable to destroy snapshots. The 'zfs' command issued the following error: "
+                        .to_owned()
+                        + stderr_string
+                    };
 
-          Err(HttmError::new(&msg).into())
-        } else {
-          Ok(())
-        }
+                    Err(HttmError::new(&msg).into())
+            } else {
+                Ok(())
+            }
       })
     }
 }
