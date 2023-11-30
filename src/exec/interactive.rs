@@ -175,7 +175,7 @@ impl InteractiveSelect {
                 let requested_file_names =
                     view_mode.select(&selection_buffer, InteractiveMultiSelect::On)?;
 
-                break requested_file_names
+                let res = requested_file_names
                     .iter()
                     .filter_map(|selection| {
                         // ... we want everything between the quotes
@@ -192,6 +192,12 @@ impl InteractiveSelect {
                     })
                     .map(|selection_buffer| selection_buffer.to_string())
                     .collect::<Vec<String>>();
+
+                if res.is_empty() {
+                    continue;
+                }
+
+                break res;
             }
         };
 
