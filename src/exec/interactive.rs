@@ -18,7 +18,7 @@
 use crate::config::generate::{
     ExecMode, InteractiveMode, PrintMode, RestoreMode, RestoreSnapGuard, SelectMode,
 };
-use crate::data::paths::{PathData, PathMetadata};
+use crate::data::paths::{PathData, SnapPathGuard};
 use crate::display_versions::wrapper::VersionsDisplayWrapper;
 use crate::exec::preview::PreviewSelection;
 use crate::exec::recursive::RecursiveSearch;
@@ -102,7 +102,7 @@ impl InteractiveBrowse {
 }
 
 struct InteractiveSelect {
-    snap_path_string: String,
+    snap_path_strings: Vec<String>,
     paths_selected_in_browse: Vec<PathData>,
 }
 
@@ -119,7 +119,7 @@ impl InteractiveSelect {
             // but we retain paths_selected_in_browse because we may need
             // it later during restore if opt_overwrite is selected
             InteractiveMode::Restore(_) => InteractiveRestore::exec(select_result),
-            InteractiveMode::Select(select_mode) => select_result.print_selection(select_mode),
+            InteractiveMode::Select(select_mode) => select_result.print_selections(select_mode),
             InteractiveMode::Browse => unreachable!(),
         }
     }
@@ -142,8 +142,8 @@ impl InteractiveSelect {
             return Err(HttmError::new(&msg).into());
         }
 
-        let snap_path_string = if GLOBAL_CONFIG.opt_last_snap.is_some() {
-            Self::last_snap(&browse_result.selected_pathdata, &versions_map)?
+        let snap_path_strings = if GLOBAL_CONFIG.opt_last_snap.is_some() {
+            Self::last_snaps(&browse_result.selected_pathdata, &versions_map)?
         } else {
             // same stuff we do at fn exec, snooze...
             let display_config = Config::from(browse_result.selected_pathdata.clone());
@@ -172,30 +172,32 @@ impl InteractiveSelect {
             loop {
                 let view_mode = &ViewMode::Select(opt_live_version.clone());
                 // get the file name
-                let requested_file_name = view_mode.select(&selection_buffer, false)?;
-                // ... we want everything between the quotes
-                let first_match = requested_file_name.get(0).ok_or_else(|| {
-                    HttmError::new("Could not obtain a first match for the selected input")
-                })?;
+                let requested_file_names =
+                    view_mode.select(&selection_buffer, InteractiveMultiSelect::On)?;
 
-                // this could be a parsing error, but is most likely the user selecting a pretty border line
-                let Some(path_string) = first_match
-                    .split_once("\"")
-                    .and_then(|(_lhs, rhs)| rhs.rsplit_once("\""))
-                    .map(|(lhs, _rhs)| lhs)
-                else {
+                let res = requested_file_names
+                    .iter()
+                    .filter_map(|selection| {
+                        // ... we want everything between the quotes
+                        selection
+                            .split_once("\"")
+                            .and_then(|(_lhs, rhs)| rhs.rsplit_once("\""))
+                            .map(|(lhs, _rhs)| lhs)
+                    })
+                    .filter(|selection_buffer| {
+                        // and cannot select a 'live' version or other invalid value.
+                        display_map
+                            .keys()
+                            .all(|key| key.path_buf.as_path() != Path::new(selection_buffer))
+                    })
+                    .map(|selection_buffer| selection_buffer.to_string())
+                    .collect::<Vec<String>>();
+
+                if res.is_empty() {
                     continue;
-                };
-
-                // and cannot select a 'live' version or other invalid value.
-                if display_map
-                    .map
-                    .keys()
-                    .all(|live_version| path_string != live_version.path_buf.to_string_lossy())
-                {
-                    // return string from the loop
-                    break path_string.to_string();
                 }
+
+                break res;
             }
         };
 
@@ -206,29 +208,36 @@ impl InteractiveSelect {
         }
 
         Ok(Self {
-            snap_path_string,
+            snap_path_strings,
             paths_selected_in_browse,
         })
     }
 
-    fn print_selection(&self, select_mode: &SelectMode) -> HttmResult<()> {
-        let snap_path = Path::new(&self.snap_path_string);
+    fn print_selections(&self, select_mode: &SelectMode) -> HttmResult<()> {
+        self.snap_path_strings
+            .iter()
+            .map(Path::new)
+            .try_for_each(|snap_path| self.print_snap_path(snap_path, select_mode))?;
 
+        std::process::exit(0);
+    }
+
+    fn print_snap_path(&self, snap_path: &Path, select_mode: &SelectMode) -> HttmResult<()> {
         match select_mode {
             SelectMode::Path => {
                 let delimiter = delimiter();
                 let output_buf = match GLOBAL_CONFIG.print_mode {
                     PrintMode::RawNewline | PrintMode::RawZero => {
-                        format!("{}{delimiter}", self.snap_path_string)
+                        format!("{}{delimiter}", snap_path.to_string_lossy())
                     }
                     PrintMode::FormattedDefault | PrintMode::FormattedNotPretty => {
-                        format!("\"{}\"{delimiter}", self.snap_path_string)
+                        format!("\"{}\"{delimiter}", snap_path.to_string_lossy())
                     }
                 };
 
                 print_output_buf(output_buf)?;
 
-                std::process::exit(0)
+                Ok(())
             }
             SelectMode::Contents => {
                 if !snap_path.is_file() {
@@ -241,7 +250,7 @@ impl InteractiveSelect {
 
                 print_output_buf(contents)?;
 
-                std::process::exit(0)
+                Ok(())
             }
             SelectMode::Preview => {
                 let opt_live_version: Option<String> = self
@@ -282,47 +291,43 @@ impl InteractiveSelect {
                     Some(mut stdout) => {
                         let mut output_buf = String::new();
                         stdout.read_to_string(&mut output_buf)?;
-                        print_output_buf(output_buf)?;
+                        print_output_buf(output_buf)
                     }
                     None => {
                         let msg =
                             format!("Preview command output was empty for path: {:?}", snap_path);
-                        return Err(HttmError::new(&msg).into());
+                        Err(HttmError::new(&msg).into())
                     }
                 }
-
-                std::process::exit(0);
             }
         }
     }
 
-    fn last_snap(
+    fn last_snaps(
         paths_selected_in_browse: &[PathData],
         versions_map: &VersionsMap,
-    ) -> HttmResult<String> {
+    ) -> HttmResult<Vec<String>> {
         // should be good to index into both, there is a known known 2nd vec,
-        let live_version = &paths_selected_in_browse
-            .get(0)
-            .expect("ExecMode::LiveSnap should always have exactly one path.");
-
-        let last_snap = versions_map
-            .values()
-            .flatten()
-            .filter(|snap_version| {
-                if GLOBAL_CONFIG.opt_omit_ditto {
-                    snap_version.md_infallible().modify_time
-                        != live_version.md_infallible().modify_time
-                } else {
-                    true
-                }
+        let last_snaps: Vec<String> = paths_selected_in_browse
+            .iter()
+            .filter_map(|live_version| {
+                versions_map
+                    .values()
+                    .flatten()
+                    .filter(|snap_version| {
+                        if GLOBAL_CONFIG.opt_omit_ditto {
+                            snap_version.md_infallible().modify_time
+                                != live_version.md_infallible().modify_time
+                        } else {
+                            true
+                        }
+                    })
+                    .last()
             })
-            .last()
-            .ok_or_else(|| HttmError::new("No last snapshot for the requested input file exists."))?
-            .path_buf
-            .to_string_lossy()
-            .into_owned();
+            .map(|snap| snap.path_buf.to_string_lossy().into_owned())
+            .collect();
 
-        Ok(last_snap)
+        Ok(last_snaps)
     }
 }
 
@@ -330,23 +335,32 @@ struct InteractiveRestore;
 
 impl InteractiveRestore {
     fn exec(select_result: InteractiveSelect) -> HttmResult<()> {
+        select_result
+            .snap_path_strings
+            .iter()
+            .try_for_each(|snap_path_string| Self::restore(snap_path_string))?;
+
+        std::process::exit(0)
+    }
+
+    fn restore(snap_path_string: &str) -> HttmResult<()> {
         // build pathdata from selection buffer parsed string
         //
         // request is also sanity check for snap path exists below when we check
         // if snap_pathdata is_phantom below
-        let snap_pathdata = PathData::from(Path::new(&select_result.snap_path_string));
+        let snap_pathdata = PathData::from(Path::new(snap_path_string));
 
         // sanity check -- snap version has good metadata?
-        let snap_path_metadata = snap_pathdata
-            .metadata
-            .ok_or_else(|| HttmError::new("Source location does not exist on disk. Quitting."))?;
+        if snap_pathdata.metadata.is_none() {
+            let msg = format!(
+                "Source location: {:?} does not exist on disk Quitting.",
+                snap_path_string
+            );
+            return Err(HttmError::new(&msg).into());
+        }
 
         // build new place to send file
-        let new_file_path_buf = Self::build_new_file_path(
-            &select_result.paths_selected_in_browse,
-            &snap_pathdata,
-            &snap_path_metadata,
-        )?;
+        let new_file_path_buf = Self::build_new_file_path(&snap_pathdata)?;
 
         let should_preserve = Self::should_preserve_attributes();
 
@@ -366,7 +380,7 @@ impl InteractiveRestore {
         loop {
             let view_mode = &ViewMode::Restore;
 
-            let selection = view_mode.select(&preview_buffer, false)?;
+            let selection = view_mode.select(&preview_buffer, InteractiveMultiSelect::Off)?;
 
             let user_consent = selection
                 .get(0)
@@ -422,13 +436,15 @@ impl InteractiveRestore {
 
                     break println!("{result_buffer}");
                 }
-                "NO" | "N" => break println!("User declined restore.  No files were restored."),
+                "NO" | "N" => {
+                    break println!("User declined restore of: {:?}", snap_pathdata.path_buf)
+                }
                 // if not yes or no, then noop and continue to the next iter of loop
                 _ => {}
             }
         }
 
-        std::process::exit(0)
+        Ok(())
     }
 
     fn should_preserve_attributes() -> bool {
@@ -440,11 +456,7 @@ impl InteractiveRestore {
         )
     }
 
-    fn build_new_file_path(
-        paths_selected_in_browse: &[PathData],
-        snap_pathdata: &PathData,
-        snap_path_metadata: &PathMetadata,
-    ) -> HttmResult<PathBuf> {
+    fn build_new_file_path(snap_pathdata: &PathData) -> HttmResult<PathBuf> {
         // build new place to send file
         if matches!(
             GLOBAL_CONFIG.exec_mode,
@@ -454,33 +466,14 @@ impl InteractiveRestore {
             // into the pwd, here, we actually look for the original location of the file to make sure we overwrite it.
             // so, if you were in /etc and wanted to restore /etc/samba/smb.conf, httm will make certain to overwrite
             // at /etc/samba/smb.conf
-            let opt_original_live_pathdata = paths_selected_in_browse.iter().find_map(|pathdata| {
-                match VersionsMap::new(&GLOBAL_CONFIG, &[pathdata.clone()]).ok() {
-                    // safe to index into snaps, known len of 2 for set
-                    Some(versions_map) => {
-                        versions_map.values().flatten().find_map(|pathdata| {
-                            if pathdata == snap_pathdata {
-                                // SAFETY: safe to index into request, known len of 2 for set,
-                                // keys and values, known len of 1 for request
-                                let original_live_pathdata =
-                                    versions_map.keys().next().unwrap().clone();
-                                Some(original_live_pathdata)
-                            } else {
-                                None
-                            }
-                        })
-                    }
-                    None => None,
-                }
-            });
-
-            match opt_original_live_pathdata {
-                Some(pathdata) => Ok(pathdata.path_buf),
-                None => Err(HttmError::new(
+            let Some(original_live_pathdata) = SnapPathGuard::new(snap_pathdata) else {
+                return Err(HttmError::new(
                     "httm unable to determine original file path in overwrite mode.  Quitting.",
                 )
-                .into()),
-            }
+                .into());
+            };
+
+            Ok(original_live_pathdata.path_buf.clone())
         } else {
             let snap_filename = snap_pathdata
                 .path_buf
@@ -493,7 +486,7 @@ impl InteractiveRestore {
                 + ".httm_restored."
                 + &date_string(
                     GLOBAL_CONFIG.requested_utc_offset,
-                    &snap_path_metadata.modify_time,
+                    &snap_pathdata.md_infallible().modify_time,
                     DateFormat::Timestamp,
                 );
             let new_file_dir = GLOBAL_CONFIG.pwd.as_path();
@@ -516,6 +509,11 @@ pub enum ViewMode {
     Select(Option<String>),
     Restore,
     Prune,
+}
+
+pub enum InteractiveMultiSelect {
+    On,
+    Off,
 }
 
 impl ViewMode {
@@ -616,10 +614,19 @@ impl ViewMode {
         };
     }
 
-    pub fn select(&self, preview_buffer: &str, opt_multi: bool) -> HttmResult<Vec<String>> {
+    pub fn select(
+        &self,
+        preview_buffer: &str,
+        opt_multi: InteractiveMultiSelect,
+    ) -> HttmResult<Vec<String>> {
         let preview_selection = PreviewSelection::new(self)?;
 
         let header = self.print_header();
+
+        let opt_multi = match opt_multi {
+            InteractiveMultiSelect::On => true,
+            InteractiveMultiSelect::Off => false,
+        };
 
         // build our browse view - less to do than before - no previews, looking through one 'lil buffer
         let skim_opts = SkimOptionsBuilder::default()

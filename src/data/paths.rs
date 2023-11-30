@@ -231,6 +231,14 @@ pub struct SnapPathGuard<'a> {
     inner: &'a PathData,
 }
 
+impl<'a> std::ops::Deref for SnapPathGuard<'a> {
+    type Target = &'a PathData;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
 impl<'a> SnapPathGuard<'a> {
     pub fn new(pathdata: &'a PathData) -> Option<Self> {
         if !pathdata.is_snap_path() {
