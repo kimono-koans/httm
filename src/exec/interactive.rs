@@ -311,18 +311,19 @@ impl InteractiveSelect {
         let last_snaps: Vec<String> = paths_selected_in_browse
             .iter()
             .filter_map(|live_version| {
-                versions_map
-                    .values()
-                    .flatten()
-                    .filter(|snap_version| {
-                        if GLOBAL_CONFIG.opt_omit_ditto {
-                            snap_version.md_infallible().modify_time
-                                != live_version.md_infallible().modify_time
-                        } else {
-                            true
-                        }
-                    })
-                    .last()
+                versions_map.get(live_version).and_then(|values| {
+                    values
+                        .iter()
+                        .filter(|snap_version| {
+                            if GLOBAL_CONFIG.opt_omit_ditto {
+                                snap_version.md_infallible().modify_time
+                                    != live_version.md_infallible().modify_time
+                            } else {
+                                true
+                            }
+                        })
+                        .last()
+                })
             })
             .map(|snap| snap.path_buf.to_string_lossy().into_owned())
             .collect();
