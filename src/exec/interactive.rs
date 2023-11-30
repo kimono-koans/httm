@@ -172,30 +172,24 @@ impl InteractiveSelect {
             loop {
                 let view_mode = &ViewMode::Select(opt_live_version.clone());
                 // get the file name
-                let requested_file_name = view_mode.select(&selection_buffer, false)?;
+                let requested_file_names = view_mode.select(&selection_buffer, true)?;
                 // ... we want everything between the quotes
-                let first_match = requested_file_name.get(0).ok_or_else(|| {
-                    HttmError::new("Could not obtain a first match for the selected input")
-                })?;
-
-                // this could be a parsing error, but is most likely the user selecting a pretty border line
-                let Some(path_string) = first_match
-                    .split_once("\"")
-                    .and_then(|(_lhs, rhs)| rhs.rsplit_once("\""))
-                    .map(|(lhs, _rhs)| lhs)
-                else {
-                    continue;
-                };
 
                 // and cannot select a 'live' version or other invalid value.
-                if display_map
-                    .map
-                    .keys()
-                    .all(|live_version| path_string != live_version.path_buf.to_string_lossy())
-                {
-                    // return string from the loop
-                    break path_string.to_string();
-                }
+                break requested_file_names
+                    .iter()
+                    .filter_map(|selection| {
+                        selection
+                            .split_once("\"")
+                            .and_then(|(_lhs, rhs)| rhs.rsplit_once("\""))
+                            .map(|(lhs, _rhs)| lhs)
+                    })
+                    .filter(|selection_buffer| {
+                        display_map
+                            .keys()
+                            .all(|key| key.path_buf.as_path() != Path::new(selection_buffer))
+                    })
+                    .collect();
             }
         };
 
