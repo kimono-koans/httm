@@ -258,7 +258,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
     }
 
     pub fn versions_processed(&'a self, uniqueness: &ListSnapsOfType) -> Vec<PathData> {
-        let all_versions = self.versions_unprocessed(uniqueness);
+        let all_versions = self.versions_unprocessed();
 
         Self::sort_dedup_versions(all_versions, uniqueness)
     }
@@ -269,10 +269,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
         sorted_versions.pop()
     }
 
-    fn versions_unprocessed(
-        &'a self,
-        uniqueness: &'a ListSnapsOfType,
-    ) -> impl ParallelIterator<Item = CompareVersionsContainer> + 'a {
+    fn versions_unprocessed(&'a self) -> impl ParallelIterator<Item = PathData> + 'a {
         // get the DirEntry for our snapshot path which will have all our possible
         // snapshots, like so: .zfs/snapshots/<some snap name>/
         self
@@ -282,7 +279,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
             .filter_map(|joined_path| {
                 match joined_path.symlink_metadata() {
                     Ok(md) => {
-                        Some(CompareVersionsContainer::new(PathData::new(joined_path.as_path(), Some(md)), uniqueness))
+                        Some(PathData::new(joined_path.as_path(), Some(md)))
                     },
                     Err(err) => {
                         match err.kind() {
@@ -306,13 +303,15 @@ impl<'a> RelativePathAndSnapMounts<'a> {
     // remove duplicates with the same system modify time and size/file len (or contents! See --uniqueness)
     #[allow(clippy::mutable_key_type)]
     fn sort_dedup_versions(
-        iter: impl ParallelIterator<Item = CompareVersionsContainer>,
-        snaps_of_type: &ListSnapsOfType,
+        iter: impl ParallelIterator<Item = PathData>,
+        uniqueness: &ListSnapsOfType,
     ) -> Vec<PathData> {
-        match snaps_of_type {
-            ListSnapsOfType::All => iter.map(PathData::from).collect(),
+        match uniqueness {
+            ListSnapsOfType::All => iter.collect(),
             ListSnapsOfType::UniqueContents | ListSnapsOfType::UniqueMetadata => {
-                let sorted_and_deduped: BTreeSet<CompareVersionsContainer> = iter.collect();
+                let sorted_and_deduped: BTreeSet<CompareVersionsContainer> = iter
+                    .map(|pd| CompareVersionsContainer::new(pd, uniqueness))
+                    .collect();
                 sorted_and_deduped.into_iter().map(PathData::from).collect()
             }
         }
