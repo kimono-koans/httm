@@ -16,7 +16,7 @@
 // that was distributed with this source code.
 
 use crate::config::generate::ListSnapsFilters;
-use crate::data::paths::{PathData, SnapPathData};
+use crate::data::paths::{PathData, SnapPathGuard};
 use crate::library::results::{HttmError, HttmResult};
 use crate::lookup::versions::VersionsMap;
 use rayon::prelude::*;
@@ -67,7 +67,7 @@ impl SnapNameMap {
                 let snap_names: Vec<String> = vec_snaps
                     .par_iter()
                     .filter_map(|pd| {
-                        SnapPathData::new(pd).and_then(|spd| spd.source())
+                        SnapPathGuard::new(pd).and_then(|spd| spd.source())
                     })
                     .filter(|snap| {
                         if let Some(filters) = opt_filters {

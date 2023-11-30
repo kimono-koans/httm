@@ -229,11 +229,11 @@ impl PathData {
     }
 }
 
-pub struct SnapPathData<'a> {
+pub struct SnapPathGuard<'a> {
     inner: &'a PathData,
 }
 
-impl<'a> SnapPathData<'a> {
+impl<'a> SnapPathGuard<'a> {
     pub fn new(pathdata: &'a PathData) -> Option<Self> {
         if !pathdata.is_snap_path() {
             return None;
