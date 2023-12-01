@@ -252,6 +252,8 @@ impl InteractiveSelect {
                 let mut contents = Vec::new();
                 f.read_to_end(&mut contents)?;
 
+                // SAFETY: Panic here is not the end of the world as we are just printing the bytes.
+                // This is the same as simply `cat`-ing the file.
                 let output_buf = unsafe { std::str::from_utf8_unchecked(&contents) };
 
                 print_output_buf(output_buf)?;
