@@ -104,6 +104,7 @@ impl InteractiveBrowse {
 struct InteractiveSelect {
     snap_path_strings: Vec<String>,
     paths_selected_in_browse: Vec<PathData>,
+    opt_live_version: Option<String>,
 }
 
 impl InteractiveSelect {
@@ -144,6 +145,15 @@ impl InteractiveSelect {
             return Err(HttmError::new(&msg).into());
         }
 
+        let opt_live_version: Option<String> = if browse_result.selected_pathdata.len() > 1 {
+            None
+        } else {
+            browse_result
+                .selected_pathdata
+                .get(0)
+                .map(|pathdata| pathdata.path_buf.to_string_lossy().into_owned())
+        };
+
         let snap_path_strings = if GLOBAL_CONFIG.opt_last_snap.is_some() {
             Self::last_snaps(&browse_result.selected_pathdata, &versions_map)?
         } else {
@@ -160,16 +170,7 @@ impl InteractiveSelect {
                 }
             });
 
-            let opt_live_version: Option<String> = if browse_result.selected_pathdata.len() > 1 {
-                None
-            } else {
-                browse_result
-                    .selected_pathdata
-                    .get(0)
-                    .map(|pathdata| pathdata.path_buf.to_string_lossy().into_owned())
-            };
-
-            let view_mode = ViewMode::Select(opt_live_version);
+            let view_mode = ViewMode::Select(opt_live_version.clone());
 
             // loop until user selects a valid snapshot version
             loop {
@@ -212,6 +213,7 @@ impl InteractiveSelect {
         Ok(Self {
             snap_path_strings,
             paths_selected_in_browse,
+            opt_live_version,
         })
     }
 
@@ -255,14 +257,9 @@ impl InteractiveSelect {
                 Ok(())
             }
             SelectMode::Preview => {
-                let opt_live_version: Option<String> =
-                    opt_live_version(&PathData::from(snap_path), &self.paths_selected_in_browse)
-                        .ok()
-                        .map(|path| path.to_string_lossy().to_string());
+                let view_mode = ViewMode::Select(self.opt_live_version.clone());
 
-                let view_mode = &ViewMode::Select(opt_live_version);
-
-                let preview_selection = PreviewSelection::new(view_mode)?;
+                let preview_selection = PreviewSelection::new(&view_mode)?;
 
                 let cmd = if let Some(command) = preview_selection.opt_preview_command {
                     command.replace("$snap_file", &format!("{:?}", snap_path))
