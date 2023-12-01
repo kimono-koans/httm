@@ -49,9 +49,9 @@
 // IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE."
 
-use std::{hash::Hash, iter::Iterator};
-
 use hashbrown::HashMap;
+use std::hash::Hash;
+use std::iter::Iterator;
 
 pub trait HttmIter: Iterator {
     fn into_group_map<K, V>(self) -> HashMap<K, Vec<V>>
@@ -75,9 +75,9 @@ pub trait HttmIter: Iterator {
 impl<T: ?Sized> HttmIter for T where T: Iterator {}
 
 pub mod group_map {
-    use std::{hash::Hash, iter::Iterator};
-
     use hashbrown::HashMap;
+    use std::hash::Hash;
+    use std::iter::Iterator;
 
     pub fn into_group_map<I, K, V>(iter: I) -> HashMap<K, Vec<V>>
     where

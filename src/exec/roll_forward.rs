@@ -15,33 +15,33 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
+use crate::config::generate::RollForwardConfig;
+use crate::data::paths::{BasicDirEntryInfo, PathData};
+use crate::library::iter_extensions::HttmIter;
+use crate::library::results::{HttmError, HttmResult};
+use crate::library::snap_guard::{PrecautionarySnapType, SnapGuard};
+use crate::library::utility::{
+    copy_attributes,
+    copy_direct,
+    generate_dst_parent,
+    is_metadata_same,
+    preserve_recursive,
+    remove_recursive,
+    user_has_effective_root,
+};
+use crate::{GLOBAL_CONFIG, ZFS_SNAPSHOT_DIRECTORY};
+use hashbrown::{HashMap, HashSet};
+use nu_ansi_term::Color::{Blue, Green, Red, Yellow};
+use rayon::prelude::*;
 use std::cmp::Ordering;
 use std::fs::read_dir;
 use std::io::{BufRead, Read};
 use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
-use std::process::Stdio;
-use std::process::{Child, ChildStdout};
-use std::process::{ChildStderr, Command as ExecProcess};
+use std::process::{Child, ChildStderr, ChildStdout, Command as ExecProcess, Stdio};
 use std::sync::atomic::AtomicBool;
 use std::thread::JoinHandle;
-
-use hashbrown::{HashMap, HashSet};
-use nu_ansi_term::Color::{Blue, Green, Red, Yellow};
-use rayon::prelude::*;
 use which::which;
-
-use crate::config::generate::RollForwardConfig;
-use crate::data::paths::BasicDirEntryInfo;
-use crate::data::paths::PathData;
-use crate::library::iter_extensions::HttmIter;
-use crate::library::results::{HttmError, HttmResult};
-use crate::library::snap_guard::{PrecautionarySnapType, SnapGuard};
-use crate::library::utility::preserve_recursive;
-use crate::library::utility::{copy_attributes, generate_dst_parent};
-use crate::library::utility::{copy_direct, remove_recursive};
-use crate::library::utility::{is_metadata_same, user_has_effective_root};
-use crate::{GLOBAL_CONFIG, ZFS_SNAPSHOT_DIRECTORY};
 
 #[derive(Debug, Clone)]
 struct DiffEvent {
@@ -622,7 +622,9 @@ impl<'a> PreserveHardLinks<'a> {
         eprintln!("Removing and preserving the difference between live and snap orphans.");
         let mut exclusions = self.diff_orphans()?;
 
-        eprintln!("Removing the intersection of the live and snap hard link maps to generate snap orphans.");
+        eprintln!(
+      "Removing the intersection of the live and snap hard link maps to generate snap orphans."
+    );
         let intersection = self.remove_map_intersection()?;
         exclusions.extend(intersection);
 

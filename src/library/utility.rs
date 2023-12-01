@@ -15,33 +15,29 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::{
-    borrow::Cow,
-    fs::{create_dir_all, read_dir, set_permissions, FileType},
-    io::{self, Read, Write},
-    iter::Iterator,
-    os::unix::fs::MetadataExt,
-    path::{Path, PathBuf},
-    time::SystemTime,
-};
-
+use crate::config::generate::PrintMode;
+use crate::data::paths::{BasicDirEntryInfo, PathData, PathMetadata, PHANTOM_DATE};
+use crate::data::selection::SelectionCandidate;
+use crate::library::diff_copy::diff_copy;
+use crate::library::results::{HttmError, HttmResult};
+use crate::parse::aliases::FilesystemType;
+use crate::{BTRFS_SNAPPER_HIDDEN_DIRECTORY, GLOBAL_CONFIG, ZFS_SNAPSHOT_DIRECTORY};
 use crossbeam_channel::{Receiver, TryRecvError};
 use lscolors::{Colorable, LsColors, Style};
 use nu_ansi_term::Style as AnsiTermStyle;
 use number_prefix::NumberPrefix;
 use once_cell::sync::Lazy;
+use std::borrow::Cow;
+use std::fs::{create_dir_all, read_dir, set_permissions, FileType};
+use std::io::{Read, Write};
+use std::iter::Iterator;
+use std::ops::Deref;
+use std::os::unix::fs::MetadataExt;
+use std::path::{Path, PathBuf};
+use std::process::Command as ExecProcess;
+use std::time::SystemTime;
 use time::{format_description, OffsetDateTime, UtcOffset};
 use which::which;
-
-use crate::data::paths::{BasicDirEntryInfo, PathData, PHANTOM_DATE};
-use crate::data::selection::SelectionCandidate;
-use crate::library::diff_copy::diff_copy;
-use crate::library::results::{HttmError, HttmResult};
-use crate::parse::aliases::FilesystemType;
-use crate::GLOBAL_CONFIG;
-use crate::{config::generate::PrintMode, data::paths::PathMetadata};
-use crate::{BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_SNAPSHOT_DIRECTORY};
-use std::process::Command as ExecProcess;
 
 pub fn user_has_effective_root() -> HttmResult<()> {
     if !nix::unistd::geteuid().is_root() {
@@ -196,13 +192,17 @@ pub fn copy_direct(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<
     } else {
         generate_dst_parent(dst)?;
 
-        if src.is_symlink() {
-            let link_target = std::fs::read_link(src)?;
-            std::os::unix::fs::symlink(link_target, dst)?;
-        }
-
         if src.is_file() {
             diff_copy(src, dst)?;
+        } else if src.is_symlink() {
+            let link_target = std::fs::read_link(src)?;
+            std::os::unix::fs::symlink(link_target, dst)?;
+        } else {
+            let msg = format!(
+                "Source path is neither a regular file nor a symlink to a regular file: \"{}\"",
+                src.display()
+            );
+            return Err(HttmError::new(&msg).into());
         }
     }
 
@@ -415,7 +415,7 @@ impl<'a> HttmIsDir<'a> for BasicDirEntryInfo {
         //  why not store the error in the struct instead?  because it's more complex.  it might
         //  make it harder to copy around etc
         self.file_type
-            .ok_or_else(|| io::Error::from(io::ErrorKind::NotFound))
+            .ok_or_else(|| std::io::Error::from(std::io::ErrorKind::NotFound))
     }
     fn path(&'a self) -> &'a Path {
         &self.path
@@ -585,5 +585,25 @@ impl<T: AsRef<Path>> ComparePathMetadata for T {
 
     fn path(&self) -> &Path {
         self.as_ref()
+    }
+}
+
+pub fn path_contains_filter_dir(path: &Path) -> bool {
+    GLOBAL_CONFIG
+        .dataset_collection
+        .filter_dirs
+        .deref()
+        .iter()
+        .any(|filter_dir| path.starts_with(filter_dir))
+}
+
+pub fn pwd() -> HttmResult<PathBuf> {
+    if let Ok(pwd) = std::env::current_dir() {
+        Ok(pwd)
+    } else {
+        Err(HttmError::new(
+            "Working directory does not exist or your do not have permissions to access it.",
+        )
+        .into())
     }
 }

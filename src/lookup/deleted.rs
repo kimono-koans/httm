@@ -15,18 +15,14 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::{
-    ffi::OsString,
-    fs::read_dir,
-    ops::Deref,
-    path::{Path, PathBuf},
-};
-
-use hashbrown::{HashMap, HashSet};
-
 use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::library::results::HttmResult;
 use crate::lookup::versions::{ProximateDatasetAndOptAlts, RelativePathAndSnapMounts};
+use hashbrown::{HashMap, HashSet};
+use std::ffi::OsString;
+use std::fs::read_dir;
+use std::ops::Deref;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct DeletedFiles {

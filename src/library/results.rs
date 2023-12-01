@@ -15,7 +15,9 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::{error::Error, fmt, io::Error as IoError};
+use std::error::Error;
+use std::fmt;
+use std::io::Error as IoError;
 
 // wrap this complex looking error type, which is used everywhere,
 // into something more simple looking. This error, FYI, is really easy to use with rayon.

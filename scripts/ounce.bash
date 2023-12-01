@@ -144,15 +144,15 @@ function take_snap {
 
 	# mask all the errors from the first run without privileges,
 	# let the sudo run show errors
-	[[ -z "$utc" ]] || printf "$filenames" | httm "$utc" --snap="$suffix" 1>/dev/null 2>/dev/null
-	[[ -n "$utc" ]] || printf "$filenames" | httm --snap="$suffix" 1>/dev/null 2>/dev/null
+	[[ -z "$utc" ]] || httm "$utc" --snap="$suffix" "$filenames" 1>/dev/null 2>/dev/null
+	[[ -n "$utc" ]] || httm --snap="$suffix" "$filenames" 1>/dev/null 2>/dev/null
 
 	if [[ $? -ne 0 ]]; then
 		local sudo_program
 		sudo_program="$(prep_sudo)"
 
-		[[ -z "$utc" ]] || printf "$filenames" | "$sudo_program" httm "$utc" --snap="$suffix" 1>/dev/null
-		[[ -n "$utc" ]] || printf "$filenames" | "$sudo_program" httm --snap="$suffix" 1>/dev/null
+		[[ -z "$utc" ]] || httm "$utc" --snap="$suffix" "$filenames" 1>/dev/null 2>/dev/null
+		[[ -n "$utc" ]] || httm --snap="$suffix" "$filenames" 1>/dev/null 2>/dev/null
 
 		[[ $? -eq 0 ]] ||
 			print_err_exit "'ounce' failed with a 'httm'/'zfs' snapshot error.  Check you have the correct permissions to snapshot."
@@ -165,7 +165,7 @@ function needs_snap {
 
 	filenames="$1"
 
-	uncut_res="$(printf "$filenames" | httm --last-snap=no-ditto-inclusive --not-so-pretty 2>/dev/null)"
+	uncut_res="$(httm --last-snap=no-ditto-inclusive --not-so-pretty "$filenames" 2>/dev/null)"
 	#[[ $? -eq 0 ]] || print_err_exit "'ounce' failed with a 'httm' lookup error."
 	[[ $? -eq 0 ]] || uncut_res=""
 
@@ -247,7 +247,7 @@ function exec_args {
 	# check if filenames array is not empty
 	[[ ${#filenames_array[@]} -ne 0 ]] || return 0
 
-	printf -v filenames_string "%s\n" "${filenames_array[@]}"
+	printf -v filenames_string "%s\0" "${filenames_array[@]}"
 	[[ -n "$filenames_string" ]] || print_err_exit "bash could not covert file names from array to string."
 
 	# now, httm will dynamically determine the location of

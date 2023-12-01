@@ -15,30 +15,37 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::config::generate::NumVersionsMode;
+use crate::config::generate::{NumVersionsMode, PrintMode};
 use crate::data::paths::PathData;
 use crate::display_map::format::PrintAsMap;
+use crate::library::utility::delimiter;
 use crate::lookup::versions::VersionsMap;
-use crate::VersionsDisplayWrapper;
+use crate::{VersionsDisplayWrapper, GLOBAL_CONFIG};
 
 impl<'a> VersionsDisplayWrapper<'a> {
     pub fn format_as_num_versions(&self, num_versions_mode: &NumVersionsMode) -> String {
         // let delimiter = get_delimiter(config);
-        let delimiter = '\n';
+        let delimiter = delimiter();
 
         let printable_map = PrintAsMap::from(&self.map);
 
         let map_padding = printable_map.map_padding();
+
+        let total_num_paths = self.len();
+
+        let print_mode = &GLOBAL_CONFIG.print_mode;
 
         let write_out_buffer: String = self
             .iter()
             .filter_map(|(live_version, snaps)| {
                 Self::parse_num_versions(
                     num_versions_mode,
+                    print_mode,
                     delimiter,
                     live_version,
                     snaps,
                     map_padding,
+                    total_num_paths,
                 )
             })
             .collect();
@@ -64,21 +71,14 @@ impl<'a> VersionsDisplayWrapper<'a> {
 
     fn parse_num_versions(
         num_versions_mode: &NumVersionsMode,
+        print_mode: &PrintMode,
         delimiter: char,
         live_version: &PathData,
         snaps: &[PathData],
         padding: usize,
+        total_num_paths: usize,
     ) -> Option<String> {
         let display_path = live_version.path_buf.display();
-
-        if live_version.metadata.is_none() {
-            eprintln!(
-                "{:<width$} : Path does not exist.",
-                display_path,
-                width = padding
-            );
-            return None;
-        }
 
         let mut num_versions = snaps.len();
 
@@ -88,34 +88,38 @@ impl<'a> VersionsDisplayWrapper<'a> {
                     num_versions += 1
                 };
 
-                Some(format!(
-                    "{:<width$} : {:*<num_versions$}{}",
-                    display_path,
-                    "",
-                    delimiter,
-                    width = padding
-                ))
+                match print_mode {
+                    PrintMode::FormattedDefault => Some(format!(
+                        "{:<width$} : {:*<num_versions$}{}",
+                        display_path,
+                        "",
+                        delimiter,
+                        width = padding
+                    )),
+                    PrintMode::FormattedNotPretty | PrintMode::RawNewline | PrintMode::RawZero => {
+                        unreachable!()
+                    }
+                }
             }
             NumVersionsMode::AllNumerals => {
                 if !VersionsMap::is_live_version_redundant(live_version, snaps) {
                     num_versions += 1
                 };
 
-                if num_versions == 1 {
-                    Some(format!(
-                        "{:<width$} : 1 Version available.{}",
-                        display_path,
-                        delimiter,
-                        width = padding
-                    ))
-                } else {
-                    Some(format!(
-                        "{:<width$} : {} Versions available.{}",
+                match print_mode {
+                    PrintMode::FormattedDefault => Some(format!(
+                        "{:<width$} : {}{}",
                         display_path,
                         num_versions,
                         delimiter,
                         width = padding
-                    ))
+                    )),
+                    PrintMode::RawNewline | PrintMode::RawZero if total_num_paths == 1 => {
+                        Some(format!("{num_versions}{}", delimiter))
+                    }
+                    PrintMode::FormattedNotPretty | PrintMode::RawNewline | PrintMode::RawZero => {
+                        Some(format!("{}\t{num_versions}{}", display_path, delimiter))
+                    }
                 }
             }
             NumVersionsMode::Multiple => {

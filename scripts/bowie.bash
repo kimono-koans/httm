@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 #       ___           ___           ___           ___
 #      /\__\         /\  \         /\  \         /\__\
@@ -92,7 +92,7 @@ show_all_changes() {
 
 	# check if versions array is not empty
 	if [[ ${#all_versions[@]} -eq 0 ]]; then
-		print_err "No previous version available for: $filename"
+		print_err "No previous snapshot version available for: $filename"
 		return 0
 	elif [[ ${#all_versions[@]} -eq 1 ]]; then
 		show_single_change "$filename" "last"
@@ -120,10 +120,13 @@ check_not_identical() {
 	local previous_version="$2"
 
 	[[ "$previous_version" != "$current_version" ]] ||
-		print_err_exit "The selected/last version and live file are the same file."
+		print_err_exit "The selected/last snapshot version and live file are the same file."
+
+	[[ -n "$current_version" ]] ||
+		print_err_exit "The only snapshot version and live file are 'diff'-identical."
 
 	[[ -n "$(diff -q "$previous_version" "$current_version")" ]] ||
-		print_err_exit "The selected/last version and live file are 'diff'-identical, but have different modification times.  Perhaps try --all."
+		print_err_exit "The selected/last snapshot version and live file are 'diff'-identical, but have different modification times.  Perhaps try --all."
 }
 
 show_single_change() {
@@ -146,9 +149,9 @@ show_direct() {
 	display_header "$current_version"
 
 	if [[ "$previous_version" == "$current_version" ]]; then
-		printf "The selected/last version and live file are the same file."
+		printf "The selected/last snapshot version and live file are the same file."
 	elif [[ -z "$(diff -q "$previous_version" "$current_version")" ]]; then
-		printf "The selected/last version and live file are 'diff'-identical, but have different modification times.  Perhaps try --all."
+		printf "The selected/last snapshot version and live file are 'diff'-identical, but have different modification times.  Perhaps try --all."
 	else
 		display_diff "$previous_version" "$current_version"
 	fi
@@ -174,7 +177,7 @@ display_diff() {
 		# print the difference between that current version and previous_version
 		(diff --color=always -T "$previous_version" "$current_version" || true)
 	else
-		print_err "No previous version available for: $current_version"
+		print_err "No previous snapshot version available for: $current_version"
 	fi
 }
 
@@ -184,7 +187,6 @@ exec_main() {
 
 	# declare our variables
 	local mode="last"
-	local canonical_path=""
 
 	[[ $# -ge 1 ]] || print_usage
 	[[ "$1" != "-h" && "$1" != "--help" ]] || print_usage
@@ -211,32 +213,34 @@ exec_main() {
 	[[ ${#@} -ne 0 ]] || print_err_exit "No filenames specified.  Quitting."
 
 	if [[ "$mode" == "direct" ]]; then
-		previous_version="$(
-			readlink -e "$1" 2>/dev/null
-			[[ $? -eq 0 ]] ||
-				(print_err "Could not determine canonical path for: $1")
-		)"
+		[[ -n "$1" ]] || print_err_exit "First required file name is unset.  Quitting." 
+		[[ -n "$2" ]] || print_err_exit "Second required file name is unset.  Quitting."
 
-		current_version="$(
-			readlink -e "$2" 2>/dev/null
-			[[ $? -eq 0 ]] ||
-				(print_err "Could not determine canonical path for: $2")
-		)"
+		local previous_version="$( readlink -e "$1" 2>/dev/null )"
+		[[ -n "$previous_version" ]] || print_err_exit "Could not determine canonical path for: "$previous_version".  Quitting."
+
+		local current_version="$( readlink -e "$2" 2>/dev/null )"
+		[[ -n "$current_version" ]] || print_err_exit "Could not determine canonical path for: "$current_version".  Quitting."
 
 		show_direct "$previous_version" "$current_version"
 		exit 0
 	fi
 
 	for a; do
-		canonical_path="$(
-			readlink -e "$a" 2>/dev/null
-			[[ $? -eq 0 ]] ||
-				(print_err "Could not determine canonical path for: $a")
-		)"
+		if [[ -z "$a" ]]; then
+			print_err "File name is empty: "$a"."
+			continue
+		fi
 
-		[[ -n "$canonical_path" ]] || continue
-		if [[ ! -f "$canonical_path" ]]; then 
-			print_err "Skipping path which is not a file: $a"
+		local canonical_path="$( readlink -e "$a")"
+		
+		if [[ -z "${canonical_path}" ]]; then
+			print_err "Could not determine canonical path for: "$a"."
+			continue
+		fi
+		
+		if [[ ! -f "${canonical_path}" ]]; then
+			print_err "Skipping path which is not a file: "$a"."
 			continue
 		fi
 		

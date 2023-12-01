@@ -15,22 +15,18 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::ops::Index;
-use std::path::Path;
-
-use clap::OsValues;
-use rayon::prelude::*;
-
-use clap::{crate_name, crate_version, Arg, ArgMatches};
-use indicatif::ProgressBar;
-use time::UtcOffset;
-
 use crate::config::install_hot_keys::install_hot_keys;
 use crate::data::filesystem_info::FilesystemInfo;
-use crate::data::paths::PathData;
+use crate::data::paths::{PathData, SnapPathGuard};
 use crate::library::results::{HttmError, HttmResult};
-use crate::library::utility::{read_stdin, HttmIsDir};
+use crate::library::utility::{pwd, read_stdin, HttmIsDir};
 use crate::ROOT_DIRECTORY;
+use clap::{crate_name, crate_version, Arg, ArgMatches, OsValues};
+use indicatif::ProgressBar;
+use rayon::prelude::*;
+use std::ops::Index;
+use std::path::{Path, PathBuf};
+use time::UtcOffset;
 
 #[derive(Debug, Clone)]
 pub enum ExecMode {
@@ -67,7 +63,7 @@ pub enum MountDisplay {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum InteractiveMode {
     Browse,
-    Select,
+    Select(SelectMode),
     Restore(RestoreMode),
 }
 
@@ -75,6 +71,13 @@ pub enum InteractiveMode {
 pub enum RestoreSnapGuard {
     Guarded,
     NotGuarded,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SelectMode {
+    Path,
+    Contents,
+    Preview,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -161,7 +164,15 @@ fn parse_args() -> ArgMatches {
             Arg::new("SELECT")
                 .short('s')
                 .long("select")
-                .help("interactive browse and search a specified directory to display unique file versions.  Continue to another dialog to select a snapshot version to dump to stdout.")
+                .takes_value(true)
+                .default_missing_value("path")
+                .possible_values(["path", "contents", "preview"])
+                .min_values(0)
+                .require_equals(true)
+                .help("interactive browse and search a specified directory to display unique file versions.  \
+                Continue to another dialog to select a snapshot version to dump to stdout.  This argument optionally takes a value.  \
+                Default behavior/value is to simply print the path name, but, if the path is a file, the user can print the file's contents by giving the value \"contents\", \
+                or print the PREVIEW output by giving the value \"preview\".")
                 .conflicts_with("RESTORE")
                 .display_order(3)
         )
@@ -224,7 +235,8 @@ fn parse_args() -> ArgMatches {
                 .long("preview")
                 .help("user may specify a command to preview snapshots while in select view.  This argument optionally takes a value specifying the command to be executed.  \
                 The default value/command, if no command value specified, is a 'bowie' formatted 'diff'.  \
-                User defined commands must specify the snapshot file name \"{snap_file}\" and the live file name \"{live_file}\" within their shell command.")
+                User defined commands must specify the snapshot file name \"{snap_file}\" and the live file name \"{live_file}\" within their shell command.  \
+                NOTE: 'bash' is required to bootstrap any preview script, even if user defined preview commands or script is written in a different language.")
                 .takes_value(true)
                 .min_values(0)
                 .require_equals(true)
@@ -342,6 +354,7 @@ fn parse_args() -> ArgMatches {
                 .long("last-snap")
                 .takes_value(true)
                 .default_missing_value("any")
+                .visible_aliases(&["last", "latest"])
                 .possible_values(["any", "ditto", "no-ditto", "no-ditto-exclusive", "no-ditto-inclusive", "none", "without"])
                 .min_values(0)
                 .require_equals(true)
@@ -352,7 +365,7 @@ fn parse_args() -> ArgMatches {
                 \"no-ditto-exclusive\", return only a last snap which is not the same as the live version (argument \"--no-ditto\" is an alias for this option), \
                 \"no-ditto-inclusive\", return a last snap which is not the same as the live version, or should none exist, return the live file, and, \
                 \"none\" or \"without\", return the live file only for those files without a last snapshot.")
-                .conflicts_with_all(&["NUM_VERSIONS", "SNAPSHOT", "FILE_MOUNT", "ALT_REPLICATED", "REMOTE_DIR", "LOCAL_DIR"])
+                .conflicts_with_all(&["NUM_VERSIONS", "SNAPSHOT", "FILE_MOUNT", "ALT_REPLICATED", "REMOTE_DIR", "LOCAL_DIR", "PREVIEW"])
                 .display_order(15)
         )
         .arg(
@@ -469,7 +482,7 @@ fn parse_args() -> ArgMatches {
                 \"single\" will print only filenames which only have one version, \
                 (and \"single-no-snap\" will print those without a snap taken, and \"single-with-snap\" will print those with a snap taken), \
                 and \"multiple\" will print only filenames which only have multiple versions.")
-                .conflicts_with_all(&["LAST_SNAP", "BROWSE", "SELECT", "RESTORE", "RECURSIVE", "SNAPSHOT", "NOT_SO_PRETTY", "NO_LIVE", "NO_SNAP", "OMIT_DITTO", "RAW", "ZEROS"])
+                .conflicts_with_all(&["LAST_SNAP", "BROWSE", "SELECT", "RESTORE", "RECURSIVE", "SNAPSHOT", "NO_LIVE", "NO_SNAP", "OMIT_DITTO"])
                 .display_order(28)
         )
         .arg(
@@ -503,17 +516,25 @@ fn parse_args() -> ArgMatches {
                 .display_order(31)
         )
         .arg(
+            Arg::new("NO_CLONES")
+                .long("no-clones")
+                .help("ordinarily, when copying files from snapshots, httm will first attempt a zero copy \"reflink\" clone on systems that support it.  \
+                Here, you may disable that behavior, and force httm to use the fall back diff copy behavior as the default.  \
+                You may also set an environment variable to any value, \"HTTM_NO_CLONE\" to disable.")
+                .display_order(32)
+        )
+        .arg(
             Arg::new("DEBUG")
                 .long("debug")
                 .help("print configuration and debugging info")
-                .display_order(32)
+                .display_order(33)
         )
         .arg(
             Arg::new("ZSH_HOT_KEYS")
                 .long("install-zsh-hot-keys")
                 .help("install zsh hot keys to the users home directory, and then exit")
                 .exclusive(true)
-                .display_order(33)
+                .display_order(34)
         )
         .get_matches()
 }
@@ -530,17 +551,18 @@ pub struct Config {
     pub opt_no_hidden: bool,
     pub opt_json: bool,
     pub opt_one_filesystem: bool,
+    pub opt_no_clones: bool,
     pub uniqueness: ListSnapsOfType,
     pub opt_bulk_exclusion: Option<BulkExclusion>,
     pub opt_last_snap: Option<LastSnapMode>,
     pub opt_preview: Option<String>,
     pub opt_deleted_mode: Option<DeletedMode>,
-    pub opt_requested_dir: Option<PathData>,
+    pub opt_requested_dir: Option<PathBuf>,
     pub requested_utc_offset: UtcOffset,
     pub exec_mode: ExecMode,
     pub print_mode: PrintMode,
     pub dataset_collection: FilesystemInfo,
-    pub pwd: PathData,
+    pub pwd: PathBuf,
 }
 
 impl Config {
@@ -604,6 +626,8 @@ impl Config {
         let opt_no_filter = matches.is_present("NO_FILTER");
         let opt_debug = matches.is_present("DEBUG");
         let opt_no_hidden = matches.is_present("FILTER_HIDDEN");
+        let opt_no_clones =
+            matches.is_present("NO_CLONES") || std::env::var_os("HTTM_NO_CLONE").is_some();
 
         let opt_last_snap = match matches.value_of("LAST_SNAP") {
             Some("" | "any") => Some(LastSnapMode::Any),
@@ -623,6 +647,12 @@ impl Config {
             Some("multiple") => Some(NumVersionsMode::Multiple),
             _ => None,
         };
+
+        if matches!(opt_num_versions, Some(NumVersionsMode::AllGraph))
+            && !matches!(print_mode, PrintMode::FormattedDefault)
+        {
+            return Err(HttmError::new("The NUM_VERSIONS graph mode and the RAW or ZEROS display modes are an invalid combination.").into());
+        }
 
         let opt_mount_display = match matches.value_of("FILE_MOUNT") {
             Some("" | "target" | "directory") => Some(MountDisplay::Target),
@@ -658,7 +688,11 @@ impl Config {
                 Some(_) | None => Some(InteractiveMode::Restore(RestoreMode::CopyOnly)),
             }
         } else if matches.is_present("SELECT") {
-            Some(InteractiveMode::Select)
+            match matches.value_of("SELECT") {
+                Some("contents") => Some(InteractiveMode::Select(SelectMode::Contents)),
+                Some("preview") => Some(InteractiveMode::Select(SelectMode::Preview)),
+                Some(_) | None => Some(InteractiveMode::Select(SelectMode::Path)),
+            }
         } else if matches.is_present("BROWSE") {
             Some(InteractiveMode::Browse)
         } else {
@@ -688,7 +722,8 @@ impl Config {
 
         // if in last snap and select mode we will want to return a raw value,
         // better to have this here.  It's more confusing if we work this logic later, I think.
-        if opt_last_snap.is_some() && matches!(opt_interactive_mode, Some(InteractiveMode::Select))
+        if opt_last_snap.is_some()
+            && matches!(opt_interactive_mode, Some(InteractiveMode::Select(_)))
         {
             print_mode = PrintMode::RawNewline
         }
@@ -711,7 +746,7 @@ impl Config {
 
         let opt_snap_mode_filters = if matches.is_present("LIST_SNAPS") {
             // allow selection of snaps to prune in prune mode
-            let select_mode = matches!(opt_interactive_mode, Some(InteractiveMode::Select));
+            let select_mode = matches!(opt_interactive_mode, Some(InteractiveMode::Select(_)));
 
             if !matches.is_present("PRUNE") && select_mode {
                 eprintln!("Select mode for listed snapshots only available in PRUNE mode.")
@@ -774,14 +809,14 @@ impl Config {
         }
 
         // current working directory will be helpful in a number of places
-        let pwd = Self::pwd()?;
+        let pwd = pwd()?;
 
         // paths are immediately converted to our PathData struct
         let paths: Vec<PathData> =
             Self::paths(matches.values_of_os("INPUT_FILES"), &exec_mode, &pwd)?;
 
         // for exec_modes in which we can only take a single directory, process how we handle those here
-        let opt_requested_dir: Option<PathData> =
+        let opt_requested_dir: Option<PathBuf> =
             Self::opt_requested_dir(&mut exec_mode, &mut opt_deleted_mode, &paths, &pwd)?;
 
         if opt_one_filesystem && opt_requested_dir.is_none() {
@@ -795,7 +830,7 @@ impl Config {
         // so we disable our bespoke "when to traverse symlinks" algo here, or if requested.
         let opt_no_traverse = matches.is_present("NO_TRAVERSE") || {
             if let Some(user_requested_dir) = opt_requested_dir.as_ref() {
-                user_requested_dir.path_buf.as_path() == Path::new(ROOT_DIRECTORY)
+                user_requested_dir.as_path() == Path::new(ROOT_DIRECTORY)
             } else {
                 false
             }
@@ -848,6 +883,7 @@ impl Config {
             opt_preview,
             opt_json,
             opt_one_filesystem,
+            opt_no_clones,
             uniqueness,
             requested_utc_offset,
             exec_mode,
@@ -861,21 +897,10 @@ impl Config {
         Ok(config)
     }
 
-    pub fn pwd() -> HttmResult<PathData> {
-        if let Ok(pwd) = std::env::current_dir() {
-            Ok(PathData::from(pwd))
-        } else {
-            Err(HttmError::new(
-                "Working directory does not exist or your do not have permissions to access it.",
-            )
-            .into())
-        }
-    }
-
     pub fn paths(
         opt_os_values: Option<OsValues>,
         exec_mode: &ExecMode,
-        pwd: &PathData,
+        pwd: &Path,
     ) -> HttmResult<Vec<PathData>> {
         let mut paths = if let Some(input_files) = opt_os_values {
             input_files
@@ -884,6 +909,17 @@ impl Config {
                 // so we have to join with the pwd to make a path that
                 // will exist on a snapshot
                 .map(PathData::from)
+                .filter_map(|pd| {
+                    // but what about snapshot paths?
+                    // here we strip the additional snapshot VFS bits and make them look like live versions
+                    if let Some(spd) = SnapPathGuard::new(&pd) {
+                        if !matches!(exec_mode, ExecMode::MountsForFiles(_)) {
+                            return spd.live_path();
+                        }
+                    }
+
+                    Some(pd)
+                })
                 .collect()
         } else {
             match exec_mode {
@@ -893,7 +929,7 @@ impl Config {
                 ExecMode::Interactive(_)
                 | ExecMode::NonInteractiveRecursive(_)
                 | ExecMode::RollForward(_) => {
-                    vec![pwd.clone()]
+                    vec![PathData::from(pwd)]
                 }
                 ExecMode::Display
                 | ExecMode::SnapFileMount(_)
@@ -923,15 +959,15 @@ impl Config {
         exec_mode: &mut ExecMode,
         deleted_mode: &mut Option<DeletedMode>,
         paths: &[PathData],
-        pwd: &PathData,
-    ) -> HttmResult<Option<PathData>> {
+        pwd: &Path,
+    ) -> HttmResult<Option<PathBuf>> {
         let res = match exec_mode {
             ExecMode::Interactive(_) | ExecMode::NonInteractiveRecursive(_) => {
                 match paths.len() {
-                    0 => Some(pwd.clone()),
+                    0 => Some(pwd.to_path_buf()),
                     // use our bespoke is_dir fn for determining whether a dir here see pub httm_is_dir
                     // safe to index as we know the paths len is 1
-                    1 if paths[0].httm_is_dir() => Some(paths[0].clone()),
+                    1 if paths[0].httm_is_dir() => Some(paths[0].path_buf.clone()),
                     // handle non-directories
                     1 => {
                         match exec_mode {
@@ -944,7 +980,7 @@ impl Config {
                                                 )
                                                 .into());
                                     }
-                                    InteractiveMode::Restore(_) | InteractiveMode::Select => {
+                                    InteractiveMode::Restore(_) | InteractiveMode::Select(_) => {
                                         // non-dir file will just cause us to skip the lookup phase
                                         None
                                     }
@@ -1020,33 +1056,5 @@ impl Config {
             omit_num_snaps,
             name_filters,
         })
-    }
-
-    // use an associated function here because we may need this display again elsewhere
-    pub fn generate_display_config(&self, paths_selected: &[PathData]) -> Self {
-        // generate a config for a preview display only
-        Config {
-            paths: paths_selected.to_vec(),
-            opt_recursive: false,
-            opt_exact: false,
-            opt_no_filter: false,
-            opt_debug: false,
-            opt_no_traverse: false,
-            opt_no_hidden: false,
-            opt_json: false,
-            opt_one_filesystem: false,
-            opt_bulk_exclusion: None,
-            opt_last_snap: None,
-            opt_preview: None,
-            opt_deleted_mode: None,
-            uniqueness: ListSnapsOfType::UniqueMetadata,
-            opt_omit_ditto: self.opt_omit_ditto,
-            requested_utc_offset: self.requested_utc_offset,
-            exec_mode: ExecMode::Display,
-            print_mode: PrintMode::FormattedDefault,
-            dataset_collection: self.dataset_collection.clone(),
-            pwd: self.pwd.clone(),
-            opt_requested_dir: self.opt_requested_dir.clone(),
-        }
     }
 }

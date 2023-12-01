@@ -15,17 +15,14 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::path::Path;
-use std::process::Command as ExecProcess;
-use std::time::SystemTime;
-
-use which::which;
-
 use crate::data::paths::PathData;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{date_string, DateFormat};
-use crate::print_output_buf;
-use crate::GLOBAL_CONFIG;
+use crate::{print_output_buf, GLOBAL_CONFIG};
+use std::path::Path;
+use std::process::Command as ExecProcess;
+use std::time::SystemTime;
+use which::which;
 
 pub enum PrecautionarySnapType {
     PreRollForward,

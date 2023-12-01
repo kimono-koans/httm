@@ -15,16 +15,15 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::{collections::BTreeMap, ops::Deref};
-
-use serde::ser::SerializeStruct;
-use serde::{Serialize, Serializer};
-
 use crate::config::generate::{BulkExclusion, Config, ExecMode, PrintMode};
 use crate::data::paths::PathData;
 use crate::display_map::format::PrintAsMap;
 use crate::library::utility::delimiter;
 use crate::lookup::versions::VersionsMap;
+use serde::ser::SerializeStruct;
+use serde::{Serialize, Serializer};
+use std::collections::BTreeMap;
+use std::ops::Deref;
 
 pub struct VersionsDisplayWrapper<'a> {
     pub config: &'a Config,

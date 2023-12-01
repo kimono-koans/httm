@@ -15,17 +15,18 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::{fs::read_dir, ops::Deref, path::Path, path::PathBuf, process::Command as ExecProcess};
-
-use hashbrown::HashMap;
-use proc_mounts::MountIter;
-use rayon::prelude::*;
-use which::which;
-
 use crate::library::results::{HttmError, HttmResult};
 use crate::parse::aliases::FilesystemType;
 use crate::parse::mounts::{DatasetMetadata, MountType};
 use crate::{BTRFS_SNAPPER_HIDDEN_DIRECTORY, BTRFS_SNAPPER_SUFFIX, ZFS_SNAPSHOT_DIRECTORY};
+use hashbrown::HashMap;
+use proc_mounts::MountIter;
+use rayon::prelude::*;
+use std::fs::read_dir;
+use std::ops::Deref;
+use std::path::{Path, PathBuf};
+use std::process::Command as ExecProcess;
+use which::which;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MapOfSnaps {

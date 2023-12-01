@@ -15,22 +15,43 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::fs::File;
-use std::fs::OpenOptions;
-use std::io::BufRead;
-use std::io::BufReader;
-use std::io::BufWriter;
-use std::io::ErrorKind;
-use std::io::Seek;
-use std::io::SeekFrom;
-use std::io::Write;
-use std::path::Path;
-
-use simd_adler32::Adler32;
-
+use super::results::HttmError;
+use crate::config::generate::ListSnapsOfType;
+use crate::data::paths::{CompareVersionsContainer, PathData};
 use crate::library::results::HttmResult;
+use crate::GLOBAL_CONFIG;
+use once_cell::sync::Lazy;
+use simd_adler32::Adler32;
+use std::fs::{File, OpenOptions};
+use std::io::{BufRead, BufReader, BufWriter, ErrorKind, Seek, SeekFrom, Write};
+use std::os::fd::{AsFd, BorrowedFd};
+use std::path::Path;
+use std::process::Command as ExecProcess;
+use std::sync::atomic::AtomicBool;
 
 const CHUNK_SIZE: usize = 65_536;
+
+static IS_CLONE_COMPATIBLE: Lazy<AtomicBool> = Lazy::new(|| {
+    if let Ok(zfs_command) = which::which("zfs") {
+        let Ok(process_output) = ExecProcess::new(zfs_command).arg("-V").output() else {
+            return AtomicBool::new(false);
+        };
+
+        if !process_output.stderr.is_empty() {
+            return AtomicBool::new(false);
+        }
+
+        let Ok(stdout) = std::str::from_utf8(&process_output.stdout) else {
+            return AtomicBool::new(false);
+        };
+
+        if stdout.contains("zfs-2.2") || stdout.contains("zfs-kmod-2.2") {
+            return AtomicBool::new(false);
+        }
+    }
+
+    AtomicBool::new(true)
+});
 
 enum DstFileState {
     Exists,
@@ -40,7 +61,8 @@ enum DstFileState {
 pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
     // create source file reader
     let src_file = File::open(src)?;
-    let mut src_reader = BufReader::with_capacity(CHUNK_SIZE, &src_file);
+    let src_fd = src_file.as_fd();
+    let src_len = src_file.metadata()?.len();
 
     // create destination if it doesn't exist
     let dst_exists = if dst.exists() {
@@ -54,17 +76,78 @@ pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
         .read(true)
         .create(true)
         .open(dst)?;
-    let src_len = src_file.metadata()?.len();
+    let dst_fd = dst_file.as_fd();
     dst_file.set_len(src_len)?;
 
+    let amt_written = if GLOBAL_CONFIG.opt_no_clones
+        || !IS_CLONE_COMPATIBLE.load(std::sync::atomic::Ordering::Relaxed)
+    {
+        write_loop(&src_file, &dst_file, dst_exists)?
+    } else {
+        match httm_copy_file_range(src_fd, dst_fd, 0 as i64, src_len as usize) {
+            Ok(amt_written) if amt_written as u64 == src_len => {
+                if GLOBAL_CONFIG.opt_debug {
+                    eprintln!("DEBUG: copy_file_range call successful.");
+                }
+                amt_written
+            }
+            _ => {
+                IS_CLONE_COMPATIBLE.store(false, std::sync::atomic::Ordering::Relaxed);
+                if GLOBAL_CONFIG.opt_debug {
+                    eprintln!(
+                        "DEBUG: copy_file_range call unsuccessful.  \
+                    IS_CLONE_COMPATIBLE variable has been modified to: \"{:?}\".",
+                        IS_CLONE_COMPATIBLE.load(std::sync::atomic::Ordering::Relaxed)
+                    );
+                }
+                write_loop(&src_file, &dst_file, dst_exists)?
+            }
+        }
+    };
+
+    if amt_written != src_len as usize {
+        let msg = format!(
+            "Amount written (\"{}\") != Source length (\"{}\").  Quitting.",
+            amt_written, src_len
+        );
+        return Err(HttmError::new(&msg).into());
+    }
+
+    if GLOBAL_CONFIG.opt_debug {
+        confirm(src, dst)?
+    }
+
+    Ok(())
+}
+
+#[inline]
+fn is_same_bytes(a_bytes: &[u8], b_bytes: &[u8]) -> bool {
+    let (a_hash, b_hash): (u32, u32) = rayon::join(|| hash(a_bytes), || hash(b_bytes));
+
+    a_hash == b_hash
+}
+
+#[inline]
+fn hash(bytes: &[u8]) -> u32 {
+    let mut hash = Adler32::default();
+
+    hash.write(bytes);
+    hash.finish()
+}
+
+fn write_loop(src_file: &File, dst_file: &File, dst_exists: DstFileState) -> HttmResult<usize> {
     // create destination file writer and maybe reader
     // only include dst file reader if the dst file exists
     // otherwise we just write to that location
-    let mut dst_reader = BufReader::with_capacity(CHUNK_SIZE, &dst_file);
-    let mut dst_writer = BufWriter::with_capacity(CHUNK_SIZE, &dst_file);
+    let mut src_reader = BufReader::with_capacity(CHUNK_SIZE, src_file);
+    let mut dst_reader = BufReader::with_capacity(CHUNK_SIZE, dst_file);
+    let mut dst_writer = BufWriter::with_capacity(CHUNK_SIZE, dst_file);
 
     // cur pos - byte offset in file,
     let mut cur_pos = 0u64;
+
+    // return value
+    let mut bytes_processed = 0usize;
 
     loop {
         match src_reader.fill_buf() {
@@ -78,24 +161,24 @@ pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
 
                 match dst_exists {
                     DstFileState::DoesNotExist => {
-                        // seek to current byte offset in dst writer
-                        let _seek_pos = dst_writer.seek(SeekFrom::Start(cur_pos))?;
-
-                        dst_writer.write_all(src_read)?;
+                        write_to_offset(&mut dst_writer, src_read, cur_pos, &mut bytes_processed)?
                     }
                     DstFileState::Exists => {
                         // read same amt from dst file, if it exists, to compare
                         match dst_reader.fill_buf() {
                             Ok(dst_read) => {
-                                let dst_amt_read = dst_read.len();
-
-                                if !is_same_bytes(src_read, dst_read) {
-                                    // seek to current byte offset in dst writer
-                                    let _seek_pos = dst_writer.seek(SeekFrom::Start(cur_pos))?;
-
-                                    dst_writer.write_all(src_read)?
+                                if is_same_bytes(src_read, dst_read) {
+                                    bytes_processed += src_amt_read;
+                                } else {
+                                    write_to_offset(
+                                        &mut dst_writer,
+                                        src_read,
+                                        cur_pos,
+                                        &mut bytes_processed,
+                                    )?
                                 }
 
+                                let dst_amt_read = dst_read.len();
                                 dst_reader.consume(dst_amt_read);
                             }
                             Err(err) => match err.kind() {
@@ -124,23 +207,93 @@ pub fn diff_copy(src: &Path, dst: &Path) -> HttmResult<()> {
     }
 
     // re docs, both a flush and a sync seem to be required re consistency
-    dst_writer.flush()?;
     dst_file.sync_data()?;
+
+    Ok(bytes_processed)
+}
+
+fn write_to_offset(
+    dst_writer: &mut BufWriter<&File>,
+    src_read: &[u8],
+    cur_pos: u64,
+    bytes_processed: &mut usize,
+) -> HttmResult<()> {
+    // seek to current byte offset in dst writer
+    let seek_pos = dst_writer.seek(SeekFrom::Start(cur_pos))?;
+
+    if seek_pos != cur_pos {
+        let msg = format!("Could not seek to offset in destination file: {}", cur_pos);
+        return Err(HttmError::new(&msg).into());
+    }
+
+    *bytes_processed += dst_writer.write(src_read)?;
 
     Ok(())
 }
 
-#[inline]
-fn is_same_bytes(a_bytes: &[u8], b_bytes: &[u8]) -> bool {
-    let (a_hash, b_hash): (u32, u32) = rayon::join(|| hash(a_bytes), || hash(b_bytes));
+#[allow(unreachable_code, unused_variables)]
+fn httm_copy_file_range(
+    src_file_fd: BorrowedFd,
+    dst_file_fd: BorrowedFd,
+    offset: i64,
+    len: usize,
+) -> HttmResult<usize> {
+    #[cfg(any(target_os = "linux", target_os = "freebsd"))]
+    {
+        use nix::fcntl::copy_file_range;
 
-    a_hash == b_hash
+        let mut src_mutable_offset = offset;
+        let mut dst_mutable_offset = offset;
+
+        let res = copy_file_range(
+            src_file_fd,
+            Some(&mut src_mutable_offset),
+            dst_file_fd,
+            Some(&mut dst_mutable_offset),
+            len,
+        );
+
+        match res {
+            Ok(bytes_written) => return Ok(bytes_written),
+            Err(err) => match err {
+                nix::errno::Errno::ENOSYS => {
+                    return Err(HttmError::new(
+                        "Operating system does not support copy_file_ranges.",
+                    )
+                    .into())
+                }
+                _ => {
+                    if GLOBAL_CONFIG.opt_debug {
+                        eprintln!("DEBUG: copy_file_range call failed for the following reason: {}\nDEBUG: Falling back to default diff copy behavior.", err);
+                    }
+                }
+            },
+        }
+    }
+    Err(HttmError::new("Operating system does not support copy_file_ranges.").into())
 }
 
-#[inline]
-fn hash(bytes: &[u8]) -> u32 {
-    let mut hash = Adler32::default();
+fn confirm(src: &Path, dst: &Path) -> HttmResult<()> {
+    let src_test =
+        CompareVersionsContainer::new(PathData::from(src), &ListSnapsOfType::UniqueContents);
+    let dst_test =
+        CompareVersionsContainer::new(PathData::from(dst), &ListSnapsOfType::UniqueContents);
 
-    hash.write(bytes);
-    hash.finish()
+    if src_test.is_same_file(&dst_test) {
+        eprintln!(
+            "DEBUG: Copy successful.  File contents of {} and {} are the same.",
+            src.display(),
+            dst.display()
+        );
+
+        Ok(())
+    } else {
+        let msg = format!(
+            "Copy failed.  File contents of {} and {} are NOT the same.",
+            src.display(),
+            dst.display()
+        );
+
+        Err(HttmError::new(&msg).into())
+    }
 }

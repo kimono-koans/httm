@@ -15,13 +15,13 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::process::Command as ExecProcess;
-
 use crate::config::generate::ListSnapsFilters;
+use crate::exec::interactive::InteractiveMultiSelect;
 use crate::exec::interactive::ViewMode;
 use crate::library::results::{HttmError, HttmResult};
 use crate::lookup::snap_names::SnapNameMap;
 use crate::lookup::versions::VersionsMap;
+use std::process::Command as ExecProcess;
 
 pub struct PruneSnaps;
 
@@ -38,31 +38,27 @@ impl PruneSnaps {
             false
         };
 
-        Self::interactive_prune(&snap_name_map, select_mode)
+        Self::interactive_prune(&snap_name_map, select_mode)?;
+
+        std::process::exit(0)
     }
 
     fn interactive_prune(snap_name_map: &SnapNameMap, select_mode: bool) -> HttmResult<()> {
-        let file_names_string: String = snap_name_map
-            .keys()
-            .map(|key| format!("{:?}\n", key.path_buf))
-            .collect();
+        let file_names_string: String =
+            snap_name_map.keys().fold(String::new(), |mut buffer, key| {
+                buffer += format!("{:?}\n", key.path_buf).as_str();
+                buffer
+            });
 
         let snap_names: Vec<String> = if select_mode {
-            let buffer: String = snap_name_map
-                .values()
-                .flatten()
-                .map(|value| format!("{value}\n"))
-                .collect();
+            let buffer: String = snap_name_map.values().flatten().cloned().collect();
             let view_mode = &ViewMode::Select(None);
-            view_mode.select(&buffer, true)?
+            view_mode.select(&buffer, InteractiveMultiSelect::On)?
         } else {
             snap_name_map.values().flatten().cloned().collect()
         };
 
-        let snap_names_string: String = snap_names
-            .iter()
-            .map(|value| format!("{value}\n"))
-            .collect();
+        let snap_names_string: String = snap_names.into_iter().collect();
 
         let preview_buffer = format!(
             "User has requested snapshots related to the following file/s be pruned:\n\n{}\n\
@@ -76,10 +72,15 @@ impl PruneSnaps {
 
         // loop until user consents or doesn't
         loop {
-            let view_mode = &ViewMode::Prune;
-            let user_consent = view_mode.select(&preview_buffer, false)?[0].to_ascii_uppercase();
+            let view_mode = ViewMode::Prune;
 
-            match user_consent.as_ref() {
+            let selection = view_mode.select(&preview_buffer, InteractiveMultiSelect::Off)?;
+
+            let user_consent = selection
+                .get(0)
+                .ok_or_else(|| HttmError::new("Could not obtain the first match selected"))?;
+
+            match user_consent.to_ascii_uppercase().as_ref() {
                 "YES" | "Y" => {
                     Self::prune_snaps(snap_name_map)?;
 
@@ -98,31 +99,39 @@ impl PruneSnaps {
             }
         }
 
-        std::process::exit(0)
+        Ok(())
     }
 
     fn prune_snaps(snap_name_map: &SnapNameMap) -> HttmResult<()> {
         let zfs_command = which::which("zfs").map_err(|_err| {
             HttmError::new("'zfs' command not found. Make sure the command 'zfs' is in your path.")
         })?;
-        snap_name_map.values().flatten().try_for_each( |snapshot_name| {
-            let process_args = vec!["destroy".to_owned(), snapshot_name.clone()];
 
-            let process_output = ExecProcess::new(&zfs_command).args(&process_args).output()?;
-            let stderr_string = std::str::from_utf8(&process_output.stderr)?.trim();
+        snap_name_map
+            .values()
+            .flatten()
+            .try_for_each(|snapshot_name| {
+                let process_args = vec!["destroy".to_owned(), snapshot_name.clone()];
 
-            // stderr_string is a string not an error, so here we build an err or output
-            if !stderr_string.is_empty() {
-                let msg = if stderr_string.contains("cannot destroy snapshots: permission denied") {
-                    "httm must have root privileges to destroy a snapshot filesystem".to_owned()
-                } else {
-                    "httm was unable to destroy snapshots. The 'zfs' command issued the following error: ".to_owned() + stderr_string
-                };
+                let process_output = ExecProcess::new(&zfs_command)
+                    .args(&process_args)
+                    .output()?;
+                let stderr_string = std::str::from_utf8(&process_output.stderr)?.trim();
 
-                Err(HttmError::new(&msg).into())
+                // stderr_string is a string not an error, so here we build an err or output
+                if !stderr_string.is_empty() {
+                    let msg = if stderr_string.contains("cannot destroy snapshots: permission denied") {
+                        "httm must have root privileges to destroy a snapshot filesystem".to_owned()
+                    } else {
+                        "httm was unable to destroy snapshots. The 'zfs' command issued the following error: "
+                        .to_owned()
+                        + stderr_string
+                    };
+
+                    Err(HttmError::new(&msg).into())
             } else {
                 Ok(())
             }
-        })
+      })
     }
 }

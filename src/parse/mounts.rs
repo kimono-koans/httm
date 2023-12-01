@@ -15,21 +15,20 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::collections::BTreeMap;
-use std::ops::Deref;
-use std::{path::PathBuf, process::Command as ExecProcess};
-
-use hashbrown::{HashMap, HashSet};
-use proc_mounts::MountIter;
-use rayon::iter::Either;
-use rayon::prelude::*;
-use which::which;
-
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{find_common_path, fs_type_from_hidden_dir};
 use crate::parse::aliases::FilesystemType;
 use crate::parse::snaps::MapOfSnaps;
 use crate::{NILFS2_SNAPSHOT_ID_KEY, ZFS_HIDDEN_DIRECTORY};
+use hashbrown::{HashMap, HashSet};
+use proc_mounts::MountIter;
+use rayon::iter::Either;
+use rayon::prelude::*;
+use std::collections::BTreeMap;
+use std::ops::Deref;
+use std::path::PathBuf;
+use std::process::Command as ExecProcess;
+use which::which;
 
 pub const ZFS_FSTYPE: &str = "zfs";
 pub const NILFS2_FSTYPE: &str = "nilfs2";

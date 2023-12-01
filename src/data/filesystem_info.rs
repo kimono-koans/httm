@@ -15,16 +15,14 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::{ffi::OsStr, path::PathBuf};
-
-use clap::OsValues;
-
-use crate::data::paths::PathData;
 use crate::library::results::HttmResult;
 use crate::parse::aliases::MapOfAliases;
 use crate::parse::alts::MapOfAlts;
 use crate::parse::mounts::{BaseFilesystemInfo, FilterDirs, MapOfDatasets};
 use crate::parse::snaps::MapOfSnaps;
+use clap::OsValues;
+use std::ffi::OsStr;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FilesystemInfo {
@@ -48,7 +46,7 @@ impl FilesystemInfo {
         opt_remote_dir: Option<&OsStr>,
         opt_local_dir: Option<&OsStr>,
         opt_map_aliases: Option<OsValues>,
-        pwd: &PathData,
+        pwd: &Path,
     ) -> HttmResult<FilesystemInfo> {
         let base_fs_info = BaseFilesystemInfo::new()?;
 
@@ -101,7 +99,7 @@ impl FilesystemInfo {
             Some(MapOfAliases::new(
                 &raw_snap_dir,
                 &raw_local_dir,
-                pwd.path_buf.as_path(),
+                pwd,
                 &alias_values,
             )?)
         } else {

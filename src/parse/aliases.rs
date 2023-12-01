@@ -15,12 +15,12 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::{ffi::OsString, ops::Deref, path::Path, path::PathBuf};
-
-use hashbrown::HashMap;
-
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::fs_type_from_hidden_dir;
+use hashbrown::HashMap;
+use std::ffi::OsString;
+use std::ops::Deref;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum FilesystemType {
@@ -108,26 +108,25 @@ impl MapOfAliases {
                         .filter(|dir| !dir.exists())
                         .for_each(|dir| {
                             eprintln!(
-                            "Warning: An alias path specified does not exist, or is not mounted: {:?}",
-                            dir
-                        )
+                "Warning: An alias path specified does not exist, or is not mounted: {:?}",
+                dir
+              )
                         });
-                    return None
+                    return None;
                 }
 
                 Some((local_dir, snap_dir))
             })
             .filter_map(|(local_dir, remote_dir)| {
-                fs_type_from_hidden_dir(&remote_dir)
-                    .map(|fs_type| {
-                        (
-                            local_dir,
-                            RemotePathAndFsType {
-                                remote_dir,
-                                fs_type,
-                            },
-                        )
-                    })
+                fs_type_from_hidden_dir(&remote_dir).map(|fs_type| {
+                    (
+                        local_dir,
+                        RemotePathAndFsType {
+                            remote_dir,
+                            fs_type,
+                        },
+                    )
+                })
             })
             .collect();
 

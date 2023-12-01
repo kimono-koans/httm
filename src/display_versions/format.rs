@@ -15,16 +15,20 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::borrow::Cow;
-use std::ops::Deref;
-
-use terminal_size::{terminal_size, Height, Width};
-
 use crate::config::generate::{BulkExclusion, Config, PrintMode};
 use crate::data::paths::{PathData, PHANTOM_DATE, PHANTOM_SIZE};
-use crate::library::utility::delimiter;
-use crate::library::utility::{date_string, display_human_size, paint_string, DateFormat};
+use crate::library::utility::{
+    date_string,
+    delimiter,
+    display_human_size,
+    paint_string,
+    path_contains_filter_dir,
+    DateFormat,
+};
 use crate::VersionsDisplayWrapper;
+use std::borrow::Cow;
+use std::ops::Deref;
+use terminal_size::{terminal_size, Height, Width};
 // 2 space wide padding - used between date and size, and size and path
 pub const PRETTY_FIXED_WIDTH_PADDING: &str = "  ";
 // our FIXED_WIDTH_PADDING is used twice
@@ -75,15 +79,11 @@ impl<'a> VersionsDisplayWrapper<'a> {
                             .filter(|(display_set_type, _snap_or_live_set)| {
                                 display_set_type.filter_bulk_exclusions(self.config)
                             })
-                            .map(|(_idx, snap_or_live_set)| {
-                                snap_or_live_set
-                                    .iter()
-                                    .map(|pathdata| {
-                                        format!("{}{delimiter}", pathdata.path_buf.display())
-                                    })
-                                    .collect::<String>()
+                            .flat_map(|(_idx, snap_or_live_set)| snap_or_live_set)
+                            .fold(String::new(), |mut buffer, pathdata| {
+                                buffer += &format!("{}{}", pathdata.path_buf.display(), delimiter);
+                                buffer
                             })
-                            .collect()
                     }
                 }
             })
@@ -122,8 +122,8 @@ impl From<usize> for DisplaySetType {
     #[inline]
     fn from(value: usize) -> Self {
         match value {
-            idx if idx == 0 => DisplaySetType::IsSnap,
-            idx if idx == 1 => DisplaySetType::IsLive,
+            0 => DisplaySetType::IsSnap,
+            1 => DisplaySetType::IsLive,
             _ => unreachable!(),
         }
     }
@@ -150,6 +150,8 @@ impl DisplaySetType {
 
 impl<'a> DisplaySet<'a> {
     pub fn format(&self, config: &Config, padding_collection: &PaddingCollection) -> String {
+        let mut border: String = padding_collection.fancy_border_string.to_string();
+
         // get the display buffer for each set snaps and live
         self.iter()
             .enumerate()
@@ -171,15 +173,30 @@ impl<'a> DisplaySet<'a> {
                     if matches!(config.print_mode, PrintMode::FormattedNotPretty) {
                         display_set_buffer += &component_buffer;
                     } else if matches!(display_set_type, DisplaySetType::IsSnap) {
-                        display_set_buffer += &padding_collection.fancy_border_string;
                         if !component_buffer.is_empty() {
+                            display_set_buffer += &border;
                             display_set_buffer += &component_buffer;
-                            display_set_buffer += &padding_collection.fancy_border_string;
+                            display_set_buffer += &border;
+                        } else {
+                            let live_pathdata = self.inner[1][0];
+
+                            let warning = live_pathdata.warning_underlying_snaps(config);
+                            let warning_len = warning.len();
+                            let live_pathdata_len = live_pathdata.path_buf.as_os_str().len();
+
+                            if warning_len.gt(&live_pathdata_len) {
+                                border = format!("{:─<warning_len$}\n", border.trim_end())
+                            }
+
+                            display_set_buffer += &border;
+                            display_set_buffer += warning;
+                            display_set_buffer += &border;
                         }
                     } else {
                         display_set_buffer += &component_buffer;
-                        display_set_buffer += &padding_collection.fancy_border_string;
+                        display_set_buffer += &border;
                     }
+
                     display_set_buffer
                 },
             )
@@ -263,6 +280,35 @@ impl PathData {
             "{}{}{}{}{}\n",
             display_date, display_padding, display_size, display_padding, display_path
         )
+    }
+
+    fn warning_underlying_snaps<'a>(&'a self, config: &Config) -> &'a str {
+        let opt_live_pathdata = self
+            .proximate_dataset(&config.dataset_collection.map_of_datasets)
+            .ok();
+
+        match opt_live_pathdata.and_then(|dataset_of_interest| {
+            config
+                .dataset_collection
+                .map_of_snaps
+                .get(dataset_of_interest)
+        }) {
+            None => "WARN: The file's dataset is not a supported filesystem.\n",
+            // below is necessary because root fs "/" could or could not be the most proximate fs
+            // for instance, if root fs is on a supported filesystem, and the file is not "/sys/fs",
+            // a search of datasets will report "/" as the most proximate filesystem, not None as you might suppose
+            Some(_vec) if path_contains_filter_dir(&self.path_buf) => {
+                "WARN: The file's dataset is not a supported filesystem.\n"
+            }
+            Some(vec) if vec.is_empty() => {
+                if config.opt_omit_ditto {
+                    "WARN: Omitting the only snapshot version available, which is identical to the live file.\n"
+                } else {
+                    "WARN: No snapshots exist for the file's specified dataset.\n"
+                }
+            }
+            Some(_vec) => "WARN: No snapshot version exists for the specified file.\n",
+        }
     }
 }
 

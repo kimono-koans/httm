@@ -97,7 +97,7 @@ The `httm` project contains only a few components:
 
 ### Caveats
 
-Right now, you will need to use a Unix-ish-y Rust-supported platform to build and install (that is: Linux, Solaris/illumos, the BSDs).  Note, your platform *does not* need to support ZFS/BTRFS/NILFS2 to use `httm`.  And there is no fundamental reason a non-interactive Windows version of `httm` could not be built, as it once did build, but Windows platform support is not a priority for me right now.  Contributions from users are, of course, very welcome.
+Right now, you will probably need to use a Unix-ish-y Rust-supported platform to build and install (that is: only Linux, FreeBSD, and MacOS are *known* to work).  Note, your platform *does not* need to support ZFS/BTRFS/NILFS2 to use `httm`.  And there is no fundamental reason a non-interactive Windows version of `httm` could not be built, as it once did build, but Windows platform support is not a priority for me right now.  Contributions from users are, of course, very welcome.
 
 On FreeBSD, after a fresh minimal install, the interactive modes may not render properly, see the linked [issue](https://github.com/kimono-koans/httm/issues/20) for the fix.
 
@@ -146,13 +146,13 @@ Print all files on snapshots deleted from your home directory, recursive, newlin
 Browse all files in your home directory, recursively, and view unique versions on local snapshots:
 
 ```bash
-➜ httm -i -R ~
+➜ httm -b -R ~
 ```
 
 Browse all files deleted from your home directory, recursively, and view unique versions on all local and alternative replicated dataset snapshots:
 
 ```bash
-➜ httm -d=only -i -a -R ~
+➜ httm -d=only -b -a -R ~
 ```
 
 Browse all files in your home directory, recursively, and view unique versions on local snapshots, to select and ultimately restore to your working directory:
@@ -165,6 +165,29 @@ View unique versions of a file for recovery (shortcut, no need to browse a direc
 
 ```bash
 ➜ httm -r /var/log/samba/log.smbd
+```
+
+`httm` also seeks to be a good Unix citizen, which means -- you *should* use the other Unix utilities to organize your queries how you like them.  `find` and `awk` are especially useful here:
+
+```bash
+# search for the text "pattern" among snapshots of httm manpage
+➜ httm -n --omit-ditto /usr/share/man/man1/httm.1.gz | xargs rg "pattern" -z
+
+# print all unique versions of your `/var/log/syslog` file, 
+# newline delimited piped to `find` to print only versions 
+# with modify times of less than 1 day from right now.
+➜ httm -n --omit-ditto /var/log/syslog | xargs -I{} find '{}' -mtime -1
+
+# httm usually sorts snapshot versions in chronological order, 
+# oldest to newest, but since these are just paths/strings 
+# you may choose to sort them differently.
+#
+# here, print all unique versions of your `/var/log/syslog` file, 
+# then print each snapshot version's size in bytes first, 
+# then reverse sort by its size, then remove the number of bytes, 
+# leaving only the paths in their new sorted order
+➜ httm -n --omit-ditto /var/log/syslog | xargs -I{} find '{}' -printf '%s\t%p\n' | \
+sort -rn | awk 'BEGIN {FS="\t"}; {print $2}'
 ```
 
 View `bowie`-formatted `diff` of each unique snapshot of `~/.zshrc` against the live file version:
@@ -197,7 +220,7 @@ Browse all files, recursively, in a folder backed up via `rsync` to a remote sha
 # mount the share
 ➜ open smb://<your name>@<your remote share>.local/Home
 # execute httm
-➜ httm -i -R /Volumes/Home
+➜ httm -b -R /Volumes/Home
 ```
 
 Browse all files, recursively, in your MacOS home directory backed up via `rsync` to a ZFS or BTRFS Snapper remote share, shared via `smbd`, and view unique versions on remote snapshots. Note: The difference from above is, here, you're browsing files from a "live" directory:
@@ -206,7 +229,7 @@ Browse all files, recursively, in your MacOS home directory backed up via `rsync
 # mount the share
 ➜ open smb://<your name>@<your remote share>.local/Home
 # execute httm
-➜ httm -i -R --map-aliases /Users/<your name>:/Volumes/Home ~
+➜ httm -b -R --map-aliases /Users/<your name>:/Volumes/Home ~
 ```
 
 View the differences between each unique snapshot version of the `httm` `man` page and each previous version (this simple script is the basis for [bowie](https://github.com/kimono-koans/httm/blob/master/scripts/bowie.bash)):

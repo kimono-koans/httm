@@ -15,32 +15,28 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::os::unix::fs::MetadataExt;
-use std::{fs::read_dir, path::Path, sync::Arc};
-
-use once_cell::sync::Lazy;
-use rayon::{Scope, ThreadPool};
-use skim::prelude::*;
-
 use crate::config::generate::{DeletedMode, ExecMode};
 use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::data::selection::SelectionCandidate;
 use crate::display_versions::wrapper::VersionsDisplayWrapper;
 use crate::exec::deleted::SpawnDeletedThread;
 use crate::library::results::{HttmError, HttmResult};
-use crate::library::utility::is_channel_closed;
-use crate::library::utility::{print_output_buf, HttmIsDir, Never};
+use crate::library::utility::{is_channel_closed, print_output_buf, HttmIsDir, Never};
 use crate::parse::mounts::MaxLen;
-use crate::VersionsMap;
-use crate::GLOBAL_CONFIG;
-use crate::{BTRFS_SNAPPER_HIDDEN_DIRECTORY, ZFS_HIDDEN_DIRECTORY};
+use crate::{VersionsMap, BTRFS_SNAPPER_HIDDEN_DIRECTORY, GLOBAL_CONFIG, ZFS_HIDDEN_DIRECTORY};
+use once_cell::sync::Lazy;
+use rayon::{Scope, ThreadPool};
+use skim::prelude::*;
+use std::fs::read_dir;
+use std::os::unix::fs::MetadataExt;
+use std::path::Path;
+use std::sync::Arc;
 
 static OPT_REQUESTED_DIR_DEV: Lazy<u64> = Lazy::new(|| {
     GLOBAL_CONFIG
         .opt_requested_dir
         .as_ref()
         .expect("opt_requested_dir should be Some value at this point in execution")
-        .path_buf
         .symlink_metadata()
         .expect("Cannot read metadata for directory requested for search.")
         .dev()
@@ -56,7 +52,7 @@ pub struct RecursiveSearch;
 
 impl RecursiveSearch {
     pub fn exec(requested_dir: &Path, skim_tx: SkimItemSender, hangup_rx: Receiver<Never>) {
-        fn run_enumerate_loop(
+        fn run_loop(
             requested_dir: &Path,
             skim_tx: SkimItemSender,
             hangup_rx: Receiver<Never>,
@@ -81,10 +77,10 @@ impl RecursiveSearch {
                 .expect("Could not initialize rayon threadpool for recursive deleted search");
 
             pool.in_place_scope(|deleted_scope| {
-                run_enumerate_loop(requested_dir, skim_tx, hangup_rx, Some(deleted_scope))
+                run_loop(requested_dir, skim_tx, hangup_rx, Some(deleted_scope))
             })
         } else {
-            run_enumerate_loop(requested_dir, skim_tx, hangup_rx, None)
+            run_loop(requested_dir, skim_tx, hangup_rx, None)
         }
     }
 }
@@ -275,14 +271,17 @@ impl SharedRecursive {
 
         // check whether user requested this dir specifically, then we will show
         if let Some(user_requested_dir) = GLOBAL_CONFIG.opt_requested_dir.as_ref() {
-            if user_requested_dir.path_buf.as_path() == path {
+            if user_requested_dir.as_path() == path {
                 return false;
             }
         }
 
+        static FILTER_DIRS_MAX_LEN: Lazy<usize> =
+            Lazy::new(|| GLOBAL_CONFIG.dataset_collection.filter_dirs.max_len());
+
         // finally : is a non-supported dataset?
         // bailout easily if path is larger than max_filter_dir len
-        if path.components().count() > GLOBAL_CONFIG.dataset_collection.filter_dirs.max_len() {
+        if path.components().count() > *FILTER_DIRS_MAX_LEN {
             return false;
         }
 
@@ -319,9 +318,9 @@ impl SharedRecursive {
                         progress_bar.tick();
                     } else {
                         eprintln!(
-                            "NOTICE: httm could not find any deleted files at this directory level.  \
+              "NOTICE: httm could not find any deleted files at this directory level.  \
                         Perhaps try specifying a deleted mode in combination with \"--recursive\"."
-                        )
+            )
                     }
                 } else {
                     NonInteractiveRecursiveWrapper::print(entries)?;
@@ -367,7 +366,7 @@ impl NonInteractiveRecursiveWrapper {
 
         match &GLOBAL_CONFIG.opt_requested_dir {
             Some(requested_dir) => {
-                RecursiveSearch::exec(&requested_dir.path_buf, dummy_skim_tx, hangup_rx);
+                RecursiveSearch::exec(requested_dir, dummy_skim_tx, hangup_rx);
             }
             None => {
                 return Err(HttmError::new(

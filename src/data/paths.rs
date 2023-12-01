@@ -15,35 +15,22 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::{
-    cmp::{Ord, Ordering, PartialOrd},
-    ffi::OsStr,
-    fs::{symlink_metadata, DirEntry, File, FileType, Metadata},
-    io::{BufRead, BufReader, ErrorKind},
-    path::{Path, PathBuf},
-    time::SystemTime,
-};
-
-use once_cell::sync::OnceCell;
+use crate::config::generate::{ListSnapsOfType, PrintMode};
+use crate::library::results::{HttmError, HttmResult};
+use crate::library::utility::{date_string, display_human_size, pwd, DateFormat};
+use crate::parse::aliases::{FilesystemType, MapOfAliases};
+use crate::parse::mounts::{MapOfDatasets, MaxLen};
+use crate::{GLOBAL_CONFIG, ZFS_SNAPSHOT_DIRECTORY};
+use once_cell::sync::{Lazy, OnceCell};
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
-
 use simd_adler32::Adler32;
-
-use crate::parse::mounts::MapOfDatasets;
-use crate::parse::mounts::MaxLen;
-use crate::{config::generate::ListSnapsOfType, parse::aliases::MapOfAliases};
-use crate::{
-    config::generate::PrintMode,
-    library::{
-        results::{HttmError, HttmResult},
-        utility::DateFormat,
-    },
-};
-use crate::{
-    library::utility::{date_string, display_human_size},
-    GLOBAL_CONFIG,
-};
+use std::cmp::{Ord, Ordering, PartialOrd};
+use std::ffi::OsStr;
+use std::fs::{symlink_metadata, DirEntry, File, FileType, Metadata};
+use std::io::{BufRead, BufReader, ErrorKind};
+use std::path::{Path, PathBuf};
+use std::time::SystemTime;
 
 // only the most basic data from a DirEntry
 // for use to display in browse window and internally
@@ -104,12 +91,7 @@ impl From<BasicDirEntryInfo> for PathData {
         // this metadata() function will not traverse symlinks
         let opt_metadata = basic_info.path.symlink_metadata().ok();
         let path = basic_info.path;
-        let path_metadata = Self::opt_metadata(opt_metadata);
-
-        Self {
-            path_buf: path,
-            metadata: path_metadata,
-        }
+        Self::new(&path, opt_metadata)
     }
 }
 
@@ -119,24 +101,44 @@ impl PathData {
         //
         // in general we handle those cases elsewhere, like the ingest
         // of input files in Config::from for deleted relative paths, etc.
-        let absolute_path: PathBuf = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
+        match opt_metadata {
+            Some(md) => {
+                let canonical_path: PathBuf = if let Ok(canonical_path) = path.canonicalize() {
+                    canonical_path
+                } else if let Ok(pwd) = pwd() {
+                    pwd.join(path)
+                } else {
+                    path.to_path_buf()
+                };
 
-        let path_metadata = Self::opt_metadata(opt_metadata);
+                let path_metadata = Self::opt_metadata(&md);
 
-        PathData {
-            path_buf: absolute_path,
-            metadata: path_metadata,
+                PathData {
+                    path_buf: canonical_path,
+                    metadata: path_metadata,
+                }
+            }
+            None => {
+                let canonical_path: PathBuf = if let Ok(pwd) = pwd() {
+                    pwd.join(path)
+                } else {
+                    path.to_path_buf()
+                };
+
+                PathData {
+                    path_buf: canonical_path,
+                    metadata: None,
+                }
+            }
         }
     }
 
     // call symlink_metadata, as we need to resolve symlinks to get non-"phantom" metadata
-    fn opt_metadata(opt_metadata: Option<Metadata>) -> Option<PathMetadata> {
-        opt_metadata.and_then(|md| {
-            // may fail on systems that don't collect a modify time
-            Self::modify_time(&md).map(|time| PathMetadata {
-                size: md.len(),
-                modify_time: time,
-            })
+    fn opt_metadata(md: &Metadata) -> Option<PathMetadata> {
+        // may fail on systems that don't collect a modify time
+        Self::modify_time(md).map(|time| PathMetadata {
+            size: md.len(),
+            modify_time: time,
         })
     }
 
@@ -159,7 +161,7 @@ impl PathData {
         // path strip, if aliased
         // fallback if unable to find an alias or strip a prefix
         // (each an indication we should not be trying aliases)
-        let res = match GLOBAL_CONFIG
+        let relative_path = match GLOBAL_CONFIG
             .dataset_collection
             .opt_map_of_aliases
             .as_deref()
@@ -181,7 +183,7 @@ impl PathData {
             None => self.path_buf.strip_prefix(proximate_dataset_mount)?,
         };
 
-        Ok(res)
+        Ok(relative_path)
     }
 
     pub fn proximate_dataset<'a>(
@@ -192,11 +194,12 @@ impl PathData {
         // ancestors() iterates in this top-down order, when a value: dataset/fstype is available
         // we map to return the key, instead of the value
 
-        let dataset_max_len = map_of_datasets.max_len();
+        static DATASET_MAX_LEN: Lazy<usize> =
+            Lazy::new(|| GLOBAL_CONFIG.dataset_collection.map_of_datasets.max_len());
 
         self.path_buf
             .ancestors()
-            .skip_while(|ancestor| ancestor.components().count() > dataset_max_len)
+            .skip_while(|ancestor| ancestor.components().count() > *DATASET_MAX_LEN)
             .find(|ancestor| map_of_datasets.contains_key(*ancestor))
             .ok_or_else(|| {
                 HttmError::new(
@@ -215,6 +218,107 @@ impl PathData {
                 .get(ancestor)
                 .map(|alias_info| alias_info.remote_dir.as_path())
         })
+    }
+
+    pub fn is_snap_path(&self) -> bool {
+        self.path_buf
+            .to_string_lossy()
+            .contains(ZFS_SNAPSHOT_DIRECTORY)
+    }
+}
+
+pub struct SnapPathGuard<'a> {
+    inner: &'a PathData,
+}
+
+impl<'a> std::ops::Deref for SnapPathGuard<'a> {
+    type Target = &'a PathData;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+impl<'a> SnapPathGuard<'a> {
+    pub fn new(pathdata: &'a PathData) -> Option<Self> {
+        if !pathdata.is_snap_path() {
+            return None;
+        }
+
+        Some(Self { inner: pathdata })
+    }
+
+    pub fn target(&self, proximate_dataset_mount: &Path) -> Option<PathBuf> {
+        if let Ok(relative) = self.relative_path(proximate_dataset_mount) {
+            let target: PathBuf = self
+                .inner
+                .path_buf
+                .ancestors()
+                .zip(relative.ancestors())
+                .skip_while(|(a_path, b_path)| a_path == b_path)
+                .map(|(a_path, _b_path)| a_path)
+                .collect();
+
+            return Some(target);
+        }
+
+        None
+    }
+
+    pub fn relative_path(&self, proximate_dataset_mount: &Path) -> HttmResult<PathBuf> {
+        let relative_path = self.inner.relative_path(proximate_dataset_mount)?;
+        let snapshot_stripped_set = relative_path.strip_prefix(ZFS_SNAPSHOT_DIRECTORY)?;
+        if let Some(snapshot_name) = snapshot_stripped_set.components().next() {
+            let res = snapshot_stripped_set.strip_prefix(snapshot_name)?;
+            return Ok(res.to_path_buf());
+        }
+
+        let msg = format!("Path is not a snap path: {:?}", self.inner.path_buf);
+        Err(HttmError::new(&msg).into())
+    }
+
+    pub fn source(&self) -> Option<String> {
+        let path_string = &self.inner.path_buf.to_string_lossy();
+
+        let (dataset_path, relative_and_snap) =
+            path_string.split_once(&format!("{ZFS_SNAPSHOT_DIRECTORY}/"))?;
+
+        let (snap_name, _relative) = relative_and_snap.split_once('/')?;
+
+        match GLOBAL_CONFIG
+            .dataset_collection
+            .map_of_datasets
+            .get(Path::new(dataset_path))
+        {
+            Some(md) if md.fs_type == FilesystemType::Zfs => {
+                Some(format!("{}@{snap_name}", md.source.to_string_lossy()))
+            }
+            Some(_md) => {
+                eprintln!("WARNING: {:?} is located on a non-ZFS dataset.  httm can only list snapshot names for ZFS datasets.", self.inner.path_buf);
+                None
+            }
+            _ => {
+                eprintln!("WARNING: {:?} is not located on a discoverable dataset.  httm can only list snapshot names for ZFS datasets.", self.inner.path_buf);
+                None
+            }
+        }
+    }
+
+    pub fn live_path(&self) -> Option<PathData> {
+        if let Some((proximate_dataset_mount, relative_and_snap_name)) = self
+            .inner
+            .path_buf
+            .to_string_lossy()
+            .split_once(&format!("{ZFS_SNAPSHOT_DIRECTORY}/"))
+        {
+            if let Some((_snap_name, relative)) = relative_and_snap_name.split_once("/") {
+                return Some(PathData::from(
+                    PathBuf::from(proximate_dataset_mount).join(Path::new(relative)),
+                ));
+            }
+        }
+
+        None
     }
 }
 
@@ -328,7 +432,7 @@ impl CompareVersionsContainer {
 
     #[inline]
     #[allow(unused_assignments)]
-    fn is_same_file(&self, other: &Self) -> bool {
+    pub fn is_same_file(&self, other: &Self) -> bool {
         // SAFETY: Unwrap will fail on opt_hash is None, here we've guarded this above
         let self_hash_cell = self
             .opt_hash

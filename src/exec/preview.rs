@@ -15,13 +15,11 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::path::PathBuf;
-
-use which::which;
-
 use crate::exec::interactive::ViewMode;
 use crate::library::results::{HttmError, HttmResult};
 use crate::GLOBAL_CONFIG;
+use std::path::PathBuf;
+use which::which;
 
 pub struct PreviewSelection {
     pub opt_preview_window: Option<String>,
@@ -39,12 +37,14 @@ impl PreviewSelection {
                     unreachable!()
                 };
 
+                let opt_preview_command = Some(Self::parse_preview_command(
+                    defined_command,
+                    opt_live_version,
+                )?);
+
                 PreviewSelection {
                     opt_preview_window: Some("up:50%".to_owned()),
-                    opt_preview_command: Some(Self::parse_preview_command(
-                        defined_command,
-                        opt_live_version,
-                    )?),
+                    opt_preview_command,
                 }
             }
             _ => PreviewSelection {
@@ -66,7 +66,7 @@ impl PreviewSelection {
                     format!("bowie --direct \"$snap_file\" \"{live_version}\"")
                 },
                 _ => match which("cat") {
-                    Ok(_) => "cat \"$snap_file\"".to_string(),
+                    Ok(_) => "if [[ -s \"$snap_file\" ]]; then cat \"$snap_file\"; else printf \"WARN: \"$snap_file\" is empty\"; fi".to_string(),
                     Err(_) => {
                         return Err(HttmError::new(
                             "'cat' executable could not be found in the user's PATH. 'cat' is necessary for executing a bare preview command.",
@@ -117,19 +117,19 @@ impl PreviewSelection {
             }
         };
 
-        let res = match which("cut") {
+        match which("cut") {
             Ok(_) => {
-                format!(
-                    "snap_file=\"`echo {{}} | cut -d'\"' -f2`\"; if test -f \"$snap_file\" || test -d \"$snap_file\" || test -L \"$snap_file\"; then exec 0<&-; {command} 2>&1; fi"
-                )
+                let script = include_str!("../../scripts/preview-bootstrap.bash");
+
+                let res = script.replace("{command}", &command);
+
+                Ok(res)
             }
             Err(_) => {
                 return Err(
                     HttmError::new("'cut' executable could not be found in the user's PATH. 'cut' is necessary for executing a preview command.").into(),
                 )
             }
-        };
-
-        Ok(res)
+        }
     }
 }

@@ -15,13 +15,12 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::{ops::Deref, path::Path, path::PathBuf};
-
-use hashbrown::HashMap;
-use rayon::prelude::*;
-
 use crate::library::results::{HttmError, HttmResult};
 use crate::parse::mounts::MapOfDatasets;
+use hashbrown::HashMap;
+use rayon::prelude::*;
+use std::ops::Deref;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MapOfAlts {

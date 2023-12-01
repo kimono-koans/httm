@@ -15,25 +15,15 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::{
-    collections::{BTreeMap, BTreeSet},
-    io::ErrorKind,
-    ops::Deref,
-    ops::DerefMut,
-    path::{Path, PathBuf},
-};
-
-use rayon::prelude::*;
-
+use crate::config::generate::{BulkExclusion, Config, LastSnapMode, ListSnapsOfType};
+use crate::data::paths::{CompareVersionsContainer, PathData};
 use crate::library::results::{HttmError, HttmResult};
-use crate::{
-    config::generate::ListSnapsOfType,
-    data::paths::{CompareVersionsContainer, PathData},
-};
-use crate::{
-    config::generate::{BulkExclusion, Config, LastSnapMode},
-    GLOBAL_CONFIG,
-};
+use crate::GLOBAL_CONFIG;
+use rayon::prelude::*;
+use std::collections::{BTreeMap, BTreeSet};
+use std::io::ErrorKind;
+use std::ops::{Deref, DerefMut};
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VersionsMap {
@@ -268,7 +258,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
     }
 
     pub fn versions_processed(&'a self, uniqueness: &ListSnapsOfType) -> Vec<PathData> {
-        let all_versions = self.versions_unprocessed(uniqueness);
+        let all_versions = self.versions_unprocessed();
 
         Self::sort_dedup_versions(all_versions, uniqueness)
     }
@@ -279,10 +269,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
         sorted_versions.pop()
     }
 
-    fn versions_unprocessed(
-        &'a self,
-        uniqueness: &'a ListSnapsOfType,
-    ) -> impl ParallelIterator<Item = CompareVersionsContainer> + 'a {
+    fn versions_unprocessed(&'a self) -> impl ParallelIterator<Item = PathData> + 'a {
         // get the DirEntry for our snapshot path which will have all our possible
         // snapshots, like so: .zfs/snapshots/<some snap name>/
         self
@@ -292,7 +279,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
             .filter_map(|joined_path| {
                 match joined_path.symlink_metadata() {
                     Ok(md) => {
-                        Some(CompareVersionsContainer::new(PathData::new(joined_path.as_path(), Some(md)), uniqueness))
+                        Some(PathData::new(joined_path.as_path(), Some(md)))
                     },
                     Err(err) => {
                         match err.kind() {
@@ -316,13 +303,15 @@ impl<'a> RelativePathAndSnapMounts<'a> {
     // remove duplicates with the same system modify time and size/file len (or contents! See --uniqueness)
     #[allow(clippy::mutable_key_type)]
     fn sort_dedup_versions(
-        iter: impl ParallelIterator<Item = CompareVersionsContainer>,
-        snaps_of_type: &ListSnapsOfType,
+        iter: impl ParallelIterator<Item = PathData>,
+        uniqueness: &ListSnapsOfType,
     ) -> Vec<PathData> {
-        match snaps_of_type {
-            ListSnapsOfType::All => iter.map(PathData::from).collect(),
+        match uniqueness {
+            ListSnapsOfType::All => iter.collect(),
             ListSnapsOfType::UniqueContents | ListSnapsOfType::UniqueMetadata => {
-                let sorted_and_deduped: BTreeSet<CompareVersionsContainer> = iter.collect();
+                let sorted_and_deduped: BTreeSet<CompareVersionsContainer> = iter
+                    .map(|pd| CompareVersionsContainer::new(pd, uniqueness))
+                    .collect();
                 sorted_and_deduped.into_iter().map(PathData::from).collect()
             }
         }

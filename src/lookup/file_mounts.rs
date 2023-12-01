@@ -15,15 +15,13 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use std::collections::BTreeMap;
-use std::ops::Deref;
-
-use rayon::prelude::*;
-
 use crate::config::generate::MountDisplay;
 use crate::data::paths::PathData;
 use crate::lookup::versions::ProximateDatasetAndOptAlts;
 use crate::GLOBAL_CONFIG;
+use rayon::prelude::*;
+use std::collections::BTreeMap;
+use std::ops::Deref;
 
 #[derive(Debug)]
 pub struct MountsForFiles<'a> {
@@ -50,21 +48,21 @@ impl<'a> MountsForFiles<'a> {
         let map: BTreeMap<&PathData, Vec<PathData>> = GLOBAL_CONFIG
             .paths
             .par_iter()
-            .filter(|pathdata| {
-                if pathdata.metadata.is_none() {
-                    eprintln!("Error: Input file may not exist: {:?}", pathdata.path_buf);
-                    return false;
-                }
-
-                true
-            })
             .flat_map(ProximateDatasetAndOptAlts::new)
             .map(|prox_opt_alts| {
-                let vec = prox_opt_alts
+                let vec: Vec<PathData> = prox_opt_alts
                     .datasets_of_interest
                     .iter()
                     .map(PathData::from)
                     .collect();
+
+                if prox_opt_alts.pathdata.metadata.is_none() && vec.is_empty() {
+                    eprintln!(
+                        "Error: Input file may not exist: {:?}",
+                        prox_opt_alts.pathdata.path_buf
+                    );
+                }
+
                 (prox_opt_alts.pathdata, vec)
             })
             .collect();
