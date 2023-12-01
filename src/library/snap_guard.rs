@@ -129,7 +129,7 @@ impl SnapGuard {
                 }
             };
 
-            print_output_buf(output_buf)?;
+            print_output_buf(&output_buf)?;
 
             Ok(SnapGuard {
                 inner: new_snap_name,

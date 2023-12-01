@@ -385,6 +385,6 @@ impl NonInteractiveRecursiveWrapper {
         let versions_map = VersionsMap::new(&GLOBAL_CONFIG, &pseudo_live_set)?;
         let output_buf = VersionsDisplayWrapper::from(&GLOBAL_CONFIG, versions_map).to_string();
 
-        print_output_buf(output_buf)
+        print_output_buf(&output_buf)
     }
 }

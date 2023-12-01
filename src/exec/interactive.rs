@@ -239,7 +239,7 @@ impl InteractiveSelect {
                     }
                 };
 
-                print_output_buf(output_buf)?;
+                print_output_buf(&output_buf)?;
 
                 Ok(())
             }
@@ -249,10 +249,12 @@ impl InteractiveSelect {
                     return Err(HttmError::new(&msg).into());
                 }
                 let mut f = std::fs::File::open(snap_path)?;
-                let mut contents = String::new();
-                f.read_to_string(&mut contents)?;
+                let mut contents = Vec::new();
+                f.read_to_end(&mut contents)?;
 
-                print_output_buf(contents)?;
+                let output_buf = unsafe { std::str::from_utf8_unchecked(&contents) };
+
+                print_output_buf(output_buf)?;
 
                 Ok(())
             }
@@ -290,7 +292,7 @@ impl InteractiveSelect {
                     Some(mut stdout) => {
                         let mut output_buf = String::new();
                         stdout.read_to_string(&mut output_buf)?;
-                        print_output_buf(output_buf)
+                        print_output_buf(&output_buf)
                     }
                     None => {
                         let msg =

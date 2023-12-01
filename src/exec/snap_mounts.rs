@@ -67,7 +67,7 @@ impl SnapshotMounts {
 
           Err(HttmError::new(&msg).into())
         } else {
-          let output_buf = snapshot_names
+          let output_buf: String = snapshot_names
             .iter()
             .map(|snap_name| {
               if matches!(
@@ -81,7 +81,7 @@ impl SnapshotMounts {
               }
             })
             .collect();
-          print_output_buf(output_buf)
+          print_output_buf(&output_buf)
         }
       })?;
 

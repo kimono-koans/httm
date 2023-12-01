@@ -113,14 +113,14 @@ fn exec() -> HttmResult<()> {
             let versions_map = VersionsMap::new(&GLOBAL_CONFIG, &pathdata_set)?;
             let output_buf = VersionsDisplayWrapper::from(&GLOBAL_CONFIG, versions_map).to_string();
 
-            print_output_buf(output_buf)
+            print_output_buf(&output_buf)
         }
         // ExecMode::Display will be just printed, we already know the paths
         ExecMode::Display | ExecMode::NumVersions(_) => {
             let versions_map = VersionsMap::new(&GLOBAL_CONFIG, &GLOBAL_CONFIG.paths)?;
             let output_buf = VersionsDisplayWrapper::from(&GLOBAL_CONFIG, versions_map).to_string();
 
-            print_output_buf(output_buf)
+            print_output_buf(&output_buf)
         }
         // ExecMode::NonInteractiveRecursive, ExecMode::SnapFileMount, and ExecMode::MountsForFiles will print their
         // output elsewhere
@@ -132,7 +132,7 @@ fn exec() -> HttmResult<()> {
             let printable_map = PrintAsMap::from(&snap_name_map);
             let output_buf = printable_map.to_string();
 
-            print_output_buf(output_buf)
+            print_output_buf(&output_buf)
         }
         ExecMode::Prune(opt_filters) => {
             let versions_map = VersionsMap::new(&GLOBAL_CONFIG, &GLOBAL_CONFIG.paths)?;
@@ -143,7 +143,7 @@ fn exec() -> HttmResult<()> {
             let printable_map: PrintAsMap = mounts_map.into();
             let output_buf = printable_map.to_string();
 
-            print_output_buf(output_buf)
+            print_output_buf(&output_buf)
         }
         ExecMode::RollForward(roll_config) => RollForward::new(roll_config.clone())?.exec(),
     }

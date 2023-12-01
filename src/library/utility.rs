@@ -341,7 +341,7 @@ fn cmp_path<A: AsRef<Path>, B: AsRef<Path>>(a: A, b: B) -> Option<PathBuf> {
     }
 }
 
-pub fn print_output_buf(output_buf: String) -> HttmResult<()> {
+pub fn print_output_buf(output_buf: &str) -> HttmResult<()> {
     // mutex keeps threads from writing over each other
     let out = std::io::stdout();
     let mut out_locked = out.lock();
