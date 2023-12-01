@@ -596,6 +596,9 @@ impl ViewMode {
 
         match display_handle.join() {
             Ok(selected_pathdata) => {
+                #[cfg(feature = "linux_malloc_trim")]
+                #[cfg(target_os = "linux")]
+                #[cfg(target_env = "gnu")]
                 Self::malloc_trim();
 
                 let res = InteractiveBrowse {
@@ -608,9 +611,10 @@ impl ViewMode {
         }
     }
 
+    #[cfg(feature = "linux_malloc_trim")]
+    #[cfg(target_os = "linux")]
+    #[cfg(target_env = "gnu")]
     fn malloc_trim() {
-        #[cfg(target_os = "linux")]
-        #[cfg(target_env = "gnu")]
         unsafe {
             let _ = libc::malloc_trim(0);
         };

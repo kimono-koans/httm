@@ -25,10 +25,12 @@ inherits = "release"
 [features]
 acls = ["exacl"]
 xattrs = ["xattr"]
+linux_malloc_trim = ["libc"]
 
 [target.'cfg(unix)'.dependencies]
-exacl = { version = "0.11.0", optional=true }
+exacl = { version = "0.11.0", default-features = false, optional=true }
 xattr = { version = "1.0.1", default-features = false, optional = true }
+libc = { version = "0.2.150", default-features = false, optional = true }
 
 [dependencies]
 simd-adler32 = { version = "0.3.7", default-features = false, features = ["std"] }
@@ -50,7 +52,6 @@ nix = { version = "0.27.1", default-features = false, features = ["fs", "user", 
 serde = { version = "1.0.192", default-features = false }
 serde_json = { version = "1.0.108", default-features = false, features = ["preserve_order"] }
 filetime = { version = "0.2.22", default-features = false }
-libc = { version = "0.2.150", default-features = false }
 
 [patch.crates-io]
 timer = { git = "https://github.com/kimono-koans/timer.rs" }
@@ -65,10 +66,10 @@ residing on snapshots.  May also be used interactively to select and restore fro
 versions, and even to snapshot datasets which contain certain files.
 """
 license-file = ["LICENSE", "4"]
-depends = "libc6" 
+depends = ["libc6"] 
 section = "utility"
 priority = "optional"
-features = ["xattrs"]
+features = ["xattrs", "linux_malloc_trim"]
 assets = [
     ["target/release/httm", "usr/bin/", "755"],
     ["scripts/ounce.bash", "usr/bin/ounce", "755"],
