@@ -553,53 +553,45 @@ impl ViewMode {
 
         let header: String = self.print_header();
 
-        let display_handle = thread::spawn(move || {
-            let opt_multi = GLOBAL_CONFIG.opt_preview.is_none();
+        let opt_multi = GLOBAL_CONFIG.opt_preview.is_none();
 
-            // create the skim component for previews
-            let skim_opts = SkimOptionsBuilder::default()
-                .preview_window(Some("up:50%"))
-                .preview(Some(""))
-                .nosort(true)
-                .exact(GLOBAL_CONFIG.opt_exact)
-                .header(Some(&header))
-                .multi(opt_multi)
-                .regex(false)
-                .build()
-                .expect("Could not initialized skim options for browse_view");
+        // create the skim component for previews
+        let skim_opts = SkimOptionsBuilder::default()
+            .preview_window(Some("up:50%"))
+            .preview(Some(""))
+            .nosort(true)
+            .exact(GLOBAL_CONFIG.opt_exact)
+            .header(Some(&header))
+            .multi(opt_multi)
+            .regex(false)
+            .build()
+            .expect("Could not initialized skim options for browse_view");
 
-            // run_with() reads and shows items from the thread stream created above
-            let res = match skim::Skim::run_with(&skim_opts, Some(rx_item)) {
-                Some(output) if output.is_abort => {
-                    eprintln!("httm interactive file browse session was aborted.  Quitting.");
-                    std::process::exit(0)
-                }
-                Some(output) => {
-                    // hangup the channel so the background recursive search can gracefully cleanup and exit
-                    drop(hangup_tx);
+        // run_with() reads and shows items from the thread stream created above
+        let res: HttmResult<Vec<PathData>> = match skim::Skim::run_with(&skim_opts, Some(rx_item)) {
+            Some(output) if output.is_abort => {
+                eprintln!("httm interactive file browse session was aborted.  Quitting.");
+                std::process::exit(0)
+            }
+            Some(output) => {
+                // hangup the channel so the background recursive search can gracefully cleanup and exit
+                drop(hangup_tx);
 
-                    output
-                        .selected_items
-                        .iter()
-                        .map(|i| PathData::from(Path::new(&i.output().to_string())))
-                        .collect()
-                }
-                None => {
-                    return Err(HttmError::new(
-                        "httm interactive file browse session failed.",
-                    ));
-                }
-            };
+                Ok(output
+                    .selected_items
+                    .iter()
+                    .map(|i| PathData::from(Path::new(i.text().as_ref())))
+                    .collect())
+            }
+            None => Err(HttmError::new("httm interactive file browse session failed.").into()),
+        };
 
-            Ok(res)
-        });
-
-        match display_handle.join() {
+        match res {
             Ok(selected_pathdata) => {
                 Self::malloc_trim();
 
                 let res = InteractiveBrowse {
-                    selected_pathdata: selected_pathdata?,
+                    selected_pathdata,
                     opt_background_handle: Some(background_handle),
                 };
                 Ok(res)
