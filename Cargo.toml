@@ -25,11 +25,13 @@ inherits = "release"
 [features]
 acls = ["exacl"]
 xattrs = ["xattr"]
-linux_malloc_trim = ["libc"]
+malloc_trim = ["libc"]
 
 [target.'cfg(unix)'.dependencies]
 exacl = { version = "0.11.0", default-features = false, optional=true }
 xattr = { version = "1.0.1", default-features = false, optional = true }
+
+[target.'cfg(linux)'.dependencies]
 libc = { version = "0.2.150", default-features = false, optional = true }
 
 [dependencies]
@@ -69,7 +71,7 @@ license-file = ["LICENSE", "4"]
 depends = ["libc6"] 
 section = "utility"
 priority = "optional"
-features = ["xattrs", "linux_malloc_trim"]
+features = ["xattrs", "malloc_trim"]
 assets = [
     ["target/release/httm", "usr/bin/", "755"],
     ["scripts/ounce.bash", "usr/bin/ounce", "755"],
