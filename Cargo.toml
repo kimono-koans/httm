@@ -24,9 +24,11 @@ inherits = "release"
 # acls feature - requires libacl1-dev to build
 [features]
 acls = ["exacl"]
+xattrs = ["xattr"]
 
 [target.'cfg(unix)'.dependencies]
 exacl = { version = "0.11.0", optional=true }
+xattr = { version = "1.0.1", default-features = false, optional = true }
 
 [dependencies]
 simd-adler32 = { version = "0.3.7", default-features = false, features = ["std"] }
@@ -45,7 +47,6 @@ proc-mounts = { version = "0.3.0", default-features = false }
 once_cell = { version = "1.18.0", default-features = false }
 hashbrown = { version = "0.14.2", default-features = false, features = ["rayon", "ahash", "inline-more"] }
 nix = { version = "0.27.1", default-features = false, features = ["fs", "user", "zerocopy"] }
-xattr = { version = "1.0.1", default-features = false }
 serde = { version = "1.0.192", default-features = false }
 serde_json = { version = "1.0.108", default-features = false, features = ["preserve_order"] }
 filetime = { version = "0.2.22", default-features = false }

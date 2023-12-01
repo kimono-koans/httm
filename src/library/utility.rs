@@ -145,6 +145,7 @@ pub fn copy_attributes(src: &Path, dst: &Path) -> HttmResult<()> {
 
     // XAttrs
     {
+        #[cfg(feature = "xattrs")]
         if let Ok(xattrs) = xattr::list(src) {
             xattrs
                 .flat_map(|attr| xattr::get(src, attr.clone()).map(|opt_value| (attr, opt_value)))
