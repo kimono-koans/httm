@@ -68,6 +68,7 @@ license-file = ["LICENSE", "4"]
 depends = "libc6" 
 section = "utility"
 priority = "optional"
+features = ["xattrs"]
 assets = [
     ["target/release/httm", "usr/bin/", "755"],
     ["scripts/ounce.bash", "usr/bin/ounce", "755"],
