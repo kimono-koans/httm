@@ -21,10 +21,12 @@ use crate::parse::aliases::FilesystemType;
 use crate::parse::snaps::MapOfSnaps;
 use crate::{NILFS2_SNAPSHOT_ID_KEY, ZFS_HIDDEN_DIRECTORY};
 use hashbrown::{HashMap, HashSet};
+use once_cell::sync::Lazy;
 use proc_mounts::MountIter;
 use rayon::iter::Either;
 use rayon::prelude::*;
 use std::collections::BTreeMap;
+use std::io::Read;
 use std::ops::Deref;
 use std::path::PathBuf;
 use std::process::Command as ExecProcess;
@@ -100,12 +102,17 @@ pub struct BaseFilesystemInfo {
     pub filter_dirs: FilterDirs,
 }
 
+static PROC_MOUNTS: Lazy<PathBuf> = Lazy::new(|| PathBuf::from("/proc/mounts"));
+static ETC_MNTTAB: Lazy<PathBuf> = Lazy::new(|| PathBuf::from("/etc/mnttab"));
+
 impl BaseFilesystemInfo {
     // divide by the type of system we are on
     // Linux allows us the read proc mounts
     pub fn new() -> HttmResult<Self> {
-        let (raw_datasets, filter_dirs_set) = if cfg!(target_os = "linux") {
+        let (raw_datasets, filter_dirs_set) = if PROC_MOUNTS.exists() {
             Self::from_proc_mounts()?
+        } else if ETC_MNTTAB.exists() {
+            Self::from_mnttab()?
         } else {
             Self::from_mount_cmd()?
         };
@@ -235,6 +242,74 @@ impl BaseFilesystemInfo {
                         },
                     )),
                     _ => Either::Right(mount_info.dest),
+                });
+
+        if map_of_datasets.is_empty() {
+            Err(HttmError::new("httm could not find any valid datasets on the system.").into())
+        } else {
+            Ok((map_of_datasets, filter_dirs))
+        }
+    }
+
+    // old fashioned parsing for non-Linux systems, nearly as fast, works everywhere with a mount command
+    // both methods are much faster than using zfs command
+    fn from_mnttab() -> HttmResult<(HashMap<PathBuf, DatasetMetadata>, HashSet<PathBuf>)> {
+        // do we have the necessary commands for search if user has not defined a snap point?
+        // if so run the mount search, if not print some errors
+        let file = std::fs::File::open(&*ETC_MNTTAB)?;
+
+        let mut reader = std::io::BufReader::new(file);
+        let mut buffer = String::new();
+
+        reader.read_to_string(&mut buffer)?;
+
+        // parse "mount" for filesystems and mountpoints
+        let (map_of_datasets, filter_dirs): (HashMap<PathBuf, DatasetMetadata>, HashSet<PathBuf>) =
+            buffer
+                .par_lines()
+                // but exclude snapshot mounts.  we want the raw filesystem names.
+                .filter(|line| !line.contains(ZFS_HIDDEN_DIRECTORY))
+                // mount cmd includes and " on " between src and rest
+                .map(|line| line.split("\t"))
+                // where to split, to just have the src and dest of mounts
+                .filter_map(|mut iter| {
+                    let opt_file_system = iter.next();
+                    let opt_mount = iter.next();
+                    let opt_fs_type = iter.next();
+
+                    opt_file_system.and_then(|file_system| {
+                        opt_mount.and_then(|mount| {
+                            opt_fs_type.map(|fs_type| (file_system, mount, fs_type))
+                        })
+                    })
+                })
+                .partition_map(|(filesystem_str, mount_str, fs_type_str)| {
+                    let mount = PathBuf::from(mount_str);
+
+                    match fs_type_str {
+                        ZFS_FSTYPE => Either::Left((
+                            mount,
+                            DatasetMetadata {
+                                source: PathBuf::from(filesystem_str),
+                                fs_type: FilesystemType::Zfs,
+                                mount_type: MountType::Local,
+                            },
+                        )),
+                        SMB_FSTYPE | AFP_FSTYPE | NFS_FSTYPE => {
+                            match fs_type_from_hidden_dir(&mount) {
+                                Some(fs_type) => Either::Left((
+                                    mount,
+                                    DatasetMetadata {
+                                        source: PathBuf::from(filesystem_str),
+                                        fs_type: fs_type,
+                                        mount_type: MountType::Network,
+                                    },
+                                )),
+                                None => Either::Right(mount),
+                            }
+                        }
+                        _ => Either::Right(mount),
+                    }
                 });
 
         if map_of_datasets.is_empty() {
