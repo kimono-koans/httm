@@ -251,11 +251,7 @@ impl BaseFilesystemInfo {
         }
     }
 
-    // old fashioned parsing for non-Linux systems, nearly as fast, works everywhere with a mount command
-    // both methods are much faster than using zfs command
     fn from_mnttab() -> HttmResult<(HashMap<PathBuf, DatasetMetadata>, HashSet<PathBuf>)> {
-        // do we have the necessary commands for search if user has not defined a snap point?
-        // if so run the mount search, if not print some errors
         let file = std::fs::File::open(&*ETC_MNTTAB)?;
 
         let mut reader = std::io::BufReader::new(file);
@@ -263,15 +259,12 @@ impl BaseFilesystemInfo {
 
         reader.read_to_string(&mut buffer)?;
 
-        // parse "mount" for filesystems and mountpoints
         let (map_of_datasets, filter_dirs): (HashMap<PathBuf, DatasetMetadata>, HashSet<PathBuf>) =
             buffer
                 .par_lines()
-                // but exclude snapshot mounts.  we want the raw filesystem names.
+                // exclude snapshot mounts.  we want the raw filesystem names.
                 .filter(|line| !line.contains(ZFS_HIDDEN_DIRECTORY))
-                // mount cmd includes and " on " between src and rest
                 .map(|line| line.split("\t"))
-                // where to split, to just have the src and dest of mounts
                 .filter_map(|mut iter| {
                     let opt_file_system = iter.next();
                     let opt_mount = iter.next();
