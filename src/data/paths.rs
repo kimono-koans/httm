@@ -449,16 +449,16 @@ impl CompareVersionsContainer {
                     return Ok(*hash_value);
                 }
 
-                HashFromFile::new(self.pathdata.path_buf.as_path())
-                    .map(|hash| *self_hash_cell.get_or_init(|| hash.into_inner()))
+                self.hash().map(|hash| *self_hash_cell.get_or_init(|| hash))
             },
             || {
                 if let Some(hash_value) = other_hash_cell.get() {
                     return Ok(*hash_value);
                 }
 
-                HashFromFile::new(other.pathdata.path_buf.as_path())
-                    .map(|hash| *other_hash_cell.get_or_init(|| hash.into_inner()))
+                other
+                    .hash()
+                    .map(|hash| *other_hash_cell.get_or_init(|| hash))
             },
         );
 
@@ -470,18 +470,12 @@ impl CompareVersionsContainer {
 
         false
     }
-}
 
-struct HashFromFile {
-    hash: u32,
-}
-
-impl HashFromFile {
     #[inline(always)]
-    fn new(path: &Path) -> HttmResult<Self> {
+    fn hash(&self) -> HttmResult<u32> {
         const IN_BUFFER_SIZE: usize = 131_072;
 
-        let file = File::open(path)?;
+        let file = File::open(&self.pathdata.path_buf)?;
 
         let mut reader = BufReader::with_capacity(IN_BUFFER_SIZE, file);
 
@@ -491,10 +485,7 @@ impl HashFromFile {
             let consumed = match reader.fill_buf() {
                 Ok(buf) => {
                     if buf.is_empty() {
-                        let res = Self {
-                            hash: hash.finish(),
-                        };
-                        return Ok(res);
+                        return Ok(hash.finish());
                     }
 
                     hash.write(buf);
@@ -503,10 +494,7 @@ impl HashFromFile {
                 Err(err) => match err.kind() {
                     ErrorKind::Interrupted => continue,
                     ErrorKind::UnexpectedEof => {
-                        let res = Self {
-                            hash: hash.finish(),
-                        };
-                        return Ok(res);
+                        return Ok(hash.finish());
                     }
                     _ => return Err(err.into()),
                 },
@@ -514,10 +502,5 @@ impl HashFromFile {
 
             reader.consume(consumed);
         }
-    }
-
-    #[inline(always)]
-    fn into_inner(self) -> u32 {
-        self.hash
     }
 }
