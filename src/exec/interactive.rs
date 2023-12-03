@@ -157,7 +157,11 @@ impl InteractiveSelect {
         };
 
         let snap_path_strings = if GLOBAL_CONFIG.opt_last_snap.is_some() {
-            Self::last_snaps(&browse_result.selected_pathdata, &versions_map)?
+            versions_map
+                .values()
+                .flatten()
+                .map(|pathdata| pathdata.path_buf.to_string_lossy().to_string())
+                .collect()
         } else {
             // same stuff we do at fn exec, snooze...
             let display_config = Config::from(browse_result.selected_pathdata.clone());
@@ -177,9 +181,9 @@ impl InteractiveSelect {
             // loop until user selects a valid snapshot version
             loop {
                 // get the file name
-                let requested_file_names = view_mode.select(&selection_buffer, MultiSelect::On)?;
+                let selected_line = view_mode.select(&selection_buffer, MultiSelect::On)?;
 
-                let res = requested_file_names
+                let requested_file_names = selected_line
                     .iter()
                     .filter_map(|selection| {
                         // ... we want everything between the quotes
@@ -197,11 +201,11 @@ impl InteractiveSelect {
                     .map(|selection_buffer| selection_buffer.to_string())
                     .collect::<Vec<String>>();
 
-                if res.is_empty() {
+                if requested_file_names.is_empty() {
                     continue;
                 }
 
-                break res;
+                break requested_file_names;
             }
         };
 
@@ -302,34 +306,6 @@ impl InteractiveSelect {
                 }
             }
         }
-    }
-
-    fn last_snaps(
-        paths_selected_in_browse: &[PathData],
-        versions_map: &VersionsMap,
-    ) -> HttmResult<Vec<String>> {
-        // should be good to index into both, there is a known known 2nd vec,
-        let last_snaps: Vec<String> = paths_selected_in_browse
-            .iter()
-            .filter_map(|live_version| {
-                versions_map.get(live_version).and_then(|values| {
-                    values
-                        .iter()
-                        .filter(|snap_version| {
-                            if GLOBAL_CONFIG.opt_omit_ditto {
-                                snap_version.md_infallible().modify_time
-                                    != live_version.md_infallible().modify_time
-                            } else {
-                                true
-                            }
-                        })
-                        .last()
-                })
-            })
-            .map(|snap| snap.path_buf.to_string_lossy().into_owned())
-            .collect();
-
-        Ok(last_snaps)
     }
 
     pub fn opt_live_version(&self, snap_pathdata: &PathData) -> HttmResult<PathBuf> {
