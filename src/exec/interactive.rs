@@ -119,7 +119,10 @@ impl InteractiveSelect {
             // one only allow one to select one path string during select
             // but we retain paths_selected_in_browse because we may need
             // it later during restore if opt_overwrite is selected
-            InteractiveMode::Restore(_) => InteractiveRestore::exec(select_result)?,
+            InteractiveMode::Restore(_) => {
+                let interactive_restore = InteractiveRestore::from(select_result);
+                interactive_restore.exec()?;
+            }
             InteractiveMode::Select(select_mode) => select_result.print_selections(select_mode)?,
             InteractiveMode::Browse => unreachable!(),
         }
@@ -335,7 +338,7 @@ impl InteractiveSelect {
     }
 
     pub fn opt_live_version(&self, snap_pathdata: &PathData) -> HttmResult<PathBuf> {
-        let res = match &self.opt_live_version {
+        match &self.opt_live_version {
             Some(live_version) => Some(PathBuf::from(live_version)),
             None => {
                 match SnapPathGuard::new(snap_pathdata).map(|snap_guard| snap_guard.live_path()) {
@@ -354,25 +357,34 @@ impl InteractiveSelect {
                         .map(|pd| pd.path_buf.clone()),
                 }
             }
-        };
-
-        res.ok_or_else(|| HttmError::new("Could not determine a possible live version.").into())
+        }
+        .ok_or_else(|| HttmError::new("Could not determine a possible live version.").into())
     }
 }
 
-struct InteractiveRestore;
+struct InteractiveRestore {
+    select_result: InteractiveSelect,
+}
+
+impl From<InteractiveSelect> for InteractiveRestore {
+    fn from(value: InteractiveSelect) -> Self {
+        Self {
+            select_result: value,
+        }
+    }
+}
 
 impl InteractiveRestore {
-    fn exec(select_result: InteractiveSelect) -> HttmResult<()> {
-        select_result
+    fn exec(&self) -> HttmResult<()> {
+        self.select_result
             .snap_path_strings
             .iter()
-            .try_for_each(|snap_path_string| Self::restore(snap_path_string, &select_result))?;
+            .try_for_each(|snap_path_string| self.restore(snap_path_string))?;
 
         std::process::exit(0)
     }
 
-    fn restore(snap_path_string: &str, select_result: &InteractiveSelect) -> HttmResult<()> {
+    fn restore(&self, snap_path_string: &str) -> HttmResult<()> {
         // build pathdata from selection buffer parsed string
         //
         // request is also sanity check for snap path exists below when we check
@@ -380,7 +392,7 @@ impl InteractiveRestore {
         let snap_pathdata = PathData::from(Path::new(snap_path_string));
 
         // build new place to send file
-        let new_file_path_buf = Self::build_new_file_path(&snap_pathdata, &select_result)?;
+        let new_file_path_buf = self.build_new_file_path(&snap_pathdata)?;
 
         let should_preserve = Self::should_preserve_attributes();
 
@@ -476,10 +488,7 @@ impl InteractiveRestore {
         )
     }
 
-    fn build_new_file_path(
-        snap_pathdata: &PathData,
-        select_result: &InteractiveSelect,
-    ) -> HttmResult<PathBuf> {
+    fn build_new_file_path(&self, snap_pathdata: &PathData) -> HttmResult<PathBuf> {
         // build new place to send file
         if matches!(
             GLOBAL_CONFIG.exec_mode,
@@ -490,7 +499,7 @@ impl InteractiveRestore {
             // so, if you were in /etc and wanted to restore /etc/samba/smb.conf, httm will make certain to overwrite
             // at /etc/samba/smb.conf
 
-            return select_result.opt_live_version(snap_pathdata);
+            return self.select_result.opt_live_version(snap_pathdata);
         }
 
         let snap_filename = snap_pathdata
