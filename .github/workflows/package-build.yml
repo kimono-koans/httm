@@ -18,6 +18,8 @@ jobs:
     steps:
     - name: Checkout sources
       uses: actions/checkout@v3
+    - name: Install build dep 
+      run: sudo apt-get install -y libacl1-dev
     - name: Install cargo-deb
       run: cargo install cargo-deb
     - name: Build package with cargo-deb
@@ -32,6 +34,11 @@ jobs:
       if: ${{startsWith(github.ref, 'refs/tags/') }}
       with:
           files: target/debian/httm*.*
+    - name: Upload both build artifacts to GH action
+      uses: actions/upload-artifact@v3.1.0
+      with:
+        name: cargo-deb-upload
+        path: target/debian/httm*.*
 
   # publish:
   #   runs-on: ubuntu-20.04
