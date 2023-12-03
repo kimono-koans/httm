@@ -333,6 +333,31 @@ impl InteractiveSelect {
 
         Ok(last_snaps)
     }
+
+    pub fn opt_live_version(&self, snap_pathdata: &PathData) -> HttmResult<PathBuf> {
+        let res = match &self.opt_live_version {
+            Some(live_version) => Some(PathBuf::from(live_version)),
+            None => {
+                match SnapPathGuard::new(snap_pathdata).map(|snap_guard| snap_guard.live_path()) {
+                    Some(snap_guard) => snap_guard.map(|pd| pd.path_buf),
+                    None => self
+                        .paths_selected_in_browse
+                        .iter()
+                        .max_by_key(|live_path| {
+                            snap_pathdata
+                                .path_buf
+                                .ancestors()
+                                .zip(live_path.path_buf.ancestors())
+                                .take_while(|(a_path, b_path)| a_path == b_path)
+                                .count()
+                        })
+                        .map(|pd| pd.path_buf.clone()),
+                }
+            }
+        };
+
+        res.ok_or_else(|| HttmError::new("Could not determine a possible live version.").into())
+    }
 }
 
 struct InteractiveRestore;
@@ -342,14 +367,12 @@ impl InteractiveRestore {
         select_result
             .snap_path_strings
             .iter()
-            .try_for_each(|snap_path_string| {
-                Self::restore(snap_path_string, &select_result.paths_selected_in_browse)
-            })?;
+            .try_for_each(|snap_path_string| Self::restore(snap_path_string, &select_result))?;
 
         std::process::exit(0)
     }
 
-    fn restore(snap_path_string: &str, paths_selected_in_browse: &Vec<PathData>) -> HttmResult<()> {
+    fn restore(snap_path_string: &str, select_result: &InteractiveSelect) -> HttmResult<()> {
         // build pathdata from selection buffer parsed string
         //
         // request is also sanity check for snap path exists below when we check
@@ -357,8 +380,7 @@ impl InteractiveRestore {
         let snap_pathdata = PathData::from(Path::new(snap_path_string));
 
         // build new place to send file
-        let new_file_path_buf =
-            Self::build_new_file_path(&snap_pathdata, paths_selected_in_browse)?;
+        let new_file_path_buf = Self::build_new_file_path(&snap_pathdata, &select_result)?;
 
         let should_preserve = Self::should_preserve_attributes();
 
@@ -456,7 +478,7 @@ impl InteractiveRestore {
 
     fn build_new_file_path(
         snap_pathdata: &PathData,
-        paths_selected_in_browse: &Vec<PathData>,
+        select_result: &InteractiveSelect,
     ) -> HttmResult<PathBuf> {
         // build new place to send file
         if matches!(
@@ -468,7 +490,7 @@ impl InteractiveRestore {
             // so, if you were in /etc and wanted to restore /etc/samba/smb.conf, httm will make certain to overwrite
             // at /etc/samba/smb.conf
 
-            return opt_live_version(snap_pathdata, paths_selected_in_browse);
+            return select_result.opt_live_version(snap_pathdata);
         }
 
         let snap_filename = snap_pathdata
@@ -683,33 +705,5 @@ impl ViewMode {
         }
 
         Ok(res)
-    }
-}
-
-pub fn opt_live_version(
-    snap_pathdata: &PathData,
-    paths_selected_in_browse: &Vec<PathData>,
-) -> HttmResult<PathBuf> {
-    match SnapPathGuard::new(snap_pathdata) {
-        Some(original_live_pathdata) => return Ok(original_live_pathdata.path_buf.clone()),
-        None => {
-            return paths_selected_in_browse
-                .iter()
-                .max_by_key(|live_path| {
-                    snap_pathdata
-                        .path_buf
-                        .ancestors()
-                        .zip(live_path.path_buf.ancestors())
-                        .take_while(|(a_path, b_path)| a_path == b_path)
-                        .count()
-                })
-                .map(|pd| pd.path_buf.clone())
-                .ok_or_else(|| {
-                    HttmError::new(
-                        "httm unable to determine original file path in overwrite mode.  Quitting.",
-                    )
-                    .into()
-                });
-        }
     }
 }
