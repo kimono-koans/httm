@@ -157,11 +157,7 @@ impl InteractiveSelect {
         };
 
         let snap_path_strings = if GLOBAL_CONFIG.opt_last_snap.is_some() {
-            versions_map
-                .values()
-                .flatten()
-                .map(|pathdata| pathdata.path_buf.to_string_lossy().to_string())
-                .collect()
+            Self::last_snap(&versions_map)
         } else {
             // same stuff we do at fn exec, snooze...
             let display_config = Config::from(browse_result.selected_pathdata.clone());
@@ -217,6 +213,24 @@ impl InteractiveSelect {
             snap_path_strings,
             opt_live_version,
         })
+    }
+
+    fn last_snap(map: &VersionsMap) -> Vec<String> {
+        map.iter()
+            .filter_map(|(key, values)| {
+                if values.is_empty() {
+                    eprintln!(
+                        "WARN: No last snap of {:?} is available for selection.",
+                        key.path_buf
+                    );
+                    None
+                } else {
+                    Some(values)
+                }
+            })
+            .flatten()
+            .map(|pathdata| pathdata.path_buf.to_string_lossy().to_string())
+            .collect()
     }
 
     fn print_selections(&self, select_mode: &SelectMode) -> HttmResult<()> {
