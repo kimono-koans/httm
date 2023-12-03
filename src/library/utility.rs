@@ -130,8 +130,7 @@ pub fn copy_attributes(src: &Path, dst: &Path) -> HttmResult<()> {
     #[cfg(feature = "acls")]
     {
         if let Ok(acls) = exacl::getfacl(src, None) {
-            acls.into_iter()
-                .try_for_each(|acl| exacl::setfacl(&[dst], &[acl], None))?;
+            exacl::setfacl(&[dst], &acls, None)?;
         }
     }
 
