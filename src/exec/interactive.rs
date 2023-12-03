@@ -103,7 +103,6 @@ impl InteractiveBrowse {
 
 struct InteractiveSelect {
     snap_path_strings: Vec<String>,
-    paths_selected_in_browse: Vec<PathData>,
     opt_live_version: Option<String>,
 }
 
@@ -206,15 +205,12 @@ impl InteractiveSelect {
             }
         };
 
-        let paths_selected_in_browse = browse_result.selected_pathdata;
-
         if let Some(handle) = browse_result.opt_background_handle {
             let _ = handle.join();
         }
 
         Ok(Self {
             snap_path_strings,
-            paths_selected_in_browse,
             opt_live_version,
         })
     }
@@ -339,23 +335,9 @@ impl InteractiveSelect {
     pub fn opt_live_version(&self, snap_pathdata: &PathData) -> HttmResult<PathBuf> {
         match &self.opt_live_version {
             Some(live_version) => Some(PathBuf::from(live_version)),
-            None => {
-                match SnapPathGuard::new(snap_pathdata).map(|snap_guard| snap_guard.live_path()) {
-                    Some(snap_guard) => snap_guard.map(|pd| pd.path_buf),
-                    None => self
-                        .paths_selected_in_browse
-                        .iter()
-                        .max_by_key(|live_path| {
-                            snap_pathdata
-                                .path_buf
-                                .ancestors()
-                                .zip(live_path.path_buf.ancestors())
-                                .take_while(|(a_path, b_path)| a_path == b_path)
-                                .count()
-                        })
-                        .map(|pd| pd.path_buf.clone()),
-                }
-            }
+            None => SnapPathGuard::new(snap_pathdata)
+                .and_then(|snap_guard| snap_guard.live_path())
+                .map(|pathdata| pathdata.path_buf),
         }
         .ok_or_else(|| HttmError::new("Could not determine a possible live version.").into())
     }
