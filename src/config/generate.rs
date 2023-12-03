@@ -181,7 +181,6 @@ fn parse_args() -> ArgMatches {
                 .short('r')
                 .long("restore")
                 .takes_value(true)
-                .default_missing_value("copy")
                 .possible_values(["copy", "copy-and-preserve", "overwrite", "yolo", "guard"])
                 .min_values(0)
                 .require_equals(true)
@@ -191,7 +190,7 @@ fn parse_args() -> ArgMatches {
                 Overwrite mode will attempt to preserve attributes, like the permissions/mode, timestamps, xattrs and ownership of the selected snapshot file version (this is and will likely remain a UNIX only feature).  \
                 In order to preserve such attributes in \"copy\" mode, specify the \"copy-and-preserve\" value.  User may also specify \"guard\".  \
                 Guard mode has the same semantics as \"overwrite\" but will attempt to take a precautionary snapshot before any overwrite action occurs.  \
-                Note: Guard mode is a ZFS only option.")
+                Note: Guard mode is a ZFS only option.  User may also set via the HTTM_RESTORE_MODE environment variable.")
                 .conflicts_with("SELECT")
                 .display_order(4)
         )
@@ -675,7 +674,15 @@ impl Config {
         };
 
         let opt_interactive_mode = if matches.is_present("RESTORE") {
-            match matches.value_of("RESTORE") {
+            let mut restore_mode = matches.value_of("RESTORE").map(|inner| inner.to_string());
+
+            if matches!(restore_mode.as_deref(), Some("") | None)
+                && std::env::var("HTTM_RESTORE_MODE").is_ok()
+            {
+                restore_mode = std::env::var("HTTM_RESTORE_MODE").ok();
+            }
+
+            match restore_mode.as_deref() {
                 Some("guard") => Some(InteractiveMode::Restore(RestoreMode::Overwrite(
                     RestoreSnapGuard::Guarded,
                 ))),
@@ -799,9 +806,10 @@ impl Config {
 
         if opt_recursive {
             if matches!(exec_mode, ExecMode::BasicDisplay) {
-                return Err(
-                    HttmError::new("RECURSIVE not available in fundamental Display Mode.  ").into(),
-                );
+                return Err(HttmError::new(
+                    "RECURSIVE not available in fundamental Display Mode.  ",
+                )
+                .into());
             }
         } else if opt_no_filter {
             return Err(HttmError::new(

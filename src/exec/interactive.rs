@@ -488,7 +488,11 @@ impl InteractiveRestore {
             return Err(HttmError::new(&msg).into());
         };
 
+        // remove leading dots
         let new_filename = snap_filename
+            .strip_prefix(".")
+            .unwrap_or(&snap_filename)
+            .to_string()
             + ".httm_restored."
             + &date_string(
                 GLOBAL_CONFIG.requested_utc_offset,
