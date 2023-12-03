@@ -220,7 +220,7 @@ impl InteractiveSelect {
             .filter_map(|(key, values)| {
                 if values.is_empty() {
                     eprintln!(
-                        "WARN: No last snap of {:?} is available for selection.",
+                        "WARN: No last snap of {:?} is available for selection.  Perhaps you omitted identical files.",
                         key.path_buf
                     );
                     None
