@@ -20,6 +20,7 @@ opt-level = "z"
 codegen-units = 1
 panic = "abort"
 inherits = "release"
+features = ["acls", "xattrs", "malloc_trim"]
 
 # acls feature - requires libacl1-dev to build
 [features]
@@ -71,7 +72,7 @@ license-file = ["LICENSE", "4"]
 depends = ["libc6"]
 section = "utility"
 priority = "optional"
-features = ["acls", "xattrs", "malloc_trim"]
+features = ["xattrs", "malloc_trim"]
 assets = [
     ["target/release/httm", "usr/bin/", "755"],
     ["scripts/ounce.bash", "usr/bin/ounce", "755"],
