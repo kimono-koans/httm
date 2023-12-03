@@ -32,7 +32,7 @@ use time::UtcOffset;
 pub enum ExecMode {
     Interactive(InteractiveMode),
     NonInteractiveRecursive(indicatif::ProgressBar),
-    Display,
+    BasicDisplay,
     SnapFileMount(String),
     Prune(Option<ListSnapsFilters>),
     MountsForFiles(MountDisplay),
@@ -794,12 +794,14 @@ impl Config {
             let progress_bar: ProgressBar = indicatif::ProgressBar::new_spinner();
             ExecMode::NonInteractiveRecursive(progress_bar)
         } else {
-            ExecMode::Display
+            ExecMode::BasicDisplay
         };
 
         if opt_recursive {
-            if matches!(exec_mode, ExecMode::Display) {
-                return Err(HttmError::new("RECURSIVE not available in Display Mode.").into());
+            if matches!(exec_mode, ExecMode::BasicDisplay) {
+                return Err(
+                    HttmError::new("RECURSIVE not available in fundamental Display Mode.  ").into(),
+                );
             }
         } else if opt_no_filter {
             return Err(HttmError::new(
@@ -931,7 +933,7 @@ impl Config {
                 | ExecMode::RollForward(_) => {
                     vec![PathData::from(pwd)]
                 }
-                ExecMode::Display
+                ExecMode::BasicDisplay
                 | ExecMode::SnapFileMount(_)
                 | ExecMode::Prune(_)
                 | ExecMode::MountsForFiles(_)
@@ -989,7 +991,7 @@ impl Config {
                             // silently disable NonInteractiveRecursive when path given is not a directory
                             // switch to a standard Display mode
                             ExecMode::NonInteractiveRecursive(_) => {
-                                *exec_mode = ExecMode::Display;
+                                *exec_mode = ExecMode::BasicDisplay;
                                 *deleted_mode = None;
                                 None
                             }
@@ -1006,7 +1008,7 @@ impl Config {
                 }
             }
 
-            ExecMode::Display
+            ExecMode::BasicDisplay
             | ExecMode::RollForward(_)
             | ExecMode::SnapFileMount(_)
             | ExecMode::Prune(_)

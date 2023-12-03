@@ -133,7 +133,7 @@ impl From<Vec<PathData>> for Config {
             uniqueness: ListSnapsOfType::UniqueMetadata,
             opt_omit_ditto: config.opt_omit_ditto,
             requested_utc_offset: config.requested_utc_offset,
-            exec_mode: ExecMode::Display,
+            exec_mode: ExecMode::BasicDisplay,
             print_mode: PrintMode::FormattedDefault,
             dataset_collection: config.dataset_collection.clone(),
             pwd: config.pwd.clone(),

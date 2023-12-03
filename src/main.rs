@@ -115,8 +115,8 @@ fn exec() -> HttmResult<()> {
 
             print_output_buf(&output_buf)
         }
-        // ExecMode::Display will be just printed, we already know the paths
-        ExecMode::Display | ExecMode::NumVersions(_) => {
+        // ExecMode::BasicDisplay will be just printed, we already know the paths
+        ExecMode::BasicDisplay | ExecMode::NumVersions(_) => {
             let versions_map = VersionsMap::new(&GLOBAL_CONFIG, &GLOBAL_CONFIG.paths)?;
             let output_buf = VersionsDisplayWrapper::from(&GLOBAL_CONFIG, versions_map).to_string();
 

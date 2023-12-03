@@ -142,7 +142,7 @@ impl std::string::ToString for PrintAsMap {
             let json_string = self.to_json();
 
             let res = match &GLOBAL_CONFIG.exec_mode {
-                ExecMode::Display | ExecMode::Interactive(_) => {
+                ExecMode::BasicDisplay | ExecMode::Interactive(_) => {
                     json_string.replace("\"inner\": ", "\"versions\": ")
                 }
                 ExecMode::MountsForFiles(_) => json_string.replace("\"inner\": ", "\"mounts\": "),
