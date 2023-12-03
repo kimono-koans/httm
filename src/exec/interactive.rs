@@ -178,8 +178,7 @@ impl InteractiveSelect {
             // loop until user selects a valid snapshot version
             loop {
                 // get the file name
-                let requested_file_names =
-                    view_mode.select(&selection_buffer, InteractiveMultiSelect::On)?;
+                let requested_file_names = view_mode.select(&selection_buffer, MultiSelect::On)?;
 
                 let res = requested_file_names
                     .iter()
@@ -412,7 +411,7 @@ impl InteractiveRestore {
         loop {
             let view_mode = &ViewMode::Restore;
 
-            let selection = view_mode.select(&preview_buffer, InteractiveMultiSelect::Off)?;
+            let selection = view_mode.select(&preview_buffer, MultiSelect::Off)?;
 
             let user_consent = selection
                 .get(0)
@@ -545,7 +544,7 @@ pub enum ViewMode {
     Prune,
 }
 
-pub enum InteractiveMultiSelect {
+pub enum MultiSelect {
     On,
     Off,
 }
@@ -651,18 +650,14 @@ impl ViewMode {
         };
     }
 
-    pub fn select(
-        &self,
-        preview_buffer: &str,
-        opt_multi: InteractiveMultiSelect,
-    ) -> HttmResult<Vec<String>> {
+    pub fn select(&self, preview_buffer: &str, opt_multi: MultiSelect) -> HttmResult<Vec<String>> {
         let preview_selection = PreviewSelection::new(self)?;
 
         let header = self.print_header();
 
         let opt_multi = match opt_multi {
-            InteractiveMultiSelect::On => true,
-            InteractiveMultiSelect::Off => false,
+            MultiSelect::On => true,
+            MultiSelect::Off => false,
         };
 
         // build our browse view - less to do than before - no previews, looking through one 'lil buffer

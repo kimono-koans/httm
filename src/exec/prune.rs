@@ -16,7 +16,7 @@
 // that was distributed with this source code.
 
 use crate::config::generate::ListSnapsFilters;
-use crate::exec::interactive::InteractiveMultiSelect;
+use crate::exec::interactive::MultiSelect;
 use crate::exec::interactive::ViewMode;
 use crate::library::results::{HttmError, HttmResult};
 use crate::lookup::snap_names::SnapNameMap;
@@ -53,7 +53,7 @@ impl PruneSnaps {
         let snap_names: Vec<String> = if select_mode {
             let buffer: String = snap_name_map.values().flatten().cloned().collect();
             let view_mode = &ViewMode::Select(None);
-            view_mode.select(&buffer, InteractiveMultiSelect::On)?
+            view_mode.select(&buffer, MultiSelect::On)?
         } else {
             snap_name_map.values().flatten().cloned().collect()
         };
@@ -74,7 +74,7 @@ impl PruneSnaps {
         loop {
             let view_mode = ViewMode::Prune;
 
-            let selection = view_mode.select(&preview_buffer, InteractiveMultiSelect::Off)?;
+            let selection = view_mode.select(&preview_buffer, MultiSelect::Off)?;
 
             let user_consent = selection
                 .get(0)
