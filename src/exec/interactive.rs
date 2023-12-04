@@ -422,11 +422,15 @@ impl InteractiveRestore {
                             std::process::exit(1);
                         }
                     } else {
-                        copy_recursive(
+                        if let Err(err) = copy_recursive(
                             &snap_pathdata.path_buf,
                             &new_file_path_buf,
                             should_preserve,
-                        )?
+                        ) {
+                            let msg =
+                                format!("httm restore failed for the following reason: {}.", err);
+                            return Err(HttmError::new(&msg).into());
+                        }
                     }
 
                     let result_buffer = format!(
