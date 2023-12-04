@@ -20,7 +20,6 @@ opt-level = "z"
 codegen-units = 1
 panic = "abort"
 inherits = "release"
-features = ["acls", "xattrs", "malloc_trim"]
 
 # acls feature - requires libacl1-dev to build
 [features]
