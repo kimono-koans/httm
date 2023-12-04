@@ -54,9 +54,8 @@ OPTIONS:
 		and execute any snapshot.
 
 	--trace:
-		Trace file 'open' and 'openat' calls of the $ounce target executable using \"strace\" to determine
-		relevant input files.  NOTE: \"strace\" tracing can do *violent* things to a target executable.  Not
-		recommended unless you know what you're doing.
+		Trace file 'open' and 'openat' calls of the $ounce target executable using \"strace\" and eBPF/seccomp to 
+		determine relevant input files.
 
 	--give-priv:
 		To use $ounce you will need privileges to snapshot ZFS datasets, and the prefered scheme is
