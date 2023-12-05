@@ -26,12 +26,11 @@ inherits = "release"
 acls = ["exacl"]
 xattrs = ["xattr"]
 malloc_trim = ["libc", "skim/malloc_trim"]
+setpriority = ["libc"]
 
 [target.'cfg(unix)'.dependencies]
 exacl = { version = "0.11.0", default-features = false, optional=true }
 xattr = { version = "1.0.1", default-features = false, optional = true }
-
-[target.'cfg(linux)'.dependencies]
 libc = { version = "0.2.150", default-features = false, optional = true }
 
 [dependencies]

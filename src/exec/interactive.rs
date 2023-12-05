@@ -606,10 +606,13 @@ impl ViewMode {
 
         match display_handle.join() {
             Ok(selected_pathdata) => {
-                #[cfg(feature = "linux_malloc_trim")]
+                #[cfg(feature = "malloc_trim")]
                 #[cfg(target_os = "linux")]
                 #[cfg(target_env = "gnu")]
-                Self::malloc_trim();
+                {
+                    use crate::library::utility::malloc_trim;
+                    malloc_trim();
+                }
 
                 let res = InteractiveBrowse {
                     selected_pathdata: selected_pathdata?,
@@ -619,15 +622,6 @@ impl ViewMode {
             }
             Err(_) => Err(HttmError::new("Interactive browse thread panicked.").into()),
         }
-    }
-
-    #[cfg(feature = "linux_malloc_trim")]
-    #[cfg(target_os = "linux")]
-    #[cfg(target_env = "gnu")]
-    fn malloc_trim() {
-        unsafe {
-            let _ = libc::malloc_trim(0);
-        };
     }
 
     pub fn select(&self, preview_buffer: &str, opt_multi: MultiSelect) -> HttmResult<Vec<String>> {
