@@ -79,15 +79,33 @@ pub fn malloc_trim() {
     }
 }
 
-pub fn user_has_effective_root() -> HttmResult<()> {
+pub fn user_has_effective_root(msg: &str) -> HttmResult<()> {
     if !nix::unistd::geteuid().is_root() {
-        return Err(HttmError::new("Superuser privileges are require to execute.").into());
+        let err = format!("Superuser privileges are required to execute: {}.", msg);
+        return Err(HttmError::new(&err).into());
     }
 
     Ok(())
 }
 
-pub fn user_has_zfs_allow_snap_priv(new_file_path: &Path) -> HttmResult<()> {
+pub enum ZfsAllowPrivType {
+    Snapshot,
+    Rollback,
+}
+
+impl ZfsAllowPrivType {
+    fn priv_type(&self) -> &[&str] {
+        match self {
+            ZfsAllowPrivType::Rollback => &["rollback"],
+            ZfsAllowPrivType::Snapshot => &["snapshot", "mount"],
+        }
+    }
+}
+
+pub fn user_has_zfs_allow_priv(
+    new_file_path: &Path,
+    allow_kind: &ZfsAllowPrivType,
+) -> HttmResult<()> {
     let zfs_command = which("zfs")?;
 
     let pathdata = PathData::from(new_file_path);
@@ -121,8 +139,10 @@ pub fn user_has_zfs_allow_snap_priv(new_file_path: &Path) -> HttmResult<()> {
     let user_name = std::env::var("USER")?;
 
     if !stdout_string.contains(&user_name)
-        || !stdout_string.contains("mount")
-        || !stdout_string.contains("snapshot")
+        || !allow_kind
+            .priv_type()
+            .iter()
+            .all(|p| stdout_string.contains(p))
     {
         let msg = "User does not have 'zfs allow' privileges for the path given.";
 

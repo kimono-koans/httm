@@ -143,7 +143,7 @@ impl RollForward {
     }
 
     pub fn exec(&self) -> HttmResult<()> {
-        user_has_effective_root()?;
+        user_has_effective_root("Roll forward to a snapshot.")?;
 
         let snap_guard: SnapGuard =
             SnapGuard::new(&self.dataset_name, PrecautionarySnapType::PreRollForward)?;

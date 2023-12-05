@@ -26,7 +26,7 @@ use crate::library::results::{HttmError, HttmResult};
 use crate::library::snap_guard::SnapGuard;
 use crate::library::utility::{
     copy_recursive, date_string, delimiter, print_output_buf, user_has_effective_root,
-    user_has_zfs_allow_snap_priv, DateFormat, Never,
+    user_has_zfs_allow_priv, DateFormat, Never, ZfsAllowPrivType,
 };
 use crate::lookup::versions::VersionsMap;
 use crate::{Config, GLOBAL_CONFIG};
@@ -396,8 +396,9 @@ impl InteractiveRestore {
                         ExecMode::Interactive(InteractiveMode::Restore(RestoreMode::Overwrite(
                             RestoreSnapGuard::Guarded
                         )))
-                    ) && (user_has_effective_root().is_ok()
-                        || user_has_zfs_allow_snap_priv(&new_file_path_buf).is_ok())
+                    ) && (user_has_effective_root("Restore with a snapshot guard.").is_ok()
+                        || user_has_zfs_allow_priv(&new_file_path_buf, &ZfsAllowPrivType::Snapshot)
+                            .is_ok())
                     {
                         let snap_guard: SnapGuard =
                             SnapGuard::try_from(new_file_path_buf.as_path())?;
@@ -414,6 +415,17 @@ impl InteractiveRestore {
                             );
 
                             eprintln!("{}", msg);
+
+                            if let Err(root_error) =
+                                user_has_effective_root("Rollback to a snap guard.")
+                            {
+                                if let Err(_allow_priv_error) = user_has_zfs_allow_priv(
+                                    &new_file_path_buf,
+                                    &ZfsAllowPrivType::Rollback,
+                                ) {
+                                    return Err(root_error);
+                                }
+                            };
 
                             snap_guard
                                 .rollback()
