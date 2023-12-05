@@ -557,6 +557,14 @@ impl ViewMode {
 
         // thread spawn fn enumerate_directory - permits recursion into dirs without blocking
         let background_handle = thread::spawn(move || {
+            #[cfg(feature = "setpriority")]
+            #[cfg(target_os = "linux")]
+            #[cfg(target_env = "gnu")]
+            {
+                use crate::library::utility::{nice_thread, PriorityType};
+                let tid = std::process::id();
+                let _ = nice_thread(PriorityType::Process, Some(tid), 3i32);
+            }
             // no way to propagate error from closure so exit and explain error here
             RecursiveSearch::exec(&requested_dir_clone, tx_item.clone(), hangup_rx.clone());
         });
@@ -570,7 +578,7 @@ impl ViewMode {
             {
                 use crate::library::utility::{nice_thread, PriorityType};
                 let tid = std::process::id();
-                let _ = nice_thread(PriorityType::PGroup, Some(tid), -2i32);
+                let _ = nice_thread(PriorityType::Process, Some(tid), -3i32);
             }
 
             let opt_multi = GLOBAL_CONFIG.opt_preview.is_none();
