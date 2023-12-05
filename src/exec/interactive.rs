@@ -618,19 +618,19 @@ impl ViewMode {
                 }
             };
 
+            #[cfg(feature = "malloc_trim")]
+            #[cfg(target_os = "linux")]
+            #[cfg(target_env = "gnu")]
+            {
+                use crate::library::utility::malloc_trim;
+                malloc_trim();
+            }
+
             Ok(res)
         });
 
         match display_handle.join() {
             Ok(selected_pathdata) => {
-                #[cfg(feature = "malloc_trim")]
-                #[cfg(target_os = "linux")]
-                #[cfg(target_env = "gnu")]
-                {
-                    use crate::library::utility::malloc_trim;
-                    malloc_trim();
-                }
-
                 let res = InteractiveBrowse {
                     selected_pathdata: selected_pathdata?,
                     opt_background_handle: Some(background_handle),
