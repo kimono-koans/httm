@@ -20,6 +20,7 @@ use crate::data::paths::{BasicDirEntryInfo, PathData, PathMetadata, PHANTOM_DATE
 use crate::data::selection::SelectionCandidate;
 use crate::library::diff_copy::diff_copy;
 use crate::library::results::{HttmError, HttmResult};
+
 use crate::parse::aliases::FilesystemType;
 use crate::{BTRFS_SNAPPER_HIDDEN_DIRECTORY, GLOBAL_CONFIG, ZFS_SNAPSHOT_DIRECTORY};
 use crossbeam_channel::{Receiver, TryRecvError};
@@ -46,8 +47,9 @@ pub enum PriorityType {
     User = 2,
 }
 
-#[allow(dead_code)]
 #[cfg(feature = "setpriority")]
+#[cfg(target_os = "linux")]
+#[cfg(target_env = "gnu")]
 // nice calling thread to a specified level
 pub fn nice_thread(
     priority_type: PriorityType,
@@ -56,15 +58,14 @@ pub fn nice_thread(
 ) -> HttmResult<()> {
     let tid = opt_tid.unwrap_or_else(|| std::process::id());
 
-    #[cfg(any(target_os = "macos", target_os = "freebsd"))]
-    unsafe {
-        let _ = libc::setpriority(priority_type as i32, tid, priority_level);
-    };
-    #[cfg(target_os = "linux")]
-    #[cfg(target_env = "gnu")]
+    // #[cfg(any(target_os = "macos", target_os = "freebsd"))]
+    // unsafe {
+    //     let _ = libc::setpriority(priority_type as i32, tid, priority_level);
+    // };
+
     unsafe {
         let _ = libc::setpriority(priority_type as u32, tid, priority_level);
-    };
+    }
 
     Ok(())
 }
@@ -72,7 +73,7 @@ pub fn nice_thread(
 #[cfg(feature = "malloc_trim")]
 #[cfg(target_os = "linux")]
 #[cfg(target_env = "gnu")]
-fn malloc_trim() {
+pub fn malloc_trim() {
     unsafe {
         let _ = libc::malloc_trim(0);
     }

@@ -564,6 +564,15 @@ impl ViewMode {
         let header: String = self.print_header();
 
         let display_handle = thread::spawn(move || {
+            #[cfg(feature = "setpriority")]
+            #[cfg(target_os = "linux")]
+            #[cfg(target_env = "gnu")]
+            {
+                use crate::library::utility::{nice_thread, PriorityType};
+                let tid = std::process::id();
+                let _ = nice_thread(PriorityType::PGroup, Some(tid), -2i32);
+            }
+
             let opt_multi = GLOBAL_CONFIG.opt_preview.is_none();
 
             // create the skim component for previews
