@@ -25,7 +25,7 @@ use crate::exec::recursive::RecursiveSearch;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::snap_guard::SnapGuard;
 use crate::library::utility::{
-    copy_recursive, date_string, delimiter, print_output_buf, DateFormat, Never, ZfsAllowPrivType,
+    copy_recursive, date_string, delimiter, print_output_buf, DateFormat, Never,
 };
 use crate::lookup::versions::VersionsMap;
 use crate::{Config, GLOBAL_CONFIG};
@@ -396,8 +396,6 @@ impl InteractiveRestore {
                             RestoreSnapGuard::Guarded
                         )))
                     ) {
-                        ZfsAllowPrivType::Snapshot.root_or_user_has_priv(&new_file_path_buf)?;
-
                         let snap_guard: SnapGuard =
                             SnapGuard::try_from(new_file_path_buf.as_path())?;
 
@@ -413,8 +411,6 @@ impl InteractiveRestore {
                             );
 
                             eprintln!("{}", msg);
-
-                            ZfsAllowPrivType::Rollback.root_or_user_has_priv(&new_file_path_buf)?;
 
                             snap_guard
                                 .rollback()

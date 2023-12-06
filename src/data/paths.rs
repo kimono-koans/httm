@@ -210,6 +210,18 @@ impl PathData {
             })
     }
 
+    pub fn source(&self) -> Option<PathBuf> {
+        let dataset_mount = self
+            .proximate_dataset(&GLOBAL_CONFIG.dataset_collection.map_of_datasets)
+            .ok()?;
+
+        GLOBAL_CONFIG
+            .dataset_collection
+            .map_of_datasets
+            .get(dataset_mount)
+            .map(|md| md.source.clone())
+    }
+
     pub fn alias_dataset<'a>(&self, map_of_alias: &'a MapOfAliases) -> Option<&'a Path> {
         // find_map_first should return the first seq result with a par_iter
         // but not with a par_bridge

@@ -17,6 +17,7 @@
 
 use crate::data::paths::PathData;
 use crate::library::results::{HttmError, HttmResult};
+use crate::library::utility::user_has_effective_root;
 use crate::library::utility::{date_string, DateFormat};
 use crate::{print_output_buf, GLOBAL_CONFIG};
 use std::path::Path;
@@ -34,6 +35,8 @@ impl TryFrom<&Path> for SnapGuard {
     type Error = Box<dyn std::error::Error + Send + Sync>;
 
     fn try_from(path: &Path) -> HttmResult<Self> {
+        ZfsAllowPriv::Snapshot.from_path(&path)?;
+
         let pathdata = PathData::from(path);
         let dataset_mount =
             pathdata.proximate_dataset(&GLOBAL_CONFIG.dataset_collection.map_of_datasets)?;
@@ -57,7 +60,8 @@ impl TryFrom<&Path> for SnapGuard {
 }
 
 pub struct SnapGuard {
-    inner: String,
+    new_snap_name: String,
+    dataset_name: String,
 }
 
 impl SnapGuard {
@@ -132,14 +136,17 @@ impl SnapGuard {
             print_output_buf(&output_buf)?;
 
             Ok(SnapGuard {
-                inner: new_snap_name,
+                new_snap_name,
+                dataset_name: dataset_name.to_string(),
             })
         }
     }
 
     pub fn rollback(&self) -> HttmResult<()> {
+        ZfsAllowPriv::Rollback.from_fs_name(&self.dataset_name)?;
+
         let zfs_command = which("zfs")?;
-        let process_args = vec!["rollback", "-r", &self.inner];
+        let process_args = vec!["rollback", "-r", &self.new_snap_name];
 
         let process_output = ExecProcess::new(zfs_command).args(&process_args).output()?;
         let stderr_string = std::str::from_utf8(&process_output.stderr)?.trim();
@@ -153,6 +160,79 @@ impl SnapGuard {
             };
 
             return Err(HttmError::new(&msg).into());
+        }
+
+        Ok(())
+    }
+}
+
+pub enum ZfsAllowPriv {
+    Snapshot,
+    Rollback,
+}
+
+impl ZfsAllowPriv {
+    pub fn from_path(&self, new_file_path: &Path) -> HttmResult<()> {
+        let Some(fs_name) = PathData::from(new_file_path).source() else {
+            let msg = format!(
+                "Could not determine dataset name from path given: {:?}",
+                new_file_path
+            );
+            return Err(HttmError::new(&msg).into());
+        };
+
+        Self::from_fs_name(&self, &fs_name.to_string_lossy())
+    }
+
+    pub fn from_fs_name(&self, fs_name: &str) -> HttmResult<()> {
+        let msg = match self {
+            ZfsAllowPriv::Rollback => "A rollback after a restore action",
+            ZfsAllowPriv::Snapshot => "A snapshot guard before restore action",
+        };
+
+        if let Err(root_error) = user_has_effective_root(msg) {
+            if let Err(_allow_priv_error) = self.user_has_zfs_allow_priv(fs_name) {
+                return Err(root_error);
+            }
+        }
+
+        Ok(())
+    }
+
+    fn as_zfs_cmd_strings(&self) -> &[&str] {
+        match self {
+            ZfsAllowPriv::Rollback => &["rollback"],
+            ZfsAllowPriv::Snapshot => &["snapshot", "mount"],
+        }
+    }
+
+    fn user_has_zfs_allow_priv(&self, fs_name: &str) -> HttmResult<()> {
+        let zfs_command = which("zfs")?;
+
+        let process_args = vec!["allow", fs_name];
+
+        let process_output = ExecProcess::new(zfs_command).args(&process_args).output()?;
+        let stderr_string = std::str::from_utf8(&process_output.stderr)?.trim();
+        let stdout_string = std::str::from_utf8(&process_output.stdout)?.trim();
+
+        // stderr_string is a string not an error, so here we build an err or output
+        if !stderr_string.is_empty() {
+            let msg = "httm was unable to determine 'zfs allow' for the path given. The 'zfs' command issued the following error: ".to_owned() + stderr_string;
+
+            return Err(HttmError::new(&msg).into());
+        }
+
+        let user_name = std::env::var("USER")?;
+
+        if !stdout_string.contains(&user_name)
+            || !self
+                .as_zfs_cmd_strings()
+                .iter()
+                .all(|p| stdout_string.contains(p))
+        {
+            let msg = "User does not have 'zfs allow' privileges for the path given.";
+
+            return Err(HttmError::new(msg).into());
         }
 
         Ok(())

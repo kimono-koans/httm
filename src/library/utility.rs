@@ -35,10 +35,8 @@ use std::iter::Iterator;
 use std::ops::Deref;
 use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
-use std::process::Command as ExecProcess;
 use std::time::SystemTime;
 use time::{format_description, OffsetDateTime, UtcOffset};
-use which::which;
 
 #[cfg(feature = "setpriority")]
 #[cfg(target_os = "linux")]
@@ -88,81 +86,6 @@ pub fn user_has_effective_root(msg: &str) -> HttmResult<()> {
     }
 
     Ok(())
-}
-
-pub enum ZfsAllowPrivType {
-    Snapshot,
-    Rollback,
-}
-
-impl ZfsAllowPrivType {
-    pub fn root_or_user_has_priv(&self, new_file_path: &Path) -> HttmResult<()> {
-        let msg = match self {
-            ZfsAllowPrivType::Rollback => "A rollback after a restore action",
-            ZfsAllowPrivType::Snapshot => "A snapshot guard before restore action",
-        };
-
-        if let Err(root_error) = user_has_effective_root(msg) {
-            if let Err(_allow_priv_error) = self.user_has_zfs_allow_priv(&new_file_path) {
-                return Err(root_error);
-            }
-        }
-
-        Ok(())
-    }
-
-    fn priv_types(&self) -> &[&str] {
-        match self {
-            ZfsAllowPrivType::Rollback => &["rollback"],
-            ZfsAllowPrivType::Snapshot => &["snapshot", "mount"],
-        }
-    }
-
-    fn user_has_zfs_allow_priv(&self, new_file_path: &Path) -> HttmResult<()> {
-        let zfs_command = which("zfs")?;
-
-        let pathdata = PathData::from(new_file_path);
-
-        let dataset_mount =
-            pathdata.proximate_dataset(&GLOBAL_CONFIG.dataset_collection.map_of_datasets)?;
-
-        let dataset_name = match GLOBAL_CONFIG
-            .dataset_collection
-            .map_of_datasets
-            .get(dataset_mount)
-        {
-            Some(md) => &md.source,
-            None => {
-                return Err(HttmError::new("Could not obtain source dataset for mount: ").into())
-            }
-        };
-
-        let dataset_name = &dataset_name.to_string_lossy();
-        let process_args = vec!["allow", dataset_name];
-
-        let process_output = ExecProcess::new(zfs_command).args(&process_args).output()?;
-        let stderr_string = std::str::from_utf8(&process_output.stderr)?.trim();
-        let stdout_string = std::str::from_utf8(&process_output.stdout)?.trim();
-
-        // stderr_string is a string not an error, so here we build an err or output
-        if !stderr_string.is_empty() {
-            let msg = "httm was unable to determine 'zfs allow' for the path given. The 'zfs' command issued the following error: ".to_owned() + stderr_string;
-
-            return Err(HttmError::new(&msg).into());
-        }
-
-        let user_name = std::env::var("USER")?;
-
-        if !stdout_string.contains(&user_name)
-            || !self.priv_types().iter().all(|p| stdout_string.contains(p))
-        {
-            let msg = "User does not have 'zfs allow' privileges for the path given.";
-
-            return Err(HttmError::new(msg).into());
-        }
-
-        Ok(())
-    }
 }
 
 pub fn delimiter() -> char {
