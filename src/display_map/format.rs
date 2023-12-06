@@ -64,39 +64,41 @@ impl<'a> From<&MountsForFiles<'a>> for PrintAsMap {
             .map(|(key, values)| {
                 let res = values
                     .iter()
-                    .filter_map(|value| match mounts_for_files.mount_display() {
-                        MountDisplay::Target => {
-                            if let Some(target) =
-                                SnapPathGuard::new(key).and_then(|spd| spd.target(&value.path_buf))
-                            {
-                                return Some(Cow::Owned(target.to_string_lossy().to_string()));
-                            }
+                    .filter_map(|value| {
+                        let opt_spg = SnapPathGuard::new(key);
 
-                            Some(value.path_buf.to_string_lossy())
-                        }
-                        MountDisplay::Source => {
-                            if let Some(snap_source) =
-                                SnapPathGuard::new(key).and_then(|spd| spd.source())
-                            {
-                                return Some(Cow::Owned(snap_source));
-                            }
+                        match mounts_for_files.mount_display() {
+                            MountDisplay::Target => {
+                                if let Some(target) =
+                                    opt_spg.and_then(|spd| spd.target(&value.path_buf))
+                                {
+                                    return Some(Cow::Owned(target.to_string_lossy().to_string()));
+                                }
 
-                            value
-                                .source()
-                                .map(|source| Cow::Owned(source.to_string_lossy().to_string()))
-                        }
-                        MountDisplay::RelativePath => {
-                            if let Some(relative_path) = SnapPathGuard::new(key)
-                                .and_then(|spd| spd.relative_path(&value.path_buf).ok())
-                            {
-                                return Some(Cow::Owned(
-                                    relative_path.to_string_lossy().to_string(),
-                                ));
+                                Some(value.path_buf.to_string_lossy())
                             }
+                            MountDisplay::Source => {
+                                if let Some(snap_source) = opt_spg.and_then(|spd| spd.source()) {
+                                    return Some(Cow::Owned(snap_source));
+                                }
 
-                            key.relative_path(&value.path_buf)
-                                .ok()
-                                .map(|path| path.to_string_lossy())
+                                value
+                                    .source()
+                                    .map(|source| Cow::Owned(source.to_string_lossy().to_string()))
+                            }
+                            MountDisplay::RelativePath => {
+                                if let Some(relative_path) =
+                                    opt_spg.and_then(|spd| spd.relative_path(&value.path_buf).ok())
+                                {
+                                    return Some(Cow::Owned(
+                                        relative_path.to_string_lossy().to_string(),
+                                    ));
+                                }
+
+                                key.relative_path(&value.path_buf)
+                                    .ok()
+                                    .map(|path| path.to_string_lossy())
+                            }
                         }
                     })
                     .map(|s| s.to_string())
