@@ -40,8 +40,10 @@ use std::time::SystemTime;
 use time::{format_description, OffsetDateTime, UtcOffset};
 use which::which;
 
-#[allow(dead_code)]
-pub enum PriorityType {
+#[cfg(feature = "setpriority")]
+#[cfg(target_os = "linux")]
+#[cfg(target_env = "gnu")]
+pub enum ThreadPriorityType {
     Process = 0,
     PGroup = 1,
     User = 2,
@@ -50,24 +52,24 @@ pub enum PriorityType {
 #[cfg(feature = "setpriority")]
 #[cfg(target_os = "linux")]
 #[cfg(target_env = "gnu")]
-// nice calling thread to a specified level
-pub fn nice_thread(
-    priority_type: PriorityType,
-    opt_tid: Option<u32>,
-    priority_level: i32,
-) -> HttmResult<()> {
-    let tid = opt_tid.unwrap_or_else(|| std::process::id());
+#[allow(dead_code)]
+impl ThreadPriorityType {
+    // nice calling thread to a specified level
+    pub fn nice_thread(self, opt_tid: Option<u32>, priority_level: i32) -> HttmResult<()> {
+        let tid = opt_tid.unwrap_or_else(|| std::process::id());
 
-    // #[cfg(any(target_os = "macos", target_os = "freebsd"))]
-    // unsafe {
-    //     let _ = libc::setpriority(priority_type as i32, tid, priority_level);
-    // };
+        // #[cfg(any(target_os = "macos", target_os = "freebsd"))]
+        // unsafe {
+        //     let _ = libc::setpriority(priority_type as i32, tid, priority_level);
+        // };
 
-    unsafe {
-        let _ = libc::setpriority(priority_type as u32, tid, priority_level);
+        unsafe {
+            let priority_type = self as u32;
+            let _ = libc::setpriority(priority_type, tid, priority_level);
+        }
+
+        Ok(())
     }
-
-    Ok(())
 }
 
 #[cfg(feature = "malloc_trim")]

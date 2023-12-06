@@ -569,9 +569,9 @@ impl ViewMode {
             #[cfg(target_os = "linux")]
             #[cfg(target_env = "gnu")]
             {
-                use crate::library::utility::{nice_thread, PriorityType};
+                use crate::library::utility::ThreadPriorityType;
                 let tid = std::process::id();
-                let _ = nice_thread(PriorityType::Process, Some(tid), -3i32);
+                let _ = ThreadPriorityType::Process.nice_thread(Some(tid), -3i32);
             }
 
             let opt_multi = GLOBAL_CONFIG.opt_preview.is_none();

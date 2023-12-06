@@ -99,14 +99,14 @@ impl RecursiveMainLoop {
         #[cfg(target_os = "linux")]
         #[cfg(target_env = "gnu")]
         {
-            use crate::library::utility::{nice_thread, PriorityType};
+            use crate::library::utility::ThreadPriorityType;
 
             let tid = std::process::id();
             if !matches!(
                 GLOBAL_CONFIG.exec_mode,
                 ExecMode::NonInteractiveRecursive(_)
             ) {
-                let _ = nice_thread(PriorityType::Process, Some(tid), 1i32);
+                let _ = ThreadPriorityType::Process.nice_thread(Some(tid), 1i32);
             }
         }
         // runs once for non-recursive but also "primes the pump"
