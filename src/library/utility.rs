@@ -43,6 +43,7 @@ use which::which;
 #[cfg(feature = "setpriority")]
 #[cfg(target_os = "linux")]
 #[cfg(target_env = "gnu")]
+#[allow(dead_code)]
 pub enum ThreadPriorityType {
     Process = 0,
     PGroup = 1,
@@ -52,7 +53,6 @@ pub enum ThreadPriorityType {
 #[cfg(feature = "setpriority")]
 #[cfg(target_os = "linux")]
 #[cfg(target_env = "gnu")]
-#[allow(dead_code)]
 impl ThreadPriorityType {
     // nice calling thread to a specified level
     pub fn nice_thread(self, opt_tid: Option<u32>, priority_level: i32) -> HttmResult<()> {
