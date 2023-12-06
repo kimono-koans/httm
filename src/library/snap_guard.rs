@@ -38,15 +38,9 @@ impl TryFrom<&Path> for SnapGuard {
         ZfsAllowPriv::Snapshot.from_path(&path)?;
 
         let pathdata = PathData::from(path);
-        let dataset_mount =
-            pathdata.proximate_dataset(&GLOBAL_CONFIG.dataset_collection.map_of_datasets)?;
 
-        let dataset_name = match GLOBAL_CONFIG
-            .dataset_collection
-            .map_of_datasets
-            .get(dataset_mount)
-        {
-            Some(md) => &md.source,
+        let dataset_name = match pathdata.source() {
+            Some(source) => source,
             None => {
                 return Err(HttmError::new("Could not obtain source dataset for mount: ").into())
             }

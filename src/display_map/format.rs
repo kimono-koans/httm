@@ -74,19 +74,17 @@ impl<'a> From<&MountsForFiles<'a>> for PrintAsMap {
 
                             Some(value.path_buf.to_string_lossy())
                         }
-                        MountDisplay::Source => GLOBAL_CONFIG
-                            .dataset_collection
-                            .map_of_datasets
-                            .get(&value.path_buf)
-                            .map(|md| {
-                                if let Some(snap_source) =
-                                    SnapPathGuard::new(key).and_then(|spd| spd.source())
-                                {
-                                    return Cow::Owned(snap_source);
-                                }
+                        MountDisplay::Source => {
+                            if let Some(snap_source) =
+                                SnapPathGuard::new(key).and_then(|spd| spd.source())
+                            {
+                                return Some(Cow::Owned(snap_source));
+                            }
 
-                                md.source.to_string_lossy()
-                            }),
+                            value
+                                .source()
+                                .map(|source| Cow::Owned(source.to_string_lossy().to_string()))
+                        }
                         MountDisplay::RelativePath => {
                             if let Some(relative_path) = SnapPathGuard::new(key)
                                 .and_then(|spd| spd.relative_path(&value.path_buf).ok())

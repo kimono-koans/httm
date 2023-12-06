@@ -115,8 +115,8 @@ impl SnapshotMounts {
                                     Ok(dataset_info.source.to_string_lossy())
                                 } else {
                                     Err(HttmError::new(
-                    "httm does not currently support snapshot-ing non-ZFS filesystems.",
-                  ))
+                                        "httm does not currently support snapshot-ing non-ZFS filesystems.",
+                                    ))
                                 }
                             }
                             None => {

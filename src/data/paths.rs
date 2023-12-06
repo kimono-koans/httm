@@ -211,14 +211,14 @@ impl PathData {
     }
 
     pub fn source(&self) -> Option<PathBuf> {
-        let dataset_mount = self
+        let mount = self
             .proximate_dataset(&GLOBAL_CONFIG.dataset_collection.map_of_datasets)
             .ok()?;
 
         GLOBAL_CONFIG
             .dataset_collection
             .map_of_datasets
-            .get(dataset_mount)
+            .get(mount)
             .map(|md| md.source.clone())
     }
 
