@@ -97,8 +97,12 @@ pub enum ZfsAllowPrivType {
 
 impl ZfsAllowPrivType {
     pub fn root_or_user_has_priv(&self, new_file_path: &Path) -> HttmResult<()> {
-        if let Err(root_error) = user_has_effective_root("A snapshot guard before restore action.")
-        {
+        let msg = match self {
+            ZfsAllowPrivType::Rollback => "A rollback after a restore action",
+            ZfsAllowPrivType::Snapshot => "A snapshot guard before restore action",
+        };
+
+        if let Err(root_error) = user_has_effective_root(msg) {
             if let Err(_allow_priv_error) = self.user_has_zfs_allow_priv(&new_file_path) {
                 return Err(root_error);
             }
