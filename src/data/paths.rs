@@ -103,8 +103,6 @@ impl PathData {
         // of input files in Config::from for deleted relative paths, etc.
         let canonical_path: PathBuf = if let Ok(canonical_path) = path.canonicalize() {
             canonical_path
-        } else if let Ok(pwd) = pwd() {
-            pwd.join(path)
         } else {
             path.to_path_buf()
         };
