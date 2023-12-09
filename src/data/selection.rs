@@ -68,19 +68,15 @@ impl SelectionCandidate {
     }
 
     fn display_name(&self) -> Cow<str> {
-        match self.file_type {
-            Some(_) => {
-                self.path
-                    .strip_prefix(
-                        GLOBAL_CONFIG.opt_requested_dir.as_ref().expect(
-                            "requested_dir should never be None in Interactive Browse mode",
-                        ),
-                    )
-                    .unwrap_or(&self.path)
-                    .to_string_lossy()
-            }
-            None => self.path.to_string_lossy(),
-        }
+        self.path
+            .strip_prefix(
+                GLOBAL_CONFIG
+                    .opt_requested_dir
+                    .as_ref()
+                    .expect("requested_dir should never be None in Interactive Browse mode"),
+            )
+            .unwrap_or(&self.path)
+            .to_string_lossy()
     }
 }
 
