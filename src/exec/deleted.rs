@@ -37,7 +37,7 @@ impl SpawnDeletedThread {
         hangup_rx: &Receiver<Never>,
     ) {
         // canonicalize requested dir path b/c could be a symlink
-        let requested_dir_clone = PathData::from(requested_dir);
+        let requested_dir_clone = requested_dir.to_path_buf();
         let skim_tx_clone = skim_tx.clone();
         let hangup_rx_clone = hangup_rx.clone();
 
@@ -64,11 +64,7 @@ impl SpawnDeletedThread {
                     }
                 }
             }
-            let _ = Self::enter_directory(
-                &requested_dir_clone.path_buf,
-                &skim_tx_clone,
-                &hangup_rx_clone,
-            );
+            let _ = Self::enter_directory(&requested_dir_clone, &skim_tx_clone, &hangup_rx_clone);
         })
     }
 

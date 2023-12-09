@@ -22,6 +22,7 @@ use crate::parse::aliases::{FilesystemType, MapOfAliases};
 use crate::parse::mounts::{MapOfDatasets, MaxLen};
 use crate::{GLOBAL_CONFIG, ZFS_SNAPSHOT_DIRECTORY};
 use once_cell::sync::{Lazy, OnceCell};
+use realpath_ext::{realpath, RealpathFlags};
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
 use simd_adler32::Adler32;
@@ -101,11 +102,8 @@ impl PathData {
         //
         // in general we handle those cases elsewhere, like the ingest
         // of input files in Config::from for deleted relative paths, etc.
-        let canonical_path: PathBuf = if let Ok(canonical_path) = path.canonicalize() {
-            canonical_path
-        } else {
-            path.to_path_buf()
-        };
+        let canonical_path: PathBuf =
+            realpath(path, RealpathFlags::ALLOW_MISSING).unwrap_or_else(|_| path.to_path_buf());
 
         let path_metadata = opt_metadata.and_then(|md| Self::opt_metadata(&md));
 
