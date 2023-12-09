@@ -104,7 +104,7 @@ impl VersionsMap {
 
     pub fn is_live_version_redundant(live_pathdata: &PathData, snaps: &[PathData]) -> bool {
         if let Some(last_snap) = snaps.last() {
-            return last_snap.md_infallible() == live_pathdata.md_infallible();
+            return last_snap.metadata == live_pathdata.metadata;
         }
 
         false
@@ -125,11 +125,11 @@ impl VersionsMap {
                 // if last() is some, then should be able to unwrap pop()
                 Some(last) => match last_snap_mode {
                     LastSnapMode::Any => vec![last.to_owned()],
-                    LastSnapMode::DittoOnly if pathdata.md_infallible() == last.md_infallible() => {
+                    LastSnapMode::DittoOnly if pathdata.metadata == last.metadata => {
                         vec![last.to_owned()]
                     }
                     LastSnapMode::NoDittoExclusive | LastSnapMode::NoDittoInclusive
-                        if pathdata.md_infallible() != last.md_infallible() =>
+                        if pathdata.metadata != last.metadata =>
                     {
                         vec![last.to_owned()]
                     }

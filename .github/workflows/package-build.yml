@@ -23,7 +23,7 @@ jobs:
     - name: Install cargo-deb
       run: cargo install cargo-deb
     - name: Build package with cargo-deb
-      run: cargo deb --install --separate-debug-symbols --profile deb -- --locked --features "acls" --features "xattrs" --features "malloc_trim"
+      run: cargo deb --install --separate-debug-symbols --profile deb -- --locked --features "acls" --features "xattrs" --features "malloc_trim" --features "setpriority"
     - name: Install alien
       run: sudo apt-get install -y alien
     - name: Convert deb to rpm with alien
