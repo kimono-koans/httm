@@ -101,35 +101,19 @@ impl PathData {
         //
         // in general we handle those cases elsewhere, like the ingest
         // of input files in Config::from for deleted relative paths, etc.
-        match opt_metadata {
-            Some(md) => {
-                let canonical_path: PathBuf = if let Ok(canonical_path) = path.canonicalize() {
-                    canonical_path
-                } else if let Ok(pwd) = pwd() {
-                    pwd.join(path)
-                } else {
-                    path.to_path_buf()
-                };
+        let canonical_path: PathBuf = if let Ok(canonical_path) = path.canonicalize() {
+            canonical_path
+        } else if let Ok(pwd) = pwd() {
+            pwd.join(path)
+        } else {
+            path.to_path_buf()
+        };
 
-                let path_metadata = Self::opt_metadata(&md);
+        let path_metadata = opt_metadata.and_then(|md| Self::opt_metadata(&md));
 
-                PathData {
-                    path_buf: canonical_path,
-                    metadata: path_metadata,
-                }
-            }
-            None => {
-                let canonical_path: PathBuf = if let Ok(pwd) = pwd() {
-                    pwd.join(path)
-                } else {
-                    path.to_path_buf()
-                };
-
-                PathData {
-                    path_buf: canonical_path,
-                    metadata: None,
-                }
-            }
+        Self {
+            path_buf: canonical_path,
+            metadata: path_metadata,
         }
     }
 
