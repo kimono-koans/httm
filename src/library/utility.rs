@@ -336,7 +336,6 @@ where
         _ => false,
     }
 }
-
 pub trait HttmIsDir<'a> {
     fn httm_is_dir(&self) -> bool;
     fn filetype(&self) -> Result<FileType, std::io::Error>;

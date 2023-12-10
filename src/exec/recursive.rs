@@ -21,7 +21,9 @@ use crate::data::selection::SelectionCandidate;
 use crate::display_versions::wrapper::VersionsDisplayWrapper;
 use crate::exec::deleted::SpawnDeletedThread;
 use crate::library::results::{HttmError, HttmResult};
-use crate::library::utility::{is_channel_closed, print_output_buf, HttmIsDir, Never};
+use crate::library::utility::{
+    is_channel_closed, path_contains_filter_dir, print_output_buf, HttmIsDir, Never,
+};
 use crate::parse::mounts::MaxLen;
 use crate::{VersionsMap, BTRFS_SNAPPER_HIDDEN_DIRECTORY, GLOBAL_CONFIG, ZFS_HIDDEN_DIRECTORY};
 use once_cell::sync::Lazy;
@@ -285,7 +287,7 @@ impl SharedRecursive {
             return false;
         }
 
-        GLOBAL_CONFIG.dataset_collection.filter_dirs.contains(path)
+        path_contains_filter_dir(path)
     }
 
     // this function creates dummy "live versions" values to match deleted files
