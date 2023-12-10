@@ -55,7 +55,6 @@ pub struct DatasetMetadata {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FilterDirs {
     inner: HashSet<PathBuf>,
-    max_len: usize,
 }
 
 impl Deref for FilterDirs {
@@ -72,14 +71,17 @@ pub trait MaxLen {
 
 impl MaxLen for FilterDirs {
     fn max_len(&self) -> usize {
-        self.max_len
+        self.inner
+            .iter()
+            .map(|dir| dir.components().count())
+            .max()
+            .unwrap_or(usize::MAX)
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MapOfDatasets {
     inner: HashMap<PathBuf, DatasetMetadata>,
-    max_len: usize,
 }
 
 impl Deref for MapOfDatasets {
@@ -92,7 +94,11 @@ impl Deref for MapOfDatasets {
 
 impl MaxLen for MapOfDatasets {
     fn max_len(&self) -> usize {
-        self.max_len
+        self.inner
+            .keys()
+            .map(|mount| mount.components().count())
+            .max()
+            .unwrap_or(usize::MAX)
     }
 }
 
@@ -120,28 +126,14 @@ impl BaseFilesystemInfo {
         let map_of_snaps = MapOfSnaps::new(&raw_datasets)?;
 
         let map_of_datasets = {
-            let datasets_max_len = raw_datasets
-                .keys()
-                .map(|mount| mount.components().count())
-                .max()
-                .unwrap_or(usize::MAX);
-
             MapOfDatasets {
                 inner: raw_datasets,
-                max_len: datasets_max_len,
             }
         };
 
         let filter_dirs = {
-            let filter_dirs_max_len = filter_dirs_set
-                .iter()
-                .map(|dir| dir.components().count())
-                .max()
-                .unwrap_or(usize::MAX);
-
             FilterDirs {
                 inner: filter_dirs_set,
-                max_len: filter_dirs_max_len,
             }
         };
 
