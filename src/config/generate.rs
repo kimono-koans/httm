@@ -19,11 +19,12 @@ use crate::config::install_hot_keys::install_hot_keys;
 use crate::data::filesystem_info::FilesystemInfo;
 use crate::data::paths::{PathData, SnapPathGuard};
 use crate::library::results::{HttmError, HttmResult};
-use crate::library::utility::{pwd, read_stdin, HttmIsDir};
+use crate::library::utility::{pwd, HttmIsDir};
 use crate::ROOT_DIRECTORY;
 use clap::{crate_name, crate_version, Arg, ArgMatches, OsValues};
 use indicatif::ProgressBar;
 use rayon::prelude::*;
+use std::io::Read;
 use std::ops::Index;
 use std::path::{Path, PathBuf};
 use time::UtcOffset;
@@ -946,7 +947,7 @@ impl Config {
                 | ExecMode::Prune(_)
                 | ExecMode::MountsForFiles(_)
                 | ExecMode::SnapsForFiles(_)
-                | ExecMode::NumVersions(_) => read_stdin()?,
+                | ExecMode::NumVersions(_) => Self::read_stdin()?,
             }
         };
 
@@ -963,6 +964,41 @@ impl Config {
         };
 
         Ok(paths)
+    }
+
+    pub fn read_stdin() -> HttmResult<Vec<PathData>> {
+        let stdin = std::io::stdin();
+        let mut stdin = stdin.lock();
+        let mut buffer = Vec::new();
+        stdin.read_to_end(&mut buffer)?;
+
+        let buffer_string = std::str::from_utf8(&buffer)?;
+
+        let broken_string = if buffer_string.contains(['\n', '\0']) {
+            // always split on newline or null char, if available
+            buffer_string
+                .split(&['\n', '\0'])
+                .filter(|s| !s.is_empty())
+                .map(PathData::from)
+                .collect()
+        } else if buffer_string.contains('\"') {
+            buffer_string
+                .split('\"')
+                // unquoted paths should have excess whitespace trimmed
+                .map(str::trim)
+                // remove any empty strings
+                .filter(|s| !s.is_empty())
+                .map(PathData::from)
+                .collect()
+        } else {
+            buffer_string
+                .split_ascii_whitespace()
+                .filter(|s| !s.is_empty())
+                .map(PathData::from)
+                .collect()
+        };
+
+        Ok(broken_string)
     }
 
     pub fn opt_requested_dir(

@@ -30,7 +30,7 @@ use number_prefix::NumberPrefix;
 use once_cell::sync::Lazy;
 use std::borrow::Cow;
 use std::fs::{create_dir_all, read_dir, set_permissions, FileType};
-use std::io::{Read, Write};
+use std::io::Write;
 use std::iter::Iterator;
 use std::ops::Deref;
 use std::os::unix::fs::MetadataExt;
@@ -271,41 +271,6 @@ pub fn remove_recursive(src: &Path) -> HttmResult<()> {
     }
 
     Ok(())
-}
-
-pub fn read_stdin() -> HttmResult<Vec<PathData>> {
-    let stdin = std::io::stdin();
-    let mut stdin = stdin.lock();
-    let mut buffer = Vec::new();
-    stdin.read_to_end(&mut buffer)?;
-
-    let buffer_string = std::str::from_utf8(&buffer)?;
-
-    let broken_string = if buffer_string.contains(['\n', '\0']) {
-        // always split on newline or null char, if available
-        buffer_string
-            .split(&['\n', '\0'])
-            .filter(|s| !s.is_empty())
-            .map(PathData::from)
-            .collect()
-    } else if buffer_string.contains('\"') {
-        buffer_string
-            .split('\"')
-            // unquoted paths should have excess whitespace trimmed
-            .map(str::trim)
-            // remove any empty strings
-            .filter(|s| !s.is_empty())
-            .map(PathData::from)
-            .collect()
-    } else {
-        buffer_string
-            .split_ascii_whitespace()
-            .filter(|s| !s.is_empty())
-            .map(PathData::from)
-            .collect()
-    };
-
-    Ok(broken_string)
 }
 
 pub fn find_common_path<I, P>(paths: I) -> Option<PathBuf>
