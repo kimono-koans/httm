@@ -55,11 +55,9 @@ impl SpawnDeletedThread {
                     ExecMode::NonInteractiveRecursive(_)
                 ) {
                     match GLOBAL_CONFIG.opt_deleted_mode {
-                        Some(DeletedMode::Only) => {
-                            let _ = ThreadPriorityType::Process.nice_thread(Some(tid), 1i32);
-                        }
+                        Some(DeletedMode::Only) => (),
                         _ => {
-                            let _ = ThreadPriorityType::Process.nice_thread(Some(tid), 3i32);
+                            let _ = ThreadPriorityType::Process.nice_thread(Some(tid), 1i32);
                         }
                     }
                 }
