@@ -18,7 +18,7 @@
 use crate::config::generate::{
     ExecMode, InteractiveMode, PrintMode, RestoreMode, RestoreSnapGuard, SelectMode,
 };
-use crate::data::paths::{PathData, SnapPathGuard};
+use crate::data::paths::{PathData, ZfsSnapPathGuard};
 use crate::display_versions::wrapper::VersionsDisplayWrapper;
 use crate::exec::preview::PreviewSelection;
 use crate::exec::recursive::RecursiveSearch;
@@ -324,7 +324,7 @@ impl InteractiveSelect {
     pub fn opt_live_version(&self, snap_pathdata: &PathData) -> HttmResult<PathBuf> {
         match &self.opt_live_version {
             Some(live_version) => Some(PathBuf::from(live_version)),
-            None => SnapPathGuard::new(snap_pathdata)
+            None => ZfsSnapPathGuard::new(snap_pathdata)
                 .and_then(|snap_guard| snap_guard.live_path())
                 .map(|pathdata| pathdata.path_buf),
         }

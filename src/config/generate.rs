@@ -17,7 +17,7 @@
 
 use crate::config::install_hot_keys::install_hot_keys;
 use crate::data::filesystem_info::FilesystemInfo;
-use crate::data::paths::{PathData, SnapPathGuard};
+use crate::data::paths::{PathData, ZfsSnapPathGuard};
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{pwd, HttmIsDir};
 use crate::ROOT_DIRECTORY;
@@ -923,7 +923,7 @@ impl Config {
                 .filter_map(|pd| {
                     // but what about snapshot paths?
                     // here we strip the additional snapshot VFS bits and make them look like live versions
-                    if let Some(spd) = SnapPathGuard::new(&pd) {
+                    if let Some(spd) = ZfsSnapPathGuard::new(&pd) {
                         if !matches!(exec_mode, ExecMode::MountsForFiles(_)) {
                             return spd.live_path();
                         }

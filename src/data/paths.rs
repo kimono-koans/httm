@@ -212,18 +212,18 @@ impl PathData {
         })
     }
 
-    pub fn is_snap_path(&self) -> bool {
+    pub fn is_zfs_snap_path(&self) -> bool {
         self.path_buf
             .to_string_lossy()
             .contains(ZFS_SNAPSHOT_DIRECTORY)
     }
 }
 
-pub struct SnapPathGuard<'a> {
+pub struct ZfsSnapPathGuard<'a> {
     inner: &'a PathData,
 }
 
-impl<'a> std::ops::Deref for SnapPathGuard<'a> {
+impl<'a> std::ops::Deref for ZfsSnapPathGuard<'a> {
     type Target = &'a PathData;
 
     fn deref(&self) -> &Self::Target {
@@ -231,9 +231,9 @@ impl<'a> std::ops::Deref for SnapPathGuard<'a> {
     }
 }
 
-impl<'a> SnapPathGuard<'a> {
+impl<'a> ZfsSnapPathGuard<'a> {
     pub fn new(pathdata: &'a PathData) -> Option<Self> {
-        if !pathdata.is_snap_path() {
+        if !pathdata.is_zfs_snap_path() {
             return None;
         }
 

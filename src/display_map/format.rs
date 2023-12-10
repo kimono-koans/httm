@@ -16,7 +16,7 @@
 // that was distributed with this source code.
 
 use crate::config::generate::{ExecMode, MountDisplay, PrintMode};
-use crate::data::paths::SnapPathGuard;
+use crate::data::paths::ZfsSnapPathGuard;
 use crate::display_versions::format::{NOT_SO_PRETTY_FIXED_WIDTH_PADDING, QUOTATION_MARKS_LEN};
 use crate::library::utility::delimiter;
 use crate::{MountsForFiles, SnapNameMap, VersionsMap, GLOBAL_CONFIG};
@@ -65,7 +65,7 @@ impl<'a> From<&MountsForFiles<'a>> for PrintAsMap {
                 let res = values
                     .iter()
                     .filter_map(|value| {
-                        let opt_spg = SnapPathGuard::new(key);
+                        let opt_spg = ZfsSnapPathGuard::new(key);
 
                         match mounts_for_files.mount_display() {
                             MountDisplay::Target => {
