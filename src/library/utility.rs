@@ -18,7 +18,7 @@
 use crate::config::generate::PrintMode;
 use crate::data::paths::{BasicDirEntryInfo, PathData, PathMetadata, PHANTOM_DATE};
 use crate::data::selection::SelectionCandidate;
-use crate::library::diff_copy::diff_copy;
+use crate::library::diff_copy::DiffCopy;
 use crate::library::results::{HttmError, HttmResult};
 
 use crate::parse::aliases::FilesystemType;
@@ -188,7 +188,7 @@ pub fn copy_direct(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<
         generate_dst_parent(dst)?;
 
         if src.is_file() {
-            diff_copy(src, dst)?;
+            DiffCopy::new(src, dst)?;
         } else if src.is_symlink() {
             let link_target = std::fs::read_link(src)?;
             std::os::unix::fs::symlink(link_target, dst)?;
