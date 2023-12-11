@@ -15,6 +15,32 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
+// this module is a re-implementation of the diff_copy() method, as used by the lms-lib crate.
+// this was/is done for both performance and binary size reasons.
+//
+// though I am fairly certain this re-implementation is fair use, I've reproduced his license,
+// as of 3/30/2023, verbatim below:
+
+// Copyright (c) 2019 Wesley Chang
+
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
 use crate::config::generate::ListSnapsOfType;
 use crate::data::paths::{CompareVersionsContainer, PathData};
 use crate::library::results::HttmError;
