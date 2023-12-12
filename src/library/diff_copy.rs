@@ -15,10 +15,12 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-// this module is a re-implementation of the diff_copy() method, as used by the lms-lib crate.
-// this was/is done for both performance and binary size reasons.
+// this module is a re-implementation of the diff_copy() method, as used by the lms crate.
+// which served as a basis for the idea as to how to implement.
 //
-// though I am fairly certain this re-implementation is fair use, I've reproduced his license,
+// see original: https://github.com/wchang22/LuminS/blob/9efedd6f20c74aa75261e51ac1c95ee883f7e65b/src/lumins/file_ops.rs#L63
+//
+// though I am fairly certain this implementation is fair use, I've reproduced his license,
 // as of 3/30/2023, verbatim below:
 
 // Copyright (c) 2019 Wesley Chang

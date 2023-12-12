@@ -16,14 +16,16 @@
 // that was distributed with this source code.
 
 // this module is a re-implementation of the into_group_map() and into_group_map_by()
-// methods for Iterator by Rust Itertools team, for the purpose of using the same
+// methods for Iterator by Rust itertools team, for the purpose of using the same
 // hashbrown hashmap used elsewhere in httm.  this was/is done for both performance
 // and binary size reasons.
+//
+// see original: https://github.com/rust-itertools/itertools/blob/cfb2774fb02f61798967e89e1372bb95e625b7e6/src/group_map.rs#L25
 //
 // though I am fairly certain this re-implementation of their API is fair use
 // I've reproduced their license, as of 11/25/2022, verbatim below:
 
-// "Copyright (c) 2015
+// Copyright (c) 2015
 //
 // Permission is hereby granted, free of charge, to any
 // person obtaining a copy of this software and associated
@@ -47,7 +49,7 @@
 // CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
 // IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
-// DEALINGS IN THE SOFTWARE."
+// DEALINGS IN THE SOFTWARE.
 
 use hashbrown::HashMap;
 use std::hash::Hash;
