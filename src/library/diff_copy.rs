@@ -15,8 +15,8 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-// this module is a re-implementation of the diff_copy() method, as used by the lms crate.
-// which served as a basis for the idea as to how to implement.
+// this module is a re-implementation of the diff_copy() method, as used by the lms crate,
+// which served as a basis as to how to implement.
 //
 // see original: https://github.com/wchang22/LuminS/blob/9efedd6f20c74aa75261e51ac1c95ee883f7e65b/src/lumins/file_ops.rs#L63
 //
