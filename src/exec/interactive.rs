@@ -297,25 +297,29 @@ impl InteractiveSelect {
                     .stderr(std::process::Stdio::piped())
                     .spawn()?;
 
-                if let Some(mut stderr) = spawned.stderr {
-                    let mut output_buf = String::new();
-                    stderr.read_to_string(&mut output_buf)?;
-                    if !output_buf.is_empty() {
-                        eprintln!("{}", &output_buf)
-                    }
-                }
-
                 match spawned.stdout {
                     Some(mut stdout) => {
                         let mut output_buf = String::new();
                         stdout.read_to_string(&mut output_buf)?;
                         print_output_buf(&output_buf)
                     }
-                    None => {
-                        let msg =
-                            format!("Preview command output was empty for path: {:?}", snap_path);
-                        Err(HttmError::new(&msg).into())
-                    }
+                    None => match spawned.stderr {
+                        Some(mut stderr) => {
+                            let mut output_buf = String::new();
+                            stderr.read_to_string(&mut output_buf)?;
+                            if !output_buf.is_empty() {
+                                eprintln!("{}", &output_buf)
+                            }
+                            Ok(())
+                        }
+                        None => {
+                            let msg = format!(
+                                "Preview command output was empty for path: {:?}",
+                                snap_path
+                            );
+                            Err(HttmError::new(&msg).into())
+                        }
+                    },
                 }
             }
         }
