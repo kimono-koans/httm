@@ -18,8 +18,9 @@
 use crate::config::generate::{BulkExclusion, Config, PrintMode};
 use crate::data::paths::{PathData, PHANTOM_DATE, PHANTOM_SIZE};
 use crate::library::utility::{
-    date_string, delimiter, display_human_size, paint_string, path_contains_filter_dir, DateFormat,
+    date_string, delimiter, display_human_size, paint_string, DateFormat,
 };
+use crate::lookup::versions::ProximateDatasetAndOptAlts;
 use crate::VersionsDisplayWrapper;
 use std::borrow::Cow;
 use std::ops::Deref;
@@ -278,31 +279,16 @@ impl PathData {
     }
 
     fn warning_underlying_snaps<'a>(&'a self, config: &Config) -> &'a str {
-        let opt_live_pathdata = self
-            .proximate_dataset(&config.dataset_collection.map_of_datasets)
-            .ok();
+        let Ok(prox_opt_alts) = ProximateDatasetAndOptAlts::new(self) else {
+            return "WARN: Could not determine path's most proximate dataset.\n";
+        };
 
-        match opt_live_pathdata.and_then(|dataset_of_interest| {
-            config
-                .dataset_collection
-                .map_of_snaps
-                .get(dataset_of_interest)
-        }) {
-            None => "WARN: The file's dataset is not a supported filesystem.\n",
-            // below is necessary because root fs "/" could or could not be the most proximate fs
-            // for instance, if root fs is on a supported filesystem, and the file is not "/sys/fs",
-            // a search of datasets will report "/" as the most proximate filesystem, not None as you might suppose
-            Some(_vec) if path_contains_filter_dir(&self.path_buf) => {
-                "WARN: The file's dataset is not a supported filesystem.\n"
-            }
-            Some(vec) if vec.is_empty() => {
-                if config.opt_omit_ditto {
-                    "WARN: Omitting the only snapshot version available, which is identical to the live file.\n"
-                } else {
-                    "WARN: No snapshots exist for the file's specified dataset.\n"
-                }
-            }
-            Some(_vec) => "WARN: No snapshot version exists for the specified file.\n",
+        if prox_opt_alts.datasets_of_interest.is_empty() {
+            "WARN: The file's dataset is not a supported filesystem.\n"
+        } else if config.opt_omit_ditto {
+            "WARN: Omitting the only snapshot version available, which is identical to the live file.\n"
+        } else {
+            "WARN: No snapshot version exists for the specified file.\n"
         }
     }
 }
