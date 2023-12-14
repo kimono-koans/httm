@@ -279,16 +279,19 @@ impl PathData {
     }
 
     fn warning_underlying_snaps<'a>(&'a self, config: &Config) -> &'a str {
-        let Ok(prox_opt_alts) = ProximateDatasetAndOptAlts::new(self) else {
-            return "WARN: Could not determine path's most proximate dataset.\n";
-        };
-
-        if prox_opt_alts.datasets_of_interest.is_empty() {
-            "WARN: The file's dataset is not a supported filesystem.\n"
-        } else if config.opt_omit_ditto {
-            "WARN: Omitting the only snapshot version available, which is identical to the live file.\n"
-        } else {
-            "WARN: No snapshot version exists for the specified file.\n"
+        match ProximateDatasetAndOptAlts::new(self).ok() {
+            None => {
+                "WARN: Could not determine path's most proximate dataset.\n"
+            }
+            Some(prox_opt_alts) if prox_opt_alts.datasets_of_interest.is_empty() => {
+                "WARN: The file's dataset is not a supported filesystem.\n"
+            }
+            Some(_) if config.opt_omit_ditto => {
+                "WARN: Omitting the only snapshot version available, which is identical to the live file.\n"
+            }
+            Some(_) => {
+                "WARN: No snapshot version exists for the specified file.\n"
+            }
         }
     }
 }
