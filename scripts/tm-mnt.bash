@@ -20,6 +20,42 @@
 set -euf -o pipefail
 #set -x
 
+function print_version {
+	printf "\
+tm_mnt $(httm --version | cut -f2 -d' ')
+" 1>&2
+	exit 0
+}
+
+function print_usage {
+	local tm_mnt="\e[31mtm_mnt\e[0m"
+	local httm="\e[31mhttm\e[0m"
+
+	printf "\
+$tm_mnt is a script to connect to the Time Machine network volume (NAS), mount the image file, 
+and finally, mount all APFS snapshots necessary to use with $httm.  Not for use with Time Machines 
+which utilize direct attached storage (DAS).
+
+USAGE:
+	tm_mnt [OPTIONS]
+
+OPTIONS:
+	--mount:
+		Attempt to mount your Time Machine snapshots, the Time Machine image file from the server.
+
+	--unmount:
+		Attempt to unmount your Time Machine snapshots, the Time Machine image file from the server.
+
+	--help:
+		Display this dialog.
+
+	--version:
+		Display script version.
+
+" 1>&2
+	exit 1
+}
+
 print_err_exit() {
 	print_err "$@"
 	exit 1
@@ -43,6 +79,10 @@ function prep_exec {
 		exit 0
 	)" ]] || print_err_exit "'mount_apfs' is required to execute 'tm-mnt'.  Please check that 'mount_apfs' is in your path."
 	[[ -n "$(
+		command -v mount_smbfs
+		exit 0
+	)" ]] || print_err_exit "'mount_smbfs' is required to execute 'tm-mnt'.  Please check that 'mount_smbfs' is in your path."
+	[[ -n "$(
 		command -v mount
 		exit 0
 	)" ]] || print_err_exit "'mount' is required to execute 'tm-mnt'.  Please check that 'mount' is in your path."
@@ -59,24 +99,41 @@ function prep_exec {
 		exit 0
 	)" ]] || print_err_exit "'xargs' is required to execute 'tm-mnt'.  Please check that 'xargs' is in your path."
 	[[ -n "$(
-		command -v open
+		command -v hdiutil
 		exit 0
-	)" ]] || print_err_exit "'open' is required to execute 'tm-mnt'.  Please check that 'open' is in your path."
+	)" ]] || print_err_exit "'hdiutil' is required to execute 'tm-mnt'.  Please check that 'hdiutil' is in your path."
 }
 
-function mount_timemachine() {
-	prep_exec
+function _unmount_timemachine_() {
+	printf "%s\n" "Unmounting any mounted snapshots...."
+	mount | grep "com.apple.TimeMachine.*.backup@" | cut -d' ' -f1 | xargs -I{} umount "{}" 2>/dev/null  || true
 
-	[[ "$( uname )" == "Darwin" ]] || print_err_exit "This script requires you run on MacOS"
-	[[ "$EUID" -eq 0 ]] || print_err_exit "This script requires you run as root"
+	local image_name="$(plutil -p /Library/Preferences/com.apple.TimeMachine.plist | grep LocalizedDiskImageVolumeName | cut -d '"' -f4)"
+	[[ -n "$image_name" ]] || print_err "Could not determine Time Machine disk image name, perhaps none is specified?"
+	local device="$( mount | grep "$image_name" | cut -d' ' -f1 | tail -1 )"
+	[[ -n "$device" ]] || print_err "Could not determine device from disk image given"
+	
+	printf "%s\n" "Attempting to unmount Time Machine sparse bundle: $image_name ..."
+	umount "$device" 2>/dev/null || true
+	diskutil unmount "$device" 2>/dev/null || true
 
 	local server="$( plutil -p /Library/Preferences/com.apple.TimeMachine.plist | grep "NetworkURL" | cut -d '"' -f4 )"
 	local mount_source="$( echo "$server" | cut -d ':' -f2 | xargs basename )"
-	local basename="$( printf "%b\n" "${mount_source//%/\\x}" )"
+	[[ -n "$server" ]] || print_err "Could not determine server, perhaps none is specified?"
+	[[ -n "$mount_source" ]] || print_err "Could not determine mount source from server name given"
+	local dirname="/Volumes/"$( printf "%b\n" "${mount_source//%/\\x}" )""
 
-	[[ -n "$server" ]] || print_err_exit "Could not determine server"
-	[[ -n "$mount_source" ]] || print_err_exit "Could not determine mount source"
-	[[ -n "$basename" ]] || print_err_exit "Could not determine directory name"
+	printf "%s\n" "Attempting to unmount/disconnect from Time Machine server: $server ..."
+	umount "$dirname" 2>/dev/null || true
+	diskutil unmount "$dirname" 2>/dev/null || true
+}
+
+function _mount_timemachine_() {
+	local server="$( plutil -p /Library/Preferences/com.apple.TimeMachine.plist | grep "NetworkURL" | cut -d '"' -f4 )"
+	local mount_source="$( echo "$server" | cut -d ':' -f2 | xargs basename )"
+
+	[[ -n "$server" ]] || print_err_exit "Could not determine server address, perhaps none is specified?"
+	[[ -n "$mount_source" ]] || print_err_exit "Could not determine mount source from server name"
 
 	local dirname="/Volumes/"$( printf "%b\n" "${mount_source//%/\\x}" )""
 	[[ -d "$dirname" ]] || mkdir "$dirname"
@@ -85,12 +142,10 @@ function mount_timemachine() {
 	mount_smbfs -o ro,nobrowse "$server" "$dirname" 2>/dev/null || true
 
 	# Wait for server to connect
-	until [[ -d "$dirname" ]]; do
-     		sleep 1
-	done
+	until [[ -d "$dirname" ]]; do sleep 1; done
 
 	local image_name="$(plutil -p /Library/Preferences/com.apple.TimeMachine.plist | grep LocalizedDiskImageVolumeName | cut -d '"' -f4)"
-	[[ -n "$image_name" ]] || print_err_exit "Could not determine image name"
+	[[ -n "$image_name" ]] || print_err_exit "Could not determine Time Machine disk image name, perhaps none is specified?"
 	printf "%s\n" "Mounting sparse bundle: $image_name ..."
 	find "$dirname" -type d -iname "*.sparsebundle" | head -1 | xargs -I{} hdiutil attach -debug -readonly -noautofsck -nobrowse "{}"
 
@@ -99,13 +154,13 @@ function mount_timemachine() {
 	local device="$( mount | grep "$image_name" | cut -d' ' -f1 | tail -1 )"
 	local uuid="$( echo "$backups" | cut -d "/" -f4 | head -1 )"
 
-	[[ -n "$device" ]] || print_err_exit "Could not determine device"
-	[[ -n "$uuid" ]] || print_err_exit "Could not determine uuid"
+	[[ -n "$device" ]] || print_err_exit "Could not determine Time Machine device from image give"
+	[[ -n "$uuid" ]] || print_err_exit "Could not determine uuid from list of backup locations"
 
 	[[ "$( mount | grep -c "$image_name" )" -gt 0 ]] || print_err_exit "Time machine disk image did not mount"
 
 	[[ -d "/Volumes/.timemachine/$uuid" ]] || mkdir "/Volumes/.timemachine/$uuid"
-	printf "\n%s\n" "Mounting snapshots..."
+	printf "%s\n" "Mounting snapshots..."
 	for snap in $( echo "$backups" | xargs basename ); do
 		[[ -d "/Volumes/.timemachine/$uuid/$snap" ]] || mkdir "/Volumes/.timemachine/$uuid/$snap"
 		printf "%s\n" "Mounting snapshot "com.apple.TimeMachine.$snap" from "$device" at "/Volumes/.timemachine/$uuid/$snap""
@@ -113,4 +168,27 @@ function mount_timemachine() {
 	done
 }
 
-mount_timemachine
+function _exec_() {
+	[[ "$( uname )" == "Darwin" ]] || print_err_exit "This script requires you run on MacOS"
+	[[ "$EUID" -eq 0 ]] || print_err_exit "This script requires you run as root"
+	prep_exec
+
+	[[ $# -ge 1 ]] || print_usage
+	[[ "$1" != "-h" && "$1" != "--help" ]] || print_usage
+	[[ "$1" != "-V" && "$1" != "--version" ]] || print_version
+
+	while [[ $# -ge 1 ]]; do
+		if [[ "$1" == "--mount" ]]; then
+			_mount_timemachine_
+			break
+		elif [[ "$1" == "--unmount" ]]; then
+			_unmount_timemachine_
+			break
+		else
+			print_err_exit "User must specify whether to mount of unmount the Time Machine volumes."
+			break
+		fi
+	done
+}
+
+_exec_ "$@"
