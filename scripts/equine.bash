@@ -22,22 +22,22 @@ set -euf -o pipefail
 
 function print_version {
 	printf "\
-tm_mnt $(httm --version | cut -f2 -d' ')
+equine $(httm --version | cut -f2 -d' ')
 " 1>&2
 	exit 0
 }
 
 function print_usage {
-	local tm_mnt="\e[31mtm_mnt\e[0m"
+	local equine="\e[31mequine\e[0m"
 	local httm="\e[31mhttm\e[0m"
 
 	printf "\
-$tm_mnt is a script to connect to the Time Machine network volume (NAS), mount the image file, 
+$equine is a script to connect to the Time Machine network volume (NAS), mount the image file, 
 and finally, mount all APFS snapshots necessary to use with $httm.  Not for use with Time Machines 
 which utilize direct attached storage (DAS).
 
 USAGE:
-	tm_mnt [OPTIONS]
+	equine [OPTIONS]
 
 OPTIONS:
 	--mount:
