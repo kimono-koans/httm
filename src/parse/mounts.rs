@@ -380,7 +380,6 @@ impl BaseFilesystemInfo {
         map_of_datasets = {
             if std::path::Path::new(TM_DIR).exists() {
                 let apfs_mounts: HashMap<PathBuf, DatasetMetadata> = std::fs::read_dir(TM_DIR)?
-                    .par_bridge()
                     .flatten()
                     .filter(|mount| mount.path().extension().is_none())
                     .map(|mount| {
