@@ -54,7 +54,7 @@ impl MapOfSnaps {
             .par_iter()
             .flat_map(|(mount, dataset_info)| {
                 let snap_mounts: HttmResult<Vec<PathBuf>> = match dataset_info.fs_type {
-                    FilesystemType::Zfs | FilesystemType::Nilfs2 => {
+                    FilesystemType::Zfs | FilesystemType::Nilfs2 | FilesystemType::Apfs => {
                         Self::from_defined_mounts(mount, dataset_info)
                     }
                     FilesystemType::Btrfs => match dataset_info.mount_type {
@@ -137,6 +137,11 @@ impl MapOfSnaps {
                 .flatten()
                 .par_bridge()
                 .map(|entry| entry.path())
+                .collect(),
+            FilesystemType::Apfs => read_dir(&dataset_metadata.source)?
+                .flatten()
+                .par_bridge()
+                .map(|entry| entry.path().join(entry.file_name()).join("Data"))
                 .collect(),
             FilesystemType::Nilfs2 => {
                 let source_path = Path::new(&dataset_metadata.source);

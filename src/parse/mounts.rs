@@ -19,7 +19,7 @@ use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{find_common_path, fs_type_from_hidden_dir};
 use crate::parse::aliases::FilesystemType;
 use crate::parse::snaps::MapOfSnaps;
-use crate::{NILFS2_SNAPSHOT_ID_KEY, ZFS_HIDDEN_DIRECTORY};
+use crate::{NILFS2_SNAPSHOT_ID_KEY, ROOT_DIRECTORY, TM_DIR, ZFS_HIDDEN_DIRECTORY};
 use hashbrown::{HashMap, HashSet};
 use once_cell::sync::Lazy;
 use proc_mounts::MountIter;
@@ -326,53 +326,80 @@ impl BaseFilesystemInfo {
         let stdout_string = std::str::from_utf8(&command_output.stdout)?;
 
         // parse "mount" for filesystems and mountpoints
-        let (map_of_datasets, filter_dirs): (HashMap<PathBuf, DatasetMetadata>, HashSet<PathBuf>) =
-            stdout_string
-                .par_lines()
-                // but exclude snapshot mounts.  we want the raw filesystem names.
-                .filter(|line| !line.contains(ZFS_HIDDEN_DIRECTORY))
-                // mount cmd includes and " on " between src and rest
-                .filter_map(|line| line.split_once(" on "))
-                // where to split, to just have the src and dest of mounts
-                .filter_map(|(filesystem, rest)| {
-                    // GNU Linux mount output
-                    if rest.contains("type") {
-                        let opt_mount = rest.split_once(" type");
-                        opt_mount.map(|mount| (filesystem, mount.0))
-                    // Busybox and BSD mount output
-                    } else if rest.contains(" (") {
-                        let opt_mount = rest.split_once(" (");
-                        opt_mount.map(|mount| (filesystem, mount.0))
-                    // illumos has no clear delimiter except the next space
-                    // and swaps the mount and filesystem in the output!
-                    } else {
-                        let mount = filesystem;
-                        let opt_filesystem = rest.split_once(" ");
-                        opt_filesystem.map(|fs| (fs.0, mount))
-                    }
-                })
-                .map(|(filesystem, mount)| (PathBuf::from(filesystem), PathBuf::from(mount)))
-                // sanity check: does the filesystem exist and have a ZFS hidden dir? if not, filter it out
-                // and flip around, mount should key of key/value
-                .partition_map(|(source, mount)| match fs_type_from_hidden_dir(&mount) {
-                    Some(FilesystemType::Zfs) => Either::Left((
-                        mount,
-                        DatasetMetadata {
-                            source,
-                            fs_type: FilesystemType::Zfs,
-                            mount_type: MountType::Local,
-                        },
-                    )),
-                    Some(FilesystemType::Btrfs) => Either::Left((
-                        mount,
-                        DatasetMetadata {
-                            source,
-                            fs_type: FilesystemType::Btrfs,
-                            mount_type: MountType::Local,
-                        },
-                    )),
-                    _ => Either::Right(mount),
-                });
+        let (mut map_of_datasets, filter_dirs): (
+            HashMap<PathBuf, DatasetMetadata>,
+            HashSet<PathBuf>,
+        ) = stdout_string
+            .par_lines()
+            // but exclude snapshot mounts.  we want the raw filesystem names.
+            .filter(|line| !line.contains(ZFS_HIDDEN_DIRECTORY))
+            .filter(|line| !line.contains(TM_DIR))
+            // mount cmd includes and " on " between src and rest
+            .filter_map(|line| line.split_once(" on "))
+            // where to split, to just have the src and dest of mounts
+            .filter_map(|(filesystem, rest)| {
+                // GNU Linux mount output
+                if rest.contains("type") {
+                    let opt_mount = rest.split_once(" type");
+                    opt_mount.map(|mount| (filesystem, mount.0))
+                // Busybox and BSD mount output
+                } else if rest.contains(" (") {
+                    let opt_mount = rest.split_once(" (");
+                    opt_mount.map(|mount| (filesystem, mount.0))
+                // illumos has no clear delimiter except the next space
+                // and swaps the mount and filesystem in the output!
+                } else {
+                    let mount = filesystem;
+                    let opt_filesystem = rest.split_once(" ");
+                    opt_filesystem.map(|fs| (fs.0, mount))
+                }
+            })
+            .map(|(filesystem, mount)| (PathBuf::from(filesystem), PathBuf::from(mount)))
+            // sanity check: does the filesystem exist and have a ZFS hidden dir? if not, filter it out
+            // and flip around, mount should key of key/value
+            .partition_map(|(source, mount)| match fs_type_from_hidden_dir(&mount) {
+                Some(FilesystemType::Zfs) => Either::Left((
+                    mount,
+                    DatasetMetadata {
+                        source,
+                        fs_type: FilesystemType::Zfs,
+                        mount_type: MountType::Local,
+                    },
+                )),
+                Some(FilesystemType::Btrfs) => Either::Left((
+                    mount,
+                    DatasetMetadata {
+                        source,
+                        fs_type: FilesystemType::Btrfs,
+                        mount_type: MountType::Local,
+                    },
+                )),
+                _ => Either::Right(mount),
+            });
+
+        map_of_datasets = {
+            if std::path::Path::new(TM_DIR).exists() {
+                let apfs_mounts: HashMap<PathBuf, DatasetMetadata> = std::fs::read_dir(TM_DIR)?
+                    .par_bridge()
+                    .flatten()
+                    .filter(|mount| mount.path().extension().is_none())
+                    .map(|mount| {
+                        (
+                            PathBuf::from(ROOT_DIRECTORY),
+                            DatasetMetadata {
+                                source: mount.path(),
+                                fs_type: FilesystemType::Apfs,
+                                mount_type: MountType::Local,
+                            },
+                        )
+                    })
+                    .collect();
+                map_of_datasets.extend(apfs_mounts);
+                map_of_datasets
+            } else {
+                map_of_datasets
+            }
+        };
 
         if map_of_datasets.is_empty() {
             Err(HttmError::new("httm could not find any valid datasets on the system.").into())

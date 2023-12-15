@@ -27,6 +27,7 @@ pub enum FilesystemType {
     Zfs,
     Btrfs,
     Nilfs2,
+    Apfs,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
