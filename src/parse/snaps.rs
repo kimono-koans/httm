@@ -16,8 +16,7 @@
 // that was distributed with this source code.
 
 use crate::library::results::{HttmError, HttmResult};
-use crate::parse::aliases::FilesystemType;
-use crate::parse::mounts::{DatasetMetadata, MountType};
+use crate::parse::mounts::{DatasetMetadata, FilesystemType, MountType};
 use crate::{BTRFS_SNAPPER_HIDDEN_DIRECTORY, BTRFS_SNAPPER_SUFFIX, ZFS_SNAPSHOT_DIRECTORY};
 use hashbrown::HashMap;
 use proc_mounts::MountIter;
@@ -54,7 +53,7 @@ impl MapOfSnaps {
             .par_iter()
             .flat_map(|(mount, dataset_info)| {
                 let snap_mounts: HttmResult<Vec<PathBuf>> = match dataset_info.fs_type {
-                    FilesystemType::Zfs | FilesystemType::Nilfs2 => {
+                    FilesystemType::Zfs | FilesystemType::Nilfs2 | FilesystemType::Apfs => {
                         Self::from_defined_mounts(mount, dataset_info)
                     }
                     FilesystemType::Btrfs => match dataset_info.mount_type {
@@ -137,6 +136,11 @@ impl MapOfSnaps {
                 .flatten()
                 .par_bridge()
                 .map(|entry| entry.path())
+                .collect(),
+            FilesystemType::Apfs => read_dir(&dataset_metadata.source)?
+                .flatten()
+                .par_bridge()
+                .map(|entry| entry.path().join(entry.file_name()).join("Data"))
                 .collect(),
             FilesystemType::Nilfs2 => {
                 let source_path = Path::new(&dataset_metadata.source);

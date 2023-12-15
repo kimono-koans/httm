@@ -17,17 +17,11 @@
 
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::fs_type_from_hidden_dir;
+use crate::parse::mounts::FilesystemType;
 use hashbrown::HashMap;
 use std::ffi::OsString;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
-
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub enum FilesystemType {
-    Zfs,
-    Btrfs,
-    Nilfs2,
-}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RemotePathAndFsType {
