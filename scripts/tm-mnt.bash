@@ -17,7 +17,7 @@
 # For the full copyright and license information, please view the LICENSE file
 # that was distributed with this source code.
 
-#set -euf -o pipefail
+set -euf -o pipefail
 #set -x
 
 print_err_exit() {
@@ -87,12 +87,6 @@ function mount_timemachine() {
 
 	#find "/Volumes/$dirname" -type d -iname "*.sparsebundle" -exec open -a DiskImageMounter.app "{}" \;
 	find "/Volumes/$dirname" -type d -iname "*.sparsebundle" | head -1 | xargs -I{} open -a DiskImageMounter.app "{}"
-
-	# Wait for sparse image bundle to mount
-	until [[ "$( mount | grep -c "/Volumes/Backups" )" -gt 0 ]]
-	do
-     		sleep 1
-	done
 
 	local backups="$( tmutil listbackups / )"
 	local device="$( mount | grep "/Volumes/Backups" | cut -d' ' -f1 | tail -1 )"
