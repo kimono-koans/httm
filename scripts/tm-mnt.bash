@@ -18,7 +18,7 @@
 # that was distributed with this source code.
 
 set -euf -o pipefail
-#set -x
+set -x
 
 print_err_exit() {
 	print_err "$@"
@@ -67,40 +67,46 @@ function prep_exec {
 function mount_timemachine() {
 	prep_exec
 
+	[[ "$( uname )" == "Darwin" ]] || print_err_exit "This script requires you run on MacOS"
 	[[ "$EUID" -eq 0 ]] || print_err_exit "This script requires you run as root"
 
 	local server="$( plutil -p /Library/Preferences/com.apple.TimeMachine.plist | grep "NetworkURL" | cut -d '"' -f4 )"
 	local mount_source="$( echo "$server" | cut -d ':' -f2 | xargs basename )"
-	local dirname="$( printf "%b\n" "${mount_source//%/\\x}" )"
+	local basename="$( printf "%b\n" "${mount_source//%/\\x}" )"
 
 	[[ -n "$server" ]] || print_err_exit "Could not determine server"
 	[[ -n "$mount_source" ]] || print_err_exit "Could not determine mount source"
-	[[ -n "$dirname" ]] || print_err_exit "Could not determine directory name"
+	[[ -n "$basename" ]] || print_err_exit "Could not determine directory name"
 
-	open "$server"
+	local dirname="/Volumes/"$( printf "%b\n" "${mount_source//%/\\x}" )""
+
+	[[ -d "$dirname" ]] || mkdir "$dirname"
+	mount_smbfs -o ro,nobrowse "$server" "$dirname" 2>/dev/null || true
 
 	# Wait for server to connect
-	until [[ -d "/Volumes/$dirname" ]]
-	do
+	until [[ -d "$dirname" ]]; do
      		sleep 1
 	done
 
-	#find "/Volumes/$dirname" -type d -iname "*.sparsebundle" -exec open -a DiskImageMounter.app "{}" \;
-	find "/Volumes/$dirname" -type d -iname "*.sparsebundle" | head -1 | xargs -I{} open -a DiskImageMounter.app "{}"
+	find "$dirname" -type d -iname "*.sparsebundle" | head -1 | xargs -I{} hdiutil attach -debug -readonly -noautofsck -nobrowse "{}"
 
 	local backups="$( tmutil listbackups / )"
-	local device="$( mount | grep "/Volumes/Backups" | cut -d' ' -f1 | tail -1 )"
+	local image_name="$(plutil -p /Library/Preferences/com.apple.TimeMachine.plist | grep LocalizedDiskImageVolumeName | cut -d '"' -f4)"
+	local device="$( mount | grep "$image_name" | cut -d' ' -f1 | tail -1 )"
 	local uuid="$( echo "$backups" | cut -d "/" -f4 | head -1 )"
 
 	[[ -n "$device" ]] || print_err_exit "Could not determine device"
 	[[ -n "$uuid" ]] || print_err_exit "Could not determine uuid"
+	[[ -n "$image_name" ]] || print_err_exit "Could not determine image name"
+
+	[[ "$( mount | grep -c "$image_name" )" -gt 0 ]] || print_err_exit "Image did not mount"
 
 	[[ -d "/Volumes/.timemachine/$uuid" ]] || mkdir "/Volumes/.timemachine/$uuid"
 	printf "\n%s\n" "Mounting snapshots"
 	for snap in $( echo "$backups" | xargs basename ); do
 		[[ -d "/Volumes/.timemachine/$uuid/$snap" ]] || mkdir "/Volumes/.timemachine/$uuid/$snap"
 		printf "%s\n" "Mounting snapshot "com.apple.TimeMachine.$snap" from "$device" at "/Volumes/.timemachine/$uuid/$snap""
-		[[ -d "/Volumes/.timemachine/$uuid/$snap" ]] && mount_apfs -s "com.apple.TimeMachine.$snap" "$device" "/Volumes/.timemachine/$uuid/$snap" 2> /dev/null
+		[[ -d "/Volumes/.timemachine/$uuid/$snap" ]] && mount_apfs -o ro,nobrowse -s "com.apple.TimeMachine.$snap" "$device" "/Volumes/.timemachine/$uuid/$snap" 2>/dev/null || true
 	done
 }
 
