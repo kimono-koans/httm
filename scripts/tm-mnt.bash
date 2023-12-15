@@ -18,7 +18,7 @@
 # that was distributed with this source code.
 
 set -euf -o pipefail
-set -x
+#set -x
 
 print_err_exit() {
 	print_err "$@"
@@ -79,8 +79,9 @@ function mount_timemachine() {
 	[[ -n "$basename" ]] || print_err_exit "Could not determine directory name"
 
 	local dirname="/Volumes/"$( printf "%b\n" "${mount_source//%/\\x}" )""
-
 	[[ -d "$dirname" ]] || mkdir "$dirname"
+
+	printf "%s\n" "Connecting to remote Time Machine: "$server" ..."
 	mount_smbfs -o ro,nobrowse "$server" "$dirname" 2>/dev/null || true
 
 	# Wait for server to connect
@@ -88,21 +89,23 @@ function mount_timemachine() {
      		sleep 1
 	done
 
+	local image_name="$(plutil -p /Library/Preferences/com.apple.TimeMachine.plist | grep LocalizedDiskImageVolumeName | cut -d '"' -f4)"
+	[[ -n "$image_name" ]] || print_err_exit "Could not determine image name"
+	printf "%s\n" "Mounting sparse bundle: $image_name ..."
 	find "$dirname" -type d -iname "*.sparsebundle" | head -1 | xargs -I{} hdiutil attach -debug -readonly -noautofsck -nobrowse "{}"
 
+	printf "%s\n" "Discoverying backup locations (this can take a few seconds)..."
 	local backups="$( tmutil listbackups / )"
-	local image_name="$(plutil -p /Library/Preferences/com.apple.TimeMachine.plist | grep LocalizedDiskImageVolumeName | cut -d '"' -f4)"
 	local device="$( mount | grep "$image_name" | cut -d' ' -f1 | tail -1 )"
 	local uuid="$( echo "$backups" | cut -d "/" -f4 | head -1 )"
 
 	[[ -n "$device" ]] || print_err_exit "Could not determine device"
 	[[ -n "$uuid" ]] || print_err_exit "Could not determine uuid"
-	[[ -n "$image_name" ]] || print_err_exit "Could not determine image name"
 
-	[[ "$( mount | grep -c "$image_name" )" -gt 0 ]] || print_err_exit "Image did not mount"
+	[[ "$( mount | grep -c "$image_name" )" -gt 0 ]] || print_err_exit "Time machine disk image did not mount"
 
 	[[ -d "/Volumes/.timemachine/$uuid" ]] || mkdir "/Volumes/.timemachine/$uuid"
-	printf "\n%s\n" "Mounting snapshots"
+	printf "\n%s\n" "Mounting snapshots..."
 	for snap in $( echo "$backups" | xargs basename ); do
 		[[ -d "/Volumes/.timemachine/$uuid/$snap" ]] || mkdir "/Volumes/.timemachine/$uuid/$snap"
 		printf "%s\n" "Mounting snapshot "com.apple.TimeMachine.$snap" from "$device" at "/Volumes/.timemachine/$uuid/$snap""
@@ -110,10 +113,4 @@ function mount_timemachine() {
 	done
 }
 
-mount_timemachine &
-
-printf 'Connecting the Time Machine share and mounting the sparse bundle image\n'
-while kill -0 $! 2>/dev/null; do
-    printf '.' > /dev/tty
-    sleep 1
-done
+mount_timemachine
