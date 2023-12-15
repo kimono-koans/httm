@@ -18,7 +18,8 @@
 use crate::config::generate::{ListSnapsOfType, PrintMode};
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{date_string, display_human_size, DateFormat};
-use crate::parse::aliases::{FilesystemType, MapOfAliases};
+use crate::parse::aliases::MapOfAliases;
+use crate::parse::mounts::FilesystemType;
 use crate::parse::mounts::{MapOfDatasets, MaxLen};
 use crate::{GLOBAL_CONFIG, ZFS_SNAPSHOT_DIRECTORY};
 use once_cell::sync::{Lazy, OnceCell};

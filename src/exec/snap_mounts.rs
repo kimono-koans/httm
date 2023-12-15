@@ -20,7 +20,7 @@ use crate::library::iter_extensions::HttmIter;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{date_string, delimiter, print_output_buf, DateFormat};
 use crate::lookup::file_mounts::MountsForFiles;
-use crate::parse::aliases::FilesystemType;
+use crate::parse::mounts::FilesystemType;
 use crate::GLOBAL_CONFIG;
 use std::collections::BTreeMap;
 use std::process::Command as ExecProcess;

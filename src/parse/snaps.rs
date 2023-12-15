@@ -16,8 +16,7 @@
 // that was distributed with this source code.
 
 use crate::library::results::{HttmError, HttmResult};
-use crate::parse::aliases::FilesystemType;
-use crate::parse::mounts::{DatasetMetadata, MountType};
+use crate::parse::mounts::{DatasetMetadata, FilesystemType, MountType};
 use crate::{BTRFS_SNAPPER_HIDDEN_DIRECTORY, BTRFS_SNAPPER_SUFFIX, ZFS_SNAPSHOT_DIRECTORY};
 use hashbrown::HashMap;
 use proc_mounts::MountIter;

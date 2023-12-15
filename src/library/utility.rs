@@ -21,7 +21,7 @@ use crate::data::selection::SelectionCandidate;
 use crate::library::diff_copy::DiffCopy;
 use crate::library::results::{HttmError, HttmResult};
 
-use crate::parse::aliases::FilesystemType;
+use crate::parse::mounts::FilesystemType;
 use crate::{BTRFS_SNAPPER_HIDDEN_DIRECTORY, GLOBAL_CONFIG, ZFS_SNAPSHOT_DIRECTORY};
 use crossbeam_channel::{Receiver, TryRecvError};
 use lscolors::{Colorable, LsColors, Style};

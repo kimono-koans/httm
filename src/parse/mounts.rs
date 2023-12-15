@@ -17,7 +17,6 @@
 
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{find_common_path, fs_type_from_hidden_dir};
-use crate::parse::aliases::FilesystemType;
 use crate::parse::snaps::MapOfSnaps;
 use crate::{NILFS2_SNAPSHOT_ID_KEY, ROOT_DIRECTORY, TM_DIR, ZFS_HIDDEN_DIRECTORY};
 use hashbrown::{HashMap, HashSet};
@@ -38,6 +37,14 @@ pub const BTRFS_FSTYPE: &str = "btrfs";
 pub const SMB_FSTYPE: &str = "smbfs";
 pub const NFS_FSTYPE: &str = "nfs";
 pub const AFP_FSTYPE: &str = "afpfs";
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub enum FilesystemType {
+    Zfs,
+    Btrfs,
+    Nilfs2,
+    Apfs,
+}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum MountType {
@@ -377,28 +384,26 @@ impl BaseFilesystemInfo {
                 _ => Either::Right(mount),
             });
 
-        map_of_datasets = {
-            if std::path::Path::new(TM_DIR).exists() {
-                let apfs_mounts: HashMap<PathBuf, DatasetMetadata> = std::fs::read_dir(TM_DIR)?
-                    .flatten()
-                    .filter(|mount| mount.path().extension().is_none())
-                    .map(|mount| {
-                        (
-                            PathBuf::from(ROOT_DIRECTORY),
-                            DatasetMetadata {
-                                source: mount.path(),
-                                fs_type: FilesystemType::Apfs,
-                                mount_type: MountType::Local,
-                            },
-                        )
-                    })
-                    .collect();
-                map_of_datasets.extend(apfs_mounts);
-                map_of_datasets
-            } else {
-                map_of_datasets
-            }
-        };
+        let tm_dir_path = std::path::Path::new(TM_DIR);
+
+        if tm_dir_path.exists() {
+            std::fs::read_dir(tm_dir_path)?
+                .flatten()
+                .filter(|mount| mount.path().extension().is_none())
+                .map(|mount| {
+                    (
+                        PathBuf::from(ROOT_DIRECTORY),
+                        DatasetMetadata {
+                            source: mount.path(),
+                            fs_type: FilesystemType::Apfs,
+                            mount_type: MountType::Local,
+                        },
+                    )
+                })
+                .for_each(|(k, v)| {
+                    let _ = map_of_datasets.insert(k, v);
+                });
+        }
 
         if map_of_datasets.is_empty() {
             Err(HttmError::new("httm could not find any valid datasets on the system.").into())
