@@ -548,13 +548,13 @@ impl<T: AsRef<Path>> ComparePathMetadata for T {
     }
 }
 
-pub fn path_contains_filter_dir(path: &Path) -> bool {
+pub fn path_is_filter_dir(path: &Path) -> bool {
     GLOBAL_CONFIG
         .dataset_collection
         .filter_dirs
         .deref()
         .iter()
-        .any(|filter_dir| path.starts_with(filter_dir))
+        .any(|filter_dir| path == filter_dir)
 }
 
 pub fn pwd() -> HttmResult<PathBuf> {
