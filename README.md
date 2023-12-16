@@ -12,7 +12,7 @@
 * Search for and recursively list deleted files.  *Even browse files hidden behind deleted directories*.
 * List file snapshots from *all* local pools (detect local snapshot versions *as well as* locally replicated snapshot versions)!
 * List file snapshots from remote backup pools (even overlay replicated remote snapshot directories over live directories).
-* For use with `rsync`-ed non-ZFS/BTRFS/NILFS2/TM local datasets (like ext4, APFS, or NTFS), not just ZFS/BTRFS/NILFS2/TM backups.
+* For use with `rsync`-ed non-ZFS/BTRFS/NILFS2/APFS local datasets (like ext4, APFS, or NTFS), not just ZFS/BTRFS/NILFS2 snapshots and TM backups.
 * Optionally preview snapshot file versions with a custom command (default is a `diff` compare to the live version)
 * List or even snapshot the mounts for a file directly
 * Roll *forward* to a previous snapshots, instead of rolling back (avoids destroying interstitial snapshots)
@@ -97,7 +97,7 @@ The `httm` project contains only a few components:
 
 ### Caveats
 
-Right now, you will probably need to use a Unix-ish-y Rust-supported platform to build and install (that is: only Linux, FreeBSD, and MacOS are *known* to work).  Note, your platform *does not* need to support ZFS/BTRFS/NILFS2/TM backups to use `httm`.  And there is no fundamental reason a non-interactive Windows version of `httm` could not be built, as it once did build, but Windows platform support is not a priority for me right now.  Contributions from users are, of course, very welcome.
+Right now, you will probably need to use a Unix-ish-y Rust-supported platform to build and install (that is: only Linux, FreeBSD, and MacOS are *known* to work).  Note, your platform *does not* need to support ZFS/BTRFS/NILFS2 snapshots or TM backups to use `httm`.  And there is no fundamental reason a non-interactive Windows version of `httm` could not be built, as it once did build, but Windows platform support is not a priority for me right now.  Contributions from users are, of course, very welcome.
 
 On FreeBSD, after a fresh minimal install, the interactive modes may not render properly, see the linked [issue](https://github.com/kimono-koans/httm/issues/20) for the fix.
 
