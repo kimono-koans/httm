@@ -123,8 +123,8 @@ function _unmount_timemachine_() {
 	[[ -z "$device" ]] || diskutil unmountDisk "$device" 2>/dev/null || true
 
 	local server="$( plutil -p /Library/Preferences/com.apple.TimeMachine.plist | grep "NetworkURL" | cut -d '"' -f4 )"
-	local mount_source="$( echo "$server" | cut -d ':' -f2 | xargs basename )"
-	local dirname="/Volumes/"$( printf "%b\n" "${mount_source//%/\\x}" )""
+	local mount_source="$( plutil -p /Library/Preferences/com.apple.TimeMachine.plist | grep "LastKnownVolumeName" | cut -d '"' -f4  )"
+	local dirname="/Volumes/$mount_source"
 	[[ -n "$server" ]] || print_err "Could not determine server, perhaps none is specified?"
 	[[ -n "$mount_source" ]] || print_err "Could not determine mount source from server name given"
 
@@ -135,12 +135,12 @@ function _unmount_timemachine_() {
 
 function _mount_timemachine_() {
 	local server="$( plutil -p /Library/Preferences/com.apple.TimeMachine.plist | grep "NetworkURL" | cut -d '"' -f4 )"
-	local mount_source="$( echo "$server" | cut -d ':' -f2 | xargs basename )"
+	local mount_source="$( plutil -p /Library/Preferences/com.apple.TimeMachine.plist | grep "LastKnownVolumeName" | cut -d '"' -f4  )"
 
 	[[ -n "$server" ]] || print_err_exit "Could not determine server address, perhaps none is specified?"
 	[[ -n "$mount_source" ]] || print_err_exit "Could not determine mount source from server name"
 
-	local dirname="/Volumes/"$( printf "%b\n" "${mount_source//%/\\x}" )""
+	local dirname="/Volumes/$mount_source"
 	[[ -d "$dirname" ]] || mkdir "$dirname"
 
 	if [[ "$( mount | grep -c "$dirname" )" -eq 0 ]]; then
@@ -151,14 +151,16 @@ function _mount_timemachine_() {
 	fi
 
 	# Wait for server to connect
-	until [[ -d "$dirname" ]]; do sleep 1; done
+	until [[ "$( mount | grep -c "$dirname" )" -gt 0 ]]; do sleep 1; done
 
 	local image_name="$(plutil -p /Library/Preferences/com.apple.TimeMachine.plist | grep LocalizedDiskImageVolumeName | cut -d '"' -f4)"
 	[[ -n "$image_name" ]] || print_err_exit "Could not determine Time Machine disk image name, perhaps none is specified?"
 	
 	if [[ "$( mount | grep -c "$image_name" )" -eq 0 ]]; then
 		printf "%s\n" "Mounting sparse bundle (this may include an fsck): $image_name ..."
-		find "$dirname" -type d -iname "*.sparsebundle" | head -1 | xargs -I{} hdiutil attach -readonly -nobrowse "{}"
+		local bundle_name="$( find "$dirname" -type d -iname "*.sparsebundle" | head -1 )"
+		[[ -n "$bundle_name" ]] || print_err_exit "Could not find sparsebundle in location specified: $dirname"
+		hdiutil attach -readonly -nobrowse "$bundle_name"
 	else
 		printf "%s\n" "Skip mounting sparse bundle, as $image_name appears to already be mounted ..."
 	fi
