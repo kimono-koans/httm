@@ -232,14 +232,14 @@ Browse all files, recursively, in your MacOS home directory backed up via `rsync
 ➜ httm -b -R --map-aliases /Users/<your name>:/Volumes/Home ~
 ```
 
-Print all unique versions of your `.zshrc` file.  Note: The difference from above is, `httm` now even supports your Time Machine backups directly.  After using [equine](https://github.com/kimono-koans/httm/blob/master/scripts/equine.bash) to mount my personal Time Machine ZFS network share:
+Print all unique versions of your `.zshrc` file.  Note: The difference from above is, `httm`, now, even supports your Time Machine backups directly.  After using [equine](https://github.com/kimono-koans/httm/blob/master/scripts/equine.bash) to mount my personal Time Machine ZFS network share:
 
 ```
 ➜ httm .zshrc
 ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-Tue May 09 22:57:09 2023  6.7 KiB  "/Volumes/.timemachine/5E44881A-89EF-4DB3-906D-54C2E9E2E2B6/2023-11-08-212757.backup/2023-11-08-212757.backup/Data/Users/kimono/.zshrc"
-Sun Nov 12 20:29:57 2023  6.7 KiB  "/Volumes/.timemachine/5E44881A-89EF-4DB3-906D-54C2E9E2E2B6/2023-11-18-011056.backup/2023-11-18-011056.backup/Data/Users/kimono/.zshrc"
-Sun Nov 26 02:14:56 2023  6.7 KiB  "/Volumes/.timemachine/5E44881A-89EF-4DB3-906D-54C2E9E2E2B6/2023-12-13-054342.backup/2023-12-13-054342.backup/Data/Users/kimono/.zshrc"
+Tue May 09 22:57:09 2023  6.7 KiB  "/Volumes/.timemachine/842A693F-CB54-4C5A-9AB1-C73681D4DFCD/2023-11-08-212757.backup/2023-11-08-212757.backup/Data/Users/kimono/.zshrc"
+Sun Nov 12 20:29:57 2023  6.7 KiB  "/Volumes/.timemachine/842A693F-CB54-4C5A-9AB1-C73681D4DFCD/2023-11-18-011056.backup/2023-11-18-011056.backup/Data/Users/kimono/.zshrc"
+Sun Nov 26 02:14:56 2023  6.7 KiB  "/Volumes/.timemachine/842A693F-CB54-4C5A-9AB1-C73681D4DFCD/2023-12-13-054342.backup/2023-12-13-054342.backup/Data/Users/kimono/.zshrc"
 ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Sun Nov 26 02:14:56 2023  6.7 KiB  "/Users/kimono/.zshrc"
 ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
