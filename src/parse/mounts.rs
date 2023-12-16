@@ -384,11 +384,23 @@ impl BaseFilesystemInfo {
                 _ => Either::Right(mount),
             });
 
+        Self::from_tm_dir(&mut map_of_datasets)?;
+
+        if map_of_datasets.is_empty() {
+            Err(HttmError::new("httm could not find any valid datasets on the system.").into())
+        } else {
+            Ok((map_of_datasets, filter_dirs))
+        }
+    }
+
+    fn from_tm_dir(map_of_datasets: &mut HashMap<PathBuf, DatasetMetadata>) -> HttmResult<()> {
         let tm_dir_path = std::path::Path::new(TM_DIR);
 
         if tm_dir_path.exists() {
             std::fs::read_dir(tm_dir_path)?
                 .flatten()
+                // this is done because sometimes smb shares
+                // are mounted in this path too, but they have extensions
                 .filter(|mount| mount.path().extension().is_none())
                 .map(|mount| {
                     (
@@ -405,11 +417,7 @@ impl BaseFilesystemInfo {
                 });
         }
 
-        if map_of_datasets.is_empty() {
-            Err(HttmError::new("httm could not find any valid datasets on the system.").into())
-        } else {
-            Ok((map_of_datasets, filter_dirs))
-        }
+        Ok(())
     }
 
     // if we have some btrfs mounts, we check to see if there is a snap directory in common
