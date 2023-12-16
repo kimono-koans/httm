@@ -33,8 +33,8 @@ function print_usage {
 
 	printf "\
 $equine is a script to connect to the Time Machine network volume (NAS), mount the image file, 
-and finally, mount all APFS snapshots necessary to use with $httm.  Not for use with Time Machines 
-which utilize direct attached storage (DAS).
+and finally, mount all APFS snapshots necessary to use with $httm.  This script is not for use 
+with Time Machines which utilize direct or disk attached storage (DAS).
 
 USAGE:
 	equine [OPTIONS]
@@ -180,13 +180,13 @@ function _mount_timemachine_() {
 }
 
 function _exec_() {
-	[[ "$( uname )" == "Darwin" ]] || print_err_exit "This script requires you run it on MacOS"
-	[[ "$EUID" -eq 0 ]] || print_err_exit "This script requires you run it as root"
-	prep_exec
-
 	[[ $# -ge 1 ]] || print_usage
 	[[ "$1" != "-h" && "$1" != "--help" ]] || print_usage
 	[[ "$1" != "-V" && "$1" != "--version" ]] || print_version
+
+	[[ "$( uname )" == "Darwin" ]] || print_err_exit "This script requires you run it on MacOS"
+	[[ "$EUID" -eq 0 ]] || print_err_exit "This script requires you run it as root"
+	prep_exec
 
 	while [[ $# -ge 1 ]]; do
 		if [[ "$1" == "--mount" ]]; then
