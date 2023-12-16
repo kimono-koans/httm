@@ -110,22 +110,24 @@ function _unmount_timemachine_() {
 
 	local image_name="$(plutil -p /Library/Preferences/com.apple.TimeMachine.plist | grep LocalizedDiskImageVolumeName | cut -d '"' -f4)"
 	[[ -n "$image_name" ]] || print_err "Could not determine Time Machine disk image name, perhaps none is specified?"
-	local device="$( mount | grep "$image_name" | cut -d' ' -f1 | tail -1 )"
+	local sub_device="$( mount | grep "$image_name" | cut -d' ' -f1 | tail -1 )"
+	local device="$( echo $sub_device | cut -d's' -f1 )"
+	[[ -n "$sub_device" ]] || print_err "Could not determine subdevice from disk image given"
 	[[ -n "$device" ]] || print_err "Could not determine device from disk image given"
 	
 	printf "%s\n" "Attempting to unmount Time Machine sparse bundle: $image_name ..."
-	umount "$device" 2>/dev/null || true
-	diskutil unmount "$device" 2>/dev/null || true
+	[[ -z "$sub_device" ]] || diskutil unmount "$sub_device" 2>/dev/null || true
+	[[ -z "$device" ]] || diskutil unmountDisk "$device" 2>/dev/null || true
 
 	local server="$( plutil -p /Library/Preferences/com.apple.TimeMachine.plist | grep "NetworkURL" | cut -d '"' -f4 )"
 	local mount_source="$( echo "$server" | cut -d ':' -f2 | xargs basename )"
+	local dirname="/Volumes/"$( printf "%b\n" "${mount_source//%/\\x}" )""
 	[[ -n "$server" ]] || print_err "Could not determine server, perhaps none is specified?"
 	[[ -n "$mount_source" ]] || print_err "Could not determine mount source from server name given"
-	local dirname="/Volumes/"$( printf "%b\n" "${mount_source//%/\\x}" )""
 
 	printf "%s\n" "Attempting to unmount/disconnect from Time Machine server: $server ..."
-	umount "$dirname" 2>/dev/null || true
-	diskutil unmount "$dirname" 2>/dev/null || true
+	[[ -z "$mount_source" ]] || diskutil unmount force "$dirname" 2>/dev/null || true
+	[[ -z "$mount_source" ]] || diskutil unmountDisk force "$dirname" 2>/dev/null || true
 }
 
 function _mount_timemachine_() {
@@ -140,7 +142,7 @@ function _mount_timemachine_() {
 
 	if [[ "$( mount | grep -c "$dirname" )" -eq 0 ]]; then
 		printf "%s\n" "Connecting to remote Time Machine: $server ..."
-		mount_smbfs -o ro,nobrowse "$server" "$dirname" 2>/dev/null || true
+		mount_smbfs -o nobrowse "$server" "$dirname" 2>/dev/null || true
 	else
 		printf "%s\n" "Skip connecting to remote server, as Time Machine already mounted at: $dirname ..."
 	fi
@@ -153,7 +155,7 @@ function _mount_timemachine_() {
 	
 	if [[ "$( mount | grep -c "$image_name" )" -eq 0 ]]; then
 		printf "%s\n" "Mounting sparse bundle (this may include an fsck): $image_name ..."
-		find "$dirname" -type d -iname "*.sparsebundle" | head -1 | xargs -I{} hdiutil attach -readonly -nobrowse "{}" 2>/dev/null
+		find "$dirname" -type d -iname "*.sparsebundle" | head -1 | xargs -I{} hdiutil attach -readonly -nobrowse "{}"
 	else
 		printf "%s\n" "Skip mounting sparse bundle, as $image_name appears to already be mounted ..."
 	fi
