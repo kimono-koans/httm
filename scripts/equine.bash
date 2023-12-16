@@ -32,9 +32,9 @@ function print_usage {
 	local httm="\e[31mhttm\e[0m"
 
 	printf "\
-$equine is a script to connect to the Time Machine network volume (NAS), mount 
+$equine is a script to connect to the Time Machine network volume (NAS), mount
 the image file, and finally, mount all APFS snapshots necessary to use with $httm.
-This script is not for use with Time Machines which utilize direct attached 
+This script is not for use with Time Machines which utilize direct attached
 storage (DAS).
 
 USAGE:
@@ -117,7 +117,7 @@ function _unmount_timemachine_() {
 	local device="$( echo $sub_device | cut -d's' -f1 )"
 	[[ -n "$sub_device" ]] || print_err "Could not determine subdevice from disk image given"
 	[[ -n "$device" ]] || print_err "Could not determine device from disk image given"
-	
+
 	printf "%s\n" "Attempting to unmount Time Machine sparse bundle: $image_name ..."
 	[[ -z "$sub_device" ]] || diskutil unmount "$sub_device" 2>/dev/null || true
 	[[ -z "$device" ]] || diskutil unmountDisk "$device" 2>/dev/null || true
@@ -145,26 +145,27 @@ function _mount_timemachine_() {
 
 	if [[ "$( mount | grep -c "$dirname" )" -eq 0 ]]; then
 		printf "%s\n" "Connecting to remote Time Machine: $server ..."
-		mount_smbfs -o nobrowse "$server" "$dirname" 2>/dev/null || true
+		mount_smbfs -o nobrowse "$server" "$dirname" 2>/dev/null || print_err_exit "Connecting to Time Machine server failed.  Quitting."
 	else
 		printf "%s\n" "Skip connecting to remote server, as Time Machine already mounted at: $dirname ..."
 	fi
 
 	# Wait for server to connect
-	until [[ "$( mount | grep -c "$dirname" )" -gt 0 ]]; do sleep 1; done
+	timeout 30s bash -c "until [[ "$( mount | grep -c "$dirname" )" -gt 0 ]]; do sleep 1; done" || \
+	print_err_exit "Wait for server to be mounted timed out.  Quitting."
 
 	local image_name="$(plutil -p /Library/Preferences/com.apple.TimeMachine.plist | grep LocalizedDiskImageVolumeName | cut -d '"' -f4)"
 	[[ -n "$image_name" ]] || print_err_exit "Could not determine Time Machine disk image name, perhaps none is specified?"
-	
+
 	if [[ "$( mount | grep -c "$image_name" )" -eq 0 ]]; then
 		printf "%s\n" "Mounting sparse bundle (this may include an fsck): $image_name ..."
 		local bundle_name="$( find "$dirname" -type d -iname "*.sparsebundle" | head -1 )"
 		[[ -n "$bundle_name" ]] || print_err_exit "Could not find sparsebundle in location specified: $dirname"
-		hdiutil attach -readonly -nobrowse "$bundle_name"
+		hdiutil attach -readonly -nobrowse "$bundle_name" || print_err_exit "Attaching disk image failed.  Quitting."
 	else
 		printf "%s\n" "Skip mounting sparse bundle, as $image_name appears to already be mounted ..."
 	fi
-	
+
 	printf "%s\n" "Discovering backup locations (this can take a few seconds)..."
 	local backups="$( tmutil listbackups / )"
 	local device="$( mount | grep "$image_name" | cut -d' ' -f1 | tail -1 )"
