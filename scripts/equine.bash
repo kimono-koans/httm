@@ -32,19 +32,22 @@ function print_usage {
 	local httm="\e[31mhttm\e[0m"
 
 	printf "\
-$equine is a script to connect to the Time Machine network volume (NAS), mount the image file, 
-and finally, mount all APFS snapshots necessary to use with $httm.  This script is not for use 
-with Time Machines which utilize direct or disk attached storage (DAS).
+$equine is a script to connect to the Time Machine network volume (NAS), mount 
+the image file, and finally, mount all APFS snapshots necessary to use with $httm.
+This script is not for use with Time Machines which utilize direct attached 
+storage (DAS).
 
 USAGE:
 	equine [OPTIONS]
 
 OPTIONS:
 	--mount:
-		Attempt to mount your Time Machine snapshots, the Time Machine image file from the server.
+		Attempt to mount your Time Machine snapshots and the Time Machine image file,
+		and connect the server.
 
 	--unmount:
-		Attempt to unmount your Time Machine snapshots, the Time Machine image file from the server.
+		Attempt to unmount your Time Machine snapshots and the Time Machine image file,
+		and disconnect the server.
 
 	--help:
 		Display this dialog.
