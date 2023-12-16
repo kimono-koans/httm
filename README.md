@@ -12,7 +12,7 @@
 * Search for and recursively list deleted files.  *Even browse files hidden behind deleted directories*.
 * List file snapshots from *all* local pools (detect local snapshot versions *as well as* locally replicated snapshot versions)!
 * List file snapshots from remote backup pools (even overlay replicated remote snapshot directories over live directories).
-* For use with `rsync`-ed non-ZFS/BTRFS/NILFS2 local datasets (like ext4, APFS, or NTFS), not just ZFS/BTRFS/NILFS2.
+* For use with `rsync`-ed non-ZFS/BTRFS/NILFS2/TM Backups local datasets (like ext4, APFS, or NTFS), not just ZFS/BTRFS/NILFS2/TM Backups.
 * Optionally preview snapshot file versions with a custom command (default is a `diff` compare to the live version)
 * List or even snapshot the mounts for a file directly
 * Roll *forward* to a previous snapshots, instead of rolling back (avoids destroying interstitial snapshots)
@@ -24,8 +24,8 @@
 * ANSI `ls` colors from your environment
 * Detect and display only categories of the numbers of unique file versions available (`multiple`, `single`, `single-with-snap`,..., etc.)
 * Select from several formatting styles (newline, null, tab delimited, JSON, etc.).  Parseable ... or not ...  oh my!
-* Packaged scripts which help you, and show you how to, use `httm`: [ounce](https://github.com/kimono-koans/httm/blob/master/scripts/ounce.bash), [bowie](https://github.com/kimono-koans/httm/blob/master/scripts/bowie.bash), and [nicotine](https://github.com/kimono-koans/httm/blob/master/scripts/nicotine.bash)
-* Supports ZFS/BTRFS/NILFS2 snapshots
+* Packaged scripts which help you, and show you how to, use `httm`: [ounce](https://github.com/kimono-koans/httm/blob/master/scripts/ounce.bash), [bowie](https://github.com/kimono-koans/httm/blob/master/scripts/bowie.bash), [equine](https://github.com/kimono-koans/httm/blob/master/scripts/equine.bash),  and [nicotine](https://github.com/kimono-koans/httm/blob/master/scripts/nicotine.bash)
+* Supports ZFS/BTRFS/NILFS2 snapshots and Time Machine backups!
 
 Use in combination with you favorite shell's hot keys for even more fun.
 
@@ -97,7 +97,7 @@ The `httm` project contains only a few components:
 
 ### Caveats
 
-Right now, you will probably need to use a Unix-ish-y Rust-supported platform to build and install (that is: only Linux, FreeBSD, and MacOS are *known* to work).  Note, your platform *does not* need to support ZFS/BTRFS/NILFS2 to use `httm`.  And there is no fundamental reason a non-interactive Windows version of `httm` could not be built, as it once did build, but Windows platform support is not a priority for me right now.  Contributions from users are, of course, very welcome.
+Right now, you will probably need to use a Unix-ish-y Rust-supported platform to build and install (that is: only Linux, FreeBSD, and MacOS are *known* to work).  Note, your platform *does not* need to support ZFS/BTRFS/NILFS2/TM Backups to use `httm`.  And there is no fundamental reason a non-interactive Windows version of `httm` could not be built, as it once did build, but Windows platform support is not a priority for me right now.  Contributions from users are, of course, very welcome.
 
 On FreeBSD, after a fresh minimal install, the interactive modes may not render properly, see the linked [issue](https://github.com/kimono-koans/httm/issues/20) for the fix.
 
@@ -230,6 +230,19 @@ Browse all files, recursively, in your MacOS home directory backed up via `rsync
 ➜ open smb://<your name>@<your remote share>.local/Home
 # execute httm
 ➜ httm -b -R --map-aliases /Users/<your name>:/Volumes/Home ~
+```
+
+Print all unique versions of your `.zshrc` file.  Note: The difference from above is, `httm` now even supports your Time Machine backups directly.  After using [equine](https://github.com/kimono-koans/httm/blob/master/scripts/equine.bash) to mount my personal Time Machine ZFS network share:
+
+```
+➜ httm .zshrc
+─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+Tue May 09 22:57:09 2023  6.7 KiB  "/Volumes/.timemachine/5E44881A-89EF-4DB3-906D-54C2E9E2E2B6/2023-11-08-212757.backup/2023-11-08-212757.backup/Data/Users/kimono/.zshrc"
+Sun Nov 12 20:29:57 2023  6.7 KiB  "/Volumes/.timemachine/5E44881A-89EF-4DB3-906D-54C2E9E2E2B6/2023-11-18-011056.backup/2023-11-18-011056.backup/Data/Users/kimono/.zshrc"
+Sun Nov 26 02:14:56 2023  6.7 KiB  "/Volumes/.timemachine/5E44881A-89EF-4DB3-906D-54C2E9E2E2B6/2023-12-13-054342.backup/2023-12-13-054342.backup/Data/Users/kimono/.zshrc"
+─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+Sun Nov 26 02:14:56 2023  6.7 KiB  "/Users/kimono/.zshrc"
+─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 ```
 
 View the differences between each unique snapshot version of the `httm` `man` page and each previous version (this simple script is the basis for [bowie](https://github.com/kimono-koans/httm/blob/master/scripts/bowie.bash)):
