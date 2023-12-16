@@ -138,17 +138,26 @@ function _mount_timemachine_() {
 	local dirname="/Volumes/"$( printf "%b\n" "${mount_source//%/\\x}" )""
 	[[ -d "$dirname" ]] || mkdir "$dirname"
 
-	printf "%s\n" "Connecting to remote Time Machine: "$server" ..."
-	mount_smbfs -o ro,nobrowse "$server" "$dirname" 2>/dev/null || true
+	if [[ "$( mount | grep -c "$dirname" )" -eq 0 ]]; then
+		printf "%s\n" "Connecting to remote Time Machine: $server ..."
+		mount_smbfs -o ro,nobrowse "$server" "$dirname" 2>/dev/null || true
+	else
+		printf "%s\n" "Skip connecting to remote server, as Time Machine already mounted at: $dirname ..."
+	fi
 
 	# Wait for server to connect
 	until [[ -d "$dirname" ]]; do sleep 1; done
 
 	local image_name="$(plutil -p /Library/Preferences/com.apple.TimeMachine.plist | grep LocalizedDiskImageVolumeName | cut -d '"' -f4)"
 	[[ -n "$image_name" ]] || print_err_exit "Could not determine Time Machine disk image name, perhaps none is specified?"
-	printf "%s\n" "Mounting sparse bundle: $image_name ..."
-	find "$dirname" -type d -iname "*.sparsebundle" | head -1 | xargs -I{} hdiutil attach -debug -readonly -noautofsck -nobrowse "{}"
-
+	
+	if [[ "$( mount | grep -c "$image_name" )" -eq 0 ]]; then
+		printf "%s\n" "Mounting sparse bundle (this may include an fsck): $image_name ..."
+		find "$dirname" -type d -iname "*.sparsebundle" | head -1 | xargs -I{} hdiutil attach -readonly -nobrowse "{}" 2>/dev/null
+	else
+		printf "%s\n" "Skip mounting sparse bundle, as $image_name appears to already be mounted ..."
+	fi
+	
 	printf "%s\n" "Discoverying backup locations (this can take a few seconds)..."
 	local backups="$( tmutil listbackups / )"
 	local device="$( mount | grep "$image_name" | cut -d' ' -f1 | tail -1 )"
@@ -169,8 +178,8 @@ function _mount_timemachine_() {
 }
 
 function _exec_() {
-	[[ "$( uname )" == "Darwin" ]] || print_err_exit "This script requires you run on MacOS"
-	[[ "$EUID" -eq 0 ]] || print_err_exit "This script requires you run as root"
+	[[ "$( uname )" == "Darwin" ]] || print_err_exit "This script requires you run it on MacOS"
+	[[ "$EUID" -eq 0 ]] || print_err_exit "This script requires you run it as root"
 	prep_exec
 
 	[[ $# -ge 1 ]] || print_usage
@@ -185,7 +194,7 @@ function _exec_() {
 			_unmount_timemachine_
 			break
 		else
-			print_err_exit "User must specify whether to mount of unmount the Time Machine volumes."
+			print_err_exit "User must specify whether to mount or unmount the Time Machine volumes."
 			break
 		fi
 	done
