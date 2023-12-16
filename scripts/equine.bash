@@ -160,7 +160,7 @@ function _mount_timemachine_() {
 		printf "%s\n" "Skip mounting sparse bundle, as $image_name appears to already be mounted ..."
 	fi
 	
-	printf "%s\n" "Discoverying backup locations (this can take a few seconds)..."
+	printf "%s\n" "Discovering backup locations (this can take a few seconds)..."
 	local backups="$( tmutil listbackups / )"
 	local device="$( mount | grep "$image_name" | cut -d' ' -f1 | tail -1 )"
 	local uuid="$( echo "$backups" | cut -d "/" -f4 | head -1 )"
