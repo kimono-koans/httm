@@ -12,7 +12,7 @@
 * Search for and recursively list deleted files.  *Even browse files hidden behind deleted directories*.
 * List file snapshots from *all* local pools (detect local snapshot versions *as well as* locally replicated snapshot versions)!
 * List file snapshots from remote backup pools (even overlay replicated remote snapshot directories over live directories).
-* For use with `rsync`-ed non-ZFS/BTRFS/NILFS2/APFS local datasets (like ext4, APFS, or NTFS), not just ZFS/BTRFS/NILFS2 snapshots and TM backups.
+* For use with `rsync`-ed non-ZFS/BTRFS/NILFS2/APFS local datasets (like ext4, XFS, or NTFS), not just ZFS/BTRFS/NILFS2 snapshots and TM backups.
 * Optionally preview snapshot file versions with a custom command (default is a `diff` compare to the live version)
 * List or even snapshot the mounts for a file directly
 * Roll *forward* to a previous snapshots, instead of rolling back (avoids destroying interstitial snapshots)
