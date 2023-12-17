@@ -1,5 +1,5 @@
 pkgname=httm
-pkgver=0.30.4
+pkgver=0.33.0
 pkgrel=1
 pkgdesc="Prints the size, date and locations of available unique versions (deduplicated by modify time and size) of files residing on ZFS or BTRFS snapshots."
 arch=('x86_64')
@@ -9,7 +9,7 @@ groups=('utility')
 options=('!strip' '!emptydirs')
 makedepends=('cargo')
 source=("${pkgname}-${pkgver}.tar.gz::https://static.crates.io/crates/$pkgname/$pkgname-$pkgver.crate")
-sha512sums=('9d59655ace19d07c79234363037f3dffbd542ab6d2a7ec1ff83afc3450dac61bb5c8e443482645b6eb1e7fdb6a15346033ef87449678b75c2af0d676d286c57c')
+sha512sums=('b0fe3955f3b3ce489b34c904bf0ad82149b2d81f1ad97428226b9f7f41e066f0cbe3050f63ad6d7f1f6ba52ac932e5e61a90ef72b6d2c5655011e548e6aedb20')
 
 prepare() {
 	cd "${srcdir}/${pkgname}-${pkgver}"
@@ -38,6 +38,9 @@ package(){
 
 	# install nicotine script
 	install -Dm755 "${srcdir}/${pkgname}-${pkgver}/scripts/nicotine.bash" "${pkgdir}/usr/bin/nicotine"
+
+	# install equine script
+	install -Dm755 "${srcdir}/${pkgname}-${pkgver}/scripts/equine.bash" "${pkgdir}/usr/bin/equine"
 
 	# install man page
 	install -Dm644 "${srcdir}/${pkgname}-${pkgver}/${pkgname}.1" "${pkgdir}/usr/share/man/man1/${pkgname}.1"

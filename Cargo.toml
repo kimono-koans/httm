@@ -81,6 +81,7 @@ assets = [
     ["scripts/ounce.bash", "usr/bin/ounce", "755"],
     ["scripts/bowie.bash", "usr/bin/bowie", "755"],
     ["scripts/nicotine.bash", "usr/bin/nicotine", "755"],
+    ["scripts/equine.bash", "usr/bin/equine", "755"],
     ["httm.1", "usr/share/man/man1/httm.1", "644"],
     ["README.md", "usr/share/doc/httm/README.md", "644"],
     ["LICENSE", "usr/share/doc/httm/LICENSE", "644"],
