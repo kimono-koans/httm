@@ -72,39 +72,39 @@ function prep_exec {
 	[[ -n "$(
 		command -v plutil
 		exit 0
-	)" ]] || print_err_exit "'plutil' is required to execute 'tm-mnt'.  Please check that 'plutil' is in your path."
+	)" ]] || print_err_exit "'plutil' is required to execute 'equine'.  Please check that 'plutil' is in your path."
 	[[ -n "$(
 		command -v tmutil
 		exit 0
-	)" ]] || print_err_exit "'tmutil' is required to execute 'tm-mnt'.  Please check that 'tmutil' is in your path."
+	)" ]] || print_err_exit "'tmutil' is required to execute 'equine'.  Please check that 'tmutil' is in your path."
 	[[ -n "$(
 		command -v mount_apfs
 		exit 0
-	)" ]] || print_err_exit "'mount_apfs' is required to execute 'tm-mnt'.  Please check that 'mount_apfs' is in your path."
+	)" ]] || print_err_exit "'mount_apfs' is required to execute 'equine'.  Please check that 'mount_apfs' is in your path."
 	[[ -n "$(
 		command -v mount_smbfs
 		exit 0
-	)" ]] || print_err_exit "'mount_smbfs' is required to execute 'tm-mnt'.  Please check that 'mount_smbfs' is in your path."
+	)" ]] || print_err_exit "'mount_smbfs' is required to execute 'equine'.  Please check that 'mount_smbfs' is in your path."
 	[[ -n "$(
 		command -v mount
 		exit 0
-	)" ]] || print_err_exit "'mount' is required to execute 'tm-mnt'.  Please check that 'mount' is in your path."
+	)" ]] || print_err_exit "'mount' is required to execute 'equine'.  Please check that 'mount' is in your path."
 	[[ -n "$(
 		command -v cut
 		exit 0
-	)" ]] || print_err_exit "'cut' is required to execute 'tm-mnt'.  Please check that 'cut' is in your path."
+	)" ]] || print_err_exit "'cut' is required to execute 'equine'.  Please check that 'cut' is in your path."
 	[[ -n "$(
 		command -v grep
 		exit 0
-	)" ]] || print_err_exit "'grep' is required to execute 'tm-mnt'.  Please check that 'grep' is in your path."
+	)" ]] || print_err_exit "'grep' is required to execute 'equine'.  Please check that 'grep' is in your path."
 	[[ -n "$(
 		command -v xargs
 		exit 0
-	)" ]] || print_err_exit "'xargs' is required to execute 'tm-mnt'.  Please check that 'xargs' is in your path."
+	)" ]] || print_err_exit "'xargs' is required to execute 'equine'.  Please check that 'xargs' is in your path."
 	[[ -n "$(
 		command -v hdiutil
 		exit 0
-	)" ]] || print_err_exit "'hdiutil' is required to execute 'tm-mnt'.  Please check that 'hdiutil' is in your path."
+	)" ]] || print_err_exit "'hdiutil' is required to execute 'equine'.  Please check that 'hdiutil' is in your path."
 }
 
 function _unmount_timemachine_() {
