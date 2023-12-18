@@ -925,16 +925,15 @@ impl Config {
                 // so we have to join with the pwd to make a path that
                 // will exist on a snapshot
                 .map(PathData::from)
-                .filter_map(|pd| {
+                .map(|pd| {
                     // but what about snapshot paths?
                     // here we strip the additional snapshot VFS bits and make them look like live versions
-                    if let Some(spd) = ZfsSnapPathGuard::new(&pd, Some(dataset_collection)) {
-                        if !matches!(exec_mode, ExecMode::MountsForFiles(_)) {
-                            return spd.live_path();
+                    match ZfsSnapPathGuard::new(&pd, Some(dataset_collection)) {
+                        Some(spd) if !matches!(exec_mode, ExecMode::MountsForFiles(_)) => {
+                            spd.live_path().unwrap_or_else(|| pd)
                         }
+                        _ => pd,
                     }
-
-                    Some(pd)
                 })
                 .collect()
         } else {
