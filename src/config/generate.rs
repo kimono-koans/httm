@@ -233,7 +233,7 @@ fn parse_args() -> ArgMatches {
             Arg::new("PREVIEW")
                 .short('p')
                 .long("preview")
-                .help("user may specify a command to preview snapshots while in select view.  This argument optionally takes a value specifying the command to be executed.  \
+                .help("user may specify a command to preview snapshots while in a snapshot selection view.  This argument optionally takes a value specifying the command to be executed.  \
                 The default value/command, if no command value specified, is a 'bowie' formatted 'diff'.  \
                 User defined commands must specify the snapshot file name \"{snap_file}\" and the live file name \"{live_file}\" within their shell command.  \
                 NOTE: 'bash' is required to bootstrap any preview script, even if user defined preview commands or script is written in a different language.")
@@ -340,8 +340,8 @@ fn parse_args() -> ArgMatches {
                 .possible_values(["source", "target", "directory", "device", "dataset", "relative-path", "relative", "relpath"])
                 .min_values(0)
                 .require_equals(true)
-                .help("display the all mount point/s of all dataset/s which contain/s the input file/s.  \
-                This argument optionally takes a value.  Possible values are: \
+                .help("by default, display the all mount point/s of all dataset/s which contain/s the input file/s.  \
+                This argument optionally takes a value to display other information about the path.  Possible values are: \
                 \"target\" or \"directory\", return the directory upon which the underlying dataset or device of the mount, \
                 \"source\" or \"device\" or \"dataset\", return the underlying dataset/device of the mount, and, \
                 \"relative-path\" or \"relative\", return the path relative to the underlying dataset/device of the mount.")
@@ -365,7 +365,7 @@ fn parse_args() -> ArgMatches {
                 \"no-ditto-exclusive\", return only a last snap which is not the same as the live version (argument \"--no-ditto\" is an alias for this option), \
                 \"no-ditto-inclusive\", return a last snap which is not the same as the live version, or should none exist, return the live file, and, \
                 \"none\" or \"without\", return the live file only for those files without a last snapshot.")
-                .conflicts_with_all(&["NUM_VERSIONS", "SNAPSHOT", "FILE_MOUNT", "ALT_REPLICATED", "REMOTE_DIR", "LOCAL_DIR", "PREVIEW"])
+                .conflicts_with_all(&["NUM_VERSIONS", "SNAPSHOT", "FILE_MOUNT", "ALT_REPLICATED", "REMOTE_DIR", "LOCAL_DIR", "PREVIEW", "OMIT_DITTO"])
                 .display_order(15)
         )
         .arg(
@@ -381,6 +381,7 @@ fn parse_args() -> ArgMatches {
             Arg::new("ZEROS")
                 .short('0')
                 .long("zero")
+                .visible_alias("null")
                 .help("display the snapshot locations only, without extraneous information, delimited by a NULL character.")
                 .conflicts_with_all(&["RAW", "NOT_SO_PRETTY"])
                 .display_order(17)
@@ -403,8 +404,8 @@ fn parse_args() -> ArgMatches {
         .arg(
             Arg::new("OMIT_DITTO")
                 .long("omit-ditto")
-                .help("omit display of the snapshot version which may be identical to the live version (`httm` ordinarily displays all snapshot versions and the live version).")
-                .conflicts_with_all(&["NUM_VERSIONS"])
+                .help("omit display of the snapshot version which may be identical to the live version.  By default, `httm` displays all snapshot versions and the live version).")
+                .conflicts_with_all(&["NUM_VERSIONS", "LAST_SNAP"])
                 .display_order(20)
         )
         .arg(
@@ -418,7 +419,7 @@ fn parse_args() -> ArgMatches {
             Arg::new("FILTER_HIDDEN")
                 .long("no-hidden")
                 .aliases(&["no-hide", "nohide", "filter-hidden"])
-                .help("never show information regarding hidden files and directories (those that start with a \'.\') in the recursive or interactive modes.")
+                .help("do not show information regarding hidden files and directories (those that start with a \'.\') in the recursive or interactive modes.")
                 .display_order(22)
         )
         .arg(
@@ -447,7 +448,7 @@ fn parse_args() -> ArgMatches {
             Arg::new("NO_SNAP")
                 .long("no-snap")
                 .visible_aliases(&["undead", "zombie"])
-                .help("only display information concerning 'pseudo-live' versions in Display Recursive mode (in --deleted, --recursive, but non-interactive modes).  \
+                .help("only display information concerning 'pseudo-live' versions in any Display Recursive mode (in --deleted, --recursive, but non-interactive modes).  \
                 Useful for finding the \"files that once were\" and displaying only those pseudo-live/zombie files.")
                 .conflicts_with_all(&["BROWSE", "SELECT", "RESTORE", "SNAPSHOT", "LAST_SNAP", "NOT_SO_PRETTY"])
                 .requires("DELETED")
@@ -518,7 +519,7 @@ fn parse_args() -> ArgMatches {
         .arg(
             Arg::new("NO_CLONES")
                 .long("no-clones")
-                .help("ordinarily, when copying files from snapshots, httm will first attempt a zero copy \"reflink\" clone on systems that support it.  \
+                .help("by default, when copying files from snapshots, httm will first attempt a zero copy \"reflink\" clone on systems that support it.  \
                 Here, you may disable that behavior, and force httm to use the fall back diff copy behavior as the default.  \
                 You may also set an environment variable to any value, \"HTTM_NO_CLONE\" to disable.")
                 .display_order(32)
