@@ -34,8 +34,6 @@ use std::io::{BufRead, BufReader, ErrorKind};
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
-use super::filesystem_info::FilesystemInfo;
-
 // only the most basic data from a DirEntry
 // for use to display in browse window and internally
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -214,26 +212,6 @@ impl PathData {
                 .map(|alias_info| alias_info.remote_dir.as_path())
         })
     }
-
-    pub fn is_snap_path(&self, opt_filesystem_info: Option<&FilesystemInfo>) -> bool {
-        let fs_info = match opt_filesystem_info {
-            Some(fs_info) => fs_info,
-            None => match Lazy::get(&GLOBAL_CONFIG) {
-                Some(config) => &config.dataset_collection,
-                None => return false,
-            },
-        };
-
-        match fs_info
-            .map_of_snaps
-            .values()
-            .flatten()
-            .find(|snap| self.path_buf.strip_prefix(snap).is_ok())
-        {
-            Some(_) => true,
-            None => false,
-        }
-    }
 }
 
 pub struct ZfsSnapPathGuard<'a> {
@@ -249,15 +227,19 @@ impl<'a> std::ops::Deref for ZfsSnapPathGuard<'a> {
 }
 
 impl<'a> ZfsSnapPathGuard<'a> {
-    pub fn new(
-        pathdata: &'a PathData,
-        opt_filesystem_info: Option<&FilesystemInfo>,
-    ) -> Option<Self> {
-        if !pathdata.is_snap_path(opt_filesystem_info) {
+    pub fn new(pathdata: &'a PathData) -> Option<Self> {
+        if !Self::is_zfs_snap_path(pathdata) {
             return None;
         }
 
         Some(Self { inner: pathdata })
+    }
+
+    pub fn is_zfs_snap_path(pathdata: &'a PathData) -> bool {
+        pathdata
+            .path_buf
+            .to_string_lossy()
+            .contains(ZFS_SNAPSHOT_DIRECTORY)
     }
 
     pub fn target(&self, proximate_dataset_mount: &Path) -> Option<PathBuf> {

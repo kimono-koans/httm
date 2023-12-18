@@ -834,12 +834,8 @@ impl Config {
         )?;
 
         // paths are immediately converted to our PathData struct
-        let paths: Vec<PathData> = Self::paths(
-            matches.values_of_os("INPUT_FILES"),
-            &exec_mode,
-            &dataset_collection,
-            &pwd,
-        )?;
+        let paths: Vec<PathData> =
+            Self::paths(matches.values_of_os("INPUT_FILES"), &exec_mode, &pwd)?;
 
         // for exec_modes in which we can only take a single directory, process how we handle those here
         let opt_requested_dir: Option<PathBuf> =
@@ -916,7 +912,6 @@ impl Config {
     pub fn paths(
         opt_os_values: Option<OsValues>,
         exec_mode: &ExecMode,
-        dataset_collection: &FilesystemInfo,
         pwd: &Path,
     ) -> HttmResult<Vec<PathData>> {
         let mut paths = if let Some(input_files) = opt_os_values {
@@ -929,7 +924,7 @@ impl Config {
                 .map(|pd| {
                     // but what about snapshot paths?
                     // here we strip the additional snapshot VFS bits and make them look like live versions
-                    match ZfsSnapPathGuard::new(&pd, Some(dataset_collection)) {
+                    match ZfsSnapPathGuard::new(&pd) {
                         Some(spd) if !matches!(exec_mode, ExecMode::MountsForFiles(_)) => {
                             spd.live_path().unwrap_or_else(|| pd)
                         }
