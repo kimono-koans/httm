@@ -60,23 +60,21 @@ impl FilesystemInfo {
             None
         };
 
-        let alias_values: Option<Vec<String>> =
-            if let Some(env_map_aliases) = std::env::var_os("HTTM_MAP_ALIASES") {
-                Some(
-                    env_map_aliases
-                        .to_string_lossy()
-                        .split_terminator(',')
-                        .map(std::borrow::ToOwned::to_owned)
-                        .collect(),
-                )
-            } else {
-                opt_map_aliases.map(|cmd_map_aliases| {
-                    cmd_map_aliases
-                        .into_iter()
-                        .map(|os_str| os_str.to_string_lossy().to_string())
-                        .collect()
-                })
-            };
+        let alias_values: Option<Vec<String>> = match std::env::var_os("HTTM_MAP_ALIASES") {
+            Some(env_map_alias) => Some(
+                env_map_alias
+                    .to_string_lossy()
+                    .split_terminator(',')
+                    .map(std::borrow::ToOwned::to_owned)
+                    .collect(),
+            ),
+            None => opt_map_aliases.map(|cmd_map_aliases| {
+                cmd_map_aliases
+                    .into_iter()
+                    .map(|os_str| os_str.to_string_lossy().to_string())
+                    .collect()
+            }),
+        };
 
         let raw_snap_dir = if let Some(value) = opt_remote_dir {
             Some(value.to_os_string())
