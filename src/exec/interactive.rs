@@ -328,7 +328,7 @@ impl InteractiveSelect {
     pub fn opt_live_version(&self, snap_pathdata: &PathData) -> HttmResult<PathBuf> {
         match &self.opt_live_version {
             Some(live_version) => Some(PathBuf::from(live_version)),
-            None => ZfsSnapPathGuard::new(snap_pathdata)
+            None => ZfsSnapPathGuard::new(snap_pathdata, None)
                 .and_then(|snap_guard| snap_guard.live_path())
                 .map(|pathdata| pathdata.path_buf),
         }

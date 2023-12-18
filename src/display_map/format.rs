@@ -65,7 +65,7 @@ impl<'a> From<&MountsForFiles<'a>> for PrintAsMap {
                 let res = values
                     .iter()
                     .filter_map(|value| {
-                        let opt_spg = ZfsSnapPathGuard::new(key);
+                        let opt_spg = ZfsSnapPathGuard::new(key, None);
 
                         match mounts_for_files.mount_display() {
                             MountDisplay::Target => {

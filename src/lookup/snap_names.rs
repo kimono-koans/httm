@@ -67,7 +67,7 @@ impl SnapNameMap {
                 let snap_names: Vec<String> = vec_snaps
                     .par_iter()
                     .filter_map(|pd| {
-                        ZfsSnapPathGuard::new(pd).and_then(|spd| spd.source())
+                        ZfsSnapPathGuard::new(pd, None).and_then(|spd| spd.source())
                     })
                     .filter(|snap| {
                         if let Some(filters) = opt_filters {

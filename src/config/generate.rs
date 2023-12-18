@@ -822,9 +822,23 @@ impl Config {
         // current working directory will be helpful in a number of places
         let pwd = pwd()?;
 
+        // obtain a map of datasets, a map of snapshot directories, and possibly a map of
+        // alternate filesystems and map of aliases if the user requests
+        let dataset_collection = FilesystemInfo::new(
+            matches.is_present("ALT_REPLICATED"),
+            matches.value_of_os("REMOTE_DIR"),
+            matches.value_of_os("LOCAL_DIR"),
+            matches.values_of_os("MAP_ALIASES"),
+            &pwd,
+        )?;
+
         // paths are immediately converted to our PathData struct
-        let paths: Vec<PathData> =
-            Self::paths(matches.values_of_os("INPUT_FILES"), &exec_mode, &pwd)?;
+        let paths: Vec<PathData> = Self::paths(
+            matches.values_of_os("INPUT_FILES"),
+            &exec_mode,
+            &dataset_collection,
+            &pwd,
+        )?;
 
         // for exec_modes in which we can only take a single directory, process how we handle those here
         let opt_requested_dir: Option<PathBuf> =
@@ -870,16 +884,6 @@ impl Config {
             );
         }
 
-        // obtain a map of datasets, a map of snapshot directories, and possibly a map of
-        // alternate filesystems and map of aliases if the user requests
-        let dataset_collection = FilesystemInfo::new(
-            matches.is_present("ALT_REPLICATED"),
-            matches.value_of_os("REMOTE_DIR"),
-            matches.value_of_os("LOCAL_DIR"),
-            matches.values_of_os("MAP_ALIASES"),
-            &pwd,
-        )?;
-
         let config = Config {
             paths,
             opt_bulk_exclusion,
@@ -911,6 +915,7 @@ impl Config {
     pub fn paths(
         opt_os_values: Option<OsValues>,
         exec_mode: &ExecMode,
+        dataset_collection: &FilesystemInfo,
         pwd: &Path,
     ) -> HttmResult<Vec<PathData>> {
         let mut paths = if let Some(input_files) = opt_os_values {
@@ -923,7 +928,7 @@ impl Config {
                 .filter_map(|pd| {
                     // but what about snapshot paths?
                     // here we strip the additional snapshot VFS bits and make them look like live versions
-                    if let Some(spd) = ZfsSnapPathGuard::new(&pd) {
+                    if let Some(spd) = ZfsSnapPathGuard::new(&pd, Some(dataset_collection)) {
                         if !matches!(exec_mode, ExecMode::MountsForFiles(_)) {
                             return spd.live_path();
                         }
