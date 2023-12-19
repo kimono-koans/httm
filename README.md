@@ -56,6 +56,7 @@ rpm -i --replacefiles ./httm_*.rpm
 For Arch-based Linux distributions, you can create and install your own native package from the latest sources, like so:
 
 ```bash
+#!/bin/bash
 # you need to edit the PKGBUILD as needed to conform to the latest release
 wget https://raw.githubusercontent.com/kimono-koans/httm/master/packaging/arch/PKGBUILD
 makepkg -si
@@ -70,6 +71,7 @@ The `httm` project contains only a few components:
 1. The `httm` executable.  To build and install:
 
     ```bash
+    #!/bin/bash
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
     latest="(wget -nv -O - "https://api.github.com/repos/kimono-koans/httm/releases/latest" 2>/dev/null | grep tag_name | cut -d: -f2 | cut -d'"' -f2)"
     cargo install --git https://github.com/kimono-koans/httm.git --tag "$latest"
