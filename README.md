@@ -22,14 +22,14 @@
 * Uniqueness level: Like `rsync`, `httm` can determine whether file is unique based solely on metadata, or use checksums
 * 4 native interactive modes: browse, select, prune and restore
 * ANSI `ls` colors from your environment
-* Detect and display only categories of the numbers of unique file versions available (`multiple`, `single`, `single-with-snap`,..., etc.)
+* Detect and display categories of unique file versions available (`multiple`, `single`, `single-with-snap`,..., etc.)
 * Select from several formatting styles (newline, null, tab delimited, JSON, etc.).  Parseable ... or not ...  oh my!
-* Packaged scripts which help you, and show you how to, use `httm`: [ounce](https://github.com/kimono-koans/httm/blob/master/scripts/ounce.bash), [bowie](https://github.com/kimono-koans/httm/blob/master/scripts/bowie.bash), [equine](https://github.com/kimono-koans/httm/blob/master/scripts/equine.bash),  and [nicotine](https://github.com/kimono-koans/httm/blob/master/scripts/nicotine.bash)
+* Packaged scripts which help you, and show you how to, use `httm`: [ounce](https://github.com/kimono-koans/httm/blob/master/scripts/ounce.bash), [bowie](https://github.com/kimono-koans/httm/blob/master/scripts/bowie.bash), [equine](https://github.com/kimono-koans/httm/blob/master/scripts/equine.bash), and [nicotine](https://github.com/kimono-koans/httm/blob/master/scripts/nicotine.bash)
 * Supports ZFS/BTRFS/NILFS2 snapshots and Time Machine backups!
 
 Use in combination with you favorite shell's hot keys for even more fun.
 
-Inspired by the [findoid](https://github.com/jimsalterjrs/sanoid) script, [fzf](https://github.com/junegunn/fzf) and many [zsh](https://www.zsh.org) key bindings.
+Inspired by the [findoid](https://github.com/jimsalterjrs/sanoid) script, [fzf](https://github.com/junegunn/fzf), [skim]() and many [zsh](https://www.zsh.org) key bindings.
 
 ## Install via Native Packages
 
@@ -40,6 +40,7 @@ For Debian-based and Redhat-based Linux distributions (like Ubuntu or Fedora, et
 You may also create and install your own native package from the latest sources, for Debian-based and Redhat-based Linux distributions, like so:
 
 ```bash
+#!/bin/bash
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 cargo install cargo-deb 
 git clone https://github.com/kimono-koans/httm.git
@@ -77,18 +78,19 @@ The `httm` project contains only a few components:
 2. The optional `zsh` hot-key bindings: Use `ESC+s` to select snapshots filenames to be dropped to your command line (for instance after the `cat` command), or use `ESC+m` to browse for all of a file's snapshots. After you install the `httm` binary, to copy the hot key script to your home directory, and source that script within your `.zshrc`:
 
     ```bash
-    httm --install-zsh-hot-keys
+    ➜ httm --install-zsh-hot-keys
     ```
 
 3. The optional `man` page: `cargo` has no native facilities for man page installation (though it may in the future!).  You can use `manpath` to see the various directories your system uses and decide which directory works best for you.  To install, just copy it to a directory in your `man` path, like so:
 
     ```bash
-    cp ./httm/httm.1 /usr/local/share/man/man1/
+    ➜ cp ./httm/httm.1 /usr/local/share/man/man1/
     ```
 
 4. The optional scripts.  See script usage below, in the Example Usage section, or follow the links ([ounce](https://github.com/kimono-koans/httm/blob/master/scripts/ounce.bash), [bowie](https://github.com/kimono-koans/httm/blob/master/scripts/bowie.bash), and [nicotine](https://github.com/kimono-koans/httm/blob/master/scripts/nicotine.bash)), for more information.  To install, just copy it to a directory in your path, like so:
 
     ```bash
+    #!/bin/bash
     cp ./httm/scripts/ounce.bash /usr/local/bin/ounce
     cp ./httm/scripts/bowie.bash /usr/local/bin/bowie
     cp ./httm/scripts/nicotine.bash /usr/local/bin/nicotine
@@ -248,6 +250,7 @@ Sun Nov 26 02:14:56 2023  6.7 KiB  "/Users/kimono/.zshrc"
 View the differences between each unique snapshot version of the `httm` `man` page and each previous version (this simple script is the basis for [bowie](https://github.com/kimono-koans/httm/blob/master/scripts/bowie.bash)):
 
 ```bash
+#!/bin/bash
 filename="./httm/httm.1"
 # previous version is unset
 previous_version=""
@@ -277,6 +280,7 @@ Create a simple `tar` archive of all unique versions of your `/var/log/syslog`:
 Create a *kinda fancy* `tar` archive of all unique versions of your `/var/log/syslog`:
 
 ```bash
+#!/bin/bash
 file="/var/log/syslog"
 dir_name="${$(dirname $file)/\//}"
 base_dir="$(basename $file)_all_versions"
@@ -292,6 +296,7 @@ tar \
 Create a *super fancy* `git` archive of all unique versions of `/var/log/syslog` (this simple script is the basis for [nicotine](https://github.com/kimono-koans/httm/blob/master/scripts/nicotine.bash)):
 
 ```bash
+#!/bin/bash
 # create variable for file name
 file="/var/log/syslog"
 # create git repo
