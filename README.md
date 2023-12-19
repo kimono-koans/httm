@@ -58,7 +58,7 @@ For Arch-based Linux distributions, you can create and install your own native p
 ```bash
 #!/bin/bash
 # you need to edit the PKGBUILD as needed to conform to the latest release
-wget https://raw.githubusercontent.com/kimono-koans/httm/master/packaging/arch/PKGBUILD
+wget https://raw.githubusercontent.com/kimono-koans/httm/master/packaging/arch/example/PKGBUILD
 makepkg -si
 ```
 
