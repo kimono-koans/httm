@@ -102,7 +102,7 @@ impl MapOfAliases {
                         .filter(|dir| !dir.exists())
                         .for_each(|dir| {
                             eprintln!(
-                "Warning: An alias path specified does not exist, or is not mounted: {:?}",
+                "WARN: An alias path specified does not exist, or is not mounted: {:?}",
                 dir
               )
                         });

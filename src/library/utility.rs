@@ -505,18 +505,18 @@ where
     T: ComparePathMetadata,
 {
     if src.opt_metadata().is_none() {
-        let msg = format!("WARNING: Metadata not found: {:?}", src.path());
+        let msg = format!("WARN: Metadata not found: {:?}", src.path());
         return Err(HttmError::new(&msg).into());
     }
 
     if src.path().is_symlink() && src.path().read_link().ok() != dst.path().read_link().ok() {
-        let msg = format!("WARNING: Symlink do not match: {:?}", src.path());
+        let msg = format!("WARN: Symlink do not match: {:?}", src.path());
         return Err(HttmError::new(&msg).into());
     }
 
     if src.opt_metadata() != dst.opt_metadata() {
         let msg = format!(
-            "WARNING: Metadata mismatch: {:?} !-> {:?}",
+            "WARN: Metadata mismatch: {:?} !-> {:?}",
             src.path(),
             dst.path()
         );

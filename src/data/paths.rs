@@ -294,11 +294,11 @@ impl<'a> ZfsSnapPathGuard<'a> {
                 Some(format!("{}@{snap_name}", md.source.to_string_lossy()))
             }
             Some(_md) => {
-                eprintln!("WARNING: {:?} is located on a non-ZFS dataset.  httm can only list snapshot names for ZFS datasets.", self.inner.path_buf);
+                eprintln!("WARN: {:?} is located on a non-ZFS dataset.  httm can only list snapshot names for ZFS datasets.", self.inner.path_buf);
                 None
             }
             _ => {
-                eprintln!("WARNING: {:?} is not located on a discoverable dataset.  httm can only list snapshot names for ZFS datasets.", self.inner.path_buf);
+                eprintln!("WARN: {:?} is not located on a discoverable dataset.  httm can only list snapshot names for ZFS datasets.", self.inner.path_buf);
                 None
             }
         }

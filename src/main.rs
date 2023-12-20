@@ -88,7 +88,7 @@ fn main() {
     match exec() {
         Ok(_) => std::process::exit(0),
         Err(error) => {
-            eprintln!("Error: {error}");
+            eprintln!("ERROR: {error}");
             std::process::exit(1)
         }
     }
