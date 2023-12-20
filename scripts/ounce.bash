@@ -35,7 +35,7 @@ function print_usage {
 	local httm="\e[31mhttm\e[0m"
 
 	printf "\
-$ounce is a wrapper script for $httm which snapshots the datasets of files opened by other programs.
+$ounce is a wrapper script for $httm which snapshots the datasets of files opened by another programs.
 
 $ounce only snapshots datasets when you have file changes outstanding, uncommitted to a snapshot already,
 and only when those files are given as arguments to the target executable at the command line (except in --trace
@@ -43,6 +43,7 @@ mode).
 
 USAGE:
 	ounce [OPTIONS]... [target executable] [argument1 argument2...]
+	ounce [--direct] [path1 path2...]
 	ounce [--give-priv]
 	ounce [--help]
 
@@ -54,8 +55,11 @@ OPTIONS:
 		and execute any snapshot.
 
 	--trace:
-		Trace file 'open' and 'openat' calls of the $ounce target executable using \"strace\" and eBPF/seccomp to 
+		Trace file 'open' and 'openat' calls of the $ounce target executable using \"strace\" and eBPF/seccomp to
 		determine relevant input files.
+
+	--direct:
+		Execute directly on path/s instead of wrapping a target executable.
 
 	--give-priv:
 		To use $ounce you will need privileges to snapshot ZFS datasets, and the prefered scheme is
@@ -143,15 +147,15 @@ function take_snap {
 
 	# mask all the errors from the first run without privileges,
 	# let the sudo run show errors
-	[[ -z "$utc" ]] || httm "$utc" --snap="$suffix" "$filenames" 1>/dev/null 2>/dev/null
-	[[ -n "$utc" ]] || httm --snap="$suffix" "$filenames" 1>/dev/null 2>/dev/null
+	[[ -z "$utc" ]] || httm "$utc" --snap="$suffix" $filenames 1>/dev/null 2>/dev/null
+	[[ -n "$utc" ]] || httm --snap="$suffix" $filenames 1>/dev/null 2>/dev/null
 
 	if [[ $? -ne 0 ]]; then
 		local sudo_program
 		sudo_program="$(prep_sudo)"
 
-		[[ -z "$utc" ]] || httm "$utc" --snap="$suffix" "$filenames" 1>/dev/null 2>/dev/null
-		[[ -n "$utc" ]] || httm --snap="$suffix" "$filenames" 1>/dev/null 2>/dev/null
+		[[ -z "$utc" ]] || httm "$utc" --snap="$suffix" $filenames 1>/dev/null 2>/dev/null
+		[[ -n "$utc" ]] || httm --snap="$suffix" $filenames 1>/dev/null 2>/dev/null
 
 		[[ $? -eq 0 ]] ||
 			print_err_exit "'ounce' failed with a 'httm'/'zfs' snapshot error.  Check you have the correct permissions to snapshot."
@@ -164,7 +168,7 @@ function needs_snap {
 
 	filenames="$1"
 
-	uncut_res="$(httm --last-snap=no-ditto-inclusive --not-so-pretty "$filenames" 2>/dev/null)"
+	uncut_res="$( httm --last-snap=no-ditto-inclusive --not-so-pretty $filenames 2>/dev/null)"
 	#[[ $? -eq 0 ]] || print_err_exit "'ounce' failed with a 'httm' lookup error."
 	[[ $? -eq 0 ]] || uncut_res=""
 
@@ -246,7 +250,7 @@ function exec_args {
 	# check if filenames array is not empty
 	[[ ${#filenames_array[@]} -ne 0 ]] || return 0
 
-	printf -v filenames_string "%s\0" "${filenames_array[@]}"
+	filenames_string="$( echo ${filenames_array[@]} )"
 	[[ -n "$filenames_string" ]] || print_err_exit "bash could not covert file names from array to string."
 
 	# now, httm will dynamically determine the location of
@@ -267,6 +271,7 @@ function ounce_of_prevention {
 	local program_name=""
 	local background=false
 	local trace=false
+	local direct=direct
 	local -x snapshot_suffix="ounceSnapFileMount"
 	local -x utc=""
 
@@ -299,6 +304,10 @@ function ounce_of_prevention {
 		elif [[ "$1" == "--background" ]]; then
 			background=true
 			shift
+		elif [[ "$1" == "--direct" ]]; then
+			direct=true
+			shift
+			break
 		else
 			program_name="$(
 				command -v "$1"
@@ -310,7 +319,7 @@ function ounce_of_prevention {
 	done
 
 	# check the program name is executable
-	[[ -x "$program_name" ]] || print_err_exit "'ounce' requires a valid executable name as the first argument."
+	[[ -x "$program_name" ]] || [[ $direct ]] || print_err_exit "'ounce' requires a valid executable name as the first argument."
 
 	# start search and snap, then execute original arguments
 	if $trace; then
@@ -339,8 +348,10 @@ function ounce_of_prevention {
 		"$program_name" "$@"
 
 		wait "$background_pid"
+	elif $direct; then
+		exec_args "$@" && printf "%s\n" "ounce successfully preserved all unsnapped changes." 1>&2
 	else
-		exec_args "$@"
+		exec_args "$@" && printf "%s\n" "ounce successfully preserved all unsnapped changes." 1>&2
 		"$program_name" "$@"
 	fi
 }
