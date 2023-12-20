@@ -21,8 +21,10 @@ codegen-units = 1
 panic = "abort"
 inherits = "release"
 
-# acls feature - requires libacl1-dev to build
 [features]
+default = ["std"]
+std = ["xattrs", "malloc_trim", "setpriority"]
+# acls feature - requires libacl1-dev to build
 acls = ["exacl"]
 xattrs = ["xattr"]
 malloc_trim = ["libc", "skim/malloc_trim"]

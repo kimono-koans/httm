@@ -57,7 +57,8 @@ For Arch-based Linux distributions, you can create and install your own native p
 
 ```bash
 #!/bin/bash
-# you need to edit the PKGBUILD as needed to conform to the latest release
+# warning: this is only an example PKGBUILD
+# you may need to edit the example, as needed, to conform to the latest release
 wget https://raw.githubusercontent.com/kimono-koans/httm/master/packaging/arch/example/PKGBUILD
 makepkg -si
 ```
@@ -66,7 +67,7 @@ For MacOS users, a user from the community (very exciting) has posted a [formula
 
 ## Install via Source
 
-The `httm` project contains only a few components:
+Installation via a package is highly suggested for support purposes, but, for those that must build from source, the `httm` project contains only a few components:
 
 1. The `httm` executable.  To build and install:
 
@@ -74,7 +75,9 @@ The `httm` project contains only a few components:
     #!/bin/bash
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
     latest="(wget -nv -O - "https://api.github.com/repos/kimono-koans/httm/releases/latest" 2>/dev/null | grep tag_name | cut -d: -f2 | cut -d'"' -f2)"
-    cargo install --git https://github.com/kimono-koans/httm.git --tag "$latest"
+    # cargo-install places a release binary in your $HOME/.cargo/bin, however, 
+    # you may wish to: cp $HOME/.cargo/bin/httm /usr/local/bin/httm; cargo uninstall httm
+    cargo install --locked --git https://github.com/kimono-koans/httm.git --tag "$latest"
     ```
 
 2. The optional `zsh` hot-key bindings: Use `ESC+s` to select snapshots filenames to be dropped to your command line (for instance after the `cat` command), or use `ESC+m` to browse for all of a file's snapshots. After you install the `httm` binary, to copy the hot key script to your home directory, and source that script within your `.zshrc`:
@@ -89,14 +92,17 @@ The `httm` project contains only a few components:
     ➜ cp ./httm/httm.1 /usr/local/share/man/man1/
     ```
 
-4. The optional scripts.  See script usage below, in the Example Usage section, or follow the links ([ounce](https://github.com/kimono-koans/httm/blob/master/scripts/ounce.bash), [bowie](https://github.com/kimono-koans/httm/blob/master/scripts/bowie.bash), and [nicotine](https://github.com/kimono-koans/httm/blob/master/scripts/nicotine.bash)), for more information.  To install, just copy it to a directory in your path, like so:
+4. The optional scripts.  See script usage below, in the Example Usage section, or follow the links ([ounce](https://github.com/kimono-koans/httm/blob/master/scripts/ounce.bash), [bowie](https://github.com/kimono-koans/httm/blob/master/scripts/bowie.bash), [equine](https://github.com/kimono-koans/httm/blob/master/scripts/equine.bash), and [nicotine](https://github.com/kimono-koans/httm/blob/master/scripts/nicotine.bash)), for more information.  To install, just copy it to a directory in your path, like so:
 
     ```bash
     #!/bin/bash
     cp ./httm/scripts/ounce.bash /usr/local/bin/ounce
+    # bowie is "required" for the default/best "--preview" behavior
     cp ./httm/scripts/bowie.bash /usr/local/bin/bowie
+    # equine is "required" for Time Machine support on MacOS
+    cp ./httm/scripts/equine.bash /usr/local/bin/equine
     cp ./httm/scripts/nicotine.bash /usr/local/bin/nicotine
-    chmod +x /usr/local/bin/bowie /usr/local/bin/ounce /usr/local/bin/nicotine
+    chmod +x /usr/local/bin/bowie /usr/local/bin/ounce /usr/local/bin/equine /usr/local/bin/nicotine
     ```
 
 ### Caveats
@@ -194,7 +200,7 @@ View unique versions of a file for recovery (shortcut, no need to browse a direc
 sort -rn | awk 'BEGIN {FS="\t"}; {print $2}'
 ```
 
-View `bowie`-formatted `diff` of each unique snapshot of `~/.zshrc` against the live file version:
+View [bowie](https://github.com/kimono-koans/httm/blob/master/scripts/bowie.bash)-formatted `diff` of each unique snapshot of `~/.zshrc` against the live file version (requires the `bowie` script be installed):
 
 ```bash
 ➜ httm --preview -s ~/.zshrc
