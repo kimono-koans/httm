@@ -80,7 +80,7 @@ impl<'a> MountsForFiles<'a> {
             && map.keys().all(|pathdata| pathdata.metadata.is_none())
         {
             return Err(HttmError::new(
-                "httm could not find either a mount for the path specified, so, umm, 🤷? Please try another path.",
+                "httm could not find either any mounts for the path/s specified, so, umm, 🤷? Please try another path.",
             )
             .into());
         }
