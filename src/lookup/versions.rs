@@ -58,14 +58,15 @@ impl VersionsMap {
     pub fn new(config: &Config, path_set: &[PathData]) -> HttmResult<VersionsMap> {
         let all_snap_versions: BTreeMap<PathData, Vec<PathData>> = path_set
             .par_iter()
-            .filter_map(|pd| {
-                ProximateDatasetAndOptAlts::new(pd).ok().or({
+            .filter_map(|pd| match ProximateDatasetAndOptAlts::new(pd) {
+                Ok(prox_opt_alts) => Some(prox_opt_alts),
+                Err(_) => {
                     eprintln!(
                         "WARN: Filesystem upon which the path resides is not supported: {:?}",
                         pd.path_buf
                     );
                     None
-                })
+                }
             })
             .map(|prox_opt_alts| {
                 // don't want to flatten this iter here b/c

@@ -49,14 +49,15 @@ impl<'a> MountsForFiles<'a> {
         let map: BTreeMap<&PathData, Vec<PathData>> = GLOBAL_CONFIG
             .paths
             .par_iter()
-            .filter_map(|pd| {
-                ProximateDatasetAndOptAlts::new(pd).ok().or({
+            .filter_map(|pd| match ProximateDatasetAndOptAlts::new(pd) {
+                Ok(prox_opt_alts) => Some(prox_opt_alts),
+                Err(_) => {
                     eprintln!(
                         "WARN: Filesystem upon which the path resides is not supported: {:?}",
                         pd.path_buf
                     );
                     None
-                })
+                }
             })
             .map(|prox_opt_alts| {
                 let vec: Vec<PathData> = prox_opt_alts
