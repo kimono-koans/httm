@@ -72,13 +72,21 @@ impl VersionsMap {
                 // don't want to flatten this iter here b/c
                 // we want to keep these values with this key
                 let key = prox_opt_alts.pathdata.clone();
-                let values = prox_opt_alts
+                let values: Vec<PathData> = prox_opt_alts
                     .into_search_bundles()
                     .par_bridge()
                     .flat_map(|relative_path_snap_mounts| {
                         relative_path_snap_mounts.versions_processed(&config.uniqueness)
                     })
                     .collect();
+
+                if key.metadata.is_none() && values.is_empty() {
+                    eprintln!(
+                        "WARN: Input file may have never existed: {:?}",
+                        key.path_buf
+                    );
+                }
+
                 (key, values)
             })
             .collect();

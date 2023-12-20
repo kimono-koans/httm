@@ -68,7 +68,7 @@ impl<'a> MountsForFiles<'a> {
 
                 if prox_opt_alts.pathdata.metadata.is_none() && vec.is_empty() {
                     eprintln!(
-                        "WARN: Input file may not exist: {:?}",
+                        "WARN: Input file may have never existed: {:?}",
                         prox_opt_alts.pathdata.path_buf
                     );
                 }
