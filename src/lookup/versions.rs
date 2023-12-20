@@ -93,7 +93,7 @@ impl VersionsMap {
                 .all(|pathdata| pathdata.metadata.is_none())
         {
             return Err(HttmError::new(
-                "httm could not find either a live copy or a snapshot copy of any specified file, so, umm, 🤷? Please try another file.",
+                "httm could find neither a live version, nor any snapshot version for all the specified paths, so, umm, 🤷? Please try another file.",
             )
             .into());
         }

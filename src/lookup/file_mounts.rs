@@ -77,11 +77,14 @@ impl<'a> MountsForFiles<'a> {
             })
             .collect();
 
+        // this is disjunctive instead of conjunctive, like the error re: versions
+        // this is because I think the appropriate behavior when a path DNE is to error when requesting a mount
+        // whereas re: versions, a file which DNE may still have snapshot versions
         if map.values().all(std::vec::Vec::is_empty)
-            && map.keys().all(|pathdata| pathdata.metadata.is_none())
+            || map.keys().all(|pathdata| pathdata.metadata.is_none())
         {
             return Err(HttmError::new(
-                "httm could not find either any mounts for the path/s specified, so, umm, 🤷? Please try another path.",
+                "httm could either not find any mounts for all the path/s specified, or all the path do not exist, so, umm, 🤷? Please try another path.",
             )
             .into());
         }
