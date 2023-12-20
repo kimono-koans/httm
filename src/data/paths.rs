@@ -20,7 +20,7 @@ use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{date_string, display_human_size, DateFormat};
 use crate::parse::aliases::MapOfAliases;
 use crate::parse::mounts::FilesystemType;
-use crate::parse::mounts::{MapOfDatasets, MaxLen};
+use crate::parse::mounts::MaxLen;
 use crate::{GLOBAL_CONFIG, ZFS_SNAPSHOT_DIRECTORY};
 use once_cell::sync::{Lazy, OnceCell};
 use realpath_ext::{realpath, RealpathFlags};
@@ -167,10 +167,7 @@ impl PathData {
         Ok(relative_path)
     }
 
-    pub fn proximate_dataset<'a>(
-        &'a self,
-        map_of_datasets: &MapOfDatasets,
-    ) -> HttmResult<&'a Path> {
+    pub fn proximate_dataset<'a>(&'a self) -> HttmResult<&'a Path> {
         // for /usr/bin, we prefer the most proximate: /usr/bin to /usr and /
         // ancestors() iterates in this top-down order, when a value: dataset/fstype is available
         // we map to return the key, instead of the value
@@ -181,7 +178,18 @@ impl PathData {
         self.path_buf
             .ancestors()
             .skip_while(|ancestor| ancestor.components().count() > *DATASET_MAX_LEN)
-            .find(|ancestor| map_of_datasets.contains_key(*ancestor))
+            .take_while(|ancestor| {
+                !GLOBAL_CONFIG
+                    .dataset_collection
+                    .filter_dirs
+                    .contains(*ancestor)
+            })
+            .find(|ancestor| {
+                GLOBAL_CONFIG
+                    .dataset_collection
+                    .map_of_datasets
+                    .contains_key(*ancestor)
+            })
             .ok_or_else(|| {
                 HttmError::new(
                     "httm could not identify any qualifying dataset.  \
@@ -192,9 +200,7 @@ impl PathData {
     }
 
     pub fn source(&self) -> Option<PathBuf> {
-        let mount = self
-            .proximate_dataset(&GLOBAL_CONFIG.dataset_collection.map_of_datasets)
-            .ok()?;
+        let mount = self.proximate_dataset().ok()?;
 
         GLOBAL_CONFIG
             .dataset_collection

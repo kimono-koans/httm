@@ -58,7 +58,15 @@ impl VersionsMap {
     pub fn new(config: &Config, path_set: &[PathData]) -> HttmResult<VersionsMap> {
         let all_snap_versions: BTreeMap<PathData, Vec<PathData>> = path_set
             .par_iter()
-            .flat_map(ProximateDatasetAndOptAlts::new)
+            .filter_map(|pd| {
+                ProximateDatasetAndOptAlts::new(pd).ok().or({
+                    eprintln!(
+                        "WARN: Filesystem upon which the path resides is not supported: {:?}",
+                        pd.path_buf
+                    );
+                    None
+                })
+            })
             .map(|prox_opt_alts| {
                 // don't want to flatten this iter here b/c
                 // we want to keep these values with this key
@@ -175,9 +183,7 @@ impl<'a> ProximateDatasetAndOptAlts<'a> {
             .and_then(|map_of_aliases| pathdata.alias_dataset(map_of_aliases))
         {
             Some(alias_dataset) => alias_dataset,
-            None => {
-                pathdata.proximate_dataset(&GLOBAL_CONFIG.dataset_collection.map_of_datasets)?
-            }
+            None => pathdata.proximate_dataset()?,
         };
 
         let res: Self = match GLOBAL_CONFIG

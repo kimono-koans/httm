@@ -48,7 +48,15 @@ impl<'a> MountsForFiles<'a> {
         let map: BTreeMap<&PathData, Vec<PathData>> = GLOBAL_CONFIG
             .paths
             .par_iter()
-            .flat_map(ProximateDatasetAndOptAlts::new)
+            .filter_map(|pd| {
+                ProximateDatasetAndOptAlts::new(pd).ok().or({
+                    eprintln!(
+                        "WARN: Filesystem upon which the path resides is not supported: {:?}",
+                        pd.path_buf
+                    );
+                    None
+                })
+            })
             .map(|prox_opt_alts| {
                 let vec: Vec<PathData> = prox_opt_alts
                     .datasets_of_interest
@@ -58,7 +66,7 @@ impl<'a> MountsForFiles<'a> {
 
                 if prox_opt_alts.pathdata.metadata.is_none() && vec.is_empty() {
                     eprintln!(
-                        "Error: Input file may not exist: {:?}",
+                        "WARN: Input file may not exist: {:?}",
                         prox_opt_alts.pathdata.path_buf
                     );
                 }

@@ -166,8 +166,7 @@ pub fn copy_attributes(src: &Path, dst: &Path) -> HttmResult<()> {
 pub fn preserve_recursive(src: &Path, dst: &Path) -> HttmResult<()> {
     let dst_pathdata: PathData = dst.into();
 
-    let proximate_dataset_mount =
-        dst_pathdata.proximate_dataset(&GLOBAL_CONFIG.dataset_collection.map_of_datasets)?;
+    let proximate_dataset_mount = dst_pathdata.proximate_dataset()?;
 
     let relative_path_components_len = dst_pathdata
         .relative_path(proximate_dataset_mount)?
