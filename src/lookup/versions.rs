@@ -15,7 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::config::generate::{BulkExclusion, Config, LastSnapMode, ListSnapsOfType};
+use crate::config::generate::{Config, LastSnapMode, ListSnapsOfType};
 use crate::data::paths::{CompareVersionsContainer, PathData};
 use crate::library::results::{HttmError, HttmResult};
 use crate::GLOBAL_CONFIG;
@@ -90,7 +90,6 @@ impl VersionsMap {
             && versions_map
                 .keys()
                 .all(|pathdata| pathdata.metadata.is_none())
-            && !matches!(config.opt_bulk_exclusion, Some(BulkExclusion::NoSnap))
         {
             return Err(HttmError::new(
                 "httm could not find either a live copy or a snapshot copy of any specified file, so, umm, 🤷? Please try another file.",

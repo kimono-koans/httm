@@ -17,6 +17,7 @@
 
 use crate::config::generate::MountDisplay;
 use crate::data::paths::PathData;
+use crate::library::results::{HttmError, HttmResult};
 use crate::lookup::versions::ProximateDatasetAndOptAlts;
 use crate::GLOBAL_CONFIG;
 use rayon::prelude::*;
@@ -42,7 +43,7 @@ impl<'a> MountsForFiles<'a> {
         self.mount_display
     }
 
-    pub fn new(mount_display: &'a MountDisplay) -> Self {
+    pub fn new(mount_display: &'a MountDisplay) -> HttmResult<Self> {
         // we only check for phantom files in "mount for file" mode because
         // people should be able to search for deleted files in other modes
         let map: BTreeMap<&PathData, Vec<PathData>> = GLOBAL_CONFIG
@@ -75,9 +76,18 @@ impl<'a> MountsForFiles<'a> {
             })
             .collect();
 
-        Self {
+        if map.values().all(std::vec::Vec::is_empty)
+            && map.keys().all(|pathdata| pathdata.metadata.is_none())
+        {
+            return Err(HttmError::new(
+                "httm could not find either a mount for the path specified, so, umm, 🤷? Please try another path.",
+            )
+            .into());
+        }
+
+        Ok(Self {
             inner: map,
             mount_display,
-        }
+        })
     }
 }

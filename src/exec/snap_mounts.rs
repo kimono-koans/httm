@@ -30,7 +30,7 @@ pub struct SnapshotMounts;
 
 impl SnapshotMounts {
     pub fn exec(requested_snapshot_suffix: &str) -> HttmResult<()> {
-        let mounts_for_files: MountsForFiles = MountsForFiles::new(&MountDisplay::Target);
+        let mounts_for_files: MountsForFiles = MountsForFiles::new(&MountDisplay::Target)?;
 
         Self::snapshot_mounts(&mounts_for_files, requested_snapshot_suffix)
     }

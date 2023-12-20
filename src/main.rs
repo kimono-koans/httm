@@ -140,7 +140,7 @@ fn exec() -> HttmResult<()> {
             PruneSnaps::exec(versions_map, opt_filters)
         }
         ExecMode::MountsForFiles(mount_display) => {
-            let mounts_map = &MountsForFiles::new(mount_display);
+            let mounts_map = &MountsForFiles::new(mount_display)?;
             let printable_map: PrintAsMap = mounts_map.into();
             let output_buf = printable_map.to_string();
 
