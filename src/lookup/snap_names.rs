@@ -48,8 +48,7 @@ impl SnapNameMap {
         opt_filters: &Option<ListSnapsFilters>,
     ) -> HttmResult<Self> {
         let inner: BTreeMap<PathData, Vec<String>> = versions_map
-            .into_inner()
-            .into_par_iter()
+            .par_iter()
             .filter(|(pathdata, snaps)| {
                 if snaps.is_empty() {
                     let msg = format!(
@@ -81,7 +80,7 @@ impl SnapNameMap {
 
                 (pathdata, snap_names)
             })
-            .map(|(pathdata, mut vec_snaps)| {
+            .filter_map(|(pathdata, mut vec_snaps)| {
                 if let Some(mode_filter) = opt_filters {
                     if mode_filter.omit_num_snaps != 0 {
                         let opt_amt_less = vec_snaps.len().checked_sub(mode_filter.omit_num_snaps);
@@ -91,20 +90,19 @@ impl SnapNameMap {
                                 let _ = vec_snaps.split_off(amt_less);
                             }
                             None => {
-                                return Err(
-                                HttmError::new(
+                                eprintln!(
                                     "Number of snapshots requested to omit larger than number of snapshots.",
-                                )
-                                .into(),
-                                )
+                                );
+                                return None
+                                
                             }
                         }
                     }
                 }
 
-                Ok((pathdata, vec_snaps))
+                Some((pathdata.to_owned(), vec_snaps))
             })
-            .collect::<HttmResult<_>>()?;
+            .collect();
 
         if inner.is_empty() {
             return Err(

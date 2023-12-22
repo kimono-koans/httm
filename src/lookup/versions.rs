@@ -51,10 +51,6 @@ impl DerefMut for VersionsMap {
 }
 
 impl VersionsMap {
-    pub fn into_inner(self) -> BTreeMap<PathData, Vec<PathData>> {
-        self.inner
-    }
-
     pub fn new(config: &Config, path_set: &[PathData]) -> HttmResult<VersionsMap> {
         let all_snap_versions: BTreeMap<PathData, Vec<PathData>> = path_set
             .par_iter()
