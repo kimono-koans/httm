@@ -283,7 +283,9 @@ impl<'a> ZfsSnapPathGuard<'a> {
         let (dataset_path, relative_and_snap) =
             path_string.split_once(&format!("{ZFS_SNAPSHOT_DIRECTORY}/"))?;
 
-        let (snap_name, _relative) = relative_and_snap.split_once('/')?;
+        let (snap_name, _relative) = relative_and_snap
+            .split_once('/')
+            .unwrap_or_else(|| (relative_and_snap, ""));
 
         match GLOBAL_CONFIG
             .dataset_collection
