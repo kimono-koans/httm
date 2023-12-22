@@ -268,13 +268,17 @@ impl<'a> ZfsSnapPathGuard<'a> {
     pub fn relative_path(&self, proximate_dataset_mount: &Path) -> HttmResult<PathBuf> {
         let relative_path = self.inner.relative_path(proximate_dataset_mount)?;
         let snapshot_stripped_set = relative_path.strip_prefix(ZFS_SNAPSHOT_DIRECTORY)?;
-        if let Some(snapshot_name) = snapshot_stripped_set.components().next() {
-            let res = snapshot_stripped_set.strip_prefix(snapshot_name)?;
-            return Ok(res.to_path_buf());
-        }
 
-        let msg = format!("Path is not a snap path: {:?}", self.inner.path_buf);
-        Err(HttmError::new(&msg).into())
+        match snapshot_stripped_set.components().next() {
+            Some(snapshot_name) => {
+                let res = snapshot_stripped_set.strip_prefix(snapshot_name)?;
+                Ok(res.to_path_buf())
+            }
+            None => {
+                let msg = format!("Path is not a snap path: {:?}", self.inner.path_buf);
+                Err(HttmError::new(&msg).into())
+            }
+        }
     }
 
     pub fn source(&self) -> Option<String> {
