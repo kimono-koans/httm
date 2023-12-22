@@ -15,12 +15,12 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::config::generate::{ExecMode, MountDisplay, PrintMode};
+use crate::config::generate::{MountDisplay, PrintMode};
 use crate::data::paths::ZfsSnapPathGuard;
 use crate::display_versions::format::{NOT_SO_PRETTY_FIXED_WIDTH_PADDING, QUOTATION_MARKS_LEN};
 use crate::library::utility::delimiter;
 use crate::{MountsForFiles, SnapNameMap, VersionsMap, GLOBAL_CONFIG};
-use serde::ser::SerializeStruct;
+use serde::ser::SerializeMap;
 use serde::{Serialize, Serializer};
 use std::borrow::Cow;
 use std::collections::BTreeMap;
@@ -50,9 +50,10 @@ impl Serialize for PrintAsMap {
     where
         S: Serializer,
     {
-        let mut state = serializer.serialize_struct("PrintAsMap", 1)?;
-
-        state.serialize_field("inner", &self)?;
+        let mut state = serializer.serialize_map(Some(self.inner.len()))?;
+        self.inner
+            .iter()
+            .try_for_each(|(k, v)| state.serialize_entry(k, v))?;
         state.end()
     }
 }
@@ -139,29 +140,7 @@ impl From<&SnapNameMap> for PrintAsMap {
 impl std::string::ToString for PrintAsMap {
     fn to_string(&self) -> String {
         if GLOBAL_CONFIG.opt_json {
-            let json_string = self.to_json();
-
-            let res = match &GLOBAL_CONFIG.exec_mode {
-                ExecMode::BasicDisplay | ExecMode::Interactive(_) => {
-                    json_string.replace("\"inner\": ", "\"versions\": ")
-                }
-                ExecMode::MountsForFiles(_) => json_string.replace("\"inner\": ", "\"mounts\": "),
-                ExecMode::SnapsForFiles(_) => {
-                    json_string.replace("\"inner\": ", "\"snapshot_names\": ")
-                }
-                ExecMode::NonInteractiveRecursive(_)
-                | ExecMode::RollForward(_)
-                | ExecMode::NumVersions(_)
-                | ExecMode::Prune(_)
-                | ExecMode::SnapFileMount(_) => {
-                    unreachable!(
-                        "JSON print should not be available in the selected {:?} execution mode.",
-                        &GLOBAL_CONFIG.exec_mode
-                    );
-                }
-            };
-
-            return res;
+            return self.to_json();
         }
 
         let delimiter = delimiter();

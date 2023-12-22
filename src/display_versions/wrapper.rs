@@ -20,7 +20,7 @@ use crate::data::paths::PathData;
 use crate::display_map::format::PrintAsMap;
 use crate::library::utility::delimiter;
 use crate::lookup::versions::VersionsMap;
-use serde::ser::SerializeStruct;
+use serde::ser::SerializeMap;
 use serde::{Serialize, Serializer};
 use std::collections::BTreeMap;
 use std::ops::Deref;
@@ -91,9 +91,6 @@ impl<'a> Serialize for VersionsDisplayWrapper<'a> {
     where
         S: Serializer,
     {
-        // 3 is the number of fields in the struct.
-        let mut state = serializer.serialize_struct("VersionMap", 1)?;
-
         // add live file key to values if needed before serializing
         let new_map: BTreeMap<String, Vec<PathData>> = self
             .deref()
@@ -110,7 +107,10 @@ impl<'a> Serialize for VersionsDisplayWrapper<'a> {
             })
             .collect();
 
-        state.serialize_field("versions", &new_map)?;
+        let mut state = serializer.serialize_map(Some(new_map.len()))?;
+        new_map
+            .iter()
+            .try_for_each(|(k, v)| state.serialize_entry(k, v))?;
         state.end()
     }
 }
