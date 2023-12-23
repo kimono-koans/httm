@@ -69,8 +69,10 @@ impl SelectionCandidate {
 
     fn display_name(&self) -> Cow<str> {
         if let Some(requested_dir) = &GLOBAL_CONFIG.opt_requested_dir {
-            if requested_dir != &self.path {
-                if let Ok(stripped) = self.path.strip_prefix(requested_dir) {
+            if let Ok(stripped) = self.path.strip_prefix(requested_dir) {
+                if stripped.as_os_str().len() == 0 {
+                    return Cow::Borrowed("./");
+                } else {
                     return stripped.to_string_lossy();
                 }
             }
