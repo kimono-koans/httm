@@ -335,7 +335,7 @@ function ounce_of_prevention {
 		background_pid="$!"
 
 		# main exec
-		stdbuf -i0 -o0 -e0 strace -A -o "| stdbuf -i0 -o0 -e0 cat -u > $temp_pipe" -f -e open,openat -y --seccomp-bpf -- "$program_name" "$@"
+		stdbuf -i0 -o0 -e0 strace -A -o "| stdbuf -i0 -o0 -e0 cat -u > $temp_pipe" -f -e open,openat,openat2 -y --seccomp-bpf -- "$program_name" "$@"
 
 		# cleanup
 		wait "$background_pid"
