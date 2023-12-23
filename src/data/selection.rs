@@ -68,15 +68,15 @@ impl SelectionCandidate {
     }
 
     fn display_name(&self) -> Cow<str> {
-        self.path
-            .strip_prefix(
-                GLOBAL_CONFIG
-                    .opt_requested_dir
-                    .as_ref()
-                    .expect("requested_dir should never be None in Interactive Browse mode"),
-            )
-            .unwrap_or(&self.path)
-            .to_string_lossy()
+        if let Some(requested_dir) = &GLOBAL_CONFIG.opt_requested_dir {
+            if requested_dir != &self.path {
+                if let Ok(stripped) = self.path.strip_prefix(requested_dir) {
+                    return stripped.to_string_lossy();
+                }
+            }
+        }
+
+        self.path.to_string_lossy()
     }
 }
 
