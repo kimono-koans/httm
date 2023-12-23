@@ -21,7 +21,7 @@ use crate::display_versions::wrapper::VersionsDisplayWrapper;
 use crate::exec::recursive::PathProvenance;
 use crate::library::results::HttmResult;
 use crate::library::utility::paint_string;
-use crate::{Config, ExecMode, VersionsMap, GLOBAL_CONFIG};
+use crate::{Config, ExecMode, VersionsMap, GLOBAL_CONFIG, ROOT_DIRECTORY};
 use lscolors::Colorable;
 use once_cell::sync::Lazy;
 use skim::prelude::*;
@@ -77,7 +77,7 @@ impl SelectionCandidate {
                 .expect("requested_dir should never be None in Interactive Browse mode")
         });
 
-        // this works because we do not resolve symlinks when doing traversal
+        // this only works because we do not resolve symlinks when doing traversal
         match self.path.strip_prefix(*REQUESTED_DIR) {
             Ok(stripped) if stripped.as_os_str().len() == 0 => Cow::Borrowed("."),
             Ok(stripped) => stripped.to_string_lossy(),
