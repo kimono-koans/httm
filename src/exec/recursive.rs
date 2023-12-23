@@ -100,8 +100,17 @@ impl RecursiveMainLoop {
         // runs once for non-recursive but also "primes the pump"
         // for recursive to have items available, also only place an
         // error can stop execution
-        let mut queue: Vec<BasicDirEntryInfo> =
-            Self::enter_directory(requested_dir, opt_deleted_scope, skim_tx, hangup_rx)?;
+        let mut queue: Vec<BasicDirEntryInfo> = vec![BasicDirEntryInfo {
+            path: requested_dir.to_path_buf(),
+            file_type: Some(requested_dir.metadata()?.file_type()),
+        }];
+
+        queue.extend(Self::enter_directory(
+            requested_dir,
+            opt_deleted_scope,
+            skim_tx,
+            hangup_rx,
+        )?);
 
         if GLOBAL_CONFIG.opt_recursive {
             // condition kills iter when user has made a selection
