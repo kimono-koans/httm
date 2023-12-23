@@ -21,7 +21,7 @@ use crate::display_versions::wrapper::VersionsDisplayWrapper;
 use crate::exec::recursive::PathProvenance;
 use crate::library::results::HttmResult;
 use crate::library::utility::paint_string;
-use crate::{Config, ExecMode, VersionsMap, GLOBAL_CONFIG, ROOT_DIRECTORY};
+use crate::{Config, ExecMode, VersionsMap, GLOBAL_CONFIG};
 use lscolors::Colorable;
 use once_cell::sync::Lazy;
 use skim::prelude::*;
