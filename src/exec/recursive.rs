@@ -99,15 +99,24 @@ impl RecursiveMainLoop {
     ) -> HttmResult<()> {
         // the user may specify a dir for browsing,
         // but wants to restore that directory,
-        // so here we add the directory as a selection item
-        let rd_as_entry = BasicDirEntryInfo {
+        // so here we add the directory and its parent as a selection item
+        let dot_as_entry = BasicDirEntryInfo {
             path: requested_dir.to_path_buf(),
             file_type: Some(requested_dir.metadata()?.file_type()),
         };
- 
+
+        let double_dot_parent_as_entry = if let Some(parent) = requested_dir.parent() {
+            BasicDirEntryInfo {
+                path: parent.to_path_buf(),
+                file_type: Some(parent.metadata()?.file_type()),
+            }
+        } else {
+            dot_as_entry.clone()
+        };
+
         SharedRecursive::combine_and_send_entries(
             vec![],
-            &vec![rd_as_entry],
+            &vec![dot_as_entry, double_dot_parent_as_entry],
             PathProvenance::FromLiveDataset,
             requested_dir,
             skim_tx,

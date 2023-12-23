@@ -23,8 +23,10 @@ use crate::library::results::HttmResult;
 use crate::library::utility::paint_string;
 use crate::{Config, ExecMode, VersionsMap, GLOBAL_CONFIG};
 use lscolors::Colorable;
+use once_cell::sync::Lazy;
 use skim::prelude::*;
 use std::fs::FileType;
+use std::path::Path;
 use std::path::PathBuf;
 
 // these represent the items ready for selection and preview
@@ -68,17 +70,20 @@ impl SelectionCandidate {
     }
 
     fn display_name(&self) -> Cow<str> {
-        if let Some(requested_dir) = &GLOBAL_CONFIG.opt_requested_dir {
-            if let Ok(stripped) = self.path.strip_prefix(requested_dir) {
-                if stripped.as_os_str().len() == 0 {
-                    return Cow::Borrowed("./");
-                }
+        static REQUESTED_DIR: Lazy<&Path> = Lazy::new(|| {
+            GLOBAL_CONFIG
+                .opt_requested_dir
+                .as_ref()
+                .expect("requested_dir should never be None in Interactive Browse mode")
+        });
 
-                return stripped.to_string_lossy();
-            }
+        // this works because we do not resolve symlinks when doing traversal
+        match self.path.strip_prefix(*REQUESTED_DIR) {
+            Ok(stripped) if stripped.as_os_str().len() == 0 => Cow::Borrowed("."),
+            Ok(stripped) => stripped.to_string_lossy(),
+            Err(_) if Some(self.path.as_path()) == REQUESTED_DIR.parent() => Cow::Borrowed(".."),
+            _ => self.path.to_string_lossy(),
         }
-
-        self.path.to_string_lossy()
     }
 }
 
