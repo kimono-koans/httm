@@ -72,9 +72,9 @@ impl SelectionCandidate {
             if let Ok(stripped) = self.path.strip_prefix(requested_dir) {
                 if stripped.as_os_str().len() == 0 {
                     return Cow::Borrowed("./");
-                } else {
-                    return stripped.to_string_lossy();
                 }
+
+                return stripped.to_string_lossy();
             }
         }
 
