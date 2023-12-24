@@ -82,7 +82,7 @@ impl SelectionCandidate {
             Ok(stripped) if stripped.as_os_str().len() == 0 => Cow::Borrowed("."),
             Ok(stripped) => stripped.to_string_lossy(),
             Err(_) if Some(self.path.as_path()) == REQUESTED_DIR.parent() => Cow::Borrowed(".."),
-            _ => self.path.to_string_lossy(),
+            Err(_) => self.path.to_string_lossy(),
         }
     }
 }
