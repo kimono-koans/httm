@@ -271,7 +271,7 @@ function ounce_of_prevention {
 	local program_name=""
 	local background=false
 	local trace=false
-	local direct=direct
+	local direct=false
 	local -x snapshot_suffix="ounceSnapFileMount"
 	local -x utc=""
 
