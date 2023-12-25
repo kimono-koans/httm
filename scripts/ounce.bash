@@ -90,7 +90,7 @@ function print_err_exit {
 }
 
 function log_info {
-	printf "%s\n" "$*" 2>&1 | /usr/bin/logger -t ounce &
+	printf "%s\n" "$*" 2>&1 | /usr/bin/logger -t ounce
 }
 
 function prep_trace {
@@ -151,15 +151,15 @@ function take_snap {
 
 	# mask all the errors from the first run without privileges,
 	# let the sudo run show errors
-	[[ -z "$utc" ]] || httm "$utc" --snap="$suffix" $filenames 2>&1 | grep -v "dataset already exists" | /usr/bin/logger -t ounce &
-	[[ -n "$utc" ]] || httm --snap="$suffix" $filenames 2>&1 | grep -v "dataset already exists" | /usr/bin/logger -t ounce &
+	[[ -z "$utc" ]] || httm "$utc" --snap="$suffix" $filenames 2>&1 | grep -v "dataset already exists" | /usr/bin/logger -t ounce
+	[[ -n "$utc" ]] || httm --snap="$suffix" $filenames 2>&1 | grep -v "dataset already exists" | /usr/bin/logger -t ounce
 
 	if [[ $? -ne 0 ]]; then
 		local sudo_program
 		sudo_program="$(prep_sudo)"
 
-		[[ -z "$utc" ]] || httm "$utc" --snap="$suffix" $filenames 2>&1 | grep -v "dataset already exists" | /usr/bin/logger -t ounce &
-		[[ -n "$utc" ]] || httm --snap="$suffix" $filenames 2>&1 | grep -v "dataset already exists" | /usr/bin/logger -t ounce &
+		[[ -z "$utc" ]] || httm "$utc" --snap="$suffix" $filenames 2>&1 | grep -v "dataset already exists" | /usr/bin/logger -t ounce
+		[[ -n "$utc" ]] || httm --snap="$suffix" $filenames 2>&1 | grep -v "dataset already exists" | /usr/bin/logger -t ounce
 
 		[[ $? -eq 0 ]] ||
 			print_err_exit "'ounce' failed with a 'httm'/'zfs' snapshot error.  Check you have the correct permissions to snapshot."
@@ -357,10 +357,9 @@ function ounce_of_prevention {
 		mkfifo "$temp_pipe"
 
 		# exec loop waiting for strace input background
+		log_info "ounce in trace mode, invoked with: $program_name"
 		exec_trace "$temp_pipe" &
 		background_pid="$!"
-
-		log_info "ounce in trace mode, invoked with: $program_name"
 
 		# main exec
 		stdbuf -i0 -o0 -e0 strace -A -o "| stdbuf -i0 -o0 -e0 cat -u > $temp_pipe" -f -e open,openat,openat2 -y --seccomp-bpf -- "$program_name" "$@"
@@ -370,10 +369,9 @@ function ounce_of_prevention {
 	elif $background; then
 		local background_pid
 
+		log_info "ounce in background mode, invoked with: $program_name"
 		exec_args "$@" &
 		background_pid="$!"
-
-		log_info "ounce in background mode, invoked with: $program_name"
 
 		"$program_name" "$@"
 
@@ -384,8 +382,8 @@ function ounce_of_prevention {
 	else
 		# check the program name is executable
 		[[ -x "$program_name" ]] || print_err_exit "'ounce' requires a valid executable name as the first argument."
-		exec_args "$@"
 		log_info "ounce in wrapper mode, invoked with: $program_name"
+		exec_args "$@"
 		"$program_name" "$@"
 	fi
 }
