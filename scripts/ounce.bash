@@ -268,7 +268,7 @@ function exec_args {
 		fi
 
 		if [[ ! -f "$canonical_path" && ! -d "$canonical_path" && ! -L "$canonical_path" ]]; then
-			log_info "$canonical_path is not valid for snapshot"
+			log_info "$canonical_path is not a valid for an ounce snapshot"
 			continue
 		fi
 
