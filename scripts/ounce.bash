@@ -151,15 +151,15 @@ function take_snap {
 
 	# mask all the errors from the first run without privileges,
 	# let the sudo run show errors
-	[[ -z "$utc" ]] || httm "$utc" --snap="$suffix" $filenames 2>&1 | /usr/bin/logger -t ounce &
-	[[ -n "$utc" ]] || httm --snap="$suffix" $filenames 2>&1 | /usr/bin/logger -t ounce &
+	[[ -z "$utc" ]] || httm "$utc" --snap="$suffix" $filenames 2>&1 | grep -v "dataset already exists" | /usr/bin/logger -t ounce &
+	[[ -n "$utc" ]] || httm --snap="$suffix" $filenames 2>&1 | grep -v "dataset already exists" | /usr/bin/logger -t ounce &
 
 	if [[ $? -ne 0 ]]; then
 		local sudo_program
 		sudo_program="$(prep_sudo)"
 
-		[[ -z "$utc" ]] || httm "$utc" --snap="$suffix" $filenames 2>&1 | /usr/bin/logger -t ounce &
-		[[ -n "$utc" ]] || httm --snap="$suffix" $filenames 2>&1 | /usr/bin/logger -t ounce &
+		[[ -z "$utc" ]] || httm "$utc" --snap="$suffix" $filenames 2>&1 | grep -v "dataset already exists" | /usr/bin/logger -t ounce &
+		[[ -n "$utc" ]] || httm --snap="$suffix" $filenames 2>&1 | grep -v "dataset already exists" | /usr/bin/logger -t ounce &
 
 		[[ $? -eq 0 ]] ||
 			print_err_exit "'ounce' failed with a 'httm'/'zfs' snapshot error.  Check you have the correct permissions to snapshot."
@@ -173,7 +173,6 @@ function needs_snap {
 	filenames="$1"
 
 	uncut_res="$( httm --last-snap=no-ditto-inclusive --not-so-pretty $filenames 2>/dev/null)"
-	#[[ $? -eq 0 ]] || print_err_exit "'ounce' failed with a 'httm' lookup error."
 	[[ $? -eq 0 ]] || uncut_res=""
 
 	cut -f1 -d: <<<"$uncut_res"
@@ -216,14 +215,31 @@ function get_pools {
 
 function exec_trace {
 	local temp_pipe="$1"
+	local -a filenames_array=()
 
 	stdbuf -i0 -o0 -e0 cat -u "$temp_pipe" |
 		stdbuf -i0 -o0 -e0 cut -f 2 -d$'\"' |
 		stdbuf -i0 -o0 -e0 grep --line-buffered "\S" |
 		stdbuf -i0 -o0 -e0 grep --line-buffered -v "+++" |
 		while read -r file; do
-			files_need_snap="$(needs_snap "$file")"
-			[[ -z "$files_need_snap" ]] || take_snap "$files_need_snap" "$snapshot_suffix" "$utc"
+			# omits argument flags
+			[[ $file != -* && $file != --* ]] || continue
+			canonical_path="$(
+				readlink -e "$file" 2>/dev/null
+				exit 0
+			)"
+
+			# 1) is file, symlink or dir with 2) write permissions set? (httm will resolve links)
+			[[ -n "$canonical_path" ]] || continue
+			[[ -f "$canonical_path" || -d "$canonical_path" || -L "$canonical_path" ]] || continue
+
+			# now, httm will dynamically determine the location of
+			# the file's ZFS dataset and snapshot that mount
+			files_need_snap="$(needs_snap "$canonical_path")"
+			if [[ -n "$files_need_snap" ]]; then
+				log_info "Files which needed snapshot: $files_need_snap"
+				take_snap "$files_need_snap" "$snapshot_suffix" "$utc"
+			fi
 		done
 }
 
