@@ -351,7 +351,7 @@ function ounce_of_prevention {
 	elif $direct; then
 		exec_args "$@" && printf "%s\n" "ounce successfully preserved all unsnapped changes." 1>&2
 	else
-		exec_args "$@" && printf "%s\n" "ounce successfully preserved all unsnapped changes." 1>&2
+		exec_args "$@"
 		"$program_name" "$@"
 	fi
 }
