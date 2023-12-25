@@ -89,6 +89,10 @@ function print_err_exit {
 	exit 1
 }
 
+function log_info {
+	printf "%s\n" "$*" 2>&1 | /usr/bin/logger -t ounce &
+}
+
 function prep_trace {
 	[[ "$(uname)" == "Linux" ]] || print_err_exit "ounce --trace mode is only available on Linux.  Sorry.  PRs welcome."
 	[[ -n "$(
@@ -147,15 +151,15 @@ function take_snap {
 
 	# mask all the errors from the first run without privileges,
 	# let the sudo run show errors
-	[[ -z "$utc" ]] || httm "$utc" --snap="$suffix" $filenames 1>/dev/null 2>/dev/null
-	[[ -n "$utc" ]] || httm --snap="$suffix" $filenames 1>/dev/null 2>/dev/null
+	[[ -z "$utc" ]] || httm "$utc" --snap="$suffix" $filenames 2>&1 | /usr/bin/logger -t ounce &
+	[[ -n "$utc" ]] || httm --snap="$suffix" $filenames 2>&1 | /usr/bin/logger -t ounce &
 
 	if [[ $? -ne 0 ]]; then
 		local sudo_program
 		sudo_program="$(prep_sudo)"
 
-		[[ -z "$utc" ]] || httm "$utc" --snap="$suffix" $filenames 1>/dev/null 2>/dev/null
-		[[ -n "$utc" ]] || httm --snap="$suffix" $filenames 1>/dev/null 2>/dev/null
+		[[ -z "$utc" ]] || httm "$utc" --snap="$suffix" $filenames 2>&1 | /usr/bin/logger -t ounce &
+		[[ -n "$utc" ]] || httm --snap="$suffix" $filenames 2>&1 | /usr/bin/logger -t ounce &
 
 		[[ $? -eq 0 ]] ||
 			print_err_exit "'ounce' failed with a 'httm'/'zfs' snapshot error.  Check you have the correct permissions to snapshot."
@@ -242,9 +246,17 @@ function exec_args {
 		)"
 
 		# 1) is file, symlink or dir with 2) write permissions set? (httm will resolve links)
-		[[ -z "$canonical_path" ]] ||
-			[[ ! -f "$canonical_path" && ! -d "$canonical_path" && ! -L "$canonical_path" ]] ||
-			[[ ! -w "$canonical_path" ]] || filenames_array+=("$canonical_path")
+		if [[ -z "$canonical_path" ]]; then
+			log_info "Path given is empty"
+			continue
+		fi
+
+		if [[ ! -f "$canonical_path" && ! -d "$canonical_path" && ! -L "$canonical_path" ]]; then
+			log_info "$canonical_path is not valid for snapshot"
+			continue
+		fi
+
+		filenames_array+=("$canonical_path")
 	done
 
 	# check if filenames array is not empty
@@ -252,6 +264,7 @@ function exec_args {
 
 	filenames_string="$( echo ${filenames_array[@]} )"
 	[[ -n "$filenames_string" ]] || print_err_exit "bash could not covert file names from array to string."
+	log_info "Files which need snapshot: $filenames_string"
 
 	# now, httm will dynamically determine the location of
 	# the file's ZFS dataset and snapshot that mount
@@ -318,9 +331,6 @@ function ounce_of_prevention {
 		fi
 	done
 
-	# check the program name is executable
-	[[ -x "$program_name" ]] || [[ $direct ]] || print_err_exit "'ounce' requires a valid executable name as the first argument."
-
 	# start search and snap, then execute original arguments
 	if $trace; then
 		# set local vars
@@ -349,8 +359,10 @@ function ounce_of_prevention {
 
 		wait "$background_pid"
 	elif $direct; then
-		exec_args "$@" && printf "%s\n" "ounce successfully preserved all unsnapped changes." 1>&2
+		exec_args "$@"
 	else
+		# check the program name is executable
+		[[ -x "$program_name" ]] || print_err_exit "'ounce' requires a valid executable name as the first argument."
 		exec_args "$@"
 		"$program_name" "$@"
 	fi
