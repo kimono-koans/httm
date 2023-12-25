@@ -360,6 +360,8 @@ function ounce_of_prevention {
 		exec_trace "$temp_pipe" &
 		background_pid="$!"
 
+		log_info "ounce in trace mode, invoked with: $program_name"
+
 		# main exec
 		stdbuf -i0 -o0 -e0 strace -A -o "| stdbuf -i0 -o0 -e0 cat -u > $temp_pipe" -f -e open,openat,openat2 -y --seccomp-bpf -- "$program_name" "$@"
 
@@ -371,15 +373,19 @@ function ounce_of_prevention {
 		exec_args "$@" &
 		background_pid="$!"
 
+		log_info "ounce in background mode, invoked with: $program_name"
+
 		"$program_name" "$@"
 
 		wait "$background_pid"
 	elif $direct; then
+		log_info "ounce in direct mode"
 		exec_args "$@"
 	else
 		# check the program name is executable
 		[[ -x "$program_name" ]] || print_err_exit "'ounce' requires a valid executable name as the first argument."
 		exec_args "$@"
+		log_info "ounce in wrapper mode, invoked with: $program_name"
 		"$program_name" "$@"
 	fi
 }
