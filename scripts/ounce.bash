@@ -237,7 +237,7 @@ function exec_trace {
 			# the file's ZFS dataset and snapshot that mount
 			files_need_snap="$(needs_snap "$canonical_path")"
 			if [[ -n "$files_need_snap" ]]; then
-				log_info "Files which needed snapshot: $files_need_snap"
+				log_info "File which needed snapshot: $files_need_snap"
 				take_snap "$files_need_snap" "$snapshot_suffix" "$utc"
 			fi
 		done
@@ -280,11 +280,11 @@ function exec_args {
 
 	filenames_string="$( echo ${filenames_array[@]} )"
 	[[ -n "$filenames_string" ]] || print_err_exit "bash could not covert file names from array to string."
-	log_info "Files which need snapshot: $filenames_string"
-
+	
 	# now, httm will dynamically determine the location of
 	# the file's ZFS dataset and snapshot that mount
 	files_need_snap="$(needs_snap "$filenames_string")"
+	log_info "Files which need snapshot: $( echo $files_need_snap | tr '\n' ' ')"
 	[[ -z "$files_need_snap" ]] || take_snap "$files_need_snap" "$snapshot_suffix" "$utc"
 }
 
