@@ -135,7 +135,7 @@ show_single_change() {
 	local mode="$2"
 
 	[[ "$mode" != "select" ]] || previous_version="$(httm --select --raw "$current_version")"
-	[[ "$mode" != "last" ]] || previous_version="$(httm --omit-ditto --last-snap --raw "$current_version")"
+	[[ "$mode" != "last" ]] || previous_version="$(httm --last-snap=no-ditto --raw "$current_version")"
 
 	display_header "$current_version"
 	check_not_identical "$previous_version" "$current_version"
