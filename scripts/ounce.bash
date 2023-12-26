@@ -229,9 +229,12 @@ function exec_trace {
 				exit 0
 			)"
 
-			# 1) is file, symlink or dir with 2) write permissions set? (httm will resolve links)
+			# 1) is empty, dne 2) is file, symlink or dir
 			[[ -n "$canonical_path" ]] || continue
 			[[ -f "$canonical_path" || -d "$canonical_path" || -L "$canonical_path" ]] || continue
+
+			# 3) is file newly created?
+			[[ -n "$( find "$canonical_path" -not -newerct '-5 seconds' )" ]] || continue
 
 			# now, httm will dynamically determine the location of
 			# the file's ZFS dataset and snapshot that mount
