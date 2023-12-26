@@ -263,7 +263,7 @@ function exec_args {
 
 		# 1) is file, symlink or dir with 2) write permissions set? (httm will resolve links)
 		if [[ -z "$canonical_path" ]]; then
-			log_info "Path given is empty"
+			log_info "Could not determine canonical path for: $a"
 			continue
 		fi
 
