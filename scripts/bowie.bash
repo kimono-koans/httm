@@ -20,6 +20,8 @@
 set -euf -o pipefail
 #set -x
 
+declare _alt_bowie_command=""
+
 print_version() {
 	printf "\
 bowie $(httm --version | cut -f2 -d' ')
@@ -49,6 +51,9 @@ OPTIONS:
 
 	--direct
 		Print difference with $bowie formatting.
+
+	--command
+		Print differences piped through a command instead only using file contents.
 
 	--help:
 		Display this dialog.
@@ -171,7 +176,12 @@ display_diff() {
 	local previous_version="$1"
 	local current_version="$2"
 
-	if [[ -n "$previous_version" ]]; then
+	if [[ -n "$_alt_bowie_command" && -n "$previous_version" ]]; then
+		# print that current version and previous version differ, or are the same
+		(diff --color=always -q <( "$_alt_bowie_command" "$previous_version" ) <( "$_alt_bowie_command" "$current_version" ) || true)
+		# print the difference between that current version and previous_version
+		(diff --color=always -T <( "$_alt_bowie_command" "$previous_version" ) <( "$_alt_bowie_command" "$current_version" ) || true)
+	elif [[ -n "$previous_version" ]]; then
 		# print that current version and previous version differ, or are the same
 		(diff --color=always -q "$previous_version" "$current_version" || true)
 		# print the difference between that current version and previous_version
@@ -192,28 +202,36 @@ exec_main() {
 	[[ "$1" != "-h" && "$1" != "--help" ]] || print_usage
 	[[ "$1" != "-V" && "$1" != "--version" ]] || print_version
 
-	if [[ $1 == "--all" ]]; then
-		mode="all"
-		shift
-	elif [[ $1 == "--select" ]]; then
-		mode="select"
-		shift
-	elif [[ $1 == "--direct" ]]; then
-		mode="direct"
-		shift
-	elif [[ $1 == "--last" ]]; then
-		shift
-	fi
-
-	for a; do
-		[[ "$a" != -* && "$a" != --* ]] ||
-			print_err_exit "Option specified either was not expected or is not permitted in this context.  Quitting."
+	while [[ $# -ge 1 ]]; do
+		if [[ $1 == "--all" ]]; then
+			mode="all"
+			shift
+		elif [[ $1 == "--select" ]]; then
+			mode="select"
+			shift
+		elif [[ $1 == "--direct" ]]; then
+			mode="direct"
+			shift
+		elif [[ $1 == "--command" ]]; then
+			shift
+			[[ $# -ge 1 ]] || print_err_exit "--command is empty"
+			program_name="$(
+				command -v "$1"
+				exit 0
+			)"
+			_alt_bowie_command="$program_name"
+			shift
+		elif [[ $1 == "--last" ]]; then
+			shift
+		else
+			break
+		fi
 	done
 
 	[[ ${#@} -ne 0 ]] || print_err_exit "No filenames specified.  Quitting."
 
 	if [[ "$mode" == "direct" ]]; then
-		[[ -n "$1" ]] || print_err_exit "First required file name is unset.  Quitting." 
+		[[ -n "$1" ]] || print_err_exit "First required file name is unset.  Quitting."
 		[[ -n "$2" ]] || print_err_exit "Second required file name is unset.  Quitting."
 
 		local previous_version="$( readlink -e "$1" 2>/dev/null )"
@@ -233,17 +251,17 @@ exec_main() {
 		fi
 
 		local canonical_path="$( readlink -e "$a")"
-		
+
 		if [[ -z "${canonical_path}" ]]; then
 			print_err "Could not determine canonical path for: "$a"."
 			continue
 		fi
-		
+
 		if [[ ! -f "${canonical_path}" ]]; then
 			print_err "Skipping path which is not a file: "$a"."
 			continue
 		fi
-		
+
 		if [[ "$mode" == "all" ]]; then
 			show_all_changes "$canonical_path"
 		elif [[ "$mode" == "select" ]]; then
