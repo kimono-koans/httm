@@ -217,8 +217,9 @@ function exec_trace {
 	local temp_pipe="$1"
 	local -a filenames_array=()
 
-	stdbuf -i0 -o0 -e0 cat -u "$temp_pipe" |
+	stdbuf -i0 -o0 -e0 cat -u "$temp_pipe" |	
 		stdbuf -i0 -o0 -e0 cut -f 2 -d$'\"' |
+		stdbuf -i0 -o0 -e0 grep -v "O_RDONLY" |
 		stdbuf -i0 -o0 -e0 grep --line-buffered "\S" |
 		stdbuf -i0 -o0 -e0 grep --line-buffered -v "+++" |
 		while read -r file; do
