@@ -219,10 +219,8 @@ function exec_trace {
 
 	stdbuf -i0 -o0 -e0 cat -u "$temp_pipe" |	
 		stdbuf -i0 -o0 -e0 cut -f 2 -d$'\"' |
-		stdbuf -i0 -o0 -e0 grep -v "O_RDONLY" |
-		stdbuf -i0 -o0 -e0 grep -v "O_TMPFILE" |
 		stdbuf -i0 -o0 -e0 grep --line-buffered "\S" |
-		stdbuf -i0 -o0 -e0 grep --line-buffered -v "+++" |
+		stdbuf -i0 -o0 -e0 grep --line-buffered -v -e "+++" -e "O_TMPFILE" -e "O_RDONLY" |
 		while read -r file; do
 			# omits argument flags
 			[[ $file != -* && $file != --* ]] || continue
