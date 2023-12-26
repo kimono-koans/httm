@@ -284,7 +284,7 @@ function exec_args {
 	# now, httm will dynamically determine the location of
 	# the file's ZFS dataset and snapshot that mount
 	files_need_snap="$(needs_snap "$filenames_string")"
-	log_info "Files which need snapshot: $( echo $files_need_snap | tr '\n' ' ')"
+	[[ -z "$files_need_snap" ]] || log_info "Files which need snapshot: $( echo $files_need_snap | tr '\n' ' ')"
 	[[ -z "$files_need_snap" ]] || take_snap "$files_need_snap" "$snapshot_suffix" "$utc"
 }
 
