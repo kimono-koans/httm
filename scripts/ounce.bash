@@ -357,7 +357,7 @@ function ounce_of_prevention {
 		mkfifo "$temp_pipe"
 
 		# exec loop waiting for strace input background
-		log_info "ounce in trace mode, invoked with: $program_name"
+		log_info "ounce session opened in trace mode with: $program_name"
 		exec_trace "$temp_pipe" &
 		background_pid="$!"
 
@@ -369,7 +369,7 @@ function ounce_of_prevention {
 	elif $background; then
 		local background_pid
 
-		log_info "ounce in background mode, invoked with: $program_name"
+		log_info "ounce session opened in background mode with: $program_name"
 		exec_args "$@" &
 		background_pid="$!"
 
@@ -377,15 +377,17 @@ function ounce_of_prevention {
 
 		wait "$background_pid"
 	elif $direct; then
-		log_info "ounce in direct mode"
+		log_info "ounce session opened in direct mode"
 		exec_args "$@"
 	else
 		# check the program name is executable
 		[[ -x "$program_name" ]] || print_err_exit "'ounce' requires a valid executable name as the first argument."
-		log_info "ounce in wrapper mode, invoked with: $program_name"
+		log_info "ounce session opened in wrapper mode with: $program_name"
 		exec_args "$@"
 		"$program_name" "$@"
 	fi
+
+	log_info "ounce session closed"
 }
 
 ounce_of_prevention "$@"
