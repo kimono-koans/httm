@@ -239,10 +239,9 @@ function exec_trace {
 			# now, httm will dynamically determine the location of
 			# the file's ZFS dataset and snapshot that mount
 			files_need_snap="$(needs_snap "$canonical_path")"
-			if [[ -n "$files_need_snap" ]]; then
-				log_info "File which needed snapshot: $files_need_snap"
-				take_snap "$files_need_snap" "$snapshot_suffix" "$utc"
-			fi
+			[[ -n "$files_need_snap" ]] || continue
+			log_info "File which needed snapshot: $files_need_snap"
+			take_snap "$files_need_snap" "$snapshot_suffix" "$utc"
 		done
 }
 
