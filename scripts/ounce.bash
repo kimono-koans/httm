@@ -103,6 +103,10 @@ function prep_trace {
 		command -v uuidgen
 		exit 0
 	)" ]] || print_err_exit "'uuidgen' is required to execute 'ounce' in trace mode.  Please check that 'uuidgen' is in your path."
+	[[ -n "$(
+		command -v awk
+		exit 0
+	)" ]] || print_err_exit "'awk' is required to execute 'ounce' in trace mode.  Please check that 'awk' is in your path."
 }
 
 function prep_exec {
@@ -215,15 +219,11 @@ function get_pools {
 
 function exec_trace {
 	local temp_pipe="$1"
-	local -a filenames_array=()
 
-	stdbuf -i0 -o0 -e0 cat -u "$temp_pipe" |	
-		stdbuf -i0 -o0 -e0 cut -f 2 -d$'\"' |
-		stdbuf -i0 -o0 -e0 grep --line-buffered "\S" |
-		stdbuf -i0 -o0 -e0 grep --line-buffered -v -e "+++" -e "O_TMPFILE" |
+	stdbuf -i0 -o0 -e0 cat -u "$temp_pipe" |
+		stdbuf -i0 -o0 -e0 grep --line-buffered -v -e '+++' -e 'O_RDONLY' -e 'O_TMPFILE' -e '/dev/pts' -e 'socket:' |
+		stdbuf -i0 -o0 -e0 awk -F'[() \"<>]' '$2 ~ /write/ { print $4 } $2 ~ /open/ { print $7 }' |
 		while read -r file; do
-			# omits argument flags
-			[[ $file != -* && $file != --* ]] || continue
 			canonical_path="$(
 				readlink -e "$file" 2>/dev/null
 				exit 0
@@ -233,8 +233,9 @@ function exec_trace {
 			[[ -n "$canonical_path" ]] || continue
 			[[ -f "$canonical_path" || -d "$canonical_path" || -L "$canonical_path" ]] || continue
 
-			# 3) is file newly created?
-			[[ -n "$( find "$canonical_path" -not -newerct '-5 seconds' )" ]] || continue
+			# 3) is file a newly created tmp file? 
+			[[ -n "$( find "$canonical_path" -not -newerct '-5 seconds' )" ]] || \
+			[[ "$canonical_path" != *.swp && "$canonical_path" != *~ && "$canonical_path" != *.tmp ]] || continue
 
 			# now, httm will dynamically determine the location of
 			# the file's ZFS dataset and snapshot that mount
@@ -364,7 +365,7 @@ function ounce_of_prevention {
 		background_pid="$!"
 
 		# main exec
-		stdbuf -i0 -o0 -e0 strace -A -o "| stdbuf -i0 -o0 -e0 cat -u > $temp_pipe" -f -e open,openat,openat2 -y --seccomp-bpf -- "$program_name" "$@"
+		stdbuf -i0 -o0 -e0 strace -A -o "| stdbuf -i0 -o0 -e0 cat -u > $temp_pipe" -f -e open,openat,openat2,write,writev -y --seccomp-bpf -- "$program_name" "$@"
 
 		# cleanup
 		wait "$background_pid"
