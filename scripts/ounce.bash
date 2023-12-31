@@ -222,7 +222,7 @@ function exec_trace {
 
 	stdbuf -i0 -o0 -e0 cat -u "$temp_pipe" |
 		stdbuf -i0 -o0 -e0 grep --line-buffered -v -e 'O_TMPFILE' -e '/dev/pts' -e 'socket:' |
-		stdbuf -i0 -o0 -e0 awk -F'[() \"<>]' '$2 ~ /write/ { print $4 } $2 ~ /open/ { print $7 }' |
+		stdbuf -i0 -o0 -e0 awk -F'[() \"<>]' '$2 ~ /fsync/ { print $4 } $2 ~ /open/ { print $7 }' |
 		while read -r file; do
 			canonical_path="$(
 				readlink -e "$file" 2>/dev/null
@@ -365,7 +365,7 @@ function ounce_of_prevention {
 		background_pid="$!"
 
 		# main exec
-		stdbuf -i0 -o0 -e0 strace -A -o "| stdbuf -i0 -o0 -e0 cat -u > $temp_pipe" -f -e open,openat,openat2,write,writev -y --seccomp-bpf -- "$program_name" "$@"
+		stdbuf -i0 -o0 -e0 strace -A -o "| stdbuf -i0 -o0 -e0 cat -u > $temp_pipe" -f -e open,openat,openat2,fsync -y --seccomp-bpf -- "$program_name" "$@"
 
 		# cleanup
 		wait "$background_pid"
