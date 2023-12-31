@@ -221,7 +221,7 @@ function exec_trace {
 	local temp_pipe="$1"
 
 	stdbuf -i0 -o0 -e0 cat -u "$temp_pipe" |
-		stdbuf -i0 -o0 -e0 grep --line-buffered -v -e '+++' -e 'O_RDONLY' -e 'O_TMPFILE' -e '/dev/pts' -e 'socket:' |
+		stdbuf -i0 -o0 -e0 grep --line-buffered -v -e 'O_RDONLY' -e 'O_TMPFILE' -e '/dev/pts' -e 'socket:' |
 		stdbuf -i0 -o0 -e0 awk -F'[() \"<>]' '$2 ~ /write/ { print $4 } $2 ~ /open/ { print $7 }' |
 		while read -r file; do
 			canonical_path="$(
