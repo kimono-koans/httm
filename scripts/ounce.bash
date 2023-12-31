@@ -235,7 +235,7 @@ function exec_trace {
 
 			# 3) is file a newly created tmp file? 
 			[[ -n "$( find "$canonical_path" -not -newerct '-5 seconds' )" ]] || \
-			[[ "$canonical_path" != *.swp && "$canonical_path" != *~ && "$canonical_path" != *.tmp ]] || continue
+			[[ "$canonical_path" != *.swp && "$canonical_path" != ~* && "$canonical_path" != *~ && "$canonical_path" != *.tmp ]] || continue
 
 			# now, httm will dynamically determine the location of
 			# the file's ZFS dataset and snapshot that mount
