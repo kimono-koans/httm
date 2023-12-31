@@ -37,26 +37,31 @@ function print_usage {
 	printf "\
 $ounce is a wrapper script for $httm which snapshots the datasets of files opened by another programs.
 
-$ounce only snapshots datasets when you have file changes outstanding, uncommitted to a snapshot already,
-and only when those files are given as arguments to the target executable at the command line (except in --trace
-mode).
+$ounce only snapshots datasets when you have file changes outstanding, uncommitted to a snapshot already
+(except in --trace mode).
+
+When $ounce is invoked with only a target executable and its arguments, including paths, and no additional options,
+$ounce will perform a snapshot check on those paths are given as arguments to the target executable, and possibly wait
+for a snapshot, before proceeding with execution of the target executable.
 
 USAGE:
-	ounce [OPTIONS]... [target executable] [argument1 argument2...]
+	ounce [target executable] [argument1 argument2...] [path1 path2...]
+	ounce [OPTIONS]... [target executable] [argument1 argument2...] [path1 path2...]
 	ounce [--direct] [path1 path2...]
 	ounce [--give-priv]
 	ounce [--help]
 
 OPTIONS:
 	--background:
-		Run the $ounce target executable in the background.  Safest for non-immediate file modifications
-		(perhaps for use with your \$EDITOR, but not 'rm').  $ounce is fast-ish (for a shell script)
-		but the time for ZFS to dynamically mount your snapshots will swamp the actual time to search snapshots
-		and execute any snapshot.
+		Run the snapshot check in the background (because it's faster).  Most practical for non-immediate file 
+		modifications (perhaps for use with your \$EDITOR, but not 'rm').  $ounce is fast-ish (for a shell script)
+		but the time for ZFS to dynamically mount your snapshots will swamp the actual time to search 
+		snapshots and execute any snapshot.
 
 	--trace:
-		Trace file 'open' and 'openat' calls of the $ounce target executable using \"strace\" and eBPF/seccomp to
-		determine relevant input files.
+		Trace file 'open','openat','openat2', and 'fsync' calls of the $ounce target executable using \"strace\"
+		and eBPF/seccomp to determine when to trigger a snapshot check (because it's faster and more accurate).
+		Most practical for non-immediate file modifications (perhaps for use with your \$EDITOR, but not 'rm').
 
 	--direct:
 		Execute directly on path/s instead of wrapping a target executable.
