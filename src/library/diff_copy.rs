@@ -276,12 +276,10 @@ impl DiffCopy {
     ) -> HttmResult<usize> {
         #[cfg(any(target_os = "linux", target_os = "freebsd"))]
         {
-            use nix::fcntl::copy_file_range;
-
             let mut src_mutable_offset = offset;
             let mut dst_mutable_offset = offset;
 
-            let res = copy_file_range(
+            let res = nix::fcntl::copy_file_range(
                 src_file_fd,
                 Some(&mut src_mutable_offset),
                 dst_file_fd,
