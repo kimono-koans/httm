@@ -115,7 +115,7 @@ impl DiffCopy {
         {
             Self::write_loop(&src_file, &dst_file, dst_exists)?
         } else {
-            match Self::httm_copy_file_range(src_fd, dst_fd, 0 as i64, src_len as usize) {
+            match Self::copy_file_range(src_fd, dst_fd, 0 as i64, src_len as usize) {
                 Ok(amt_written) if amt_written as u64 == src_len => {
                     if GLOBAL_CONFIG.opt_debug {
                         eprintln!("DEBUG: copy_file_range call successful.");
@@ -268,7 +268,7 @@ impl DiffCopy {
     }
 
     #[allow(unreachable_code, unused_variables)]
-    fn httm_copy_file_range(
+    fn copy_file_range(
         src_file_fd: BorrowedFd,
         dst_file_fd: BorrowedFd,
         offset: i64,
