@@ -249,30 +249,27 @@ impl<'a> ZfsSnapPathGuard<'a> {
     }
 
     pub fn target(&self, proximate_dataset_mount: &Path) -> Option<PathBuf> {
-        if let Ok(relative) = self.relative_path(proximate_dataset_mount) {
-            let target: PathBuf = self
-                .inner
-                .path_buf
-                .ancestors()
-                .zip(relative.ancestors())
-                .skip_while(|(a_path, b_path)| a_path == b_path)
-                .map(|(a_path, _b_path)| a_path)
-                .collect();
-
-            return Some(target);
-        }
-
-        None
+        self.relative_path(proximate_dataset_mount)
+            .ok()
+            .map(|relative| {
+                self.inner
+                    .path_buf
+                    .ancestors()
+                    .zip(relative.ancestors())
+                    .skip_while(|(a_path, b_path)| a_path == b_path)
+                    .map(|(a_path, _b_path)| a_path)
+                    .collect()
+            })
     }
 
-    pub fn relative_path(&self, proximate_dataset_mount: &Path) -> HttmResult<PathBuf> {
+    pub fn relative_path(&'a self, proximate_dataset_mount: &'a Path) -> HttmResult<&'a Path> {
         let relative_path = self.inner.relative_path(proximate_dataset_mount)?;
         let snapshot_stripped_set = relative_path.strip_prefix(ZFS_SNAPSHOT_DIRECTORY)?;
 
         match snapshot_stripped_set.components().next() {
             Some(snapshot_name) => {
                 let res = snapshot_stripped_set.strip_prefix(snapshot_name)?;
-                Ok(res.to_path_buf())
+                Ok(res)
             }
             None => {
                 let msg = format!("Path is not a snap path: {:?}", self.inner.path_buf);
@@ -311,20 +308,19 @@ impl<'a> ZfsSnapPathGuard<'a> {
     }
 
     pub fn live_path(&self) -> Option<PathData> {
-        if let Some((proximate_dataset_mount, relative_and_snap_name)) = self
-            .inner
+        self.inner
             .path_buf
             .to_string_lossy()
             .split_once(&format!("{ZFS_SNAPSHOT_DIRECTORY}/"))
-        {
-            if let Some((_snap_name, relative)) = relative_and_snap_name.split_once("/") {
-                return Some(PathData::from(
-                    PathBuf::from(proximate_dataset_mount).join(Path::new(relative)),
-                ));
-            }
-        }
-
-        None
+            .and_then(|(proximate_dataset_mount, relative_and_snap_name)| {
+                relative_and_snap_name
+                    .split_once("/")
+                    .map(|(_snap_name, relative)| {
+                        PathData::from(
+                            PathBuf::from(proximate_dataset_mount).join(Path::new(relative)),
+                        )
+                    })
+            })
     }
 }
 
