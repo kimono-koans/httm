@@ -142,7 +142,18 @@ impl PathData {
         // path strip, if aliased
         // fallback if unable to find an alias or strip a prefix
         // (each an indication we should not be trying aliases)
-        let relative_path = match GLOBAL_CONFIG
+        match self.alias_path(proximate_dataset_mount) {
+            Some(alias) => Ok(alias),
+            // default path strip
+            None => self
+                .path_buf
+                .strip_prefix(proximate_dataset_mount)
+                .map_err(|err| err.into()),
+        }
+    }
+
+    pub fn alias_path<'a>(&'a self, proximate_dataset_mount: &Path) -> Option<&'a Path> {
+        GLOBAL_CONFIG
             .dataset_collection
             .opt_map_of_aliases
             .as_deref()
@@ -158,13 +169,7 @@ impl PathData {
                         None
                     })
                     .and_then(|local_dir| self.path_buf.strip_prefix(local_dir).ok())
-            }) {
-            Some(alias) => alias,
-            // default path strip
-            None => self.path_buf.strip_prefix(proximate_dataset_mount)?,
-        };
-
-        Ok(relative_path)
+            })
     }
 
     pub fn proximate_dataset<'a>(&'a self) -> HttmResult<&'a Path> {
@@ -191,11 +196,11 @@ impl PathData {
                     .contains_key(*ancestor)
             })
             .ok_or_else(|| {
-                HttmError::new(
-                    "httm could not identify any qualifying dataset.  \
-                    Maybe consider specifying manually at SNAP_POINT?",
-                )
-                .into()
+                let msg = format!(
+                    "httm could not identify any proximate dataset for path: {:?}",
+                    self.path_buf
+                );
+                HttmError::new(&msg).into()
             })
     }
 
