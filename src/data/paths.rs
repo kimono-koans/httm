@@ -18,7 +18,6 @@
 use crate::config::generate::{ListSnapsOfType, PrintMode};
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{date_string, display_human_size, DateFormat};
-use crate::parse::aliases::MapOfAliases;
 use crate::parse::mounts::FilesystemType;
 use crate::parse::mounts::MaxLen;
 use crate::{GLOBAL_CONFIG, ZFS_SNAPSHOT_DIRECTORY};
@@ -152,22 +151,6 @@ impl PathData {
         }
     }
 
-    pub fn alias_path<'a>(&'a self, proximate_dataset_mount: &Path) -> Option<&'a Path> {
-        GLOBAL_CONFIG
-            .dataset_collection
-            .opt_map_of_aliases
-            .as_deref()
-            .and_then(|map_of_aliases| {
-                map_of_aliases
-                    .iter()
-                    // do a search for a key with a value
-                    .find(|(_local_dir, alias_info)| {
-                        alias_info.remote_dir == proximate_dataset_mount
-                    })
-                    .and_then(|(local_dir, _alias_info)| self.path_buf.strip_prefix(local_dir).ok())
-            })
-    }
-
     pub fn proximate_dataset<'a>(&'a self) -> HttmResult<&'a Path> {
         // for /usr/bin, we prefer the most proximate: /usr/bin to /usr and /
         // ancestors() iterates in this top-down order, when a value: dataset/fstype is available
@@ -200,6 +183,38 @@ impl PathData {
             })
     }
 
+    pub fn alias_path<'a>(&'a self, proximate_dataset_mount: &Path) -> Option<&'a Path> {
+        GLOBAL_CONFIG
+            .dataset_collection
+            .opt_map_of_aliases
+            .as_ref()
+            .and_then(|map_of_aliases| {
+                map_of_aliases
+                    .iter()
+                    // do a search for a key with a value
+                    .find(|(_local_dir, alias_info)| {
+                        alias_info.remote_dir == proximate_dataset_mount
+                    })
+                    .and_then(|(local_dir, _alias_info)| self.path_buf.strip_prefix(local_dir).ok())
+            })
+    }
+
+    pub fn alias_dataset<'a>(&self) -> Option<&'a Path> {
+        // find_map_first should return the first seq result with a par_iter
+        // but not with a par_bridge
+        self.path_buf.ancestors().find_map(|ancestor| {
+            GLOBAL_CONFIG
+                .dataset_collection
+                .opt_map_of_aliases
+                .as_ref()
+                .and_then(|map_of_aliases| {
+                    map_of_aliases
+                        .get(ancestor)
+                        .map(|alias_info| alias_info.remote_dir.as_path())
+                })
+        })
+    }
+
     pub fn source(&self) -> Option<PathBuf> {
         let mount = self.proximate_dataset().ok()?;
 
@@ -208,16 +223,6 @@ impl PathData {
             .map_of_datasets
             .get(mount)
             .map(|md| md.source.clone())
-    }
-
-    pub fn alias_dataset<'a>(&self, map_of_alias: &'a MapOfAliases) -> Option<&'a Path> {
-        // find_map_first should return the first seq result with a par_iter
-        // but not with a par_bridge
-        self.path_buf.ancestors().find_map(|ancestor| {
-            map_of_alias
-                .get(ancestor)
-                .map(|alias_info| alias_info.remote_dir.as_path())
-        })
     }
 }
 
