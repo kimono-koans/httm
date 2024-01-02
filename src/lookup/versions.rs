@@ -228,7 +228,7 @@ impl<'a> ProximateDatasetAndOptAlts<'a> {
 pub struct RelativePathAndSnapMounts<'a> {
     pub pathdata: &'a PathData,
     pub relative_path: &'a Path,
-    pub snap_mounts: &'a Vec<PathBuf>,
+    pub snap_mounts: &'a [PathBuf],
 }
 
 impl<'a> RelativePathAndSnapMounts<'a> {
@@ -252,7 +252,8 @@ impl<'a> RelativePathAndSnapMounts<'a> {
                     "httm could find no snap mount for your files.  \
                 Iterator should just ignore/flatten this error.",
                 )
-            })?;
+            })?
+            .as_slice();
 
         Ok(Self {
             pathdata,
