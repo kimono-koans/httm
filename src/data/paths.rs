@@ -135,7 +135,7 @@ impl PathData {
 
     #[inline]
     pub fn md_infallible(&self) -> PathMetadata {
-        self.metadata.unwrap_or(PHANTOM_PATH_METADATA)
+        self.metadata.unwrap_or_else(|| PHANTOM_PATH_METADATA)
     }
 
     pub fn relative_path<'a>(&'a self, proximate_dataset_mount: &Path) -> HttmResult<&'a Path> {
