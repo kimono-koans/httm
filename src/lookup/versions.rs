@@ -162,7 +162,7 @@ impl VersionsMap {
 pub struct ProximateDatasetAndOptAlts<'a> {
     pub pathdata: &'a PathData,
     pub proximate_dataset_mount: &'a Path,
-    pub datasets_of_interest: Vec<PathBuf>,
+    pub opt_datasets_of_interest: Option<&'a Vec<PathBuf>>,
 }
 
 impl<'a> ProximateDatasetAndOptAlts<'a> {
@@ -189,38 +189,46 @@ impl<'a> ProximateDatasetAndOptAlts<'a> {
             .opt_map_of_alts
             .as_ref()
             .and_then(|map_of_alts| map_of_alts.get(proximate_dataset_mount))
-            .and_then(|alt_metadata| alt_metadata.opt_datasets_of_interest.clone())
+            .and_then(|alt_metadata| alt_metadata.opt_datasets_of_interest.as_ref())
         {
-            Some(mut datasets_of_interest) => {
-                datasets_of_interest.push(proximate_dataset_mount.to_path_buf());
-
-                Self {
-                    pathdata,
-                    proximate_dataset_mount,
-                    datasets_of_interest,
-                }
-            }
+            Some(datasets_of_interest) => Self {
+                pathdata,
+                proximate_dataset_mount,
+                opt_datasets_of_interest: Some(datasets_of_interest),
+            },
 
             None => Self {
                 pathdata,
                 proximate_dataset_mount,
-                datasets_of_interest: vec![proximate_dataset_mount.to_path_buf()],
+                opt_datasets_of_interest: None,
             },
         };
 
         Ok(res)
     }
 
-    pub fn into_search_bundles(self) -> impl Iterator<Item = RelativePathAndSnapMounts<'a>> {
-        self.datasets_of_interest
-            .into_iter()
-            .flat_map(|dataset_of_interest| {
-                RelativePathAndSnapMounts::new(
-                    self.pathdata,
-                    self.proximate_dataset_mount,
-                    &dataset_of_interest,
-                )
-            })
+    pub fn datasets_of_interest(&'a self) -> impl Iterator<Item = &'a Path> {
+        let base = [self.proximate_dataset_mount].into_iter();
+
+        base.chain(
+            self.opt_datasets_of_interest
+                .as_deref()
+                .into_iter()
+                .flatten()
+                .map(PathBuf::as_path),
+        )
+    }
+
+    pub fn into_search_bundles(&'a self) -> impl Iterator<Item = RelativePathAndSnapMounts<'a>> {
+        let datasets_of_interest = self.datasets_of_interest();
+
+        datasets_of_interest.flat_map(|dataset_of_interest| {
+            RelativePathAndSnapMounts::new(
+                self.pathdata,
+                self.proximate_dataset_mount,
+                &dataset_of_interest,
+            )
+        })
     }
 }
 

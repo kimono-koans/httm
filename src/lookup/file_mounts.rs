@@ -61,8 +61,7 @@ impl<'a> MountsForFiles<'a> {
             })
             .map(|prox_opt_alts| {
                 let vec: Vec<PathData> = prox_opt_alts
-                    .datasets_of_interest
-                    .iter()
+                    .datasets_of_interest()
                     .map(PathData::from)
                     .collect();
 
