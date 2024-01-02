@@ -167,7 +167,9 @@ pub enum ZfsAllowPriv {
 
 impl ZfsAllowPriv {
     pub fn from_path(&self, new_file_path: &Path) -> HttmResult<()> {
-        let Some(fs_name) = PathData::from(new_file_path).source() else {
+        let pathdata = PathData::from(new_file_path);
+
+        let Some(fs_name) = pathdata.source() else {
             let msg = format!(
                 "Could not determine dataset name from path given: {:?}",
                 new_file_path
