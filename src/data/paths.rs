@@ -250,33 +250,25 @@ impl<'a> ZfsSnapPathGuard<'a> {
     }
 
     pub fn target(&self, proximate_dataset_mount: &Path) -> Option<PathBuf> {
-        self.relative_path(proximate_dataset_mount)
-            .ok()
-            .map(|relative| {
-                self.inner
-                    .path_buf
-                    .ancestors()
-                    .zip(relative.ancestors())
-                    .skip_while(|(a_path, b_path)| a_path == b_path)
-                    .map(|(a_path, _b_path)| a_path)
-                    .collect()
-            })
+        self.relative_path(proximate_dataset_mount).map(|relative| {
+            self.inner
+                .path_buf
+                .ancestors()
+                .zip(relative.ancestors())
+                .skip_while(|(a_path, b_path)| a_path == b_path)
+                .map(|(a_path, _b_path)| a_path)
+                .collect()
+        })
     }
 
-    pub fn relative_path(&'a self, proximate_dataset_mount: &'a Path) -> HttmResult<&'a Path> {
-        let relative_path = self.inner.relative_path(proximate_dataset_mount)?;
-        let snapshot_stripped_set = relative_path.strip_prefix(ZFS_SNAPSHOT_DIRECTORY)?;
+    pub fn relative_path(&'a self, proximate_dataset_mount: &'a Path) -> Option<&'a Path> {
+        let relative_path = self.inner.relative_path(proximate_dataset_mount).ok()?;
+        let snapshot_stripped_set = relative_path.strip_prefix(ZFS_SNAPSHOT_DIRECTORY).ok()?;
 
-        match snapshot_stripped_set.components().next() {
-            Some(snapshot_name) => {
-                let res = snapshot_stripped_set.strip_prefix(snapshot_name)?;
-                Ok(res)
-            }
-            None => {
-                let msg = format!("Path is not a snap path: {:?}", self.inner.path_buf);
-                Err(HttmError::new(&msg).into())
-            }
-        }
+        snapshot_stripped_set
+            .components()
+            .next()
+            .and_then(|snapshot_name| snapshot_stripped_set.strip_prefix(snapshot_name).ok())
     }
 
     pub fn source(&self) -> Option<String> {

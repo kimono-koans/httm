@@ -90,7 +90,6 @@ impl<'a> From<&MountsForFiles<'a>> for PrintAsMap {
                             MountDisplay::RelativePath => {
                                 if let Some(relative_path) = opt_spg.and_then(|spd| {
                                     spd.relative_path(&value.path_buf)
-                                        .ok()
                                         .map(|path| path.to_path_buf())
                                 }) {
                                     return Some(Cow::Owned(
