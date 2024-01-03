@@ -21,7 +21,7 @@ use crate::library::utility::{
     date_string, delimiter, display_human_size, paint_string, path_is_filter_dir, DateFormat,
 };
 use crate::lookup::versions::ProximateDatasetAndOptAlts;
-use crate::{VersionsDisplayWrapper, GLOBAL_CONFIG};
+use crate::VersionsDisplayWrapper;
 use std::borrow::Cow;
 use std::ops::Deref;
 use terminal_size::{terminal_size, Height, Width};
