@@ -18,7 +18,7 @@
 use crate::config::generate::{BulkExclusion, Config, PrintMode};
 use crate::data::paths::{PathData, PHANTOM_DATE, PHANTOM_SIZE};
 use crate::library::utility::{
-    date_string, delimiter, display_human_size, paint_string, DateFormat,
+    date_string, delimiter, display_human_size, paint_string, path_is_filter_dir, DateFormat,
 };
 use crate::lookup::versions::ProximateDatasetAndOptAlts;
 use crate::{VersionsDisplayWrapper, GLOBAL_CONFIG};
@@ -286,7 +286,7 @@ impl PathData {
             Some(_) if config.opt_omit_ditto => {
                 "WARN: Omitting the only snapshot version available, which is identical to the live file.\n"
             }
-            Some(prox_opt_alts) if GLOBAL_CONFIG.dataset_collection.filter_dirs.iter().any(|filter_dir| filter_dir == prox_opt_alts.proximate_dataset_mount)  => {
+            Some(_) if path_is_filter_dir(&self.path_buf) => {
                 "WARN: Most proximate dataset for path is an unsupported filesystem.\n"
             }
             Some(_) => {
