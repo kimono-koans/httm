@@ -21,7 +21,7 @@ use crate::library::utility::{
     date_string, delimiter, display_human_size, paint_string, DateFormat,
 };
 use crate::lookup::versions::ProximateDatasetAndOptAlts;
-use crate::VersionsDisplayWrapper;
+use crate::{VersionsDisplayWrapper, GLOBAL_CONFIG};
 use std::borrow::Cow;
 use std::ops::Deref;
 use terminal_size::{terminal_size, Height, Width};
@@ -285,6 +285,9 @@ impl PathData {
             }
             Some(_) if config.opt_omit_ditto => {
                 "WARN: Omitting the only snapshot version available, which is identical to the live file.\n"
+            }
+            Some(prox_opt_alts) if GLOBAL_CONFIG.dataset_collection.filter_dirs.iter().any(|filter_dir| filter_dir == prox_opt_alts.proximate_dataset_mount)  => {
+                "WARN: Most proximate dataset for path is an unsupported filesystem.\n"
             }
             Some(_) => {
                 "WARN: No snapshot version exists for the specified file.\n"
