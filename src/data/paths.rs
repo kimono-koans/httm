@@ -177,19 +177,8 @@ impl PathData {
             })
     }
 
-    pub fn alias<'a>(&'a self) -> Option<AliasedPath<'a>> {
-        // find_map_first should return the first seq result with a par_iter
-        // but not with a par_bridge
-        self.path_buf.ancestors().find_map(|ancestor| {
-            GLOBAL_CONFIG
-                .dataset_collection
-                .opt_map_of_aliases
-                .as_ref()
-                .and_then(|map_of_aliases| {
-                    let md = map_of_aliases.get(ancestor);
-                    md.map(|metadata| AliasedPath { ancestor, metadata })
-                })
-        })
+    pub fn alias(&self) -> Option<AliasedPath> {
+        AliasedPath::new(&self.path_buf)
     }
 
     pub fn source<'a>(&'a self) -> Option<&'a Path> {
@@ -210,6 +199,20 @@ pub struct AliasedPath<'a> {
 }
 
 impl<'a> AliasedPath<'a> {
+    pub fn new(path: &'a Path) -> Option<Self> {
+        // find_map_first should return the first seq result with a par_iter
+        // but not with a par_bridge
+        path.ancestors().find_map(|ancestor| {
+            GLOBAL_CONFIG
+                .dataset_collection
+                .opt_map_of_aliases
+                .as_ref()
+                .and_then(|map_of_aliases| {
+                    let md = map_of_aliases.get(ancestor);
+                    md.map(|metadata| AliasedPath { ancestor, metadata })
+                })
+        })
+    }
     pub fn proximate_dataset(&self) -> &'a Path {
         self.metadata.remote_dir.as_ref()
     }
