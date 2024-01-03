@@ -184,27 +184,18 @@ impl<'a> ProximateDatasetAndOptAlts<'a> {
             .alias_dataset()
             .map_or_else(|| pathdata.proximate_dataset(), Ok)?;
 
-        let res: Self = match GLOBAL_CONFIG
+        let opt_alts = GLOBAL_CONFIG
             .dataset_collection
             .opt_map_of_alts
             .as_ref()
             .and_then(|map_of_alts| map_of_alts.get(proximate_dataset_mount))
-            .and_then(|alt_metadata| alt_metadata.opt_datasets_of_interest.as_ref())
-        {
-            Some(datasets_of_interest) => Self {
-                pathdata,
-                proximate_dataset_mount,
-                opt_alts: Some(datasets_of_interest),
-            },
+            .and_then(|alt_metadata| alt_metadata.opt_datasets_of_interest.as_ref());
 
-            None => Self {
-                pathdata,
-                proximate_dataset_mount,
-                opt_alts: None,
-            },
-        };
-
-        Ok(res)
+        Ok(Self {
+            pathdata,
+            proximate_dataset_mount,
+            opt_alts,
+        })
     }
 
     pub fn datasets_of_interest(&'a self) -> impl Iterator<Item = &'a Path> {
