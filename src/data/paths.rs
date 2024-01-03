@@ -142,10 +142,7 @@ impl PathData {
         // path strip, if aliased
         // fallback if unable to find an alias or strip a prefix
         // (each an indication we should not be trying aliases)
-        match self.alias() {
-            Some(alias) => alias.relative_path(self),
-            None => self.path_buf.strip_prefix(proximate_dataset_mount).ok(),
-        }
+        self.path_buf.strip_prefix(proximate_dataset_mount).ok()
     }
 
     pub fn proximate_dataset<'a>(&'a self) -> HttmResult<&'a Path> {
