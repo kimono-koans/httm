@@ -18,6 +18,7 @@
 use crate::config::generate::{ListSnapsOfType, PrintMode};
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{date_string, display_human_size, DateFormat};
+use crate::parse::aliases::RemotePathAndFsType;
 use crate::parse::mounts::FilesystemType;
 use crate::parse::mounts::MaxLen;
 use crate::{GLOBAL_CONFIG, ZFS_SNAPSHOT_DIRECTORY};
@@ -137,13 +138,14 @@ impl PathData {
         self.metadata.unwrap_or_else(|| PHANTOM_PATH_METADATA)
     }
 
-    pub fn relative_path<'a>(&'a self, proximate_dataset_mount: &Path) -> HttmResult<&'a Path> {
+    pub fn relative_path<'a>(&'a self, proximate_dataset_mount: &Path) -> Option<&'a Path> {
         // path strip, if aliased
         // fallback if unable to find an alias or strip a prefix
         // (each an indication we should not be trying aliases)
-        self.alias_path(proximate_dataset_mount)
-            .map_or_else(|| self.path_buf.strip_prefix(proximate_dataset_mount), Ok)
-            .map_err(|err| err.into())
+        match self.alias() {
+            Some(alias) => alias.relative_path(self),
+            None => self.path_buf.strip_prefix(proximate_dataset_mount).ok(),
+        }
     }
 
     pub fn proximate_dataset<'a>(&'a self) -> HttmResult<&'a Path> {
@@ -178,23 +180,7 @@ impl PathData {
             })
     }
 
-    pub fn alias_path<'a>(&'a self, proximate_dataset_mount: &Path) -> Option<&'a Path> {
-        GLOBAL_CONFIG
-            .dataset_collection
-            .opt_map_of_aliases
-            .as_ref()
-            .and_then(|map_of_aliases| {
-                map_of_aliases
-                    .iter()
-                    // do a search for a key with a value
-                    .find(|(_local_dir, alias_info)| {
-                        alias_info.remote_dir == proximate_dataset_mount
-                    })
-                    .and_then(|(local_dir, _alias_info)| self.path_buf.strip_prefix(local_dir).ok())
-            })
-    }
-
-    pub fn alias_dataset<'a>(&self) -> Option<&'a Path> {
+    pub fn alias<'a>(&'a self) -> Option<AliasedPath<'a>> {
         // find_map_first should return the first seq result with a par_iter
         // but not with a par_bridge
         self.path_buf.ancestors().find_map(|ancestor| {
@@ -203,9 +189,8 @@ impl PathData {
                 .opt_map_of_aliases
                 .as_ref()
                 .and_then(|map_of_aliases| {
-                    map_of_aliases
-                        .get(ancestor)
-                        .map(|alias_info| alias_info.remote_dir.as_path())
+                    let md = map_of_aliases.get(ancestor);
+                    md.map(|metadata| AliasedPath { ancestor, metadata })
                 })
         })
     }
@@ -218,6 +203,22 @@ impl PathData {
             .map_of_datasets
             .get(mount)
             .map(|md| md.source.as_ref())
+    }
+}
+
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+pub struct AliasedPath<'a> {
+    ancestor: &'a Path,
+    metadata: &'a RemotePathAndFsType,
+}
+
+impl<'a> AliasedPath<'a> {
+    pub fn proximate_dataset(&self) -> &'a Path {
+        self.metadata.remote_dir.as_ref()
+    }
+
+    pub fn relative_path(&self, pathdata: &'a PathData) -> Option<&'a Path> {
+        pathdata.path_buf.strip_prefix(self.ancestor).ok()
     }
 }
 
@@ -262,7 +263,7 @@ impl<'a> ZfsSnapPathGuard<'a> {
     }
 
     pub fn relative_path(&'a self, proximate_dataset_mount: &'a Path) -> Option<&'a Path> {
-        let relative_path = self.inner.relative_path(proximate_dataset_mount).ok()?;
+        let relative_path = self.inner.relative_path(proximate_dataset_mount)?;
         let snapshot_stripped_set = relative_path.strip_prefix(ZFS_SNAPSHOT_DIRECTORY).ok()?;
 
         snapshot_stripped_set

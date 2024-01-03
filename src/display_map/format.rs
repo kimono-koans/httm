@@ -98,7 +98,6 @@ impl<'a> From<&MountsForFiles<'a>> for PrintAsMap {
                                 }
 
                                 key.relative_path(&value.path_buf)
-                                    .ok()
                                     .map(|path| path.to_string_lossy())
                             }
                         }

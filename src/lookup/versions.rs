@@ -16,6 +16,7 @@
 // that was distributed with this source code.
 
 use crate::config::generate::{Config, LastSnapMode, ListSnapsOfType};
+use crate::data::paths::AliasedPath;
 use crate::data::paths::{CompareVersionsContainer, PathData};
 use crate::library::results::{HttmError, HttmResult};
 use crate::GLOBAL_CONFIG;
@@ -161,8 +162,9 @@ impl VersionsMap {
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct ProximateDatasetAndOptAlts<'a> {
     pub pathdata: &'a PathData,
-    pub proximate_dataset_mount: &'a Path,
+    pub proximate_dataset: &'a Path,
     pub opt_alts: Option<&'a Vec<PathBuf>>,
+    pub opt_alias: Option<AliasedPath<'a>>,
 }
 
 impl<'a> ProximateDatasetAndOptAlts<'a> {
@@ -180,21 +182,25 @@ impl<'a> ProximateDatasetAndOptAlts<'a> {
         // will compare the most proximate dataset to our our canonical path and the difference
         // between ZFS mount point and the canonical path is the path we will use to search the
         // hidden snapshot dirs
-        let proximate_dataset_mount: &Path = pathdata
-            .alias_dataset()
+        let opt_alias = pathdata.alias();
+
+        let proximate_dataset = opt_alias
+            .as_ref()
+            .map(|alias| alias.proximate_dataset())
             .map_or_else(|| pathdata.proximate_dataset(), Ok)?;
 
         let opt_alts = GLOBAL_CONFIG
             .dataset_collection
             .opt_map_of_alts
             .as_ref()
-            .and_then(|map_of_alts| map_of_alts.get(proximate_dataset_mount))
+            .and_then(|map_of_alts| map_of_alts.get(proximate_dataset))
             .and_then(|alt_metadata| alt_metadata.opt_datasets_of_interest.as_ref());
 
         Ok(Self {
             pathdata,
-            proximate_dataset_mount,
+            proximate_dataset,
             opt_alts,
+            opt_alias,
         })
     }
 
@@ -206,7 +212,7 @@ impl<'a> ProximateDatasetAndOptAlts<'a> {
             .flatten()
             .map(PathBuf::as_path);
 
-        let base = [self.proximate_dataset_mount].into_iter();
+        let base = [self.proximate_dataset].into_iter();
 
         alts.chain(base)
     }
@@ -215,7 +221,8 @@ impl<'a> ProximateDatasetAndOptAlts<'a> {
         self.datasets_of_interest().flat_map(|dataset_of_interest| {
             RelativePathAndSnapMounts::new(
                 self.pathdata,
-                self.proximate_dataset_mount,
+                self.proximate_dataset,
+                &self.opt_alias,
                 &dataset_of_interest,
             )
         })
@@ -232,28 +239,26 @@ pub struct RelativePathAndSnapMounts<'a> {
 impl<'a> RelativePathAndSnapMounts<'a> {
     fn new(
         pathdata: &'a PathData,
-        proximate_dataset_mount: &'a Path,
+        proximate_dataset: &'a Path,
+        opt_alias: &Option<AliasedPath<'a>>,
         dataset_of_interest: &Path,
-    ) -> HttmResult<Self> {
+    ) -> Option<Self> {
         // building our relative path by removing parent below the snap dir
         //
         // for native searches the prefix is are the dirs below the most proximate dataset
         // for user specified dirs/aliases these are specified by the user
-        let relative_path = pathdata.relative_path(proximate_dataset_mount)?;
+        let relative_path = opt_alias
+            .as_ref()
+            .and_then(|alias| alias.relative_path(pathdata))
+            .map_or_else(|| pathdata.relative_path(proximate_dataset), Some)?;
 
         let snap_mounts = GLOBAL_CONFIG
             .dataset_collection
             .map_of_snaps
-            .get(dataset_of_interest)
-            .ok_or_else(|| {
-                HttmError::new(
-                    "httm could find no snap mount for your files.  \
-                Iterator should just ignore/flatten this error.",
-                )
-            })?
+            .get(dataset_of_interest)?
             .as_slice();
 
-        Ok(Self {
+        Some(Self {
             pathdata,
             relative_path,
             snap_mounts,

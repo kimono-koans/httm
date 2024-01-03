@@ -422,7 +422,6 @@ impl RollForward {
     fn snap_path(&self, path: &Path) -> Option<PathBuf> {
         PathData::from(path)
             .relative_path(&self.proximate_dataset_mount)
-            .ok()
             .map(|relative_path| {
                 let snap_file_path: PathBuf = [
                     self.proximate_dataset_mount.as_path(),

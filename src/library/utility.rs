@@ -168,11 +168,15 @@ pub fn preserve_recursive(src: &Path, dst: &Path) -> HttmResult<()> {
 
     let proximate_dataset_mount = dst_pathdata.proximate_dataset()?;
 
-    let relative_path_components_len = dst_pathdata
-        .relative_path(proximate_dataset_mount)?
-        .to_path_buf()
-        .components()
-        .count();
+    let Some(relative_path) = dst_pathdata.relative_path(proximate_dataset_mount) else {
+        let msg = format!(
+            "Could not determine relative path for destination: {:?}",
+            dst
+        );
+        return Err(HttmError::new(&msg).into());
+    };
+
+    let relative_path_components_len = relative_path.components().count();
 
     src.ancestors()
         .zip(dst.ancestors())

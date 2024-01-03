@@ -23,7 +23,7 @@ use std::ffi::OsString;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct RemotePathAndFsType {
     pub remote_dir: PathBuf,
     pub fs_type: FilesystemType,

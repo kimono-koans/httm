@@ -38,7 +38,7 @@ pub const SMB_FSTYPE: &str = "smbfs";
 pub const NFS_FSTYPE: &str = "nfs";
 pub const AFP_FSTYPE: &str = "afpfs";
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum FilesystemType {
     Zfs,
     Btrfs,
