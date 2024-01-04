@@ -337,12 +337,12 @@ fn parse_args() -> ArgMatches {
                 .visible_alias("mount")
                 .takes_value(true)
                 .default_missing_value("target")
-                .possible_values(["source", "target", "directory", "device", "dataset", "relative-path", "relative", "relpath"])
+                .possible_values(["source", "target", "mount", "directory", "device", "dataset", "relative-path", "relative", "relpath"])
                 .min_values(0)
                 .require_equals(true)
                 .help("by default, display the all mount point/s of all dataset/s which contain/s the input file/s.  \
                 This argument optionally takes a value to display other information about the path.  Possible values are: \
-                \"target\" or \"directory\", return the directory upon which the underlying dataset or device of the mount, \
+                \"mount\" or \"target\" or \"directory\", return the directory upon which the underlying dataset or device of the mount, \
                 \"source\" or \"device\" or \"dataset\", return the underlying dataset/device of the mount, and, \
                 \"relative-path\" or \"relative\", return the path relative to the underlying dataset/device of the mount.")
                 .conflicts_with_all(&["BROWSE", "SELECT", "RESTORE"])
@@ -656,7 +656,7 @@ impl Config {
         }
 
         let opt_mount_display = match matches.value_of("FILE_MOUNT") {
-            Some("" | "target" | "directory") => Some(MountDisplay::Target),
+            Some("" | "mount" | "target" | "directory") => Some(MountDisplay::Target),
             Some("source" | "device" | "dataset") => Some(MountDisplay::Source),
             Some("relative-path" | "relative" | "relpath") => Some(MountDisplay::RelativePath),
             _ => None,
