@@ -16,22 +16,21 @@
 // that was distributed with this source code.
 
 use crate::config::generate::MountDisplay;
-use crate::data::paths::PathData;
-use crate::library::results::{HttmError, HttmResult};
+use crate::library::results::HttmResult;
 use crate::lookup::versions::ProximateDatasetAndOptAlts;
 use crate::GLOBAL_CONFIG;
+use hashbrown::HashSet;
 use rayon::prelude::*;
-use std::collections::BTreeMap;
 use std::ops::Deref;
 
 #[derive(Debug)]
 pub struct MountsForFiles<'a> {
-    inner: BTreeMap<&'a PathData, Vec<PathData>>,
+    inner: HashSet<ProximateDatasetAndOptAlts<'a>>,
     mount_display: &'a MountDisplay,
 }
 
 impl<'a> Deref for MountsForFiles<'a> {
-    type Target = BTreeMap<&'a PathData, Vec<PathData>>;
+    type Target = HashSet<ProximateDatasetAndOptAlts<'a>>;
 
     fn deref(&self) -> &Self::Target {
         &self.inner
@@ -46,7 +45,7 @@ impl<'a> MountsForFiles<'a> {
     pub fn new(mount_display: &'a MountDisplay) -> HttmResult<Self> {
         // we only check for phantom files in "mount for file" mode because
         // people should be able to search for deleted files in other modes
-        let map: BTreeMap<&PathData, Vec<PathData>> = GLOBAL_CONFIG
+        let set: HashSet<ProximateDatasetAndOptAlts> = GLOBAL_CONFIG
             .paths
             .par_iter()
             .filter_map(|pd| match ProximateDatasetAndOptAlts::new(pd) {
@@ -60,36 +59,21 @@ impl<'a> MountsForFiles<'a> {
                 }
             })
             .map(|prox_opt_alts| {
-                let vec: Vec<PathData> = prox_opt_alts
-                    .datasets_of_interest()
-                    .map(PathData::from)
-                    .collect();
+                let count = prox_opt_alts.datasets_of_interest().count();
 
-                if prox_opt_alts.pathdata.metadata.is_none() && vec.is_empty() {
+                if prox_opt_alts.pathdata.metadata.is_none() && count == 0 {
                     eprintln!(
                         "WARN: Input file may have never existed: {:?}",
                         prox_opt_alts.pathdata.path_buf
                     );
                 }
 
-                (prox_opt_alts.pathdata, vec)
+                prox_opt_alts
             })
             .collect();
 
-        // this is disjunctive instead of conjunctive, like the error re: versions
-        // this is because I think the appropriate behavior when a path DNE is to error when requesting a mount
-        // whereas re: versions, a file which DNE may still have snapshot versions
-        if map.values().all(std::vec::Vec::is_empty)
-            || map.keys().all(|pathdata| pathdata.metadata.is_none())
-        {
-            return Err(HttmError::new(
-                "httm could either not find any mounts for all the path/s specified, or all the path do not exist, so, umm, 🤷? Please try another path.",
-            )
-            .into());
-        }
-
         Ok(Self {
-            inner: map,
+            inner: set,
             mount_display,
         })
     }

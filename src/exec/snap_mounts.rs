@@ -99,14 +99,14 @@ impl SnapshotMounts {
 
         let vec_snapshot_names: Vec<String> = mounts_for_files
             .iter()
-            .flat_map(|(_pathdata, datasets)| datasets)
+            .flat_map(|prox| prox.datasets_of_interest())
             .map(|mount| {
                 let dataset = match &GLOBAL_CONFIG.dataset_collection.opt_map_of_aliases {
                     None => {
                         match GLOBAL_CONFIG
                             .dataset_collection
                             .map_of_datasets
-                            .get(&mount.path_buf)
+                            .get(mount)
                         {
                             Some(dataset_info) => {
                                 if let FilesystemType::Zfs = dataset_info.fs_type {

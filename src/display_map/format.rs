@@ -16,6 +16,7 @@
 // that was distributed with this source code.
 
 use crate::config::generate::{MountDisplay, PrintMode};
+use crate::data::paths::PathData;
 use crate::data::paths::ZfsSnapPathGuard;
 use crate::display_versions::format::{NOT_SO_PRETTY_FIXED_WIDTH_PADDING, QUOTATION_MARKS_LEN};
 use crate::library::utility::delimiter;
@@ -62,9 +63,11 @@ impl<'a> From<&MountsForFiles<'a>> for PrintAsMap {
     fn from(mounts_for_files: &MountsForFiles) -> Self {
         let inner = mounts_for_files
             .iter()
-            .map(|(key, values)| {
-                let res = values
-                    .iter()
+            .map(|prox| {
+                let key = prox.pathdata;
+                let res = prox
+                    .datasets_of_interest()
+                    .map(PathData::from)
                     .filter_map(|value| {
                         let opt_spg = ZfsSnapPathGuard::new(key);
 
@@ -76,7 +79,7 @@ impl<'a> From<&MountsForFiles<'a>> for PrintAsMap {
                                     return Some(Cow::Owned(target.to_string_lossy().to_string()));
                                 }
 
-                                Some(value.path_buf.to_string_lossy())
+                                Some(Cow::Owned(value.path_buf.to_string_lossy().to_string()))
                             }
                             MountDisplay::Source => {
                                 if let Some(snap_source) = opt_spg.and_then(|spd| spd.source()) {
@@ -88,8 +91,10 @@ impl<'a> From<&MountsForFiles<'a>> for PrintAsMap {
                                     .map(|source| Cow::Owned(source.to_string_lossy().to_string()))
                             }
                             MountDisplay::RelativePath => {
-                                if let Some(relative_path) =
-                                    key.alias().and_then(|alias| alias.relative_path(key))
+                                if let Some(relative_path) = prox
+                                    .opt_alias
+                                    .as_ref()
+                                    .and_then(|alias| alias.relative_path(key))
                                 {
                                     return Some(relative_path.to_string_lossy());
                                 }
