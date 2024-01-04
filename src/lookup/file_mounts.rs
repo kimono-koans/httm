@@ -16,7 +16,7 @@
 // that was distributed with this source code.
 
 use crate::config::generate::MountDisplay;
-use crate::library::results::HttmResult;
+use crate::library::results::{HttmError, HttmResult};
 use crate::lookup::versions::ProximateDatasetAndOptAlts;
 use crate::GLOBAL_CONFIG;
 use hashbrown::HashSet;
@@ -71,6 +71,20 @@ impl<'a> MountsForFiles<'a> {
                 prox_opt_alts
             })
             .collect();
+
+        // this is disjunctive instead of conjunctive, like the error re: versions
+        // this is because I think the appropriate behavior when a path DNE is to error when requesting a mount
+        // whereas re: versions, a file which DNE may still have snapshot versions
+        if set
+            .iter()
+            .all(|prox| prox.datasets_of_interest().count() == 0)
+            || set.iter().all(|prox| prox.pathdata.metadata.is_none())
+        {
+            return Err(HttmError::new(
+                "httm could either not find any mounts for the path/s specified, or all the path do not exist, so, umm, 🤷? Please try another path.",
+            )
+            .into());
+        }
 
         Ok(Self {
             inner: set,
