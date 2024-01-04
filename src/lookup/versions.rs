@@ -186,7 +186,7 @@ impl<'a> ProximateDatasetAndOptAlts<'a> {
 
         let proximate_dataset = opt_alias
             .as_ref()
-            .map(|alias| alias.proximate_dataset())
+            .map(|alias| alias.proximate_dataset)
             .map_or_else(|| pathdata.proximate_dataset(), Ok)?;
 
         let opt_alts = GLOBAL_CONFIG
@@ -249,7 +249,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
         // for user specified dirs/aliases these are specified by the user
         let relative_path = opt_alias
             .as_ref()
-            .and_then(|alias| alias.relative_path(pathdata))
+            .and_then(|alias| alias.relative_path)
             .map_or_else(|| pathdata.relative_path(proximate_dataset), Some)?;
 
         let snap_mounts = GLOBAL_CONFIG

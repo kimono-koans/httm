@@ -94,7 +94,7 @@ impl<'a> From<&MountsForFiles<'a>> for PrintAsMap {
                                 if let Some(relative_path) = prox
                                     .opt_alias
                                     .as_ref()
-                                    .and_then(|alias| alias.relative_path(key))
+                                    .and_then(|alias| alias.relative_path)
                                 {
                                     return Some(relative_path.to_string_lossy());
                                 }

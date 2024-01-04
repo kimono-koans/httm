@@ -18,7 +18,6 @@
 use crate::config::generate::{ListSnapsOfType, PrintMode};
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{date_string, display_human_size, DateFormat};
-use crate::parse::aliases::RemotePathAndFsType;
 use crate::parse::mounts::FilesystemType;
 use crate::parse::mounts::MaxLen;
 use crate::{GLOBAL_CONFIG, ZFS_SNAPSHOT_DIRECTORY};
@@ -194,8 +193,8 @@ impl PathData {
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct AliasedPath<'a> {
-    ancestor: &'a Path,
-    metadata: &'a RemotePathAndFsType,
+    pub proximate_dataset: &'a Path,
+    pub relative_path: Option<&'a Path>,
 }
 
 impl<'a> AliasedPath<'a> {
@@ -209,16 +208,12 @@ impl<'a> AliasedPath<'a> {
                 .as_ref()
                 .and_then(|map_of_aliases| {
                     let md = map_of_aliases.get(ancestor);
-                    md.map(|metadata| AliasedPath { ancestor, metadata })
+                    md.map(|metadata| AliasedPath {
+                        proximate_dataset: metadata.remote_dir.as_ref(),
+                        relative_path: path.strip_prefix(ancestor).ok(),
+                    })
                 })
         })
-    }
-    pub fn proximate_dataset(&self) -> &'a Path {
-        self.metadata.remote_dir.as_ref()
-    }
-
-    pub fn relative_path(&self, pathdata: &'a PathData) -> Option<&'a Path> {
-        pathdata.path_buf.strip_prefix(self.ancestor).ok()
     }
 }
 
