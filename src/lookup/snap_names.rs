@@ -16,7 +16,7 @@
 // that was distributed with this source code.
 
 use crate::config::generate::ListSnapsFilters;
-use crate::data::paths::TargetSourceRelativePath;
+use crate::data::paths::PathDeconstruction;
 use crate::data::paths::{PathData, ZfsSnapPathGuard};
 use crate::library::results::{HttmError, HttmResult};
 use crate::lookup::versions::VersionsMap;
@@ -67,7 +67,7 @@ impl SnapNameMap {
                 let snap_names: Vec<String> = vec_snaps
                     .par_iter()
                     .filter_map(|pd| {
-                        ZfsSnapPathGuard::new(pd).and_then(|spd| spd.source())
+                        ZfsSnapPathGuard::new(pd).and_then(|spd| spd.source(None))
                     })
                     .filter(|snap| {
                         if let Some(filters) = opt_filters {

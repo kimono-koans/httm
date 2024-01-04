@@ -17,7 +17,7 @@
 
 use crate::config::generate::{MountDisplay, PrintMode};
 use crate::data::paths::PathData;
-use crate::data::paths::TargetSourceRelativePath;
+use crate::data::paths::PathDeconstruction;
 use crate::data::paths::ZfsSnapPathGuard;
 use crate::display_versions::format::{NOT_SO_PRETTY_FIXED_WIDTH_PADDING, QUOTATION_MARKS_LEN};
 use crate::library::utility::delimiter;
@@ -73,18 +73,19 @@ impl<'a> From<&MountsForFiles<'a>> for PrintAsMap {
                             MountDisplay::Target => spg
                                 .target(prox.proximate_dataset)
                                 .map(|path| path.to_path_buf()),
-                            MountDisplay::Source => spg.source(),
+                            MountDisplay::Source => spg.source(None),
                             MountDisplay::RelativePath => spg
                                 .relative_path(prox.proximate_dataset)
                                 .ok()
                                 .map(|path| path.to_path_buf()),
                         },
                         None => match mounts_for_files.mount_display() {
-                            MountDisplay::Target => Some(value.path_buf),
-                            MountDisplay::Source => value.source(),
-                            MountDisplay::RelativePath => {
-                                Some(prox.relative_path).map(|path| path.to_path_buf())
-                            }
+                            MountDisplay::Target => key.target(&value.path_buf),
+                            MountDisplay::Source => key.source(Some(&value.path_buf)),
+                            MountDisplay::RelativePath => key
+                                .relative_path(&value.path_buf)
+                                .ok()
+                                .map(|path| path.to_path_buf()),
                         },
                     })
                     .map(|path| path.to_string_lossy().to_string())

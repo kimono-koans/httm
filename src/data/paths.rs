@@ -56,9 +56,9 @@ impl BasicDirEntryInfo {
     }
 }
 
-pub trait TargetSourceRelativePath<'a> {
+pub trait PathDeconstruction<'a> {
     fn target(&self, proximate_dataset_mount: &Path) -> Option<PathBuf>;
-    fn source(&'a self) -> Option<PathBuf>;
+    fn source(&self, opt_proximate_dataset_mount: Option<&'a Path>) -> Option<PathBuf>;
     fn relative_path(&'a self, proximate_dataset_mount: &'a Path) -> HttmResult<&'a Path>;
 }
 
@@ -180,7 +180,7 @@ impl PathData {
     }
 }
 
-impl<'a> TargetSourceRelativePath<'a> for PathData {
+impl<'a> PathDeconstruction<'a> for PathData {
     fn relative_path(&'a self, proximate_dataset_mount: &Path) -> HttmResult<&'a Path> {
         // path strip, if aliased
         // fallback if unable to find an alias or strip a prefix
@@ -194,8 +194,9 @@ impl<'a> TargetSourceRelativePath<'a> for PathData {
         Some(proximate_dataset_mount.to_path_buf())
     }
 
-    fn source(&'a self) -> Option<PathBuf> {
-        let mount = self.proximate_dataset().ok()?;
+    fn source(&self, opt_proximate_dataset_mount: Option<&'a Path>) -> Option<PathBuf> {
+        let mount =
+            opt_proximate_dataset_mount.map_or_else(|| self.proximate_dataset().ok(), Some)?;
 
         GLOBAL_CONFIG
             .dataset_collection
@@ -276,7 +277,7 @@ impl<'a> ZfsSnapPathGuard<'a> {
     }
 }
 
-impl<'a> TargetSourceRelativePath<'a> for ZfsSnapPathGuard<'_> {
+impl<'a> PathDeconstruction<'a> for ZfsSnapPathGuard<'_> {
     fn target(&self, proximate_dataset_mount: &Path) -> Option<PathBuf> {
         self.relative_path(proximate_dataset_mount)
             .ok()
@@ -308,7 +309,7 @@ impl<'a> TargetSourceRelativePath<'a> for ZfsSnapPathGuard<'_> {
             })
     }
 
-    fn source(&'a self) -> Option<PathBuf> {
+    fn source(&self, _opt_proximate_dataset_mount: Option<&'a Path>) -> Option<PathBuf> {
         let path_string = &self.inner.path_buf.to_string_lossy();
 
         let (dataset_path, relative_and_snap) =

@@ -16,7 +16,7 @@
 // that was distributed with this source code.
 
 use crate::data::paths::PathData;
-use crate::data::paths::TargetSourceRelativePath;
+use crate::data::paths::PathDeconstruction;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::user_has_effective_root;
 use crate::library::utility::{date_string, DateFormat};
@@ -40,7 +40,7 @@ impl TryFrom<&Path> for SnapGuard {
 
         let pathdata = PathData::from(path);
 
-        let dataset_name = match pathdata.source() {
+        let dataset_name = match pathdata.source(None) {
             Some(source) => source,
             None => {
                 return Err(HttmError::new("Could not obtain source dataset for mount: ").into())
@@ -170,7 +170,7 @@ impl ZfsAllowPriv {
     pub fn from_path(&self, new_file_path: &Path) -> HttmResult<()> {
         let pathdata = PathData::from(new_file_path);
 
-        let Some(fs_name) = pathdata.source() else {
+        let Some(fs_name) = pathdata.source(None) else {
             let msg = format!(
                 "Could not determine dataset name from path given: {:?}",
                 new_file_path
