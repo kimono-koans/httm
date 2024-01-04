@@ -16,6 +16,7 @@
 // that was distributed with this source code.
 
 use crate::data::paths::PathData;
+use crate::data::paths::TargetSourceRelativePath;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::user_has_effective_root;
 use crate::library::utility::{date_string, DateFormat};

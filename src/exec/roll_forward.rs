@@ -16,6 +16,7 @@
 // that was distributed with this source code.
 
 use crate::config::generate::RollForwardConfig;
+use crate::data::paths::TargetSourceRelativePath;
 use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::library::iter_extensions::HttmIter;
 use crate::library::results::{HttmError, HttmResult};

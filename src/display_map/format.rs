@@ -17,6 +17,7 @@
 
 use crate::config::generate::{MountDisplay, PrintMode};
 use crate::data::paths::PathData;
+use crate::data::paths::TargetSourceRelativePath;
 use crate::data::paths::ZfsSnapPathGuard;
 use crate::display_versions::format::{NOT_SO_PRETTY_FIXED_WIDTH_PADDING, QUOTATION_MARKS_LEN};
 use crate::library::utility::delimiter;
@@ -75,6 +76,7 @@ impl<'a> From<&MountsForFiles<'a>> for PrintAsMap {
                             MountDisplay::Source => spg.source(),
                             MountDisplay::RelativePath => spg
                                 .relative_path(prox.proximate_dataset)
+                                .ok()
                                 .map(|path| path.to_path_buf()),
                         },
                         None => match mounts_for_files.mount_display() {

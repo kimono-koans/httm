@@ -16,6 +16,7 @@
 // that was distributed with this source code.
 
 use crate::config::generate::{Config, LastSnapMode, ListSnapsOfType};
+use crate::data::paths::TargetSourceRelativePath;
 use crate::data::paths::{CompareVersionsContainer, PathData};
 use crate::library::results::{HttmError, HttmResult};
 use crate::GLOBAL_CONFIG;

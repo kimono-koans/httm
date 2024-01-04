@@ -56,6 +56,12 @@ impl BasicDirEntryInfo {
     }
 }
 
+pub trait TargetSourceRelativePath<'a> {
+    fn target(&self, proximate_dataset_mount: &Path) -> Option<PathBuf>;
+    fn source(&'a self) -> Option<PathBuf>;
+    fn relative_path(&'a self, proximate_dataset_mount: &'a Path) -> HttmResult<&'a Path>;
+}
+
 // detailed info required to differentiate and display file versions
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct PathData {
@@ -137,15 +143,6 @@ impl PathData {
         self.metadata.unwrap_or_else(|| PHANTOM_PATH_METADATA)
     }
 
-    pub fn relative_path<'a>(&'a self, proximate_dataset_mount: &Path) -> HttmResult<&'a Path> {
-        // path strip, if aliased
-        // fallback if unable to find an alias or strip a prefix
-        // (each an indication we should not be trying aliases)
-        self.path_buf
-            .strip_prefix(proximate_dataset_mount)
-            .map_err(|err| err.into())
-    }
-
     pub fn proximate_dataset<'a>(&'a self) -> HttmResult<&'a Path> {
         // for /usr/bin, we prefer the most proximate: /usr/bin to /usr and /
         // ancestors() iterates in this top-down order, when a value: dataset/fstype is available
@@ -181,8 +178,23 @@ impl PathData {
     pub fn alias(&self) -> Option<AliasedPath> {
         AliasedPath::new(&self.path_buf)
     }
+}
 
-    pub fn source<'a>(&'a self) -> Option<PathBuf> {
+impl<'a> TargetSourceRelativePath<'a> for PathData {
+    fn relative_path(&'a self, proximate_dataset_mount: &Path) -> HttmResult<&'a Path> {
+        // path strip, if aliased
+        // fallback if unable to find an alias or strip a prefix
+        // (each an indication we should not be trying aliases)
+        self.path_buf
+            .strip_prefix(proximate_dataset_mount)
+            .map_err(|err| err.into())
+    }
+
+    fn target(&self, proximate_dataset_mount: &Path) -> Option<PathBuf> {
+        Some(proximate_dataset_mount.to_path_buf())
+    }
+
+    fn source(&'a self) -> Option<PathBuf> {
         let mount = self.proximate_dataset().ok()?;
 
         GLOBAL_CONFIG
@@ -247,29 +259,56 @@ impl<'a> ZfsSnapPathGuard<'a> {
             .contains(ZFS_SNAPSHOT_DIRECTORY)
     }
 
-    pub fn target(&self, proximate_dataset_mount: &Path) -> Option<PathBuf> {
-        self.relative_path(proximate_dataset_mount).map(|relative| {
-            self.inner
-                .path_buf
-                .ancestors()
-                .zip(relative.ancestors())
-                .skip_while(|(a_path, b_path)| a_path == b_path)
-                .map(|(a_path, _b_path)| a_path)
-                .collect()
-        })
+    pub fn live_path(&self) -> Option<PathData> {
+        self.inner
+            .path_buf
+            .to_string_lossy()
+            .split_once(&format!("{ZFS_SNAPSHOT_DIRECTORY}/"))
+            .and_then(|(proximate_dataset_mount, relative_and_snap_name)| {
+                relative_and_snap_name
+                    .split_once("/")
+                    .map(|(_snap_name, relative)| {
+                        PathData::from(
+                            PathBuf::from(proximate_dataset_mount).join(Path::new(relative)),
+                        )
+                    })
+            })
+    }
+}
+
+impl<'a> TargetSourceRelativePath<'a> for ZfsSnapPathGuard<'_> {
+    fn target(&self, proximate_dataset_mount: &Path) -> Option<PathBuf> {
+        self.relative_path(proximate_dataset_mount)
+            .ok()
+            .map(|relative| {
+                self.inner
+                    .path_buf
+                    .ancestors()
+                    .zip(relative.ancestors())
+                    .skip_while(|(a_path, b_path)| a_path == b_path)
+                    .map(|(a_path, _b_path)| a_path)
+                    .collect()
+            })
     }
 
-    pub fn relative_path(&'a self, proximate_dataset_mount: &'a Path) -> Option<&'a Path> {
-        let relative_path = self.inner.relative_path(proximate_dataset_mount).ok()?;
-        let snapshot_stripped_set = relative_path.strip_prefix(ZFS_SNAPSHOT_DIRECTORY).ok()?;
+    fn relative_path(&'a self, proximate_dataset_mount: &'a Path) -> HttmResult<&'a Path> {
+        let relative_path = self.inner.relative_path(proximate_dataset_mount)?;
+        let snapshot_stripped_set = relative_path.strip_prefix(ZFS_SNAPSHOT_DIRECTORY)?;
 
         snapshot_stripped_set
             .components()
             .next()
             .and_then(|snapshot_name| snapshot_stripped_set.strip_prefix(snapshot_name).ok())
+            .ok_or_else(|| {
+                let msg = format!(
+                    "httm could not identify any relative path for path: {:?}",
+                    self.path_buf
+                );
+                HttmError::new(&msg).into()
+            })
     }
 
-    pub fn source(&'a self) -> Option<PathBuf> {
+    fn source(&'a self) -> Option<PathBuf> {
         let path_string = &self.inner.path_buf.to_string_lossy();
 
         let (dataset_path, relative_and_snap) =
@@ -297,22 +336,6 @@ impl<'a> ZfsSnapPathGuard<'a> {
                 None
             }
         }
-    }
-
-    pub fn live_path(&self) -> Option<PathData> {
-        self.inner
-            .path_buf
-            .to_string_lossy()
-            .split_once(&format!("{ZFS_SNAPSHOT_DIRECTORY}/"))
-            .and_then(|(proximate_dataset_mount, relative_and_snap_name)| {
-                relative_and_snap_name
-                    .split_once("/")
-                    .map(|(_snap_name, relative)| {
-                        PathData::from(
-                            PathBuf::from(proximate_dataset_mount).join(Path::new(relative)),
-                        )
-                    })
-            })
     }
 }
 

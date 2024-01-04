@@ -16,6 +16,7 @@
 // that was distributed with this source code.
 
 use crate::config::generate::ListSnapsFilters;
+use crate::data::paths::TargetSourceRelativePath;
 use crate::data::paths::{PathData, ZfsSnapPathGuard};
 use crate::library::results::{HttmError, HttmResult};
 use crate::lookup::versions::VersionsMap;

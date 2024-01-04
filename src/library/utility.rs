@@ -16,6 +16,7 @@
 // that was distributed with this source code.
 
 use crate::config::generate::PrintMode;
+use crate::data::paths::TargetSourceRelativePath;
 use crate::data::paths::{BasicDirEntryInfo, PathData, PathMetadata, PHANTOM_DATE};
 use crate::data::selection::SelectionCandidate;
 use crate::library::diff_copy::DiffCopy;
