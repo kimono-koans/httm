@@ -91,14 +91,6 @@ impl<'a> From<&MountsForFiles<'a>> for PrintAsMap {
                                     .map(|source| Cow::Owned(source.to_string_lossy().to_string()))
                             }
                             MountDisplay::RelativePath => {
-                                if let Some(relative_path) = prox
-                                    .opt_alias
-                                    .as_ref()
-                                    .and_then(|alias| alias.relative_path)
-                                {
-                                    return Some(relative_path.to_string_lossy());
-                                }
-
                                 if let Some(relative_path) = opt_spg.and_then(|spd| {
                                     spd.relative_path(&value.path_buf)
                                         .map(|path| path.to_path_buf())
@@ -108,8 +100,7 @@ impl<'a> From<&MountsForFiles<'a>> for PrintAsMap {
                                     ));
                                 }
 
-                                key.relative_path(&value.path_buf)
-                                    .map(|path| path.to_string_lossy())
+                                Some(prox.relative_path.to_string_lossy())
                             }
                         }
                     })

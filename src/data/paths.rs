@@ -137,11 +137,13 @@ impl PathData {
         self.metadata.unwrap_or_else(|| PHANTOM_PATH_METADATA)
     }
 
-    pub fn relative_path<'a>(&'a self, proximate_dataset_mount: &Path) -> Option<&'a Path> {
+    pub fn relative_path<'a>(&'a self, proximate_dataset_mount: &Path) -> HttmResult<&'a Path> {
         // path strip, if aliased
         // fallback if unable to find an alias or strip a prefix
         // (each an indication we should not be trying aliases)
-        self.path_buf.strip_prefix(proximate_dataset_mount).ok()
+        self.path_buf
+            .strip_prefix(proximate_dataset_mount)
+            .map_err(|err| err.into())
     }
 
     pub fn proximate_dataset<'a>(&'a self) -> HttmResult<&'a Path> {
@@ -258,7 +260,7 @@ impl<'a> ZfsSnapPathGuard<'a> {
     }
 
     pub fn relative_path(&'a self, proximate_dataset_mount: &'a Path) -> Option<&'a Path> {
-        let relative_path = self.inner.relative_path(proximate_dataset_mount)?;
+        let relative_path = self.inner.relative_path(proximate_dataset_mount).ok()?;
         let snapshot_stripped_set = relative_path.strip_prefix(ZFS_SNAPSHOT_DIRECTORY).ok()?;
 
         snapshot_stripped_set

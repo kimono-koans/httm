@@ -16,7 +16,6 @@
 // that was distributed with this source code.
 
 use crate::config::generate::{Config, LastSnapMode, ListSnapsOfType};
-use crate::data::paths::AliasedPath;
 use crate::data::paths::{CompareVersionsContainer, PathData};
 use crate::library::results::{HttmError, HttmResult};
 use crate::GLOBAL_CONFIG;
@@ -163,8 +162,8 @@ impl VersionsMap {
 pub struct ProximateDatasetAndOptAlts<'a> {
     pub pathdata: &'a PathData,
     pub proximate_dataset: &'a Path,
+    pub relative_path: &'a Path,
     pub opt_alts: Option<&'a Vec<PathBuf>>,
-    pub opt_alias: Option<AliasedPath<'a>>,
 }
 
 impl<'a> ProximateDatasetAndOptAlts<'a> {
@@ -189,6 +188,11 @@ impl<'a> ProximateDatasetAndOptAlts<'a> {
             .map(|alias| alias.proximate_dataset)
             .map_or_else(|| pathdata.proximate_dataset(), Ok)?;
 
+        let relative_path = opt_alias
+            .as_ref()
+            .and_then(|alias| alias.relative_path)
+            .map_or_else(|| pathdata.relative_path(proximate_dataset), Ok)?;
+
         let opt_alts = GLOBAL_CONFIG
             .dataset_collection
             .opt_map_of_alts
@@ -199,8 +203,8 @@ impl<'a> ProximateDatasetAndOptAlts<'a> {
         Ok(Self {
             pathdata,
             proximate_dataset,
+            relative_path,
             opt_alts,
-            opt_alias,
         })
     }
 
@@ -219,12 +223,7 @@ impl<'a> ProximateDatasetAndOptAlts<'a> {
 
     pub fn into_search_bundles(&'a self) -> impl Iterator<Item = RelativePathAndSnapMounts<'a>> {
         self.datasets_of_interest().flat_map(|dataset_of_interest| {
-            RelativePathAndSnapMounts::new(
-                self.pathdata,
-                self.proximate_dataset,
-                &self.opt_alias,
-                &dataset_of_interest,
-            )
+            RelativePathAndSnapMounts::new(self.pathdata, &self.relative_path, &dataset_of_interest)
         })
     }
 }
@@ -239,19 +238,13 @@ pub struct RelativePathAndSnapMounts<'a> {
 impl<'a> RelativePathAndSnapMounts<'a> {
     fn new(
         pathdata: &'a PathData,
-        proximate_dataset: &'a Path,
-        opt_alias: &Option<AliasedPath<'a>>,
+        relative_path: &'a Path,
         dataset_of_interest: &Path,
     ) -> Option<Self> {
         // building our relative path by removing parent below the snap dir
         //
         // for native searches the prefix is are the dirs below the most proximate dataset
         // for user specified dirs/aliases these are specified by the user
-        let relative_path = opt_alias
-            .as_ref()
-            .and_then(|alias| alias.relative_path)
-            .map_or_else(|| pathdata.relative_path(proximate_dataset), Some)?;
-
         let snap_mounts = GLOBAL_CONFIG
             .dataset_collection
             .map_of_snaps
