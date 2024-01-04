@@ -182,14 +182,14 @@ impl PathData {
         AliasedPath::new(&self.path_buf)
     }
 
-    pub fn source<'a>(&'a self) -> Option<&'a Path> {
+    pub fn source<'a>(&'a self) -> Option<PathBuf> {
         let mount = self.proximate_dataset().ok()?;
 
         GLOBAL_CONFIG
             .dataset_collection
             .map_of_datasets
             .get(mount)
-            .map(|md| md.source.as_ref())
+            .map(|md| md.source.clone())
     }
 }
 
@@ -269,7 +269,7 @@ impl<'a> ZfsSnapPathGuard<'a> {
             .and_then(|snapshot_name| snapshot_stripped_set.strip_prefix(snapshot_name).ok())
     }
 
-    pub fn source(&self) -> Option<String> {
+    pub fn source(&'a self) -> Option<PathBuf> {
         let path_string = &self.inner.path_buf.to_string_lossy();
 
         let (dataset_path, relative_and_snap) =
@@ -285,7 +285,8 @@ impl<'a> ZfsSnapPathGuard<'a> {
             .get(Path::new(dataset_path))
         {
             Some(md) if md.fs_type == FilesystemType::Zfs => {
-                Some(format!("{}@{snap_name}", md.source.to_string_lossy()))
+                let res = format!("{}@{snap_name}", md.source.to_string_lossy());
+                Some(PathBuf::from(res))
             }
             Some(_md) => {
                 eprintln!("WARN: {:?} is located on a non-ZFS dataset.  httm can only list snapshot names for ZFS datasets.", self.inner.path_buf);

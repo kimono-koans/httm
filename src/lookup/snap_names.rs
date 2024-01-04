@@ -71,11 +71,12 @@ impl SnapNameMap {
                     .filter(|snap| {
                         if let Some(filters) = opt_filters {
                             if let Some(names) = &filters.name_filters {
-                                return names.iter().any(|pattern| snap.contains(pattern));
+                                return names.iter().any(|pattern| snap.to_string_lossy().contains(pattern));
                             }
                         }
                         true
                     })
+                    .map(|path| path.to_string_lossy().to_string())
                     .collect();
 
                 (pathdata, snap_names)

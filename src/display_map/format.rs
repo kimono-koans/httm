@@ -23,7 +23,6 @@ use crate::library::utility::delimiter;
 use crate::{MountsForFiles, SnapNameMap, VersionsMap, GLOBAL_CONFIG};
 use serde::ser::SerializeMap;
 use serde::{Serialize, Serializer};
-use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::ops::Deref;
 
@@ -68,43 +67,25 @@ impl<'a> From<&MountsForFiles<'a>> for PrintAsMap {
                 let res = prox
                     .datasets_of_interest()
                     .map(PathData::from)
-                    .filter_map(|value| {
-                        let opt_spg = ZfsSnapPathGuard::new(key);
-
-                        match mounts_for_files.mount_display() {
-                            MountDisplay::Target => {
-                                if let Some(target) =
-                                    opt_spg.and_then(|spd| spd.target(&value.path_buf))
-                                {
-                                    return Some(Cow::Owned(target.to_string_lossy().to_string()));
-                                }
-
-                                Some(Cow::Owned(value.path_buf.to_string_lossy().to_string()))
-                            }
-                            MountDisplay::Source => {
-                                if let Some(snap_source) = opt_spg.and_then(|spd| spd.source()) {
-                                    return Some(Cow::Owned(snap_source));
-                                }
-
-                                value
-                                    .source()
-                                    .map(|source| Cow::Owned(source.to_string_lossy().to_string()))
-                            }
+                    .filter_map(|value| match ZfsSnapPathGuard::new(key) {
+                        Some(spg) => match mounts_for_files.mount_display() {
+                            MountDisplay::Target => spg
+                                .target(prox.proximate_dataset)
+                                .map(|path| path.to_path_buf()),
+                            MountDisplay::Source => spg.source(),
+                            MountDisplay::RelativePath => spg
+                                .relative_path(prox.proximate_dataset)
+                                .map(|path| path.to_path_buf()),
+                        },
+                        None => match mounts_for_files.mount_display() {
+                            MountDisplay::Target => Some(value.path_buf),
+                            MountDisplay::Source => value.source(),
                             MountDisplay::RelativePath => {
-                                if let Some(relative_path) = opt_spg.and_then(|spd| {
-                                    spd.relative_path(&value.path_buf)
-                                        .map(|path| path.to_path_buf())
-                                }) {
-                                    return Some(Cow::Owned(
-                                        relative_path.to_string_lossy().to_string(),
-                                    ));
-                                }
-
-                                Some(prox.relative_path.to_string_lossy())
+                                Some(prox.relative_path).map(|path| path.to_path_buf())
                             }
-                        }
+                        },
                     })
-                    .map(|s| s.to_string())
+                    .map(|path| path.to_string_lossy().to_string())
                     .collect();
                 (key.path_buf.to_string_lossy().to_string(), res)
             })
