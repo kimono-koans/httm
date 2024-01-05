@@ -224,24 +224,19 @@ impl<'a> ProximateDatasetAndOptAlts<'a> {
 
     pub fn into_search_bundles(&'a self) -> impl Iterator<Item = RelativePathAndSnapMounts<'a>> {
         self.datasets_of_interest().flat_map(|dataset_of_interest| {
-            RelativePathAndSnapMounts::new(self.pathdata, &self.relative_path, &dataset_of_interest)
+            RelativePathAndSnapMounts::new(&self.relative_path, &dataset_of_interest)
         })
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct RelativePathAndSnapMounts<'a> {
-    pub pathdata: &'a PathData,
     pub relative_path: &'a Path,
     pub snap_mounts: &'a [PathBuf],
 }
 
 impl<'a> RelativePathAndSnapMounts<'a> {
-    fn new(
-        pathdata: &'a PathData,
-        relative_path: &'a Path,
-        dataset_of_interest: &Path,
-    ) -> Option<Self> {
+    fn new(relative_path: &'a Path, dataset_of_interest: &Path) -> Option<Self> {
         // building our relative path by removing parent below the snap dir
         //
         // for native searches the prefix is are the dirs below the most proximate dataset
@@ -253,7 +248,6 @@ impl<'a> RelativePathAndSnapMounts<'a> {
             .as_slice();
 
         Some(Self {
-            pathdata,
             relative_path,
             snap_mounts,
         })
