@@ -112,31 +112,12 @@ impl PathData {
         let canonical_path: PathBuf =
             realpath(path, RealpathFlags::ALLOW_MISSING).unwrap_or_else(|_| path.to_path_buf());
 
-        let path_metadata = opt_metadata.and_then(|md| Self::opt_metadata(&md));
+        let path_metadata = opt_metadata.and_then(|md| PathMetadata::new(&md));
 
         Self {
             path_buf: canonical_path,
             metadata: path_metadata,
         }
-    }
-
-    // call symlink_metadata, as we need to resolve symlinks to get non-"phantom" metadata
-    fn opt_metadata(md: &Metadata) -> Option<PathMetadata> {
-        // may fail on systems that don't collect a modify time
-        Self::modify_time(md).map(|time| PathMetadata {
-            size: md.len(),
-            modify_time: time,
-        })
-    }
-
-    // using ctime instead of mtime might be more correct as mtime can be trivially changed from user space
-    // but I think we want to use mtime here? People should be able to make a snapshot "unique" with only mtime?
-    fn modify_time(md: &Metadata) -> Option<SystemTime> {
-        //#[cfg(not(unix))]
-        // return md.modified().unwrap_or(UNIX_EPOCH);
-        //#[cfg(unix)]
-        //return UNIX_EPOCH + time::Duration::new(md.ctime(), md.ctime_nsec() as i32);
-        md.modified().ok()
     }
 
     #[inline]
@@ -391,6 +372,27 @@ impl Serialize for PathMetadata {
 pub struct PathMetadata {
     pub size: u64,
     pub modify_time: SystemTime,
+}
+
+impl PathMetadata {
+    // call symlink_metadata, as we need to resolve symlinks to get non-"phantom" metadata
+    fn new(md: &Metadata) -> Option<Self> {
+        // may fail on systems that don't collect a modify time
+        Self::modify_time(md).map(|time| PathMetadata {
+            size: md.len(),
+            modify_time: time,
+        })
+    }
+
+    // using ctime instead of mtime might be more correct as mtime can be trivially changed from user space
+    // but I think we want to use mtime here? People should be able to make a snapshot "unique" with only mtime?
+    fn modify_time(md: &Metadata) -> Option<SystemTime> {
+        //#[cfg(not(unix))]
+        // return md.modified().unwrap_or(UNIX_EPOCH);
+        //#[cfg(unix)]
+        //return UNIX_EPOCH + time::Duration::new(md.ctime(), md.ctime_nsec() as i32);
+        md.modified().ok()
+    }
 }
 
 pub const PHANTOM_DATE: SystemTime = SystemTime::UNIX_EPOCH;
