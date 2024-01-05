@@ -167,6 +167,20 @@ pub struct ProximateDatasetAndOptAlts<'a> {
     pub opt_alts: Option<&'a Vec<PathBuf>>,
 }
 
+impl<'a> Ord for ProximateDatasetAndOptAlts<'a> {
+    #[inline]
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.pathdata.cmp(&other.pathdata)
+    }
+}
+
+impl<'a> PartialOrd for ProximateDatasetAndOptAlts<'a> {
+    #[inline]
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
 impl<'a> ProximateDatasetAndOptAlts<'a> {
     pub fn new(pathdata: &'a PathData) -> HttmResult<Self> {
         // here, we take our file path and get back possibly multiple ZFS dataset mountpoints
