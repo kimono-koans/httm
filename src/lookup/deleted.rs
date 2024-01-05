@@ -81,13 +81,8 @@ impl DeletedFiles {
         // compare local filenames to all unique snap filenames - none values are unique, here
         let all_deleted_versions = unique_snap_filenames
             .into_iter()
-            .filter_map(move |(file_name, basic_info)| {
-                if local_filenames_set.contains(&file_name) {
-                    None
-                } else {
-                    Some(basic_info)
-                }
-            })
+            .filter(|(file_name, _basic_info)| !local_filenames_set.contains(file_name))
+            .map(|(_file_name, basic_info)| basic_info)
             .collect();
 
         Ok(all_deleted_versions)
