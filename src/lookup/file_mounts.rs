@@ -15,13 +15,38 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::config::generate::MountDisplay;
+use crate::data::paths::PathData;
+use crate::data::paths::PathDeconstruction;
 use crate::library::results::{HttmError, HttmResult};
 use crate::lookup::versions::ProximateDatasetAndOptAlts;
 use crate::GLOBAL_CONFIG;
 use hashbrown::HashSet;
 use rayon::prelude::*;
 use std::ops::Deref;
+use std::path::PathBuf;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum MountDisplay {
+    Target,
+    Source,
+    RelativePath,
+}
+
+impl MountDisplay {
+    pub fn display<'a, T>(&self, path: &'a T, mount: &'a PathData) -> Option<PathBuf>
+    where
+        T: PathDeconstruction<'a> + ?Sized,
+    {
+        match self {
+            MountDisplay::Target => path.target(&mount.path_buf),
+            MountDisplay::Source => path.source(Some(&mount.path_buf)),
+            MountDisplay::RelativePath => path
+                .relative_path(&mount.path_buf)
+                .ok()
+                .map(|path| path.to_path_buf()),
+        }
+    }
+}
 
 #[derive(Debug)]
 pub struct MountsForFiles<'a> {

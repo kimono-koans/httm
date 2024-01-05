@@ -20,6 +20,7 @@ use crate::data::filesystem_info::FilesystemInfo;
 use crate::data::paths::{PathData, ZfsSnapPathGuard};
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{pwd, HttmIsDir};
+use crate::lookup::file_mounts::MountDisplay;
 use crate::ROOT_DIRECTORY;
 use clap::{crate_name, crate_version, Arg, ArgMatches, OsValues};
 use indicatif::ProgressBar;
@@ -52,13 +53,6 @@ pub struct RollForwardConfig {
 pub enum BulkExclusion {
     NoLive,
     NoSnap,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum MountDisplay {
-    Target,
-    Source,
-    RelativePath,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

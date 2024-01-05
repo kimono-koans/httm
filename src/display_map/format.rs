@@ -15,7 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::config::generate::{MountDisplay, PrintMode};
+use crate::config::generate::PrintMode;
 use crate::data::paths::PathData;
 use crate::data::paths::PathDeconstruction;
 use crate::data::paths::ZfsSnapPathGuard;
@@ -61,36 +61,29 @@ impl Serialize for PrintAsMap {
 
 impl<'a> From<&MountsForFiles<'a>> for PrintAsMap {
     fn from(mounts_for_files: &MountsForFiles) -> Self {
+        let mount_display = mounts_for_files.mount_display();
+
         let inner = mounts_for_files
             .iter()
             .map(|prox| {
-                let key = prox.pathdata;
+                let pathdata = prox.pathdata;
+                let opt_spg = ZfsSnapPathGuard::new(prox.pathdata);
+
                 let res = prox
                     .datasets_of_interest()
                     .map(PathData::from)
-                    .filter_map(|value| match ZfsSnapPathGuard::new(key) {
-                        Some(spg) => match mounts_for_files.mount_display() {
-                            MountDisplay::Target => spg
-                                .target(prox.proximate_dataset)
-                                .map(|path| path.to_path_buf()),
-                            MountDisplay::Source => spg.source(None),
-                            MountDisplay::RelativePath => spg
-                                .relative_path(prox.proximate_dataset)
-                                .ok()
-                                .map(|path| path.to_path_buf()),
-                        },
-                        None => match mounts_for_files.mount_display() {
-                            MountDisplay::Target => key.target(&value.path_buf),
-                            MountDisplay::Source => key.source(Some(&value.path_buf)),
-                            MountDisplay::RelativePath => key
-                                .relative_path(&value.path_buf)
-                                .ok()
-                                .map(|path| path.to_path_buf()),
-                        },
+                    .filter_map(|mount| {
+                        let path: &dyn PathDeconstruction = match &opt_spg {
+                            Some(spg) => spg,
+                            None => pathdata,
+                        };
+
+                        mount_display.display(path, &mount)
                     })
                     .map(|path| path.to_string_lossy().to_string())
                     .collect();
-                (key.path_buf.to_string_lossy().to_string(), res)
+
+                (prox.pathdata.path_buf.to_string_lossy().to_string(), res)
             })
             .collect();
         Self { inner }
