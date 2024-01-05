@@ -24,7 +24,6 @@ use once_cell::sync::Lazy;
 use proc_mounts::MountIter;
 use rayon::iter::Either;
 use rayon::prelude::*;
-use serde_json::map;
 use std::collections::BTreeMap;
 use std::io::Read;
 use std::ops::Deref;
