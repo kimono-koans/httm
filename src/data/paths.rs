@@ -61,6 +61,7 @@ pub trait PathDeconstruction<'a> {
     fn target(&self, proximate_dataset_mount: &Path) -> Option<PathBuf>;
     fn source(&self, opt_proximate_dataset_mount: Option<&'a Path>) -> Option<PathBuf>;
     fn relative_path(&'a self, proximate_dataset_mount: &'a Path) -> HttmResult<&'a Path>;
+    fn proximate_dataset(&'a self) -> HttmResult<&'a Path>;
 }
 
 // detailed info required to differentiate and display file versions
@@ -124,8 +125,37 @@ impl PathData {
     pub fn md_infallible(&self) -> PathMetadata {
         self.metadata.unwrap_or_else(|| PHANTOM_PATH_METADATA)
     }
+}
 
-    pub fn proximate_dataset<'a>(&'a self) -> HttmResult<&'a Path> {
+impl<'a> PathDeconstruction<'a> for PathData {
+    fn alias(&self) -> Option<AliasedPath> {
+        AliasedPath::new(&self.path_buf)
+    }
+    fn relative_path(&'a self, proximate_dataset_mount: &Path) -> HttmResult<&'a Path> {
+        // path strip, if aliased
+        // fallback if unable to find an alias or strip a prefix
+        // (each an indication we should not be trying aliases)
+        self.path_buf
+            .strip_prefix(proximate_dataset_mount)
+            .map_err(|err| err.into())
+    }
+
+    fn target(&self, proximate_dataset_mount: &Path) -> Option<PathBuf> {
+        Some(proximate_dataset_mount.to_path_buf())
+    }
+
+    fn source(&self, opt_proximate_dataset_mount: Option<&'a Path>) -> Option<PathBuf> {
+        let mount =
+            opt_proximate_dataset_mount.map_or_else(|| self.proximate_dataset().ok(), Some)?;
+
+        GLOBAL_CONFIG
+            .dataset_collection
+            .map_of_datasets
+            .get(mount)
+            .map(|md| md.source.clone())
+    }
+
+    fn proximate_dataset(&'a self) -> HttmResult<&'a Path> {
         // for /usr/bin, we prefer the most proximate: /usr/bin to /usr and /
         // ancestors() iterates in this top-down order, when a value: dataset/fstype is available
         // we map to return the key, instead of the value
@@ -155,35 +185,6 @@ impl PathData {
                 );
                 HttmError::new(&msg).into()
             })
-    }
-}
-
-impl<'a> PathDeconstruction<'a> for PathData {
-    fn alias(&self) -> Option<AliasedPath> {
-        AliasedPath::new(&self.path_buf)
-    }
-    fn relative_path(&'a self, proximate_dataset_mount: &Path) -> HttmResult<&'a Path> {
-        // path strip, if aliased
-        // fallback if unable to find an alias or strip a prefix
-        // (each an indication we should not be trying aliases)
-        self.path_buf
-            .strip_prefix(proximate_dataset_mount)
-            .map_err(|err| err.into())
-    }
-
-    fn target(&self, proximate_dataset_mount: &Path) -> Option<PathBuf> {
-        Some(proximate_dataset_mount.to_path_buf())
-    }
-
-    fn source(&self, opt_proximate_dataset_mount: Option<&'a Path>) -> Option<PathBuf> {
-        let mount =
-            opt_proximate_dataset_mount.map_or_else(|| self.proximate_dataset().ok(), Some)?;
-
-        GLOBAL_CONFIG
-            .dataset_collection
-            .map_of_datasets
-            .get(mount)
-            .map(|md| md.source.clone())
     }
 }
 
@@ -323,6 +324,10 @@ impl<'a> PathDeconstruction<'a> for ZfsSnapPathGuard<'_> {
                 None
             }
         }
+    }
+
+    fn proximate_dataset(&'a self) -> HttmResult<&'a Path> {
+        self.inner.proximate_dataset()
     }
 }
 
