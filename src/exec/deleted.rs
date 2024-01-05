@@ -175,7 +175,8 @@ impl RecurseBehindDeletedDir {
         };
 
         while let Some(item) = queue.pop() {
-            item.vec_dirs
+            let new = item
+                .vec_dirs
                 .into_iter()
                 .take_while(|_| {
                     // check -- should deleted threads keep working?
@@ -192,13 +193,10 @@ impl RecurseBehindDeletedDir {
                         skim_tx,
                     )
                 })
-                .try_for_each(|res| {
-                    res.map(|item| {
-                        if !item.vec_dirs.is_empty() {
-                            queue.push(item)
-                        }
-                    })
-                })?
+                .flatten()
+                .filter(|item| !item.vec_dirs.is_empty());
+
+            queue.extend(new);
         }
 
         Ok(())
