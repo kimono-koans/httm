@@ -24,6 +24,7 @@ use once_cell::sync::Lazy;
 use proc_mounts::MountIter;
 use rayon::iter::Either;
 use rayon::prelude::*;
+use serde_json::map;
 use std::collections::BTreeMap;
 use std::io::Read;
 use std::ops::Deref;
@@ -397,7 +398,7 @@ impl BaseFilesystemInfo {
         let tm_dir_path = std::path::Path::new(TM_DIR);
 
         if tm_dir_path.exists() {
-            std::fs::read_dir(tm_dir_path)?
+            let entries = std::fs::read_dir(tm_dir_path)?
                 .flatten()
                 // this is done because sometimes smb shares
                 // are mounted in this path too, but they have extensions
@@ -411,10 +412,9 @@ impl BaseFilesystemInfo {
                             mount_type: MountType::Local,
                         },
                     )
-                })
-                .for_each(|(k, v)| {
-                    let _ = map_of_datasets.insert(k, v);
                 });
+
+            map_of_datasets.extend(entries);
         }
 
         Ok(())
