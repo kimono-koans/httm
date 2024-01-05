@@ -57,6 +57,7 @@ impl BasicDirEntryInfo {
 }
 
 pub trait PathDeconstruction<'a> {
+    fn alias(&self) -> Option<AliasedPath>;
     fn target(&self, proximate_dataset_mount: &Path) -> Option<PathBuf>;
     fn source(&self, opt_proximate_dataset_mount: Option<&'a Path>) -> Option<PathBuf>;
     fn relative_path(&'a self, proximate_dataset_mount: &'a Path) -> HttmResult<&'a Path>;
@@ -174,13 +175,12 @@ impl PathData {
                 HttmError::new(&msg).into()
             })
     }
-
-    pub fn alias(&self) -> Option<AliasedPath> {
-        AliasedPath::new(&self.path_buf)
-    }
 }
 
 impl<'a> PathDeconstruction<'a> for PathData {
+    fn alias(&self) -> Option<AliasedPath> {
+        AliasedPath::new(&self.path_buf)
+    }
     fn relative_path(&'a self, proximate_dataset_mount: &Path) -> HttmResult<&'a Path> {
         // path strip, if aliased
         // fallback if unable to find an alias or strip a prefix
@@ -278,6 +278,11 @@ impl<'a> ZfsSnapPathGuard<'a> {
 }
 
 impl<'a> PathDeconstruction<'a> for ZfsSnapPathGuard<'_> {
+    fn alias(&self) -> Option<AliasedPath> {
+        // aliases aren't allowed for snap paths
+        None
+    }
+
     fn target(&self, proximate_dataset_mount: &Path) -> Option<PathBuf> {
         self.relative_path(proximate_dataset_mount)
             .ok()
