@@ -93,7 +93,7 @@ show_all_changes() {
 
 	while read -r line; do
 		all_versions+=("$line")
-	done <<<"$(httm -n --omit-ditto "$filename")"
+	done <<<"$(httm -n --unique=contents --omit-ditto "$filename")"
 
 	# check if versions array is not empty
 	if [[ ${#all_versions[@]} -eq 0 ]]; then
@@ -140,7 +140,7 @@ show_single_change() {
 	local mode="$2"
 
 	[[ "$mode" != "select" ]] || previous_version="$(httm --select --raw "$current_version")"
-	[[ "$mode" != "last" ]] || previous_version="$(httm --last-snap=no-ditto --raw "$current_version")"
+	[[ "$mode" != "last" ]] || previous_version="$(httm --unique=contents --omit-ditto --last-snap --raw "$current_version")"
 
 	display_header "$current_version"
 	check_not_identical "$previous_version" "$current_version"
