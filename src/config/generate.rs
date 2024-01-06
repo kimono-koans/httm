@@ -359,7 +359,7 @@ fn parse_args() -> ArgMatches {
                 \"no-ditto-exclusive\", return only a last snap which is not the same as the live version (argument \"--no-ditto\" is an alias for this option), \
                 \"no-ditto-inclusive\", return a last snap which is not the same as the live version, or should none exist, return the live file, and, \
                 \"none\" or \"without\", return the live file only for those files without a last snapshot.")
-                .conflicts_with_all(&["NUM_VERSIONS", "SNAPSHOT", "FILE_MOUNT", "ALT_REPLICATED", "REMOTE_DIR", "LOCAL_DIR", "PREVIEW", "OMIT_DITTO"])
+                .conflicts_with_all(&["NUM_VERSIONS", "SNAPSHOT", "FILE_MOUNT", "ALT_REPLICATED", "REMOTE_DIR", "LOCAL_DIR", "PREVIEW"])
                 .display_order(15)
         )
         .arg(
@@ -399,7 +399,7 @@ fn parse_args() -> ArgMatches {
             Arg::new("OMIT_DITTO")
                 .long("omit-ditto")
                 .help("omit display of the snapshot version which may be identical to the live version.  By default, `httm` displays all snapshot versions and the live version).")
-                .conflicts_with_all(&["NUM_VERSIONS", "LAST_SNAP"])
+                .conflicts_with_all(&["NUM_VERSIONS"])
                 .display_order(20)
         )
         .arg(
