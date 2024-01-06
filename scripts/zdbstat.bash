@@ -126,7 +126,7 @@ function run_loop() {
         file_name="$( readlink -e "$f" 2>/dev/null; exit 0 )"
 
         if [[ -z "$file_name" ]]; then
-            print_err "WARN: Path likely does not exist: $file_name"
+            print_err "WARN: Path likely does not exist: $f"
             continue
         fi
 
