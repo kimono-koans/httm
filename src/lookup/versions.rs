@@ -258,8 +258,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
         let snap_mounts = GLOBAL_CONFIG
             .dataset_collection
             .map_of_snaps
-            .get(dataset_of_interest)?
-            .as_slice();
+            .get(dataset_of_interest)?;
 
         Some(Self {
             relative_path,
