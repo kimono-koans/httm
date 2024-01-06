@@ -196,17 +196,14 @@ impl<'a> ProximateDatasetAndOptAlts<'a> {
         // will compare the most proximate dataset to our our canonical path and the difference
         // between ZFS mount point and the canonical path is the path we will use to search the
         // hidden snapshot dirs
-        let opt_alias = pathdata.alias();
-
-        let proximate_dataset = opt_alias
-            .as_ref()
-            .map(|alias| alias.proximate_dataset)
-            .map_or_else(|| pathdata.proximate_dataset(), Ok)?;
-
-        let relative_path = opt_alias
-            .as_ref()
-            .and_then(|alias| alias.relative_path)
-            .map_or_else(|| pathdata.relative_path(proximate_dataset), Ok)?;
+        let (proximate_dataset, relative_path) = match pathdata.alias() {
+            Some(alias) => (alias.proximate_dataset, alias.relative_path),
+            None => {
+                let proximate_dataset = pathdata.proximate_dataset()?;
+                let relative_path = pathdata.relative_path(proximate_dataset)?;
+                (proximate_dataset, relative_path)
+            }
+        };
 
         let opt_alts = GLOBAL_CONFIG
             .dataset_collection

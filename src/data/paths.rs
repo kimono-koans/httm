@@ -190,13 +190,14 @@ impl<'a> PathDeconstruction<'a> for PathData {
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct AliasedPath<'a> {
     pub proximate_dataset: &'a Path,
-    pub relative_path: Option<&'a Path>,
+    pub relative_path: &'a Path,
 }
 
 impl<'a> AliasedPath<'a> {
     pub fn new(path: &'a Path) -> Option<Self> {
         // find_map_first should return the first seq result with a par_iter
         // but not with a par_bridge
+
         path.ancestors().find_map(|ancestor| {
             GLOBAL_CONFIG
                 .dataset_collection
@@ -204,9 +205,11 @@ impl<'a> AliasedPath<'a> {
                 .as_ref()
                 .and_then(|map_of_aliases| {
                     let md = map_of_aliases.get(ancestor);
+                    let relative_path = path.strip_prefix(ancestor).ok()?;
+
                     md.map(|metadata| AliasedPath {
                         proximate_dataset: metadata.remote_dir.as_ref(),
-                        relative_path: path.strip_prefix(ancestor).ok(),
+                        relative_path,
                     })
                 })
         })
