@@ -15,7 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::config::generate::{Config, LastSnapMode, ListSnapsOfType};
+use crate::config::generate::{Config, ExecMode, LastSnapMode, ListSnapsOfType};
 use crate::data::paths::PathDeconstruction;
 use crate::data::paths::{CompareVersionsContainer, PathData};
 use crate::library::results::{HttmError, HttmResult};
@@ -58,10 +58,13 @@ impl VersionsMap {
             .filter_map(|pd| match ProximateDatasetAndOptAlts::new(pd) {
                 Ok(prox_opt_alts) => Some(prox_opt_alts),
                 Err(_) => {
-                    eprintln!(
-                        "WARN: Filesystem upon which the path resides is not supported: {:?}",
-                        pd.path_buf
-                    );
+                    match GLOBAL_CONFIG.exec_mode {
+                        ExecMode::Interactive(_) => eprintln!(
+                            "WARN: Filesystem upon which the path resides is not supported: {:?}",
+                            pd.path_buf
+                        ),
+                        _ => (),
+                    }
                     None
                 }
             })

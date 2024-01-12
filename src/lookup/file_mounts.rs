@@ -19,6 +19,7 @@ use crate::data::paths::PathData;
 use crate::data::paths::PathDeconstruction;
 use crate::library::results::{HttmError, HttmResult};
 use crate::lookup::versions::ProximateDatasetAndOptAlts;
+use crate::ExecMode;
 use crate::GLOBAL_CONFIG;
 use rayon::prelude::*;
 use std::collections::BTreeSet;
@@ -76,10 +77,13 @@ impl<'a> MountsForFiles<'a> {
             .filter_map(|pd| match ProximateDatasetAndOptAlts::new(pd) {
                 Ok(prox_opt_alts) => Some(prox_opt_alts),
                 Err(_) => {
-                    eprintln!(
-                        "WARN: Filesystem upon which the path resides is not supported: {:?}",
-                        pd.path_buf
-                    );
+                    match GLOBAL_CONFIG.exec_mode {
+                        ExecMode::Interactive(_) => eprintln!(
+                            "WARN: Filesystem upon which the path resides is not supported: {:?}",
+                            pd.path_buf
+                        ),
+                        _ => (),
+                    }
                     None
                 }
             })
