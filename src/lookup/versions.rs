@@ -53,19 +53,18 @@ impl DerefMut for VersionsMap {
 
 impl VersionsMap {
     pub fn new(config: &Config, path_set: &[PathData]) -> HttmResult<VersionsMap> {
+        let is_interactive_mode = matches!(config.exec_mode, ExecMode::Interactive(_));
+
         let all_snap_versions: BTreeMap<PathData, Vec<PathData>> = path_set
             .par_iter()
             .filter_map(|pd| match ProximateDatasetAndOptAlts::new(pd) {
                 Ok(prox_opt_alts) => Some(prox_opt_alts),
                 Err(_) => {
-                    match GLOBAL_CONFIG.exec_mode {
-                        ExecMode::Interactive(_) => (),
-                        _ => {
-                            eprintln!(
-                                "WARN: Filesystem upon which the path resides is not supported: {:?}",
-                                pd.path_buf
-                            )
-                        },
+                    if !is_interactive_mode {
+                        eprintln!(
+                            "WARN: Filesystem upon which the path resides is not supported: {:?}",
+                            pd.path_buf
+                        )
                     }
                     None
                 }
@@ -82,7 +81,7 @@ impl VersionsMap {
                     })
                     .collect();
 
-                if key.metadata.is_none() && values.is_empty() {
+                if !is_interactive_mode && key.metadata.is_none() && values.is_empty() {
                     eprintln!(
                         "WARN: Input file may have never existed: {:?}",
                         key.path_buf

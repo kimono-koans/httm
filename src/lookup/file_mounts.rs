@@ -69,6 +69,8 @@ impl<'a> MountsForFiles<'a> {
     }
 
     pub fn new(mount_display: &'a MountDisplay) -> HttmResult<Self> {
+        let is_interactive_mode = matches!(GLOBAL_CONFIG.exec_mode, ExecMode::Interactive(_));
+
         // we only check for phantom files in "mount for file" mode because
         // people should be able to search for deleted files in other modes
         let set: BTreeSet<ProximateDatasetAndOptAlts> = GLOBAL_CONFIG
@@ -77,14 +79,11 @@ impl<'a> MountsForFiles<'a> {
             .filter_map(|pd| match ProximateDatasetAndOptAlts::new(pd) {
                 Ok(prox_opt_alts) => Some(prox_opt_alts),
                 Err(_) => {
-                    match GLOBAL_CONFIG.exec_mode {
-                        ExecMode::Interactive(_) => (),
-                        _ => {
-                            eprintln!(
-                                "WARN: Filesystem upon which the path resides is not supported: {:?}",
-                                pd.path_buf
-                            )
-                        },
+                    if !is_interactive_mode {
+                        eprintln!(
+                            "WARN: Filesystem upon which the path resides is not supported: {:?}",
+                            pd.path_buf
+                        )
                     }
                     None
                 }
@@ -92,7 +91,7 @@ impl<'a> MountsForFiles<'a> {
             .map(|prox_opt_alts| {
                 let count = prox_opt_alts.datasets_of_interest().count();
 
-                if prox_opt_alts.pathdata.metadata.is_none() && count == 0 {
+                if !is_interactive_mode && prox_opt_alts.pathdata.metadata.is_none() && count == 0 {
                     eprintln!(
                         "WARN: Input file may have never existed: {:?}",
                         prox_opt_alts.pathdata.path_buf
