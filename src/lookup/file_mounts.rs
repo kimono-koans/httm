@@ -78,11 +78,13 @@ impl<'a> MountsForFiles<'a> {
                 Ok(prox_opt_alts) => Some(prox_opt_alts),
                 Err(_) => {
                     match GLOBAL_CONFIG.exec_mode {
-                        ExecMode::Interactive(_) => eprintln!(
-                            "WARN: Filesystem upon which the path resides is not supported: {:?}",
-                            pd.path_buf
-                        ),
-                        _ => (),
+                        ExecMode::Interactive(_) => (),
+                        _ => {
+                            eprintln!(
+                                "WARN: Filesystem upon which the path resides is not supported: {:?}",
+                                pd.path_buf
+                            )
+                        },
                     }
                     None
                 }
