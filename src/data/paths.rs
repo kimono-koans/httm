@@ -165,12 +165,6 @@ impl<'a> PathDeconstruction<'a> for PathData {
         self.path_buf
             .ancestors()
             .skip_while(|ancestor| ancestor.components().count() > *DATASET_MAX_LEN)
-            .take_while(|ancestor| {
-                !GLOBAL_CONFIG
-                    .dataset_collection
-                    .filter_dirs
-                    .contains(*ancestor)
-            })
             .find(|ancestor| {
                 GLOBAL_CONFIG
                     .dataset_collection
