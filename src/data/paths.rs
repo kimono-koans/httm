@@ -377,7 +377,7 @@ pub struct PathMetadata {
 
 impl PathMetadata {
     // call symlink_metadata, as we need to resolve symlinks to get non-"phantom" metadata
-    fn new(md: &Metadata) -> Option<Self> {
+    pub fn new(md: &Metadata) -> Option<Self> {
         // may fail on systems that don't collect a modify time
         Self::modify_time(md).map(|time| PathMetadata {
             size: md.len(),

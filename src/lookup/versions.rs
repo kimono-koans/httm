@@ -17,6 +17,7 @@
 
 use crate::config::generate::{Config, ExecMode, LastSnapMode, ListSnapsOfType};
 use crate::data::paths::PathDeconstruction;
+use crate::data::paths::PathMetadata;
 use crate::data::paths::{CompareVersionsContainer, PathData};
 use crate::library::results::{HttmError, HttmResult};
 use crate::GLOBAL_CONFIG;
@@ -294,7 +295,12 @@ impl<'a> RelativePathAndSnapMounts<'a> {
             .filter_map(|joined_path| {
                 match joined_path.symlink_metadata() {
                     Ok(md) => {
-                        Some(PathData::new(joined_path.as_path(), Some(md)))
+                        let path_metadata = PathMetadata::new(&md);
+
+                        Some(PathData {
+                            path_buf: joined_path,
+                            metadata: path_metadata,
+                        })
                     },
                     Err(err) => {
                         match err.kind() {
