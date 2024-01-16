@@ -295,6 +295,8 @@ impl<'a> RelativePathAndSnapMounts<'a> {
             .filter_map(|joined_path| {
                 match joined_path.symlink_metadata() {
                     Ok(md) => {
+                        // why not PathData::new()? because symlinks will resolve!
+                        // symlinks from a snap will end up looking just like the link target, so this is very confusing...
                         let path_metadata = PathMetadata::new(&md);
 
                         Some(PathData {
