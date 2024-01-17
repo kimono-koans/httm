@@ -73,23 +73,19 @@ impl VersionsMap {
             .map(|prox_opt_alts| {
                 // don't want to flatten this iter here b/c
                 // we want to keep these values with this key
-                let key = prox_opt_alts.pathdata.clone();
-                let values: Vec<PathData> = prox_opt_alts
-                    .into_search_bundles()
-                    .par_bridge()
-                    .flat_map(|relative_path_snap_mounts| {
-                        relative_path_snap_mounts.versions_processed(&config.uniqueness)
-                    })
-                    .collect();
+                let versions = prox_opt_alts.into_versions(config);
 
-                if !is_interactive_mode && key.metadata.is_none() && values.is_empty() {
+                if !is_interactive_mode
+                    && versions.live_path.metadata.is_none()
+                    && versions.snap_versions.is_empty()
+                {
                     eprintln!(
                         "WARN: Input file may have never existed: {:?}",
-                        key.path_buf
+                        versions.live_path.path_buf
                     );
                 }
 
-                (key, values)
+                (versions.live_path, versions.snap_versions)
             })
             .collect();
 
@@ -248,6 +244,27 @@ impl<'a> ProximateDatasetAndOptAlts<'a> {
             RelativePathAndSnapMounts::new(&self.relative_path, &dataset_of_interest)
         })
     }
+
+    pub fn into_versions(&self, config: &Config) -> Versions {
+        let live_path = self.pathdata.clone();
+        let snap_versions: Vec<PathData> = self
+            .into_search_bundles()
+            .par_bridge()
+            .flat_map(|relative_path_snap_mounts| {
+                relative_path_snap_mounts.versions_processed(&config.uniqueness)
+            })
+            .collect();
+
+        Versions {
+            live_path,
+            snap_versions,
+        }
+    }
+}
+
+pub struct Versions {
+    live_path: PathData,
+    snap_versions: Vec<PathData>,
 }
 
 #[derive(Debug, Clone)]
