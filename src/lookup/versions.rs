@@ -73,7 +73,7 @@ impl VersionsMap {
             .map(|prox_opt_alts| {
                 // don't want to flatten this iter here b/c
                 // we want to keep these values with this key
-                let versions = prox_opt_alts.into_versions(config);
+                let versions = Versions::new(&prox_opt_alts, config);
 
                 if !is_interactive_mode
                     && versions.live_path.metadata.is_none()
@@ -85,7 +85,7 @@ impl VersionsMap {
                     );
                 }
 
-                (versions.live_path, versions.snap_versions)
+                versions.destructure()
             })
             .collect();
 
@@ -163,6 +163,27 @@ impl VersionsMap {
 pub struct Versions {
     live_path: PathData,
     snap_versions: Vec<PathData>,
+}
+
+impl Versions {
+    fn new(prox_opt_alts: &ProximateDatasetAndOptAlts, config: &Config) -> Self {
+        let live_path = prox_opt_alts.pathdata.clone();
+        let snap_versions: Vec<PathData> = prox_opt_alts
+            .into_search_bundles()
+            .par_bridge()
+            .flat_map(|relative_path_snap_mounts| {
+                relative_path_snap_mounts.versions_processed(&config.uniqueness)
+            })
+            .collect();
+
+        Self {
+            live_path,
+            snap_versions,
+        }
+    }
+    fn destructure(self) -> (PathData, Vec<PathData>) {
+        (self.live_path, self.snap_versions)
+    }
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
@@ -248,22 +269,6 @@ impl<'a> ProximateDatasetAndOptAlts<'a> {
         self.datasets_of_interest().flat_map(|dataset_of_interest| {
             RelativePathAndSnapMounts::new(&self.relative_path, &dataset_of_interest)
         })
-    }
-
-    pub fn into_versions(&self, config: &Config) -> Versions {
-        let live_path = self.pathdata.clone();
-        let snap_versions: Vec<PathData> = self
-            .into_search_bundles()
-            .par_bridge()
-            .flat_map(|relative_path_snap_mounts| {
-                relative_path_snap_mounts.versions_processed(&config.uniqueness)
-            })
-            .collect();
-
-        Versions {
-            live_path,
-            snap_versions,
-        }
     }
 }
 
