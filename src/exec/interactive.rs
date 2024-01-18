@@ -167,7 +167,7 @@ impl InteractiveSelect {
 
             display_map.map.iter().for_each(|(live, snaps)| {
                 if snaps.is_empty() {
-                    eprintln!("WARN: Path {:?} has no snapshots available.", live)
+                    eprintln!("WARN: Path {:?} has no snapshots available.", live.path_buf)
                 }
             });
 
