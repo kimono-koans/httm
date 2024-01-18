@@ -160,6 +160,11 @@ impl VersionsMap {
     }
 }
 
+pub struct Versions {
+    live_path: PathData,
+    snap_versions: Vec<PathData>,
+}
+
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct ProximateDatasetAndOptAlts<'a> {
     pub pathdata: &'a PathData,
@@ -260,11 +265,6 @@ impl<'a> ProximateDatasetAndOptAlts<'a> {
             snap_versions,
         }
     }
-}
-
-pub struct Versions {
-    live_path: PathData,
-    snap_versions: Vec<PathData>,
 }
 
 #[derive(Debug, Clone)]
