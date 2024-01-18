@@ -261,7 +261,7 @@ function nicotine {
 	local working_dir
 	local output_dir
 
-	working_dir="$(realpath -e "$( pwd )" 2>/dev/null || true)"
+	working_dir="$(realpath "$( pwd )" 2>/dev/null || true)"
 	[[ -e "$working_dir" ]] || print_err_exit "Could not obtain current working directory.  Quitting."
 	output_dir="$working_dir"
 
@@ -273,7 +273,7 @@ function nicotine {
 		if [[ "$1" == "--output-dir" ]]; then
 			shift
 			[[ $# -ge 1 ]] || print_err_exit "output-dir argument is empty"
-			output_dir="$(realpath -e "$1" 2>/dev/null || true)"
+			output_dir="$(realpath "$1" 2>/dev/null || true)"
 			[[ -e "$output_dir" ]] || print_err_exit "Could not obtain output directory from path given.  Quitting."
 			shift
 		elif [[ "$1" == "--debug" ]]; then
@@ -295,7 +295,7 @@ function nicotine {
 
 	for a; do
 		canonical_path="$(
-			realpath -e "$a" 2>/dev/null
+			realpath "$a" 2>/dev/null
 			[[ $? -eq 0 ]] || print_err "Could not determine canonical path for: $a"
 		)"
 		[[ -n "$canonical_path" ]] || continue

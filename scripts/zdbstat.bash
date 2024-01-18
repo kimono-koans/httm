@@ -123,7 +123,7 @@ function run_loop() {
     for f in "$@"; do
 
         local file_name=""
-        file_name="$( realpath -e "$f" 2>/dev/null; exit 0 )"
+        file_name="$( realpath "$f" 2>/dev/null; exit 0 )"
 
         if [[ -z "$file_name" ]]; then
             print_err "WARN: Path likely does not exist: $f"

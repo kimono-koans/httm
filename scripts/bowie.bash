@@ -234,10 +234,10 @@ exec_main() {
 		[[ -n "$1" ]] || print_err_exit "First required file name is unset.  Quitting."
 		[[ -n "$2" ]] || print_err_exit "Second required file name is unset.  Quitting."
 
-		local previous_version="$( realpath -e "$1" 2>/dev/null )"
+		local previous_version="$( realpath "$1" 2>/dev/null )"
 		[[ -n "$previous_version" ]] || print_err_exit "Could not determine canonical path for: "$previous_version".  Quitting."
 
-		local current_version="$( realpath -e "$2" 2>/dev/null )"
+		local current_version="$( realpath "$2" 2>/dev/null )"
 		[[ -n "$current_version" ]] || print_err_exit "Could not determine canonical path for: "$current_version".  Quitting."
 
 		show_direct "$previous_version" "$current_version"
@@ -250,7 +250,7 @@ exec_main() {
 			continue
 		fi
 
-		local canonical_path="$( realpath -e "$a")"
+		local canonical_path="$( realpath "$a")"
 
 		if [[ -z "${canonical_path}" ]]; then
 			print_err "Could not determine canonical path for: "$a"."
