@@ -67,7 +67,7 @@ For MacOS users, a user from the community (very exciting) has posted a [formula
 
 ## Install via Source
 
-Installation via a package is suggested for support purposes, but, those *BSD wild childs*, who perhaps can't stop (or won't stop), they can install by piping a script to `bash`:
+Installation via a package is suggested for support purposes, but, those *wild childs*, who perhaps can't stop (or won't stop), they can install by piping a script to `bash`:
 
 ```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/kimono-koans/httm/master/scripts/install-from-source.bash)"
