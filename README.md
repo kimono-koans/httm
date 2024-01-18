@@ -67,7 +67,13 @@ For MacOS users, a user from the community (very exciting) has posted a [formula
 
 ## Install via Source
 
-Installation via a package is highly suggested for support purposes, but, for those that must build from source, the `httm` project contains only a few components:
+Installation via a package is suggested for support purposes, but, those *BSD wild childs*, who perhaps can't stop (or won't stop), they can install by piping a script to `bash`:
+
+```bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/kimono-koans/httm/master/scripts/install-from-source.bash)"
+```
+
+For those who simply wish to build `httm` incrementally themselves, the project contains only a few components:
 
 1. The `httm` executable.  To build and install:
 
