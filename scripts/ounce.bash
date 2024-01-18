@@ -230,7 +230,7 @@ function exec_trace {
 		stdbuf -i0 -o0 -e0 awk -F'[() \"<>]' '$2 ~ /fsync/ { print $4 } $2 ~ /open/ { print $7 }' |
 		while read -r file; do
 			canonical_path="$(
-				readlink -e "$file" 2>/dev/null
+				realpath -e "$file" 2>/dev/null
 				exit 0
 			)"
 
@@ -265,7 +265,7 @@ function exec_args {
 		# omits argument flags
 		[[ $a != -* && $a != --* ]] || continue
 		canonical_path="$(
-			readlink -e "$a" 2>/dev/null
+			realpath -e "$a" 2>/dev/null
 			exit 0
 		)"
 
