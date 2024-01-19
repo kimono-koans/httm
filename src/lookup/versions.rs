@@ -58,23 +58,19 @@ impl VersionsMap {
 
         let all_snap_versions: BTreeMap<PathData, Vec<PathData>> = path_set
             .par_iter()
-            .filter_map(|pd| match ProximateDatasetAndOptAlts::new(pd) {
-                Ok(prox_opt_alts) => Some(prox_opt_alts),
-                Err(_) => {
+            .filter_map(|pathdata| match Versions::new(pathdata, config) {
+                Ok(versions) => Some(versions),
+                Err(_err) => {
                     if !is_interactive_mode {
                         eprintln!(
-                            "WARN: Filesystem upon which the path resides is not supported: {:?}",
-                            pd.path_buf
+                            "WARN: Filesystem upon which the path resides is not supported: {:?}\n",
+                            pathdata.path_buf
                         )
                     }
                     None
                 }
             })
-            .map(|prox_opt_alts| {
-                // don't want to flatten this iter here b/c
-                // we want to keep these values with this key
-                let versions = Versions::new(&prox_opt_alts, config);
-
+            .map(|versions| {
                 if !is_interactive_mode
                     && versions.live_path.metadata.is_none()
                     && versions.snap_versions.is_empty()
@@ -252,7 +248,8 @@ pub struct Versions {
 }
 
 impl Versions {
-    fn new(prox_opt_alts: &ProximateDatasetAndOptAlts, config: &Config) -> Self {
+    fn new(pathdata: &PathData, config: &Config) -> HttmResult<Self> {
+        let prox_opt_alts = ProximateDatasetAndOptAlts::new(pathdata)?;
         let live_path = prox_opt_alts.pathdata.clone();
         let snap_versions: Vec<PathData> = prox_opt_alts
             .into_search_bundles()
@@ -262,10 +259,10 @@ impl Versions {
             })
             .collect();
 
-        Self {
+        Ok(Self {
             live_path,
             snap_versions,
-        }
+        })
     }
     fn destructure(self) -> (PathData, Vec<PathData>) {
         (self.live_path, self.snap_versions)
