@@ -256,6 +256,7 @@ impl Versions {
         let live_path = prox_opt_alts.pathdata.clone();
         let snap_versions: Vec<PathData> = prox_opt_alts
             .into_search_bundles()
+            .par_bridge()
             .flat_map(|relative_path_snap_mounts| {
                 relative_path_snap_mounts.versions_processed(&config.uniqueness)
             })
