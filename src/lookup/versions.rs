@@ -156,6 +156,33 @@ impl VersionsMap {
     }
 }
 
+pub struct Versions {
+    live_path: PathData,
+    snap_versions: Vec<PathData>,
+}
+
+impl Versions {
+    fn new(pathdata: &PathData, config: &Config) -> HttmResult<Self> {
+        let prox_opt_alts = ProximateDatasetAndOptAlts::new(pathdata)?;
+        let live_path = prox_opt_alts.pathdata.clone();
+        let snap_versions: Vec<PathData> = prox_opt_alts
+            .into_search_bundles()
+            .par_bridge()
+            .flat_map(|relative_path_snap_mounts| {
+                relative_path_snap_mounts.versions_processed(&config.uniqueness)
+            })
+            .collect();
+
+        Ok(Self {
+            live_path,
+            snap_versions,
+        })
+    }
+    fn destructure(self) -> (PathData, Vec<PathData>) {
+        (self.live_path, self.snap_versions)
+    }
+}
+
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct ProximateDatasetAndOptAlts<'a> {
     pub pathdata: &'a PathData,
@@ -239,33 +266,6 @@ impl<'a> ProximateDatasetAndOptAlts<'a> {
         self.datasets_of_interest().flat_map(|dataset_of_interest| {
             RelativePathAndSnapMounts::new(&self.relative_path, &dataset_of_interest)
         })
-    }
-}
-
-pub struct Versions {
-    live_path: PathData,
-    snap_versions: Vec<PathData>,
-}
-
-impl Versions {
-    fn new(pathdata: &PathData, config: &Config) -> HttmResult<Self> {
-        let prox_opt_alts = ProximateDatasetAndOptAlts::new(pathdata)?;
-        let live_path = prox_opt_alts.pathdata.clone();
-        let snap_versions: Vec<PathData> = prox_opt_alts
-            .into_search_bundles()
-            .par_bridge()
-            .flat_map(|relative_path_snap_mounts| {
-                relative_path_snap_mounts.versions_processed(&config.uniqueness)
-            })
-            .collect();
-
-        Ok(Self {
-            live_path,
-            snap_versions,
-        })
-    }
-    fn destructure(self) -> (PathData, Vec<PathData>) {
-        (self.live_path, self.snap_versions)
     }
 }
 

@@ -89,9 +89,10 @@ impl<'a> MountsForFiles<'a> {
                 }
             })
             .map(|prox_opt_alts| {
-                let count = prox_opt_alts.datasets_of_interest().count();
-
-                if !is_interactive_mode && prox_opt_alts.pathdata.metadata.is_none() && count == 0 {
+                if !is_interactive_mode
+                    && prox_opt_alts.pathdata.metadata.is_none()
+                    && prox_opt_alts.datasets_of_interest().count() == 0
+                {
                     eprintln!(
                         "WARN: Input file may have never existed: {:?}",
                         prox_opt_alts.pathdata.path_buf
