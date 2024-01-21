@@ -159,26 +159,24 @@ impl BaseFilesystemInfo {
                 .par_bridge()
                 .flatten()
                 // but exclude snapshot mounts.  we want only the raw filesystems
-                .filter(|mount_info| {
-                    if mount_info.fstype.as_str() == ZFS_FSTYPE
-                        && mount_info
+                .filter(|mount_info| match mount_info.fstype.as_str() {
+                    ZFS_FSTYPE
+                        if mount_info
                             .dest
                             .to_string_lossy()
-                            .contains(ZFS_HIDDEN_DIRECTORY)
+                            .contains(ZFS_HIDDEN_DIRECTORY) =>
                     {
-                        return false;
+                        false
                     }
-
-                    if mount_info.fstype.as_str() == NILFS2_FSTYPE
-                        && mount_info
+                    NILFS2_FSTYPE
+                        if mount_info
                             .options
                             .iter()
-                            .any(|opt| opt.contains(NILFS2_SNAPSHOT_ID_KEY))
+                            .any(|opt| opt.contains(NILFS2_SNAPSHOT_ID_KEY)) =>
                     {
-                        return false;
+                        false
                     }
-
-                    true
+                    _ => true,
                 })
                 .partition_map(|mount_info| match mount_info.fstype.as_str() {
                     ZFS_FSTYPE => Either::Left((
