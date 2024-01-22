@@ -141,7 +141,7 @@ function mount_remote() {
 
 	if [[ "$( mount | grep -c "$image_name" )" -eq 0 ]]; then
 		printf "%s\n" "Mounting sparse bundle (this may include an fsck): $image_name ..."
-		local bundle_name="$( find "$dirname" -type d -iname "*.sparsebundle" | head -1 )"
+		local bundle_name="$( find "$dirname" -type d -iname "*.sparsebundle" -print -quit )"
 		[[ -n "$bundle_name" ]] || print_err_exit "Could not find sparsebundle in location specified"
 		hdiutil attach -readonly -nobrowse "$bundle_name" || print_err_exit "Attaching disk image failed.  Quitting."
 	else
