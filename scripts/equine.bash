@@ -178,16 +178,16 @@ function unmount_remote() {
 	[[ -n "$sub_device" ]] || print_err "Could not determine subdevice from disk image given"
 	[[ -n "$device" ]] || print_err "Could not determine device from disk image given"
 
-	printf "%s\n" "Attempting to unmount Time Machine sparse bundle: $image_name ..."
-	[[ -z "$sub_device" ]] || diskutil unmount "$sub_device" 2>/dev/null || true
-	[[ -z "$device" ]] || diskutil unmountDisk "$device" 2>/dev/null || true
-
 	local server="$( plutil -p /Library/Preferences/com.apple.TimeMachine.plist | grep "NetworkURL" | cut -d '"' -f4 )"
 	local mount_source="$( plutil -p /Library/Preferences/com.apple.TimeMachine.plist | grep "LastKnownVolumeName" | cut -d '"' -f4  )"
 
 	local sys_defined_dir="$( find /Volumes/.timemachine -name 'TM Volume' -print -quit )"
 	local dirname="/Volumes/$mount_source"
-	[[ -z "$sys_defined_dir" ]] || dirname="$sys_defined_dir"
+	[[ -z "$sys_defined_dir" ]] || print_err_exit "Time Machine mounted a system defined mount point. Quitting without unmounting."
+
+	printf "%s\n" "Attempting to unmount Time Machine sparse bundle: $image_name ..."
+	[[ -z "$sub_device" ]] || diskutil unmount "$sub_device" 2>/dev/null || true
+	[[ -z "$device" ]] || diskutil unmountDisk "$device" 2>/dev/null || true
 
 	[[ -n "$server" ]] || print_err "Could not determine server, perhaps none is specified?"
 	[[ -n "$mount_source" ]] || print_err "Could not determine mount source from server name given"
