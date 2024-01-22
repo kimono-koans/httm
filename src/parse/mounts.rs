@@ -404,7 +404,7 @@ impl BaseFilesystemInfo {
                     }
                     None => {
                         let metadata = DatasetMetadata {
-                            source: root_dir.clone(),
+                            source: PathBuf::from("timemachine"),
                             fs_type: FilesystemType::Apfs,
                             mount_type: MountType::Local,
                         };

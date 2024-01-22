@@ -70,7 +70,7 @@ For MacOS users, a user from the community (very exciting) has posted a [formula
 Installation via a package is suggested for support purposes, but, those *wild childs*, who perhaps can't stop (or won't stop), they can install by piping a script to `bash`:
 
 ```bash
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/kimono-koans/httm/master/scripts/install-from-source.bash)"
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/kimono-koans/httm/master/packaging/install-from-source.bash)"
 ```
 
 For those who simply wish to build `httm` incrementally themselves, the project contains only a few components:
