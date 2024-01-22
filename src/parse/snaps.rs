@@ -141,27 +141,35 @@ impl MapOfSnaps {
                 .map(|entry| entry.path())
                 .collect(),
             FilesystemType::Apfs => {
-                let mut local: Vec<PathBuf> = read_dir(TM_DIR_LOCAL)?
-                    .par_bridge()
-                    .flatten()
-                    .flat_map(|entry| read_dir(entry.path()))
-                    .flatten_iter()
-                    .flatten_iter()
-                    .map(|entry| entry.path().join("Data"))
-                    .collect();
+                let mut res: Vec<PathBuf> = Vec::new();
 
-                let mut remote: Vec<PathBuf> = read_dir(TM_DIR_REMOTE)?
-                    .par_bridge()
-                    .flatten()
-                    .flat_map(|entry| read_dir(entry.path()))
-                    .flatten_iter()
-                    .flatten_iter()
-                    .map(|entry| entry.path().join(entry.file_name()).join("Data"))
-                    .collect();
+                if PathBuf::from(&TM_DIR_LOCAL).exists() {
+                    let local: Vec<PathBuf> = read_dir(TM_DIR_LOCAL)?
+                        .par_bridge()
+                        .flatten()
+                        .flat_map(|entry| read_dir(entry.path()))
+                        .flatten_iter()
+                        .flatten_iter()
+                        .map(|entry| entry.path().join("Data"))
+                        .collect();
 
-                local.append(&mut remote);
+                    res.extend_from_slice(&local);
+                }
 
-                local
+                if PathBuf::from(&TM_DIR_REMOTE).exists() {
+                    let remote: Vec<PathBuf> = read_dir(TM_DIR_REMOTE)?
+                        .par_bridge()
+                        .flatten()
+                        .flat_map(|entry| read_dir(entry.path()))
+                        .flatten_iter()
+                        .flatten_iter()
+                        .map(|entry| entry.path().join(entry.file_name()).join("Data"))
+                        .collect();
+
+                    res.extend_from_slice(&remote);
+                }
+
+                res
             }
             FilesystemType::Nilfs2 => {
                 let source_path = Path::new(&dataset_metadata.source);
