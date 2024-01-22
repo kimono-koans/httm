@@ -183,7 +183,7 @@ function unmount_remote() {
 
 	local sys_defined_dir="$( find /Volumes/.timemachine -name 'TM Volume' -print -quit )"
 	local dirname="/Volumes/$mount_source"
-	[[ -z "$sys_defined_dir" ]] || print_err_exit "Time Machine mounted at a system defined mount point. Quitting without unmounting."
+	[[ -z "$sys_defined_dir" ]] || print_err_exit "Time Machine share is mounted at a system defined mount point (and a backup could be in progress).  Quitting without unmounting."
 
 	printf "%s\n" "Attempting to unmount Time Machine sparse bundle: $image_name ..."
 	[[ -z "$sub_device" ]] || diskutil unmount "$sub_device" 2>/dev/null || true
