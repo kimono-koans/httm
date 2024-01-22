@@ -185,6 +185,9 @@ function unmount_remote() {
 	local dirname="/Volumes/$mount_source"
 	[[ -z "$sys_defined_dir" ]] || dirname="$sys_defined_dir"
 
+	[[ "$(tmutil status | grep -c "Running = 0")" -gt 0 ]] || \
+	print_err_exit "Backup running.  'equine' will not unmount sparsebundle or server while backup is running.  Quitting."
+
 	printf "%s\n" "Attempting to unmount Time Machine sparse bundle: $image_name ..."
 	[[ -z "$sub_device" ]] || diskutil unmount "$sub_device" 2>/dev/null || true
 	[[ -z "$device" ]] || diskutil unmountDisk "$device" 2>/dev/null || true
@@ -223,6 +226,9 @@ function mount_local() {
 }
 
 function unmount_local() {
+	[[ "$(tmutil status | grep -c "Running = 0")" -gt 0 ]] || \
+	print_err_exit "Backup running.  'equine' will not unmount local backups while backup is running.  Quitting."
+
 	printf "%s\n" "Unmounting any mounted snapshots...."
 	mount | grep "com.apple.TimeMachine.*.local@" | cut -d' ' -f1 | xargs -I{} umount "{}" 2>/dev/null  || true
 }
