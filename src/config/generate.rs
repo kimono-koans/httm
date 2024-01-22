@@ -719,14 +719,6 @@ impl Config {
             .into());
         }
 
-        if opt_preview.is_some()
-            && matches!(opt_interactive_mode, Some(InteractiveMode::Browse) | None)
-        {
-            return Err(
-                HttmError::new("PREVIEW is only available in Select or Restore modes").into(),
-            );
-        }
-
         // if in last snap and select mode we will want to return a raw value,
         // better to have this here.  It's more confusing if we work this logic later, I think.
         if opt_last_snap.is_some()
