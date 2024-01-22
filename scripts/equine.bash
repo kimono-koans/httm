@@ -201,7 +201,7 @@ function mount_local() {
 	printf "%s\n" "Discovering backup locations (this can take a few seconds)..."
 	local backups="$( tmutil listlocalsnapshots /System/Volumes/Data | grep -v ':' )"
 	local mounts="$( mount )"
-	local device="$( echo $mounts | grep "/System/Volumes/Data " | cut -d' ' -f1 )"
+	local device="$( echo "$mounts" | grep "/System/Volumes/Data " | cut -d' ' -f1 )"
 	local hostname="$( hostname )"
 
 	[[ -n "$device" ]] || print_err_exit "Could not determine Time Machine device from image give"
