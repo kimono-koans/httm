@@ -142,18 +142,20 @@ impl MapOfSnaps {
                 .collect(),
             FilesystemType::Apfs => {
                 let mut local: Vec<PathBuf> = read_dir(TM_DIR_LOCAL)?
+                    .par_bridge()
                     .flatten()
                     .flat_map(|entry| read_dir(entry.path()))
-                    .flatten()
-                    .flatten()
+                    .flatten_iter()
+                    .flatten_iter()
                     .map(|entry| entry.path().join("Data"))
                     .collect();
 
                 let mut remote: Vec<PathBuf> = read_dir(TM_DIR_REMOTE)?
+                    .par_bridge()
                     .flatten()
                     .flat_map(|entry| read_dir(entry.path()))
-                    .flatten()
-                    .flatten()
+                    .flatten_iter()
+                    .flatten_iter()
                     .map(|entry| entry.path().join(entry.file_name()).join("Data"))
                     .collect();
 
