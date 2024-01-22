@@ -126,7 +126,7 @@ function mount_remote() {
 
 	if [[ "$( mount | grep -c "$dirname" )" -eq 0 ]]; then
 		printf "%s\n" "Connecting to remote Time Machine: $server ..."
-		[[ -d "$dirname" ]] || mkdir "$dirname"
+		[[ -d "$dirname" ]] || mkdir -p "$dirname"
 		mount_smbfs -o nobrowse "$server" "$dirname" 2>/dev/null || true
 	else
 		printf "%s\n" "Skip connecting to remote server, as Time Machine already mounted ..."
@@ -158,10 +158,10 @@ function mount_remote() {
 
 	[[ "$( mount | grep -c "$image_name" )" -gt 0 ]] || print_err_exit "Time machine disk image did not mount"
 
-	[[ -d "/Volumes/.timemachine/$uuid" ]] || mkdir "/Volumes/.timemachine/$uuid"
+	[[ -d "/Volumes/.timemachine/$uuid" ]] || mkdir -p "/Volumes/.timemachine/$uuid"
 	printf "%s\n" "Mounting snapshots..."
 	for snap in $( echo "$backups" | xargs basename ); do
-		[[ -d "/Volumes/.timemachine/$uuid/$snap" ]] || mkdir "/Volumes/.timemachine/$uuid/$snap"
+		[[ -d "/Volumes/.timemachine/$uuid/$snap" ]] || mkdir -p "/Volumes/.timemachine/$uuid/$snap"
 		printf "%s\n" "Mounting snapshot "com.apple.TimeMachine.$snap" from "$device" at "/Volumes/.timemachine/$uuid/$snap""
 		[[ -d "/Volumes/.timemachine/$uuid/$snap" ]] && mount_apfs -o ro,nobrowse -s "com.apple.TimeMachine.$snap" "$device" "/Volumes/.timemachine/$uuid/$snap" 2>/dev/null || true
 	done
@@ -200,17 +200,21 @@ function unmount_remote() {
 function mount_local() {
 	printf "%s\n" "Discovering backup locations (this can take a few seconds)..."
 	local backups="$( tmutil listlocalsnapshots /System/Volumes/Data | grep -v ':' )"
-	local device="$( mount | grep "/System/Volumes/Data " | cut -d' ' -f1 )"
+	local mounts="$( mount )"
+	local device="$( echo $mounts | grep "/System/Volumes/Data " | cut -d' ' -f1 )"
 	local hostname="$( hostname )"
 
 	[[ -n "$device" ]] || print_err_exit "Could not determine Time Machine device from image give"
 
 	printf "%s\n" "Mounting snapshots..."
 	for snap in $( echo "$backups" ); do
-		local snap_uuid=""
-		snap_uuid="$( echo $snap | cut -d'.' -f4 )"
+		if [[ $( echo "$mounts" | grep -c "$snap" ) -gt 0 ]]; then
+			continue
+		fi
+
+		local snap_uuid="$( echo $snap | cut -d'.' -f4 )"
 		[[ -d "/Volumes/com.apple.TimeMachine.localsnapshots/Backups.backupdb/$hostname/$snap_uuid/Data" ]] || \
-		mkdir "/Volumes/com.apple.TimeMachine.localsnapshots/Backups.backupdb/$hostname/$snap_uuid/Data"
+		mkdir -p "/Volumes/com.apple.TimeMachine.localsnapshots/Backups.backupdb/$hostname/$snap_uuid/Data"
 
 		printf "%s\n" "Mounting snapshot "$snap" from "$device" at "/Volumes/com.apple.TimeMachine.localsnapshots/Backups.backupdb/$hostname/$snap_uuid/Data""
 		[[ -d "/Volumes/com.apple.TimeMachine.localsnapshots/Backups.backupdb/$hostname/$snap_uuid/Data" ]] && \
