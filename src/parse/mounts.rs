@@ -398,50 +398,14 @@ impl BaseFilesystemInfo {
         let tm_dir_remote_path = std::path::Path::new(TM_DIR_REMOTE);
         let tm_dir_local_path = std::path::Path::new(TM_DIR_LOCAL);
 
-        if tm_dir_remote_path.exists() {
-            let entries = std::fs::read_dir(tm_dir_remote_path)?
-                .flatten()
-                // this is done because sometimes smb shares
-                // are mounted in this path too, but they have extensions
-                .filter(|mount| mount.path().extension().is_none())
-                .map(|mount| {
-                    (
-                        PathBuf::from(ROOT_DIRECTORY),
-                        DatasetMetadata {
-                            source: mount.path(),
-                            fs_type: FilesystemType::Apfs,
-                            mount_type: MountType::Network,
-                        },
-                    )
-                });
+        if tm_dir_remote_path.exists() || tm_dir_local_path.exists() {
+            let metadata = DatasetMetadata {
+                source: PathBuf::from(ROOT_DIRECTORY),
+                fs_type: FilesystemType::Apfs,
+                mount_type: MountType::Local,
+            };
 
-            map_of_datasets.extend(entries);
-        }
-
-        if tm_dir_local_path.exists() {
-            let opt_entries = std::fs::read_dir(tm_dir_local_path)?
-                .flatten()
-                // this is done because sometimes smb shares
-                // are mounted in this path too, but they have extensions
-                .find(|entry| {
-                    if let Ok(read_dir) = std::fs::read_dir(entry.path()) {
-                        if read_dir.count().gt(&0) {
-                            return true;
-                        }
-                    }
-
-                    false
-                });
-
-            if let Some(entry) = opt_entries {
-                let metadata = DatasetMetadata {
-                    source: entry.path(),
-                    fs_type: FilesystemType::Apfs,
-                    mount_type: MountType::Local,
-                };
-
-                map_of_datasets.insert(PathBuf::from(ROOT_DIRECTORY), metadata);
-            }
+            map_of_datasets.insert(PathBuf::from(ROOT_DIRECTORY), metadata);
         }
 
         Ok(())

@@ -17,7 +17,10 @@
 
 use crate::library::results::{HttmError, HttmResult};
 use crate::parse::mounts::{DatasetMetadata, FilesystemType, MountType};
-use crate::{BTRFS_SNAPPER_HIDDEN_DIRECTORY, BTRFS_SNAPPER_SUFFIX, ZFS_SNAPSHOT_DIRECTORY};
+use crate::{
+    BTRFS_SNAPPER_HIDDEN_DIRECTORY, BTRFS_SNAPPER_SUFFIX, TM_DIR_LOCAL, TM_DIR_REMOTE,
+    ZFS_SNAPSHOT_DIRECTORY,
+};
 use hashbrown::HashMap;
 use proc_mounts::MountIter;
 use rayon::prelude::*;
@@ -137,18 +140,27 @@ impl MapOfSnaps {
                 .par_bridge()
                 .map(|entry| entry.path())
                 .collect(),
-            FilesystemType::Apfs => match &dataset_metadata.mount_type {
-                MountType::Local => read_dir(&dataset_metadata.source)?
+            FilesystemType::Apfs => {
+                let mut local: Vec<PathBuf> = read_dir(TM_DIR_LOCAL)?
                     .flatten()
-                    .par_bridge()
+                    .flat_map(|entry| read_dir(entry.path()))
+                    .flatten()
+                    .flatten()
                     .map(|entry| entry.path().join("Data"))
-                    .collect(),
-                MountType::Network => read_dir(&dataset_metadata.source)?
+                    .collect();
+
+                let mut remote: Vec<PathBuf> = read_dir(TM_DIR_REMOTE)?
                     .flatten()
-                    .par_bridge()
+                    .flat_map(|entry| read_dir(entry.path()))
+                    .flatten()
+                    .flatten()
                     .map(|entry| entry.path().join(entry.file_name()).join("Data"))
-                    .collect(),
-            },
+                    .collect();
+
+                local.append(&mut remote);
+
+                local
+            }
             FilesystemType::Nilfs2 => {
                 let source_path = Path::new(&dataset_metadata.source);
 
