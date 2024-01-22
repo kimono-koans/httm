@@ -697,7 +697,11 @@ impl Config {
                 Some(_) | None => Some(InteractiveMode::Select(SelectMode::Path)),
             }
         } else if matches.is_present("BROWSE") {
-            Some(InteractiveMode::Browse)
+            if opt_preview.is_some() {
+                Some(InteractiveMode::Select(SelectMode::Path))
+            } else {
+                Some(InteractiveMode::Browse)
+            }
         } else {
             None
         };
