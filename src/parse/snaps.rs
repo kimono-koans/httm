@@ -137,11 +137,18 @@ impl MapOfSnaps {
                 .par_bridge()
                 .map(|entry| entry.path())
                 .collect(),
-            FilesystemType::Apfs => read_dir(&dataset_metadata.source)?
-                .flatten()
-                .par_bridge()
-                .map(|entry| entry.path().join(entry.file_name()).join("Data"))
-                .collect(),
+            FilesystemType::Apfs => match &dataset_metadata.mount_type {
+                MountType::Local => read_dir(&dataset_metadata.source)?
+                    .flatten()
+                    .par_bridge()
+                    .map(|entry| entry.path().join("Data"))
+                    .collect(),
+                MountType::Network => read_dir(&dataset_metadata.source)?
+                    .flatten()
+                    .par_bridge()
+                    .map(|entry| entry.path().join(entry.file_name()).join("Data"))
+                    .collect(),
+            },
             FilesystemType::Nilfs2 => {
                 let source_path = Path::new(&dataset_metadata.source);
 

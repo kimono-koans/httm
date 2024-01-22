@@ -18,7 +18,9 @@
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{find_common_path, fs_type_from_hidden_dir};
 use crate::parse::snaps::MapOfSnaps;
-use crate::{NILFS2_SNAPSHOT_ID_KEY, ROOT_DIRECTORY, TM_DIR, ZFS_HIDDEN_DIRECTORY};
+use crate::{
+    NILFS2_SNAPSHOT_ID_KEY, ROOT_DIRECTORY, TM_DIR_LOCAL, TM_DIR_REMOTE, ZFS_HIDDEN_DIRECTORY,
+};
 use hashbrown::{HashMap, HashSet};
 use once_cell::sync::Lazy;
 use proc_mounts::MountIter;
@@ -338,7 +340,8 @@ impl BaseFilesystemInfo {
             .par_lines()
             // but exclude snapshot mounts.  we want the raw filesystem names.
             .filter(|line| !line.contains(ZFS_HIDDEN_DIRECTORY))
-            .filter(|line| !line.contains(TM_DIR))
+            .filter(|line| !line.contains(TM_DIR_REMOTE))
+            .filter(|line| !line.contains(TM_DIR_LOCAL))
             // mount cmd includes and " on " between src and rest
             .filter_map(|line| line.split_once(" on "))
             // where to split, to just have the src and dest of mounts
@@ -392,10 +395,11 @@ impl BaseFilesystemInfo {
     }
 
     fn from_tm_dir(map_of_datasets: &mut HashMap<PathBuf, DatasetMetadata>) -> HttmResult<()> {
-        let tm_dir_path = std::path::Path::new(TM_DIR);
+        let tm_dir_remote_path = std::path::Path::new(TM_DIR_REMOTE);
+        let tm_dir_local_path = std::path::Path::new(TM_DIR_LOCAL);
 
-        if tm_dir_path.exists() {
-            let entries = std::fs::read_dir(tm_dir_path)?
+        if tm_dir_remote_path.exists() {
+            let entries = std::fs::read_dir(tm_dir_remote_path)?
                 .flatten()
                 // this is done because sometimes smb shares
                 // are mounted in this path too, but they have extensions
@@ -406,12 +410,38 @@ impl BaseFilesystemInfo {
                         DatasetMetadata {
                             source: mount.path(),
                             fs_type: FilesystemType::Apfs,
-                            mount_type: MountType::Local,
+                            mount_type: MountType::Network,
                         },
                     )
                 });
 
             map_of_datasets.extend(entries);
+        }
+
+        if tm_dir_local_path.exists() {
+            let opt_entries = std::fs::read_dir(tm_dir_local_path)?
+                .flatten()
+                // this is done because sometimes smb shares
+                // are mounted in this path too, but they have extensions
+                .find(|entry| {
+                    if let Ok(read_dir) = std::fs::read_dir(entry.path()) {
+                        if read_dir.count().gt(&0) {
+                            return true;
+                        }
+                    }
+
+                    false
+                });
+
+            if let Some(entry) = opt_entries {
+                let metadata = DatasetMetadata {
+                    source: entry.path(),
+                    fs_type: FilesystemType::Apfs,
+                    mount_type: MountType::Local,
+                };
+
+                map_of_datasets.insert(PathBuf::from(ROOT_DIRECTORY), metadata);
+            }
         }
 
         Ok(())
