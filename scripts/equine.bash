@@ -120,7 +120,9 @@ function mount_remote() {
 	[[ -n "$server" ]] || print_err_exit "Could not determine server address, perhaps none is specified?"
 	[[ -n "$mount_source" ]] || print_err_exit "Could not determine mount source from server name"
 
+	local sys_defined_dir="$( find /Volumes/.timemachine -name 'TM Volume' -print -quit )"
 	local dirname="/Volumes/$mount_source"
+	[[ -z "$sys_defined_dir" ]] || dirname="$sys_defined_dir"
 
 	if [[ "$( mount | grep -c "$dirname" )" -eq 0 ]]; then
 		printf "%s\n" "Connecting to remote Time Machine: $server ..."
@@ -182,7 +184,11 @@ function unmount_remote() {
 
 	local server="$( plutil -p /Library/Preferences/com.apple.TimeMachine.plist | grep "NetworkURL" | cut -d '"' -f4 )"
 	local mount_source="$( plutil -p /Library/Preferences/com.apple.TimeMachine.plist | grep "LastKnownVolumeName" | cut -d '"' -f4  )"
+
+	local sys_defined_dir="$( find /Volumes/.timemachine -name 'TM Volume' -print -quit )"
 	local dirname="/Volumes/$mount_source"
+	[[ -z "$sys_defined_dir" ]] || dirname="$sys_defined_dir"
+
 	[[ -n "$server" ]] || print_err "Could not determine server, perhaps none is specified?"
 	[[ -n "$mount_source" ]] || print_err "Could not determine mount source from server name given"
 
