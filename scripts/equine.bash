@@ -41,12 +41,12 @@ USAGE:
 	equine [OPTIONS]
 
 OPTIONS:
-	--mount:
-		Attempt to mount your Time Machine snapshots and the Time Machine image file,
+	--mount-remote:
+		Attempt to mount your remote Time Machine snapshots and the Time Machine image file,
 		and connect the server.
 
-	--unmount:
-		Attempt to unmount your Time Machine snapshots and the Time Machine image file,
+	--unmount-remote:
+		Attempt to unmount your remote Time Machine snapshots and the Time Machine image file,
 		and disconnect the server.
 
 	--help:
@@ -107,33 +107,7 @@ function prep_exec {
 	)" ]] || print_err_exit "'hdiutil' is required to execute 'equine'.  Please check that 'hdiutil' is in your path."
 }
 
-function _unmount_timemachine_() {
-	printf "%s\n" "Unmounting any mounted snapshots...."
-	mount | grep "com.apple.TimeMachine.*.backup@" | cut -d' ' -f1 | xargs -I{} umount "{}" 2>/dev/null  || true
-
-	local image_name="$(plutil -p /Library/Preferences/com.apple.TimeMachine.plist | grep LocalizedDiskImageVolumeName | cut -d '"' -f4)"
-	[[ -n "$image_name" ]] || print_err "Could not determine Time Machine disk image name, perhaps none is specified?"
-	local sub_device="$( mount | grep "$image_name" | cut -d' ' -f1 | tail -1 )"
-	local device="$( echo $sub_device | cut -d's' -f1 )"
-	[[ -n "$sub_device" ]] || print_err "Could not determine subdevice from disk image given"
-	[[ -n "$device" ]] || print_err "Could not determine device from disk image given"
-
-	printf "%s\n" "Attempting to unmount Time Machine sparse bundle: $image_name ..."
-	[[ -z "$sub_device" ]] || diskutil unmount "$sub_device" 2>/dev/null || true
-	[[ -z "$device" ]] || diskutil unmountDisk "$device" 2>/dev/null || true
-
-	local server="$( plutil -p /Library/Preferences/com.apple.TimeMachine.plist | grep "NetworkURL" | cut -d '"' -f4 )"
-	local mount_source="$( plutil -p /Library/Preferences/com.apple.TimeMachine.plist | grep "LastKnownVolumeName" | cut -d '"' -f4  )"
-	local dirname="/Volumes/$mount_source"
-	[[ -n "$server" ]] || print_err "Could not determine server, perhaps none is specified?"
-	[[ -n "$mount_source" ]] || print_err "Could not determine mount source from server name given"
-
-	printf "%s\n" "Attempting to unmount/disconnect from Time Machine server: $server ..."
-	[[ -z "$mount_source" ]] || diskutil unmount force "$dirname" 2>/dev/null || true
-	[[ -z "$mount_source" ]] || diskutil unmountDisk force "$dirname" 2>/dev/null || true
-}
-
-function _mount_timemachine_() {
+function _mount_remote_() {
 	local server="$( plutil -p /Library/Preferences/com.apple.TimeMachine.plist | grep "NetworkURL" | cut -d '"' -f4 )"
 	local mount_source="$( plutil -p /Library/Preferences/com.apple.TimeMachine.plist | grep "LastKnownVolumeName" | cut -d '"' -f4  )"
 
@@ -185,6 +159,32 @@ function _mount_timemachine_() {
 	done
 }
 
+function _mount_local_() {
+	printf "%s\n" "Discovering backup locations (this can take a few seconds)..."
+	local backups="$( tmutil listlocalsnapshots /System/Volumes/Data | grep -v ':' )"
+	local device="$( mount | grep "/System/Volumes/Data " | cut -d' ' -f1 )"
+	local hostname="$( hostname )"
+
+	[[ -n "$device" ]] || print_err_exit "Could not determine Time Machine device from image give"
+
+	printf "%s\n" "Mounting snapshots..."
+	for snap in $( echo "$backups" ); do
+		local snap_uuid=""
+		snap_uuid="$( echo $snap | cut -d'.' -f4 )"
+		[[ -d "/Volumes/com.apple.TimeMachine.localsnapshots/Backups.backupdb/$hostname/$snap_uuid/Data" ]] || \
+		mkdir "/Volumes/com.apple.TimeMachine.localsnapshots/Backups.backupdb/$hostname/$snap_uuid/Data"
+
+		printf "%s\n" "Mounting snapshot "$snap" from "$device" at "/Volumes/com.apple.TimeMachine.localsnapshots/Backups.backupdb/$hostname/$snap_uuid/Data""
+		[[ -d "/Volumes/com.apple.TimeMachine.localsnapshots/Backups.backupdb/$hostname/$snap_uuid/Data" ]] && \
+		mount_apfs -o ro,nobrowse -s "$snap" "$device" "/Volumes/com.apple.TimeMachine.localsnapshots/Backups.backupdb/$hostname/$snap_uuid/Data" 2>/dev/null || true
+	done
+}
+
+function _unmount_local_() {
+	printf "%s\n" "Unmounting any mounted snapshots...."
+	mount | grep "com.apple.TimeMachine.*.local@" | cut -d' ' -f1 | xargs -I{} umount "{}" 2>/dev/null  || true
+}
+
 function _exec_() {
 	[[ $# -ge 1 ]] || print_usage
 	[[ "$1" != "-h" && "$1" != "--help" ]] || print_usage
@@ -195,11 +195,17 @@ function _exec_() {
 	prep_exec
 
 	while [[ $# -ge 1 ]]; do
-		if [[ "$1" == "--mount" ]]; then
-			_mount_timemachine_
+		if [[ "$1" == "--mount-remote" ]]; then
+			_mount_remote_
 			break
-		elif [[ "$1" == "--unmount" ]]; then
-			_unmount_timemachine_
+		elif [[ "$1" == "--unmount-remote" ]]; then
+			_unmount_remote_
+			break
+		elif [[ "$1" == "--mount-local" ]]; then
+			_mount_local_
+			break
+		elif [[ "$1" == "--unmount-local" ]]; then
+			_unmount_local_
 			break
 		else
 			print_err_exit "User must specify whether to mount or unmount the Time Machine volumes."
