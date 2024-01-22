@@ -227,7 +227,7 @@ function mount_local() {
 
 function unmount_local() {
 	[[ "$(tmutil status | grep -c "Running = 0")" -gt 0 ]] || \
-	print_err_exit "Backup running.  'equine' will not unmount local backups while backup is running.  Quitting."
+	print_err_exit "Backup running.  'equine' will not unmount local snapshots while backup is running.  Quitting."
 
 	printf "%s\n" "Unmounting any mounted snapshots...."
 	mount | grep "com.apple.TimeMachine.*.local@" | cut -d' ' -f1 | xargs -I{} umount "{}" 2>/dev/null  || true
