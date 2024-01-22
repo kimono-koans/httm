@@ -354,12 +354,8 @@ impl BaseFilesystemInfo {
                 } else if rest.contains(" (") {
                     let opt_mount = rest.split_once(" (");
                     opt_mount.map(|mount| (filesystem, mount.0))
-                // illumos has no clear delimiter except the next space
-                // and swaps the mount and filesystem in the output!
                 } else {
-                    let mount = filesystem;
-                    let opt_filesystem = rest.split_once(" ");
-                    opt_filesystem.map(|fs| (fs.0, mount))
+                    None
                 }
             })
             .map(|(filesystem, mount)| (PathBuf::from(filesystem), PathBuf::from(mount)))
@@ -385,7 +381,7 @@ impl BaseFilesystemInfo {
                 _ => Either::Right(mount),
             });
 
-        Self::from_tm_dir(&mut map_of_datasets)?;
+        Self::from_tm_dir(&mut map_of_datasets);
 
         if map_of_datasets.is_empty() {
             Err(HttmError::new("httm could not find any valid datasets on the system.").into())
@@ -394,21 +390,30 @@ impl BaseFilesystemInfo {
         }
     }
 
-    fn from_tm_dir(map_of_datasets: &mut HashMap<PathBuf, DatasetMetadata>) -> HttmResult<()> {
+    fn from_tm_dir(map_of_datasets: &mut HashMap<PathBuf, DatasetMetadata>) {
         let tm_dir_remote_path = std::path::Path::new(TM_DIR_REMOTE);
         let tm_dir_local_path = std::path::Path::new(TM_DIR_LOCAL);
 
-        if tm_dir_remote_path.exists() || tm_dir_local_path.exists() {
-            let metadata = DatasetMetadata {
-                source: PathBuf::from(ROOT_DIRECTORY),
-                fs_type: FilesystemType::Apfs,
-                mount_type: MountType::Local,
-            };
+        if cfg!(target_os = "macos") && (tm_dir_remote_path.exists() || tm_dir_local_path.exists())
+        {
+            let root_dir = PathBuf::from(ROOT_DIRECTORY);
 
-            map_of_datasets.insert(PathBuf::from(ROOT_DIRECTORY), metadata);
+            match map_of_datasets.get(&root_dir) {
+                Some(md) => {
+                    eprintln!("WARN: httm has prioritized a discovered root directory mount over any potential Time Machine mounts: {:?}", md.source);
+                }
+                None => {
+                    let metadata = DatasetMetadata {
+                        source: root_dir.clone(),
+                        fs_type: FilesystemType::Apfs,
+                        mount_type: MountType::Local,
+                    };
+
+                    // SAFETY: Check no entry is here just above
+                    map_of_datasets.insert_unique_unchecked(root_dir, metadata);
+                }
+            }
         }
-
-        Ok(())
     }
 
     // if we have some btrfs mounts, we check to see if there is a snap directory in common
