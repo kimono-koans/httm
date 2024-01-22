@@ -391,26 +391,27 @@ impl BaseFilesystemInfo {
     }
 
     fn from_tm_dir(map_of_datasets: &mut HashMap<PathBuf, DatasetMetadata>) {
-        let tm_dir_remote_path = std::path::Path::new(TM_DIR_REMOTE);
-        let tm_dir_local_path = std::path::Path::new(TM_DIR_LOCAL);
+        if cfg!(target_os = "macos") {
+            let tm_dir_remote_path = std::path::Path::new(TM_DIR_REMOTE);
+            let tm_dir_local_path = std::path::Path::new(TM_DIR_LOCAL);
 
-        if cfg!(target_os = "macos") && (tm_dir_remote_path.exists() || tm_dir_local_path.exists())
-        {
-            let root_dir = PathBuf::from(ROOT_DIRECTORY);
+            if tm_dir_remote_path.exists() || tm_dir_local_path.exists() {
+                let root_dir = PathBuf::from(ROOT_DIRECTORY);
 
-            match map_of_datasets.get(&root_dir) {
-                Some(md) => {
-                    eprintln!("WARN: httm has prioritized a discovered root directory mount over any potential Time Machine mounts: {:?}", md.source);
-                }
-                None => {
-                    let metadata = DatasetMetadata {
-                        source: root_dir.clone(),
-                        fs_type: FilesystemType::Apfs,
-                        mount_type: MountType::Local,
-                    };
+                match map_of_datasets.get(&root_dir) {
+                    Some(md) => {
+                        eprintln!("WARN: httm has prioritized a discovered root directory mount over any potential Time Machine mounts: {:?}", md.source);
+                    }
+                    None => {
+                        let metadata = DatasetMetadata {
+                            source: root_dir.clone(),
+                            fs_type: FilesystemType::Apfs,
+                            mount_type: MountType::Local,
+                        };
 
-                    // SAFETY: Check no entry is here just above
-                    map_of_datasets.insert_unique_unchecked(root_dir, metadata);
+                        // SAFETY: Check no entry is here just above
+                        map_of_datasets.insert_unique_unchecked(root_dir, metadata);
+                    }
                 }
             }
         }
