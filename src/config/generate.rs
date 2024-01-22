@@ -690,18 +690,14 @@ impl Config {
                 }
                 Some(_) | None => Some(InteractiveMode::Restore(RestoreMode::CopyOnly)),
             }
-        } else if matches.is_present("SELECT") {
+        } else if matches.is_present("SELECT") || opt_preview.is_some() {
             match matches.value_of("SELECT") {
                 Some("contents") => Some(InteractiveMode::Select(SelectMode::Contents)),
                 Some("preview") => Some(InteractiveMode::Select(SelectMode::Preview)),
                 Some(_) | None => Some(InteractiveMode::Select(SelectMode::Path)),
             }
         } else if matches.is_present("BROWSE") {
-            if opt_preview.is_some() {
-                Some(InteractiveMode::Select(SelectMode::Path))
-            } else {
-                Some(InteractiveMode::Browse)
-            }
+            Some(InteractiveMode::Browse)
         } else {
             None
         };
