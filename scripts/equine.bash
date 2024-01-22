@@ -120,7 +120,7 @@ function mount_remote() {
 	[[ -n "$server" ]] || print_err_exit "Could not determine server address, perhaps none is specified?"
 	[[ -n "$mount_source" ]] || print_err_exit "Could not determine mount source from server name"
 
-	local sys_defined_dir="$( find /Volumes/.timemachine -name 'TM Volume' -print -quit )"
+	local sys_defined_dir="$( find /Volumes/.timemachine -name "$mount_source" -print -quit )"
 	local dirname="/Volumes/$mount_source"
 	[[ -z "$sys_defined_dir" ]] || dirname="$sys_defined_dir"
 
@@ -181,7 +181,7 @@ function unmount_remote() {
 	local server="$( plutil -p /Library/Preferences/com.apple.TimeMachine.plist | grep "NetworkURL" | cut -d '"' -f4 )"
 	local mount_source="$( plutil -p /Library/Preferences/com.apple.TimeMachine.plist | grep "LastKnownVolumeName" | cut -d '"' -f4  )"
 
-	local sys_defined_dir="$( find /Volumes/.timemachine -name 'TM Volume' -print -quit )"
+	local sys_defined_dir="$( find /Volumes/.timemachine -name "$mount_source" -print -quit )"
 	local dirname="/Volumes/$mount_source"
 	[[ -z "$sys_defined_dir" ]] || print_err_exit "Time Machine share is mounted at a system defined mount point (and a backup could be in progress).  Quitting without unmounting."
 
@@ -224,6 +224,12 @@ function mount_local() {
 
 function unmount_local() {
 	printf "%s\n" "Unmounting any mounted snapshots...."
+	
+	local mount_source="$( plutil -p /Library/Preferences/com.apple.TimeMachine.plist | grep "LastKnownVolumeName" | cut -d '"' -f4  )"
+	local sys_defined_dir="$( find /Volumes/.timemachine -name "$mount_source" -print -quit )"
+	local dirname="/Volumes/$mount_source"
+	[[ -z "$sys_defined_dir" ]] || print_err_exit "Time Machine share is mounted at a system defined mount point (and a backup could be in progress).  Quitting without unmounting."
+
 	mount | grep "com.apple.TimeMachine.*.local@" | cut -d' ' -f1 | xargs -I{} umount "{}" 2>/dev/null  || true
 }
 
