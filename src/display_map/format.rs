@@ -17,7 +17,6 @@
 
 use crate::config::generate::PrintMode;
 use crate::data::paths::PathData;
-use crate::data::paths::PathDeconstruction;
 use crate::data::paths::ZfsSnapPathGuard;
 use crate::display_versions::format::{NOT_SO_PRETTY_FIXED_WIDTH_PADDING, QUOTATION_MARKS_LEN};
 use crate::library::utility::delimiter;
@@ -67,23 +66,18 @@ impl<'a> From<&MountsForFiles<'a>> for PrintAsMap {
             .iter()
             .map(|prox| {
                 let pathdata = prox.pathdata;
-                let opt_spg = ZfsSnapPathGuard::new(prox.pathdata);
 
                 let res = prox
                     .datasets_of_interest()
                     .map(PathData::from)
-                    .filter_map(|mount| {
-                        let path: &dyn PathDeconstruction = match &opt_spg {
-                            Some(spg) => spg,
-                            None => pathdata,
-                        };
-
-                        mount_display.display(path, &mount)
+                    .filter_map(|mount| match &ZfsSnapPathGuard::new(prox.pathdata) {
+                        Some(spg) => mount_display.display(spg, &mount),
+                        None => mount_display.display(pathdata, &mount),
                     })
                     .map(|path| path.to_string_lossy().to_string())
                     .collect();
 
-                (prox.pathdata.path_buf.to_string_lossy().to_string(), res)
+                (pathdata.path_buf.to_string_lossy().to_string(), res)
             })
             .collect();
         Self { inner }
