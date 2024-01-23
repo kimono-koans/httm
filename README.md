@@ -183,7 +183,7 @@ View unique versions of a file for recovery (shortcut, no need to browse a direc
 ➜ httm -r /var/log/samba/log.smbd
 ```
 
-`httm` also seeks to be a good Unix citizen, which means -- you *should* use the other Unix utilities to organize your queries how you like them.  `find` and `awk` are especially useful here:
+`httm` is also a good Unix citizen, which means -- you *should* use the other Unix utilities to organize your queries how you like them.  `find` and `awk` are especially useful here:
 
 ```bash
 # search for the text "pattern" among snapshots of httm manpage
@@ -251,6 +251,19 @@ Browse all files, recursively, in your MacOS home directory backed up via `rsync
 Print all unique versions of your `.zshrc` file.  Note: The difference from above is, `httm`, now, even supports your Time Machine backups directly.  After using [equine](https://github.com/kimono-koans/httm/blob/master/scripts/equine.bash) to mount my personal Time Machine ZFS network share:
 
 ```
+➜ sudo equine --mount-local
+Discovering backup locations (this can take a few seconds)...
+Mounting snapshots...
+...
+➜ sudo equine --mount-remote
+Connecting to remote Time Machine: smb://timemachine@montrose._smb._tcp.local./TM%20Volume ...
+Mounting sparse bundle (this may include an fsck): Backups of kiev ...
+/dev/disk4
+/dev/disk5           EF57347C-0000-11AA-AA11-0030654
+/dev/disk5s1         41504653-0000-11AA-AA11-0030654 /Volumes/Backups of kiev
+Discovering backup locations (this can take a few seconds)...
+Mounting snapshots...
+...
 ➜ httm .zshrc
 ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Tue May 09 22:57:09 2023  6.7 KiB  "/Volumes/.timemachine/842A693F-CB54-4C5A-9AB1-C73681D4DFCD/2023-11-08-212757.backup/2023-11-08-212757.backup/Data/Users/kimono/.zshrc"
