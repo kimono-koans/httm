@@ -163,7 +163,7 @@ function mount_remote() {
 	for snap in $( echo "$backups" | xargs basename ); do
 		[[ -d "/Volumes/.timemachine/$uuid/$snap" ]] || mkdir -p "/Volumes/.timemachine/$uuid/$snap"
 		printf "%s\n" "Mounting snapshot "com.apple.TimeMachine.$snap" from "$device" at "/Volumes/.timemachine/$uuid/$snap""
-		[[ -d "/Volumes/.timemachine/$uuid/$snap" ]] && mount_apfs -o ro,nobrowse -s "com.apple.TimeMachine.$snap" "$device" "/Volumes/.timemachine/$uuid/$snap" 2>/dev/null || true
+		[[ -d "/Volumes/.timemachine/$uuid/$snap" ]] && mount_apfs -o ro,nobrowse,noowners,noatime,nodev,nosuid -s "com.apple.TimeMachine.$snap" "$device" "/Volumes/.timemachine/$uuid/$snap" 2>/dev/null || true
 	done
 }
 
@@ -221,7 +221,7 @@ function mount_local() {
 
 		printf "%s\n" "Mounting snapshot "$snap" from "$device" at "/Volumes/com.apple.TimeMachine.localsnapshots/Backups.backupdb/$hostname/$snap_uuid/Data""
 		[[ -d "/Volumes/com.apple.TimeMachine.localsnapshots/Backups.backupdb/$hostname/$snap_uuid/Data" ]] && \
-		mount_apfs -o ro,nobrowse -s "$snap" "$device" "/Volumes/com.apple.TimeMachine.localsnapshots/Backups.backupdb/$hostname/$snap_uuid/Data" 2>/dev/null || true
+		mount_apfs -o ro,nobrowse,noowners,noatime,nodev,nosuid -s "$snap" "$device" "/Volumes/com.apple.TimeMachine.localsnapshots/Backups.backupdb/$hostname/$snap_uuid/Data" 2>/dev/null || true
 	done
 }
 
