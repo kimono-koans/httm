@@ -144,29 +144,27 @@ impl MapOfSnaps {
                 let mut res: Vec<PathBuf> = Vec::new();
 
                 if PathBuf::from(&TM_DIR_LOCAL).exists() {
-                    let local: Vec<PathBuf> = read_dir(TM_DIR_LOCAL)?
+                    let local = read_dir(TM_DIR_LOCAL)?
                         .par_bridge()
                         .flatten()
                         .flat_map(|entry| read_dir(entry.path()))
                         .flatten_iter()
                         .flatten_iter()
-                        .map(|entry| entry.path().join("Data"))
-                        .collect();
+                        .map(|entry| entry.path().join("Data"));
 
-                    res.extend_from_slice(&local);
+                    res.par_extend(local);
                 }
 
                 if PathBuf::from(&TM_DIR_REMOTE).exists() {
-                    let remote: Vec<PathBuf> = read_dir(TM_DIR_REMOTE)?
+                    let remote = read_dir(TM_DIR_REMOTE)?
                         .par_bridge()
                         .flatten()
                         .flat_map(|entry| read_dir(entry.path()))
                         .flatten_iter()
                         .flatten_iter()
-                        .map(|entry| entry.path().join(entry.file_name()).join("Data"))
-                        .collect();
+                        .map(|entry| entry.path().join(entry.file_name()).join("Data"));
 
-                    res.extend_from_slice(&remote);
+                    res.par_extend(remote);
                 }
 
                 res
