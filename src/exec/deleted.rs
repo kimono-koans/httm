@@ -175,15 +175,13 @@ impl RecurseBehindDeletedDir {
         };
 
         while let Some(item) = queue.pop() {
+            if is_channel_closed(hangup_rx) {
+                return Ok(());
+            }
+
             let new = item
                 .vec_dirs
                 .into_iter()
-                .take_while(|_| {
-                    // check -- should deleted threads keep working?
-                    // exit/error on disconnected channel, which closes
-                    // at end of browse scope
-                    !is_channel_closed(hangup_rx)
-                })
                 .map(|basic_info| {
                     let dir_name = Path::new(basic_info.filename());
                     RecurseBehindDeletedDir::enter_directory(
