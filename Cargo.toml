@@ -23,7 +23,7 @@ inherits = "release"
 
 [features]
 default = ["std"]
-std = ["xattrs", "malloc_trim", "setpriority"]
+std = ["xattrs", "malloc_trim"]
 # acls feature - requires libacl1-dev to build
 acls = ["exacl"]
 xattrs = ["xattr"]
