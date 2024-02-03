@@ -105,7 +105,7 @@ impl RecursiveMainLoop {
             file_type: Some(requested_dir.metadata()?.file_type()),
         };
 
-        let mut initial_vec_files = vec![dot_as_entry];
+        let mut initial_vec_dirs = vec![dot_as_entry];
 
         if let Some(parent) = requested_dir.parent() {
             let double_dot_as_entry = BasicDirEntryInfo {
@@ -113,12 +113,12 @@ impl RecursiveMainLoop {
                 file_type: Some(parent.metadata()?.file_type()),
             };
 
-            initial_vec_files.push(double_dot_as_entry)
+            initial_vec_dirs.push(double_dot_as_entry)
         }
 
         SharedRecursive::combine_and_send_entries(
             vec![],
-            &initial_vec_files,
+            &initial_vec_dirs,
             PathProvenance::FromLiveDataset,
             requested_dir,
             skim_tx,
