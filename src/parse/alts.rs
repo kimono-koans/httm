@@ -53,15 +53,14 @@ impl MapOfAlts {
         let res: HashMap<PathBuf, AltMetadata> = map_of_datasets
             .par_iter()
             .flat_map(|(mount, _dataset_info)| {
-                Self::alt_replicated_from_mount(mount, map_of_datasets)
-                    .map(|datasets| (mount.clone(), datasets))
+                Self::from_mount(mount, map_of_datasets).map(|datasets| (mount.clone(), datasets))
             })
             .collect();
 
         res.into()
     }
 
-    fn alt_replicated_from_mount(
+    fn from_mount(
         proximate_dataset_mount: &Path,
         map_of_datasets: &MapOfDatasets,
     ) -> HttmResult<AltMetadata> {
