@@ -191,8 +191,7 @@ impl RecurseBehindDeletedDir {
                         skim_tx,
                     )
                 })
-                .flatten()
-                .filter(|item| !item.vec_dirs.is_empty());
+                .flatten();
 
             queue.extend(new);
         }
