@@ -177,11 +177,14 @@ impl<'a> DisplaySet<'a> {
                             let live_pathdata = self.inner[1][0];
 
                             let warning = live_pathdata.warning_underlying_snaps(config);
-                            let warning_len = warning.len();
-                            let live_pathdata_len = live_pathdata.path_buf.as_os_str().len();
+                            let warning_len = warning.chars().count();
+                            let border_len = border.chars().count();
 
-                            if warning_len.gt(&live_pathdata_len) {
-                                border = format!("{:─<warning_len$}\n", border.trim_end())
+                            if warning_len > border_len {
+                                let diff = warning_len - border_len;
+                                let mut new_border = border.trim_end().to_string();
+                                new_border += &format!("{:─<diff$}\n", "");
+                                border = new_border;
                             }
 
                             display_set_buffer += &border;
