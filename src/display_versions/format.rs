@@ -28,7 +28,7 @@ use terminal_size::{terminal_size, Height, Width};
 // 2 space wide padding - used between date and size, and size and path
 pub const PRETTY_FIXED_WIDTH_PADDING: &str = "  ";
 // our FIXED_WIDTH_PADDING is used twice
-pub const PRETTY_FIXED_WIDTH_PADDING_LEN_X2: usize = PRETTY_FIXED_WIDTH_PADDING.len() * 2;
+pub const PRETTY_FIXED_WIDTH_PADDING_LEN_X2: usize = 4;
 // tab padding used in not so pretty
 pub const NOT_SO_PRETTY_FIXED_WIDTH_PADDING: &str = "\t";
 // and we add 2 quotation marks to the path when we format
@@ -330,10 +330,10 @@ impl PaddingCollection {
                     (date, size, path)
                 };
 
-                let display_size_len = display_human_size(metadata.size).len();
-                let formatted_line_len = display_date.len()
-                    + display_size.len()
-                    + display_path.len()
+                let display_size_len = display_human_size(metadata.size).chars().count();
+                let formatted_line_len = display_date.chars().count()
+                    + display_size.chars().count()
+                    + display_path.chars().count()
                     + PRETTY_FIXED_WIDTH_PADDING_LEN_X2
                     + QUOTATION_MARKS_LEN;
 
@@ -353,12 +353,13 @@ impl PaddingCollection {
                 &PHANTOM_DATE,
                 DateFormat::Display
             )
-            .len()
+            .chars()
+            .count()
         );
         let phantom_size_pad_str = format!(
             "{:<width$}",
             "",
-            width = display_human_size(PHANTOM_SIZE).len()
+            width = display_human_size(PHANTOM_SIZE).chars().count()
         );
 
         PaddingCollection {
