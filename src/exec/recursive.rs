@@ -44,6 +44,9 @@ static OPT_REQUESTED_DIR_DEV: Lazy<u64> = Lazy::new(|| {
         .dev()
 });
 
+static FILTER_DIRS_MAX_LEN: Lazy<usize> =
+    Lazy::new(|| GLOBAL_CONFIG.dataset_collection.filter_dirs.max_len());
+
 #[derive(Clone, Copy)]
 pub enum PathProvenance {
     FromLiveDataset,
@@ -299,9 +302,6 @@ impl SharedRecursive {
                 return false;
             }
         }
-
-        static FILTER_DIRS_MAX_LEN: Lazy<usize> =
-            Lazy::new(|| GLOBAL_CONFIG.dataset_collection.filter_dirs.max_len());
 
         // finally : is a non-supported dataset?
         // bailout easily if path is larger than max_filter_dir len
