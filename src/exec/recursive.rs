@@ -240,17 +240,12 @@ impl SharedRecursive {
                 }
 
                 if GLOBAL_CONFIG.opt_one_filesystem {
-                    if let Some(requested_dir_dev) = Lazy::get(&OPT_REQUESTED_DIR_DEV) {
-                        match entry.path.symlink_metadata() {
-                            Ok(path_md) if *requested_dir_dev != path_md.dev() => {
-                                return false;
-                            }
-                            Ok(_) => {}
-                            Err(_) => {
-                                // if we can't read the metadata for a path,
-                                // we probably shouldn't show it either
-                                return false;
-                            }
+                    match entry.path.metadata() {
+                        Ok(path_md) if *OPT_REQUESTED_DIR_DEV == path_md.dev() => {}
+                        _ => {
+                            // if we can't read the metadata for a path,
+                            // we probably shouldn't show it either
+                            return false;
                         }
                     }
                 }
