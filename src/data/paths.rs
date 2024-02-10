@@ -62,6 +62,7 @@ pub trait PathDeconstruction<'a> {
     fn source(&self, opt_proximate_dataset_mount: Option<&'a Path>) -> Option<PathBuf>;
     fn relative_path(&'a self, proximate_dataset_mount: &'a Path) -> HttmResult<&'a Path>;
     fn proximate_dataset(&'a self) -> HttmResult<&'a Path>;
+    fn live_path(&self) -> Option<PathBuf>;
 }
 
 // detailed info required to differentiate and display file versions
@@ -130,6 +131,9 @@ impl PathData {
 impl<'a> PathDeconstruction<'a> for PathData {
     fn alias(&self) -> Option<AliasedPath> {
         AliasedPath::new(&self.path_buf)
+    }
+    fn live_path(&self) -> Option<PathBuf> {
+        Some(self.path_buf.clone())
     }
     fn relative_path(&'a self, proximate_dataset_mount: &Path) -> HttmResult<&'a Path> {
         // path strip, if aliased
@@ -237,8 +241,15 @@ impl<'a> ZfsSnapPathGuard<'a> {
             .to_string_lossy()
             .contains(ZFS_SNAPSHOT_DIRECTORY)
     }
+}
 
-    pub fn live_path(&self) -> Option<PathData> {
+impl<'a> PathDeconstruction<'a> for ZfsSnapPathGuard<'_> {
+    fn alias(&self) -> Option<AliasedPath> {
+        // aliases aren't allowed for snap paths
+        None
+    }
+
+    fn live_path(&self) -> Option<PathBuf> {
         self.inner
             .path_buf
             .to_string_lossy()
@@ -247,18 +258,9 @@ impl<'a> ZfsSnapPathGuard<'a> {
                 relative_and_snap_name
                     .split_once("/")
                     .map(|(_snap_name, relative)| {
-                        PathData::from(
-                            PathBuf::from(proximate_dataset_mount).join(Path::new(relative)),
-                        )
+                        PathBuf::from(proximate_dataset_mount).join(Path::new(relative))
                     })
             })
-    }
-}
-
-impl<'a> PathDeconstruction<'a> for ZfsSnapPathGuard<'_> {
-    fn alias(&self) -> Option<AliasedPath> {
-        // aliases aren't allowed for snap paths
-        None
     }
 
     fn target(&self, proximate_dataset_mount: &Path) -> Option<PathBuf> {

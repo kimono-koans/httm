@@ -349,7 +349,7 @@ where
         return Err(HttmError::new(&msg).into());
     }
 
-    if src.path().is_symlink() && src.path().read_link().ok() != dst.path().read_link().ok() {
+    if src.path().is_symlink() && (src.path().read_link().ok() != dst.path().read_link().ok()) {
         let msg = format!("WARN: Symlink do not match: {:?}", src.path());
         return Err(HttmError::new(&msg).into());
     }

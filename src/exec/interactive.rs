@@ -18,6 +18,7 @@
 use crate::config::generate::{
     ExecMode, InteractiveMode, PrintMode, RestoreMode, RestoreSnapGuard, SelectMode,
 };
+use crate::data::paths::PathDeconstruction;
 use crate::data::paths::{PathData, ZfsSnapPathGuard};
 use crate::display_versions::wrapper::VersionsDisplayWrapper;
 use crate::exec::preview::PreviewSelection;
@@ -330,9 +331,9 @@ impl InteractiveSelect {
     pub fn opt_live_version(&self, snap_pathdata: &PathData) -> HttmResult<PathBuf> {
         match &self.opt_live_version {
             Some(live_version) => Some(PathBuf::from(live_version)),
-            None => ZfsSnapPathGuard::new(snap_pathdata)
-                .and_then(|snap_guard| snap_guard.live_path())
-                .map(|pathdata| pathdata.path_buf),
+            None => {
+                ZfsSnapPathGuard::new(snap_pathdata).and_then(|snap_guard| snap_guard.live_path())
+            }
         }
         .ok_or_else(|| HttmError::new("Could not determine a possible live version.").into())
     }
