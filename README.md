@@ -171,9 +171,18 @@ Browse all files deleted from your home directory, recursively, and view unique 
 ➜ httm -d=only -b -a -R ~
 ```
 
-Browse all files in your home directory, recursively, and view unique versions on local snapshots, to select and ultimately restore to your working directory:
+Browse all files in your home directory, recursively, and view unique versions on local snapshots, to select and ultimately restore to your working directory, in overwrite mode:
 
 ```bash
+➜ httm -r=overwrite -R ~
+```
+
+Browse all files in your home directory, recursively, and view unique versions on local snapshots, to select and ultimately restore to your working directory, in "guard" mode, which overwrites and guards any restore action with a pre-recovery ZFS snapshot:
+
+```bash
+➜ printf "
+# export a default httm restore mode
+export HTTM_RESTORE_MODE=\"guard\"" >> ~/.zshenv
 ➜ httm -r -R ~
 ```
 
