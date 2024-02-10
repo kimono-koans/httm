@@ -375,11 +375,11 @@ impl InteractiveRestore {
 
         // tell the user what we're up to, and get consent
         let preview_buffer = format!(
-            "httm will copy a file from a snapshot:\n\n\
-            \tfrom: {:?}\n\
-            \tto:   {new_file_path_buf:?}\n\n\
-            Before httm restores this file, it would like your consent. Continue? (YES/NO)\n\
-            ──────────────────────────────────────────────────────────────────────────────\n\
+            "httm will perform a copy from snapshot:\n\n\
+            \tsource:\t{:?}\n\
+            \ttarget:\t{new_file_path_buf:?}\n\n\
+            Before httm performs a restore, it would like your consent. Continue? (YES/NO)\n\
+            ─────────────────────────────────────────────────────────────────────────────────────────\n\
             YES\n\
             NO",
             snap_pathdata.path_buf
