@@ -508,7 +508,7 @@ impl RollForward {
             return Ok(());
         }
 
-        match Remove::recursive(dst) {
+        match Remove::recursive_quiet(dst) {
             Ok(_) => {
                 if dst.exists() {
                     let msg = format!("File should not exist after deletion {:?}", dst);
