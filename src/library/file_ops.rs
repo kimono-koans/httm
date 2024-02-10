@@ -93,11 +93,11 @@ impl Copy {
             let dev = src_metadata.dev();
             let kind = if is_blk { BLK_KIND } else { CHAR_KIND };
             #[cfg(target_os = "linux")]
-            nix::sys::stat::mknod(&dst, kind, dst_mode, dev)?;
+            nix::sys::stat::mknod(dst, kind, dst_mode, dev)?;
             #[cfg(target_os = "macos")]
             nix::sys::stat::mknod(dst, kind, dst_mode, dev as i32)?;
             #[cfg(target_os = "freebsd")]
-            nix::sys::stat::mknod(&dst, kind, dst_mode, dev as u32)?;
+            nix::sys::stat::mknod(dst, kind, dst_mode, dev as u32)?;
         } else if is_fifo {
             nix::unistd::mkfifo(dst, dst_mode)?;
         } else if is_socket {
