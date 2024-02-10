@@ -492,7 +492,7 @@ dependencies = [
 
 [[package]]
 name = "httm"
-version = "0.35.4"
+version = "0.36.0"
 dependencies = [
  "clap 3.2.25",
  "crossbeam-channel",
