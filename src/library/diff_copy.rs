@@ -121,7 +121,7 @@ impl DiffCopy {
         {
             Self::write_loop(&src_file, &dst_file, dst_exists)?
         } else {
-            match Self::copy_file_range(src_fd, dst_fd, 0 as i64, src_len as usize) {
+            match Self::copy_file_range(src_fd, dst_fd, src_len as usize) {
                 Ok(amt_written) if amt_written as u64 == src_len => {
                     if GLOBAL_CONFIG.opt_debug {
                         eprintln!("DEBUG: copy_file_range call successful.");
@@ -277,23 +277,11 @@ impl DiffCopy {
     fn copy_file_range(
         src_file_fd: BorrowedFd,
         dst_file_fd: BorrowedFd,
-        offset: i64,
         len: usize,
     ) -> HttmResult<usize> {
         #[cfg(any(target_os = "linux", target_os = "freebsd"))]
         {
-            let mut src_mutable_offset = offset;
-            let mut dst_mutable_offset = offset;
-
-            let res = nix::fcntl::copy_file_range(
-                src_file_fd,
-                Some(&mut src_mutable_offset),
-                dst_file_fd,
-                Some(&mut dst_mutable_offset),
-                len,
-            );
-
-            match res {
+            match nix::fcntl::copy_file_range(src_file_fd, None, dst_file_fd, None, len) {
                 Ok(bytes_written) => return Ok(bytes_written),
                 Err(err) => match err {
                     nix::errno::Errno::ENOSYS => {
