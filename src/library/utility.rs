@@ -198,7 +198,7 @@ pub fn copy_direct(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<
             let link_target = std::fs::read_link(src)?;
             std::os::unix::fs::symlink(link_target, dst)?;
         } else {
-            copy_special_file(src, dst)?
+            copy_special_file(src, dst)?;
         }
     }
 
@@ -224,6 +224,7 @@ pub fn copy_special_file(src: &Path, dst: &Path) -> HttmResult<()> {
     let is_blk = src_file_type.is_block_device();
     let is_char = src_file_type.is_char_device();
     let is_fifo = src_file_type.is_fifo();
+    let is_socket = src_file_type.is_socket();
 
     if is_blk || is_char {
         let dev = src_metadata.dev();
@@ -234,11 +235,10 @@ pub fn copy_special_file(src: &Path, dst: &Path) -> HttmResult<()> {
         nix::sys::stat::mknod(dst, kind, dst_mode, dev as i32)?;
     } else if is_fifo {
         nix::unistd::mkfifo(dst, dst_mode)?;
-    // else here includes -- if src_file_type.is_socket(). as this is deemed out of scope
-    } else {
+    } else if is_socket {
         let msg = format!(
             "Source path cannot be copied.  \
-            Source path is not a directory, regular file, device, fifo, or a symlink: \"{}\"",
+            Source path is a socket, and sockets are not considered within the scope of httm: \"{}\"",
             src.display()
         );
         return Err(HttmError::new(&msg).into());
