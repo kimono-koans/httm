@@ -43,6 +43,7 @@ mod config {
 }
 mod library {
     pub mod diff_copy;
+    pub mod file_ops;
     pub mod iter_extensions;
     pub mod results;
     pub mod snap_guard;

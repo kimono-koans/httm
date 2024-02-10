@@ -22,11 +22,10 @@ use crate::data::paths::{PathData, ZfsSnapPathGuard};
 use crate::display_versions::wrapper::VersionsDisplayWrapper;
 use crate::exec::preview::PreviewSelection;
 use crate::exec::recursive::RecursiveSearch;
+use crate::library::file_ops::Copy;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::snap_guard::SnapGuard;
-use crate::library::utility::{
-    copy_recursive, date_string, delimiter, print_output_buf, DateFormat, Never,
-};
+use crate::library::utility::{date_string, delimiter, print_output_buf, DateFormat, Never};
 use crate::lookup::versions::VersionsMap;
 use crate::{Config, GLOBAL_CONFIG};
 use crossbeam_channel::unbounded;
@@ -403,7 +402,7 @@ impl InteractiveRestore {
                         let snap_guard: SnapGuard =
                             SnapGuard::try_from(new_file_path_buf.as_path())?;
 
-                        if let Err(err) = copy_recursive(
+                        if let Err(err) = Copy::recursive(
                             &snap_pathdata.path_buf,
                             &new_file_path_buf,
                             should_preserve,
@@ -423,7 +422,7 @@ impl InteractiveRestore {
                             std::process::exit(1);
                         }
                     } else {
-                        if let Err(err) = copy_recursive(
+                        if let Err(err) = Copy::recursive(
                             &snap_pathdata.path_buf,
                             &new_file_path_buf,
                             should_preserve,
