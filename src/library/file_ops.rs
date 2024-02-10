@@ -57,14 +57,14 @@ impl Copy {
 
             if src.is_file() {
                 DiffCopy::new(&src, &dst)?;
-            } else if src.is_symlink() {
+            } else {
                 if dst.exists() {
                     Remove::recursive_quiet(dst)?;
                 }
-                let link_target = std::fs::read_link(&src)?;
-                std::os::unix::fs::symlink(&link_target, &dst)?;
-            } else {
-                if !dst.exists() {
+                if src.is_symlink() {
+                    let link_target = std::fs::read_link(&src)?;
+                    std::os::unix::fs::symlink(&link_target, &dst)?;
+                } else {
                     Self::special_file(src, dst)?;
                 }
             }
