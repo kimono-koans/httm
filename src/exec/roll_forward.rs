@@ -308,7 +308,8 @@ impl RollForward {
 
         Preserve::direct(&snap_dataset, &live_dataset)?;
 
-        // 2nd pass checks dirs
+        // 2nd pass checks dirs - why?  we don't check dirs on first pass,
+        // because copying of data may have changed dir size/mtime
         second_pass.into_iter().try_for_each(|path| {
             self.roll_config.progress_bar.tick();
             let live_path = self
