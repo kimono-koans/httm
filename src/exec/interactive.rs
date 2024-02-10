@@ -22,20 +22,22 @@ use crate::data::paths::{PathData, ZfsSnapPathGuard};
 use crate::display_versions::wrapper::VersionsDisplayWrapper;
 use crate::exec::preview::PreviewSelection;
 use crate::exec::recursive::RecursiveSearch;
+use crate::library::file_ops::Copy;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::snap_guard::SnapGuard;
-use crate::library::utility::{
-    copy_recursive, date_string, delimiter, print_output_buf, DateFormat, Never,
-};
+use crate::library::utility::{date_string, delimiter, print_output_buf, DateFormat, Never};
 use crate::lookup::versions::VersionsMap;
 use crate::{Config, GLOBAL_CONFIG};
 use crossbeam_channel::unbounded;
+use nu_ansi_term::Color::LightYellow;
 use skim::prelude::*;
 use std::io::{Cursor, Read};
 use std::path::{Path, PathBuf};
 use std::process::Command as ExecProcess;
 use std::thread;
 use std::thread::JoinHandle;
+use terminal_size::Height;
+use terminal_size::Width;
 
 #[derive(Debug)]
 pub struct InteractiveBrowse {
@@ -403,7 +405,7 @@ impl InteractiveRestore {
                         let snap_guard: SnapGuard =
                             SnapGuard::try_from(new_file_path_buf.as_path())?;
 
-                        if let Err(err) = copy_recursive(
+                        if let Err(err) = Copy::recursive(
                             &snap_pathdata.path_buf,
                             &new_file_path_buf,
                             should_preserve,
@@ -423,7 +425,7 @@ impl InteractiveRestore {
                             std::process::exit(1);
                         }
                     } else {
-                        if let Err(err) = copy_recursive(
+                        if let Err(err) = Copy::recursive(
                             &snap_pathdata.path_buf,
                             &new_file_path_buf,
                             should_preserve,
@@ -435,14 +437,16 @@ impl InteractiveRestore {
                     }
 
                     let result_buffer = format!(
-                        "httm copied a file from a snapshot:\n\n\
-                            \tfrom: {:?}\n\
-                            \tto:   {new_file_path_buf:?}\n\n\
+                        "httm copied from snapshot:\n\n\
+                            \tsource:\t{:?}\n\
+                            \ttarget:\t{new_file_path_buf:?}\n\n\
                             Restore completed successfully.",
                         snap_pathdata.path_buf
                     );
 
-                    break println!("{result_buffer}");
+                    let summary_string = LightYellow.paint(Self::summary_string());
+
+                    break println!("{summary_string}{result_buffer}");
                 }
                 "NO" | "N" => {
                     break println!("User declined restore of: {:?}", snap_pathdata.path_buf)
@@ -453,6 +457,15 @@ impl InteractiveRestore {
         }
 
         Ok(())
+    }
+
+    fn summary_string() -> String {
+        let width = match terminal_size::terminal_size() {
+            Some((Width(width), Height(_height))) => width as usize,
+            None => 80usize,
+        };
+
+        format!("{:^width$}\n", "====> [ httm recovery summary ] <====")
     }
 
     fn should_preserve_attributes() -> bool {

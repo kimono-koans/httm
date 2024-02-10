@@ -18,13 +18,14 @@
 use crate::config::generate::RollForwardConfig;
 use crate::data::paths::PathDeconstruction;
 use crate::data::paths::{BasicDirEntryInfo, PathData};
+use crate::library::file_ops::Copy;
+use crate::library::file_ops::Preserve;
+use crate::library::file_ops::Remove;
 use crate::library::iter_extensions::HttmIter;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::snap_guard::{PrecautionarySnapType, SnapGuard};
-use crate::library::utility::{
-    copy_attributes, copy_direct, generate_dst_parent, is_metadata_same, preserve_recursive,
-    remove_recursive, user_has_effective_root,
-};
+use crate::library::utility::is_metadata_same;
+use crate::library::utility::user_has_effective_root;
 use crate::{GLOBAL_CONFIG, ZFS_SNAPSHOT_DIRECTORY};
 use hashbrown::{HashMap, HashSet};
 use nu_ansi_term::Color::{Blue, Green, Red, Yellow};
@@ -279,7 +280,7 @@ impl RollForward {
                     .live_path(&item)
                     .ok_or_else(|| HttmError::new("Could not generate live path"))?;
 
-                preserve_recursive(&item, &live_path)?
+                Preserve::recursive(&item, &live_path)?
             }
 
             first_pass.extend(vec_dirs.clone());
@@ -305,7 +306,7 @@ impl RollForward {
             .live_path(&snap_dataset)
             .ok_or_else(|| HttmError::new("Could not generate live path"))?;
 
-        copy_attributes(&snap_dataset, &live_dataset)?;
+        Preserve::direct(&snap_dataset, &live_dataset)?;
 
         // 2nd pass checks dirs
         second_pass.into_iter().try_for_each(|path| {
@@ -467,7 +468,7 @@ impl RollForward {
     }
 
     fn copy(src: &Path, dst: &Path) -> HttmResult<()> {
-        if let Err(err) = copy_direct(src, dst, true) {
+        if let Err(err) = Copy::direct(src, dst, true) {
             eprintln!("Error: {}", err);
             let msg = format!(
                 "Could not overwrite {:?} with snapshot file version {:?}",
@@ -506,7 +507,7 @@ impl RollForward {
             return Ok(());
         }
 
-        match remove_recursive(dst) {
+        match Remove::recursive(dst) {
             Ok(_) => {
                 if dst.exists() {
                     let msg = format!("File should not exist after deletion {:?}", dst);
@@ -825,10 +826,10 @@ impl<'a> PreserveHardLinks<'a> {
                 }
             }
 
-            remove_recursive(link)?
+            Remove::recursive_quiet(link)?
         }
 
-        generate_dst_parent(link)?;
+        Copy::generate_dst_parent(link)?;
 
         if let Err(err) = std::fs::hard_link(original, link) {
             if !link.exists() {
@@ -839,18 +840,23 @@ impl<'a> PreserveHardLinks<'a> {
         }
 
         if let Some(snap_path) = self.roll_forward.snap_path(link) {
-            preserve_recursive(&snap_path, link)?;
+            Preserve::recursive(&snap_path, link)?;
         } else {
             return Err(HttmError::new("Could not obtain snap path").into());
         }
 
-        eprintln!("{}: {:?} -> {:?}", Yellow.paint("Linked  "), original, link);
+        eprintln!(
+            "{}: {:?} -> {:?}",
+            Yellow.paint("Hard Linked  "),
+            original,
+            link
+        );
 
         Ok(())
     }
 
     fn rm_hard_link(link: &Path) -> HttmResult<()> {
-        match remove_recursive(link) {
+        match Remove::recursive_quiet(link) {
             Ok(_) => {
                 if link.exists() {
                     let msg = format!("Target link should not exist after removal {:?}", link);
