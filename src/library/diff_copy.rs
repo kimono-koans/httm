@@ -73,7 +73,13 @@ static IS_CLONE_COMPATIBLE: Lazy<AtomicBool> = Lazy::new(|| {
             return AtomicBool::new(false);
         };
 
-        if stdout.contains("zfs-2.2") || stdout.contains("zfs-kmod-2.2") {
+        if stdout.contains("zfs-2.2.0")
+            || stdout.contains("zfs-kmod-2.2.0")
+            || stdout.contains("zfs-2.2.1")
+            || stdout.contains("zfs-kmod-2.2.1")
+            || stdout.contains("zfs-2.2-")
+            || stdout.contains("zfs-kmod-2.2-")
+        {
             return AtomicBool::new(false);
         }
     }
