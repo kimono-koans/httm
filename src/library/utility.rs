@@ -26,6 +26,7 @@ use crate::parse::mounts::FilesystemType;
 use crate::{BTRFS_SNAPPER_HIDDEN_DIRECTORY, GLOBAL_CONFIG, ZFS_SNAPSHOT_DIRECTORY};
 use crossbeam_channel::{Receiver, TryRecvError};
 use lscolors::{Colorable, LsColors, Style};
+use nix::sys::stat::SFlag;
 use nu_ansi_term::Style as AnsiTermStyle;
 use number_prefix::NumberPrefix;
 use once_cell::sync::Lazy;
@@ -34,7 +35,7 @@ use std::fs::{create_dir_all, read_dir, set_permissions, FileType};
 use std::io::Write;
 use std::iter::Iterator;
 use std::ops::Deref;
-use std::os::unix::fs::MetadataExt;
+use std::os::unix::fs::{FileTypeExt, MetadataExt};
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 use time::{format_description, OffsetDateTime, UtcOffset};
@@ -197,17 +198,59 @@ pub fn copy_direct(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<
             let link_target = std::fs::read_link(src)?;
             std::os::unix::fs::symlink(link_target, dst)?;
         } else {
-            let msg = format!(
-                "Source path cannot be copied.  \
-                Source path is not a directory, regular file, or a symlink: \"{}\"",
-                src.display()
-            );
-            return Err(HttmError::new(&msg).into());
+            copy_special_file(src, dst)?;
         }
     }
 
     if should_preserve {
         preserve_recursive(src, dst)?;
+    }
+
+    Ok(())
+}
+
+pub fn copy_special_file(src: &Path, dst: &Path) -> HttmResult<()> {
+    const CHAR_KIND: SFlag = SFlag::from_bits_truncate(libc::S_IFCHR);
+    const BLK_KIND: SFlag = SFlag::from_bits_truncate(libc::S_IFBLK);
+
+    let src_metadata = src.metadata()?;
+    let src_file_type = src_metadata.file_type();
+    let src_mode_bits = src_metadata.mode();
+    #[cfg(target_os = "linux")]
+    let dst_mode = nix::sys::stat::Mode::from_bits_truncate(src_mode_bits);
+    #[cfg(any(target_os = "macos", target_os = "freebsd"))]
+    let dst_mode = nix::sys::stat::Mode::from_bits_truncate(src_mode_bits as u16);
+
+    let is_blk = src_file_type.is_block_device();
+    let is_char = src_file_type.is_char_device();
+    let is_fifo = src_file_type.is_fifo();
+    let is_socket = src_file_type.is_socket();
+
+    if is_blk || is_char {
+        let dev = src_metadata.dev();
+        let kind = if is_blk { BLK_KIND } else { CHAR_KIND };
+        #[cfg(target_os = "linux")]
+        nix::sys::stat::mknod(dst, kind, dst_mode, dev)?;
+        #[cfg(target_os = "macos")]
+        nix::sys::stat::mknod(dst, kind, dst_mode, dev as i32)?;
+        #[cfg(target_os = "freebsd")]
+        nix::sys::stat::mknod(dst, kind, dst_mode, dev as u32)?;
+    } else if is_fifo {
+        nix::unistd::mkfifo(dst, dst_mode)?;
+    } else if is_socket {
+        let msg = format!(
+            "Source path could not be copied.  \
+            Source path is a socket, and sockets are not considered within the scope of httm: \"{}\"",
+            src.display()
+        );
+        return Err(HttmError::new(&msg).into());
+    } else {
+        let msg = format!(
+            "Source path could not be copied.  httm could not determine the source path's file type.  \
+            Source path is not a directory, regular file, device, fifo, socket, or symlink: \"{}\"",
+            src.display()
+        );
+        return Err(HttmError::new(&msg).into());
     }
 
     Ok(())
