@@ -826,7 +826,7 @@ impl<'a> PreserveHardLinks<'a> {
                 }
             }
 
-            Remove::recursive(link)?
+            Remove::recursive_quiet(link)?
         }
 
         Copy::generate_dst_parent(link)?;
@@ -845,13 +845,18 @@ impl<'a> PreserveHardLinks<'a> {
             return Err(HttmError::new("Could not obtain snap path").into());
         }
 
-        eprintln!("{}: {:?} -> {:?}", Yellow.paint("Linked  "), original, link);
+        eprintln!(
+            "{}: {:?} -> {:?}",
+            Yellow.paint("Hard Linked  "),
+            original,
+            link
+        );
 
         Ok(())
     }
 
     fn rm_hard_link(link: &Path) -> HttmResult<()> {
-        match Remove::recursive(link) {
+        match Remove::recursive_quiet(link) {
             Ok(_) => {
                 if link.exists() {
                     let msg = format!("Target link should not exist after removal {:?}", link);

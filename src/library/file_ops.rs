@@ -20,6 +20,7 @@ use crate::data::paths::PathDeconstruction;
 use crate::library::diff_copy::DiffCopy;
 use crate::library::results::{HttmError, HttmResult};
 use nix::sys::stat::SFlag;
+use nu_ansi_term::Color::{Blue, Red};
 use std::os::unix::fs::FileTypeExt;
 use std::os::unix::fs::MetadataExt;
 
@@ -42,6 +43,13 @@ impl Copy {
     }
 
     pub fn direct(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<()> {
+        Self::direct_quiet(src, dst, should_preserve)?;
+        eprintln!("{}: {:?} -> {:?}", Blue.paint("Restored "), src, dst);
+
+        Ok(())
+    }
+
+    pub fn direct_quiet(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<()> {
         if src.is_dir() {
             create_dir_all(&dst)?;
         } else {
@@ -51,7 +59,7 @@ impl Copy {
                 DiffCopy::new(&src, &dst)?;
             } else if src.is_symlink() {
                 let link_target = std::fs::read_link(&src)?;
-                std::os::unix::fs::symlink(link_target, &dst)?;
+                std::os::unix::fs::symlink(&link_target, &dst)?;
             } else {
                 Self::special_file(src, dst)?;
             }
@@ -220,6 +228,14 @@ pub struct Remove {}
 
 impl Remove {
     pub fn recursive(src: &Path) -> HttmResult<()> {
+        Self::recursive_quiet(src)?;
+
+        eprintln!("{}: {:?} -> 🗑️", Red.paint("Removed  "), src);
+
+        Ok(())
+    }
+
+    pub fn recursive_quiet(src: &Path) -> HttmResult<()> {
         if src.is_dir() {
             let entries = read_dir(&src)?;
 
@@ -230,7 +246,7 @@ impl Remove {
 
                 if path.exists() {
                     if file_type.is_dir() {
-                        Self::recursive(&path)?
+                        Self::recursive(&path)?;
                     } else {
                         std::fs::remove_file(path)?
                     }
