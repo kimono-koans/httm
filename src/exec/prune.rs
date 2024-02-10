@@ -16,8 +16,8 @@
 // that was distributed with this source code.
 
 use crate::config::generate::ListSnapsFilters;
-use crate::exec::interactive::MultiSelect;
-use crate::exec::interactive::ViewMode;
+use crate::interactive::view_mode::MultiSelect;
+use crate::interactive::view_mode::ViewMode;
 use crate::library::results::{HttmError, HttmResult};
 use crate::lookup::snap_names::SnapNameMap;
 use crate::lookup::versions::VersionsMap;

@@ -30,12 +30,23 @@ mod display_versions {
 }
 mod exec {
     pub mod deleted;
-    pub mod interactive;
     pub mod preview;
     pub mod prune;
     pub mod recursive;
-    pub mod roll_forward;
+
     pub mod snap_mounts;
+}
+mod interactive {
+    pub mod browse;
+    pub mod exec;
+    pub mod restore;
+    pub mod select;
+    pub mod view_mode;
+}
+mod roll_forward {
+    pub mod diff_events;
+    pub mod preserve_hard_links;
+    pub mod exec;
 }
 mod config {
     pub mod generate;
@@ -65,14 +76,14 @@ mod parse {
 use crate::config::generate::{Config, ExecMode};
 use crate::display_map::format::PrintAsMap;
 use crate::display_versions::wrapper::VersionsDisplayWrapper;
-use crate::exec::interactive::InteractiveBrowse;
 use crate::exec::recursive::NonInteractiveRecursiveWrapper;
+use crate::interactive::exec::InteractiveExec;
 use crate::library::results::HttmResult;
 use crate::lookup::file_mounts::MountsForFiles;
 use crate::lookup::snap_names::SnapNameMap;
 use crate::lookup::versions::VersionsMap;
+use crate::roll_forward::exec::RollForward;
 use exec::prune::PruneSnaps;
-use exec::roll_forward::RollForward;
 use exec::snap_mounts::SnapshotMounts;
 use library::utility::print_output_buf;
 use once_cell::sync::Lazy;
@@ -112,7 +123,7 @@ fn exec() -> HttmResult<()> {
     match &GLOBAL_CONFIG.exec_mode {
         // ExecMode::Interactive *may* return back to this function to be printed
         ExecMode::Interactive(interactive_mode) => {
-            let pathdata_set = InteractiveBrowse::exec(interactive_mode)?;
+            let pathdata_set = InteractiveExec::exec(interactive_mode)?;
             let versions_map = VersionsMap::new(&GLOBAL_CONFIG, &pathdata_set)?;
             let output_buf = VersionsDisplayWrapper::from(&GLOBAL_CONFIG, versions_map).to_string();
 
