@@ -41,13 +41,7 @@ pub enum ExecMode {
     MountsForFiles(MountDisplay),
     SnapsForFiles(Option<ListSnapsFilters>),
     NumVersions(NumVersionsMode),
-    RollForward(RollForwardConfig),
-}
-
-#[derive(Debug, Clone)]
-pub struct RollForwardConfig {
-    pub full_snap_name: String,
-    pub progress_bar: indicatif::ProgressBar,
+    RollForward(String),
 }
 
 #[derive(Debug, Clone)]
@@ -767,13 +761,7 @@ impl Config {
         };
 
         let mut exec_mode = if let Some(full_snap_name) = matches.value_of("ROLL_FORWARD") {
-            let progress_bar: ProgressBar = indicatif::ProgressBar::new_spinner();
-            let roll_config: RollForwardConfig = RollForwardConfig {
-                full_snap_name: full_snap_name.to_string(),
-                progress_bar,
-            };
-
-            ExecMode::RollForward(roll_config)
+            ExecMode::RollForward(full_snap_name.to_string())
         } else if let Some(num_versions_mode) = opt_num_versions {
             ExecMode::NumVersions(num_versions_mode)
         } else if let Some(mount_display) = opt_mount_display {

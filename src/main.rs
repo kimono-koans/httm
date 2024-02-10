@@ -45,8 +45,8 @@ mod interactive {
 }
 mod roll_forward {
     pub mod diff_events;
-    pub mod preserve_hard_links;
     pub mod exec;
+    pub mod preserve_hard_links;
 }
 mod config {
     pub mod generate;
@@ -159,6 +159,6 @@ fn exec() -> HttmResult<()> {
 
             print_output_buf(&output_buf)
         }
-        ExecMode::RollForward(roll_config) => RollForward::new(roll_config.clone())?.exec(),
+        ExecMode::RollForward(full_snap_name) => RollForward::new(full_snap_name)?.exec(),
     }
 }

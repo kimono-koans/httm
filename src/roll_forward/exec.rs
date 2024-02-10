@@ -15,7 +15,6 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::config::generate::RollForwardConfig;
 use crate::data::paths::PathData;
 use crate::data::paths::PathDeconstruction;
 use crate::library::file_ops::Copy;
@@ -32,6 +31,7 @@ use crate::library::iter_extensions::HttmIter;
 use crate::roll_forward::diff_events::DiffEvent;
 use crate::roll_forward::diff_events::DiffType;
 
+use indicatif::ProgressBar;
 use nu_ansi_term::Color::{Blue, Red};
 use rayon::prelude::*;
 use which::which;
@@ -43,20 +43,18 @@ use std::process::{Child, ChildStderr, ChildStdout, Command as ExecProcess, Stdi
 use std::thread::JoinHandle;
 
 pub struct RollForward {
-    dataset_name: String,
-    snap_name: String,
-    roll_config: RollForwardConfig,
+    dataset: String,
+    snap: String,
+    progress_bar: ProgressBar,
     proximate_dataset_mount: PathBuf,
 }
 
 impl RollForward {
-    pub fn new(roll_config: RollForwardConfig) -> HttmResult<Self> {
-        let (dataset_name, snap_name) = if let Some(res) =
-            roll_config.full_snap_name.split_once('@')
-        {
+    pub fn new(full_snap_name: &str) -> HttmResult<Self> {
+        let (dataset, snap) = if let Some(res) = full_snap_name.split_once('@') {
             res
         } else {
-            let msg = format!("{} is not a valid data set name.  A valid ZFS snapshot name requires a '@' separating dataset name and snapshot name.", roll_config.full_snap_name);
+            let msg = format!("{} is not a valid data set name.  A valid ZFS snapshot name requires a '@' separating dataset name and snapshot name.", &full_snap_name);
             return Err(HttmError::new(&msg).into());
         };
 
@@ -64,23 +62,29 @@ impl RollForward {
             .dataset_collection
             .map_of_datasets
             .iter()
-            .find(|(_mount, md)| md.source == PathBuf::from(&dataset_name))
+            .find(|(_mount, md)| md.source == PathBuf::from(&dataset))
             .map(|(mount, _)| mount.to_owned())
             .ok_or_else(|| HttmError::new("Could not determine proximate dataset mount"))?;
 
+        let progress_bar: ProgressBar = indicatif::ProgressBar::new_spinner();
+
         Ok(Self {
-            dataset_name: dataset_name.to_string(),
-            snap_name: snap_name.to_string(),
-            roll_config,
+            dataset: dataset.to_string(),
+            snap: snap.to_string(),
+            progress_bar,
             proximate_dataset_mount,
         })
+    }
+
+    fn full_name(&self) -> String {
+        format!("{}@{}", self.dataset, self.snap)
     }
 
     pub fn exec(&self) -> HttmResult<()> {
         user_has_effective_root("Roll forward to a snapshot.")?;
 
         let snap_guard: SnapGuard =
-            SnapGuard::new(&self.dataset_name, PrecautionarySnapType::PreRollForward)?;
+            SnapGuard::new(&self.dataset, PrecautionarySnapType::PreRollForward)?;
 
         match self.roll_forward() {
             Ok(_) => {
@@ -103,8 +107,8 @@ impl RollForward {
         };
 
         SnapGuard::new(
-            &self.dataset_name,
-            PrecautionarySnapType::PostRollForward(self.snap_name.to_owned()),
+            &self.dataset,
+            PrecautionarySnapType::PostRollForward(self.snap.to_owned()),
         )
         .map(|_res| ())
     }
@@ -146,12 +150,12 @@ impl RollForward {
         let mut parse_errors = vec![];
         let group_map = stream_peekable
             .map(|event| {
-                self.roll_config.progress_bar.tick();
+                self.progress_bar.tick();
                 event
             })
             .filter_map(|res| res.map_err(|e| parse_errors.push(e)).ok())
             .into_group_map_by(|event| event.path_buf.clone());
-        self.roll_config.progress_bar.finish_and_clear();
+        self.progress_bar.finish_and_clear();
 
         // These errors usually don't matter, if we make it this far.  Most are of the form:
         // "Unable to determine path or stats for object 99694 in ...: File exists"
@@ -220,7 +224,7 @@ impl RollForward {
 
             // first pass only verify non-directories
             vec_files.into_iter().try_for_each(|path| {
-                self.roll_config.progress_bar.tick();
+                self.progress_bar.tick();
                 let live_path = self
                     .live_path(&path)
                     .ok_or_else(|| HttmError::new("Could not generate live path"))?;
@@ -228,7 +232,7 @@ impl RollForward {
                 is_metadata_same(&path, &live_path)
             })?;
         }
-        self.roll_config.progress_bar.finish_and_clear();
+        self.progress_bar.finish_and_clear();
         eprintln!("OK");
 
         eprint!("Verifying directories: ");
@@ -243,14 +247,14 @@ impl RollForward {
         // 2nd pass checks dirs - why?  we don't check dirs on first pass,
         // because copying of data may have changed dir size/mtime
         second_pass.into_iter().try_for_each(|path| {
-            self.roll_config.progress_bar.tick();
+            self.progress_bar.tick();
             let live_path = self
                 .live_path(&path)
                 .ok_or_else(|| HttmError::new("Could not generate live path"))?;
 
             is_metadata_same(&path, &live_path)
         })?;
-        self.roll_config.progress_bar.finish_and_clear();
+        self.progress_bar.finish_and_clear();
         eprintln!("OK");
 
         Ok(())
@@ -261,7 +265,7 @@ impl RollForward {
             .strip_prefix(&self.proximate_dataset_mount)
             .ok()
             .and_then(|path| path.strip_prefix(ZFS_SNAPSHOT_DIRECTORY).ok())
-            .and_then(|path| path.strip_prefix(&self.snap_name).ok())
+            .and_then(|path| path.strip_prefix(&self.snap).ok())
             .map(|relative_path| {
                 [self.proximate_dataset_mount.as_path(), relative_path]
                     .into_iter()
@@ -275,7 +279,8 @@ impl RollForward {
         })?;
 
         // -H: tab separated, -t: Specify time, -h: Normalize paths (don't use escape codes)
-        let process_args = vec!["diff", "-H", "-t", "-h", &self.roll_config.full_snap_name];
+        let full_name = self.full_name();
+        let process_args = vec!["diff", "-H", "-t", "-h", &full_name];
 
         let process_handle = ExecProcess::new(zfs_command)
             .args(&process_args)
@@ -362,7 +367,7 @@ impl RollForward {
                 let snap_file_path: PathBuf = [
                     self.proximate_dataset_mount.as_path(),
                     Path::new(ZFS_SNAPSHOT_DIRECTORY),
-                    Path::new(&self.snap_name),
+                    Path::new(&self.snap),
                     relative_path,
                 ]
                 .iter()
@@ -418,7 +423,7 @@ impl RollForward {
         [
             self.proximate_dataset_mount.as_path(),
             Path::new(ZFS_SNAPSHOT_DIRECTORY),
-            Path::new(&self.snap_name),
+            Path::new(&self.snap),
         ]
         .iter()
         .collect()
