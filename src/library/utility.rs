@@ -210,7 +210,9 @@ pub fn copy_direct(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<
 }
 
 pub fn copy_special_file(src: &Path, dst: &Path) -> HttmResult<()> {
-    // copy special file
+    const CHAR_KIND: SFlag = SFlag::from_bits_truncate(libc::S_IFCHR);
+    const BLK_KIND: SFlag = SFlag::from_bits_truncate(libc::S_IFBLK);
+
     let src_metadata = src.metadata()?;
     let src_file_type = src_metadata.file_type();
     let src_mode_bits = src_metadata.mode();
@@ -219,27 +221,24 @@ pub fn copy_special_file(src: &Path, dst: &Path) -> HttmResult<()> {
     #[cfg(any(target_os = "macos", target_os = "freebsd"))]
     let dst_mode = nix::sys::stat::Mode::from_bits_truncate(src_mode_bits as u16);
 
-    if src_file_type.is_block_device() {
+    let is_blk = src_file_type.is_block_device();
+    let is_char = src_file_type.is_char_device();
+    let is_fifo = src_file_type.is_fifo();
+
+    if is_blk || is_char {
         let dev = src_metadata.dev();
-        let kind = SFlag::from_bits_truncate(libc::S_IFBLK);
+        let kind = if is_blk { BLK_KIND } else { CHAR_KIND };
         #[cfg(target_os = "linux")]
         nix::sys::stat::mknod(dst, kind, dst_mode, dev)?;
         #[cfg(any(target_os = "macos", target_os = "freebsd"))]
         nix::sys::stat::mknod(dst, kind, dst_mode, dev as i32)?;
-    } else if src_file_type.is_char_device() {
-        let dev = src_metadata.dev();
-        let kind = SFlag::from_bits_truncate(libc::S_IFCHR);
-        #[cfg(target_os = "linux")]
-        nix::sys::stat::mknod(dst, kind, dst_mode, dev)?;
-        #[cfg(any(target_os = "macos", target_os = "freebsd"))]
-        nix::sys::stat::mknod(dst, kind, dst_mode, dev as i32)?;
-    } else if src_file_type.is_fifo() {
-        nix::unistd::mkfifo(dst, dst_mode)?
+    } else if is_fifo {
+        nix::unistd::mkfifo(dst, dst_mode)?;
     // else here includes -- if src_file_type.is_socket(). as this is deemed out of scope
     } else {
         let msg = format!(
             "Source path cannot be copied.  \
-            Source path is not a directory, regular file, or a symlink: \"{}\"",
+            Source path is not a directory, regular file, device, fifo, or a symlink: \"{}\"",
             src.display()
         );
         return Err(HttmError::new(&msg).into());
