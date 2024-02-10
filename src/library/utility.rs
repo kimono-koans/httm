@@ -239,15 +239,16 @@ pub fn copy_special_file(src: &Path, dst: &Path) -> HttmResult<()> {
         nix::unistd::mkfifo(dst, dst_mode)?;
     } else if is_socket {
         let msg = format!(
-            "Source path could not be copied.  \
-            Source path is a socket, and sockets are not considered within the scope of httm: \"{}\"",
+            "WARN: Source path could not be copied.  Source path is a socket, and sockets are not considered within the scope of httm.  \
+            Traditionally, sockets could not be copied, and they should always be recreated by the generating daemon, when deleted: \"{}\"",
             src.display()
         );
-        return Err(HttmError::new(&msg).into());
+        eprintln!("{}", msg)
     } else {
         let msg = format!(
-            "Source path could not be copied.  httm could not determine the source path's file type.  \
-            Source path is not a directory, regular file, device, fifo, socket, or symlink: \"{}\"",
+            "httm could not determine the source path's file type, and therefore it could not be copied.  \
+            The source path was not recognized as a directory, regular file, device, fifo, socket, or symlink.  \
+            Other special file types (like doors and event ports) are unsupported: \"{}\"",
             src.display()
         );
         return Err(HttmError::new(&msg).into());
