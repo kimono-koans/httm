@@ -237,8 +237,15 @@ pub fn copy_special_file(src: &Path, dst: &Path) -> HttmResult<()> {
         nix::unistd::mkfifo(dst, dst_mode)?;
     } else if is_socket {
         let msg = format!(
-            "Source path cannot be copied.  \
+            "Source path could not be copied.  \
             Source path is a socket, and sockets are not considered within the scope of httm: \"{}\"",
+            src.display()
+        );
+        return Err(HttmError::new(&msg).into());
+    } else {
+        let msg = format!(
+            "Source path could not be copied.  httm could not determine the source path's file type.  \
+            Source path is not a directory, regular file, device, fifo, socket, or symlink: \"{}\"",
             src.display()
         );
         return Err(HttmError::new(&msg).into());
