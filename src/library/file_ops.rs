@@ -21,8 +21,6 @@ use crate::library::diff_copy::DiffCopy;
 use crate::library::results::{HttmError, HttmResult};
 use nix::sys::stat::SFlag;
 use nu_ansi_term::Color::{Blue, Red};
-use std::io::read_to_string;
-use std::io::Write;
 use std::os::unix::fs::FileTypeExt;
 use std::os::unix::fs::MetadataExt;
 
@@ -60,10 +58,15 @@ impl Copy {
             if src.is_file() {
                 DiffCopy::new(&src, &dst)?;
             } else if src.is_symlink() {
+                if dst.exists() {
+                    Remove::recursive_quiet(dst)?;
+                }
                 let link_target = std::fs::read_link(&src)?;
                 std::os::unix::fs::symlink(&link_target, &dst)?;
             } else {
-                Self::special_file(src, dst)?;
+                if !dst.exists() {
+                    Self::special_file(src, dst)?;
+                }
             }
         }
 
@@ -103,15 +106,6 @@ impl Copy {
         } else if is_fifo {
             // create new fifo
             nix::unistd::mkfifo(dst, dst_mode)?;
-            // write old fifo to new fifo
-            let mut dst_file = std::fs::OpenOptions::new()
-                .read(true)
-                .write(true)
-                .append(true)
-                .open(dst)?;
-            let src_file = std::fs::File::open(src)?;
-            let buffer = read_to_string(src_file)?;
-            dst_file.write_all(buffer.as_bytes())?;
         } else if is_socket {
             let msg = format!(
             "WARN: Source path could not be copied.  Source path is a socket, and sockets are not considered within the scope of httm.  \
