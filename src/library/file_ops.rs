@@ -136,8 +136,7 @@ impl Copy {
         if src.is_dir() {
             Self::direct(src, dst, should_preserve)?;
 
-            for entry in read_dir(&src)? {
-                let entry = entry?;
+            for entry in read_dir(&src)?.flatten() {
                 let file_type = entry.file_type()?;
                 let entry_src = entry.path();
                 let entry_dst = dst.join(entry.file_name());
@@ -249,10 +248,7 @@ impl Remove {
 
     pub fn recursive_quiet(src: &Path) -> HttmResult<()> {
         if src.is_dir() {
-            let entries = read_dir(&src)?;
-
-            for entry in entries {
-                let entry = entry?;
+            for entry in read_dir(&src)?.flatten() {
                 let file_type = entry.file_type()?;
                 let path = entry.path();
 
