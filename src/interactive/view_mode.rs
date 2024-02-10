@@ -18,9 +18,9 @@
 use crate::data::paths::PathData;
 use crate::exec::preview::PreviewSelection;
 use crate::exec::recursive::RecursiveSearch;
+use crate::interactive::browse::InteractiveBrowse;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::Never;
-use crate::InteractiveBrowse;
 use crate::GLOBAL_CONFIG;
 use crossbeam_channel::unbounded;
 use skim::prelude::*;

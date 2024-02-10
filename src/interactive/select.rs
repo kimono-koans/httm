@@ -20,13 +20,13 @@ use crate::data::paths::PathDeconstruction;
 use crate::data::paths::{PathData, ZfsSnapPathGuard};
 use crate::display_versions::wrapper::VersionsDisplayWrapper;
 use crate::exec::preview::PreviewSelection;
+use crate::interactive::browse::InteractiveBrowse;
 use crate::interactive::restore::InteractiveRestore;
 use crate::interactive::view_mode::MultiSelect;
 use crate::interactive::view_mode::ViewMode;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{delimiter, print_output_buf};
 use crate::lookup::versions::VersionsMap;
-use crate::InteractiveBrowse;
 use crate::{Config, GLOBAL_CONFIG};
 
 use std::io::Read;

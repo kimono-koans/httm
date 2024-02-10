@@ -21,92 +21,26 @@ use crate::data::paths::PathDeconstruction;
 use crate::library::file_ops::Copy;
 use crate::library::file_ops::Preserve;
 use crate::library::file_ops::Remove;
-use crate::library::iter_extensions::HttmIter;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::snap_guard::{PrecautionarySnapType, SnapGuard};
 use crate::library::utility::is_metadata_same;
 use crate::library::utility::user_has_effective_root;
 use crate::roll_forward::preserve_hard_links::{HardLinkMap, PreserveHardLinks};
 use crate::{GLOBAL_CONFIG, ZFS_SNAPSHOT_DIRECTORY};
+
+use crate::library::iter_extensions::HttmIter;
+use crate::roll_forward::diff_events::DiffEvent;
+use crate::roll_forward::diff_events::DiffType;
+
 use nu_ansi_term::Color::{Blue, Red};
 use rayon::prelude::*;
-use std::cmp::Ordering;
+use which::which;
+
 use std::fs::read_dir;
 use std::io::{BufRead, Read};
 use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStderr, ChildStdout, Command as ExecProcess, Stdio};
 use std::thread::JoinHandle;
-use which::which;
-
-#[derive(Debug, Clone)]
-struct DiffEvent {
-    path_buf: PathBuf,
-    diff_type: DiffType,
-    time: DiffTime,
-}
-
-impl DiffEvent {
-    fn new(path_string: &str, diff_type: DiffType, time_str: &str) -> HttmResult<Self> {
-        let path_buf = PathBuf::from(&path_string);
-
-        Ok(Self {
-            path_buf,
-            diff_type,
-            time: DiffTime::new(time_str)?,
-        })
-    }
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-struct DiffTime {
-    secs: u64,
-    nanos: u64,
-}
-
-impl DiffTime {
-    fn new(time_str: &str) -> HttmResult<Self> {
-        let (secs, nanos) = time_str
-            .split_once('.')
-            .ok_or_else(|| HttmError::new("Could not split time string."))?;
-
-        let time = DiffTime {
-            secs: secs.parse::<u64>()?,
-            nanos: nanos.parse::<u64>()?,
-        };
-
-        Ok(time)
-    }
-}
-
-impl std::cmp::Ord for DiffTime {
-    #[inline]
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        let secs_ordering = self.secs.cmp(&other.secs);
-
-        if secs_ordering.is_eq() {
-            return self.nanos.cmp(&other.nanos);
-        }
-
-        secs_ordering
-    }
-}
-
-impl std::cmp::PartialOrd for DiffTime {
-    #[inline]
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-#[derive(Debug, Clone)]
-enum DiffType {
-    Removed,
-    Created,
-    Modified,
-    // zfs diff semantics are: old file name -> new file name
-    // old file name will be the key, and new file name will be stored in the value
-    Renamed(PathBuf),
-}
 
 pub struct RollForward {
     dataset_name: String,

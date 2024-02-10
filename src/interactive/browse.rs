@@ -15,9 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::config::generate::InteractiveMode;
 use crate::data::paths::PathData;
-use crate::interactive::select::InteractiveSelect;
 use crate::interactive::view_mode::ViewMode;
 use crate::library::results::{HttmError, HttmResult};
 use crate::GLOBAL_CONFIG;
@@ -31,22 +29,7 @@ pub struct InteractiveBrowse {
 }
 
 impl InteractiveBrowse {
-    pub fn exec(interactive_mode: &InteractiveMode) -> HttmResult<Vec<PathData>> {
-        let browse_result = Self::new()?;
-
-        // do we return back to our main exec function to print,
-        // or continue down the interactive rabbit hole?
-        match interactive_mode {
-            InteractiveMode::Restore(_) | InteractiveMode::Select(_) => {
-                InteractiveSelect::exec(browse_result, interactive_mode)?;
-                unreachable!()
-            }
-            // InteractiveMode::Browse executes back through fn exec() in main.rs
-            InteractiveMode::Browse => Ok(browse_result.selected_pathdata),
-        }
-    }
-
-    fn new() -> HttmResult<InteractiveBrowse> {
+    pub fn new() -> HttmResult<InteractiveBrowse> {
         let browse_result = match &GLOBAL_CONFIG.opt_requested_dir {
             // collect string paths from what we get from lookup_view
             Some(requested_dir) => {
