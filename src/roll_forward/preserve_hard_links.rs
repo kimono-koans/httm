@@ -342,7 +342,7 @@ impl<'a> PreserveHardLinks<'a> {
         }
 
         if let Some(snap_path) = self.roll_forward.snap_path(link) {
-            Preserve::recursive(&snap_path, link)?;
+            Preserve::direct(&snap_path, link)?;
         } else {
             return Err(HttmError::new("Could not obtain snap path").into());
         }
