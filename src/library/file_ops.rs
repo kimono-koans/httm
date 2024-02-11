@@ -28,7 +28,7 @@ use std::fs::{create_dir_all, read_dir, set_permissions};
 use std::iter::Iterator;
 use std::path::Path;
 
-pub struct Copy {}
+pub struct Copy;
 
 impl Copy {
     pub fn generate_dst_parent(dst: &Path) -> HttmResult<()> {
@@ -71,7 +71,7 @@ impl Copy {
         }
 
         if should_preserve {
-            Preserve::recursive(src, dst)?
+            Preserve::direct(src, dst)?
         }
 
         Ok(())
@@ -147,11 +147,15 @@ impl Copy {
             Self::direct(&src, dst, should_preserve)?;
         }
 
+        if should_preserve {
+            Preserve::recursive(src, dst)?
+        }
+
         Ok(())
     }
 }
 
-pub struct Preserve {}
+pub struct Preserve;
 
 impl Preserve {
     pub fn direct(src: &Path, dst: &Path) -> HttmResult<()> {
@@ -229,7 +233,7 @@ impl Preserve {
     }
 }
 
-pub struct Remove {}
+pub struct Remove;
 
 impl Remove {
     pub fn recursive(src: &Path) -> HttmResult<()> {
