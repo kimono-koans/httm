@@ -30,15 +30,14 @@ mod display_versions {
 }
 mod exec {
     pub mod deleted;
-    pub mod preview;
-    pub mod prune;
     pub mod recursive;
-
     pub mod snap_mounts;
 }
 mod interactive {
     pub mod browse;
     pub mod exec;
+    pub mod preview;
+    pub mod prune;
     pub mod restore;
     pub mod select;
     pub mod view_mode;
@@ -73,20 +72,20 @@ mod parse {
     pub mod snaps;
 }
 
-use crate::config::generate::{Config, ExecMode};
-use crate::display_map::format::PrintAsMap;
-use crate::display_versions::wrapper::VersionsDisplayWrapper;
-use crate::exec::recursive::NonInteractiveRecursiveWrapper;
-use crate::interactive::exec::InteractiveExec;
-use crate::library::results::HttmResult;
-use crate::lookup::file_mounts::MountsForFiles;
-use crate::lookup::snap_names::SnapNameMap;
-use crate::lookup::versions::VersionsMap;
-use crate::roll_forward::exec::RollForward;
-use exec::prune::PruneSnaps;
+use config::generate::{Config, ExecMode};
+use display_map::format::PrintAsMap;
+use display_versions::wrapper::VersionsDisplayWrapper;
+use exec::recursive::NonInteractiveRecursiveWrapper;
 use exec::snap_mounts::SnapshotMounts;
+use interactive::exec::InteractiveExec;
+use interactive::prune::PruneSnaps;
+use library::results::HttmResult;
 use library::utility::print_output_buf;
+use lookup::file_mounts::MountsForFiles;
+use lookup::snap_names::SnapNameMap;
+use lookup::versions::VersionsMap;
 use once_cell::sync::Lazy;
+use roll_forward::exec::RollForward;
 
 pub const ZFS_HIDDEN_DIRECTORY: &str = ".zfs";
 pub const ZFS_SNAPSHOT_DIRECTORY: &str = ".zfs/snapshot";
