@@ -31,6 +31,7 @@ mod display_versions {
 mod exec {
     pub mod deleted;
     pub mod recursive;
+    pub mod snap_mounts;
 }
 mod interactive {
     pub mod browse;
@@ -61,7 +62,6 @@ mod library {
 mod lookup {
     pub mod deleted;
     pub mod file_mounts;
-    pub mod snap_mounts;
     pub mod snap_names;
     pub mod versions;
 }
@@ -76,12 +76,12 @@ use config::generate::{Config, ExecMode};
 use display_map::format::PrintAsMap;
 use display_versions::wrapper::VersionsDisplayWrapper;
 use exec::recursive::NonInteractiveRecursiveWrapper;
+use exec::snap_mounts::SnapshotMounts;
 use interactive::exec::InteractiveExec;
 use interactive::prune::PruneSnaps;
 use library::results::HttmResult;
 use library::utility::print_output_buf;
 use lookup::file_mounts::MountsForFiles;
-use lookup::snap_mounts::SnapshotMounts;
 use lookup::snap_names::SnapNameMap;
 use lookup::versions::VersionsMap;
 use once_cell::sync::Lazy;
