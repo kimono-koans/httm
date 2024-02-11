@@ -108,11 +108,11 @@ impl SnapNameMap {
 
         if inner.is_empty() {
             return Err(
-        HttmError::new(
-          "All valid paths have been filtered, likely because all have no snapshots. Quitting.",
-        )
-        .into(),
-      );
+                HttmError::new(
+                "All valid paths have been filtered, likely because all have no snapshots. Quitting.",
+                )
+                .into(),
+            );
         }
 
         Ok(inner.into())
