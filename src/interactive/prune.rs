@@ -38,12 +38,49 @@ impl PruneSnaps {
             false
         };
 
-        Self::interactive_prune(&snap_name_map, select_mode)?;
+        InteractivePrune::new(&snap_name_map, select_mode)?;
 
         std::process::exit(0)
     }
 
-    fn interactive_prune(snap_name_map: &SnapNameMap, select_mode: bool) -> HttmResult<()> {
+    fn prune(snap_name_map: &SnapNameMap) -> HttmResult<()> {
+        let zfs_command = which::which("zfs").map_err(|_err| {
+            HttmError::new("'zfs' command not found. Make sure the command 'zfs' is in your path.")
+        })?;
+
+        snap_name_map
+            .values()
+            .flatten()
+            .try_for_each(|snapshot_name| {
+                let process_args = vec!["destroy".to_owned(), snapshot_name.clone()];
+
+                let process_output = ExecProcess::new(&zfs_command)
+                    .args(&process_args)
+                    .output()?;
+                let stderr_string = std::str::from_utf8(&process_output.stderr)?.trim();
+
+                // stderr_string is a string not an error, so here we build an err or output
+                if !stderr_string.is_empty() {
+                    let msg = if stderr_string.contains("cannot destroy snapshots: permission denied") {
+                        "httm must have root privileges to destroy a snapshot filesystem".to_owned()
+                    } else {
+                        "httm was unable to destroy snapshots. The 'zfs' command issued the following error: "
+                        .to_owned()
+                        + stderr_string
+                    };
+
+                    Err(HttmError::new(&msg).into())
+            } else {
+                Ok(())
+            }
+      })
+    }
+}
+
+struct InteractivePrune;
+
+impl InteractivePrune {
+    fn new(snap_name_map: &SnapNameMap, select_mode: bool) -> HttmResult<()> {
         let file_names_string: String =
             snap_name_map.keys().fold(String::new(), |mut buffer, key| {
                 buffer += format!("{:?}\n", key.path_buf).as_str();
@@ -82,7 +119,7 @@ impl PruneSnaps {
 
             match user_consent.to_ascii_uppercase().as_ref() {
                 "YES" | "Y" => {
-                    Self::prune_snaps(snap_name_map)?;
+                    PruneSnaps::prune(snap_name_map)?;
 
                     let result_buffer = format!(
                         "httm pruned snapshots related to the following file/s:\n\n{}\n\
@@ -100,38 +137,5 @@ impl PruneSnaps {
         }
 
         Ok(())
-    }
-
-    fn prune_snaps(snap_name_map: &SnapNameMap) -> HttmResult<()> {
-        let zfs_command = which::which("zfs").map_err(|_err| {
-            HttmError::new("'zfs' command not found. Make sure the command 'zfs' is in your path.")
-        })?;
-
-        snap_name_map
-            .values()
-            .flatten()
-            .try_for_each(|snapshot_name| {
-                let process_args = vec!["destroy".to_owned(), snapshot_name.clone()];
-
-                let process_output = ExecProcess::new(&zfs_command)
-                    .args(&process_args)
-                    .output()?;
-                let stderr_string = std::str::from_utf8(&process_output.stderr)?.trim();
-
-                // stderr_string is a string not an error, so here we build an err or output
-                if !stderr_string.is_empty() {
-                    let msg = if stderr_string.contains("cannot destroy snapshots: permission denied") {
-                        "httm must have root privileges to destroy a snapshot filesystem".to_owned()
-                    } else {
-                        "httm was unable to destroy snapshots. The 'zfs' command issued the following error: "
-                        .to_owned()
-                        + stderr_string
-                    };
-
-                    Err(HttmError::new(&msg).into())
-            } else {
-                Ok(())
-            }
-      })
     }
 }
