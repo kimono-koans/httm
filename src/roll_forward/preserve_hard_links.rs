@@ -347,12 +347,7 @@ impl<'a> PreserveHardLinks<'a> {
             return Err(HttmError::new("Could not obtain snap path").into());
         }
 
-        eprintln!(
-            "{}: {:?} -> {:?}",
-            Yellow.paint("Hard Linked  "),
-            original,
-            link
-        );
+        eprintln!("{}: {:?} -> {:?}", Yellow.paint("Linked  "), original, link);
 
         Ok(())
     }
