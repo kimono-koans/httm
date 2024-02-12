@@ -1053,13 +1053,12 @@ impl Config {
         let mut rest: Vec<&str> = raw.collect();
 
         let omit_num_snaps = if let Some(value) = opt_number {
-            if let Ok(number) = value.parse::<usize>() {
-                number
-            } else if !rest.is_empty() {
-                rest = values.trim_end().split(',').collect();
-                0usize
-            } else {
-                return Err(HttmError::new("Invalid max snaps given. Quitting.").into());
+            match value.parse::<usize>() {
+                Ok(number) => number,
+                Err(_) => {
+                    rest = values.trim_end().split(',').collect();
+                    0usize
+                }
             }
         } else {
             0usize
