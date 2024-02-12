@@ -125,6 +125,13 @@ pub enum NumVersionsMode {
     Multiple,
 }
 
+const NATIVE_SNAP_SUFFIXES: [&str; 4] = [
+    "ounceSnapFileMount",
+    "httmSnapFileMount",
+    "httmSnapRollForward",
+    "httmSnapRestore",
+];
+
 fn parse_args() -> ArgMatches {
     clap::Command::new(crate_name!())
         .about("httm prints the size, date and corresponding locations of available unique versions of files residing on snapshots.  \
@@ -280,8 +287,10 @@ fn parse_args() -> ArgMatches {
                 .require_equals(true)
                 .multiple_values(false)
                 .help("display snapshots names for a file.  This argument optionally takes a value.  \
-                By default, this argument will return all available snapshot names.  User may limit type of snapshots returned via the UNIQUENESS flag.  \
-                The user may also omit the last \"n\" snapshots from any list.  By appending a comma, this argument also filters those snapshots which contain the specified pattern/s.  \
+                By default, this argument will return all available snapshot names.  \
+                User may limit type of snapshots returned via the UNIQUENESS flag.  \
+                The user may also omit the most recent \"n\" snapshots from any list.  \
+                By appending a comma, this argument also filters those snapshots which contain the specified pattern/s.  \
                 A value of \"5,prep_Apt\" would return the snapshot names of only the last 5 (at most) of all snapshot versions which contain \"prep_Apt\".  \
                 The value \"native\" will restrict selection to only 'httm' native snapshot suffix values, like \"httmSnapFileMount\" and \"ounceSnapFileMount\".  \
                 Note: This is a ZFS only option.")
@@ -1040,10 +1049,15 @@ impl Config {
 
     pub fn snap_filters(values: &str, select_mode: bool) -> HttmResult<ListSnapsFilters> {
         let mut raw = values.trim_end().split(',');
+        let opt_number = raw.next();
+        let mut rest: Vec<&str> = raw.collect();
 
-        let omit_num_snaps = if let Some(value) = raw.next() {
+        let omit_num_snaps = if let Some(value) = opt_number {
             if let Ok(number) = value.parse::<usize>() {
                 number
+            } else if !rest.is_empty() {
+                rest = values.trim_end().split(',').collect();
+                0usize
             } else {
                 return Err(HttmError::new("Invalid max snaps given. Quitting.").into());
             }
@@ -1051,16 +1065,16 @@ impl Config {
             0usize
         };
 
-        let rest: Vec<&str> = raw.collect();
-
         let name_filters = if !rest.is_empty() {
             if rest.len() == 1usize && rest.index(0) == &"none" {
                 None
             } else if rest.len() == 1usize && rest.index(0) == &"native" {
-                Some(vec![
-                    "ounceSnapFileMount".to_owned(),
-                    "httmSnapFileMount".to_owned(),
-                ])
+                Some(
+                    NATIVE_SNAP_SUFFIXES
+                        .into_iter()
+                        .map(|name| name.to_owned())
+                        .collect(),
+                )
             } else {
                 Some(rest.iter().map(|item| (*item).to_string()).collect())
             }
