@@ -691,7 +691,9 @@ impl Config {
                 Some("preview") => Some(InteractiveMode::Select(SelectMode::Preview)),
                 Some(_) | None => Some(InteractiveMode::Select(SelectMode::Path)),
             }
-        } else if matches.is_present("BROWSE") {
+        // simply enable browse mode -- if deleted mode not enabled but recursive search is specified,
+        // that is, if delete recursive search is not specified, don't error out, let user browse
+        } else if matches.is_present("BROWSE") || (opt_recursive && opt_deleted_mode.is_none()) {
             Some(InteractiveMode::Browse)
         } else {
             None
@@ -781,14 +783,7 @@ impl Config {
             ExecMode::BasicDisplay
         };
 
-        if opt_recursive {
-            if matches!(exec_mode, ExecMode::BasicDisplay) {
-                return Err(HttmError::new(
-                    "RECURSIVE not available in fundamental Display Mode.  ",
-                )
-                .into());
-            }
-        } else if opt_no_filter {
+        if opt_no_filter && !opt_recursive {
             return Err(HttmError::new(
                 "NO_FILTER only available when recursive search is enabled.",
             )
