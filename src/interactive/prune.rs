@@ -88,11 +88,19 @@ impl InteractivePrune {
             });
 
         let snap_names: Vec<String> = if select_mode {
-            let buffer: String = snap_name_map.values().flatten().cloned().collect();
+            let buffer: String = snap_name_map
+                .values()
+                .flatten()
+                .map(|name| format!("{name}\n"))
+                .collect();
             let view_mode = &ViewMode::Select(None);
             view_mode.select(&buffer, MultiSelect::On)?
         } else {
-            snap_name_map.values().flatten().cloned().collect()
+            snap_name_map
+                .values()
+                .flatten()
+                .map(|name| format!("{name}\n"))
+                .collect()
         };
 
         let snap_names_string: String = snap_names.into_iter().collect();
