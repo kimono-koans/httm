@@ -103,7 +103,10 @@ impl InteractivePrune {
                 .collect()
         };
 
-        let snap_names_string: String = snap_names.into_iter().collect();
+        let snap_names_string: String = snap_names
+            .into_iter()
+            .map(|name| format!("{name}\n"))
+            .collect();
 
         let preview_buffer = format!(
             "User has requested snapshots related to the following file/s be pruned:\n\n{}\n\
