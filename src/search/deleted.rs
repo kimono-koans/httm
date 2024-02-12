@@ -17,10 +17,10 @@
 
 use crate::config::generate::DeletedMode;
 use crate::data::paths::{BasicDirEntryInfo, PathData};
-use crate::exec::recursive::{PathProvenance, SharedRecursive};
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{is_channel_closed, Never};
 use crate::lookup::deleted::{DeletedFiles, LastInTimeSet};
+use crate::search::recursive::{PathProvenance, SharedRecursive};
 use crate::GLOBAL_CONFIG;
 use rayon::Scope;
 use skim::prelude::*;

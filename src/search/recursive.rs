@@ -19,12 +19,12 @@ use crate::config::generate::{DeletedMode, ExecMode};
 use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::data::selection::SelectionCandidate;
 use crate::display_versions::wrapper::VersionsDisplayWrapper;
-use crate::exec::deleted::SpawnDeletedThread;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{
     is_channel_closed, path_is_filter_dir, print_output_buf, HttmIsDir, Never,
 };
 use crate::parse::mounts::MaxLen;
+use crate::search::deleted::SpawnDeletedThread;
 use crate::{VersionsMap, BTRFS_SNAPPER_HIDDEN_DIRECTORY, GLOBAL_CONFIG, ZFS_HIDDEN_DIRECTORY};
 use once_cell::sync::Lazy;
 use rayon::{Scope, ThreadPool};

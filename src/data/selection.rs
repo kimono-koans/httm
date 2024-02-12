@@ -18,9 +18,9 @@
 use crate::config::generate::{ListSnapsOfType, PrintMode};
 use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::display_versions::wrapper::VersionsDisplayWrapper;
-use crate::exec::recursive::PathProvenance;
 use crate::library::results::HttmResult;
 use crate::library::utility::paint_string;
+use crate::search::recursive::PathProvenance;
 use crate::{Config, ExecMode, VersionsMap, GLOBAL_CONFIG};
 use lscolors::Colorable;
 use once_cell::sync::Lazy;

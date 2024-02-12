@@ -16,11 +16,11 @@
 // that was distributed with this source code.
 
 use crate::data::paths::PathData;
-use crate::exec::recursive::RecursiveSearch;
 use crate::interactive::browse::InteractiveBrowse;
 use crate::interactive::preview::PreviewSelection;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::Never;
+use crate::search::recursive::RecursiveSearch;
 use crate::GLOBAL_CONFIG;
 use crossbeam_channel::unbounded;
 use skim::prelude::*;
