@@ -349,7 +349,11 @@ impl<'a> RelativePathAndSnapMounts<'a> {
         uniqueness: &ListSnapsOfType,
     ) -> Vec<PathData> {
         match uniqueness {
-            ListSnapsOfType::All => iter.collect(),
+            ListSnapsOfType::All => {
+                let mut vec: Vec<PathData> = iter.collect();
+                vec.sort_unstable();
+                vec
+            }
             ListSnapsOfType::UniqueContents | ListSnapsOfType::UniqueMetadata => {
                 let sorted_and_deduped: BTreeSet<CompareVersionsContainer> = iter
                     .map(|pd| CompareVersionsContainer::new(pd, uniqueness))
