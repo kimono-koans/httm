@@ -169,11 +169,7 @@ impl<'a> DisplaySet<'a> {
                     if matches!(config.print_mode, PrintMode::FormattedNotPretty) {
                         display_set_buffer += &component_buffer;
                     } else if matches!(display_set_type, DisplaySetType::IsSnap) {
-                        if !component_buffer.is_empty() {
-                            display_set_buffer += &border;
-                            display_set_buffer += &component_buffer;
-                            display_set_buffer += &border;
-                        } else {
+                        if component_buffer.is_empty() {
                             let live_pathdata = self.inner[1][0];
 
                             let warning = live_pathdata.warning_underlying_snaps(config);
@@ -191,6 +187,10 @@ impl<'a> DisplaySet<'a> {
                             display_set_buffer += warning;
                             display_set_buffer += &border;
                         }
+
+                        display_set_buffer += &border;
+                        display_set_buffer += &component_buffer;
+                        display_set_buffer += &border;
                     } else {
                         display_set_buffer += &component_buffer;
                         display_set_buffer += &border;
