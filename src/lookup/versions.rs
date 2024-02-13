@@ -162,6 +162,7 @@ pub struct Versions {
 }
 
 impl Versions {
+    #[inline(always)]
     fn new(pathdata: &PathData, config: &Config) -> HttmResult<Self> {
         let prox_opt_alts = ProximateDatasetAndOptAlts::new(pathdata)?;
         let live_path = prox_opt_alts.pathdata.clone();
@@ -178,6 +179,7 @@ impl Versions {
             snap_versions,
         })
     }
+    #[inline(always)]
     fn destructure(self) -> (PathData, Vec<PathData>) {
         (self.live_path, self.snap_versions)
     }
@@ -206,6 +208,7 @@ impl<'a> PartialOrd for ProximateDatasetAndOptAlts<'a> {
 }
 
 impl<'a> ProximateDatasetAndOptAlts<'a> {
+    #[inline(always)]
     pub fn new(pathdata: &'a PathData) -> HttmResult<Self> {
         // here, we take our file path and get back possibly multiple ZFS dataset mountpoints
         // and our most proximate dataset mount point (which is always the same) for
@@ -248,7 +251,7 @@ impl<'a> ProximateDatasetAndOptAlts<'a> {
             opt_alts,
         })
     }
-
+    #[inline(always)]
     pub fn datasets_of_interest(&'a self) -> impl Iterator<Item = &'a Path> {
         let alts = self
             .opt_alts
@@ -261,7 +264,7 @@ impl<'a> ProximateDatasetAndOptAlts<'a> {
 
         alts.chain(base)
     }
-
+    #[inline(always)]
     pub fn into_search_bundles(&'a self) -> impl Iterator<Item = RelativePathAndSnapMounts<'a>> {
         self.datasets_of_interest().flat_map(|dataset_of_interest| {
             RelativePathAndSnapMounts::new(&self.relative_path, &dataset_of_interest)
@@ -276,6 +279,7 @@ pub struct RelativePathAndSnapMounts<'a> {
 }
 
 impl<'a> RelativePathAndSnapMounts<'a> {
+    #[inline(always)]
     fn new(relative_path: &'a Path, dataset_of_interest: &Path) -> Option<Self> {
         // building our relative path by removing parent below the snap dir
         //
@@ -291,7 +295,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
             snap_mounts,
         })
     }
-
+    #[inline(always)]
     pub fn versions_processed(&'a self, uniqueness: &ListSnapsOfType) -> Vec<PathData> {
         let all_versions = self.versions_unprocessed();
 
@@ -303,7 +307,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
 
         sorted_versions.pop()
     }
-
+    #[inline(always)]
     fn versions_unprocessed(&'a self) -> impl ParallelIterator<Item = PathData> + 'a {
         // get the DirEntry for our snapshot path which will have all our possible
         // snapshots, like so: .zfs/snapshots/<some snap name>/
@@ -344,6 +348,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
 
     // remove duplicates with the same system modify time and size/file len (or contents! See --uniqueness)
     #[allow(clippy::mutable_key_type)]
+    #[inline(always)]
     fn sort_dedup_versions(
         iter: impl ParallelIterator<Item = PathData>,
         uniqueness: &ListSnapsOfType,

@@ -106,6 +106,7 @@ impl From<BasicDirEntryInfo> for PathData {
 }
 
 impl PathData {
+    #[inline(always)]
     pub fn new(path: &Path, opt_metadata: Option<Metadata>) -> Self {
         // canonicalize() on any path that DNE will throw an error
         //
@@ -122,7 +123,7 @@ impl PathData {
         }
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn md_infallible(&self) -> PathMetadata {
         self.metadata.unwrap_or_else(|| PHANTOM_PATH_METADATA)
     }
@@ -135,6 +136,8 @@ impl<'a> PathDeconstruction<'a> for PathData {
     fn live_path(&self) -> Option<PathBuf> {
         Some(self.path_buf.clone())
     }
+
+    #[inline(always)]
     fn relative_path(&'a self, proximate_dataset_mount: &Path) -> HttmResult<&'a Path> {
         // path strip, if aliased
         // fallback if unable to find an alias or strip a prefix
@@ -159,6 +162,7 @@ impl<'a> PathDeconstruction<'a> for PathData {
             .map(|md| md.source.clone())
     }
 
+    #[inline(always)]
     fn proximate_dataset(&'a self) -> HttmResult<&'a Path> {
         // for /usr/bin, we prefer the most proximate: /usr/bin to /usr and /
         // ancestors() iterates in this top-down order, when a value: dataset/fstype is available
@@ -192,6 +196,7 @@ pub struct AliasedPath<'a> {
 }
 
 impl<'a> AliasedPath<'a> {
+    #[inline(always)]
     pub fn new(path: &'a Path) -> Option<Self> {
         // find_map_first should return the first seq result with a par_iter
         // but not with a par_bridge
@@ -379,6 +384,7 @@ pub struct PathMetadata {
 
 impl PathMetadata {
     // call symlink_metadata, as we need to resolve symlinks to get non-"phantom" metadata
+    #[inline(always)]
     pub fn new(md: &Metadata) -> Option<Self> {
         // may fail on systems that don't collect a modify time
         Self::modify_time(md).map(|time| PathMetadata {
@@ -389,6 +395,7 @@ impl PathMetadata {
 
     // using ctime instead of mtime might be more correct as mtime can be trivially changed from user space
     // but I think we want to use mtime here? People should be able to make a snapshot "unique" with only mtime?
+    #[inline(always)]
     fn modify_time(md: &Metadata) -> Option<SystemTime> {
         //#[cfg(not(unix))]
         // return md.modified().unwrap_or(UNIX_EPOCH);
@@ -426,7 +433,7 @@ impl PartialOrd for CompareVersionsContainer {
 }
 
 impl Ord for CompareVersionsContainer {
-    #[inline]
+    #[inline(always)]
     fn cmp(&self, other: &Self) -> Ordering {
         let self_md = self.pathdata.md_infallible();
         let other_md = other.pathdata.md_infallible();
