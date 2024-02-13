@@ -420,13 +420,14 @@ pub struct CompareVersionsContainer {
 }
 
 impl From<CompareVersionsContainer> for PathData {
+    #[inline(always)]
     fn from(container: CompareVersionsContainer) -> Self {
         container.pathdata
     }
 }
 
 impl PartialOrd for CompareVersionsContainer {
-    #[inline]
+    #[inline(always)]
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
@@ -456,6 +457,7 @@ impl Ord for CompareVersionsContainer {
 }
 
 impl CompareVersionsContainer {
+    #[inline(always)]
     pub fn new(pathdata: PathData, snaps_of_type: &ListSnapsOfType) -> Self {
         let opt_hash = match snaps_of_type {
             ListSnapsOfType::UniqueContents => Some(OnceCell::new()),
@@ -465,7 +467,6 @@ impl CompareVersionsContainer {
         CompareVersionsContainer { pathdata, opt_hash }
     }
 
-    #[inline]
     #[allow(unused_assignments)]
     pub fn is_same_file(&self, other: &Self) -> bool {
         // SAFETY: Unwrap will fail on opt_hash is None, here we've guarded this above
@@ -506,7 +507,6 @@ impl CompareVersionsContainer {
         false
     }
 
-    #[inline(always)]
     fn hash(&self) -> HttmResult<u32> {
         const IN_BUFFER_SIZE: usize = 131_072;
 
