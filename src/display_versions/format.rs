@@ -158,7 +158,7 @@ impl<'a> DisplaySet<'a> {
             .fold(
                 String::new(),
                 |mut display_set_buffer, (display_set_type, snap_or_live_set)| {
-                    let component_buffer: String = snap_or_live_set
+                    let mut component_buffer: String = snap_or_live_set
                         .iter()
                         .map(|pathdata| {
                             pathdata.format(config, &display_set_type, padding_collection)
@@ -183,9 +183,7 @@ impl<'a> DisplaySet<'a> {
                                 border = new_border;
                             }
 
-                            display_set_buffer += &border;
-                            display_set_buffer += warning;
-                            display_set_buffer += &border;
+                            component_buffer = warning.to_string();
                         }
 
                         display_set_buffer += &border;
