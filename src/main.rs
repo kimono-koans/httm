@@ -28,7 +28,7 @@ mod display_versions {
     pub mod num_versions;
     pub mod wrapper;
 }
-mod search {
+mod background {
     pub mod deleted;
     pub mod recursive;
 }
@@ -72,6 +72,7 @@ mod parse {
     pub mod snaps;
 }
 
+use background::recursive::NonInteractiveRecursiveWrapper;
 use config::generate::{Config, ExecMode};
 use display_map::format::PrintAsMap;
 use display_versions::wrapper::VersionsDisplayWrapper;
@@ -85,7 +86,6 @@ use lookup::snap_names::SnapNameMap;
 use lookup::versions::VersionsMap;
 use once_cell::sync::Lazy;
 use roll_forward::exec::RollForward;
-use search::recursive::NonInteractiveRecursiveWrapper;
 
 pub const ZFS_HIDDEN_DIRECTORY: &str = ".zfs";
 pub const ZFS_SNAPSHOT_DIRECTORY: &str = ".zfs/snapshot";

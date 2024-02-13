@@ -15,12 +15,12 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
+use crate::background::recursive::{PathProvenance, SharedRecursive};
 use crate::config::generate::DeletedMode;
 use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{is_channel_closed, Never};
 use crate::lookup::deleted::{DeletedFiles, LastInTimeSet};
-use crate::search::recursive::{PathProvenance, SharedRecursive};
 use crate::GLOBAL_CONFIG;
 use rayon::Scope;
 use skim::prelude::*;

@@ -15,12 +15,12 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
+use crate::background::recursive::RecursiveSearch;
 use crate::data::paths::PathData;
 use crate::interactive::browse::InteractiveBrowse;
 use crate::interactive::preview::PreviewSelection;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::Never;
-use crate::search::recursive::RecursiveSearch;
 use crate::GLOBAL_CONFIG;
 use crossbeam_channel::unbounded;
 use skim::prelude::*;
