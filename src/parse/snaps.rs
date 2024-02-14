@@ -17,12 +17,12 @@
 
 use crate::library::results::{HttmError, HttmResult};
 use crate::parse::mounts::{DatasetMetadata, FilesystemType, MountType};
+use crate::parse::mounts::{MountBuffer, PROC_MOUNTS};
 use crate::{
     BTRFS_SNAPPER_HIDDEN_DIRECTORY, BTRFS_SNAPPER_SUFFIX, TM_DIR_LOCAL, TM_DIR_REMOTE,
     ZFS_SNAPSHOT_DIRECTORY,
 };
 use hashbrown::HashMap;
-use proc_mounts::MountIter;
 use rayon::prelude::*;
 use std::fs::read_dir;
 use std::ops::Deref;
@@ -172,12 +172,14 @@ impl MapOfSnaps {
             FilesystemType::Nilfs2 => {
                 let source_path = Path::new(&dataset_metadata.source);
 
-                MountIter::new()?
-                    .flatten()
-                    .par_bridge()
-                    .filter(|mount_info| mount_info.source == source_path)
-                    .filter(|mount_info| mount_info.options.iter().any(|opt| opt.contains("cp=")))
-                    .map(|mount_info| mount_info.dest)
+                let buffer = MountBuffer::new(&PROC_MOUNTS)?;
+
+                buffer
+                    .par_lines()
+                    .filter_map(|line| buffer.process_line(line))
+                    .filter(|mount_info| Path::new(&mount_info.source) == source_path)
+                    .filter(|mount_info| mount_info.opts.iter().any(|opt| opt.contains("cp=")))
+                    .map(|mount_info| PathBuf::from(mount_info.dest))
                     .collect()
             }
         };

@@ -23,7 +23,6 @@ use crate::{
 };
 use hashbrown::{HashMap, HashSet};
 use once_cell::sync::Lazy;
-use proc_mounts::MountIter;
 use rayon::iter::Either;
 use rayon::prelude::*;
 use std::collections::BTreeMap;
@@ -110,6 +109,77 @@ impl MaxLen for MapOfDatasets {
             .unwrap_or(usize::MAX)
     }
 }
+// skipping dump and pass as not needed for our purposes
+pub struct MountInfo<'a> {
+    pub source: &'a str,
+    pub dest: &'a str,
+    pub fs_type: &'a str,
+    pub opts: Vec<&'a str>,
+}
+
+impl<'a> MountInfo<'a> {
+    pub fn new(line: &'a str, separator: &str) -> Option<Self> {
+        let split_line: Vec<&str> = line.split(separator).collect();
+
+        if split_line.len() < 4 {
+            return None;
+        }
+
+        let opts: Vec<&str> = split_line[3].split(',').collect();
+
+        Some(MountInfo {
+            source: split_line[0],
+            dest: split_line[1],
+            fs_type: split_line[2],
+            opts,
+        })
+    }
+}
+
+pub struct MountBuffer<'a> {
+    pub buffer: String,
+    pub mount_file: &'a MountFile,
+}
+
+impl<'a> Deref for MountBuffer<'a> {
+    type Target = String;
+
+    fn deref(&self) -> &Self::Target {
+        &self.buffer
+    }
+}
+
+impl<'a> MountBuffer<'a> {
+    pub fn new(mount_file: &'a MountFile) -> HttmResult<Self> {
+        let file = std::fs::File::open(&mount_file.path)?;
+
+        let mut reader = std::io::BufReader::new(file);
+        let mut buffer = String::new();
+
+        reader.read_to_string(&mut buffer)?;
+
+        Ok(Self { buffer, mount_file })
+    }
+
+    pub fn process_line(&self, line: &'a str) -> Option<MountInfo<'a>> {
+        MountInfo::new(line, &self.mount_file.separator)
+    }
+}
+
+pub struct MountFile {
+    path: PathBuf,
+    separator: String,
+}
+
+pub static PROC_MOUNTS: Lazy<MountFile> = Lazy::new(|| MountFile {
+    path: PathBuf::from("/proc/mounts"),
+    separator: ' '.to_string(),
+});
+
+static ETC_MNTTAB: Lazy<MountFile> = Lazy::new(|| MountFile {
+    path: PathBuf::from("/proc/mounts"),
+    separator: '\t'.to_string(),
+});
 
 pub struct BaseFilesystemInfo {
     pub map_of_datasets: MapOfDatasets,
@@ -117,17 +187,14 @@ pub struct BaseFilesystemInfo {
     pub filter_dirs: FilterDirs,
 }
 
-static PROC_MOUNTS: Lazy<PathBuf> = Lazy::new(|| PathBuf::from("/proc/mounts"));
-static ETC_MNTTAB: Lazy<PathBuf> = Lazy::new(|| PathBuf::from("/etc/mnttab"));
-
 impl BaseFilesystemInfo {
     // divide by the type of system we are on
     // Linux allows us the read proc mounts
     pub fn new() -> HttmResult<Self> {
-        let (raw_datasets, filter_dirs_set) = if PROC_MOUNTS.exists() {
-            Self::from_proc_mounts()?
-        } else if ETC_MNTTAB.exists() {
-            Self::from_mnttab()?
+        let (raw_datasets, filter_dirs_set) = if PROC_MOUNTS.path.exists() {
+            Self::from_file(&PROC_MOUNTS)?
+        } else if ETC_MNTTAB.path.exists() {
+            Self::from_file(&ETC_MNTTAB)?
         } else {
             Self::from_mount_cmd()?
         };
@@ -155,24 +222,21 @@ impl BaseFilesystemInfo {
 
     // parsing from proc mounts is both faster and necessary for certain btrfs features
     // for instance, allows us to read subvolumes mounts, like "/@" or "/@home"
-    fn from_proc_mounts() -> HttmResult<(HashMap<PathBuf, DatasetMetadata>, HashSet<PathBuf>)> {
+    fn from_file(
+        mount_file: &MountFile,
+    ) -> HttmResult<(HashMap<PathBuf, DatasetMetadata>, HashSet<PathBuf>)> {
+        let buffer = MountBuffer::new(&mount_file)?;
+
         let (map_of_datasets, filter_dirs): (HashMap<PathBuf, DatasetMetadata>, HashSet<PathBuf>) =
-            MountIter::new()?
-                .par_bridge()
-                .flatten()
+            buffer
+                .par_lines()
+                .filter_map(|line| buffer.process_line(line))
                 // but exclude snapshot mounts.  we want only the raw filesystems
-                .filter(|mount_info| match mount_info.fstype.as_str() {
-                    ZFS_FSTYPE
-                        if mount_info
-                            .dest
-                            .to_string_lossy()
-                            .contains(ZFS_HIDDEN_DIRECTORY) =>
-                    {
-                        false
-                    }
+                .filter(|mount_info| match mount_info.fs_type {
+                    ZFS_FSTYPE if mount_info.dest.contains(ZFS_HIDDEN_DIRECTORY) => false,
                     NILFS2_FSTYPE
                         if mount_info
-                            .options
+                            .opts
                             .iter()
                             .any(|opt| opt.contains(NILFS2_SNAPSHOT_ID_KEY)) =>
                     {
@@ -180,39 +244,43 @@ impl BaseFilesystemInfo {
                     }
                     _ => true,
                 })
-                .partition_map(|mount_info| match mount_info.fstype.as_str() {
+                .map(|mount_info| {
+                    let dest_path = PathBuf::from(&mount_info.dest);
+                    (mount_info, dest_path)
+                })
+                .partition_map(|(mount_info, dest_path)| match mount_info.fs_type {
                     ZFS_FSTYPE => Either::Left((
-                        mount_info.dest,
+                        dest_path,
                         DatasetMetadata {
-                            source: mount_info.source,
+                            source: PathBuf::from(mount_info.source),
                             fs_type: FilesystemType::Zfs,
                             mount_type: MountType::Local,
                         },
                     )),
                     SMB_FSTYPE | AFP_FSTYPE | NFS_FSTYPE => {
-                        match fs_type_from_hidden_dir(&mount_info.dest) {
+                        match fs_type_from_hidden_dir(&dest_path) {
                             Some(FilesystemType::Zfs) => Either::Left((
-                                mount_info.dest,
+                                dest_path,
                                 DatasetMetadata {
-                                    source: mount_info.source,
+                                    source: PathBuf::from(mount_info.source),
                                     fs_type: FilesystemType::Zfs,
                                     mount_type: MountType::Network,
                                 },
                             )),
                             Some(FilesystemType::Btrfs) => Either::Left((
-                                mount_info.dest,
+                                dest_path,
                                 DatasetMetadata {
-                                    source: mount_info.source,
+                                    source: PathBuf::from(mount_info.source),
                                     fs_type: FilesystemType::Btrfs,
                                     mount_type: MountType::Network,
                                 },
                             )),
-                            _ => Either::Right(mount_info.dest),
+                            _ => Either::Right(dest_path),
                         }
                     }
                     BTRFS_FSTYPE => {
                         let keyed_options: BTreeMap<&str, &str> = mount_info
-                            .options
+                            .opts
                             .iter()
                             .filter(|line| line.contains('='))
                             .filter_map(|line| line.split_once('='))
@@ -220,11 +288,11 @@ impl BaseFilesystemInfo {
 
                         let source = match keyed_options.get("subvol") {
                             Some(subvol) => PathBuf::from(subvol),
-                            None => mount_info.source,
+                            None => PathBuf::from(mount_info.source),
                         };
 
                         Either::Left((
-                            mount_info.dest,
+                            dest_path,
                             DatasetMetadata {
                                 source,
                                 fs_type: FilesystemType::Btrfs,
@@ -233,75 +301,14 @@ impl BaseFilesystemInfo {
                         ))
                     }
                     NILFS2_FSTYPE => Either::Left((
-                        mount_info.dest,
+                        dest_path,
                         DatasetMetadata {
-                            source: mount_info.source,
+                            source: PathBuf::from(mount_info.source),
                             fs_type: FilesystemType::Nilfs2,
                             mount_type: MountType::Local,
                         },
                     )),
-                    _ => Either::Right(mount_info.dest),
-                });
-
-        if map_of_datasets.is_empty() {
-            Err(HttmError::new("httm could not find any valid datasets on the system.").into())
-        } else {
-            Ok((map_of_datasets, filter_dirs))
-        }
-    }
-
-    fn from_mnttab() -> HttmResult<(HashMap<PathBuf, DatasetMetadata>, HashSet<PathBuf>)> {
-        let file = std::fs::File::open(&*ETC_MNTTAB)?;
-
-        let mut reader = std::io::BufReader::new(file);
-        let mut buffer = String::new();
-
-        reader.read_to_string(&mut buffer)?;
-
-        let (map_of_datasets, filter_dirs): (HashMap<PathBuf, DatasetMetadata>, HashSet<PathBuf>) =
-            buffer
-                .par_lines()
-                // exclude snapshot mounts.  we want the raw filesystem names.
-                .filter(|line| !line.contains(ZFS_HIDDEN_DIRECTORY))
-                .map(|line| line.split("\t"))
-                .filter_map(|mut iter| {
-                    let opt_file_system = iter.next();
-                    let opt_mount = iter.next();
-                    let opt_fs_type = iter.next();
-
-                    opt_file_system.and_then(|file_system| {
-                        opt_mount.and_then(|mount| {
-                            opt_fs_type.map(|fs_type| (file_system, mount, fs_type))
-                        })
-                    })
-                })
-                .partition_map(|(filesystem_str, mount_str, fs_type_str)| {
-                    let mount = PathBuf::from(mount_str);
-
-                    match fs_type_str {
-                        ZFS_FSTYPE => Either::Left((
-                            mount,
-                            DatasetMetadata {
-                                source: PathBuf::from(filesystem_str),
-                                fs_type: FilesystemType::Zfs,
-                                mount_type: MountType::Local,
-                            },
-                        )),
-                        SMB_FSTYPE | AFP_FSTYPE | NFS_FSTYPE => {
-                            match fs_type_from_hidden_dir(&mount) {
-                                Some(fs_type) => Either::Left((
-                                    mount,
-                                    DatasetMetadata {
-                                        source: PathBuf::from(filesystem_str),
-                                        fs_type: fs_type,
-                                        mount_type: MountType::Network,
-                                    },
-                                )),
-                                None => Either::Right(mount),
-                            }
-                        }
-                        _ => Either::Right(mount),
-                    }
+                    _ => Either::Right(dest_path),
                 });
 
         if map_of_datasets.is_empty() {
