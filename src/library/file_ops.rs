@@ -22,6 +22,7 @@ use crate::library::results::{HttmError, HttmResult};
 use nix::sys::stat::SFlag;
 use nu_ansi_term::Color::{Blue, Red};
 use std::fs::{self, File, FileTimes};
+use std::os::unix::fs::chown;
 use std::os::unix::fs::FileTypeExt;
 use std::os::unix::fs::MetadataExt;
 
@@ -180,7 +181,7 @@ impl Preserve {
             let dst_uid = src_metadata.uid();
             let dst_gid = src_metadata.gid();
 
-            nix::unistd::chown(dst, Some(dst_uid.into()), Some(dst_gid.into()))?
+            chown(dst, Some(dst_uid), Some(dst_gid))?
         }
 
         // XAttrs
