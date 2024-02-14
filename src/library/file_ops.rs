@@ -21,6 +21,7 @@ use crate::library::diff_copy::DiffCopy;
 use crate::library::results::{HttmError, HttmResult};
 use nix::sys::stat::SFlag;
 use nu_ansi_term::Color::{Blue, Red};
+use std::fs::{self, File, FileTimes};
 use std::os::unix::fs::FileTypeExt;
 use std::os::unix::fs::MetadataExt;
 
@@ -197,13 +198,12 @@ impl Preserve {
 
         // Timestamps
         {
-            use filetime::FileTime;
-
-            let mtime = FileTime::from_last_modification_time(&src_metadata);
-            let atime = FileTime::from_last_access_time(&src_metadata);
-
-            // does not follow symlinks
-            filetime::set_symlink_file_times(dst, atime, mtime)?
+            let src = fs::metadata(src)?;
+            let dst_file = File::options().write(true).open(dst)?;
+            let times = FileTimes::new()
+                .set_accessed(src.accessed()?)
+                .set_modified(src.modified()?);
+            dst_file.set_times(times)?;
         }
 
         Ok(())
