@@ -17,8 +17,10 @@ jobs:
 
     steps:
     - name: Checkout sources
-      uses: actions/checkout@v3
-    - name: Install build dep 
+      uses: actions/checkout@v4
+    - name: Use latest Rust stable toolchain
+      uses: dtolnay/rust-toolchain@stable
+    - name: Install build deps
       run: sudo apt-get install -y libacl1-dev
     - name: Install cargo-deb
       run: cargo install cargo-deb
