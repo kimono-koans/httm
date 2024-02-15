@@ -10,9 +10,9 @@ checksum = "e8fd72866655d1904d6b0997d0b07ba561047d070fbe29de039031c641b61217"
 
 [[package]]
 name = "ahash"
-version = "0.8.7"
+version = "0.8.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "77c3a9648d43b9cd48db467b3f87fdd6e146bcc88ab0180006cef2179fe11d01"
+checksum = "42cd52102d3df161c77a887b608d7a4897d7cc112886a9537b738a887a03aaff"
 dependencies = [
  "cfg-if",
  "once_cell",
@@ -456,7 +456,7 @@ version = "0.14.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "290f1a1d9242c78d09ce40a5e87e7554ee637af1351968159f4952f028f75604"
 dependencies = [
- "ahash 0.8.7",
+ "ahash 0.8.8",
  "rayon",
 ]
 
@@ -482,6 +482,7 @@ dependencies = [
 name = "httm"
 version = "0.36.2"
 dependencies = [
+ "ahash 0.8.8",
  "clap 3.2.25",
  "crossbeam-channel",
  "exacl",
@@ -500,7 +501,6 @@ dependencies = [
  "realpath-ext",
  "serde",
  "serde_json",
- "simd-adler32",
  "terminal_size",
  "time",
  "two_percent",
@@ -970,12 +970,6 @@ dependencies = [
  "ryu",
  "serde",
 ]
-
-[[package]]
-name = "simd-adler32"
-version = "0.3.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d66dc143e6b11c1eddc06d5c423cfc97062865baf299914ab64caa38182078fe"
 
 [[package]]
 name = "strsim"

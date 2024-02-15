@@ -49,7 +49,6 @@ use crate::library::results::HttmError;
 use crate::library::results::HttmResult;
 use crate::GLOBAL_CONFIG;
 use once_cell::sync::Lazy;
-use simd_adler32::Adler32;
 use std::fs::{File, OpenOptions};
 use std::io::{BufRead, BufReader, BufWriter, ErrorKind, Seek, SeekFrom, Write};
 use std::os::fd::{AsFd, BorrowedFd};
@@ -159,15 +158,17 @@ impl DiffCopy {
 
     #[inline]
     fn is_same_bytes(a_bytes: &[u8], b_bytes: &[u8]) -> bool {
-        let (a_hash, b_hash): (u32, u32) =
+        let (a_hash, b_hash): (u64, u64) =
             rayon::join(|| Self::hash(a_bytes), || Self::hash(b_bytes));
 
         a_hash == b_hash
     }
 
     #[inline]
-    fn hash(bytes: &[u8]) -> u32 {
-        let mut hash = Adler32::default();
+    fn hash(bytes: &[u8]) -> u64 {
+        use std::hash::Hasher;
+
+        let mut hash = ahash::AHasher::default();
 
         hash.write(bytes);
         hash.finish()
