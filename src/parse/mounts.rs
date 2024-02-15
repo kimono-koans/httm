@@ -163,26 +163,29 @@ impl BaseFilesystemInfo {
             mount_iter
                 .par_bridge()
                 .flatten()
+                .filter(|mount_info| {
+                    !mount_info
+                        .dest
+                        .to_string_lossy()
+                        .contains(ZFS_HIDDEN_DIRECTORY)
+                        && !mount_info
+                            .options
+                            .iter()
+                            .any(|opt| opt.contains(NILFS2_SNAPSHOT_ID_KEY))
+                })
                 .map(|mount_info| {
                     let dest_path = PathBuf::from(&mount_info.dest);
                     (mount_info, dest_path)
                 })
                 .partition_map(|(mount_info, dest_path)| match mount_info.fstype.as_str() {
-                    ZFS_FSTYPE
-                        if !mount_info
-                            .dest
-                            .to_string_lossy()
-                            .contains(ZFS_HIDDEN_DIRECTORY) =>
-                    {
-                        Either::Left((
-                            dest_path,
-                            DatasetMetadata {
-                                source: PathBuf::from(mount_info.source),
-                                fs_type: FilesystemType::Zfs,
-                                mount_type: MountType::Local,
-                            },
-                        ))
-                    }
+                    ZFS_FSTYPE => Either::Left((
+                        dest_path,
+                        DatasetMetadata {
+                            source: PathBuf::from(mount_info.source),
+                            fs_type: FilesystemType::Zfs,
+                            mount_type: MountType::Local,
+                        },
+                    )),
                     SMB_FSTYPE | AFP_FSTYPE | NFS_FSTYPE => {
                         match fs_type_from_hidden_dir(&dest_path) {
                             Some(FilesystemType::Zfs) => Either::Left((
@@ -226,21 +229,14 @@ impl BaseFilesystemInfo {
                             },
                         ))
                     }
-                    NILFS2_FSTYPE
-                        if !mount_info
-                            .options
-                            .iter()
-                            .any(|opt| opt.contains(NILFS2_SNAPSHOT_ID_KEY)) =>
-                    {
-                        Either::Left((
-                            dest_path,
-                            DatasetMetadata {
-                                source: PathBuf::from(mount_info.source),
-                                fs_type: FilesystemType::Nilfs2,
-                                mount_type: MountType::Local,
-                            },
-                        ))
-                    }
+                    NILFS2_FSTYPE => Either::Left((
+                        dest_path,
+                        DatasetMetadata {
+                            source: PathBuf::from(mount_info.source),
+                            fs_type: FilesystemType::Nilfs2,
+                            mount_type: MountType::Local,
+                        },
+                    )),
                     _ => Either::Right(dest_path),
                 });
 
