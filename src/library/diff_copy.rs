@@ -97,7 +97,6 @@ impl DiffCopy {
     pub fn new(src: &Path, dst: &Path) -> HttmResult<()> {
         // create source file reader
         let src_file = File::open(src)?;
-        let src_fd = src_file.as_fd();
         let src_len = src_file.metadata()?.len();
 
         // create destination if it doesn't exist
@@ -112,7 +111,6 @@ impl DiffCopy {
             .read(true)
             .create(true)
             .open(dst)?;
-        let dst_fd = dst_file.as_fd();
         dst_file.set_len(src_len)?;
 
         let amt_written = if GLOBAL_CONFIG.opt_no_clones
@@ -120,6 +118,9 @@ impl DiffCopy {
         {
             Self::write_loop(&src_file, &dst_file, dst_exists)?
         } else {
+            let src_fd = src_file.as_fd();
+            let dst_fd = dst_file.as_fd();
+
             match Self::copy_file_range(src_fd, dst_fd, src_len as usize) {
                 Ok(amt_written) if amt_written as u64 == src_len => {
                     if GLOBAL_CONFIG.opt_debug {
