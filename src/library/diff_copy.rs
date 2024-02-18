@@ -92,8 +92,8 @@ enum DstFileState {
 }
 
 impl DstFileState {
-    fn new(dst: &Path) -> Self {
-        if dst.exists() {
+    fn exists(dst_file: &File) -> Self {
+        if dst_file.metadata().is_ok() {
             DstFileState::Exists
         } else {
             DstFileState::DoesNotExist
@@ -109,9 +109,6 @@ impl DiffCopy {
         let src_file = File::open(src)?;
         let src_len = src_file.metadata()?.len();
 
-        // create destination if it doesn't exist
-        let dst_exists = DstFileState::new(dst);
-
         let dst_file = OpenOptions::new()
             .write(true)
             .read(true)
@@ -119,7 +116,7 @@ impl DiffCopy {
             .open(dst)?;
         dst_file.set_len(src_len)?;
 
-        let amt_written = Self::write(&src_file, &dst_file, dst_exists)?;
+        let amt_written = Self::write(&src_file, &dst_file)?;
 
         if amt_written != src_len as usize {
             let msg = format!(
@@ -155,7 +152,7 @@ impl DiffCopy {
     }
 
     #[inline]
-    fn write(src_file: &File, dst_file: &File, dst_exists: DstFileState) -> HttmResult<usize> {
+    fn write(src_file: &File, dst_file: &File) -> HttmResult<usize> {
         if !GLOBAL_CONFIG.opt_no_clones
             && IS_CLONE_COMPATIBLE.load(std::sync::atomic::Ordering::Relaxed)
         {
@@ -183,21 +180,19 @@ impl DiffCopy {
             }
         }
 
-        Self::write_no_cow(&src_file, &dst_file, dst_exists)
+        Self::write_no_cow(&src_file, &dst_file)
     }
 
     #[inline]
-    fn write_no_cow(
-        src_file: &File,
-        dst_file: &File,
-        dst_exists: DstFileState,
-    ) -> HttmResult<usize> {
+    fn write_no_cow(src_file: &File, dst_file: &File) -> HttmResult<usize> {
         // create destination file writer and maybe reader
         // only include dst file reader if the dst file exists
         // otherwise we just write to that location
         let mut src_reader = BufReader::with_capacity(CHUNK_SIZE, src_file);
         let mut dst_reader = BufReader::with_capacity(CHUNK_SIZE, dst_file);
         let mut dst_writer = BufWriter::with_capacity(CHUNK_SIZE, dst_file);
+
+        let dst_exists = DstFileState::exists(dst_file);
 
         // cur pos - byte offset in file,
         let mut cur_pos = 0u64;
