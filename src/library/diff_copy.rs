@@ -91,6 +91,16 @@ enum DstFileState {
     DoesNotExist,
 }
 
+impl DstFileState {
+    fn new(dst: &Path) -> Self {
+        if dst.exists() {
+            DstFileState::Exists
+        } else {
+            DstFileState::DoesNotExist
+        }
+    }
+}
+
 pub struct DiffCopy;
 
 impl DiffCopy {
@@ -100,11 +110,7 @@ impl DiffCopy {
         let src_len = src_file.metadata()?.len();
 
         // create destination if it doesn't exist
-        let dst_exists = if dst.exists() {
-            DstFileState::Exists
-        } else {
-            DstFileState::DoesNotExist
-        };
+        let dst_exists = DstFileState::new(dst);
 
         let dst_file = OpenOptions::new()
             .write(true)
@@ -113,34 +119,7 @@ impl DiffCopy {
             .open(dst)?;
         dst_file.set_len(src_len)?;
 
-        let amt_written = if GLOBAL_CONFIG.opt_no_clones
-            || !IS_CLONE_COMPATIBLE.load(std::sync::atomic::Ordering::Relaxed)
-        {
-            Self::write_loop(&src_file, &dst_file, dst_exists)?
-        } else {
-            let src_fd = src_file.as_fd();
-            let dst_fd = dst_file.as_fd();
-
-            match Self::copy_file_range(src_fd, dst_fd, src_len as usize) {
-                Ok(amt_written) if amt_written as u64 == src_len => {
-                    if GLOBAL_CONFIG.opt_debug {
-                        eprintln!("DEBUG: copy_file_range call successful.");
-                    }
-                    amt_written
-                }
-                _ => {
-                    IS_CLONE_COMPATIBLE.store(false, std::sync::atomic::Ordering::Relaxed);
-                    if GLOBAL_CONFIG.opt_debug {
-                        eprintln!(
-                            "DEBUG: copy_file_range call unsuccessful.  \
-                        IS_CLONE_COMPATIBLE variable has been modified to: \"{:?}\".",
-                            IS_CLONE_COMPATIBLE.load(std::sync::atomic::Ordering::Relaxed)
-                        );
-                    }
-                    Self::write_loop(&src_file, &dst_file, dst_exists)?
-                }
-            }
-        };
+        let amt_written = Self::write(&src_file, &dst_file, dst_exists)?;
 
         if amt_written != src_len as usize {
             let msg = format!(
@@ -176,7 +155,43 @@ impl DiffCopy {
     }
 
     #[inline]
-    fn write_loop(src_file: &File, dst_file: &File, dst_exists: DstFileState) -> HttmResult<usize> {
+    fn write(src_file: &File, dst_file: &File, dst_exists: DstFileState) -> HttmResult<usize> {
+        if !GLOBAL_CONFIG.opt_no_clones
+            && IS_CLONE_COMPATIBLE.load(std::sync::atomic::Ordering::Relaxed)
+        {
+            let src_fd = src_file.as_fd();
+            let dst_fd = dst_file.as_fd();
+            let src_len = src_file.metadata()?.len();
+
+            match Self::copy_file_range(src_fd, dst_fd, src_len as usize) {
+                Ok(amt_written) if amt_written as u64 == src_len => {
+                    if GLOBAL_CONFIG.opt_debug {
+                        eprintln!("DEBUG: copy_file_range call successful.");
+                    }
+                    return Ok(amt_written);
+                }
+                _ => {
+                    IS_CLONE_COMPATIBLE.store(false, std::sync::atomic::Ordering::Relaxed);
+                    if GLOBAL_CONFIG.opt_debug {
+                        eprintln!(
+                            "DEBUG: copy_file_range call unsuccessful.  \
+                        IS_CLONE_COMPATIBLE variable has been modified to: \"{:?}\".",
+                            IS_CLONE_COMPATIBLE.load(std::sync::atomic::Ordering::Relaxed)
+                        );
+                    }
+                }
+            }
+        }
+
+        Self::write_no_cow(&src_file, &dst_file, dst_exists)
+    }
+
+    #[inline]
+    fn write_no_cow(
+        src_file: &File,
+        dst_file: &File,
+        dst_exists: DstFileState,
+    ) -> HttmResult<usize> {
         // create destination file writer and maybe reader
         // only include dst file reader if the dst file exists
         // otherwise we just write to that location
