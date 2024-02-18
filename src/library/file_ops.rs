@@ -36,12 +36,11 @@ impl Copy {
     pub fn generate_dst_parent(dst: &Path) -> HttmResult<()> {
         if let Some(dst_parent) = dst.parent() {
             create_dir_all(dst_parent)?;
+            Ok(())
         } else {
             let msg = format!("Could not detect a parent for destination file: {:?}", dst);
-            return Err(HttmError::new(&msg).into());
+            Err(HttmError::new(&msg).into())
         }
-
-        Ok(())
     }
 
     pub fn direct(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<()> {
