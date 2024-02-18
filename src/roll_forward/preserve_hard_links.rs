@@ -45,8 +45,6 @@ impl HardLinkMap {
         let mut queue: Vec<BasicDirEntryInfo> = vec![constructed];
         let mut tmp: HashMap<u64, Vec<BasicDirEntryInfo>> = HashMap::new();
 
-        // condition kills iter when user has made a selection
-        // pop_back makes this a LIFO queue which is supposedly better for caches
         while let Some(item) = queue.pop() {
             // no errors will be propagated in recursive mode
             // far too likely to run into a dir we don't have permissions to view
