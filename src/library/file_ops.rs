@@ -17,7 +17,7 @@
 
 use crate::data::paths::PathData;
 use crate::data::paths::PathDeconstruction;
-use crate::library::diff_copy::DiffCopy;
+use crate::library::diff_copy::HttmCopy;
 use crate::library::results::{HttmError, HttmResult};
 use nix::sys::stat::SFlag;
 use nu_ansi_term::Color::{Blue, Red};
@@ -57,7 +57,7 @@ impl Copy {
             Self::generate_dst_parent(&dst)?;
 
             if src.is_file() {
-                DiffCopy::new(&src, &dst)?;
+                HttmCopy::new(&src, &dst)?;
             } else {
                 if dst.exists() {
                     Remove::recursive_quiet(dst)?;

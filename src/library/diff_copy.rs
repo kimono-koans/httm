@@ -101,9 +101,9 @@ impl DstFileState {
     }
 }
 
-pub struct DiffCopy;
+pub struct HttmCopy;
 
-impl DiffCopy {
+impl HttmCopy {
     pub fn new(src: &Path, dst: &Path) -> HttmResult<()> {
         // create source file reader
         let src_file = File::open(src)?;
@@ -116,7 +116,7 @@ impl DiffCopy {
             .open(dst)?;
         dst_file.set_len(src_len)?;
 
-        let amt_written = Self::write(&src_file, &dst_file)?;
+        let amt_written = DiffCopy::new(&src_file, &dst_file)?;
 
         if amt_written != src_len as usize {
             let msg = format!(
@@ -127,32 +127,17 @@ impl DiffCopy {
         }
 
         if GLOBAL_CONFIG.opt_debug {
-            Self::confirm(src, dst)?
+            DiffCopy::confirm(src, dst)?
         }
 
         Ok(())
     }
+}
 
-    #[inline]
-    fn is_same_bytes(a_bytes: &[u8], b_bytes: &[u8]) -> bool {
-        let (a_hash, b_hash): (u64, u64) =
-            rayon::join(|| Self::hash(a_bytes), || Self::hash(b_bytes));
+struct DiffCopy;
 
-        a_hash == b_hash
-    }
-
-    #[inline]
-    fn hash(bytes: &[u8]) -> u64 {
-        use std::hash::Hasher;
-
-        let mut hash = ahash::AHasher::default();
-
-        hash.write(bytes);
-        hash.finish()
-    }
-
-    #[inline]
-    fn write(src_file: &File, dst_file: &File) -> HttmResult<usize> {
+impl DiffCopy {
+    fn new(src_file: &File, dst_file: &File) -> HttmResult<usize> {
         if !GLOBAL_CONFIG.opt_no_clones
             && IS_CLONE_COMPATIBLE.load(std::sync::atomic::Ordering::Relaxed)
         {
@@ -264,6 +249,24 @@ impl DiffCopy {
         dst_file.sync_data()?;
 
         Ok(bytes_processed)
+    }
+
+    #[inline]
+    fn is_same_bytes(a_bytes: &[u8], b_bytes: &[u8]) -> bool {
+        let (a_hash, b_hash): (u64, u64) =
+            rayon::join(|| Self::hash(a_bytes), || Self::hash(b_bytes));
+
+        a_hash == b_hash
+    }
+
+    #[inline]
+    fn hash(bytes: &[u8]) -> u64 {
+        use std::hash::Hasher;
+
+        let mut hash = ahash::AHasher::default();
+
+        hash.write(bytes);
+        hash.finish()
     }
 
     fn write_to_offset(
