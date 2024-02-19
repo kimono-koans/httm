@@ -168,10 +168,12 @@ impl BaseFilesystemInfo {
                         .dest
                         .to_string_lossy()
                         .contains(ZFS_HIDDEN_DIRECTORY)
-                        && !mount_info
-                            .options
-                            .iter()
-                            .any(|opt| opt.contains(NILFS2_SNAPSHOT_ID_KEY))
+                })
+                .filter(|mount_info| {
+                    !mount_info
+                        .options
+                        .iter()
+                        .any(|opt| opt.contains(NILFS2_SNAPSHOT_ID_KEY))
                 })
                 .map(|mount_info| {
                     let dest_path = PathBuf::from(&mount_info.dest);
