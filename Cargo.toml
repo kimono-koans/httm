@@ -1,5 +1,5 @@
 [package]
-name = "httm" 
+name = "httm"
 authors = ["Robert Swinford <robert.swinford <...at...> gmail.com>"]
 version = "0.36.3"
 edition = "2021"
@@ -7,7 +7,7 @@ keywords = ["zfs", "backup", "restore", "cli-utility", "snapshot"]
 description = "A CLI tool for viewing snapshot file versions on ZFS and btrfs datasets"
 repository = "https://github.com/kimono-koans/httm"
 readme = "README.md"
-categories = [ "command-line-utilities",  "os" ]
+categories = ["command-line-utilities", "os"]
 license = "MPL-2.0"
 documentation = "https://github.com/kimono-koans/httm/blob/master/README.md"
 
@@ -32,30 +32,50 @@ setpriority = ["libc"]
 licensing = ["lms", "itertools"]
 
 [target.'cfg(unix)'.dependencies]
-exacl = { version = "0.11.0", default-features = false, optional=true }
+exacl = { version = "0.12.0", default-features = false, optional = true }
 xattr = { version = "1.3.1", default-features = false, optional = true }
 libc = { version = "0.2.152", default-features = false, optional = true }
 
 [dependencies]
 ahash = { version = "0.8.8", default-features = false }
-clap = { version = "3.2.25", default-features = false, features = ["cargo", "std"] }
+clap = { version = "3.2.25", default-features = false, features = [
+    "cargo",
+    "std",
+] }
 crossbeam-channel = { version = "0.5.11", default-features = false }
-time = { version = "0.3.31", default-features = false, features = ["formatting", "local-offset"] }
-number_prefix = { version = "0.4.0",  default-features = false }
+time = { version = "0.3.31", default-features = false, features = [
+    "formatting",
+    "local-offset",
+] }
+number_prefix = { version = "0.4.0", default-features = false }
 skim = { version = "0.10.36", default-features = false, package = "two_percent" }
-nu-ansi-term = { version = "0.49.0", default-features = false }
-lscolors = { version = "0.16.0", default-features = false, features = ["nu-ansi-term"] }
+nu-ansi-term = { version = "0.50.0", default-features = false }
+lscolors = { version = "0.17.0", default-features = false, features = [
+    "nu-ansi-term",
+] }
 terminal_size = { version = "0.3.0", default-features = false }
 which = { version = "6.0.0", default-features = false }
 rayon = { version = "1.8.1", default-features = false }
-indicatif =  { version = "0.17.7", default-features = false }
+indicatif = { version = "0.17.7", default-features = false }
 proc-mounts = { version = "0.3.0", default-features = false }
 once_cell = { version = "1.19.0", default-features = false }
-hashbrown = { version = "0.14.3", default-features = false, features = ["rayon", "ahash", "inline-more"] }
-nix = { version = "0.27.1", default-features = false, features = ["fs", "user", "zerocopy"] }
+hashbrown = { version = "0.14.3", default-features = false, features = [
+    "rayon",
+    "ahash",
+    "inline-more",
+] }
+nix = { version = "0.27.1", default-features = false, features = [
+    "fs",
+    "user",
+    "zerocopy",
+] }
 serde = { version = "1.0.195", default-features = false }
-serde_json = { version = "1.0.111", default-features = false, features = ["preserve_order"] }
-realpath-ext = { version = "0.1.3", default-features = false, features = ["std"] }
+serde_json = { version = "1.0.111", default-features = false, features = [
+    "preserve_order",
+] }
+realpath-ext = { version = "0.1.3", default-features = false, features = [
+    "std",
+] }
 # these are strictly not required to build, only included for attribution sake (to be picked up by cargo_about)
 lms = { version = "0.4.0", default-features = false, optional = true }
 itertools = { version = "0.12.0", default-features = false, optional = true }
@@ -78,13 +98,49 @@ section = "utility"
 priority = "optional"
 features = ["xattrs", "malloc_trim"]
 assets = [
-    ["target/release/httm", "usr/bin/", "755"],
-    ["scripts/ounce.bash", "usr/bin/ounce", "755"],
-    ["scripts/bowie.bash", "usr/bin/bowie", "755"],
-    ["scripts/nicotine.bash", "usr/bin/nicotine", "755"],
-    ["scripts/equine.bash", "usr/bin/equine", "755"],
-    ["httm.1", "usr/share/man/man1/httm.1", "644"],
-    ["README.md", "usr/share/doc/httm/README.md", "644"],
-    ["LICENSE", "usr/share/doc/httm/LICENSE", "644"],
-    ["third_party/LICENSES_THIRD_PARTY.html", "usr/share/doc/httm/LICENSES_THIRD_PARTY.html", "644"],
+    [
+        "target/release/httm",
+        "usr/bin/",
+        "755",
+    ],
+    [
+        "scripts/ounce.bash",
+        "usr/bin/ounce",
+        "755",
+    ],
+    [
+        "scripts/bowie.bash",
+        "usr/bin/bowie",
+        "755",
+    ],
+    [
+        "scripts/nicotine.bash",
+        "usr/bin/nicotine",
+        "755",
+    ],
+    [
+        "scripts/equine.bash",
+        "usr/bin/equine",
+        "755",
+    ],
+    [
+        "httm.1",
+        "usr/share/man/man1/httm.1",
+        "644",
+    ],
+    [
+        "README.md",
+        "usr/share/doc/httm/README.md",
+        "644",
+    ],
+    [
+        "LICENSE",
+        "usr/share/doc/httm/LICENSE",
+        "644",
+    ],
+    [
+        "third_party/LICENSES_THIRD_PARTY.html",
+        "usr/share/doc/httm/LICENSES_THIRD_PARTY.html",
+        "644",
+    ],
 ]
