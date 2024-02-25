@@ -98,13 +98,16 @@ impl InteractiveSelect {
 
             let selection_buffer = display_map.to_string();
 
-            display_map.map.iter().for_each(|(live, snaps)| {
-                if snaps.is_empty() {
-                    eprintln!("WARN: Path {:?} has no snapshots available.", live.path_buf)
-                }
-            });
-
             let view_mode = ViewMode::Select(opt_live_version.clone());
+
+            display_map.map.iter().try_for_each(|(live, snaps)| {
+                if snaps.is_empty() {
+                    let msg = format!("WARN: Path {:?} has no snapshots available.", live.path_buf);
+                    return Err(HttmError::new(&msg));
+                }
+
+                Ok(())
+            })?;
 
             // loop until user selects a valid snapshot version
             loop {
