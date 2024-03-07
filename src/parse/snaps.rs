@@ -116,9 +116,11 @@ impl MapOfSnaps {
 
                             opt_dataset
                                 .and_then(|dataset| {
+                                    let pat = dataset.as_os_str().to_string_lossy();
+
                                     map_of_datasets
                                         .iter()
-                                        .find(|(_k, v)| v.source.as_os_str() == dataset.as_os_str())
+                                        .find(|(_k, v)| v.source.to_string_lossy().contains(&*pat))
                                         .map(|(mount, _metadata)| mount)
                                 })
                                 .map(|mount| mount.join(the_rest))
