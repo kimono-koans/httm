@@ -109,9 +109,6 @@ impl MapOfSnaps {
                             // "<FS_TREE>/" should be the root path
                             Some(mount.join(relative))
                         } else {
-                            // btrfs sub list -a -s output includes the sub name (eg @home)
-                            // when that sub could be mounted anywhere, so we remove here
-
                             let mut path_iter = Path::new(relative).components();
 
                             let opt_dataset = path_iter.next();
@@ -119,7 +116,13 @@ impl MapOfSnaps {
                             let the_rest: PathBuf = path_iter.collect();
 
                             opt_dataset
-                                .map(|dataset| PathBuf::from(dataset.as_os_str()).join(the_rest))
+                                .and_then(|dataset| {
+                                    map_of_datasets
+                                        .iter()
+                                        .find(|(_k, v)| v.source.as_os_str() == dataset.as_os_str())
+                                        .map(|(mount, _metadata)| mount)
+                                })
+                                .map(|mount| mount.join(the_rest))
                         }
                     })
                     .filter(|snap| snap.exists())
