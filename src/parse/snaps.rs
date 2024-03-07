@@ -25,7 +25,6 @@ use crate::{
 use hashbrown::HashMap;
 use proc_mounts::MountIter;
 use rayon::prelude::*;
-use serde_json::map;
 use std::fs::read_dir;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
