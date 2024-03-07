@@ -25,6 +25,7 @@ use crate::{
 use hashbrown::HashMap;
 use proc_mounts::MountIter;
 use rayon::prelude::*;
+use serde_json::map;
 use std::fs::read_dir;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
@@ -61,7 +62,7 @@ impl MapOfSnaps {
                         Self::from_defined_mounts(mount, dataset_info)
                     }
                     FilesystemType::Btrfs => match dataset_info.mount_type {
-                        MountType::Local => Self::from_btrfs_cmd(mount),
+                        MountType::Local => Self::from_btrfs_cmd(mount, map_of_datasets),
                         MountType::Network => Self::from_defined_mounts(mount, dataset_info),
                     },
                 };
@@ -78,7 +79,10 @@ impl MapOfSnaps {
     }
 
     // build paths to all snap mounts
-    fn from_btrfs_cmd(mount: &Path) -> HttmResult<Vec<PathBuf>> {
+    fn from_btrfs_cmd(
+        mount: &Path,
+        map_of_datasets: &HashMap<PathBuf, DatasetMetadata>,
+    ) -> HttmResult<Vec<PathBuf>> {
         let btrfs_command = which("btrfs").map_err(|_err| {
             HttmError::new(
                 "'btrfs' command not found. Make sure the command 'btrfs' is in your path.",
@@ -100,17 +104,22 @@ impl MapOfSnaps {
                 snap_paths
                     .lines()
                     .map(|line| line.trim())
-                    .map(|relative| {
+                    .filter_map(|relative| {
                         if pre.contains("<FS_TREE>") {
                             // "<FS_TREE>/" should be the root path
-                            mount.join(relative)
+                            Some(mount.join(relative))
                         } else {
                             // btrfs sub list -a -s output includes the sub name (eg @home)
                             // when that sub could be mounted anywhere, so we remove here
-                            let snap_path_parsed: PathBuf =
-                                Path::new(relative).components().skip(1).collect();
 
-                            mount.join(snap_path_parsed)
+                            let mut path_iter = Path::new(relative).components();
+
+                            let opt_dataset = path_iter.next();
+
+                            let the_rest: PathBuf = path_iter.collect();
+
+                            opt_dataset
+                                .map(|dataset| PathBuf::from(dataset.as_os_str()).join(the_rest))
                         }
                     })
                     .filter(|snap| snap.exists())
