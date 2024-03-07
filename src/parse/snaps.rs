@@ -99,37 +99,29 @@ impl MapOfSnaps {
 
         let snaps = command_output
             .split_once("Snapshot(s):\n")
-            .map(|(pre, snap_paths)| {
+            .map(|(_pre, snap_paths)| {
                 snap_paths
                     .lines()
                     .map(|line| line.trim())
                     .filter_map(|relative| {
-                        if pre.contains("<FS_TREE>") {
-                            // "<FS_TREE>/" should be the root path
-                            Some(mount.join(relative))
-                        } else {
-                            let mut path_iter = Path::new(relative).components();
+                        let mut path_iter = Path::new(relative).components();
 
-                            let opt_dataset = path_iter.next();
+                        let opt_dataset = path_iter.next();
 
-                            let the_rest: PathBuf = path_iter.collect();
+                        let the_rest: PathBuf = path_iter.collect();
 
-                            opt_dataset
-                                .and_then(|dataset| {
-                                    let dataset_pat = dataset.as_os_str().to_string_lossy();
+                        opt_dataset
+                            .and_then(|dataset| {
+                                let dataset_pat = dataset.as_os_str().to_string_lossy();
 
-                                    map_of_datasets
-                                        .iter()
-                                        .find(|(_mount, metadata)| {
-                                            metadata
-                                                .source
-                                                .to_string_lossy()
-                                                .contains(&*dataset_pat)
-                                        })
-                                        .map(|(mount, _metadata)| mount)
-                                })
-                                .map(|mount| mount.join(the_rest))
-                        }
+                                map_of_datasets
+                                    .iter()
+                                    .find(|(_mount, metadata)| {
+                                        metadata.source.to_string_lossy().contains(&*dataset_pat)
+                                    })
+                                    .map(|(mount, _metadata)| mount)
+                            })
+                            .map(|mount| mount.join(the_rest))
                     })
                     .filter(|snap| snap.exists())
                     .collect()
