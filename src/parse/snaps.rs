@@ -16,6 +16,7 @@
 // that was distributed with this source code.
 
 use crate::library::results::{HttmError, HttmResult};
+use crate::library::utility::fs_type_from_hidden_dir;
 use crate::parse::mounts::PROC_MOUNTS;
 use crate::parse::mounts::{DatasetMetadata, FilesystemType, MountType};
 use crate::{
@@ -61,8 +62,14 @@ impl MapOfSnaps {
                         Self::from_defined_mounts(mount, dataset_info)
                     }
                     FilesystemType::Btrfs => match dataset_info.mount_type {
-                        MountType::Local => Self::from_btrfs_cmd(mount, map_of_datasets),
                         MountType::Network => Self::from_defined_mounts(mount, dataset_info),
+                        MountType::Local => {
+                            if fs_type_from_hidden_dir(mount).is_some() {
+                                Self::from_defined_mounts(mount, dataset_info)
+                            } else {
+                                Self::from_btrfs_cmd(mount, map_of_datasets)
+                            }
+                        }
                     },
                 };
 
@@ -103,25 +110,34 @@ impl MapOfSnaps {
                 snap_paths
                     .lines()
                     .map(|line| line.trim())
-                    .filter_map(|relative| {
+                    .map(|relative| {
                         let mut path_iter = Path::new(relative).components();
 
                         let opt_dataset = path_iter.next();
 
-                        let the_rest: PathBuf = path_iter.collect();
+                        let the_rest = path_iter;
 
-                        opt_dataset
+                        if let Some(mount) = opt_dataset
                             .and_then(|dataset| {
                                 let dataset_pat = dataset.as_os_str().to_string_lossy();
 
                                 map_of_datasets
                                     .iter()
                                     .find(|(_mount, metadata)| {
-                                        metadata.source.to_string_lossy().contains(&*dataset_pat)
+                                        metadata
+                                            .source
+                                            .to_string_lossy()
+                                            .rfind(&*dataset_pat)
+                                            .is_some()
                                     })
                                     .map(|(mount, _metadata)| mount)
                             })
                             .map(|mount| mount.join(the_rest))
+                        {
+                            return mount;
+                        }
+
+                        mount.join(relative)
                     })
                     .filter(|snap| snap.exists())
                     .collect()
