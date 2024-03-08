@@ -24,6 +24,7 @@ use crate::{
     TM_DIR_REMOTE, ZFS_SNAPSHOT_DIRECTORY,
 };
 use hashbrown::HashMap;
+use once_cell::sync::OnceCell;
 use proc_mounts::MountIter;
 use rayon::prelude::*;
 use std::fs::read_dir;
@@ -104,11 +105,15 @@ impl MapOfSnaps {
             std::str::from_utf8(&ExecProcess::new(exec_command).args(&args).output()?.stdout)?
                 .to_owned();
 
-        let btrfs_root: PathBuf = map_of_datasets
-            .iter()
-            .find(|(_mount, metadata)| metadata.source.to_string_lossy().rfind("/").is_some())
-            .map(|(mount, _metadata)| mount.to_owned())
-            .unwrap_or(PathBuf::from(ROOT_DIRECTORY));
+        static BTRFS_ROOT: OnceCell<PathBuf> = OnceCell::new();
+
+        let btrfs_root = BTRFS_ROOT.get_or_init(|| {
+            map_of_datasets
+                .iter()
+                .find(|(_mount, metadata)| metadata.source.to_string_lossy().rfind("/").is_some())
+                .map(|(mount, _metadata)| mount.to_owned())
+                .unwrap_or(PathBuf::from(ROOT_DIRECTORY))
+        });
 
         let snaps = command_output
             .split_once("Snapshot(s):\n")
@@ -125,17 +130,9 @@ impl MapOfSnaps {
 
                         if let Some(mount) = opt_dataset
                             .and_then(|dataset| {
-                                let dataset_pat = dataset.as_os_str().to_string_lossy();
-
                                 map_of_datasets
                                     .iter()
-                                    .find(|(_mount, metadata)| {
-                                        metadata
-                                            .source
-                                            .to_string_lossy()
-                                            .rfind(&*dataset_pat)
-                                            .is_some()
-                                    })
+                                    .find(|(_mount, metadata)| metadata.source.ends_with(dataset))
                                     .map(|(mount, _metadata)| mount)
                             })
                             .map(|mount| mount.join(the_rest))
