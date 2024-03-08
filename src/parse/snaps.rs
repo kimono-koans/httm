@@ -20,11 +20,10 @@ use crate::library::utility::fs_type_from_hidden_dir;
 use crate::parse::mounts::PROC_MOUNTS;
 use crate::parse::mounts::{DatasetMetadata, FilesystemType, MountType};
 use crate::{
-    BTRFS_SNAPPER_HIDDEN_DIRECTORY, BTRFS_SNAPPER_SUFFIX, GLOBAL_CONFIG, ROOT_DIRECTORY,
-    TM_DIR_LOCAL, TM_DIR_REMOTE, ZFS_SNAPSHOT_DIRECTORY,
+    BTRFS_SNAPPER_HIDDEN_DIRECTORY, BTRFS_SNAPPER_SUFFIX, ROOT_DIRECTORY, TM_DIR_LOCAL,
+    TM_DIR_REMOTE, ZFS_SNAPSHOT_DIRECTORY,
 };
 use hashbrown::HashMap;
-use once_cell::sync::Lazy;
 use proc_mounts::MountIter;
 use rayon::prelude::*;
 use std::fs::read_dir;
@@ -105,15 +104,11 @@ impl MapOfSnaps {
             std::str::from_utf8(&ExecProcess::new(exec_command).args(&args).output()?.stdout)?
                 .to_owned();
 
-        static BTRFS_ROOT: Lazy<PathBuf> = Lazy::new(|| {
-            GLOBAL_CONFIG
-                .dataset_collection
-                .map_of_datasets
-                .iter()
-                .find(|(_mount, metadata)| metadata.source.to_string_lossy().rfind("/").is_some())
-                .map(|(mount, _metadata)| mount.to_owned())
-                .unwrap_or(PathBuf::from(ROOT_DIRECTORY))
-        });
+        let btrfs_root: PathBuf = map_of_datasets
+            .iter()
+            .find(|(_mount, metadata)| metadata.source.to_string_lossy().rfind("/").is_some())
+            .map(|(mount, _metadata)| mount.to_owned())
+            .unwrap_or(PathBuf::from(ROOT_DIRECTORY));
 
         let snaps = command_output
             .split_once("Snapshot(s):\n")
@@ -154,7 +149,7 @@ impl MapOfSnaps {
                             return constructed;
                         }
 
-                        BTRFS_ROOT.to_path_buf().join(relative)
+                        btrfs_root.to_path_buf().join(relative)
                     })
                     .collect()
             })
