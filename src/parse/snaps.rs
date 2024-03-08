@@ -82,7 +82,7 @@ impl MapOfSnaps {
 
     // build paths to all snap mounts
     fn from_btrfs_cmd(
-        mount: &Path,
+        base_mount: &Path,
         map_of_datasets: &HashMap<PathBuf, DatasetMetadata>,
     ) -> HttmResult<Vec<PathBuf>> {
         let btrfs_command = which("btrfs").map_err(|_err| {
@@ -92,7 +92,7 @@ impl MapOfSnaps {
         })?;
 
         let exec_command = btrfs_command;
-        let arg_path = mount.to_string_lossy();
+        let arg_path = base_mount.to_string_lossy();
         let args = vec!["subvolume", "show", &arg_path];
 
         // must exec for each mount, probably a better way by calling into a lib
@@ -114,43 +114,64 @@ impl MapOfSnaps {
                 snap_paths
                     .lines()
                     .map(|line| line.trim())
-                    .map(|relative| {
-                        let mut path_iter = Path::new(relative).components();
-
-                        let opt_dataset = path_iter.next();
-
-                        let the_rest = path_iter;
-
-                        if let Some(snap_mount) = opt_dataset
-                            .and_then(|dataset| {
-                                map_of_datasets
-                                    .iter()
-                                    .find(|(_mount, metadata)| metadata.source.ends_with(dataset))
-                                    .map(|(mount, _metadata)| mount)
-                            })
-                            .map(|mount| mount.join(the_rest))
-                        {
-                            if snap_mount.exists() {
-                                return snap_mount;
-                            }
-                        }
-
-                        let snap_mount = mount.join(relative);
-
-                        if snap_mount.exists() {
-                            return snap_mount;
-                        }
-
-                        btrfs_root.to_path_buf().join(relative)
+                    .map(|line| Path::new(line))
+                    .filter_map(|relative| {
+                        Self::parse_btrfs_relative_path(
+                            relative,
+                            base_mount,
+                            btrfs_root,
+                            map_of_datasets,
+                        )
                     })
                     .collect()
             })
             .ok_or_else(|| {
-                let msg = format!("No snaps found for mount: {:?}", mount);
+                let msg = format!("No snaps found for mount: {:?}", base_mount);
                 HttmError::new(&msg)
             })?;
 
         Ok(snaps)
+    }
+
+    fn parse_btrfs_relative_path(
+        relative: &Path,
+        base_mount: &Path,
+        btrfs_root: &Path,
+        map_of_datasets: &HashMap<PathBuf, DatasetMetadata>,
+    ) -> Option<PathBuf> {
+        let mut path_iter = relative.components();
+
+        let opt_dataset = path_iter.next();
+
+        let the_rest = path_iter;
+
+        if let Some(snap_mount) = opt_dataset
+            .and_then(|dataset| {
+                map_of_datasets
+                    .iter()
+                    .find(|(_mount, metadata)| metadata.source.ends_with(dataset))
+                    .map(|(mount, _metadata)| mount)
+            })
+            .map(|mount| mount.join(the_rest))
+        {
+            if snap_mount.exists() {
+                return Some(snap_mount);
+            }
+        }
+
+        let mut snap_mount = base_mount.join(relative);
+
+        if snap_mount.exists() {
+            return Some(snap_mount);
+        }
+
+        snap_mount = btrfs_root.to_path_buf().join(relative);
+
+        if snap_mount.exists() {
+            return Some(snap_mount);
+        }
+
+        None
     }
 
     fn from_defined_mounts(
