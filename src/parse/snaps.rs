@@ -16,7 +16,6 @@
 // that was distributed with this source code.
 
 use crate::library::results::{HttmError, HttmResult};
-use crate::library::utility::fs_type_from_hidden_dir;
 use crate::parse::mounts::PROC_MOUNTS;
 use crate::parse::mounts::{DatasetMetadata, FilesystemType, MountType};
 use crate::{
