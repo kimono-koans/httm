@@ -33,6 +33,8 @@ use std::path::{Path, PathBuf};
 use std::process::Command as ExecProcess;
 use which::which;
 
+static BTRFS_ROOT: OnceCell<PathBuf> = OnceCell::new();
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MapOfSnaps {
     inner: HashMap<PathBuf, Vec<PathBuf>>,
@@ -104,8 +106,6 @@ impl MapOfSnaps {
         let command_output =
             std::str::from_utf8(&ExecProcess::new(exec_command).args(&args).output()?.stdout)?
                 .to_owned();
-
-        static BTRFS_ROOT: OnceCell<PathBuf> = OnceCell::new();
 
         let btrfs_root = BTRFS_ROOT.get_or_init(|| {
             map_of_datasets
