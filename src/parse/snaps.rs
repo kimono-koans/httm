@@ -100,14 +100,6 @@ impl MapOfSnaps {
             std::str::from_utf8(&ExecProcess::new(exec_command).args(&args).output()?.stdout)?
                 .to_owned();
 
-        let btrfs_root = BTRFS_ROOT.get_or_init(|| {
-            map_of_datasets
-                .iter()
-                .find(|(_mount, metadata)| metadata.source.to_string_lossy().rfind("/").is_some())
-                .map(|(mount, _metadata)| mount.to_owned())
-                .unwrap_or(PathBuf::from(ROOT_DIRECTORY))
-        });
-
         let snaps = command_output
             .split_once("Snapshot(s):\n")
             .map(|(_pre, snap_paths)| {
@@ -116,12 +108,7 @@ impl MapOfSnaps {
                     .map(|line| line.trim())
                     .map(|line| Path::new(line))
                     .filter_map(|relative| {
-                        Self::parse_btrfs_relative_path(
-                            relative,
-                            base_mount,
-                            btrfs_root,
-                            map_of_datasets,
-                        )
+                        Self::parse_btrfs_relative_path(relative, base_mount, map_of_datasets)
                     })
                     .collect()
             })
@@ -136,7 +123,6 @@ impl MapOfSnaps {
     fn parse_btrfs_relative_path(
         relative: &Path,
         base_mount: &Path,
-        btrfs_root: &Path,
         map_of_datasets: &HashMap<PathBuf, DatasetMetadata>,
     ) -> Option<PathBuf> {
         let mut path_iter = relative.components();
@@ -164,6 +150,14 @@ impl MapOfSnaps {
         if snap_mount.exists() {
             return Some(snap_mount);
         }
+
+        let btrfs_root = BTRFS_ROOT.get_or_init(|| {
+            map_of_datasets
+                .iter()
+                .find(|(_mount, metadata)| metadata.source.to_string_lossy().rfind("/").is_some())
+                .map(|(mount, _metadata)| mount.to_owned())
+                .unwrap_or(PathBuf::from(ROOT_DIRECTORY))
+        });
 
         snap_mount = btrfs_root.to_path_buf().join(relative);
 
