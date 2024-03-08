@@ -66,13 +66,7 @@ impl MapOfSnaps {
                     }
                     FilesystemType::Btrfs => match dataset_info.mount_type {
                         MountType::Network => Self::from_defined_mounts(mount, dataset_info),
-                        MountType::Local => {
-                            if fs_type_from_hidden_dir(mount).is_some() {
-                                Self::from_defined_mounts(mount, dataset_info)
-                            } else {
-                                Self::from_btrfs_cmd(mount, map_of_datasets)
-                            }
-                        }
+                        MountType::Local => Self::from_btrfs_cmd(mount, map_of_datasets),
                     },
                 };
 
