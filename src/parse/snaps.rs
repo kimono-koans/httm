@@ -24,6 +24,7 @@ use crate::{
     TM_DIR_LOCAL, TM_DIR_REMOTE, ZFS_SNAPSHOT_DIRECTORY,
 };
 use hashbrown::HashMap;
+use once_cell::sync::Lazy;
 use proc_mounts::MountIter;
 use rayon::prelude::*;
 use std::fs::read_dir;
@@ -104,13 +105,15 @@ impl MapOfSnaps {
             std::str::from_utf8(&ExecProcess::new(exec_command).args(&args).output()?.stdout)?
                 .to_owned();
 
-        let btrfs_root: PathBuf = GLOBAL_CONFIG
-            .dataset_collection
-            .map_of_datasets
-            .iter()
-            .find(|(_mount, metadata)| metadata.source.to_string_lossy() == "/")
-            .map(|(mount, _metadata)| mount.to_owned())
-            .unwrap_or(PathBuf::from(ROOT_DIRECTORY));
+        static BTRFS_ROOT: Lazy<PathBuf> = Lazy::new(|| {
+            GLOBAL_CONFIG
+                .dataset_collection
+                .map_of_datasets
+                .iter()
+                .find(|(_mount, metadata)| metadata.source.to_string_lossy().rfind("/").is_some())
+                .map(|(mount, _metadata)| mount.to_owned())
+                .unwrap_or(PathBuf::from(ROOT_DIRECTORY))
+        });
 
         let snaps = command_output
             .split_once("Snapshot(s):\n")
@@ -125,7 +128,7 @@ impl MapOfSnaps {
 
                         let the_rest = path_iter;
 
-                        if let Some(snap) = opt_dataset
+                        if let Some(mount) = opt_dataset
                             .and_then(|dataset| {
                                 let dataset_pat = dataset.as_os_str().to_string_lossy();
 
@@ -142,9 +145,7 @@ impl MapOfSnaps {
                             })
                             .map(|mount| mount.join(the_rest))
                         {
-                            if snap.exists() {
-                                return snap;
-                            }
+                            return mount;
                         }
 
                         let constructed = mount.join(relative);
@@ -153,9 +154,8 @@ impl MapOfSnaps {
                             return constructed;
                         }
 
-                        btrfs_root.to_path_buf().join(relative)
+                        BTRFS_ROOT.to_path_buf().join(relative)
                     })
-                    .filter(|snap| snap.exists())
                     .collect()
             })
             .ok_or_else(|| {
