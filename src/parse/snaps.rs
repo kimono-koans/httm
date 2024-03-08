@@ -128,7 +128,7 @@ impl MapOfSnaps {
 
                         let the_rest = path_iter;
 
-                        if let Some(mount) = opt_dataset
+                        if let Some(snap_mount) = opt_dataset
                             .and_then(|dataset| {
                                 map_of_datasets
                                     .iter()
@@ -137,13 +137,15 @@ impl MapOfSnaps {
                             })
                             .map(|mount| mount.join(the_rest))
                         {
-                            return mount;
+                            if snap_mount.exists() {
+                                return snap_mount;
+                            }
                         }
 
-                        let constructed = mount.join(relative);
+                        let snap_mount = mount.join(relative);
 
-                        if constructed.exists() {
-                            return constructed;
+                        if snap_mount.exists() {
+                            return snap_mount;
                         }
 
                         btrfs_root.to_path_buf().join(relative)
