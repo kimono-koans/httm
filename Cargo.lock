@@ -226,16 +226,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "defer-drop"
-version = "1.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f613ec9fa66a6b28cdb1842b27f9adf24f39f9afc4dcdd9fdecee4aca7945c57"
-dependencies = [
- "crossbeam-channel",
- "once_cell",
-]
-
-[[package]]
 name = "deranged"
 version = "0.3.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -366,9 +356,9 @@ checksum = "3f9eec918d3f24069decb9af1554cad7c880e2da24a9afd88aca000531ab82c1"
 
 [[package]]
 name = "fuzzy-muff"
-version = "0.3.21"
+version = "0.3.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b85d3536d1b6ea93c661352f0f1adf11874529377d62b58b468220fb97ef67f4"
+checksum = "570f563448cfce20a1efda14dfdef65baeb8ab77338355466669dbe5e06fc7f1"
 dependencies = [
  "thread_local",
 ]
@@ -1068,20 +1058,18 @@ dependencies = [
 
 [[package]]
 name = "two_percent"
-version = "0.11.1"
+version = "0.11.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "01416e895679f4c18c5e6546bdf4c8fe41c74596de9a6b961de8c0a0d3353821"
+checksum = "d3eb4dc0a62d1eba94fb09605efa162cea207ca35c352197df67062f229a6927"
 dependencies = [
  "ahash 0.8.11",
  "bitflags 2.4.2",
  "crossbeam-channel",
- "defer-drop",
  "derive_builder",
  "fuzzy-muff",
  "hashbrown 0.14.3",
  "libc",
  "log",
- "nix 0.28.0",
  "nohash",
  "once_cell",
  "rayon",
