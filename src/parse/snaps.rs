@@ -66,7 +66,15 @@ impl MapOfSnaps {
                     }
                     FilesystemType::Btrfs => match dataset_info.mount_type {
                         MountType::Network => Self::from_defined_mounts(mount, dataset_info),
-                        MountType::Local => Self::from_btrfs_cmd(mount, map_of_datasets),
+                        MountType::Local => {
+                            const USER_REQUIRES_ROOT: &str = "User is required to have super user permissions to determine the location of btrfs snapshots.";
+
+                            match user_has_effective_root(&USER_REQUIRES_ROOT) {
+                                Ok(_) => Self::from_btrfs_cmd(mount, map_of_datasets),
+                                Err(err) => return Err(err),
+                            }
+                            
+                        }
                     },
                 };
 
