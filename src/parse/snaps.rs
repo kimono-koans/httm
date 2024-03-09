@@ -70,8 +70,7 @@ impl MapOfSnaps {
                         MountType::Network => {
                             Self::from_defined_mounts(mount, dataset_info).map_err(|err| err.into())
                         }
-                        MountType::Local => user_has_effective_root(&BTRFS_COMMAND_REQUIRES_ROOT)
-                            .and_then(|_| Self::from_btrfs_cmd(mount, map_of_datasets)),
+                        MountType::Local => Self::from_btrfs_cmd(mount, map_of_datasets),
                     },
                 };
 
@@ -91,6 +90,8 @@ impl MapOfSnaps {
         base_mount: &Path,
         map_of_datasets: &HashMap<PathBuf, DatasetMetadata>,
     ) -> HttmResult<Vec<PathBuf>> {
+        user_has_effective_root(&BTRFS_COMMAND_REQUIRES_ROOT)?;
+
         let btrfs_command = which("btrfs").map_err(|_err| {
             HttmError::new(
                 "'btrfs' command not found. Make sure the command 'btrfs' is in your path.",
