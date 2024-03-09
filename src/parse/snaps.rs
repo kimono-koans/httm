@@ -135,7 +135,12 @@ impl MapOfSnaps {
             .and_then(|dataset| {
                 map_of_datasets
                     .iter()
-                    .find(|(_mount, metadata)| metadata.source.ends_with(dataset))
+                    .find(|(_mount, metadata)| {
+                        let needle = dataset.as_os_str().to_string_lossy();
+                        let haystack = metadata.source.to_string_lossy();
+
+                        haystack.rfind(needle.as_ref()).is_some()
+                    })
                     .map(|(mount, _metadata)| mount)
             })
             .map(|mount| mount.join(the_rest))
