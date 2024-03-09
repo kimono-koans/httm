@@ -34,6 +34,8 @@ use std::process::Command as ExecProcess;
 use which::which;
 
 static BTRFS_ROOT: OnceCell<PathBuf> = OnceCell::new();
+const BTRFS_COMMAND_REQUIRES_ROOT: &str =
+    "User is required to have super user permissions to determine the location of btrfs snapshots.";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MapOfSnaps {
@@ -62,19 +64,14 @@ impl MapOfSnaps {
             .map(|(mount, dataset_info)| {
                 let snap_mounts: HttmResult<Vec<PathBuf>> = match dataset_info.fs_type {
                     FilesystemType::Zfs | FilesystemType::Nilfs2 | FilesystemType::Apfs => {
-                        Self::from_defined_mounts(mount, dataset_info)
+                        Self::from_defined_mounts(mount, dataset_info).map_err(|err| err.into())
                     }
                     FilesystemType::Btrfs => match dataset_info.mount_type {
-                        MountType::Network => Self::from_defined_mounts(mount, dataset_info),
-                        MountType::Local => {
-                            const USER_REQUIRES_ROOT: &str = "User is required to have super user permissions to determine the location of btrfs snapshots.";
-
-                            match user_has_effective_root(&USER_REQUIRES_ROOT) {
-                                Ok(_) => Self::from_btrfs_cmd(mount, map_of_datasets),
-                                Err(err) => return Err(err),
-                            }
-                            
+                        MountType::Network => {
+                            Self::from_defined_mounts(mount, dataset_info).map_err(|err| err.into())
                         }
+                        MountType::Local => user_has_effective_root(&BTRFS_COMMAND_REQUIRES_ROOT)
+                            .and_then(|_| Self::from_btrfs_cmd(mount, map_of_datasets)),
                     },
                 };
 
@@ -189,64 +186,77 @@ impl MapOfSnaps {
     fn from_defined_mounts(
         mount_point_path: &Path,
         dataset_metadata: &DatasetMetadata,
-    ) -> HttmResult<Vec<PathBuf>> {
-        let snaps = match dataset_metadata.fs_type {
-            FilesystemType::Btrfs => {
-                read_dir(mount_point_path.join(BTRFS_SNAPPER_HIDDEN_DIRECTORY))?
+    ) -> Result<Vec<PathBuf>, std::io::Error> {
+        fn inner(
+            mount_point_path: &Path,
+            dataset_metadata: &DatasetMetadata,
+        ) -> Result<Vec<PathBuf>, std::io::Error> {
+            let snaps = match dataset_metadata.fs_type {
+                FilesystemType::Btrfs => {
+                    read_dir(mount_point_path.join(BTRFS_SNAPPER_HIDDEN_DIRECTORY))?
+                        .flatten()
+                        .par_bridge()
+                        .map(|entry| entry.path().join(BTRFS_SNAPPER_SUFFIX))
+                        .collect()
+                }
+                FilesystemType::Zfs => read_dir(mount_point_path.join(ZFS_SNAPSHOT_DIRECTORY))?
                     .flatten()
                     .par_bridge()
-                    .map(|entry| entry.path().join(BTRFS_SNAPPER_SUFFIX))
-                    .collect()
-            }
-            FilesystemType::Zfs => read_dir(mount_point_path.join(ZFS_SNAPSHOT_DIRECTORY))?
-                .flatten()
-                .par_bridge()
-                .map(|entry| entry.path())
-                .collect(),
-            FilesystemType::Apfs => {
-                let mut res: Vec<PathBuf> = Vec::new();
+                    .map(|entry| entry.path())
+                    .collect(),
+                FilesystemType::Apfs => {
+                    let mut res: Vec<PathBuf> = Vec::new();
 
-                if PathBuf::from(&TM_DIR_LOCAL).exists() {
-                    let local = read_dir(TM_DIR_LOCAL)?
+                    if PathBuf::from(&TM_DIR_LOCAL).exists() {
+                        let local = read_dir(TM_DIR_LOCAL)?
+                            .par_bridge()
+                            .flatten()
+                            .flat_map(|entry| read_dir(entry.path()))
+                            .flatten_iter()
+                            .flatten_iter()
+                            .map(|entry| entry.path().join("Data"));
+
+                        res.par_extend(local);
+                    }
+
+                    if PathBuf::from(&TM_DIR_REMOTE).exists() {
+                        let remote = read_dir(TM_DIR_REMOTE)?
+                            .par_bridge()
+                            .flatten()
+                            .flat_map(|entry| read_dir(entry.path()))
+                            .flatten_iter()
+                            .flatten_iter()
+                            .map(|entry| entry.path().join(entry.file_name()).join("Data"));
+
+                        res.par_extend(remote);
+                    }
+
+                    res
+                }
+                FilesystemType::Nilfs2 => {
+                    let source_path = Path::new(&dataset_metadata.source);
+
+                    let mount_iter = MountIter::new_from_file(&*PROC_MOUNTS)?;
+
+                    mount_iter
                         .par_bridge()
                         .flatten()
-                        .flat_map(|entry| read_dir(entry.path()))
-                        .flatten_iter()
-                        .flatten_iter()
-                        .map(|entry| entry.path().join("Data"));
-
-                    res.par_extend(local);
+                        .filter(|mount_info| Path::new(&mount_info.source) == source_path)
+                        .filter(|mount_info| {
+                            mount_info.options.iter().any(|opt| opt.contains("cp="))
+                        })
+                        .map(|mount_info| PathBuf::from(mount_info.dest))
+                        .collect()
                 }
+            };
 
-                if PathBuf::from(&TM_DIR_REMOTE).exists() {
-                    let remote = read_dir(TM_DIR_REMOTE)?
-                        .par_bridge()
-                        .flatten()
-                        .flat_map(|entry| read_dir(entry.path()))
-                        .flatten_iter()
-                        .flatten_iter()
-                        .map(|entry| entry.path().join(entry.file_name()).join("Data"));
+            Ok(snaps)
+        }
 
-                    res.par_extend(remote);
-                }
-
-                res
-            }
-            FilesystemType::Nilfs2 => {
-                let source_path = Path::new(&dataset_metadata.source);
-
-                let mount_iter = MountIter::new_from_file(&*PROC_MOUNTS)?;
-
-                mount_iter
-                    .par_bridge()
-                    .flatten()
-                    .filter(|mount_info| Path::new(&mount_info.source) == source_path)
-                    .filter(|mount_info| mount_info.options.iter().any(|opt| opt.contains("cp=")))
-                    .map(|mount_info| PathBuf::from(mount_info.dest))
-                    .collect()
-            }
-        };
-
-        Ok(snaps)
+        match inner(mount_point_path, dataset_metadata) {
+            Ok(res) => Ok(res),
+            Err(err) if err.kind() == std::io::ErrorKind::PermissionDenied => Ok(Vec::new()),
+            Err(err) => Err(err),
+        }
     }
 }
