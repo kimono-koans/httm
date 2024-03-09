@@ -131,7 +131,7 @@ impl MapOfSnaps {
 
         let the_rest = path_iter;
 
-        if let Some(snap_mount) = opt_dataset
+        match opt_dataset
             .and_then(|dataset| {
                 map_of_datasets
                     .iter()
@@ -145,32 +145,36 @@ impl MapOfSnaps {
             })
             .map(|mount| mount.join(the_rest))
         {
-            if snap_mount.exists() {
+            Some(snap_mount) if snap_mount.exists() => {
                 return Some(snap_mount);
             }
+            Some(_) | None => {
+                let mut snap_mount = base_mount.join(relative);
+
+                if snap_mount.exists() {
+                    return Some(snap_mount);
+                }
+
+                let btrfs_root = BTRFS_ROOT.get_or_init(|| {
+                    map_of_datasets
+                        .iter()
+                        .find(|(_mount, metadata)| {
+                            matches!(metadata.fs_type, FilesystemType::Btrfs)
+                                && metadata.source.to_string_lossy() == "/"
+                        })
+                        .map(|(mount, _metadata)| mount.to_owned())
+                        .unwrap_or(PathBuf::from(ROOT_DIRECTORY))
+                });
+
+                snap_mount = btrfs_root.to_path_buf().join(relative);
+
+                if snap_mount.exists() {
+                    return Some(snap_mount);
+                }
+
+                None
+            }
         }
-
-        let mut snap_mount = base_mount.join(relative);
-
-        if snap_mount.exists() {
-            return Some(snap_mount);
-        }
-
-        let btrfs_root = BTRFS_ROOT.get_or_init(|| {
-            map_of_datasets
-                .iter()
-                .find(|(_mount, metadata)| metadata.source.to_string_lossy().rfind("/").is_some())
-                .map(|(mount, _metadata)| mount.to_owned())
-                .unwrap_or(PathBuf::from(ROOT_DIRECTORY))
-        });
-
-        snap_mount = btrfs_root.to_path_buf().join(relative);
-
-        if snap_mount.exists() {
-            return Some(snap_mount);
-        }
-
-        None
     }
 
     fn from_defined_mounts(
