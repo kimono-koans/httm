@@ -153,7 +153,7 @@ impl MapOfSnaps {
                     map_of_datasets
                         .iter()
                         .find(|(_mount, metadata)| {
-                            matches!(metadata.fs_type, FilesystemType::Btrfs)
+                            metadata.fs_type == FilesystemType::Btrfs
                                 && metadata.source.to_string_lossy() == "/"
                         })
                         .map(|(mount, _metadata)| mount.to_owned())
