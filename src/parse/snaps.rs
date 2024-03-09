@@ -16,6 +16,7 @@
 // that was distributed with this source code.
 
 use crate::library::results::{HttmError, HttmResult};
+use crate::library::utility::user_has_effective_root;
 use crate::parse::mounts::PROC_MOUNTS;
 use crate::parse::mounts::{DatasetMetadata, FilesystemType, MountType};
 use crate::{
@@ -58,7 +59,7 @@ impl MapOfSnaps {
     pub fn new(map_of_datasets: &HashMap<PathBuf, DatasetMetadata>) -> HttmResult<Self> {
         let map_of_snaps: HashMap<PathBuf, Vec<PathBuf>> = map_of_datasets
             .par_iter()
-            .flat_map(|(mount, dataset_info)| {
+            .map(|(mount, dataset_info)| {
                 let snap_mounts: HttmResult<Vec<PathBuf>> = match dataset_info.fs_type {
                     FilesystemType::Zfs | FilesystemType::Nilfs2 | FilesystemType::Apfs => {
                         Self::from_defined_mounts(mount, dataset_info)
@@ -71,7 +72,7 @@ impl MapOfSnaps {
 
                 snap_mounts.map(|snap_mounts| (mount.clone(), snap_mounts))
             })
-            .collect();
+            .collect::<HttmResult<_>>()?;
 
         if map_of_snaps.is_empty() {
             Err(HttmError::new("httm could not find any valid datasets on the system.").into())
@@ -148,7 +149,7 @@ impl MapOfSnaps {
             Some(snap_mount) if snap_mount.exists() => {
                 return Some(snap_mount);
             }
-            Some(_) | None => {
+            _ => {
                 let btrfs_root = BTRFS_ROOT.get_or_init(|| {
                     map_of_datasets
                         .iter()
