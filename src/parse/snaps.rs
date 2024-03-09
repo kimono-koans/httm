@@ -149,12 +149,6 @@ impl MapOfSnaps {
                 return Some(snap_mount);
             }
             Some(_) | None => {
-                let mut snap_mount = base_mount.join(relative);
-
-                if snap_mount.exists() {
-                    return Some(snap_mount);
-                }
-
                 let btrfs_root = BTRFS_ROOT.get_or_init(|| {
                     map_of_datasets
                         .iter()
@@ -166,7 +160,13 @@ impl MapOfSnaps {
                         .unwrap_or(PathBuf::from(ROOT_DIRECTORY))
                 });
 
-                snap_mount = btrfs_root.to_path_buf().join(relative);
+                let mut snap_mount = btrfs_root.to_path_buf().join(relative);
+
+                if snap_mount.exists() {
+                    return Some(snap_mount);
+                }
+
+                snap_mount = base_mount.join(relative);
 
                 if snap_mount.exists() {
                     return Some(snap_mount);
