@@ -35,7 +35,7 @@ use which::which;
 
 static BTRFS_ROOT: OnceCell<PathBuf> = OnceCell::new();
 const BTRFS_COMMAND_REQUIRES_ROOT: &str =
-    "User is required to have super user permissions to determine the location of btrfs snapshots.";
+    "User must have super user permissions to determine the location of btrfs snapshots";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MapOfSnaps {
