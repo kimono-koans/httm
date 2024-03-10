@@ -151,7 +151,7 @@ impl<'a> PreserveHardLinks<'a> {
     }
 
     fn remove_live_links(&self) -> HttmResult<()> {
-        let none_removed = AtomicBool::new(true);
+        static NONE_REMOVED: AtomicBool = AtomicBool::new(true);
 
         self.live_map
             .link_map
@@ -164,7 +164,7 @@ impl<'a> PreserveHardLinks<'a> {
                         .ok_or_else(|| HttmError::new("Could obtain live path for snap path"))?;
 
                     if !snap_path.exists() {
-                        none_removed.store(false, std::sync::atomic::Ordering::Relaxed);
+                        NONE_REMOVED.store(false, std::sync::atomic::Ordering::Relaxed);
                         return Self::rm_hard_link(&live_path.path);
                     }
 
@@ -172,7 +172,7 @@ impl<'a> PreserveHardLinks<'a> {
                 })
             })?;
 
-        if none_removed.load(std::sync::atomic::Ordering::Relaxed) {
+        if NONE_REMOVED.load(std::sync::atomic::Ordering::Relaxed) {
             eprintln!("No hard links found which require removal.");
             return Ok(());
         }
@@ -181,7 +181,7 @@ impl<'a> PreserveHardLinks<'a> {
     }
 
     fn preserve_snap_links(&self) -> HttmResult<()> {
-        let none_preserved = AtomicBool::new(true);
+        static NONE_PRESERVED: AtomicBool = AtomicBool::new(true);
 
         self.snap_map
             .link_map
@@ -208,7 +208,7 @@ impl<'a> PreserveHardLinks<'a> {
                     .iter()
                     .filter(|(_live_path, snap_path)| snap_path.exists())
                     .try_for_each(|(live_path, snap_path)| {
-                        none_preserved.store(false, std::sync::atomic::Ordering::Relaxed);
+                        NONE_PRESERVED.store(false, std::sync::atomic::Ordering::Relaxed);
 
                         match opt_original {
                             Some(original) if original == live_path => {
@@ -223,7 +223,7 @@ impl<'a> PreserveHardLinks<'a> {
                     })
             })?;
 
-        if none_preserved.load(std::sync::atomic::Ordering::Relaxed) {
+        if NONE_PRESERVED.load(std::sync::atomic::Ordering::Relaxed) {
             println!("No hard links found which require preservation.");
             return Ok(());
         }
