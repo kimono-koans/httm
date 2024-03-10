@@ -64,12 +64,10 @@ impl MapOfSnaps {
             .map(|(mount, dataset_info)| {
                 let snap_mounts: HttmResult<Vec<PathBuf>> = match dataset_info.fs_type {
                     FilesystemType::Zfs | FilesystemType::Nilfs2 | FilesystemType::Apfs => {
-                        Self::from_defined_mounts(mount, dataset_info).map_err(|err| err.into())
+                        Self::from_defined_mounts(mount, dataset_info)
                     }
                     FilesystemType::Btrfs => match dataset_info.mount_type {
-                        MountType::Network => {
-                            Self::from_defined_mounts(mount, dataset_info).map_err(|err| err.into())
-                        }
+                        MountType::Network => Self::from_defined_mounts(mount, dataset_info),
                         MountType::Local => Self::from_btrfs_cmd(mount, map_of_datasets),
                     },
                 };
@@ -187,7 +185,7 @@ impl MapOfSnaps {
     fn from_defined_mounts(
         mount_point_path: &Path,
         dataset_metadata: &DatasetMetadata,
-    ) -> Result<Vec<PathBuf>, std::io::Error> {
+    ) -> HttmResult<Vec<PathBuf>> {
         fn inner(
             mount_point_path: &Path,
             dataset_metadata: &DatasetMetadata,
@@ -257,7 +255,7 @@ impl MapOfSnaps {
         match inner(mount_point_path, dataset_metadata) {
             Ok(res) => Ok(res),
             Err(err) if err.kind() == std::io::ErrorKind::PermissionDenied => Ok(Vec::new()),
-            Err(err) => Err(err),
+            Err(err) => Err(err.into()),
         }
     }
 }
