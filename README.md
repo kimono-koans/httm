@@ -171,7 +171,7 @@ Browse all files deleted from your home directory, recursively, and view unique 
 ➜ httm -d=only -b -a -R ~
 ```
 
-Browse all files in your home directory, recursively, and view unique versions on local snapshots, to select and ultimately restore to your working directory, in overwrite mode:
+Browse all files in your home directory, recursively, and view unique versions on local snapshots, to select and ultimately restore to its original location, in overwrite mode:
 
 ```bash
 ➜ httm -r=overwrite -R ~
