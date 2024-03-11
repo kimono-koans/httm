@@ -4,7 +4,7 @@
 
 *The dream of a CLI Time Machine is still alive with `httm`.*
 
-`httm` prints the size, date and corresponding locations of available unique versions (deduplicated by modify time and size) of files residing on snapshots, but can also be used *interactively* to select and restore files, even snapshot mounts by file! `httm` might change the way you use snapshots (because ZFS/BTRFS/NILFS2 aren't designed for finding for unique file versions) or the Time Machine concept (because `httm` is very fast!).
+`httm` (hot tub time machine) prints the size, date and corresponding locations of available unique versions, deduplicated by modified time and size, of files residing in snapshots. It can also be used *interactively* to select and restore files, even snapshot mounts by file! `httm` might change the way you use snapshots (ZFS/BTRFS/NILFS2 aren't designed to find unique file versions) or the Time Machine workflow thanks to `httm`'s speed, it's very fast!
 
 `httm` boasts an array of seductive features, like:
 
@@ -122,6 +122,12 @@ On some Linux distributions, which include old versions of `libc`, `cargo` may r
 ## Example Usage
 
 Note: Users may need to use `sudo` (or equivalent) to view versions on BTRFS or NILFS2 datasets, as BTRFS or NILFS2 snapshots may require root permissions in order to be visible.
+
+Interactively browse your home directory and non-destructively restore a chosen file revision in the present working directory:
+
+```bash
+➜ httm -r ~
+```
 
 Like other UNIX utilities (such as `cat`, `uniq`, `sort`), if you include no path/s as arguments, then `httm` will pause waiting for input on stdin:
 
