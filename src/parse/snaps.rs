@@ -254,8 +254,14 @@ impl MapOfSnaps {
 
         match inner(mount_point_path, dataset_metadata) {
             Ok(res) => Ok(res),
-            Err(err) if err.kind() == std::io::ErrorKind::PermissionDenied => Ok(Vec::new()),
-            Err(err) => Err(err.into()),
+            Err(err) => {
+                eprintln!(
+                    "{:?} at mount path {:?}",
+                    err.raw_os_error(),
+                    mount_point_path
+                );
+                Ok(Vec::new())
+            }
         }
     }
 }
