@@ -109,14 +109,14 @@ impl HttmCopy {
         let src_file = File::open(src)?;
         let src_len = src_file.metadata()?.len();
 
-        let dst_file = OpenOptions::new()
+        let mut dst_file = OpenOptions::new()
             .write(true)
             .read(true)
             .create(true)
             .open(dst)?;
         dst_file.set_len(src_len)?;
 
-        let amt_written = DiffCopy::new(&src_file, &dst_file)?;
+        let amt_written = DiffCopy::new(&src_file, &mut dst_file)?;
 
         if amt_written != src_len as usize {
             let msg = format!(
@@ -137,7 +137,7 @@ impl HttmCopy {
 struct DiffCopy;
 
 impl DiffCopy {
-    fn new(src_file: &File, dst_file: &File) -> HttmResult<usize> {
+    fn new(src_file: &File, dst_file: &mut File) -> HttmResult<usize> {
         if !GLOBAL_CONFIG.opt_no_clones
             && IS_CLONE_COMPATIBLE.load(std::sync::atomic::Ordering::Relaxed)
         {
@@ -150,6 +150,10 @@ impl DiffCopy {
                     if GLOBAL_CONFIG.opt_debug {
                         eprintln!("DEBUG: copy_file_range call successful.");
                     }
+                    // re docs, both a flush and a sync seem to be required re consistency
+                    dst_file.flush()?;
+                    dst_file.sync_data()?;
+
                     return Ok(amt_written);
                 }
                 _ => {
@@ -165,7 +169,13 @@ impl DiffCopy {
             }
         }
 
-        Self::write_no_cow(&src_file, &dst_file)
+        let amt_written = Self::write_no_cow(&src_file, &dst_file)?;
+
+        // re docs, both a flush and a sync seem to be required re consistency
+        dst_file.flush()?;
+        dst_file.sync_data()?;
+
+        Ok(amt_written)
     }
 
     #[inline]
