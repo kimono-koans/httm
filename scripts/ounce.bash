@@ -95,7 +95,7 @@ function print_err_exit {
 }
 
 function log_info {
-	printf "%s\n" "$*" 2>&1 | /usr/bin/logger -t ounce
+	printf "%s\n" "$*" 2>&1 | logger -t ounce
 }
 
 function prep_trace {
@@ -112,6 +112,10 @@ function prep_trace {
 		command -v awk
 		exit 0
 	)" ]] || print_err_exit "'awk' is required to execute 'ounce' in trace mode.  Please check that 'awk' is in your path."
+	[[ -n "$(
+		command -v logger
+		exit 0
+	)" ]] || print_err_exit "'logger' is required to execute 'ounce' in trace mode.  Please check that 'logger' is in your path."
 }
 
 function prep_exec {
@@ -160,15 +164,15 @@ function take_snap {
 
 	# mask all the errors from the first run without privileges,
 	# let the sudo run show errors
-	[[ -z "$utc" ]] || httm "$utc" --snap="$suffix" $filenames 2>&1 | grep -v "dataset already exists" | /usr/bin/logger -t ounce
-	[[ -n "$utc" ]] || httm --snap="$suffix" $filenames 2>&1 | grep -v "dataset already exists" | /usr/bin/logger -t ounce
+	[[ -z "$utc" ]] || httm "$utc" --snap="$suffix" $filenames 2>&1 | grep -v "dataset already exists" | logger -t ounce || true
+	[[ -n "$utc" ]] || httm --snap="$suffix" $filenames 2>&1 | grep -v "dataset already exists" | logger -t ounce || true
 
 	if [[ $? -ne 0 ]]; then
 		local sudo_program
 		sudo_program="$(prep_sudo)"
 
-		[[ -z "$utc" ]] || httm "$utc" --snap="$suffix" $filenames 2>&1 | grep -v "dataset already exists" | /usr/bin/logger -t ounce
-		[[ -n "$utc" ]] || httm --snap="$suffix" $filenames 2>&1 | grep -v "dataset already exists" | /usr/bin/logger -t ounce
+		[[ -z "$utc" ]] || httm "$utc" --snap="$suffix" $filenames 2>&1 | grep -v "dataset already exists" | logger -t ounce || true
+		[[ -n "$utc" ]] || httm --snap="$suffix" $filenames 2>&1 | grep -v "dataset already exists" | logger -t ounce || true
 
 		[[ $? -eq 0 ]] ||
 			print_err_exit "'ounce' failed with a 'httm'/'zfs' snapshot error.  Check you have the correct permissions to snapshot."
