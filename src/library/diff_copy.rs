@@ -138,12 +138,13 @@ struct DiffCopy;
 
 impl DiffCopy {
     fn new(src_file: &File, dst_file: &mut File) -> HttmResult<usize> {
+        let src_len = src_file.metadata()?.len();
+
         if !GLOBAL_CONFIG.opt_no_clones
             && IS_CLONE_COMPATIBLE.load(std::sync::atomic::Ordering::Relaxed)
         {
             let src_fd = src_file.as_fd();
             let dst_fd = dst_file.as_fd();
-            let src_len = src_file.metadata()?.len();
 
             match Self::copy_file_range(src_fd, dst_fd, src_len as usize) {
                 Ok(amt_written) if amt_written as u64 == src_len => {
@@ -170,6 +171,13 @@ impl DiffCopy {
         }
 
         let amt_written = Self::write_no_cow(&src_file, &dst_file)?;
+
+        if amt_written as u64 != src_len {
+            let msg = format!(
+                "Amount written does not match underlying source file size: {amt_written} != {src_len}"
+            );
+            return Err(HttmError::new(&msg).into());
+        }
 
         // re docs, both a flush and a sync seem to be required re consistency
         dst_file.flush()?;
