@@ -4,7 +4,7 @@
 
 *The dream of a CLI Time Machine is still alive with `httm`.*
 
-`httm` prints the size, date and corresponding locations of available unique versions (deduplicated by modify time and size) of files residing on snapshots, but can also be used *interactively* to select and restore files, even snapshot mounts by file! `httm` might change the way you use snapshots (because ZFS/BTRFS/NILFS2 aren't designed for finding for unique file versions) or the Time Machine concept (because `httm` is very fast!).
+`httm` prints the size, date and corresponding locations of available unique versions (deduplicated by modify time and size) of files residing on snapshots, but can also be used *interactively* to select and restore files, even snapshot mounts by file! `httm` might change the way you use snapshots (because ZFS/BTRFS/NILFS2 aren't designed to find unique file versions) or the Time Machine concept (because `httm` is very fast!).
 
 `httm` boasts an array of seductive features, like:
 
