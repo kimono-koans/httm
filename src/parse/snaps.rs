@@ -62,7 +62,7 @@ impl MapOfSnaps {
         let map_of_snaps: HashMap<PathBuf, Vec<PathBuf>> = map_of_datasets
             .par_iter()
             .map(|(mount, dataset_info)| {
-                let snap_mounts: HttmResult<Vec<PathBuf>> = match dataset_info.fs_type {
+                let snap_mounts: Vec<PathBuf> = match dataset_info.fs_type {
                     FilesystemType::Zfs | FilesystemType::Nilfs2 | FilesystemType::Apfs => {
                         Self::from_defined_mounts(mount, dataset_info)
                     }
@@ -72,12 +72,12 @@ impl MapOfSnaps {
                     },
                 };
 
-                snap_mounts.map(|snap_mounts| (mount.clone(), snap_mounts))
+                (mount.clone(), snap_mounts)
             })
-            .collect::<HttmResult<_>>()?;
+            .collect();
 
         if map_of_snaps.is_empty() {
-            Err(HttmError::new("httm could not find any valid datasets on the system.").into())
+            Err(HttmError::new("httm could not find any valid snapshots on the system.").into())
         } else {
             Ok(map_of_snaps.into())
         }
@@ -87,25 +87,39 @@ impl MapOfSnaps {
     fn from_btrfs_cmd(
         base_mount: &Path,
         map_of_datasets: &HashMap<PathBuf, DatasetMetadata>,
-    ) -> HttmResult<Vec<PathBuf>> {
-        user_has_effective_root(&BTRFS_COMMAND_REQUIRES_ROOT)?;
+    ) -> Vec<PathBuf> {
+        if user_has_effective_root(&BTRFS_COMMAND_REQUIRES_ROOT).is_err() {
+            eprintln!("WARN: httm requires root permissions to detect btrfs snapshot mounts.");
+            return Vec::new();
+        }
 
-        let btrfs_command = which("btrfs").map_err(|_err| {
-            HttmError::new(
-                "'btrfs' command not found. Make sure the command 'btrfs' is in your path.",
-            )
-        })?;
+        let Ok(btrfs_command) = which("btrfs") else {
+            eprintln!(
+                "WARN: 'btrfs' command not found. Make sure the command 'btrfs' is in your path.",
+            );
+            return Vec::new();
+        };
 
         let exec_command = btrfs_command;
         let arg_path = base_mount.to_string_lossy();
         let args = vec!["subvolume", "show", &arg_path];
 
         // must exec for each mount, probably a better way by calling into a lib
-        let command_output =
-            std::str::from_utf8(&ExecProcess::new(exec_command).args(&args).output()?.stdout)?
-                .to_owned();
+        let Some(command_output) = ExecProcess::new(exec_command)
+            .args(&args)
+            .output()
+            .ok()
+            .and_then(|output| {
+                std::str::from_utf8(&output.stdout)
+                    .map(|string| string.to_owned())
+                    .ok()
+            })
+        else {
+            eprintln!("WARN: Could not obtain btrfs command output.",);
+            return Vec::new();
+        };
 
-        let snaps = command_output
+        match command_output
             .split_once("Snapshot(s):\n")
             .map(|(_pre, snap_paths)| {
                 snap_paths
@@ -116,13 +130,13 @@ impl MapOfSnaps {
                         Self::parse_btrfs_relative_path(relative, base_mount, map_of_datasets)
                     })
                     .collect()
-            })
-            .ok_or_else(|| {
-                let msg = format!("No snaps found for mount: {:?}", base_mount);
-                HttmError::new(&msg)
-            })?;
-
-        Ok(snaps)
+            }) {
+            Some(vec) => vec,
+            None => {
+                eprintln!("WARN: No snaps found for mount: {:?}", base_mount);
+                Vec::new()
+            }
+        }
     }
 
     fn parse_btrfs_relative_path(
@@ -185,7 +199,7 @@ impl MapOfSnaps {
     fn from_defined_mounts(
         mount_point_path: &Path,
         dataset_metadata: &DatasetMetadata,
-    ) -> HttmResult<Vec<PathBuf>> {
+    ) -> Vec<PathBuf> {
         fn inner(
             mount_point_path: &Path,
             dataset_metadata: &DatasetMetadata,
@@ -253,8 +267,8 @@ impl MapOfSnaps {
         }
 
         match inner(mount_point_path, dataset_metadata) {
-            Ok(res) => Ok(res),
-            Err(_err) => Ok(Vec::new()),
+            Ok(res) => res,
+            Err(_err) => Vec::new(),
         }
     }
 }
