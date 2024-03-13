@@ -1058,9 +1058,7 @@ dependencies = [
 
 [[package]]
 name = "two_percent"
-version = "0.11.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a1d0ba0d35dac3accaf29e4fd75ef8902690192944e6e0c2387e5dc2f65e1b0a"
+version = "0.11.7"
 dependencies = [
  "ahash 0.8.11",
  "bitflags 2.4.2",
