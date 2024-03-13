@@ -105,7 +105,7 @@ impl MapOfSnaps {
             std::str::from_utf8(&ExecProcess::new(exec_command).args(&args).output()?.stdout)?
                 .to_owned();
 
-        let snaps = command_output
+        match command_output
             .split_once("Snapshot(s):\n")
             .map(|(_pre, snap_paths)| {
                 snap_paths
@@ -116,13 +116,13 @@ impl MapOfSnaps {
                         Self::parse_btrfs_relative_path(relative, base_mount, map_of_datasets)
                     })
                     .collect()
-            })
-            .ok_or_else(|| {
-                let msg = format!("No snaps found for mount: {:?}", base_mount);
-                HttmError::new(&msg)
-            })?;
-
-        Ok(snaps)
+            }) {
+            Some(vec) => Ok(vec),
+            None => {
+                eprintln!("WARN: No snaps found for mount: {:?}", base_mount);
+                Ok(Vec::new())
+            }
+        }
     }
 
     fn parse_btrfs_relative_path(
