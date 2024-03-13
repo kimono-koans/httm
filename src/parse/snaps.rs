@@ -77,7 +77,7 @@ impl MapOfSnaps {
             .collect();
 
         if map_of_snaps.is_empty() {
-            Err(HttmError::new("httm could not find any valid datasets on the system.").into())
+            Err(HttmError::new("httm could not find any valid snapshots on the system.").into())
         } else {
             Ok(map_of_snaps.into())
         }
