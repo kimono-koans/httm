@@ -123,10 +123,10 @@ On some Linux distributions, which include old versions of `libc`, `cargo` may r
 
 Note: Users may need to use `sudo` (or equivalent) to view versions on BTRFS or NILFS2 datasets, as BTRFS or NILFS2 snapshots may require root permissions in order to be visible.
 
-Interactively browse your home directory and non-destructively restore a chosen file revision in the present working directory:
+Interactively browse your home directory (~), show deleted files (-d) and non-destructively restore (-r) a chosen file revision in the present working directory:
 
 ```bash
-➜ httm -r ~
+➜ httm -r -d ~
 ```
 
 Like other UNIX utilities (such as `cat`, `uniq`, `sort`), if you include no path/s as arguments, then `httm` will pause waiting for input on stdin:
