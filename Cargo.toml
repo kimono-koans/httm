@@ -1,7 +1,7 @@
 [package]
 name = "httm"
 authors = ["Robert Swinford <robert.swinford <...at...> gmail.com>"]
-version = "0.37.2"
+version = "0.37.3"
 edition = "2021"
 keywords = ["zfs", "backup", "restore", "cli-utility", "snapshot"]
 description = "A CLI tool for viewing snapshot file versions on ZFS and btrfs datasets"
@@ -82,7 +82,7 @@ itertools = { version = "0.12.1", default-features = false, optional = true }
 
 [package.metadata.deb]
 maintainer = "kimono koans <https://github.com/kimono-koans/>"
-copyright = "2023, Robert Swinford <robert.swinford<...at...>gmail.com>"
+copyright = "2024, Robert Swinford <robert.swinford<...at...>gmail.com>"
 extended-description = """\
 
 Prints the size, date and corresponding locations of available unique versions of files \
