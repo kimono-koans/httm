@@ -43,7 +43,7 @@ pub const AFP_FSTYPE: &str = "afpfs";
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum FilesystemType {
     Zfs,
-    Btrfs,
+    Btrfs(Option<PathBuf>),
     Nilfs2,
     Apfs,
 }
@@ -198,11 +198,11 @@ impl BaseFilesystemInfo {
                                     mount_type: MountType::Network,
                                 },
                             )),
-                            Some(FilesystemType::Btrfs) => Either::Left((
+                            Some(FilesystemType::Btrfs(None)) => Either::Left((
                                 dest_path,
                                 DatasetMetadata {
                                     source: PathBuf::from(mount_info.source),
-                                    fs_type: FilesystemType::Btrfs,
+                                    fs_type: FilesystemType::Btrfs(None),
                                     mount_type: MountType::Network,
                                 },
                             )),
@@ -217,16 +217,16 @@ impl BaseFilesystemInfo {
                             .filter_map(|line| line.split_once('='))
                             .collect();
 
-                        let source = match keyed_options.get("subvol") {
+                        let subvol_id = match keyed_options.get("subvol") {
                             Some(subvol) => PathBuf::from(subvol),
-                            None => PathBuf::from(mount_info.source),
+                            None => PathBuf::from(&mount_info.source),
                         };
 
                         Either::Left((
                             dest_path,
                             DatasetMetadata {
-                                source,
-                                fs_type: FilesystemType::Btrfs,
+                                source: mount_info.source,
+                                fs_type: FilesystemType::Btrfs(Some(subvol_id)),
                                 mount_type: MountType::Local,
                             },
                         ))
@@ -308,11 +308,11 @@ impl BaseFilesystemInfo {
                         mount_type: MountType::Local,
                     },
                 )),
-                Some(FilesystemType::Btrfs) => Either::Left((
+                Some(FilesystemType::Btrfs(_)) => Either::Left((
                     mount,
                     DatasetMetadata {
                         source,
-                        fs_type: FilesystemType::Btrfs,
+                        fs_type: FilesystemType::Btrfs(None),
                         mount_type: MountType::Local,
                     },
                 )),
@@ -363,12 +363,12 @@ impl BaseFilesystemInfo {
 
         if map_of_datasets
             .par_iter()
-            .any(|(_mount, dataset_info)| dataset_info.fs_type == FilesystemType::Btrfs)
+            .any(|(_mount, dataset_info)| matches!(dataset_info.fs_type, FilesystemType::Btrfs(_)))
         {
             let vec_snaps: Vec<&PathBuf> = map_of_datasets
                 .par_iter()
                 .filter(|(_mount, dataset_info)| {
-                    if dataset_info.fs_type == FilesystemType::Btrfs {
+                    if matches!(dataset_info.fs_type, FilesystemType::Btrfs(_)) {
                         return true;
                     }
 

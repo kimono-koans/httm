@@ -283,7 +283,7 @@ pub fn fs_type_from_hidden_dir(dataset_mount: &Path) -> Option<FilesystemType> {
         .symlink_metadata()
         .is_ok()
     {
-        Some(FilesystemType::Btrfs)
+        Some(FilesystemType::Btrfs(None))
     } else {
         None
     }
