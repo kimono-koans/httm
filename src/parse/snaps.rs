@@ -88,7 +88,7 @@ impl MapOfSnaps {
     // build paths to all snap mounts
     fn from_btrfs_cmd(
         base_mount: &Path,
-        dataset_info: &DatasetMetadata,
+        base_mount_metadata: &DatasetMetadata,
         opt_subvol: &Option<PathBuf>,
         map_of_datasets: &HashMap<PathBuf, DatasetMetadata>,
     ) -> Vec<PathBuf> {
@@ -147,7 +147,7 @@ impl MapOfSnaps {
                         Self::parse_btrfs_relative_path(
                             relative,
                             base_mount,
-                            dataset_info,
+                            base_mount_metadata,
                             opt_subvol,
                             map_of_datasets,
                         )
@@ -165,7 +165,7 @@ impl MapOfSnaps {
     fn parse_btrfs_relative_path(
         relative: &Path,
         base_mount: &Path,
-        dataset_info: &DatasetMetadata,
+        base_mount_metadata: &DatasetMetadata,
         opt_subvol: &Option<PathBuf>,
         map_of_datasets: &HashMap<PathBuf, DatasetMetadata>,
     ) -> Option<PathBuf> {
@@ -177,7 +177,11 @@ impl MapOfSnaps {
 
         match opt_dataset
             .and_then(|dataset| {
-                map_of_datasets.iter().find_map(|(mount, _metadata)| {
+                map_of_datasets.iter().find_map(|(mount, metadata)| {
+                    if metadata.source != base_mount_metadata.source {
+                        return None;
+                    }
+
                     opt_subvol.as_ref().and_then(|subvol| {
                         let needle = dataset.as_os_str().to_string_lossy();
                         let haystack = subvol.to_string_lossy();
@@ -200,7 +204,7 @@ impl MapOfSnaps {
                     .iter()
                     .find(|(_mount, metadata)| match &metadata.fs_type {
                         FilesystemType::Btrfs(Some(subvol)) => {
-                            metadata.source == dataset_info.source
+                            metadata.source == base_mount_metadata.source
                                 && subvol == BTRFS_ROOT_SUBVOL.as_path()
                         }
                         _ => false,
