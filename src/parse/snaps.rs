@@ -209,7 +209,7 @@ impl MapOfSnaps {
                         _ => false,
                     })
                     .map(|(mount, _metadata)| mount.to_owned())
-                    .unwrap_or(PathBuf::from(ROOT_DIRECTORY));
+                    .unwrap_or_else(|| PathBuf::from(ROOT_DIRECTORY));
 
                 let mut snap_mount = btrfs_root.to_path_buf().join(relative);
 
