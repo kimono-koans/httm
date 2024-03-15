@@ -24,7 +24,6 @@ use crate::{
     TM_DIR_REMOTE, ZFS_SNAPSHOT_DIRECTORY,
 };
 use hashbrown::HashMap;
-use once_cell::sync::OnceCell;
 use proc_mounts::MountIter;
 use rayon::prelude::*;
 use std::fs::read_dir;
@@ -33,7 +32,6 @@ use std::path::{Path, PathBuf};
 use std::process::Command as ExecProcess;
 use which::which;
 
-static BTRFS_ROOT: OnceCell<PathBuf> = OnceCell::new();
 const BTRFS_COMMAND_REQUIRES_ROOT: &str =
     "User must have super user permissions to determine the location of btrfs snapshots";
 
@@ -62,13 +60,18 @@ impl MapOfSnaps {
         let map_of_snaps: HashMap<PathBuf, Vec<PathBuf>> = map_of_datasets
             .par_iter()
             .map(|(mount, dataset_info)| {
-                let snap_mounts: Vec<PathBuf> = match dataset_info.fs_type {
+                let snap_mounts: Vec<PathBuf> = match &dataset_info.fs_type {
                     FilesystemType::Zfs | FilesystemType::Nilfs2 | FilesystemType::Apfs => {
                         Self::from_defined_mounts(mount, dataset_info)
                     }
-                    FilesystemType::Btrfs => match dataset_info.mount_type {
+                    FilesystemType::Btrfs(opt_subvol_id) => match dataset_info.mount_type {
                         MountType::Network => Self::from_defined_mounts(mount, dataset_info),
-                        MountType::Local => Self::from_btrfs_cmd(mount, map_of_datasets),
+                        MountType::Local => Self::from_btrfs_cmd(
+                            mount,
+                            dataset_info,
+                            opt_subvol_id,
+                            map_of_datasets,
+                        ),
                     },
                 };
 
@@ -86,6 +89,8 @@ impl MapOfSnaps {
     // build paths to all snap mounts
     fn from_btrfs_cmd(
         base_mount: &Path,
+        dataset_info: &DatasetMetadata,
+        opt_subvol_id: &Option<PathBuf>,
         map_of_datasets: &HashMap<PathBuf, DatasetMetadata>,
     ) -> Vec<PathBuf> {
         if user_has_effective_root(&BTRFS_COMMAND_REQUIRES_ROOT).is_err() {
@@ -127,7 +132,13 @@ impl MapOfSnaps {
                     .map(|line| line.trim())
                     .map(|line| Path::new(line))
                     .filter_map(|relative| {
-                        Self::parse_btrfs_relative_path(relative, base_mount, map_of_datasets)
+                        Self::parse_btrfs_relative_path(
+                            relative,
+                            base_mount,
+                            dataset_info,
+                            opt_subvol_id,
+                            map_of_datasets,
+                        )
                     })
                     .collect()
             }) {
@@ -142,6 +153,8 @@ impl MapOfSnaps {
     fn parse_btrfs_relative_path(
         relative: &Path,
         base_mount: &Path,
+        dataset_info: &DatasetMetadata,
+        opt_subvol_id: &Option<PathBuf>,
         map_of_datasets: &HashMap<PathBuf, DatasetMetadata>,
     ) -> Option<PathBuf> {
         let mut path_iter = relative.components();
@@ -152,15 +165,18 @@ impl MapOfSnaps {
 
         match opt_dataset
             .and_then(|dataset| {
-                map_of_datasets
-                    .iter()
-                    .find(|(_mount, metadata)| {
+                map_of_datasets.iter().find_map(|(mount, _metadata)| {
+                    opt_subvol_id.as_ref().and_then(|subvol| {
                         let needle = dataset.as_os_str().to_string_lossy();
-                        let haystack = metadata.source.to_string_lossy();
+                        let haystack = subvol.to_string_lossy();
 
-                        haystack.rfind(needle.as_ref()).is_some()
+                        if haystack.ends_with(needle.as_ref()) {
+                            Some(mount)
+                        } else {
+                            None
+                        }
                     })
-                    .map(|(mount, _metadata)| mount)
+                })
             })
             .map(|mount| mount.join(the_rest))
         {
@@ -168,16 +184,17 @@ impl MapOfSnaps {
                 return Some(snap_mount);
             }
             _ => {
-                let btrfs_root = BTRFS_ROOT.get_or_init(|| {
-                    map_of_datasets
-                        .iter()
-                        .find(|(_mount, metadata)| {
-                            metadata.fs_type == FilesystemType::Btrfs
-                                && metadata.source.to_string_lossy() == "/"
-                        })
-                        .map(|(mount, _metadata)| mount.to_owned())
-                        .unwrap_or(PathBuf::from(ROOT_DIRECTORY))
-                });
+                let btrfs_root = map_of_datasets
+                    .iter()
+                    .find(|(_mount, metadata)| match &metadata.fs_type {
+                        FilesystemType::Btrfs(Some(subvol_id)) => {
+                            metadata.source == dataset_info.source
+                                && subvol_id.to_string_lossy() == ROOT_DIRECTORY
+                        }
+                        _ => false,
+                    })
+                    .map(|(mount, _metadata)| mount.to_owned())
+                    .unwrap_or(PathBuf::from(ROOT_DIRECTORY));
 
                 let mut snap_mount = btrfs_root.to_path_buf().join(relative);
 
@@ -205,7 +222,7 @@ impl MapOfSnaps {
             dataset_metadata: &DatasetMetadata,
         ) -> Result<Vec<PathBuf>, std::io::Error> {
             let snaps = match dataset_metadata.fs_type {
-                FilesystemType::Btrfs => {
+                FilesystemType::Btrfs(_) => {
                     read_dir(mount_point_path.join(BTRFS_SNAPPER_HIDDEN_DIRECTORY))?
                         .flatten()
                         .par_bridge()
