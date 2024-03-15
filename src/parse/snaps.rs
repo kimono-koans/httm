@@ -173,9 +173,7 @@ impl MapOfSnaps {
                     map_of_datasets
                         .iter()
                         .find(|(_mount, metadata)| {
-                            metadata.fs_type == FilesystemType::Btrfs
-                                && metadata.source.to_string_lossy() == "/"
-                                && pre.contains("<FS_TREE>")
+                            metadata.fs_type == FilesystemType::Btrfs && pre.contains("<FS_TREE>")
                         })
                         .map(|(mount, _metadata)| mount.to_owned())
                         .unwrap_or(PathBuf::from(ROOT_DIRECTORY))
