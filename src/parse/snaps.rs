@@ -216,8 +216,6 @@ impl MapOfSnaps {
                     return Some(snap_mount);
                 }
 
-                eprintln!("{:?}", snap_mount);
-
                 snap_mount = base_mount.join(relative);
 
                 if snap_mount.exists() {
