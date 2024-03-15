@@ -30,6 +30,7 @@ use std::fs::read_dir;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::process::Command as ExecProcess;
+use std::sync::Once;
 use which::which;
 
 const BTRFS_COMMAND_REQUIRES_ROOT: &str =
@@ -94,14 +95,23 @@ impl MapOfSnaps {
         map_of_datasets: &HashMap<PathBuf, DatasetMetadata>,
     ) -> Vec<PathBuf> {
         if user_has_effective_root(&BTRFS_COMMAND_REQUIRES_ROOT).is_err() {
-            eprintln!("WARN: httm requires root permissions to detect btrfs snapshot mounts.");
+            static USER_HAS_ROOT_WARNING: Once = Once::new();
+
+            USER_HAS_ROOT_WARNING.call_once(|| {
+                eprintln!("WARN: httm requires root permissions to detect btrfs snapshot mounts.");
+            });
             return Vec::new();
         }
 
         let Ok(btrfs_command) = which("btrfs") else {
-            eprintln!(
-                "WARN: 'btrfs' command not found. Make sure the command 'btrfs' is in your path.",
-            );
+            static BTRFS_COMMAND_AVAILABLE_WARNING: Once = Once::new();
+
+            BTRFS_COMMAND_AVAILABLE_WARNING.call_once(|| {
+                eprintln!(
+                    "WARN: 'btrfs' command not found. Make sure the command 'btrfs' is in your path.",
+                );
+            });
+
             return Vec::new();
         };
 
@@ -120,7 +130,11 @@ impl MapOfSnaps {
                     .ok()
             })
         else {
-            eprintln!("WARN: Could not obtain btrfs command output.",);
+            static COULD_NOT_OBTAIN_BTRFS_COMMAND_OUTPUT: Once = Once::new();
+
+            COULD_NOT_OBTAIN_BTRFS_COMMAND_OUTPUT.call_once(|| {
+                eprintln!("WARN: Could not obtain btrfs command output.",);
+            });
             return Vec::new();
         };
 
@@ -201,6 +215,8 @@ impl MapOfSnaps {
                 if snap_mount.exists() {
                     return Some(snap_mount);
                 }
+
+                eprintln!("{:?}", snap_mount);
 
                 snap_mount = base_mount.join(relative);
 
