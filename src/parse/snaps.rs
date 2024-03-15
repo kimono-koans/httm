@@ -121,13 +121,13 @@ impl MapOfSnaps {
 
         match command_output
             .split_once("Snapshot(s):\n")
-            .map(|(_pre, snap_paths)| {
+            .map(|(pre, snap_paths)| {
                 snap_paths
                     .lines()
                     .map(|line| line.trim())
                     .map(|line| Path::new(line))
                     .filter_map(|relative| {
-                        Self::parse_btrfs_relative_path(relative, base_mount, map_of_datasets)
+                        Self::parse_btrfs_relative_path(pre, relative, base_mount, map_of_datasets)
                     })
                     .collect()
             }) {
@@ -140,6 +140,7 @@ impl MapOfSnaps {
     }
 
     fn parse_btrfs_relative_path(
+        pre: &str,
         relative: &Path,
         base_mount: &Path,
         map_of_datasets: &HashMap<PathBuf, DatasetMetadata>,
@@ -174,6 +175,7 @@ impl MapOfSnaps {
                         .find(|(_mount, metadata)| {
                             metadata.fs_type == FilesystemType::Btrfs
                                 && metadata.source.to_string_lossy() == "/"
+                                && pre.contains("<FS_TREE>")
                         })
                         .map(|(mount, _metadata)| mount.to_owned())
                         .unwrap_or(PathBuf::from(ROOT_DIRECTORY))
