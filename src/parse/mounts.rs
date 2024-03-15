@@ -115,6 +115,8 @@ pub static PROC_MOUNTS: Lazy<PathBuf> = Lazy::new(|| PathBuf::from("/proc/mounts
 
 static ETC_MNTTAB: Lazy<PathBuf> = Lazy::new(|| PathBuf::from("/etc/mnttab"));
 
+pub static BTRFS_ROOT_SUBVOL: Lazy<PathBuf> = Lazy::new(|| PathBuf::from("<FS_TREE>"));
+
 pub struct BaseFilesystemInfo {
     pub map_of_datasets: MapOfDatasets,
     pub map_of_snaps: MapOfSnaps,
@@ -218,7 +220,10 @@ impl BaseFilesystemInfo {
                             .collect();
 
                         let subvol_id = match keyed_options.get("subvol") {
-                            Some(subvol) => PathBuf::from(subvol),
+                            Some(subvol) => match keyed_options.get("subvolid") {
+                                Some(id) if *id == "5" => BTRFS_ROOT_SUBVOL.clone(),
+                                _ => PathBuf::from(subvol),
+                            },
                             None => PathBuf::from(&mount_info.source),
                         };
 

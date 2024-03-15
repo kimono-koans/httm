@@ -17,6 +17,7 @@
 
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::user_has_effective_root;
+use crate::parse::mounts::BTRFS_ROOT_SUBVOL;
 use crate::parse::mounts::PROC_MOUNTS;
 use crate::parse::mounts::{DatasetMetadata, FilesystemType, MountType};
 use crate::{
@@ -201,9 +202,9 @@ impl MapOfSnaps {
                 let btrfs_root = map_of_datasets
                     .iter()
                     .find(|(_mount, metadata)| match &metadata.fs_type {
-                        FilesystemType::Btrfs(Some(subvol_id)) => {
+                        FilesystemType::Btrfs(Some(subvol)) => {
                             metadata.source == dataset_info.source
-                                && subvol_id.to_string_lossy() == ROOT_DIRECTORY
+                                && subvol == BTRFS_ROOT_SUBVOL.as_path()
                         }
                         _ => false,
                     })
