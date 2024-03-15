@@ -113,7 +113,7 @@ impl MaxLen for MapOfDatasets {
 
 pub static PROC_MOUNTS: Lazy<PathBuf> = Lazy::new(|| PathBuf::from("/proc/mounts"));
 
-static ETC_MNTTAB: Lazy<PathBuf> = Lazy::new(|| PathBuf::from("/proc/mounts"));
+static ETC_MNTTAB: Lazy<PathBuf> = Lazy::new(|| PathBuf::from("/etc/mnttab"));
 
 pub struct BaseFilesystemInfo {
     pub map_of_datasets: MapOfDatasets,
