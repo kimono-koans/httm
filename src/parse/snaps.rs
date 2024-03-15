@@ -66,14 +66,11 @@ impl MapOfSnaps {
                     FilesystemType::Zfs | FilesystemType::Nilfs2 | FilesystemType::Apfs => {
                         Self::from_defined_mounts(mount, dataset_info)
                     }
-                    FilesystemType::Btrfs(opt_subvol_id) => match dataset_info.mount_type {
+                    FilesystemType::Btrfs(opt_subvol) => match dataset_info.mount_type {
                         MountType::Network => Self::from_defined_mounts(mount, dataset_info),
-                        MountType::Local => Self::from_btrfs_cmd(
-                            mount,
-                            dataset_info,
-                            opt_subvol_id,
-                            map_of_datasets,
-                        ),
+                        MountType::Local => {
+                            Self::from_btrfs_cmd(mount, dataset_info, opt_subvol, map_of_datasets)
+                        }
                     },
                 };
 
@@ -92,7 +89,7 @@ impl MapOfSnaps {
     fn from_btrfs_cmd(
         base_mount: &Path,
         dataset_info: &DatasetMetadata,
-        opt_subvol_id: &Option<PathBuf>,
+        opt_subvol: &Option<PathBuf>,
         map_of_datasets: &HashMap<PathBuf, DatasetMetadata>,
     ) -> Vec<PathBuf> {
         if user_has_effective_root(&BTRFS_COMMAND_REQUIRES_ROOT).is_err() {
@@ -151,7 +148,7 @@ impl MapOfSnaps {
                             relative,
                             base_mount,
                             dataset_info,
-                            opt_subvol_id,
+                            opt_subvol,
                             map_of_datasets,
                         )
                     })
@@ -169,7 +166,7 @@ impl MapOfSnaps {
         relative: &Path,
         base_mount: &Path,
         dataset_info: &DatasetMetadata,
-        opt_subvol_id: &Option<PathBuf>,
+        opt_subvol: &Option<PathBuf>,
         map_of_datasets: &HashMap<PathBuf, DatasetMetadata>,
     ) -> Option<PathBuf> {
         let mut path_iter = relative.components();
@@ -181,7 +178,7 @@ impl MapOfSnaps {
         match opt_dataset
             .and_then(|dataset| {
                 map_of_datasets.iter().find_map(|(mount, _metadata)| {
-                    opt_subvol_id.as_ref().and_then(|subvol| {
+                    opt_subvol.as_ref().and_then(|subvol| {
                         let needle = dataset.as_os_str().to_string_lossy();
                         let haystack = subvol.to_string_lossy();
 
