@@ -181,8 +181,8 @@ impl MapOfSnaps {
                         return None;
                     }
 
-                    // subvols usually look like /@subvol in mounts info, but are listed elsewhere
-                    // as @subvol, so here we check is the end matches
+                    // btrfs subvols usually look like /@subvol in mounts info, but are listed elsewhere
+                    // as @subvol, so here we simply check if the end matches
                     opt_subvol.as_ref().and_then(|subvol| {
                         let needle = dataset.as_os_str().to_string_lossy();
                         let haystack = subvol.to_string_lossy();
@@ -198,11 +198,19 @@ impl MapOfSnaps {
             .map(|mount| mount.join(the_rest))
         {
             // here we check if the path actually exists because of course this is inexact!
-            Some(snap_mount) if snap_mount.exists() => {
-                return Some(snap_mount);
+            Some(snap_mount) => {
+                if snap_mount.exists() {
+                    Some(snap_mount)
+                } else {
+                    eprintln!(
+                        "WARN: Snapshot mount requested does not exists or perhaps is not mounted: {:?}",
+                        relative
+                    );
+                    None
+                }
             }
-            _ => {
-                // btrfs root is different for each dataset, here, we check to see they have the same device
+            None => {
+                // btrfs root is different for each device, here, we check to see they have the same device
                 // and when we parse mounts we check to see that they have a subvolid of "5", then we replace
                 // whatever subvol name with a special id: <FS_TREE>
                 let btrfs_root = map_of_datasets
@@ -221,10 +229,14 @@ impl MapOfSnaps {
 
                 // here we check if the path actually exists because of course this is inexact!
                 if snap_mount.exists() {
-                    return Some(snap_mount);
+                    Some(snap_mount)
+                } else {
+                    eprintln!(
+                        "WARN: Snapshot mount requested does not exists or perhaps is not mounted: {:?}",
+                        relative
+                    );
+                    None
                 }
-
-                None
             }
         }
     }
