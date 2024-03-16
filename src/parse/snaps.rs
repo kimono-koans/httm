@@ -176,10 +176,13 @@ impl MapOfSnaps {
         match opt_dataset
             .and_then(|dataset| {
                 map_of_datasets.iter().find_map(|(mount, metadata)| {
+                    // if the datasets do not match then can't be the same btrfs subvol
                     if metadata.source != base_mount_metadata.source {
                         return None;
                     }
 
+                    // subvols usually look like /@subvol in mounts info, but are listed elsewhere
+                    // as @subvol, so here we check is the end matches
                     opt_subvol.as_ref().and_then(|subvol| {
                         let needle = dataset.as_os_str().to_string_lossy();
                         let haystack = subvol.to_string_lossy();
@@ -194,10 +197,14 @@ impl MapOfSnaps {
             })
             .map(|mount| mount.join(the_rest))
         {
+            // here we check if the path actually exists because of course this is inexact!
             Some(snap_mount) if snap_mount.exists() => {
                 return Some(snap_mount);
             }
             _ => {
+                // btrfs root is different for each dataset, here, we check to see they have the same device
+                // and when we parse mounts we check to see that they have a subvolid of "5", then we replace
+                // whatever subvol name with a special id: <FS_TREE>
                 let btrfs_root = map_of_datasets
                     .iter()
                     .find(|(_mount, metadata)| match &metadata.fs_type {
@@ -212,6 +219,7 @@ impl MapOfSnaps {
 
                 let snap_mount = btrfs_root.to_path_buf().join(relative);
 
+                // here we check if the path actually exists because of course this is inexact!
                 if snap_mount.exists() {
                     return Some(snap_mount);
                 }
