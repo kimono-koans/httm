@@ -212,13 +212,7 @@ impl MapOfSnaps {
                     .map(|(mount, _metadata)| mount.to_owned())
                     .unwrap_or_else(|| PathBuf::from(ROOT_DIRECTORY));
 
-                let mut snap_mount = btrfs_root.to_path_buf().join(relative);
-
-                if snap_mount.exists() {
-                    return Some(snap_mount);
-                }
-
-                snap_mount = base_mount.join(relative);
+                let snap_mount = btrfs_root.to_path_buf().join(relative);
 
                 if snap_mount.exists() {
                     return Some(snap_mount);
