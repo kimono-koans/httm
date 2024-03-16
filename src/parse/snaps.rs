@@ -203,7 +203,7 @@ impl MapOfSnaps {
                     Some(snap_mount)
                 } else {
                     eprintln!(
-                        "WARN: Snapshot mount requested does not exists or perhaps is not mounted: {:?}",
+                        "WARN: Snapshot mount requested does not exist or perhaps is not mounted: {:?}",
                         relative
                     );
                     None
@@ -232,7 +232,7 @@ impl MapOfSnaps {
                     Some(snap_mount)
                 } else {
                     eprintln!(
-                        "WARN: Snapshot mount requested does not exists or perhaps is not mounted: {:?}",
+                        "WARN: Snapshot mount requested does not exist or perhaps is not mounted: {:?}",
                         relative
                     );
                     None
