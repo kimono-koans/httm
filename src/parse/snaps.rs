@@ -140,7 +140,7 @@ impl MapOfSnaps {
             .split_once("Snapshot(s):\n")
             .map(|(_pre, snap_paths)| {
                 snap_paths
-                    .lines()
+                    .par_lines()
                     .map(|line| line.trim())
                     .map(|line| Path::new(line))
                     .filter_map(|relative| {
