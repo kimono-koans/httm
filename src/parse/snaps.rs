@@ -146,7 +146,6 @@ impl MapOfSnaps {
                     .filter_map(|relative| {
                         Self::parse_btrfs_relative_path(
                             relative,
-                            base_mount,
                             base_mount_metadata,
                             opt_subvol,
                             map_of_datasets,
@@ -164,7 +163,6 @@ impl MapOfSnaps {
 
     fn parse_btrfs_relative_path(
         relative: &Path,
-        base_mount: &Path,
         base_mount_metadata: &DatasetMetadata,
         opt_subvol: &Option<PathBuf>,
         map_of_datasets: &HashMap<PathBuf, DatasetMetadata>,
