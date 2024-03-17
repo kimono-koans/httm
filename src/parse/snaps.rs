@@ -179,7 +179,7 @@ impl MapOfSnaps {
     ) -> Option<PathBuf> {
         let mut path_iter = relative.components();
 
-        let opt_dataset = path_iter.next();
+        let opt_first_snap_component = path_iter.next();
 
         let the_rest = path_iter;
 
@@ -190,7 +190,7 @@ impl MapOfSnaps {
             );
         }
 
-        match opt_dataset
+        match opt_first_snap_component
             .and_then(|dataset| {
                 map_of_datasets.iter().find_map(|(mount, metadata)| {
                     // if the datasets do not match then can't be the same btrfs subvol
@@ -201,10 +201,10 @@ impl MapOfSnaps {
                     // btrfs subvols usually look like /@subvol in mounts info, but are listed elsewhere
                     // as @subvol, so here we simply check if the end matches
                     opt_subvol.as_ref().and_then(|subvol| {
-                        let needle = dataset.as_os_str().to_string_lossy();
+                        let first_snap_component = dataset.as_os_str().to_string_lossy();
                         let haystack = subvol.to_string_lossy();
 
-                        if haystack.ends_with(needle.as_ref()) {
+                        if first_snap_component == haystack.trim_end_matches("/") {
                             Some(mount)
                         } else {
                             None
@@ -212,8 +212,15 @@ impl MapOfSnaps {
                     })
                 })
             })
-            .map(|mount| mount.join(the_rest))
-        {
+            .map(|mount| {
+                let joined = mount.join(the_rest);
+
+                if opt_debug {
+                    eprintln!("DEBUG: Joined path: {:?}", joined);
+                }
+
+                joined
+            }) {
             // here we check if the path actually exists because of course this is inexact!
             Some(snap_mount) => {
                 if snap_mount.exists() {
@@ -245,7 +252,10 @@ impl MapOfSnaps {
                 let snap_mount = btrfs_root.to_path_buf().join(relative);
 
                 if opt_debug {
-                    eprintln!("DEBUG: Btrfs top level {:?}", btrfs_root);
+                    eprintln!(
+                        "DEBUG: Btrfs top level {:?}, Snap Mount: {:?}",
+                        btrfs_root, snap_mount
+                    );
                 }
 
                 // here we check if the path actually exists because of course this is inexact!
