@@ -126,7 +126,7 @@ pub struct BaseFilesystemInfo {
 impl BaseFilesystemInfo {
     // divide by the type of system we are on
     // Linux allows us the read proc mounts
-    pub fn new() -> HttmResult<Self> {
+    pub fn new(opt_debug: bool) -> HttmResult<Self> {
         let (raw_datasets, filter_dirs_set) = if PROC_MOUNTS.exists() {
             Self::from_file(&PROC_MOUNTS)?
         } else if ETC_MNTTAB.exists() {
@@ -135,7 +135,7 @@ impl BaseFilesystemInfo {
             Self::from_mount_cmd()?
         };
 
-        let map_of_snaps = MapOfSnaps::new(&raw_datasets)?;
+        let map_of_snaps = MapOfSnaps::new(&raw_datasets, opt_debug)?;
 
         let map_of_datasets = {
             MapOfDatasets {

@@ -806,6 +806,7 @@ impl Config {
         // alternate filesystems and map of aliases if the user requests
         let dataset_collection = FilesystemInfo::new(
             matches.is_present("ALT_REPLICATED"),
+            opt_debug,
             matches.value_of_os("REMOTE_DIR"),
             matches.value_of_os("LOCAL_DIR"),
             matches.values_of_os("MAP_ALIASES"),
