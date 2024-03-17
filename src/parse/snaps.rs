@@ -199,12 +199,12 @@ impl MapOfSnaps {
                     }
 
                     // btrfs subvols usually look like /@subvol in mounts info, but are listed elsewhere
-                    // as @subvol, so here we simply check if the end matches
+                    // such as the first snap component, as @subvol, so here we remove the leading "/"
                     opt_subvol.as_ref().and_then(|subvol| {
                         let first_snap_component = dataset.as_os_str().to_string_lossy();
-                        let haystack = subvol.to_string_lossy();
+                        let subvol_name = subvol.to_string_lossy();
 
-                        if first_snap_component == haystack.trim_end_matches("/") {
+                        if first_snap_component == subvol_name.trim_end_matches("/") {
                             Some(mount)
                         } else {
                             None
