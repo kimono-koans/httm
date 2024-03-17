@@ -191,7 +191,7 @@ impl MapOfSnaps {
         }
 
         match opt_first_snap_component
-            .and_then(|dataset| {
+            .and_then(|first_snap_component| {
                 map_of_datasets.iter().find_map(|(mount, metadata)| {
                     // if the datasets do not match then can't be the same btrfs subvol
                     if metadata.source != base_mount_metadata.source {
@@ -200,10 +200,10 @@ impl MapOfSnaps {
 
                     // btrfs subvols usually look like /@subvol in mounts info, but are listed elsewhere
                     // such as the first snap component, as @subvol, so here we remove the leading "/"
-                    let first_snap_component = dataset.as_os_str().to_string_lossy();
+                    let potential_dataset = first_snap_component.as_os_str().to_string_lossy();
                     let subvol_name = subvol.to_string_lossy();
 
-                    if first_snap_component == subvol_name.trim_end_matches("/") {
+                    if potential_dataset == subvol_name.trim_end_matches("/") {
                         Some(mount)
                     } else {
                         None
