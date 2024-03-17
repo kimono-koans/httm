@@ -19,7 +19,7 @@ use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::user_has_effective_root;
 use crate::parse::mounts::BTRFS_ROOT_SUBVOL;
 use crate::parse::mounts::PROC_MOUNTS;
-use crate::parse::mounts::{DatasetMetadata, FilesystemType, MountType};
+use crate::parse::mounts::{DatasetMetadata, FilesystemType};
 use crate::{
     BTRFS_SNAPPER_HIDDEN_DIRECTORY, BTRFS_SNAPPER_SUFFIX, ROOT_DIRECTORY, TM_DIR_LOCAL,
     TM_DIR_REMOTE, ZFS_SNAPSHOT_DIRECTORY,
@@ -66,16 +66,16 @@ impl MapOfSnaps {
                     FilesystemType::Zfs | FilesystemType::Nilfs2 | FilesystemType::Apfs => {
                         Self::from_defined_mounts(mount, dataset_info)
                     }
-                    FilesystemType::Btrfs(opt_subvol) => match dataset_info.mount_type {
-                        MountType::Network => Self::from_defined_mounts(mount, dataset_info),
-                        MountType::Local => Self::from_btrfs_cmd(
-                            mount,
-                            dataset_info,
-                            opt_subvol,
-                            map_of_datasets,
-                            opt_debug,
-                        ),
-                    },
+                    // btrfs Some mounts are potential local mount
+                    FilesystemType::Btrfs(Some(subvol)) => Self::from_btrfs_cmd(
+                        mount,
+                        dataset_info,
+                        subvol,
+                        map_of_datasets,
+                        opt_debug,
+                    ),
+                    // btrfs None mounts are potential Snapper network mounts
+                    FilesystemType::Btrfs(None) => Self::from_defined_mounts(mount, dataset_info),
                 };
 
                 (mount.clone(), snap_mounts)
@@ -93,7 +93,7 @@ impl MapOfSnaps {
     fn from_btrfs_cmd(
         base_mount: &Path,
         base_mount_metadata: &DatasetMetadata,
-        opt_subvol: &Option<PathBuf>,
+        subvol: &Path,
         map_of_datasets: &HashMap<PathBuf, DatasetMetadata>,
         opt_debug: bool,
     ) -> Vec<PathBuf> {
@@ -155,7 +155,7 @@ impl MapOfSnaps {
                         Self::parse_btrfs_relative_path(
                             relative,
                             base_mount_metadata,
-                            opt_subvol,
+                            subvol,
                             map_of_datasets,
                             opt_debug,
                         )
@@ -173,7 +173,7 @@ impl MapOfSnaps {
     fn parse_btrfs_relative_path(
         relative: &Path,
         base_mount_metadata: &DatasetMetadata,
-        opt_subvol: &Option<PathBuf>,
+        subvol: &Path,
         map_of_datasets: &HashMap<PathBuf, DatasetMetadata>,
         opt_debug: bool,
     ) -> Option<PathBuf> {
@@ -186,7 +186,7 @@ impl MapOfSnaps {
         if opt_debug {
             eprintln!(
                 "DEBUG: Subvol Name: {:?}, Full Relative Path: {:?}",
-                opt_subvol, relative
+                subvol, relative
             );
         }
 
@@ -200,16 +200,14 @@ impl MapOfSnaps {
 
                     // btrfs subvols usually look like /@subvol in mounts info, but are listed elsewhere
                     // such as the first snap component, as @subvol, so here we remove the leading "/"
-                    opt_subvol.as_ref().and_then(|subvol| {
-                        let first_snap_component = dataset.as_os_str().to_string_lossy();
-                        let subvol_name = subvol.to_string_lossy();
+                    let first_snap_component = dataset.as_os_str().to_string_lossy();
+                    let subvol_name = subvol.to_string_lossy();
 
-                        if first_snap_component == subvol_name.trim_end_matches("/") {
-                            Some(mount)
-                        } else {
-                            None
-                        }
-                    })
+                    if first_snap_component == subvol_name.trim_end_matches("/") {
+                        Some(mount)
+                    } else {
+                        None
+                    }
                 })
             })
             .map(|mount| {

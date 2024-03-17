@@ -48,17 +48,10 @@ pub enum FilesystemType {
     Apfs,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum MountType {
-    Local,
-    Network,
-}
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DatasetMetadata {
     pub source: PathBuf,
     pub fs_type: FilesystemType,
-    pub mount_type: MountType,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -187,7 +180,6 @@ impl BaseFilesystemInfo {
                         DatasetMetadata {
                             source: PathBuf::from(mount_info.source),
                             fs_type: FilesystemType::Zfs,
-                            mount_type: MountType::Local,
                         },
                     )),
                     SMB_FSTYPE | AFP_FSTYPE | NFS_FSTYPE => {
@@ -197,7 +189,6 @@ impl BaseFilesystemInfo {
                                 DatasetMetadata {
                                     source: PathBuf::from(mount_info.source),
                                     fs_type: FilesystemType::Zfs,
-                                    mount_type: MountType::Network,
                                 },
                             )),
                             Some(FilesystemType::Btrfs(None)) => Either::Left((
@@ -205,7 +196,6 @@ impl BaseFilesystemInfo {
                                 DatasetMetadata {
                                     source: PathBuf::from(mount_info.source),
                                     fs_type: FilesystemType::Btrfs(None),
-                                    mount_type: MountType::Network,
                                 },
                             )),
                             _ => Either::Right(dest_path),
@@ -232,7 +222,6 @@ impl BaseFilesystemInfo {
                             DatasetMetadata {
                                 source: mount_info.source,
                                 fs_type: FilesystemType::Btrfs(Some(subvol_id)),
-                                mount_type: MountType::Local,
                             },
                         ))
                     }
@@ -241,7 +230,6 @@ impl BaseFilesystemInfo {
                         DatasetMetadata {
                             source: PathBuf::from(mount_info.source),
                             fs_type: FilesystemType::Nilfs2,
-                            mount_type: MountType::Local,
                         },
                     )),
                     _ => Either::Right(dest_path),
@@ -310,7 +298,6 @@ impl BaseFilesystemInfo {
                     DatasetMetadata {
                         source,
                         fs_type: FilesystemType::Zfs,
-                        mount_type: MountType::Local,
                     },
                 )),
                 Some(FilesystemType::Btrfs(_)) => Either::Left((
@@ -318,7 +305,6 @@ impl BaseFilesystemInfo {
                     DatasetMetadata {
                         source,
                         fs_type: FilesystemType::Btrfs(None),
-                        mount_type: MountType::Local,
                     },
                 )),
                 _ => Either::Right(mount),
@@ -349,7 +335,6 @@ impl BaseFilesystemInfo {
                         let metadata = DatasetMetadata {
                             source: PathBuf::from("timemachine"),
                             fs_type: FilesystemType::Apfs,
-                            mount_type: MountType::Local,
                         };
 
                         // SAFETY: Check no entry is here just above
