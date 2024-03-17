@@ -34,9 +34,6 @@ use std::process::Command as ExecProcess;
 use std::sync::Once;
 use which::which;
 
-const BTRFS_COMMAND_REQUIRES_ROOT: &str =
-    "User must have super user permissions to determine the location of btrfs snapshots";
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MapOfSnaps {
     inner: HashMap<PathBuf, Vec<PathBuf>>,
@@ -100,7 +97,10 @@ impl MapOfSnaps {
         map_of_datasets: &HashMap<PathBuf, DatasetMetadata>,
         opt_debug: bool,
     ) -> Vec<PathBuf> {
-        if user_has_effective_root(&BTRFS_COMMAND_REQUIRES_ROOT).is_err() {
+        const BTRFS_COMMAND_REQUIRES_ROOT: &str =
+            "User must have super user permissions to determine the location of btrfs snapshots";
+
+        if let Err(_err) = user_has_effective_root(&BTRFS_COMMAND_REQUIRES_ROOT) {
             static USER_HAS_ROOT_WARNING: Once = Once::new();
 
             USER_HAS_ROOT_WARNING.call_once(|| {
