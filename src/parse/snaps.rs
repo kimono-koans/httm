@@ -185,7 +185,7 @@ impl MapOfSnaps {
 
         if opt_debug {
             eprintln!(
-                "DEBUG: Subvol: {:?}, Full Relative Path: {:?}",
+                "DEBUG: Subvol Name: {:?}, Full Relative Path: {:?}",
                 opt_subvol, relative
             );
         }
