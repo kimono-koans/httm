@@ -67,9 +67,13 @@ impl MapOfSnaps {
                         Self::from_defined_mounts(mount, dataset_info)
                     }
                     // btrfs Some mounts are potential local mount
-                    FilesystemType::Btrfs(Some(_)) => {
-                        Self::from_btrfs_cmd(mount, dataset_info, map_of_datasets, opt_debug)
-                    }
+                    FilesystemType::Btrfs(Some(base_subvol)) => Self::from_btrfs_cmd(
+                        mount,
+                        dataset_info,
+                        &base_subvol,
+                        map_of_datasets,
+                        opt_debug,
+                    ),
                     // btrfs None mounts are potential Snapper network mounts
                     FilesystemType::Btrfs(None) => Self::from_defined_mounts(mount, dataset_info),
                 };
@@ -89,6 +93,7 @@ impl MapOfSnaps {
     fn from_btrfs_cmd(
         base_mount: &Path,
         base_mount_metadata: &DatasetMetadata,
+        base_subvol: &Path,
         map_of_datasets: &HashMap<PathBuf, DatasetMetadata>,
         opt_debug: bool,
     ) -> Vec<PathBuf> {
@@ -148,8 +153,10 @@ impl MapOfSnaps {
                     .map(|line| Path::new(line))
                     .filter_map(|relative| {
                         Self::parse_btrfs_relative_path(
-                            relative,
+                            base_mount,
                             &base_mount_metadata.source,
+                            base_subvol,
+                            relative,
                             map_of_datasets,
                             opt_debug,
                         )
@@ -165,8 +172,10 @@ impl MapOfSnaps {
     }
 
     fn parse_btrfs_relative_path(
-        snap_relative: &Path,
+        base_mount: &Path,
         base_mount_source: &Path,
+        base_subvol: &Path,
+        snap_relative: &Path,
         map_of_datasets: &HashMap<PathBuf, DatasetMetadata>,
         opt_debug: bool,
     ) -> Option<PathBuf> {
@@ -177,7 +186,10 @@ impl MapOfSnaps {
         let the_rest = path_iter;
 
         if opt_debug {
-            eprintln!("DEBUG: Full Relative Path: {:?}", snap_relative);
+            eprintln!(
+                "DEBUG: Base mount: {:?}, Base subvol: {:?}, Snap Relative Path: {:?}",
+                base_mount, base_subvol, snap_relative
+            );
         }
 
         match opt_first_snap_component
@@ -185,6 +197,12 @@ impl MapOfSnaps {
                 // btrfs subvols usually look like /@subvol in mounts info, but are listed elsewhere
                 // such as the first snap component, as @subvol, so here we remove the leading "/"
                 let potential_dataset = first_snap_component.as_os_str().to_string_lossy();
+                let base_subvol_name = base_subvol.to_string_lossy();
+
+                // short circuit -- if subvol is same as dataset return base mount
+                if potential_dataset == base_subvol_name.trim_end_matches("/") {
+                    return Some(base_mount);
+                }
 
                 map_of_datasets.iter().find_map(|(mount, metadata)| {
                     // if the datasets do not match then can't be the same btrfs subvol
@@ -197,7 +215,7 @@ impl MapOfSnaps {
                             let subvol_name = subvol.to_string_lossy();
 
                             if potential_dataset == subvol_name.trim_end_matches("/") {
-                                Some(mount)
+                                Some(mount.as_path())
                             } else {
                                 None
                             }
