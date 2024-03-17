@@ -43,12 +43,13 @@ pub struct FilesystemInfo {
 impl FilesystemInfo {
     pub fn new(
         opt_alt_replicated: bool,
+        opt_debug: bool,
         opt_remote_dir: Option<&OsStr>,
         opt_local_dir: Option<&OsStr>,
         opt_map_aliases: Option<OsValues>,
         pwd: &Path,
     ) -> HttmResult<FilesystemInfo> {
-        let base_fs_info = BaseFilesystemInfo::new()?;
+        let base_fs_info = BaseFilesystemInfo::new(opt_debug)?;
 
         // for a collection of btrfs mounts, indicates a common snapshot directory to ignore
         let opt_common_snap_dir = base_fs_info.common_snap_dir();

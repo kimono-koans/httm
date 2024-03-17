@@ -58,7 +58,10 @@ impl Deref for MapOfSnaps {
 
 impl MapOfSnaps {
     // fans out precompute of snap mounts to the appropriate function based on fstype
-    pub fn new(map_of_datasets: &HashMap<PathBuf, DatasetMetadata>) -> HttmResult<Self> {
+    pub fn new(
+        map_of_datasets: &HashMap<PathBuf, DatasetMetadata>,
+        opt_debug: bool,
+    ) -> HttmResult<Self> {
         let map_of_snaps: HashMap<PathBuf, Vec<PathBuf>> = map_of_datasets
             .par_iter()
             .map(|(mount, dataset_info)| {
@@ -68,9 +71,13 @@ impl MapOfSnaps {
                     }
                     FilesystemType::Btrfs(opt_subvol) => match dataset_info.mount_type {
                         MountType::Network => Self::from_defined_mounts(mount, dataset_info),
-                        MountType::Local => {
-                            Self::from_btrfs_cmd(mount, dataset_info, opt_subvol, map_of_datasets)
-                        }
+                        MountType::Local => Self::from_btrfs_cmd(
+                            mount,
+                            dataset_info,
+                            opt_subvol,
+                            map_of_datasets,
+                            opt_debug,
+                        ),
                     },
                 };
 
@@ -91,6 +98,7 @@ impl MapOfSnaps {
         base_mount_metadata: &DatasetMetadata,
         opt_subvol: &Option<PathBuf>,
         map_of_datasets: &HashMap<PathBuf, DatasetMetadata>,
+        opt_debug: bool,
     ) -> Vec<PathBuf> {
         if user_has_effective_root(&BTRFS_COMMAND_REQUIRES_ROOT).is_err() {
             static USER_HAS_ROOT_WARNING: Once = Once::new();
@@ -149,6 +157,7 @@ impl MapOfSnaps {
                             base_mount_metadata,
                             opt_subvol,
                             map_of_datasets,
+                            opt_debug,
                         )
                     })
                     .collect()
@@ -166,12 +175,20 @@ impl MapOfSnaps {
         base_mount_metadata: &DatasetMetadata,
         opt_subvol: &Option<PathBuf>,
         map_of_datasets: &HashMap<PathBuf, DatasetMetadata>,
+        opt_debug: bool,
     ) -> Option<PathBuf> {
         let mut path_iter = relative.components();
 
         let opt_dataset = path_iter.next();
 
         let the_rest = path_iter;
+
+        if opt_debug {
+            eprintln!(
+                "DEBUG: Subvol: {:?}, Full Relative Path: {:?}",
+                opt_subvol, relative
+            );
+        }
 
         match opt_dataset
             .and_then(|dataset| {
@@ -226,6 +243,10 @@ impl MapOfSnaps {
                     .unwrap_or_else(|| PathBuf::from(ROOT_DIRECTORY));
 
                 let snap_mount = btrfs_root.to_path_buf().join(relative);
+
+                if opt_debug {
+                    eprintln!("DEBUG: Btrfs top level {:?}", btrfs_root);
+                }
 
                 // here we check if the path actually exists because of course this is inexact!
                 if snap_mount.exists() {
