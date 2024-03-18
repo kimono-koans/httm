@@ -204,7 +204,7 @@ impl MapOfSnaps {
                 let base_subvol_name = base_subvol.to_string_lossy();
 
                 // short circuit -- if subvol is same as dataset return base mount
-                if potential_dataset == base_subvol_name.trim_end_matches("/") {
+                if potential_dataset == base_subvol_name.trim_start_matches("/") {
                     return Some(base_mount);
                 }
 
@@ -218,7 +218,7 @@ impl MapOfSnaps {
                         FilesystemType::Btrfs(Some(subvol)) => {
                             let subvol_name = subvol.to_string_lossy();
 
-                            if potential_dataset == subvol_name.trim_end_matches("/") {
+                            if potential_dataset == subvol_name.trim_start_matches("/") {
                                 Some(mount.as_path())
                             } else {
                                 None
