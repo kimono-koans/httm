@@ -146,7 +146,11 @@ impl MapOfSnaps {
 
         match command_output
             .split_once("Snapshot(s):\n")
-            .map(|(_pre, snap_paths)| {
+            .map(|(_first, last)| match last.rsplit_once("Quota group:") {
+                Some((snap_paths, _remainder)) => snap_paths,
+                None => last,
+            })
+            .map(|snap_paths| {
                 snap_paths
                     .par_lines()
                     .map(|line| line.trim())
@@ -165,7 +169,7 @@ impl MapOfSnaps {
             }) {
             Some(vec) => vec,
             None => {
-                eprintln!("WARN: No snaps found for mount: {:?}", base_mount);
+                //eprintln!("WARN: No snaps found for mount: {:?}", base_mount);
                 Vec::new()
             }
         }
