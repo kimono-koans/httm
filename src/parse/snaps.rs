@@ -265,7 +265,7 @@ impl MapOfSnaps {
                     .map(|(mount, _metadata)| mount.to_owned())
                     .unwrap_or_else(|| PathBuf::from(ROOT_DIRECTORY));
 
-                let snap_mount = btrfs_root.to_path_buf().join(snap_relative);
+                let snap_mount = btrfs_root.join(snap_relative);
 
                 if opt_debug {
                     eprintln!(
