@@ -209,19 +209,18 @@ impl BaseFilesystemInfo {
                             .filter_map(|line| line.split_once('='))
                             .collect();
 
-                        let subvol_id = match keyed_options.get("subvol") {
-                            Some(subvol) => match keyed_options.get("subvolid") {
+                        let opt_subvol = keyed_options.get("subvol").map(|subvol| {
+                            match keyed_options.get("subvolid") {
                                 Some(id) if *id == "5" => BTRFS_ROOT_SUBVOL.clone(),
                                 _ => PathBuf::from(subvol),
-                            },
-                            None => PathBuf::from(&mount_info.source),
-                        };
+                            }
+                        });
 
                         Either::Left((
                             dest_path,
                             DatasetMetadata {
                                 source: mount_info.source,
-                                fs_type: FilesystemType::Btrfs(Some(subvol_id)),
+                                fs_type: FilesystemType::Btrfs(opt_subvol),
                             },
                         ))
                     }
