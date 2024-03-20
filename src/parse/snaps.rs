@@ -98,13 +98,13 @@ impl MapOfSnaps {
         opt_debug: bool,
     ) -> Vec<PathBuf> {
         const BTRFS_COMMAND_REQUIRES_ROOT: &str =
-            "User must have super user permissions to determine the location of btrfs snapshots";
+            "btrfs mounts detected.  User must have super user permissions to determine the location of btrfs snapshots";
 
-        if let Err(err) = user_has_effective_root(&BTRFS_COMMAND_REQUIRES_ROOT) {
+        if let Err(_err) = user_has_effective_root(&BTRFS_COMMAND_REQUIRES_ROOT) {
             static USER_HAS_ROOT_WARNING: Once = Once::new();
 
             USER_HAS_ROOT_WARNING.call_once(|| {
-                eprintln!("WARN: {}", err.to_string());
+                eprintln!("WARN: {}", BTRFS_COMMAND_REQUIRES_ROOT);
             });
             return Vec::new();
         }
