@@ -32,22 +32,11 @@ use terminal_size::Width;
 
 use std::path::{Path, PathBuf};
 
-pub struct InteractiveRestore {
-    select_result: InteractiveSelect,
-}
-
-impl From<InteractiveSelect> for InteractiveRestore {
-    fn from(value: InteractiveSelect) -> Self {
-        Self {
-            select_result: value,
-        }
-    }
-}
+pub type InteractiveRestore = InteractiveSelect;
 
 impl InteractiveRestore {
     pub fn restore(&self) -> HttmResult<()> {
-        self.select_result
-            .snap_path_strings
+        self.snap_path_strings
             .iter()
             .try_for_each(|snap_path_string| self.restore_per_path(snap_path_string))
     }
@@ -180,7 +169,7 @@ impl InteractiveRestore {
             // so, if you were in /etc and wanted to restore /etc/samba/smb.conf, httm will make certain to overwrite
             // at /etc/samba/smb.conf
 
-            return self.select_result.opt_live_version(snap_pathdata);
+            return self.opt_live_version(snap_pathdata);
         }
 
         let snap_filename = snap_pathdata
