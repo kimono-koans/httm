@@ -30,8 +30,8 @@ use std::fs::{create_dir_all, read_dir, set_permissions};
 use std::iter::Iterator;
 use std::path::Path;
 
-const CHAR_KIND: SFlag = SFlag::from_bits_truncate(8192);
-const BLK_KIND: SFlag = SFlag::from_bits_truncate(24576);
+const CHAR_KIND: SFlag = nix::sys::stat::SFlag::S_IFCHR;
+const BLK_KIND: SFlag = nix::sys::stat::SFlag::S_IFBLK;
 
 pub struct Copy;
 
