@@ -42,26 +42,6 @@ impl SpawnDeletedThread {
         let hangup_rx_clone = hangup_rx.clone();
 
         deleted_scope.spawn(move |_| {
-            #[cfg(feature = "setpriority")]
-            #[cfg(target_os = "linux")]
-            #[cfg(target_env = "gnu")]
-            {
-                use crate::config::generate::ExecMode;
-                use crate::library::utility::ThreadPriorityType;
-
-                let tid = std::process::id();
-                if !matches!(
-                    GLOBAL_CONFIG.exec_mode,
-                    ExecMode::NonInteractiveRecursive(_)
-                ) {
-                    match GLOBAL_CONFIG.opt_deleted_mode {
-                        Some(DeletedMode::Only) => (),
-                        _ => {
-                            let _ = ThreadPriorityType::Process.nice_thread(Some(tid), 1i32);
-                        }
-                    }
-                }
-            }
             let _ = Self::enter_directory(&requested_dir_clone, &skim_tx_clone, &hangup_rx_clone);
         })
     }

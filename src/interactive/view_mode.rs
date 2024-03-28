@@ -67,26 +67,6 @@ impl ViewMode {
 
         // thread spawn fn enumerate_directory - permits recursion into dirs without blocking
         rayon::spawn(move || {
-            #[cfg(feature = "setpriority")]
-            #[cfg(target_os = "linux")]
-            #[cfg(target_env = "gnu")]
-            {
-                use crate::config::generate::ExecMode;
-                use crate::library::utility::ThreadPriorityType;
-
-                let tid = std::process::id();
-                if !matches!(
-                    GLOBAL_CONFIG.exec_mode,
-                    ExecMode::NonInteractiveRecursive(_)
-                ) {
-                    match GLOBAL_CONFIG.opt_deleted_mode {
-                        Some(DeletedMode::Only) => (),
-                        _ => {
-                            let _ = ThreadPriorityType::Process.nice_thread(Some(tid), 1i32);
-                        }
-                    }
-                }
-            }
             // no way to propagate error from closure so exit and explain error here
             RecursiveSearch::exec(&requested_dir_clone, tx_item.clone(), hangup_rx.clone());
         });
