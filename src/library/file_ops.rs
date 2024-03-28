@@ -30,6 +30,9 @@ use std::fs::{create_dir_all, read_dir, set_permissions};
 use std::iter::Iterator;
 use std::path::Path;
 
+const CHAR_KIND: SFlag = SFlag::from_bits_truncate(8192);
+const BLK_KIND: SFlag = SFlag::from_bits_truncate(24576);
+
 pub struct Copy;
 
 impl Copy {
@@ -79,9 +82,6 @@ impl Copy {
     }
 
     fn special_file(src: &Path, dst: &Path) -> HttmResult<()> {
-        const CHAR_KIND: SFlag = SFlag::from_bits_truncate(libc::S_IFCHR);
-        const BLK_KIND: SFlag = SFlag::from_bits_truncate(libc::S_IFBLK);
-
         let src_metadata = src.metadata()?;
         let src_file_type = src_metadata.file_type();
         let src_mode_bits = src_metadata.mode();

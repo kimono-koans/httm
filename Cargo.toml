@@ -27,14 +27,12 @@ std = ["xattrs", "malloc_trim"]
 # acls feature - requires libacl1-dev to build
 acls = ["exacl"]
 xattrs = ["xattr"]
-malloc_trim = ["libc", "skim/malloc_trim"]
-setpriority = ["libc"]
+malloc_trim = ["skim/malloc_trim"]
 licensing = ["lms", "itertools"]
 
 [target.'cfg(unix)'.dependencies]
 exacl = { version = "0.12.0", default-features = false, optional = true }
 xattr = { version = "1.3.1", default-features = false, optional = true }
-libc = { version = "0.2.152", default-features = false, optional = true }
 
 [dependencies]
 ahash = { version = "0.8.11", default-features = false }
@@ -54,7 +52,7 @@ lscolors = { version = "0.17.0", default-features = false, features = [
     "nu-ansi-term",
 ] }
 terminal_size = { version = "0.3.0", default-features = false }
-which = { version = "6.0.0", default-features = false }
+which = { version = "6.0.1", default-features = false }
 rayon = { version = "1.9.0", default-features = false }
 indicatif = { version = "0.17.8", default-features = false }
 proc-mounts = { version = "0.3.0", default-features = false }

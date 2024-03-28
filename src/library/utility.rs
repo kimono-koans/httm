@@ -36,47 +36,6 @@ use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 use time::{format_description, OffsetDateTime, UtcOffset};
 
-#[cfg(feature = "setpriority")]
-#[cfg(target_os = "linux")]
-#[cfg(target_env = "gnu")]
-#[allow(dead_code)]
-pub enum ThreadPriorityType {
-    Process = 0,
-    PGroup = 1,
-    User = 2,
-}
-
-#[cfg(feature = "setpriority")]
-#[cfg(target_os = "linux")]
-#[cfg(target_env = "gnu")]
-impl ThreadPriorityType {
-    // nice calling thread to a specified level
-    pub fn nice_thread(self, opt_tid: Option<u32>, priority_level: i32) -> HttmResult<()> {
-        let tid = opt_tid.unwrap_or_else(|| std::process::id());
-
-        // #[cfg(any(target_os = "macos", target_os = "freebsd"))]
-        // unsafe {
-        //     let _ = libc::setpriority(priority_type as i32, tid, priority_level);
-        // };
-
-        unsafe {
-            let priority_type = self as u32;
-            let _ = libc::setpriority(priority_type, tid, priority_level);
-        }
-
-        Ok(())
-    }
-}
-
-#[cfg(feature = "malloc_trim")]
-#[cfg(target_os = "linux")]
-#[cfg(target_env = "gnu")]
-pub fn malloc_trim() {
-    unsafe {
-        let _ = libc::malloc_trim(0);
-    }
-}
-
 pub fn user_has_effective_root(msg: &str) -> HttmResult<()> {
     if !nix::unistd::geteuid().is_root() {
         let err = format!("Superuser privileges are required to execute: {}.", msg);

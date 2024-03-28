@@ -66,7 +66,27 @@ impl ViewMode {
         let (hangup_tx, hangup_rx): (Sender<Never>, Receiver<Never>) = bounded(0);
 
         // thread spawn fn enumerate_directory - permits recursion into dirs without blocking
-        let background_handle = thread::spawn(move || {
+        rayon::spawn(move || {
+            #[cfg(feature = "setpriority")]
+            #[cfg(target_os = "linux")]
+            #[cfg(target_env = "gnu")]
+            {
+                use crate::config::generate::ExecMode;
+                use crate::library::utility::ThreadPriorityType;
+
+                let tid = std::process::id();
+                if !matches!(
+                    GLOBAL_CONFIG.exec_mode,
+                    ExecMode::NonInteractiveRecursive(_)
+                ) {
+                    match GLOBAL_CONFIG.opt_deleted_mode {
+                        Some(DeletedMode::Only) => (),
+                        _ => {
+                            let _ = ThreadPriorityType::Process.nice_thread(Some(tid), 1i32);
+                        }
+                    }
+                }
+            }
             // no way to propagate error from closure so exit and explain error here
             RecursiveSearch::exec(&requested_dir_clone, tx_item.clone(), hangup_rx.clone());
         });
@@ -99,18 +119,7 @@ impl ViewMode {
             }
             Some(output) => {
                 // hangup the channel so the background recursive search can gracefully cleanup and exit
-                rayon::spawn(move || {
-                    drop(hangup_tx);
-                    drop(background_handle);
-
-                    #[cfg(feature = "malloc_trim")]
-                    #[cfg(target_os = "linux")]
-                    #[cfg(target_env = "gnu")]
-                    {
-                        use crate::library::utility::malloc_trim;
-                        malloc_trim();
-                    }
-                });
+                drop(hangup_tx);
 
                 let selected_pathdata: Vec<PathData> = output
                     .selected_items
