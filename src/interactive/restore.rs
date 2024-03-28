@@ -17,6 +17,8 @@
 
 use crate::config::generate::{ExecMode, InteractiveMode, RestoreMode, RestoreSnapGuard};
 use crate::data::paths::PathData;
+use crate::data::paths::PathDeconstruction;
+use crate::data::paths::ZfsSnapPathGuard;
 use crate::interactive::select::InteractiveSelect;
 use crate::interactive::view_mode::MultiSelect;
 use crate::interactive::view_mode::ViewMode;
@@ -32,7 +34,21 @@ use terminal_size::Width;
 
 use std::path::{Path, PathBuf};
 
-pub type InteractiveRestore = InteractiveSelect;
+pub struct InteractiveRestore {
+    pub view_mode: ViewMode,
+    pub snap_path_strings: Vec<String>,
+    pub opt_live_version: Option<String>,
+}
+
+impl From<InteractiveSelect> for InteractiveRestore {
+    fn from(interactive_select: InteractiveSelect) -> Self {
+        Self {
+            view_mode: ViewMode::Restore,
+            snap_path_strings: interactive_select.snap_path_strings,
+            opt_live_version: interactive_select.opt_live_version,
+        }
+    }
+}
 
 impl InteractiveRestore {
     pub fn restore(&self) -> HttmResult<()> {
@@ -54,7 +70,7 @@ impl InteractiveRestore {
         let should_preserve = Self::should_preserve_attributes();
 
         // tell the user what we're up to, and get consent
-        let preview_buffer = format!(
+        let restore_buffer = format!(
             "httm will perform a copy from snapshot:\n\n\
             \tsource:\t{:?}\n\
             \ttarget:\t{new_file_path_buf:?}\n\n\
@@ -69,7 +85,7 @@ impl InteractiveRestore {
         loop {
             let view_mode = ViewMode::Restore;
 
-            let selection = InteractiveSelect::view(&view_mode, &preview_buffer, MultiSelect::Off)?;
+            let selection = InteractiveSelect::view(&view_mode, &restore_buffer, MultiSelect::Off)?;
 
             let user_consent = selection
                 .get(0)
@@ -156,6 +172,16 @@ impl InteractiveRestore {
                 RestoreMode::CopyAndPreserve | RestoreMode::Overwrite(_)
             ))
         )
+    }
+
+    pub fn opt_live_version(&self, snap_pathdata: &PathData) -> HttmResult<PathBuf> {
+        match &self.opt_live_version {
+            Some(live_version) => Some(PathBuf::from(live_version)),
+            None => {
+                ZfsSnapPathGuard::new(snap_pathdata).and_then(|snap_guard| snap_guard.live_path())
+            }
+        }
+        .ok_or_else(|| HttmError::new("Could not determine a possible live version.").into())
     }
 
     fn build_new_file_path(&self, snap_pathdata: &PathData) -> HttmResult<PathBuf> {

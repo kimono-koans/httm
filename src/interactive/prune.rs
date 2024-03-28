@@ -110,7 +110,7 @@ impl InteractivePrune {
             .map(|name| format!("{name}\n"))
             .collect();
 
-        let preview_buffer = format!(
+        let prune_buffer = format!(
             "User has requested snapshots related to the following file/s be pruned:\n\n{}\n\
             httm will destroy the following snapshot/s:\n\n{}\n\
             Before httm destroys these snapshot/s, it would like your consent. Continue? (YES/NO)\n\
@@ -124,7 +124,7 @@ impl InteractivePrune {
         loop {
             let view_mode = ViewMode::Prune;
 
-            let selection = InteractiveSelect::view(&view_mode, &preview_buffer, MultiSelect::Off)?;
+            let selection = InteractiveSelect::view(&view_mode, &prune_buffer, MultiSelect::Off)?;
 
             let user_consent = selection
                 .get(0)

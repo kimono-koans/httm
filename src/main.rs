@@ -79,6 +79,7 @@ use config::generate::{Config, ExecMode};
 use display_map::format::PrintAsMap;
 use display_versions::wrapper::VersionsDisplayWrapper;
 use interactive::prune::PruneSnaps;
+use interactive::restore::InteractiveRestore;
 use library::results::HttmResult;
 use library::snap_mounts::SnapshotMounts;
 use library::utility::print_output_buf;
@@ -129,7 +130,9 @@ fn exec() -> HttmResult<()> {
                 InteractiveMode::Restore(_) => {
                     let interactive_select = InteractiveSelect::try_from(&browse_result)?;
 
-                    interactive_select.restore()
+                    let interactive_restore = InteractiveRestore::from(interactive_select);
+
+                    interactive_restore.restore()
                 }
                 InteractiveMode::Select(select_mode) => {
                     let interactive_select = InteractiveSelect::try_from(&browse_result)?;

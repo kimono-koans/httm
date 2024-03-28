@@ -16,8 +16,6 @@
 // that was distributed with this source code.
 
 use crate::config::generate::{PrintMode, SelectMode};
-use crate::data::paths::PathDeconstruction;
-use crate::data::paths::{PathData, ZfsSnapPathGuard};
 use crate::display_versions::wrapper::VersionsDisplayWrapper;
 use crate::interactive::preview::PreviewSelection;
 use crate::interactive::view_mode::MultiSelect;
@@ -37,6 +35,7 @@ use std::process::Command as ExecProcess;
 use super::browse::InteractiveBrowse;
 
 pub struct InteractiveSelect {
+    pub view_mode: ViewMode,
     pub snap_path_strings: Vec<String>,
     pub opt_live_version: Option<String>,
 }
@@ -71,6 +70,8 @@ impl TryFrom<&InteractiveBrowse> for InteractiveSelect {
                 .map(|pathdata| pathdata.path_buf.to_string_lossy().into_owned())
         };
 
+        let view_mode = ViewMode::Select(opt_live_version.clone());
+
         let snap_path_strings = if GLOBAL_CONFIG.opt_last_snap.is_some() {
             Self::last_snap(&versions_map)
         } else {
@@ -80,8 +81,6 @@ impl TryFrom<&InteractiveBrowse> for InteractiveSelect {
             let display_map = VersionsDisplayWrapper::from(&display_config, versions_map);
 
             let selection_buffer = display_map.to_string();
-
-            let view_mode = ViewMode::Select(opt_live_version.clone());
 
             display_map.map.iter().try_for_each(|(live, snaps)| {
                 if snaps.is_empty() {
@@ -125,6 +124,7 @@ impl TryFrom<&InteractiveBrowse> for InteractiveSelect {
         };
 
         Ok(Self {
+            view_mode,
             snap_path_strings,
             opt_live_version,
         })
@@ -194,7 +194,7 @@ impl InteractiveSelect {
                 Ok(())
             }
             SelectMode::Preview => {
-                let view_mode = ViewMode::Select(self.opt_live_version.clone());
+                let view_mode = &self.view_mode;
 
                 let preview_selection = PreviewSelection::new(&view_mode)?;
 
@@ -243,19 +243,9 @@ impl InteractiveSelect {
         }
     }
 
-    pub fn opt_live_version(&self, snap_pathdata: &PathData) -> HttmResult<PathBuf> {
-        match &self.opt_live_version {
-            Some(live_version) => Some(PathBuf::from(live_version)),
-            None => {
-                ZfsSnapPathGuard::new(snap_pathdata).and_then(|snap_guard| snap_guard.live_path())
-            }
-        }
-        .ok_or_else(|| HttmError::new("Could not determine a possible live version.").into())
-    }
-
     pub fn view(
         view_mode: &ViewMode,
-        preview_buffer: &str,
+        buffer: &str,
         opt_multi: MultiSelect,
     ) -> HttmResult<Vec<String>> {
         let preview_selection = PreviewSelection::new(&view_mode)?;
@@ -287,7 +277,7 @@ impl InteractiveSelect {
         let item_reader = SkimItemReader::new(item_reader_opts);
 
         let (items, opt_ingest_handle) =
-            item_reader.of_bufread(Box::new(Cursor::new(preview_buffer.trim().to_owned())));
+            item_reader.of_bufread(Box::new(Cursor::new(buffer.trim().to_owned())));
 
         // run_with() reads and shows items from the thread stream created above
         let res = match skim::Skim::run_with(&skim_opts, Some(items)) {
