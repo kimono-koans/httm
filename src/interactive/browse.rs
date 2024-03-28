@@ -20,29 +20,25 @@ use crate::interactive::view_mode::ViewMode;
 use crate::library::results::{HttmError, HttmResult};
 use crate::GLOBAL_CONFIG;
 
-use std::thread::JoinHandle;
-
 #[derive(Debug)]
-pub struct InteractiveBrowse {
-    pub selected_pathdata: Vec<PathData>,
-    pub opt_background_handle: Option<JoinHandle<()>>,
-}
+pub struct InteractiveBrowse;
 
 impl InteractiveBrowse {
-    pub fn new() -> HttmResult<InteractiveBrowse> {
+    pub fn new() -> HttmResult<Vec<PathData>> {
         let browse_result = match &GLOBAL_CONFIG.opt_requested_dir {
             // collect string paths from what we get from lookup_view
             Some(requested_dir) => {
                 let view_mode = ViewMode::Browse;
-                let browse_result = view_mode.browse(requested_dir)?;
-                if browse_result.selected_pathdata.is_empty() {
+                let selected_pathdata = view_mode.browse(requested_dir)?;
+
+                if selected_pathdata.is_empty() {
                     return Err(HttmError::new(
                         "None of the selected strings could be converted to paths.",
                     )
                     .into());
                 }
 
-                browse_result
+                selected_pathdata
             }
             None => {
                 // go to interactive_select early if user has already requested a file
@@ -52,16 +48,13 @@ impl InteractiveBrowse {
                     Some(first_path) => {
                         let selected_file = first_path.clone();
 
-                        Self {
-                            selected_pathdata: vec![selected_file],
-                            opt_background_handle: None,
-                        }
+                        vec![selected_file]
                     }
                     // Config::from should never allow us to have an instance where we don't
                     // have at least one path to use
                     None => unreachable!(
-            "GLOBAL_CONFIG.paths.get(0) should never be a None value in Interactive Mode"
-          ),
+                        "GLOBAL_CONFIG.paths.get(0) should never be a None value in Interactive Mode"
+                    ),
                 }
             }
         };

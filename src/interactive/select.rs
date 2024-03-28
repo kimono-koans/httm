@@ -19,7 +19,6 @@ use crate::config::generate::{InteractiveMode, PrintMode, SelectMode};
 use crate::data::paths::PathDeconstruction;
 use crate::data::paths::{PathData, ZfsSnapPathGuard};
 use crate::display_versions::wrapper::VersionsDisplayWrapper;
-use crate::interactive::browse::InteractiveBrowse;
 use crate::interactive::preview::PreviewSelection;
 use crate::interactive::restore::InteractiveRestore;
 use crate::interactive::view_mode::MultiSelect;
@@ -40,11 +39,11 @@ pub struct InteractiveSelect {
 
 impl InteractiveSelect {
     pub fn exec(
-        browse_result: InteractiveBrowse,
+        selected_pathdata: Vec<PathData>,
         interactive_mode: &InteractiveMode,
     ) -> HttmResult<()> {
         // continue to interactive_restore or print and exit here?
-        let select_result = Self::new(browse_result)?;
+        let select_result = Self::new(selected_pathdata)?;
 
         match interactive_mode {
             // one only allow one to select one path string during select
@@ -61,13 +60,12 @@ impl InteractiveSelect {
         std::process::exit(0);
     }
 
-    fn new(browse_result: InteractiveBrowse) -> HttmResult<Self> {
-        let versions_map = VersionsMap::new(&GLOBAL_CONFIG, &browse_result.selected_pathdata)?;
+    fn new(selected_pathdata: Vec<PathData>) -> HttmResult<Self> {
+        let versions_map = VersionsMap::new(&GLOBAL_CONFIG, &selected_pathdata)?;
 
         // snap and live set has no snaps
         if versions_map.is_empty() {
-            let paths: Vec<String> = browse_result
-                .selected_pathdata
+            let paths: Vec<String> = selected_pathdata
                 .iter()
                 .map(|path| path.path_buf.to_string_lossy().to_string())
                 .collect();
@@ -79,11 +77,10 @@ impl InteractiveSelect {
             return Err(HttmError::new(&msg).into());
         }
 
-        let opt_live_version: Option<String> = if browse_result.selected_pathdata.len() > 1 {
+        let opt_live_version: Option<String> = if selected_pathdata.len() > 1 {
             None
         } else {
-            browse_result
-                .selected_pathdata
+            selected_pathdata
                 .get(0)
                 .map(|pathdata| pathdata.path_buf.to_string_lossy().into_owned())
         };
@@ -92,7 +89,7 @@ impl InteractiveSelect {
             Self::last_snap(&versions_map)
         } else {
             // same stuff we do at fn exec, snooze...
-            let display_config = Config::from(browse_result.selected_pathdata.clone());
+            let display_config = Config::from(selected_pathdata.clone());
 
             let display_map = VersionsDisplayWrapper::from(&display_config, versions_map);
 
@@ -139,10 +136,6 @@ impl InteractiveSelect {
                 break requested_file_names;
             }
         };
-
-        if let Some(handle) = browse_result.opt_background_handle {
-            let _ = handle.join();
-        }
 
         Ok(Self {
             snap_path_strings,

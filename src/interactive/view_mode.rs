@@ -17,7 +17,6 @@
 
 use crate::background::recursive::RecursiveSearch;
 use crate::data::paths::PathData;
-use crate::interactive::browse::InteractiveBrowse;
 use crate::interactive::preview::PreviewSelection;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::Never;
@@ -60,7 +59,7 @@ impl ViewMode {
         }
     }
 
-    pub fn browse(&self, requested_dir: &Path) -> HttmResult<InteractiveBrowse> {
+    pub fn browse(&self, requested_dir: &Path) -> HttmResult<Vec<PathData>> {
         // prep thread spawn
         let requested_dir_clone = requested_dir.to_path_buf();
         let (tx_item, rx_item): (SkimItemSender, SkimItemReceiver) = unbounded();
@@ -74,18 +73,9 @@ impl ViewMode {
 
         let header: String = self.print_header();
 
-        let display_handle = thread::spawn(move || {
-            #[cfg(feature = "setpriority")]
-            #[cfg(target_os = "linux")]
-            #[cfg(target_env = "gnu")]
-            {
-                use crate::library::utility::ThreadPriorityType;
-                let tid = std::process::id();
-                let _ = ThreadPriorityType::Process.nice_thread(Some(tid), -3i32);
-            }
+        let opt_multi = GLOBAL_CONFIG.opt_preview.is_none();
 
-            let opt_multi = GLOBAL_CONFIG.opt_preview.is_none();
-
+        let display_thread = thread::spawn(move || {
             // create the skim component for previews
             let skim_opts = SkimOptionsBuilder::default()
                 .preview_window(Some("up:50%"))
@@ -98,49 +88,39 @@ impl ViewMode {
                 .build()
                 .expect("Could not initialized skim options for browse_view");
 
-            // run_with() reads and shows items from the thread stream created above
-            let res = match skim::Skim::run_with(&skim_opts, Some(rx_item)) {
-                Some(output) if output.is_abort => {
-                    eprintln!("httm interactive file browse session was aborted.  Quitting.");
-                    std::process::exit(0)
-                }
-                Some(output) => {
-                    // hangup the channel so the background recursive search can gracefully cleanup and exit
-                    drop(hangup_tx);
-
-                    output
-                        .selected_items
-                        .iter()
-                        .map(|i| PathData::from(Path::new(&i.output().to_string())))
-                        .collect()
-                }
-                None => {
-                    return Err(HttmError::new(
-                        "httm interactive file browse session failed.",
-                    ));
-                }
-            };
-
-            #[cfg(feature = "malloc_trim")]
-            #[cfg(target_os = "linux")]
-            #[cfg(target_env = "gnu")]
-            {
-                use crate::library::utility::malloc_trim;
-                malloc_trim();
-            }
-
-            Ok(res)
+            skim::Skim::run_with(&skim_opts, Some(rx_item))
         });
 
-        match display_handle.join() {
-            Ok(selected_pathdata) => {
-                let res = InteractiveBrowse {
-                    selected_pathdata: selected_pathdata?,
-                    opt_background_handle: Some(background_handle),
-                };
-                Ok(res)
+        // run_with() reads and shows items from the thread stream created above
+        match display_thread.join().ok().and_then(|output| output) {
+            Some(output) if output.is_abort => {
+                eprintln!("httm interactive file browse session was aborted.  Quitting.");
+                std::process::exit(0)
             }
-            Err(_) => Err(HttmError::new("Interactive browse thread panicked.").into()),
+            Some(output) => {
+                // hangup the channel so the background recursive search can gracefully cleanup and exit
+                rayon::spawn(move || {
+                    drop(hangup_tx);
+                    drop(background_handle);
+
+                    #[cfg(feature = "malloc_trim")]
+                    #[cfg(target_os = "linux")]
+                    #[cfg(target_env = "gnu")]
+                    {
+                        use crate::library::utility::malloc_trim;
+                        malloc_trim();
+                    }
+                });
+
+                let selected_pathdata: Vec<PathData> = output
+                    .selected_items
+                    .iter()
+                    .map(|item| PathData::from(Path::new(item.output().as_ref())))
+                    .collect();
+
+                Ok(selected_pathdata)
+            }
+            None => Err(HttmError::new("httm interactive file browse session failed.").into()),
         }
     }
 
