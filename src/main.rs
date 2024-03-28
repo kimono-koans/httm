@@ -132,7 +132,7 @@ fn exec() -> HttmResult<()> {
 
                     let interactive_restore = InteractiveRestore::from(interactive_select);
 
-                    interactive_restore.exec()
+                    interactive_restore.restore()
                 }
                 InteractiveMode::Select(select_mode) => {
                     let interactive_select = InteractiveSelect::new(browse_result)?;

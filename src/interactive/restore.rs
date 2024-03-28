@@ -45,16 +45,14 @@ impl From<InteractiveSelect> for InteractiveRestore {
 }
 
 impl InteractiveRestore {
-    pub fn exec(&self) -> HttmResult<()> {
+    pub fn restore(&self) -> HttmResult<()> {
         self.select_result
             .snap_path_strings
             .iter()
-            .try_for_each(|snap_path_string| self.restore(snap_path_string))?;
-
-        std::process::exit(0)
+            .try_for_each(|snap_path_string| self.restore_per_path(snap_path_string))
     }
 
-    fn restore(&self, snap_path_string: &str) -> HttmResult<()> {
+    fn restore_per_path(&self, snap_path_string: &str) -> HttmResult<()> {
         // build pathdata from selection buffer parsed string
         //
         // request is also sanity check for snap path exists below when we check
