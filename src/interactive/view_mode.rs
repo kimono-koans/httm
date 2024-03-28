@@ -59,6 +59,16 @@ impl ViewMode {
         }
     }
 
+    #[allow(dead_code)]
+    #[cfg(feature = "malloc_trim")]
+    #[cfg(target_os = "linux")]
+    #[cfg(target_env = "gnu")]
+    fn malloc_trim() {
+        unsafe {
+            let _ = libc::malloc_trim(0usize);
+        }
+    }
+
     pub fn browse(&self, requested_dir: &Path) -> HttmResult<Vec<PathData>> {
         // prep thread spawn
         let requested_dir_clone = requested_dir.to_path_buf();
@@ -66,7 +76,7 @@ impl ViewMode {
         let (hangup_tx, hangup_rx): (Sender<Never>, Receiver<Never>) = bounded(0);
 
         // thread spawn fn enumerate_directory - permits recursion into dirs without blocking
-        rayon::spawn(move || {
+        let background_handle = std::thread::spawn(move || {
             // no way to propagate error from closure so exit and explain error here
             RecursiveSearch::exec(&requested_dir_clone, tx_item.clone(), hangup_rx.clone());
         });
@@ -100,6 +110,12 @@ impl ViewMode {
             Some(output) => {
                 // hangup the channel so the background recursive search can gracefully cleanup and exit
                 drop(hangup_tx);
+                let _ = background_handle.join();
+
+                #[cfg(feature = "malloc_trim")]
+                #[cfg(target_os = "linux")]
+                #[cfg(target_env = "gnu")]
+                Self::malloc_trim();
 
                 let selected_pathdata: Vec<PathData> = output
                     .selected_items

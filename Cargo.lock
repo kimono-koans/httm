@@ -440,6 +440,7 @@ dependencies = [
  "hashbrown 0.14.3",
  "indicatif 0.17.8",
  "itertools",
+ "libc",
  "lms",
  "lscolors",
  "nix 0.28.0",
