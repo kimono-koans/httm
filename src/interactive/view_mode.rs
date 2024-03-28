@@ -15,18 +15,6 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::background::recursive::RecursiveSearch;
-use crate::data::paths::PathData;
-use crate::interactive::preview::PreviewSelection;
-use crate::library::results::{HttmError, HttmResult};
-use crate::library::utility::Never;
-use crate::GLOBAL_CONFIG;
-use crossbeam_channel::unbounded;
-use skim::prelude::*;
-use std::io::Cursor;
-use std::path::Path;
-use std::thread;
-
 pub enum ViewMode {
     Browse,
     Select(Option<String>),
@@ -40,7 +28,7 @@ pub enum MultiSelect {
 }
 
 impl ViewMode {
-    fn print_header(&self) -> String {
+    pub fn print_header(&self) -> String {
         format!(
             "PREVIEW UP: shift+up | PREVIEW DOWN: shift+down | {}\n\
         PAGE UP:    page up  | PAGE DOWN:    page down \n\
@@ -57,136 +45,5 @@ impl ViewMode {
             ViewMode::Restore => "====> [ Restore Mode ] <====",
             ViewMode::Prune => "====> [ Prune Mode ] <====",
         }
-    }
-
-    #[allow(dead_code)]
-    #[cfg(feature = "malloc_trim")]
-    #[cfg(target_os = "linux")]
-    #[cfg(target_env = "gnu")]
-    fn malloc_trim() {
-        unsafe {
-            let _ = libc::malloc_trim(0usize);
-        }
-    }
-
-    pub fn browse(&self, requested_dir: &Path) -> HttmResult<Vec<PathData>> {
-        // prep thread spawn
-        let requested_dir_clone = requested_dir.to_path_buf();
-        let (tx_item, rx_item): (SkimItemSender, SkimItemReceiver) = unbounded();
-        let (hangup_tx, hangup_rx): (Sender<Never>, Receiver<Never>) = bounded(0);
-
-        // thread spawn fn enumerate_directory - permits recursion into dirs without blocking
-        let background_handle = std::thread::spawn(move || {
-            // no way to propagate error from closure so exit and explain error here
-            RecursiveSearch::exec(&requested_dir_clone, tx_item.clone(), hangup_rx.clone());
-        });
-
-        let header: String = self.print_header();
-
-        let opt_multi = GLOBAL_CONFIG.opt_preview.is_none();
-
-        let display_thread = thread::spawn(move || {
-            // create the skim component for previews
-            let skim_opts = SkimOptionsBuilder::default()
-                .preview_window(Some("up:50%"))
-                .preview(Some(""))
-                .nosort(true)
-                .exact(GLOBAL_CONFIG.opt_exact)
-                .header(Some(&header))
-                .multi(opt_multi)
-                .regex(false)
-                .build()
-                .expect("Could not initialized skim options for browse_view");
-
-            skim::Skim::run_with(&skim_opts, Some(rx_item))
-        });
-
-        // run_with() reads and shows items from the thread stream created above
-        match display_thread.join().ok().flatten() {
-            Some(output) if output.is_abort => {
-                eprintln!("httm interactive file browse session was aborted.  Quitting.");
-                std::process::exit(0)
-            }
-            Some(output) => {
-                // hangup the channel so the background recursive search can gracefully cleanup and exit
-                drop(hangup_tx);
-                let _ = background_handle.join();
-
-                #[cfg(feature = "malloc_trim")]
-                #[cfg(target_os = "linux")]
-                #[cfg(target_env = "gnu")]
-                Self::malloc_trim();
-
-                let selected_pathdata: Vec<PathData> = output
-                    .selected_items
-                    .iter()
-                    .map(|item| PathData::from(Path::new(item.output().as_ref())))
-                    .collect();
-
-                Ok(selected_pathdata)
-            }
-            None => Err(HttmError::new("httm interactive file browse session failed.").into()),
-        }
-    }
-
-    pub fn select(&self, preview_buffer: &str, opt_multi: MultiSelect) -> HttmResult<Vec<String>> {
-        let preview_selection = PreviewSelection::new(self)?;
-
-        let header = self.print_header();
-
-        let opt_multi = match opt_multi {
-            MultiSelect::On => true,
-            MultiSelect::Off => false,
-        };
-
-        // build our browse view - less to do than before - no previews, looking through one 'lil buffer
-        let skim_opts = SkimOptionsBuilder::default()
-            .preview_window(preview_selection.opt_preview_window.as_deref())
-            .preview(preview_selection.opt_preview_command.as_deref())
-            .disabled(true)
-            .tac(true)
-            .nosort(true)
-            .tabstop(Some("4"))
-            .exact(true)
-            .multi(opt_multi)
-            .regex(false)
-            .tiebreak(Some("length,index".to_string()))
-            .header(Some(&header))
-            .build()
-            .expect("Could not initialized skim options for select_restore_view");
-
-        let item_reader_opts = SkimItemReaderOption::default().ansi(true);
-        let item_reader = SkimItemReader::new(item_reader_opts);
-
-        let (items, opt_ingest_handle) =
-            item_reader.of_bufread(Box::new(Cursor::new(preview_buffer.trim().to_owned())));
-
-        // run_with() reads and shows items from the thread stream created above
-        let res = match skim::Skim::run_with(&skim_opts, Some(items)) {
-            Some(output) if output.is_abort => {
-                eprintln!("httm select/restore/prune session was aborted.  Quitting.");
-                std::process::exit(0);
-            }
-            Some(output) => output
-                .selected_items
-                .iter()
-                .map(|i| i.output().into_owned())
-                .collect(),
-            None => {
-                return Err(HttmError::new("httm select/restore/prune session failed.").into());
-            }
-        };
-
-        if let Some(handle) = opt_ingest_handle {
-            let _ = handle.join();
-        };
-
-        if GLOBAL_CONFIG.opt_debug {
-            if let Some(preview_command) = preview_selection.opt_preview_command.as_deref() {
-                eprintln!("DEBUG: Preview command executed: {}", preview_command)
-            }
-        }
-
-        Ok(res)
     }
 }

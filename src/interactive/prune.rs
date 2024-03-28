@@ -23,6 +23,8 @@ use crate::lookup::snap_names::SnapNameMap;
 use crate::lookup::versions::VersionsMap;
 use std::process::Command as ExecProcess;
 
+use super::select::InteractiveSelect;
+
 pub struct PruneSnaps;
 
 impl PruneSnaps {
@@ -93,8 +95,8 @@ impl InteractivePrune {
                 .flatten()
                 .map(|name| format!("{name}\n"))
                 .collect();
-            let view_mode = &ViewMode::Select(None);
-            view_mode.select(&buffer, MultiSelect::On)?
+            let view_mode = ViewMode::Select(None);
+            InteractiveSelect::view(&view_mode, &buffer, MultiSelect::On)?
         } else {
             snap_name_map
                 .values()
@@ -122,7 +124,7 @@ impl InteractivePrune {
         loop {
             let view_mode = ViewMode::Prune;
 
-            let selection = view_mode.select(&preview_buffer, MultiSelect::Off)?;
+            let selection = InteractiveSelect::view(&view_mode, &preview_buffer, MultiSelect::Off)?;
 
             let user_consent = selection
                 .get(0)

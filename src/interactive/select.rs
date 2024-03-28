@@ -25,7 +25,10 @@ use crate::interactive::view_mode::ViewMode;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{delimiter, print_output_buf};
 use crate::lookup::versions::VersionsMap;
-use crate::{Config, GLOBAL_CONFIG};
+use crate::Config;
+use crate::GLOBAL_CONFIG;
+use skim::prelude::*;
+use std::io::Cursor;
 
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -92,7 +95,8 @@ impl TryFrom<&InteractiveBrowse> for InteractiveSelect {
             // loop until user selects a valid snapshot version
             loop {
                 // get the file name
-                let selected_line = view_mode.select(&selection_buffer, MultiSelect::On)?;
+                let selected_line =
+                    InteractiveSelect::view(&view_mode, &selection_buffer, MultiSelect::On)?;
 
                 let requested_file_names = selected_line
                     .iter()
@@ -247,5 +251,70 @@ impl InteractiveSelect {
             }
         }
         .ok_or_else(|| HttmError::new("Could not determine a possible live version.").into())
+    }
+
+    pub fn view(
+        view_mode: &ViewMode,
+        preview_buffer: &str,
+        opt_multi: MultiSelect,
+    ) -> HttmResult<Vec<String>> {
+        let preview_selection = PreviewSelection::new(&view_mode)?;
+
+        let header = view_mode.print_header();
+
+        let opt_multi = match opt_multi {
+            MultiSelect::On => true,
+            MultiSelect::Off => false,
+        };
+
+        // build our browse view - less to do than before - no previews, looking through one 'lil buffer
+        let skim_opts = SkimOptionsBuilder::default()
+            .preview_window(preview_selection.opt_preview_window.as_deref())
+            .preview(preview_selection.opt_preview_command.as_deref())
+            .disabled(true)
+            .tac(true)
+            .nosort(true)
+            .tabstop(Some("4"))
+            .exact(true)
+            .multi(opt_multi)
+            .regex(false)
+            .tiebreak(Some("length,index".to_string()))
+            .header(Some(&header))
+            .build()
+            .expect("Could not initialized skim options for select_restore_view");
+
+        let item_reader_opts = SkimItemReaderOption::default().ansi(true);
+        let item_reader = SkimItemReader::new(item_reader_opts);
+
+        let (items, opt_ingest_handle) =
+            item_reader.of_bufread(Box::new(Cursor::new(preview_buffer.trim().to_owned())));
+
+        // run_with() reads and shows items from the thread stream created above
+        let res = match skim::Skim::run_with(&skim_opts, Some(items)) {
+            Some(output) if output.is_abort => {
+                eprintln!("httm select/restore/prune session was aborted.  Quitting.");
+                std::process::exit(0);
+            }
+            Some(output) => output
+                .selected_items
+                .iter()
+                .map(|i| i.output().into_owned())
+                .collect(),
+            None => {
+                return Err(HttmError::new("httm select/restore/prune session failed.").into());
+            }
+        };
+
+        if let Some(handle) = opt_ingest_handle {
+            let _ = handle.join();
+        };
+
+        if GLOBAL_CONFIG.opt_debug {
+            if let Some(preview_command) = preview_selection.opt_preview_command.as_deref() {
+                eprintln!("DEBUG: Preview command executed: {}", preview_command)
+            }
+        }
+
+        Ok(res)
     }
 }
