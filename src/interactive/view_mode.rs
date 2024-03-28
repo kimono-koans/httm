@@ -92,7 +92,7 @@ impl ViewMode {
         });
 
         // run_with() reads and shows items from the thread stream created above
-        match display_thread.join().ok().and_then(|output| output) {
+        match display_thread.join().ok().flatten() {
             Some(output) if output.is_abort => {
                 eprintln!("httm interactive file browse session was aborted.  Quitting.");
                 std::process::exit(0)
