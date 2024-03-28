@@ -15,12 +15,11 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::config::generate::{InteractiveMode, PrintMode, SelectMode};
+use crate::config::generate::{PrintMode, SelectMode};
 use crate::data::paths::PathDeconstruction;
 use crate::data::paths::{PathData, ZfsSnapPathGuard};
 use crate::display_versions::wrapper::VersionsDisplayWrapper;
 use crate::interactive::preview::PreviewSelection;
-use crate::interactive::restore::InteractiveRestore;
 use crate::interactive::view_mode::MultiSelect;
 use crate::interactive::view_mode::ViewMode;
 use crate::library::results::{HttmError, HttmResult};
@@ -40,31 +39,13 @@ pub struct InteractiveSelect {
 }
 
 impl InteractiveSelect {
-    pub fn exec(browse_result: InteractiveBrowse) -> HttmResult<()> {
-        // continue to interactive_restore or print and exit here?
-        let select_result = Self::new(browse_result.selected_pathdata)?;
-
-        match browse_result.interactive_mode {
-            // one only allow one to select one path string during select
-            // but we retain paths_selected_in_browse because we may need
-            // it later during restore if opt_overwrite is selected
-            InteractiveMode::Restore(_) => {
-                let interactive_restore = InteractiveRestore::from(select_result);
-                interactive_restore.exec()?;
-            }
-            InteractiveMode::Select(select_mode) => select_result.print_selections(&select_mode)?,
-            InteractiveMode::Browse => unreachable!(),
-        }
-
-        std::process::exit(0);
-    }
-
-    fn new(selected_pathdata: Vec<PathData>) -> HttmResult<Self> {
-        let versions_map = VersionsMap::new(&GLOBAL_CONFIG, &selected_pathdata)?;
+    pub fn new(interactive_browse: InteractiveBrowse) -> HttmResult<Self> {
+        let versions_map = VersionsMap::new(&GLOBAL_CONFIG, &interactive_browse.selected_pathdata)?;
 
         // snap and live set has no snaps
         if versions_map.is_empty() {
-            let paths: Vec<String> = selected_pathdata
+            let paths: Vec<String> = interactive_browse
+                .selected_pathdata
                 .iter()
                 .map(|path| path.path_buf.to_string_lossy().to_string())
                 .collect();
@@ -76,10 +57,11 @@ impl InteractiveSelect {
             return Err(HttmError::new(&msg).into());
         }
 
-        let opt_live_version: Option<String> = if selected_pathdata.len() > 1 {
+        let opt_live_version: Option<String> = if interactive_browse.selected_pathdata.len() > 1 {
             None
         } else {
-            selected_pathdata
+            interactive_browse
+                .selected_pathdata
                 .get(0)
                 .map(|pathdata| pathdata.path_buf.to_string_lossy().into_owned())
         };
@@ -88,7 +70,7 @@ impl InteractiveSelect {
             Self::last_snap(&versions_map)
         } else {
             // same stuff we do at fn exec, snooze...
-            let display_config = Config::from(selected_pathdata.clone());
+            let display_config = Config::from(interactive_browse.selected_pathdata.clone());
 
             let display_map = VersionsDisplayWrapper::from(&display_config, versions_map);
 
@@ -160,7 +142,7 @@ impl InteractiveSelect {
             .collect()
     }
 
-    fn print_selections(&self, select_mode: &SelectMode) -> HttmResult<()> {
+    pub fn print_selections(&self, select_mode: &SelectMode) -> HttmResult<()> {
         self.snap_path_strings
             .iter()
             .map(Path::new)

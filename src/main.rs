@@ -34,7 +34,6 @@ mod background {
 }
 mod interactive {
     pub mod browse;
-    pub mod exec;
     pub mod preview;
     pub mod prune;
     pub mod restore;
@@ -72,12 +71,15 @@ mod parse {
     pub mod snaps;
 }
 
+use crate::config::generate::InteractiveMode;
+use crate::interactive::browse::InteractiveBrowse;
+use crate::interactive::select::InteractiveSelect;
 use background::recursive::NonInteractiveRecursiveWrapper;
 use config::generate::{Config, ExecMode};
 use display_map::format::PrintAsMap;
 use display_versions::wrapper::VersionsDisplayWrapper;
-use interactive::exec::InteractiveExec;
 use interactive::prune::PruneSnaps;
+use interactive::restore::InteractiveRestore;
 use library::results::HttmResult;
 use library::snap_mounts::SnapshotMounts;
 use library::utility::print_output_buf;
@@ -122,11 +124,32 @@ fn exec() -> HttmResult<()> {
     match &GLOBAL_CONFIG.exec_mode {
         // ExecMode::Interactive *may* return back to this function to be printed
         ExecMode::Interactive(interactive_mode) => {
-            let pathdata_set = InteractiveExec::exec(interactive_mode)?;
-            let versions_map = VersionsMap::new(&GLOBAL_CONFIG, &pathdata_set)?;
-            let output_buf = VersionsDisplayWrapper::from(&GLOBAL_CONFIG, versions_map).to_string();
+            let browse_result = InteractiveBrowse::new()?;
 
-            print_output_buf(&output_buf)
+            match interactive_mode {
+                InteractiveMode::Restore(_) => {
+                    let interactive_select = InteractiveSelect::new(browse_result)?;
+
+                    let interactive_restore = InteractiveRestore::from(interactive_select);
+
+                    interactive_restore.exec()
+                }
+                InteractiveMode::Select(select_mode) => {
+                    let interactive_select = InteractiveSelect::new(browse_result)?;
+
+                    interactive_select.print_selections(&select_mode)
+                }
+                // InteractiveMode::Browse executes back through fn exec() in main.rs
+                InteractiveMode::Browse => {
+                    let versions_map =
+                        VersionsMap::new(&GLOBAL_CONFIG, &browse_result.selected_pathdata)?;
+
+                    let output_buf =
+                        VersionsDisplayWrapper::from(&GLOBAL_CONFIG, versions_map).to_string();
+
+                    print_output_buf(&output_buf)
+                }
+            }
         }
         // ExecMode::BasicDisplay will be just printed, we already know the paths
         ExecMode::BasicDisplay | ExecMode::NumVersions(_) => {
