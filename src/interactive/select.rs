@@ -38,8 +38,10 @@ pub struct InteractiveSelect {
     pub opt_live_version: Option<String>,
 }
 
-impl InteractiveSelect {
-    pub fn new(interactive_browse: InteractiveBrowse) -> HttmResult<Self> {
+impl TryFrom<&InteractiveBrowse> for InteractiveSelect {
+    type Error = Box<dyn std::error::Error + Send + Sync>;
+
+    fn try_from(interactive_browse: &InteractiveBrowse) -> HttmResult<Self> {
         let versions_map = VersionsMap::new(&GLOBAL_CONFIG, &interactive_browse.selected_pathdata)?;
 
         // snap and live set has no snaps
@@ -123,7 +125,9 @@ impl InteractiveSelect {
             opt_live_version,
         })
     }
+}
 
+impl InteractiveSelect {
     fn last_snap(map: &VersionsMap) -> Vec<String> {
         map.iter()
             .filter_map(|(key, values)| {
