@@ -431,7 +431,7 @@ dependencies = [
 
 [[package]]
 name = "httm"
-version = "0.37.7"
+version = "0.37.8"
 dependencies = [
  "ahash 0.8.11",
  "clap 3.2.25",
@@ -1058,9 +1058,9 @@ dependencies = [
 
 [[package]]
 name = "two_percent"
-version = "0.11.8"
+version = "0.11.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2fd5550e9f4ea9cb6b3b374dc51fcd20f87c622829cf08a2a0ee588a2a50ac7c"
+checksum = "fb91c8e7e7027b2250d462de07a657ca61d7612b70a48271341f2d5d2504e5bd"
 dependencies = [
  "ahash 0.8.11",
  "bitflags 2.4.2",
