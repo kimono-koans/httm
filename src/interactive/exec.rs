@@ -26,17 +26,17 @@ pub struct InteractiveExec;
 
 impl InteractiveExec {
     pub fn exec(interactive_mode: &InteractiveMode) -> HttmResult<Vec<PathData>> {
-        let selected_pathdata = InteractiveBrowse::new()?;
+        let browse_result = InteractiveBrowse::new(interactive_mode)?;
 
         // do we return back to our main exec function to print,
         // or continue down the interactive rabbit hole?
         match interactive_mode {
             InteractiveMode::Restore(_) | InteractiveMode::Select(_) => {
-                InteractiveSelect::exec(selected_pathdata, interactive_mode)?;
+                InteractiveSelect::exec(browse_result)?;
                 unreachable!()
             }
             // InteractiveMode::Browse executes back through fn exec() in main.rs
-            InteractiveMode::Browse => Ok(selected_pathdata),
+            InteractiveMode::Browse => Ok(browse_result.selected_pathdata),
         }
     }
 }

@@ -15,16 +15,20 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
+use crate::config::generate::InteractiveMode;
 use crate::data::paths::PathData;
 use crate::interactive::view_mode::ViewMode;
 use crate::library::results::{HttmError, HttmResult};
 use crate::GLOBAL_CONFIG;
 
 #[derive(Debug)]
-pub struct InteractiveBrowse;
+pub struct InteractiveBrowse {
+    pub selected_pathdata: Vec<PathData>,
+    pub interactive_mode: InteractiveMode,
+}
 
 impl InteractiveBrowse {
-    pub fn new() -> HttmResult<Vec<PathData>> {
+    pub fn new(interactive_mode: &InteractiveMode) -> HttmResult<Self> {
         let browse_result = match &GLOBAL_CONFIG.opt_requested_dir {
             // collect string paths from what we get from lookup_view
             Some(requested_dir) => {
@@ -59,6 +63,9 @@ impl InteractiveBrowse {
             }
         };
 
-        Ok(browse_result)
+        Ok(Self {
+            selected_pathdata: browse_result,
+            interactive_mode: interactive_mode.clone(),
+        })
     }
 }

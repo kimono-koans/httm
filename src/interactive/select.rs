@@ -32,20 +32,19 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::Command as ExecProcess;
 
+use super::browse::InteractiveBrowse;
+
 pub struct InteractiveSelect {
     pub snap_path_strings: Vec<String>,
     pub opt_live_version: Option<String>,
 }
 
 impl InteractiveSelect {
-    pub fn exec(
-        selected_pathdata: Vec<PathData>,
-        interactive_mode: &InteractiveMode,
-    ) -> HttmResult<()> {
+    pub fn exec(browse_result: InteractiveBrowse) -> HttmResult<()> {
         // continue to interactive_restore or print and exit here?
-        let select_result = Self::new(selected_pathdata)?;
+        let select_result = Self::new(browse_result.selected_pathdata)?;
 
-        match interactive_mode {
+        match browse_result.interactive_mode {
             // one only allow one to select one path string during select
             // but we retain paths_selected_in_browse because we may need
             // it later during restore if opt_overwrite is selected
@@ -53,7 +52,7 @@ impl InteractiveSelect {
                 let interactive_restore = InteractiveRestore::from(select_result);
                 interactive_restore.exec()?;
             }
-            InteractiveMode::Select(select_mode) => select_result.print_selections(select_mode)?,
+            InteractiveMode::Select(select_mode) => select_result.print_selections(&select_mode)?,
             InteractiveMode::Browse => unreachable!(),
         }
 
