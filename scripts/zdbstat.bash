@@ -98,16 +98,16 @@ function dump_zfs_obj_metadata() {
 
     file_name="$1"
     sudo_program="$2"
-    source="$( zfs list -H -o name $file_name 2>/dev/null; exit 0 )"
-    [[ -n "$source" ]] || source="$( zfs list -H -o name $file_name 2>&1 | cut -f2 -d"'" ; exit 0 )"
-    inode="$( stat -c %i $file_name 2>/dev/null; exit 0 )"
+    source="$( zfs list -H -o name "$file_name" 2>/dev/null; exit 0 )"
+    [[ -n "$source" ]] || source="$( zfs list -H -o name "$file_name" 2>&1 | cut -f2 -d"'" ; exit 0 )"
+    inode="$( stat -c %i "$file_name" 2>/dev/null; exit 0 )"
 
     if [[ -z "$source" ]]; then
-	    print_err_exit "Could not determine source dataset for path: $file_name"
+	print_err_exit "Could not determine source dataset for path: "$file_name""
     fi
 
     if [[ -z "$inode" ]]; then
-	    print_err_exit "Could not determine inode for path: $inode"
+	print_err_exit "Could not determine inode for path: "$inode""
     fi
 
     "$sudo_program" zdb -dddddddddd "$source" "$inode"
@@ -123,18 +123,18 @@ function run_loop() {
     for f in "$@"; do
 
         local file_name=""
-        file_name="$( realpath "$f" 2>/dev/null; exit 0 )"
+        file_name="$( readlink -e "$f" 2>/dev/null; exit 0 )"
 
         if [[ -z "$file_name" ]]; then
             print_err "WARN: Path likely does not exist: $f"
             continue
         fi
 
-        if [[ "$( echo $file_name | grep -c ".zfs/snapshot" )" -eq 0 ]] && \
-        [[ -z "$( zfs list $file_name 2>/dev/null; exit 0 )" ]]; then
-            print_err "WARN: zdbstat requires a valid zfs path: $file_name"
-            continue
-        fi
+	if [[ "$( echo "$file_name" | grep -c ".zfs/snapshot" )" -eq 0 ]] && \
+	[[ -z "$( zfs list "$file_name" 2>/dev/null; exit 0 )" ]]; then
+		print_err "WARN: zdbstat requires a valid zfs path: "$file_name""
+		continue
+	fi
 
         dump_zfs_obj_metadata "$file_name" "$sudo_program"
 
