@@ -22,7 +22,7 @@ use crate::data::paths::{CompareVersionsContainer, PathData};
 use crate::library::results::{HttmError, HttmResult};
 use crate::GLOBAL_CONFIG;
 use rayon::prelude::*;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::io::ErrorKind;
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
@@ -347,6 +347,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
     }
 
     // remove duplicates with the same system modify time and size/file len (or contents! See --uniqueness)
+    #[allow(clippy::mutable_key_type)]
     #[inline(always)]
     fn sort_dedup_versions(
         iter: impl ParallelIterator<Item = PathData>,
@@ -359,12 +360,10 @@ impl<'a> RelativePathAndSnapMounts<'a> {
                 vec
             }
             ListSnapsOfType::UniqueContents | ListSnapsOfType::UniqueMetadata => {
-                let mut vec: Vec<CompareVersionsContainer> = iter
+                let sorted_and_deduped: BTreeSet<CompareVersionsContainer> = iter
                     .map(|pd| CompareVersionsContainer::new(pd, uniqueness))
                     .collect();
-                vec.sort_unstable();
-                vec.dedup();
-                vec.into_iter().map(|container| container.into()).collect()
+                sorted_and_deduped.into_iter().map(PathData::from).collect()
             }
         }
     }
