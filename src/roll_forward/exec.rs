@@ -124,7 +124,10 @@ impl RollForward {
     }
 
     fn roll_forward(&self) -> HttmResult<()> {
-        let (snap_handle, live_handle) = self.spawn_preserve_links();
+        let spawn_res = SpawnPreserveLinks::new(self);
+
+        let snap_handle = spawn_res.snap_handle;
+        let live_handle = spawn_res.live_handle;
 
         let mut process_handle = self.zfs_diff_cmd()?;
 
@@ -343,22 +346,6 @@ impl RollForward {
         }
     }
 
-    fn spawn_preserve_links(
-        &self,
-    ) -> (
-        JoinHandle<HttmResult<HardLinkMap>>,
-        JoinHandle<HttmResult<HardLinkMap>>,
-    ) {
-        let snap_dataset = self.snap_dataset();
-
-        let proximate_dataset_mount = self.proximate_dataset_mount.clone();
-
-        let snap_handle = std::thread::spawn(move || HardLinkMap::new(&snap_dataset));
-        let live_handle = std::thread::spawn(move || HardLinkMap::new(&proximate_dataset_mount));
-
-        (snap_handle, live_handle)
-    }
-
     pub fn snap_path(&self, path: &Path) -> Option<PathBuf> {
         PathData::from(path)
             .relative_path(&self.proximate_dataset_mount)
@@ -462,5 +449,26 @@ impl RollForward {
         eprintln!("{}: {:?} -> 🗑️", Red.paint("Removed  "), dst);
 
         Ok(())
+    }
+}
+
+struct SpawnPreserveLinks {
+    snap_handle: JoinHandle<HttmResult<HardLinkMap>>,
+    live_handle: JoinHandle<HttmResult<HardLinkMap>>,
+}
+
+impl SpawnPreserveLinks {
+    fn new(roll_forward: &RollForward) -> Self {
+        let snap_dataset = roll_forward.snap_dataset();
+
+        let proximate_dataset_mount = roll_forward.proximate_dataset_mount.clone();
+
+        let snap_handle = std::thread::spawn(move || HardLinkMap::new(&snap_dataset));
+        let live_handle = std::thread::spawn(move || HardLinkMap::new(&proximate_dataset_mount));
+
+        Self {
+            snap_handle,
+            live_handle,
+        }
     }
 }
