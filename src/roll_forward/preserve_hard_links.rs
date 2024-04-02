@@ -28,6 +28,28 @@ use std::fs::read_dir;
 use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicBool;
+use std::thread::JoinHandle;
+
+pub struct SpawnPreserveLinks {
+    pub snap_handle: JoinHandle<HttmResult<HardLinkMap>>,
+    pub live_handle: JoinHandle<HttmResult<HardLinkMap>>,
+}
+
+impl SpawnPreserveLinks {
+    pub fn new(roll_forward: &RollForward) -> Self {
+        let snap_dataset = roll_forward.snap_dataset();
+
+        let proximate_dataset_mount = roll_forward.proximate_dataset_mount.clone();
+
+        let snap_handle = std::thread::spawn(move || HardLinkMap::new(&snap_dataset));
+        let live_handle = std::thread::spawn(move || HardLinkMap::new(&proximate_dataset_mount));
+
+        Self {
+            snap_handle,
+            live_handle,
+        }
+    }
+}
 
 // key: inode, values: Paths
 pub struct HardLinkMap {

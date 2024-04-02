@@ -24,7 +24,8 @@ use crate::library::results::{HttmError, HttmResult};
 use crate::library::snap_guard::{PrecautionarySnapType, SnapGuard};
 use crate::library::utility::is_metadata_same;
 use crate::library::utility::user_has_effective_root;
-use crate::roll_forward::preserve_hard_links::{HardLinkMap, PreserveHardLinks};
+use crate::roll_forward::preserve_hard_links::PreserveHardLinks;
+use crate::roll_forward::preserve_hard_links::SpawnPreserveLinks;
 use crate::{GLOBAL_CONFIG, ZFS_SNAPSHOT_DIRECTORY};
 
 use crate::library::iter_extensions::HttmIter;
@@ -40,13 +41,12 @@ use std::fs::read_dir;
 use std::io::{BufRead, Read};
 use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStderr, ChildStdout, Command as ExecProcess, Stdio};
-use std::thread::JoinHandle;
 
 pub struct RollForward {
     dataset: String,
     snap: String,
     progress_bar: ProgressBar,
-    proximate_dataset_mount: PathBuf,
+    pub proximate_dataset_mount: PathBuf,
 }
 
 impl RollForward {
@@ -126,8 +126,7 @@ impl RollForward {
     fn roll_forward(&self) -> HttmResult<()> {
         let spawn_res = SpawnPreserveLinks::new(self);
 
-        let snap_handle = spawn_res.snap_handle;
-        let live_handle = spawn_res.live_handle;
+        let (snap_handle, live_handle) = (spawn_res.snap_handle, spawn_res.live_handle);
 
         let mut process_handle = self.zfs_diff_cmd()?;
 
@@ -406,7 +405,7 @@ impl RollForward {
         Ok(())
     }
 
-    fn snap_dataset(&self) -> PathBuf {
+    pub fn snap_dataset(&self) -> PathBuf {
         [
             self.proximate_dataset_mount.as_path(),
             Path::new(ZFS_SNAPSHOT_DIRECTORY),
@@ -449,26 +448,5 @@ impl RollForward {
         eprintln!("{}: {:?} -> 🗑️", Red.paint("Removed  "), dst);
 
         Ok(())
-    }
-}
-
-struct SpawnPreserveLinks {
-    snap_handle: JoinHandle<HttmResult<HardLinkMap>>,
-    live_handle: JoinHandle<HttmResult<HardLinkMap>>,
-}
-
-impl SpawnPreserveLinks {
-    fn new(roll_forward: &RollForward) -> Self {
-        let snap_dataset = roll_forward.snap_dataset();
-
-        let proximate_dataset_mount = roll_forward.proximate_dataset_mount.clone();
-
-        let snap_handle = std::thread::spawn(move || HardLinkMap::new(&snap_dataset));
-        let live_handle = std::thread::spawn(move || HardLinkMap::new(&proximate_dataset_mount));
-
-        Self {
-            snap_handle,
-            live_handle,
-        }
     }
 }
