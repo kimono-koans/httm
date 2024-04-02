@@ -85,7 +85,7 @@ impl InteractiveRestore {
         loop {
             let view_mode = ViewMode::Restore;
 
-            let selection = InteractiveSelect::view(&view_mode, &restore_buffer, MultiSelect::Off)?;
+            let selection = view_mode.view_buffer(&restore_buffer, MultiSelect::Off)?;
 
             let user_consent = selection
                 .get(0)
