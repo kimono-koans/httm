@@ -375,19 +375,16 @@ impl PaddingCollection {
             format!("{:─<fancy_border_len$}\n", "")
         };
 
-        match terminal_size() {
-            Some((Width(width), Height(_height))) => {
-                let width_as_usize = width as usize;
+        if let Some((Width(width), Height(_height))) = terminal_size() {
+            let width_as_usize = width as usize;
 
-                if width_as_usize < fancy_border_len {
-                    // Active below is the most idiomatic Rust, but it maybe slower than the commented portion
-                    // (0..width as usize).map(|_| "─").collect()
-                    return format!("{:─<width_as_usize$}\n", "");
-                }
-
-                get_max_sized_border()
+            if width_as_usize < fancy_border_len {
+                // Active below is the most idiomatic Rust, but it maybe slower than the commented portion
+                // (0..width as usize).map(|_| "─").collect()
+                return format!("{:─<width_as_usize$}\n", "");
             }
-            None => get_max_sized_border(),
         }
+
+        get_max_sized_border()
     }
 }
