@@ -60,7 +60,7 @@ impl SnapNameMap {
                             "{:?} is not located on a ZFS filesystem.",
                             pathdata.path_buf
                         );
-                        eprintln!("WARNING: {msg}");
+                        eprintln!("WARN: {msg}");
                         return false;
                     },
                 }
@@ -83,7 +83,7 @@ impl SnapNameMap {
                         "httm could not find any snapshots for the file specified: {:?}",
                         pathdata.path_buf
                     );
-                    eprintln!("WARNING: {msg}");
+                    eprintln!("WARN: {msg}");
                     return false;
                 }
 
