@@ -369,12 +369,6 @@ impl PaddingCollection {
     }
 
     fn fancy_border_string(fancy_border_len: usize) -> String {
-        let get_max_sized_border = || {
-            // Active below is the most idiomatic Rust, but it maybe slower than the commented portion
-            // (0..fancy_border_len).map(|_| "─").collect()
-            format!("{:─<fancy_border_len$}\n", "")
-        };
-
         if let Some((Width(width), Height(_height))) = terminal_size() {
             let width_as_usize = width as usize;
 
@@ -385,6 +379,9 @@ impl PaddingCollection {
             }
         }
 
-        get_max_sized_border()
+        // Active below is the most idiomatic Rust, but it maybe slower than the commented portion
+        // (0..fancy_border_len).map(|_| "─").collect()
+        // this is the max sized border
+        format!("{:─<fancy_border_len$}\n", "")
     }
 }
