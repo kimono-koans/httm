@@ -52,9 +52,7 @@ impl SnapNameMap {
     ) -> HttmResult<Self> {
         let less_unsupported: Vec<(&PathData, &Vec<PathData>)> = versions_map.iter().filter(|(pathdata, _snaps)| {
                 match pathdata.proximate_dataset().ok().and_then(|prox| {
-                    GLOBAL_CONFIG.dataset_collection.map_of_datasets.get(prox)
-                }).map(|dataset| {
-                    &dataset.fs_type
+                    GLOBAL_CONFIG.dataset_collection.map_of_datasets.get(prox).map(|dataset| &dataset.fs_type)
                 }) {
                     Some(fstype) if fstype == &FilesystemType::Zfs => true,
                     _ => {
