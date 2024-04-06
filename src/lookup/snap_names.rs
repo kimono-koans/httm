@@ -20,9 +20,11 @@ use crate::data::paths::PathDeconstruction;
 use crate::data::paths::{PathData, ZfsSnapPathGuard};
 use crate::library::results::{HttmError, HttmResult};
 use crate::lookup::versions::VersionsMap;
+use crate::GLOBAL_CONFIG;
 use rayon::prelude::*;
 use std::collections::BTreeMap;
 use std::ops::Deref;
+use crate::parse::mounts::FilesystemType;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SnapNameMap {
@@ -48,8 +50,35 @@ impl SnapNameMap {
         versions_map: VersionsMap,
         opt_filters: &Option<ListSnapsFilters>,
     ) -> HttmResult<Self> {
-        let inner: BTreeMap<PathData, Vec<String>> = versions_map
-            .par_iter()
+        let less_unsupported: Vec<(&PathData, &Vec<PathData>)> = versions_map.iter().filter(|(pathdata, _snaps)| {
+                match pathdata.proximate_dataset().ok().and_then(|prox| {
+                    GLOBAL_CONFIG.dataset_collection.map_of_datasets.get(prox)
+                }).map(|dataset| {
+                    &dataset.fs_type
+                }) {
+                    Some(fstype) if fstype == &FilesystemType::Zfs => true,
+                    _ => {
+                        let msg = format!(
+                            "{:?} is not located on a ZFS filesystem.",
+                            pathdata.path_buf
+                        );
+                        eprintln!("WARNING: {msg}");
+                        return false;
+                    },
+                }
+            }).collect();
+
+        if less_unsupported.is_empty() {
+            return Err(
+                HttmError::new(
+                "No paths are located on supported (ZFS) datasets.",
+                )
+                .into(),
+            );
+        }
+
+        let inner: BTreeMap<PathData, Vec<String>> = less_unsupported
+            .into_iter()
             .filter(|(pathdata, snaps)| {
                 if snaps.is_empty() {
                     let msg = format!(
