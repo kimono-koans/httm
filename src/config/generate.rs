@@ -237,7 +237,7 @@ fn parse_args() -> ArgMatches {
                 The default value/command, if no command value specified, is a 'bowie' formatted 'diff'.  \
                 User defined commands must specify the snapshot file name \"{snap_file}\" and the live file name \"{live_file}\" within their shell command.  \
                 NOTE: 'bash' is required to bootstrap any preview script, even if user defined preview commands or script is written in a different language.")
-                .value_parser(clap::value_parser!(OsString))
+                .value_parser(clap::value_parser!(String))
                 .num_args(0)
                 .require_equals(true)
                 .default_missing_value("default")
@@ -288,7 +288,7 @@ fn parse_args() -> ArgMatches {
             Arg::new("LIST_SNAPS")
                 .long("list-snaps")
                 .aliases(&["snaps-for-file", "ls-snaps", "list-snapshots"])
-                .value_parser(clap::value_parser!(OsString))
+                .value_parser(clap::value_parser!(String))
                 .num_args(0)
                 .require_equals(true)
                 .help("display snapshots names for a file.  This argument optionally takes a value.  \
@@ -307,7 +307,7 @@ fn parse_args() -> ArgMatches {
             Arg::new("ROLL_FORWARD")
                 .long("roll-forward")
                 .aliases(&["roll", "spring", "spring-forward"])
-                .value_parser(clap::value_parser!(OsString))
+                .value_parser(clap::value_parser!(String))
                 .num_args(1)
                 .require_equals(true)
                 .help("traditionally 'zfs rollback' is a destructive operation, whereas httm roll-forward is non-destructive.  \
