@@ -20,8 +20,8 @@ use crate::parse::aliases::MapOfAliases;
 use crate::parse::alts::MapOfAlts;
 use crate::parse::mounts::{BaseFilesystemInfo, FilterDirs, MapOfDatasets};
 use crate::parse::snaps::MapOfSnaps;
-use clap::OsValues;
-use std::ffi::OsStr;
+use clap::parser::ValuesRef;
+use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -44,9 +44,9 @@ impl FilesystemInfo {
     pub fn new(
         opt_alt_replicated: bool,
         opt_debug: bool,
-        opt_remote_dir: Option<&OsStr>,
-        opt_local_dir: Option<&OsStr>,
-        opt_map_aliases: Option<OsValues>,
+        opt_remote_dir: Option<&OsString>,
+        opt_local_dir: Option<&OsString>,
+        opt_map_aliases: Option<ValuesRef<'_, OsString>>,
         pwd: &Path,
     ) -> HttmResult<FilesystemInfo> {
         let base_fs_info = BaseFilesystemInfo::new(opt_debug)?;
