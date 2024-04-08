@@ -41,12 +41,12 @@ pub struct FilesystemInfo {
 }
 
 impl FilesystemInfo {
-    pub fn new(
+    pub fn new<'a, 'b: 'a>(
         opt_alt_replicated: bool,
         opt_debug: bool,
-        opt_remote_dir: Option<&OsString>,
-        opt_local_dir: Option<&OsString>,
-        opt_map_aliases: Option<ValuesRef<'_, OsString>>,
+        opt_remote_dir: Option<&&str>,
+        opt_local_dir: Option<&&str>,
+        opt_map_aliases: Option<ValuesRef<'a, &'b str>>,
         pwd: &Path,
     ) -> HttmResult<FilesystemInfo> {
         let base_fs_info = BaseFilesystemInfo::new(opt_debug)?;
@@ -69,16 +69,12 @@ impl FilesystemInfo {
                     .map(std::borrow::ToOwned::to_owned)
                     .collect(),
             ),
-            None => opt_map_aliases.map(|cmd_map_aliases| {
-                cmd_map_aliases
-                    .into_iter()
-                    .map(|os_str| os_str.to_string_lossy().to_string())
-                    .collect()
-            }),
+            None => opt_map_aliases
+                .map(|map_aliases| map_aliases.map(|os_str| os_str.to_string()).collect()),
         };
 
         let raw_snap_dir = if let Some(value) = opt_remote_dir {
-            Some(value.to_os_string())
+            Some(OsString::from(value))
         } else if std::env::var_os("HTTM_REMOTE_DIR").is_some() {
             std::env::var_os("HTTM_REMOTE_DIR")
         } else {
@@ -90,7 +86,7 @@ impl FilesystemInfo {
             let env_local_dir = std::env::var_os("HTTM_LOCAL_DIR");
 
             let raw_local_dir = if let Some(value) = opt_local_dir {
-                Some(value.to_os_string())
+                Some(OsString::from(value))
             } else {
                 env_local_dir
             };

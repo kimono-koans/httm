@@ -27,7 +27,6 @@ use clap::parser::ValuesRef;
 use clap::{crate_name, crate_version, Arg, ArgAction, ArgMatches};
 use indicatif::ProgressBar;
 use rayon::prelude::*;
-use std::ffi::OsString;
 use std::io::Read;
 use std::ops::Index;
 use std::path::{Path, PathBuf};
@@ -831,13 +830,13 @@ impl Config {
         // obtain a map of datasets, a map of snapshot directories, and possibly a map of
         // alternate filesystems and map of aliases if the user requests
 
-        let opt_map_aliases = matches.get_many::<OsString>("MAP_ALIASES");
+        let opt_map_aliases = matches.get_many::<&str>("MAP_ALIASES");
 
         let dataset_collection = FilesystemInfo::new(
             matches.contains_id("ALT_REPLICATED"),
             opt_debug,
-            matches.get_one::<OsString>("REMOTE_DIR"),
-            matches.get_one::<OsString>("LOCAL_DIR"),
+            matches.get_one::<&str>("REMOTE_DIR"),
+            matches.get_one::<&str>("LOCAL_DIR"),
             opt_map_aliases,
             &pwd,
         )?;
