@@ -23,9 +23,10 @@ use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{pwd, HttmIsDir};
 use crate::lookup::file_mounts::MountDisplay;
 use crate::ROOT_DIRECTORY;
-use clap::{crate_name, crate_version, Arg, ArgMatches, OsValues};
+use clap::{crate_name, crate_version, Arg, ArgMatches};
 use indicatif::ProgressBar;
 use rayon::prelude::*;
+use std::ffi::OsString;
 use std::io::Read;
 use std::ops::Index;
 use std::path::{Path, PathBuf};
@@ -133,7 +134,7 @@ const NATIVE_SNAP_SUFFIXES: [&str; 4] = [
 ];
 
 fn parse_args() -> ArgMatches {
-    clap::Command::new(crate_name!())
+    clap::command!(crate_name!())
         .about("httm prints the size, date and corresponding locations of available unique versions of files residing on snapshots.  \
         May also be used interactively to select and restore from such versions, and even to snapshot datasets which contain certain files.")
         .version(crate_version!())
@@ -143,9 +144,8 @@ fn parse_args() -> ArgMatches {
                 then httm will pause waiting for input on stdin.  In any interactive mode, \
                 this is the directory search path. If no directory is specified, \
                 httm will use the current working directory.")
-                .takes_value(true)
-                .multiple_values(true)
-                .value_parser(clap::builder::ValueParser::os_string())
+                .value_parser(clap::value_parser!(OsString))
+                .num_args(0..)
                 .display_order(1)
         )
         .arg(
@@ -161,10 +161,9 @@ fn parse_args() -> ArgMatches {
             Arg::new("SELECT")
                 .short('s')
                 .long("select")
-                .takes_value(true)
+                .value_parser(["path", "contents", "preview"])
+                .num_args(1)
                 .default_missing_value("path")
-                .possible_values(["path", "contents", "preview"])
-                .min_values(0)
                 .require_equals(true)
                 .help("interactive browse and search a specified directory to display unique file versions.  \
                 Continue to another dialog to select a snapshot version to dump to stdout.  This argument optionally takes a value.  \
@@ -177,9 +176,8 @@ fn parse_args() -> ArgMatches {
             Arg::new("RESTORE")
                 .short('r')
                 .long("restore")
-                .takes_value(true)
-                .possible_values(["copy", "copy-and-preserve", "overwrite", "yolo", "guard"])
-                .min_values(0)
+                .value_parser(["copy", "copy-and-preserve", "overwrite", "yolo", "guard"])
+                .num_args(1)
                 .require_equals(true)
                 .help("interactive browse and search a specified directory to display unique file versions.  Continue to another dialog to select a snapshot version to restore.  \
                 This argument optionally takes a value.  Default behavior/value is a non-destructive \"copy\" to the current working directory with a new name, \
@@ -195,11 +193,9 @@ fn parse_args() -> ArgMatches {
             Arg::new("DELETED")
                 .short('d')
                 .long("deleted")
-                .takes_value(true)
                 .default_missing_value("all")
-                .possible_values(["all", "single", "only"])
-                .require_equals(true)
-                .min_values(0)
+                .value_parser(["all", "single", "only"])
+                .num_args(1)
                 .require_equals(true)
                 .help("show deleted files in interactive modes.  In non-interactive modes, do a search for all files deleted from a specified directory. \
                 This argument optionally takes a value.  The default behavior/value is \"all\".  \
@@ -233,8 +229,8 @@ fn parse_args() -> ArgMatches {
                 The default value/command, if no command value specified, is a 'bowie' formatted 'diff'.  \
                 User defined commands must specify the snapshot file name \"{snap_file}\" and the live file name \"{live_file}\" within their shell command.  \
                 NOTE: 'bash' is required to bootstrap any preview script, even if user defined preview commands or script is written in a different language.")
-                .takes_value(true)
-                .min_values(0)
+                .value_parser(clap::value_parser!(OsString))
+                .num_args(0)
                 .require_equals(true)
                 .default_missing_value("default")
                 .display_order(8)
@@ -243,10 +239,9 @@ fn parse_args() -> ArgMatches {
             Arg::new("UNIQUENESS")
                 .long("uniqueness")
                 .visible_aliases(&["unique"])
-                .takes_value(true)
                 .default_missing_value("contents")
-                .possible_values(["all", "no-filter", "metadata", "contents"])
-                .min_values(0)
+                .value_parser(["all", "no-filter", "metadata", "contents"])
+                .num_args(0)
                 .require_equals(true)
                 .help("comparing file versions solely on the basis of size and modify time (the default \"metadata\" behavior) may return what appear to be \"false positives\", \
                 in the sense that, modify time is not a precise measure of whether a file has actually changed.  A program might overwrite a file with the same contents, \
@@ -267,11 +262,10 @@ fn parse_args() -> ArgMatches {
             Arg::new("SNAPSHOT")
                 .short('S')
                 .long("snap")
-                .takes_value(true)
-                .min_values(0)
                 .require_equals(true)
                 .default_missing_value("httmSnapFileMount")
-                .visible_aliases(&["snap-file", "snapshot", "snap-file-mount"])
+                .value_parser(["snap-file", "snapshot", "snap-file-mount"])
+                .num_args(0)
                 .help("snapshot a file/s most immediate mount.  \
                 This argument optionally takes a value for a snapshot suffix.  The default suffix is 'httmSnapFileMount'.  \
                 Note: This is a ZFS only option which requires either superuser or 'zfs allow' privileges.")
@@ -282,10 +276,9 @@ fn parse_args() -> ArgMatches {
             Arg::new("LIST_SNAPS")
                 .long("list-snaps")
                 .aliases(&["snaps-for-file", "ls-snaps", "list-snapshots"])
-                .takes_value(true)
-                .min_values(0)
+                .value_parser(clap::value_parser!(OsString))
+                .num_args(0)
                 .require_equals(true)
-                .multiple_values(false)
                 .help("display snapshots names for a file.  This argument optionally takes a value.  \
                 By default, this argument will return all available snapshot names.  \
                 User may limit type of snapshots returned via the UNIQUENESS flag.  \
@@ -301,10 +294,9 @@ fn parse_args() -> ArgMatches {
             Arg::new("ROLL_FORWARD")
                 .long("roll-forward")
                 .aliases(&["roll", "spring", "spring-forward"])
-                .takes_value(true)
-                .min_values(1)
+                .value_parser(clap::value_parser!(OsString))
+                .num_args(1)
                 .require_equals(true)
-                .multiple_values(false)
                 .help("traditionally 'zfs rollback' is a destructive operation, whereas httm roll-forward is non-destructive.  \
                 httm will copy only files and their attributes that have changed since a specified snapshot, from that snapshot, to its live dataset.  \
                 httm will also take two precautionary snapshots, one before and one after the copy.  \
@@ -333,10 +325,9 @@ fn parse_args() -> ArgMatches {
                 .long("file-mount")
                 .alias("mount-for-file")
                 .visible_alias("mount")
-                .takes_value(true)
                 .default_missing_value("target")
-                .possible_values(["source", "target", "mount", "directory", "device", "dataset", "relative-path", "relative", "relpath"])
-                .min_values(0)
+                .value_parser(["source", "target", "mount", "directory", "device", "dataset", "relative-path", "relative", "relpath"])
+                .num_args(0)
                 .require_equals(true)
                 .help("by default, display the all mount point/s of all dataset/s which contain/s the input file/s.  \
                 This argument optionally takes a value to display other information about the path.  Possible values are: \
@@ -350,11 +341,10 @@ fn parse_args() -> ArgMatches {
             Arg::new("LAST_SNAP")
                 .short('l')
                 .long("last-snap")
-                .takes_value(true)
                 .default_missing_value("any")
                 .visible_aliases(&["last", "latest"])
-                .possible_values(["any", "ditto", "no-ditto", "no-ditto-exclusive", "no-ditto-inclusive", "none", "without"])
-                .min_values(0)
+                .value_parser(["any", "ditto", "no-ditto", "no-ditto-exclusive", "no-ditto-inclusive", "none", "without"])
+                .num_args(0)
                 .require_equals(true)
                 .help("automatically select and print the path of last-in-time unique snapshot version for the input file.  \
                 This argument optionally takes a value.  Possible values are: \
@@ -463,7 +453,6 @@ fn parse_args() -> ArgMatches {
                 (eg. --map-aliases /Users/<User Name>:/Volumes/Home).  Multiple maps may be specified delimited by a comma, ','.  \
                 You may also set via the environment variable HTTM_MAP_ALIASES.")
                 .use_value_delimiter(true)
-                .takes_value(true)
                 .value_parser(clap::builder::ValueParser::os_string())
                 .display_order(27)
         )
@@ -471,8 +460,8 @@ fn parse_args() -> ArgMatches {
             Arg::new("NUM_VERSIONS")
                 .long("num-versions")
                 .default_missing_value("all")
-                .possible_values(["all", "graph", "single", "single-no-snap", "single-with-snap", "multiple"])
-                .min_values(0)
+                .value_parser(["all", "graph", "single", "single-no-snap", "single-with-snap", "multiple"])
+                .num_args(0)
                 .require_equals(true)
                 .help("detect and display the number of unique versions available (e.g. one, \"1\", \
                 version is available if either a snapshot version exists, and is identical to live version, or only a live version exists).  \
@@ -491,7 +480,6 @@ fn parse_args() -> ArgMatches {
                 .visible_aliases(&["remote", "snap-point"])
                 .help("DEPRECATED.  Use MAP_ALIASES. Manually specify that mount point for ZFS (directory which contains a \".zfs\" directory) or btrfs-snapper \
                 (directory which contains a \".snapshots\" directory), such as the local mount point for a remote share.  You may also set via the HTTM_REMOTE_DIR environment variable.")
-                .takes_value(true)
                 .value_parser(clap::builder::ValueParser::os_string())
                 .display_order(29)
         )
@@ -504,7 +492,6 @@ fn parse_args() -> ArgMatches {
                 Put more simply, the \"local-dir\" is likely the directory you backup to your \"remote-dir\".  If not set, httm defaults to your current working directory.  \
                 You may also set via the environment variable HTTM_LOCAL_DIR.")
                 .requires("REMOTE_DIR")
-                .takes_value(true)
                 .value_parser(clap::builder::ValueParser::os_string())
                 .display_order(30)
         )
@@ -575,11 +562,11 @@ impl Config {
     }
 
     fn from_matches(matches: &ArgMatches) -> HttmResult<Self> {
-        if matches.is_present("ZSH_HOT_KEYS") {
+        if matches.contains_id("ZSH_HOT_KEYS") {
             install_hot_keys()?
         }
 
-        let requested_utc_offset = if matches.is_present("UTC") {
+        let requested_utc_offset = if matches.contains_id("UTC") {
             UtcOffset::UTC
         } else {
             // this fn is surprisingly finicky. it needs to be done
@@ -588,21 +575,21 @@ impl Config {
             UtcOffset::current_local_offset().unwrap_or(UtcOffset::UTC)
         };
 
-        let opt_json = matches.is_present("JSON");
+        let opt_json = matches.contains_id("JSON");
 
-        let mut print_mode = if matches.is_present("ZEROS") {
+        let mut print_mode = if matches.contains_id("ZEROS") {
             PrintMode::RawZero
-        } else if matches.is_present("RAW") {
+        } else if matches.contains_id("RAW") {
             PrintMode::RawNewline
-        } else if matches.is_present("NOT_SO_PRETTY") {
+        } else if matches.contains_id("NOT_SO_PRETTY") {
             PrintMode::FormattedNotPretty
         } else {
             PrintMode::FormattedDefault
         };
 
-        let opt_bulk_exclusion = if matches.is_present("NO_LIVE") {
+        let opt_bulk_exclusion = if matches.contains_id("NO_LIVE") {
             Some(BulkExclusion::NoLive)
-        } else if matches.is_present("NO_SNAP") {
+        } else if matches.contains_id("NO_SNAP") {
             Some(BulkExclusion::NoSnap)
         } else {
             None
@@ -618,17 +605,20 @@ impl Config {
         }
 
         // force a raw mode if one is not set for no_snap mode
-        let opt_one_filesystem = matches.is_present("ONE_FILESYSTEM");
-        let opt_recursive = matches.is_present("RECURSIVE");
+        let opt_one_filesystem = matches.contains_id("ONE_FILESYSTEM");
+        let opt_recursive = matches.contains_id("RECURSIVE");
 
-        let opt_exact = matches.is_present("EXACT");
-        let opt_no_filter = matches.is_present("NO_FILTER");
-        let opt_debug = matches.is_present("DEBUG");
-        let opt_no_hidden = matches.is_present("FILTER_HIDDEN");
+        let opt_exact = matches.contains_id("EXACT");
+        let opt_no_filter = matches.contains_id("NO_FILTER");
+        let opt_debug = matches.contains_id("DEBUG");
+        let opt_no_hidden = matches.contains_id("FILTER_HIDDEN");
         let opt_no_clones =
-            matches.is_present("NO_CLONES") || std::env::var_os("HTTM_NO_CLONE").is_some();
+            matches.contains_id("NO_CLONES") || std::env::var_os("HTTM_NO_CLONE").is_some();
 
-        let opt_last_snap = match matches.value_of("LAST_SNAP") {
+        let opt_last_snap = match matches
+            .get_one::<String>("LAST_SNAP")
+            .map(|val| val.as_str())
+        {
             Some("" | "any") => Some(LastSnapMode::Any),
             Some("none" | "without") => Some(LastSnapMode::Without),
             Some("ditto") => Some(LastSnapMode::DittoOnly),
@@ -637,7 +627,10 @@ impl Config {
             _ => None,
         };
 
-        let opt_num_versions = match matches.value_of("NUM_VERSIONS") {
+        let opt_num_versions = match matches
+            .get_one::<String>("NUM_VERSIONS")
+            .map(|val| val.as_str())
+        {
             Some("" | "all") => Some(NumVersionsMode::AllNumerals),
             Some("graph") => Some(NumVersionsMode::AllGraph),
             Some("single") => Some(NumVersionsMode::SingleAll),
@@ -653,28 +646,34 @@ impl Config {
             return Err(HttmError::new("The NUM_VERSIONS graph mode and the RAW or ZEROS display modes are an invalid combination.").into());
         }
 
-        let opt_mount_display = match matches.value_of("FILE_MOUNT") {
+        let opt_mount_display = match matches
+            .get_one::<String>("FILE_MOUNT")
+            .map(|val| val.as_str())
+        {
             Some("" | "mount" | "target" | "directory") => Some(MountDisplay::Target),
             Some("source" | "device" | "dataset") => Some(MountDisplay::Source),
             Some("relative-path" | "relative" | "relpath") => Some(MountDisplay::RelativePath),
             _ => None,
         };
 
-        let opt_preview = match matches.value_of("PREVIEW") {
+        let opt_preview = match matches.get_one::<String>("PREVIEW").map(|val| val.as_str()) {
             Some("" | "default") => Some("default".to_owned()),
             Some(user_defined) => Some(user_defined.to_owned()),
             None => None,
         };
 
-        let mut opt_deleted_mode = match matches.value_of("DELETED") {
-            Some("" | "all") => Some(DeletedMode::All),
-            Some("single") => Some(DeletedMode::DepthOfOne),
-            Some("only") => Some(DeletedMode::Only),
-            _ => None,
-        };
+        let mut opt_deleted_mode =
+            match matches.get_one::<String>("DELETED").map(|val| val.as_str()) {
+                Some("" | "all") => Some(DeletedMode::All),
+                Some("single") => Some(DeletedMode::DepthOfOne),
+                Some("only") => Some(DeletedMode::Only),
+                _ => None,
+            };
 
-        let opt_interactive_mode = if matches.is_present("RESTORE") {
-            let mut restore_mode = matches.value_of("RESTORE").map(|inner| inner.to_string());
+        let opt_interactive_mode = if matches.contains_id("RESTORE") {
+            let mut restore_mode = matches
+                .get_one::<String>("RESTORE")
+                .map(|inner| inner.to_string());
 
             if matches!(restore_mode.as_deref(), Some("") | None)
                 && std::env::var("HTTM_RESTORE_MODE").is_ok()
@@ -694,21 +693,24 @@ impl Config {
                 }
                 Some(_) | None => Some(InteractiveMode::Restore(RestoreMode::CopyOnly)),
             }
-        } else if matches.is_present("SELECT") || opt_preview.is_some() {
-            match matches.value_of("SELECT") {
+        } else if matches.contains_id("SELECT") || opt_preview.is_some() {
+            match matches.get_one::<String>("SELECT").map(|val| val.as_str()) {
                 Some("contents") => Some(InteractiveMode::Select(SelectMode::Contents)),
                 Some("preview") => Some(InteractiveMode::Select(SelectMode::Preview)),
                 Some(_) | None => Some(InteractiveMode::Select(SelectMode::Path)),
             }
         // simply enable browse mode -- if deleted mode not enabled but recursive search is specified,
         // that is, if delete recursive search is not specified, don't error out, let user browse
-        } else if matches.is_present("BROWSE") || (opt_recursive && opt_deleted_mode.is_none()) {
+        } else if matches.contains_id("BROWSE") || (opt_recursive && opt_deleted_mode.is_none()) {
             Some(InteractiveMode::Browse)
         } else {
             None
         };
 
-        let mut uniqueness = match matches.value_of("UNIQUENESS") {
+        let mut uniqueness = match matches
+            .get_one::<String>("UNIQUENESS")
+            .map(|val| val.as_ref())
+        {
             Some("all" | "no-filter") => ListSnapsOfType::All,
             Some("contents") => ListSnapsOfType::UniqueContents,
             Some("metadata" | _) | None => ListSnapsOfType::UniqueMetadata,
@@ -730,7 +732,7 @@ impl Config {
         }
 
         let opt_snap_file_mount =
-            if let Some(requested_snapshot_suffix) = matches.value_of("SNAPSHOT") {
+            if let Some(requested_snapshot_suffix) = matches.get_one::<String>("SNAPSHOT") {
                 if requested_snapshot_suffix == "httmSnapFileMount" {
                     Some(requested_snapshot_suffix.to_owned())
                 } else if requested_snapshot_suffix.contains(char::is_whitespace) {
@@ -745,20 +747,20 @@ impl Config {
                 None
             };
 
-        let opt_snap_mode_filters = if matches.is_present("LIST_SNAPS") {
+        let opt_snap_mode_filters = if matches.contains_id("LIST_SNAPS") {
             // allow selection of snaps to prune in prune mode
             let select_mode = matches!(opt_interactive_mode, Some(InteractiveMode::Select(_)));
 
-            if !matches.is_present("PRUNE") && select_mode {
+            if !matches.contains_id("PRUNE") && select_mode {
                 eprintln!("Select mode for listed snapshots only available in PRUNE mode.")
             }
 
             // default to listing all snaps in list snaps mode if unset
-            if !matches.is_present("UNIQUENESS") {
+            if !matches.contains_id("UNIQUENESS") {
                 uniqueness = ListSnapsOfType::All;
             }
 
-            if let Some(values) = matches.value_of("LIST_SNAPS") {
+            if let Some(values) = matches.get_one::<String>("LIST_SNAPS") {
                 Some(Self::snap_filters(values, select_mode)?)
             } else {
                 Some(ListSnapsFilters {
@@ -771,13 +773,14 @@ impl Config {
             None
         };
 
-        let mut exec_mode = if let Some(full_snap_name) = matches.value_of("ROLL_FORWARD") {
+        let mut exec_mode = if let Some(full_snap_name) = matches.get_one::<String>("ROLL_FORWARD")
+        {
             ExecMode::RollForward(full_snap_name.to_string())
         } else if let Some(num_versions_mode) = opt_num_versions {
             ExecMode::NumVersions(num_versions_mode)
         } else if let Some(mount_display) = opt_mount_display {
             ExecMode::MountsForFiles(mount_display)
-        } else if matches.is_present("PRUNE") {
+        } else if matches.contains_id("PRUNE") {
             ExecMode::Prune(opt_snap_mode_filters)
         } else if opt_snap_mode_filters.is_some() {
             ExecMode::SnapsForFiles(opt_snap_mode_filters)
@@ -805,17 +808,20 @@ impl Config {
         // obtain a map of datasets, a map of snapshot directories, and possibly a map of
         // alternate filesystems and map of aliases if the user requests
         let dataset_collection = FilesystemInfo::new(
-            matches.is_present("ALT_REPLICATED"),
+            matches.contains_id("ALT_REPLICATED"),
             opt_debug,
-            matches.value_of_os("REMOTE_DIR"),
-            matches.value_of_os("LOCAL_DIR"),
-            matches.values_of_os("MAP_ALIASES"),
+            matches.get_one::<OsString>("REMOTE_DIR"),
+            matches.get_one::<OsString>("LOCAL_DIR"),
+            matches.get_one::<Vec<OsString>>("MAP_ALIASES"),
             &pwd,
         )?;
 
         // paths are immediately converted to our PathData struct
-        let paths: Vec<PathData> =
-            Self::paths(matches.values_of_os("INPUT_FILES"), &exec_mode, &pwd)?;
+        let paths: Vec<PathData> = Self::paths(
+            matches.get_one::<Vec<OsString>>("INPUT_FILES"),
+            &exec_mode,
+            &pwd,
+        )?;
 
         // for exec_modes in which we can only take a single directory, process how we handle those here
         let opt_requested_dir: Option<PathBuf> =
@@ -830,7 +836,7 @@ impl Config {
 
         // doesn't make sense to follow symlinks when you're searching the whole system,
         // so we disable our bespoke "when to traverse symlinks" algo here, or if requested.
-        let opt_no_traverse = matches.is_present("NO_TRAVERSE") || {
+        let opt_no_traverse = matches.contains_id("NO_TRAVERSE") || {
             if let Some(user_requested_dir) = opt_requested_dir.as_ref() {
                 user_requested_dir.as_path() == Path::new(ROOT_DIRECTORY)
             } else {
@@ -845,7 +851,7 @@ impl Config {
             .into());
         }
 
-        let opt_omit_ditto = matches.is_present("OMIT_DITTO");
+        let opt_omit_ditto = matches.contains_id("OMIT_DITTO");
 
         // opt_omit_identical doesn't make sense in Display Recursive mode as no live files will exists?
         if opt_omit_ditto && matches!(exec_mode, ExecMode::NonInteractiveRecursive(_)) {
@@ -890,13 +896,13 @@ impl Config {
     }
 
     pub fn paths(
-        opt_os_values: Option<OsValues>,
+        opt_os_values: Option<&Vec<OsString>>,
         exec_mode: &ExecMode,
         pwd: &Path,
     ) -> HttmResult<Vec<PathData>> {
         let mut paths = if let Some(input_files) = opt_os_values {
             input_files
-                .par_bridge()
+                .par_iter()
                 // canonicalize() on a deleted relative path will not exist,
                 // so we have to join with the pwd to make a path that
                 // will exist on a snapshot
