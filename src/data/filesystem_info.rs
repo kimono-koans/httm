@@ -20,6 +20,7 @@ use crate::parse::aliases::MapOfAliases;
 use crate::parse::alts::MapOfAlts;
 use crate::parse::mounts::{BaseFilesystemInfo, FilterDirs, MapOfDatasets};
 use crate::parse::snaps::MapOfSnaps;
+use clap::parser::ValuesRef;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
@@ -45,7 +46,7 @@ impl FilesystemInfo {
         opt_debug: bool,
         opt_remote_dir: Option<&OsString>,
         opt_local_dir: Option<&OsString>,
-        opt_map_aliases: Option<Vec<&OsString>>,
+        opt_map_aliases: Option<ValuesRef<'_, OsString>>,
         pwd: &Path,
     ) -> HttmResult<FilesystemInfo> {
         let base_fs_info = BaseFilesystemInfo::new(opt_debug)?;

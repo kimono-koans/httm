@@ -23,6 +23,7 @@ use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{pwd, HttmIsDir};
 use crate::lookup::file_mounts::MountDisplay;
 use crate::ROOT_DIRECTORY;
+use clap::parser::ValuesRef;
 use clap::{crate_name, crate_version, Arg, ArgAction, ArgMatches};
 use indicatif::ProgressBar;
 use rayon::prelude::*;
@@ -830,9 +831,7 @@ impl Config {
         // obtain a map of datasets, a map of snapshot directories, and possibly a map of
         // alternate filesystems and map of aliases if the user requests
 
-        let opt_map_aliases: Option<Vec<&OsString>> = matches
-            .get_many::<OsString>("MAP_ALIASES")
-            .map(|vals| vals.into_iter().collect());
+        let opt_map_aliases = matches.get_many::<OsString>("MAP_ALIASES");
 
         let dataset_collection = FilesystemInfo::new(
             matches.contains_id("ALT_REPLICATED"),
@@ -844,9 +843,7 @@ impl Config {
         )?;
 
         // paths are immediately converted to our PathData struct
-        let opt_os_values: Option<Vec<&PathBuf>> = matches
-            .get_many::<PathBuf>("INPUT_FILES")
-            .map(|val_ref| val_ref.into_iter().collect());
+        let opt_os_values = matches.get_many::<PathBuf>("INPUT_FILES");
 
         let paths: Vec<PathData> = Self::paths(opt_os_values, &exec_mode, &pwd)?;
 
@@ -923,13 +920,14 @@ impl Config {
     }
 
     pub fn paths(
-        opt_os_values: Option<Vec<&PathBuf>>,
+        opt_os_values: Option<ValuesRef<'_, PathBuf>>,
         exec_mode: &ExecMode,
         pwd: &Path,
     ) -> HttmResult<Vec<PathData>> {
         let mut paths = if let Some(input_files) = opt_os_values {
             input_files
-                .par_iter()
+                .into_iter()
+                .par_bridge()
                 // canonicalize() on a deleted relative path will not exist,
                 // so we have to join with the pwd to make a path that
                 // will exist on a snapshot
