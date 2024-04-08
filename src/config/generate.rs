@@ -616,28 +616,22 @@ impl Config {
         let opt_no_clones =
             matches.contains_id("NO_CLONES") || std::env::var_os("HTTM_NO_CLONE").is_some();
 
-        let opt_last_snap = match matches
-            .get_one::<String>("LAST_SNAP")
-            .map(|val| val.as_str())
-        {
-            Some("" | "any") => Some(LastSnapMode::Any),
-            Some("none" | "without") => Some(LastSnapMode::Without),
-            Some("ditto") => Some(LastSnapMode::DittoOnly),
-            Some("no-ditto-inclusive") => Some(LastSnapMode::NoDittoInclusive),
-            Some("no-ditto-exclusive" | "no-ditto") => Some(LastSnapMode::NoDittoExclusive),
+        let opt_last_snap = match matches.get_one::<&str>("LAST_SNAP") {
+            Some(&"" | &"any") => Some(LastSnapMode::Any),
+            Some(&"none" | &"without") => Some(LastSnapMode::Without),
+            Some(&"ditto") => Some(LastSnapMode::DittoOnly),
+            Some(&"no-ditto-inclusive") => Some(LastSnapMode::NoDittoInclusive),
+            Some(&"no-ditto-exclusive" | &"no-ditto") => Some(LastSnapMode::NoDittoExclusive),
             _ => None,
         };
 
-        let opt_num_versions = match matches
-            .get_one::<String>("NUM_VERSIONS")
-            .map(|val| val.as_str())
-        {
-            Some("" | "all") => Some(NumVersionsMode::AllNumerals),
-            Some("graph") => Some(NumVersionsMode::AllGraph),
-            Some("single") => Some(NumVersionsMode::SingleAll),
-            Some("single-no-snap") => Some(NumVersionsMode::SingleNoSnap),
-            Some("single-with-snap") => Some(NumVersionsMode::SingleWithSnap),
-            Some("multiple") => Some(NumVersionsMode::Multiple),
+        let opt_num_versions = match matches.get_one::<&str>("NUM_VERSIONS") {
+            Some(&"" | &"all") => Some(NumVersionsMode::AllNumerals),
+            Some(&"graph") => Some(NumVersionsMode::AllGraph),
+            Some(&"single") => Some(NumVersionsMode::SingleAll),
+            Some(&"single-no-snap") => Some(NumVersionsMode::SingleNoSnap),
+            Some(&"single-with-snap") => Some(NumVersionsMode::SingleWithSnap),
+            Some(&"multiple") => Some(NumVersionsMode::Multiple),
             _ => None,
         };
 
@@ -647,33 +641,29 @@ impl Config {
             return Err(HttmError::new("The NUM_VERSIONS graph mode and the RAW or ZEROS display modes are an invalid combination.").into());
         }
 
-        let opt_mount_display = match matches
-            .get_one::<String>("FILE_MOUNT")
-            .map(|val| val.as_str())
-        {
-            Some("" | "mount" | "target" | "directory") => Some(MountDisplay::Target),
-            Some("source" | "device" | "dataset") => Some(MountDisplay::Source),
-            Some("relative-path" | "relative" | "relpath") => Some(MountDisplay::RelativePath),
+        let opt_mount_display = match matches.get_one::<&str>("FILE_MOUNT") {
+            Some(&"" | &"mount" | &"target" | &"directory") => Some(MountDisplay::Target),
+            Some(&"source" | &"device" | &"dataset") => Some(MountDisplay::Source),
+            Some(&"relative-path" | &"relative" | &"relpath") => Some(MountDisplay::RelativePath),
             _ => None,
         };
 
-        let opt_preview = match matches.get_one::<String>("PREVIEW").map(|val| val.as_str()) {
-            Some("" | "default") => Some("default".to_owned()),
-            Some(user_defined) => Some(user_defined.to_owned()),
+        let opt_preview = match matches.get_one::<&str>("PREVIEW") {
+            Some(&"" | &"default") => Some("default".to_owned()),
+            Some(user_defined) => Some(user_defined.to_string()),
             None => None,
         };
 
-        let mut opt_deleted_mode =
-            match matches.get_one::<String>("DELETED").map(|val| val.as_str()) {
-                Some("" | "all") => Some(DeletedMode::All),
-                Some("single") => Some(DeletedMode::DepthOfOne),
-                Some("only") => Some(DeletedMode::Only),
-                _ => None,
-            };
+        let mut opt_deleted_mode = match matches.get_one::<&str>("DELETED") {
+            Some(&"" | &"all") => Some(DeletedMode::All),
+            Some(&"single") => Some(DeletedMode::DepthOfOne),
+            Some(&"only") => Some(DeletedMode::Only),
+            _ => None,
+        };
 
         let opt_interactive_mode = if matches.contains_id("RESTORE") {
             let mut restore_mode = matches
-                .get_one::<String>("RESTORE")
+                .get_one::<&str>("RESTORE")
                 .map(|inner| inner.to_string());
 
             if matches!(restore_mode.as_deref(), Some("") | None)
@@ -695,9 +685,9 @@ impl Config {
                 Some(_) | None => Some(InteractiveMode::Restore(RestoreMode::CopyOnly)),
             }
         } else if matches.contains_id("SELECT") || opt_preview.is_some() {
-            match matches.get_one::<String>("SELECT").map(|val| val.as_str()) {
-                Some("contents") => Some(InteractiveMode::Select(SelectMode::Contents)),
-                Some("preview") => Some(InteractiveMode::Select(SelectMode::Preview)),
+            match matches.get_one::<&str>("SELECT") {
+                Some(&"contents") => Some(InteractiveMode::Select(SelectMode::Contents)),
+                Some(&"preview") => Some(InteractiveMode::Select(SelectMode::Preview)),
                 Some(_) | None => Some(InteractiveMode::Select(SelectMode::Path)),
             }
         // simply enable browse mode -- if deleted mode not enabled but recursive search is specified,
@@ -708,13 +698,10 @@ impl Config {
             None
         };
 
-        let mut uniqueness = match matches
-            .get_one::<String>("UNIQUENESS")
-            .map(|val| val.as_ref())
-        {
-            Some("all" | "no-filter") => ListSnapsOfType::All,
-            Some("contents") => ListSnapsOfType::UniqueContents,
-            Some("metadata" | _) | None => ListSnapsOfType::UniqueMetadata,
+        let mut uniqueness = match matches.get_one::<&str>("UNIQUENESS") {
+            Some(&"all" | &"no-filter") => ListSnapsOfType::All,
+            Some(&"contents") => ListSnapsOfType::UniqueContents,
+            Some(&"metadata" | _) | None => ListSnapsOfType::UniqueMetadata,
         };
 
         if opt_no_hidden && !opt_recursive && opt_interactive_mode.is_none() {
@@ -733,8 +720,8 @@ impl Config {
         }
 
         let opt_snap_file_mount =
-            if let Some(requested_snapshot_suffix) = matches.get_one::<String>("SNAPSHOT") {
-                if requested_snapshot_suffix == "httmSnapFileMount" {
+            if let Some(requested_snapshot_suffix) = matches.get_one::<&str>("SNAPSHOT") {
+                if requested_snapshot_suffix == &"httmSnapFileMount" {
                     Some(requested_snapshot_suffix.to_owned())
                 } else if requested_snapshot_suffix.contains(char::is_whitespace) {
                     return Err(HttmError::new(
@@ -761,7 +748,7 @@ impl Config {
                 uniqueness = ListSnapsOfType::All;
             }
 
-            if let Some(values) = matches.get_one::<String>("LIST_SNAPS") {
+            if let Some(values) = matches.get_one::<&str>("LIST_SNAPS") {
                 Some(Self::snap_filters(values, select_mode)?)
             } else {
                 Some(ListSnapsFilters {
@@ -774,8 +761,7 @@ impl Config {
             None
         };
 
-        let mut exec_mode = if let Some(full_snap_name) = matches.get_one::<String>("ROLL_FORWARD")
-        {
+        let mut exec_mode = if let Some(full_snap_name) = matches.get_one::<&str>("ROLL_FORWARD") {
             ExecMode::RollForward(full_snap_name.to_string())
         } else if let Some(num_versions_mode) = opt_num_versions {
             ExecMode::NumVersions(num_versions_mode)
@@ -786,7 +772,7 @@ impl Config {
         } else if opt_snap_mode_filters.is_some() {
             ExecMode::SnapsForFiles(opt_snap_mode_filters)
         } else if let Some(requested_snapshot_suffix) = opt_snap_file_mount {
-            ExecMode::SnapFileMount(requested_snapshot_suffix)
+            ExecMode::SnapFileMount(requested_snapshot_suffix.to_string())
         } else if let Some(interactive_mode) = opt_interactive_mode {
             ExecMode::Interactive(interactive_mode)
         } else if opt_deleted_mode.is_some() {
