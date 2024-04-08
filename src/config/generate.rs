@@ -23,7 +23,7 @@ use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{pwd, HttmIsDir};
 use crate::lookup::file_mounts::MountDisplay;
 use crate::ROOT_DIRECTORY;
-use clap::{crate_name, crate_version, Arg, ArgMatches};
+use clap::{crate_name, crate_version, Arg, ArgAction, ArgMatches};
 use indicatif::ProgressBar;
 use rayon::prelude::*;
 use std::ffi::OsString;
@@ -147,6 +147,7 @@ fn parse_args() -> ArgMatches {
                 .value_parser(clap::value_parser!(PathBuf))
                 .num_args(0..)
                 .display_order(1)
+                .action(ArgAction::Append)
         )
         .arg(
             Arg::new("BROWSE")
@@ -156,6 +157,7 @@ fn parse_args() -> ArgMatches {
                 .visible_alias("interactive")
                 .help("interactive browse and search a specified directory to display unique file versions.")
                 .display_order(2)
+                .action(ArgAction::Append)
         )
         .arg(
             Arg::new("SELECT")
@@ -171,6 +173,7 @@ fn parse_args() -> ArgMatches {
                 or print the PREVIEW output by giving the value \"preview\".")
                 .conflicts_with("RESTORE")
                 .display_order(3)
+                .action(ArgAction::Append)
         )
         .arg(
             Arg::new("RESTORE")
@@ -188,6 +191,7 @@ fn parse_args() -> ArgMatches {
                 Note: Guard mode is a ZFS only option.  User may also set via the HTTM_RESTORE_MODE environment variable.")
                 .conflicts_with("SELECT")
                 .display_order(4)
+                .action(ArgAction::Append)
         )
         .arg(
             Arg::new("DELETED")
@@ -202,6 +206,7 @@ fn parse_args() -> ArgMatches {
                 If \"only\" is specified, then, in the interactive modes, non-deleted files will be excluded from the search. \
                 If \"single\" is specified, then, deleted files behind deleted directories, (that is -- files with a depth greater than one) will be ignored.")
                 .display_order(5)
+                .action(ArgAction::Append)
         )
         .arg(
             Arg::new("RECURSIVE")
@@ -210,6 +215,7 @@ fn parse_args() -> ArgMatches {
                 .conflicts_with_all(&["SNAPSHOT"])
                 .help("recurse into the selected directory to find more files. Only available in interactive and deleted file modes.")
                 .display_order(6)
+                .action(ArgAction::Append)
         )
         .arg(
             Arg::new("ALT_REPLICATED")
@@ -220,6 +226,7 @@ fn parse_args() -> ArgMatches {
                 httm will silently ignore unmounted datasets in the interactive modes.")
                 .conflicts_with_all(&["REMOTE_DIR", "LOCAL_DIR"])
                 .display_order(7)
+                .action(ArgAction::Append)
         )
         .arg(
             Arg::new("PREVIEW")
@@ -234,6 +241,7 @@ fn parse_args() -> ArgMatches {
                 .require_equals(true)
                 .default_missing_value("default")
                 .display_order(8)
+                .action(ArgAction::Append)
         )
         .arg(
             Arg::new("UNIQUENESS")
@@ -250,6 +258,7 @@ fn parse_args() -> ArgMatches {
                 Given how expensive this operation can be, for larger files or files with many versions, \"contents\" option is not shown in Interactive browse mode, \
                 but after a selection is made, can be utilized in Select or Restore modes.  The \"all\" or \"no-filter\" option dumps all snapshot versions, and no attempt is made to determine if the file versions are distinct.")
                 .display_order(9)
+                .action(ArgAction::Append)
         )
         .arg(
             Arg::new("EXACT")
@@ -257,6 +266,7 @@ fn parse_args() -> ArgMatches {
                 .long("exact")
                 .help("use exact pattern matching for searches in the interactive modes (in contrast to the default fuzzy searching).")
                 .display_order(10)
+                .action(ArgAction::Append)
         )
         .arg(
             Arg::new("SNAPSHOT")
@@ -271,6 +281,7 @@ fn parse_args() -> ArgMatches {
                 Note: This is a ZFS only option which requires either superuser or 'zfs allow' privileges.")
                 .conflicts_with_all(&["BROWSE", "SELECT", "RESTORE", "ALT_REPLICATED", "REMOTE_DIR", "LOCAL_DIR"])
                 .display_order(11)
+                .action(ArgAction::Append)
         )
         .arg(
             Arg::new("LIST_SNAPS")
@@ -289,6 +300,7 @@ fn parse_args() -> ArgMatches {
                 Note: This is a ZFS only option.")
                 .conflicts_with_all(&["BROWSE", "RESTORE"])
                 .display_order(12)
+                .action(ArgAction::Append)
         )
         .arg(
             Arg::new("ROLL_FORWARD")
@@ -304,6 +316,7 @@ fn parse_args() -> ArgMatches {
                 Caveats: This is a ZFS only option which requires super user privileges.")
                 .conflicts_with_all(&["BROWSE", "RESTORE", "ALT_REPLICATED", "REMOTE_DIR", "LOCAL_DIR"])
                 .display_order(13)
+                .action(ArgAction::Append)
         )
         .arg(
             Arg::new("PRUNE")
@@ -318,6 +331,7 @@ fn parse_args() -> ArgMatches {
                 .conflicts_with_all(&["BROWSE", "RESTORE", "ALT_REPLICATED", "REMOTE_DIR", "LOCAL_DIR"])
                 .requires("LIST_SNAPS")
                 .display_order(13)
+                .action(ArgAction::Append)
         )
         .arg(
             Arg::new("FILE_MOUNT")
@@ -336,6 +350,7 @@ fn parse_args() -> ArgMatches {
                 \"relative-path\" or \"relative\", return the path relative to the underlying dataset/device of the mount.")
                 .conflicts_with_all(&["BROWSE", "SELECT", "RESTORE"])
                 .display_order(14)
+                .action(ArgAction::Append)
         )
         .arg(
             Arg::new("LAST_SNAP")
@@ -355,6 +370,7 @@ fn parse_args() -> ArgMatches {
                 \"none\" or \"without\", return the live file only for those files without a last snapshot.")
                 .conflicts_with_all(&["NUM_VERSIONS", "SNAPSHOT", "FILE_MOUNT", "ALT_REPLICATED", "REMOTE_DIR", "LOCAL_DIR", "PREVIEW"])
                 .display_order(15)
+                .action(ArgAction::Append)
         )
         .arg(
             Arg::new("RAW")
@@ -364,6 +380,7 @@ fn parse_args() -> ArgMatches {
                 .help("display the snapshot locations only, without extraneous information, delimited by a NEWLINE character.")
                 .conflicts_with_all(&["ZEROS", "NOT_SO_PRETTY"])
                 .display_order(16)
+                .action(ArgAction::Append)
         )
         .arg(
             Arg::new("ZEROS")
@@ -373,6 +390,7 @@ fn parse_args() -> ArgMatches {
                 .help("display the snapshot locations only, without extraneous information, delimited by a NULL character.")
                 .conflicts_with_all(&["RAW", "NOT_SO_PRETTY"])
                 .display_order(17)
+                .action(ArgAction::Append)
         )
         .arg(
             Arg::new("NOT_SO_PRETTY")
@@ -381,6 +399,7 @@ fn parse_args() -> ArgMatches {
                 .help("display the ordinary output, but tab delimited, without any pretty border lines.")
                 .conflicts_with_all(&["RAW", "ZEROS"])
                 .display_order(18)
+                .action(ArgAction::Append)
         )
         .arg(
             Arg::new("JSON")
@@ -388,6 +407,7 @@ fn parse_args() -> ArgMatches {
                 .help("display the ordinary output, but as formatted JSON.")
                 .conflicts_with_all(&["SELECT", "RESTORE"])
                 .display_order(19)
+                .action(ArgAction::Append)
         )
         .arg(
             Arg::new("OMIT_DITTO")
@@ -395,6 +415,7 @@ fn parse_args() -> ArgMatches {
                 .help("omit display of the snapshot version which may be identical to the live version.  By default, `httm` displays all snapshot versions and the live version).")
                 .conflicts_with_all(&["NUM_VERSIONS"])
                 .display_order(20)
+                .action(ArgAction::Append)
         )
         .arg(
             Arg::new("NO_FILTER")
@@ -402,6 +423,7 @@ fn parse_args() -> ArgMatches {
                 .help("by default, in the interactive modes, httm will filter out files residing upon non-supported datasets (like ext4, tmpfs, procfs, sysfs, or devtmpfs, etc.), and within any \"common\" snapshot paths.  \
                 Here, one may select to disable such filtering.  httm, however, will always show the input path, and results from behind any input path when that is the path being searched.")
                 .display_order(21)
+                .action(ArgAction::Append)
         )
         .arg(
             Arg::new("FILTER_HIDDEN")
@@ -409,6 +431,7 @@ fn parse_args() -> ArgMatches {
                 .aliases(&["no-hide", "nohide", "filter-hidden"])
                 .help("do not show information regarding hidden files and directories (those that start with a \'.\') in the recursive or interactive modes.")
                 .display_order(22)
+                .action(ArgAction::Append)
         )
         .arg(
             Arg::new("ONE_FILESYSTEM")
@@ -417,6 +440,7 @@ fn parse_args() -> ArgMatches {
                 .requires("RECURSIVE")
                 .help("limit recursive search to file and directories on the same filesystem/device as the target directory.")
                 .display_order(23)
+                .action(ArgAction::Append)
         )
         .arg(
             Arg::new("NO_TRAVERSE")
@@ -424,6 +448,7 @@ fn parse_args() -> ArgMatches {
                 .help("in recursive mode, don't traverse symlinks.  Although httm does its best to prevent searching pathologically recursive symlink-ed paths, \
                 here, you may disable symlink traversal completely.  NOTE: httm will never traverse symlinks when a requested recursive search is on the root/base directory (\"/\").")
                 .display_order(24)
+                .action(ArgAction::Append)
         )
         .arg(
             Arg::new("NO_LIVE")
@@ -431,6 +456,7 @@ fn parse_args() -> ArgMatches {
                 .visible_aliases(&["dead", "disco"])
                 .help("only display information concerning snapshot versions (display no information regarding live versions of files or directories).")
                 .display_order(25)
+                .action(ArgAction::Append)
         )
         .arg(
             Arg::new("NO_SNAP")
@@ -441,6 +467,7 @@ fn parse_args() -> ArgMatches {
                 .conflicts_with_all(&["BROWSE", "SELECT", "RESTORE", "SNAPSHOT", "LAST_SNAP", "NOT_SO_PRETTY"])
                 .requires("DELETED")
                 .display_order(26)
+                .action(ArgAction::Append)
         )
         .arg(
             Arg::new("MAP_ALIASES")
@@ -456,6 +483,7 @@ fn parse_args() -> ArgMatches {
                 .value_parser(clap::builder::ValueParser::os_string())
                 .num_args(0..)
                 .display_order(27)
+                .action(ArgAction::Append)
         )
         .arg(
             Arg::new("NUM_VERSIONS")
@@ -473,6 +501,7 @@ fn parse_args() -> ArgMatches {
                 and \"multiple\" will print only filenames which only have multiple versions.")
                 .conflicts_with_all(&["LAST_SNAP", "BROWSE", "SELECT", "RESTORE", "RECURSIVE", "SNAPSHOT", "NO_LIVE", "NO_SNAP", "OMIT_DITTO"])
                 .display_order(28)
+                .action(ArgAction::Append)
         )
         .arg(
             Arg::new("REMOTE_DIR")
@@ -483,6 +512,7 @@ fn parse_args() -> ArgMatches {
                 (directory which contains a \".snapshots\" directory), such as the local mount point for a remote share.  You may also set via the HTTM_REMOTE_DIR environment variable.")
                 .value_parser(clap::builder::ValueParser::os_string())
                 .display_order(29)
+                .action(ArgAction::Append)
         )
         .arg(
             Arg::new("LOCAL_DIR")
@@ -495,12 +525,14 @@ fn parse_args() -> ArgMatches {
                 .requires("REMOTE_DIR")
                 .value_parser(clap::builder::ValueParser::os_string())
                 .display_order(30)
+                .action(ArgAction::Append)
         )
         .arg(
             Arg::new("UTC")
                 .long("utc")
                 .help("use UTC for date display and timestamps")
                 .display_order(31)
+                .action(ArgAction::Append)
         )
         .arg(
             Arg::new("NO_CLONES")
@@ -509,12 +541,14 @@ fn parse_args() -> ArgMatches {
                 Here, you may disable that behavior, and force httm to use the fall back diff copy behavior as the default.  \
                 You may also set an environment variable to any value, \"HTTM_NO_CLONE\" to disable.")
                 .display_order(32)
+                .action(ArgAction::Append)
         )
         .arg(
             Arg::new("DEBUG")
                 .long("debug")
                 .help("print configuration and debugging info")
                 .display_order(33)
+                .action(ArgAction::Append)
         )
         .arg(
             Arg::new("ZSH_HOT_KEYS")
@@ -522,6 +556,7 @@ fn parse_args() -> ArgMatches {
                 .help("install zsh hot keys to the users home directory, and then exit")
                 .exclusive(true)
                 .display_order(34)
+                .action(ArgAction::Append)
         )
         .get_matches()
 }
@@ -796,7 +831,7 @@ impl Config {
         // alternate filesystems and map of aliases if the user requests
 
         let opt_map_aliases: Option<Vec<&OsString>> = matches
-            .get_one::<Vec<OsString>>("MAP_ALIASES")
+            .get_many::<OsString>("MAP_ALIASES")
             .map(|vals| vals.into_iter().collect());
 
         let dataset_collection = FilesystemInfo::new(
