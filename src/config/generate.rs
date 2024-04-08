@@ -144,7 +144,7 @@ fn parse_args() -> ArgMatches {
                 then httm will pause waiting for input on stdin.  In any interactive mode, \
                 this is the directory search path. If no directory is specified, \
                 httm will use the current working directory.")
-                .value_parser(clap::value_parser!(OsString))
+                .value_parser(clap::value_parser!(PathBuf))
                 .num_args(0..)
                 .display_order(1)
         )
@@ -454,6 +454,7 @@ fn parse_args() -> ArgMatches {
                 You may also set via the environment variable HTTM_MAP_ALIASES.")
                 .use_value_delimiter(true)
                 .value_parser(clap::builder::ValueParser::os_string())
+                .num_args(0..)
                 .display_order(27)
         )
         .arg(
@@ -807,21 +808,26 @@ impl Config {
 
         // obtain a map of datasets, a map of snapshot directories, and possibly a map of
         // alternate filesystems and map of aliases if the user requests
+
+        let opt_map_aliases: Option<Vec<&OsString>> = matches
+            .get_one::<Vec<OsString>>("MAP_ALIASES")
+            .map(|vals| vals.into_iter().collect());
+
         let dataset_collection = FilesystemInfo::new(
             matches.contains_id("ALT_REPLICATED"),
             opt_debug,
             matches.get_one::<OsString>("REMOTE_DIR"),
             matches.get_one::<OsString>("LOCAL_DIR"),
-            matches.get_one::<Vec<OsString>>("MAP_ALIASES"),
+            opt_map_aliases,
             &pwd,
         )?;
 
         // paths are immediately converted to our PathData struct
-        let paths: Vec<PathData> = Self::paths(
-            matches.get_one::<Vec<OsString>>("INPUT_FILES"),
-            &exec_mode,
-            &pwd,
-        )?;
+        let opt_os_values: Option<Vec<&PathBuf>> = matches
+            .get_many::<PathBuf>("INPUT_FILES")
+            .map(|val_ref| val_ref.into_iter().collect());
+
+        let paths: Vec<PathData> = Self::paths(opt_os_values, &exec_mode, &pwd)?;
 
         // for exec_modes in which we can only take a single directory, process how we handle those here
         let opt_requested_dir: Option<PathBuf> =
@@ -896,7 +902,7 @@ impl Config {
     }
 
     pub fn paths(
-        opt_os_values: Option<&Vec<OsString>>,
+        opt_os_values: Option<Vec<&PathBuf>>,
         exec_mode: &ExecMode,
         pwd: &Path,
     ) -> HttmResult<Vec<PathData>> {

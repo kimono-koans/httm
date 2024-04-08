@@ -45,7 +45,7 @@ impl FilesystemInfo {
         opt_debug: bool,
         opt_remote_dir: Option<&OsString>,
         opt_local_dir: Option<&OsString>,
-        opt_map_aliases: Option<&Vec<OsString>>,
+        opt_map_aliases: Option<Vec<&OsString>>,
         pwd: &Path,
     ) -> HttmResult<FilesystemInfo> {
         let base_fs_info = BaseFilesystemInfo::new(opt_debug)?;
