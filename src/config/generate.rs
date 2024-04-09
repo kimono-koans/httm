@@ -164,7 +164,7 @@ fn parse_args() -> ArgMatches {
                 .short('s')
                 .long("select")
                 .value_parser(["path", "contents", "preview"])
-                .num_args(1)
+                .num_args(0)
                 .default_missing_value("path")
                 .require_equals(true)
                 .help("interactive browse and search a specified directory to display unique file versions. \
@@ -180,7 +180,7 @@ fn parse_args() -> ArgMatches {
                 .short('r')
                 .long("restore")
                 .value_parser(["copy", "copy-and-preserve", "overwrite", "yolo", "guard"])
-                .num_args(1)
+                .num_args(0)
                 .require_equals(true)
                 .help("interactive browse and search a specified directory to display unique file versions. Continue to another dialog to select a snapshot version to restore. \
                 This argument optionally takes a value. Default behavior/value is a non-destructive \"copy\" to the current working directory with a new name, \
@@ -199,7 +199,7 @@ fn parse_args() -> ArgMatches {
                 .long("deleted")
                 .default_missing_value("all")
                 .value_parser(["all", "single", "only"])
-                .num_args(1)
+                .num_args(0)
                 .require_equals(true)
                 .help("show deleted files in interactive modes. In non-interactive modes, do a search for all files deleted from a specified directory. \
                 This argument optionally takes a value. The default behavior/value is \"all\". \
@@ -265,7 +265,6 @@ fn parse_args() -> ArgMatches {
                 .short('e')
                 .long("exact")
                 .help("use exact pattern matching for searches in the interactive modes (in contrast to the default fuzzy searching).")
-                
                 .display_order(10)
                 .action(ArgAction::SetTrue)
         )
