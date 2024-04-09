@@ -698,28 +698,26 @@ impl Config {
             _ => None,
         };
 
-        let opt_interactive_mode = if matches.get_one::<String>("RESTORE").is_some() {
-            let mut restore_mode = matches
-                .get_one::<String>("RESTORE")
-                .map(|inner| inner.to_string());
-
-            if matches!(restore_mode.as_deref(), Some("") | None)
-                && std::env::var("HTTM_RESTORE_MODE").is_ok()
+        let opt_interactive_mode = if let Some(var_restore_mode) = matches.get_one::<String>("RESTORE") {
+            let mut restore_mode = var_restore_mode.to_string();
+            
+            
+            if let Ok(env_restore_mode) = std::env::var("HTTM_RESTORE_MODE")
             {
-                restore_mode = std::env::var("HTTM_RESTORE_MODE").ok();
+                restore_mode = env_restore_mode;
             }
 
-            match restore_mode.as_deref() {
-                Some("guard") => Some(InteractiveMode::Restore(RestoreMode::Overwrite(
+            match restore_mode.as_str() {
+                "guard" => Some(InteractiveMode::Restore(RestoreMode::Overwrite(
                     RestoreSnapGuard::Guarded,
                 ))),
-                Some("overwrite" | "yolo") => Some(InteractiveMode::Restore(
+                "overwrite" | "yolo" => Some(InteractiveMode::Restore(
                     RestoreMode::Overwrite(RestoreSnapGuard::NotGuarded),
                 )),
-                Some("copy-and-preserve") => {
+                "copy-and-preserve" => {
                     Some(InteractiveMode::Restore(RestoreMode::CopyAndPreserve))
                 }
-                Some(_) | None => Some(InteractiveMode::Restore(RestoreMode::CopyOnly)),
+                _ => Some(InteractiveMode::Restore(RestoreMode::CopyOnly)),
             }
         } else if matches.get_one::<String>("SELECT").is_some() || opt_preview.is_some() {
             match matches.get_one::<String>("SELECT").map(|inner| inner.as_str()) {
