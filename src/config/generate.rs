@@ -246,10 +246,10 @@ fn parse_args() -> ArgMatches {
         .arg(
             Arg::new("UNIQUENESS")
                 .long("uniqueness")
-                .visible_aliases(&["unique"])
-                .default_missing_value("contents")
                 .value_parser(["all", "no-filter", "metadata", "contents"])
                 .num_args(0..=1)
+                .visible_aliases(&["unique"])
+                .default_missing_value("contents")
                 .require_equals(true)
                 .help("comparing file versions solely on the basis of size and modify time (the default \"metadata\" behavior) may return what appear to be \"false positives\", \
                 in the sense that, modify time is not a precise measure of whether a file has actually changed. A program might overwrite a file with the same contents, \
@@ -328,9 +328,7 @@ fn parse_args() -> ArgMatches {
                 This argument requires and will be filtered according to any values specified at LIST_SNAPS. \
                 User may also enable SELECT mode to make a granular selection of specific snapshots to prune. \
                 Note: This is a ZFS only option.")
-                .conflicts_with_all(&["BROWSE", "RESTORE", "ALT_REPLICATED", "REMOTE_DIR", "LOCAL_DIR"])
-                .requires("LIST_SNAPS")
-                
+                .conflicts_with_all(&["BROWSE", "RESTORE", "ALT_REPLICATED", "REMOTE_DIR", "LOCAL_DIR"])                
                 .display_order(13)
                 .action(ArgAction::SetTrue)
         )
@@ -737,7 +735,8 @@ impl Config {
             None
         };
 
-        let mut uniqueness = match matches.get_one::<String>("UNIQUENESS").map(|inner| inner.as_str()) {
+        let uniqueness = match matches.get_one::<String>("UNIQUENESS").map(|inner| inner.as_str()) {
+            _ if matches.get_flag("PRUNE") =>  ListSnapsOfType::All,
             Some("all" | "no-filter") => ListSnapsOfType::All,
             Some("contents") => ListSnapsOfType::UniqueContents,
             Some("metadata" | _) | None => ListSnapsOfType::UniqueMetadata,
@@ -780,11 +779,6 @@ impl Config {
 
             if !matches.get_flag("PRUNE") && select_mode {
                 eprintln!("Select mode for listed snapshots only available in PRUNE mode.")
-            }
-
-            // default to listing all snaps in list snaps mode if unset
-            if !matches.get_flag("UNIQUENESS") {
-                uniqueness = ListSnapsOfType::All;
             }
 
             if let Some(values) = matches.get_one::<String>("LIST_SNAPS") {
