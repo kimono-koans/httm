@@ -38,10 +38,10 @@ pub struct InteractiveSelect {
     pub opt_live_version: Option<String>,
 }
 
-impl TryFrom<&InteractiveBrowse> for InteractiveSelect {
+impl TryFrom<&mut InteractiveBrowse> for InteractiveSelect {
     type Error = Box<dyn std::error::Error + Send + Sync>;
 
-    fn try_from(interactive_browse: &InteractiveBrowse) -> HttmResult<Self> {
+    fn try_from(interactive_browse: &mut InteractiveBrowse) -> HttmResult<Self> {
         let versions_map = VersionsMap::new(&GLOBAL_CONFIG, &interactive_browse.selected_pathdata)?;
 
         // snap and live set has no snaps
@@ -93,6 +93,10 @@ impl TryFrom<&InteractiveBrowse> for InteractiveSelect {
             loop {
                 // get the file name
                 let selected_line = view_mode.view_buffer(&selection_buffer, MultiSelect::On)?;
+
+                if let Some(background_handle) = interactive_browse.opt_background_handle.take() {
+                    let _ = background_handle.join();
+                }
 
                 let requested_file_names = selected_line
                     .iter()

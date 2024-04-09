@@ -24,11 +24,12 @@ use crate::GLOBAL_CONFIG;
 use crossbeam_channel::unbounded;
 use skim::prelude::*;
 use std::path::Path;
-use std::thread;
+use std::thread::{self, JoinHandle};
 
 #[derive(Debug)]
 pub struct InteractiveBrowse {
     pub selected_pathdata: Vec<PathData>,
+    pub opt_background_handle: Option<JoinHandle<()>>,
 }
 
 impl InteractiveBrowse {
@@ -36,16 +37,16 @@ impl InteractiveBrowse {
         let browse_result = match &GLOBAL_CONFIG.opt_requested_dir {
             // collect string paths from what we get from lookup_view
             Some(requested_dir) => {
-                let selected_pathdata = Self::view(requested_dir)?;
+                let res = Self::view(requested_dir)?;
 
-                if selected_pathdata.is_empty() {
+                if res.selected_pathdata.is_empty() {
                     return Err(HttmError::new(
                         "None of the selected strings could be converted to paths.",
                     )
                     .into());
                 }
 
-                selected_pathdata
+                res
             }
             None => {
                 // go to interactive_select early if user has already requested a file
@@ -55,7 +56,10 @@ impl InteractiveBrowse {
                     Some(first_path) => {
                         let selected_file = first_path.clone();
 
-                        vec![selected_file]
+                        Self {
+                            selected_pathdata: vec![selected_file],
+                            opt_background_handle: None,
+                        }
                     }
                     // Config::from should never allow us to have an instance where we don't
                     // have at least one path to use
@@ -66,9 +70,7 @@ impl InteractiveBrowse {
             }
         };
 
-        Ok(Self {
-            selected_pathdata: browse_result,
-        })
+        Ok(browse_result)
     }
 
     #[allow(dead_code)]
@@ -81,7 +83,7 @@ impl InteractiveBrowse {
         }
     }
 
-    fn view(requested_dir: &Path) -> HttmResult<Vec<PathData>> {
+    fn view(requested_dir: &Path) -> HttmResult<Self> {
         // prep thread spawn
         let requested_dir_clone = requested_dir.to_path_buf();
         let (tx_item, rx_item): (SkimItemSender, SkimItemReceiver) = unbounded();
@@ -122,7 +124,6 @@ impl InteractiveBrowse {
             Some(output) => {
                 // hangup the channel so the background recursive search can gracefully cleanup and exit
                 drop(hangup_tx);
-                let _ = background_handle.join();
 
                 #[cfg(feature = "malloc_trim")]
                 #[cfg(target_os = "linux")]
@@ -135,7 +136,10 @@ impl InteractiveBrowse {
                     .map(|item| PathData::from(Path::new(item.output().as_ref())))
                     .collect();
 
-                Ok(selected_pathdata)
+                Ok(Self {
+                    selected_pathdata,
+                    opt_background_handle: Some(background_handle),
+                })
             }
             None => Err(HttmError::new("httm interactive file browse session failed.").into()),
         }

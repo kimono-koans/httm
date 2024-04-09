@@ -124,18 +124,18 @@ fn exec() -> HttmResult<()> {
     match &GLOBAL_CONFIG.exec_mode {
         // ExecMode::Interactive *may* return back to this function to be printed
         ExecMode::Interactive(interactive_mode) => {
-            let browse_result = InteractiveBrowse::new()?;
+            let mut browse_result = InteractiveBrowse::new()?;
 
             match interactive_mode {
                 InteractiveMode::Restore(_) => {
-                    let interactive_select = InteractiveSelect::try_from(&browse_result)?;
+                    let interactive_select = InteractiveSelect::try_from(&mut browse_result)?;
 
                     let interactive_restore = InteractiveRestore::from(interactive_select);
 
                     interactive_restore.restore()
                 }
                 InteractiveMode::Select(select_mode) => {
-                    let interactive_select = InteractiveSelect::try_from(&browse_result)?;
+                    let interactive_select = InteractiveSelect::try_from(&mut browse_result)?;
 
                     interactive_select.print_selections(&select_mode)
                 }
