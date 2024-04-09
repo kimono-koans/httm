@@ -181,6 +181,7 @@ fn parse_args() -> ArgMatches {
                 .long("restore")
                 .value_parser(["copy", "copy-and-preserve", "overwrite", "yolo", "guard"])
                 .num_args(0..=1)
+                .default_missing_value("copy")
                 .require_equals(true)
                 .help("interactive browse and search a specified directory to display unique file versions. Continue to another dialog to select a snapshot version to restore. \
                 This argument optionally takes a value. Default behavior/value is a non-destructive \"copy\" to the current working directory with a new name, \
@@ -700,7 +701,6 @@ impl Config {
 
         let opt_interactive_mode = if let Some(var_restore_mode) = matches.get_one::<String>("RESTORE") {
             let mut restore_mode = var_restore_mode.to_string();
-            
             
             if let Ok(env_restore_mode) = std::env::var("HTTM_RESTORE_MODE")
             {
