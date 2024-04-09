@@ -484,7 +484,7 @@ fn parse_args() -> ArgMatches {
                 You may also set via the environment variable HTTM_MAP_ALIASES.")
                 .use_value_delimiter(true)
                 .value_parser(clap::builder::ValueParser::os_string())
-                .num_args(0..1)
+                .num_args(0..=1)
                 .display_order(27)
                 .action(ArgAction::Append)
         )
