@@ -44,8 +44,8 @@ impl FilesystemInfo {
     pub fn new<'a, 'b: 'a>(
         opt_alt_replicated: bool,
         opt_debug: bool,
-        opt_remote_dir: Option<&&str>,
-        opt_local_dir: Option<&&str>,
+        opt_remote_dir: Option<&str>,
+        opt_local_dir: Option<&str>,
         opt_map_aliases: Option<ValuesRef<'a, &'b str>>,
         pwd: &Path,
     ) -> HttmResult<FilesystemInfo> {

@@ -164,7 +164,7 @@ fn parse_args() -> ArgMatches {
                 .short('s')
                 .long("select")
                 .value_parser(["path", "contents", "preview"])
-                .num_args(0)
+                .num_args(0..=1)
                 .default_missing_value("path")
                 .require_equals(true)
                 .help("interactive browse and search a specified directory to display unique file versions. \
@@ -180,7 +180,7 @@ fn parse_args() -> ArgMatches {
                 .short('r')
                 .long("restore")
                 .value_parser(["copy", "copy-and-preserve", "overwrite", "yolo", "guard"])
-                .num_args(0)
+                .num_args(0..=1)
                 .require_equals(true)
                 .help("interactive browse and search a specified directory to display unique file versions. Continue to another dialog to select a snapshot version to restore. \
                 This argument optionally takes a value. Default behavior/value is a non-destructive \"copy\" to the current working directory with a new name, \
@@ -199,7 +199,7 @@ fn parse_args() -> ArgMatches {
                 .long("deleted")
                 .default_missing_value("all")
                 .value_parser(["all", "single", "only"])
-                .num_args(0)
+                .num_args(0..=1)
                 .require_equals(true)
                 .help("show deleted files in interactive modes. In non-interactive modes, do a search for all files deleted from a specified directory. \
                 This argument optionally takes a value. The default behavior/value is \"all\". \
@@ -237,7 +237,7 @@ fn parse_args() -> ArgMatches {
                 User defined commands must specify the snapshot file name \"{snap_file}\" and the live file name \"{live_file}\" within their shell command. \
                 NOTE: 'bash' is required to bootstrap any preview script, even if user defined preview commands or script is written in a different language.")
                 .value_parser(clap::value_parser!(String))
-                .num_args(0)
+                .num_args(0..=1)
                 .require_equals(true)
                 .default_missing_value("default")
                 .display_order(8)
@@ -249,7 +249,7 @@ fn parse_args() -> ArgMatches {
                 .visible_aliases(&["unique"])
                 .default_missing_value("contents")
                 .value_parser(["all", "no-filter", "metadata", "contents"])
-                .num_args(0)
+                .num_args(0..=1)
                 .require_equals(true)
                 .help("comparing file versions solely on the basis of size and modify time (the default \"metadata\" behavior) may return what appear to be \"false positives\", \
                 in the sense that, modify time is not a precise measure of whether a file has actually changed. A program might overwrite a file with the same contents, \
@@ -275,7 +275,7 @@ fn parse_args() -> ArgMatches {
                 .require_equals(true)
                 .default_missing_value("httmSnapFileMount")
                 .value_parser(["snap-file", "snapshot", "snap-file-mount"])
-                .num_args(0)
+                .num_args(0..=1)
                 .help("snapshot a file/s most immediate mount. \
                 This argument optionally takes a value for a snapshot suffix. The default suffix is 'httmSnapFileMount'. \
                 Note: This is a ZFS only option which requires either superuser or 'zfs allow' privileges.")
@@ -288,7 +288,7 @@ fn parse_args() -> ArgMatches {
                 .long("list-snaps")
                 .aliases(&["snaps-for-file", "ls-snaps", "list-snapshots"])
                 .value_parser(clap::value_parser!(String))
-                .num_args(0)
+                .num_args(0..=1)
                 .require_equals(true)
                 .help("display snapshots names for a file. This argument optionally takes a value. \
                 By default, this argument will return all available snapshot names. \
@@ -342,7 +342,7 @@ fn parse_args() -> ArgMatches {
                 .visible_alias("mount")
                 .default_missing_value("target")
                 .value_parser(["source", "target", "mount", "directory", "device", "dataset", "relative-path", "relative", "relpath"])
-                .num_args(0)
+                .num_args(0..=1)
                 .require_equals(true)
                 .help("by default, display the all mount point/s of all dataset/s which contain/s the input file/s. \
                 This argument optionally takes a value to display other information about the path. Possible values are: \
@@ -360,7 +360,7 @@ fn parse_args() -> ArgMatches {
                 .default_missing_value("any")
                 .visible_aliases(&["last", "latest"])
                 .value_parser(["any", "ditto", "no-ditto", "no-ditto-exclusive", "no-ditto-inclusive", "none", "without"])
-                .num_args(0)
+                .num_args(0..=1)
                 .require_equals(true)
                 .help("automatically select and print the path of last-in-time unique snapshot version for the input file. \
                 This argument optionally takes a value. Possible values are: \
@@ -494,7 +494,7 @@ fn parse_args() -> ArgMatches {
                 .long("num-versions")
                 .default_missing_value("all")
                 .value_parser(["all", "graph", "single", "single-no-snap", "single-with-snap", "multiple"])
-                .num_args(0)
+                .num_args(0..=1)
                 .require_equals(true)
                 .help("detect and display the number of unique versions available (e.g. one, \"1\", \
                 version is available if either a snapshot version exists, and is identical to live version, or only a live version exists). \
@@ -655,22 +655,22 @@ impl Config {
         let opt_no_clones =
             matches.get_flag("NO_CLONES") || std::env::var_os("HTTM_NO_CLONE").is_some();
 
-        let opt_last_snap = match matches.get_one::<&str>("LAST_SNAP") {
-            Some(&"" | &"any") => Some(LastSnapMode::Any),
-            Some(&"none" | &"without") => Some(LastSnapMode::Without),
-            Some(&"ditto") => Some(LastSnapMode::DittoOnly),
-            Some(&"no-ditto-inclusive") => Some(LastSnapMode::NoDittoInclusive),
-            Some(&"no-ditto-exclusive" | &"no-ditto") => Some(LastSnapMode::NoDittoExclusive),
+        let opt_last_snap = match matches.get_one::<String>("LAST_SNAP").map(|inner| inner.as_str()) {
+            Some("" | "any") => Some(LastSnapMode::Any),
+            Some("none" | "without") => Some(LastSnapMode::Without),
+            Some("ditto") => Some(LastSnapMode::DittoOnly),
+            Some("no-ditto-inclusive") => Some(LastSnapMode::NoDittoInclusive),
+            Some("no-ditto-exclusive" | "no-ditto") => Some(LastSnapMode::NoDittoExclusive),
             _ => None,
         };
 
-        let opt_num_versions = match matches.get_one::<&str>("NUM_VERSIONS") {
-            Some(&"" | &"all") => Some(NumVersionsMode::AllNumerals),
-            Some(&"graph") => Some(NumVersionsMode::AllGraph),
-            Some(&"single") => Some(NumVersionsMode::SingleAll),
-            Some(&"single-no-snap") => Some(NumVersionsMode::SingleNoSnap),
-            Some(&"single-with-snap") => Some(NumVersionsMode::SingleWithSnap),
-            Some(&"multiple") => Some(NumVersionsMode::Multiple),
+        let opt_num_versions = match matches.get_one::<String>("NUM_VERSIONS").map(|inner| inner.as_str()) {
+            Some("" | "all") => Some(NumVersionsMode::AllNumerals),
+            Some("graph") => Some(NumVersionsMode::AllGraph),
+            Some("single") => Some(NumVersionsMode::SingleAll),
+            Some("single-no-snap") => Some(NumVersionsMode::SingleNoSnap),
+            Some("single-with-snap") => Some(NumVersionsMode::SingleWithSnap),
+            Some("multiple") => Some(NumVersionsMode::Multiple),
             _ => None,
         };
 
@@ -680,29 +680,29 @@ impl Config {
             return Err(HttmError::new("The NUM_VERSIONS graph mode and the RAW or ZEROS display modes are an invalid combination.").into());
         }
 
-        let opt_mount_display = match matches.get_one::<&str>("FILE_MOUNT") {
-            Some(&"" | &"mount" | &"target" | &"directory") => Some(MountDisplay::Target),
-            Some(&"source" | &"device" | &"dataset") => Some(MountDisplay::Source),
-            Some(&"relative-path" | &"relative" | &"relpath") => Some(MountDisplay::RelativePath),
+        let opt_mount_display = match matches.get_one::<String>("FILE_MOUNT").map(|inner| inner.as_str()) {
+            Some("" | "mount" | "target" | "directory") => Some(MountDisplay::Target),
+            Some("source" | "device" | "dataset") => Some(MountDisplay::Source),
+            Some("relative-path" | "relative" | "relpath") => Some(MountDisplay::RelativePath),
             _ => None,
         };
 
-        let opt_preview = match matches.get_one::<&str>("PREVIEW") {
-            Some(&"" | &"default") => Some("default".to_owned()),
+        let opt_preview = match matches.get_one::<String>("PREVIEW").map(|inner| inner.as_str()) {
+            Some("" | "default") => Some("default".to_owned()),
             Some(user_defined) => Some(user_defined.to_string()),
             None => None,
         };
 
-        let mut opt_deleted_mode = match matches.get_one::<&str>("DELETED") {
-            Some(&"" | &"all") => Some(DeletedMode::All),
-            Some(&"single") => Some(DeletedMode::DepthOfOne),
-            Some(&"only") => Some(DeletedMode::Only),
+        let mut opt_deleted_mode = match matches.get_one::<String>("DELETED").map(|inner| inner.as_str()) {
+            Some("" | "all") => Some(DeletedMode::All),
+            Some("single") => Some(DeletedMode::DepthOfOne),
+            Some("only") => Some(DeletedMode::Only),
             _ => None,
         };
 
-        let opt_interactive_mode = if matches.get_raw("RESTORE").is_some() {
+        let opt_interactive_mode = if matches.get_one::<String>("RESTORE").is_some() {
             let mut restore_mode = matches
-                .get_one::<&str>("RESTORE")
+                .get_one::<String>("RESTORE")
                 .map(|inner| inner.to_string());
 
             if matches!(restore_mode.as_deref(), Some("") | None)
@@ -723,10 +723,10 @@ impl Config {
                 }
                 Some(_) | None => Some(InteractiveMode::Restore(RestoreMode::CopyOnly)),
             }
-        } else if matches.get_raw("SELECT").is_some() || opt_preview.is_some() {
-            match matches.get_one::<&str>("SELECT") {
-                Some(&"contents") => Some(InteractiveMode::Select(SelectMode::Contents)),
-                Some(&"preview") => Some(InteractiveMode::Select(SelectMode::Preview)),
+        } else if matches.get_one::<String>("SELECT").is_some() || opt_preview.is_some() {
+            match matches.get_one::<String>("SELECT").map(|inner| inner.as_str()) {
+                Some("contents") => Some(InteractiveMode::Select(SelectMode::Contents)),
+                Some("preview") => Some(InteractiveMode::Select(SelectMode::Preview)),
                 Some(_) | None => Some(InteractiveMode::Select(SelectMode::Path)),
             }
         // simply enable browse mode -- if deleted mode not enabled but recursive search is specified,
@@ -737,10 +737,10 @@ impl Config {
             None
         };
 
-        let mut uniqueness = match matches.get_one::<&str>("UNIQUENESS") {
-            Some(&"all" | &"no-filter") => ListSnapsOfType::All,
-            Some(&"contents") => ListSnapsOfType::UniqueContents,
-            Some(&"metadata" | _) | None => ListSnapsOfType::UniqueMetadata,
+        let mut uniqueness = match matches.get_one::<String>("UNIQUENESS").map(|inner| inner.as_str()) {
+            Some("all" | "no-filter") => ListSnapsOfType::All,
+            Some("contents") => ListSnapsOfType::UniqueContents,
+            Some("metadata" | _) | None => ListSnapsOfType::UniqueMetadata,
         };
 
         if opt_no_hidden && !opt_recursive && opt_interactive_mode.is_none() {
@@ -759,7 +759,7 @@ impl Config {
         }
 
         let opt_snap_file_mount =
-            if let Some(requested_snapshot_suffix) = matches.get_one::<&str>("SNAPSHOT") {
+            if let Some(requested_snapshot_suffix) = matches.get_one::<String>("SNAPSHOT") {
                 if requested_snapshot_suffix == &"httmSnapFileMount" {
                     Some(requested_snapshot_suffix.to_owned())
                 } else if requested_snapshot_suffix.contains(char::is_whitespace) {
@@ -774,7 +774,7 @@ impl Config {
                 None
             };
 
-        let opt_snap_mode_filters = if matches.get_raw("LIST_SNAPS").is_some() {
+        let opt_snap_mode_filters = if matches.get_one::<String>("LIST_SNAPS").is_some() {
             // allow selection of snaps to prune in prune mode
             let select_mode = matches!(opt_interactive_mode, Some(InteractiveMode::Select(_)));
 
@@ -787,7 +787,7 @@ impl Config {
                 uniqueness = ListSnapsOfType::All;
             }
 
-            if let Some(values) = matches.get_one::<&str>("LIST_SNAPS") {
+            if let Some(values) = matches.get_one::<String>("LIST_SNAPS") {
                 Some(Self::snap_filters(values, select_mode)?)
             } else {
                 Some(ListSnapsFilters {
@@ -800,7 +800,7 @@ impl Config {
             None
         };
 
-        let mut exec_mode = if let Some(full_snap_name) = matches.get_one::<&str>("ROLL_FORWARD") {
+        let mut exec_mode = if let Some(full_snap_name) = matches.get_one::<String>("ROLL_FORWARD") {
             ExecMode::RollForward(full_snap_name.to_string())
         } else if let Some(num_versions_mode) = opt_num_versions {
             ExecMode::NumVersions(num_versions_mode)
@@ -839,8 +839,8 @@ impl Config {
         let dataset_collection = FilesystemInfo::new(
             matches.get_flag("ALT_REPLICATED"),
             opt_debug,
-            matches.get_one::<&str>("REMOTE_DIR"),
-            matches.get_one::<&str>("LOCAL_DIR"),
+            matches.get_one::<String>("REMOTE_DIR").map(|inner| inner.as_str()),
+            matches.get_one::<String>("LOCAL_DIR").map(|inner| inner.as_str()),
             opt_map_aliases,
             &pwd,
         )?;
