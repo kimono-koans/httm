@@ -157,7 +157,7 @@ fn parse_args() -> ArgMatches {
                 .visible_alias("interactive")
                 .help("interactive browse and search a specified directory to display unique file versions.")
                 .display_order(2)
-                .action(ArgAction::Append)
+                .action(ArgAction::SetTrue)
         )
         .arg(
             Arg::new("SELECT")
@@ -215,7 +215,7 @@ fn parse_args() -> ArgMatches {
                 .conflicts_with_all(&["SNAPSHOT"])
                 .help("recurse into the selected directory to find more files. Only available in interactive and deleted file modes.")
                 .display_order(6)
-                .action(ArgAction::Append)
+                .action(ArgAction::SetTrue)
         )
         .arg(
             Arg::new("ALT_REPLICATED")
@@ -226,7 +226,7 @@ fn parse_args() -> ArgMatches {
                 httm will silently ignore unmounted datasets in the interactive modes.")
                 .conflicts_with_all(&["REMOTE_DIR", "LOCAL_DIR"])
                 .display_order(7)
-                .action(ArgAction::Append)
+                .action(ArgAction::SetTrue)
         )
         .arg(
             Arg::new("PREVIEW")
@@ -265,8 +265,9 @@ fn parse_args() -> ArgMatches {
                 .short('e')
                 .long("exact")
                 .help("use exact pattern matching for searches in the interactive modes (in contrast to the default fuzzy searching).")
+                
                 .display_order(10)
-                .action(ArgAction::Append)
+                .action(ArgAction::SetTrue)
         )
         .arg(
             Arg::new("SNAPSHOT")
@@ -330,8 +331,9 @@ fn parse_args() -> ArgMatches {
                 Note: This is a ZFS only option.")
                 .conflicts_with_all(&["BROWSE", "RESTORE", "ALT_REPLICATED", "REMOTE_DIR", "LOCAL_DIR"])
                 .requires("LIST_SNAPS")
+                
                 .display_order(13)
-                .action(ArgAction::Append)
+                .action(ArgAction::SetTrue)
         )
         .arg(
             Arg::new("FILE_MOUNT")
@@ -380,7 +382,7 @@ fn parse_args() -> ArgMatches {
                 .help("display the snapshot locations only, without extraneous information, delimited by a NEWLINE character.")
                 .conflicts_with_all(&["ZEROS", "NOT_SO_PRETTY"])
                 .display_order(16)
-                .action(ArgAction::Append)
+                .action(ArgAction::SetTrue)
         )
         .arg(
             Arg::new("ZEROS")
@@ -389,8 +391,9 @@ fn parse_args() -> ArgMatches {
                 .visible_alias("null")
                 .help("display the snapshot locations only, without extraneous information, delimited by a NULL character.")
                 .conflicts_with_all(&["RAW", "NOT_SO_PRETTY"])
+                
                 .display_order(17)
-                .action(ArgAction::Append)
+                .action(ArgAction::SetTrue)
         )
         .arg(
             Arg::new("NOT_SO_PRETTY")
@@ -399,7 +402,7 @@ fn parse_args() -> ArgMatches {
                 .help("display the ordinary output, but tab delimited, without any pretty border lines.")
                 .conflicts_with_all(&["RAW", "ZEROS"])
                 .display_order(18)
-                .action(ArgAction::Append)
+                .action(ArgAction::SetTrue)
         )
         .arg(
             Arg::new("JSON")
@@ -407,7 +410,7 @@ fn parse_args() -> ArgMatches {
                 .help("display the ordinary output, but as formatted JSON.")
                 .conflicts_with_all(&["SELECT", "RESTORE"])
                 .display_order(19)
-                .action(ArgAction::Append)
+                .action(ArgAction::SetTrue)
         )
         .arg(
             Arg::new("OMIT_DITTO")
@@ -415,23 +418,25 @@ fn parse_args() -> ArgMatches {
                 .help("omit display of the snapshot version which may be identical to the live version. By default, `httm` displays all snapshot versions and the live version).")
                 .conflicts_with_all(&["NUM_VERSIONS"])
                 .display_order(20)
-                .action(ArgAction::Append)
+                .action(ArgAction::SetTrue)
         )
         .arg(
             Arg::new("NO_FILTER")
                 .long("no-filter")
                 .help("by default, in the interactive modes, httm will filter out files residing upon non-supported datasets (like ext4, tmpfs, procfs, sysfs, or devtmpfs, etc.), and within any \"common\" snapshot paths. \
                 Here, one may select to disable such filtering. httm, however, will always show the input path, and results from behind any input path when that is the path being searched.")
+                
                 .display_order(21)
-                .action(ArgAction::Append)
+                .action(ArgAction::SetTrue)
         )
         .arg(
             Arg::new("FILTER_HIDDEN")
                 .long("no-hidden")
                 .aliases(&["no-hide", "nohide", "filter-hidden"])
                 .help("do not show information regarding hidden files and directories (those that start with a \'.\') in the recursive or interactive modes.")
+                
                 .display_order(22)
-                .action(ArgAction::Append)
+                .action(ArgAction::SetTrue)
         )
         .arg(
             Arg::new("ONE_FILESYSTEM")
@@ -440,7 +445,7 @@ fn parse_args() -> ArgMatches {
                 .requires("RECURSIVE")
                 .help("limit recursive search to file and directories on the same filesystem/device as the target directory.")
                 .display_order(23)
-                .action(ArgAction::Append)
+                .action(ArgAction::SetTrue)
         )
         .arg(
             Arg::new("NO_TRAVERSE")
@@ -448,7 +453,7 @@ fn parse_args() -> ArgMatches {
                 .help("in recursive mode, don't traverse symlinks. Although httm does its best to prevent searching pathologically recursive symlink-ed paths, \
                 here, you may disable symlink traversal completely. NOTE: httm will never traverse symlinks when a requested recursive search is on the root/base directory (\"/\").")
                 .display_order(24)
-                .action(ArgAction::Append)
+                .action(ArgAction::SetTrue)
         )
         .arg(
             Arg::new("NO_LIVE")
@@ -456,7 +461,7 @@ fn parse_args() -> ArgMatches {
                 .visible_aliases(&["dead", "disco"])
                 .help("only display information concerning snapshot versions (display no information regarding live versions of files or directories).")
                 .display_order(25)
-                .action(ArgAction::Append)
+                .action(ArgAction::SetTrue)
         )
         .arg(
             Arg::new("NO_SNAP")
@@ -467,7 +472,7 @@ fn parse_args() -> ArgMatches {
                 .conflicts_with_all(&["BROWSE", "SELECT", "RESTORE", "SNAPSHOT", "LAST_SNAP", "NOT_SO_PRETTY"])
                 .requires("DELETED")
                 .display_order(26)
-                .action(ArgAction::Append)
+                .action(ArgAction::SetTrue)
         )
         .arg(
             Arg::new("MAP_ALIASES")
@@ -532,7 +537,7 @@ fn parse_args() -> ArgMatches {
                 .long("utc")
                 .help("use UTC for date display and timestamps")
                 .display_order(31)
-                .action(ArgAction::Append)
+                .action(ArgAction::SetTrue)
         )
         .arg(
             Arg::new("NO_CLONES")
@@ -541,14 +546,14 @@ fn parse_args() -> ArgMatches {
                 Here, you may disable that behavior, and force httm to use the fall back diff copy behavior as the default. \
                 You may also set an environment variable to any value, \"HTTM_NO_CLONE\" to disable.")
                 .display_order(32)
-                .action(ArgAction::Append)
+                .action(ArgAction::SetTrue)
         )
         .arg(
             Arg::new("DEBUG")
                 .long("debug")
                 .help("print configuration and debugging info")
                 .display_order(33)
-                .action(ArgAction::Append)
+                .action(ArgAction::SetTrue)
         )
         .arg(
             Arg::new("ZSH_HOT_KEYS")
@@ -556,7 +561,7 @@ fn parse_args() -> ArgMatches {
                 .help("install zsh hot keys to the users home directory, and then exit")
                 .exclusive(true)
                 .display_order(34)
-                .action(ArgAction::Append)
+                .action(ArgAction::SetTrue)
         )
         .get_matches()
 }
@@ -598,11 +603,11 @@ impl Config {
     }
 
     fn from_matches(matches: &ArgMatches) -> HttmResult<Self> {
-        if matches.contains_id("ZSH_HOT_KEYS") {
+        if matches.get_flag("ZSH_HOT_KEYS") {
             install_hot_keys()?
         }
 
-        let requested_utc_offset = if matches.contains_id("UTC") {
+        let requested_utc_offset = if matches.get_flag("UTC") {
             UtcOffset::UTC
         } else {
             // this fn is surprisingly finicky. it needs to be done
@@ -611,21 +616,21 @@ impl Config {
             UtcOffset::current_local_offset().unwrap_or(UtcOffset::UTC)
         };
 
-        let opt_json = matches.contains_id("JSON");
+        let opt_json = matches.get_flag("JSON");
 
-        let mut print_mode = if matches.contains_id("ZEROS") {
+        let mut print_mode = if matches.get_flag("ZEROS") {
             PrintMode::RawZero
-        } else if matches.contains_id("RAW") {
+        } else if matches.get_flag("RAW") {
             PrintMode::RawNewline
-        } else if matches.contains_id("NOT_SO_PRETTY") {
+        } else if matches.get_flag("NOT_SO_PRETTY") {
             PrintMode::FormattedNotPretty
         } else {
             PrintMode::FormattedDefault
         };
 
-        let opt_bulk_exclusion = if matches.contains_id("NO_LIVE") {
+        let opt_bulk_exclusion = if matches.get_flag("NO_LIVE") {
             Some(BulkExclusion::NoLive)
-        } else if matches.contains_id("NO_SNAP") {
+        } else if matches.get_flag("NO_SNAP") {
             Some(BulkExclusion::NoSnap)
         } else {
             None
@@ -641,15 +646,15 @@ impl Config {
         }
 
         // force a raw mode if one is not set for no_snap mode
-        let opt_one_filesystem = matches.contains_id("ONE_FILESYSTEM");
-        let opt_recursive = matches.contains_id("RECURSIVE");
+        let opt_one_filesystem = matches.get_flag("ONE_FILESYSTEM");
+        let opt_recursive = matches.get_flag("RECURSIVE");
 
-        let opt_exact = matches.contains_id("EXACT");
-        let opt_no_filter = matches.contains_id("NO_FILTER");
-        let opt_debug = matches.contains_id("DEBUG");
-        let opt_no_hidden = matches.contains_id("FILTER_HIDDEN");
+        let opt_exact = matches.get_flag("EXACT");
+        let opt_no_filter = matches.get_flag("NO_FILTER");
+        let opt_debug = matches.get_flag("DEBUG");
+        let opt_no_hidden = matches.get_flag("FILTER_HIDDEN");
         let opt_no_clones =
-            matches.contains_id("NO_CLONES") || std::env::var_os("HTTM_NO_CLONE").is_some();
+            matches.get_flag("NO_CLONES") || std::env::var_os("HTTM_NO_CLONE").is_some();
 
         let opt_last_snap = match matches.get_one::<&str>("LAST_SNAP") {
             Some(&"" | &"any") => Some(LastSnapMode::Any),
@@ -696,7 +701,7 @@ impl Config {
             _ => None,
         };
 
-        let opt_interactive_mode = if matches.contains_id("RESTORE") {
+        let opt_interactive_mode = if matches.get_raw("RESTORE").is_some() {
             let mut restore_mode = matches
                 .get_one::<&str>("RESTORE")
                 .map(|inner| inner.to_string());
@@ -719,7 +724,7 @@ impl Config {
                 }
                 Some(_) | None => Some(InteractiveMode::Restore(RestoreMode::CopyOnly)),
             }
-        } else if matches.contains_id("SELECT") || opt_preview.is_some() {
+        } else if matches.get_raw("SELECT").is_some() || opt_preview.is_some() {
             match matches.get_one::<&str>("SELECT") {
                 Some(&"contents") => Some(InteractiveMode::Select(SelectMode::Contents)),
                 Some(&"preview") => Some(InteractiveMode::Select(SelectMode::Preview)),
@@ -727,7 +732,7 @@ impl Config {
             }
         // simply enable browse mode -- if deleted mode not enabled but recursive search is specified,
         // that is, if delete recursive search is not specified, don't error out, let user browse
-        } else if matches.contains_id("BROWSE") || (opt_recursive && opt_deleted_mode.is_none()) {
+        } else if matches.get_flag("BROWSE") || (opt_recursive && opt_deleted_mode.is_none()) {
             Some(InteractiveMode::Browse)
         } else {
             None
@@ -770,16 +775,16 @@ impl Config {
                 None
             };
 
-        let opt_snap_mode_filters = if matches.contains_id("LIST_SNAPS") {
+        let opt_snap_mode_filters = if matches.get_raw("LIST_SNAPS").is_some() {
             // allow selection of snaps to prune in prune mode
             let select_mode = matches!(opt_interactive_mode, Some(InteractiveMode::Select(_)));
 
-            if !matches.contains_id("PRUNE") && select_mode {
+            if !matches.get_flag("PRUNE") && select_mode {
                 eprintln!("Select mode for listed snapshots only available in PRUNE mode.")
             }
 
             // default to listing all snaps in list snaps mode if unset
-            if !matches.contains_id("UNIQUENESS") {
+            if !matches.get_flag("UNIQUENESS") {
                 uniqueness = ListSnapsOfType::All;
             }
 
@@ -802,7 +807,7 @@ impl Config {
             ExecMode::NumVersions(num_versions_mode)
         } else if let Some(mount_display) = opt_mount_display {
             ExecMode::MountsForFiles(mount_display)
-        } else if matches.contains_id("PRUNE") {
+        } else if matches.get_flag("PRUNE") {
             ExecMode::Prune(opt_snap_mode_filters)
         } else if opt_snap_mode_filters.is_some() {
             ExecMode::SnapsForFiles(opt_snap_mode_filters)
@@ -833,7 +838,7 @@ impl Config {
         let opt_map_aliases = matches.get_many::<&str>("MAP_ALIASES");
 
         let dataset_collection = FilesystemInfo::new(
-            matches.contains_id("ALT_REPLICATED"),
+            matches.get_flag("ALT_REPLICATED"),
             opt_debug,
             matches.get_one::<&str>("REMOTE_DIR"),
             matches.get_one::<&str>("LOCAL_DIR"),
@@ -859,7 +864,7 @@ impl Config {
 
         // doesn't make sense to follow symlinks when you're searching the whole system,
         // so we disable our bespoke "when to traverse symlinks" algo here, or if requested.
-        let opt_no_traverse = matches.contains_id("NO_TRAVERSE") || {
+        let opt_no_traverse = matches.get_flag("NO_TRAVERSE") || {
             if let Some(user_requested_dir) = opt_requested_dir.as_ref() {
                 user_requested_dir.as_path() == Path::new(ROOT_DIRECTORY)
             } else {
@@ -874,7 +879,7 @@ impl Config {
             .into());
         }
 
-        let opt_omit_ditto = matches.contains_id("OMIT_DITTO");
+        let opt_omit_ditto = matches.get_flag("OMIT_DITTO");
 
         // opt_omit_identical doesn't make sense in Display Recursive mode as no live files will exists?
         if opt_omit_ditto && matches!(exec_mode, ExecMode::NonInteractiveRecursive(_)) {
