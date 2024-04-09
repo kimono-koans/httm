@@ -699,6 +699,8 @@ impl Config {
             _ => None,
         };
 
+        let opt_select_mode = matches.get_one::<String>("SELECT");
+
         let opt_interactive_mode = if let Some(var_restore_mode) = matches.get_one::<String>("RESTORE") {
             let mut restore_mode = var_restore_mode.to_string();
             
@@ -719,8 +721,8 @@ impl Config {
                 }
                 _ => Some(InteractiveMode::Restore(RestoreMode::CopyOnly)),
             }
-        } else if matches.get_one::<String>("SELECT").is_some() || opt_preview.is_some() {
-            match matches.get_one::<String>("SELECT").map(|inner| inner.as_str()) {
+        } else if opt_select_mode.is_some() || opt_preview.is_some() {
+            match opt_select_mode.map(|inner| inner.as_str()) {
                 Some("contents") => Some(InteractiveMode::Select(SelectMode::Contents)),
                 Some("preview") => Some(InteractiveMode::Select(SelectMode::Preview)),
                 Some(_) | None => Some(InteractiveMode::Select(SelectMode::Path)),
