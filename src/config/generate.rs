@@ -700,8 +700,9 @@ impl Config {
         };
 
         let opt_select_mode = matches.get_one::<String>("SELECT");
-
-        let opt_interactive_mode = if let Some(var_restore_mode) = matches.get_one::<String>("RESTORE") {
+        let opt_restore_mode = matches.get_one::<String>("RESTORE");
+        
+        let opt_interactive_mode = if let Some(var_restore_mode) = opt_restore_mode {
             let mut restore_mode = var_restore_mode.to_string();
             
             if let Ok(env_restore_mode) = std::env::var("HTTM_RESTORE_MODE")
