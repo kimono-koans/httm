@@ -22,7 +22,6 @@ use crate::library::utility::user_has_effective_root;
 use crate::library::utility::{date_string, DateFormat};
 use crate::{print_output_buf, GLOBAL_CONFIG};
 use std::path::Path;
-use std::path::PathBuf;
 use std::process::Command as ExecProcess;
 use std::time::SystemTime;
 use which::which;
@@ -33,11 +32,6 @@ pub enum PrecautionarySnapType {
     PreRestore,
 }
 
-pub struct SnapGuard {
-    new_snap_name: String,
-    dataset: PathBuf,
-}
-
 impl TryFrom<&Path> for SnapGuard {
     type Error = Box<dyn std::error::Error + Send + Sync>;
 
@@ -46,19 +40,27 @@ impl TryFrom<&Path> for SnapGuard {
 
         let pathdata = PathData::from(path);
 
-        let dataset = match pathdata.source(None) {
+        let dataset_name = match pathdata.source(None) {
             Some(source) => source,
             None => {
                 return Err(HttmError::new("Could not obtain source dataset for mount: ").into())
             }
         };
 
-        SnapGuard::new(&dataset, PrecautionarySnapType::PreRestore)
+        SnapGuard::new(
+            &dataset_name.to_string_lossy(),
+            PrecautionarySnapType::PreRestore,
+        )
     }
 }
 
+pub struct SnapGuard {
+    new_snap_name: String,
+    dataset_name: String,
+}
+
 impl SnapGuard {
-    pub fn new(dataset: &Path, snap_type: PrecautionarySnapType) -> HttmResult<Self> {
+    pub fn new(dataset_name: &str, snap_type: PrecautionarySnapType) -> HttmResult<Self> {
         let zfs_command = which("zfs")?;
 
         let timestamp = date_string(
@@ -72,8 +74,7 @@ impl SnapGuard {
                 // all snapshots should have the same timestamp
                 let new_snap_name = format!(
                     "{}@snap_pre_{}_httmSnapRollForward",
-                    dataset.to_string_lossy(),
-                    timestamp
+                    dataset_name, timestamp
                 );
 
                 new_snap_name
@@ -81,20 +82,15 @@ impl SnapGuard {
             PrecautionarySnapType::PostRollForward(additional_snap_info_str) => {
                 let new_snap_name = format!(
                     "{}@snap_post_{}_:{}:_httmSnapRollForward",
-                    dataset.to_string_lossy(),
-                    timestamp,
-                    additional_snap_info_str
+                    dataset_name, timestamp, additional_snap_info_str
                 );
 
                 new_snap_name
             }
             PrecautionarySnapType::PreRestore => {
                 // all snapshots should have the same timestamp
-                let new_snap_name = format!(
-                    "{}@snap_pre_{}_httmSnapRestore",
-                    dataset.to_string_lossy(),
-                    timestamp
-                );
+                let new_snap_name =
+                    format!("{}@snap_pre_{}_httmSnapRestore", dataset_name, timestamp);
 
                 new_snap_name
             }
@@ -136,13 +132,13 @@ impl SnapGuard {
 
             Ok(SnapGuard {
                 new_snap_name,
-                dataset: dataset.to_path_buf(),
+                dataset_name: dataset_name.to_string(),
             })
         }
     }
 
     pub fn rollback(&self) -> HttmResult<()> {
-        ZfsAllowPriv::Rollback.from_fs_name(&self.dataset)?;
+        ZfsAllowPriv::Rollback.from_fs_name(&self.dataset_name)?;
 
         let zfs_command = which("zfs")?;
         let process_args = vec!["rollback", "-r", &self.new_snap_name];
@@ -174,7 +170,7 @@ impl ZfsAllowPriv {
     pub fn from_path(&self, new_file_path: &Path) -> HttmResult<()> {
         let pathdata = PathData::from(new_file_path);
 
-        let Some(dataset) = pathdata.source(None) else {
+        let Some(fs_name) = pathdata.source(None) else {
             let msg = format!(
                 "Could not determine dataset name from path given: {:?}",
                 new_file_path
@@ -182,17 +178,17 @@ impl ZfsAllowPriv {
             return Err(HttmError::new(&msg).into());
         };
 
-        Self::from_fs_name(&self, &dataset)
+        Self::from_fs_name(&self, &fs_name.to_string_lossy())
     }
 
-    pub fn from_fs_name(&self, dataset: &Path) -> HttmResult<()> {
+    pub fn from_fs_name(&self, fs_name: &str) -> HttmResult<()> {
         let msg = match self {
             ZfsAllowPriv::Rollback => "A rollback after a restore action",
             ZfsAllowPriv::Snapshot => "A snapshot guard before restore action",
         };
 
         if let Err(root_error) = user_has_effective_root(msg) {
-            if let Err(_allow_priv_error) = self.user_has_zfs_allow_priv(dataset) {
+            if let Err(_allow_priv_error) = self.user_has_zfs_allow_priv(fs_name) {
                 return Err(root_error);
             }
         }
@@ -207,12 +203,10 @@ impl ZfsAllowPriv {
         }
     }
 
-    fn user_has_zfs_allow_priv(&self, dataset: &Path) -> HttmResult<()> {
+    fn user_has_zfs_allow_priv(&self, fs_name: &str) -> HttmResult<()> {
         let zfs_command = which("zfs")?;
 
-        let dataset_name = &dataset.to_string_lossy();
-
-        let process_args = vec!["allow", dataset_name];
+        let process_args = vec!["allow", fs_name];
 
         let process_output = ExecProcess::new(zfs_command).args(&process_args).output()?;
         let stderr_string = std::str::from_utf8(&process_output.stderr)?.trim();
