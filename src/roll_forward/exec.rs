@@ -43,7 +43,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStderr, ChildStdout, Command as ExecProcess, Stdio};
 
 pub struct RollForward {
-    dataset: String,
+    dataset: PathBuf,
     snap: String,
     progress_bar: ProgressBar,
     pub proximate_dataset_mount: PathBuf,
@@ -58,18 +58,20 @@ impl RollForward {
             return Err(HttmError::new(&msg).into());
         };
 
+        let dataset = PathBuf::from(&dataset);
+
         let proximate_dataset_mount = GLOBAL_CONFIG
             .dataset_collection
             .map_of_datasets
             .iter()
-            .find(|(_mount, md)| md.source == PathBuf::from(&dataset))
+            .find(|(_mount, md)| md.source == dataset)
             .map(|(mount, _)| mount.to_owned())
             .ok_or_else(|| HttmError::new("Could not determine proximate dataset mount"))?;
 
         let progress_bar: ProgressBar = indicatif::ProgressBar::new_spinner();
 
         Ok(Self {
-            dataset: dataset.to_string(),
+            dataset,
             snap: snap.to_string(),
             progress_bar,
             proximate_dataset_mount,
@@ -77,7 +79,7 @@ impl RollForward {
     }
 
     fn full_name(&self) -> String {
-        format!("{}@{}", self.dataset, self.snap)
+        format!("{}@{}", self.dataset.to_string_lossy(), self.snap)
     }
 
     pub fn exec(&self) -> HttmResult<()> {
