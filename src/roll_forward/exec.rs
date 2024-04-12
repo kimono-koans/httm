@@ -191,10 +191,12 @@ impl RollForward {
             .par_iter()
             .filter(|(key, _values)| !exclusions.contains(key.as_path()))
             .flat_map(|(_key, values)| values.iter().max_by_key(|event| event.time))
-            .try_for_each(|event| match &event.diff_type {
-                DiffType::Renamed(new_file) if exclusions.contains(new_file) => Ok(()),
-                _ => self.diff_action(event),
-            })?;
+            .for_each(|event| match &event.diff_type {
+                DiffType::Renamed(new_file) if exclusions.contains(new_file) => (),
+                _ => {
+                    let _ = self.diff_action(event);
+                }
+            });
 
         self.verify()
     }
@@ -213,13 +215,11 @@ impl RollForward {
                 .partition(|path| path.is_dir());
 
             // change attrs on dir when at the top of a dir tree, so not over written from above
-            if vec_dirs.is_empty() {
-                let live_path = self
-                    .live_path(&item)
-                    .ok_or_else(|| HttmError::new("Could not generate live path"))?;
+            let live_path = self
+                .live_path(&item)
+                .ok_or_else(|| HttmError::new("Could not generate live path"))?;
 
-                Preserve::recursive(&item, &live_path)?
-            }
+            let _ = Preserve::recursive(&item, &live_path);
 
             first_pass.extend(vec_dirs.clone());
             second_pass.extend(vec_dirs);
@@ -244,19 +244,31 @@ impl RollForward {
             .live_path(&snap_dataset)
             .ok_or_else(|| HttmError::new("Could not generate live path"))?;
 
-        Preserve::direct(&snap_dataset, &live_dataset)?;
+        let _ = Preserve::direct(&snap_dataset, &live_dataset);
 
         // 2nd pass checks dirs - why?  we don't check dirs on first pass,
         // because copying of data may have changed dir size/mtime
-        second_pass.into_iter().try_for_each(|path| {
-            self.progress_bar.tick();
-            let live_path = self
-                .live_path(&path)
-                .ok_or_else(|| HttmError::new("Could not generate live path"))?;
+        second_pass
+            .into_iter()
+            .filter_map(|snap_path| {
+                self.live_path(&snap_path)
+                    .map(|live_path| (snap_path, live_path))
+            })
+            .for_each(|(snap_path, live_path)| {
+                self.progress_bar.tick();
 
-            is_metadata_same(&path, &live_path)
-        })?;
+                let _ = Preserve::recursive(&snap_path, &live_path);
+
+                match is_metadata_same(&snap_path, &live_path) {
+                    Err(err) if GLOBAL_CONFIG.opt_debug => {
+                        eprintln!("{err}")
+                    }
+                    _ => (),
+                }
+            });
+
         self.progress_bar.finish_and_clear();
+
         eprintln!("OK");
 
         Ok(())
