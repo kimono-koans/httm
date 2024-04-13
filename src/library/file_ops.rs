@@ -160,6 +160,11 @@ pub struct Preserve;
 impl Preserve {
     pub fn direct(src: &Path, dst: &Path) -> HttmResult<()> {
         let src_metadata = src.symlink_metadata()?;
+        let dst_file = std::fs::File::options()
+            .create(false)
+            .read(true)
+            .write(false)
+            .open(&dst)?;
 
         // Mode
         {
@@ -197,10 +202,11 @@ impl Preserve {
 
         // Timestamps
         {
-            let src_atime = filetime::FileTime::from_last_access_time(&src_metadata);
-            let src_mtime = filetime::FileTime::from_last_modification_time(&src_metadata);
+            let src_times = std::fs::FileTimes::new()
+                .set_accessed(src_metadata.accessed()?)
+                .set_modified(src_metadata.modified()?);
 
-            filetime::set_file_times(dst, src_atime, src_mtime)?;
+            dst_file.set_times(src_times)?;
         }
 
         Ok(())
