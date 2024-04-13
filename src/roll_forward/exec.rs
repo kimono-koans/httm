@@ -236,7 +236,8 @@ impl RollForward {
                 .try_for_each(|(snap_path, live_path)| {
                     self.progress_bar.tick();
 
-                    let _ = Preserve::direct(&snap_path, &live_path);
+                    // not need to do twice, happens at time of file copy
+                    // let _ = Preserve::direct(&snap_path, &live_path);
 
                     is_metadata_same(&snap_path, &live_path)
                 })?;
@@ -266,14 +267,7 @@ impl RollForward {
 
                 let _ = Preserve::direct(&snap_path, &live_path);
 
-                match is_metadata_same(&snap_path, &live_path) {
-                    Err(err) if GLOBAL_CONFIG.opt_debug => {
-                        eprintln!("{err}");
-                    }
-                    _ => (),
-                }
-
-                Ok::<(), HttmError>(())
+                is_metadata_same(&snap_path, &live_path)
             })?;
 
         self.progress_bar.finish_and_clear();
