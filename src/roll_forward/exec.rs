@@ -214,12 +214,14 @@ impl RollForward {
                 .map(|dir_entry| dir_entry.path())
                 .partition(|path| path.is_dir());
 
-            // change attrs on dir when at the top of a dir tree, so not over written from above
-            let live_path = self
-                .live_path(&item)
-                .ok_or_else(|| HttmError::new("Could not generate live path"))?;
+            if vec_dirs.is_empty() {
+                // change attrs on dir when at the top of a dir tree, so not over written from above
+                let live_path = self
+                    .live_path(&item)
+                    .ok_or_else(|| HttmError::new("Could not generate live path"))?;
 
-            let _ = Preserve::recursive(&item, &live_path);
+                let _ = Preserve::recursive(&item, &live_path);
+            }
 
             first_pass.extend(vec_dirs.clone());
             second_pass.extend(vec_dirs);
@@ -257,7 +259,7 @@ impl RollForward {
             .for_each(|(snap_path, live_path)| {
                 self.progress_bar.tick();
 
-                let _ = Preserve::recursive(&snap_path, &live_path);
+                let _ = Preserve::direct(&snap_path, &live_path);
 
                 match is_metadata_same(&snap_path, &live_path) {
                     Err(err) if GLOBAL_CONFIG.opt_debug => {

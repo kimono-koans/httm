@@ -199,10 +199,11 @@ impl Preserve {
 
         // Timestamps
         {
-            let times = FileTimes::new()
+            let src_times = FileTimes::new()
                 .set_accessed(src_metadata.accessed()?)
                 .set_modified(src_metadata.modified()?);
-            dst_file.set_times(times)?;
+
+            dst_file.set_times(src_times)?;
         }
 
         // syncs all data and metadata to disk
