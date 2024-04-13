@@ -82,7 +82,7 @@ impl TryFrom<&mut InteractiveBrowse> for InteractiveSelect {
 
             display_map.map.iter().try_for_each(|(live, snaps)| {
                 if snaps.is_empty() {
-                    let msg = format!("WARN: Path {:?} has no snapshots available.", live.path_buf);
+                    let msg = format!("Path {:?} has no snapshots available.", live.path_buf);
                     return Err(HttmError::new(&msg));
                 }
 

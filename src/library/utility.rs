@@ -314,11 +314,7 @@ where
     }
 
     if src.opt_metadata() != dst.opt_metadata() {
-        let msg = format!(
-            "WARN: Metadata mismatch: {:?} !-> {:?}",
-            src.path(),
-            dst.path()
-        );
+        let msg = format!("Metadata mismatch: {:?} !-> {:?}", src.path(), dst.path());
         return Err(HttmError::new(&msg).into());
     }
 
