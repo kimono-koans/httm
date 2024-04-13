@@ -227,14 +227,19 @@ impl RollForward {
             second_pass.extend(vec_dirs);
 
             // first pass only verify non-directories
-            vec_files.into_iter().try_for_each(|path| {
-                self.progress_bar.tick();
-                let live_path = self
-                    .live_path(&path)
-                    .ok_or_else(|| HttmError::new("Could not generate live path"))?;
+            vec_files
+                .into_iter()
+                .filter_map(|snap_path| {
+                    self.live_path(&snap_path)
+                        .map(|live_path| (snap_path, live_path))
+                })
+                .try_for_each(|(snap_path, live_path)| {
+                    self.progress_bar.tick();
 
-                is_metadata_same(&path, &live_path)
-            })?;
+                    let _ = Preserve::direct(&snap_path, &live_path);
+
+                    is_metadata_same(&snap_path, &live_path)
+                })?;
         }
         self.progress_bar.finish_and_clear();
         eprintln!("OK");
@@ -256,18 +261,20 @@ impl RollForward {
                 self.live_path(&snap_path)
                     .map(|live_path| (snap_path, live_path))
             })
-            .for_each(|(snap_path, live_path)| {
+            .try_for_each(|(snap_path, live_path)| {
                 self.progress_bar.tick();
 
                 let _ = Preserve::direct(&snap_path, &live_path);
 
                 match is_metadata_same(&snap_path, &live_path) {
                     Err(err) if GLOBAL_CONFIG.opt_debug => {
-                        eprintln!("{err}")
+                        eprintln!("{err}");
                     }
                     _ => (),
                 }
-            });
+
+                Ok::<(), HttmError>(())
+            })?;
 
         self.progress_bar.finish_and_clear();
 

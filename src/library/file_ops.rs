@@ -21,7 +21,6 @@ use crate::library::diff_copy::HttmCopy;
 use crate::library::results::{HttmError, HttmResult};
 use nix::sys::stat::SFlag;
 use nu_ansi_term::Color::{Blue, Red};
-use std::fs::{File, FileTimes};
 use std::os::unix::fs::chown;
 use std::os::unix::fs::FileTypeExt;
 use std::os::unix::fs::MetadataExt;
@@ -161,7 +160,6 @@ pub struct Preserve;
 impl Preserve {
     pub fn direct(src: &Path, dst: &Path) -> HttmResult<()> {
         let src_metadata = src.symlink_metadata()?;
-        let dst_file = File::options().write(true).open(dst)?;
 
         // Mode
         {
@@ -199,15 +197,11 @@ impl Preserve {
 
         // Timestamps
         {
-            let src_times = FileTimes::new()
-                .set_accessed(src_metadata.accessed()?)
-                .set_modified(src_metadata.modified()?);
+            let src_atime = filetime::FileTime::from_last_access_time(&src_metadata);
+            let src_mtime = filetime::FileTime::from_last_modification_time(&src_metadata);
 
-            dst_file.set_times(src_times)?;
+            filetime::set_file_times(dst, src_atime, src_mtime)?;
         }
-
-        // syncs all data and metadata to disk
-        dst_file.sync_all()?;
 
         Ok(())
     }
