@@ -155,9 +155,7 @@ impl InteractiveSelect {
         self.snap_path_strings
             .iter()
             .map(Path::new)
-            .try_for_each(|snap_path| self.print_snap_path(snap_path, select_mode))?;
-
-        Ok(())
+            .try_for_each(|snap_path| self.print_snap_path(snap_path, select_mode))
     }
 
     fn print_snap_path(&self, snap_path: &Path, select_mode: &SelectMode) -> HttmResult<()> {
@@ -173,9 +171,7 @@ impl InteractiveSelect {
                     }
                 };
 
-                print_output_buf(&output_buf)?;
-
-                Ok(())
+                print_output_buf(&output_buf)
             }
             SelectMode::Contents => {
                 if !snap_path.is_file() {
@@ -190,9 +186,7 @@ impl InteractiveSelect {
                 // This is the same as simply `cat`-ing the file.
                 let output_buf = unsafe { std::str::from_utf8_unchecked(&contents) };
 
-                print_output_buf(output_buf)?;
-
-                Ok(())
+                print_output_buf(output_buf)
             }
             SelectMode::Preview => {
                 let view_mode = &self.view_mode;
