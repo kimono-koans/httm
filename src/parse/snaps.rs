@@ -81,7 +81,7 @@ impl MapOfSnaps {
 
                             NOTICE_FALLBACK.call_once(|| {
                                 eprintln!(
-                                    "NOTICE: Falling back to detection of btrfs mounts defined by Snapper.",
+                                    "NOTICE: Falling back to detection of btrfs mounts perhaps defined by Snapper.",
                                 );
                             });
 
