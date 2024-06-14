@@ -67,13 +67,29 @@ impl MapOfSnaps {
                         Self::from_defined_mounts(mount, dataset_info)
                     }
                     // btrfs Some mounts are potential local mount
-                    FilesystemType::Btrfs(Some(base_subvol)) => Self::from_btrfs_cmd(
-                        mount,
-                        dataset_info,
-                        &base_subvol,
-                        map_of_datasets,
-                        opt_debug,
-                    ),
+                    FilesystemType::Btrfs(Some(base_subvol)) => {
+                        let mut res = Self::from_btrfs_cmd(
+                            mount,
+                            dataset_info,
+                            &base_subvol,
+                            map_of_datasets,
+                            opt_debug,
+                        );
+
+                        if res.is_empty() {
+                            static NOTICE_FALLBACK: Once = Once::new();
+
+                            NOTICE_FALLBACK.call_once(|| {
+                                eprintln!(
+                                    "NOTICE: Falling back to detection of btrfs mounts defined by Snapper.",
+                                );
+                            });
+
+                            res = Self::from_defined_mounts(mount, dataset_info);
+                        }
+
+                        res
+                    }
                     // btrfs None mounts are potential Snapper network mounts
                     FilesystemType::Btrfs(None) => Self::from_defined_mounts(mount, dataset_info),
                 };
