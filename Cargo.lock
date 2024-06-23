@@ -92,7 +92,7 @@ version = "0.2.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d9b39be18770d11421cdb1b9947a45dd3f37e93092cbf377614828a319d5fee8"
 dependencies = [
- "hermit-abi",
+ "hermit-abi 0.1.19",
  "libc",
  "winapi",
 ]
@@ -134,9 +134,9 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
 name = "cfg_aliases"
-version = "0.1.1"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fd16c4719339c4530435d38e511904438d07cce7950afa3718a84ac36c10e89e"
+checksum = "613afe47fcd5fac7ccf1db93babcb082c5994d996f20b8b159f2ad1658eb5724"
 
 [[package]]
 name = "clap"
@@ -474,6 +474,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "hermit-abi"
+version = "0.3.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d231dfb89cfffdbc30e7fc41579ed6066ad03abda9e567ccafae602b97ec5024"
+
+[[package]]
 name = "home"
 version = "0.5.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -484,7 +490,7 @@ dependencies = [
 
 [[package]]
 name = "httm"
-version = "0.38.2"
+version = "0.39.0"
 dependencies = [
  "ahash 0.8.11",
  "clap 4.5.4",
@@ -496,7 +502,7 @@ dependencies = [
  "libc",
  "lms",
  "lscolors",
- "nix 0.28.0",
+ "nix 0.29.0",
  "nu-ansi-term",
  "number_prefix 0.4.0",
  "once_cell",
@@ -629,9 +635,9 @@ checksum = "90ed8c1e510134f979dbc4f070f87d4313098b704861a105fe34231c70a3901c"
 
 [[package]]
 name = "lscolors"
-version = "0.17.0"
+version = "0.18.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "53304fff6ab1e597661eee37e42ea8c47a146fca280af902bb76bff8a896e523"
+checksum = "02a5d67fc8a616f260ee9a36868547da09ac24178a4b84708cd8ea781372fbe4"
 dependencies = [
  "nu-ansi-term",
 ]
@@ -664,9 +670,9 @@ dependencies = [
 
 [[package]]
 name = "nix"
-version = "0.28.0"
+version = "0.29.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ab2156c4fce2f8df6c499cc1c763e4394b7482525bf2a9701c9d79d215f519e4"
+checksum = "71e2746dc3a24dd78b3cfcb7be93368c6de9963d30f43a6a73998a9cf4b17b46"
 dependencies = [
  "bitflags 2.5.0",
  "cfg-if",
@@ -694,6 +700,16 @@ name = "num-conv"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "51d515d32fb182ee37cda2ccdcb92950d6a3c2893aa280e540671c2cd0f3b1d9"
+
+[[package]]
+name = "num_cpus"
+version = "1.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4161fcb6d602d4d2081af7c3a45852d875a03dd337a6bfdd6e06407b61342a43"
+dependencies = [
+ "hermit-abi 0.3.9",
+ "libc",
+]
 
 [[package]]
 name = "num_threads"
@@ -1095,9 +1111,9 @@ dependencies = [
 
 [[package]]
 name = "two_percent"
-version = "0.11.13"
+version = "0.11.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c0aabaeec36440c340d0052f09f5b1423622e1b47972c664df795c45eb092c27"
+checksum = "ef19c382c571326829b492e0634ea6992e403aea0ef1f31fe0ba9d1ce673fbe3"
 dependencies = [
  "ahash 0.8.11",
  "bitflags 2.5.0",
@@ -1108,6 +1124,7 @@ dependencies = [
  "libc",
  "log",
  "nohash",
+ "num_cpus",
  "once_cell",
  "rayon",
  "regex",
