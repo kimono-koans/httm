@@ -275,8 +275,8 @@ fn parse_args() -> ArgMatches {
                 .long("snap")
                 .require_equals(true)
                 .default_missing_value("httmSnapFileMount")
-                .value_parser(["snap-file", "snapshot", "snap-file-mount"])
                 .num_args(0..=1)
+                .value_parser(clap::value_parser!(String))
                 .help("snapshot a file/s most immediate mount. \
                 This argument optionally takes a value for a snapshot suffix. The default suffix is 'httmSnapFileMount'. \
                 Note: This is a ZFS only option which requires either superuser or 'zfs allow' privileges.")
