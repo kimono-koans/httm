@@ -20,7 +20,7 @@ use crate::parse::aliases::MapOfAliases;
 use crate::parse::alts::MapOfAlts;
 use crate::parse::mounts::{BaseFilesystemInfo, FilterDirs, MapOfDatasets};
 use crate::parse::snaps::MapOfSnaps;
-use clap::parser::ValuesRef;
+use clap::parser::RawValues;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
@@ -46,7 +46,7 @@ impl FilesystemInfo {
         opt_debug: bool,
         opt_remote_dir: Option<&str>,
         opt_local_dir: Option<&str>,
-        opt_map_aliases: Option<ValuesRef<'a, &'b str>>,
+        opt_map_aliases: Option<RawValues>,
         pwd: &Path,
     ) -> HttmResult<FilesystemInfo> {
         let base_fs_info = BaseFilesystemInfo::new(opt_debug)?;
@@ -69,8 +69,11 @@ impl FilesystemInfo {
                     .map(std::borrow::ToOwned::to_owned)
                     .collect(),
             ),
-            None => opt_map_aliases
-                .map(|map_aliases| map_aliases.map(|os_str| os_str.to_string()).collect()),
+            None => opt_map_aliases.map(|map_aliases| {
+                map_aliases
+                    .map(|os_str| os_str.to_string_lossy().to_string())
+                    .collect()
+            }),
         };
 
         let raw_snap_dir = if let Some(value) = opt_remote_dir {

@@ -829,7 +829,7 @@ impl Config {
         // obtain a map of datasets, a map of snapshot directories, and possibly a map of
         // alternate filesystems and map of aliases if the user requests
 
-        let opt_map_aliases = matches.get_many::<&str>("MAP_ALIASES");
+        let opt_map_aliases = matches.get_raw("MAP_ALIASES");
 
         let dataset_collection = FilesystemInfo::new(
             matches.get_flag("ALT_REPLICATED"),
