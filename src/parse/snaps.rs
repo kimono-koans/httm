@@ -63,7 +63,7 @@ impl MapOfSnaps {
             .par_iter()
             .map(|(mount, dataset_info)| {
                 let snap_mounts: Vec<PathBuf> = match &dataset_info.fs_type {
-                    FilesystemType::Zfs | FilesystemType::Nilfs2 | FilesystemType::Apfs | FilesystemType::Restic | FilesystemType::Btrfs(None) => {
+                    FilesystemType::Zfs | FilesystemType::Nilfs2 | FilesystemType::Apfs | FilesystemType::Restic(_) | FilesystemType::Btrfs(None) => {
                         Self::from_defined_mounts(mount, dataset_info)
                     }
                     // btrfs Some mounts are potential local mount
@@ -318,13 +318,16 @@ impl MapOfSnaps {
                         .map(|entry| entry.path().join(BTRFS_SNAPPER_SUFFIX))
                         .collect()
                 }
-                FilesystemType::Restic => {
-                    read_dir(mount_point_path.join(RESTIC_SNAPSHOT_DIRECTORY))?
-                        .flatten()
-                        .par_bridge()
-                        .map(|entry| entry.path())
-                        .collect()
+                FilesystemType::Restic(None) => {
+                    unreachable!("At this stage of execution the vector that holds all the Restic repos should exist.")
                 }
+                FilesystemType::Restic(Some(repos)) => repos
+                    .par_iter()
+                    .flat_map(|repo| read_dir(repo.join(RESTIC_SNAPSHOT_DIRECTORY)))
+                    .flatten_iter()
+                    .flatten()
+                    .map(|dir_entry| dir_entry.path())
+                    .collect(),
                 FilesystemType::Zfs => read_dir(mount_point_path.join(ZFS_SNAPSHOT_DIRECTORY))?
                     .flatten()
                     .par_bridge()
