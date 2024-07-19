@@ -97,6 +97,7 @@ pub const TM_DIR_LOCAL: &str = "/Volumes/com.apple.TimeMachine.localsnapshots/Ba
 pub const BTRFS_SNAPPER_SUFFIX: &str = "snapshot";
 pub const ROOT_DIRECTORY: &str = "/";
 pub const NILFS2_SNAPSHOT_ID_KEY: &str = "cp=";
+pub const RESTIC_SNAPSHOT_DIRECTORY: &str = "snapshots";
 
 fn main() {
     match exec() {
