@@ -319,7 +319,7 @@ impl MapOfSnaps {
                         .collect()
                 }
                 FilesystemType::Restic(None) => {
-                    unreachable!("At this stage of execution the vector that holds all the Restic repos should exist.")
+                    unreachable!("At this stage of execution, the vector that holds all the Restic repos should exist.")
                 }
                 FilesystemType::Restic(Some(repos)) => repos
                     .par_iter()

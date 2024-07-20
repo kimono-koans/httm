@@ -134,7 +134,9 @@ impl BaseFilesystemInfo {
 
         match opt_alt_backup.map(|res| res.as_str()) {
             Some("timemachine") => Self::from_tm_dir(&mut raw_datasets)?,
-            Some("restic") => Self::from_restic_dir(&mut raw_datasets)?,
+            Some("restic") => {
+                Self::from_blob_repo(&mut raw_datasets, &FilesystemType::Restic(None))?
+            }
             _ => {}
         }
 
@@ -260,25 +262,44 @@ impl BaseFilesystemInfo {
         }
     }
 
-    pub fn from_restic_dir(
+    pub fn from_blob_repo(
         map_of_datasets: &mut HashMap<PathBuf, DatasetMetadata>,
+        repo_type: &FilesystemType,
     ) -> HttmResult<()> {
-        map_of_datasets.retain(|_k, v| matches!(v.fs_type, FilesystemType::Restic(_)));
+        map_of_datasets.retain(|_k, v| &v.fs_type == repo_type);
 
         if map_of_datasets.is_empty() {
-            return Err(HttmError::new(
-                "ERROR: No supported Restic datasets were found on the system.",
-            )
-            .into());
+            match repo_type {
+                FilesystemType::Restic(_) => {
+                    return Err(HttmError::new(
+                        "ERROR: No supported Restic datasets were found on the system.",
+                    )
+                    .into());
+                }
+                _ => {
+                    return Err(HttmError::new(
+                        "ERROR: The file system type specified is not a supported alternative store.",
+                    )
+                    .into());
+                }
+            }
         }
 
         let mut new = HashMap::new();
 
         let repos = map_of_datasets.keys().cloned().collect();
 
-        let metadata = DatasetMetadata {
-            source: PathBuf::from("restic"),
-            fs_type: FilesystemType::Restic(Some(repos)),
+        let metadata = match repo_type {
+            FilesystemType::Restic(_) => DatasetMetadata {
+                source: PathBuf::from(RESTIC_SOURCE_PATH.as_path()),
+                fs_type: FilesystemType::Restic(Some(repos)),
+            },
+            _ => {
+                return Err(HttmError::new(
+                    "ERROR: The file system type specified is not a supported alternative store.",
+                )
+                .into());
+            }
         };
 
         new.insert_unique_unchecked(ROOT_PATH.clone(), metadata);

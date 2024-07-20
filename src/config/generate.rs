@@ -462,12 +462,12 @@ fn parse_args() -> ArgMatches {
                 .action(ArgAction::SetTrue)
         )
         .arg(
-            Arg::new("ALT_BACKUP")
-                .long("alt-backup")
-                .alias("backup")
+            Arg::new("ALT_STORE")
+                .long("alt-store")
+                .alias("store")
                 .require_equals(true)
                 .value_parser(["restic", "timemachine"])
-                .help("give priority to auto-discovered alternative backups stores, like Restic and Time Machine.")
+                .help("give priority to discovered alternative backups stores, like Restic, and Time Machine.")
                 .conflicts_with_all(["MAP_ALIASES"])
                 .display_order(26)
                 .action(ArgAction::Append)
@@ -841,10 +841,10 @@ impl Config {
         // alternate filesystems and map of aliases if the user requests
         let mut opt_map_aliases = matches.get_raw("MAP_ALIASES");
 
-        let opt_alt_backup = matches.get_one::<String>("ALT_BACKUP");
+        let opt_alt_store = matches.get_one::<String>("ALT_STORE");
 
-        if opt_alt_backup.is_some() {
-            eprintln!("WARN: httm has disabled any MAP_ALIASES in preference to an ALT_BACKUP specified.");
+        if opt_alt_store.is_some() && opt_map_aliases.is_some() {
+            eprintln!("WARN: httm has disabled any MAP_ALIASES in preference to an ALT_STORE specified.");
             opt_map_aliases = None;
         }
 
@@ -854,7 +854,7 @@ impl Config {
             matches.get_one::<String>("REMOTE_DIR").map(|inner| inner.as_str()),
             matches.get_one::<String>("LOCAL_DIR").map(|inner| inner.as_str()),
             opt_map_aliases,
-            opt_alt_backup,
+            opt_alt_store,
             &pwd,
         )?;
 
