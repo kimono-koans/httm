@@ -357,7 +357,7 @@ fn parse_args() -> ArgMatches {
                 .short('l')
                 .long("last-snap")
                 .default_missing_value("any")
-                .visible_aliases(["last", "latest"])
+                .visible_aliases(&["last", "latest"])
                 .value_parser(["any", "ditto", "no-ditto", "no-ditto-exclusive", "no-ditto-inclusive", "none", "without"])
                 .num_args(0..=1)
                 .require_equals(true)
@@ -368,7 +368,7 @@ fn parse_args() -> ArgMatches {
                 \"no-ditto-exclusive\", return only a last snap which is not the same as the live version (argument \"--no-ditto\" is an alias for this option), \
                 \"no-ditto-inclusive\", return a last snap which is not the same as the live version, or should none exist, return the live file, and, \
                 \"none\" or \"without\", return the live file only for those files without a last snapshot.")
-                .conflicts_with_all(["NUM_VERSIONS", "SNAPSHOT", "FILE_MOUNT", "ALT_REPLICATED", "REMOTE_DIR", "LOCAL_DIR", "PREVIEW"])
+                .conflicts_with_all(&["NUM_VERSIONS", "SNAPSHOT", "FILE_MOUNT", "ALT_REPLICATED", "REMOTE_DIR", "LOCAL_DIR", "PREVIEW"])
                 .display_order(15)
                 .action(ArgAction::Append)
         )
@@ -378,7 +378,7 @@ fn parse_args() -> ArgMatches {
                 .long("raw")
                 .visible_alias("newline")
                 .help("display the snapshot locations only, without extraneous information, delimited by a NEWLINE character.")
-                .conflicts_with_all(["ZEROS", "NOT_SO_PRETTY"])
+                .conflicts_with_all(&["ZEROS", "NOT_SO_PRETTY"])
                 .display_order(16)
                 .action(ArgAction::SetTrue)
         )
@@ -388,7 +388,7 @@ fn parse_args() -> ArgMatches {
                 .long("zero")
                 .visible_alias("null")
                 .help("display the snapshot locations only, without extraneous information, delimited by a NULL character.")
-                .conflicts_with_all(["RAW", "NOT_SO_PRETTY"])
+                .conflicts_with_all(&["RAW", "NOT_SO_PRETTY"])
                 
                 .display_order(17)
                 .action(ArgAction::SetTrue)
@@ -396,9 +396,9 @@ fn parse_args() -> ArgMatches {
         .arg(
             Arg::new("NOT_SO_PRETTY")
                 .long("not-so-pretty")
-                .visible_aliases(["tabs", "plain-jane", "not-pretty"])
+                .visible_aliases(&["tabs", "plain-jane", "not-pretty"])
                 .help("display the ordinary output, but tab delimited, without any pretty border lines.")
-                .conflicts_with_all(["RAW", "ZEROS"])
+                .conflicts_with_all(&["RAW", "ZEROS"])
                 .display_order(18)
                 .action(ArgAction::SetTrue)
         )
@@ -406,7 +406,7 @@ fn parse_args() -> ArgMatches {
             Arg::new("JSON")
                 .long("json")
                 .help("display the ordinary output, but as formatted JSON.")
-                .conflicts_with_all(["SELECT", "RESTORE"])
+                .conflicts_with_all(&["SELECT", "RESTORE"])
                 .display_order(19)
                 .action(ArgAction::SetTrue)
         )
@@ -414,7 +414,7 @@ fn parse_args() -> ArgMatches {
             Arg::new("OMIT_DITTO")
                 .long("omit-ditto")
                 .help("omit display of the snapshot version which may be identical to the live version. By default, `httm` displays all snapshot versions and the live version).")
-                .conflicts_with_all(["NUM_VERSIONS"])
+                .conflicts_with_all(&["NUM_VERSIONS"])
                 .display_order(20)
                 .action(ArgAction::SetTrue)
         )
@@ -430,7 +430,7 @@ fn parse_args() -> ArgMatches {
         .arg(
             Arg::new("FILTER_HIDDEN")
                 .long("no-hidden")
-                .aliases(["no-hide", "nohide", "filter-hidden"])
+                .aliases(&["no-hide", "nohide", "filter-hidden"])
                 .help("do not show information regarding hidden files and directories (those that start with a \'.\') in the recursive or interactive modes.")
                 
                 .display_order(22)
@@ -439,7 +439,7 @@ fn parse_args() -> ArgMatches {
         .arg(
             Arg::new("ONE_FILESYSTEM")
                 .long("one-filesystem")
-                .aliases(["same-filesystem", "single-filesystem", "one-fs", "onefs"])
+                .aliases(&["same-filesystem", "single-filesystem", "one-fs", "onefs"])
                 .requires("RECURSIVE")
                 .help("limit recursive search to file and directories on the same filesystem/device as the target directory.")
                 .display_order(23)
@@ -456,7 +456,7 @@ fn parse_args() -> ArgMatches {
         .arg(
             Arg::new("NO_LIVE")
                 .long("no-live")
-                .visible_aliases(["dead", "disco"])
+                .visible_aliases(&["dead", "disco"])
                 .help("only display information concerning snapshot versions (display no information regarding live versions of files or directories).")
                 .display_order(25)
                 .action(ArgAction::SetTrue)
@@ -464,7 +464,7 @@ fn parse_args() -> ArgMatches {
         .arg(
             Arg::new("ALT_BACKUP")
                 .long("alt-backup")
-                .visible_alias("backup")
+                .alias("backup")
                 .require_equals(true)
                 .value_parser(["restic", "timemachine"])
                 .help("give priority to auto-discovered alternative backups stores, like Restic and Time Machine.")
@@ -475,10 +475,10 @@ fn parse_args() -> ArgMatches {
         .arg(
             Arg::new("NO_SNAP")
                 .long("no-snap")
-                .visible_aliases(["undead", "zombie"])
+                .visible_aliases(&["undead", "zombie"])
                 .help("only display information concerning 'pseudo-live' versions in any Display Recursive mode (in --deleted, --recursive, but non-interactive modes). \
                 Useful for finding the \"files that once were\" and displaying only those pseudo-live/zombie files.")
-                .conflicts_with_all(["BROWSE", "SELECT", "RESTORE", "SNAPSHOT", "LAST_SNAP", "NOT_SO_PRETTY"])
+                .conflicts_with_all(&["BROWSE", "SELECT", "RESTORE", "SNAPSHOT", "LAST_SNAP", "NOT_SO_PRETTY"])
                 .requires("DELETED")
                 .display_order(27)
                 .action(ArgAction::SetTrue)
@@ -486,7 +486,7 @@ fn parse_args() -> ArgMatches {
         .arg(
             Arg::new("MAP_ALIASES")
                 .long("map-aliases")
-                .visible_aliases(["aliases"])
+                .visible_aliases(&["aliases"])
                 .help("manually map a local directory (eg. \"/Users/<User Name>\") as an alias of a mount point for ZFS or btrfs, \
                 such as the local mount point for a backup on a remote share (eg. \"/Volumes/Home\"). \
                 This option is useful if you wish to view snapshot versions from within the local directory you back up to a remote network share. \
@@ -513,7 +513,7 @@ fn parse_args() -> ArgMatches {
                 \"single\" will print only filenames which only have one version, \
                 (and \"single-no-snap\" will print those without a snap taken, and \"single-with-snap\" will print those with a snap taken), \
                 and \"multiple\" will print only filenames which only have multiple versions.")
-                .conflicts_with_all(["LAST_SNAP", "BROWSE", "SELECT", "RESTORE", "RECURSIVE", "SNAPSHOT", "NO_LIVE", "NO_SNAP", "OMIT_DITTO"])
+                .conflicts_with_all(&["LAST_SNAP", "BROWSE", "SELECT", "RESTORE", "RECURSIVE", "SNAPSHOT", "NO_LIVE", "NO_SNAP", "OMIT_DITTO"])
                 .display_order(29)
                 .action(ArgAction::Append)
         )
@@ -521,7 +521,7 @@ fn parse_args() -> ArgMatches {
             Arg::new("REMOTE_DIR")
                 .long("remote-dir")
                 .hide(true)
-                .visible_aliases(["remote", "snap-point"])
+                .visible_aliases(&["remote", "snap-point"])
                 .help("DEPRECATED. Use MAP_ALIASES. Manually specify that mount point for ZFS (directory which contains a \".zfs\" directory) or btrfs-snapper \
                 (directory which contains a \".snapshots\" directory), such as the local mount point for a remote share. You may also set via the HTTM_REMOTE_DIR environment variable.")
                 .value_parser(clap::builder::ValueParser::os_string())
@@ -665,22 +665,22 @@ impl Config {
         let opt_no_clones =
             matches.get_flag("NO_CLONES") || std::env::var_os("HTTM_NO_CLONE").is_some();
 
-        let opt_last_snap = match matches.get_one::<&str>("LAST_SNAP") {
-            Some(&"" | &"any") => Some(LastSnapMode::Any),
-            Some(&"none" | &"without") => Some(LastSnapMode::Without),
-            Some(&"ditto") => Some(LastSnapMode::DittoOnly),
-            Some(&"no-ditto-inclusive") => Some(LastSnapMode::NoDittoInclusive),
-            Some(&"no-ditto-exclusive" | &"no-ditto") => Some(LastSnapMode::NoDittoExclusive),
+        let opt_last_snap = match matches.get_one::<String>("LAST_SNAP").map(|inner| inner.as_str()) {
+            Some("" | "any") => Some(LastSnapMode::Any),
+            Some("none" | "without") => Some(LastSnapMode::Without),
+            Some("ditto") => Some(LastSnapMode::DittoOnly),
+            Some("no-ditto-inclusive") => Some(LastSnapMode::NoDittoInclusive),
+            Some("no-ditto-exclusive" | "no-ditto") => Some(LastSnapMode::NoDittoExclusive),
             _ => None,
         };
 
-        let opt_num_versions = match matches.get_one::<&str>("NUM_VERSIONS") {
-            Some(&"" | &"all") => Some(NumVersionsMode::AllNumerals),
-            Some(&"single") => Some(NumVersionsMode::SingleAll),
-            Some(&"single-no-snap") => Some(NumVersionsMode::SingleNoSnap),
-            Some(&"single-with-snap") => Some(NumVersionsMode::SingleWithSnap),
-            Some(&"multiple") => Some(NumVersionsMode::Multiple),
-            Some(&"graph") => Some(NumVersionsMode::AllGraph),
+        let opt_num_versions = match matches.get_one::<String>("NUM_VERSIONS").map(|inner| inner.as_str()) {
+            Some("" | "all") => Some(NumVersionsMode::AllNumerals),
+            Some("graph") => Some(NumVersionsMode::AllGraph),
+            Some("single") => Some(NumVersionsMode::SingleAll),
+            Some("single-no-snap") => Some(NumVersionsMode::SingleNoSnap),
+            Some("single-with-snap") => Some(NumVersionsMode::SingleWithSnap),
+            Some("multiple") => Some(NumVersionsMode::Multiple),
             _ => None,
         };
 
@@ -690,28 +690,28 @@ impl Config {
             return Err(HttmError::new("The NUM_VERSIONS graph mode and the RAW or ZEROS display modes are an invalid combination.").into());
         }
 
-        let opt_mount_display = match matches.get_one::<&str>("FILE_MOUNT") {
-            Some(&"" | &"mount" | &"target" | &"directory") => Some(MountDisplay::Target),
-            Some(&"source" | &"device" | &"dataset") => Some(MountDisplay::Source),
-            Some(&"relative-path" | &"relative" | &"relpath") => Some(MountDisplay::RelativePath),
+        let opt_mount_display = match matches.get_one::<String>("FILE_MOUNT").map(|inner| inner.as_str()) {
+            Some("" | "mount" | "target" | "directory") => Some(MountDisplay::Target),
+            Some("source" | "device" | "dataset") => Some(MountDisplay::Source),
+            Some("relative-path" | "relative" | "relpath") => Some(MountDisplay::RelativePath),
             _ => None,
         };
 
-        let opt_preview = match matches.get_one::<&str>("PREVIEW") {
-            Some(&"" | &"default") => Some("default".to_owned()),
+        let opt_preview = match matches.get_one::<String>("PREVIEW").map(|inner| inner.as_str()) {
+            Some("" | "default") => Some("default".to_owned()),
             Some(user_defined) => Some(user_defined.to_string()),
             None => None,
         };
 
-        let mut opt_deleted_mode = match matches.get_one::<&str>("DELETED") {
-            Some(&"" | &"all") => Some(DeletedMode::All),
-            Some(&"single") => Some(DeletedMode::DepthOfOne),
-            Some(&"only") => Some(DeletedMode::Only),
+        let mut opt_deleted_mode = match matches.get_one::<String>("DELETED").map(|inner| inner.as_str()) {
+            Some("" | "all") => Some(DeletedMode::All),
+            Some("single") => Some(DeletedMode::DepthOfOne),
+            Some("only") => Some(DeletedMode::Only),
             _ => None,
         };
 
-        let opt_select_mode = matches.get_one::<&str>("SELECT");
-        let opt_restore_mode = matches.get_one::<&str>("RESTORE");
+        let opt_select_mode = matches.get_one::<String>("SELECT");
+        let opt_restore_mode = matches.get_one::<String>("RESTORE");
         
         let opt_interactive_mode = if let Some(var_restore_mode) = opt_restore_mode {
             let mut restore_mode = var_restore_mode.to_string();
@@ -734,7 +734,7 @@ impl Config {
                 _ => Some(InteractiveMode::Restore(RestoreMode::CopyOnly)),
             }
         } else if opt_select_mode.is_some() || opt_preview.is_some() {
-            match opt_select_mode.map(|inner| *inner) {
+            match opt_select_mode.map(|inner| inner.as_str()) {
                 Some("contents") => Some(InteractiveMode::Select(SelectMode::Contents)),
                 Some("preview") => Some(InteractiveMode::Select(SelectMode::Preview)),
                 Some(_) | None => Some(InteractiveMode::Select(SelectMode::Path)),
@@ -747,11 +747,11 @@ impl Config {
             None
         };
 
-        let uniqueness = match matches.get_one::<&str>("UNIQUENESS") {
+        let uniqueness = match matches.get_one::<String>("UNIQUENESS").map(|inner| inner.as_str()) {
             _ if matches.get_flag("PRUNE") =>  ListSnapsOfType::All,
-            Some(&"all" | &"no-filter") => ListSnapsOfType::All,
-            Some(&"contents") => ListSnapsOfType::UniqueContents,
-            Some(&"metadata" | _) | None => ListSnapsOfType::UniqueMetadata,
+            Some("all" | "no-filter") => ListSnapsOfType::All,
+            Some("contents") => ListSnapsOfType::UniqueContents,
+            Some("metadata" | _) | None => ListSnapsOfType::UniqueMetadata,
         };
 
         if opt_no_hidden && !opt_recursive && opt_interactive_mode.is_none() {
@@ -770,7 +770,7 @@ impl Config {
         }
 
         let opt_snap_file_mount =
-            if let Some(requested_snapshot_suffix) = matches.get_one::<&str>("SNAPSHOT") {
+            if let Some(requested_snapshot_suffix) = matches.get_one::<String>("SNAPSHOT") {
                 if requested_snapshot_suffix == &"httmSnapFileMount" {
                     Some(requested_snapshot_suffix.to_owned())
                 } else if requested_snapshot_suffix.contains(char::is_whitespace) {
@@ -785,7 +785,7 @@ impl Config {
                 None
             };
 
-        let opt_snap_mode_filters = if matches.get_one::<&str>("LIST_SNAPS").is_some() {
+        let opt_snap_mode_filters = if matches.get_one::<String>("LIST_SNAPS").is_some() {
             // allow selection of snaps to prune in prune mode
             let select_mode = matches!(opt_interactive_mode, Some(InteractiveMode::Select(_)));
 
@@ -793,7 +793,7 @@ impl Config {
                 eprintln!("Select mode for listed snapshots only available in PRUNE mode.")
             }
 
-            if let Some(values) = matches.get_one::<&str>("LIST_SNAPS") {
+            if let Some(values) = matches.get_one::<String>("LIST_SNAPS") {
                 Some(Self::snap_filters(values, select_mode)?)
             } else {
                 Some(ListSnapsFilters {
@@ -806,7 +806,7 @@ impl Config {
             None
         };
 
-        let mut exec_mode = if let Some(full_snap_name) = matches.get_one::<&str>("ROLL_FORWARD") {
+        let mut exec_mode = if let Some(full_snap_name) = matches.get_one::<String>("ROLL_FORWARD") {
             ExecMode::RollForward(full_snap_name.to_string())
         } else if let Some(num_versions_mode) = opt_num_versions {
             ExecMode::NumVersions(num_versions_mode)
@@ -841,7 +841,7 @@ impl Config {
         // alternate filesystems and map of aliases if the user requests
         let mut opt_map_aliases = matches.get_raw("MAP_ALIASES");
 
-        let opt_alt_backup = matches.get_one::<&str>("ALT_BACKUP");
+        let opt_alt_backup = matches.get_one::<String>("ALT_BACKUP");
 
         if opt_alt_backup.is_some() {
             eprintln!("WARN: httm has disabled any MAP_ALIASES in preference to an ALT_BACKUP specified.");
@@ -851,8 +851,8 @@ impl Config {
         let dataset_collection = FilesystemInfo::new(
             matches.get_flag("ALT_REPLICATED"),
             opt_debug,
-            matches.get_one::<&str>("REMOTE_DIR"),
-            matches.get_one::<&str>("LOCAL_DIR"),
+            matches.get_one::<String>("REMOTE_DIR").map(|inner| inner.as_str()),
+            matches.get_one::<String>("LOCAL_DIR").map(|inner| inner.as_str()),
             opt_map_aliases,
             opt_alt_backup,
             &pwd,
@@ -1005,7 +1005,7 @@ impl Config {
         let broken_string = if buffer_string.contains(['\n', '\0']) {
             // always split on newline or null char, if available
             buffer_string
-                .split(['\n', '\0'])
+                .split(&['\n', '\0'])
                 .filter(|s| !s.is_empty())
                 .map(PathData::from)
                 .collect()
