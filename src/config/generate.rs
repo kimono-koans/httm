@@ -844,6 +844,7 @@ impl Config {
         let opt_alt_backup = matches.get_one::<String>("ALT_BACKUP");
 
         if opt_alt_backup.is_some() {
+            eprintln!("WARN: httm has disabled any MAP_ALIASES in preference to an ALT_BACKUP specified.");
             opt_map_aliases = None;
         }
 
