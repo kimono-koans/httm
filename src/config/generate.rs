@@ -22,6 +22,7 @@ use crate::data::paths::{PathData, ZfsSnapPathGuard};
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{pwd, HttmIsDir};
 use crate::lookup::file_mounts::MountDisplay;
+use crate::parse::mounts::FilesystemType;
 use crate::ROOT_DIRECTORY;
 use clap::parser::ValuesRef;
 use clap::{crate_name, crate_version, Arg, ArgAction, ArgMatches};
@@ -462,6 +463,17 @@ fn parse_args() -> ArgMatches {
                 .action(ArgAction::SetTrue)
         )
         .arg(
+            Arg::new("ALT_STORE")
+                .long("alt-store")
+                .alias("store")
+                .require_equals(true)
+                .value_parser(["restic", "timemachine"])
+                .help("give priority to discovered alternative backups stores, like Restic, and Time Machine.")
+                .conflicts_with_all(["MAP_ALIASES"])
+                .display_order(26)
+                .action(ArgAction::Append)
+        )
+        .arg(
             Arg::new("NO_SNAP")
                 .long("no-snap")
                 .visible_aliases(&["undead", "zombie"])
@@ -469,7 +481,7 @@ fn parse_args() -> ArgMatches {
                 Useful for finding the \"files that once were\" and displaying only those pseudo-live/zombie files.")
                 .conflicts_with_all(&["BROWSE", "SELECT", "RESTORE", "SNAPSHOT", "LAST_SNAP", "NOT_SO_PRETTY"])
                 .requires("DELETED")
-                .display_order(26)
+                .display_order(27)
                 .action(ArgAction::SetTrue)
         )
         .arg(
@@ -478,14 +490,14 @@ fn parse_args() -> ArgMatches {
                 .visible_aliases(&["aliases"])
                 .help("manually map a local directory (eg. \"/Users/<User Name>\") as an alias of a mount point for ZFS or btrfs, \
                 such as the local mount point for a backup on a remote share (eg. \"/Volumes/Home\"). \
-                This option is useful if you wish to view snapshot versions from within the local directory you back up to your remote share. \
+                This option is useful if you wish to view snapshot versions from within the local directory you back up to a remote network share. \
                 This option requires a value. Such a value is delimited by a colon, ':', and is specified in the form <LOCAL_DIR>:<REMOTE_DIR> \
                 (eg. --map-aliases /Users/<User Name>:/Volumes/Home). Multiple maps may be specified delimited by a comma, ','. \
                 You may also set via the environment variable HTTM_MAP_ALIASES.")
                 .use_value_delimiter(true)
                 .value_parser(clap::builder::ValueParser::os_string())
                 .num_args(0..=1)
-                .display_order(27)
+                .display_order(28)
                 .action(ArgAction::Append)
         )
         .arg(
@@ -503,7 +515,7 @@ fn parse_args() -> ArgMatches {
                 (and \"single-no-snap\" will print those without a snap taken, and \"single-with-snap\" will print those with a snap taken), \
                 and \"multiple\" will print only filenames which only have multiple versions.")
                 .conflicts_with_all(&["LAST_SNAP", "BROWSE", "SELECT", "RESTORE", "RECURSIVE", "SNAPSHOT", "NO_LIVE", "NO_SNAP", "OMIT_DITTO"])
-                .display_order(28)
+                .display_order(29)
                 .action(ArgAction::Append)
         )
         .arg(
@@ -514,7 +526,7 @@ fn parse_args() -> ArgMatches {
                 .help("DEPRECATED. Use MAP_ALIASES. Manually specify that mount point for ZFS (directory which contains a \".zfs\" directory) or btrfs-snapper \
                 (directory which contains a \".snapshots\" directory), such as the local mount point for a remote share. You may also set via the HTTM_REMOTE_DIR environment variable.")
                 .value_parser(clap::builder::ValueParser::os_string())
-                .display_order(29)
+                .display_order(30)
                 .action(ArgAction::Append)
         )
         .arg(
@@ -527,14 +539,14 @@ fn parse_args() -> ArgMatches {
                 You may also set via the environment variable HTTM_LOCAL_DIR.")
                 .requires("REMOTE_DIR")
                 .value_parser(clap::builder::ValueParser::os_string())
-                .display_order(30)
+                .display_order(31)
                 .action(ArgAction::Append)
         )
         .arg(
             Arg::new("UTC")
                 .long("utc")
                 .help("use UTC for date display and timestamps")
-                .display_order(31)
+                .display_order(32)
                 .action(ArgAction::SetTrue)
         )
         .arg(
@@ -543,14 +555,14 @@ fn parse_args() -> ArgMatches {
                 .help("by default, when copying files from snapshots, httm will first attempt a zero copy \"reflink\" clone on systems that support it. \
                 Here, you may disable that behavior, and force httm to use the fall back diff copy behavior as the default. \
                 You may also set an environment variable to any value, \"HTTM_NO_CLONE\" to disable.")
-                .display_order(32)
+                .display_order(33)
                 .action(ArgAction::SetTrue)
         )
         .arg(
             Arg::new("DEBUG")
                 .long("debug")
                 .help("print configuration and debugging info")
-                .display_order(33)
+                .display_order(34)
                 .action(ArgAction::SetTrue)
         )
         .arg(
@@ -558,7 +570,7 @@ fn parse_args() -> ArgMatches {
                 .long("install-zsh-hot-keys")
                 .help("install zsh hot keys to the users home directory, and then exit")
                 .exclusive(true)
-                .display_order(34)
+                .display_order(35)
                 .action(ArgAction::SetTrue)
         )
         .get_matches()
@@ -828,8 +840,18 @@ impl Config {
 
         // obtain a map of datasets, a map of snapshot directories, and possibly a map of
         // alternate filesystems and map of aliases if the user requests
+        let mut opt_map_aliases = matches.get_raw("MAP_ALIASES");
 
-        let opt_map_aliases = matches.get_raw("MAP_ALIASES");
+        let opt_alt_store: Option<&FilesystemType> = match matches.get_one::<String>("ALT_STORE").map(|inner| inner.as_str()) {
+            Some("timemachine") => Some(&FilesystemType::Apfs),
+            Some("restic") => Some(&FilesystemType::Restic(None)),
+            _ => None
+        };
+
+        if opt_alt_store.is_some() && opt_map_aliases.is_some() {
+            eprintln!("WARN: httm has disabled any MAP_ALIASES in preference to an ALT_STORE specified.");
+            opt_map_aliases = None;
+        }
 
         let dataset_collection = FilesystemInfo::new(
             matches.get_flag("ALT_REPLICATED"),
@@ -837,6 +859,7 @@ impl Config {
             matches.get_one::<String>("REMOTE_DIR").map(|inner| inner.as_str()),
             matches.get_one::<String>("LOCAL_DIR").map(|inner| inner.as_str()),
             opt_map_aliases,
+            opt_alt_store,
             &pwd,
         )?;
 

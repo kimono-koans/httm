@@ -39,6 +39,7 @@ pub const BTRFS_FSTYPE: &str = "btrfs";
 pub const SMB_FSTYPE: &str = "smbfs";
 pub const NFS_FSTYPE: &str = "nfs";
 pub const AFP_FSTYPE: &str = "afpfs";
+pub const FUSE_FSTYPE_LINUX: &str = "fuse";
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum FilesystemType {
@@ -46,6 +47,7 @@ pub enum FilesystemType {
     Btrfs(Option<PathBuf>),
     Nilfs2,
     Apfs,
+    Restic(Option<Vec<PathBuf>>),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -105,10 +107,12 @@ impl MaxLen for MapOfDatasets {
 }
 
 pub static PROC_MOUNTS: Lazy<PathBuf> = Lazy::new(|| PathBuf::from("/proc/mounts"));
-
-static ETC_MNTTAB: Lazy<PathBuf> = Lazy::new(|| PathBuf::from("/etc/mnttab"));
-
 pub static BTRFS_ROOT_SUBVOL: Lazy<PathBuf> = Lazy::new(|| PathBuf::from("<FS_TREE>"));
+pub static ROOT_PATH: Lazy<PathBuf> = Lazy::new(|| PathBuf::from(ROOT_DIRECTORY));
+static ETC_MNTTAB: Lazy<PathBuf> = Lazy::new(|| PathBuf::from("/etc/mnttab"));
+static RESTIC_SOURCE_PATH: Lazy<PathBuf> = Lazy::new(|| PathBuf::from("restic"));
+static TM_DIR_REMOTE_PATH: Lazy<PathBuf> = Lazy::new(|| PathBuf::from(TM_DIR_REMOTE));
+static TM_DIR_LOCAL_PATH: Lazy<PathBuf> = Lazy::new(|| PathBuf::from(TM_DIR_LOCAL));
 
 pub struct BaseFilesystemInfo {
     pub map_of_datasets: MapOfDatasets,
@@ -119,14 +123,18 @@ pub struct BaseFilesystemInfo {
 impl BaseFilesystemInfo {
     // divide by the type of system we are on
     // Linux allows us the read proc mounts
-    pub fn new(opt_debug: bool) -> HttmResult<Self> {
-        let (raw_datasets, filter_dirs_set) = if PROC_MOUNTS.exists() {
+    pub fn new(opt_debug: bool, opt_alt_store: Option<&FilesystemType>) -> HttmResult<Self> {
+        let (mut raw_datasets, filter_dirs_set) = if PROC_MOUNTS.exists() {
             Self::from_file(&PROC_MOUNTS)?
         } else if ETC_MNTTAB.exists() {
             Self::from_file(&ETC_MNTTAB)?
         } else {
             Self::from_mount_cmd()?
         };
+
+        if let Some(fs_type) = opt_alt_store {
+            Self::from_blob_repo(&mut raw_datasets, fs_type)?;
+        }
 
         let map_of_snaps = MapOfSnaps::new(&raw_datasets, opt_debug)?;
 
@@ -231,6 +239,15 @@ impl BaseFilesystemInfo {
                             fs_type: FilesystemType::Nilfs2,
                         },
                     )),
+                    FUSE_FSTYPE_LINUX if mount_info.source == *RESTIC_SOURCE_PATH => {
+                        Either::Left((
+                            dest_path,
+                            DatasetMetadata {
+                                source: mount_info.source,
+                                fs_type: FilesystemType::Restic(None),
+                            },
+                        ))
+                    }
                     _ => Either::Right(dest_path),
                 });
 
@@ -239,6 +256,79 @@ impl BaseFilesystemInfo {
         } else {
             Ok((map_of_datasets, filter_dirs))
         }
+    }
+
+    pub fn from_blob_repo(
+        map_of_datasets: &mut HashMap<PathBuf, DatasetMetadata>,
+        repo_type: &FilesystemType,
+    ) -> HttmResult<()> {
+        map_of_datasets.retain(|_k, v| &v.fs_type == repo_type);
+
+        match repo_type {
+            FilesystemType::Restic(_) => {
+                if map_of_datasets.is_empty() {
+                    return Err(HttmError::new(
+                        "ERROR: No supported Restic datasets were found on the system.",
+                    )
+                    .into());
+                }
+            }
+            FilesystemType::Apfs => {
+                if !cfg!(target_os = "macos") {
+                    return Err(HttmError::new(
+                            "ERROR: Time Machine is only supported on Mac OS.  This appears to be an unsupported OS."
+                        )
+                        .into());
+                }
+
+                if !TM_DIR_REMOTE_PATH.exists() && !TM_DIR_LOCAL_PATH.exists() {
+                    return Err(HttmError::new(
+                            "ERROR: Neither a local nor a remote Time Machine path seems to exist for this system."
+                        )
+                        .into());
+                }
+
+                if map_of_datasets.is_empty() {
+                    return Err(HttmError::new(
+                        "ERROR: No supported Time Machine datasets were found on the system.",
+                    )
+                    .into());
+                }
+            }
+            _ => {
+                return Err(HttmError::new(
+                    "ERROR: The file system type specified is not a supported alternative store.",
+                )
+                .into());
+            }
+        }
+
+        let mut new = HashMap::new();
+
+        let repos = map_of_datasets.keys().cloned().collect();
+
+        let metadata = match repo_type {
+            FilesystemType::Restic(_) => DatasetMetadata {
+                source: PathBuf::from(RESTIC_SOURCE_PATH.as_path()),
+                fs_type: FilesystemType::Restic(Some(repos)),
+            },
+            FilesystemType::Apfs => DatasetMetadata {
+                source: PathBuf::from("timemachine"),
+                fs_type: FilesystemType::Apfs,
+            },
+            _ => {
+                return Err(HttmError::new(
+                    "ERROR: The file system type specified is not a supported alternative store.",
+                )
+                .into());
+            }
+        };
+
+        new.insert_unique_unchecked(ROOT_PATH.clone(), metadata);
+
+        *map_of_datasets = new;
+
+        return Ok(());
     }
 
     // old fashioned parsing for non-Linux systems, nearly as fast, works everywhere with a mount command
@@ -306,41 +396,34 @@ impl BaseFilesystemInfo {
                         fs_type: FilesystemType::Btrfs(None),
                     },
                 )),
+                _ if source == *RESTIC_SOURCE_PATH => Either::Left((
+                    mount,
+                    DatasetMetadata {
+                        source,
+                        fs_type: FilesystemType::Restic(None),
+                    },
+                )),
                 _ => Either::Right(mount),
             });
 
-        Self::from_tm_dir(&mut map_of_datasets);
+        if TM_DIR_REMOTE_PATH.exists() || TM_DIR_LOCAL_PATH.exists() {
+            match map_of_datasets.get(ROOT_PATH.as_path()) {
+                Some(_root) => {}
+                None => {
+                    let metadata = DatasetMetadata {
+                        source: PathBuf::from("timemachine"),
+                        fs_type: FilesystemType::Apfs,
+                    };
+
+                    map_of_datasets.insert_unique_unchecked(ROOT_PATH.to_path_buf(), metadata);
+                }
+            }
+        }
 
         if map_of_datasets.is_empty() {
             Err(HttmError::new("httm could not find any valid datasets on the system.").into())
         } else {
             Ok((map_of_datasets, filter_dirs))
-        }
-    }
-
-    fn from_tm_dir(map_of_datasets: &mut HashMap<PathBuf, DatasetMetadata>) {
-        if cfg!(target_os = "macos") {
-            let tm_dir_remote_path = std::path::Path::new(TM_DIR_REMOTE);
-            let tm_dir_local_path = std::path::Path::new(TM_DIR_LOCAL);
-
-            if tm_dir_remote_path.exists() || tm_dir_local_path.exists() {
-                let root_dir = PathBuf::from(ROOT_DIRECTORY);
-
-                match map_of_datasets.get(&root_dir) {
-                    Some(md) => {
-                        eprintln!("WARN: httm has prioritized a discovered root directory mount over any potential Time Machine mounts: {:?}", md.source);
-                    }
-                    None => {
-                        let metadata = DatasetMetadata {
-                            source: PathBuf::from("timemachine"),
-                            fs_type: FilesystemType::Apfs,
-                        };
-
-                        // SAFETY: Check no entry is here just above
-                        map_of_datasets.insert_unique_unchecked(root_dir, metadata);
-                    }
-                }
-            }
         }
     }
 

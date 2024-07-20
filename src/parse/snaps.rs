@@ -21,8 +21,8 @@ use crate::parse::mounts::BTRFS_ROOT_SUBVOL;
 use crate::parse::mounts::PROC_MOUNTS;
 use crate::parse::mounts::{DatasetMetadata, FilesystemType};
 use crate::{
-    BTRFS_SNAPPER_HIDDEN_DIRECTORY, BTRFS_SNAPPER_SUFFIX, ROOT_DIRECTORY, TM_DIR_LOCAL,
-    TM_DIR_REMOTE, ZFS_SNAPSHOT_DIRECTORY,
+    BTRFS_SNAPPER_HIDDEN_DIRECTORY, BTRFS_SNAPPER_SUFFIX, RESTIC_SNAPSHOT_DIRECTORY,
+    ROOT_DIRECTORY, TM_DIR_LOCAL, TM_DIR_REMOTE, ZFS_SNAPSHOT_DIRECTORY,
 };
 use hashbrown::HashMap;
 use proc_mounts::MountIter;
@@ -63,7 +63,7 @@ impl MapOfSnaps {
             .par_iter()
             .map(|(mount, dataset_info)| {
                 let snap_mounts: Vec<PathBuf> = match &dataset_info.fs_type {
-                    FilesystemType::Zfs | FilesystemType::Nilfs2 | FilesystemType::Apfs => {
+                    FilesystemType::Zfs | FilesystemType::Nilfs2 | FilesystemType::Apfs | FilesystemType::Restic(_) | FilesystemType::Btrfs(None) => {
                         Self::from_defined_mounts(mount, dataset_info)
                     }
                     // btrfs Some mounts are potential local mount
@@ -90,8 +90,6 @@ impl MapOfSnaps {
 
                         res
                     }
-                    // btrfs None mounts are potential Snapper network mounts
-                    FilesystemType::Btrfs(None) => Self::from_defined_mounts(mount, dataset_info),
                 };
 
                 (mount.clone(), snap_mounts)
@@ -312,7 +310,7 @@ impl MapOfSnaps {
             mount_point_path: &Path,
             dataset_metadata: &DatasetMetadata,
         ) -> Result<Vec<PathBuf>, std::io::Error> {
-            let snaps = match dataset_metadata.fs_type {
+            let snaps = match &dataset_metadata.fs_type {
                 FilesystemType::Btrfs(_) => {
                     read_dir(mount_point_path.join(BTRFS_SNAPPER_HIDDEN_DIRECTORY))?
                         .flatten()
@@ -320,6 +318,16 @@ impl MapOfSnaps {
                         .map(|entry| entry.path().join(BTRFS_SNAPPER_SUFFIX))
                         .collect()
                 }
+                FilesystemType::Restic(None) => {
+                    unreachable!("At this stage of execution, the vector that holds all the Restic repos should exist.")
+                }
+                FilesystemType::Restic(Some(repos)) => repos
+                    .par_iter()
+                    .flat_map(|repo| read_dir(repo.join(RESTIC_SNAPSHOT_DIRECTORY)))
+                    .flatten_iter()
+                    .flatten()
+                    .map(|dir_entry| dir_entry.path())
+                    .collect(),
                 FilesystemType::Zfs => read_dir(mount_point_path.join(ZFS_SNAPSHOT_DIRECTORY))?
                     .flatten()
                     .par_bridge()
