@@ -123,7 +123,7 @@ pub struct BaseFilesystemInfo {
 impl BaseFilesystemInfo {
     // divide by the type of system we are on
     // Linux allows us the read proc mounts
-    pub fn new(opt_debug: bool, opt_alt_backup: Option<&String>) -> HttmResult<Self> {
+    pub fn new(opt_debug: bool, opt_alt_backup: Option<&&str>) -> HttmResult<Self> {
         let (mut raw_datasets, filter_dirs_set) = if PROC_MOUNTS.exists() {
             Self::from_file(&PROC_MOUNTS)?
         } else if ETC_MNTTAB.exists() {
@@ -132,9 +132,9 @@ impl BaseFilesystemInfo {
             Self::from_mount_cmd()?
         };
 
-        match opt_alt_backup.map(|res| res.as_str()) {
-            Some("timemachine") => Self::from_tm_dir(&mut raw_datasets),
-            Some("restic") => Self::from_restic_dir(&mut raw_datasets),
+        match opt_alt_backup {
+            Some(&"timemachine") => Self::from_tm_dir(&mut raw_datasets),
+            Some(&"restic") => Self::from_restic_dir(&mut raw_datasets),
             _ => {}
         }
 

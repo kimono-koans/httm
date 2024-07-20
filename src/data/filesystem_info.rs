@@ -45,10 +45,10 @@ impl FilesystemInfo {
     pub fn new<'a, 'b: 'a>(
         opt_alt_replicated: bool,
         opt_debug: bool,
-        opt_remote_dir: Option<&str>,
-        opt_local_dir: Option<&str>,
+        opt_remote_dir: Option<&&str>,
+        opt_local_dir: Option<&&str>,
         opt_map_aliases: Option<RawValues>,
-        opt_alt_backup: Option<&String>,
+        opt_alt_backup: Option<&&str>,
         pwd: &Path,
     ) -> HttmResult<FilesystemInfo> {
         let base_fs_info = BaseFilesystemInfo::new(opt_debug, opt_alt_backup)?;
