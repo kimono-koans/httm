@@ -39,7 +39,7 @@ pub const BTRFS_FSTYPE: &str = "btrfs";
 pub const SMB_FSTYPE: &str = "smbfs";
 pub const NFS_FSTYPE: &str = "nfs";
 pub const AFP_FSTYPE: &str = "afpfs";
-pub const FUSE_FSTYPE: &str = "fusefs";
+pub const FUSE_FSTYPE_LINUX: &str = "fuse";
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum FilesystemType {
@@ -133,8 +133,8 @@ impl BaseFilesystemInfo {
         };
 
         match opt_alt_backup.map(|res| res.as_str()) {
-            Some("timemachine") => Self::from_tm_dir(&mut raw_datasets),
-            Some("restic") => Self::from_restic_dir(&mut raw_datasets),
+            Some("timemachine") => Self::from_tm_dir(&mut raw_datasets)?,
+            Some("restic") => Self::from_restic_dir(&mut raw_datasets)?,
             _ => {}
         }
 
@@ -241,13 +241,15 @@ impl BaseFilesystemInfo {
                             fs_type: FilesystemType::Nilfs2,
                         },
                     )),
-                    FUSE_FSTYPE if mount_info.source == *RESTIC_SOURCE_PATH => Either::Left((
-                        dest_path,
-                        DatasetMetadata {
-                            source: mount_info.source,
-                            fs_type: FilesystemType::Restic(None),
-                        },
-                    )),
+                    FUSE_FSTYPE_LINUX if mount_info.source == *RESTIC_SOURCE_PATH => {
+                        Either::Left((
+                            dest_path,
+                            DatasetMetadata {
+                                source: mount_info.source,
+                                fs_type: FilesystemType::Restic(None),
+                            },
+                        ))
+                    }
                     _ => Either::Right(dest_path),
                 });
 
@@ -258,15 +260,16 @@ impl BaseFilesystemInfo {
         }
     }
 
-    pub fn from_restic_dir(map_of_datasets: &mut HashMap<PathBuf, DatasetMetadata>) {
-        let extracted = map_of_datasets
-            .extract_if(|_k, v| !matches!(v.fs_type, FilesystemType::Restic(_)))
-            .collect();
+    pub fn from_restic_dir(
+        map_of_datasets: &mut HashMap<PathBuf, DatasetMetadata>,
+    ) -> HttmResult<()> {
+        map_of_datasets.retain(|_k, v| matches!(v.fs_type, FilesystemType::Restic(_)));
 
         if map_of_datasets.is_empty() {
-            eprintln!("WARN: No supported Restic datasets were found on the system.");
-            *map_of_datasets = extracted;
-            return;
+            return Err(HttmError::new(
+                "ERROR: No supported Restic datasets were found on the system.",
+            )
+            .into());
         }
 
         let mut new = HashMap::new();
@@ -281,19 +284,23 @@ impl BaseFilesystemInfo {
         new.insert_unique_unchecked(ROOT_PATH.clone(), metadata);
 
         *map_of_datasets = new;
+
+        return Ok(());
     }
 
-    pub fn from_tm_dir(map_of_datasets: &mut HashMap<PathBuf, DatasetMetadata>) {
+    pub fn from_tm_dir(map_of_datasets: &mut HashMap<PathBuf, DatasetMetadata>) -> HttmResult<()> {
         if !cfg!(target_os = "macos") {
-            eprintln!("WARN: Time Machine is only supported on Mac OS.  This appears to be an unsupported OS.");
-            return;
+            return Err(HttmError::new(
+                "ERROR: Time Machine is only supported on Mac OS.  This appears to be an unsupported OS."
+            )
+            .into());
         }
 
         if !TM_DIR_REMOTE_PATH.exists() && !TM_DIR_LOCAL_PATH.exists() {
-            eprintln!(
-                "WARN: Neither a local nor a remote Time Machine path seems to exist for this system."
-            );
-            return;
+            return Err(HttmError::new(
+                "ERROR: Neither a local nor a remote Time Machine path seems to exist for this system."
+            )
+            .into());
         }
 
         let mut new = HashMap::new();
@@ -306,6 +313,8 @@ impl BaseFilesystemInfo {
         new.insert_unique_unchecked(ROOT_PATH.clone(), metadata);
 
         *map_of_datasets = new;
+
+        Ok(())
     }
 
     // old fashioned parsing for non-Linux systems, nearly as fast, works everywhere with a mount command
