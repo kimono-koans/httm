@@ -123,7 +123,7 @@ pub struct BaseFilesystemInfo {
 impl BaseFilesystemInfo {
     // divide by the type of system we are on
     // Linux allows us the read proc mounts
-    pub fn new(opt_debug: bool, opt_alt_backup: Option<&String>) -> HttmResult<Self> {
+    pub fn new(opt_debug: bool, opt_alt_store: Option<&FilesystemType>) -> HttmResult<Self> {
         let (mut raw_datasets, filter_dirs_set) = if PROC_MOUNTS.exists() {
             Self::from_file(&PROC_MOUNTS)?
         } else if ETC_MNTTAB.exists() {
@@ -132,12 +132,8 @@ impl BaseFilesystemInfo {
             Self::from_mount_cmd()?
         };
 
-        match opt_alt_backup.map(|res| res.as_str()) {
-            Some("timemachine") => Self::from_tm_dir(&mut raw_datasets)?,
-            Some("restic") => {
-                Self::from_blob_repo(&mut raw_datasets, &FilesystemType::Restic(None))?
-            }
-            _ => {}
+        if let Some(fs_type) = opt_alt_store {
+            Self::from_blob_repo(&mut raw_datasets, fs_type)?;
         }
 
         let map_of_snaps = MapOfSnaps::new(&raw_datasets, opt_debug)?;
@@ -268,20 +264,42 @@ impl BaseFilesystemInfo {
     ) -> HttmResult<()> {
         map_of_datasets.retain(|_k, v| &v.fs_type == repo_type);
 
-        if map_of_datasets.is_empty() {
-            match repo_type {
-                FilesystemType::Restic(_) => {
+        match repo_type {
+            FilesystemType::Restic(_) => {
+                if map_of_datasets.is_empty() {
                     return Err(HttmError::new(
                         "ERROR: No supported Restic datasets were found on the system.",
                     )
                     .into());
                 }
-                _ => {
+            }
+            FilesystemType::Apfs => {
+                if !cfg!(target_os = "macos") {
                     return Err(HttmError::new(
-                        "ERROR: The file system type specified is not a supported alternative store.",
+                            "ERROR: Time Machine is only supported on Mac OS.  This appears to be an unsupported OS."
+                        )
+                        .into());
+                }
+
+                if !TM_DIR_REMOTE_PATH.exists() && !TM_DIR_LOCAL_PATH.exists() {
+                    return Err(HttmError::new(
+                            "ERROR: Neither a local nor a remote Time Machine path seems to exist for this system."
+                        )
+                        .into());
+                }
+
+                if map_of_datasets.is_empty() {
+                    return Err(HttmError::new(
+                        "ERROR: No supported Time Machine datasets were found on the system.",
                     )
                     .into());
                 }
+            }
+            _ => {
+                return Err(HttmError::new(
+                    "ERROR: The file system type specified is not a supported alternative store.",
+                )
+                .into());
             }
         }
 
@@ -293,6 +311,10 @@ impl BaseFilesystemInfo {
             FilesystemType::Restic(_) => DatasetMetadata {
                 source: PathBuf::from(RESTIC_SOURCE_PATH.as_path()),
                 fs_type: FilesystemType::Restic(Some(repos)),
+            },
+            FilesystemType::Apfs => DatasetMetadata {
+                source: PathBuf::from("timemachine"),
+                fs_type: FilesystemType::Apfs,
             },
             _ => {
                 return Err(HttmError::new(
@@ -307,35 +329,6 @@ impl BaseFilesystemInfo {
         *map_of_datasets = new;
 
         return Ok(());
-    }
-
-    pub fn from_tm_dir(map_of_datasets: &mut HashMap<PathBuf, DatasetMetadata>) -> HttmResult<()> {
-        if !cfg!(target_os = "macos") {
-            return Err(HttmError::new(
-                "ERROR: Time Machine is only supported on Mac OS.  This appears to be an unsupported OS."
-            )
-            .into());
-        }
-
-        if !TM_DIR_REMOTE_PATH.exists() && !TM_DIR_LOCAL_PATH.exists() {
-            return Err(HttmError::new(
-                "ERROR: Neither a local nor a remote Time Machine path seems to exist for this system."
-            )
-            .into());
-        }
-
-        let mut new = HashMap::new();
-
-        let metadata = DatasetMetadata {
-            source: PathBuf::from("timemachine"),
-            fs_type: FilesystemType::Apfs,
-        };
-
-        new.insert_unique_unchecked(ROOT_PATH.clone(), metadata);
-
-        *map_of_datasets = new;
-
-        Ok(())
     }
 
     // old fashioned parsing for non-Linux systems, nearly as fast, works everywhere with a mount command

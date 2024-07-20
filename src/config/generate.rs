@@ -22,6 +22,7 @@ use crate::data::paths::{PathData, ZfsSnapPathGuard};
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{pwd, HttmIsDir};
 use crate::lookup::file_mounts::MountDisplay;
+use crate::parse::mounts::FilesystemType;
 use crate::ROOT_DIRECTORY;
 use clap::parser::ValuesRef;
 use clap::{crate_name, crate_version, Arg, ArgAction, ArgMatches};
@@ -841,7 +842,11 @@ impl Config {
         // alternate filesystems and map of aliases if the user requests
         let mut opt_map_aliases = matches.get_raw("MAP_ALIASES");
 
-        let opt_alt_store = matches.get_one::<String>("ALT_STORE");
+        let opt_alt_store: Option<&FilesystemType> = match matches.get_one::<String>("ALT_STORE").map(|inner| inner.as_str()) {
+            Some("timemachine") => Some(&FilesystemType::Apfs),
+            Some("restic") => Some(&FilesystemType::Restic(None)),
+            _ => None
+        };
 
         if opt_alt_store.is_some() && opt_map_aliases.is_some() {
             eprintln!("WARN: httm has disabled any MAP_ALIASES in preference to an ALT_STORE specified.");

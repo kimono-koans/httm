@@ -18,7 +18,7 @@
 use crate::library::results::HttmResult;
 use crate::parse::aliases::MapOfAliases;
 use crate::parse::alts::MapOfAlts;
-use crate::parse::mounts::{BaseFilesystemInfo, FilterDirs, MapOfDatasets};
+use crate::parse::mounts::{BaseFilesystemInfo, FilesystemType, FilterDirs, MapOfDatasets};
 use crate::parse::snaps::MapOfSnaps;
 use clap::parser::RawValues;
 use std::ffi::OsString;
@@ -48,10 +48,10 @@ impl FilesystemInfo {
         opt_remote_dir: Option<&str>,
         opt_local_dir: Option<&str>,
         opt_map_aliases: Option<RawValues>,
-        opt_alt_backup: Option<&String>,
+        opt_alt_store: Option<&FilesystemType>,
         pwd: &Path,
     ) -> HttmResult<FilesystemInfo> {
-        let base_fs_info = BaseFilesystemInfo::new(opt_debug, opt_alt_backup)?;
+        let base_fs_info = BaseFilesystemInfo::new(opt_debug, opt_alt_store)?;
 
         // for a collection of btrfs mounts, indicates a common snapshot directory to ignore
         let opt_common_snap_dir = base_fs_info.common_snap_dir();
