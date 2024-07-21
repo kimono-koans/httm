@@ -56,7 +56,9 @@ impl FilesystemInfo {
         let opt_common_snap_dir = base_fs_info.common_snap_dir();
 
         // only create a map of aliases if necessary (aliases conflicts with alt stores)
-        let opt_map_of_aliases = if opt_alt_store.is_none() {
+        let opt_map_of_aliases = if opt_alt_store.is_none()
+            && (opt_raw_aliases.is_some() || (opt_local_dir.is_some() && opt_remote_dir.is_some()))
+        {
             Self::prepare_aliases(opt_raw_aliases, opt_remote_dir, opt_local_dir, pwd)?
         } else {
             None
