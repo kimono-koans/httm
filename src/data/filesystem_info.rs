@@ -47,7 +47,7 @@ impl FilesystemInfo {
         opt_debug: bool,
         opt_remote_dir: Option<&str>,
         opt_local_dir: Option<&str>,
-        opt_map_aliases: Option<RawValues>,
+        opt_raw_aliases: Option<RawValues>,
         opt_alt_store: Option<&FilesystemType>,
         pwd: &Path,
     ) -> HttmResult<FilesystemInfo> {
@@ -56,6 +56,13 @@ impl FilesystemInfo {
         // for a collection of btrfs mounts, indicates a common snapshot directory to ignore
         let opt_common_snap_dir = base_fs_info.common_snap_dir();
 
+        // only create a map of aliases if necessary (aliases conflicts with alt stores)
+        let opt_map_of_aliases = if opt_alt_store.is_none() {
+            Self::aliases(opt_raw_aliases, opt_remote_dir, opt_local_dir, pwd)?
+        } else {
+            None
+        };
+
         // only create a map of alts if necessary
         let opt_map_of_alts = if opt_alt_replicated {
             Some(MapOfAlts::new(&base_fs_info.map_of_datasets))
@@ -63,6 +70,22 @@ impl FilesystemInfo {
             None
         };
 
+        Ok(FilesystemInfo {
+            map_of_datasets: base_fs_info.map_of_datasets,
+            map_of_snaps: base_fs_info.map_of_snaps,
+            filter_dirs: base_fs_info.filter_dirs,
+            opt_map_of_alts,
+            opt_common_snap_dir,
+            opt_map_of_aliases,
+        })
+    }
+
+    fn aliases(
+        opt_raw_aliases: Option<RawValues>,
+        opt_remote_dir: Option<&str>,
+        opt_local_dir: Option<&str>,
+        pwd: &Path,
+    ) -> HttmResult<Option<MapOfAliases>> {
         let raw_snap_dir = if let Some(value) = opt_remote_dir {
             Some(OsString::from(value))
         } else if std::env::var_os("HTTM_REMOTE_DIR").is_some() {
@@ -80,7 +103,7 @@ impl FilesystemInfo {
                     .map(|s| s.to_owned())
                     .collect(),
             ),
-            None => opt_map_aliases.map(|map_aliases| {
+            None => opt_raw_aliases.map(|map_aliases| {
                 map_aliases
                     .map(|os_str| os_str.to_string_lossy().to_string())
                     .collect()
@@ -106,13 +129,6 @@ impl FilesystemInfo {
             None
         };
 
-        Ok(FilesystemInfo {
-            map_of_datasets: base_fs_info.map_of_datasets,
-            map_of_snaps: base_fs_info.map_of_snaps,
-            filter_dirs: base_fs_info.filter_dirs,
-            opt_map_of_alts,
-            opt_common_snap_dir,
-            opt_map_of_aliases,
-        })
+        Ok(opt_map_of_aliases)
     }
 }

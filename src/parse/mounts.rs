@@ -136,6 +136,12 @@ impl BaseFilesystemInfo {
             Self::from_blob_repo(&mut raw_datasets, fs_type)?;
         }
 
+        if raw_datasets.is_empty() {
+            return Err(
+                HttmError::new("httm could not find any valid datasets on the system.").into(),
+            );
+        }
+
         let map_of_snaps = MapOfSnaps::new(&raw_datasets, opt_debug)?;
 
         let map_of_datasets = {
@@ -251,11 +257,7 @@ impl BaseFilesystemInfo {
                     _ => Either::Right(dest_path),
                 });
 
-        if map_of_datasets.is_empty() {
-            Err(HttmError::new("httm could not find any valid datasets on the system.").into())
-        } else {
-            Ok((map_of_datasets, filter_dirs))
-        }
+        Ok((map_of_datasets, filter_dirs))
     }
 
     pub fn from_blob_repo(
@@ -268,7 +270,7 @@ impl BaseFilesystemInfo {
             FilesystemType::Restic(_) => {
                 if map_of_datasets.is_empty() {
                     return Err(HttmError::new(
-                        "ERROR: No supported Restic datasets were found on the system.",
+                        "No supported Restic datasets were found on the system.",
                     )
                     .into());
                 }
@@ -276,28 +278,21 @@ impl BaseFilesystemInfo {
             FilesystemType::Apfs => {
                 if !cfg!(target_os = "macos") {
                     return Err(HttmError::new(
-                            "ERROR: Time Machine is only supported on Mac OS.  This appears to be an unsupported OS."
+                            "Time Machine is only supported on Mac OS.  This appears to be an unsupported OS."
                         )
                         .into());
                 }
 
                 if !TM_DIR_REMOTE_PATH.exists() && !TM_DIR_LOCAL_PATH.exists() {
                     return Err(HttmError::new(
-                            "ERROR: Neither a local nor a remote Time Machine path seems to exist for this system."
+                            "Neither a local nor a remote Time Machine path seems to exist for this system."
                         )
                         .into());
-                }
-
-                if map_of_datasets.is_empty() {
-                    return Err(HttmError::new(
-                        "ERROR: No supported Time Machine datasets were found on the system.",
-                    )
-                    .into());
                 }
             }
             _ => {
                 return Err(HttmError::new(
-                    "ERROR: The file system type specified is not a supported alternative store.",
+                    "The file system type specified is not a supported alternative store.",
                 )
                 .into());
             }
@@ -353,78 +348,58 @@ impl BaseFilesystemInfo {
         let stdout_string = std::str::from_utf8(&command_output.stdout)?;
 
         // parse "mount" for filesystems and mountpoints
-        let (mut map_of_datasets, filter_dirs): (
-            HashMap<PathBuf, DatasetMetadata>,
-            HashSet<PathBuf>,
-        ) = stdout_string
-            .par_lines()
-            // but exclude snapshot mounts.  we want the raw filesystem names.
-            .filter(|line| !line.contains(ZFS_HIDDEN_DIRECTORY))
-            .filter(|line| !line.contains(TM_DIR_REMOTE))
-            .filter(|line| !line.contains(TM_DIR_LOCAL))
-            // mount cmd includes and " on " between src and rest
-            .filter_map(|line| line.split_once(" on "))
-            // where to split, to just have the src and dest of mounts
-            .filter_map(|(filesystem, rest)| {
-                // GNU Linux mount output
-                if rest.contains("type") {
-                    let opt_mount = rest.split_once(" type");
-                    opt_mount.map(|mount| (filesystem, mount.0))
-                // Busybox and BSD mount output
-                } else if rest.contains(" (") {
-                    let opt_mount = rest.split_once(" (");
-                    opt_mount.map(|mount| (filesystem, mount.0))
-                } else {
-                    None
-                }
-            })
-            .map(|(filesystem, mount)| (PathBuf::from(filesystem), PathBuf::from(mount)))
-            // sanity check: does the filesystem exist and have a ZFS hidden dir? if not, filter it out
-            // and flip around, mount should key of key/value
-            .partition_map(|(source, mount)| match fs_type_from_hidden_dir(&mount) {
-                Some(FilesystemType::Zfs) => Either::Left((
-                    mount,
-                    DatasetMetadata {
-                        source,
-                        fs_type: FilesystemType::Zfs,
-                    },
-                )),
-                Some(FilesystemType::Btrfs(_)) => Either::Left((
-                    mount,
-                    DatasetMetadata {
-                        source,
-                        fs_type: FilesystemType::Btrfs(None),
-                    },
-                )),
-                _ if source == *RESTIC_SOURCE_PATH => Either::Left((
-                    mount,
-                    DatasetMetadata {
-                        source,
-                        fs_type: FilesystemType::Restic(None),
-                    },
-                )),
-                _ => Either::Right(mount),
-            });
+        let (map_of_datasets, filter_dirs): (HashMap<PathBuf, DatasetMetadata>, HashSet<PathBuf>) =
+            stdout_string
+                .par_lines()
+                // but exclude snapshot mounts.  we want the raw filesystem names.
+                .filter(|line| !line.contains(ZFS_HIDDEN_DIRECTORY))
+                .filter(|line| !line.contains(TM_DIR_REMOTE))
+                .filter(|line| !line.contains(TM_DIR_LOCAL))
+                // mount cmd includes and " on " between src and rest
+                .filter_map(|line| line.split_once(" on "))
+                // where to split, to just have the src and dest of mounts
+                .filter_map(|(filesystem, rest)| {
+                    // GNU Linux mount output
+                    if rest.contains("type") {
+                        let opt_mount = rest.split_once(" type");
+                        opt_mount.map(|mount| (filesystem, mount.0))
+                    // Busybox and BSD mount output
+                    } else if rest.contains(" (") {
+                        let opt_mount = rest.split_once(" (");
+                        opt_mount.map(|mount| (filesystem, mount.0))
+                    } else {
+                        None
+                    }
+                })
+                .map(|(filesystem, mount)| (PathBuf::from(filesystem), PathBuf::from(mount)))
+                // sanity check: does the filesystem exist and have a ZFS hidden dir? if not, filter it out
+                // and flip around, mount should key of key/value
+                .partition_map(|(source, mount)| match fs_type_from_hidden_dir(&mount) {
+                    Some(FilesystemType::Zfs) => Either::Left((
+                        mount,
+                        DatasetMetadata {
+                            source,
+                            fs_type: FilesystemType::Zfs,
+                        },
+                    )),
+                    Some(FilesystemType::Btrfs(_)) => Either::Left((
+                        mount,
+                        DatasetMetadata {
+                            source,
+                            fs_type: FilesystemType::Btrfs(None),
+                        },
+                    )),
+                    _ if source == *RESTIC_SOURCE_PATH => Either::Left((
+                        mount,
+                        DatasetMetadata {
+                            source,
+                            fs_type: FilesystemType::Restic(None),
+                        },
+                    )),
+                    _ => Either::Right(mount),
+                });
 
-        if TM_DIR_REMOTE_PATH.exists() || TM_DIR_LOCAL_PATH.exists() {
-            match map_of_datasets.get(ROOT_PATH.as_path()) {
-                Some(_root) => {}
-                None => {
-                    let metadata = DatasetMetadata {
-                        source: PathBuf::from("timemachine"),
-                        fs_type: FilesystemType::Apfs,
-                    };
-
-                    map_of_datasets.insert_unique_unchecked(ROOT_PATH.to_path_buf(), metadata);
-                }
-            }
-        }
-
-        if map_of_datasets.is_empty() {
-            Err(HttmError::new("httm could not find any valid datasets on the system.").into())
-        } else {
-            Ok((map_of_datasets, filter_dirs))
-        }
+        Ok((map_of_datasets, filter_dirs))
     }
 
     // if we have some btrfs mounts, we check to see if there is a snap directory in common
