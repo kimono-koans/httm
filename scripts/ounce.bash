@@ -41,7 +41,7 @@ $ounce only snapshots datasets when you have file changes outstanding, uncommitt
 (except in --trace mode).
 
 When $ounce is invoked with only a target executable and its arguments, including paths, and no additional options,
-$ounce will perform a snapshot check on those paths are given as arguments to the target executable, and possibly wait
+$ounce will perform a snapshot check on those paths are that given as arguments to the target executable, and possibly wait
 for a snapshot, before proceeding with execution of the target executable.
 
 USAGE:
