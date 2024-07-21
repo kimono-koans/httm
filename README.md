@@ -239,7 +239,7 @@ Snapshot the dataset upon which `/etc/samba/smb.conf` is located:
 ➜ sudo httm -S /etc/samba/smb.conf
 ```
 
-Browse all files, recursively, in a folder backed up via `rsync` to a remote share, and view unique versions on remote snapshots directly (only available for BTRFS Snapper and ZFS datasets).  ( Remember to make ZFS snapshots visible in your `smb.conf` with `zfsacl:expose_snapdir=True` ).
+Browse all files, recursively, in a folder backed up via `rsync` to a remote share, and view unique versions on remote snapshots directly (only available for BTRFS Snapper and ZFS datasets).  (Note: Remember to make ZFS snapshots visible in your `smb.conf` with `zfsacl:expose_snapdir=True`).
 
 ```bash
 # mount the share
@@ -273,6 +273,7 @@ Mounting sparse bundle (this may include an fsck): Backups of kiev ...
 Discovering backup locations (this can take a few seconds)...
 Mounting snapshots...
 ...
+# restic users can do something similar by mounting their repo and using --alt-store=restic 
 ➜ httm --alt-store=timemachine .zshrc
 ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Tue May 09 22:57:09 2023  6.7 KiB  "/Volumes/.timemachine/842A693F-CB54-4C5A-9AB1-C73681D4DFCD/2023-11-08-212757.backup/2023-11-08-212757.backup/Data/Users/kimono/.zshrc"
