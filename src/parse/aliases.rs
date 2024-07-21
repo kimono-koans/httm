@@ -19,7 +19,6 @@ use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::fs_type_from_hidden_dir;
 use crate::parse::mounts::FilesystemType;
 use hashbrown::HashMap;
-use std::ffi::OsString;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 
@@ -50,21 +49,16 @@ impl Deref for MapOfAliases {
 
 impl MapOfAliases {
     pub fn new(
-        raw_local_dir: &Option<OsString>,
-        raw_snap_dir: &Option<OsString>,
+        opt_local_dir: Option<PathBuf>,
+        opt_snap_dir: Option<PathBuf>,
         pwd: &Path,
-        opt_input_aliases: &Option<Vec<String>>,
+        opt_input_aliases: Option<Vec<String>>,
     ) -> HttmResult<Self> {
         // user defined dir exists?: check that path contains the hidden snapshot directory
-        let snap_point = raw_snap_dir.as_ref().map(|value| {
-            let snap_dir = PathBuf::from(value);
-
+        let snap_point = opt_snap_dir.map(|snap_dir| {
             // local relative dir can be set at cmdline or as an env var,
             // but defaults to current working directory if empty
-            let local_dir = match raw_local_dir {
-                Some(value) => PathBuf::from(value),
-                None => pwd.to_path_buf(),
-            };
+            let local_dir = opt_local_dir.unwrap_or_else(|| pwd.to_path_buf());
 
             (snap_dir, local_dir)
         });
