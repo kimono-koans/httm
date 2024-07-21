@@ -25,7 +25,7 @@
 * Detect and display categories of unique file versions available (`multiple`, `single`, `single-with-snap`,..., etc.)
 * Select from several formatting styles (newline, null, tab delimited, JSON, etc.).  Parseable ... or not ...  oh my!
 * Packaged scripts which help you, and show you how to, use `httm`: [ounce](https://github.com/kimono-koans/httm/blob/master/scripts/ounce.bash), [bowie](https://github.com/kimono-koans/httm/blob/master/scripts/bowie.bash), [equine](https://github.com/kimono-koans/httm/blob/master/scripts/equine.bash), and [nicotine](https://github.com/kimono-koans/httm/blob/master/scripts/nicotine.bash)
-* Supports ZFS/BTRFS/NILFS2 snapshots and Time Machine backups!
+* Supports ZFS/BTRFS/NILFS2 snapshots, and Restic and Time Machine backups!
 
 Use in combination with you favorite shell's hot keys for even more fun.
 
