@@ -468,7 +468,10 @@ fn parse_args() -> ArgMatches {
                 .alias("store")
                 .require_equals(true)
                 .value_parser(["restic", "timemachine"])
-                .help("give priority to discovered alternative backups stores, like Restic, and Time Machine.")
+                .help("give priority to discovered alternative backups stores, like Restic, and Time Machine.  \
+                If this flag is specified, httm will drop non-alternative store datasets and place said alternative backups store snapshots, as snapshots for the root mount point (\"/\").  \
+                Before use, be careful that the repository is mounted.  You may need superuser privileges to view a repository mounted with superuser permission.  \
+                httm also includes a helper script called \"equine\" which can assist you in mounting remote and local Time Machine snapshots.")
                 .conflicts_with_all(["MAP_ALIASES"])
                 .display_order(26)
                 .action(ArgAction::Append)
