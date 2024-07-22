@@ -121,7 +121,7 @@ On some Linux distributions, which include old versions of `libc`, `cargo` may r
 
 ## Example Usage
 
-Note: Users may need to use `sudo` (or equivalent) to view versions on BTRFS or NILFS2 datasets, as BTRFS or NILFS2 snapshots may require root permissions in order to be visible.
+Note: Users may need to use `sudo` (or equivalent) to view versions on BTRFS or NILFS2 datasets, or Restic repositories, as BTRFS or NILFS2 snapshots or Restic repositories may require root permissions in order to be visible.  Restic and Time Machine backups also require an additional flag, see further discussion of Restic `--alt-store` in the below.
 
 Like other UNIX utilities (such as `cat`, `uniq`, `sort`), if you include no path/s as arguments, then `httm` will pause waiting for input on stdin:
 
@@ -274,8 +274,8 @@ Discovering backup locations (this can take a few seconds)...
 Mounting snapshots...
 ...
 # restic users can do something similar by:
-# 1. also mounting their repo: restic -r /path/to/repo mount /path/to/mountpoint
-# 2. invoking httm with --alt-store: "httm --alt-store=restic .zshrc"
+# 1. mounting their repositories: restic -r /path/to/repo mount /path/to/mountpoint
+# 2. invoking httm with --alt-store: httm --alt-store=restic .zshrc
 ➜ httm --alt-store=timemachine .zshrc
 ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Tue May 09 22:57:09 2023  6.7 KiB  "/Volumes/.timemachine/842A693F-CB54-4C5A-9AB1-C73681D4DFCD/2023-11-08-212757.backup/2023-11-08-212757.backup/Data/Users/kimono/.zshrc"
