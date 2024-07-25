@@ -309,7 +309,7 @@ impl MapOfSnaps {
         fn inner(
             mount_point_path: &Path,
             dataset_metadata: &DatasetMetadata,
-        ) -> Result<Vec<PathBuf>, std::io::Error> {
+        ) -> HttmResult<Vec<PathBuf>> {
             let snaps = match &dataset_metadata.fs_type {
                 FilesystemType::Btrfs(_) => {
                     read_dir(mount_point_path.join(BTRFS_SNAPPER_HIDDEN_DIRECTORY))?
@@ -319,7 +319,7 @@ impl MapOfSnaps {
                         .collect()
                 }
                 FilesystemType::Restic(None) => {
-                    unreachable!("At this stage of execution, the vector that holds all the Restic repos should exist.")
+                    return Err(HttmError::new("At this stage of execution, the vector that holds all the Restic repos should exist.").into());
                 }
                 FilesystemType::Restic(Some(repos)) => repos
                     .par_iter()
