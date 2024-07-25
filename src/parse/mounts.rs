@@ -136,7 +136,9 @@ impl BaseFilesystemInfo {
         };
 
         // prep any blob repos
-        Self::from_blob_repo(&mut raw_datasets, opt_alt_store)?;
+        if let Some(repo_type) = opt_alt_store {
+            Self::from_blob_repo(&mut raw_datasets, repo_type)?;
+        }
 
         if raw_datasets.is_empty() {
             return Err(
@@ -355,70 +357,65 @@ impl BaseFilesystemInfo {
 
     pub fn from_blob_repo(
         map_of_datasets: &mut HashMap<PathBuf, DatasetMetadata>,
-        opt_alt_store: Option<&FilesystemType>,
+        repo_type: &FilesystemType,
     ) -> HttmResult<()> {
-        match opt_alt_store {
-            Some(repo_type) => {
-                map_of_datasets.retain(|_k, v| &v.fs_type == repo_type);
+        map_of_datasets.retain(|_k, v| &v.fs_type == repo_type);
 
-                match repo_type {
-                    FilesystemType::Restic(_) => {
-                        if map_of_datasets.is_empty() {
-                            return Err(HttmError::new(
-                                "No supported Restic datasets were found on the system.",
-                            )
-                            .into());
-                        }
-                    }
-                    &FilesystemType::Apfs => {
-                        if !cfg!(target_os = "macos") {
-                            return Err(HttmError::new(
+        match repo_type {
+            FilesystemType::Restic(_) => {
+                if map_of_datasets.is_empty() {
+                    return Err(HttmError::new(
+                        "No supported Restic datasets were found on the system.",
+                    )
+                    .into());
+                }
+            }
+            &FilesystemType::Apfs => {
+                if !cfg!(target_os = "macos") {
+                    return Err(HttmError::new(
                                     "Time Machine is only supported on Mac OS.  This appears to be an unsupported OS."
                                 )
                                 .into());
-                        }
+                }
 
-                        if !TM_DIR_REMOTE_PATH.exists() && !TM_DIR_LOCAL_PATH.exists() {
-                            return Err(HttmError::new(
+                if !TM_DIR_REMOTE_PATH.exists() && !TM_DIR_LOCAL_PATH.exists() {
+                    return Err(HttmError::new(
                                     "Neither a local nor a remote Time Machine path seems to exist for this system."
                                 )
                                 .into());
-                        }
+                }
 
-                        let mut new = HashMap::new();
+                let mut new = HashMap::new();
 
-                        let repos = map_of_datasets.keys().cloned().collect();
+                let repos = map_of_datasets.keys().cloned().collect();
 
-                        let metadata = match repo_type {
-                            FilesystemType::Restic(_) => DatasetMetadata {
-                                source: PathBuf::from(RESTIC_SOURCE_PATH.as_path()),
-                                fs_type: FilesystemType::Restic(Some(repos)),
-                            },
-                            FilesystemType::Apfs => DatasetMetadata {
-                                source: PathBuf::from("timemachine"),
-                                fs_type: FilesystemType::Apfs,
-                            },
-                            _ => {
-                                return Err(HttmError::new(
+                let metadata = match repo_type {
+                    FilesystemType::Restic(_) => DatasetMetadata {
+                        source: PathBuf::from(RESTIC_SOURCE_PATH.as_path()),
+                        fs_type: FilesystemType::Restic(Some(repos)),
+                    },
+                    FilesystemType::Apfs => DatasetMetadata {
+                        source: PathBuf::from("timemachine"),
+                        fs_type: FilesystemType::Apfs,
+                    },
+                    _ => {
+                        return Err(HttmError::new(
                                     "ERROR: The file system type specified is not a supported alternative store.",
                                 )
                                 .into());
-                            }
-                        };
-
-                        new.insert_unique_unchecked(ROOT_PATH.clone(), metadata);
-
-                        *map_of_datasets = new;
                     }
-                    _ => {
-                        return Err(HttmError::new(
-                            "The file system type specified is not a supported alternative store.",
-                        )
-                        .into());
-                    }
-                }
+                };
+
+                new.insert_unique_unchecked(ROOT_PATH.clone(), metadata);
+
+                *map_of_datasets = new;
             }
-            None => {}
+            _ => {
+                return Err(HttmError::new(
+                    "The file system type specified is not a supported alternative store.",
+                )
+                .into());
+            }
         }
 
         return Ok(());
