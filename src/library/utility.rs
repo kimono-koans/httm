@@ -31,7 +31,6 @@ use std::borrow::Cow;
 use std::fs::FileType;
 use std::io::Write;
 use std::iter::Iterator;
-use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 use time::{format_description, OffsetDateTime, UtcOffset};
@@ -346,7 +345,6 @@ pub fn path_is_filter_dir(path: &Path) -> bool {
     GLOBAL_CONFIG
         .dataset_collection
         .filter_dirs
-        .deref()
         .iter()
         .any(|filter_dir| path == filter_dir)
 }
