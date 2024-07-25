@@ -328,6 +328,7 @@ impl MapOfSnaps {
                         .flatten()
                         .flatten()
                         .map(|dir_entry| dir_entry.path())
+                        .filter(|path| !path.ends_with("latest"))
                         .collect()
                 }
                 FilesystemType::Restic(Some(repos)) => repos
@@ -336,6 +337,7 @@ impl MapOfSnaps {
                     .flatten_iter()
                     .flatten()
                     .map(|dir_entry| dir_entry.path())
+                    .filter(|path| !path.ends_with("latest"))
                     .collect(),
                 FilesystemType::Zfs => read_dir(mount_point_path.join(ZFS_SNAPSHOT_DIRECTORY))?
                     .flatten()
