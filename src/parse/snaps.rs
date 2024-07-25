@@ -319,7 +319,16 @@ impl MapOfSnaps {
                         .collect()
                 }
                 FilesystemType::Restic(None) => {
-                    return Err(HttmError::new("At this stage of execution, the vector that holds all the Restic repos should exist.").into());
+                    // base is latest, parent is the snap path
+                    let repos = mount_point_path.parent();
+
+                    repos
+                        .iter()
+                        .flat_map(|repo| read_dir(repo))
+                        .flatten()
+                        .flatten()
+                        .map(|dir_entry| dir_entry.path())
+                        .collect()
                 }
                 FilesystemType::Restic(Some(repos)) => repos
                     .par_iter()

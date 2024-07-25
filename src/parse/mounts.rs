@@ -19,7 +19,8 @@ use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{find_common_path, fs_type_from_hidden_dir};
 use crate::parse::snaps::MapOfSnaps;
 use crate::{
-    NILFS2_SNAPSHOT_ID_KEY, ROOT_DIRECTORY, TM_DIR_LOCAL, TM_DIR_REMOTE, ZFS_HIDDEN_DIRECTORY,
+    NILFS2_SNAPSHOT_ID_KEY, RESTIC_LATEST_SNAPSHOT_DIRECTORY, ROOT_DIRECTORY, TM_DIR_LOCAL,
+    TM_DIR_REMOTE, ZFS_HIDDEN_DIRECTORY,
 };
 use hashbrown::{HashMap, HashSet};
 use once_cell::sync::Lazy;
@@ -132,9 +133,8 @@ impl BaseFilesystemInfo {
             Self::from_mount_cmd()?
         };
 
-        if let Some(fs_type) = opt_alt_store {
-            Self::from_blob_repo(&mut raw_datasets, fs_type)?;
-        }
+        // prep any blob repos
+        Self::from_blob_repo(&mut raw_datasets, opt_alt_store)?;
 
         if raw_datasets.is_empty() {
             return Err(
@@ -247,7 +247,7 @@ impl BaseFilesystemInfo {
                     )),
                     FUSE_FSTYPE_LINUX if mount_info.source == *RESTIC_SOURCE_PATH => {
                         Either::Left((
-                            dest_path,
+                            dest_path.join(RESTIC_LATEST_SNAPSHOT_DIRECTORY),
                             DatasetMetadata {
                                 source: mount_info.source,
                                 fs_type: FilesystemType::Restic(None),
@@ -324,7 +324,7 @@ impl BaseFilesystemInfo {
                         },
                     )),
                     _ if source == *RESTIC_SOURCE_PATH => Either::Left((
-                        mount,
+                        mount.join(RESTIC_LATEST_SNAPSHOT_DIRECTORY),
                         DatasetMetadata {
                             source,
                             fs_type: FilesystemType::Restic(None),
@@ -338,66 +338,71 @@ impl BaseFilesystemInfo {
 
     pub fn from_blob_repo(
         map_of_datasets: &mut HashMap<PathBuf, DatasetMetadata>,
-        repo_type: &FilesystemType,
+        opt_alt_store: Option<&FilesystemType>,
     ) -> HttmResult<()> {
-        map_of_datasets.retain(|_k, v| &v.fs_type == repo_type);
+        match opt_alt_store {
+            Some(repo_type) => {
+                map_of_datasets.retain(|_k, v| &v.fs_type == repo_type);
 
-        match repo_type {
-            FilesystemType::Restic(_) => {
-                if map_of_datasets.is_empty() {
-                    return Err(HttmError::new(
-                        "No supported Restic datasets were found on the system.",
-                    )
-                    .into());
-                }
-            }
-            FilesystemType::Apfs => {
-                if !cfg!(target_os = "macos") {
-                    return Err(HttmError::new(
-                            "Time Machine is only supported on Mac OS.  This appears to be an unsupported OS."
+                match repo_type {
+                    FilesystemType::Restic(_) => {
+                        if map_of_datasets.is_empty() {
+                            return Err(HttmError::new(
+                                "No supported Restic datasets were found on the system.",
+                            )
+                            .into());
+                        }
+                    }
+                    &FilesystemType::Apfs => {
+                        if !cfg!(target_os = "macos") {
+                            return Err(HttmError::new(
+                                    "Time Machine is only supported on Mac OS.  This appears to be an unsupported OS."
+                                )
+                                .into());
+                        }
+
+                        if !TM_DIR_REMOTE_PATH.exists() && !TM_DIR_LOCAL_PATH.exists() {
+                            return Err(HttmError::new(
+                                    "Neither a local nor a remote Time Machine path seems to exist for this system."
+                                )
+                                .into());
+                        }
+
+                        let mut new = HashMap::new();
+
+                        let repos = map_of_datasets.keys().cloned().collect();
+
+                        let metadata = match repo_type {
+                            FilesystemType::Restic(_) => DatasetMetadata {
+                                source: PathBuf::from(RESTIC_SOURCE_PATH.as_path()),
+                                fs_type: FilesystemType::Restic(Some(repos)),
+                            },
+                            FilesystemType::Apfs => DatasetMetadata {
+                                source: PathBuf::from("timemachine"),
+                                fs_type: FilesystemType::Apfs,
+                            },
+                            _ => {
+                                return Err(HttmError::new(
+                                    "ERROR: The file system type specified is not a supported alternative store.",
+                                )
+                                .into());
+                            }
+                        };
+
+                        new.insert_unique_unchecked(ROOT_PATH.clone(), metadata);
+
+                        *map_of_datasets = new;
+                    }
+                    _ => {
+                        return Err(HttmError::new(
+                            "The file system type specified is not a supported alternative store.",
                         )
                         .into());
-                }
-
-                if !TM_DIR_REMOTE_PATH.exists() && !TM_DIR_LOCAL_PATH.exists() {
-                    return Err(HttmError::new(
-                            "Neither a local nor a remote Time Machine path seems to exist for this system."
-                        )
-                        .into());
+                    }
                 }
             }
-            _ => {
-                return Err(HttmError::new(
-                    "The file system type specified is not a supported alternative store.",
-                )
-                .into());
-            }
+            None => {}
         }
-
-        let mut new = HashMap::new();
-
-        let repos = map_of_datasets.keys().cloned().collect();
-
-        let metadata = match repo_type {
-            FilesystemType::Restic(_) => DatasetMetadata {
-                source: PathBuf::from(RESTIC_SOURCE_PATH.as_path()),
-                fs_type: FilesystemType::Restic(Some(repos)),
-            },
-            FilesystemType::Apfs => DatasetMetadata {
-                source: PathBuf::from("timemachine"),
-                fs_type: FilesystemType::Apfs,
-            },
-            _ => {
-                return Err(HttmError::new(
-                    "ERROR: The file system type specified is not a supported alternative store.",
-                )
-                .into());
-            }
-        };
-
-        new.insert_unique_unchecked(ROOT_PATH.clone(), metadata);
-
-        *map_of_datasets = new;
 
         return Ok(());
     }
