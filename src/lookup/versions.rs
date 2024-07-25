@@ -81,7 +81,7 @@ impl VersionsMap {
                     );
                 }
 
-                versions.destructure()
+                versions.into_inner()
             })
             .collect();
 
@@ -179,8 +179,9 @@ impl Versions {
             snap_versions,
         })
     }
+
     #[inline(always)]
-    fn destructure(self) -> (PathData, Vec<PathData>) {
+    fn into_inner(self) -> (PathData, Vec<PathData>) {
         (self.live_path, self.snap_versions)
     }
 }
