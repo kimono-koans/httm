@@ -27,6 +27,8 @@ use once_cell::sync::Lazy;
 use proc_mounts::MountIter;
 use rayon::iter::Either;
 use rayon::prelude::*;
+use realpath_ext::realpath;
+use realpath_ext::RealpathFlags;
 use std::collections::BTreeMap;
 use std::ops::Deref;
 use std::path::Path;
@@ -246,8 +248,14 @@ impl BaseFilesystemInfo {
                         },
                     )),
                     FUSE_FSTYPE_LINUX if mount_info.source == *RESTIC_SOURCE_PATH => {
-                        Either::Left((
+                        let canonical_path: PathBuf = realpath(
                             dest_path.join(RESTIC_LATEST_SNAPSHOT_DIRECTORY),
+                            RealpathFlags::ALLOW_MISSING,
+                        )
+                        .unwrap_or_else(|_| dest_path.to_path_buf());
+
+                        Either::Left((
+                            canonical_path,
                             DatasetMetadata {
                                 source: mount_info.source,
                                 fs_type: FilesystemType::Restic(None),
@@ -323,13 +331,22 @@ impl BaseFilesystemInfo {
                             fs_type: FilesystemType::Btrfs(None),
                         },
                     )),
-                    _ if source == *RESTIC_SOURCE_PATH => Either::Left((
-                        mount.join(RESTIC_LATEST_SNAPSHOT_DIRECTORY),
-                        DatasetMetadata {
-                            source,
-                            fs_type: FilesystemType::Restic(None),
-                        },
-                    )),
+                    _ if source == *RESTIC_SOURCE_PATH => {
+                        let canonical_path: PathBuf = realpath(
+                            mount.join(RESTIC_LATEST_SNAPSHOT_DIRECTORY),
+                            RealpathFlags::ALLOW_MISSING,
+                        )
+                        .unwrap_or_else(|_| mount.to_path_buf());
+
+                        Either::Left((
+                            canonical_path,
+                            DatasetMetadata {
+                                source,
+                                fs_type: FilesystemType::Restic(None),
+                            },
+                        ))
+                    }
+
                     _ => Either::Right(mount),
                 });
 
