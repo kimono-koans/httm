@@ -77,7 +77,8 @@ impl<'a> VersionsDisplayWrapper<'a> {
                             })
                             .flat_map(|(_idx, snap_or_live_set)| snap_or_live_set)
                             .fold(String::new(), |mut buffer, pathdata| {
-                                buffer += &format!("{}{}", pathdata.path_buf.display(), delimiter);
+                                buffer.push_str(&pathdata.path_buf.to_string_lossy());
+                                buffer.push(delimiter);
                                 buffer
                             })
                     }
