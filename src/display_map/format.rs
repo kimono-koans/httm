@@ -123,7 +123,8 @@ impl std::string::ToString for PrintAsMap {
                 self.values()
                     .flatten()
                     .fold(String::new(), |mut buffer, value| {
-                        buffer += format!("{value}{delimiter}").as_str();
+                        buffer.push_str(value);
+                        buffer.push(delimiter);
                         buffer
                     })
             }
