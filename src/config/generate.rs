@@ -790,7 +790,7 @@ impl Config {
                 None
             };
 
-        let opt_snap_mode_filters = if matches.get_one::<&OsStr>("LIST_SNAPS").is_some() {
+        let opt_snap_mode_filters = if let Some(values) = matches.get_one::<&OsStr>("LIST_SNAPS").and_then(|inner| inner.to_str()) {
             // allow selection of snaps to prune in prune mode
             let select_mode = matches!(opt_interactive_mode, Some(InteractiveMode::Select(_)));
 
@@ -798,15 +798,7 @@ impl Config {
                 eprintln!("Select mode for listed snapshots only available in PRUNE mode.")
             }
 
-            if let Some(values) = matches.get_one::<&OsStr>("LIST_SNAPS").and_then(|inner| inner.to_str()) {
-                Some(Self::snap_filters(values, select_mode)?)
-            } else {
-                Some(ListSnapsFilters {
-                    select_mode,
-                    omit_num_snaps: 0usize,
-                    name_filters: None,
-                })
-            }
+            Some(Self::snap_filters(values, select_mode)?)
         } else {
             None
         };
