@@ -294,7 +294,8 @@ fn parse_args() -> ArgMatches {
                 .require_equals(true)
                 .help("display snapshots names for a file. This argument optionally takes a value. \
                 By default, this argument will return all available snapshot names. \
-                User may limit type of snapshots returned via the UNIQUENESS flag. \
+                When the UNIQUENESS flag is not specified but the LIST_SNAPS is, the default UNIQUENESS level is \"all\" snapshots. \
+                User may limit type of snapshots returned via specifying the UNIQUENESS flag. \
                 The user may also omit the most recent \"n\" snapshots from any list. \
                 By appending a comma, this argument also filters those snapshots which contain the specified pattern/s. \
                 A value of \"5,prep_Apt\" would return the snapshot names of only the last 5 (at most) of all snapshot versions which contain \"prep_Apt\". \
@@ -755,7 +756,9 @@ impl Config {
             _ if matches.get_flag("PRUNE") =>  ListSnapsOfType::All,
             Some("all" | "no-filter") => ListSnapsOfType::All,
             Some("contents") => ListSnapsOfType::UniqueContents,
-            Some("metadata" | _) | None => ListSnapsOfType::UniqueMetadata,
+            Some("metadata" | _) => ListSnapsOfType::UniqueMetadata,
+            _ if matches.contains_id("LIST_SNAPS") => ListSnapsOfType::All,
+            None => ListSnapsOfType::UniqueMetadata,
         };
 
         if opt_no_hidden && !opt_recursive && opt_interactive_mode.is_none() {
