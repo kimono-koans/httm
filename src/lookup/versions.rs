@@ -22,7 +22,7 @@ use crate::data::paths::{CompareVersionsContainer, PathData};
 use crate::library::results::{HttmError, HttmResult};
 use crate::GLOBAL_CONFIG;
 use rayon::prelude::*;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::io::ErrorKind;
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
@@ -304,12 +304,12 @@ impl<'a> RelativePathAndSnapMounts<'a> {
         sorted_versions.pop()
     }
     #[inline(always)]
-    fn versions_unprocessed(&'a self) -> impl Iterator<Item = PathData> + 'a {
+    fn versions_unprocessed(&'a self) -> impl ParallelIterator<Item = PathData> + 'a {
         // get the DirEntry for our snapshot path which will have all our possible
         // snapshots, like so: .zfs/snapshots/<some snap name>/
         self
             .snap_mounts
-            .iter()
+            .par_iter()
             .map(|path| path.join(self.relative_path))
             .filter_map(|joined_path| {
                 match joined_path.symlink_metadata() {
@@ -346,7 +346,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
     #[allow(clippy::mutable_key_type)]
     #[inline(always)]
     fn sort_dedup_versions(
-        iter: impl Iterator<Item = PathData>,
+        iter: impl ParallelIterator<Item = PathData>,
         uniqueness: &ListSnapsOfType,
     ) -> Vec<PathData> {
         match uniqueness {
@@ -356,14 +356,10 @@ impl<'a> RelativePathAndSnapMounts<'a> {
                 vec
             }
             ListSnapsOfType::UniqueContents | ListSnapsOfType::UniqueMetadata => {
-                let mut vec: Vec<CompareVersionsContainer> = iter
+                let sorted_and_deduped: BTreeSet<CompareVersionsContainer> = iter
                     .map(|pd| CompareVersionsContainer::new(pd, uniqueness))
                     .collect();
-
-                vec.sort_unstable();
-                vec.dedup_by(|a, b| a.cmp(&b).is_eq());
-
-                vec.into_iter().map(PathData::from).collect()
+                sorted_and_deduped.into_iter().map(PathData::from).collect()
             }
         }
     }
