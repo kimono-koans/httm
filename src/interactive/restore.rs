@@ -35,7 +35,6 @@ use terminal_size::Width;
 use std::path::{Path, PathBuf};
 
 pub struct InteractiveRestore {
-    pub view_mode: ViewMode,
     pub snap_path_strings: Vec<String>,
     pub opt_live_version: Option<String>,
 }
@@ -43,7 +42,6 @@ pub struct InteractiveRestore {
 impl From<InteractiveSelect> for InteractiveRestore {
     fn from(interactive_select: InteractiveSelect) -> Self {
         Self {
-            view_mode: ViewMode::Restore,
             snap_path_strings: interactive_select.snap_path_strings,
             opt_live_version: interactive_select.opt_live_version,
         }

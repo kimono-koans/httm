@@ -56,6 +56,7 @@ use std::hash::Hash;
 use std::iter::Iterator;
 
 pub trait HttmIter: Iterator {
+    #[allow(dead_code)]
     fn into_group_map<K, V>(self) -> HashMap<K, Vec<V>>
     where
         Self: Iterator<Item = (K, V)> + Sized,
