@@ -32,7 +32,6 @@ use std::io::Read;
 use std::ops::Index;
 use std::path::{Path, PathBuf};
 use time::UtcOffset;
-use std::ffi::OsStr;
 
 #[derive(Debug, Clone)]
 pub enum ExecMode {
@@ -670,7 +669,7 @@ impl Config {
         let opt_no_clones =
             matches.get_flag("NO_CLONES") || std::env::var_os("HTTM_NO_CLONE").is_some();
 
-        let opt_last_snap = match matches.get_one::<&OsStr>("LAST_SNAP").and_then(|inner| inner.to_str()) {
+        let opt_last_snap = match matches.get_one::<String>("LAST_SNAP").map(|inner| inner.as_str()) {
             Some("" | "any") => Some(LastSnapMode::Any),
             Some("none" | "without") => Some(LastSnapMode::Without),
             Some("ditto") => Some(LastSnapMode::DittoOnly),
@@ -679,7 +678,7 @@ impl Config {
             _ => None,
         };
 
-        let opt_num_versions = match matches.get_one::<&OsStr>("NUM_VERSIONS").and_then(|inner| inner.to_str()) {
+        let opt_num_versions = match matches.get_one::<String>("NUM_VERSIONS").map(|inner| inner.as_str()) {
             Some("" | "all") => Some(NumVersionsMode::AllNumerals),
             Some("graph") => Some(NumVersionsMode::AllGraph),
             Some("single") => Some(NumVersionsMode::SingleAll),
@@ -695,31 +694,31 @@ impl Config {
             return Err(HttmError::new("The NUM_VERSIONS graph mode and the RAW or ZEROS display modes are an invalid combination.").into());
         }
 
-        let opt_mount_display = match matches.get_one::<&OsStr>("FILE_MOUNT").and_then(|inner| inner.to_str()) {
+        let opt_mount_display = match matches.get_one::<String>("FILE_MOUNT").map(|inner| inner.as_str()) {
             Some("" | "mount" | "target" | "directory") => Some(MountDisplay::Target),
             Some("source" | "device" | "dataset") => Some(MountDisplay::Source),
             Some("relative-path" | "relative" | "relpath") => Some(MountDisplay::RelativePath),
             _ => None,
         };
 
-        let opt_preview = match matches.get_one::<&OsStr>("PREVIEW").and_then(|inner| inner.to_str()) {
+        let opt_preview = match matches.get_one::<String>("PREVIEW").map(|inner| inner.as_str()) {
             Some("" | "default") => Some("default".to_owned()),
             Some(user_defined) => Some(user_defined.to_string()),
             None => None,
         };
 
-        let mut opt_deleted_mode = match matches.get_one::<&OsStr>("DELETED").and_then(|inner| inner.to_str()) {
+        let mut opt_deleted_mode = match matches.get_one::<String>("DELETED").map(|inner| inner.as_str()) {
             Some("" | "all") => Some(DeletedMode::All),
             Some("single") => Some(DeletedMode::DepthOfOne),
             Some("only") => Some(DeletedMode::Only),
             _ => None,
         };
 
-        let opt_select_mode = matches.get_one::<&OsStr>("SELECT");
-        let opt_restore_mode = matches.get_one::<&OsStr>("RESTORE");
+        let opt_select_mode = matches.get_one::<String>("SELECT");
+        let opt_restore_mode = matches.get_one::<String>("RESTORE");
         
         let opt_interactive_mode = if let Some(var_restore_mode) = opt_restore_mode {
-            let mut restore_mode = var_restore_mode.to_string_lossy().to_string();
+            let mut restore_mode = var_restore_mode.to_string();
             
             if let Ok(env_restore_mode) = std::env::var("HTTM_RESTORE_MODE")
             {
@@ -739,7 +738,7 @@ impl Config {
                 _ => Some(InteractiveMode::Restore(RestoreMode::CopyOnly)),
             }
         } else if opt_select_mode.is_some() || opt_preview.is_some() {
-            match opt_select_mode.and_then(|inner| inner.to_str()) {
+            match opt_select_mode.map(|inner| inner.as_str()) {
                 Some("contents") => Some(InteractiveMode::Select(SelectMode::Contents)),
                 Some("preview") => Some(InteractiveMode::Select(SelectMode::Preview)),
                 Some(_) | None => Some(InteractiveMode::Select(SelectMode::Path)),
@@ -752,7 +751,7 @@ impl Config {
             None
         };
 
-        let uniqueness = match matches.get_one::<&OsStr>("UNIQUENESS").and_then(|inner| inner.to_str()) {
+        let uniqueness = match matches.get_one::<String>("UNIQUENESS").map(|inner| inner.as_str()) {
             _ if matches.get_flag("PRUNE") =>  ListSnapsOfType::All,
             Some("all" | "no-filter") => ListSnapsOfType::All,
             Some("contents") => ListSnapsOfType::UniqueContents,
@@ -775,8 +774,8 @@ impl Config {
         }
 
         let opt_snap_file_mount =
-            if let Some(requested_snapshot_suffix) = matches.get_one::<&OsStr>("SNAPSHOT").and_then(|inner| inner.to_str()) {
-                if requested_snapshot_suffix == "httmSnapFileMount" {
+            if let Some(requested_snapshot_suffix) = matches.get_one::<String>("SNAPSHOT") {
+                if requested_snapshot_suffix == &"httmSnapFileMount" {
                     Some(requested_snapshot_suffix.to_owned())
                 } else if requested_snapshot_suffix.contains(char::is_whitespace) {
                     return Err(HttmError::new(
@@ -790,7 +789,7 @@ impl Config {
                 None
             };
 
-        let opt_snap_mode_filters = if let Some(values) = matches.get_one::<&OsStr>("LIST_SNAPS").and_then(|inner| inner.to_str()) {
+        let opt_snap_mode_filters = if matches.get_one::<String>("LIST_SNAPS").is_some() {
             // allow selection of snaps to prune in prune mode
             let select_mode = matches!(opt_interactive_mode, Some(InteractiveMode::Select(_)));
 
@@ -798,13 +797,21 @@ impl Config {
                 eprintln!("Select mode for listed snapshots only available in PRUNE mode.")
             }
 
-            Some(Self::snap_filters(values, select_mode)?)
+            if let Some(values) = matches.get_one::<String>("LIST_SNAPS") {
+                Some(Self::snap_filters(values, select_mode)?)
+            } else {
+                Some(ListSnapsFilters {
+                    select_mode,
+                    omit_num_snaps: 0usize,
+                    name_filters: None,
+                })
+            }
         } else {
             None
         };
 
-        let mut exec_mode = if let Some(full_snap_name) = matches.get_one::<&OsStr>("ROLL_FORWARD") {
-            ExecMode::RollForward(full_snap_name.to_string_lossy().to_string())
+        let mut exec_mode = if let Some(full_snap_name) = matches.get_one::<String>("ROLL_FORWARD") {
+            ExecMode::RollForward(full_snap_name.to_string())
         } else if let Some(num_versions_mode) = opt_num_versions {
             ExecMode::NumVersions(num_versions_mode)
         } else if let Some(mount_display) = opt_mount_display {
@@ -838,7 +845,7 @@ impl Config {
         // alternate filesystems and map of aliases if the user requests
         let mut opt_map_aliases = matches.get_raw("MAP_ALIASES");
 
-        let opt_alt_store: Option<&FilesystemType> = match matches.get_one::<&OsStr>("ALT_STORE").and_then(|inner| inner.to_str()) {
+        let opt_alt_store: Option<&FilesystemType> = match matches.get_one::<String>("ALT_STORE").map(|inner| inner.as_str()) {
             Some("timemachine") => Some(&FilesystemType::Apfs),
             Some("restic") => Some(&FilesystemType::Restic(None)),
             _ => None
@@ -852,8 +859,8 @@ impl Config {
         let dataset_collection = FilesystemInfo::new(
             matches.get_flag("ALT_REPLICATED"),
             opt_debug,
-            matches.get_one::<&OsStr>("REMOTE_DIR").and_then(|inner| inner.to_str()),
-            matches.get_one::<&OsStr>("LOCAL_DIR").and_then(|inner| inner.to_str()),
+            matches.get_one::<String>("REMOTE_DIR").map(|inner| inner.as_str()),
+            matches.get_one::<String>("LOCAL_DIR").map(|inner| inner.as_str()),
             opt_map_aliases,
             opt_alt_store,
             &pwd,
