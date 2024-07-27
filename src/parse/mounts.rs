@@ -333,7 +333,7 @@ impl BaseFilesystemInfo {
                             fs_type: FilesystemType::Btrfs(None),
                         },
                     )),
-                    _ if source == *RESTIC_SOURCE_PATH => {
+                    _ if source.to_string_lossy().contains("restic") => {
                         let canonical_path: PathBuf = realpath(
                             mount.join(RESTIC_LATEST_SNAPSHOT_DIRECTORY),
                             RealpathFlags::ALLOW_MISSING,
