@@ -42,7 +42,7 @@ pub const BTRFS_FSTYPE: &str = "btrfs";
 pub const SMB_FSTYPE: &str = "smbfs";
 pub const NFS_FSTYPE: &str = "nfs";
 pub const AFP_FSTYPE: &str = "afpfs";
-pub const FUSE_FSTYPE_LINUX: &str = "fuse";
+pub const RESTIC_FSTYPE: &str = "restic";
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum FilesystemType {
@@ -113,7 +113,6 @@ pub static PROC_MOUNTS: Lazy<PathBuf> = Lazy::new(|| PathBuf::from("/proc/mounts
 pub static BTRFS_ROOT_SUBVOL: Lazy<PathBuf> = Lazy::new(|| PathBuf::from("<FS_TREE>"));
 pub static ROOT_PATH: Lazy<PathBuf> = Lazy::new(|| PathBuf::from(ROOT_DIRECTORY));
 static ETC_MNTTAB: Lazy<PathBuf> = Lazy::new(|| PathBuf::from("/etc/mnttab"));
-static RESTIC_SOURCE_PATH: Lazy<PathBuf> = Lazy::new(|| PathBuf::from("restic"));
 static TM_DIR_REMOTE_PATH: Lazy<PathBuf> = Lazy::new(|| PathBuf::from(TM_DIR_REMOTE));
 static TM_DIR_LOCAL_PATH: Lazy<PathBuf> = Lazy::new(|| PathBuf::from(TM_DIR_LOCAL));
 
@@ -128,11 +127,11 @@ impl BaseFilesystemInfo {
     // Linux allows us the read proc mounts
     pub fn new(opt_debug: bool, opt_alt_store: Option<&FilesystemType>) -> HttmResult<Self> {
         let (mut raw_datasets, filter_dirs_set) = if PROC_MOUNTS.exists() {
-            Self::from_file(&PROC_MOUNTS)?
+            Self::from_file(&PROC_MOUNTS, opt_alt_store)?
         } else if ETC_MNTTAB.exists() {
-            Self::from_file(&ETC_MNTTAB)?
+            Self::from_file(&ETC_MNTTAB, opt_alt_store)?
         } else {
-            Self::from_mount_cmd()?
+            Self::from_mount_cmd(opt_alt_store)?
         };
 
         // prep any blob repos
@@ -169,7 +168,10 @@ impl BaseFilesystemInfo {
 
     // parsing from proc mounts is both faster and necessary for certain btrfs features
     // for instance, allows us to read subvolumes mounts, like "/@" or "/@home"
-    fn from_file(path: &Path) -> HttmResult<(HashMap<PathBuf, DatasetMetadata>, HashSet<PathBuf>)> {
+    fn from_file(
+        path: &Path,
+        opt_alt_store: Option<&FilesystemType>,
+    ) -> HttmResult<(HashMap<PathBuf, DatasetMetadata>, HashSet<PathBuf>)> {
         let mount_iter = MountIter::new_from_file(path)?;
 
         let (map_of_datasets, filter_dirs): (HashMap<PathBuf, DatasetMetadata>, HashSet<PathBuf>) =
@@ -249,12 +251,16 @@ impl BaseFilesystemInfo {
                             fs_type: FilesystemType::Nilfs2,
                         },
                     )),
-                    FUSE_FSTYPE_LINUX if mount_info.source == *RESTIC_SOURCE_PATH => {
-                        let canonical_path: PathBuf = realpath(
-                            dest_path.join(RESTIC_LATEST_SNAPSHOT_DIRECTORY),
-                            RealpathFlags::ALLOW_MISSING,
-                        )
-                        .unwrap_or_else(|_| dest_path.to_path_buf());
+                    _ if mount_info.source.to_string_lossy().contains(RESTIC_FSTYPE) => {
+                        let base_path = if let Some(FilesystemType::Restic(_)) = opt_alt_store {
+                            dest_path
+                        } else {
+                            dest_path.join(RESTIC_LATEST_SNAPSHOT_DIRECTORY)
+                        };
+
+                        let canonical_path: PathBuf =
+                            realpath(&base_path, RealpathFlags::ALLOW_MISSING)
+                                .unwrap_or_else(|_| base_path.to_path_buf());
 
                         Either::Left((
                             canonical_path,
@@ -272,7 +278,9 @@ impl BaseFilesystemInfo {
 
     // old fashioned parsing for non-Linux systems, nearly as fast, works everywhere with a mount command
     // both methods are much faster than using zfs command
-    fn from_mount_cmd() -> HttmResult<(HashMap<PathBuf, DatasetMetadata>, HashSet<PathBuf>)> {
+    fn from_mount_cmd(
+        opt_alt_store: Option<&FilesystemType>,
+    ) -> HttmResult<(HashMap<PathBuf, DatasetMetadata>, HashSet<PathBuf>)> {
         // do we have the necessary commands for search if user has not defined a snap point?
         // if so run the mount search, if not print some errors
         let mount_command = which("mount").map_err(|_err| {
@@ -333,12 +341,16 @@ impl BaseFilesystemInfo {
                             fs_type: FilesystemType::Btrfs(None),
                         },
                     )),
-                    _ if source.to_string_lossy().contains("restic") => {
-                        let canonical_path: PathBuf = realpath(
-                            mount.join(RESTIC_LATEST_SNAPSHOT_DIRECTORY),
-                            RealpathFlags::ALLOW_MISSING,
-                        )
-                        .unwrap_or_else(|_| mount.to_path_buf());
+                    _ if source.to_string_lossy().contains(RESTIC_FSTYPE) => {
+                        let base_path = if let Some(FilesystemType::Restic(_)) = opt_alt_store {
+                            mount
+                        } else {
+                            mount.join(RESTIC_LATEST_SNAPSHOT_DIRECTORY)
+                        };
+
+                        let canonical_path: PathBuf =
+                            realpath(&base_path, RealpathFlags::ALLOW_MISSING)
+                                .unwrap_or_else(|_| base_path.to_path_buf());
 
                         Either::Left((
                             canonical_path,
@@ -373,7 +385,7 @@ impl BaseFilesystemInfo {
                 let repos: Vec<PathBuf> = map_of_datasets.keys().cloned().collect();
 
                 DatasetMetadata {
-                    source: PathBuf::from(RESTIC_SOURCE_PATH.as_path()),
+                    source: PathBuf::from(RESTIC_FSTYPE),
                     fs_type: FilesystemType::Restic(Some(repos.clone())),
                 }
             }
