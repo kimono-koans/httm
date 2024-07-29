@@ -256,7 +256,7 @@ impl<'a> ProximateDatasetAndOptAlts<'a> {
     pub fn datasets_of_interest(&'a self) -> impl Iterator<Item = &'a Path> {
         let alts = self.opt_alts.into_iter().flatten().map(PathBuf::as_path);
 
-        let base = [self.proximate_dataset].into_iter();
+        let base = Some(self.proximate_dataset).into_iter();
 
         alts.chain(base)
     }
