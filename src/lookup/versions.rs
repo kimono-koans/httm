@@ -281,15 +281,14 @@ impl<'a> RelativePathAndSnapMounts<'a> {
         //
         // for native searches the prefix is are the dirs below the most proximate dataset
         // for user specified dirs/aliases these are specified by the user
-        let snap_mounts = GLOBAL_CONFIG
+        GLOBAL_CONFIG
             .dataset_collection
             .map_of_snaps
-            .get(dataset_of_interest)?;
-
-        Some(Self {
-            relative_path,
-            snap_mounts,
-        })
+            .get(dataset_of_interest)
+            .map(|snap_mounts| Self {
+                relative_path,
+                snap_mounts,
+            })
     }
     #[inline(always)]
     pub fn versions_processed(&'a self, uniqueness: &ListSnapsOfType) -> Vec<PathData> {
