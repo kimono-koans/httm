@@ -32,6 +32,9 @@ use std::io::{BufRead, BufReader, ErrorKind};
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
+static DATASET_MAX_LEN: Lazy<usize> =
+    Lazy::new(|| GLOBAL_CONFIG.dataset_collection.map_of_datasets.max_len());
+
 // only the most basic data from a DirEntry
 // for use to display in browse window and internally
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -166,9 +169,6 @@ impl<'a> PathDeconstruction<'a> for PathData {
         // for /usr/bin, we prefer the most proximate: /usr/bin to /usr and /
         // ancestors() iterates in this top-down order, when a value: dataset/fstype is available
         // we map to return the key, instead of the value
-        static DATASET_MAX_LEN: Lazy<usize> =
-            Lazy::new(|| GLOBAL_CONFIG.dataset_collection.map_of_datasets.max_len());
-
         self.path_buf
             .ancestors()
             .skip_while(|ancestor| ancestor.components().count() > *DATASET_MAX_LEN)
@@ -199,13 +199,12 @@ impl<'a> AliasedPath<'a> {
     pub fn new(path: &'a Path) -> Option<Self> {
         // find_map_first should return the first seq result with a par_iter
         // but not with a par_bridge
-
-        path.ancestors().find_map(|ancestor| {
-            GLOBAL_CONFIG
-                .dataset_collection
-                .opt_map_of_aliases
-                .as_ref()
-                .and_then(|map_of_aliases| {
+        GLOBAL_CONFIG
+            .dataset_collection
+            .opt_map_of_aliases
+            .as_ref()
+            .and_then(|map_of_aliases| {
+                path.ancestors().find_map(|ancestor| {
                     let md = map_of_aliases.get(ancestor);
                     let relative_path = path.strip_prefix(ancestor).ok()?;
 
@@ -214,7 +213,7 @@ impl<'a> AliasedPath<'a> {
                         relative_path,
                     })
                 })
-        })
+            })
     }
 }
 
