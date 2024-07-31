@@ -52,7 +52,6 @@ nu-ansi-term = { version = "0.50.1", default-features = false }
 lscolors = { version = "0.18.0", default-features = false, features = [
     "nu-ansi-term",
 ] }
-terminal_size = { version = "0.3.0", default-features = false }
 which = { version = "6.0.1", default-features = false }
 rayon = { version = "1.10.0", default-features = false }
 indicatif = { version = "0.17.8", default-features = false }

@@ -29,8 +29,6 @@ use crate::library::utility::{date_string, DateFormat};
 use crate::GLOBAL_CONFIG;
 
 use nu_ansi_term::Color::LightYellow;
-use terminal_size::Height;
-use terminal_size::Width;
 
 use std::path::{Path, PathBuf};
 
@@ -155,8 +153,12 @@ impl InteractiveRestore {
     }
 
     fn summary_string() -> String {
-        let width = match terminal_size::terminal_size() {
-            Some((Width(width), Height(_height))) => width as usize,
+        let opt_num_columns = std::env::var("COLUMNS")
+            .ok()
+            .map(|s| s.parse().unwrap_or_else(|_| 80));
+
+        let width = match opt_num_columns {
+            Some(width) => width,
             None => 80usize,
         };
 
