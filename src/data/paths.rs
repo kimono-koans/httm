@@ -141,19 +141,16 @@ impl<'a> PathDeconstruction<'a> for PathData {
             .as_ref()
             .and_then(|map_of_aliases| {
                 self.path_buf.ancestors().find_map(|ancestor| {
-                    let md = map_of_aliases.get(ancestor);
-
-                    md.and_then(|metadata| {
-                        let proximate_dataset = metadata.remote_dir.as_ref();
-
+                    map_of_aliases.get(ancestor).and_then(|metadata| {
                         Some(AliasedPath {
-                            proximate_dataset,
-                            relative_path: self.relative_path(proximate_dataset).ok()?,
+                            proximate_dataset: metadata.remote_dir.as_ref(),
+                            relative_path: &self.path_buf.strip_prefix(ancestor).ok()?,
                         })
                     })
                 })
             })
     }
+
     fn live_path(&self) -> Option<PathBuf> {
         Some(self.path_buf.clone())
     }
