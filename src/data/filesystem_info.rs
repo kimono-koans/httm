@@ -56,13 +56,8 @@ impl FilesystemInfo {
         let opt_common_snap_dir = base_fs_info.common_snap_dir();
 
         // only create a map of aliases if necessary (aliases conflicts with alt stores)
-        let opt_map_of_aliases = if opt_alt_store.is_none()
-            && (opt_raw_aliases.is_some() || (opt_local_dir.is_some() && opt_remote_dir.is_some()))
-        {
-            Self::prepare_aliases(opt_raw_aliases, opt_remote_dir, opt_local_dir, pwd)?
-        } else {
-            None
-        };
+        let opt_map_of_aliases =
+            MapOfAliases::new(opt_raw_aliases, opt_remote_dir, opt_local_dir, pwd)?;
 
         // only create a map of alts if necessary
         let opt_map_of_alts = if opt_alt_replicated {
@@ -79,57 +74,5 @@ impl FilesystemInfo {
             opt_common_snap_dir,
             opt_map_of_aliases,
         })
-    }
-
-    fn prepare_aliases(
-        opt_raw_aliases: Option<RawValues>,
-        opt_remote_dir: Option<&str>,
-        opt_local_dir: Option<&str>,
-        pwd: &Path,
-    ) -> HttmResult<Option<MapOfAliases>> {
-        let alias_values: Option<Vec<String>> = match std::env::var_os("HTTM_MAP_ALIASES") {
-            Some(env_map_alias) => Some(
-                env_map_alias
-                    .to_string_lossy()
-                    .split_terminator(',')
-                    .map(|s| s.to_owned())
-                    .collect(),
-            ),
-            None => opt_raw_aliases.map(|map_aliases| {
-                map_aliases
-                    .map(|os_str| os_str.to_string_lossy().to_string())
-                    .collect()
-            }),
-        };
-
-        let raw_snap_dir = if let Some(value) = opt_remote_dir {
-            Some(PathBuf::from(value))
-        } else if std::env::var_os("HTTM_REMOTE_DIR").is_some() {
-            std::env::var_os("HTTM_REMOTE_DIR").map(|s| PathBuf::from(s))
-        } else {
-            // legacy env var name
-            std::env::var_os("HTTM_SNAP_POINT").map(|s| PathBuf::from(s))
-        };
-
-        let opt_map_of_aliases = if raw_snap_dir.is_some() || alias_values.is_some() {
-            let env_local_dir = std::env::var_os("HTTM_LOCAL_DIR").map(|s| PathBuf::from(s));
-
-            let raw_local_dir = if let Some(value) = opt_local_dir {
-                Some(PathBuf::from(value))
-            } else {
-                env_local_dir
-            };
-
-            Some(MapOfAliases::new(
-                raw_snap_dir,
-                raw_local_dir,
-                pwd,
-                alias_values,
-            )?)
-        } else {
-            None
-        };
-
-        Ok(opt_map_of_aliases)
     }
 }
