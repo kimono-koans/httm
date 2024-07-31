@@ -75,7 +75,7 @@ impl MapOfAlts {
         // but which has a prefix, like a different pool name: rpool might be
         // replicated to tank/rpool
         let mut alt_replicated_mounts: Vec<PathBuf> = map_of_datasets
-            .iter()
+            .par_iter()
             .map(|(mount, dataset_info)| (mount, Path::new(&dataset_info.source)))
             .filter(|(_mount, source)| {
                 source.as_os_str() != proximate_dataset_fs_name
