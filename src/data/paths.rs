@@ -133,7 +133,26 @@ impl PathData {
 
 impl<'a> PathDeconstruction<'a> for PathData {
     fn alias(&self) -> Option<AliasedPath> {
-        AliasedPath::new(&self.path_buf)
+        // find_map_first should return the first seq result with a par_iter
+        // but not with a par_bridge
+        GLOBAL_CONFIG
+            .dataset_collection
+            .opt_map_of_aliases
+            .as_ref()
+            .and_then(|map_of_aliases| {
+                self.path_buf.ancestors().find_map(|ancestor| {
+                    let md = map_of_aliases.get(ancestor);
+
+                    md.and_then(|metadata| {
+                        let proximate_dataset = metadata.remote_dir.as_ref();
+
+                        Some(AliasedPath {
+                            proximate_dataset,
+                            relative_path: self.relative_path(proximate_dataset).ok()?,
+                        })
+                    })
+                })
+            })
     }
     fn live_path(&self) -> Option<PathBuf> {
         Some(self.path_buf.clone())
@@ -192,29 +211,6 @@ impl<'a> PathDeconstruction<'a> for PathData {
 pub struct AliasedPath<'a> {
     pub proximate_dataset: &'a Path,
     pub relative_path: &'a Path,
-}
-
-impl<'a> AliasedPath<'a> {
-    #[inline(always)]
-    pub fn new(path: &'a Path) -> Option<Self> {
-        // find_map_first should return the first seq result with a par_iter
-        // but not with a par_bridge
-        GLOBAL_CONFIG
-            .dataset_collection
-            .opt_map_of_aliases
-            .as_ref()
-            .and_then(|map_of_aliases| {
-                path.ancestors().find_map(|ancestor| {
-                    let md = map_of_aliases.get(ancestor);
-                    let relative_path = path.strip_prefix(ancestor).ok()?;
-
-                    md.map(|metadata| AliasedPath {
-                        proximate_dataset: metadata.remote_dir.as_ref(),
-                        relative_path,
-                    })
-                })
-            })
-    }
 }
 
 pub struct ZfsSnapPathGuard<'a> {
