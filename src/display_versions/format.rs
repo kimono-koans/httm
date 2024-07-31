@@ -24,6 +24,7 @@ use crate::lookup::versions::ProximateDatasetAndOptAlts;
 use crate::VersionsDisplayWrapper;
 use std::borrow::Cow;
 use std::ops::Deref;
+use terminal_size::{terminal_size, Height, Width};
 // 2 space wide padding - used between date and size, and size and path
 pub const PRETTY_FIXED_WIDTH_PADDING: &str = "  ";
 // our FIXED_WIDTH_PADDING is used twice
@@ -369,15 +370,13 @@ impl PaddingCollection {
     }
 
     fn fancy_border_string(fancy_border_len: usize) -> String {
-        let opt_num_columns = std::env::var("COLUMNS")
-            .ok()
-            .map(|s| s.parse().unwrap_or_else(|_| 80));
+        if let Some((Width(width), Height(_height))) = terminal_size() {
+            let width_as_usize = width as usize;
 
-        if let Some(width) = opt_num_columns {
-            if width < fancy_border_len {
+            if width_as_usize < fancy_border_len {
                 // Active below is the most idiomatic Rust, but it maybe slower than the commented portion
                 // (0..width as usize).map(|_| "─").collect()
-                return format!("{:─<width$}\n", "");
+                return format!("{:─<width_as_usize$}\n", "");
             }
         }
 
