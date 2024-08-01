@@ -15,13 +15,14 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
+use rayon::prelude::*;
+
 use crate::config::generate::{Config, ExecMode, LastSnapMode, ListSnapsOfType};
 use crate::data::paths::PathDeconstruction;
 use crate::data::paths::PathMetadata;
 use crate::data::paths::{CompareVersionsContainer, PathData};
 use crate::library::results::{HttmError, HttmResult};
 use crate::GLOBAL_CONFIG;
-use rayon::prelude::*;
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::ErrorKind;
 use std::ops::{Deref, DerefMut};
@@ -57,7 +58,7 @@ impl VersionsMap {
         let is_interactive_mode = matches!(GLOBAL_CONFIG.exec_mode, ExecMode::Interactive(_));
 
         let all_snap_versions: BTreeMap<PathData, Vec<PathData>> = path_set
-            .par_iter()
+            .iter()
             .filter_map(|pathdata| match Versions::new(pathdata, config) {
                 Ok(versions) => Some(versions),
                 Err(_err) => {
@@ -168,7 +169,6 @@ impl Versions {
         let live_path = prox_opt_alts.pathdata.clone();
         let snap_versions: Vec<PathData> = prox_opt_alts
             .into_search_bundles()
-            .par_bridge()
             .flat_map(|relative_path_snap_mounts| {
                 relative_path_snap_mounts.versions_processed(&config.uniqueness)
             })
