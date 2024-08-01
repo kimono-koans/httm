@@ -71,6 +71,8 @@ mod parse {
     pub mod snaps;
 }
 
+use std::sync::LazyLock;
+
 use crate::config::generate::InteractiveMode;
 use crate::interactive::browse::InteractiveBrowse;
 use crate::interactive::select::InteractiveSelect;
@@ -86,7 +88,6 @@ use library::utility::print_output_buf;
 use lookup::file_mounts::MountsForFiles;
 use lookup::snap_names::SnapNameMap;
 use lookup::versions::VersionsMap;
-use once_cell::sync::Lazy;
 use roll_forward::exec::RollForward;
 
 pub const ZFS_HIDDEN_DIRECTORY: &str = ".zfs";
@@ -112,7 +113,7 @@ fn main() {
 
 // get our program args and generate a config for use
 // everywhere else
-static GLOBAL_CONFIG: Lazy<Config> = Lazy::new(|| {
+static GLOBAL_CONFIG: LazyLock<Config> = LazyLock::new(|| {
     Config::new()
         .map_err(|error| {
             eprintln!("Error: {error}");

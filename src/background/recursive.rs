@@ -26,15 +26,15 @@ use crate::library::utility::{
 };
 use crate::parse::mounts::MaxLen;
 use crate::{VersionsMap, BTRFS_SNAPPER_HIDDEN_DIRECTORY, GLOBAL_CONFIG, ZFS_HIDDEN_DIRECTORY};
-use once_cell::sync::Lazy;
 use rayon::{Scope, ThreadPool};
 use skim::prelude::*;
 use std::fs::read_dir;
 use std::os::unix::fs::MetadataExt;
 use std::path::Path;
 use std::sync::Arc;
+use std::sync::LazyLock;
 
-static OPT_REQUESTED_DIR_DEV: Lazy<u64> = Lazy::new(|| {
+static OPT_REQUESTED_DIR_DEV: LazyLock<u64> = LazyLock::new(|| {
     GLOBAL_CONFIG
         .opt_requested_dir
         .as_ref()
@@ -44,8 +44,8 @@ static OPT_REQUESTED_DIR_DEV: Lazy<u64> = Lazy::new(|| {
         .dev()
 });
 
-static FILTER_DIRS_MAX_LEN: Lazy<usize> =
-    Lazy::new(|| GLOBAL_CONFIG.dataset_collection.filter_dirs.max_len());
+static FILTER_DIRS_MAX_LEN: LazyLock<usize> =
+    LazyLock::new(|| GLOBAL_CONFIG.dataset_collection.filter_dirs.max_len());
 
 #[derive(Clone, Copy)]
 pub enum PathProvenance {

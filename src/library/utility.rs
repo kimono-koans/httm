@@ -26,12 +26,12 @@ use crossbeam_channel::{Receiver, TryRecvError};
 use lscolors::{Colorable, LsColors, Style};
 use nu_ansi_term::Style as AnsiTermStyle;
 use number_prefix::NumberPrefix;
-use once_cell::sync::Lazy;
 use std::borrow::Cow;
 use std::fs::FileType;
 use std::io::Write;
 use std::iter::Iterator;
 use std::path::{Path, PathBuf};
+use std::sync::LazyLock;
 use std::time::SystemTime;
 use time::{format_description, OffsetDateTime, UtcOffset};
 
@@ -179,8 +179,9 @@ impl<'a> HttmIsDir<'a> for BasicDirEntryInfo {
     }
 }
 
-static ENV_LS_COLORS: Lazy<LsColors> = Lazy::new(|| LsColors::from_env().unwrap_or_default());
-static PHANTOM_STYLE: Lazy<AnsiTermStyle> = Lazy::new(|| {
+static ENV_LS_COLORS: LazyLock<LsColors> =
+    LazyLock::new(|| LsColors::from_env().unwrap_or_default());
+static PHANTOM_STYLE: LazyLock<AnsiTermStyle> = LazyLock::new(|| {
     Style::to_nu_ansi_term_style(
         &Style::from_ansi_sequence("38;2;250;200;200;1;0").unwrap_or_default(),
     )

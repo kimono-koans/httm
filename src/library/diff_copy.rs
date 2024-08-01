@@ -48,17 +48,17 @@ use crate::data::paths::{CompareVersionsContainer, PathData};
 use crate::library::results::HttmError;
 use crate::library::results::HttmResult;
 use crate::GLOBAL_CONFIG;
-use once_cell::sync::Lazy;
 use std::fs::{File, OpenOptions};
 use std::io::{BufRead, BufReader, BufWriter, ErrorKind, Seek, SeekFrom, Write};
 use std::os::fd::{AsFd, BorrowedFd};
 use std::path::Path;
 use std::process::Command as ExecProcess;
 use std::sync::atomic::AtomicBool;
+use std::sync::LazyLock;
 
 const CHUNK_SIZE: usize = 65_536;
 
-static IS_CLONE_COMPATIBLE: Lazy<AtomicBool> = Lazy::new(|| {
+static IS_CLONE_COMPATIBLE: LazyLock<AtomicBool> = LazyLock::new(|| {
     if let Ok(zfs_command) = which::which("zfs") {
         let Ok(process_output) = ExecProcess::new(zfs_command).arg("-V").output() else {
             return AtomicBool::new(false);

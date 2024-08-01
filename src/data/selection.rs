@@ -23,11 +23,11 @@ use crate::library::results::HttmResult;
 use crate::library::utility::paint_string;
 use crate::{Config, ExecMode, VersionsMap, GLOBAL_CONFIG};
 use lscolors::Colorable;
-use once_cell::sync::Lazy;
 use skim::prelude::*;
 use std::fs::FileType;
 use std::path::Path;
 use std::path::PathBuf;
+use std::sync::LazyLock;
 
 // these represent the items ready for selection and preview
 // contains everything one needs to request preview and paint with
@@ -70,7 +70,7 @@ impl SelectionCandidate {
     }
 
     fn display_name(&self) -> Cow<str> {
-        static REQUESTED_DIR: Lazy<&Path> = Lazy::new(|| {
+        static REQUESTED_DIR: LazyLock<&Path> = LazyLock::new(|| {
             GLOBAL_CONFIG
                 .opt_requested_dir
                 .as_ref()

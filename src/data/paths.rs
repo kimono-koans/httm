@@ -21,7 +21,6 @@ use crate::library::utility::{date_string, display_human_size, DateFormat};
 use crate::parse::mounts::FilesystemType;
 use crate::parse::mounts::MaxLen;
 use crate::{GLOBAL_CONFIG, ZFS_SNAPSHOT_DIRECTORY};
-use once_cell::sync::{Lazy, OnceCell};
 use realpath_ext::{realpath, RealpathFlags};
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
@@ -30,10 +29,12 @@ use std::ffi::OsStr;
 use std::fs::{symlink_metadata, DirEntry, File, FileType, Metadata};
 use std::io::{BufRead, BufReader, ErrorKind};
 use std::path::{Path, PathBuf};
+use std::sync::LazyLock;
+use std::sync::OnceLock;
 use std::time::SystemTime;
 
-static DATASET_MAX_LEN: Lazy<usize> =
-    Lazy::new(|| GLOBAL_CONFIG.dataset_collection.map_of_datasets.max_len());
+static DATASET_MAX_LEN: LazyLock<usize> =
+    LazyLock::new(|| GLOBAL_CONFIG.dataset_collection.map_of_datasets.max_len());
 
 // only the most basic data from a DirEntry
 // for use to display in browse window and internally
@@ -407,7 +408,7 @@ pub const PHANTOM_PATH_METADATA: PathMetadata = PathMetadata {
 #[derive(Eq, PartialEq)]
 pub struct CompareVersionsContainer {
     pathdata: PathData,
-    opt_hash: Option<OnceCell<u64>>,
+    opt_hash: Option<OnceLock<u64>>,
 }
 
 impl From<CompareVersionsContainer> for PathData {
@@ -451,7 +452,7 @@ impl CompareVersionsContainer {
     #[inline(always)]
     pub fn new(pathdata: PathData, snaps_of_type: &ListSnapsOfType) -> Self {
         let opt_hash = match snaps_of_type {
-            ListSnapsOfType::UniqueContents => Some(OnceCell::new()),
+            ListSnapsOfType::UniqueContents => Some(OnceLock::new()),
             ListSnapsOfType::UniqueMetadata | ListSnapsOfType::All => None,
         };
 

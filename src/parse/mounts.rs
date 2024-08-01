@@ -23,7 +23,6 @@ use crate::{
     TM_DIR_REMOTE, ZFS_HIDDEN_DIRECTORY,
 };
 use hashbrown::{HashMap, HashSet};
-use once_cell::sync::Lazy;
 use proc_mounts::MountIter;
 use rayon::iter::Either;
 use rayon::prelude::*;
@@ -34,6 +33,7 @@ use std::ops::Deref;
 use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command as ExecProcess;
+use std::sync::LazyLock;
 use which::which;
 
 pub const ZFS_FSTYPE: &str = "zfs";
@@ -109,12 +109,12 @@ impl MaxLen for MapOfDatasets {
     }
 }
 
-pub static PROC_MOUNTS: Lazy<PathBuf> = Lazy::new(|| PathBuf::from("/proc/mounts"));
-pub static BTRFS_ROOT_SUBVOL: Lazy<PathBuf> = Lazy::new(|| PathBuf::from("<FS_TREE>"));
-pub static ROOT_PATH: Lazy<PathBuf> = Lazy::new(|| PathBuf::from(ROOT_DIRECTORY));
-static ETC_MNTTAB: Lazy<PathBuf> = Lazy::new(|| PathBuf::from("/etc/mnttab"));
-static TM_DIR_REMOTE_PATH: Lazy<PathBuf> = Lazy::new(|| PathBuf::from(TM_DIR_REMOTE));
-static TM_DIR_LOCAL_PATH: Lazy<PathBuf> = Lazy::new(|| PathBuf::from(TM_DIR_LOCAL));
+pub static PROC_MOUNTS: LazyLock<PathBuf> = LazyLock::new(|| PathBuf::from("/proc/mounts"));
+pub static BTRFS_ROOT_SUBVOL: LazyLock<PathBuf> = LazyLock::new(|| PathBuf::from("<FS_TREE>"));
+pub static ROOT_PATH: LazyLock<PathBuf> = LazyLock::new(|| PathBuf::from(ROOT_DIRECTORY));
+static ETC_MNTTAB: LazyLock<PathBuf> = LazyLock::new(|| PathBuf::from("/etc/mnttab"));
+static TM_DIR_REMOTE_PATH: LazyLock<PathBuf> = LazyLock::new(|| PathBuf::from(TM_DIR_REMOTE));
+static TM_DIR_LOCAL_PATH: LazyLock<PathBuf> = LazyLock::new(|| PathBuf::from(TM_DIR_LOCAL));
 
 pub struct BaseFilesystemInfo {
     pub map_of_datasets: MapOfDatasets,
