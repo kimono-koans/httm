@@ -58,7 +58,7 @@ impl VersionsMap {
         let is_interactive_mode = matches!(GLOBAL_CONFIG.exec_mode, ExecMode::Interactive(_));
 
         let all_snap_versions: BTreeMap<PathData, Vec<PathData>> = path_set
-            .iter()
+            .par_iter()
             .filter_map(|pathdata| match Versions::new(pathdata, config) {
                 Ok(versions) => Some(versions),
                 Err(_err) => {
@@ -303,12 +303,12 @@ impl<'a> RelativePathAndSnapMounts<'a> {
         sorted_versions.pop()
     }
     #[inline(always)]
-    fn versions_unprocessed(&'a self) -> impl ParallelIterator<Item = PathData> + 'a {
+    fn versions_unprocessed(&'a self) -> impl Iterator<Item = PathData> + 'a {
         // get the DirEntry for our snapshot path which will have all our possible
         // snapshots, like so: .zfs/snapshots/<some snap name>/
         self
             .snap_mounts
-            .par_iter()
+            .iter()
             .map(|path| path.join(self.relative_path))
             .filter_map(|joined_path| {
                 match joined_path.symlink_metadata() {
@@ -345,7 +345,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
     #[allow(clippy::mutable_key_type)]
     #[inline(always)]
     fn sort_dedup_versions(
-        iter: impl ParallelIterator<Item = PathData>,
+        iter: impl Iterator<Item = PathData>,
         uniqueness: &ListSnapsOfType,
     ) -> Vec<PathData> {
         match uniqueness {
