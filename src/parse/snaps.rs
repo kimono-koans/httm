@@ -32,7 +32,6 @@ use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::process::Command as ExecProcess;
 use std::sync::Once;
-use which::which;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MapOfSnaps {
