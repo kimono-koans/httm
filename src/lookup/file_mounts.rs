@@ -78,12 +78,9 @@ impl<'a> MountsForFiles<'a> {
             .par_iter()
             .filter_map(|pd| match ProximateDatasetAndOptAlts::new(pd) {
                 Ok(prox_opt_alts) => Some(prox_opt_alts),
-                Err(_) => {
+                Err(err) => {
                     if !is_interactive_mode {
-                        eprintln!(
-                            "WARN: Filesystem upon which the path resides is not supported: {:?}",
-                            pd.path_buf
-                        )
+                        eprintln!("WARN: {:?}", err)
                     }
                     None
                 }
