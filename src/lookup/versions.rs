@@ -339,7 +339,6 @@ impl<'a> RelativePathAndSnapMounts<'a> {
     }
 
     // remove duplicates with the same system modify time and size/file len (or contents! See --uniqueness)
-    #[allow(clippy::mutable_key_type)]
     #[inline(always)]
     fn sort_dedup_versions(
         iter: impl Iterator<Item = PathData>,
