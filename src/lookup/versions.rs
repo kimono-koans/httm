@@ -23,7 +23,7 @@ use crate::data::paths::PathMetadata;
 use crate::data::paths::{CompareVersionsContainer, PathData};
 use crate::library::results::{HttmError, HttmResult};
 use crate::GLOBAL_CONFIG;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 use std::io::ErrorKind;
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
@@ -61,12 +61,9 @@ impl VersionsMap {
             .par_iter()
             .filter_map(|pathdata| match Versions::new(pathdata, config) {
                 Ok(versions) => Some(versions),
-                Err(_err) => {
+                Err(err) => {
                     if !is_interactive_mode {
-                        eprintln!(
-                            "WARN: Filesystem upon which the path resides is not supported: {:?}\n",
-                            pathdata.path_buf
-                        )
+                        eprintln!("WARN: {:?}\n", err)
                     }
                     None
                 }
@@ -355,10 +352,14 @@ impl<'a> RelativePathAndSnapMounts<'a> {
                 vec
             }
             ListSnapsOfType::UniqueContents | ListSnapsOfType::UniqueMetadata => {
-                let sorted_and_deduped: BTreeSet<CompareVersionsContainer> = iter
+                let mut vec: Vec<CompareVersionsContainer> = iter
                     .map(|pd| CompareVersionsContainer::new(pd, uniqueness))
                     .collect();
-                sorted_and_deduped.into_iter().map(PathData::from).collect()
+
+                vec.sort_unstable_by_key(|path| path.pathdata.md_infallible().modify_time);
+                vec.dedup_by(|a, b| a.cmp(&b) == std::cmp::Ordering::Equal);
+
+                vec.into_iter().map(PathData::from).collect()
             }
         }
     }

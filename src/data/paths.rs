@@ -407,7 +407,7 @@ pub const PHANTOM_PATH_METADATA: PathMetadata = PathMetadata {
 
 #[derive(Eq, PartialEq)]
 pub struct CompareVersionsContainer {
-    pathdata: PathData,
+    pub pathdata: PathData,
     opt_hash: Option<OnceLock<u64>>,
 }
 
