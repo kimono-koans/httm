@@ -56,10 +56,12 @@ use std::process::Command as ExecProcess;
 use std::sync::atomic::AtomicBool;
 use std::sync::LazyLock;
 
+use super::utility::get_zfs_command;
+
 const CHUNK_SIZE: usize = 65_536;
 
 static IS_CLONE_COMPATIBLE: LazyLock<AtomicBool> = LazyLock::new(|| {
-    if let Ok(zfs_command) = which::which("zfs") {
+    if let Ok(zfs_command) = get_zfs_command() {
         let Ok(process_output) = ExecProcess::new(zfs_command).arg("-V").output() else {
             return AtomicBool::new(false);
         };

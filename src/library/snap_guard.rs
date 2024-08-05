@@ -18,13 +18,13 @@
 use crate::data::paths::PathData;
 use crate::data::paths::PathDeconstruction;
 use crate::library::results::{HttmError, HttmResult};
+use crate::library::utility::get_zfs_command;
 use crate::library::utility::user_has_effective_root;
 use crate::library::utility::{date_string, DateFormat};
 use crate::{print_output_buf, GLOBAL_CONFIG};
 use std::path::Path;
 use std::process::Command as ExecProcess;
 use std::time::SystemTime;
-use which::which;
 
 pub enum PrecautionarySnapType {
     PreRollForward,
@@ -61,7 +61,7 @@ pub struct SnapGuard {
 
 impl SnapGuard {
     pub fn new(dataset_name: &str, snap_type: PrecautionarySnapType) -> HttmResult<Self> {
-        let zfs_command = which("zfs")?;
+        let zfs_command = get_zfs_command()?;
 
         let timestamp = date_string(
             GLOBAL_CONFIG.requested_utc_offset,
@@ -140,7 +140,7 @@ impl SnapGuard {
     pub fn rollback(&self) -> HttmResult<()> {
         ZfsAllowPriv::Rollback.from_fs_name(&self.dataset_name)?;
 
-        let zfs_command = which("zfs")?;
+        let zfs_command = get_zfs_command()?;
         let process_args = vec!["rollback", "-r", &self.new_snap_name];
 
         let process_output = ExecProcess::new(zfs_command).args(&process_args).output()?;
@@ -204,7 +204,7 @@ impl ZfsAllowPriv {
     }
 
     fn user_has_zfs_allow_priv(&self, fs_name: &str) -> HttmResult<()> {
-        let zfs_command = which("zfs")?;
+        let zfs_command = get_zfs_command()?;
 
         let process_args = vec!["allow", fs_name];
 

@@ -19,6 +19,7 @@ use crate::config::generate::ListSnapsFilters;
 use crate::interactive::view_mode::MultiSelect;
 use crate::interactive::view_mode::ViewMode;
 use crate::library::results::{HttmError, HttmResult};
+use crate::library::utility::get_zfs_command;
 use crate::lookup::snap_names::SnapNameMap;
 use crate::lookup::versions::VersionsMap;
 use std::process::Command as ExecProcess;
@@ -42,9 +43,7 @@ impl PruneSnaps {
     }
 
     fn prune(snap_name_map: &SnapNameMap) -> HttmResult<()> {
-        let zfs_command = which::which("zfs").map_err(|_err| {
-            HttmError::new("'zfs' command not found. Make sure the command 'zfs' is in your path.")
-        })?;
+        let zfs_command = get_zfs_command()?;
 
         snap_name_map
             .values()

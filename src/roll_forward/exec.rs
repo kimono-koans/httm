@@ -22,6 +22,7 @@ use crate::library::file_ops::Preserve;
 use crate::library::file_ops::Remove;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::snap_guard::{PrecautionarySnapType, SnapGuard};
+use crate::library::utility::get_zfs_command;
 use crate::library::utility::is_metadata_same;
 use crate::library::utility::user_has_effective_root;
 use crate::roll_forward::preserve_hard_links::PreserveHardLinks;
@@ -35,7 +36,6 @@ use crate::roll_forward::diff_events::DiffType;
 use indicatif::ProgressBar;
 use nu_ansi_term::Color::{Blue, Red};
 use rayon::prelude::*;
-use which::which;
 
 use std::fs::read_dir;
 use std::io::{BufRead, Read};
@@ -286,9 +286,7 @@ impl RollForward {
     }
 
     fn zfs_diff_cmd(&self) -> HttmResult<Child> {
-        let zfs_command = which("zfs").map_err(|_err| {
-            HttmError::new("'zfs' command not found. Make sure the command 'zfs' is in your path.")
-        })?;
+        let zfs_command = get_zfs_command()?;
 
         // -H: tab separated, -t: Specify time, -h: Normalize paths (don't use escape codes)
         let full_name = self.full_name();

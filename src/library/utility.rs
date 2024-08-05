@@ -34,6 +34,21 @@ use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
 use std::time::SystemTime;
 use time::{format_description, OffsetDateTime, UtcOffset};
+use which::which;
+
+pub fn get_zfs_command() -> HttmResult<PathBuf> {
+    which("zfs").map_err(|_err| {
+        HttmError::new("'zfs' command not found. Make sure the command 'zfs' is in your path.")
+            .into()
+    })
+}
+
+pub fn get_btrfs_command() -> HttmResult<PathBuf> {
+    which("btrfs").map_err(|_err| {
+        HttmError::new("'btrfs' command not found. Make sure the command 'btrfs' is in your path.")
+            .into()
+    })
+}
 
 pub fn user_has_effective_root(msg: &str) -> HttmResult<()> {
     if !nix::unistd::geteuid().is_root() {

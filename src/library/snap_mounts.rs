@@ -27,6 +27,8 @@ use std::collections::BTreeMap;
 use std::process::Command as ExecProcess;
 use std::time::SystemTime;
 
+use super::utility::get_zfs_command;
+
 pub struct SnapshotMounts;
 
 impl SnapshotMounts {
@@ -40,9 +42,8 @@ impl SnapshotMounts {
         mounts_for_files: &MountsForFiles,
         requested_snapshot_suffix: &str,
     ) -> HttmResult<()> {
-        let zfs_command = which::which("zfs").map_err(|_err| {
-            HttmError::new("'zfs' command not found. Make sure the command 'zfs' is in your path.")
-        })?;
+        let zfs_command = get_zfs_command()?;
+
         let map_snapshot_names = Self::snapshot_names(mounts_for_files, requested_snapshot_suffix)?;
 
         map_snapshot_names.iter().try_for_each(|(_pool_name, snapshot_names)| {

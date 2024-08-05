@@ -16,7 +16,7 @@
 // that was distributed with this source code.
 
 use crate::library::results::{HttmError, HttmResult};
-use crate::library::utility::user_has_effective_root;
+use crate::library::utility::{get_btrfs_command, user_has_effective_root};
 use crate::parse::mounts::BTRFS_ROOT_SUBVOL;
 use crate::parse::mounts::PROC_MOUNTS;
 use crate::parse::mounts::{DatasetMetadata, FilesystemType};
@@ -123,7 +123,7 @@ impl MapOfSnaps {
             return Vec::new();
         }
 
-        let Ok(btrfs_command) = which("btrfs") else {
+        let Ok(btrfs_command) = get_btrfs_command() else {
             static BTRFS_COMMAND_AVAILABLE_WARNING: Once = Once::new();
 
             BTRFS_COMMAND_AVAILABLE_WARNING.call_once(|| {
