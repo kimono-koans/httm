@@ -1,7 +1,7 @@
 [package]
 name = "httm"
 authors = ["Robert Swinford <robert.swinford <...at...> gmail.com>"]
-version = "0.40.6"
+version = "0.40.7"
 edition = "2021"
 keywords = ["zfs", "backup", "restore", "cli-utility", "snapshot"]
 description = "A CLI tool for viewing snapshot file versions on ZFS and btrfs datasets"
@@ -37,7 +37,7 @@ xattr = { version = "1.3.1", default-features = false, optional = true }
 
 [dependencies]
 ahash = { version = "0.8.11", default-features = false }
-clap = { version = "4.5.12", default-features = true, features = [
+clap = { version = "4.5.13", default-features = true, features = [
     "std",
     "cargo",
 ] }
@@ -47,7 +47,7 @@ time = { version = "0.3.36", default-features = false, features = [
     "local-offset",
 ] }
 number_prefix = { version = "0.4.0", default-features = false }
-skim = { version = "0.11.17", default-features = false, package = "two_percent" }
+skim = { version = "0.11.18", default-features = false, package = "two_percent" }
 nu-ansi-term = { version = "0.50.1", default-features = false }
 lscolors = { version = "0.18.0", default-features = false, features = [
     "nu-ansi-term",

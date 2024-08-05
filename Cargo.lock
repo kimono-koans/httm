@@ -156,18 +156,18 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "4.5.12"
+version = "4.5.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c53aa12ec67affac065e7c7dd20a42fa2a4094921b655711d5d3107bb3d52bed"
+checksum = "0fbb260a053428790f3de475e304ff84cdbc4face759ea7a3e64c1edd938a7fc"
 dependencies = [
  "clap_builder",
 ]
 
 [[package]]
 name = "clap_builder"
-version = "4.5.12"
+version = "4.5.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "efbdf2dd5fe10889e0c61942ff5d948aaf12fd0b4504408ab0cbb1916c2cffa9"
+checksum = "64b17d7ea74e9f833c7dbf2cbe4fb12ff26783eda4782a8975b72f895c9b4d99"
 dependencies = [
  "anstream",
  "anstyle",
@@ -415,9 +415,9 @@ checksum = "3f9eec918d3f24069decb9af1554cad7c880e2da24a9afd88aca000531ab82c1"
 
 [[package]]
 name = "fuzzy-muff"
-version = "0.3.23"
+version = "0.3.26"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d9b471332520d987f877cd86f529817c3c537b477199aa856e3b29012a4e37d2"
+checksum = "66606f021d67a5477e57099fd4734ee75ba75335c4099871632ce63499fd4087"
 dependencies = [
  "thread_local",
 ]
@@ -490,10 +490,10 @@ dependencies = [
 
 [[package]]
 name = "httm"
-version = "0.40.6"
+version = "0.40.7"
 dependencies = [
  "ahash 0.8.11",
- "clap 4.5.12",
+ "clap 4.5.13",
  "crossbeam-channel",
  "exacl",
  "hashbrown 0.14.5",
@@ -850,9 +850,9 @@ dependencies = [
 
 [[package]]
 name = "regex"
-version = "1.10.4"
+version = "1.10.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c117dbdfde9c8308975b6a18d71f3f385c89461f7b3fb054288ecf2a2058ba4c"
+checksum = "4219d74c6b67a3654a9fbebc4b419e22126d13d2f3c4a07ee0cb61ff79a79619"
 dependencies = [
  "aho-corasick",
  "memchr",
@@ -1110,9 +1110,9 @@ dependencies = [
 
 [[package]]
 name = "two_percent"
-version = "0.11.17"
+version = "0.11.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1d174a5d092109c10041849f487559e7dd2c9c1ce28a1846852dcdd686d2707a"
+checksum = "56b3b1243497d1fc79c22087fecb469c017afd567f0618dbfcc40e00f1b2243b"
 dependencies = [
  "ahash 0.8.11",
  "bitflags 2.6.0",
