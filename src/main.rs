@@ -69,9 +69,9 @@ mod parse {
     pub mod snaps;
 }
 mod zfs {
+    pub mod run_command;
     pub mod snap_guard;
     pub mod snap_mounts;
-    pub mod run_command;
 }
 
 use std::sync::LazyLock;

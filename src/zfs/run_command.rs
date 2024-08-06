@@ -169,15 +169,21 @@ pub enum ZfsAllowPriv {
 }
 
 impl ZfsAllowPriv {
-    pub fn from_path(&self, new_file_path: &Path) -> HttmResult<PathBuf> {
-        let pathdata = PathData::from(new_file_path);
+    pub fn from_path(&self, path: &Path) -> HttmResult<PathBuf> {
+        let pathdata = PathData::from(path);
 
-        let opt_proximate_dataset = pathdata.proximate_dataset().ok();
+        ZfsAllowPriv::from_opt_proximate_dataset(&self, &pathdata, None)
+    }
 
+    pub fn from_opt_proximate_dataset(
+        &self,
+        pathdata: &PathData,
+        opt_proximate_dataset: Option<&Path>,
+    ) -> HttmResult<PathBuf> {
         let Some(fs_name) = pathdata.source(opt_proximate_dataset) else {
             let msg = format!(
                 "Could not determine dataset name from path given: {:?}",
-                new_file_path
+                pathdata.path_buf
             );
             return Err(HttmError::new(&msg).into());
         };
