@@ -77,11 +77,18 @@ impl SelectionCandidate {
                 .expect("requested_dir should never be None in Interactive Browse mode")
         });
 
+        static REQUESTED_DIR_PARENT: LazyLock<Option<&Path>> = LazyLock::new(|| {
+            GLOBAL_CONFIG
+                .opt_requested_dir
+                .as_ref()
+                .and_then(|path| path.parent())
+        });
+
         // this only works because we do not resolve symlinks when doing traversal
         match self.path.strip_prefix(*REQUESTED_DIR) {
             Ok(_) if self.path.as_path() == *REQUESTED_DIR => Cow::Borrowed("."),
             Ok(stripped) => stripped.to_string_lossy(),
-            Err(_) if Some(self.path.as_path()) == REQUESTED_DIR.parent() => Cow::Borrowed(".."),
+            Err(_) if Some(self.path.as_path()) == *REQUESTED_DIR_PARENT => Cow::Borrowed(".."),
             Err(_) => self.path.to_string_lossy(),
         }
     }
