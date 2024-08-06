@@ -25,8 +25,8 @@ use crate::library::utility::is_metadata_same;
 use crate::library::utility::user_has_effective_root;
 use crate::roll_forward::preserve_hard_links::PreserveHardLinks;
 use crate::roll_forward::preserve_hard_links::SpawnPreserveLinks;
-use crate::zfs::snap_guard::{PrecautionarySnapType, SnapGuard};
 use crate::zfs::run_command::RunZFSCommand;
+use crate::zfs::snap_guard::{PrecautionarySnapType, SnapGuard};
 use crate::{GLOBAL_CONFIG, ZFS_SNAPSHOT_DIRECTORY};
 
 use crate::library::iter_extensions::HttmIter;

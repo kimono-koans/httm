@@ -34,14 +34,8 @@ impl SnapshotMounts {
     pub fn exec(requested_snapshot_suffix: &str) -> HttmResult<()> {
         let mounts_for_files: MountsForFiles = MountsForFiles::new(&MountDisplay::Target)?;
 
-        Self::snapshot_mounts(&mounts_for_files, requested_snapshot_suffix)
-    }
-
-    fn snapshot_mounts(
-        mounts_for_files: &MountsForFiles,
-        requested_snapshot_suffix: &str,
-    ) -> HttmResult<()> {
-        let map_snapshot_names = Self::snapshot_names(mounts_for_files, requested_snapshot_suffix)?;
+        let map_snapshot_names =
+            Self::snapshot_names(&mounts_for_files, requested_snapshot_suffix)?;
 
         map_snapshot_names.values().try_for_each(|snapshot_names| {
             let run_zfs = RunZFSCommand::new()?;
