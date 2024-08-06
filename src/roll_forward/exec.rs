@@ -81,6 +81,8 @@ impl RollForward {
     }
 
     pub fn exec(&self) -> HttmResult<()> {
+        // ZFS allow is not sufficient so a ZFSAllowPriv guard isn't here either
+        // we need root, so we do a raw SnapGuard after checking that we have root
         user_has_effective_root("Roll forward to a snapshot.")?;
 
         let snap_guard: SnapGuard =
