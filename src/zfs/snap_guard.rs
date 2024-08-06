@@ -35,9 +35,12 @@ impl TryFrom<&Path> for SnapGuard {
 
     fn try_from(path: &Path) -> HttmResult<Self> {
         // guards the ZFS action, returns source dataset
-        let source = ZfsAllowPriv::Snapshot.from_path(&path)?;
+        let allowed_source = ZfsAllowPriv::Snapshot.from_path(&path)?;
 
-        SnapGuard::new(&source.to_string_lossy(), PrecautionarySnapType::PreRestore)
+        SnapGuard::new(
+            &allowed_source.to_string_lossy(),
+            PrecautionarySnapType::PreRestore,
+        )
     }
 }
 
