@@ -20,6 +20,7 @@ use crate::data::paths::PathDeconstruction;
 use crate::library::results::HttmError;
 use crate::library::results::HttmResult;
 use crate::library::utility::user_has_effective_root;
+use crate::parse::mounts::FilesystemType;
 use crate::roll_forward::exec::RollForward;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command as ExecProcess, Stdio};
@@ -168,10 +169,12 @@ pub enum ZfsAllowPriv {
 }
 
 impl ZfsAllowPriv {
-    pub fn from_path(&self, new_file_path: &Path) -> HttmResult<()> {
+    pub fn from_path(&self, new_file_path: &Path) -> HttmResult<PathBuf> {
         let pathdata = PathData::from(new_file_path);
 
-        let Some(fs_name) = pathdata.source(None) else {
+        let opt_proximate_dataset = pathdata.proximate_dataset().ok();
+
+        let Some(fs_name) = pathdata.source(opt_proximate_dataset) else {
             let msg = format!(
                 "Could not determine dataset name from path given: {:?}",
                 new_file_path
@@ -179,7 +182,20 @@ impl ZfsAllowPriv {
             return Err(HttmError::new(&msg).into());
         };
 
-        Self::from_fs_name(&self, &fs_name.to_string_lossy())
+        match pathdata.fs_type(opt_proximate_dataset) {
+            Some(FilesystemType::Zfs) => {}
+            _ => {
+                let msg = format!(
+                    "httm only supports snapshot guards for ZFS paths.  Path is not located on a ZFS dataset: {:?}",
+                    pathdata.path_buf
+                );
+                return Err(HttmError::new(&msg).into());
+            }
+        }
+
+        Self::from_fs_name(&self, &fs_name.to_string_lossy())?;
+
+        Ok(fs_name)
     }
 
     pub fn from_fs_name(&self, fs_name: &str) -> HttmResult<()> {

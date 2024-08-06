@@ -15,11 +15,8 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::data::paths::PathData;
-use crate::data::paths::PathDeconstruction;
-use crate::library::results::{HttmError, HttmResult};
+use crate::library::results::HttmResult;
 use crate::library::utility::{date_string, DateFormat};
-use crate::parse::mounts::FilesystemType;
 use crate::zfs::run_command::ZfsAllowPriv;
 use crate::{print_output_buf, GLOBAL_CONFIG};
 use std::path::Path;
@@ -37,39 +34,10 @@ impl TryFrom<&Path> for SnapGuard {
     type Error = Box<dyn std::error::Error + Send + Sync>;
 
     fn try_from(path: &Path) -> HttmResult<Self> {
-        // guards the ZFS action
-        ZfsAllowPriv::Snapshot.from_path(&path)?;
+        // guards the ZFS action, returns source dataset
+        let source = ZfsAllowPriv::Snapshot.from_path(&path)?;
 
-        let pathdata = PathData::from(path);
-
-        let proximate_dataset_mount = pathdata.proximate_dataset()?;
-
-        let dataset_name = match pathdata.source(Some(proximate_dataset_mount)) {
-            Some(source) => source,
-            None => {
-                let msg = format!(
-                    "Could not obtain source dataset for path: {:?}",
-                    pathdata.path_buf
-                );
-                return Err(HttmError::new(&msg).into());
-            }
-        };
-
-        match pathdata.fs_type(Some(proximate_dataset_mount)) {
-            Some(FilesystemType::Zfs) => {}
-            _ => {
-                let msg = format!(
-                    "Only ZFS paths support snapshot guards.  Path is not on a ZFS dataset: {:?}",
-                    pathdata.path_buf
-                );
-                return Err(HttmError::new(&msg).into());
-            }
-        }
-
-        SnapGuard::new(
-            &dataset_name.to_string_lossy(),
-            PrecautionarySnapType::PreRestore,
-        )
+        SnapGuard::new(&source.to_string_lossy(), PrecautionarySnapType::PreRestore)
     }
 }
 
