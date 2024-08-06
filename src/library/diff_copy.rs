@@ -47,6 +47,7 @@ use crate::config::generate::ListSnapsOfType;
 use crate::data::paths::{CompareVersionsContainer, PathData};
 use crate::library::results::HttmError;
 use crate::library::results::HttmResult;
+use crate::zfs::run_command::RunZFSCommand;
 use crate::GLOBAL_CONFIG;
 use std::fs::{File, OpenOptions};
 use std::io::{BufRead, BufReader, BufWriter, ErrorKind, Seek, SeekFrom, Write};
@@ -56,13 +57,11 @@ use std::process::Command as ExecProcess;
 use std::sync::atomic::AtomicBool;
 use std::sync::LazyLock;
 
-use super::utility::get_zfs_command;
-
 const CHUNK_SIZE: usize = 65_536;
 
 static IS_CLONE_COMPATIBLE: LazyLock<AtomicBool> = LazyLock::new(|| {
-    if let Ok(zfs_command) = get_zfs_command() {
-        let Ok(process_output) = ExecProcess::new(zfs_command).arg("-V").output() else {
+    if let Ok(run_zfs) = RunZFSCommand::new() {
+        let Ok(process_output) = ExecProcess::new(&run_zfs.zfs_command).arg("-V").output() else {
             return AtomicBool::new(false);
         };
 

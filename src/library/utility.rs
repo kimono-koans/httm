@@ -45,13 +45,6 @@ pub fn get_mount_command() -> HttmResult<PathBuf> {
     })
 }
 
-pub fn get_zfs_command() -> HttmResult<PathBuf> {
-    which("zfs").map_err(|_err| {
-        HttmError::new("'zfs' command not found. Make sure the command 'zfs' is in your path.")
-            .into()
-    })
-}
-
 pub fn get_btrfs_command() -> HttmResult<PathBuf> {
     which("btrfs").map_err(|_err| {
         HttmError::new("'btrfs' command not found. Make sure the command 'btrfs' is in your path.")

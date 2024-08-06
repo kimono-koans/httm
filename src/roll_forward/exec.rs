@@ -21,12 +21,12 @@ use crate::library::file_ops::Copy;
 use crate::library::file_ops::Preserve;
 use crate::library::file_ops::Remove;
 use crate::library::results::{HttmError, HttmResult};
-use crate::library::snap_guard::{PrecautionarySnapType, SnapGuard};
-use crate::library::utility::get_zfs_command;
 use crate::library::utility::is_metadata_same;
 use crate::library::utility::user_has_effective_root;
 use crate::roll_forward::preserve_hard_links::PreserveHardLinks;
 use crate::roll_forward::preserve_hard_links::SpawnPreserveLinks;
+use crate::zfs::snap_guard::{PrecautionarySnapType, SnapGuard};
+use crate::zfs::run_command::RunZFSCommand;
 use crate::{GLOBAL_CONFIG, ZFS_SNAPSHOT_DIRECTORY};
 
 use crate::library::iter_extensions::HttmIter;
@@ -40,7 +40,7 @@ use rayon::prelude::*;
 use std::fs::read_dir;
 use std::io::{BufRead, Read};
 use std::path::{Path, PathBuf};
-use std::process::{Child, ChildStderr, ChildStdout, Command as ExecProcess, Stdio};
+use std::process::{ChildStderr, ChildStdout};
 
 pub struct RollForward {
     dataset: String,
@@ -76,7 +76,7 @@ impl RollForward {
         })
     }
 
-    fn full_name(&self) -> String {
+    pub fn full_name(&self) -> String {
         format!("{}@{}", self.dataset, self.snap)
     }
 
@@ -128,7 +128,9 @@ impl RollForward {
 
         let (snap_handle, live_handle) = (spawn_res.snap_handle, spawn_res.live_handle);
 
-        let mut process_handle = self.zfs_diff_cmd()?;
+        let run_zfs = RunZFSCommand::new()?;
+
+        let mut process_handle = run_zfs.diff(&self)?;
 
         let opt_stderr = process_handle.stderr.take();
         let mut opt_stdout = process_handle.stdout.take();
@@ -283,22 +285,6 @@ impl RollForward {
                     .into_iter()
                     .collect()
             })
-    }
-
-    fn zfs_diff_cmd(&self) -> HttmResult<Child> {
-        let zfs_command = get_zfs_command()?;
-
-        // -H: tab separated, -t: Specify time, -h: Normalize paths (don't use escape codes)
-        let full_name = self.full_name();
-        let process_args = vec!["diff", "-H", "-t", "-h", &full_name];
-
-        let process_handle = ExecProcess::new(zfs_command)
-            .args(&process_args)
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()?;
-
-        Ok(process_handle)
     }
 
     fn ingest(

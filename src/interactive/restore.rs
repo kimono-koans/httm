@@ -24,8 +24,8 @@ use crate::interactive::view_mode::MultiSelect;
 use crate::interactive::view_mode::ViewMode;
 use crate::library::file_ops::Copy;
 use crate::library::results::{HttmError, HttmResult};
-use crate::library::snap_guard::SnapGuard;
 use crate::library::utility::{date_string, DateFormat};
+use crate::zfs::snap_guard::SnapGuard;
 use crate::GLOBAL_CONFIG;
 
 use nu_ansi_term::Color::LightYellow;

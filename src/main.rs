@@ -54,8 +54,6 @@ mod library {
     pub mod file_ops;
     pub mod iter_extensions;
     pub mod results;
-    pub mod snap_guard;
-    pub mod snap_mounts;
     pub mod utility;
 }
 mod lookup {
@@ -70,6 +68,11 @@ mod parse {
     pub mod mounts;
     pub mod snaps;
 }
+mod zfs {
+    pub mod snap_guard;
+    pub mod snap_mounts;
+    pub mod run_command;
+}
 
 use std::sync::LazyLock;
 
@@ -83,12 +86,12 @@ use display_versions::wrapper::VersionsDisplayWrapper;
 use interactive::prune::PruneSnaps;
 use interactive::restore::InteractiveRestore;
 use library::results::HttmResult;
-use library::snap_mounts::SnapshotMounts;
 use library::utility::print_output_buf;
 use lookup::file_mounts::MountsForFiles;
 use lookup::snap_names::SnapNameMap;
 use lookup::versions::VersionsMap;
 use roll_forward::exec::RollForward;
+use zfs::snap_mounts::SnapshotMounts;
 
 pub const ZFS_HIDDEN_DIRECTORY: &str = ".zfs";
 pub const ZFS_SNAPSHOT_DIRECTORY: &str = ".zfs/snapshot";

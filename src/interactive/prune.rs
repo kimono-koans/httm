@@ -19,10 +19,9 @@ use crate::config::generate::ListSnapsFilters;
 use crate::interactive::view_mode::MultiSelect;
 use crate::interactive::view_mode::ViewMode;
 use crate::library::results::{HttmError, HttmResult};
-use crate::library::utility::get_zfs_command;
 use crate::lookup::snap_names::SnapNameMap;
 use crate::lookup::versions::VersionsMap;
-use std::process::Command as ExecProcess;
+use crate::zfs::run_command::RunZFSCommand;
 
 pub struct PruneSnaps;
 
@@ -43,34 +42,10 @@ impl PruneSnaps {
     }
 
     fn prune(snap_name_map: &SnapNameMap) -> HttmResult<()> {
-        let zfs_command = get_zfs_command()?;
+        let snapshot_names: Vec<String> = snap_name_map.values().flatten().cloned().collect();
 
-        snap_name_map
-            .values()
-            .flatten()
-            .try_for_each(|snapshot_name| {
-                let process_args = vec!["destroy".to_owned(), snapshot_name.clone()];
-
-                let process_output = ExecProcess::new(&zfs_command)
-                    .args(&process_args)
-                    .output()?;
-                let stderr_string = std::str::from_utf8(&process_output.stderr)?.trim();
-
-                // stderr_string is a string not an error, so here we build an err or output
-                if !stderr_string.is_empty() {
-                    let msg = if stderr_string.contains("cannot destroy snapshots: permission denied") {
-                        "httm must have root privileges to destroy a snapshot filesystem".to_owned()
-                    } else {
-                        "httm was unable to destroy snapshots. The 'zfs' command issued the following error: "
-                        .to_owned()
-                        + stderr_string
-                    };
-
-                    Err(HttmError::new(&msg).into())
-            } else {
-                Ok(())
-            }
-      })
+        let run_zfs = RunZFSCommand::new()?;
+        run_zfs.prune(&snapshot_names)
     }
 }
 

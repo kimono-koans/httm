@@ -24,10 +24,9 @@ use crate::lookup::file_mounts::MountsForFiles;
 use crate::parse::mounts::FilesystemType;
 use crate::GLOBAL_CONFIG;
 use std::collections::BTreeMap;
-use std::process::Command as ExecProcess;
 use std::time::SystemTime;
 
-use super::utility::get_zfs_command;
+use super::run_command::RunZFSCommand;
 
 pub struct SnapshotMounts;
 
@@ -42,34 +41,15 @@ impl SnapshotMounts {
         mounts_for_files: &MountsForFiles,
         requested_snapshot_suffix: &str,
     ) -> HttmResult<()> {
-        let zfs_command = get_zfs_command()?;
-
         let map_snapshot_names = Self::snapshot_names(mounts_for_files, requested_snapshot_suffix)?;
 
-        map_snapshot_names.iter().try_for_each(|(_pool_name, snapshot_names)| {
-            let mut process_args = vec!["snapshot".to_owned()];
-            process_args.extend_from_slice(snapshot_names);
+        map_snapshot_names.values().try_for_each(|snapshot_names| {
+            let run_zfs = RunZFSCommand::new()?;
+            run_zfs.snapshot(snapshot_names)?;
 
-            let process_output = ExecProcess::new(&zfs_command)
-            .args(&process_args)
-            .output()?;
-            let stderr_string = std::str::from_utf8(&process_output.stderr)?.trim();
-
-            // stderr_string is a string not an error, so here we build an err or output
-            if !stderr_string.is_empty() {
-                let msg = if stderr_string.contains("cannot create snapshots : permission denied") {
-                    "httm must have root privileges to snapshot a filesystem".to_owned()
-                } else {
-                    "httm was unable to take snapshots. The 'zfs' command issued the following error: "
-                    .to_owned()
-                    + stderr_string
-                };
-
-                Err(HttmError::new(&msg).into())
-            } else {
-                let output_buf: String = snapshot_names
-                    .iter()
-                    .map(|snap_name| {
+            let output_buf: String = snapshot_names
+                .iter()
+                .map(|snap_name| {
                     if matches!(
                         GLOBAL_CONFIG.print_mode,
                         PrintMode::RawNewline | PrintMode::RawZero
@@ -79,13 +59,30 @@ impl SnapshotMounts {
                     } else {
                         format!("httm took a snapshot named: {}\n", &snap_name)
                     }
-                    })
-                    .collect();
-                print_output_buf(&output_buf)
-            }
+                })
+                .collect();
+
+            print_output_buf(&output_buf)
         })?;
 
         Ok(())
+    }
+
+    pub fn pool_from_snap_name(snapshot_name: &str) -> HttmResult<String> {
+        // split on "/" why?  because a snap looks like: rpool/kimono@snap...
+        // splits according to pool name, then the rest of the snap name
+        match snapshot_name.split_once('@') {
+            Some((dataset_name, _snap_name)) => match dataset_name.split_once('/') {
+                Some((pool_name, _the_rest)) => Ok(pool_name.into()),
+                None => Ok(dataset_name.into()),
+            },
+            None => {
+                let msg = format!(
+                    "Could not determine pool name from the constructed snapshot name: {snapshot_name}"
+                );
+                Err(HttmError::new(&msg).into())
+            }
+        }
     }
 
     fn snapshot_names(
@@ -171,22 +168,5 @@ impl SnapshotMounts {
         }
 
         Ok(map_snapshot_names)
-    }
-
-    fn pool_from_snap_name(snapshot_name: &str) -> HttmResult<String> {
-        // split on "/" why?  because a snap looks like: rpool/kimono@snap...
-        // splits according to pool name, then the rest of the snap name
-        match snapshot_name.split_once('@') {
-            Some((dataset_name, _snap_name)) => match dataset_name.split_once('/') {
-                Some((pool_name, _the_rest)) => Ok(pool_name.into()),
-                None => Ok(dataset_name.into()),
-            },
-            None => {
-                let msg = format!(
-                    "Could not determine pool name from the constructed snapshot name: {snapshot_name}"
-                );
-                Err(HttmError::new(&msg).into())
-            }
-        }
     }
 }
