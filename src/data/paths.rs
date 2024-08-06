@@ -63,6 +63,7 @@ pub trait PathDeconstruction<'a> {
     fn alias(&self) -> Option<AliasedPath>;
     fn target(&self, proximate_dataset_mount: &Path) -> Option<PathBuf>;
     fn source(&self, opt_proximate_dataset_mount: Option<&'a Path>) -> Option<PathBuf>;
+    fn fs_type(&self, opt_proximate_dataset_mount: Option<&'a Path>) -> Option<FilesystemType>;
     fn relative_path(&'a self, proximate_dataset_mount: &'a Path) -> HttmResult<&'a Path>;
     fn proximate_dataset(&'a self) -> HttmResult<&'a Path>;
     fn live_path(&self) -> Option<PathBuf>;
@@ -203,6 +204,17 @@ impl<'a> PathDeconstruction<'a> for PathData {
                 HttmError::new(&msg).into()
             })
     }
+
+    fn fs_type(&self, opt_proximate_dataset_mount: Option<&'a Path>) -> Option<FilesystemType> {
+        let proximate_dataset =
+            opt_proximate_dataset_mount.map_or_else(|| self.proximate_dataset().ok(), Some)?;
+
+        GLOBAL_CONFIG
+            .dataset_collection
+            .map_of_datasets
+            .get(proximate_dataset)
+            .map(|md| md.fs_type.clone())
+    }
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
@@ -323,6 +335,10 @@ impl<'a> PathDeconstruction<'a> for ZfsSnapPathGuard<'_> {
 
     fn proximate_dataset(&'a self) -> HttmResult<&'a Path> {
         self.inner.proximate_dataset()
+    }
+
+    fn fs_type(&self, _opt_proximate_dataset_mount: Option<&'a Path>) -> Option<FilesystemType> {
+        Some(FilesystemType::Zfs)
     }
 }
 
