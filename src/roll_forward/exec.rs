@@ -109,8 +109,9 @@ impl RollForward {
         SnapGuard::new(
             &self.dataset,
             PrecautionarySnapType::PostRollForward(self.snap.to_owned()),
-        )
-        .map(|_res| ())
+        )?;
+
+        Ok(())
     }
 
     fn zfs_diff_std_err(opt_stderr: Option<ChildStderr>) -> HttmResult<String> {
