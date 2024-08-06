@@ -36,6 +36,15 @@ use std::time::SystemTime;
 use time::{format_description, OffsetDateTime, UtcOffset};
 use which::which;
 
+pub fn get_mount_command() -> HttmResult<PathBuf> {
+    which("mount").map_err(|_err| {
+        HttmError::new(
+            "'mount' command not be found. Make sure the command 'mount' is in your path.",
+        )
+        .into()
+    })
+}
+
 pub fn get_zfs_command() -> HttmResult<PathBuf> {
     which("zfs").map_err(|_err| {
         HttmError::new("'zfs' command not found. Make sure the command 'zfs' is in your path.")

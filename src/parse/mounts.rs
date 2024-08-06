@@ -16,7 +16,7 @@
 // that was distributed with this source code.
 
 use crate::library::results::{HttmError, HttmResult};
-use crate::library::utility::{find_common_path, fs_type_from_hidden_dir};
+use crate::library::utility::{find_common_path, fs_type_from_hidden_dir, get_mount_command};
 use crate::parse::snaps::MapOfSnaps;
 use crate::{
     NILFS2_SNAPSHOT_ID_KEY, RESTIC_LATEST_SNAPSHOT_DIRECTORY, ROOT_DIRECTORY, TM_DIR_LOCAL,
@@ -34,7 +34,6 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command as ExecProcess;
 use std::sync::LazyLock;
-use which::which;
 
 pub const ZFS_FSTYPE: &str = "zfs";
 pub const NILFS2_FSTYPE: &str = "nilfs2";
@@ -283,11 +282,7 @@ impl BaseFilesystemInfo {
     ) -> HttmResult<(HashMap<PathBuf, DatasetMetadata>, HashSet<PathBuf>)> {
         // do we have the necessary commands for search if user has not defined a snap point?
         // if so run the mount search, if not print some errors
-        let mount_command = which("mount").map_err(|_err| {
-            HttmError::new(
-                "'mount' command not be found. Make sure the command 'mount' is in your path.",
-            )
-        })?;
+        let mount_command = get_mount_command()?;
 
         let command_output = &ExecProcess::new(mount_command).output()?;
 
