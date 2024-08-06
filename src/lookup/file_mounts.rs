@@ -21,7 +21,6 @@ use crate::library::results::{HttmError, HttmResult};
 use crate::lookup::versions::ProximateDatasetAndOptAlts;
 use crate::ExecMode;
 use crate::GLOBAL_CONFIG;
-use hashbrown::HashSet;
 use rayon::prelude::*;
 use std::ops::Deref;
 use std::path::PathBuf;
@@ -51,12 +50,12 @@ impl MountDisplay {
 
 #[derive(Debug)]
 pub struct MountsForFiles<'a> {
-    inner: HashSet<ProximateDatasetAndOptAlts<'a>>,
+    inner: Vec<ProximateDatasetAndOptAlts<'a>>,
     mount_display: &'a MountDisplay,
 }
 
 impl<'a> Deref for MountsForFiles<'a> {
-    type Target = HashSet<ProximateDatasetAndOptAlts<'a>>;
+    type Target = Vec<ProximateDatasetAndOptAlts<'a>>;
 
     fn deref(&self) -> &Self::Target {
         &self.inner
@@ -73,7 +72,7 @@ impl<'a> MountsForFiles<'a> {
 
         // we only check for phantom files in "mount for file" mode because
         // people should be able to search for deleted files in other modes
-        let set: HashSet<ProximateDatasetAndOptAlts> = GLOBAL_CONFIG
+        let set: Vec<ProximateDatasetAndOptAlts> = GLOBAL_CONFIG
             .paths
             .par_iter()
             .filter_map(|pd| match ProximateDatasetAndOptAlts::new(pd) {
