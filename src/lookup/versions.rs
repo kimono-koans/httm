@@ -63,7 +63,7 @@ impl VersionsMap {
                 Ok(versions) => Some(versions),
                 Err(err) => {
                     if !is_interactive_mode {
-                        eprintln!("WARN: {:?}\n", err)
+                        eprintln!("WARN: {}", err.to_string())
                     }
                     None
                 }
