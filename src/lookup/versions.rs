@@ -15,6 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
+use hashbrown::HashSet;
 use rayon::prelude::*;
 
 use crate::config::generate::{Config, ExecMode, LastSnapMode, ListSnapsOfType};
@@ -22,11 +23,17 @@ use crate::data::paths::PathDeconstruction;
 use crate::data::paths::PathMetadata;
 use crate::data::paths::{CompareVersionsContainer, PathData};
 use crate::library::results::{HttmError, HttmResult};
+use crate::parse::mounts::LinkType;
 use crate::GLOBAL_CONFIG;
 use std::collections::BTreeMap;
+use std::fs::read_dir;
 use std::io::ErrorKind;
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
+use std::sync::{LazyLock, RwLock};
+
+static CACHE_RESULT: LazyLock<RwLock<HashSet<PathBuf>>> =
+    LazyLock::new(|| RwLock::new(HashSet::new()));
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VersionsMap {
@@ -269,11 +276,12 @@ impl<'a> ProximateDatasetAndOptAlts<'a> {
 pub struct RelativePathAndSnapMounts<'a> {
     pub relative_path: &'a Path,
     pub snap_mounts: &'a [PathBuf],
+    pub dataset_of_interest: &'a Path,
 }
 
 impl<'a> RelativePathAndSnapMounts<'a> {
     #[inline(always)]
-    fn new(relative_path: &'a Path, dataset_of_interest: &Path) -> Option<Self> {
+    fn new(relative_path: &'a Path, dataset_of_interest: &'a Path) -> Option<Self> {
         // building our relative path by removing parent below the snap dir
         //
         // for native searches the prefix is are the dirs below the most proximate dataset
@@ -285,6 +293,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
             .map(|snap_mounts| Self {
                 relative_path,
                 snap_mounts,
+                dataset_of_interest,
             })
     }
     #[inline(always)]
@@ -299,14 +308,55 @@ impl<'a> RelativePathAndSnapMounts<'a> {
 
         sorted_versions.pop()
     }
+
+    #[inline(always)]
+    fn auto_mount_network_volumes(&self) {
+        if GLOBAL_CONFIG
+            .dataset_collection
+            .map_of_datasets
+            .get(self.dataset_of_interest)
+            .map(|md| matches!(md.link_type, LinkType::Local))
+            .unwrap_or_else(|| true)
+        {
+            return;
+        }
+
+        if CACHE_RESULT
+            .read()
+            .ok()
+            .map(|cached_result| cached_result.get(self.dataset_of_interest).is_none())
+            .unwrap_or_else(|| false)
+        {
+            if let Ok(mut cached_result) = CACHE_RESULT.write() {
+                cached_result.insert_unique_unchecked(self.dataset_of_interest.to_path_buf());
+            }
+
+            GLOBAL_CONFIG
+                .dataset_collection
+                .map_of_snaps
+                .get(self.dataset_of_interest)
+                .into_iter()
+                .flatten()
+                .for_each(|snap_path| {
+                    let _ = read_dir(snap_path).into_iter().flatten().flatten().next();
+                })
+        }
+    }
+
     #[inline(always)]
     fn versions_unprocessed(&'a self) -> impl Iterator<Item = PathData> + 'a {
         // get the DirEntry for our snapshot path which will have all our possible
         // snapshots, like so: .zfs/snapshots/<some snap name>/
+
+        // opendir and readdir iter on the snap path are necessary to mount snapshots over SMB
+        self.auto_mount_network_volumes();
+
         self
             .snap_mounts
             .iter()
-            .map(|path| path.join(self.relative_path))
+            .map(move |snap_path| {
+                snap_path.join(self.relative_path)
+            })
             .filter_map(|joined_path| {
                 match joined_path.symlink_metadata() {
                     Ok(md) => {

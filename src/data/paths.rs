@@ -172,7 +172,7 @@ impl<'a> PathDeconstruction<'a> for PathData {
     }
 
     fn source(&self, opt_proximate_dataset_mount: Option<&'a Path>) -> Option<PathBuf> {
-        let mount =
+        let mount: &Path =
             opt_proximate_dataset_mount.map_or_else(|| self.proximate_dataset().ok(), Some)?;
 
         GLOBAL_CONFIG

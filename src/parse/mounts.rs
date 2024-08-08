@@ -13,7 +13,7 @@
 // Copyright (c) 2023, Robert Swinford <robert.swinford<...at...>gmail.com>
 //
 // For the full copyright and license information, please view the LICENSE file
-// that was distributed with this source code.
+// that was distributed wth this source code.
 
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{find_common_path, fs_type_from_hidden_dir, get_mount_command};
@@ -44,6 +44,12 @@ pub const AFP_FSTYPE: &str = "afpfs";
 pub const RESTIC_FSTYPE: &str = "restic";
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum LinkType {
+    Local,
+    Network,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum FilesystemType {
     Zfs,
     Btrfs(Option<PathBuf>),
@@ -56,6 +62,7 @@ pub enum FilesystemType {
 pub struct DatasetMetadata {
     pub source: PathBuf,
     pub fs_type: FilesystemType,
+    pub link_type: LinkType,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -199,6 +206,7 @@ impl BaseFilesystemInfo {
                         DatasetMetadata {
                             source: PathBuf::from(mount_info.source),
                             fs_type: FilesystemType::Zfs,
+                            link_type: LinkType::Local,
                         },
                     )),
                     SMB_FSTYPE | AFP_FSTYPE | NFS_FSTYPE => {
@@ -208,6 +216,7 @@ impl BaseFilesystemInfo {
                                 DatasetMetadata {
                                     source: PathBuf::from(mount_info.source),
                                     fs_type: FilesystemType::Zfs,
+                                    link_type: LinkType::Network,
                                 },
                             )),
                             Some(FilesystemType::Btrfs(None)) => Either::Left((
@@ -215,6 +224,7 @@ impl BaseFilesystemInfo {
                                 DatasetMetadata {
                                     source: PathBuf::from(mount_info.source),
                                     fs_type: FilesystemType::Btrfs(None),
+                                    link_type: LinkType::Network,
                                 },
                             )),
                             _ => Either::Right(dest_path),
@@ -240,6 +250,7 @@ impl BaseFilesystemInfo {
                             DatasetMetadata {
                                 source: mount_info.source,
                                 fs_type: FilesystemType::Btrfs(opt_subvol),
+                                link_type: LinkType::Local,
                             },
                         ))
                     }
@@ -248,6 +259,7 @@ impl BaseFilesystemInfo {
                         DatasetMetadata {
                             source: PathBuf::from(mount_info.source),
                             fs_type: FilesystemType::Nilfs2,
+                            link_type: LinkType::Local,
                         },
                     )),
                     _ if mount_info.source.to_string_lossy().contains(RESTIC_FSTYPE) => {
@@ -266,6 +278,7 @@ impl BaseFilesystemInfo {
                             DatasetMetadata {
                                 source: mount_info.source,
                                 fs_type: FilesystemType::Restic(None),
+                                link_type: LinkType::Local,
                             },
                         ))
                     }
@@ -309,55 +322,70 @@ impl BaseFilesystemInfo {
                     // GNU Linux mount output
                     if rest.contains("type") {
                         let opt_mount = rest.split_once(" type");
-                        opt_mount.map(|mount| (filesystem, mount.0))
+                        opt_mount.map(|the_rest| (filesystem, the_rest.0, the_rest.1))
                     // Busybox and BSD mount output
                     } else if rest.contains(" (") {
                         let opt_mount = rest.split_once(" (");
-                        opt_mount.map(|mount| (filesystem, mount.0))
+                        opt_mount.map(|the_rest| (filesystem, the_rest.0, the_rest.1))
                     } else {
                         None
                     }
                 })
-                .map(|(filesystem, mount)| (PathBuf::from(filesystem), PathBuf::from(mount)))
+                .map(|(filesystem, mount, the_rest)| {
+                    let link_type = if the_rest.contains(SMB_FSTYPE)
+                        || the_rest.contains(AFP_FSTYPE)
+                        || the_rest.contains(NFS_FSTYPE)
+                    {
+                        LinkType::Network
+                    } else {
+                        LinkType::Local
+                    };
+
+                    (PathBuf::from(filesystem), PathBuf::from(mount), link_type)
+                })
                 // sanity check: does the filesystem exist and have a ZFS hidden dir? if not, filter it out
                 // and flip around, mount should key of key/value
-                .partition_map(|(source, mount)| match fs_type_from_hidden_dir(&mount) {
-                    Some(FilesystemType::Zfs) => Either::Left((
-                        mount,
-                        DatasetMetadata {
-                            source,
-                            fs_type: FilesystemType::Zfs,
-                        },
-                    )),
-                    Some(FilesystemType::Btrfs(_)) => Either::Left((
-                        mount,
-                        DatasetMetadata {
-                            source,
-                            fs_type: FilesystemType::Btrfs(None),
-                        },
-                    )),
-                    _ if source.to_string_lossy().contains(RESTIC_FSTYPE) => {
-                        let base_path = if let Some(FilesystemType::Restic(_)) = opt_alt_store {
-                            mount
-                        } else {
-                            mount.join(RESTIC_LATEST_SNAPSHOT_DIRECTORY)
-                        };
-
-                        let canonical_path: PathBuf =
-                            realpath(&base_path, RealpathFlags::ALLOW_MISSING)
-                                .unwrap_or_else(|_| base_path.to_path_buf());
-
-                        Either::Left((
-                            canonical_path,
+                .partition_map(
+                    |(source, mount, link_type)| match fs_type_from_hidden_dir(&mount) {
+                        Some(FilesystemType::Zfs) => Either::Left((
+                            mount,
                             DatasetMetadata {
                                 source,
-                                fs_type: FilesystemType::Restic(None),
+                                fs_type: FilesystemType::Zfs,
+                                link_type,
                             },
-                        ))
-                    }
+                        )),
+                        Some(FilesystemType::Btrfs(_)) => Either::Left((
+                            mount,
+                            DatasetMetadata {
+                                source,
+                                fs_type: FilesystemType::Btrfs(None),
+                                link_type,
+                            },
+                        )),
+                        _ if source.to_string_lossy().contains(RESTIC_FSTYPE) => {
+                            let base_path = if let Some(FilesystemType::Restic(_)) = opt_alt_store {
+                                mount
+                            } else {
+                                mount.join(RESTIC_LATEST_SNAPSHOT_DIRECTORY)
+                            };
 
-                    _ => Either::Right(mount),
-                });
+                            let canonical_path: PathBuf =
+                                realpath(&base_path, RealpathFlags::ALLOW_MISSING)
+                                    .unwrap_or_else(|_| base_path.to_path_buf());
+
+                            Either::Left((
+                                canonical_path,
+                                DatasetMetadata {
+                                    source,
+                                    fs_type: FilesystemType::Restic(None),
+                                    link_type,
+                                },
+                            ))
+                        }
+                        _ => Either::Right(mount),
+                    },
+                );
 
         Ok((map_of_datasets, filter_dirs))
     }
@@ -382,6 +410,7 @@ impl BaseFilesystemInfo {
                 DatasetMetadata {
                     source: PathBuf::from(RESTIC_FSTYPE),
                     fs_type: FilesystemType::Restic(Some(repos.clone())),
+                    link_type: LinkType::Local,
                 }
             }
             FilesystemType::Apfs => {
@@ -402,6 +431,7 @@ impl BaseFilesystemInfo {
                 DatasetMetadata {
                     source: PathBuf::from("timemachine"),
                     fs_type: FilesystemType::Apfs,
+                    link_type: LinkType::Local,
                 }
             }
             _ => {
