@@ -21,8 +21,8 @@ use crate::parse::snaps::MapOfSnaps;
 use crate::BTRFS_SNAPPER_HIDDEN_DIRECTORY;
 use crate::ZFS_SNAPSHOT_DIRECTORY;
 use crate::{
-    NILFS2_SNAPSHOT_ID_KEY, RESTIC_LATEST_SNAPSHOT_DIRECTORY, ROOT_DIRECTORY, TM_DIR_LOCAL,
-    TM_DIR_REMOTE, ZFS_HIDDEN_DIRECTORY,
+    GLOBAL_CONFIG, NILFS2_SNAPSHOT_ID_KEY, RESTIC_LATEST_SNAPSHOT_DIRECTORY, ROOT_DIRECTORY,
+    TM_DIR_LOCAL, TM_DIR_REMOTE, ZFS_HIDDEN_DIRECTORY,
 };
 use hashbrown::{HashMap, HashSet};
 use proc_mounts::MountIter;
@@ -98,6 +98,28 @@ impl Deref for FilterDirs {
 
     fn deref(&self) -> &Self::Target {
         &self.inner
+    }
+}
+
+impl FilterDirs {
+    pub fn is_filter_dir(&self, path: &Path) -> bool {
+        self.iter().any(|filter_dir| path == filter_dir)
+    }
+}
+
+pub trait IsFilterDir {
+    fn is_filter_dir(&self) -> bool;
+}
+
+impl<T: AsRef<Path>> IsFilterDir for T
+where
+    T: AsRef<Path>,
+{
+    fn is_filter_dir(self: &T) -> bool {
+        GLOBAL_CONFIG
+            .dataset_collection
+            .filter_dirs
+            .is_filter_dir(self.as_ref())
     }
 }
 

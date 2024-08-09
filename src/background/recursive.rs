@@ -21,10 +21,8 @@ use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::data::selection::SelectionCandidate;
 use crate::display_versions::wrapper::VersionsDisplayWrapper;
 use crate::library::results::{HttmError, HttmResult};
-use crate::library::utility::{
-    is_channel_closed, path_is_filter_dir, print_output_buf, HttmIsDir, Never,
-};
-use crate::parse::mounts::MaxLen;
+use crate::library::utility::{is_channel_closed, print_output_buf, HttmIsDir, Never};
+use crate::parse::mounts::{IsFilterDir, MaxLen};
 use crate::{VersionsMap, BTRFS_SNAPPER_HIDDEN_DIRECTORY, GLOBAL_CONFIG, ZFS_HIDDEN_DIRECTORY};
 use rayon::{Scope, ThreadPool};
 use skim::prelude::*;
@@ -255,7 +253,7 @@ impl SharedRecursive {
 
                 if let Ok(file_type) = entry.filetype() {
                     if file_type.is_dir() {
-                        return !Self::is_filter_dir(entry);
+                        return !Self::exclude_path(entry);
                     }
                 }
 
@@ -277,7 +275,7 @@ impl SharedRecursive {
         entry.httm_is_dir()
     }
 
-    fn is_filter_dir(entry: &BasicDirEntryInfo) -> bool {
+    fn exclude_path(entry: &BasicDirEntryInfo) -> bool {
         // FYI path is always a relative path, but no need to canonicalize as
         // partial eq for paths is comparison of components iter
         let path = entry.path.as_path();
@@ -309,7 +307,7 @@ impl SharedRecursive {
             return false;
         }
 
-        path_is_filter_dir(path)
+        path.is_filter_dir()
     }
 
     // this function creates dummy "live versions" values to match deleted files

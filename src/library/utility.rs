@@ -341,14 +341,6 @@ impl<T: AsRef<Path>> ComparePathMetadata for T {
     }
 }
 
-pub fn path_is_filter_dir(path: &Path) -> bool {
-    GLOBAL_CONFIG
-        .dataset_collection
-        .filter_dirs
-        .iter()
-        .any(|filter_dir| path == filter_dir)
-}
-
 pub fn pwd() -> HttmResult<PathBuf> {
     if let Ok(pwd) = std::env::current_dir() {
         Ok(pwd)
