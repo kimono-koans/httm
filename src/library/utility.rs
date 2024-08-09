@@ -27,9 +27,11 @@ use lscolors::{Colorable, LsColors, Style};
 use nu_ansi_term::Style as AnsiTermStyle;
 use number_prefix::NumberPrefix;
 use std::borrow::Cow;
+use std::cmp;
 use std::fs::FileType;
 use std::io::Write;
 use std::iter::Iterator;
+use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
 use std::time::SystemTime;
@@ -139,7 +141,9 @@ where
                 // canonicalize will read_link/resolve the link for us
                 match path.canonicalize() {
                     Ok(link_target) if !link_target.is_dir() => false,
-                    Ok(link_target) => path.ancestors().all(|ancestor| ancestor != link_target),
+                    Ok(link_target) => {
+                        find_common_path([link_target, path.to_path_buf()].into_iter()).is_none()
+                    }
                     // we get an error? still pass the path on, as we get a good path from the dir entry
                     _ => false,
                 }
