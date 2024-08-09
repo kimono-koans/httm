@@ -298,9 +298,6 @@ impl<'a> RelativePathAndSnapMounts<'a> {
     }
     #[inline(always)]
     pub fn versions_processed(&'a self, uniqueness: &ListSnapsOfType) -> Vec<PathData> {
-        // opendir and readdir iter on the snap path are necessary to mount snapshots over SMB
-        self.auto_mount_network_volumes();
-
         let all_versions = self.versions_unprocessed();
 
         Self::sort_dedup_versions(all_versions, uniqueness)
@@ -350,6 +347,10 @@ impl<'a> RelativePathAndSnapMounts<'a> {
     fn versions_unprocessed(&'a self) -> impl Iterator<Item = PathData> + 'a {
         // get the DirEntry for our snapshot path which will have all our possible
         // snapshots, like so: .zfs/snapshots/<some snap name>/
+
+        // opendir and readdir iter on the snap path are necessary to mount snapshots over SMB
+        self.auto_mount_network_volumes();
+
         self
             .snap_mounts
             .iter()
