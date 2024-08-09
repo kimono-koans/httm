@@ -342,12 +342,12 @@ impl<T: AsRef<Path>> ComparePathMetadata for T {
 }
 
 pub fn pwd() -> HttmResult<PathBuf> {
-    if let Ok(pwd) = std::env::current_dir() {
-        Ok(pwd)
-    } else {
-        Err(HttmError::new(
+    let Ok(pwd) = std::env::current_dir() else {
+        return Err(HttmError::new(
             "Working directory does not exist or your do not have permissions to access it.",
         )
-        .into())
-    }
+        .into());
+    };
+
+    Ok(pwd)
 }
