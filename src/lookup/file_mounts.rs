@@ -79,7 +79,7 @@ impl<'a> MountsForFiles<'a> {
                 Ok(prox_opt_alts) => Some(prox_opt_alts),
                 Err(err) => {
                     if !is_interactive_mode {
-                        eprintln!("WARN: {:?}", err)
+                        eprintln!("WARN: {:?}", err.to_string())
                     }
                     None
                 }
