@@ -397,7 +397,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
         match uniqueness {
             ListSnapsOfType::All => {
                 let mut vec: Vec<PathData> = iter.collect();
-                vec.sort_unstable();
+                vec.sort_unstable_by_key(|pathdata| pathdata.md_infallible().modify_time);
                 vec
             }
             ListSnapsOfType::UniqueContents | ListSnapsOfType::UniqueMetadata => {
@@ -405,7 +405,9 @@ impl<'a> RelativePathAndSnapMounts<'a> {
                     .map(|pd| CompareVersionsContainer::new(pd, uniqueness))
                     .collect();
 
-                vec.sort_unstable_by_key(|path| path.pathdata.md_infallible().modify_time);
+                vec.sort_unstable_by_key(|container| {
+                    container.pathdata.md_infallible().modify_time
+                });
                 vec.dedup_by(|a, b| a.cmp(&b) == std::cmp::Ordering::Equal);
 
                 vec.into_iter().map(PathData::from).collect()
