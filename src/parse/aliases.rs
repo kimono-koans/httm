@@ -16,7 +16,6 @@
 // that was distributed with this source code.
 
 use crate::library::results::{HttmError, HttmResult};
-use crate::library::utility::fs_type_from_hidden_dir;
 use crate::parse::mounts::FilesystemType;
 use clap::parser::RawValues;
 use hashbrown::HashMap;
@@ -140,7 +139,7 @@ impl MapOfAliases {
                     Some((local_dir, snap_dir))
                 })
                 .filter_map(|(local_dir, remote_dir)| {
-                    fs_type_from_hidden_dir(&remote_dir).map(|fs_type| {
+                    FilesystemType::new(&remote_dir).map(|fs_type| {
                         (
                             local_dir,
                             RemotePathAndFsType {

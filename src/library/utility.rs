@@ -20,8 +20,7 @@ use crate::data::paths::{BasicDirEntryInfo, PathData, PathMetadata, PHANTOM_DATE
 use crate::data::selection::SelectionCandidate;
 use crate::library::results::{HttmError, HttmResult};
 
-use crate::parse::mounts::FilesystemType;
-use crate::{BTRFS_SNAPPER_HIDDEN_DIRECTORY, GLOBAL_CONFIG, ZFS_SNAPSHOT_DIRECTORY};
+use crate::GLOBAL_CONFIG;
 use crossbeam_channel::{Receiver, TryRecvError};
 use lscolors::{Colorable, LsColors, Style};
 use nu_ansi_term::Style as AnsiTermStyle;
@@ -245,25 +244,6 @@ impl PaintString for &SelectionCandidate {
     }
     fn is_phantom(&self) -> bool {
         self.file_type().is_none()
-    }
-}
-
-pub fn fs_type_from_hidden_dir(dataset_mount: &Path) -> Option<FilesystemType> {
-    // set fstype, known by whether there is a ZFS hidden snapshot dir in the root dir
-    if dataset_mount
-        .join(ZFS_SNAPSHOT_DIRECTORY)
-        .symlink_metadata()
-        .is_ok()
-    {
-        Some(FilesystemType::Zfs)
-    } else if dataset_mount
-        .join(BTRFS_SNAPPER_HIDDEN_DIRECTORY)
-        .symlink_metadata()
-        .is_ok()
-    {
-        Some(FilesystemType::Btrfs(None))
-    } else {
-        None
     }
 }
 

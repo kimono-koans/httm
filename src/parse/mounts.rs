@@ -16,8 +16,10 @@
 // that was distributed wth this source code.
 
 use crate::library::results::{HttmError, HttmResult};
-use crate::library::utility::{find_common_path, fs_type_from_hidden_dir, get_mount_command};
+use crate::library::utility::{find_common_path, get_mount_command};
 use crate::parse::snaps::MapOfSnaps;
+use crate::BTRFS_SNAPPER_HIDDEN_DIRECTORY;
+use crate::ZFS_SNAPSHOT_DIRECTORY;
 use crate::{
     NILFS2_SNAPSHOT_ID_KEY, RESTIC_LATEST_SNAPSHOT_DIRECTORY, ROOT_DIRECTORY, TM_DIR_LOCAL,
     TM_DIR_REMOTE, ZFS_HIDDEN_DIRECTORY,
@@ -56,6 +58,27 @@ pub enum FilesystemType {
     Nilfs2,
     Apfs,
     Restic(Option<Vec<PathBuf>>),
+}
+
+impl FilesystemType {
+    pub fn new(dataset_mount: &Path) -> Option<FilesystemType> {
+        // set fstype, known by whether there is a ZFS hidden snapshot dir in the root dir
+        if dataset_mount
+            .join(ZFS_SNAPSHOT_DIRECTORY)
+            .symlink_metadata()
+            .is_ok()
+        {
+            Some(FilesystemType::Zfs)
+        } else if dataset_mount
+            .join(BTRFS_SNAPPER_HIDDEN_DIRECTORY)
+            .symlink_metadata()
+            .is_ok()
+        {
+            Some(FilesystemType::Btrfs(None))
+        } else {
+            None
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -209,27 +232,25 @@ impl BaseFilesystemInfo {
                             link_type: LinkType::Local,
                         },
                     )),
-                    SMB_FSTYPE | AFP_FSTYPE | NFS_FSTYPE => {
-                        match fs_type_from_hidden_dir(&dest_path) {
-                            Some(FilesystemType::Zfs) => Either::Left((
-                                dest_path,
-                                DatasetMetadata {
-                                    source: PathBuf::from(mount_info.source),
-                                    fs_type: FilesystemType::Zfs,
-                                    link_type: LinkType::Network,
-                                },
-                            )),
-                            Some(FilesystemType::Btrfs(None)) => Either::Left((
-                                dest_path,
-                                DatasetMetadata {
-                                    source: PathBuf::from(mount_info.source),
-                                    fs_type: FilesystemType::Btrfs(None),
-                                    link_type: LinkType::Network,
-                                },
-                            )),
-                            _ => Either::Right(dest_path),
-                        }
-                    }
+                    SMB_FSTYPE | AFP_FSTYPE | NFS_FSTYPE => match FilesystemType::new(&dest_path) {
+                        Some(FilesystemType::Zfs) => Either::Left((
+                            dest_path,
+                            DatasetMetadata {
+                                source: PathBuf::from(mount_info.source),
+                                fs_type: FilesystemType::Zfs,
+                                link_type: LinkType::Network,
+                            },
+                        )),
+                        Some(FilesystemType::Btrfs(None)) => Either::Left((
+                            dest_path,
+                            DatasetMetadata {
+                                source: PathBuf::from(mount_info.source),
+                                fs_type: FilesystemType::Btrfs(None),
+                                link_type: LinkType::Network,
+                            },
+                        )),
+                        _ => Either::Right(dest_path),
+                    },
                     BTRFS_FSTYPE => {
                         let keyed_options: BTreeMap<&str, &str> = mount_info
                             .options
@@ -346,7 +367,7 @@ impl BaseFilesystemInfo {
                 // sanity check: does the filesystem exist and have a ZFS hidden dir? if not, filter it out
                 // and flip around, mount should key of key/value
                 .partition_map(
-                    |(source, mount, link_type)| match fs_type_from_hidden_dir(&mount) {
+                    |(source, mount, link_type)| match FilesystemType::new(&mount) {
                         Some(FilesystemType::Zfs) => Either::Left((
                             mount,
                             DatasetMetadata {
