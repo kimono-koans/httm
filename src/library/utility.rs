@@ -62,10 +62,10 @@ pub fn user_has_effective_root(msg: &str) -> HttmResult<()> {
 
 pub fn delimiter() -> char {
     if matches!(GLOBAL_CONFIG.print_mode, PrintMode::RawZero) {
-        '\0'
-    } else {
-        '\n'
+        return '\0';
     }
+
+    '\n'
 }
 
 pub enum Never {}
