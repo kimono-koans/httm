@@ -115,21 +115,20 @@ impl HttmCopy {
             .open(dst)?;
         dst_file.set_len(src_len)?;
 
-        let amt_written = DiffCopy::new(&src_file, &mut dst_file)?;
+        match DiffCopy::new(&src_file, &mut dst_file) {
+            Ok(amt_written) if amt_written != src_len as usize => {
+                eprintln!("WARN: Amount written (\"{}\") != Source length (\"{}\").  This is often simply because a write call blocks.  In an abundance of caution, httm will read back the data written to confirm.",
+                amt_written, src_len);
 
-        if amt_written != src_len as usize {
-            let msg = format!(
-                "Amount written (\"{}\") != Source length (\"{}\").  Quitting.",
-                amt_written, src_len
-            );
-            return Err(HttmError::new(&msg).into());
+                DiffCopy::confirm(src, dst)
+            }
+            Ok(_) if GLOBAL_CONFIG.opt_debug => {
+                eprintln!("DEBUG: Write to file completed.  Confirmation initiated.");
+                DiffCopy::confirm(src, dst)
+            }
+            Ok(_) => Ok(()),
+            Err(err) => Err(err),
         }
-
-        if GLOBAL_CONFIG.opt_debug {
-            DiffCopy::confirm(src, dst)?
-        }
-
-        Ok(())
     }
 }
 
@@ -146,23 +145,19 @@ impl DiffCopy {
             let dst_fd = dst_file.as_fd();
 
             match Self::copy_file_range(src_fd, dst_fd, src_len as usize) {
-                Ok(amt_written) if amt_written as u64 == src_len => {
+                Ok(amt_written) => {
                     if GLOBAL_CONFIG.opt_debug {
                         eprintln!("DEBUG: copy_file_range call successful.");
                     }
-                    // re docs, both a flush and a sync seem to be required re consistency
-                    dst_file.flush()?;
-                    dst_file.sync_data()?;
-
                     return Ok(amt_written);
                 }
-                _ => {
+                Err(err) => {
                     IS_CLONE_COMPATIBLE.store(false, std::sync::atomic::Ordering::Relaxed);
                     if GLOBAL_CONFIG.opt_debug {
                         eprintln!(
-                            "DEBUG: copy_file_range call unsuccessful.  \
-                        IS_CLONE_COMPATIBLE variable has been modified to: \"{:?}\".",
-                            IS_CLONE_COMPATIBLE.load(std::sync::atomic::Ordering::Relaxed)
+                            "DEBUG: copy_file_range call unsuccessful for the following reason: \"{:?}\".\n
+                            DEBUG: Retrying a conventional diff copy.",
+                            err
                         );
                     }
                 }
@@ -170,13 +165,6 @@ impl DiffCopy {
         }
 
         let amt_written = Self::write_no_cow(&src_file, &dst_file)?;
-
-        if amt_written as u64 != src_len {
-            let msg = format!(
-                "Amount written does not match underlying source file size: {amt_written} != {src_len}"
-            );
-            return Err(HttmError::new(&msg).into());
-        }
 
         // re docs, both a flush and a sync seem to be required re consistency
         dst_file.flush()?;
@@ -261,9 +249,6 @@ impl DiffCopy {
                 },
             };
         }
-
-        // re docs, both a flush and a sync seem to be required re consistency
-        dst_file.sync_data()?;
 
         Ok(bytes_processed)
     }
