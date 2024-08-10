@@ -26,14 +26,10 @@ use crate::library::results::{HttmError, HttmResult};
 use crate::parse::mounts::LinkType;
 use crate::GLOBAL_CONFIG;
 use std::collections::BTreeMap;
-use std::fs::read_dir;
 use std::io::ErrorKind;
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 use std::sync::{LazyLock, RwLock};
-
-static CACHE_RESULT: LazyLock<RwLock<HashSet<PathBuf>>> =
-    LazyLock::new(|| RwLock::new(HashSet::new()));
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VersionsMap {
@@ -321,25 +317,28 @@ impl<'a> RelativePathAndSnapMounts<'a> {
             return;
         }
 
-        if CACHE_RESULT
-            .read()
-            .ok()
-            .map(|cached_result| cached_result.get(self.dataset_of_interest).is_none())
-            .unwrap_or_else(|| false)
-        {
-            if let Ok(mut cached_result) = CACHE_RESULT.write() {
-                cached_result.insert_unique_unchecked(self.dataset_of_interest.to_path_buf());
-            }
+        static CACHE_RESULT: LazyLock<RwLock<HashSet<PathBuf>>> =
+            LazyLock::new(|| RwLock::new(HashSet::new()));
 
-            GLOBAL_CONFIG
-                .dataset_collection
-                .map_of_snaps
-                .get(self.dataset_of_interest)
-                .into_iter()
-                .flatten()
-                .for_each(|snap_path| {
-                    let _ = read_dir(snap_path).into_iter().flatten().flatten().next();
-                })
+        if CACHE_RESULT
+            .try_read()
+            .ok()
+            .map(|cached_result| cached_result.contains(self.dataset_of_interest))
+            .unwrap_or_else(|| true)
+        {
+            return;
+        }
+
+        if let Ok(mut cached_result) = CACHE_RESULT.try_write() {
+            cached_result.insert_unique_unchecked(self.dataset_of_interest.to_path_buf());
+
+            self.snap_mounts.iter().for_each(|snap_path| {
+                let _ = std::fs::read_dir(snap_path)
+                    .into_iter()
+                    .flatten()
+                    .flatten()
+                    .next();
+            })
         }
     }
 
@@ -394,23 +393,20 @@ impl<'a> RelativePathAndSnapMounts<'a> {
         iter: impl Iterator<Item = PathData>,
         uniqueness: &ListSnapsOfType,
     ) -> Vec<PathData> {
+        let mut vec: Vec<PathData> = iter.collect();
+        vec.sort_unstable_by_key(|pathdata| pathdata.md_infallible().modify_time);
+
         match uniqueness {
-            ListSnapsOfType::All => {
-                let mut vec: Vec<PathData> = iter.collect();
-                vec.sort_unstable_by_key(|pathdata| pathdata.md_infallible().modify_time);
-                vec
-            }
+            ListSnapsOfType::All => vec,
             ListSnapsOfType::UniqueContents | ListSnapsOfType::UniqueMetadata => {
-                let mut vec: Vec<CompareVersionsContainer> = iter
-                    .map(|pd| CompareVersionsContainer::new(pd, uniqueness))
-                    .collect();
+                vec.dedup_by(|a, b| {
+                    let a_container = CompareVersionsContainer::new(a, uniqueness);
+                    let b_container = CompareVersionsContainer::new(b, uniqueness);
 
-                vec.sort_unstable_by_key(|container| {
-                    container.pathdata.md_infallible().modify_time
+                    a_container.cmp(&b_container) == std::cmp::Ordering::Equal
                 });
-                vec.dedup_by(|a, b| a.cmp(&b) == std::cmp::Ordering::Equal);
 
-                vec.into_iter().map(PathData::from).collect()
+                vec
             }
         }
     }

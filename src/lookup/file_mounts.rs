@@ -91,7 +91,7 @@ impl<'a> MountsForFiles<'a> {
                 {
                     eprintln!(
                         "WARN: Input file may have never existed: {:?}",
-                        prox_opt_alts.pathdata.path_buf
+                        prox_opt_alts.pathdata.path()
                     );
                 }
 

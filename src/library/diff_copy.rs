@@ -43,12 +43,12 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::config::generate::ListSnapsOfType;
-use crate::data::paths::{CompareVersionsContainer, PathData};
+use crate::data::paths::PathData;
 use crate::library::results::HttmError;
 use crate::library::results::HttmResult;
 use crate::zfs::run_command::RunZFSCommand;
 use crate::GLOBAL_CONFIG;
+use crate::IN_BUFFER_SIZE;
 use std::fs::{File, OpenOptions};
 use std::io::{BufRead, BufReader, BufWriter, ErrorKind, Seek, SeekFrom, Write};
 use std::os::fd::{AsFd, BorrowedFd};
@@ -56,8 +56,6 @@ use std::path::Path;
 use std::process::Command as ExecProcess;
 use std::sync::atomic::AtomicBool;
 use std::sync::LazyLock;
-
-const CHUNK_SIZE: usize = 65_536;
 
 static IS_CLONE_COMPATIBLE: LazyLock<AtomicBool> = LazyLock::new(|| {
     if let Ok(run_zfs) = RunZFSCommand::new() {
@@ -107,7 +105,7 @@ pub struct HttmCopy;
 impl HttmCopy {
     pub fn new(src: &Path, dst: &Path) -> HttmResult<()> {
         // create source file reader
-        let src_file = File::open(src)?;
+        let src_file = std::fs::OpenOptions::new().read(true).open(src)?;
         let src_len = src_file.metadata()?.len();
 
         let mut dst_file = OpenOptions::new()
@@ -192,9 +190,9 @@ impl DiffCopy {
         // create destination file writer and maybe reader
         // only include dst file reader if the dst file exists
         // otherwise we just write to that location
-        let mut src_reader = BufReader::with_capacity(CHUNK_SIZE, src_file);
-        let mut dst_reader = BufReader::with_capacity(CHUNK_SIZE, dst_file);
-        let mut dst_writer = BufWriter::with_capacity(CHUNK_SIZE, dst_file);
+        let mut src_reader = BufReader::with_capacity(IN_BUFFER_SIZE, src_file);
+        let mut dst_reader = BufReader::with_capacity(IN_BUFFER_SIZE, dst_file);
+        let mut dst_writer = BufWriter::with_capacity(IN_BUFFER_SIZE, dst_file);
 
         let dst_exists = DstFileState::exists(dst_file);
 
@@ -336,12 +334,10 @@ impl DiffCopy {
     }
 
     fn confirm(src: &Path, dst: &Path) -> HttmResult<()> {
-        let src_test =
-            CompareVersionsContainer::new(PathData::from(src), &ListSnapsOfType::UniqueContents);
-        let dst_test =
-            CompareVersionsContainer::new(PathData::from(dst), &ListSnapsOfType::UniqueContents);
+        let src_test = PathData::from(src);
+        let dst_test = PathData::from(dst);
 
-        if src_test.is_same_file(&dst_test) {
+        if src_test.is_same_file_contents(&dst_test) {
             eprintln!(
                 "DEBUG: Copy successful.  File contents of {} and {} are the same.",
                 src.display(),

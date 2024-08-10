@@ -183,7 +183,7 @@ impl ZfsAllowPriv {
         let Some(fs_name) = pathdata.source(opt_proximate_dataset) else {
             let msg = format!(
                 "Could not determine dataset name from path given: {:?}",
-                pathdata.path_buf
+                pathdata.path()
             );
             return Err(HttmError::new(&msg).into());
         };
@@ -193,7 +193,7 @@ impl ZfsAllowPriv {
             _ => {
                 let msg = format!(
                     "httm only supports snapshot guards for ZFS paths.  Path is not located on a ZFS dataset: {:?}",
-                    pathdata.path_buf
+                    pathdata.path()
                 );
                 return Err(HttmError::new(&msg).into());
             }

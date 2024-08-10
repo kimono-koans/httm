@@ -103,6 +103,7 @@ pub const ROOT_DIRECTORY: &str = "/";
 pub const NILFS2_SNAPSHOT_ID_KEY: &str = "cp=";
 pub const RESTIC_SNAPSHOT_DIRECTORY: &str = "snapshots";
 pub const RESTIC_LATEST_SNAPSHOT_DIRECTORY: &str = "snapshots/latest";
+pub const IN_BUFFER_SIZE: usize = 131_072;
 
 fn main() {
     match exec() {

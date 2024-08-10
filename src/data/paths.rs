@@ -16,6 +16,7 @@
 // that was distributed with this source code.
 
 use crate::config::generate::{ListSnapsOfType, PrintMode};
+use crate::library::file_ops::HashFileContents;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{date_string, display_human_size, DateFormat};
 use crate::parse::mounts::FilesystemType;
@@ -26,8 +27,8 @@ use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
 use std::cmp::{Ord, Ordering, PartialOrd};
 use std::ffi::OsStr;
-use std::fs::{symlink_metadata, DirEntry, File, FileType, Metadata};
-use std::io::{BufRead, BufReader, ErrorKind};
+use std::fs::{symlink_metadata, DirEntry, FileType, Metadata};
+use std::hash::Hash;
 use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
 use std::sync::OnceLock;
@@ -60,6 +61,7 @@ impl BasicDirEntryInfo {
 }
 
 pub trait PathDeconstruction<'a> {
+    fn path(&'a self) -> &'a Path;
     fn alias(&self) -> Option<AliasedPath>;
     fn target(&self, proximate_dataset_mount: &Path) -> Option<PathBuf>;
     fn source(&self, opt_proximate_dataset_mount: Option<&'a Path>) -> Option<PathBuf>;
@@ -131,9 +133,20 @@ impl PathData {
     pub fn md_infallible(&self) -> PathMetadata {
         self.metadata.unwrap_or_else(|| PHANTOM_PATH_METADATA)
     }
+
+    pub fn is_same_file_contents(&self, other: &Self) -> bool {
+        let self_hash = HashFileContents::path_to_hash(self.path());
+        let other_hash = HashFileContents::path_to_hash(other.path());
+
+        self_hash.cmp(&other_hash) == Ordering::Equal
+    }
 }
 
 impl<'a> PathDeconstruction<'a> for PathData {
+    fn path(&'a self) -> &'a Path {
+        &self.path_buf
+    }
+
     fn alias(&self) -> Option<AliasedPath> {
         // find_map_first should return the first seq result with a par_iter
         // but not with a par_bridge
@@ -253,6 +266,10 @@ impl<'a> ZfsSnapPathGuard<'a> {
 }
 
 impl<'a> PathDeconstruction<'a> for ZfsSnapPathGuard<'_> {
+    fn path(&'a self) -> &'a Path {
+        self.inner.path()
+    }
+
     fn alias(&self) -> Option<AliasedPath> {
         // aliases aren't allowed for snap paths
         None
@@ -422,26 +439,19 @@ pub const PHANTOM_PATH_METADATA: PathMetadata = PathMetadata {
 };
 
 #[derive(Eq, PartialEq)]
-pub struct CompareVersionsContainer {
-    pub pathdata: PathData,
+pub struct CompareVersionsContainer<'a> {
+    pub pathdata: &'a PathData,
     opt_hash: Option<OnceLock<u64>>,
 }
 
-impl From<CompareVersionsContainer> for PathData {
-    #[inline(always)]
-    fn from(container: CompareVersionsContainer) -> Self {
-        container.pathdata
-    }
-}
-
-impl PartialOrd for CompareVersionsContainer {
+impl<'a> PartialOrd for CompareVersionsContainer<'a> {
     #[inline(always)]
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl Ord for CompareVersionsContainer {
+impl<'a> Ord for CompareVersionsContainer<'a> {
     #[inline(always)]
     fn cmp(&self, other: &Self) -> Ordering {
         let self_md = self.pathdata.md_infallible();
@@ -455,7 +465,7 @@ impl Ord for CompareVersionsContainer {
         if self_md.size == other_md.size
             && self.opt_hash.is_some()
             // if above is true/false then "&& other.opt_hash.is_some()" is the same
-            && self.is_same_file(other)
+            && self.is_same_file_contents(other)
         {
             return Ordering::Equal;
         }
@@ -464,9 +474,9 @@ impl Ord for CompareVersionsContainer {
     }
 }
 
-impl CompareVersionsContainer {
+impl<'a> CompareVersionsContainer<'a> {
     #[inline(always)]
-    pub fn new(pathdata: PathData, snaps_of_type: &ListSnapsOfType) -> Self {
+    pub fn new(pathdata: &'a PathData, snaps_of_type: &ListSnapsOfType) -> Self {
         let opt_hash = match snaps_of_type {
             ListSnapsOfType::UniqueContents => Some(OnceLock::new()),
             ListSnapsOfType::UniqueMetadata | ListSnapsOfType::All => None,
@@ -476,7 +486,7 @@ impl CompareVersionsContainer {
     }
 
     #[allow(unused_assignments)]
-    pub fn is_same_file(&self, other: &Self) -> bool {
+    pub fn is_same_file_contents(&self, other: &Self) -> bool {
         // SAFETY: Unwrap will fail on opt_hash is None, here we've guarded this above
         let self_hash_cell = self
             .opt_hash
@@ -491,18 +501,18 @@ impl CompareVersionsContainer {
             || {
                 if let Some(hash_value) = self_hash_cell.get() {
                     return Ok(*hash_value);
-                }
+                };
 
-                self.hash().map(|hash| *self_hash_cell.get_or_init(|| hash))
+                Ok(*self_hash_cell
+                    .get_or_init(|| HashFileContents::path_to_hash(self.pathdata.path())))
             },
             || {
                 if let Some(hash_value) = other_hash_cell.get() {
                     return Ok(*hash_value);
                 }
 
-                other
-                    .hash()
-                    .map(|hash| *other_hash_cell.get_or_init(|| hash))
+                Ok(*other_hash_cell
+                    .get_or_init(|| HashFileContents::path_to_hash(other.pathdata.path())))
             },
         );
 
@@ -513,39 +523,5 @@ impl CompareVersionsContainer {
         }
 
         false
-    }
-
-    fn hash(&self) -> HttmResult<u64> {
-        use std::hash::Hasher;
-
-        const IN_BUFFER_SIZE: usize = 131_072;
-
-        let file = File::open(&self.pathdata.path_buf)?;
-
-        let mut reader = BufReader::with_capacity(IN_BUFFER_SIZE, file);
-
-        let mut hash = ahash::AHasher::default();
-
-        loop {
-            let consumed = match reader.fill_buf() {
-                Ok(buf) => {
-                    if buf.is_empty() {
-                        return Ok(hash.finish());
-                    }
-
-                    hash.write(buf);
-                    buf.len()
-                }
-                Err(err) => match err.kind() {
-                    ErrorKind::Interrupted => continue,
-                    ErrorKind::UnexpectedEof => {
-                        return Ok(hash.finish());
-                    }
-                    _ => return Err(err.into()),
-                },
-            };
-
-            reader.consume(consumed);
-        }
     }
 }

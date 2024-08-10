@@ -16,6 +16,7 @@
 // that was distributed with this source code.
 
 use crate::config::generate::{PrintMode, SelectMode};
+use crate::data::paths::PathDeconstruction;
 use crate::display_versions::wrapper::VersionsDisplayWrapper;
 use crate::interactive::preview::PreviewSelection;
 use crate::interactive::view_mode::MultiSelect;
@@ -65,7 +66,7 @@ impl TryFrom<&mut InteractiveBrowse> for InteractiveSelect {
             interactive_browse
                 .selected_pathdata
                 .get(0)
-                .map(|pathdata| pathdata.path_buf.to_string_lossy().into_owned())
+                .map(|pathdata| pathdata.path().to_string_lossy().into_owned())
         };
 
         let view_mode = ViewMode::Select(opt_live_version.clone());
@@ -147,7 +148,7 @@ impl InteractiveSelect {
                 }
             })
             .flatten()
-            .map(|pathdata| pathdata.path_buf.to_string_lossy().to_string())
+            .map(|pathdata| pathdata.path().to_string_lossy().to_string())
             .collect()
     }
 
@@ -178,7 +179,7 @@ impl InteractiveSelect {
                     let msg = format!("Path is not a file: {:?}", snap_path);
                     return Err(HttmError::new(&msg).into());
                 }
-                let mut f = std::fs::File::open(snap_path)?;
+                let mut f = std::fs::OpenOptions::new().read(true).open(snap_path)?;
                 let mut contents = Vec::new();
                 f.read_to_end(&mut contents)?;
 

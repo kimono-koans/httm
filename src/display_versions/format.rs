@@ -16,6 +16,7 @@
 // that was distributed with this source code.
 
 use crate::config::generate::{BulkExclusion, Config, PrintMode};
+use crate::data::paths::PathDeconstruction;
 use crate::data::paths::{PathData, PHANTOM_DATE, PHANTOM_SIZE};
 use crate::library::utility::{
     date_string, delimiter, display_human_size, paint_string, DateFormat,
@@ -26,6 +27,7 @@ use crate::VersionsDisplayWrapper;
 use std::borrow::Cow;
 use std::ops::Deref;
 use terminal_size::{terminal_size, Height, Width};
+
 // 2 space wide padding - used between date and size, and size and path
 pub const PRETTY_FIXED_WIDTH_PADDING: &str = "  ";
 // our FIXED_WIDTH_PADDING is used twice
@@ -78,7 +80,7 @@ impl<'a> VersionsDisplayWrapper<'a> {
                             })
                             .flat_map(|(_idx, snap_or_live_set)| snap_or_live_set)
                             .fold(String::new(), |mut buffer, pathdata| {
-                                buffer.push_str(&pathdata.path_buf.to_string_lossy());
+                                buffer.push_str(&pathdata.path().to_string_lossy());
                                 buffer.push(delimiter);
                                 buffer
                             })
@@ -325,7 +327,7 @@ impl PaddingCollection {
                         display_human_size(metadata.size),
                         width = size_padding_len
                     );
-                    let path = pathdata.path_buf.to_string_lossy();
+                    let path = pathdata.path().to_string_lossy();
 
                     (date, size, path)
                 };

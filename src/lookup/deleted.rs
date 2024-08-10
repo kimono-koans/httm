@@ -15,6 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
+use crate::data::paths::PathDeconstruction;
 use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::library::results::HttmResult;
 use crate::lookup::versions::{ProximateDatasetAndOptAlts, RelativePathAndSnapMounts};
@@ -47,7 +48,7 @@ impl DeletedFiles {
             ProximateDatasetAndOptAlts::new(&requested_dir_pathdata)?
                 .into_search_bundles()
                 .flat_map(|search_bundle| {
-                    Self::unique_deleted_for_dir(&requested_dir_pathdata.path_buf, &search_bundle)
+                    Self::unique_deleted_for_dir(&requested_dir_pathdata.path(), &search_bundle)
                 })
                 .flatten()
                 .map(|basic_info| (basic_info.filename().to_os_string(), basic_info))

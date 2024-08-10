@@ -58,7 +58,7 @@ impl SnapNameMap {
                     _ => {
                         let msg = format!(
                             "{:?} is not located on a ZFS filesystem.",
-                            pathdata.path_buf
+                            pathdata.path()
                         );
                         eprintln!("WARN: {msg}");
                         return false;
@@ -81,7 +81,7 @@ impl SnapNameMap {
                 if snaps.is_empty() {
                     let msg = format!(
                         "httm could not find any snapshots for the file specified: {:?}",
-                        pathdata.path_buf
+                        pathdata.path()
                     );
                     eprintln!("WARN: {msg}");
                     return false;

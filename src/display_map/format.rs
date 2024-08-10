@@ -17,6 +17,7 @@
 
 use crate::config::generate::PrintMode;
 use crate::data::paths::PathData;
+use crate::data::paths::PathDeconstruction;
 use crate::data::paths::ZfsSnapPathGuard;
 use crate::display_versions::format::{NOT_SO_PRETTY_FIXED_WIDTH_PADDING, QUOTATION_MARKS_LEN};
 use crate::library::utility::delimiter;
@@ -77,7 +78,7 @@ impl<'a> From<&MountsForFiles<'a>> for PrintAsMap {
                     .map(|path| path.to_string_lossy().to_string())
                     .collect();
 
-                (pathdata.path_buf.to_string_lossy().to_string(), res)
+                (pathdata.path().to_string_lossy().to_string(), res)
             })
             .collect();
         Self { inner }

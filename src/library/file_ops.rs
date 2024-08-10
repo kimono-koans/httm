@@ -19,6 +19,7 @@ use crate::data::paths::PathData;
 use crate::data::paths::PathDeconstruction;
 use crate::library::diff_copy::HttmCopy;
 use crate::library::results::{HttmError, HttmResult};
+use crate::IN_BUFFER_SIZE;
 use nix::sys::stat::SFlag;
 use nu_ansi_term::Color::{Blue, Red};
 use std::os::unix::fs::chown;
@@ -270,5 +271,67 @@ impl Remove {
         }
 
         Ok(())
+    }
+}
+
+use std::hash::Hash;
+use std::hash::Hasher;
+use std::io::BufRead;
+use std::io::BufReader;
+use std::io::ErrorKind;
+
+pub struct HashFileContents<'a> {
+    inner: &'a Path,
+}
+
+impl<'a> HashFileContents<'a> {
+    pub fn path_to_hash(path: &Path) -> u64 {
+        let mut ahasher = ahash::AHasher::default();
+
+        HashFileContents::from(path).hash(&mut ahasher);
+
+        ahasher.finish()
+    }
+}
+
+impl<'a> From<&'a Path> for HashFileContents<'a> {
+    fn from(path: &'a Path) -> Self {
+        Self { inner: path }
+    }
+}
+
+impl<'a> Hash for HashFileContents<'a> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        let Some(self_file) = std::fs::OpenOptions::new()
+            .read(true)
+            .open(&self.inner)
+            .ok()
+        else {
+            return;
+        };
+
+        let mut reader = BufReader::with_capacity(IN_BUFFER_SIZE, self_file);
+
+        loop {
+            let consumed = match reader.fill_buf() {
+                Ok(buf) => {
+                    if buf.is_empty() {
+                        return;
+                    }
+
+                    state.write(buf);
+                    buf.len()
+                }
+                Err(err) => match err.kind() {
+                    ErrorKind::Interrupted => continue,
+                    ErrorKind::UnexpectedEof => {
+                        return;
+                    }
+                    _ => return,
+                },
+            };
+
+            reader.consume(consumed);
+        }
     }
 }

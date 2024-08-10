@@ -76,7 +76,7 @@ impl InteractiveRestore {
             ─────────────────────────────────────────────────────────────────────────────────────────\n\
             YES\n\
             NO",
-            snap_pathdata.path_buf
+            snap_pathdata.path()
         );
 
         // loop until user consents or doesn't
@@ -101,7 +101,7 @@ impl InteractiveRestore {
                             SnapGuard::try_from(new_file_path_buf.as_path())?;
 
                         if let Err(err) = Copy::recursive(
-                            &snap_pathdata.path_buf,
+                            &snap_pathdata.path(),
                             &new_file_path_buf,
                             should_preserve,
                         ) {
@@ -121,7 +121,7 @@ impl InteractiveRestore {
                         }
                     } else {
                         if let Err(err) = Copy::recursive(
-                            &snap_pathdata.path_buf,
+                            &snap_pathdata.path(),
                             &new_file_path_buf,
                             should_preserve,
                         ) {
@@ -136,7 +136,7 @@ impl InteractiveRestore {
                             \tsource:\t{:?}\n\
                             \ttarget:\t{new_file_path_buf:?}\n\n\
                             Restore completed successfully.",
-                        snap_pathdata.path_buf
+                        snap_pathdata.path()
                     );
 
                     let summary_string = LightYellow.paint(Self::summary_string());
@@ -144,7 +144,7 @@ impl InteractiveRestore {
                     break println!("{summary_string}{result_buffer}");
                 }
                 "NO" | "N" => {
-                    break println!("User declined restore of: {:?}", snap_pathdata.path_buf)
+                    break println!("User declined restore of: {:?}", snap_pathdata.path())
                 }
                 // if not yes or no, then noop and continue to the next iter of loop
                 _ => {}
@@ -206,7 +206,7 @@ impl InteractiveRestore {
         let Some(snap_metadata) = snap_pathdata.metadata else {
             let msg = format!(
                 "Source location: {:?} does not exist on disk Quitting.",
-                snap_pathdata.path_buf
+                snap_pathdata.path()
             );
             return Err(HttmError::new(&msg).into());
         };
