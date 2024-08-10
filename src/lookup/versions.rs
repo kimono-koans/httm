@@ -168,7 +168,7 @@ pub struct Versions {
 
 impl Versions {
     #[inline(always)]
-    fn new(pathdata: &PathData, config: &Config) -> HttmResult<Self> {
+    pub fn new(pathdata: &PathData, config: &Config) -> HttmResult<Self> {
         let prox_opt_alts = ProximateDatasetAndOptAlts::new(pathdata)?;
         let live_path = prox_opt_alts.pathdata.clone();
         let snap_versions: Vec<PathData> = prox_opt_alts
@@ -185,7 +185,7 @@ impl Versions {
     }
 
     #[inline(always)]
-    fn into_inner(self) -> (PathData, Vec<PathData>) {
+    pub fn into_inner(self) -> (PathData, Vec<PathData>) {
         (self.live_path, self.snap_versions)
     }
 }

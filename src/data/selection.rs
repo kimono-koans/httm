@@ -21,9 +21,11 @@ use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::display_versions::wrapper::VersionsDisplayWrapper;
 use crate::library::results::HttmResult;
 use crate::library::utility::paint_string;
-use crate::{Config, ExecMode, VersionsMap, GLOBAL_CONFIG};
+use crate::lookup::versions::Versions;
+use crate::{Config, ExecMode, GLOBAL_CONFIG};
 use lscolors::Colorable;
 use skim::prelude::*;
+use std::collections::BTreeMap;
 use std::fs::FileType;
 use std::path::Path;
 use std::path::PathBuf;
@@ -61,10 +63,16 @@ impl SelectionCandidate {
     fn preview_view(&self) -> HttmResult<String> {
         // generate a config for display
         let display_config: Config = Config::from(self);
+        let display_pathdata = PathData::from(&self.path);
 
         // finally run search on those paths
-        let versions_map = VersionsMap::new(&display_config, &display_config.paths)?;
-        let output_buf = VersionsDisplayWrapper::from(&display_config, versions_map).to_string();
+        let all_snap_versions: BTreeMap<PathData, Vec<PathData>> =
+            [Versions::new(&display_pathdata, &display_config)?.into_inner()]
+                .into_iter()
+                .collect();
+
+        let output_buf =
+            VersionsDisplayWrapper::from(&display_config, all_snap_versions.into()).to_string();
 
         Ok(output_buf)
     }
