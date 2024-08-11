@@ -484,7 +484,7 @@ dependencies = [
 
 [[package]]
 name = "httm"
-version = "0.41.1"
+version = "0.41.2"
 dependencies = [
  "ahash 0.8.11",
  "clap 4.5.13",
