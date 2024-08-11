@@ -145,11 +145,21 @@ impl DiffCopy {
             let dst_fd = dst_file.as_fd();
 
             match Self::copy_file_range(src_fd, dst_fd, src_len as usize) {
-                Ok(amt_written) => {
+                Ok(amt_written) if amt_written as u64 == src_len => {
                     if GLOBAL_CONFIG.opt_debug {
                         eprintln!("DEBUG: copy_file_range call successful.");
                     }
                     return Ok(amt_written);
+                }
+                Ok(amt_written) => {
+                    IS_CLONE_COMPATIBLE.store(false, std::sync::atomic::Ordering::Relaxed);
+                    if GLOBAL_CONFIG.opt_debug {
+                        eprintln!(
+                            "DEBUG: Amount written (\"{:?}\") != Source length (\"{}\").\n
+                            DEBUG: Falling back to a conventional diff copy.",
+                            amt_written, src_len
+                        );
+                    }
                 }
                 Err(err) => {
                     IS_CLONE_COMPATIBLE.store(false, std::sync::atomic::Ordering::Relaxed);
