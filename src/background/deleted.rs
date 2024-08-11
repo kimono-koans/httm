@@ -97,7 +97,7 @@ impl SpawnDeletedThread {
                 .iter()
                 .try_for_each(|deleted_dir| {
                     RecurseBehindDeletedDir::exec(
-                        deleted_dir.as_path(),
+                        &deleted_dir.path(),
                         requested_dir,
                         skim_tx,
                         hangup_rx,

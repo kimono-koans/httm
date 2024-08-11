@@ -105,11 +105,11 @@ impl DeletedFiles {
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct LastInTimeSet {
-    inner: Vec<PathBuf>,
+    inner: Vec<PathData>,
 }
 
 impl Deref for LastInTimeSet {
-    type Target = Vec<PathBuf>;
+    type Target = Vec<PathData>;
 
     fn deref(&self) -> &Self::Target {
         &self.inner
@@ -133,7 +133,6 @@ impl LastInTimeSet {
                     .into_search_bundles()
                     .filter_map(|search_bundle| search_bundle.last_version())
                     .max_by_key(|pathdata| pathdata.metadata_infallible().mtime())
-                    .map(|pathdata| pathdata.path().to_path_buf())
             })
             .collect();
 

@@ -273,7 +273,7 @@ impl<'a> PreserveHardLinks<'a> {
             .flat_map(|(_key, values)| values)
             .map(|snap_entry| {
                 self.roll_forward
-                    .live_path(&snap_entry.path().to_path_buf())
+                    .live_path(&snap_entry.path().to_owned())
                     .ok_or_else(|| HttmError::new("Could obtain live path for snap path").into())
             })
             .collect::<HttmResult<HashSet<PathBuf>>>()
@@ -312,7 +312,7 @@ impl<'a> PreserveHardLinks<'a> {
             .clone()
             .into_values()
             .flatten()
-            .map(|entry| entry.path().to_path_buf())
+            .map(|entry| entry.to_path_buf())
             .collect();
 
         let orphans_intersection = live_map_as_set.intersection(&snaps_to_live_map);
