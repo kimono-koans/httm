@@ -41,7 +41,7 @@ pub struct FilesystemInfo {
 }
 
 impl FilesystemInfo {
-    pub fn new<'a, 'b: 'a>(
+    pub fn new(
         opt_alt_replicated: bool,
         opt_debug: bool,
         opt_remote_dir: Option<&str>,

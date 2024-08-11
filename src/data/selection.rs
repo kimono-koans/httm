@@ -17,7 +17,7 @@
 
 use crate::background::recursive::PathProvenance;
 use crate::config::generate::{ListSnapsOfType, PrintMode};
-use crate::data::paths::{BasicDirEntryInfo, PathData};
+use crate::data::paths::PathData;
 use crate::display_versions::wrapper::VersionsDisplayWrapper;
 use crate::library::results::HttmResult;
 use crate::library::utility::paint_string;
@@ -37,26 +37,26 @@ use std::sync::LazyLock;
 // and impl Colorable for how we paint the path strings
 pub struct SelectionCandidate {
     path: PathBuf,
-    file_type: Option<FileType>,
+    opt_filetype: Option<FileType>,
 }
 
 impl SelectionCandidate {
-    pub fn new(basic_info: BasicDirEntryInfo, is_phantom: PathProvenance) -> Self {
-        // here save space of bool/padding instead of an "is_phantom: bool"
-        //
-        // issue: conflate not having a file_type as phantom
-        // for purposes of coloring the file_name/path only?
-        //
-        // std lib docs don't give much indication as to
-        // when file_type() fails?  Doesn't seem to be a problem?
-        let file_type = match is_phantom {
-            PathProvenance::FromLiveDataset => basic_info.file_type,
-            PathProvenance::IsPhantom => None,
-        };
+    pub fn new(path: PathBuf, opt_filetype: Option<FileType>) -> Self {
+        Self { path, opt_filetype }
+    }
 
-        SelectionCandidate {
-            path: basic_info.path,
-            file_type,
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+
+    pub fn opt_filetype(&self) -> &Option<FileType> {
+        &self.opt_filetype
+    }
+
+    pub fn set_phantom(&mut self, is_phantom: &PathProvenance) {
+        match is_phantom {
+            PathProvenance::FromLiveDataset => {}
+            PathProvenance::IsPhantom => self.opt_filetype = None,
         }
     }
 
@@ -110,7 +110,7 @@ impl Colorable for &SelectionCandidate {
         self.path.file_name().unwrap_or_default().to_os_string()
     }
     fn file_type(&self) -> Option<FileType> {
-        self.file_type
+        *self.opt_filetype()
     }
     fn metadata(&self) -> Option<std::fs::Metadata> {
         self.path.symlink_metadata().ok()

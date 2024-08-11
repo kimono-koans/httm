@@ -34,29 +34,53 @@ use std::sync::LazyLock;
 use std::sync::OnceLock;
 use std::time::SystemTime;
 
+use super::selection::SelectionCandidate;
+
 static DATASET_MAX_LEN: LazyLock<usize> =
     LazyLock::new(|| GLOBAL_CONFIG.dataset_collection.map_of_datasets.max_len());
 
 // only the most basic data from a DirEntry
 // for use to display in browse window and internally
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, Hash, PartialEq)]
 pub struct BasicDirEntryInfo {
-    pub path: PathBuf,
-    pub file_type: Option<FileType>,
+    path: PathBuf,
+    opt_filetype: Option<FileType>,
 }
 
 impl From<&DirEntry> for BasicDirEntryInfo {
     fn from(dir_entry: &DirEntry) -> Self {
         BasicDirEntryInfo {
             path: dir_entry.path(),
-            file_type: dir_entry.file_type().ok(),
+            opt_filetype: dir_entry.file_type().ok(),
         }
     }
 }
 
 impl BasicDirEntryInfo {
+    pub fn new(path: PathBuf, opt_filetype: Option<FileType>) -> Self {
+        Self { path, opt_filetype }
+    }
+
     pub fn filename(&self) -> &OsStr {
         self.path.file_name().unwrap_or_default()
+    }
+
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+
+    pub fn opt_filetype(&self) -> &Option<FileType> {
+        &self.opt_filetype
+    }
+
+    pub fn to_path_buf(self) -> PathBuf {
+        self.path
+    }
+}
+
+impl Into<SelectionCandidate> for BasicDirEntryInfo {
+    fn into(self) -> SelectionCandidate {
+        SelectionCandidate::new(self.path, self.opt_filetype)
     }
 }
 

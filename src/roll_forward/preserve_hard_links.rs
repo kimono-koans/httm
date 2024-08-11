@@ -59,10 +59,7 @@ pub struct HardLinkMap {
 
 impl HardLinkMap {
     pub fn new(requested_path: &Path) -> HttmResult<Self> {
-        let constructed = BasicDirEntryInfo {
-            path: requested_path.to_path_buf(),
-            file_type: None,
-        };
+        let constructed = BasicDirEntryInfo::new(requested_path.to_path_buf(), None);
 
         let mut queue: Vec<BasicDirEntryInfo> = vec![constructed];
         let mut tmp: HashMap<u64, Vec<BasicDirEntryInfo>> = HashMap::new();
@@ -71,12 +68,12 @@ impl HardLinkMap {
             // no errors will be propagated in recursive mode
             // far too likely to run into a dir we don't have permissions to view
             let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
-                read_dir(item.path)?
+                read_dir(item.path())?
                     .flatten()
                     // checking file_type on dir entries is always preferable
                     // as it is much faster than a metadata call on the path
                     .map(|dir_entry| BasicDirEntryInfo::from(&dir_entry))
-                    .partition(|dir_entry| dir_entry.path.is_dir());
+                    .partition(|dir_entry| dir_entry.path().is_dir());
 
             let mut combined = vec_files;
             combined.extend_from_slice(&vec_dirs);
@@ -85,13 +82,13 @@ impl HardLinkMap {
             combined
                 .into_iter()
                 .filter(|entry| {
-                    if let Some(ft) = entry.file_type {
+                    if let Some(ft) = entry.opt_filetype() {
                         return ft.is_file();
                     }
 
                     false
                 })
-                .filter_map(|entry| entry.path.metadata().ok().map(|md| (md.ino(), entry)))
+                .filter_map(|entry| entry.path().metadata().ok().map(|md| (md.ino(), entry)))
                 .for_each(|(ino, entry)| match tmp.get_mut(&ino) {
                     Some(values) => values.push(entry),
                     None => {
@@ -108,7 +105,7 @@ impl HardLinkMap {
         let remainder = remain_tmp
             .into_values()
             .flatten()
-            .map(|entry| entry.path)
+            .map(|entry| entry.to_path_buf())
             .collect();
 
         Ok(Self {
@@ -155,7 +152,7 @@ impl<'a> PreserveHardLinks<'a> {
                 .clone()
                 .into_values()
                 .flatten()
-                .map(|entry| entry.path),
+                .map(|entry| entry.to_path_buf()),
         );
 
         eprintln!("Preserving necessary links from the snapshot dataset.");
@@ -166,7 +163,7 @@ impl<'a> PreserveHardLinks<'a> {
                 .clone()
                 .into_values()
                 .flatten()
-                .map(|entry| entry.path),
+                .map(|entry| entry.to_path_buf()),
         );
 
         Ok(exclusions)
@@ -182,12 +179,12 @@ impl<'a> PreserveHardLinks<'a> {
                 values.iter().try_for_each(|live_path| {
                     let snap_path = self
                         .roll_forward
-                        .snap_path(&live_path.path)
+                        .snap_path(live_path.path())
                         .ok_or_else(|| HttmError::new("Could obtain live path for snap path"))?;
 
                     if !snap_path.exists() {
                         NONE_REMOVED.store(false, std::sync::atomic::Ordering::Relaxed);
-                        return Self::rm_hard_link(&live_path.path);
+                        return Self::rm_hard_link(live_path.path());
                     }
 
                     Ok(())
@@ -209,17 +206,19 @@ impl<'a> PreserveHardLinks<'a> {
             .link_map
             .par_iter()
             .try_for_each(|(_key, values)| {
-                let complemented_paths: Vec<(PathBuf, &PathBuf)> = values
+                let complemented_paths: Vec<(PathBuf, PathBuf)> = values
                     .iter()
                     .map(|snap_path| {
                         let live_path =
-                            self.roll_forward.live_path(&snap_path.path).ok_or_else(|| {
-                                HttmError::new("Could obtain live path for snap path").into()
-                            });
+                            self.roll_forward
+                                .live_path(&snap_path.path())
+                                .ok_or_else(|| {
+                                    HttmError::new("Could obtain live path for snap path").into()
+                                });
 
-                        live_path.map(|live| (live, &snap_path.path))
+                        live_path.map(|live| (live, snap_path.path().to_path_buf()))
                     })
-                    .collect::<HttmResult<Vec<(PathBuf, &PathBuf)>>>()?;
+                    .collect::<HttmResult<Vec<(PathBuf, PathBuf)>>>()?;
 
                 let mut opt_original = complemented_paths
                     .iter()
@@ -274,7 +273,7 @@ impl<'a> PreserveHardLinks<'a> {
             .flat_map(|(_key, values)| values)
             .map(|snap_entry| {
                 self.roll_forward
-                    .live_path(&snap_entry.path)
+                    .live_path(&snap_entry.path().to_path_buf())
                     .ok_or_else(|| HttmError::new("Could obtain live path for snap path").into())
             })
             .collect::<HttmResult<HashSet<PathBuf>>>()
@@ -313,7 +312,7 @@ impl<'a> PreserveHardLinks<'a> {
             .clone()
             .into_values()
             .flatten()
-            .map(|entry| entry.path)
+            .map(|entry| entry.path().to_path_buf())
             .collect();
 
         let orphans_intersection = live_map_as_set.intersection(&snaps_to_live_map);

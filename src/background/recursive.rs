@@ -101,18 +101,15 @@ impl RecursiveMainLoop {
         // the user may specify a dir for browsing,
         // but wants to restore that directory,
         // so here we add the directory and its parent as a selection item
-        let dot_as_entry = BasicDirEntryInfo {
-            path: requested_dir.to_path_buf(),
-            file_type: Some(requested_dir.metadata()?.file_type()),
-        };
-
+        let dot_as_entry = BasicDirEntryInfo::new(
+            requested_dir.to_path_buf(),
+            Some(requested_dir.metadata()?.file_type()),
+        );
         let mut initial_vec_dirs = vec![dot_as_entry];
 
         if let Some(parent) = requested_dir.parent() {
-            let double_dot_as_entry = BasicDirEntryInfo {
-                path: parent.to_path_buf(),
-                file_type: Some(parent.metadata()?.file_type()),
-            };
+            let double_dot_as_entry =
+                BasicDirEntryInfo::new(parent.to_path_buf(), Some(parent.metadata()?.file_type()));
 
             initial_vec_dirs.push(double_dot_as_entry)
         }
@@ -145,7 +142,7 @@ impl RecursiveMainLoop {
                 // no errors will be propagated in recursive mode
                 // far too likely to run into a dir we don't have permissions to view
                 if let Ok(items) =
-                    Self::enter_directory(&item.path, opt_deleted_scope, skim_tx, hangup_rx)
+                    Self::enter_directory(&item.path(), opt_deleted_scope, skim_tx, hangup_rx)
                 {
                     queue.extend(items)
                 }
@@ -241,7 +238,7 @@ impl SharedRecursive {
                 }
 
                 if GLOBAL_CONFIG.opt_one_filesystem {
-                    match entry.path.metadata() {
+                    match entry.path().metadata() {
                         Ok(path_md) if *OPT_REQUESTED_DIR_DEV == path_md.dev() => {}
                         _ => {
                             // if we can't read the metadata for a path,
@@ -278,7 +275,7 @@ impl SharedRecursive {
     fn exclude_path(entry: &BasicDirEntryInfo) -> bool {
         // FYI path is always a relative path, but no need to canonicalize as
         // partial eq for paths is comparison of components iter
-        let path = entry.path.as_path();
+        let path = entry.path();
 
         // never check the hidden snapshot directory for live files (duh)
         // didn't think this was possible until I saw a SMB share return
@@ -319,9 +316,11 @@ impl SharedRecursive {
     ) -> Vec<BasicDirEntryInfo> {
         entries
             .into_iter()
-            .map(|basic_info| BasicDirEntryInfo {
-                path: pseudo_live_dir.join(basic_info.path.file_name().unwrap_or_default()),
-                file_type: basic_info.file_type,
+            .map(|basic_info| {
+                BasicDirEntryInfo::new(
+                    pseudo_live_dir.join(basic_info.path().file_name().unwrap_or_default()),
+                    *basic_info.opt_filetype(),
+                )
             })
             .collect()
     }
@@ -369,7 +368,9 @@ impl SharedRecursive {
         entries
             .into_iter()
             .try_for_each(|basic_info| {
-                skim_tx.try_send(Arc::new(SelectionCandidate::new(basic_info, is_phantom)))
+                let mut selection: SelectionCandidate = basic_info.into();
+                selection.set_phantom(&is_phantom);
+                skim_tx.try_send(Arc::new(selection))
             })
             .map_err(std::convert::Into::into)
     }
