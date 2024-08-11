@@ -210,7 +210,7 @@ impl RollForward {
         let snap_dataset = self.snap_dataset();
 
         let mut directory_list: Vec<PathBuf> = vec![snap_dataset.clone()];
-        let mut file_list = Vec::new();
+        let mut file_list: Vec<PathBuf> = Vec::new();
 
         eprint!("Building file and directory list: ");
         while let Some(item) = directory_list.pop() {
@@ -219,7 +219,7 @@ impl RollForward {
                 .map(|dir_entry| dir_entry.path())
                 .partition(|path| path.is_dir());
 
-            directory_list.extend(vec_dirs.clone());
+            directory_list.extend(vec_dirs);
             file_list.extend(vec_files);
         }
         eprintln!("OK");
