@@ -398,6 +398,8 @@ impl RollForward {
             return Err(HttmError::new(&msg).into());
         }
 
+        Preserve::direct(src, dst)?;
+
         eprintln!("{}: {:?} -> {:?}", Blue.paint("Restored "), src, dst);
         Ok(())
     }
