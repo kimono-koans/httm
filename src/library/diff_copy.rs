@@ -291,7 +291,7 @@ impl DiffCopy {
 
         loop {
             // seek to current byte offset in dst writer
-            let _ = dst_writer.seek(SeekFrom::Start(seek_pos))?;
+            seek_pos = dst_writer.seek(SeekFrom::Start(seek_pos))?;
 
             amt_written += dst_writer.write(src_read)? as u64;
 
