@@ -87,7 +87,7 @@ impl BasicDirEntryInfo {
 
 impl Into<SelectionCandidate> for BasicDirEntryInfo {
     fn into(self) -> SelectionCandidate {
-        SelectionCandidate::new(self.path, self.opt_filetype)
+        unsafe { std::mem::transmute(self) }
     }
 }
 
