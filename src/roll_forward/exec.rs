@@ -209,14 +209,6 @@ impl RollForward {
     fn verify(&self) -> HttmResult<()> {
         let snap_dataset = self.snap_dataset();
 
-        // copy attributes for base dataset, our recursive attr copy does stops
-        // before including the base dataset
-        let live_dataset = self
-            .live_path(&snap_dataset)
-            .ok_or_else(|| HttmError::new("Could not generate live path"))?;
-
-        let _ = Preserve::direct(&snap_dataset, &live_dataset);
-
         let mut directory_list: Vec<PathBuf> = vec![snap_dataset.clone()];
         let mut file_list = Vec::new();
 
@@ -269,8 +261,18 @@ impl RollForward {
             .try_for_each(|(snap_path, live_path)| {
                 self.progress_bar.tick();
 
+                Preserve::direct(&snap_path, &live_path)?;
+
                 is_metadata_same(&snap_path, &live_path)
             })?;
+
+        // copy attributes for base dataset, our recursive attr copy does stops
+        // before including the base dataset
+        let live_dataset = self
+            .live_path(&snap_dataset)
+            .ok_or_else(|| HttmError::new("Could not generate live path"))?;
+
+        let _ = Preserve::direct(&snap_dataset, &live_dataset);
 
         self.progress_bar.finish_and_clear();
 
