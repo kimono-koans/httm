@@ -285,13 +285,15 @@ impl DiffCopy {
     ) -> HttmResult<u64> {
         let src_amount_read = src_read.len() as u64;
 
-        let mut seek_pos = cur_pos as u64;
+        let mut seek_pos = cur_pos;
 
         let mut amt_written = 0u64;
 
         loop {
             // seek to current byte offset in dst writer
-            seek_pos = dst_writer.seek(SeekFrom::Start(seek_pos))?;
+            let seeked = dst_writer.seek(SeekFrom::Start(seek_pos))?;
+
+            assert_eq!(seeked, seek_pos);
 
             amt_written += dst_writer.write(src_read)? as u64;
 
