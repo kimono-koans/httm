@@ -315,7 +315,7 @@ impl DiffCopy {
                 match nix::fcntl::copy_file_range(src_file_fd, None, dst_file_fd, None, len) {
                     // However,	a return of zero  for  a  non-zero  len  argument
                     // indicates that the offset for infd is at or	beyond EOF.
-                    Ok(bytes_written) if bytes_written == 0usize => return Ok(amt_written),
+                    Ok(bytes_written) if bytes_written == 0usize => Ok(amt_written),
                     Ok(bytes_written) => {
                         amt_written += bytes_written;
 
