@@ -303,12 +303,12 @@ where
     T: ComparePathMetadata,
 {
     if src.opt_metadata().is_none() {
-        let msg = format!("WARN: Metadata not found: {:?}", src.path());
+        let msg = format!("Metadata not found: {:?}", src.path());
         return Err(HttmError::new(&msg).into());
     }
 
     if src.path().is_symlink() && (src.path().read_link().ok() != dst.path().read_link().ok()) {
-        let msg = format!("WARN: Symlink do not match: {:?}", src.path());
+        let msg = format!("Symlink do not match: {:?}", src.path());
         return Err(HttmError::new(&msg).into());
     }
 
