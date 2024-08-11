@@ -41,6 +41,14 @@ impl From<BTreeMap<PathData, Vec<PathData>>> for VersionsMap {
     }
 }
 
+impl From<[(PathData, Vec<PathData>); 1]> for VersionsMap {
+    fn from(slice: [(PathData, Vec<PathData>); 1]) -> Self {
+        Self {
+            inner: slice.into(),
+        }
+    }
+}
+
 impl Deref for VersionsMap {
     type Target = BTreeMap<PathData, Vec<PathData>>;
 

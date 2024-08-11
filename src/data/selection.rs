@@ -22,10 +22,10 @@ use crate::display_versions::wrapper::VersionsDisplayWrapper;
 use crate::library::results::HttmResult;
 use crate::library::utility::paint_string;
 use crate::lookup::versions::Versions;
+use crate::VersionsMap;
 use crate::{Config, ExecMode, GLOBAL_CONFIG};
 use lscolors::Colorable;
 use skim::prelude::*;
-use std::collections::BTreeMap;
 use std::fs::FileType;
 use std::path::Path;
 use std::path::PathBuf;
@@ -66,13 +66,11 @@ impl SelectionCandidate {
         let display_pathdata = PathData::from(&self.path);
 
         // finally run search on those paths
-        let all_snap_versions: BTreeMap<PathData, Vec<PathData>> =
-            [Versions::new(&display_pathdata, &display_config)?.into_inner()]
-                .into_iter()
-                .collect();
+        let all_snap_versions: VersionsMap =
+            [Versions::new(&display_pathdata, &display_config)?.into_inner()].into();
 
         let output_buf =
-            VersionsDisplayWrapper::from(&display_config, all_snap_versions.into()).to_string();
+            VersionsDisplayWrapper::from(&display_config, all_snap_versions).to_string();
 
         Ok(output_buf)
     }
