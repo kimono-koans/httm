@@ -221,7 +221,7 @@ impl PathData {
                 // we use a dummy instead of a None value here.  Basically, sometimes, we want
                 // to print the request even if a live file does not exist
                 let size = if self.opt_metadata().is_some() {
-                    Cow::Owned(display_human_size(metadata.size))
+                    Cow::Owned(display_human_size(metadata.size()))
                 } else {
                     Cow::Borrowed(&padding_collection.phantom_size_pad_str)
                 };
@@ -233,7 +233,7 @@ impl PathData {
                 // print with padding and pretty border lines and ls colors
                 let size = {
                     let size = if self.opt_metadata().is_some() {
-                        Cow::Owned(display_human_size(metadata.size))
+                        Cow::Owned(display_human_size(metadata.size()))
                     } else {
                         Cow::Borrowed(&padding_collection.phantom_size_pad_str)
                     };
@@ -269,7 +269,7 @@ impl PathData {
         let display_date = if self.opt_metadata().is_some() {
             Cow::Owned(date_string(
                 config.requested_utc_offset,
-                &metadata.modify_time,
+                &metadata.mtime(),
                 DateFormat::Display,
             ))
         } else {
@@ -318,12 +318,12 @@ impl PaddingCollection {
                 let (display_date, display_size, display_path) = {
                     let date = date_string(
                         config.requested_utc_offset,
-                        &metadata.modify_time,
+                        &metadata.mtime(),
                         DateFormat::Display,
                     );
                     let size = format!(
                         "{:>width$}",
-                        display_human_size(metadata.size),
+                        display_human_size(metadata.size()),
                         width = size_padding_len
                     );
                     let path = pathdata.path().to_string_lossy();
@@ -331,7 +331,7 @@ impl PaddingCollection {
                     (date, size, path)
                 };
 
-                let display_size_len = display_human_size(metadata.size).chars().count();
+                let display_size_len = display_human_size(metadata.size()).chars().count();
                 let formatted_line_len = display_date.chars().count()
                     + display_size.chars().count()
                     + display_path.chars().count()

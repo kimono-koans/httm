@@ -16,7 +16,7 @@
 // that was distributed with this source code.
 
 use crate::config::generate::PrintMode;
-use crate::data::paths::{BasicDirEntryInfo, PathData, PathMetadata, PHANTOM_DATE};
+use crate::data::paths::{BasicDirEntryInfo, PathData, PathMetadata};
 use crate::data::selection::SelectionCandidate;
 use crate::library::results::{HttmError, HttmResult};
 
@@ -328,12 +328,10 @@ pub trait ComparePathMetadata {
 impl<T: AsRef<Path>> ComparePathMetadata for T {
     fn opt_metadata(&self) -> Option<PathMetadata> {
         // never follow symlinks for comparison
-        let opt_md = self.as_ref().symlink_metadata().ok();
-
-        opt_md.map(|md| PathMetadata {
-            size: md.len(),
-            modify_time: md.modified().unwrap_or(PHANTOM_DATE),
-        })
+        self.as_ref()
+            .symlink_metadata()
+            .ok()
+            .and_then(|md| PathMetadata::new(&md))
     }
 
     fn path(&self) -> &Path {

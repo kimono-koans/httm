@@ -219,7 +219,7 @@ impl InteractiveRestore {
             + ".httm_restored."
             + &date_string(
                 GLOBAL_CONFIG.requested_utc_offset,
-                &snap_metadata.modify_time,
+                &snap_metadata.mtime(),
                 DateFormat::Timestamp,
             );
         let new_file_dir = GLOBAL_CONFIG.pwd.as_path();

@@ -388,7 +388,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
         uniqueness: &ListSnapsOfType,
     ) -> Vec<PathData> {
         let mut vec: Vec<PathData> = iter.collect();
-        vec.sort_unstable_by_key(|pathdata| pathdata.metadata_infallible().modify_time);
+        vec.sort_unstable_by_key(|pathdata| pathdata.metadata_infallible().mtime());
 
         match uniqueness {
             ListSnapsOfType::All => vec,

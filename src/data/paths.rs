@@ -402,8 +402,8 @@ impl Serialize for PathMetadata {
 
 #[derive(Copy, Clone, Debug, Eq, Hash, PartialEq)]
 pub struct PathMetadata {
-    pub size: u64,
-    pub modify_time: SystemTime,
+    size: u64,
+    modify_time: SystemTime,
 }
 
 impl PathMetadata {
@@ -411,7 +411,7 @@ impl PathMetadata {
     #[inline(always)]
     pub fn new(md: &Metadata) -> Option<Self> {
         // may fail on systems that don't collect a modify time
-        Self::modify_time(md).map(|time| PathMetadata {
+        md.modified().ok().map(|time| PathMetadata {
             size: md.len(),
             modify_time: time,
         })
@@ -420,12 +420,12 @@ impl PathMetadata {
     // using ctime instead of mtime might be more correct as mtime can be trivially changed from user space
     // but I think we want to use mtime here? People should be able to make a snapshot "unique" with only mtime?
     #[inline(always)]
-    fn modify_time(md: &Metadata) -> Option<SystemTime> {
-        //#[cfg(not(unix))]
-        // return md.modified().unwrap_or(UNIX_EPOCH);
-        //#[cfg(unix)]
-        //return UNIX_EPOCH + time::Duration::new(md.ctime(), md.ctime_nsec() as i32);
-        md.modified().ok()
+    pub fn mtime(&self) -> SystemTime {
+        self.modify_time
+    }
+
+    pub fn size(&self) -> u64 {
+        self.size
     }
 }
 
@@ -439,7 +439,7 @@ pub const PHANTOM_PATH_METADATA: PathMetadata = PathMetadata {
 
 #[derive(Eq, PartialEq)]
 pub struct CompareVersionsContainer<'a> {
-    pub pathdata: &'a PathData,
+    pathdata: &'a PathData,
     opt_hash: Option<OnceLock<u64>>,
 }
 

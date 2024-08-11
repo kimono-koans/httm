@@ -132,7 +132,7 @@ impl LastInTimeSet {
                 prox_opt_alts
                     .into_search_bundles()
                     .filter_map(|search_bundle| search_bundle.last_version())
-                    .max_by_key(|pathdata| pathdata.metadata_infallible().modify_time)
+                    .max_by_key(|pathdata| pathdata.metadata_infallible().mtime())
                     .map(|pathdata| pathdata.path().to_path_buf())
             })
             .collect();
