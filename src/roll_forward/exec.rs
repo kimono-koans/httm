@@ -209,45 +209,6 @@ impl RollForward {
     fn verify(&self) -> HttmResult<()> {
         let snap_dataset = self.snap_dataset();
 
-        let mut first_pass: Vec<PathBuf> = vec![snap_dataset.clone()];
-        let mut second_pass = Vec::new();
-
-        eprint!("Verifying files and symlinks: ");
-        while let Some(item) = first_pass.pop() {
-            let (vec_dirs, vec_files): (Vec<PathBuf>, Vec<PathBuf>) = read_dir(&item)?
-                .flatten()
-                .map(|dir_entry| dir_entry.path())
-                .partition(|path| path.is_dir());
-
-            if vec_dirs.is_empty() {
-                // change attrs on dir when at the top of a dir tree, so not over written from above
-                let live_path = self
-                    .live_path(&item)
-                    .ok_or_else(|| HttmError::new("Could not generate live path"))?;
-
-                let _ = Preserve::recursive(&item, &live_path);
-            }
-
-            first_pass.extend(vec_dirs.clone());
-            second_pass.extend(vec_dirs);
-
-            // first pass only verify non-directories
-            vec_files
-                .into_iter()
-                .filter_map(|snap_path| {
-                    self.live_path(&snap_path)
-                        .map(|live_path| (snap_path, live_path))
-                })
-                .try_for_each(|(snap_path, live_path)| {
-                    self.progress_bar.tick();
-
-                    is_metadata_same(&snap_path, &live_path)
-                })?;
-        }
-        self.progress_bar.finish_and_clear();
-        eprintln!("OK");
-
-        eprint!("Verifying directories: ");
         // copy attributes for base dataset, our recursive attr copy does stops
         // before including the base dataset
         let live_dataset = self
@@ -256,9 +217,50 @@ impl RollForward {
 
         let _ = Preserve::direct(&snap_dataset, &live_dataset);
 
+        let mut directory_list: Vec<PathBuf> = vec![snap_dataset.clone()];
+        let mut file_list = Vec::new();
+
+        eprint!("Building file and directory list: ");
+        while let Some(item) = directory_list.pop() {
+            let (vec_dirs, vec_files): (Vec<PathBuf>, Vec<PathBuf>) = read_dir(&item)?
+                .flatten()
+                .map(|dir_entry| dir_entry.path())
+                .partition(|path| path.is_dir());
+
+            directory_list.extend(vec_dirs.clone());
+            file_list.extend(vec_files);
+        }
+        eprintln!("OK");
+
+        eprint!("Verifying files and symlinks: ");
+        // first pass only verify non-directories
+        file_list.sort_by_key(|path| path.components().count());
+
+        file_list.reverse();
+
+        file_list
+            .into_iter()
+            .filter_map(|snap_path| {
+                self.live_path(&snap_path)
+                    .map(|live_path| (snap_path, live_path))
+            })
+            .try_for_each(|(snap_path, live_path)| {
+                self.progress_bar.tick();
+
+                is_metadata_same(&snap_path, &live_path)
+            })?;
+
+        self.progress_bar.finish_and_clear();
+        eprintln!("OK");
+
+        eprint!("Verifying directories: ");
         // 2nd pass checks dirs - why?  we don't check dirs on first pass,
         // because copying of data may have changed dir size/mtime
-        second_pass
+        directory_list.sort_by_key(|path| path.components().count());
+
+        directory_list.reverse();
+
+        directory_list
             .into_iter()
             .filter_map(|snap_path| {
                 self.live_path(&snap_path)
