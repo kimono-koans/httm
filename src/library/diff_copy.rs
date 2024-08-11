@@ -291,9 +291,11 @@ impl DiffCopy {
 
         loop {
             // seek to current byte offset in dst writer
-            let seeked = dst_writer.seek(SeekFrom::Start(seek_pos))?;
+            let pos = dst_writer.seek(SeekFrom::Start(seek_pos))?;
 
-            assert_eq!(seeked, seek_pos);
+            if pos != seek_pos {
+                continue;
+            }
 
             amt_written += dst_writer.write(src_read)? as u64;
 
