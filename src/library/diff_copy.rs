@@ -116,7 +116,7 @@ impl HttmCopy {
         dst_file.set_len(src_len)?;
 
         match DiffCopy::new(&src_file, &mut dst_file) {
-            Ok(amt_written) if amt_written != src_len as usize => {
+            Ok(amt_written) if amt_written != src_len => {
                 eprintln!("WARN: Amount written (\"{}\") != Source length (\"{}\").  This is often simply because a write call blocks.  In an abundance of caution, httm will read back the data written to confirm.",
                 amt_written, src_len);
 
@@ -135,7 +135,7 @@ impl HttmCopy {
 struct DiffCopy;
 
 impl DiffCopy {
-    fn new(src_file: &File, dst_file: &mut File) -> HttmResult<usize> {
+    fn new(src_file: &File, dst_file: &mut File) -> HttmResult<u64> {
         let src_len = src_file.metadata()?.len();
 
         if !GLOBAL_CONFIG.opt_no_clones
@@ -184,7 +184,7 @@ impl DiffCopy {
     }
 
     #[inline]
-    fn write_no_cow(src_file: &File, dst_file: &File) -> HttmResult<usize> {
+    fn write_no_cow(src_file: &File, dst_file: &File) -> HttmResult<u64> {
         // create destination file writer and maybe reader
         // only include dst file reader if the dst file exists
         // otherwise we just write to that location
@@ -198,7 +198,7 @@ impl DiffCopy {
         let mut cur_pos = 0u64;
 
         // return value
-        let mut bytes_processed = 0usize;
+        let mut bytes_processed = 0u64;
 
         loop {
             match src_reader.fill_buf() {
@@ -211,24 +211,21 @@ impl DiffCopy {
                     }
 
                     match dst_exists {
-                        DstFileState::DoesNotExist => Self::write_to_offset(
-                            &mut dst_writer,
-                            src_read,
-                            cur_pos,
-                            &mut bytes_processed,
-                        )?,
+                        DstFileState::DoesNotExist => {
+                            bytes_processed +=
+                                Self::write_to_offset(&mut dst_writer, src_read, cur_pos)?;
+                        }
                         DstFileState::Exists => {
                             // read same amt from dst file, if it exists, to compare
                             match dst_reader.fill_buf() {
                                 Ok(dst_read) => {
                                     if Self::is_same_bytes(src_read, dst_read) {
-                                        bytes_processed += src_amt_read;
+                                        bytes_processed += src_amt_read as u64;
                                     } else {
-                                        Self::write_to_offset(
+                                        bytes_processed += Self::write_to_offset(
                                             &mut dst_writer,
                                             src_read,
                                             cur_pos,
-                                            &mut bytes_processed,
                                         )?
                                     }
 
@@ -285,35 +282,35 @@ impl DiffCopy {
         dst_writer: &mut BufWriter<&File>,
         src_read: &[u8],
         cur_pos: u64,
-        bytes_processed: &mut usize,
-    ) -> HttmResult<()> {
+    ) -> HttmResult<u64> {
+        let src_amount_read = src_read.len() as u64;
+
+        let mut seek_pos = cur_pos as u64;
+
+        let mut amt_written = 0u64;
+
         loop {
-            let src_amount_read = src_read.len();
-
             // seek to current byte offset in dst writer
-            let seek_pos = dst_writer.seek(SeekFrom::Start(cur_pos))?;
+            let _ = dst_writer.seek(SeekFrom::Start(seek_pos))?;
 
-            if seek_pos != cur_pos {
-                let msg = format!("Could not seek to offset in destination file: {}", cur_pos);
-                return Err(HttmError::new(&msg).into());
-            }
+            amt_written += dst_writer.write(src_read)? as u64;
 
-            *bytes_processed += dst_writer.write(src_read)?;
+            seek_pos += amt_written;
 
-            if src_amount_read == *bytes_processed {
+            if src_amount_read == amt_written {
                 break;
             }
 
-            if src_amount_read > *bytes_processed {
+            if src_amount_read > amt_written {
                 continue;
             }
 
-            if src_amount_read < *bytes_processed {
+            if src_amount_read < amt_written {
                 return Err(HttmError::new("Amount written larger than file len.").into());
             }
         }
 
-        Ok(())
+        Ok(amt_written)
     }
 
     #[allow(unreachable_code, unused_variables)]
@@ -321,10 +318,10 @@ impl DiffCopy {
         src_file_fd: BorrowedFd,
         dst_file_fd: BorrowedFd,
         len: usize,
-    ) -> HttmResult<usize> {
+    ) -> HttmResult<u64> {
         #[cfg(any(target_os = "linux", target_os = "freebsd"))]
         {
-            let mut amt_written = 0usize;
+            let mut amt_written = 0u64;
 
             // copy_file_range needs to be run in a loop as it is interruptible
             loop {
@@ -339,17 +336,17 @@ impl DiffCopy {
                     // indicates that the offset for infd is at or	beyond EOF.
                     Ok(bytes_written) if bytes_written == 0usize => return Ok(amt_written),
                     Ok(bytes_written) => {
-                        amt_written += bytes_written as usize;
+                        amt_written += bytes_written as u64;
 
-                        if amt_written as usize == len {
-                            return Ok(amt_written as usize);
+                        if amt_written == len as u64 {
+                            return Ok(amt_written);
                         }
 
-                        if (amt_written as usize) < len {
+                        if amt_written < len as u64 {
                             continue;
                         }
 
-                        if amt_written as usize > len {
+                        if amt_written > len as u64 {
                             return Err(
                                 HttmError::new("Amount written larger than file len.").into()
                             );
