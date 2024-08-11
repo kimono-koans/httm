@@ -312,22 +312,28 @@ impl DiffCopy {
 
             // copy_file_range needs to be run in a loop as it is interruptible
             loop {
-                match nix::fcntl::copy_file_range(src_file_fd, None, dst_file_fd, None, len) {
+                match nix::fcntl::copy_file_range(
+                    src_file_fd,
+                    Some(&mut (amt_written as i64)),
+                    dst_file_fd,
+                    Some(&mut (amt_written as i64)),
+                    len,
+                ) {
                     // However,	a return of zero  for  a  non-zero  len  argument
                     // indicates that the offset for infd is at or	beyond EOF.
-                    Ok(bytes_written) if bytes_written == 0usize => Ok(amt_written),
+                    Ok(bytes_written) if bytes_written == 0usize => return Ok(amt_written),
                     Ok(bytes_written) => {
-                        amt_written += bytes_written;
+                        amt_written += bytes_written as usize;
 
-                        if amt_written == len {
-                            return Ok(amt_written);
+                        if amt_written as usize == len {
+                            return Ok(amt_written as usize);
                         }
 
-                        if amt_written < len {
+                        if (amt_written as usize) < len {
                             continue;
                         }
 
-                        if amt_written > len {
+                        if amt_written as usize > len {
                             return Err(
                                 HttmError::new("Amount written larger than file len.").into()
                             );
