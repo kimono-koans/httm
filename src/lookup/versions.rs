@@ -360,7 +360,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
         self
             .snap_mounts
             .iter()
-            .map(move |snap_path| {
+            .map(|snap_path| {
                 snap_path.join(self.relative_path)
             })
             .filter_map(|joined_path| {
