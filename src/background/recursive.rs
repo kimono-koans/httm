@@ -18,7 +18,6 @@
 use crate::background::deleted::SpawnDeletedThread;
 use crate::config::generate::{DeletedMode, ExecMode};
 use crate::data::paths::{BasicDirEntryInfo, PathData};
-use crate::data::selection::SelectionCandidate;
 use crate::display_versions::wrapper::VersionsDisplayWrapper;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{is_channel_closed, print_output_buf, HttmIsDir, Never};
@@ -368,9 +367,7 @@ impl SharedRecursive {
         entries
             .into_iter()
             .try_for_each(|basic_info| {
-                let mut selection: SelectionCandidate = basic_info.into();
-                selection.set_phantom(&is_phantom);
-                skim_tx.try_send(Arc::new(selection))
+                skim_tx.try_send(Arc::new(basic_info.into_selection(&is_phantom)))
             })
             .map_err(std::convert::Into::into)
     }

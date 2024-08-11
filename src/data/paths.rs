@@ -15,6 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
+use crate::background::recursive::PathProvenance;
 use crate::config::generate::{ListSnapsOfType, PrintMode};
 use crate::library::file_ops::HashFileContents;
 use crate::library::results::{HttmError, HttmResult};
@@ -75,6 +76,12 @@ impl BasicDirEntryInfo {
 
     pub fn to_path_buf(self) -> PathBuf {
         self.path
+    }
+
+    pub fn into_selection(self, is_phantom: &PathProvenance) -> SelectionCandidate {
+        let mut selection: SelectionCandidate = self.into();
+        selection.set_phantom(is_phantom);
+        selection
     }
 }
 
