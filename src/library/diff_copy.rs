@@ -308,21 +308,42 @@ impl DiffCopy {
     ) -> HttmResult<usize> {
         #[cfg(any(target_os = "linux", target_os = "freebsd"))]
         {
-            match nix::fcntl::copy_file_range(src_file_fd, None, dst_file_fd, None, len) {
-                Ok(bytes_written) => return Ok(bytes_written),
-                Err(err) => match err {
-                    nix::errno::Errno::ENOSYS => {
-                        return Err(HttmError::new(
-                            "Operating system does not support copy_file_ranges.",
-                        )
-                        .into())
-                    }
-                    _ => {
-                        if GLOBAL_CONFIG.opt_debug {
-                            eprintln!("DEBUG: copy_file_range call failed for the following reason: {}\nDEBUG: Falling back to default diff copy behavior.", err);
+            let mut amt_written = 0usize;
+
+            // copy_file_range needs to be run in a loop as it is interruptible
+            loop {
+                match nix::fcntl::copy_file_range(src_file_fd, None, dst_file_fd, None, len) {
+                    Ok(bytes_written) => {
+                        amt_written += bytes_written;
+
+                        if amt_written == len {
+                            return Ok(amt_written);
+                        }
+
+                        if amt_written < len {
+                            continue;
+                        }
+
+                        if amt_written > len {
+                            return Err(
+                                HttmError::new("Amount written larger than file len.").into()
+                            );
                         }
                     }
-                },
+                    Err(err) => match err {
+                        nix::errno::Errno::ENOSYS => {
+                            return Err(HttmError::new(
+                                "Operating system does not support copy_file_ranges.",
+                            )
+                            .into())
+                        }
+                        _ => {
+                            if GLOBAL_CONFIG.opt_debug {
+                                eprintln!("DEBUG: copy_file_range call failed for the following reason: {}\nDEBUG: Falling back to default diff copy behavior.", err);
+                            }
+                        }
+                    },
+                }
             }
         }
         Err(HttmError::new("Operating system does not support copy_file_ranges.").into())
