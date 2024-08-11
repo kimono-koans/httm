@@ -15,7 +15,6 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::data::paths::PathDeconstruction;
 use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::library::results::HttmResult;
 use crate::lookup::versions::{ProximateDatasetAndOptAlts, RelativePathAndSnapMounts};
@@ -133,8 +132,8 @@ impl LastInTimeSet {
                 prox_opt_alts
                     .into_search_bundles()
                     .filter_map(|search_bundle| search_bundle.last_version())
-                    .max_by_key(|pathdata| pathdata.md_infallible().modify_time)
-                    .map(|pathdata| pathdata.path_buf)
+                    .max_by_key(|pathdata| pathdata.metadata_infallible().modify_time)
+                    .map(|pathdata| pathdata.path().to_path_buf())
             })
             .collect();
 

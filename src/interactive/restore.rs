@@ -197,13 +197,13 @@ impl InteractiveRestore {
         }
 
         let snap_filename = snap_pathdata
-            .path_buf
+            .path()
             .file_name()
             .expect("Could not obtain a file name for the snap file version of path given")
             .to_string_lossy()
             .into_owned();
 
-        let Some(snap_metadata) = snap_pathdata.metadata else {
+        let Some(snap_metadata) = snap_pathdata.opt_metadata() else {
             let msg = format!(
                 "Source location: {:?} does not exist on disk Quitting.",
                 snap_pathdata.path()

@@ -78,7 +78,7 @@ impl<'a> VersionsDisplayWrapper<'a> {
         padding: usize,
         total_num_paths: usize,
     ) -> Option<String> {
-        let display_path = live_version.path_buf.display();
+        let display_path = live_version.path().display();
 
         let mut num_versions = snaps.len();
 

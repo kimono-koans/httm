@@ -174,10 +174,10 @@ impl<'a> HttmIsDir<'a> for PathData {
         httm_is_dir(self)
     }
     fn filetype(&self) -> Result<FileType, std::io::Error> {
-        Ok(self.path_buf.symlink_metadata()?.file_type())
+        Ok(self.path().symlink_metadata()?.file_type())
     }
     fn path(&'a self) -> &'a Path {
-        &self.path_buf
+        &self.path()
     }
 }
 
@@ -231,10 +231,10 @@ pub trait PaintString {
 
 impl PaintString for &PathData {
     fn ls_style(&self) -> Option<&lscolors::style::Style> {
-        ENV_LS_COLORS.style_for_path(&self.path_buf)
+        ENV_LS_COLORS.style_for_path(&self.path())
     }
     fn is_phantom(&self) -> bool {
-        self.metadata.is_none()
+        self.opt_metadata().is_none()
     }
 }
 

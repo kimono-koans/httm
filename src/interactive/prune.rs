@@ -55,7 +55,7 @@ impl InteractivePrune {
     fn new(snap_name_map: &SnapNameMap, select_mode: bool) -> HttmResult<()> {
         let file_names_string: String =
             snap_name_map.keys().fold(String::new(), |mut buffer, key| {
-                buffer += format!("{:?}\n", key.path_buf).as_str();
+                buffer += format!("{:?}\n", key.path()).as_str();
                 buffer
             });
 

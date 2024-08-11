@@ -17,7 +17,6 @@
 
 use crate::config::generate::PrintMode;
 use crate::data::paths::PathData;
-use crate::data::paths::PathDeconstruction;
 use crate::data::paths::ZfsSnapPathGuard;
 use crate::display_versions::format::{NOT_SO_PRETTY_FIXED_WIDTH_PADDING, QUOTATION_MARKS_LEN};
 use crate::library::utility::delimiter;
@@ -92,9 +91,9 @@ impl From<&VersionsMap> for PrintAsMap {
             .map(|(key, values)| {
                 let res = values
                     .iter()
-                    .map(|value| value.path_buf.to_string_lossy().to_string())
+                    .map(|value| value.path().to_string_lossy().to_string())
                     .collect();
-                (key.path_buf.to_string_lossy().to_string(), res)
+                (key.path().to_string_lossy().to_string(), res)
             })
             .collect();
         Self { inner }
@@ -105,7 +104,7 @@ impl From<&SnapNameMap> for PrintAsMap {
     fn from(map: &SnapNameMap) -> Self {
         let inner = map
             .iter()
-            .map(|(key, value)| (key.path_buf.to_string_lossy().to_string(), value.clone()))
+            .map(|(key, value)| (key.path().to_string_lossy().to_string(), value.clone()))
             .collect();
         Self { inner }
     }

@@ -16,7 +16,6 @@
 // that was distributed with this source code.
 
 use crate::config::generate::{PrintMode, SelectMode};
-use crate::data::paths::PathDeconstruction;
 use crate::display_versions::wrapper::VersionsDisplayWrapper;
 use crate::interactive::preview::PreviewSelection;
 use crate::interactive::view_mode::MultiSelect;
@@ -50,7 +49,7 @@ impl TryFrom<&mut InteractiveBrowse> for InteractiveSelect {
             let paths: Vec<String> = interactive_browse
                 .selected_pathdata
                 .iter()
-                .map(|path| path.path_buf.to_string_lossy().to_string())
+                .map(|path| path.path().to_string_lossy().to_string())
                 .collect();
             let msg = format!(
                 "{}{:?}",
@@ -83,7 +82,7 @@ impl TryFrom<&mut InteractiveBrowse> for InteractiveSelect {
 
             display_map.map.iter().try_for_each(|(live, snaps)| {
                 if snaps.is_empty() {
-                    let msg = format!("Path {:?} has no snapshots available.", live.path_buf);
+                    let msg = format!("Path {:?} has no snapshots available.", live.path());
                     return Err(HttmError::new(&msg));
                 }
 
@@ -112,7 +111,7 @@ impl TryFrom<&mut InteractiveBrowse> for InteractiveSelect {
                         // and cannot select a 'live' version or other invalid value.
                         display_map
                             .keys()
-                            .all(|key| key.path_buf.as_path() != Path::new(selection_buffer))
+                            .all(|key| key.path() != Path::new(selection_buffer))
                     })
                     .map(|selection_buffer| selection_buffer.to_string())
                     .collect::<Vec<String>>();
@@ -140,7 +139,7 @@ impl InteractiveSelect {
                 if values.is_empty() {
                     eprintln!(
                         "WARN: No last snap of {:?} is available for selection.  Perhaps you omitted identical files.",
-                        key.path_buf
+                        key.path()
                     );
                     None
                 } else {

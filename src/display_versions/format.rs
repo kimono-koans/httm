@@ -16,7 +16,6 @@
 // that was distributed with this source code.
 
 use crate::config::generate::{BulkExclusion, Config, PrintMode};
-use crate::data::paths::PathDeconstruction;
 use crate::data::paths::{PathData, PHANTOM_DATE, PHANTOM_SIZE};
 use crate::library::utility::{
     date_string, delimiter, display_human_size, paint_string, DateFormat,
@@ -212,7 +211,7 @@ impl PathData {
         padding_collection: &PaddingCollection,
     ) -> String {
         // obtain metadata for timestamp and size
-        let metadata = self.md_infallible();
+        let metadata = self.metadata_infallible();
 
         // tab delimited if "no pretty", no border lines, and no colors
         let (display_size, display_path, display_padding) = match &config.print_mode {
@@ -221,19 +220,19 @@ impl PathData {
                 //
                 // we use a dummy instead of a None value here.  Basically, sometimes, we want
                 // to print the request even if a live file does not exist
-                let size = if self.metadata.is_some() {
+                let size = if self.opt_metadata().is_some() {
                     Cow::Owned(display_human_size(metadata.size))
                 } else {
                     Cow::Borrowed(&padding_collection.phantom_size_pad_str)
                 };
-                let path = self.path_buf.to_string_lossy();
+                let path = self.path().to_string_lossy();
                 let padding = NOT_SO_PRETTY_FIXED_WIDTH_PADDING;
                 (size, path, padding)
             }
             _ => {
                 // print with padding and pretty border lines and ls colors
                 let size = {
-                    let size = if self.metadata.is_some() {
+                    let size = if self.opt_metadata().is_some() {
                         Cow::Owned(display_human_size(metadata.size))
                     } else {
                         Cow::Borrowed(&padding_collection.phantom_size_pad_str)
@@ -245,7 +244,7 @@ impl PathData {
                     ))
                 };
                 let path = {
-                    let path_buf = &self.path_buf;
+                    let path_buf = &self.path();
 
                     // paint the live strings with ls colors - idx == 1 is 2nd or live set
                     let painted_path_str = match display_set_type {
@@ -267,7 +266,7 @@ impl PathData {
             }
         };
 
-        let display_date = if self.metadata.is_some() {
+        let display_date = if self.opt_metadata().is_some() {
             Cow::Owned(date_string(
                 config.requested_utc_offset,
                 &metadata.modify_time,
@@ -291,7 +290,7 @@ impl PathData {
             Some(_) if config.opt_omit_ditto => {
                 "WARN: Omitting the only snapshot version available, which is identical to the live file.\n"
             }
-            Some(_) if self.path_buf.is_filter_dir() => {
+            Some(_) if self.path().is_filter_dir() => {
                 "WARN: Most proximate dataset for path is an unsupported filesystem.\n"
             }
             Some(_) => {
@@ -314,7 +313,7 @@ impl PaddingCollection {
         let (size_padding_len, fancy_border_len) = display_set.iter().flatten().fold(
             (0usize, 0usize),
             |(mut size_padding_len, mut fancy_border_len), pathdata| {
-                let metadata = pathdata.md_infallible();
+                let metadata = pathdata.metadata_infallible();
 
                 let (display_date, display_size, display_path) = {
                     let date = date_string(

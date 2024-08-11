@@ -38,10 +38,10 @@ impl MountDisplay {
         T: PathDeconstruction<'a> + ?Sized,
     {
         match self {
-            MountDisplay::Target => path.target(&mount.path_buf),
-            MountDisplay::Source => path.source(Some(&mount.path_buf)),
+            MountDisplay::Target => path.target(&mount.path()),
+            MountDisplay::Source => path.source(Some(&mount.path())),
             MountDisplay::RelativePath => path
-                .relative_path(&mount.path_buf)
+                .relative_path(&mount.path())
                 .ok()
                 .map(|path| path.to_path_buf()),
         }
@@ -86,7 +86,7 @@ impl<'a> MountsForFiles<'a> {
             })
             .map(|prox_opt_alts| {
                 if !is_interactive_mode
-                    && prox_opt_alts.pathdata.metadata.is_none()
+                    && prox_opt_alts.pathdata.opt_metadata().is_none()
                     && prox_opt_alts.datasets_of_interest().count() == 0
                 {
                     eprintln!(
@@ -105,7 +105,9 @@ impl<'a> MountsForFiles<'a> {
         if set
             .iter()
             .all(|prox| prox.datasets_of_interest().count() == 0)
-            || set.iter().all(|prox| prox.pathdata.metadata.is_none())
+            || set
+                .iter()
+                .all(|prox| prox.pathdata.opt_metadata().is_none())
         {
             return Err(HttmError::new(
                 "httm could either not find any mounts for the path/s specified, or all the path do not exist, so, umm, 🤷? Please try another path.",

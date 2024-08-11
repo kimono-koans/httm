@@ -61,7 +61,6 @@ impl BasicDirEntryInfo {
 }
 
 pub trait PathDeconstruction<'a> {
-    fn path(&'a self) -> &'a Path;
     fn alias(&self) -> Option<AliasedPath>;
     fn target(&self, proximate_dataset_mount: &Path) -> Option<PathBuf>;
     fn source(&self, opt_proximate_dataset_mount: Option<&'a Path>) -> Option<PathBuf>;
@@ -74,21 +73,21 @@ pub trait PathDeconstruction<'a> {
 // detailed info required to differentiate and display file versions
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct PathData {
-    pub path_buf: PathBuf,
-    pub metadata: Option<PathMetadata>,
+    path_buf: PathBuf,
+    metadata: Option<PathMetadata>,
 }
 
 impl PartialOrd for PathData {
     #[inline]
     fn partial_cmp(&self, other: &PathData) -> Option<Ordering> {
-        Some(self.path_buf.cmp(&other.path_buf))
+        Some(self.path().cmp(&other.path()))
     }
 }
 
 impl Ord for PathData {
     #[inline]
     fn cmp(&self, other: &PathData) -> Ordering {
-        self.path_buf.cmp(&other.path_buf)
+        self.path().cmp(&other.path())
     }
 }
 
@@ -129,8 +128,16 @@ impl PathData {
         }
     }
 
+    pub fn path<'a>(&'a self) -> &'a Path {
+        &self.path_buf
+    }
+
+    pub fn opt_metadata<'a>(&'a self) -> &'a Option<PathMetadata> {
+        &self.metadata
+    }
+
     #[inline(always)]
-    pub fn md_infallible(&self) -> PathMetadata {
+    pub fn metadata_infallible(&self) -> PathMetadata {
         self.metadata.unwrap_or_else(|| PHANTOM_PATH_METADATA)
     }
 
@@ -143,10 +150,6 @@ impl PathData {
 }
 
 impl<'a> PathDeconstruction<'a> for PathData {
-    fn path(&'a self) -> &'a Path {
-        &self.path_buf
-    }
-
     fn alias(&self) -> Option<AliasedPath> {
         // find_map_first should return the first seq result with a par_iter
         // but not with a par_bridge
@@ -266,10 +269,6 @@ impl<'a> ZfsSnapPathGuard<'a> {
 }
 
 impl<'a> PathDeconstruction<'a> for ZfsSnapPathGuard<'_> {
-    fn path(&'a self) -> &'a Path {
-        self.inner.path()
-    }
-
     fn alias(&self) -> Option<AliasedPath> {
         // aliases aren't allowed for snap paths
         None
@@ -454,8 +453,8 @@ impl<'a> PartialOrd for CompareVersionsContainer<'a> {
 impl<'a> Ord for CompareVersionsContainer<'a> {
     #[inline(always)]
     fn cmp(&self, other: &Self) -> Ordering {
-        let self_md = self.pathdata.md_infallible();
-        let other_md = other.pathdata.md_infallible();
+        let self_md = self.pathdata.metadata_infallible();
+        let other_md = other.pathdata.metadata_infallible();
 
         if self_md.modify_time == other_md.modify_time {
             return self_md.size.cmp(&other_md.size);

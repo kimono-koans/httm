@@ -1055,7 +1055,7 @@ impl Config {
                     0 => Some(pwd.to_path_buf()),
                     // use our bespoke is_dir fn for determining whether a dir here see pub httm_is_dir
                     // safe to index as we know the paths len is 1
-                    1 if paths[0].httm_is_dir() => Some(paths[0].path_buf.clone()),
+                    1 if paths[0].httm_is_dir() => Some(paths[0].path().to_path_buf()),
                     // handle non-directories
                     1 => {
                         match exec_mode {

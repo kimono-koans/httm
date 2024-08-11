@@ -20,7 +20,6 @@ use rayon::prelude::*;
 
 use crate::config::generate::{Config, ExecMode, LastSnapMode, ListSnapsOfType};
 use crate::data::paths::PathDeconstruction;
-use crate::data::paths::PathMetadata;
 use crate::data::paths::{CompareVersionsContainer, PathData};
 use crate::library::results::{HttmError, HttmResult};
 use crate::parse::mounts::LinkType;
@@ -73,12 +72,12 @@ impl VersionsMap {
             })
             .map(|versions| {
                 if !is_interactive_mode
-                    && versions.live_path.metadata.is_none()
+                    && versions.live_path.opt_metadata().is_none()
                     && versions.snap_versions.is_empty()
                 {
                     eprintln!(
                         "WARN: Input file may have never existed: {:?}",
-                        versions.live_path.path_buf
+                        versions.live_path.path()
                     );
                 }
 
@@ -93,7 +92,7 @@ impl VersionsMap {
         if versions_map.values().all(std::vec::Vec::is_empty)
             && versions_map
                 .keys()
-                .all(|pathdata| pathdata.metadata.is_none())
+                .all(|pathdata| pathdata.opt_metadata().is_none())
         {
             return Err(HttmError::new(
                 "httm could find neither a live version, nor any snapshot version for all the specified paths, so, umm, 🤷? Please try another file.",
@@ -115,7 +114,7 @@ impl VersionsMap {
 
     pub fn is_live_version_redundant(live_pathdata: &PathData, snaps: &[PathData]) -> bool {
         if let Some(last_snap) = snaps.last() {
-            return last_snap.metadata == live_pathdata.metadata;
+            return last_snap.opt_metadata() == live_pathdata.opt_metadata();
         }
 
         false
@@ -136,11 +135,11 @@ impl VersionsMap {
                 // if last() is some, then should be able to unwrap pop()
                 Some(last) => match last_snap_mode {
                     LastSnapMode::Any => vec![last.to_owned()],
-                    LastSnapMode::DittoOnly if pathdata.metadata == last.metadata => {
+                    LastSnapMode::DittoOnly if pathdata.opt_metadata() == last.opt_metadata() => {
                         vec![last.to_owned()]
                     }
                     LastSnapMode::NoDittoExclusive | LastSnapMode::NoDittoInclusive
-                        if pathdata.metadata != last.metadata =>
+                        if pathdata.opt_metadata() != last.opt_metadata() =>
                     {
                         vec![last.to_owned()]
                     }
@@ -361,12 +360,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
                     Ok(md) => {
                         // why not PathData::new()? because symlinks will resolve!
                         // symlinks from a snap will end up looking just like the link target, so this is very confusing...
-                        let path_metadata = PathMetadata::new(&md);
-
-                        Some(PathData {
-                            path_buf: joined_path,
-                            metadata: path_metadata,
-                        })
+                        Some(PathData::new(&joined_path, Some(md)))
                     },
                     Err(err) => {
                         match err.kind() {
@@ -394,7 +388,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
         uniqueness: &ListSnapsOfType,
     ) -> Vec<PathData> {
         let mut vec: Vec<PathData> = iter.collect();
-        vec.sort_unstable_by_key(|pathdata| pathdata.md_infallible().modify_time);
+        vec.sort_unstable_by_key(|pathdata| pathdata.metadata_infallible().modify_time);
 
         match uniqueness {
             ListSnapsOfType::All => vec,
