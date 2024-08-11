@@ -301,12 +301,12 @@ impl DiffCopy {
                 break;
             }
 
-            if src_amount_read < amt_written {
-                return Err(HttmError::new("Amount written larger than file len.").into());
-            }
-
             if src_amount_read > amt_written {
                 continue;
+            }
+
+            if src_amount_read < amt_written {
+                return Err(HttmError::new("Amount written larger than file len.").into());
             }
         }
 
