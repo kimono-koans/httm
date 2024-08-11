@@ -210,6 +210,8 @@ impl Preserve {
             dst_file.set_times(src_times)?;
         }
 
+        dst_file.sync_all()?;
+
         Ok(())
     }
 
