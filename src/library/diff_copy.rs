@@ -287,15 +287,31 @@ impl DiffCopy {
         cur_pos: u64,
         bytes_processed: &mut usize,
     ) -> HttmResult<()> {
-        // seek to current byte offset in dst writer
-        let seek_pos = dst_writer.seek(SeekFrom::Start(cur_pos))?;
+        loop {
+            let src_amount_read = src_read.len();
 
-        if seek_pos != cur_pos {
-            let msg = format!("Could not seek to offset in destination file: {}", cur_pos);
-            return Err(HttmError::new(&msg).into());
+            // seek to current byte offset in dst writer
+            let seek_pos = dst_writer.seek(SeekFrom::Start(cur_pos))?;
+
+            if seek_pos != cur_pos {
+                let msg = format!("Could not seek to offset in destination file: {}", cur_pos);
+                return Err(HttmError::new(&msg).into());
+            }
+
+            *bytes_processed += dst_writer.write(src_read)?;
+
+            if src_amount_read == *bytes_processed {
+                break;
+            }
+
+            if src_amount_read > *bytes_processed {
+                continue;
+            }
+
+            if src_amount_read < *bytes_processed {
+                return Err(HttmError::new("Amount written larger than file len.").into());
+            }
         }
-
-        *bytes_processed += dst_writer.write(src_read)?;
 
         Ok(())
     }
