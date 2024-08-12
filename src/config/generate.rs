@@ -319,8 +319,7 @@ fn parse_args() -> ArgMatches {
                 Caveats: This is a ZFS only option which requires super user privileges.  \
                 Not all filesystem features are supported (for instance, Solaris door or sockets on the snapshot) and will cause a roll forward to fail.  \
                 Certain special/files objects will be copied or recreated, but are not guaranteed to be in the same state as the snapshot (for instance, fifos).\
-                ZFS block clone copying of so many files in parallel can cause a kernel crash on some configurations.  \
-                The safest method is to pass this argument with the NO_CLONES argument.")
+                The block clone copying so many file in parallel may also cause a kernel crash on some configurations, and is therefore disabled in this mode.")
                 .conflicts_with_all(&["BROWSE", "RESTORE", "ALT_REPLICATED", "REMOTE_DIR", "LOCAL_DIR"])
                 .display_order(13)
                 .action(ArgAction::Append)

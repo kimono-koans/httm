@@ -47,6 +47,7 @@ use crate::data::paths::PathData;
 use crate::library::results::HttmError;
 use crate::library::results::HttmResult;
 use crate::zfs::run_command::RunZFSCommand;
+use crate::ExecMode;
 use crate::GLOBAL_CONFIG;
 use crate::IN_BUFFER_SIZE;
 use std::fs::{File, OpenOptions};
@@ -78,6 +79,10 @@ static IS_CLONE_COMPATIBLE: LazyLock<AtomicBool> = LazyLock::new(|| {
             || stdout.contains("zfs-2.2-")
             || stdout.contains("zfs-kmod-2.2-")
         {
+            return AtomicBool::new(false);
+        }
+
+        if matches!(GLOBAL_CONFIG.exec_mode, ExecMode::RollForward(_)) {
             return AtomicBool::new(false);
         }
     }

@@ -36,6 +36,7 @@ use crate::roll_forward::diff_events::DiffType;
 use indicatif::ProgressBar;
 use nu_ansi_term::Color::{Blue, Red};
 
+use rayon::prelude::*;
 use std::fs::read_dir;
 use std::io::{BufRead, Read};
 use std::path::{Path, PathBuf};
@@ -192,7 +193,7 @@ impl RollForward {
         // into iter and reverse because we want to go largest first
         eprintln!("Reversing 'zfs diff' actions.");
         group_map
-            .iter()
+            .par_iter()
             .filter(|(key, _values)| !exclusions.contains(key.as_path()))
             .flat_map(|(_key, values)| values.iter().max_by_key(|event| event.time))
             .for_each(|event| match &event.diff_type {
