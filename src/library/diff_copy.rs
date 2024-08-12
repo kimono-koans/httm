@@ -284,52 +284,46 @@ impl DiffCopy {
             let mut amt_written = 0u64;
 
             // copy_file_range needs to be run in a loop as it is interruptible
-            loop {
-                match nix::fcntl::copy_file_range(
-                    src_file_fd,
-                    Some(&mut (amt_written as i64)),
-                    dst_file_fd,
-                    Some(&mut (amt_written as i64)),
-                    len,
-                ) {
-                    // However,	a return of zero  for  a  non-zero  len  argument
-                    // indicates that the offset for infd is at or	beyond EOF.
-                    Ok(bytes_written) if bytes_written == 0usize => return Ok(()),
-                    Ok(bytes_written) => {
-                        amt_written += bytes_written as u64;
+            match nix::fcntl::copy_file_range(
+                src_file_fd,
+                Some(&mut (amt_written as i64)),
+                dst_file_fd,
+                Some(&mut (amt_written as i64)),
+                len,
+            ) {
+                // However,	a return of zero  for  a  non-zero  len  argument
+                // indicates that the offset for infd is at or	beyond EOF.
+                Ok(bytes_written) if bytes_written == 0usize => return Ok(()),
+                Ok(bytes_written) => {
+                    amt_written += bytes_written as u64;
 
-                        if amt_written == len as u64 {
-                            return Ok(());
-                        }
+                    if amt_written == len as u64 {
+                        return Ok(());
+                    }
 
-                        if amt_written < len as u64 {
-                            //  Upon successful completion, copy_file_range() will  return  the  number  of  bytes  copied
-                            //  between files.  This could be less than the length originally requested.
+                    if amt_written < len as u64 {
+                        //  Upon successful completion, copy_file_range() will  return  the  number  of  bytes  copied
+                        //  between files.  This could be less than the length originally requested.
+                        return Ok(());
+                    }
 
-                            //  Here continue until 0 is given
-                            continue;
-                        }
-
-                        if amt_written > len as u64 {
-                            return Err(
-                                HttmError::new("Amount written larger than file len.").into()
-                            );
+                    if amt_written > len as u64 {
+                        return Err(HttmError::new("Amount written larger than file len.").into());
+                    }
+                }
+                Err(err) => match err {
+                    nix::errno::Errno::ENOSYS => {
+                        return Err(HttmError::new(
+                            "Operating system does not support copy_file_ranges.",
+                        )
+                        .into())
+                    }
+                    _ => {
+                        if GLOBAL_CONFIG.opt_debug {
+                            eprintln!("DEBUG: copy_file_range call failed for the following reason: {}\nDEBUG: Falling back to default diff copy behavior.", err);
                         }
                     }
-                    Err(err) => match err {
-                        nix::errno::Errno::ENOSYS => {
-                            return Err(HttmError::new(
-                                "Operating system does not support copy_file_ranges.",
-                            )
-                            .into())
-                        }
-                        _ => {
-                            if GLOBAL_CONFIG.opt_debug {
-                                eprintln!("DEBUG: copy_file_range call failed for the following reason: {}\nDEBUG: Falling back to default diff copy behavior.", err);
-                            }
-                        }
-                    },
-                }
+                },
             }
         }
         Err(HttmError::new("Operating system does not support copy_file_ranges.").into())
