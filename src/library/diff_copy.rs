@@ -148,6 +148,7 @@ impl DiffCopy {
                     if GLOBAL_CONFIG.opt_debug {
                         eprintln!("DEBUG: copy_file_range call successful.");
                     }
+                    return Ok(());
                 }
                 Err(err) => {
                     IS_CLONE_COMPATIBLE.store(false, std::sync::atomic::Ordering::Relaxed);
