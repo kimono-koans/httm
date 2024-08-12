@@ -298,6 +298,10 @@ impl DiffCopy {
                         }
 
                         if amt_written < len as u64 {
+                            //  Upon successful completion, copy_file_range() will  return  the  number  of  bytes  copied
+                            //  between files.  This could be less than the length originally requested.
+
+                            //  Here continue until 0 is given
                             continue;
                         }
 
