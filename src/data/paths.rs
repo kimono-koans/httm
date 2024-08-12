@@ -102,7 +102,7 @@ pub trait PathDeconstruction<'a> {
 }
 
 // detailed info required to differentiate and display file versions
-#[derive(Clone, Debug, Eq, Hash, PartialEq, Default)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct PathData {
     path_buf: PathBuf,
     metadata: Option<PathMetadata>,
@@ -469,27 +469,30 @@ pub const PHANTOM_PATH_METADATA: PathMetadata = PathMetadata {
 };
 
 #[derive(Eq, PartialEq)]
-pub struct CompareVersionsContainer {
-    pathdata: PathData,
+pub struct CompareVersionsContainer<'a> {
+    pathdata: &'a PathData,
     opt_hash: Option<OnceLock<u64>>,
 }
 
-impl PartialOrd for CompareVersionsContainer {
+impl<'a> PartialOrd for CompareVersionsContainer<'a> {
     #[inline(always)]
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl Ord for CompareVersionsContainer {
+impl<'a> Ord for CompareVersionsContainer<'a> {
     #[inline(always)]
     fn cmp(&self, other: &Self) -> Ordering {
-        if self.mtime() == other.mtime() {
-            return self.size().cmp(&other.size());
+        let self_md = self.pathdata.metadata_infallible();
+        let other_md = other.pathdata.metadata_infallible();
+
+        if self_md.modify_time == other_md.modify_time {
+            return self_md.size.cmp(&other_md.size);
         }
 
         // if files, differ re mtime, but have same size, we test by bytes whether the same
-        if self.size() == other.size()
+        if self_md.size == other_md.size
             && self.opt_hash.is_some()
             // if above is true/false then "&& other.opt_hash.is_some()" is the same
             && self.is_same_file_contents(other)
@@ -497,33 +500,19 @@ impl Ord for CompareVersionsContainer {
             return Ordering::Equal;
         }
 
-        self.mtime().cmp(&other.mtime())
+        self_md.modify_time.cmp(&other_md.modify_time)
     }
 }
 
-impl From<CompareVersionsContainer> for PathData {
-    fn from(value: CompareVersionsContainer) -> Self {
-        value.pathdata
-    }
-}
-
-impl CompareVersionsContainer {
+impl<'a> CompareVersionsContainer<'a> {
     #[inline(always)]
-    pub fn new(pathdata: PathData, snaps_of_type: &ListSnapsOfType) -> Self {
+    pub fn new(pathdata: &'a PathData, snaps_of_type: &ListSnapsOfType) -> Self {
         let opt_hash = match snaps_of_type {
             ListSnapsOfType::UniqueContents => Some(OnceLock::new()),
             ListSnapsOfType::UniqueMetadata | ListSnapsOfType::All => None,
         };
 
         CompareVersionsContainer { pathdata, opt_hash }
-    }
-
-    pub fn size(&self) -> u64 {
-        self.pathdata.metadata_infallible().size
-    }
-
-    pub fn mtime(&self) -> SystemTime {
-        self.pathdata.metadata_infallible().modify_time
     }
 
     #[allow(unused_assignments)]
