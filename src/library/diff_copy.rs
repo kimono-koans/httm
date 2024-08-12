@@ -289,12 +289,12 @@ impl DiffCopy {
                 ) {
                     // However,	a return of zero  for  a  non-zero  len  argument
                     // indicates that the offset for infd is at or	beyond EOF.
-                    Ok(bytes_written) if bytes_written == 0usize => return Ok(amt_written),
+                    Ok(bytes_written) if bytes_written == 0usize => return Ok(()),
                     Ok(bytes_written) => {
                         amt_written += bytes_written as u64;
 
                         if amt_written == len as u64 {
-                            return Ok(amt_written);
+                            return Ok(());
                         }
 
                         if amt_written < len as u64 {
