@@ -148,11 +148,6 @@ impl DiffCopy {
                     if GLOBAL_CONFIG.opt_debug {
                         eprintln!("DEBUG: copy_file_range call successful.");
                     }
-
-                    // re docs, both a flush and a sync seem to be required re consistency
-                    dst_file.flush()?;
-                    dst_file.sync_data()?;
-
                     return Ok(());
                 }
                 Err(err) => {
