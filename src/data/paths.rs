@@ -455,6 +455,7 @@ impl PathMetadata {
         self.modify_time
     }
 
+    #[inline(always)]
     pub fn size(&self) -> u64 {
         self.size
     }
@@ -518,10 +519,12 @@ impl CompareVersionsContainer {
         CompareVersionsContainer { pathdata, opt_hash }
     }
 
+    #[inline(always)]
     pub fn mtime(&self) -> SystemTime {
         self.pathdata.metadata_infallible().modify_time
     }
 
+    #[inline(always)]
     pub fn size(&self) -> u64 {
         self.pathdata.metadata_infallible().size
     }
