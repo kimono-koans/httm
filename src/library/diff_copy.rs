@@ -116,12 +116,6 @@ impl HttmCopy {
         dst_file.set_len(src_len)?;
 
         match DiffCopy::new(&src_file, &mut dst_file) {
-            Ok(amt_written) if amt_written != src_len => {
-                eprintln!("WARN: Amount written (\"{}\") != Source length (\"{}\").  This is often simply because a write call blocks.  In an abundance of caution, httm will read back the data written to confirm.",
-                amt_written, src_len);
-
-                DiffCopy::confirm(src, dst)
-            }
             Ok(_) if GLOBAL_CONFIG.opt_debug => {
                 eprintln!("DEBUG: Write to file completed.  Confirmation initiated.");
                 DiffCopy::confirm(src, dst)
@@ -135,7 +129,7 @@ impl HttmCopy {
 struct DiffCopy;
 
 impl DiffCopy {
-    fn new(src_file: &File, dst_file: &mut File) -> HttmResult<u64> {
+    fn new(src_file: &File, dst_file: &mut File) -> HttmResult<()> {
         let src_len = src_file.metadata()?.len();
 
         if !GLOBAL_CONFIG.opt_no_clones
@@ -145,20 +139,9 @@ impl DiffCopy {
             let dst_fd = dst_file.as_fd();
 
             match Self::copy_file_range(src_fd, dst_fd, src_len as usize) {
-                Ok(amt_written) if amt_written as u64 == src_len => {
+                Ok(_) => {
                     if GLOBAL_CONFIG.opt_debug {
                         eprintln!("DEBUG: copy_file_range call successful.");
-                    }
-                    return Ok(amt_written);
-                }
-                Ok(amt_written) => {
-                    IS_CLONE_COMPATIBLE.store(false, std::sync::atomic::Ordering::Relaxed);
-                    if GLOBAL_CONFIG.opt_debug {
-                        eprintln!(
-                            "DEBUG: Amount written (\"{:?}\") != Source length (\"{}\").\n
-                            DEBUG: Falling back to a conventional diff copy.",
-                            amt_written, src_len
-                        );
                     }
                 }
                 Err(err) => {
@@ -174,13 +157,13 @@ impl DiffCopy {
             }
         }
 
-        let amt_written = Self::write_no_cow(&src_file, &dst_file)?;
+        Self::write_no_cow(&src_file, &dst_file)?;
 
         // re docs, both a flush and a sync seem to be required re consistency
         dst_file.flush()?;
         dst_file.sync_data()?;
 
-        Ok(amt_written)
+        Ok(())
     }
 
     #[inline]
@@ -212,8 +195,7 @@ impl DiffCopy {
 
                     match dst_exists {
                         DstFileState::DoesNotExist => {
-                            bytes_processed +=
-                                Self::write_to_offset(&mut dst_writer, src_read, cur_pos)?;
+                            Self::write_to_offset(&mut dst_writer, src_read, cur_pos)?;
                         }
                         DstFileState::Exists => {
                             // read same amt from dst file, if it exists, to compare
@@ -222,11 +204,7 @@ impl DiffCopy {
                                     if Self::is_same_bytes(src_read, dst_read) {
                                         bytes_processed += src_amt_read as u64;
                                     } else {
-                                        bytes_processed += Self::write_to_offset(
-                                            &mut dst_writer,
-                                            src_read,
-                                            cur_pos,
-                                        )?
+                                        Self::write_to_offset(&mut dst_writer, src_read, cur_pos)?
                                     }
 
                                     let dst_amt_read = dst_read.len();
@@ -282,39 +260,12 @@ impl DiffCopy {
         dst_writer: &mut BufWriter<&File>,
         src_read: &[u8],
         cur_pos: u64,
-    ) -> HttmResult<u64> {
-        let src_amount_read = src_read.len() as u64;
+    ) -> HttmResult<()> {
+        // seek to current byte offset in dst writer
+        dst_writer.seek(SeekFrom::Start(cur_pos))?;
+        dst_writer.write(src_read)?;
 
-        let mut seek_pos = cur_pos;
-
-        let mut amt_written = 0u64;
-
-        loop {
-            // seek to current byte offset in dst writer
-            let pos = dst_writer.seek(SeekFrom::Start(seek_pos))?;
-
-            if pos != seek_pos {
-                continue;
-            }
-
-            amt_written += dst_writer.write(src_read)? as u64;
-
-            seek_pos += amt_written;
-
-            if src_amount_read == amt_written || amt_written == 0 {
-                break;
-            }
-
-            if src_amount_read > amt_written {
-                continue;
-            }
-
-            if src_amount_read < amt_written {
-                return Err(HttmError::new("Amount written larger than file len.").into());
-            }
-        }
-
-        Ok(amt_written)
+        Ok(())
     }
 
     #[allow(unreachable_code, unused_variables)]
@@ -322,7 +273,7 @@ impl DiffCopy {
         src_file_fd: BorrowedFd,
         dst_file_fd: BorrowedFd,
         len: usize,
-    ) -> HttmResult<u64> {
+    ) -> HttmResult<()> {
         #[cfg(any(target_os = "linux", target_os = "freebsd"))]
         {
             let mut amt_written = 0u64;
