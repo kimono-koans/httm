@@ -173,7 +173,7 @@ impl DiffCopy {
     }
 
     #[inline]
-    fn write_no_cow(src_file: &File, dst_file: &File) -> HttmResult<u64> {
+    fn write_no_cow(src_file: &File, dst_file: &File) -> HttmResult<()> {
         // create destination file writer and maybe reader
         // only include dst file reader if the dst file exists
         // otherwise we just write to that location
@@ -185,9 +185,6 @@ impl DiffCopy {
 
         // cur pos - byte offset in file,
         let mut cur_pos = 0u64;
-
-        // return value
-        let mut bytes_processed = 0u64;
 
         loop {
             match src_reader.fill_buf() {
@@ -207,9 +204,7 @@ impl DiffCopy {
                             // read same amt from dst file, if it exists, to compare
                             match dst_reader.fill_buf() {
                                 Ok(dst_read) => {
-                                    if Self::is_same_bytes(src_read, dst_read) {
-                                        bytes_processed += src_amt_read as u64;
-                                    } else {
+                                    if !Self::is_same_bytes(src_read, dst_read) {
                                         Self::write_to_offset(&mut dst_writer, src_read, cur_pos)?
                                     }
 
@@ -241,7 +236,7 @@ impl DiffCopy {
             };
         }
 
-        Ok(bytes_processed)
+        Ok(())
     }
 
     #[inline]
