@@ -30,6 +30,11 @@ use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 use std::sync::{LazyLock, RwLock};
 
+enum AutoMountSearch {
+    Restart,
+    Break,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VersionsMap {
     inner: BTreeMap<PathData, Vec<PathData>>,
@@ -301,9 +306,9 @@ impl<'a> RelativePathAndSnapMounts<'a> {
     }
     #[inline(always)]
     pub fn versions_processed(&'a self, uniqueness: &ListSnapsOfType) -> Vec<PathData> {
-        let all_versions = self.versions_unprocessed();
+        let mut all_versions = self.versions_unprocessed();
 
-        Self::sort_dedup_versions(all_versions, uniqueness)
+        Self::sort_dedup_versions(&mut all_versions, uniqueness)
     }
 
     pub fn last_version(&self) -> Option<PathData> {
@@ -313,7 +318,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
     }
 
     #[inline(always)]
-    fn auto_mount_network_volumes(&self) {
+    fn auto_mount_network_volumes(&self) -> AutoMountSearch {
         if GLOBAL_CONFIG
             .dataset_collection
             .map_of_datasets
@@ -321,7 +326,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
             .map(|md| matches!(md.link_type, LinkType::Local))
             .unwrap_or_else(|| true)
         {
-            return;
+            return AutoMountSearch::Break;
         }
 
         static CACHE_RESULT: LazyLock<RwLock<HashSet<PathBuf>>> =
@@ -333,7 +338,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
             .map(|cached_result| cached_result.contains(self.dataset_of_interest))
             .unwrap_or_else(|| true)
         {
-            return;
+            return AutoMountSearch::Break;
         }
 
         if let Ok(mut cached_result) = CACHE_RESULT.try_write() {
@@ -345,48 +350,66 @@ impl<'a> RelativePathAndSnapMounts<'a> {
                     .flatten()
                     .flatten()
                     .next();
-            })
+            });
+
+            return AutoMountSearch::Restart;
         }
+
+        AutoMountSearch::Break
     }
 
     #[inline(always)]
     fn versions_unprocessed(&'a self) -> impl Iterator<Item = PathData> + 'a {
         // get the DirEntry for our snapshot path which will have all our possible
         // snapshots, like so: .zfs/snapshots/<some snap name>/
+        loop {
+            let mut iter = self
+                .snap_mounts
+                .iter()
+                .map(|snap_path| {
+                    snap_path.join(self.relative_path)
+                })
+                .filter_map(|joined_path| {
+                    match joined_path.symlink_metadata() {
+                        Ok(md) => {
+                            // why not PathData::new()? because symlinks will resolve!
+                            // symlinks from a snap will end up looking just like the link target, so this is very confusing...
+                            Some(PathData::new(&joined_path, Some(md)))
+                        },
+                        Err(err) => {
+                            match err.kind() {
+                                // if we do not have permissions to read the snapshot directories
+                                // fail/panic printing a descriptive error instead of flattening
+                                ErrorKind::PermissionDenied => {
+                                    eprintln!("Error: When httm tried to find a file contained within a snapshot directory, permission was denied.  \
+                                    Perhaps you need to use sudo or equivalent to view the contents of this snapshot (for instance, btrfs by default creates privileged snapshots).  \
+                                    \nDetails: {err}");
+                                    std::process::exit(1)
+                                },
+                                // if file metadata is not found, or is otherwise not available, 
+                                // continue, it simply means we do not have a snapshot of this file
+                                _ => None,
+                            }
+                        },
+                    }
+                
+                
+            });
 
-        // opendir and readdir iter on the snap path are necessary to mount snapshots over SMB
-        self.auto_mount_network_volumes();
-
-        self
-            .snap_mounts
-            .iter()
-            .map(|snap_path| {
-                snap_path.join(self.relative_path)
-            })
-            .filter_map(|joined_path| {
-                match joined_path.symlink_metadata() {
-                    Ok(md) => {
-                        // why not PathData::new()? because symlinks will resolve!
-                        // symlinks from a snap will end up looking just like the link target, so this is very confusing...
-                        Some(PathData::new(&joined_path, Some(md)))
-                    },
-                    Err(err) => {
-                        match err.kind() {
-                            // if we do not have permissions to read the snapshot directories
-                            // fail/panic printing a descriptive error instead of flattening
-                            ErrorKind::PermissionDenied => {
-                                eprintln!("Error: When httm tried to find a file contained within a snapshot directory, permission was denied.  \
-                                Perhaps you need to use sudo or equivalent to view the contents of this snapshot (for instance, btrfs by default creates privileged snapshots).  \
-                                \nDetails: {err}");
-                                std::process::exit(1)
-                            },
-                            // if file metadata is not found, or is otherwise not available, 
-                            // continue, it simply means we do not have a snapshot of this file
-                            _ => None,
-                        }
-                    },
+            if iter.by_ref().count() == 0 {
+                // opendir and readdir iter on the snap path are necessary to mount snapshots over SMB
+                match self.auto_mount_network_volumes() {
+                    AutoMountSearch::Break => {
+                        break iter;
+                    }
+                    AutoMountSearch::Restart => {
+                        continue;
+                    }
                 }
-            })
+            } 
+            
+            break iter
+        }
     }
 
     // remove duplicates with the same system modify time and size/file len (or contents! See --uniqueness)
@@ -395,20 +418,21 @@ impl<'a> RelativePathAndSnapMounts<'a> {
         iter: impl Iterator<Item = PathData>,
         uniqueness: &ListSnapsOfType,
     ) -> Vec<PathData> {
-        let mut vec: Vec<PathData> = iter.collect();
-        vec.sort_unstable_by_key(|pathdata| pathdata.metadata_infallible().mtime());
+        
 
         match uniqueness {
-            ListSnapsOfType::All => vec,
-            ListSnapsOfType::UniqueContents | ListSnapsOfType::UniqueMetadata => {
-                vec.dedup_by(|a, b| {
-                    let a_container = CompareVersionsContainer::new(a, uniqueness);
-                    let b_container = CompareVersionsContainer::new(b, uniqueness);
-
-                    a_container.cmp(&b_container) == std::cmp::Ordering::Equal
-                });
-
+            ListSnapsOfType::All => {
+                let mut vec: Vec<PathData> = iter.collect();
+                vec.sort_unstable_by_key(|pathdata| pathdata.metadata_infallible().mtime());
                 vec
+            },
+            ListSnapsOfType::UniqueContents | ListSnapsOfType::UniqueMetadata => {
+                let mut vec: Vec<CompareVersionsContainer> = iter.map(|pathdata| CompareVersionsContainer::new(pathdata, uniqueness)).collect();
+                
+                vec.sort_unstable_by_key(|container: &CompareVersionsContainer| container.mtime());
+                vec.dedup();
+
+                vec.into_iter().map(|container| PathData::from(container)).collect()
             }
         }
     }
