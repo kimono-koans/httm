@@ -24,6 +24,7 @@ use crate::data::paths::{CompareVersionsContainer, PathData};
 use crate::library::results::{HttmError, HttmResult};
 use crate::parse::mounts::LinkType;
 use crate::GLOBAL_CONFIG;
+use std::cmp::Ordering;
 use std::collections::BTreeMap;
 use std::io::ErrorKind;
 use std::ops::{Deref, DerefMut};
@@ -395,20 +396,22 @@ impl<'a> RelativePathAndSnapMounts<'a> {
         iter: impl Iterator<Item = PathData>,
         uniqueness: &ListSnapsOfType,
     ) -> Vec<PathData> {
-        let mut vec: Vec<PathData> = iter.collect();
-        vec.sort_unstable_by_key(|pathdata| pathdata.metadata_infallible().mtime());
-
         match uniqueness {
-            ListSnapsOfType::All => vec,
-            ListSnapsOfType::UniqueContents | ListSnapsOfType::UniqueMetadata => {
-                vec.dedup_by(|a, b| {
-                    let a_container = CompareVersionsContainer::new(a, uniqueness);
-                    let b_container = CompareVersionsContainer::new(b, uniqueness);
-
-                    a_container.cmp(&b_container) == std::cmp::Ordering::Equal
-                });
-
+            ListSnapsOfType::All => {
+                let mut vec: Vec<PathData> = iter.collect();
+                vec.sort_unstable_by_key(|pathdata| pathdata.metadata_infallible().mtime());
                 vec
+            }
+            ListSnapsOfType::UniqueContents | ListSnapsOfType::UniqueMetadata => {
+                let mut vec: Vec<CompareVersionsContainer> = iter
+                    .into_iter()
+                    .map(|pathdata| CompareVersionsContainer::new(pathdata, uniqueness))
+                    .collect();
+
+                vec.sort_unstable();
+                vec.dedup_by(|a, b| a.cmp(&b) == Ordering::Equal);
+
+                vec.into_iter().map(|container| container.into()).collect()
             }
         }
     }

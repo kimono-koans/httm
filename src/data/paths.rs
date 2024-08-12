@@ -469,19 +469,19 @@ pub const PHANTOM_PATH_METADATA: PathMetadata = PathMetadata {
 };
 
 #[derive(Eq, PartialEq)]
-pub struct CompareVersionsContainer<'a> {
-    pathdata: &'a PathData,
+pub struct CompareVersionsContainer {
+    pathdata: PathData,
     opt_hash: Option<OnceLock<u64>>,
 }
 
-impl<'a> PartialOrd for CompareVersionsContainer<'a> {
+impl<'a> PartialOrd for CompareVersionsContainer {
     #[inline(always)]
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl<'a> Ord for CompareVersionsContainer<'a> {
+impl Ord for CompareVersionsContainer {
     #[inline(always)]
     fn cmp(&self, other: &Self) -> Ordering {
         let self_md = self.pathdata.metadata_infallible();
@@ -504,9 +504,15 @@ impl<'a> Ord for CompareVersionsContainer<'a> {
     }
 }
 
-impl<'a> CompareVersionsContainer<'a> {
+impl From<CompareVersionsContainer> for PathData {
+    fn from(value: CompareVersionsContainer) -> Self {
+        value.pathdata
+    }
+}
+
+impl CompareVersionsContainer {
     #[inline(always)]
-    pub fn new(pathdata: &'a PathData, snaps_of_type: &ListSnapsOfType) -> Self {
+    pub fn new(pathdata: PathData, snaps_of_type: &ListSnapsOfType) -> Self {
         let opt_hash = match snaps_of_type {
             ListSnapsOfType::UniqueContents => Some(OnceLock::new()),
             ListSnapsOfType::UniqueMetadata | ListSnapsOfType::All => None,
