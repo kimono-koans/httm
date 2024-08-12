@@ -264,7 +264,7 @@ impl DiffCopy {
     ) -> HttmResult<()> {
         // seek to current byte offset in dst writer
         dst_writer.seek(SeekFrom::Start(cur_pos))?;
-        dst_writer.write(src_read)?;
+        dst_writer.write_all(src_read)?;
 
         Ok(())
     }
