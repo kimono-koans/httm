@@ -302,9 +302,21 @@ impl<'a> RelativePathAndSnapMounts<'a> {
     }
     #[inline(always)]
     pub fn versions_processed(&'a self, uniqueness: &ListSnapsOfType) -> Vec<PathData> {
-        let all_versions = self.versions_unprocessed();
+        loop {
+            let all_versions = self.versions_unprocessed();
 
-        Self::sort_dedup_versions(all_versions, uniqueness)
+            let res = Self::sort_dedup_versions(all_versions, uniqueness);
+
+            if res.is_empty() {
+                // opendir and readdir iter on the snap path are necessary to mount snapshots over SMB
+                match NetworkAutoMount::new(&self) {
+                    NetworkAutoMount::Break => break res,
+                    NetworkAutoMount::Continue => continue,
+                }
+            }
+
+            break res;
+        }
     }
 
     pub fn last_version(&self) -> Option<PathData> {
@@ -314,50 +326,9 @@ impl<'a> RelativePathAndSnapMounts<'a> {
     }
 
     #[inline(always)]
-    fn auto_mount_network_volumes(&self) {
-        if GLOBAL_CONFIG
-            .dataset_collection
-            .map_of_datasets
-            .get(self.dataset_of_interest)
-            .map(|md| matches!(md.link_type, LinkType::Local))
-            .unwrap_or_else(|| true)
-        {
-            return;
-        }
-
-        static CACHE_RESULT: LazyLock<RwLock<HashSet<PathBuf>>> =
-            LazyLock::new(|| RwLock::new(HashSet::new()));
-
-        if CACHE_RESULT
-            .try_read()
-            .ok()
-            .map(|cached_result| cached_result.contains(self.dataset_of_interest))
-            .unwrap_or_else(|| true)
-        {
-            return;
-        }
-
-        if let Ok(mut cached_result) = CACHE_RESULT.try_write() {
-            cached_result.insert_unique_unchecked(self.dataset_of_interest.to_path_buf());
-
-            self.snap_mounts.iter().for_each(|snap_path| {
-                let _ = std::fs::read_dir(snap_path)
-                    .into_iter()
-                    .flatten()
-                    .flatten()
-                    .next();
-            })
-        }
-    }
-
-    #[inline(always)]
     fn versions_unprocessed(&'a self) -> impl Iterator<Item = PathData> + 'a {
         // get the DirEntry for our snapshot path which will have all our possible
         // snapshots, like so: .zfs/snapshots/<some snap name>/
-
-        // opendir and readdir iter on the snap path are necessary to mount snapshots over SMB
-        self.auto_mount_network_volumes();
-
         self
             .snap_mounts
             .iter()
@@ -414,5 +385,53 @@ impl<'a> RelativePathAndSnapMounts<'a> {
                 vec.into_iter().map(|container| container.into()).collect()
             }
         }
+    }
+}
+
+enum NetworkAutoMount {
+    Break,
+    Continue,
+}
+
+impl NetworkAutoMount {
+    #[inline(always)]
+    fn new(bundle: &RelativePathAndSnapMounts) -> NetworkAutoMount {
+        if GLOBAL_CONFIG
+            .dataset_collection
+            .map_of_datasets
+            .get(bundle.dataset_of_interest)
+            .map(|md| matches!(md.link_type, LinkType::Local))
+            .unwrap_or_else(|| true)
+        {
+            return NetworkAutoMount::Break;
+        }
+
+        static CACHE_RESULT: LazyLock<RwLock<HashSet<PathBuf>>> =
+            LazyLock::new(|| RwLock::new(HashSet::new()));
+
+        if CACHE_RESULT
+            .try_read()
+            .ok()
+            .map(|cached_result| cached_result.contains(bundle.dataset_of_interest))
+            .unwrap_or_else(|| true)
+        {
+            return NetworkAutoMount::Break;
+        }
+
+        if let Ok(mut cached_result) = CACHE_RESULT.try_write() {
+            cached_result.insert_unique_unchecked(bundle.dataset_of_interest.to_path_buf());
+
+            bundle.snap_mounts.iter().for_each(|snap_path| {
+                let _ = std::fs::read_dir(snap_path)
+                    .into_iter()
+                    .flatten()
+                    .flatten()
+                    .next();
+            });
+
+            return NetworkAutoMount::Continue;
+        }
+
+        NetworkAutoMount::Break
     }
 }
