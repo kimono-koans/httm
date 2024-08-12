@@ -484,15 +484,12 @@ impl<'a> PartialOrd for CompareVersionsContainer {
 impl Ord for CompareVersionsContainer {
     #[inline(always)]
     fn cmp(&self, other: &Self) -> Ordering {
-        let self_md = self.pathdata.metadata_infallible();
-        let other_md = other.pathdata.metadata_infallible();
-
-        if self_md.modify_time == other_md.modify_time {
-            return self_md.size.cmp(&other_md.size);
+        if self.mtime() == other.mtime() {
+            return self.size().cmp(&other.size());
         }
 
         // if files, differ re mtime, but have same size, we test by bytes whether the same
-        if self_md.size == other_md.size
+        if self.size() == other.size()
             && self.opt_hash.is_some()
             // if above is true/false then "&& other.opt_hash.is_some()" is the same
             && self.is_same_file_contents(other)
@@ -500,7 +497,7 @@ impl Ord for CompareVersionsContainer {
             return Ordering::Equal;
         }
 
-        self_md.modify_time.cmp(&other_md.modify_time)
+        self.mtime().cmp(&other.mtime())
     }
 }
 
@@ -519,6 +516,14 @@ impl CompareVersionsContainer {
         };
 
         CompareVersionsContainer { pathdata, opt_hash }
+    }
+
+    pub fn mtime(&self) -> SystemTime {
+        self.pathdata.metadata_infallible().modify_time
+    }
+
+    pub fn size(&self) -> u64 {
+        self.pathdata.metadata_infallible().size
     }
 
     #[allow(unused_assignments)]

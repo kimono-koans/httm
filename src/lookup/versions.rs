@@ -379,7 +379,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
                     .map(|pathdata| CompareVersionsContainer::new(pathdata, uniqueness))
                     .collect();
 
-                vec.sort_unstable();
+                vec.sort_unstable_by_key(|container| container.mtime());
                 vec.dedup_by(|a, b| a.cmp(&b) == Ordering::Equal);
 
                 vec.into_iter().map(|container| container.into()).collect()
