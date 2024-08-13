@@ -168,7 +168,7 @@ impl MapOfSnaps {
                     .par_lines()
                     .map(|line| line.trim())
                     .map(|line| Path::new(line))
-                    .filter(|line| line.as_os_str().is_empty())
+                    .filter(|line| !line.as_os_str().is_empty())
                     .filter_map(|relative| {
                         Self::parse_btrfs_relative_path(
                             base_mount,
