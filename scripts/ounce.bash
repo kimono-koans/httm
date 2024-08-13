@@ -285,6 +285,11 @@ function exec_args {
 			continue
 		fi
 
+		if [[ ! -w "$canonical_path" ]]; then
+			log_info "Path is not writable: $canonical_path"
+			continue
+		fi
+
 		filenames_array+=("$canonical_path")
 	done
 
