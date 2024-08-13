@@ -301,7 +301,7 @@ fn parse_args() -> ArgMatches {
                 By appending a comma, this argument also filters those snapshots which contain the specified pattern/s. \
                 A value of \"5,prep_Apt\" would return the snapshot names of only the last 5 (at most) of all snapshot versions which contain \"prep_Apt\". \
                 The value \"native\" will restrict selection to only 'httm' native snapshot suffix values, like \"httmSnapFileMount\" and \"ounceSnapFileMount\". \
-                Note: This is a ZFS only option.")
+                Note: This is a ZFS and btrfs only option.")
                 .conflicts_with_all(&["BROWSE", "RESTORE"])
                 .display_order(12)
                 .action(ArgAction::Append)

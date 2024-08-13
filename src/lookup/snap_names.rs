@@ -19,12 +19,14 @@ use crate::config::generate::ListSnapsFilters;
 use crate::data::paths::PathDeconstruction;
 use crate::data::paths::{PathData, ZfsSnapPathGuard};
 use crate::library::results::{HttmError, HttmResult};
+use crate::library::utility::find_common_path;
 use crate::lookup::versions::VersionsMap;
-use crate::GLOBAL_CONFIG;
+use crate::parse::mounts::FilesystemType;
 use rayon::prelude::*;
 use std::collections::BTreeMap;
 use std::ops::Deref;
-use crate::parse::mounts::FilesystemType;
+use std::path::PathBuf;
+use std::sync::Once;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SnapNameMap {
@@ -50,33 +52,8 @@ impl SnapNameMap {
         versions_map: VersionsMap,
         opt_filters: &Option<ListSnapsFilters>,
     ) -> HttmResult<Self> {
-        let less_unsupported: Vec<(&PathData, &Vec<PathData>)> = versions_map.iter().filter(|(pathdata, _snaps)| {
-                match pathdata.proximate_dataset().ok().and_then(|prox| {
-                    GLOBAL_CONFIG.dataset_collection.map_of_datasets.get(prox).map(|dataset| &dataset.fs_type)
-                }) {
-                    Some(fstype) if fstype == &FilesystemType::Zfs => true,
-                    _ => {
-                        let msg = format!(
-                            "{:?} is not located on a ZFS filesystem.",
-                            pathdata.path()
-                        );
-                        eprintln!("WARN: {msg}");
-                        return false;
-                    },
-                }
-            }).collect();
-
-        if less_unsupported.is_empty() {
-            return Err(
-                HttmError::new(
-                "No paths are located on supported (ZFS) datasets.",
-                )
-                .into(),
-            );
-        }
-
-        let inner: BTreeMap<PathData, Vec<String>> = less_unsupported
-            .into_iter()
+        let inner: BTreeMap<PathData, Vec<String>> = versions_map
+            .iter()
             .filter(|(pathdata, snaps)| {
                 if snaps.is_empty() {
                     let msg = format!(
@@ -89,12 +66,54 @@ impl SnapNameMap {
 
                 true
             })
-            .map(|(pathdata, vec_snaps)| {
+            .map(|(pathdata, snaps)| {
                 // use par iter here because no one else is using the global rayon threadpool any more
-                let snap_names: Vec<String> = vec_snaps
+                let snap_names: Vec<String> = snaps
                     .par_iter()
-                    .filter_map(|pd| {
-                        ZfsSnapPathGuard::new(pd).and_then(|spd| spd.source(None))
+                    .filter_map(|snap_pd| {
+                        let opt_proximate_dataset = pathdata.proximate_dataset().ok();
+
+                        match pathdata.fs_type(opt_proximate_dataset) {
+                            Some(FilesystemType::Zfs) => {
+                                ZfsSnapPathGuard::new(snap_pd).and_then(|spd| spd.source(opt_proximate_dataset))
+                            }
+                            Some(FilesystemType::Btrfs(_)) => {
+                                static NOTICE_NON_ZFS: std::sync::Once = Once::new();
+                                
+                                NOTICE_NON_ZFS.call_once( || {
+                                    eprintln!("WARN: Snapshot name determination for non-ZFS datasets are merely best guess efforts.  Use with caution.");
+                                });
+
+                                if snaps.len() <= 1 {
+                                    eprintln!("WARN: Could not determine snapshot name for snapshot location: {:?}", snap_pd.path());
+                                    return None;
+                                }
+
+                                let opt_common_path = find_common_path(snaps.into_iter().map(|p| p.path()));
+
+                                let Some(common_path) = opt_common_path else {
+                                    eprintln!("WARN: Could not determine common path for snapshot location: {:?}", snap_pd.path());
+                                    return None;
+                                };
+
+                                let path_string =  snap_pd.path().to_string_lossy();
+                                let relative_path =  pathdata.relative_path(opt_proximate_dataset?).ok()?;
+
+                                let sans_prefix = path_string.strip_prefix(common_path.to_string_lossy().as_ref())?;
+                                let sans_suffix = sans_prefix.strip_suffix(relative_path.to_string_lossy().as_ref())?;
+                                let trim_slashes = sans_suffix.trim_matches('/');
+
+                                if trim_slashes.is_empty() {
+                                    return None;
+                                }
+
+                                Some(PathBuf::from(trim_slashes))
+                            },
+                            _ => {
+                                eprintln!("ERROR: LIST_SNAPS is a ZFS and btrfs only option.  Path does not appear to be on a supported dataset: {:?}", snap_pd.path());
+                                None
+                            }   
+                        }
                     })
                     .filter(|snap| {
                         if let Some(filters) = opt_filters {
