@@ -18,7 +18,7 @@
 use hashbrown::HashSet;
 use rayon::prelude::*;
 
-use crate::config::generate::{Config, ExecMode, LastSnapMode, ListSnapsOfType};
+use crate::config::generate::{Config, DedupBy, ExecMode, LastSnapMode};
 use crate::data::paths::PathDeconstruction;
 use crate::data::paths::{CompareVersionsContainer, PathData};
 use crate::library::results::{HttmError, HttmResult};
@@ -178,7 +178,7 @@ impl Versions {
         let snap_versions: Vec<PathData> = prox_opt_alts
             .into_search_bundles()
             .flat_map(|relative_path_snap_mounts| {
-                relative_path_snap_mounts.versions_processed(&config.uniqueness)
+                relative_path_snap_mounts.versions_processed(&config.dedup_by)
             })
             .collect();
 
@@ -301,11 +301,11 @@ impl<'a> RelativePathAndSnapMounts<'a> {
             })
     }
     #[inline(always)]
-    pub fn versions_processed(&'a self, uniqueness: &ListSnapsOfType) -> Vec<PathData> {
+    pub fn versions_processed(&'a self, dedup_by: &DedupBy) -> Vec<PathData> {
         loop {
             let all_versions = self.versions_unprocessed();
 
-            let res = Self::sort_dedup_versions(all_versions, uniqueness);
+            let res = Self::sort_dedup_versions(all_versions, dedup_by);
 
             if res.is_empty() {
                 // opendir and readdir iter on the snap path are necessary to mount snapshots over SMB
@@ -320,7 +320,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
     }
 
     pub fn last_version(&self) -> Option<PathData> {
-        let mut sorted_versions = self.versions_processed(&ListSnapsOfType::All);
+        let mut sorted_versions = self.versions_processed(&DedupBy::Disable);
 
         sorted_versions.pop()
     }
@@ -361,22 +361,22 @@ impl<'a> RelativePathAndSnapMounts<'a> {
             })
     }
 
-    // remove duplicates with the same system modify time and size/file len (or contents! See --uniqueness)
+    // remove duplicates with the same system modify time and size/file len (or contents! See --DEDUP_BY)
     #[inline(always)]
     fn sort_dedup_versions(
         iter: impl Iterator<Item = PathData>,
-        uniqueness: &ListSnapsOfType,
+        dedup_by: &DedupBy,
     ) -> Vec<PathData> {
-        match uniqueness {
-            ListSnapsOfType::All => {
+        match dedup_by {
+            DedupBy::Disable => {
                 let mut vec: Vec<PathData> = iter.collect();
                 vec.sort_unstable_by_key(|pathdata| pathdata.metadata_infallible().mtime());
                 vec
             }
-            ListSnapsOfType::UniqueContents | ListSnapsOfType::UniqueMetadata => {
+            DedupBy::Contents | DedupBy::Metadata => {
                 let mut vec: Vec<CompareVersionsContainer> = iter
                     .into_iter()
-                    .map(|pathdata| CompareVersionsContainer::new(pathdata, uniqueness))
+                    .map(|pathdata| CompareVersionsContainer::new(pathdata, dedup_by))
                     .collect();
 
                 vec.sort_unstable();

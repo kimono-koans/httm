@@ -16,7 +16,7 @@
 // that was distributed with this source code.
 
 use crate::background::recursive::PathProvenance;
-use crate::config::generate::{ListSnapsOfType, PrintMode};
+use crate::config::generate::{DedupBy, PrintMode};
 use crate::library::file_ops::HashFileContents;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{date_string, display_human_size, DateFormat};
@@ -510,10 +510,10 @@ impl From<CompareVersionsContainer> for PathData {
 
 impl CompareVersionsContainer {
     #[inline(always)]
-    pub fn new(pathdata: PathData, snaps_of_type: &ListSnapsOfType) -> Self {
+    pub fn new(pathdata: PathData, snaps_of_type: &DedupBy) -> Self {
         let opt_hash = match snaps_of_type {
-            ListSnapsOfType::UniqueContents => Some(OnceLock::new()),
-            ListSnapsOfType::UniqueMetadata | ListSnapsOfType::All => None,
+            DedupBy::Contents => Some(OnceLock::new()),
+            DedupBy::Metadata | DedupBy::Disable => None,
         };
 
         CompareVersionsContainer { pathdata, opt_hash }

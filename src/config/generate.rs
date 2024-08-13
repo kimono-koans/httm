@@ -95,10 +95,10 @@ pub enum DeletedMode {
 }
 
 #[derive(Debug, Clone)]
-pub enum ListSnapsOfType {
-    All,
-    UniqueMetadata,
-    UniqueContents,
+pub enum DedupBy {
+    Disable,
+    Metadata,
+    Contents,
 }
 
 #[derive(Debug, Clone)]
@@ -246,11 +246,11 @@ fn parse_args() -> ArgMatches {
                 .action(ArgAction::Append)
         )
         .arg(
-            Arg::new("UNIQUENESS")
-                .long("uniqueness")
-                .value_parser(["all", "no-filter", "metadata", "contents"])
+            Arg::new("DEDUP_BY")
+                .long("dedup-by")
+                .value_parser(["disable", "all", "no-filter", "metadata", "contents"])
                 .num_args(0..=1)
-                .visible_aliases(&["unique"])
+                .visible_aliases(&["unique", "uniqueness"])
                 .default_missing_value("contents")
                 .require_equals(true)
                 .help("comparing file versions solely on the basis of size and modify time (the default \"metadata\" behavior) may return what appear to be \"false positives\", \
@@ -258,7 +258,7 @@ fn parse_args() -> ArgMatches {
                 or a user can simply update the modify time via 'touch'. If only this flag is specified, the \"contents\" option compares the actual file contents of file versions, if their sizes match, \
                 and overrides the default \"metadata\" behavior. The \"contents\" option can be expensive, as the file versions need to be read back and compared, and should probably only be used for smaller files. \
                 Given how expensive this operation can be, for larger files or files with many versions, \"contents\" option is not shown in Interactive browse mode, \
-                but after a selection is made, can be utilized in Select or Restore modes. The \"all\" or \"no-filter\" option dumps all snapshot versions, and no attempt is made to determine if the file versions are distinct.")
+                but after a selection is made, can be utilized in Select or Restore modes. The \"disable\" \"all\" or \"no-filter\" option dumps all snapshot versions, and no attempt is made to determine if the file versions are distinct.")
                 .display_order(9)
                 .action(ArgAction::Append)
         )
@@ -294,8 +294,8 @@ fn parse_args() -> ArgMatches {
                 .require_equals(true)
                 .help("display snapshots names for a file. This argument optionally takes a value. \
                 By default, this argument will return all available snapshot names. \
-                When the UNIQUENESS flag is not specified but the LIST_SNAPS is, the default UNIQUENESS level is \"all\" snapshots. \
-                User may limit type of snapshots returned via specifying the UNIQUENESS flag. \
+                When the DEDUP_BY flag is not specified but the LIST_SNAPS is, the default DEDUP_BY level is \"all\" snapshots. \
+                User may limit type of snapshots returned via specifying the DEDUP_BY flag. \
                 The user may also omit the most recent \"n\" snapshots from any list. \
                 By appending a comma, this argument also filters those snapshots which contain the specified pattern/s. \
                 A value of \"5,prep_Apt\" would return the snapshot names of only the last 5 (at most) of all snapshot versions which contain \"prep_Apt\". \
@@ -596,7 +596,7 @@ pub struct Config {
     pub opt_json: bool,
     pub opt_one_filesystem: bool,
     pub opt_no_clones: bool,
-    pub uniqueness: ListSnapsOfType,
+    pub dedup_by: DedupBy,
     pub opt_bulk_exclusion: Option<BulkExclusion>,
     pub opt_last_snap: Option<LastSnapMode>,
     pub opt_preview: Option<String>,
@@ -755,13 +755,13 @@ impl Config {
             None
         };
 
-        let uniqueness = match matches.get_one::<String>("UNIQUENESS").map(|inner| inner.as_str()) {
-            _ if matches.get_flag("PRUNE") =>  ListSnapsOfType::All,
-            Some("all" | "no-filter") => ListSnapsOfType::All,
-            Some("contents") => ListSnapsOfType::UniqueContents,
-            Some("metadata" | _) => ListSnapsOfType::UniqueMetadata,
-            _ if matches.contains_id("LIST_SNAPS") => ListSnapsOfType::All,
-            None => ListSnapsOfType::UniqueMetadata,
+        let dedup_by = match matches.get_one::<String>("DEDUP_BY").map(|inner| inner.as_str()) {
+            _ if matches.get_flag("PRUNE") =>  DedupBy::Disable,
+            Some("all" | "no-filter" | "disable") => DedupBy::Disable,
+            Some("contents") => DedupBy::Contents,
+            Some("metadata" | _) => DedupBy::Metadata,
+            _ if matches.contains_id("LIST_SNAPS") => DedupBy::Disable,
+            None => DedupBy::Metadata,
         };
 
         if opt_no_hidden && !opt_recursive && opt_interactive_mode.is_none() {
@@ -939,7 +939,7 @@ impl Config {
             opt_json,
             opt_one_filesystem,
             opt_no_clones,
-            uniqueness,
+            dedup_by,
             requested_utc_offset,
             exec_mode,
             print_mode,

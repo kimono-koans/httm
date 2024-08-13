@@ -19,7 +19,7 @@
 * Guard any restore actions with precautionary snapshots
 * List snapshot names, even prune snapshots, which include a file name
 * Shortcut features: only display last snapshot, omit duplicates of the live file, etc.
-* Uniqueness level: Like `rsync`, `httm` can determine whether file is unique based solely on metadata, or use checksums
+* Verification level: Like `rsync`, `httm` can determine whether file is unique based solely on metadata, or use checksums
 * 4 native interactive modes: browse, select, prune and restore
 * ANSI `ls` colors from your environment
 * Detect and display categories of unique file versions available (`multiple`, `single`, `single-with-snap`,..., etc.)

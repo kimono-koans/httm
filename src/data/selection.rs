@@ -16,7 +16,7 @@
 // that was distributed with this source code.
 
 use crate::background::recursive::PathProvenance;
-use crate::config::generate::{ListSnapsOfType, PrintMode};
+use crate::config::generate::{DedupBy, PrintMode};
 use crate::data::paths::PathData;
 use crate::display_versions::wrapper::VersionsDisplayWrapper;
 use crate::library::results::HttmResult;
@@ -150,7 +150,7 @@ impl From<Vec<PathData>> for Config {
             opt_last_snap: None,
             opt_preview: None,
             opt_deleted_mode: None,
-            uniqueness: ListSnapsOfType::UniqueMetadata,
+            dedup_by: DedupBy::Metadata,
             opt_omit_ditto: config.opt_omit_ditto,
             requested_utc_offset: config.requested_utc_offset,
             exec_mode: ExecMode::BasicDisplay,
