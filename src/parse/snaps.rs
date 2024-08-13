@@ -145,7 +145,7 @@ impl MapOfSnaps {
             .ok()
             .and_then(|output| {
                 std::str::from_utf8(&output.stdout)
-                    .map(|string| string.to_owned())
+                    .map(|string| string.trim().to_owned())
                     .ok()
             })
         else {
@@ -168,6 +168,7 @@ impl MapOfSnaps {
                     .par_lines()
                     .map(|line| line.trim())
                     .map(|line| Path::new(line))
+                    .filter(|line| line.as_os_str().is_empty())
                     .filter_map(|relative| {
                         Self::parse_btrfs_relative_path(
                             base_mount,
