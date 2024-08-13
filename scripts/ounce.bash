@@ -238,9 +238,10 @@ function exec_trace {
 				exit 0
 			)"
 
-			# 1) is empty, dne 2) is file, symlink or dir
+			# 1) is empty, dne 2) is file, symlink or dir or 3) if file is writable
 			[[ -n "$canonical_path" ]] || continue
 			[[ -f "$canonical_path" || -d "$canonical_path" || -L "$canonical_path" ]] || continue
+			[[ -w "$canonical_path" ]] || continue
 
 			# 3) is file a newly created tmp file? 
 			[[ "$canonical_path" != *.swp && "$canonical_path" != ~* && "$canonical_path" != *~ && "$canonical_path" != *.tmp ]] || \
