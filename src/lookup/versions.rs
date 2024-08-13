@@ -303,7 +303,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
     #[inline(always)]
     pub fn versions_processed(&'a self, dedup_by: &DedupBy) -> Vec<PathData> {
         loop {
-            let all_versions = self.versions_unprocessed();
+            let all_versions = self.all_versions_unprocessed();
 
             let res = Self::sort_dedup_versions(all_versions, dedup_by);
 
@@ -326,7 +326,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
     }
 
     #[inline(always)]
-    fn versions_unprocessed(&'a self) -> impl Iterator<Item = PathData> + 'a {
+    fn all_versions_unprocessed(&'a self) -> impl Iterator<Item = PathData> + 'a {
         // get the DirEntry for our snapshot path which will have all our possible
         // snapshots, like so: .zfs/snapshots/<some snap name>/
         self

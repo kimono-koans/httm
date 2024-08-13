@@ -223,6 +223,7 @@ fn parse_args() -> ArgMatches {
             Arg::new("ALT_REPLICATED")
                 .short('a')
                 .long("alt-replicated")
+                .aliases(["replicated"])
                 .help("automatically discover locally replicated datasets and list their snapshots as well. \
                 NOTE: Be certain such replicated datasets are mounted before use. \
                 httm will silently ignore unmounted datasets in the interactive modes.")
