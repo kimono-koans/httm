@@ -375,7 +375,6 @@ impl<'a> RelativePathAndSnapMounts<'a> {
             }
             DedupBy::Contents | DedupBy::Metadata => {
                 let mut vec: Vec<CompareVersionsContainer> = iter
-                    .into_iter()
                     .map(|pathdata| CompareVersionsContainer::new(pathdata, dedup_by))
                     .collect();
 
