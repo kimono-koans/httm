@@ -39,6 +39,8 @@ use std::process::Command as ExecProcess;
 use std::sync::LazyLock;
 use std::sync::OnceLock;
 
+use super::aliases::MapOfAliases;
+
 pub const ZFS_FSTYPE: &str = "zfs";
 pub const NILFS2_FSTYPE: &str = "nilfs2";
 pub const BTRFS_FSTYPE: &str = "btrfs";
@@ -184,13 +186,17 @@ pub struct BaseFilesystemInfo {
 impl BaseFilesystemInfo {
     // divide by the type of system we are on
     // Linux allows us the read proc mounts
-    pub fn new(opt_debug: bool, opt_alt_store: Option<&FilesystemType>) -> HttmResult<Self> {
+    pub fn new(
+        opt_debug: bool,
+        opt_alt_store: &mut Option<&FilesystemType>,
+        opt_map_of_aliases: &Option<MapOfAliases>,
+    ) -> HttmResult<Self> {
         let (mut raw_datasets, filter_dirs_set) = if PROC_MOUNTS.exists() {
-            Self::from_file(&PROC_MOUNTS, opt_alt_store)?
+            Self::from_file(&PROC_MOUNTS, *opt_alt_store)?
         } else if ETC_MNTTAB.exists() {
-            Self::from_file(&ETC_MNTTAB, opt_alt_store)?
+            Self::from_file(&ETC_MNTTAB, *opt_alt_store)?
         } else {
-            Self::from_mount_cmd(opt_alt_store)?
+            Self::from_mount_cmd(*opt_alt_store)?
         };
 
         // prep any blob repos
@@ -199,12 +205,29 @@ impl BaseFilesystemInfo {
         }
 
         if raw_datasets.is_empty() {
-            return Err(
-                HttmError::new("httm could not find any valid datasets on the system.").into(),
-            );
+            // auto enable time machine alt store on mac when no datasets available, no working aliases, and paths exist
+            if cfg!(target_os = "macos")
+                && opt_map_of_aliases.is_none()
+                && TM_DIR_REMOTE_PATH.exists()
+                && TM_DIR_LOCAL_PATH.exists()
+            {
+                opt_alt_store.replace(&FilesystemType::Apfs);
+                Self::from_blob_repo(&mut raw_datasets, &FilesystemType::Apfs)?;
+            } else {
+                return Err(HttmError::new(
+                    "httm could not find any valid datasets on the system.",
+                )
+                .into());
+            }
         }
 
         let map_of_snaps = MapOfSnaps::new(&mut raw_datasets, opt_debug)?;
+
+        if map_of_snaps.values().count() == 0 {
+            return Err(
+                HttmError::new("httm could not find any valid snapshots on the system.").into(),
+            );
+        }
 
         let map_of_datasets = {
             MapOfDatasets {

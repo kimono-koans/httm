@@ -47,17 +47,17 @@ impl FilesystemInfo {
         opt_remote_dir: Option<&str>,
         opt_local_dir: Option<&str>,
         opt_raw_aliases: Option<RawValues>,
-        opt_alt_store: Option<&FilesystemType>,
+        opt_alt_store: &mut Option<&FilesystemType>,
         pwd: &Path,
     ) -> HttmResult<FilesystemInfo> {
-        let base_fs_info = BaseFilesystemInfo::new(opt_debug, opt_alt_store)?;
-
-        // for a collection of btrfs mounts, indicates a common snapshot directory to ignore
-        let opt_common_snap_dir = base_fs_info.common_snap_dir();
-
         // only create a map of aliases if necessary (aliases conflicts with alt stores)
         let opt_map_of_aliases =
             MapOfAliases::new(opt_raw_aliases, opt_remote_dir, opt_local_dir, pwd)?;
+
+        let base_fs_info = BaseFilesystemInfo::new(opt_debug, opt_alt_store, &opt_map_of_aliases)?;
+
+        // for a collection of btrfs mounts, indicates a common snapshot directory to ignore
+        let opt_common_snap_dir = base_fs_info.common_snap_dir();
 
         // only create a map of alts if necessary
         let opt_map_of_alts = if opt_alt_replicated {

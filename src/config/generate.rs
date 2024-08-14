@@ -855,7 +855,7 @@ impl Config {
         // alternate filesystems and map of aliases if the user requests
         let mut opt_map_aliases = matches.get_raw("MAP_ALIASES");
 
-        let opt_alt_store: Option<&FilesystemType> = match matches.get_one::<String>("ALT_STORE").map(|inner| inner.as_str()) {
+        let mut opt_alt_store: Option<&FilesystemType> = match matches.get_one::<String>("ALT_STORE").map(|inner| inner.as_str()) {
             Some("timemachine") => Some(&FilesystemType::Apfs),
             Some("restic") => Some(&FilesystemType::Restic(None)),
             _ => None
@@ -872,7 +872,7 @@ impl Config {
             matches.get_one::<String>("REMOTE_DIR").map(|inner| inner.as_str()),
             matches.get_one::<String>("LOCAL_DIR").map(|inner| inner.as_str()),
             opt_map_aliases,
-            opt_alt_store,
+            &mut opt_alt_store,
             &pwd,
         )?;
 

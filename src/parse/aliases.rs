@@ -128,15 +128,12 @@ impl MapOfAliases {
                             .into_iter()
                             .filter(|dir| !dir.exists())
                             .for_each(|dir| {
-                                eprintln!(
-                "WARN: An alias path specified does not exist, or is not mounted: {:?}",
-                dir
-              )
+                                eprintln!("WARN: An alias path specified does not exist, or is not mounted: {:?}", dir)
                             });
-                        return None;
+                        None
+                    } else {
+                        Some((local_dir, snap_dir))
                     }
-
-                    Some((local_dir, snap_dir))
                 })
                 .filter_map(|(local_dir, remote_dir)| {
                     FilesystemType::new(&remote_dir).map(|fs_type| {
@@ -150,6 +147,10 @@ impl MapOfAliases {
                     })
                 })
                 .collect();
+
+            if map_of_aliases.is_empty() {
+                return Ok(None);
+            }
 
             return Ok(Some(map_of_aliases.into()));
         };
