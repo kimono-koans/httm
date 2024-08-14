@@ -65,7 +65,7 @@ pub enum FilesystemType {
     Btrfs(Option<Box<BtrfsAdditionalData>>),
     Nilfs2,
     Apfs,
-    Restic(Option<Vec<PathBuf>>),
+    Restic(Option<Box<Vec<PathBuf>>>),
 }
 
 impl FilesystemType {
@@ -466,7 +466,7 @@ impl BaseFilesystemInfo {
 
                 DatasetMetadata {
                     source: PathBuf::from(RESTIC_FSTYPE),
-                    fs_type: FilesystemType::Restic(Some(repos.clone())),
+                    fs_type: FilesystemType::Restic(Some(Box::new(repos.clone()))),
                     link_type: LinkType::Local,
                 }
             }
