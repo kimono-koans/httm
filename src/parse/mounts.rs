@@ -62,12 +62,17 @@ pub struct BtrfsAdditionalData {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ResticAdditionalData {
+    pub repos: Vec<PathBuf>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FilesystemType {
     Zfs,
     Btrfs(Option<Box<BtrfsAdditionalData>>),
     Nilfs2,
     Apfs,
-    Restic(Option<Box<Vec<PathBuf>>>),
+    Restic(Option<Box<ResticAdditionalData>>),
 }
 
 impl FilesystemType {
@@ -489,7 +494,7 @@ impl BaseFilesystemInfo {
 
                 DatasetMetadata {
                     source: PathBuf::from(RESTIC_FSTYPE),
-                    fs_type: FilesystemType::Restic(Some(Box::new(repos.clone()))),
+                    fs_type: FilesystemType::Restic(Some(Box::new(ResticAdditionalData { repos }))),
                     link_type: LinkType::Local,
                 }
             }

@@ -338,7 +338,7 @@ impl MapOfSnaps {
                         .filter(|path| !path.ends_with("latest"))
                         .collect()
                 }
-                FilesystemType::Restic(Some(repos)) => repos
+                FilesystemType::Restic(Some(additional_data)) => additional_data.repos
                     .par_iter()
                     .flat_map(|repo| read_dir(repo.join(RESTIC_SNAPSHOT_DIRECTORY)))
                     .flatten_iter()
