@@ -91,43 +91,45 @@ impl InteractiveRestore {
 
             match user_consent.to_ascii_uppercase().as_ref() {
                 "YES" | "Y" => {
-                    if matches!(
-                        GLOBAL_CONFIG.exec_mode,
-                        ExecMode::Interactive(InteractiveMode::Restore(RestoreMode::Overwrite(
-                            RestoreSnapGuard::Guarded
-                        )))
-                    ) {
-                        let snap_guard: SnapGuard =
-                            SnapGuard::try_from(new_file_path_buf.as_path())?;
+                    match GLOBAL_CONFIG.exec_mode {
+                        ExecMode::Interactive(InteractiveMode::Restore(
+                            RestoreMode::Overwrite(RestoreSnapGuard::Guarded),
+                        )) => {
+                            let snap_guard: SnapGuard =
+                                SnapGuard::try_from(new_file_path_buf.as_path())?;
 
-                        if let Err(err) = Copy::recursive(
-                            &snap_pathdata.path(),
-                            &new_file_path_buf,
-                            should_preserve,
-                        ) {
-                            let msg = format!(
-                                "httm restore failed for the following reason: {}.\n\
+                            if let Err(err) = Copy::recursive(
+                                &snap_pathdata.path(),
+                                &new_file_path_buf,
+                                should_preserve,
+                            ) {
+                                let msg = format!(
+                                    "httm restore failed for the following reason: {}.\n\
                             Attempting roll back to precautionary pre-execution snapshot.",
-                                err
-                            );
+                                    err
+                                );
 
-                            eprintln!("{}", msg);
+                                eprintln!("{}", msg);
 
-                            snap_guard
-                                .rollback()
-                                .map(|_| println!("Rollback succeeded."))?;
+                                snap_guard
+                                    .rollback()
+                                    .map(|_| println!("Rollback succeeded."))?;
 
-                            std::process::exit(1);
+                                std::process::exit(1);
+                            }
                         }
-                    } else {
-                        if let Err(err) = Copy::recursive(
-                            &snap_pathdata.path(),
-                            &new_file_path_buf,
-                            should_preserve,
-                        ) {
-                            let msg =
-                                format!("httm restore failed for the following reason: {}.", err);
-                            return Err(HttmError::new(&msg).into());
+                        _ => {
+                            if let Err(err) = Copy::recursive(
+                                &snap_pathdata.path(),
+                                &new_file_path_buf,
+                                should_preserve,
+                            ) {
+                                let msg = format!(
+                                    "httm restore failed for the following reason: {}.",
+                                    err
+                                );
+                                return Err(HttmError::new(&msg).into());
+                            }
                         }
                     }
 
@@ -228,7 +230,7 @@ impl InteractiveRestore {
         // don't let the user rewrite one restore over another in non-overwrite mode
         if new_file_path_buf.exists() {
             Err(
-                    HttmError::new("httm will not restore to that file, as a file with the same path name already exists. Quitting.").into(),
+                    HttmError::new("httm will not restore to that file location, as a file with the same path name already exists. Quitting.").into(),
                 )
         } else {
             Ok(new_file_path_buf)
