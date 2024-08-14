@@ -70,7 +70,7 @@ impl MapOfSnaps {
                         let map = Self::from_btrfs_cmd(
                             mount,
                             dataset_info,
-                            additional_data.base_subvol(),
+                            &additional_data.base_subvol,
                             map_of_datasets,
                             opt_debug,
                         );
@@ -237,7 +237,7 @@ impl MapOfSnaps {
 
                     match &metadata.fs_type {
                         FilesystemType::Btrfs(Some(additional_data)) => {
-                            let subvol_name = additional_data.base_subvol().to_string_lossy();
+                            let subvol_name = additional_data.base_subvol.to_string_lossy();
 
                             if potential_dataset == subvol_name.trim_start_matches("/") {
                                 Some(mount.as_path())
@@ -279,7 +279,7 @@ impl MapOfSnaps {
                     .find(|(_mount, metadata)| match &metadata.fs_type {
                         FilesystemType::Btrfs(Some(additional_data)) => {
                             metadata.source == base_mount_source
-                                && additional_data.base_subvol() == BTRFS_ROOT_SUBVOL.as_path()
+                                && additional_data.base_subvol == BTRFS_ROOT_SUBVOL.as_path()
                         }
                         _ => false,
                     })
