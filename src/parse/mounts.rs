@@ -225,7 +225,7 @@ impl BaseFilesystemInfo {
 
         if map_of_snaps.values().count() == 0 {
             return Err(
-                HttmError::new("httm could not find any valid snapshots on the system.").into(),
+                HttmError::new("httm could not find any valid snapshots on the system.  Perhaps you do not have permissions to view.").into(),
             );
         }
 
