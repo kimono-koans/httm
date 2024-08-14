@@ -62,7 +62,7 @@ pub struct BtrfsAdditionalData {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FilesystemType {
     Zfs,
-    Btrfs(Option<BtrfsAdditionalData>),
+    Btrfs(Option<Box<BtrfsAdditionalData>>),
     Nilfs2,
     Apfs,
     Restic(Option<Vec<PathBuf>>),
@@ -295,9 +295,11 @@ impl BaseFilesystemInfo {
                                 Some(id) if *id == "5" => BTRFS_ROOT_SUBVOL.clone(),
                                 _ => PathBuf::from(subvol),
                             })
-                            .map(|base_subvol| BtrfsAdditionalData {
-                                base_subvol,
-                                snap_names: OnceLock::new(),
+                            .map(|base_subvol| {
+                                Box::new(BtrfsAdditionalData {
+                                    base_subvol,
+                                    snap_names: OnceLock::new(),
+                                })
                             });
 
                         Either::Left((
