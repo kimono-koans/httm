@@ -60,34 +60,41 @@ impl MapOfSnaps {
     ) -> HttmResult<Self> {
         let map_of_snaps: HashMap<PathBuf, Vec<PathBuf>> = map_of_datasets
             .par_iter()
-            .map(|(mount, dataset_info)| {
+            .map(|(mount, dataset_info)| {      
                 let snap_mounts: Vec<PathBuf> = match &dataset_info.fs_type {
                     FilesystemType::Zfs | FilesystemType::Nilfs2 | FilesystemType::Apfs | FilesystemType::Restic(_) | FilesystemType::Btrfs(None) => {
                         Self::from_defined_mounts(mount, dataset_info)
                     }
                     // btrfs Some mounts are potential local mount
-                    FilesystemType::Btrfs(Some(base_subvol)) => {
-                        let mut res = Self::from_btrfs_cmd(
+                    FilesystemType::Btrfs(Some(additional_data)) => {
+                        let map = Self::from_btrfs_cmd(
                             mount,
                             dataset_info,
-                            &base_subvol,
+                            additional_data.base_subvol(),
                             map_of_datasets,
                             opt_debug,
                         );
 
-                        if res.is_empty() {
+                        if map.is_empty() {
                             static NOTICE_FALLBACK: Once = Once::new();
 
                             NOTICE_FALLBACK.call_once(|| {
                                 eprintln!(
-                                    "NOTICE: Falling back to detection of btrfs snapshot mounts perhaps defined by Snapper.",
+                                    "NOTICE: Falling back to detection of btrfs snapshot mounts perhaps defined by Snapper re: mount: {:?}", mount
                                 );
                             });
 
-                            res = Self::from_defined_mounts(mount, dataset_info);
-                        }
+                            Self::from_defined_mounts(mount, dataset_info)
+                        } else {
+                            additional_data.snap_names.get_or_init(|| {
+                                let values: Vec<PathBuf> = map.values().cloned().collect();
+                                let mut new_map: HashMap<PathBuf, Vec<PathBuf>> = HashMap::new();
+                                new_map.insert_unique_unchecked(mount.clone(), values);
+                                new_map
+                            });
 
-                        res
+                            map.into_keys().collect()
+                        }
                     }
                 };
 
@@ -103,13 +110,13 @@ impl MapOfSnaps {
     }
 
     // build paths to all snap mounts
-    fn from_btrfs_cmd(
+    pub fn from_btrfs_cmd(
         base_mount: &Path,
         base_mount_metadata: &DatasetMetadata,
         base_subvol: &Path,
         map_of_datasets: &HashMap<PathBuf, DatasetMetadata>,
         opt_debug: bool,
-    ) -> Vec<PathBuf> {
+    ) -> HashMap<PathBuf, PathBuf> {
         const BTRFS_COMMAND_REQUIRES_ROOT: &str =
             "btrfs mounts detected.  User must have super user permissions to determine the location of btrfs snapshots";
 
@@ -119,7 +126,7 @@ impl MapOfSnaps {
             USER_HAS_ROOT_WARNING.call_once(|| {
                 eprintln!("WARN: {}", BTRFS_COMMAND_REQUIRES_ROOT);
             });
-            return Vec::new();
+            return HashMap::new();
         }
 
         let Ok(btrfs_command) = get_btrfs_command() else {
@@ -131,7 +138,7 @@ impl MapOfSnaps {
                 );
             });
 
-            return Vec::new();
+            return HashMap::new();
         };
 
         let exec_command = btrfs_command;
@@ -154,7 +161,7 @@ impl MapOfSnaps {
             COULD_NOT_OBTAIN_BTRFS_COMMAND_OUTPUT.call_once(|| {
                 eprintln!("WARN: Could not obtain btrfs command output.",);
             });
-            return Vec::new();
+            return HashMap::new();
         };
 
         match command_output
@@ -169,22 +176,25 @@ impl MapOfSnaps {
                     .map(|line| line.trim())
                     .map(|line| Path::new(line))
                     .filter(|line| !line.as_os_str().is_empty())
-                    .filter_map(|relative| {
-                        Self::parse_btrfs_relative_path(
+                    .filter_map(|snap_name| {
+                        let opt_snap_location = Self::parse_btrfs_relative_path(
                             base_mount,
                             &base_mount_metadata.source,
                             base_subvol,
-                            relative,
+                            snap_name,
                             map_of_datasets,
                             opt_debug,
-                        )
+                        );
+
+                        opt_snap_location
+                            .map(|snap_location| (snap_location, snap_name.to_path_buf()))
                     })
                     .collect()
             }) {
-            Some(vec) => vec,
+            Some(map) => map,
             None => {
                 //eprintln!("WARN: No snaps found for mount: {:?}", base_mount);
-                Vec::new()
+                HashMap::new()
             }
         }
     }
@@ -229,8 +239,8 @@ impl MapOfSnaps {
                     }
 
                     match &metadata.fs_type {
-                        FilesystemType::Btrfs(Some(subvol)) => {
-                            let subvol_name = subvol.to_string_lossy();
+                        FilesystemType::Btrfs(Some(additional_data)) => {
+                            let subvol_name = additional_data.base_subvol().to_string_lossy();
 
                             if potential_dataset == subvol_name.trim_start_matches("/") {
                                 Some(mount.as_path())
@@ -270,9 +280,9 @@ impl MapOfSnaps {
                 let btrfs_root = map_of_datasets
                     .iter()
                     .find(|(_mount, metadata)| match &metadata.fs_type {
-                        FilesystemType::Btrfs(Some(subvol)) => {
+                        FilesystemType::Btrfs(Some(additional_data)) => {
                             metadata.source == base_mount_source
-                                && subvol == BTRFS_ROOT_SUBVOL.as_path()
+                                && additional_data.base_subvol() == BTRFS_ROOT_SUBVOL.as_path()
                         }
                         _ => false,
                     })

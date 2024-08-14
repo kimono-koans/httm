@@ -22,7 +22,7 @@ use hashbrown::HashMap;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RemotePathAndFsType {
     pub remote_dir: PathBuf,
     pub fs_type: FilesystemType,

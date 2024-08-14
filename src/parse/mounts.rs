@@ -24,7 +24,8 @@ use crate::{
     GLOBAL_CONFIG, NILFS2_SNAPSHOT_ID_KEY, RESTIC_LATEST_SNAPSHOT_DIRECTORY, ROOT_DIRECTORY,
     TM_DIR_LOCAL, TM_DIR_REMOTE, ZFS_HIDDEN_DIRECTORY,
 };
-use hashbrown::{HashMap, HashSet};
+use hashbrown::HashMap;
+use hashbrown::HashSet;
 use proc_mounts::MountIter;
 use rayon::iter::Either;
 use rayon::prelude::*;
@@ -36,6 +37,7 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command as ExecProcess;
 use std::sync::LazyLock;
+use std::sync::OnceLock;
 
 pub const ZFS_FSTYPE: &str = "zfs";
 pub const NILFS2_FSTYPE: &str = "nilfs2";
@@ -51,10 +53,27 @@ pub enum LinkType {
     Network,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BtrfsAdditionalData {
+    base_subvol: PathBuf,
+    pub snap_names: OnceLock<HashMap<PathBuf, Vec<PathBuf>>>,
+}
+
+#[allow(dead_code)]
+impl BtrfsAdditionalData {
+    pub fn base_subvol<'a>(&'a self) -> &'a Path {
+        &self.base_subvol
+    }
+
+    pub fn snap_names<'a>(&'a self) -> Option<&'a HashMap<PathBuf, Vec<PathBuf>>> {
+        self.snap_names.get()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FilesystemType {
     Zfs,
-    Btrfs(Option<PathBuf>),
+    Btrfs(Option<BtrfsAdditionalData>),
     Nilfs2,
     Apfs,
     Restic(Option<Vec<PathBuf>>),
@@ -196,7 +215,7 @@ impl BaseFilesystemInfo {
             );
         }
 
-        let map_of_snaps = MapOfSnaps::new(&raw_datasets, opt_debug)?;
+        let map_of_snaps = MapOfSnaps::new(&mut raw_datasets, opt_debug)?;
 
         let map_of_datasets = {
             MapOfDatasets {
@@ -281,18 +300,22 @@ impl BaseFilesystemInfo {
                             .filter_map(|line| line.split_once('='))
                             .collect();
 
-                        let opt_subvol = keyed_options.get("subvol").map(|subvol| {
-                            match keyed_options.get("subvolid") {
+                        let opt_additional_data = keyed_options
+                            .get("subvol")
+                            .map(|subvol| match keyed_options.get("subvolid") {
                                 Some(id) if *id == "5" => BTRFS_ROOT_SUBVOL.clone(),
                                 _ => PathBuf::from(subvol),
-                            }
-                        });
+                            })
+                            .map(|base_subvol| BtrfsAdditionalData {
+                                base_subvol,
+                                snap_names: OnceLock::new(),
+                            });
 
                         Either::Left((
                             dest_path,
                             DatasetMetadata {
                                 source: mount_info.source,
-                                fs_type: FilesystemType::Btrfs(opt_subvol),
+                                fs_type: FilesystemType::Btrfs(opt_additional_data),
                                 link_type: LinkType::Local,
                             },
                         ))
