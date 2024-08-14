@@ -56,17 +56,13 @@ pub enum LinkType {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BtrfsAdditionalData {
     base_subvol: PathBuf,
-    pub snap_names: OnceLock<HashMap<PathBuf, Vec<PathBuf>>>,
+    pub snap_names: OnceLock<HashMap<PathBuf, PathBuf>>,
 }
 
 #[allow(dead_code)]
 impl BtrfsAdditionalData {
     pub fn base_subvol<'a>(&'a self) -> &'a Path {
         &self.base_subvol
-    }
-
-    pub fn snap_names<'a>(&'a self) -> Option<&'a HashMap<PathBuf, Vec<PathBuf>>> {
-        self.snap_names.get()
     }
 }
 

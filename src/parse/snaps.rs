@@ -87,10 +87,7 @@ impl MapOfSnaps {
                             Self::from_defined_mounts(mount, dataset_info)
                         } else {
                             additional_data.snap_names.get_or_init(|| {
-                                let values: Vec<PathBuf> = map.values().cloned().collect();
-                                let mut new_map: HashMap<PathBuf, Vec<PathBuf>> = HashMap::new();
-                                new_map.insert_unique_unchecked(mount.clone(), values);
-                                new_map
+                                map.clone()
                             });
 
                             map.into_keys().collect()
