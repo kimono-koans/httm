@@ -19,6 +19,7 @@ use crate::data::paths::PathData;
 use crate::data::paths::PathDeconstruction;
 use crate::library::diff_copy::HttmCopy;
 use crate::library::results::{HttmError, HttmResult};
+use crate::GLOBAL_CONFIG;
 use crate::IN_BUFFER_SIZE;
 use nix::sys::stat::SFlag;
 use nu_ansi_term::Color::{Blue, Red};
@@ -149,7 +150,20 @@ impl Copy {
         }
 
         if should_preserve {
-            Preserve::recursive(src, dst)?
+            // macos likes to fail on the metadata copy
+            match Preserve::recursive(src, dst) {
+                Ok(_) => {}
+                Err(err) => {
+                    if is_metadata_same(src, dst).is_ok() {
+                        if GLOBAL_CONFIG.opt_debug {
+                            eprintln!("WARN: The OS reports an error that it was unable to copy file metadata for the following reason: {}", err.to_string().trim_end());
+                            eprintln!("NOTICE: This is most likely because such feature is unsupported by this OS.  httm confirms basic file metadata (size and mtime) are the same for transfer: {:?} -> {:?}.", src, dst)
+                        }
+                    } else {
+                        return Err(err);
+                    }
+                }
+            }
         }
 
         Ok(())
@@ -281,6 +295,8 @@ use std::hash::Hasher;
 use std::io::BufRead;
 use std::io::BufReader;
 use std::io::ErrorKind;
+
+use super::utility::is_metadata_same;
 
 pub struct HashFileContents<'a> {
     inner: &'a Path,
