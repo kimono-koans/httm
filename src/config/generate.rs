@@ -32,6 +32,7 @@ use std::io::Read;
 use std::ops::Index;
 use std::path::{Path, PathBuf};
 use time::UtcOffset;
+use clap::builder::Str;
 
 #[derive(Debug, Clone)]
 pub enum ExecMode {
@@ -674,7 +675,7 @@ impl Config {
         let opt_no_clones =
             matches.get_flag("NO_CLONES") || std::env::var_os("HTTM_NO_CLONE").is_some();
 
-        let opt_last_snap = match matches.get_one::<String>("LAST_SNAP").map(|inner| inner.as_str()) {
+        let opt_last_snap = match matches.get_one::<Str>("LAST_SNAP").map(|inner| inner.as_str()) {
             Some("" | "any") => Some(LastSnapMode::Any),
             Some("none" | "without") => Some(LastSnapMode::Without),
             Some("ditto") => Some(LastSnapMode::DittoOnly),
@@ -683,7 +684,7 @@ impl Config {
             _ => None,
         };
 
-        let opt_num_versions = match matches.get_one::<String>("NUM_VERSIONS").map(|inner| inner.as_str()) {
+        let opt_num_versions = match matches.get_one::<Str>("NUM_VERSIONS").map(|inner| inner.as_str()) {
             Some("" | "all") => Some(NumVersionsMode::AllNumerals),
             Some("graph") => Some(NumVersionsMode::AllGraph),
             Some("single") => Some(NumVersionsMode::SingleAll),
@@ -699,28 +700,28 @@ impl Config {
             return Err(HttmError::new("The NUM_VERSIONS graph mode and the RAW or ZEROS display modes are an invalid combination.").into());
         }
 
-        let opt_mount_display = match matches.get_one::<String>("FILE_MOUNT").map(|inner| inner.as_str()) {
+        let opt_mount_display = match matches.get_one::<Str>("FILE_MOUNT").map(|inner| inner.as_str()) {
             Some("" | "mount" | "target" | "directory") => Some(MountDisplay::Target),
             Some("source" | "device" | "dataset") => Some(MountDisplay::Source),
             Some("relative-path" | "relative" | "relpath") => Some(MountDisplay::RelativePath),
             _ => None,
         };
 
-        let opt_preview = match matches.get_one::<String>("PREVIEW").map(|inner| inner.as_str()) {
+        let opt_preview = match matches.get_one::<Str>("PREVIEW").map(|inner| inner.as_str()) {
             Some("" | "default") => Some("default".to_owned()),
             Some(user_defined) => Some(user_defined.to_string()),
             None => None,
         };
 
-        let mut opt_deleted_mode = match matches.get_one::<String>("DELETED").map(|inner| inner.as_str()) {
+        let mut opt_deleted_mode = match matches.get_one::<Str>("DELETED").map(|inner| inner.as_str()) {
             Some("" | "all") => Some(DeletedMode::All),
             Some("single") => Some(DeletedMode::DepthOfOne),
             Some("only") => Some(DeletedMode::Only),
             _ => None,
         };
 
-        let opt_select_mode = matches.get_one::<String>("SELECT");
-        let opt_restore_mode = matches.get_one::<String>("RESTORE");
+        let opt_select_mode = matches.get_one::<Str>("SELECT");
+        let opt_restore_mode = matches.get_one::<Str>("RESTORE");
         
         let opt_interactive_mode = if let Some(var_restore_mode) = opt_restore_mode {
             let mut restore_mode = var_restore_mode.to_string();
@@ -756,7 +757,7 @@ impl Config {
             None
         };
 
-        let dedup_by = match matches.get_one::<String>("DEDUP_BY").map(|inner| inner.as_str()) {
+        let dedup_by = match matches.get_one::<Str>("DEDUP_BY").map(|inner| inner.as_str()) {
             _ if matches.get_flag("PRUNE") =>  DedupBy::Disable,
             Some("all" | "no-filter" | "disable") => DedupBy::Disable,
             Some("contents") => DedupBy::Contents,
@@ -781,7 +782,7 @@ impl Config {
         }
 
         let opt_snap_file_mount =
-            if let Some(requested_snapshot_suffix) = matches.get_one::<String>("SNAPSHOT") {
+            if let Some(requested_snapshot_suffix) = matches.get_one::<Str>("SNAPSHOT") {
                 if requested_snapshot_suffix == &"httmSnapFileMount" {
                     Some(requested_snapshot_suffix.to_owned())
                 } else if requested_snapshot_suffix.contains(char::is_whitespace) {
@@ -804,7 +805,7 @@ impl Config {
                 eprintln!("Select mode for listed snapshots only available in PRUNE mode.")
             }
 
-            match matches.get_one::<String>("LIST_SNAPS") {
+            match matches.get_one::<Str>("LIST_SNAPS") {
                 Some(value) if !value.is_empty() => {
                     Some(Self::snap_filters(value, select_mode)?)
                 },
@@ -820,7 +821,7 @@ impl Config {
             None
         };
 
-        let mut exec_mode = if let Some(full_snap_name) = matches.get_one::<String>("ROLL_FORWARD") {
+        let mut exec_mode = if let Some(full_snap_name) = matches.get_one::<Str>("ROLL_FORWARD") {
             ExecMode::RollForward(full_snap_name.to_string())
         } else if let Some(num_versions_mode) = opt_num_versions {
             ExecMode::NumVersions(num_versions_mode)
@@ -855,7 +856,7 @@ impl Config {
         // alternate filesystems and map of aliases if the user requests
         let mut opt_map_aliases = matches.get_raw("MAP_ALIASES");
 
-        let mut opt_alt_store: Option<&FilesystemType> = match matches.get_one::<String>("ALT_STORE").map(|inner| inner.as_str()) {
+        let mut opt_alt_store: Option<&FilesystemType> = match matches.get_one::<Str>("ALT_STORE").map(|inner| inner.as_str()) {
             Some("timemachine") => Some(&FilesystemType::Apfs),
             Some("restic") => Some(&FilesystemType::Restic(None)),
             _ => None
@@ -869,8 +870,8 @@ impl Config {
         let dataset_collection = FilesystemInfo::new(
             matches.get_flag("ALT_REPLICATED"),
             opt_debug,
-            matches.get_one::<String>("REMOTE_DIR").map(|inner| inner.as_str()),
-            matches.get_one::<String>("LOCAL_DIR").map(|inner| inner.as_str()),
+            matches.get_one::<Str>("REMOTE_DIR").map(|inner| inner.as_str()),
+            matches.get_one::<Str>("LOCAL_DIR").map(|inner| inner.as_str()),
             opt_map_aliases,
             &mut opt_alt_store,
             &pwd,
