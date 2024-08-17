@@ -159,7 +159,7 @@ impl RecurseBehindDeletedDir {
                 return Ok(());
             }
 
-            let new = item
+            let mut new = item
                 .vec_dirs
                 .into_iter()
                 .map(|basic_info| {
@@ -171,9 +171,10 @@ impl RecurseBehindDeletedDir {
                         skim_tx,
                     )
                 })
-                .flatten();
+                .flatten()
+                .collect();
 
-            queue.extend(new);
+            queue.append(&mut new);
         }
 
         Ok(())

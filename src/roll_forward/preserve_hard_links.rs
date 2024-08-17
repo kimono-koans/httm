@@ -67,7 +67,7 @@ impl HardLinkMap {
         while let Some(item) = queue.pop() {
             // no errors will be propagated in recursive mode
             // far too likely to run into a dir we don't have permissions to view
-            let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
+            let (mut vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
                 read_dir(item.path())?
                     .flatten()
                     // checking file_type on dir entries is always preferable
@@ -76,8 +76,8 @@ impl HardLinkMap {
                     .partition(|dir_entry| dir_entry.path().is_dir());
 
             let mut combined = vec_files;
-            combined.extend_from_slice(&vec_dirs);
-            queue.extend_from_slice(&vec_dirs);
+            combined.append(&mut vec_dirs);
+            queue.append(&mut vec_dirs);
 
             combined
                 .into_iter()

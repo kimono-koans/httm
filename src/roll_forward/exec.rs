@@ -214,13 +214,13 @@ impl RollForward {
 
         eprint!("Building file and directory list: ");
         while let Some(item) = directory_list.pop() {
-            let (vec_dirs, vec_files): (Vec<PathBuf>, Vec<PathBuf>) = read_dir(&item)?
+            let (mut vec_dirs, mut vec_files): (Vec<PathBuf>, Vec<PathBuf>) = read_dir(&item)?
                 .flatten()
                 .map(|dir_entry| dir_entry.path())
                 .partition(|path| path.is_dir());
 
-            directory_list.extend(vec_dirs);
-            file_list.extend(vec_files);
+            directory_list.append(&mut vec_dirs);
+            file_list.append(&mut vec_files);
         }
         eprintln!("OK");
 
