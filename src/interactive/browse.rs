@@ -24,7 +24,9 @@ use crate::GLOBAL_CONFIG;
 use crossbeam_channel::unbounded;
 use skim::prelude::*;
 use std::path::Path;
-use std::thread::{self, JoinHandle};
+use std::sync::atomic::AtomicBool;
+use std::thread::{self, sleep, JoinHandle};
+use std::time::Duration;
 
 #[derive(Debug)]
 pub struct InteractiveBrowse {
@@ -85,6 +87,10 @@ impl InteractiveBrowse {
 
     fn view(requested_dir: &Path) -> HttmResult<Self> {
         // prep thread spawn
+        const BACK_OFF_DURATION: Duration = Duration::from_millis(10);
+
+        let started = Arc::new(AtomicBool::new(false));
+        let started_clone = started.clone();
         let requested_dir_clone = requested_dir.to_path_buf();
         let (tx_item, rx_item): (SkimItemSender, SkimItemReceiver) = unbounded();
         let (hangup_tx, hangup_rx): (Sender<Never>, Receiver<Never>) = bounded(0);
@@ -92,8 +98,18 @@ impl InteractiveBrowse {
         // thread spawn fn enumerate_directory - permits recursion into dirs without blocking
         let background_handle = std::thread::spawn(move || {
             // no way to propagate error from closure so exit and explain error here
-            RecursiveSearch::exec(&requested_dir_clone, tx_item.clone(), hangup_rx.clone());
+            RecursiveSearch::exec(
+                &requested_dir_clone,
+                tx_item.clone(),
+                hangup_rx.clone(),
+                started,
+            );
         });
+
+        while !started_clone.load(Ordering::Relaxed) {
+            //std::thread::yield_now();
+            sleep(BACK_OFF_DURATION)
+        }
 
         let header: String = ViewMode::Browse.print_header();
 
