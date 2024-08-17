@@ -147,7 +147,7 @@ impl RecursiveMainLoop {
         let mut queue: Vec<BasicDirEntryInfo> =
             Self::enter_directory(requested_dir, opt_deleted_scope, skim_tx, hangup_rx)?;
 
-        started.store(true, Ordering::Relaxed);
+        started.store(true, Ordering::SeqCst);
 
         if GLOBAL_CONFIG.opt_recursive {
             // condition kills iter when user has made a selection

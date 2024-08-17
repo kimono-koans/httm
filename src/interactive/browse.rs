@@ -26,7 +26,6 @@ use skim::prelude::*;
 use std::path::Path;
 use std::sync::atomic::AtomicBool;
 use std::thread::JoinHandle;
-use std::time::Duration;
 
 #[derive(Debug)]
 pub struct InteractiveBrowse {
@@ -87,8 +86,6 @@ impl InteractiveBrowse {
 
     fn view(requested_dir: &Path) -> HttmResult<Self> {
         // prep thread spawn
-        const BACK_OFF_DURATION: Duration = Duration::from_millis(10);
-
         let started = Arc::new(AtomicBool::new(false));
         let started_clone = started.clone();
         let requested_dir_clone = requested_dir.to_path_buf();
@@ -111,9 +108,7 @@ impl InteractiveBrowse {
         let opt_multi = GLOBAL_CONFIG.opt_preview.is_none();
 
         let display_thread = std::thread::spawn(move || {
-            while !started_clone.load(Ordering::Relaxed) {
-                std::thread::park_timeout(BACK_OFF_DURATION)
-            }
+            while !started_clone.load(Ordering::SeqCst) {}
 
             // create the skim component for previews
             let skim_opts = SkimOptionsBuilder::default()
