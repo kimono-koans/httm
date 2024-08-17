@@ -25,7 +25,7 @@ use crossbeam_channel::unbounded;
 use skim::prelude::*;
 use std::path::Path;
 use std::sync::atomic::AtomicBool;
-use std::thread::{self, sleep, JoinHandle};
+use std::thread::JoinHandle;
 use std::time::Duration;
 
 #[derive(Debug)]
@@ -107,15 +107,14 @@ impl InteractiveBrowse {
         });
 
         while !started_clone.load(Ordering::Relaxed) {
-            //std::thread::yield_now();
-            sleep(BACK_OFF_DURATION)
+            std::thread::park_timeout(BACK_OFF_DURATION)
         }
 
         let header: String = ViewMode::Browse.print_header();
 
         let opt_multi = GLOBAL_CONFIG.opt_preview.is_none();
 
-        let display_thread = thread::spawn(move || {
+        let display_thread = std::thread::spawn(move || {
             // create the skim component for previews
             let skim_opts = SkimOptionsBuilder::default()
                 .preview_window(Some("up:50%"))

@@ -162,10 +162,10 @@ impl RecursiveMainLoop {
 
                 // no errors will be propagated in recursive mode
                 // far too likely to run into a dir we don't have permissions to view
-                if let Ok(items) =
+                if let Ok(mut items) =
                     Self::enter_directory(&item.path(), opt_deleted_scope, skim_tx, hangup_rx)
                 {
-                    queue.extend(items)
+                    queue.append(&mut items)
                 }
             }
         }
