@@ -106,15 +106,15 @@ impl InteractiveBrowse {
             );
         });
 
-        while !started_clone.load(Ordering::Relaxed) {
-            std::thread::park_timeout(BACK_OFF_DURATION)
-        }
-
         let header: String = ViewMode::Browse.print_header();
 
         let opt_multi = GLOBAL_CONFIG.opt_preview.is_none();
 
         let display_thread = std::thread::spawn(move || {
+            while !started_clone.load(Ordering::Relaxed) {
+                std::thread::park_timeout(BACK_OFF_DURATION)
+            }
+
             // create the skim component for previews
             let skim_opts = SkimOptionsBuilder::default()
                 .preview_window(Some("up:50%"))
