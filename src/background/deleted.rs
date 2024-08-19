@@ -26,7 +26,11 @@ use skim::prelude::*;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicBool;
 
-pub struct SpawnDeletedThread;
+pub struct SpawnDeletedThread {
+    requested_dir: PathBuf,
+    skim_tx: SkimItemSender,
+    hangup: Arc<AtomicBool>,
+}
 
 impl SpawnDeletedThread {
     // "spawn" a lighter weight rayon/greenish thread for enumerate_deleted, if needed
@@ -36,31 +40,32 @@ impl SpawnDeletedThread {
         skim_tx: &SkimItemSender,
         hangup: &Arc<AtomicBool>,
     ) {
-        // canonicalize requested dir path b/c could be a symlink
-        let requested_dir_clone = requested_dir.to_path_buf();
-        let skim_tx_clone = skim_tx.clone();
-        let hangup_clone = hangup.clone();
+        let new = Self::new(requested_dir, skim_tx, hangup);
 
         deleted_scope.spawn(move |_| {
-            let _ = Self::enter_directory(&requested_dir_clone, &skim_tx_clone, hangup_clone);
+            let _ = new.enter_directory();
         })
     }
 
+    fn new(requested_dir: &Path, skim_tx: &SkimItemSender, hangup: &Arc<AtomicBool>) -> Self {
+        Self {
+            requested_dir: requested_dir.to_path_buf(),
+            skim_tx: skim_tx.clone(),
+            hangup: hangup.clone(),
+        }
+    }
+
     // deleted file search for all modes
-    fn enter_directory(
-        requested_dir: &Path,
-        skim_tx: &SkimItemSender,
-        hangup: Arc<AtomicBool>,
-    ) -> HttmResult<()> {
+    fn enter_directory(self) -> HttmResult<()> {
         // check -- should deleted threads keep working?
         // exit/error on disconnected channel, which closes
         // at end of browse scope
-        if hangup.as_ref().load(Ordering::Relaxed) {
+        if self.hangup.as_ref().load(Ordering::Relaxed) {
             return Ok(());
         }
 
         // obtain all unique deleted, unordered, unsorted, will need to fix
-        let vec_deleted = DeletedFiles::new(requested_dir)?.into_inner();
+        let vec_deleted = DeletedFiles::new(&self.requested_dir)?.into_inner();
 
         if vec_deleted.is_empty() {
             return Ok(());
@@ -77,8 +82,8 @@ impl SpawnDeletedThread {
             vec_files,
             &vec_dirs,
             PathProvenance::IsPhantom,
-            requested_dir,
-            skim_tx,
+            &self.requested_dir,
+            &self.skim_tx,
         )?;
 
         // disable behind deleted dirs with DepthOfOne,
@@ -98,9 +103,9 @@ impl SpawnDeletedThread {
                 .try_for_each(|deleted_dir| {
                     RecurseBehindDeletedDir::exec(
                         &deleted_dir.path(),
-                        requested_dir,
-                        skim_tx,
-                        &hangup,
+                        &self.requested_dir,
+                        &self.skim_tx,
+                        &self.hangup,
                     )
                 });
         }
