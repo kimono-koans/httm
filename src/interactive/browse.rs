@@ -19,7 +19,6 @@ use crate::background::recursive::RecursiveSearch;
 use crate::data::paths::PathData;
 use crate::interactive::view_mode::ViewMode;
 use crate::library::results::{HttmError, HttmResult};
-use crate::library::utility::Never;
 use crate::GLOBAL_CONFIG;
 use crossbeam_channel::unbounded;
 use skim::prelude::*;
@@ -87,10 +86,11 @@ impl InteractiveBrowse {
     fn view(requested_dir: &Path) -> HttmResult<Self> {
         // prep thread spawn
         let started = Arc::new(AtomicBool::new(false));
+        let hangup = Arc::new(AtomicBool::new(false));
+        let hangup_clone = hangup.clone();
         let started_clone = started.clone();
         let requested_dir_clone = requested_dir.to_path_buf();
         let (tx_item, rx_item): (SkimItemSender, SkimItemReceiver) = unbounded();
-        let (hangup_tx, hangup_rx): (Sender<Never>, Receiver<Never>) = bounded(0);
 
         // thread spawn fn enumerate_directory - permits recursion into dirs without blocking
         let background_handle = std::thread::spawn(move || {
@@ -98,7 +98,7 @@ impl InteractiveBrowse {
             RecursiveSearch::exec(
                 &requested_dir_clone,
                 tx_item.clone(),
-                hangup_rx.clone(),
+                hangup.clone(),
                 started,
             );
         });
@@ -133,7 +133,7 @@ impl InteractiveBrowse {
             }
             Some(output) => {
                 // hangup the channel so the background recursive search can gracefully cleanup and exit
-                drop(hangup_tx);
+                hangup_clone.store(true, Ordering::Relaxed);
 
                 #[cfg(feature = "malloc_trim")]
                 #[cfg(target_os = "linux")]

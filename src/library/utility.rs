@@ -21,7 +21,6 @@ use crate::data::selection::SelectionCandidate;
 use crate::library::results::{HttmError, HttmResult};
 
 use crate::GLOBAL_CONFIG;
-use crossbeam_channel::{Receiver, TryRecvError};
 use lscolors::{Colorable, LsColors, Style};
 use nu_ansi_term::Style as AnsiTermStyle;
 use number_prefix::NumberPrefix;
@@ -68,15 +67,15 @@ pub fn delimiter() -> char {
     '\n'
 }
 
-pub enum Never {}
+// pub enum Never {}
 
-pub fn is_channel_closed(chan: &Receiver<Never>) -> bool {
-    match chan.try_recv() {
-        Ok(never) => match never {},
-        Err(TryRecvError::Disconnected) => true,
-        Err(TryRecvError::Empty) => false,
-    }
-}
+// pub fn is_channel_closed(chan: &Receiver<Never>) -> bool {
+//     match chan.try_recv() {
+//         Ok(never) => match never {},
+//         Err(TryRecvError::Disconnected) => true,
+//         Err(TryRecvError::Empty) => false,
+//     }
+// }
 
 const TMP_SUFFIX: &str = ".tmp";
 

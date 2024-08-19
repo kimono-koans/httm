@@ -19,12 +19,12 @@ use crate::background::recursive::{PathProvenance, SharedRecursive};
 use crate::config::generate::DeletedMode;
 use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::library::results::{HttmError, HttmResult};
-use crate::library::utility::{is_channel_closed, Never};
 use crate::lookup::deleted::{DeletedFiles, LastInTimeSet};
 use crate::GLOBAL_CONFIG;
 use rayon::Scope;
 use skim::prelude::*;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::AtomicBool;
 
 pub struct SpawnDeletedThread;
 
@@ -34,15 +34,14 @@ impl SpawnDeletedThread {
         requested_dir: &Path,
         deleted_scope: &Scope,
         skim_tx: &SkimItemSender,
-        hangup_rx: &Receiver<Never>,
+        hangup: Arc<AtomicBool>,
     ) {
         // canonicalize requested dir path b/c could be a symlink
         let requested_dir_clone = requested_dir.to_path_buf();
         let skim_tx_clone = skim_tx.clone();
-        let hangup_rx_clone = hangup_rx.clone();
 
         deleted_scope.spawn(move |_| {
-            let _ = Self::enter_directory(&requested_dir_clone, &skim_tx_clone, &hangup_rx_clone);
+            let _ = Self::enter_directory(&requested_dir_clone, &skim_tx_clone, hangup);
         })
     }
 
@@ -50,12 +49,12 @@ impl SpawnDeletedThread {
     fn enter_directory(
         requested_dir: &Path,
         skim_tx: &SkimItemSender,
-        hangup_rx: &Receiver<Never>,
+        hangup: Arc<AtomicBool>,
     ) -> HttmResult<()> {
         // check -- should deleted threads keep working?
         // exit/error on disconnected channel, which closes
         // at end of browse scope
-        if is_channel_closed(hangup_rx) {
+        if hangup.as_ref().load(Ordering::Relaxed) {
             return Ok(());
         }
 
@@ -100,7 +99,7 @@ impl SpawnDeletedThread {
                         &deleted_dir.path(),
                         requested_dir,
                         skim_tx,
-                        hangup_rx,
+                        hangup.clone(),
                     )
                 });
         }
@@ -124,12 +123,12 @@ impl RecurseBehindDeletedDir {
         deleted_dir: &Path,
         requested_dir: &Path,
         skim_tx: &SkimItemSender,
-        hangup_rx: &Receiver<Never>,
+        hangup: Arc<AtomicBool>,
     ) -> HttmResult<()> {
         // check -- should deleted threads keep working?
         // exit/error on disconnected channel, which closes
         // at end of browse scope
-        if is_channel_closed(hangup_rx) {
+        if hangup.as_ref().load(Ordering::Relaxed) {
             return Ok(());
         }
 
@@ -155,7 +154,7 @@ impl RecurseBehindDeletedDir {
         };
 
         while let Some(item) = queue.pop() {
-            if is_channel_closed(hangup_rx) {
+            if hangup.as_ref().load(Ordering::Relaxed) {
                 return Ok(());
             }
 

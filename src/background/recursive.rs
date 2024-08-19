@@ -20,7 +20,7 @@ use crate::config::generate::{DeletedMode, ExecMode};
 use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::display_versions::wrapper::VersionsDisplayWrapper;
 use crate::library::results::{HttmError, HttmResult};
-use crate::library::utility::{is_channel_closed, print_output_buf, HttmIsDir, Never};
+use crate::library::utility::{print_output_buf, HttmIsDir};
 use crate::parse::mounts::{IsFilterDir, MaxLen};
 use crate::{VersionsMap, BTRFS_SNAPPER_HIDDEN_DIRECTORY, GLOBAL_CONFIG, ZFS_HIDDEN_DIRECTORY};
 use rayon::{Scope, ThreadPool};
@@ -57,29 +57,23 @@ impl RecursiveSearch {
     pub fn exec(
         requested_dir: &Path,
         skim_tx: SkimItemSender,
-        hangup_rx: Receiver<Never>,
+        hangup: Arc<AtomicBool>,
         started: Arc<AtomicBool>,
     ) {
         fn run_loop(
             requested_dir: &Path,
             skim_tx: SkimItemSender,
-            hangup_rx: Receiver<Never>,
             opt_deleted_scope: Option<&Scope>,
+            hangup: Arc<AtomicBool>,
             started: Arc<AtomicBool>,
         ) {
             // this runs the main loop for live file searches, see the referenced struct below
             // we are in our own detached system thread, so print error and exit if error trickles up
-            RecursiveMainLoop::exec(
-                requested_dir,
-                opt_deleted_scope,
-                &skim_tx,
-                &hangup_rx,
-                started,
-            )
-            .unwrap_or_else(|error| {
-                eprintln!("Error: {error}");
-                std::process::exit(1)
-            });
+            RecursiveMainLoop::exec(requested_dir, opt_deleted_scope, &skim_tx, hangup, started)
+                .unwrap_or_else(|error| {
+                    eprintln!("Error: {error}");
+                    std::process::exit(1)
+                });
         }
 
         if GLOBAL_CONFIG.opt_deleted_mode.is_some() {
@@ -95,13 +89,13 @@ impl RecursiveSearch {
                 run_loop(
                     requested_dir,
                     skim_tx,
-                    hangup_rx,
                     Some(deleted_scope),
+                    hangup.clone(),
                     started,
                 )
             })
         } else {
-            run_loop(requested_dir, skim_tx, hangup_rx, None, started)
+            run_loop(requested_dir, skim_tx, None, hangup, started)
         }
     }
 }
@@ -114,7 +108,7 @@ impl RecursiveMainLoop {
         requested_dir: &Path,
         opt_deleted_scope: Option<&Scope>,
         skim_tx: &SkimItemSender,
-        hangup_rx: &Receiver<Never>,
+        hangup: Arc<AtomicBool>,
         started: Arc<AtomicBool>,
     ) -> HttmResult<()> {
         // the user may specify a dir for browsing,
@@ -145,7 +139,7 @@ impl RecursiveMainLoop {
         // for recursive to have items available, also only place an
         // error can stop execution
         let mut queue: Vec<BasicDirEntryInfo> =
-            Self::enter_directory(requested_dir, opt_deleted_scope, skim_tx, hangup_rx)?;
+            Self::enter_directory(requested_dir, opt_deleted_scope, skim_tx, hangup.clone())?;
 
         started.store(true, Ordering::SeqCst);
 
@@ -156,14 +150,14 @@ impl RecursiveMainLoop {
                 // check -- should deleted threads keep working?
                 // exit/error on disconnected channel, which closes
                 // at end of browse scope
-                if is_channel_closed(hangup_rx) {
+                if hangup.load(Ordering::Relaxed) {
                     break;
                 }
 
                 // no errors will be propagated in recursive mode
                 // far too likely to run into a dir we don't have permissions to view
                 if let Ok(mut items) =
-                    Self::enter_directory(&item.path(), opt_deleted_scope, skim_tx, hangup_rx)
+                    Self::enter_directory(&item.path(), opt_deleted_scope, skim_tx, hangup.clone())
                 {
                     queue.append(&mut items)
                 }
@@ -177,7 +171,7 @@ impl RecursiveMainLoop {
         requested_dir: &Path,
         opt_deleted_scope: Option<&Scope>,
         skim_tx: &SkimItemSender,
-        hangup_rx: &Receiver<Never>,
+        hangup: Arc<AtomicBool>,
     ) -> HttmResult<Vec<BasicDirEntryInfo>> {
         // combined entries will be sent or printed, but we need the vec_dirs to recurse
         let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
@@ -192,7 +186,7 @@ impl RecursiveMainLoop {
         )?;
 
         if let Some(deleted_scope) = opt_deleted_scope {
-            SpawnDeletedThread::exec(requested_dir, deleted_scope, skim_tx, hangup_rx);
+            SpawnDeletedThread::exec(requested_dir, deleted_scope, skim_tx, hangup);
         }
 
         Ok(vec_dirs)
@@ -404,12 +398,12 @@ impl NonInteractiveRecursiveWrapper {
     pub fn exec() -> HttmResult<()> {
         // won't be sending anything anywhere, this just allows us to reuse enumerate_directory
         let (dummy_skim_tx, _): (SkimItemSender, SkimItemReceiver) = unbounded();
-        let (hangup_tx, hangup_rx): (Sender<Never>, Receiver<Never>) = bounded(0);
         let started = Arc::new(AtomicBool::new(true));
+        let hangup = Arc::new(AtomicBool::new(false));
 
         match &GLOBAL_CONFIG.opt_requested_dir {
             Some(requested_dir) => {
-                RecursiveSearch::exec(requested_dir, dummy_skim_tx, hangup_rx, started);
+                RecursiveSearch::exec(requested_dir, dummy_skim_tx, hangup, started);
             }
             None => {
                 return Err(HttmError::new(
