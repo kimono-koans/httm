@@ -139,7 +139,7 @@ impl RecursiveMainLoop {
         // for recursive to have items available, also only place an
         // error can stop execution
         let mut queue: Vec<BasicDirEntryInfo> =
-            Self::enter_directory(requested_dir, opt_deleted_scope, skim_tx, hangup.clone())?;
+            Self::enter_directory(requested_dir, opt_deleted_scope, skim_tx, &hangup)?;
 
         started.store(true, Ordering::SeqCst);
 
@@ -157,7 +157,7 @@ impl RecursiveMainLoop {
                 // no errors will be propagated in recursive mode
                 // far too likely to run into a dir we don't have permissions to view
                 if let Ok(mut items) =
-                    Self::enter_directory(&item.path(), opt_deleted_scope, skim_tx, hangup.clone())
+                    Self::enter_directory(&item.path(), opt_deleted_scope, skim_tx, &hangup)
                 {
                     queue.append(&mut items)
                 }
@@ -171,7 +171,7 @@ impl RecursiveMainLoop {
         requested_dir: &Path,
         opt_deleted_scope: Option<&Scope>,
         skim_tx: &SkimItemSender,
-        hangup: Arc<AtomicBool>,
+        hangup: &Arc<AtomicBool>,
     ) -> HttmResult<Vec<BasicDirEntryInfo>> {
         // combined entries will be sent or printed, but we need the vec_dirs to recurse
         let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =

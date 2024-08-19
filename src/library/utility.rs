@@ -19,7 +19,6 @@ use crate::config::generate::PrintMode;
 use crate::data::paths::{BasicDirEntryInfo, PathData, PathMetadata};
 use crate::data::selection::SelectionCandidate;
 use crate::library::results::{HttmError, HttmResult};
-
 use crate::GLOBAL_CONFIG;
 use lscolors::{Colorable, LsColors, Style};
 use nu_ansi_term::Style as AnsiTermStyle;

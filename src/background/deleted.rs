@@ -34,14 +34,15 @@ impl SpawnDeletedThread {
         requested_dir: &Path,
         deleted_scope: &Scope,
         skim_tx: &SkimItemSender,
-        hangup: Arc<AtomicBool>,
+        hangup: &Arc<AtomicBool>,
     ) {
         // canonicalize requested dir path b/c could be a symlink
         let requested_dir_clone = requested_dir.to_path_buf();
         let skim_tx_clone = skim_tx.clone();
+        let hangup_clone = hangup.clone();
 
         deleted_scope.spawn(move |_| {
-            let _ = Self::enter_directory(&requested_dir_clone, &skim_tx_clone, hangup);
+            let _ = Self::enter_directory(&requested_dir_clone, &skim_tx_clone, hangup_clone);
         })
     }
 
@@ -99,7 +100,7 @@ impl SpawnDeletedThread {
                         &deleted_dir.path(),
                         requested_dir,
                         skim_tx,
-                        hangup.clone(),
+                        &hangup,
                     )
                 });
         }
@@ -123,12 +124,12 @@ impl RecurseBehindDeletedDir {
         deleted_dir: &Path,
         requested_dir: &Path,
         skim_tx: &SkimItemSender,
-        hangup: Arc<AtomicBool>,
+        hangup: &Arc<AtomicBool>,
     ) -> HttmResult<()> {
         // check -- should deleted threads keep working?
         // exit/error on disconnected channel, which closes
         // at end of browse scope
-        if hangup.as_ref().load(Ordering::Relaxed) {
+        if hangup.load(Ordering::Relaxed) {
             return Ok(());
         }
 
