@@ -155,7 +155,7 @@ impl RecurseBehindDeletedDir {
         };
 
         while let Some(item) = queue.pop() {
-            if hangup.as_ref().load(Ordering::Relaxed) {
+            if hangup.load(Ordering::Relaxed) {
                 return Ok(());
             }
 
