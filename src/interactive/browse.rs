@@ -101,32 +101,33 @@ impl InteractiveBrowse {
                 hangup.clone(),
                 started,
             );
+
+            #[cfg(feature = "malloc_trim")]
+            #[cfg(target_os = "linux")]
+            #[cfg(target_env = "gnu")]
+            Self::malloc_trim();
         });
 
         let header: String = ViewMode::Browse.print_header();
 
         let opt_multi = GLOBAL_CONFIG.opt_preview.is_none();
 
-        let display_thread = std::thread::spawn(move || {
-            while !started_clone.load(Ordering::SeqCst) {}
+        // create the skim component for previews
+        let skim_opts = SkimOptionsBuilder::default()
+            .preview_window(Some("up:50%"))
+            .preview(Some(""))
+            .nosort(true)
+            .exact(GLOBAL_CONFIG.opt_exact)
+            .header(Some(&header))
+            .multi(opt_multi)
+            .regex(false)
+            .build()
+            .expect("Could not initialized skim options for browse_view");
 
-            // create the skim component for previews
-            let skim_opts = SkimOptionsBuilder::default()
-                .preview_window(Some("up:50%"))
-                .preview(Some(""))
-                .nosort(true)
-                .exact(GLOBAL_CONFIG.opt_exact)
-                .header(Some(&header))
-                .multi(opt_multi)
-                .regex(false)
-                .build()
-                .expect("Could not initialized skim options for browse_view");
-
-            skim::Skim::run_with(&skim_opts, Some(rx_item))
-        });
+        while !started_clone.load(Ordering::SeqCst) {}
 
         // run_with() reads and shows items from the thread stream created above
-        match display_thread.join().ok().flatten() {
+        match skim::Skim::run_with(&skim_opts, Some(rx_item)) {
             Some(output) if output.is_abort => {
                 eprintln!("httm interactive file browse session was aborted.  Quitting.");
                 std::process::exit(0)
