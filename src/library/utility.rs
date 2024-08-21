@@ -197,11 +197,8 @@ impl<'a> HttmIsDir<'a> for BasicDirEntryInfo {
 
 static ENV_LS_COLORS: LazyLock<LsColors> =
     LazyLock::new(|| LsColors::from_env().unwrap_or_default());
-static PHANTOM_STYLE: LazyLock<AnsiTermStyle> = LazyLock::new(|| {
-    Style::to_nu_ansi_term_style(
-        &Style::from_ansi_sequence("38;2;250;200;200;1;0").unwrap_or_default(),
-    )
-});
+static PHANTOM_STYLE: LazyLock<AnsiTermStyle> =
+    LazyLock::new(|| nu_ansi_term::Style::default().dimmed());
 
 pub fn paint_string<T>(path: T, display_name: &str) -> Cow<str>
 where
