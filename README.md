@@ -144,10 +144,22 @@ Print all unique versions of your history file, as formatted JSON:
 ➜ httm --json ~/.histfile
 ```
 
+Browse all files in your home directory, recursively, and view unique versions on local snapshots:
+
+```bash
+➜ httm -b -R ~
+```
+
 Print all files on snapshots deleted from your home directory, recursive:
 
 ```bash
 ➜ httm -d -R ~
+```
+
+Browse all files deleted from your home directory, recursively, and view unique versions on all local and alternative replicated dataset snapshots:
+
+```bash
+➜ httm -d=only -b -a -R ~
 ```
 
 Print all files on snapshots deleted from your home directory, recursive, newline delimited, piped to a text file:
@@ -157,18 +169,6 @@ Print all files on snapshots deleted from your home directory, recursive, newlin
 ➜ httm -d -n -R --no-snap ~ > pseudo-live-versions.txt
 # unique snapshot versions
 ➜ httm -d -n -R --no-live ~ > deleted-unique-versions.txt
-```
-
-Browse all files in your home directory, recursively, and view unique versions on local snapshots:
-
-```bash
-➜ httm -b -R ~
-```
-
-Browse all files deleted from your home directory, recursively, and view unique versions on all local and alternative replicated dataset snapshots:
-
-```bash
-➜ httm -d=only -b -a -R ~
 ```
 
 Browse all files in your home directory, recursively, and view unique versions on local snapshots, to select and ultimately restore to its original location, in overwrite mode:
