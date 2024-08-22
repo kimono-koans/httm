@@ -484,7 +484,7 @@ dependencies = [
 
 [[package]]
 name = "httm"
-version = "0.42.0"
+version = "0.42.1"
 dependencies = [
  "ahash 0.8.11",
  "clap 4.5.16",
@@ -592,9 +592,9 @@ checksum = "bbd2bcb4c963f2ddae06a2efc7e9f3591312473c50c6685e1f298068316e66fe"
 
 [[package]]
 name = "libc"
-version = "0.2.157"
+version = "0.2.158"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "374af5f94e54fa97cf75e945cce8a6b201e88a1a07e688b47dfd2a59c66dbd86"
+checksum = "d8adc4bb1803a324070e64a98ae98f38934d91957a99cfb3a43dcbc01bc56439"
 
 [[package]]
 name = "linux-raw-sys"
@@ -1090,9 +1090,9 @@ dependencies = [
 
 [[package]]
 name = "two_percent"
-version = "0.11.21"
+version = "0.11.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6d4946402a320651c32baf8db0fe35dc36212f4532662a96a5308550d510e235"
+checksum = "25e60095b5696925fdac619e04c25799d3f757049aea6c10e03b0f595a203d6a"
 dependencies = [
  "bitflags 2.6.0",
  "crossbeam-channel",
