@@ -24,14 +24,12 @@ use crate::{
     GLOBAL_CONFIG, NILFS2_SNAPSHOT_ID_KEY, RESTIC_LATEST_SNAPSHOT_DIRECTORY, ROOT_DIRECTORY,
     TM_DIR_LOCAL, TM_DIR_REMOTE, ZFS_HIDDEN_DIRECTORY,
 };
-use hashbrown::HashMap;
-use hashbrown::HashSet;
 use proc_mounts::MountIter;
 use rayon::iter::Either;
 use rayon::prelude::*;
 use realpath_ext::realpath;
 use realpath_ext::RealpathFlags;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::ops::Deref;
 use std::path::Path;
 use std::path::PathBuf;
@@ -58,7 +56,7 @@ pub enum LinkType {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BtrfsAdditionalData {
     pub base_subvol: PathBuf,
-    pub snap_names: OnceLock<HashMap<PathBuf, PathBuf>>,
+    pub snap_names: OnceLock<BTreeMap<PathBuf, PathBuf>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -105,11 +103,11 @@ pub struct DatasetMetadata {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FilterDirs {
-    inner: HashSet<PathBuf>,
+    inner: BTreeSet<PathBuf>,
 }
 
 impl Deref for FilterDirs {
-    type Target = HashSet<PathBuf>;
+    type Target = BTreeSet<PathBuf>;
 
     fn deref(&self) -> &Self::Target {
         &self.inner
@@ -154,11 +152,11 @@ impl MaxLen for FilterDirs {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MapOfDatasets {
-    inner: HashMap<PathBuf, DatasetMetadata>,
+    inner: BTreeMap<PathBuf, DatasetMetadata>,
 }
 
 impl Deref for MapOfDatasets {
-    type Target = HashMap<PathBuf, DatasetMetadata>;
+    type Target = BTreeMap<PathBuf, DatasetMetadata>;
 
     fn deref(&self) -> &Self::Target {
         &self.inner
@@ -258,117 +256,119 @@ impl BaseFilesystemInfo {
     fn from_file(
         path: &Path,
         opt_alt_store: Option<&FilesystemType>,
-    ) -> HttmResult<(HashMap<PathBuf, DatasetMetadata>, HashSet<PathBuf>)> {
+    ) -> HttmResult<(BTreeMap<PathBuf, DatasetMetadata>, BTreeSet<PathBuf>)> {
         let mount_iter = MountIter::new_from_file(path)?;
 
-        let (map_of_datasets, filter_dirs): (HashMap<PathBuf, DatasetMetadata>, HashSet<PathBuf>) =
-            mount_iter
-                .par_bridge()
-                .flatten()
-                .filter(|mount_info| {
-                    !mount_info
-                        .dest
-                        .to_string_lossy()
-                        .contains(ZFS_HIDDEN_DIRECTORY)
-                })
-                .filter(|mount_info| {
-                    !mount_info
-                        .options
-                        .iter()
-                        .any(|opt| opt.contains(NILFS2_SNAPSHOT_ID_KEY))
-                })
-                .map(|mount_info| {
-                    let dest_path = PathBuf::from(&mount_info.dest);
-                    (mount_info, dest_path)
-                })
-                .partition_map(|(mount_info, dest_path)| match mount_info.fstype.as_str() {
-                    ZFS_FSTYPE => Either::Left((
+        let (map_of_datasets, filter_dirs): (
+            BTreeMap<PathBuf, DatasetMetadata>,
+            BTreeSet<PathBuf>,
+        ) = mount_iter
+            .par_bridge()
+            .flatten()
+            .filter(|mount_info| {
+                !mount_info
+                    .dest
+                    .to_string_lossy()
+                    .contains(ZFS_HIDDEN_DIRECTORY)
+            })
+            .filter(|mount_info| {
+                !mount_info
+                    .options
+                    .iter()
+                    .any(|opt| opt.contains(NILFS2_SNAPSHOT_ID_KEY))
+            })
+            .map(|mount_info| {
+                let dest_path = PathBuf::from(&mount_info.dest);
+                (mount_info, dest_path)
+            })
+            .partition_map(|(mount_info, dest_path)| match mount_info.fstype.as_str() {
+                ZFS_FSTYPE => Either::Left((
+                    dest_path,
+                    DatasetMetadata {
+                        source: PathBuf::from(mount_info.source),
+                        fs_type: FilesystemType::Zfs,
+                        link_type: LinkType::Local,
+                    },
+                )),
+                SMB_FSTYPE | AFP_FSTYPE | NFS_FSTYPE => match FilesystemType::new(&dest_path) {
+                    Some(FilesystemType::Zfs) => Either::Left((
                         dest_path,
                         DatasetMetadata {
                             source: PathBuf::from(mount_info.source),
                             fs_type: FilesystemType::Zfs,
-                            link_type: LinkType::Local,
+                            link_type: LinkType::Network,
                         },
                     )),
-                    SMB_FSTYPE | AFP_FSTYPE | NFS_FSTYPE => match FilesystemType::new(&dest_path) {
-                        Some(FilesystemType::Zfs) => Either::Left((
-                            dest_path,
-                            DatasetMetadata {
-                                source: PathBuf::from(mount_info.source),
-                                fs_type: FilesystemType::Zfs,
-                                link_type: LinkType::Network,
-                            },
-                        )),
-                        Some(FilesystemType::Btrfs(None)) => Either::Left((
-                            dest_path,
-                            DatasetMetadata {
-                                source: PathBuf::from(mount_info.source),
-                                fs_type: FilesystemType::Btrfs(None),
-                                link_type: LinkType::Network,
-                            },
-                        )),
-                        _ => Either::Right(dest_path),
-                    },
-                    BTRFS_FSTYPE => {
-                        let keyed_options: BTreeMap<&str, &str> = mount_info
-                            .options
-                            .iter()
-                            .filter(|line| line.contains('='))
-                            .filter_map(|line| line.split_once('='))
-                            .collect();
-
-                        let opt_additional_data = keyed_options
-                            .get("subvol")
-                            .map(|subvol| match keyed_options.get("subvolid") {
-                                Some(id) if *id == "5" => BTRFS_ROOT_SUBVOL.clone(),
-                                _ => PathBuf::from(subvol),
-                            })
-                            .map(|base_subvol| {
-                                Box::new(BtrfsAdditionalData {
-                                    base_subvol,
-                                    snap_names: OnceLock::new(),
-                                })
-                            });
-
-                        Either::Left((
-                            dest_path,
-                            DatasetMetadata {
-                                source: mount_info.source,
-                                fs_type: FilesystemType::Btrfs(opt_additional_data),
-                                link_type: LinkType::Local,
-                            },
-                        ))
-                    }
-                    NILFS2_FSTYPE => Either::Left((
+                    Some(FilesystemType::Btrfs(None)) => Either::Left((
                         dest_path,
                         DatasetMetadata {
                             source: PathBuf::from(mount_info.source),
-                            fs_type: FilesystemType::Nilfs2,
-                            link_type: LinkType::Local,
+                            fs_type: FilesystemType::Btrfs(None),
+                            link_type: LinkType::Network,
                         },
                     )),
-                    _ if mount_info.source.to_string_lossy().contains(RESTIC_FSTYPE) => {
-                        let base_path = if let Some(FilesystemType::Restic(_)) = opt_alt_store {
-                            dest_path
-                        } else {
-                            dest_path.join(RESTIC_LATEST_SNAPSHOT_DIRECTORY)
-                        };
-
-                        let canonical_path: PathBuf =
-                            realpath(&base_path, RealpathFlags::ALLOW_MISSING)
-                                .unwrap_or_else(|_| base_path.to_path_buf());
-
-                        Either::Left((
-                            canonical_path,
-                            DatasetMetadata {
-                                source: mount_info.source,
-                                fs_type: FilesystemType::Restic(None),
-                                link_type: LinkType::Local,
-                            },
-                        ))
-                    }
                     _ => Either::Right(dest_path),
-                });
+                },
+                BTRFS_FSTYPE => {
+                    let keyed_options: BTreeMap<&str, &str> = mount_info
+                        .options
+                        .iter()
+                        .filter(|line| line.contains('='))
+                        .filter_map(|line| line.split_once('='))
+                        .collect();
+
+                    let opt_additional_data = keyed_options
+                        .get("subvol")
+                        .map(|subvol| match keyed_options.get("subvolid") {
+                            Some(id) if *id == "5" => BTRFS_ROOT_SUBVOL.clone(),
+                            _ => PathBuf::from(subvol),
+                        })
+                        .map(|base_subvol| {
+                            Box::new(BtrfsAdditionalData {
+                                base_subvol,
+                                snap_names: OnceLock::new(),
+                            })
+                        });
+
+                    Either::Left((
+                        dest_path,
+                        DatasetMetadata {
+                            source: mount_info.source,
+                            fs_type: FilesystemType::Btrfs(opt_additional_data),
+                            link_type: LinkType::Local,
+                        },
+                    ))
+                }
+                NILFS2_FSTYPE => Either::Left((
+                    dest_path,
+                    DatasetMetadata {
+                        source: PathBuf::from(mount_info.source),
+                        fs_type: FilesystemType::Nilfs2,
+                        link_type: LinkType::Local,
+                    },
+                )),
+                _ if mount_info.source.to_string_lossy().contains(RESTIC_FSTYPE) => {
+                    let base_path = if let Some(FilesystemType::Restic(_)) = opt_alt_store {
+                        dest_path
+                    } else {
+                        dest_path.join(RESTIC_LATEST_SNAPSHOT_DIRECTORY)
+                    };
+
+                    let canonical_path: PathBuf =
+                        realpath(&base_path, RealpathFlags::ALLOW_MISSING)
+                            .unwrap_or_else(|_| base_path.to_path_buf());
+
+                    Either::Left((
+                        canonical_path,
+                        DatasetMetadata {
+                            source: mount_info.source,
+                            fs_type: FilesystemType::Restic(None),
+                            link_type: LinkType::Local,
+                        },
+                    ))
+                }
+                _ => Either::Right(dest_path),
+            });
 
         Ok((map_of_datasets, filter_dirs))
     }
@@ -377,7 +377,7 @@ impl BaseFilesystemInfo {
     // both methods are much faster than using zfs command
     fn from_mount_cmd(
         opt_alt_store: Option<&FilesystemType>,
-    ) -> HttmResult<(HashMap<PathBuf, DatasetMetadata>, HashSet<PathBuf>)> {
+    ) -> HttmResult<(BTreeMap<PathBuf, DatasetMetadata>, BTreeSet<PathBuf>)> {
         // do we have the necessary commands for search if user has not defined a snap point?
         // if so run the mount search, if not print some errors
         let mount_command = get_mount_command()?;
@@ -393,90 +393,92 @@ impl BaseFilesystemInfo {
         let stdout_string = std::str::from_utf8(&command_output.stdout)?;
 
         // parse "mount" for filesystems and mountpoints
-        let (map_of_datasets, filter_dirs): (HashMap<PathBuf, DatasetMetadata>, HashSet<PathBuf>) =
-            stdout_string
-                .par_lines()
-                // but exclude snapshot mounts.  we want the raw filesystem names.
-                .filter(|line| !line.contains(ZFS_HIDDEN_DIRECTORY))
-                .filter(|line| !line.contains(TM_DIR_REMOTE))
-                .filter(|line| !line.contains(TM_DIR_LOCAL))
-                // mount cmd includes and " on " between src and rest
-                .filter_map(|line| line.split_once(" on "))
-                // where to split, to just have the src and dest of mounts
-                .filter_map(|(filesystem, rest)| {
-                    // GNU Linux mount output
-                    if rest.contains("type") {
-                        let opt_mount = rest.split_once(" type");
-                        opt_mount.map(|the_rest| (filesystem, the_rest.0, the_rest.1))
-                    // Busybox and BSD mount output
-                    } else if rest.contains(" (") {
-                        let opt_mount = rest.split_once(" (");
-                        opt_mount.map(|the_rest| (filesystem, the_rest.0, the_rest.1))
-                    } else {
-                        None
+        let (map_of_datasets, filter_dirs): (
+            BTreeMap<PathBuf, DatasetMetadata>,
+            BTreeSet<PathBuf>,
+        ) = stdout_string
+            .par_lines()
+            // but exclude snapshot mounts.  we want the raw filesystem names.
+            .filter(|line| !line.contains(ZFS_HIDDEN_DIRECTORY))
+            .filter(|line| !line.contains(TM_DIR_REMOTE))
+            .filter(|line| !line.contains(TM_DIR_LOCAL))
+            // mount cmd includes and " on " between src and rest
+            .filter_map(|line| line.split_once(" on "))
+            // where to split, to just have the src and dest of mounts
+            .filter_map(|(filesystem, rest)| {
+                // GNU Linux mount output
+                if rest.contains("type") {
+                    let opt_mount = rest.split_once(" type");
+                    opt_mount.map(|the_rest| (filesystem, the_rest.0, the_rest.1))
+                // Busybox and BSD mount output
+                } else if rest.contains(" (") {
+                    let opt_mount = rest.split_once(" (");
+                    opt_mount.map(|the_rest| (filesystem, the_rest.0, the_rest.1))
+                } else {
+                    None
+                }
+            })
+            .map(|(filesystem, mount, the_rest)| {
+                let link_type = if the_rest.contains(SMB_FSTYPE)
+                    || the_rest.contains(AFP_FSTYPE)
+                    || the_rest.contains(NFS_FSTYPE)
+                {
+                    LinkType::Network
+                } else {
+                    LinkType::Local
+                };
+
+                (PathBuf::from(filesystem), PathBuf::from(mount), link_type)
+            })
+            // sanity check: does the filesystem exist and have a ZFS hidden dir? if not, filter it out
+            // and flip around, mount should key of key/value
+            .partition_map(
+                |(source, mount, link_type)| match FilesystemType::new(&mount) {
+                    Some(FilesystemType::Zfs) => Either::Left((
+                        mount,
+                        DatasetMetadata {
+                            source,
+                            fs_type: FilesystemType::Zfs,
+                            link_type,
+                        },
+                    )),
+                    Some(FilesystemType::Btrfs(_)) => Either::Left((
+                        mount,
+                        DatasetMetadata {
+                            source,
+                            fs_type: FilesystemType::Btrfs(None),
+                            link_type,
+                        },
+                    )),
+                    _ if source.to_string_lossy().contains(RESTIC_FSTYPE) => {
+                        let base_path = if let Some(FilesystemType::Restic(_)) = opt_alt_store {
+                            mount
+                        } else {
+                            mount.join(RESTIC_LATEST_SNAPSHOT_DIRECTORY)
+                        };
+
+                        let canonical_path: PathBuf =
+                            realpath(&base_path, RealpathFlags::ALLOW_MISSING)
+                                .unwrap_or_else(|_| base_path.to_path_buf());
+
+                        Either::Left((
+                            canonical_path,
+                            DatasetMetadata {
+                                source,
+                                fs_type: FilesystemType::Restic(None),
+                                link_type,
+                            },
+                        ))
                     }
-                })
-                .map(|(filesystem, mount, the_rest)| {
-                    let link_type = if the_rest.contains(SMB_FSTYPE)
-                        || the_rest.contains(AFP_FSTYPE)
-                        || the_rest.contains(NFS_FSTYPE)
-                    {
-                        LinkType::Network
-                    } else {
-                        LinkType::Local
-                    };
-
-                    (PathBuf::from(filesystem), PathBuf::from(mount), link_type)
-                })
-                // sanity check: does the filesystem exist and have a ZFS hidden dir? if not, filter it out
-                // and flip around, mount should key of key/value
-                .partition_map(
-                    |(source, mount, link_type)| match FilesystemType::new(&mount) {
-                        Some(FilesystemType::Zfs) => Either::Left((
-                            mount,
-                            DatasetMetadata {
-                                source,
-                                fs_type: FilesystemType::Zfs,
-                                link_type,
-                            },
-                        )),
-                        Some(FilesystemType::Btrfs(_)) => Either::Left((
-                            mount,
-                            DatasetMetadata {
-                                source,
-                                fs_type: FilesystemType::Btrfs(None),
-                                link_type,
-                            },
-                        )),
-                        _ if source.to_string_lossy().contains(RESTIC_FSTYPE) => {
-                            let base_path = if let Some(FilesystemType::Restic(_)) = opt_alt_store {
-                                mount
-                            } else {
-                                mount.join(RESTIC_LATEST_SNAPSHOT_DIRECTORY)
-                            };
-
-                            let canonical_path: PathBuf =
-                                realpath(&base_path, RealpathFlags::ALLOW_MISSING)
-                                    .unwrap_or_else(|_| base_path.to_path_buf());
-
-                            Either::Left((
-                                canonical_path,
-                                DatasetMetadata {
-                                    source,
-                                    fs_type: FilesystemType::Restic(None),
-                                    link_type,
-                                },
-                            ))
-                        }
-                        _ => Either::Right(mount),
-                    },
-                );
+                    _ => Either::Right(mount),
+                },
+            );
 
         Ok((map_of_datasets, filter_dirs))
     }
 
     pub fn from_blob_repo(
-        map_of_datasets: &mut HashMap<PathBuf, DatasetMetadata>,
+        map_of_datasets: &mut BTreeMap<PathBuf, DatasetMetadata>,
         repo_type: &FilesystemType,
     ) -> HttmResult<()> {
         map_of_datasets.retain(|_k, v| &v.fs_type == repo_type);
@@ -527,9 +529,9 @@ impl BaseFilesystemInfo {
             }
         };
 
-        let mut new = HashMap::new();
+        let mut new = BTreeMap::new();
 
-        new.insert_unique_unchecked(ROOT_PATH.clone(), metadata);
+        new.insert(ROOT_PATH.clone(), metadata);
 
         *map_of_datasets = new;
 

@@ -17,14 +17,14 @@
 
 use crate::library::results::{HttmError, HttmResult};
 use crate::parse::mounts::MapOfDatasets;
-use hashbrown::HashMap;
 use rayon::prelude::*;
+use std::collections::BTreeMap;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MapOfAlts {
-    inner: HashMap<PathBuf, AltMetadata>,
+    inner: BTreeMap<PathBuf, AltMetadata>,
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
@@ -33,14 +33,14 @@ pub struct AltMetadata {
     pub opt_datasets_of_interest: Option<Vec<PathBuf>>,
 }
 
-impl From<HashMap<PathBuf, AltMetadata>> for MapOfAlts {
-    fn from(map: HashMap<PathBuf, AltMetadata>) -> Self {
+impl From<BTreeMap<PathBuf, AltMetadata>> for MapOfAlts {
+    fn from(map: BTreeMap<PathBuf, AltMetadata>) -> Self {
         Self { inner: map }
     }
 }
 
 impl Deref for MapOfAlts {
-    type Target = HashMap<PathBuf, AltMetadata>;
+    type Target = BTreeMap<PathBuf, AltMetadata>;
 
     fn deref(&self) -> &Self::Target {
         &self.inner
@@ -50,7 +50,7 @@ impl Deref for MapOfAlts {
 impl MapOfAlts {
     // instead of looking up, precompute possible alt replicated mounts before exec
     pub fn new(map_of_datasets: &MapOfDatasets) -> Self {
-        let res: HashMap<PathBuf, AltMetadata> = map_of_datasets
+        let res: BTreeMap<PathBuf, AltMetadata> = map_of_datasets
             .par_iter()
             .flat_map(|(mount, _dataset_info)| {
                 Self::from_mount(mount, map_of_datasets).map(|datasets| (mount.clone(), datasets))

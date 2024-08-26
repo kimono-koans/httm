@@ -18,7 +18,7 @@
 use crate::library::results::{HttmError, HttmResult};
 use crate::parse::mounts::FilesystemType;
 use clap::parser::RawValues;
-use hashbrown::HashMap;
+use std::collections::BTreeMap;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 
@@ -30,17 +30,17 @@ pub struct RemotePathAndFsType {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MapOfAliases {
-    inner: HashMap<PathBuf, RemotePathAndFsType>,
+    inner: BTreeMap<PathBuf, RemotePathAndFsType>,
 }
 
-impl From<HashMap<PathBuf, RemotePathAndFsType>> for MapOfAliases {
-    fn from(map: HashMap<PathBuf, RemotePathAndFsType>) -> Self {
+impl From<BTreeMap<PathBuf, RemotePathAndFsType>> for MapOfAliases {
+    fn from(map: BTreeMap<PathBuf, RemotePathAndFsType>) -> Self {
         Self { inner: map }
     }
 }
 
 impl Deref for MapOfAliases {
-    type Target = HashMap<PathBuf, RemotePathAndFsType>;
+    type Target = BTreeMap<PathBuf, RemotePathAndFsType>;
 
     fn deref(&self) -> &Self::Target {
         &self.inner
@@ -120,7 +120,7 @@ impl MapOfAliases {
                 aliases_iter.push(value)
             }
 
-            let map_of_aliases: HashMap<PathBuf, RemotePathAndFsType> = aliases_iter
+            let map_of_aliases: BTreeMap<PathBuf, RemotePathAndFsType> = aliases_iter
                 .into_iter()
                 .filter_map(|(local_dir, snap_dir)| {
                     if !local_dir.exists() || !snap_dir.exists() {
