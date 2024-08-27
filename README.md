@@ -198,6 +198,9 @@ View unique versions of a file for recovery (shortcut, no need to browse a direc
 # search for the text "pattern" among snapshots of httm manpage
 ➜ httm -n --omit-ditto /usr/share/man/man1/httm.1.gz | xargs rg "pattern" -z
 
+# similarly, print the directory sizes of each unique snapshot
+➜ httm -n --omit-ditto /srv/downloads | xargs -I{} du -sh "{}"
+
 # print all unique versions of your `/var/log/syslog` file, 
 # newline delimited piped to `find` to print only versions 
 # with modify times of less than 1 day from right now.
