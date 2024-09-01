@@ -16,23 +16,17 @@
 // that was distributed with this source code.
 
 use crate::config::generate::{ExecMode, InteractiveMode, RestoreMode, RestoreSnapGuard};
-use crate::data::paths::PathData;
-use crate::data::paths::PathDeconstruction;
-use crate::data::paths::ZfsSnapPathGuard;
+use crate::data::paths::{PathData, PathDeconstruction, ZfsSnapPathGuard};
 use crate::interactive::select::InteractiveSelect;
-use crate::interactive::view_mode::MultiSelect;
-use crate::interactive::view_mode::ViewMode;
+use crate::interactive::view_mode::{MultiSelect, ViewMode};
 use crate::library::file_ops::Copy;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{date_string, DateFormat};
 use crate::zfs::snap_guard::SnapGuard;
 use crate::GLOBAL_CONFIG;
-
 use nu_ansi_term::Color::LightYellow;
-use terminal_size::Height;
-use terminal_size::Width;
-
 use std::path::{Path, PathBuf};
+use terminal_size::{Height, Width};
 
 pub struct InteractiveRestore {
     pub snap_path_strings: Vec<String>,

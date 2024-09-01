@@ -20,8 +20,6 @@ use crate::parse::aliases::MapOfAliases;
 use crate::parse::alts::MapOfAlts;
 use crate::parse::mounts::{BaseFilesystemInfo, FilesystemType, FilterDirs, MapOfDatasets};
 use crate::parse::snaps::MapOfSnaps;
-use clap::parser::RawValues;
-use std::path::Path;
 use std::path::PathBuf;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -38,23 +36,28 @@ pub struct FilesystemInfo {
     pub opt_map_of_aliases: Option<MapOfAliases>,
     // opt single dir to to be filtered re: btrfs common snap dir
     pub opt_common_snap_dir: Option<PathBuf>,
+    // opt possible opt store type
+    pub opt_alt_store: Option<FilesystemType>,
 }
 
 impl FilesystemInfo {
     pub fn new(
         opt_alt_replicated: bool,
         opt_debug: bool,
-        opt_remote_dir: Option<&str>,
-        opt_local_dir: Option<&str>,
-        opt_raw_aliases: Option<RawValues>,
-        opt_alt_store: &mut Option<&FilesystemType>,
-        pwd: &Path,
+        opt_remote_dir: Option<String>,
+        opt_local_dir: Option<String>,
+        opt_raw_aliases: Option<Vec<String>>,
+        opt_alt_store: Option<FilesystemType>,
+        pwd: PathBuf,
     ) -> HttmResult<FilesystemInfo> {
         // only create a map of aliases if necessary (aliases conflicts with alt stores)
         let opt_map_of_aliases =
-            MapOfAliases::new(opt_raw_aliases, opt_remote_dir, opt_local_dir, pwd)?;
+            MapOfAliases::new(opt_raw_aliases, opt_remote_dir, opt_local_dir, &pwd)?;
 
-        let base_fs_info = BaseFilesystemInfo::new(opt_debug, opt_alt_store, &opt_map_of_aliases)?;
+        let mut opt_alt_store = opt_alt_store;
+
+        let base_fs_info =
+            BaseFilesystemInfo::new(opt_debug, &mut opt_alt_store, &opt_map_of_aliases)?;
 
         // for a collection of btrfs mounts, indicates a common snapshot directory to ignore
         let opt_common_snap_dir = base_fs_info.common_snap_dir();
@@ -73,6 +76,7 @@ impl FilesystemInfo {
             opt_map_of_alts,
             opt_common_snap_dir,
             opt_map_of_aliases,
+            opt_alt_store,
         })
     }
 }

@@ -17,7 +17,6 @@
 
 use crate::library::results::{HttmError, HttmResult};
 use crate::parse::mounts::FilesystemType;
-use clap::parser::RawValues;
 use std::collections::BTreeMap;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
@@ -49,9 +48,9 @@ impl Deref for MapOfAliases {
 
 impl MapOfAliases {
     pub fn new(
-        opt_raw_aliases: Option<RawValues>,
-        opt_remote_dir: Option<&str>,
-        opt_local_dir: Option<&str>,
+        opt_raw_aliases: Option<Vec<String>>,
+        opt_remote_dir: Option<String>,
+        opt_local_dir: Option<String>,
         pwd: &Path,
     ) -> HttmResult<Option<MapOfAliases>> {
         let alias_values: Option<Vec<String>> = match std::env::var_os("HTTM_MAP_ALIASES") {
@@ -62,11 +61,7 @@ impl MapOfAliases {
                     .map(|s| s.to_owned())
                     .collect(),
             ),
-            None => opt_raw_aliases.map(|map_aliases| {
-                map_aliases
-                    .map(|os_str| os_str.to_string_lossy().to_string())
-                    .collect()
-            }),
+            None => opt_raw_aliases,
         };
 
         let opt_snap_dir = if let Some(value) = opt_remote_dir {

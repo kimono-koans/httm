@@ -27,11 +27,12 @@ use crate::ROOT_DIRECTORY;
 use clap::parser::ValuesRef;
 use clap::{crate_name, crate_version, Arg, ArgAction, ArgMatches};
 use indicatif::ProgressBar;
-use rayon::prelude::*;
+use rayon::iter::ParallelBridge;
 use std::io::Read;
 use std::ops::Index;
 use std::path::{Path, PathBuf};
 use time::UtcOffset;
+use rayon::iter::ParallelIterator;
 
 #[derive(Debug, Clone)]
 pub enum ExecMode {
@@ -634,6 +635,48 @@ impl Config {
             UtcOffset::current_local_offset().unwrap_or(UtcOffset::UTC)
         };
 
+        let opt_debug = matches.get_flag("DEBUG");
+
+        // current working directory will be helpful in a number of places
+        let pwd = pwd()?;
+
+        // obtain a map of datasets, a map of snapshot directories, and possibly a map of
+        // alternate filesystems and map of aliases if the user requests
+        let mut opt_map_aliases: Option<Vec<String>> = matches.get_raw("MAP_ALIASES").map(|aliases| {
+            aliases
+                .map(|os_str| os_str.to_string_lossy().to_string())
+                .collect()
+        });
+
+        let opt_alt_store: Option<FilesystemType> = match matches.get_one::<String>("ALT_STORE").map(|inner| inner.as_str()) {
+            Some("timemachine") => Some(FilesystemType::Apfs),
+            Some("restic") => Some(FilesystemType::Restic(None)),
+            _ => None
+        };
+
+        if opt_alt_store.is_some() && opt_map_aliases.is_some() {
+            eprintln!("WARN: httm has disabled any MAP_ALIASES in preference to an ALT_STORE specified.");
+            opt_map_aliases = None;
+        }
+
+        let opt_alt_replicated = matches.get_flag("ALT_REPLICATED");
+        let opt_remote_dir = matches.get_one::<String>("REMOTE_DIR").map(|inner| inner.to_owned());
+        let opt_local_dir = matches.get_one::<String>("LOCAL_DIR").map(|inner| inner.to_owned());
+
+        let pwd_clone= pwd.clone();
+
+        let fs_handle = std::thread::spawn(move || {
+            FilesystemInfo::new(
+                opt_alt_replicated,
+                opt_debug,
+                opt_remote_dir,
+                opt_local_dir,
+                opt_map_aliases,
+                opt_alt_store,
+                pwd_clone
+            )
+        });
+
         let opt_json = matches.get_flag("JSON");
 
         let mut print_mode = if matches.get_flag("ZEROS") {
@@ -669,7 +712,6 @@ impl Config {
 
         let opt_exact = matches.get_flag("EXACT");
         let opt_no_filter = matches.get_flag("NO_FILTER");
-        let opt_debug = matches.get_flag("DEBUG");
         let opt_no_hidden = matches.get_flag("FILTER_HIDDEN");
         let opt_no_clones =
             matches.get_flag("NO_CLONES") || std::env::var_os("HTTM_NO_CLONE").is_some();
@@ -848,34 +890,6 @@ impl Config {
             .into());
         }
 
-        // current working directory will be helpful in a number of places
-        let pwd = pwd()?;
-
-        // obtain a map of datasets, a map of snapshot directories, and possibly a map of
-        // alternate filesystems and map of aliases if the user requests
-        let mut opt_map_aliases = matches.get_raw("MAP_ALIASES");
-
-        let mut opt_alt_store: Option<&FilesystemType> = match matches.get_one::<String>("ALT_STORE").map(|inner| inner.as_str()) {
-            Some("timemachine") => Some(&FilesystemType::Apfs),
-            Some("restic") => Some(&FilesystemType::Restic(None)),
-            _ => None
-        };
-
-        if opt_alt_store.is_some() && opt_map_aliases.is_some() {
-            eprintln!("WARN: httm has disabled any MAP_ALIASES in preference to an ALT_STORE specified.");
-            opt_map_aliases = None;
-        }
-
-        let dataset_collection = FilesystemInfo::new(
-            matches.get_flag("ALT_REPLICATED"),
-            opt_debug,
-            matches.get_one::<String>("REMOTE_DIR").map(|inner| inner.as_str()),
-            matches.get_one::<String>("LOCAL_DIR").map(|inner| inner.as_str()),
-            opt_map_aliases,
-            &mut opt_alt_store,
-            &pwd,
-        )?;
-
         // paths are immediately converted to our PathData struct
         let opt_os_values = matches.get_many::<PathBuf>("INPUT_FILES");
 
@@ -925,16 +939,18 @@ impl Config {
             );
         }
 
+        let dataset_collection = fs_handle.join().unwrap()?;
+
         let config = Config {
             paths,
             opt_bulk_exclusion,
             opt_recursive,
             opt_exact,
-            opt_no_filter,
             opt_debug,
             opt_no_traverse,
             opt_omit_ditto,
             opt_no_hidden,
+            opt_no_filter,
             opt_last_snap,
             opt_preview,
             opt_json,
@@ -960,7 +976,6 @@ impl Config {
     ) -> HttmResult<Vec<PathData>> {
         let mut paths = if let Some(input_files) = opt_os_values {
             input_files
-                .into_iter()
                 .par_bridge()
                 // canonicalize() on a deleted relative path will not exist,
                 // so we have to join with the pwd to make a path that
