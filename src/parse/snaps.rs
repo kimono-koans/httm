@@ -17,12 +17,15 @@
 
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{get_btrfs_command, user_has_effective_root};
-use crate::parse::mounts::BTRFS_ROOT_SUBVOL;
-use crate::parse::mounts::PROC_MOUNTS;
-use crate::parse::mounts::{DatasetMetadata, FilesystemType};
+use crate::parse::mounts::{DatasetMetadata, FilesystemType, BTRFS_ROOT_SUBVOL, PROC_MOUNTS};
 use crate::{
-    BTRFS_SNAPPER_HIDDEN_DIRECTORY, BTRFS_SNAPPER_SUFFIX, RESTIC_SNAPSHOT_DIRECTORY,
-    ROOT_DIRECTORY, TM_DIR_LOCAL, TM_DIR_REMOTE, ZFS_SNAPSHOT_DIRECTORY,
+    BTRFS_SNAPPER_HIDDEN_DIRECTORY,
+    BTRFS_SNAPPER_SUFFIX,
+    RESTIC_SNAPSHOT_DIRECTORY,
+    ROOT_DIRECTORY,
+    TM_DIR_LOCAL,
+    TM_DIR_REMOTE,
+    ZFS_SNAPSHOT_DIRECTORY,
 };
 use proc_mounts::MountIter;
 use rayon::prelude::*;
@@ -338,7 +341,8 @@ impl MapOfSnaps {
                         .filter(|path| !path.ends_with("latest"))
                         .collect()
                 }
-                FilesystemType::Restic(Some(additional_data)) => additional_data.repos
+                FilesystemType::Restic(Some(additional_data)) => additional_data
+                    .repos
                     .par_iter()
                     .flat_map(|repo| read_dir(repo.join(RESTIC_SNAPSHOT_DIRECTORY)))
                     .flatten_iter()

@@ -16,9 +16,7 @@
 // that was distributed with this source code.
 
 use crate::data::paths::BasicDirEntryInfo;
-use crate::library::file_ops::Copy;
-use crate::library::file_ops::Preserve;
-use crate::library::file_ops::Remove;
+use crate::library::file_ops::{Copy, Preserve, Remove};
 use crate::library::results::{HttmError, HttmResult};
 use crate::RollForward;
 use hashbrown::{HashMap, HashSet};

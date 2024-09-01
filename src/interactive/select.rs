@@ -15,23 +15,20 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
+use super::browse::InteractiveBrowse;
 use crate::config::generate::{PrintMode, SelectMode};
 use crate::display_versions::wrapper::VersionsDisplayWrapper;
 use crate::interactive::preview::PreviewSelection;
-use crate::interactive::view_mode::MultiSelect;
-use crate::interactive::view_mode::ViewMode;
+use crate::interactive::view_mode::{MultiSelect, ViewMode};
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{delimiter, print_output_buf};
 use crate::lookup::versions::VersionsMap;
-use crate::Config;
-use crate::GLOBAL_CONFIG;
-
+use crate::{Config, GLOBAL_CONFIG};
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::Command as ExecProcess;
 
-use super::browse::InteractiveBrowse;
-
+#[allow(dead_code)]
 pub struct InteractiveSelect {
     pub view_mode: ViewMode,
     pub snap_path_strings: Vec<String>,

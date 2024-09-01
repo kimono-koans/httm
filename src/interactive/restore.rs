@@ -16,35 +16,27 @@
 // that was distributed with this source code.
 
 use crate::config::generate::{ExecMode, InteractiveMode, RestoreMode, RestoreSnapGuard};
-use crate::data::paths::PathData;
-use crate::data::paths::PathDeconstruction;
-use crate::data::paths::ZfsSnapPathGuard;
+use crate::data::paths::{PathData, PathDeconstruction, ZfsSnapPathGuard};
 use crate::interactive::select::InteractiveSelect;
-use crate::interactive::view_mode::MultiSelect;
-use crate::interactive::view_mode::ViewMode;
+use crate::interactive::view_mode::{MultiSelect, ViewMode};
 use crate::library::file_ops::Copy;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{date_string, DateFormat};
 use crate::zfs::snap_guard::SnapGuard;
 use crate::GLOBAL_CONFIG;
-
 use nu_ansi_term::Color::LightYellow;
-use terminal_size::Height;
-use terminal_size::Width;
-
 use std::path::{Path, PathBuf};
+use terminal_size::{Height, Width};
 
 pub struct InteractiveRestore {
+    pub _view_mode: ViewMode,
     pub snap_path_strings: Vec<String>,
     pub opt_live_version: Option<String>,
 }
 
 impl From<InteractiveSelect> for InteractiveRestore {
     fn from(interactive_select: InteractiveSelect) -> Self {
-        Self {
-            snap_path_strings: interactive_select.snap_path_strings,
-            opt_live_version: interactive_select.opt_live_version,
-        }
+        unsafe { std::mem::transmute(interactive_select) }
     }
 }
 

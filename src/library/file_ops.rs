@@ -15,20 +15,15 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::data::paths::PathData;
-use crate::data::paths::PathDeconstruction;
+use crate::data::paths::{PathData, PathDeconstruction};
 use crate::library::diff_copy::HttmCopy;
 use crate::library::results::{HttmError, HttmResult};
-use crate::GLOBAL_CONFIG;
-use crate::IN_BUFFER_SIZE;
+use crate::{GLOBAL_CONFIG, IN_BUFFER_SIZE};
 use nix::sys::stat::SFlag;
 use nu_ansi_term::Color::{Blue, Red};
-use std::os::unix::fs::chown;
-use std::os::unix::fs::FileTypeExt;
-use std::os::unix::fs::MetadataExt;
-
 use std::fs::{create_dir_all, read_dir, set_permissions};
 use std::iter::Iterator;
+use std::os::unix::fs::{chown, FileTypeExt, MetadataExt};
 use std::path::Path;
 
 const CHAR_KIND: SFlag = nix::sys::stat::SFlag::S_IFCHR;
@@ -290,13 +285,9 @@ impl Remove {
     }
 }
 
-use std::hash::Hash;
-use std::hash::Hasher;
-use std::io::BufRead;
-use std::io::BufReader;
-use std::io::ErrorKind;
-
 use super::utility::is_metadata_same;
+use std::hash::{Hash, Hasher};
+use std::io::{BufRead, BufReader, ErrorKind};
 
 pub struct HashFileContents<'a> {
     inner: &'a Path,

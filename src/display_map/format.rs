@@ -16,8 +16,7 @@
 // that was distributed with this source code.
 
 use crate::config::generate::PrintMode;
-use crate::data::paths::PathData;
-use crate::data::paths::ZfsSnapPathGuard;
+use crate::data::paths::{PathData, ZfsSnapPathGuard};
 use crate::display_versions::format::{NOT_SO_PRETTY_FIXED_WIDTH_PADDING, QUOTATION_MARKS_LEN};
 use crate::library::utility::delimiter;
 use crate::{MountsForFiles, SnapNameMap, VersionsMap, GLOBAL_CONFIG};

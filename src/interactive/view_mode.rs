@@ -17,8 +17,7 @@
 
 use crate::interactive::preview::PreviewSelection;
 use crate::library::results::HttmError;
-use crate::HttmResult;
-use crate::GLOBAL_CONFIG;
+use crate::{HttmResult, GLOBAL_CONFIG};
 use skim::prelude::*;
 use std::io::Cursor;
 

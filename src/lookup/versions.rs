@@ -15,15 +15,13 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use hashbrown::HashSet;
-use rayon::prelude::*;
-
 use crate::config::generate::{Config, DedupBy, ExecMode, LastSnapMode};
-use crate::data::paths::PathDeconstruction;
-use crate::data::paths::{CompareVersionsContainer, PathData};
+use crate::data::paths::{CompareVersionsContainer, PathData, PathDeconstruction};
 use crate::library::results::{HttmError, HttmResult};
 use crate::parse::mounts::LinkType;
 use crate::GLOBAL_CONFIG;
+use hashbrown::HashSet;
+use rayon::prelude::*;
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
 use std::io::ErrorKind;

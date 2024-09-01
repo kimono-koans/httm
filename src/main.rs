@@ -74,8 +74,6 @@ mod zfs {
     pub mod snap_mounts;
 }
 
-use std::sync::LazyLock;
-
 use crate::config::generate::InteractiveMode;
 use crate::interactive::browse::InteractiveBrowse;
 use crate::interactive::select::InteractiveSelect;
@@ -91,6 +89,7 @@ use lookup::file_mounts::MountsForFiles;
 use lookup::snap_names::SnapNameMap;
 use lookup::versions::VersionsMap;
 use roll_forward::exec::RollForward;
+use std::sync::LazyLock;
 use zfs::snap_mounts::SnapshotMounts;
 
 pub const ZFS_HIDDEN_DIRECTORY: &str = ".zfs";

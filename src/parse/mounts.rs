@@ -15,29 +15,30 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed wth this source code.
 
+use super::aliases::MapOfAliases;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{find_common_path, get_mount_command};
 use crate::parse::snaps::MapOfSnaps;
-use crate::BTRFS_SNAPPER_HIDDEN_DIRECTORY;
-use crate::ZFS_SNAPSHOT_DIRECTORY;
 use crate::{
-    GLOBAL_CONFIG, NILFS2_SNAPSHOT_ID_KEY, RESTIC_LATEST_SNAPSHOT_DIRECTORY, ROOT_DIRECTORY,
-    TM_DIR_LOCAL, TM_DIR_REMOTE, ZFS_HIDDEN_DIRECTORY,
+    BTRFS_SNAPPER_HIDDEN_DIRECTORY,
+    GLOBAL_CONFIG,
+    NILFS2_SNAPSHOT_ID_KEY,
+    RESTIC_LATEST_SNAPSHOT_DIRECTORY,
+    ROOT_DIRECTORY,
+    TM_DIR_LOCAL,
+    TM_DIR_REMOTE,
+    ZFS_HIDDEN_DIRECTORY,
+    ZFS_SNAPSHOT_DIRECTORY,
 };
 use proc_mounts::MountIter;
 use rayon::iter::Either;
 use rayon::prelude::*;
-use realpath_ext::realpath;
-use realpath_ext::RealpathFlags;
+use realpath_ext::{realpath, RealpathFlags};
 use std::collections::{BTreeMap, BTreeSet};
 use std::ops::Deref;
-use std::path::Path;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command as ExecProcess;
-use std::sync::LazyLock;
-use std::sync::OnceLock;
-
-use super::aliases::MapOfAliases;
+use std::sync::{LazyLock, OnceLock};
 
 pub const ZFS_FSTYPE: &str = "zfs";
 pub const NILFS2_FSTYPE: &str = "nilfs2";
@@ -191,15 +192,15 @@ impl BaseFilesystemInfo {
     // Linux allows us the read proc mounts
     pub fn new(
         opt_debug: bool,
-        opt_alt_store: &mut Option<&FilesystemType>,
+        opt_alt_store: &mut Option<FilesystemType>,
         opt_map_of_aliases: &Option<MapOfAliases>,
     ) -> HttmResult<Self> {
         let (mut raw_datasets, filter_dirs_set) = if PROC_MOUNTS.exists() {
-            Self::from_file(&PROC_MOUNTS, *opt_alt_store)?
+            Self::from_file(&PROC_MOUNTS, opt_alt_store)?
         } else if ETC_MNTTAB.exists() {
-            Self::from_file(&ETC_MNTTAB, *opt_alt_store)?
+            Self::from_file(&ETC_MNTTAB, opt_alt_store)?
         } else {
-            Self::from_mount_cmd(*opt_alt_store)?
+            Self::from_mount_cmd(opt_alt_store)?
         };
 
         // prep any blob repos
@@ -214,7 +215,7 @@ impl BaseFilesystemInfo {
                 && TM_DIR_REMOTE_PATH.exists()
                 && TM_DIR_LOCAL_PATH.exists()
             {
-                opt_alt_store.replace(&FilesystemType::Apfs);
+                opt_alt_store.replace(FilesystemType::Apfs);
                 Self::from_blob_repo(&mut raw_datasets, &FilesystemType::Apfs)?;
             } else {
                 return Err(HttmError::new(
@@ -255,7 +256,7 @@ impl BaseFilesystemInfo {
     // for instance, allows us to read subvolumes mounts, like "/@" or "/@home"
     fn from_file(
         path: &Path,
-        opt_alt_store: Option<&FilesystemType>,
+        opt_alt_store: &Option<FilesystemType>,
     ) -> HttmResult<(BTreeMap<PathBuf, DatasetMetadata>, BTreeSet<PathBuf>)> {
         let mount_iter = MountIter::new_from_file(path)?;
 
@@ -376,7 +377,7 @@ impl BaseFilesystemInfo {
     // old fashioned parsing for non-Linux systems, nearly as fast, works everywhere with a mount command
     // both methods are much faster than using zfs command
     fn from_mount_cmd(
-        opt_alt_store: Option<&FilesystemType>,
+        opt_alt_store: &Option<FilesystemType>,
     ) -> HttmResult<(BTreeMap<PathBuf, DatasetMetadata>, BTreeSet<PathBuf>)> {
         // do we have the necessary commands for search if user has not defined a snap point?
         // if so run the mount search, if not print some errors

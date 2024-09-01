@@ -44,12 +44,9 @@
 // SOFTWARE.
 
 use crate::data::paths::PathData;
-use crate::library::results::HttmError;
-use crate::library::results::HttmResult;
+use crate::library::results::{HttmError, HttmResult};
 use crate::zfs::run_command::RunZFSCommand;
-use crate::ExecMode;
-use crate::GLOBAL_CONFIG;
-use crate::IN_BUFFER_SIZE;
+use crate::{ExecMode, GLOBAL_CONFIG, IN_BUFFER_SIZE};
 use std::fs::{File, OpenOptions};
 use std::io::{BufRead, BufReader, BufWriter, ErrorKind, Seek, SeekFrom, Write};
 use std::os::fd::{AsFd, BorrowedFd};

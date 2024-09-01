@@ -22,13 +22,11 @@ use crate::display_versions::wrapper::VersionsDisplayWrapper;
 use crate::library::results::HttmResult;
 use crate::library::utility::paint_string;
 use crate::lookup::versions::Versions;
-use crate::VersionsMap;
-use crate::{Config, ExecMode, GLOBAL_CONFIG};
+use crate::{Config, ExecMode, VersionsMap, GLOBAL_CONFIG};
 use lscolors::Colorable;
 use skim::prelude::*;
 use std::fs::FileType;
-use std::path::Path;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
 
 // these represent the items ready for selection and preview

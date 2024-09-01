@@ -15,10 +15,8 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::data::paths::PathData;
-use crate::data::paths::PathDeconstruction;
-use crate::library::results::HttmError;
-use crate::library::results::HttmResult;
+use crate::data::paths::{PathData, PathDeconstruction};
+use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::user_has_effective_root;
 use crate::parse::mounts::FilesystemType;
 use crate::roll_forward::exec::RollForward;

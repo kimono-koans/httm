@@ -15,27 +15,18 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::data::paths::PathData;
-use crate::data::paths::PathDeconstruction;
-use crate::library::file_ops::Copy;
-use crate::library::file_ops::Preserve;
-use crate::library::file_ops::Remove;
+use crate::data::paths::{PathData, PathDeconstruction};
+use crate::library::file_ops::{Copy, Preserve, Remove};
+use crate::library::iter_extensions::HttmIter;
 use crate::library::results::{HttmError, HttmResult};
-use crate::library::utility::is_metadata_same;
-use crate::library::utility::user_has_effective_root;
-use crate::roll_forward::preserve_hard_links::PreserveHardLinks;
-use crate::roll_forward::preserve_hard_links::SpawnPreserveLinks;
+use crate::library::utility::{is_metadata_same, user_has_effective_root};
+use crate::roll_forward::diff_events::{DiffEvent, DiffType};
+use crate::roll_forward::preserve_hard_links::{PreserveHardLinks, SpawnPreserveLinks};
 use crate::zfs::run_command::RunZFSCommand;
 use crate::zfs::snap_guard::{PrecautionarySnapType, SnapGuard};
 use crate::{GLOBAL_CONFIG, ZFS_SNAPSHOT_DIRECTORY};
-
-use crate::library::iter_extensions::HttmIter;
-use crate::roll_forward::diff_events::DiffEvent;
-use crate::roll_forward::diff_events::DiffType;
-
 use indicatif::ProgressBar;
 use nu_ansi_term::Color::{Blue, Red};
-
 use rayon::prelude::*;
 use std::fs::read_dir;
 use std::io::{BufRead, Read};

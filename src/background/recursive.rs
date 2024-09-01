@@ -29,8 +29,7 @@ use std::fs::read_dir;
 use std::os::unix::fs::MetadataExt;
 use std::path::Path;
 use std::sync::atomic::AtomicBool;
-use std::sync::Arc;
-use std::sync::LazyLock;
+use std::sync::{Arc, LazyLock};
 
 static OPT_REQUESTED_DIR_DEV: LazyLock<u64> = LazyLock::new(|| {
     GLOBAL_CONFIG
