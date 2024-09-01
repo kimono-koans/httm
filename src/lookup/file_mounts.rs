@@ -15,12 +15,10 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::data::paths::PathData;
-use crate::data::paths::PathDeconstruction;
+use crate::data::paths::{PathData, PathDeconstruction};
 use crate::library::results::{HttmError, HttmResult};
 use crate::lookup::versions::ProximateDatasetAndOptAlts;
-use crate::ExecMode;
-use crate::GLOBAL_CONFIG;
+use crate::{ExecMode, GLOBAL_CONFIG};
 use rayon::prelude::*;
 use std::ops::Deref;
 use std::path::PathBuf;

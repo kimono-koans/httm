@@ -15,13 +15,13 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
+use super::selection::SelectionCandidate;
 use crate::background::recursive::PathProvenance;
 use crate::config::generate::{DedupBy, PrintMode};
 use crate::library::file_ops::HashFileContents;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{date_string, display_human_size, DateFormat};
-use crate::parse::mounts::FilesystemType;
-use crate::parse::mounts::MaxLen;
+use crate::parse::mounts::{FilesystemType, MaxLen};
 use crate::{GLOBAL_CONFIG, ZFS_SNAPSHOT_DIRECTORY};
 use realpath_ext::{realpath, RealpathFlags};
 use serde::ser::SerializeStruct;
@@ -31,11 +31,8 @@ use std::ffi::OsStr;
 use std::fs::{symlink_metadata, DirEntry, FileType, Metadata};
 use std::hash::Hash;
 use std::path::{Path, PathBuf};
-use std::sync::LazyLock;
-use std::sync::OnceLock;
+use std::sync::{LazyLock, OnceLock};
 use std::time::SystemTime;
-
-use super::selection::SelectionCandidate;
 
 static DATASET_MAX_LEN: LazyLock<usize> =
     LazyLock::new(|| GLOBAL_CONFIG.dataset_collection.map_of_datasets.max_len());

@@ -18,7 +18,11 @@
 use crate::config::generate::{BulkExclusion, Config, PrintMode};
 use crate::data::paths::{PathData, PHANTOM_DATE, PHANTOM_SIZE};
 use crate::library::utility::{
-    date_string, delimiter, display_human_size, paint_string, DateFormat,
+    date_string,
+    delimiter,
+    display_human_size,
+    paint_string,
+    DateFormat,
 };
 use crate::lookup::versions::ProximateDatasetAndOptAlts;
 use crate::parse::mounts::IsFilterDir;

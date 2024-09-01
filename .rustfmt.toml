@@ -2,3 +2,5 @@ edition = "2021"
 imports_layout = "HorizontalVertical"
 imports_granularity = "Module"
 group_imports = "One"
+indent_style = "Block"
+reorder_imports = true

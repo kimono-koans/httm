@@ -17,8 +17,7 @@
 
 use crate::config::install_hot_keys::install_hot_keys;
 use crate::data::filesystem_info::FilesystemInfo;
-use crate::data::paths::PathDeconstruction;
-use crate::data::paths::{PathData, ZfsSnapPathGuard};
+use crate::data::paths::{PathData, PathDeconstruction, ZfsSnapPathGuard};
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{pwd, HttmIsDir};
 use crate::lookup::file_mounts::MountDisplay;
@@ -27,12 +26,11 @@ use crate::ROOT_DIRECTORY;
 use clap::parser::ValuesRef;
 use clap::{crate_name, crate_version, Arg, ArgAction, ArgMatches};
 use indicatif::ProgressBar;
-use rayon::iter::ParallelBridge;
+use rayon::iter::{ParallelBridge, ParallelIterator};
 use std::io::Read;
 use std::ops::Index;
 use std::path::{Path, PathBuf};
 use time::UtcOffset;
-use rayon::iter::ParallelIterator;
 
 #[derive(Debug, Clone)]
 pub enum ExecMode {
@@ -642,20 +640,26 @@ impl Config {
 
         // obtain a map of datasets, a map of snapshot directories, and possibly a map of
         // alternate filesystems and map of aliases if the user requests
-        let mut opt_map_aliases: Option<Vec<String>> = matches.get_raw("MAP_ALIASES").map(|aliases| {
-            aliases
-                .map(|os_str| os_str.to_string_lossy().to_string())
-                .collect()
-        });
+        let mut opt_map_aliases: Option<Vec<String>> =
+            matches.get_raw("MAP_ALIASES").map(|aliases| {
+                aliases
+                    .map(|os_str| os_str.to_string_lossy().to_string())
+                    .collect()
+            });
 
-        let opt_alt_store: Option<FilesystemType> = match matches.get_one::<String>("ALT_STORE").map(|inner| inner.as_str()) {
+        let opt_alt_store: Option<FilesystemType> = match matches
+            .get_one::<String>("ALT_STORE")
+            .map(|inner| inner.as_str())
+        {
             Some("timemachine") => Some(FilesystemType::Apfs),
             Some("restic") => Some(FilesystemType::Restic(None)),
-            _ => None
+            _ => None,
         };
 
         if opt_alt_store.is_some() && opt_map_aliases.is_some() {
-            eprintln!("WARN: httm has disabled any MAP_ALIASES in preference to an ALT_STORE specified.");
+            eprintln!(
+                "WARN: httm has disabled any MAP_ALIASES in preference to an ALT_STORE specified."
+            );
             opt_map_aliases = None;
         }
 
@@ -663,7 +667,7 @@ impl Config {
         let opt_remote_dir = matches.get_one::<String>("REMOTE_DIR").cloned();
         let opt_local_dir = matches.get_one::<String>("LOCAL_DIR").cloned();
 
-        let pwd_clone= pwd.clone();
+        let pwd_clone = pwd.clone();
 
         let fs_handle = std::thread::spawn(move || {
             FilesystemInfo::new(
@@ -673,7 +677,7 @@ impl Config {
                 opt_local_dir,
                 opt_map_aliases,
                 opt_alt_store,
-                pwd_clone
+                pwd_clone,
             )
         });
 
@@ -716,7 +720,10 @@ impl Config {
         let opt_no_clones =
             matches.get_flag("NO_CLONES") || std::env::var_os("HTTM_NO_CLONE").is_some();
 
-        let opt_last_snap = match matches.get_one::<String>("LAST_SNAP").map(|inner| inner.as_str()) {
+        let opt_last_snap = match matches
+            .get_one::<String>("LAST_SNAP")
+            .map(|inner| inner.as_str())
+        {
             Some("" | "any") => Some(LastSnapMode::Any),
             Some("none" | "without") => Some(LastSnapMode::Without),
             Some("ditto") => Some(LastSnapMode::DittoOnly),
@@ -725,7 +732,10 @@ impl Config {
             _ => None,
         };
 
-        let opt_num_versions = match matches.get_one::<String>("NUM_VERSIONS").map(|inner| inner.as_str()) {
+        let opt_num_versions = match matches
+            .get_one::<String>("NUM_VERSIONS")
+            .map(|inner| inner.as_str())
+        {
             Some("" | "all") => Some(NumVersionsMode::AllNumerals),
             Some("graph") => Some(NumVersionsMode::AllGraph),
             Some("single") => Some(NumVersionsMode::SingleAll),
@@ -741,20 +751,29 @@ impl Config {
             return Err(HttmError::new("The NUM_VERSIONS graph mode and the RAW or ZEROS display modes are an invalid combination.").into());
         }
 
-        let opt_mount_display = match matches.get_one::<String>("FILE_MOUNT").map(|inner| inner.as_str()) {
+        let opt_mount_display = match matches
+            .get_one::<String>("FILE_MOUNT")
+            .map(|inner| inner.as_str())
+        {
             Some("" | "mount" | "target" | "directory") => Some(MountDisplay::Target),
             Some("source" | "device" | "dataset") => Some(MountDisplay::Source),
             Some("relative-path" | "relative" | "relpath") => Some(MountDisplay::RelativePath),
             _ => None,
         };
 
-        let opt_preview = match matches.get_one::<String>("PREVIEW").map(|inner| inner.as_str()) {
+        let opt_preview = match matches
+            .get_one::<String>("PREVIEW")
+            .map(|inner| inner.as_str())
+        {
             Some("" | "default") => Some("default".to_owned()),
             Some(user_defined) => Some(user_defined.to_string()),
             None => None,
         };
 
-        let mut opt_deleted_mode = match matches.get_one::<String>("DELETED").map(|inner| inner.as_str()) {
+        let mut opt_deleted_mode = match matches
+            .get_one::<String>("DELETED")
+            .map(|inner| inner.as_str())
+        {
             Some("" | "all") => Some(DeletedMode::All),
             Some("single") => Some(DeletedMode::DepthOfOne),
             Some("only") => Some(DeletedMode::Only),
@@ -763,12 +782,11 @@ impl Config {
 
         let opt_select_mode = matches.get_one::<String>("SELECT");
         let opt_restore_mode = matches.get_one::<String>("RESTORE");
-        
+
         let opt_interactive_mode = if let Some(var_restore_mode) = opt_restore_mode {
             let mut restore_mode = var_restore_mode.to_string();
-            
-            if let Ok(env_restore_mode) = std::env::var("HTTM_RESTORE_MODE")
-            {
+
+            if let Ok(env_restore_mode) = std::env::var("HTTM_RESTORE_MODE") {
                 restore_mode = env_restore_mode;
             }
 
@@ -776,12 +794,10 @@ impl Config {
                 "guard" => Some(InteractiveMode::Restore(RestoreMode::Overwrite(
                     RestoreSnapGuard::Guarded,
                 ))),
-                "overwrite" | "yolo" => Some(InteractiveMode::Restore(
-                    RestoreMode::Overwrite(RestoreSnapGuard::NotGuarded),
-                )),
-                "copy-and-preserve" => {
-                    Some(InteractiveMode::Restore(RestoreMode::CopyAndPreserve))
-                }
+                "overwrite" | "yolo" => Some(InteractiveMode::Restore(RestoreMode::Overwrite(
+                    RestoreSnapGuard::NotGuarded,
+                ))),
+                "copy-and-preserve" => Some(InteractiveMode::Restore(RestoreMode::CopyAndPreserve)),
                 _ => Some(InteractiveMode::Restore(RestoreMode::CopyOnly)),
             }
         } else if opt_select_mode.is_some() || opt_preview.is_some() {
@@ -798,8 +814,11 @@ impl Config {
             None
         };
 
-        let dedup_by = match matches.get_one::<String>("DEDUP_BY").map(|inner| inner.as_str()) {
-            _ if matches.get_flag("PRUNE") =>  DedupBy::Disable,
+        let dedup_by = match matches
+            .get_one::<String>("DEDUP_BY")
+            .map(|inner| inner.as_str())
+        {
+            _ if matches.get_flag("PRUNE") => DedupBy::Disable,
             Some("all" | "no-filter" | "disable") => DedupBy::Disable,
             Some("contents") => DedupBy::Contents,
             Some("metadata" | _) => DedupBy::Metadata,
@@ -847,22 +866,19 @@ impl Config {
             }
 
             match matches.get_one::<String>("LIST_SNAPS") {
-                Some(value) if !value.is_empty() => {
-                    Some(Self::snap_filters(value, select_mode)?)
-                },
-                _ => {
-                    Some(ListSnapsFilters {
-                        select_mode,
-                        omit_num_snaps: 0usize,
-                        name_filters: None,
-                    })
-                }
+                Some(value) if !value.is_empty() => Some(Self::snap_filters(value, select_mode)?),
+                _ => Some(ListSnapsFilters {
+                    select_mode,
+                    omit_num_snaps: 0usize,
+                    name_filters: None,
+                }),
             }
         } else {
             None
         };
 
-        let mut exec_mode = if let Some(full_snap_name) = matches.get_one::<String>("ROLL_FORWARD") {
+        let mut exec_mode = if let Some(full_snap_name) = matches.get_one::<String>("ROLL_FORWARD")
+        {
             ExecMode::RollForward(full_snap_name.to_string())
         } else if let Some(num_versions_mode) = opt_num_versions {
             ExecMode::NumVersions(num_versions_mode)
@@ -939,7 +955,9 @@ impl Config {
             );
         }
 
-        let dataset_collection = fs_handle.join().expect("Background thread collecting filesystem info has panicked")?;
+        let dataset_collection = fs_handle
+            .join()
+            .expect("Background thread collecting filesystem info has panicked")?;
 
         let config = Config {
             paths,
