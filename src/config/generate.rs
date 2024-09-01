@@ -660,8 +660,8 @@ impl Config {
         }
 
         let opt_alt_replicated = matches.get_flag("ALT_REPLICATED");
-        let opt_remote_dir = matches.get_one::<String>("REMOTE_DIR").map(|inner| inner.to_owned());
-        let opt_local_dir = matches.get_one::<String>("LOCAL_DIR").map(|inner| inner.to_owned());
+        let opt_remote_dir = matches.get_one::<String>("REMOTE_DIR").cloned();
+        let opt_local_dir = matches.get_one::<String>("LOCAL_DIR").cloned();
 
         let pwd_clone= pwd.clone();
 
@@ -939,7 +939,7 @@ impl Config {
             );
         }
 
-        let dataset_collection = fs_handle.join().unwrap()?;
+        let dataset_collection = fs_handle.join().expect("Background thread collecting filesystem info has panicked")?;
 
         let config = Config {
             paths,
