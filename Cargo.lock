@@ -295,18 +295,18 @@ dependencies = [
 
 [[package]]
 name = "derive_builder"
-version = "0.20.0"
+version = "0.20.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0350b5cb0331628a5916d6c5c0b72e97393b8b6b03b47a9284f4e7f5a405ffd7"
+checksum = "cd33f37ee6a119146a1781d3356a7c26028f83d779b2e04ecd45fdc75c76877b"
 dependencies = [
  "derive_builder_macro",
 ]
 
 [[package]]
 name = "derive_builder_core"
-version = "0.20.0"
+version = "0.20.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d48cda787f839151732d396ac69e3473923d54312c070ee21e9effcaa8ca0b1d"
+checksum = "7431fa049613920234f22c47fdc33e6cf3ee83067091ea4277a3f8c4587aae38"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -316,9 +316,9 @@ dependencies = [
 
 [[package]]
 name = "derive_builder_macro"
-version = "0.20.0"
+version = "0.20.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "206868b8242f27cecce124c19fd88157fbd0dd334df2587f36417bafbc85097b"
+checksum = "4abae7035bf79b9877b779505d8cf3749285b80c43941eda66604841889451dc"
 dependencies = [
  "derive_builder_core",
  "syn 2.0.48",
@@ -415,9 +415,9 @@ checksum = "3f9eec918d3f24069decb9af1554cad7c880e2da24a9afd88aca000531ab82c1"
 
 [[package]]
 name = "fuzzy-muff"
-version = "0.3.26"
+version = "0.3.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "66606f021d67a5477e57099fd4734ee75ba75335c4099871632ce63499fd4087"
+checksum = "e0ae236bf64ab848b82e5ca9a0beaafaaf17972184ad238c97a9f9765199c9e3"
 dependencies = [
  "thread_local",
 ]
@@ -484,7 +484,7 @@ dependencies = [
 
 [[package]]
 name = "httm"
-version = "0.42.3"
+version = "0.42.4"
 dependencies = [
  "ahash 0.8.11",
  "clap 4.5.16",
@@ -1090,9 +1090,9 @@ dependencies = [
 
 [[package]]
 name = "two_percent"
-version = "0.11.24"
+version = "0.11.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5673361ead1b6ec435ef8dd47c0b2d0994239ef90446975dd2ae6c348365f4ec"
+checksum = "cf246b507d6195edf9846d59d5fcf820d55e081aa391392a2ab6b79d1e4b9da9"
 dependencies = [
  "bitflags 2.6.0",
  "crossbeam-channel",
