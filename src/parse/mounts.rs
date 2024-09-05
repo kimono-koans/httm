@@ -227,10 +227,28 @@ impl BaseFilesystemInfo {
 
         let map_of_snaps = MapOfSnaps::new(&mut raw_datasets, opt_debug)?;
 
-        if map_of_snaps.values().count() == 0 {
-            return Err(
-                HttmError::new("httm could not find any valid snapshots on the system.  Perhaps you do not have permissions to view.").into(),
-            );
+        if map_of_snaps.iter().any(|(_mount, snaps)| snaps.is_empty()) {
+            if opt_debug {
+                eprintln!("WARN: httm relies on the user (and/or the filesystem's auto-mounter) to mount snapshots.  Make certain any snapshots the user may want to view are mounted, or are able to be mounted, and/or the user has the correct permissions to view.");
+            }
+
+            if map_of_snaps.values().count() == 0 {
+                return Err(HttmError::new(
+                    "httm could not find any valid snapshots on the system.  Quitting.",
+                )
+                .into());
+            }
+
+            if opt_debug {
+                map_of_snaps.iter().for_each(|(mount, snaps)| {
+                    if snaps.is_empty() {
+                        eprintln!(
+                            "WARN: Mount {:?} appears to have no snapshots available.",
+                            mount
+                        )
+                    }
+                })
+            }
         }
 
         let map_of_datasets = {
