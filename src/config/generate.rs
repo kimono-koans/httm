@@ -287,7 +287,7 @@ fn parse_args() -> ArgMatches {
         .arg(
             Arg::new("LIST_SNAPS")
                 .long("list-snaps")
-                .aliases(&["snaps-for-file", "ls-snaps", "list-snapshots"])
+                .aliases(&["snap-names", "snaps-for-file", "ls-snaps", "list-snapshots"])
                 .value_parser(clap::value_parser!(String))
                 .num_args(0..=1)
                 .require_equals(true)
