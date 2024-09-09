@@ -15,7 +15,6 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed wth this source code.
 
-use super::aliases::MapOfAliases;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{find_common_path, get_mount_command};
 use crate::parse::snaps::MapOfSnaps;
@@ -163,6 +162,12 @@ impl Deref for MapOfDatasets {
     }
 }
 
+impl From<BTreeMap<Arc<Path>, DatasetMetadata>> for MapOfDatasets {
+    fn from(value: BTreeMap<Arc<Path>, DatasetMetadata>) -> Self {
+        Self { inner: value }
+    }
+}
+
 impl MaxLen for MapOfDatasets {
     fn max_len(&self) -> usize {
         self.inner
@@ -176,9 +181,9 @@ impl MaxLen for MapOfDatasets {
 pub static PROC_MOUNTS: LazyLock<PathBuf> = LazyLock::new(|| PathBuf::from("/proc/mounts"));
 pub static BTRFS_ROOT_SUBVOL: LazyLock<PathBuf> = LazyLock::new(|| PathBuf::from("<FS_TREE>"));
 pub static ROOT_PATH: LazyLock<PathBuf> = LazyLock::new(|| PathBuf::from("/"));
-static ETC_MNTTAB: LazyLock<PathBuf> = LazyLock::new(|| PathBuf::from("/etc/mnttab"));
-static TM_DIR_REMOTE_PATH: LazyLock<PathBuf> = LazyLock::new(|| PathBuf::from(TM_DIR_REMOTE));
-static TM_DIR_LOCAL_PATH: LazyLock<PathBuf> = LazyLock::new(|| PathBuf::from(TM_DIR_LOCAL));
+static ETC_MNT_TAB: LazyLock<PathBuf> = LazyLock::new(|| PathBuf::from("/etc/mnttab"));
+pub static TM_DIR_REMOTE_PATH: LazyLock<PathBuf> = LazyLock::new(|| PathBuf::from(TM_DIR_REMOTE));
+pub static TM_DIR_LOCAL_PATH: LazyLock<PathBuf> = LazyLock::new(|| PathBuf::from(TM_DIR_LOCAL));
 
 pub struct BaseFilesystemInfo {
     pub map_of_datasets: MapOfDatasets,
@@ -189,66 +194,16 @@ pub struct BaseFilesystemInfo {
 impl BaseFilesystemInfo {
     // divide by the type of system we are on
     // Linux allows us the read proc mounts
-    pub fn new(
-        opt_debug: bool,
-        opt_alt_store: &mut Option<FilesystemType>,
-        opt_map_of_aliases: &Option<MapOfAliases>,
-    ) -> HttmResult<Self> {
+    pub fn new(opt_debug: bool, opt_alt_store: &Option<FilesystemType>) -> HttmResult<Self> {
         let (mut raw_datasets, filter_dirs_set) = if PROC_MOUNTS.exists() {
             Self::from_file(&PROC_MOUNTS, opt_alt_store)?
-        } else if ETC_MNTTAB.exists() {
-            Self::from_file(&ETC_MNTTAB, opt_alt_store)?
+        } else if ETC_MNT_TAB.exists() {
+            Self::from_file(&ETC_MNT_TAB, opt_alt_store)?
         } else {
             Self::from_mount_cmd(opt_alt_store)?
         };
 
-        // prep any blob repos
-        if let Some(repo_type) = opt_alt_store {
-            Self::from_blob_repo(&mut raw_datasets, repo_type)?;
-        }
-
-        if raw_datasets.is_empty() {
-            // auto enable time machine alt store on mac when no datasets available, no working aliases, and paths exist
-            if cfg!(target_os = "macos")
-                && opt_map_of_aliases.is_none()
-                && TM_DIR_REMOTE_PATH.exists()
-                && TM_DIR_LOCAL_PATH.exists()
-            {
-                opt_alt_store.replace(FilesystemType::Apfs);
-                Self::from_blob_repo(&mut raw_datasets, &FilesystemType::Apfs)?;
-            } else {
-                return Err(HttmError::new(
-                    "httm could not find any valid datasets on the system.",
-                )
-                .into());
-            }
-        }
-
         let map_of_snaps = MapOfSnaps::new(&mut raw_datasets, opt_debug)?;
-
-        if map_of_snaps.iter().any(|(_mount, snaps)| snaps.is_empty()) {
-            if opt_debug {
-                eprintln!("WARN: httm relies on the user (and/or the filesystem's auto-mounter) to mount snapshots.  Make certain any snapshots the user may want to view are mounted, or are able to be mounted, and/or the user has the correct permissions to view.");
-            }
-
-            if map_of_snaps.values().count() == 0 {
-                return Err(HttmError::new(
-                    "httm could not find any valid snapshots on the system.  Quitting.",
-                )
-                .into());
-            }
-
-            if opt_debug {
-                map_of_snaps.iter().for_each(|(mount, snaps)| {
-                    if snaps.is_empty() {
-                        eprintln!(
-                            "WARN: Mount {:?} appears to have no snapshots available.",
-                            mount
-                        )
-                    }
-                })
-            }
-        }
 
         let map_of_datasets = {
             MapOfDatasets {
@@ -495,22 +450,24 @@ impl BaseFilesystemInfo {
         Ok((map_of_datasets, filter_dirs))
     }
 
-    pub fn from_blob_repo(
-        map_of_datasets: &mut BTreeMap<Arc<Path>, DatasetMetadata>,
-        repo_type: &FilesystemType,
-    ) -> HttmResult<()> {
-        map_of_datasets.retain(|_k, v| &v.fs_type == repo_type);
+    pub fn from_blob_repo(&mut self, repo_type: &FilesystemType) -> HttmResult<()> {
+        let retained: Vec<PathBuf> = self
+            .map_of_datasets
+            .iter()
+            .filter(|(_k, v)| &v.fs_type == repo_type)
+            .map(|(k, _v)| k.to_path_buf())
+            .collect();
 
         let metadata = match repo_type {
             FilesystemType::Restic(_) => {
-                if map_of_datasets.is_empty() {
+                if retained.is_empty() {
                     return Err(HttmError::new(
                         "No supported Restic datasets were found on the system.",
                     )
                     .into());
                 }
 
-                let repos: Vec<PathBuf> = map_of_datasets.keys().map(|k| k.to_path_buf()).collect();
+                let repos: Vec<PathBuf> = retained;
 
                 DatasetMetadata {
                     source: PathBuf::from(RESTIC_FSTYPE),
@@ -551,7 +508,7 @@ impl BaseFilesystemInfo {
 
         new.insert(Arc::from(ROOT_PATH.as_ref()), metadata);
 
-        *map_of_datasets = new;
+        self.map_of_datasets = MapOfDatasets::from(new);
 
         return Ok(());
     }

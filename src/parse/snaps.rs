@@ -103,11 +103,31 @@ impl MapOfSnaps {
             })
             .collect();
 
-        if map_of_snaps.is_empty() {
-            Err(HttmError::new("httm could not find any valid snapshots on the system.").into())
-        } else {
-            Ok(map_of_snaps.into())
+        if map_of_snaps.iter().any(|(_mount, snaps)| snaps.is_empty()) {
+            if opt_debug {
+                eprintln!("WARN: httm relies on the user (and/or the filesystem's auto-mounter) to mount snapshots.  Make certain any snapshots the user may want to view are mounted, or are able to be mounted, and/or the user has the correct permissions to view.");
+            }
+
+            if map_of_snaps.values().count() == 0 {
+                return Err(HttmError::new(
+                    "httm could not find any valid snapshots on the system.  Quitting.",
+                )
+                .into());
+            }
+
+            if opt_debug {
+                map_of_snaps.iter().for_each(|(mount, snaps)| {
+                    if snaps.is_empty() {
+                        eprintln!(
+                            "WARN: Mount {:?} appears to have no snapshots available.",
+                            mount
+                        )
+                    }
+                })
+            }
         }
+
+        Ok(map_of_snaps.into())
     }
 
     // build paths to all snap mounts

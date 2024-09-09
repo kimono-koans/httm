@@ -15,10 +15,17 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::library::results::HttmResult;
+use crate::library::results::{HttmError, HttmResult};
 use crate::parse::aliases::MapOfAliases;
 use crate::parse::alts::MapOfAlts;
-use crate::parse::mounts::{BaseFilesystemInfo, FilesystemType, FilterDirs, MapOfDatasets};
+use crate::parse::mounts::{
+    BaseFilesystemInfo,
+    FilesystemType,
+    FilterDirs,
+    MapOfDatasets,
+    TM_DIR_LOCAL_PATH,
+    TM_DIR_REMOTE_PATH,
+};
 use crate::parse::snaps::MapOfSnaps;
 use std::path::PathBuf;
 
@@ -50,14 +57,37 @@ impl FilesystemInfo {
         opt_alt_store: Option<FilesystemType>,
         pwd: PathBuf,
     ) -> HttmResult<FilesystemInfo> {
+        let mut base_fs_info = BaseFilesystemInfo::new(opt_debug, &opt_alt_store)?;
+
         // only create a map of aliases if necessary (aliases conflicts with alt stores)
         let opt_map_of_aliases =
             MapOfAliases::new(opt_raw_aliases, opt_remote_dir, opt_local_dir, &pwd)?;
 
+        // prep any blob repos
         let mut opt_alt_store = opt_alt_store;
 
-        let base_fs_info =
-            BaseFilesystemInfo::new(opt_debug, &mut opt_alt_store, &opt_map_of_aliases)?;
+        match opt_alt_store {
+            Some(ref repo_type) => {
+                base_fs_info.from_blob_repo(&repo_type)?;
+            }
+            None if base_fs_info.map_of_datasets.is_empty() => {
+                // auto enable time machine alt store on mac when no datasets available, no working aliases, and paths exist
+                if cfg!(target_os = "macos")
+                    && opt_map_of_aliases.is_none()
+                    && TM_DIR_REMOTE_PATH.exists()
+                    && TM_DIR_LOCAL_PATH.exists()
+                {
+                    opt_alt_store.replace(FilesystemType::Apfs);
+                    base_fs_info.from_blob_repo(&FilesystemType::Apfs)?;
+                } else {
+                    return Err(HttmError::new(
+                        "httm could not find any valid datasets on the system.",
+                    )
+                    .into());
+                }
+            }
+            _ => {}
+        }
 
         // for a collection of btrfs mounts, indicates a common snapshot directory to ignore
         let opt_common_snap_dir = base_fs_info.common_snap_dir();
