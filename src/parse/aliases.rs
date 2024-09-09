@@ -124,20 +124,22 @@ impl MapOfAliases {
             let map_of_aliases: BTreeMap<Arc<Path>, RemotePathAndFsType> = aliases_iter
                 .into_iter()
                 .filter_map(|(local_dir, snap_dir)| {
-                    map_of_datasets.get_key_value(local_dir.as_path()).map(|(k, _v)| (k.clone(), snap_dir))
-                })
-                .filter_map(|(local_dir, snap_dir)| {
-                    if !local_dir.exists() || !snap_dir.exists() {
-                        [local_dir.as_ref(), snap_dir.as_path()]
-                            .into_iter()
-                            .filter(|dir| !dir.exists())
-                            .for_each(|dir| {
-                                eprintln!("WARN: An alias path specified does not exist, or is not mounted: {:?}", dir)
-                            });
-                        None
-                    } else {
-                        Some((local_dir, snap_dir))
-                    }
+                    match map_of_datasets
+                        .get_key_value(local_dir.as_path())
+                        .map(|(k, _v)| (k.clone(), snap_dir)) {
+                            Some((k, snap_dir)) => {
+                                if !snap_dir.exists() {
+                                    eprintln!("WARN: An alias path specified does not exist, or is not mounted: {:?}", snap_dir);
+                                    return None
+                                }
+
+                                Some((k.clone(), snap_dir))
+                            }
+                            None => {
+                                eprintln!("WARN: An alias path specified does not exist, or is not mounted: {:?}", local_dir);
+                                None
+                            }
+                        }
                 })
                 .filter_map(|(local_dir, remote_dir)| {
                     FilesystemType::new(&remote_dir).map(|fs_type| {
