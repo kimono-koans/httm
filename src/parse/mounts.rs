@@ -251,12 +251,12 @@ impl BaseFilesystemInfo {
                     .any(|opt| opt.contains(NILFS2_SNAPSHOT_ID_KEY))
             })
             .map(|mount_info| {
-                let dest_path = PathBuf::from(&mount_info.dest);
+                let dest_path = Arc::from(Path::new(&mount_info.dest));
                 (mount_info, dest_path)
             })
             .partition_map(|(mount_info, dest_path)| match mount_info.fstype.as_str() {
                 ZFS_FSTYPE => Either::Left((
-                    Arc::from(dest_path),
+                    dest_path,
                     DatasetMetadata {
                         source: PathBuf::from(mount_info.source),
                         fs_type: FilesystemType::Zfs,
@@ -265,7 +265,7 @@ impl BaseFilesystemInfo {
                 )),
                 SMB_FSTYPE | AFP_FSTYPE | NFS_FSTYPE => match FilesystemType::new(&dest_path) {
                     Some(FilesystemType::Zfs) => Either::Left((
-                        Arc::from(dest_path),
+                        dest_path,
                         DatasetMetadata {
                             source: PathBuf::from(mount_info.source),
                             fs_type: FilesystemType::Zfs,
@@ -273,7 +273,7 @@ impl BaseFilesystemInfo {
                         },
                     )),
                     Some(FilesystemType::Btrfs(None)) => Either::Left((
-                        Arc::from(dest_path),
+                        dest_path,
                         DatasetMetadata {
                             source: PathBuf::from(mount_info.source),
                             fs_type: FilesystemType::Btrfs(None),
@@ -304,7 +304,7 @@ impl BaseFilesystemInfo {
                         });
 
                     Either::Left((
-                        Arc::from(dest_path),
+                        dest_path,
                         DatasetMetadata {
                             source: mount_info.source,
                             fs_type: FilesystemType::Btrfs(opt_additional_data),
@@ -324,7 +324,7 @@ impl BaseFilesystemInfo {
                     let base_path = if let Some(FilesystemType::Restic(_)) = opt_alt_store {
                         dest_path
                     } else {
-                        dest_path.join(RESTIC_LATEST_SNAPSHOT_DIRECTORY)
+                        Arc::from(dest_path.as_ref().join(RESTIC_LATEST_SNAPSHOT_DIRECTORY))
                     };
 
                     let canonical_path: PathBuf =
@@ -401,14 +401,18 @@ impl BaseFilesystemInfo {
                     LinkType::Local
                 };
 
-                (PathBuf::from(filesystem), PathBuf::from(mount), link_type)
+                (
+                    PathBuf::from(filesystem),
+                    Arc::from(Path::new(mount)),
+                    link_type,
+                )
             })
             // sanity check: does the filesystem exist and have a ZFS hidden dir? if not, filter it out
             // and flip around, mount should key of key/value
             .partition_map(
                 |(source, mount, link_type)| match FilesystemType::new(&mount) {
                     Some(FilesystemType::Zfs) => Either::Left((
-                        Arc::from(mount),
+                        mount,
                         DatasetMetadata {
                             source,
                             fs_type: FilesystemType::Zfs,
@@ -416,7 +420,7 @@ impl BaseFilesystemInfo {
                         },
                     )),
                     Some(FilesystemType::Btrfs(_)) => Either::Left((
-                        Arc::from(mount),
+                        mount,
                         DatasetMetadata {
                             source,
                             fs_type: FilesystemType::Btrfs(None),
@@ -427,15 +431,15 @@ impl BaseFilesystemInfo {
                         let base_path = if let Some(FilesystemType::Restic(_)) = opt_alt_store {
                             mount
                         } else {
-                            mount.join(RESTIC_LATEST_SNAPSHOT_DIRECTORY)
+                            Arc::from(mount.join(RESTIC_LATEST_SNAPSHOT_DIRECTORY))
                         };
 
-                        let canonical_path: PathBuf =
-                            realpath(&base_path, RealpathFlags::ALLOW_MISSING)
-                                .unwrap_or_else(|_| base_path.to_path_buf());
+                        let canonical_path = realpath(&base_path, RealpathFlags::ALLOW_MISSING)
+                            .unwrap_or_else(|_| base_path.to_path_buf())
+                            .into();
 
                         Either::Left((
-                            Arc::from(canonical_path),
+                            canonical_path,
                             DatasetMetadata {
                                 source,
                                 fs_type: FilesystemType::Restic(None),
@@ -451,7 +455,7 @@ impl BaseFilesystemInfo {
     }
 
     pub fn from_blob_repo(&mut self, repo_type: &FilesystemType) -> HttmResult<()> {
-        let retained: Vec<PathBuf> = self
+        let retained_keys: Vec<PathBuf> = self
             .map_of_datasets
             .iter()
             .filter(|(_k, v)| &v.fs_type == repo_type)
@@ -460,14 +464,14 @@ impl BaseFilesystemInfo {
 
         let metadata = match repo_type {
             FilesystemType::Restic(_) => {
-                if retained.is_empty() {
+                if retained_keys.is_empty() {
                     return Err(HttmError::new(
                         "No supported Restic datasets were found on the system.",
                     )
                     .into());
                 }
 
-                let repos: Vec<PathBuf> = retained;
+                let repos: Vec<PathBuf> = retained_keys;
 
                 DatasetMetadata {
                     source: PathBuf::from(RESTIC_FSTYPE),
