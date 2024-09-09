@@ -95,7 +95,7 @@ impl FilesystemType {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DatasetMetadata {
-    pub source: PathBuf,
+    pub source: Box<Path>,
     pub fs_type: FilesystemType,
     pub link_type: LinkType,
 }
@@ -258,7 +258,7 @@ impl BaseFilesystemInfo {
                 ZFS_FSTYPE => Either::Left((
                     dest_path,
                     DatasetMetadata {
-                        source: PathBuf::from(mount_info.source),
+                        source: mount_info.source.into_boxed_path(),
                         fs_type: FilesystemType::Zfs,
                         link_type: LinkType::Local,
                     },
@@ -267,7 +267,7 @@ impl BaseFilesystemInfo {
                     Some(FilesystemType::Zfs) => Either::Left((
                         dest_path,
                         DatasetMetadata {
-                            source: PathBuf::from(mount_info.source),
+                            source: mount_info.source.into_boxed_path(),
                             fs_type: FilesystemType::Zfs,
                             link_type: LinkType::Network,
                         },
@@ -275,7 +275,7 @@ impl BaseFilesystemInfo {
                     Some(FilesystemType::Btrfs(None)) => Either::Left((
                         dest_path,
                         DatasetMetadata {
-                            source: PathBuf::from(mount_info.source),
+                            source: mount_info.source.into_boxed_path(),
                             fs_type: FilesystemType::Btrfs(None),
                             link_type: LinkType::Network,
                         },
@@ -306,7 +306,7 @@ impl BaseFilesystemInfo {
                     Either::Left((
                         dest_path,
                         DatasetMetadata {
-                            source: mount_info.source,
+                            source: mount_info.source.into_boxed_path(),
                             fs_type: FilesystemType::Btrfs(opt_additional_data),
                             link_type: LinkType::Local,
                         },
@@ -315,7 +315,7 @@ impl BaseFilesystemInfo {
                 NILFS2_FSTYPE => Either::Left((
                     Arc::from(dest_path),
                     DatasetMetadata {
-                        source: PathBuf::from(mount_info.source),
+                        source: mount_info.source.into_boxed_path(),
                         fs_type: FilesystemType::Nilfs2,
                         link_type: LinkType::Local,
                     },
@@ -334,7 +334,7 @@ impl BaseFilesystemInfo {
                     Either::Left((
                         Arc::from(canonical_path),
                         DatasetMetadata {
-                            source: mount_info.source,
+                            source: mount_info.source.into_boxed_path(),
                             fs_type: FilesystemType::Restic(None),
                             link_type: LinkType::Local,
                         },
@@ -402,7 +402,7 @@ impl BaseFilesystemInfo {
                 };
 
                 (
-                    PathBuf::from(filesystem),
+                    Box::from(Path::new(filesystem)),
                     Arc::from(Path::new(mount)),
                     link_type,
                 )
@@ -474,7 +474,7 @@ impl BaseFilesystemInfo {
                 let repos: Vec<PathBuf> = retained_keys;
 
                 DatasetMetadata {
-                    source: PathBuf::from(RESTIC_FSTYPE),
+                    source: Path::new(RESTIC_FSTYPE).into(),
                     fs_type: FilesystemType::Restic(Some(Box::new(ResticAdditionalData { repos }))),
                     link_type: LinkType::Local,
                 }
@@ -495,7 +495,7 @@ impl BaseFilesystemInfo {
                 }
 
                 DatasetMetadata {
-                    source: PathBuf::from("timemachine"),
+                    source: Path::new("timemachine").into(),
                     fs_type: FilesystemType::Apfs,
                     link_type: LinkType::Local,
                 }

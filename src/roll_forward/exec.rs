@@ -50,11 +50,13 @@ impl RollForward {
             return Err(HttmError::new(&msg).into());
         };
 
+        let dataset_path = Path::new(&dataset);
+
         let proximate_dataset_mount = GLOBAL_CONFIG
             .dataset_collection
             .map_of_datasets
             .iter()
-            .find(|(_mount, md)| md.source == PathBuf::from(&dataset))
+            .find(|(_mount, md)| md.source.as_ref() == dataset_path)
             .map(|(mount, _)| mount.clone())
             .ok_or_else(|| HttmError::new("Could not determine proximate dataset mount"))?;
 

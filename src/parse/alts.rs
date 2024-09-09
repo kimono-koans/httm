@@ -81,7 +81,7 @@ impl MapOfAlts {
         // replicated to tank/rpool
         let mut alt_replicated_mounts: Vec<PathBuf> = map_of_datasets
             .par_iter()
-            .map(|(mount, dataset_info)| (mount, Path::new(&dataset_info.source)))
+            .map(|(mount, dataset_info)| (mount, &dataset_info.source))
             .filter(|(_mount, source)| source.as_os_str() != fs_name && source.ends_with(fs_name))
             .map(|(mount, _source)| mount.to_path_buf())
             .collect();

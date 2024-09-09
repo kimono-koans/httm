@@ -255,7 +255,7 @@ impl MapOfSnaps {
 
                 map_of_datasets.iter().find_map(|(mount, metadata)| {
                     // if the datasets do not match then can't be the same btrfs subvol
-                    if metadata.source != base_mount_source {
+                    if metadata.source.as_ref() != base_mount_source {
                         return None;
                     }
 
@@ -302,7 +302,7 @@ impl MapOfSnaps {
                     .iter()
                     .find(|(_mount, metadata)| match &metadata.fs_type {
                         FilesystemType::Btrfs(Some(additional_data)) => {
-                            metadata.source == base_mount_source
+                            metadata.source.as_ref() == base_mount_source
                                 && additional_data.base_subvol == BTRFS_ROOT_SUBVOL.as_path()
                         }
                         _ => false,
@@ -406,7 +406,7 @@ impl MapOfSnaps {
                     res
                 }
                 FilesystemType::Nilfs2 => {
-                    let source_path = Path::new(&dataset_metadata.source);
+                    let source_path = dataset_metadata.source.as_ref();
 
                     let mount_iter = MountIter::new_from_file(&*PROC_MOUNTS)?;
 
