@@ -21,10 +21,11 @@ use rayon::prelude::*;
 use std::collections::BTreeMap;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MapOfAlts {
-    inner: BTreeMap<PathBuf, AltMetadata>,
+    inner: BTreeMap<Arc<Path>, AltMetadata>,
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
@@ -33,14 +34,14 @@ pub struct AltMetadata {
     pub opt_datasets_of_interest: Option<Vec<PathBuf>>,
 }
 
-impl From<BTreeMap<PathBuf, AltMetadata>> for MapOfAlts {
-    fn from(map: BTreeMap<PathBuf, AltMetadata>) -> Self {
+impl From<BTreeMap<Arc<Path>, AltMetadata>> for MapOfAlts {
+    fn from(map: BTreeMap<Arc<Path>, AltMetadata>) -> Self {
         Self { inner: map }
     }
 }
 
 impl Deref for MapOfAlts {
-    type Target = BTreeMap<PathBuf, AltMetadata>;
+    type Target = BTreeMap<Arc<Path>, AltMetadata>;
 
     fn deref(&self) -> &Self::Target {
         &self.inner
@@ -50,10 +51,11 @@ impl Deref for MapOfAlts {
 impl MapOfAlts {
     // instead of looking up, precompute possible alt replicated mounts before exec
     pub fn new(map_of_datasets: &MapOfDatasets) -> Self {
-        let res: BTreeMap<PathBuf, AltMetadata> = map_of_datasets
+        let res: BTreeMap<Arc<Path>, AltMetadata> = map_of_datasets
             .par_iter()
             .flat_map(|(mount, _dataset_info)| {
-                Self::from_mount(mount, map_of_datasets).map(|datasets| (mount.clone(), datasets))
+                Self::from_mount(mount, map_of_datasets)
+                    .map(|datasets| (Arc::from(mount.as_ref()), datasets))
             })
             .collect();
 
@@ -64,8 +66,11 @@ impl MapOfAlts {
         proximate_dataset_mount: &Path,
         map_of_datasets: &MapOfDatasets,
     ) -> HttmResult<AltMetadata> {
-        let proximate_dataset_fs_name = match &map_of_datasets.get(proximate_dataset_mount) {
-            Some(dataset_info) => dataset_info.source.as_os_str(),
+        let fs_name = match map_of_datasets
+            .get(proximate_dataset_mount)
+            .map(|p| p.source.as_os_str())
+        {
+            Some(name) => name,
             None => {
                 return Err(HttmError::new("httm was unable to detect an alternate replicated mount point.  Perhaps the replicated filesystem is not mounted?").into());
             }
@@ -77,12 +82,8 @@ impl MapOfAlts {
         let mut alt_replicated_mounts: Vec<PathBuf> = map_of_datasets
             .par_iter()
             .map(|(mount, dataset_info)| (mount, Path::new(&dataset_info.source)))
-            .filter(|(_mount, source)| {
-                source.as_os_str() != proximate_dataset_fs_name
-                    && source.ends_with(proximate_dataset_fs_name)
-            })
-            .map(|(mount, _source)| mount)
-            .cloned()
+            .filter(|(_mount, source)| source.as_os_str() != fs_name && source.ends_with(fs_name))
+            .map(|(mount, _source)| mount.to_path_buf())
             .collect();
 
         if alt_replicated_mounts.is_empty() {

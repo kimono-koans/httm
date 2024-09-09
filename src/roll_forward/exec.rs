@@ -32,12 +32,13 @@ use std::fs::read_dir;
 use std::io::{BufRead, Read};
 use std::path::{Path, PathBuf};
 use std::process::{ChildStderr, ChildStdout};
+use std::sync::Arc;
 
 pub struct RollForward {
     dataset: String,
     snap: String,
     progress_bar: ProgressBar,
-    pub proximate_dataset_mount: PathBuf,
+    pub proximate_dataset_mount: Arc<Path>,
 }
 
 impl RollForward {
@@ -54,7 +55,7 @@ impl RollForward {
             .map_of_datasets
             .iter()
             .find(|(_mount, md)| md.source == PathBuf::from(&dataset))
-            .map(|(mount, _)| mount.to_owned())
+            .map(|(mount, _)| mount.clone())
             .ok_or_else(|| HttmError::new("Could not determine proximate dataset mount"))?;
 
         let progress_bar: ProgressBar = indicatif::ProgressBar::new_spinner();
@@ -279,7 +280,7 @@ impl RollForward {
             .and_then(|path| path.strip_prefix(ZFS_SNAPSHOT_DIRECTORY).ok())
             .and_then(|path| path.strip_prefix(&self.snap).ok())
             .map(|relative_path| {
-                [self.proximate_dataset_mount.as_path(), relative_path]
+                [self.proximate_dataset_mount.as_ref(), relative_path]
                     .into_iter()
                     .collect()
             })
@@ -343,7 +344,7 @@ impl RollForward {
             .ok()
             .map(|relative_path| {
                 let snap_file_path: PathBuf = [
-                    self.proximate_dataset_mount.as_path(),
+                    self.proximate_dataset_mount.as_ref(),
                     Path::new(ZFS_SNAPSHOT_DIRECTORY),
                     Path::new(&self.snap),
                     relative_path,
@@ -401,7 +402,7 @@ impl RollForward {
 
     pub fn snap_dataset(&self) -> PathBuf {
         [
-            self.proximate_dataset_mount.as_path(),
+            self.proximate_dataset_mount.as_ref(),
             Path::new(ZFS_SNAPSHOT_DIRECTORY),
             Path::new(&self.snap),
         ]

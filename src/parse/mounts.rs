@@ -38,7 +38,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::process::Command as ExecProcess;
-use std::sync::{LazyLock, OnceLock};
+use std::sync::{Arc, LazyLock, OnceLock};
 
 pub const ZFS_FSTYPE: &str = "zfs";
 pub const NILFS2_FSTYPE: &str = "nilfs2";
@@ -104,11 +104,11 @@ pub struct DatasetMetadata {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FilterDirs {
-    inner: BTreeSet<PathBuf>,
+    inner: BTreeSet<Arc<Path>>,
 }
 
 impl Deref for FilterDirs {
-    type Target = BTreeSet<PathBuf>;
+    type Target = BTreeSet<Arc<Path>>;
 
     fn deref(&self) -> &Self::Target {
         &self.inner
@@ -117,7 +117,7 @@ impl Deref for FilterDirs {
 
 impl FilterDirs {
     pub fn is_filter_dir(&self, path: &Path) -> bool {
-        self.iter().any(|filter_dir| path == filter_dir)
+        self.iter().any(|filter_dir| path == filter_dir.as_ref())
     }
 }
 
@@ -153,11 +153,11 @@ impl MaxLen for FilterDirs {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MapOfDatasets {
-    inner: BTreeMap<PathBuf, DatasetMetadata>,
+    inner: BTreeMap<Arc<Path>, DatasetMetadata>,
 }
 
 impl Deref for MapOfDatasets {
-    type Target = BTreeMap<PathBuf, DatasetMetadata>;
+    type Target = BTreeMap<Arc<Path>, DatasetMetadata>;
 
     fn deref(&self) -> &Self::Target {
         &self.inner
@@ -275,12 +275,12 @@ impl BaseFilesystemInfo {
     fn from_file(
         path: &Path,
         opt_alt_store: &Option<FilesystemType>,
-    ) -> HttmResult<(BTreeMap<PathBuf, DatasetMetadata>, BTreeSet<PathBuf>)> {
+    ) -> HttmResult<(BTreeMap<Arc<Path>, DatasetMetadata>, BTreeSet<Arc<Path>>)> {
         let mount_iter = MountIter::new_from_file(path)?;
 
         let (map_of_datasets, filter_dirs): (
-            BTreeMap<PathBuf, DatasetMetadata>,
-            BTreeSet<PathBuf>,
+            BTreeMap<Arc<Path>, DatasetMetadata>,
+            BTreeSet<Arc<Path>>,
         ) = mount_iter
             .par_bridge()
             .flatten()
@@ -302,7 +302,7 @@ impl BaseFilesystemInfo {
             })
             .partition_map(|(mount_info, dest_path)| match mount_info.fstype.as_str() {
                 ZFS_FSTYPE => Either::Left((
-                    dest_path,
+                    Arc::from(dest_path),
                     DatasetMetadata {
                         source: PathBuf::from(mount_info.source),
                         fs_type: FilesystemType::Zfs,
@@ -311,7 +311,7 @@ impl BaseFilesystemInfo {
                 )),
                 SMB_FSTYPE | AFP_FSTYPE | NFS_FSTYPE => match FilesystemType::new(&dest_path) {
                     Some(FilesystemType::Zfs) => Either::Left((
-                        dest_path,
+                        Arc::from(dest_path),
                         DatasetMetadata {
                             source: PathBuf::from(mount_info.source),
                             fs_type: FilesystemType::Zfs,
@@ -319,14 +319,14 @@ impl BaseFilesystemInfo {
                         },
                     )),
                     Some(FilesystemType::Btrfs(None)) => Either::Left((
-                        dest_path,
+                        Arc::from(dest_path),
                         DatasetMetadata {
                             source: PathBuf::from(mount_info.source),
                             fs_type: FilesystemType::Btrfs(None),
                             link_type: LinkType::Network,
                         },
                     )),
-                    _ => Either::Right(dest_path),
+                    _ => Either::Right(Arc::from(dest_path)),
                 },
                 BTRFS_FSTYPE => {
                     let keyed_options: BTreeMap<&str, &str> = mount_info
@@ -350,7 +350,7 @@ impl BaseFilesystemInfo {
                         });
 
                     Either::Left((
-                        dest_path,
+                        Arc::from(dest_path),
                         DatasetMetadata {
                             source: mount_info.source,
                             fs_type: FilesystemType::Btrfs(opt_additional_data),
@@ -359,7 +359,7 @@ impl BaseFilesystemInfo {
                     ))
                 }
                 NILFS2_FSTYPE => Either::Left((
-                    dest_path,
+                    Arc::from(dest_path),
                     DatasetMetadata {
                         source: PathBuf::from(mount_info.source),
                         fs_type: FilesystemType::Nilfs2,
@@ -378,7 +378,7 @@ impl BaseFilesystemInfo {
                             .unwrap_or_else(|_| base_path.to_path_buf());
 
                     Either::Left((
-                        canonical_path,
+                        Arc::from(canonical_path),
                         DatasetMetadata {
                             source: mount_info.source,
                             fs_type: FilesystemType::Restic(None),
@@ -386,7 +386,7 @@ impl BaseFilesystemInfo {
                         },
                     ))
                 }
-                _ => Either::Right(dest_path),
+                _ => Either::Right(Arc::from(dest_path)),
             });
 
         Ok((map_of_datasets, filter_dirs))
@@ -396,7 +396,7 @@ impl BaseFilesystemInfo {
     // both methods are much faster than using zfs command
     fn from_mount_cmd(
         opt_alt_store: &Option<FilesystemType>,
-    ) -> HttmResult<(BTreeMap<PathBuf, DatasetMetadata>, BTreeSet<PathBuf>)> {
+    ) -> HttmResult<(BTreeMap<Arc<Path>, DatasetMetadata>, BTreeSet<Arc<Path>>)> {
         // do we have the necessary commands for search if user has not defined a snap point?
         // if so run the mount search, if not print some errors
         let mount_command = get_mount_command()?;
@@ -413,8 +413,8 @@ impl BaseFilesystemInfo {
 
         // parse "mount" for filesystems and mountpoints
         let (map_of_datasets, filter_dirs): (
-            BTreeMap<PathBuf, DatasetMetadata>,
-            BTreeSet<PathBuf>,
+            BTreeMap<Arc<Path>, DatasetMetadata>,
+            BTreeSet<Arc<Path>>,
         ) = stdout_string
             .par_lines()
             // but exclude snapshot mounts.  we want the raw filesystem names.
@@ -454,7 +454,7 @@ impl BaseFilesystemInfo {
             .partition_map(
                 |(source, mount, link_type)| match FilesystemType::new(&mount) {
                     Some(FilesystemType::Zfs) => Either::Left((
-                        mount,
+                        Arc::from(mount),
                         DatasetMetadata {
                             source,
                             fs_type: FilesystemType::Zfs,
@@ -462,7 +462,7 @@ impl BaseFilesystemInfo {
                         },
                     )),
                     Some(FilesystemType::Btrfs(_)) => Either::Left((
-                        mount,
+                        Arc::from(mount),
                         DatasetMetadata {
                             source,
                             fs_type: FilesystemType::Btrfs(None),
@@ -481,7 +481,7 @@ impl BaseFilesystemInfo {
                                 .unwrap_or_else(|_| base_path.to_path_buf());
 
                         Either::Left((
-                            canonical_path,
+                            Arc::from(canonical_path),
                             DatasetMetadata {
                                 source,
                                 fs_type: FilesystemType::Restic(None),
@@ -489,7 +489,7 @@ impl BaseFilesystemInfo {
                             },
                         ))
                     }
-                    _ => Either::Right(mount),
+                    _ => Either::Right(Arc::from(mount)),
                 },
             );
 
@@ -497,7 +497,7 @@ impl BaseFilesystemInfo {
     }
 
     pub fn from_blob_repo(
-        map_of_datasets: &mut BTreeMap<PathBuf, DatasetMetadata>,
+        map_of_datasets: &mut BTreeMap<Arc<Path>, DatasetMetadata>,
         repo_type: &FilesystemType,
     ) -> HttmResult<()> {
         map_of_datasets.retain(|_k, v| &v.fs_type == repo_type);
@@ -511,7 +511,7 @@ impl BaseFilesystemInfo {
                     .into());
                 }
 
-                let repos: Vec<PathBuf> = map_of_datasets.keys().cloned().collect();
+                let repos: Vec<PathBuf> = map_of_datasets.keys().map(|k| k.to_path_buf()).collect();
 
                 DatasetMetadata {
                     source: PathBuf::from(RESTIC_FSTYPE),
@@ -550,7 +550,7 @@ impl BaseFilesystemInfo {
 
         let mut new = BTreeMap::new();
 
-        new.insert(ROOT_PATH.clone(), metadata);
+        new.insert(Arc::from(ROOT_PATH.as_ref()), metadata);
 
         *map_of_datasets = new;
 

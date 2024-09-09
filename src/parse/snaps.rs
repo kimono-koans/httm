@@ -34,21 +34,21 @@ use std::fs::read_dir;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::process::Command as ExecProcess;
-use std::sync::Once;
+use std::sync::{Arc, Once};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MapOfSnaps {
-    inner: BTreeMap<PathBuf, Vec<PathBuf>>,
+    inner: BTreeMap<Arc<Path>, Vec<PathBuf>>,
 }
 
-impl From<BTreeMap<PathBuf, Vec<PathBuf>>> for MapOfSnaps {
-    fn from(map: BTreeMap<PathBuf, Vec<PathBuf>>) -> Self {
+impl From<BTreeMap<Arc<Path>, Vec<PathBuf>>> for MapOfSnaps {
+    fn from(map: BTreeMap<Arc<Path>, Vec<PathBuf>>) -> Self {
         Self { inner: map }
     }
 }
 
 impl Deref for MapOfSnaps {
-    type Target = BTreeMap<PathBuf, Vec<PathBuf>>;
+    type Target = BTreeMap<Arc<Path>, Vec<PathBuf>>;
 
     fn deref(&self) -> &Self::Target {
         &self.inner
@@ -58,10 +58,10 @@ impl Deref for MapOfSnaps {
 impl MapOfSnaps {
     // fans out precompute of snap mounts to the appropriate function based on fstype
     pub fn new(
-        map_of_datasets: &BTreeMap<PathBuf, DatasetMetadata>,
+        map_of_datasets: &BTreeMap<Arc<Path>, DatasetMetadata>,
         opt_debug: bool,
     ) -> HttmResult<Self> {
-        let map_of_snaps: BTreeMap<PathBuf, Vec<PathBuf>> = map_of_datasets
+        let map_of_snaps: BTreeMap<Arc<Path>, Vec<PathBuf>> = map_of_datasets
             .par_iter()
             .map(|(mount, dataset_info)| {      
                 let snap_mounts: Vec<PathBuf> = match &dataset_info.fs_type {
@@ -114,7 +114,7 @@ impl MapOfSnaps {
         base_mount: &Path,
         base_mount_metadata: &DatasetMetadata,
         base_subvol: &Path,
-        map_of_datasets: &BTreeMap<PathBuf, DatasetMetadata>,
+        map_of_datasets: &BTreeMap<Arc<Path>, DatasetMetadata>,
         opt_debug: bool,
     ) -> BTreeMap<PathBuf, PathBuf> {
         const BTRFS_COMMAND_REQUIRES_ROOT: &str =
@@ -204,7 +204,7 @@ impl MapOfSnaps {
         base_mount_source: &Path,
         base_subvol: &Path,
         snap_relative: &Path,
-        map_of_datasets: &BTreeMap<PathBuf, DatasetMetadata>,
+        map_of_datasets: &BTreeMap<Arc<Path>, DatasetMetadata>,
         opt_debug: bool,
     ) -> Option<PathBuf> {
         let mut path_iter = snap_relative.components();
@@ -243,7 +243,7 @@ impl MapOfSnaps {
                             let subvol_name = additional_data.base_subvol.to_string_lossy();
 
                             if potential_dataset == subvol_name.trim_start_matches("/") {
-                                Some(mount.as_path())
+                                Some(mount.as_ref())
                             } else {
                                 None
                             }
@@ -287,7 +287,7 @@ impl MapOfSnaps {
                         _ => false,
                     })
                     .map(|(mount, _metadata)| mount.to_owned())
-                    .unwrap_or_else(|| PathBuf::from(ROOT_DIRECTORY));
+                    .unwrap_or_else(|| Arc::from(Path::new(ROOT_DIRECTORY)));
 
                 let snap_mount = btrfs_root.join(snap_relative);
 
