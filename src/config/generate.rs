@@ -668,8 +668,7 @@ impl Config {
 
         let pwd_clone = pwd.clone();
 
-        let fs_handle = std::thread::spawn(move || {
-            FilesystemInfo::new(
+        let dataset_collection = FilesystemInfo::new(
                 opt_alt_replicated,
                 opt_debug,
                 opt_remote_dir,
@@ -677,8 +676,7 @@ impl Config {
                 opt_map_aliases,
                 opt_alt_store,
                 pwd_clone,
-            )
-        });
+            )?;
 
         let opt_json = matches.get_flag("JSON");
 
@@ -953,10 +951,6 @@ impl Config {
                 HttmError::new("LAST_SNAP is not available in Display Recursive Mode.").into(),
             );
         }
-
-        let dataset_collection = fs_handle
-            .join()
-            .expect("Background thread collecting filesystem info has panicked")?;
 
         let config = Config {
             paths,
