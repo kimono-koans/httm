@@ -22,7 +22,6 @@ use crate::{
     BTRFS_SNAPPER_HIDDEN_DIRECTORY,
     BTRFS_SNAPPER_SUFFIX,
     RESTIC_SNAPSHOT_DIRECTORY,
-    ROOT_DIRECTORY,
     TM_DIR_LOCAL,
     TM_DIR_REMOTE,
     ZFS_SNAPSHOT_DIRECTORY,
@@ -35,6 +34,8 @@ use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::process::Command as ExecProcess;
 use std::sync::{Arc, Once};
+
+use super::mounts::ROOT_PATH;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MapOfSnaps {
@@ -287,7 +288,7 @@ impl MapOfSnaps {
                         _ => false,
                     })
                     .map(|(mount, _metadata)| mount.to_owned())
-                    .unwrap_or_else(|| Arc::from(Path::new(ROOT_DIRECTORY)));
+                    .unwrap_or_else(|| Arc::from(ROOT_PATH.as_ref()));
 
                 let snap_mount = btrfs_root.join(snap_relative);
 

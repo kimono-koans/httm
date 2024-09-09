@@ -21,8 +21,7 @@ use crate::data::paths::{PathData, PathDeconstruction, ZfsSnapPathGuard};
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{pwd, HttmIsDir};
 use crate::lookup::file_mounts::MountDisplay;
-use crate::parse::mounts::FilesystemType;
-use crate::ROOT_DIRECTORY;
+use crate::parse::mounts::{FilesystemType, ROOT_PATH};
 use clap::parser::ValuesRef;
 use clap::{crate_name, crate_version, Arg, ArgAction, ArgMatches};
 use indicatif::ProgressBar;
@@ -926,7 +925,7 @@ impl Config {
         // so we disable our bespoke "when to traverse symlinks" algo here, or if requested.
         let opt_no_traverse = matches.get_flag("NO_TRAVERSE") || {
             if let Some(user_requested_dir) = opt_requested_dir.as_ref() {
-                user_requested_dir.as_path() == Path::new(ROOT_DIRECTORY)
+                user_requested_dir.as_path() == ROOT_PATH.as_path()
             } else {
                 false
             }
