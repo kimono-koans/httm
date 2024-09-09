@@ -300,7 +300,7 @@ impl SharedRecursive {
 
         // is a common btrfs snapshot dir?
         if let Some(common_snap_dir) = &GLOBAL_CONFIG.dataset_collection.opt_common_snap_dir {
-            if path == *common_snap_dir {
+            if path == common_snap_dir.as_ref() {
                 return true;
             }
         }
