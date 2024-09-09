@@ -85,15 +85,6 @@ impl MapOfAliases {
             std::env::var_os("HTTM_LOCAL_DIR").map(|s| Box::from(Path::new(&s)))
         };
 
-        // user defined dir exists?: check that path contains the hidden snapshot directory
-        let snap_point = opt_snap_dir.map(|snap_dir| {
-            // local relative dir can be set at cmdline or as an env var,
-            // but defaults to current working directory if empty
-            let local_dir = opt_local_dir.unwrap_or_else(|| pwd.into());
-
-            (snap_dir, local_dir)
-        });
-
         let mut aliases_iter: Vec<(Box<Path>, Box<Path>)> = match alias_values {
             Some(input_aliases) => {
                 let res: Option<Vec<(Box<Path>, Box<Path>)>> = input_aliases
@@ -113,6 +104,15 @@ impl MapOfAliases {
             }
             None => Vec::new(),
         };
+
+        // user defined dir exists?: check that path contains the hidden snapshot directory
+        let snap_point = opt_snap_dir.map(|snap_dir| {
+            // local relative dir can be set at cmdline or as an env var,
+            // but defaults to current working directory if empty
+            let local_dir = opt_local_dir.unwrap_or_else(|| pwd.into());
+
+            (snap_dir, local_dir)
+        });
 
         if let Some(value) = snap_point {
             aliases_iter.push(value)
