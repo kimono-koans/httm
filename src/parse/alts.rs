@@ -20,7 +20,7 @@ use crate::parse::mounts::MapOfDatasets;
 use rayon::prelude::*;
 use std::collections::BTreeMap;
 use std::ops::Deref;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::Arc;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -30,8 +30,7 @@ pub struct MapOfAlts {
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct AltMetadata {
-    pub proximate_dataset_mount: PathBuf,
-    pub opt_datasets_of_interest: Option<Vec<PathBuf>>,
+    pub opt_datasets_of_interest: Option<Vec<Box<Path>>>,
 }
 
 impl From<BTreeMap<Arc<Path>, AltMetadata>> for MapOfAlts {
@@ -55,7 +54,8 @@ impl MapOfAlts {
             .par_iter()
             .flat_map(|(mount, _dataset_info)| {
                 Self::from_mount(mount, map_of_datasets)
-                    .map(|datasets| (Arc::from(mount.as_ref()), datasets))
+                    .ok()
+                    .map(|datasets| (mount.clone(), datasets))
             })
             .collect();
 
@@ -79,11 +79,11 @@ impl MapOfAlts {
         // find a filesystem that ends with our most local filesystem name
         // but which has a prefix, like a different pool name: rpool might be
         // replicated to tank/rpool
-        let mut alt_replicated_mounts: Vec<PathBuf> = map_of_datasets
+        let mut alt_replicated_mounts: Vec<Box<Path>> = map_of_datasets
             .par_iter()
-            .map(|(mount, dataset_info)| (mount, Path::new(&dataset_info.source)))
+            .map(|(mount, dataset_info)| (mount, &dataset_info.source))
             .filter(|(_mount, source)| source.as_os_str() != fs_name && source.ends_with(fs_name))
-            .map(|(mount, _source)| mount.to_path_buf())
+            .map(|(mount, _source)| mount.as_ref().into())
             .collect();
 
         if alt_replicated_mounts.is_empty() {
@@ -92,7 +92,6 @@ impl MapOfAlts {
         } else {
             alt_replicated_mounts.sort_unstable_by_key(|path| path.as_os_str().len());
             Ok(AltMetadata {
-                proximate_dataset_mount: proximate_dataset_mount.to_path_buf(),
                 opt_datasets_of_interest: Some(alt_replicated_mounts),
             })
         }

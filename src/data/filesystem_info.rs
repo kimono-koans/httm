@@ -27,7 +27,7 @@ use crate::parse::mounts::{
     TM_DIR_REMOTE_PATH,
 };
 use crate::parse::snaps::MapOfSnaps;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FilesystemInfo {
@@ -42,7 +42,7 @@ pub struct FilesystemInfo {
     // key: local dir, val: (remote dir, fstype)
     pub opt_map_of_aliases: Option<MapOfAliases>,
     // opt single dir to to be filtered re: btrfs common snap dir
-    pub opt_common_snap_dir: Option<PathBuf>,
+    pub opt_common_snap_dir: Option<Box<Path>>,
     // opt possible opt store type
     pub opt_alt_store: Option<FilesystemType>,
 }
@@ -60,8 +60,13 @@ impl FilesystemInfo {
         let mut base_fs_info = BaseFilesystemInfo::new(opt_debug, &opt_alt_store)?;
 
         // only create a map of aliases if necessary (aliases conflicts with alt stores)
-        let opt_map_of_aliases =
-            MapOfAliases::new(opt_raw_aliases, opt_remote_dir, opt_local_dir, &pwd)?;
+        let opt_map_of_aliases = MapOfAliases::new(
+            &base_fs_info.map_of_datasets,
+            opt_raw_aliases,
+            opt_remote_dir,
+            opt_local_dir,
+            &pwd,
+        )?;
 
         // prep any blob repos
         let mut opt_alt_store = opt_alt_store;

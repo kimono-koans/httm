@@ -223,7 +223,7 @@ impl<'a> PathDeconstruction<'a> for PathData {
             .dataset_collection
             .map_of_datasets
             .get(mount)
-            .map(|md| md.source.clone())
+            .map(|md| md.source.to_path_buf())
     }
 
     #[inline(always)]

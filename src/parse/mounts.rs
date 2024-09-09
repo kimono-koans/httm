@@ -54,13 +54,13 @@ pub enum LinkType {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BtrfsAdditionalData {
-    pub base_subvol: PathBuf,
-    pub snap_names: OnceLock<BTreeMap<PathBuf, PathBuf>>,
+    pub base_subvol: Box<Path>,
+    pub snap_names: OnceLock<BTreeMap<Box<Path>, Box<Path>>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ResticAdditionalData {
-    pub repos: Vec<PathBuf>,
+    pub repos: Vec<Box<Path>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -95,7 +95,7 @@ impl FilesystemType {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DatasetMetadata {
-    pub source: PathBuf,
+    pub source: Box<Path>,
     pub fs_type: FilesystemType,
     pub link_type: LinkType,
 }
@@ -258,7 +258,7 @@ impl BaseFilesystemInfo {
                 ZFS_FSTYPE => Either::Left((
                     dest_path,
                     DatasetMetadata {
-                        source: PathBuf::from(mount_info.source),
+                        source: mount_info.source.into_boxed_path(),
                         fs_type: FilesystemType::Zfs,
                         link_type: LinkType::Local,
                     },
@@ -267,7 +267,7 @@ impl BaseFilesystemInfo {
                     Some(FilesystemType::Zfs) => Either::Left((
                         dest_path,
                         DatasetMetadata {
-                            source: PathBuf::from(mount_info.source),
+                            source: mount_info.source.into_boxed_path(),
                             fs_type: FilesystemType::Zfs,
                             link_type: LinkType::Network,
                         },
@@ -275,7 +275,7 @@ impl BaseFilesystemInfo {
                     Some(FilesystemType::Btrfs(None)) => Either::Left((
                         dest_path,
                         DatasetMetadata {
-                            source: PathBuf::from(mount_info.source),
+                            source: mount_info.source.into_boxed_path(),
                             fs_type: FilesystemType::Btrfs(None),
                             link_type: LinkType::Network,
                         },
@@ -293,12 +293,12 @@ impl BaseFilesystemInfo {
                     let opt_additional_data = keyed_options
                         .get("subvol")
                         .map(|subvol| match keyed_options.get("subvolid") {
-                            Some(id) if *id == "5" => BTRFS_ROOT_SUBVOL.clone(),
-                            _ => PathBuf::from(subvol),
+                            Some(id) if *id == "5" => BTRFS_ROOT_SUBVOL.as_path(),
+                            _ => Path::new(subvol),
                         })
                         .map(|base_subvol| {
                             Box::new(BtrfsAdditionalData {
-                                base_subvol,
+                                base_subvol: base_subvol.into(),
                                 snap_names: OnceLock::new(),
                             })
                         });
@@ -306,7 +306,7 @@ impl BaseFilesystemInfo {
                     Either::Left((
                         dest_path,
                         DatasetMetadata {
-                            source: mount_info.source,
+                            source: mount_info.source.into_boxed_path(),
                             fs_type: FilesystemType::Btrfs(opt_additional_data),
                             link_type: LinkType::Local,
                         },
@@ -315,7 +315,7 @@ impl BaseFilesystemInfo {
                 NILFS2_FSTYPE => Either::Left((
                     Arc::from(dest_path),
                     DatasetMetadata {
-                        source: PathBuf::from(mount_info.source),
+                        source: mount_info.source.into_boxed_path(),
                         fs_type: FilesystemType::Nilfs2,
                         link_type: LinkType::Local,
                     },
@@ -334,7 +334,7 @@ impl BaseFilesystemInfo {
                     Either::Left((
                         Arc::from(canonical_path),
                         DatasetMetadata {
-                            source: mount_info.source,
+                            source: mount_info.source.into_boxed_path(),
                             fs_type: FilesystemType::Restic(None),
                             link_type: LinkType::Local,
                         },
@@ -402,7 +402,7 @@ impl BaseFilesystemInfo {
                 };
 
                 (
-                    PathBuf::from(filesystem),
+                    Box::from(Path::new(filesystem)),
                     Arc::from(Path::new(mount)),
                     link_type,
                 )
@@ -455,11 +455,11 @@ impl BaseFilesystemInfo {
     }
 
     pub fn from_blob_repo(&mut self, repo_type: &FilesystemType) -> HttmResult<()> {
-        let retained_keys: Vec<PathBuf> = self
+        let retained_keys: Vec<Box<Path>> = self
             .map_of_datasets
             .iter()
             .filter(|(_k, v)| &v.fs_type == repo_type)
-            .map(|(k, _v)| k.to_path_buf())
+            .map(|(k, _v)| k.as_ref().into())
             .collect();
 
         let metadata = match repo_type {
@@ -471,10 +471,10 @@ impl BaseFilesystemInfo {
                     .into());
                 }
 
-                let repos: Vec<PathBuf> = retained_keys;
+                let repos: Vec<Box<Path>> = retained_keys;
 
                 DatasetMetadata {
-                    source: PathBuf::from(RESTIC_FSTYPE),
+                    source: Path::new(RESTIC_FSTYPE).into(),
                     fs_type: FilesystemType::Restic(Some(Box::new(ResticAdditionalData { repos }))),
                     link_type: LinkType::Local,
                 }
@@ -495,7 +495,7 @@ impl BaseFilesystemInfo {
                 }
 
                 DatasetMetadata {
-                    source: PathBuf::from("timemachine"),
+                    source: Path::new("timemachine").into(),
                     fs_type: FilesystemType::Apfs,
                     link_type: LinkType::Local,
                 }
@@ -519,7 +519,7 @@ impl BaseFilesystemInfo {
 
     // if we have some btrfs mounts, we check to see if there is a snap directory in common
     // so we can hide that common path from searches later
-    pub fn common_snap_dir(&self) -> Option<PathBuf> {
+    pub fn common_snap_dir(&self) -> Option<Box<Path>> {
         let map_of_datasets: &MapOfDatasets = &self.map_of_datasets;
         let map_of_snaps: &MapOfSnaps = &self.map_of_snaps;
 
@@ -527,7 +527,7 @@ impl BaseFilesystemInfo {
             .par_iter()
             .any(|(_mount, dataset_info)| !matches!(dataset_info.fs_type, FilesystemType::Zfs))
         {
-            let vec_snaps: Vec<&PathBuf> = map_of_datasets
+            let vec_snaps: Vec<&Box<Path>> = map_of_datasets
                 .par_iter()
                 .filter(|(_mount, dataset_info)| {
                     if matches!(dataset_info.fs_type, FilesystemType::Btrfs(_)) {

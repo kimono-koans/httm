@@ -84,7 +84,7 @@ pub fn make_tmp_path(path: &Path) -> PathBuf {
     PathBuf::from(res)
 }
 
-pub fn find_common_path<I, P>(paths: I) -> Option<PathBuf>
+pub fn find_common_path<I, P>(paths: I) -> Option<Box<Path>>
 where
     I: IntoIterator<Item = P>,
     P: AsRef<Path>,
@@ -92,7 +92,9 @@ where
     let mut path_iter = paths.into_iter();
     let initial_value = path_iter.next()?.as_ref().to_path_buf();
 
-    path_iter.try_fold(initial_value, |acc, path| cmp_path(acc, path))
+    path_iter
+        .try_fold(initial_value, |acc, path| cmp_path(acc, path))
+        .map(|res| res.into_boxed_path())
 }
 
 fn cmp_path<A: AsRef<Path>, B: AsRef<Path>>(a: A, b: B) -> Option<PathBuf> {
