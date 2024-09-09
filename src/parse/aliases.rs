@@ -24,7 +24,7 @@ use std::sync::Arc;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RemotePathAndFsType {
-    pub remote_dir: PathBuf,
+    pub remote_dir: Box<Path>,
     pub fs_type: FilesystemType,
 }
 
@@ -80,10 +80,11 @@ impl MapOfAliases {
         };
 
         if opt_snap_dir.is_some() || alias_values.is_some() {
-            let env_local_dir = std::env::var_os("HTTM_LOCAL_DIR").map(|s| PathBuf::from(s));
+            let env_local_dir: Option<Box<Path>> =
+                std::env::var_os("HTTM_LOCAL_DIR").map(|s| Box::from(Path::new(&s)));
 
-            let opt_local_dir = if let Some(value) = opt_local_dir {
-                Some(PathBuf::from(value))
+            let opt_local_dir: Option<Box<Path>> = if let Some(value) = opt_local_dir {
+                Some(Box::from(Path::new(&value)))
             } else {
                 env_local_dir
             };
@@ -92,19 +93,19 @@ impl MapOfAliases {
             let snap_point = opt_snap_dir.map(|snap_dir| {
                 // local relative dir can be set at cmdline or as an env var,
                 // but defaults to current working directory if empty
-                let local_dir = opt_local_dir.unwrap_or_else(|| pwd.to_path_buf());
+                let local_dir = opt_local_dir.unwrap_or_else(|| pwd.into());
 
-                (snap_dir, local_dir)
+                (snap_dir.into_boxed_path(), local_dir)
             });
 
-            let mut aliases_iter: Vec<(PathBuf, PathBuf)> = match alias_values {
+            let mut aliases_iter: Vec<(Box<Path>, Box<Path>)> = match alias_values {
                 Some(input_aliases) => {
-                    let res: Option<Vec<(PathBuf, PathBuf)>> = input_aliases
+                    let res: Option<Vec<(Box<Path>, Box<Path>)>> = input_aliases
                         .iter()
                         .map(|alias| {
-                            alias
-                                .split_once(':')
-                                .map(|(first, rest)| (PathBuf::from(first), PathBuf::from(rest)))
+                            alias.split_once(':').map(|(first, rest)| {
+                                (Path::new(first).into(), Path::new(rest).into())
+                            })
                         })
                         .collect();
 
@@ -125,7 +126,7 @@ impl MapOfAliases {
                 .into_iter()
                 .filter_map(|(local_dir, snap_dir)| {
                     match map_of_datasets
-                        .get_key_value(local_dir.as_path())
+                        .get_key_value(local_dir.as_ref())
                         .map(|(k, _v)| (k.clone(), snap_dir)) {
                             Some((k, snap_dir)) => {
                                 if !snap_dir.exists() {
