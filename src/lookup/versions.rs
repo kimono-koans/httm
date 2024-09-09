@@ -197,7 +197,7 @@ pub struct ProximateDatasetAndOptAlts<'a> {
     pub pathdata: &'a PathData,
     pub proximate_dataset: &'a Path,
     pub relative_path: &'a Path,
-    pub opt_alts: Option<&'a Vec<PathBuf>>,
+    pub opt_alts: Option<&'a Vec<Box<Path>>>,
 }
 
 impl<'a> Ord for ProximateDatasetAndOptAlts<'a> {
@@ -260,7 +260,7 @@ impl<'a> ProximateDatasetAndOptAlts<'a> {
     }
     #[inline(always)]
     pub fn datasets_of_interest(&'a self) -> impl Iterator<Item = &'a Path> {
-        let alts = self.opt_alts.into_iter().flatten().map(PathBuf::as_path);
+        let alts = self.opt_alts.into_iter().flatten().map(|p| p.as_ref());
 
         let base = Some(self.proximate_dataset).into_iter();
 
