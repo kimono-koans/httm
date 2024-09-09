@@ -51,8 +51,8 @@ impl FilesystemInfo {
     pub fn new(
         opt_alt_replicated: bool,
         opt_debug: bool,
-        opt_remote_dir: Option<String>,
-        opt_local_dir: Option<String>,
+        opt_remote_dir: Option<&String>,
+        opt_local_dir: Option<&String>,
         opt_raw_aliases: Option<Vec<String>>,
         opt_alt_store: Option<FilesystemType>,
         pwd: PathBuf,

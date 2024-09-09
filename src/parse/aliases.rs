@@ -51,8 +51,8 @@ impl MapOfAliases {
     pub fn new(
         map_of_datasets: &BTreeMap<Arc<Path>, DatasetMetadata>,
         opt_raw_aliases: Option<Vec<String>>,
-        opt_remote_dir: Option<String>,
-        opt_local_dir: Option<String>,
+        opt_remote_dir: Option<&String>,
+        opt_local_dir: Option<&String>,
         pwd: &Path,
     ) -> HttmResult<Option<MapOfAliases>> {
         let alias_values: Option<Vec<String>> = match std::env::var_os("HTTM_MAP_ALIASES") {

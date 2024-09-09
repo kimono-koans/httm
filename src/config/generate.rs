@@ -663,10 +663,8 @@ impl Config {
         }
 
         let opt_alt_replicated = matches.get_flag("ALT_REPLICATED");
-        let opt_remote_dir = matches.get_one::<String>("REMOTE_DIR").cloned();
-        let opt_local_dir = matches.get_one::<String>("LOCAL_DIR").cloned();
-
-        let pwd_clone = pwd.clone();
+        let opt_remote_dir = matches.get_one::<String>("REMOTE_DIR");
+        let opt_local_dir = matches.get_one::<String>("LOCAL_DIR");
 
         let dataset_collection = FilesystemInfo::new(
                 opt_alt_replicated,
@@ -675,7 +673,7 @@ impl Config {
                 opt_local_dir,
                 opt_map_aliases,
                 opt_alt_store,
-                pwd_clone,
+                pwd.clone(),
             )?;
 
         let opt_json = matches.get_flag("JSON");
