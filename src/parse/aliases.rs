@@ -75,9 +75,6 @@ impl MapOfAliases {
             std::env::var_os("HTTM_SNAP_POINT").map(|s| Box::from(Path::new(&s)))
         };
 
-        let env_local_dir: Option<Box<Path>> =
-            std::env::var_os("HTTM_LOCAL_DIR").map(|s| Box::from(Path::new(&s)));
-
         if alias_values.is_none() && opt_snap_dir.is_none() {
             return Ok(None);
         }
@@ -85,7 +82,7 @@ impl MapOfAliases {
         let opt_local_dir: Option<Box<Path>> = if let Some(value) = opt_local_dir {
             Some(Box::from(Path::new(&value)))
         } else {
-            env_local_dir
+            std::env::var_os("HTTM_LOCAL_DIR").map(|s| Box::from(Path::new(&s)))
         };
 
         // user defined dir exists?: check that path contains the hidden snapshot directory
@@ -125,20 +122,25 @@ impl MapOfAliases {
             .into_iter()
             .filter_map(|(local_dir, snap_dir)| {
                 match map_of_datasets
-                    .get_key_value(snap_dir.as_ref()).map(|(k, _v)| k.clone()) {
-                        Some(snap_dir) => {
-                            if !snap_dir.exists() {
-                                eprintln!("WARN: An alias path specified does not exist, or is not mounted: {:?}", snap_dir);
-                                return None
-                            }
-
-                            Some((local_dir, snap_dir))
-                        }
-                        None => {
-                            eprintln!("WARN: An alias path specified does not exist, or is not mounted: {:?}", local_dir);
-                            None
-                        }
+                    .get_key_value(snap_dir.as_ref())
+                    .map(|(k, _v)| k.clone())
+                {
+                    Some(_snap_dir) if !local_dir.exists() => {
+                        eprintln!(
+                            "WARN: An alias path specified does not exist, or is not mounted: {:?}",
+                            local_dir
+                        );
+                        return None;
                     }
+                    Some(snap_dir) => Some((local_dir, snap_dir)),
+                    None => {
+                        eprintln!(
+                            "WARN: An alias path specified does not exist, or is not mounted: {:?}",
+                            snap_dir
+                        );
+                        None
+                    }
+                }
             })
             .filter_map(|(local_dir, remote_dir)| {
                 FilesystemType::new(&remote_dir).map(|fs_type| {
