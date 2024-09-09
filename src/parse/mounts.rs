@@ -454,16 +454,20 @@ impl BaseFilesystemInfo {
         Ok((map_of_datasets, filter_dirs))
     }
 
-    pub fn from_blob_repo(&mut self, repo_type: &FilesystemType) -> HttmResult<()> {
-        let retained_keys: Vec<Box<Path>> = self
-            .map_of_datasets
-            .iter()
-            .filter(|(_k, v)| &v.fs_type == repo_type)
-            .map(|(k, _v)| k.as_ref().into())
-            .collect();
-
+    pub fn from_blob_repo(
+        &mut self,
+        repo_type: &FilesystemType,
+        opt_debug: bool,
+    ) -> HttmResult<()> {
         let metadata = match repo_type {
             FilesystemType::Restic(_) => {
+                let retained_keys: Vec<Box<Path>> = self
+                    .map_of_datasets
+                    .iter()
+                    .filter(|(_k, v)| &v.fs_type == repo_type)
+                    .map(|(k, _v)| k.as_ref().into())
+                    .collect();
+
                 if retained_keys.is_empty() {
                     return Err(HttmError::new(
                         "No supported Restic datasets were found on the system.",
@@ -508,13 +512,17 @@ impl BaseFilesystemInfo {
             }
         };
 
-        let mut new = BTreeMap::new();
+        let datasets = BTreeMap::from([(Arc::from(ROOT_PATH.as_ref()), metadata)]);
 
-        new.insert(Arc::from(ROOT_PATH.as_ref()), metadata);
+        let snaps = MapOfSnaps::new(&datasets, opt_debug)?;
 
-        self.map_of_datasets = MapOfDatasets::from(new);
+        *self = Self {
+            map_of_datasets: datasets.into(),
+            map_of_snaps: snaps,
+            filter_dirs: self.filter_dirs.clone(),
+        };
 
-        return Ok(());
+        Ok(())
     }
 
     // if we have some btrfs mounts, we check to see if there is a snap directory in common

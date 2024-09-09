@@ -346,7 +346,8 @@ impl MapOfSnaps {
                     read_dir(mount_point_path.join(BTRFS_SNAPPER_HIDDEN_DIRECTORY))?
                         .flatten()
                         .par_bridge()
-                        .map(|entry| entry.path().join(BTRFS_SNAPPER_SUFFIX).into_boxed_path())
+                        .map(|entry| entry.path().join(BTRFS_SNAPPER_SUFFIX))
+                        .map(|path| path.into_boxed_path())
                         .collect()
                 }
                 FilesystemType::Restic(None) => {
@@ -358,7 +359,8 @@ impl MapOfSnaps {
                         .flat_map(|repo| read_dir(repo))
                         .flatten()
                         .flatten()
-                        .map(|dir_entry| dir_entry.path().into_boxed_path())
+                        .map(|dir_entry| dir_entry.path())
+                        .map(|path| path.into_boxed_path())
                         .filter(|path| !path.ends_with("latest"))
                         .collect()
                 }
@@ -368,37 +370,41 @@ impl MapOfSnaps {
                     .flat_map(|repo| read_dir(repo.join(RESTIC_SNAPSHOT_DIRECTORY)))
                     .flatten_iter()
                     .flatten()
-                    .map(|dir_entry| dir_entry.path().into_boxed_path())
+                    .map(|dir_entry| dir_entry.path())
+                    .map(|path| path.into_boxed_path())
                     .filter(|path| !path.ends_with("latest"))
                     .collect(),
                 FilesystemType::Zfs => read_dir(mount_point_path.join(ZFS_SNAPSHOT_DIRECTORY))?
                     .flatten()
                     .par_bridge()
-                    .map(|entry| entry.path().into_boxed_path())
+                    .map(|entry| entry.path())
+                    .map(|path| path.into_boxed_path())
                     .collect(),
                 FilesystemType::Apfs => {
                     let mut res: Vec<Box<Path>> = Vec::new();
 
-                    if PathBuf::from(&TM_DIR_LOCAL).exists() {
+                    if Path::new(&TM_DIR_LOCAL).exists() {
                         let local = read_dir(TM_DIR_LOCAL)?
                             .par_bridge()
                             .flatten()
                             .flat_map(|entry| read_dir(entry.path()))
                             .flatten_iter()
                             .flatten_iter()
-                            .map(|entry| entry.path().join("Data").into_boxed_path());
+                            .map(|entry| entry.path().join("Data"))
+                            .map(|path| path.into_boxed_path());
 
                         res.par_extend(local);
                     }
 
-                    if PathBuf::from(&TM_DIR_REMOTE).exists() {
+                    if Path::new(&TM_DIR_REMOTE).exists() {
                         let remote = read_dir(TM_DIR_REMOTE)?
                             .par_bridge()
                             .flatten()
                             .flat_map(|entry| read_dir(entry.path()))
                             .flatten_iter()
                             .flatten_iter()
-                            .map(|entry| entry.path().join(entry.file_name()).join("Data").into_boxed_path());
+                            .map(|entry| entry.path().join(entry.file_name()).join("Data"))
+                            .map(|path| path.into_boxed_path());
 
                         res.par_extend(remote);
                     }
@@ -417,7 +423,8 @@ impl MapOfSnaps {
                         .filter(|mount_info| {
                             mount_info.options.iter().any(|opt| opt.contains("cp="))
                         })
-                        .map(|mount_info| PathBuf::from(mount_info.dest).into_boxed_path())
+                        .map(|mount_info| PathBuf::from(mount_info.dest))
+                        .map(|path| path.into_boxed_path())
                         .collect()
                 }
             };
