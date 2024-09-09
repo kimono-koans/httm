@@ -19,7 +19,7 @@ use crate::library::results::{HttmError, HttmResult};
 use crate::parse::mounts::{DatasetMetadata, FilesystemType};
 use std::collections::BTreeMap;
 use std::ops::Deref;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::Arc;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -70,13 +70,13 @@ impl MapOfAliases {
             None => opt_raw_aliases,
         };
 
-        let opt_snap_dir = if let Some(value) = opt_remote_dir {
-            Some(PathBuf::from(value))
+        let opt_snap_dir: Option<Box<Path>> = if let Some(value) = opt_remote_dir {
+            Some(Box::from(Path::new(&value)))
         } else if std::env::var_os("HTTM_REMOTE_DIR").is_some() {
-            std::env::var_os("HTTM_REMOTE_DIR").map(|s| PathBuf::from(s))
+            std::env::var_os("HTTM_REMOTE_DIR").map(|s| Box::from(Path::new(&s)))
         } else {
             // legacy env var name
-            std::env::var_os("HTTM_SNAP_POINT").map(|s| PathBuf::from(s))
+            std::env::var_os("HTTM_SNAP_POINT").map(|s| Box::from(Path::new(&s)))
         };
 
         if opt_snap_dir.is_some() || alias_values.is_some() {
@@ -95,7 +95,7 @@ impl MapOfAliases {
                 // but defaults to current working directory if empty
                 let local_dir = opt_local_dir.unwrap_or_else(|| pwd.into());
 
-                (snap_dir.into_boxed_path(), local_dir)
+                (snap_dir, local_dir)
             });
 
             let mut aliases_iter: Vec<(Box<Path>, Box<Path>)> = match alias_values {
