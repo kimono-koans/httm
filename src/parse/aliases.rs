@@ -53,6 +53,10 @@ impl MapOfAliases {
         opt_local_dir: Option<String>,
         pwd: &Path,
     ) -> HttmResult<Option<MapOfAliases>> {
+        if opt_raw_aliases.is_none() && opt_remote_dir.is_none() && opt_local_dir.is_none() {
+            return Ok(None);
+        }
+
         let alias_values: Option<Vec<String>> = match std::env::var_os("HTTM_MAP_ALIASES") {
             Some(env_map_alias) => Some(
                 env_map_alias
