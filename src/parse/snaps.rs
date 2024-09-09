@@ -94,7 +94,7 @@ impl MapOfSnaps {
                                 map.clone()
                             });
 
-                            map.into_keys().map(|k| k.into_boxed_path()).collect()
+                            map.into_keys().collect()
                         }
                     }
                 };
@@ -137,7 +137,7 @@ impl MapOfSnaps {
         base_subvol: &Path,
         map_of_datasets: &BTreeMap<Arc<Path>, DatasetMetadata>,
         opt_debug: bool,
-    ) -> BTreeMap<PathBuf, PathBuf> {
+    ) -> BTreeMap<Box<Path>, Box<Path>> {
         const BTRFS_COMMAND_REQUIRES_ROOT: &str =
             "btrfs mounts detected.  User must have super user permissions to determine the location of btrfs snapshots";
 
@@ -208,7 +208,7 @@ impl MapOfSnaps {
                         );
 
                         opt_snap_location
-                            .map(|snap_location| (snap_location, snap_name.to_path_buf()))
+                            .map(|snap_location| (snap_location.into_boxed_path(), snap_name.into()))
                     })
                     .collect()
             }) {
@@ -303,7 +303,7 @@ impl MapOfSnaps {
                     .find(|(_mount, metadata)| match &metadata.fs_type {
                         FilesystemType::Btrfs(Some(additional_data)) => {
                             metadata.source.as_ref() == base_mount_source
-                                && additional_data.base_subvol == BTRFS_ROOT_SUBVOL.as_path()
+                                && additional_data.base_subvol.as_ref() == BTRFS_ROOT_SUBVOL.as_path()
                         }
                         _ => false,
                     })

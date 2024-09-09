@@ -81,7 +81,7 @@ impl SnapNameMap {
                     Some(FilesystemType::Btrfs(opt_additional_btrfs_data)) => {
                         if let Some(additional_btrfs_data) = opt_additional_btrfs_data {
                             if let Some(new_map) = additional_btrfs_data.snap_names.get() {
-                                let values: Vec<PathBuf> = new_map.values().cloned().collect();
+                                let values: Vec<PathBuf> = new_map.values().cloned().map(|k| k.into_path_buf()).collect();
                                 return Some((pathdata, values))
                             }                             
                         }

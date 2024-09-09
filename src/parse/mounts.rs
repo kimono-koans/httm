@@ -54,13 +54,13 @@ pub enum LinkType {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BtrfsAdditionalData {
-    pub base_subvol: PathBuf,
-    pub snap_names: OnceLock<BTreeMap<PathBuf, PathBuf>>,
+    pub base_subvol: Box<Path>,
+    pub snap_names: OnceLock<BTreeMap<Box<Path>, Box<Path>>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ResticAdditionalData {
-    pub repos: Vec<PathBuf>,
+    pub repos: Vec<Box<Path>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -293,12 +293,12 @@ impl BaseFilesystemInfo {
                     let opt_additional_data = keyed_options
                         .get("subvol")
                         .map(|subvol| match keyed_options.get("subvolid") {
-                            Some(id) if *id == "5" => BTRFS_ROOT_SUBVOL.clone(),
-                            _ => PathBuf::from(subvol),
+                            Some(id) if *id == "5" => BTRFS_ROOT_SUBVOL.as_path(),
+                            _ => Path::new(subvol),
                         })
                         .map(|base_subvol| {
                             Box::new(BtrfsAdditionalData {
-                                base_subvol,
+                                base_subvol: base_subvol.into(),
                                 snap_names: OnceLock::new(),
                             })
                         });
@@ -455,11 +455,11 @@ impl BaseFilesystemInfo {
     }
 
     pub fn from_blob_repo(&mut self, repo_type: &FilesystemType) -> HttmResult<()> {
-        let retained_keys: Vec<PathBuf> = self
+        let retained_keys: Vec<Box<Path>> = self
             .map_of_datasets
             .iter()
             .filter(|(_k, v)| &v.fs_type == repo_type)
-            .map(|(k, _v)| k.to_path_buf())
+            .map(|(k, _v)| k.as_ref().into())
             .collect();
 
         let metadata = match repo_type {
@@ -471,7 +471,7 @@ impl BaseFilesystemInfo {
                     .into());
                 }
 
-                let repos: Vec<PathBuf> = retained_keys;
+                let repos: Vec<Box<Path>> = retained_keys;
 
                 DatasetMetadata {
                     source: Path::new(RESTIC_FSTYPE).into(),
