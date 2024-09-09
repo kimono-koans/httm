@@ -60,8 +60,13 @@ impl FilesystemInfo {
         let mut base_fs_info = BaseFilesystemInfo::new(opt_debug, &opt_alt_store)?;
 
         // only create a map of aliases if necessary (aliases conflicts with alt stores)
-        let opt_map_of_aliases =
-            MapOfAliases::new(opt_raw_aliases, opt_remote_dir, opt_local_dir, &pwd)?;
+        let opt_map_of_aliases = MapOfAliases::new(
+            &base_fs_info.map_of_datasets,
+            opt_raw_aliases,
+            opt_remote_dir,
+            opt_local_dir,
+            &pwd,
+        )?;
 
         // prep any blob repos
         let mut opt_alt_store = opt_alt_store;

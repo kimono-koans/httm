@@ -16,10 +16,11 @@
 // that was distributed with this source code.
 
 use crate::library::results::{HttmError, HttmResult};
-use crate::parse::mounts::FilesystemType;
+use crate::parse::mounts::{DatasetMetadata, FilesystemType};
 use std::collections::BTreeMap;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RemotePathAndFsType {
@@ -29,17 +30,17 @@ pub struct RemotePathAndFsType {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MapOfAliases {
-    inner: BTreeMap<PathBuf, RemotePathAndFsType>,
+    inner: BTreeMap<Arc<Path>, RemotePathAndFsType>,
 }
 
-impl From<BTreeMap<PathBuf, RemotePathAndFsType>> for MapOfAliases {
-    fn from(map: BTreeMap<PathBuf, RemotePathAndFsType>) -> Self {
+impl From<BTreeMap<Arc<Path>, RemotePathAndFsType>> for MapOfAliases {
+    fn from(map: BTreeMap<Arc<Path>, RemotePathAndFsType>) -> Self {
         Self { inner: map }
     }
 }
 
 impl Deref for MapOfAliases {
-    type Target = BTreeMap<PathBuf, RemotePathAndFsType>;
+    type Target = BTreeMap<Arc<Path>, RemotePathAndFsType>;
 
     fn deref(&self) -> &Self::Target {
         &self.inner
@@ -48,6 +49,7 @@ impl Deref for MapOfAliases {
 
 impl MapOfAliases {
     pub fn new(
+        map_of_datasets: &BTreeMap<Arc<Path>, DatasetMetadata>,
         opt_raw_aliases: Option<Vec<String>>,
         opt_remote_dir: Option<String>,
         opt_local_dir: Option<String>,
@@ -119,11 +121,14 @@ impl MapOfAliases {
                 aliases_iter.push(value)
             }
 
-            let map_of_aliases: BTreeMap<PathBuf, RemotePathAndFsType> = aliases_iter
+            let map_of_aliases: BTreeMap<Arc<Path>, RemotePathAndFsType> = aliases_iter
                 .into_iter()
                 .filter_map(|(local_dir, snap_dir)| {
+                    map_of_datasets.get_key_value(local_dir.as_path()).map(|(k, _v)| (k.clone(), snap_dir))
+                })
+                .filter_map(|(local_dir, snap_dir)| {
                     if !local_dir.exists() || !snap_dir.exists() {
-                        [local_dir, snap_dir]
+                        [local_dir.as_ref(), snap_dir.as_path()]
                             .into_iter()
                             .filter(|dir| !dir.exists())
                             .for_each(|dir| {
