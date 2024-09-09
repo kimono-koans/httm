@@ -24,7 +24,6 @@ use crate::{
     GLOBAL_CONFIG,
     NILFS2_SNAPSHOT_ID_KEY,
     RESTIC_LATEST_SNAPSHOT_DIRECTORY,
-    ROOT_DIRECTORY,
     TM_DIR_LOCAL,
     TM_DIR_REMOTE,
     ZFS_HIDDEN_DIRECTORY,
@@ -176,7 +175,7 @@ impl MaxLen for MapOfDatasets {
 
 pub static PROC_MOUNTS: LazyLock<PathBuf> = LazyLock::new(|| PathBuf::from("/proc/mounts"));
 pub static BTRFS_ROOT_SUBVOL: LazyLock<PathBuf> = LazyLock::new(|| PathBuf::from("<FS_TREE>"));
-pub static ROOT_PATH: LazyLock<PathBuf> = LazyLock::new(|| PathBuf::from(ROOT_DIRECTORY));
+pub static ROOT_PATH: LazyLock<PathBuf> = LazyLock::new(|| PathBuf::from("/"));
 static ETC_MNTTAB: LazyLock<PathBuf> = LazyLock::new(|| PathBuf::from("/etc/mnttab"));
 static TM_DIR_REMOTE_PATH: LazyLock<PathBuf> = LazyLock::new(|| PathBuf::from(TM_DIR_REMOTE));
 static TM_DIR_LOCAL_PATH: LazyLock<PathBuf> = LazyLock::new(|| PathBuf::from(TM_DIR_LOCAL));
