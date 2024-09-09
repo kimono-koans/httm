@@ -277,7 +277,7 @@ impl<'a> ProximateDatasetAndOptAlts<'a> {
 #[derive(Debug, Clone)]
 pub struct RelativePathAndSnapMounts<'a> {
     pub relative_path: &'a Path,
-    pub snap_mounts: &'a [PathBuf],
+    pub snap_mounts: &'a [Box<Path>],
     pub dataset_of_interest: &'a Path,
 }
 
@@ -298,6 +298,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
                 dataset_of_interest,
             })
     }
+
     #[inline(always)]
     pub fn versions_processed(&'a self, dedup_by: &DedupBy) -> Vec<PathData> {
         loop {

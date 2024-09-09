@@ -527,7 +527,7 @@ impl BaseFilesystemInfo {
             .par_iter()
             .any(|(_mount, dataset_info)| !matches!(dataset_info.fs_type, FilesystemType::Zfs))
         {
-            let vec_snaps: Vec<&PathBuf> = map_of_datasets
+            let vec_snaps: Vec<&Box<Path>> = map_of_datasets
                 .par_iter()
                 .filter(|(_mount, dataset_info)| {
                     if matches!(dataset_info.fs_type, FilesystemType::Btrfs(_)) {

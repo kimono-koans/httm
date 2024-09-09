@@ -39,17 +39,17 @@ use super::mounts::ROOT_PATH;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MapOfSnaps {
-    inner: BTreeMap<Arc<Path>, Vec<PathBuf>>,
+    inner: BTreeMap<Arc<Path>, Vec<Box<Path>>>,
 }
 
-impl From<BTreeMap<Arc<Path>, Vec<PathBuf>>> for MapOfSnaps {
-    fn from(map: BTreeMap<Arc<Path>, Vec<PathBuf>>) -> Self {
+impl From<BTreeMap<Arc<Path>, Vec<Box<Path>>>> for MapOfSnaps {
+    fn from(map: BTreeMap<Arc<Path>, Vec<Box<Path>>>) -> Self {
         Self { inner: map }
     }
 }
 
 impl Deref for MapOfSnaps {
-    type Target = BTreeMap<Arc<Path>, Vec<PathBuf>>;
+    type Target = BTreeMap<Arc<Path>, Vec<Box<Path>>>;
 
     fn deref(&self) -> &Self::Target {
         &self.inner
@@ -62,10 +62,10 @@ impl MapOfSnaps {
         map_of_datasets: &BTreeMap<Arc<Path>, DatasetMetadata>,
         opt_debug: bool,
     ) -> HttmResult<Self> {
-        let map_of_snaps: BTreeMap<Arc<Path>, Vec<PathBuf>> = map_of_datasets
+        let map_of_snaps: BTreeMap<Arc<Path>, Vec<Box<Path>>> = map_of_datasets
             .par_iter()
             .map(|(mount, dataset_info)| {      
-                let snap_mounts: Vec<PathBuf> = match &dataset_info.fs_type {
+                let snap_mounts: Vec<Box<Path>> = match &dataset_info.fs_type {
                     FilesystemType::Zfs | FilesystemType::Nilfs2 | FilesystemType::Apfs | FilesystemType::Restic(_) | FilesystemType::Btrfs(None) => {
                         Self::from_defined_mounts(mount, dataset_info)
                     }
@@ -94,7 +94,7 @@ impl MapOfSnaps {
                                 map.clone()
                             });
 
-                            map.into_keys().collect()
+                            map.into_keys().map(|k| k.into_boxed_path()).collect()
                         }
                     }
                 };
@@ -336,17 +336,17 @@ impl MapOfSnaps {
     fn from_defined_mounts(
         mount_point_path: &Path,
         dataset_metadata: &DatasetMetadata,
-    ) -> Vec<PathBuf> {
+    ) -> Vec<Box<Path>> {
         fn inner(
             mount_point_path: &Path,
             dataset_metadata: &DatasetMetadata,
-        ) -> HttmResult<Vec<PathBuf>> {
-            let snaps = match &dataset_metadata.fs_type {
+        ) -> HttmResult<Vec<Box<Path>>> {
+            let snaps: Vec<Box<Path>> = match &dataset_metadata.fs_type {
                 FilesystemType::Btrfs(_) => {
                     read_dir(mount_point_path.join(BTRFS_SNAPPER_HIDDEN_DIRECTORY))?
                         .flatten()
                         .par_bridge()
-                        .map(|entry| entry.path().join(BTRFS_SNAPPER_SUFFIX))
+                        .map(|entry| entry.path().join(BTRFS_SNAPPER_SUFFIX).into_boxed_path())
                         .collect()
                 }
                 FilesystemType::Restic(None) => {
@@ -358,7 +358,7 @@ impl MapOfSnaps {
                         .flat_map(|repo| read_dir(repo))
                         .flatten()
                         .flatten()
-                        .map(|dir_entry| dir_entry.path())
+                        .map(|dir_entry| dir_entry.path().into_boxed_path())
                         .filter(|path| !path.ends_with("latest"))
                         .collect()
                 }
@@ -368,16 +368,16 @@ impl MapOfSnaps {
                     .flat_map(|repo| read_dir(repo.join(RESTIC_SNAPSHOT_DIRECTORY)))
                     .flatten_iter()
                     .flatten()
-                    .map(|dir_entry| dir_entry.path())
+                    .map(|dir_entry| dir_entry.path().into_boxed_path())
                     .filter(|path| !path.ends_with("latest"))
                     .collect(),
                 FilesystemType::Zfs => read_dir(mount_point_path.join(ZFS_SNAPSHOT_DIRECTORY))?
                     .flatten()
                     .par_bridge()
-                    .map(|entry| entry.path())
+                    .map(|entry| entry.path().into_boxed_path())
                     .collect(),
                 FilesystemType::Apfs => {
-                    let mut res: Vec<PathBuf> = Vec::new();
+                    let mut res: Vec<Box<Path>> = Vec::new();
 
                     if PathBuf::from(&TM_DIR_LOCAL).exists() {
                         let local = read_dir(TM_DIR_LOCAL)?
@@ -386,7 +386,7 @@ impl MapOfSnaps {
                             .flat_map(|entry| read_dir(entry.path()))
                             .flatten_iter()
                             .flatten_iter()
-                            .map(|entry| entry.path().join("Data"));
+                            .map(|entry| entry.path().join("Data").into_boxed_path());
 
                         res.par_extend(local);
                     }
@@ -398,7 +398,7 @@ impl MapOfSnaps {
                             .flat_map(|entry| read_dir(entry.path()))
                             .flatten_iter()
                             .flatten_iter()
-                            .map(|entry| entry.path().join(entry.file_name()).join("Data"));
+                            .map(|entry| entry.path().join(entry.file_name()).join("Data").into_boxed_path());
 
                         res.par_extend(remote);
                     }
@@ -417,7 +417,7 @@ impl MapOfSnaps {
                         .filter(|mount_info| {
                             mount_info.options.iter().any(|opt| opt.contains("cp="))
                         })
-                        .map(|mount_info| PathBuf::from(mount_info.dest))
+                        .map(|mount_info| PathBuf::from(mount_info.dest).into_boxed_path())
                         .collect()
                 }
             };

@@ -22,7 +22,7 @@ use hashbrown::{HashMap, HashSet};
 use std::ffi::OsString;
 use std::fs::read_dir;
 use std::ops::Deref;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct DeletedFiles {
@@ -89,7 +89,7 @@ impl DeletedFiles {
     }
 
     fn unique_snap_filenames(
-        mounts: &[PathBuf],
+        mounts: &[Box<Path>],
         relative_path: &Path,
     ) -> HashMap<OsString, BasicDirEntryInfo> {
         mounts
