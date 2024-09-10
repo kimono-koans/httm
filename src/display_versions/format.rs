@@ -57,6 +57,8 @@ impl<'a> VersionsDisplayWrapper<'a> {
             return global_display_set.format(self.config, &padding_collection);
         }
 
+        let delimiter = delimiter();
+
         // else re compute for each instance and print per instance, now with uniform padding
         self.iter()
             .map(|(key, values)| {
@@ -69,25 +71,21 @@ impl<'a> VersionsDisplayWrapper<'a> {
                     PrintMode::FormattedDefault | PrintMode::FormattedNotPretty => {
                         display_set.format(self.config, &padding_collection)
                     }
-                    PrintMode::RawNewline | PrintMode::RawZero => {
-                        let delimiter = delimiter();
-
-                        display_set
-                            .iter()
-                            .enumerate()
-                            .map(|(idx, snap_or_live_set)| {
-                                (DisplaySetType::from(idx), snap_or_live_set)
-                            })
-                            .filter(|(display_set_type, _snap_or_live_set)| {
-                                display_set_type.filter_bulk_exclusions(self.config)
-                            })
-                            .flat_map(|(_idx, snap_or_live_set)| snap_or_live_set)
-                            .fold(String::new(), |mut buffer, path_data| {
-                                buffer.push_str(&path_data.path().to_string_lossy());
-                                buffer.push(delimiter);
-                                buffer
-                            })
-                    }
+                    PrintMode::RawNewline | PrintMode::RawZero => display_set
+                        .iter()
+                        .enumerate()
+                        .map(|(idx, snap_or_live_set)| {
+                            (DisplaySetType::from(idx), snap_or_live_set)
+                        })
+                        .filter(|(display_set_type, _snap_or_live_set)| {
+                            display_set_type.filter_bulk_exclusions(self.config)
+                        })
+                        .flat_map(|(_idx, snap_or_live_set)| snap_or_live_set)
+                        .fold(String::new(), |mut buffer, path_data| {
+                            buffer.push_str(&path_data.path().to_string_lossy());
+                            buffer.push(delimiter);
+                            buffer
+                        }),
                 }
             })
             .collect::<String>()
