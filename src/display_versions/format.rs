@@ -281,9 +281,7 @@ impl PathData {
                 (size, path, padding)
             }
             PrintMode::RawNewline | PrintMode::RawZero => {
-                let mut buffer = String::new();
-                buffer.push_str(&self.path().to_string_lossy());
-                buffer.push(delimiter());
+                let buffer = format!("{}{}", self.path().to_string_lossy(), delimiter());
                 return buffer;
             }
         };
