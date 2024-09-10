@@ -82,8 +82,8 @@ impl<'a> VersionsDisplayWrapper<'a> {
                                 display_set_type.filter_bulk_exclusions(self.config)
                             })
                             .flat_map(|(_idx, snap_or_live_set)| snap_or_live_set)
-                            .fold(String::new(), |mut buffer, pathdata| {
-                                buffer.push_str(&pathdata.path().to_string_lossy());
+                            .fold(String::new(), |mut buffer, path_data| {
+                                buffer.push_str(&path_data.path().to_string_lossy());
                                 buffer.push(delimiter);
                                 buffer
                             })
@@ -169,8 +169,8 @@ impl<'a> DisplaySet<'a> {
                 |mut display_set_buffer, (display_set_type, snap_or_live_set)| {
                     let mut component_buffer: String = snap_or_live_set
                         .iter()
-                        .map(|pathdata| {
-                            pathdata.format(config, &display_set_type, padding_collection)
+                        .map(|path_data| {
+                            path_data.format(config, &display_set_type, padding_collection)
                         })
                         .collect();
 
@@ -183,9 +183,9 @@ impl<'a> DisplaySet<'a> {
                     match &display_set_type {
                         DisplaySetType::IsSnap => {
                             if component_buffer.is_empty() {
-                                let live_pathdata = self.inner[1][0];
+                                let live_path_data = self.inner[1][0];
 
-                                let warning = live_pathdata.warning_underlying_snaps(config);
+                                let warning = live_path_data.warning_underlying_snaps(config);
                                 let warning_len = warning.chars().count();
                                 let border_len = border.chars().count();
 
