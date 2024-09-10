@@ -42,58 +42,58 @@ pub const QUOTATION_MARKS_LEN: usize = 2;
 
 impl<'a> VersionsDisplayWrapper<'a> {
     pub fn format(&self) -> String {
-        let keys: Vec<&PathData> = self.keys().collect();
-        let values: Vec<&PathData> = self.values().flatten().collect();
-
-        let global_display_set = DisplaySet::from((keys, values));
-        let padding_collection = PaddingCollection::new(self.config, &global_display_set);
-
         // if a single instance immediately return the global we already prepared
-        if matches!(
-            self.config.print_mode,
-            PrintMode::FormattedDefault | PrintMode::FormattedNotPretty
-        ) && self.len() == 1
-        {
-            return global_display_set.format(self.config, &padding_collection);
-        }
+        match &self.config.print_mode {
+            PrintMode::FormattedDefault | PrintMode::FormattedNotPretty => {
+                let keys: Vec<&PathData> = self.keys().collect();
+                let values: Vec<&PathData> = self.values().flatten().collect();
 
-        // else re compute for each instance and print per instance, now with uniform padding
-        self.iter()
-            .map(|(key, values)| {
-                let keys: Vec<&PathData> = vec![key];
-                let values: Vec<&PathData> = values.iter().collect();
+                let global_display_set = DisplaySet::from((keys, values));
+                let padding_collection = PaddingCollection::new(self.config, &global_display_set);
 
-                let display_set = DisplaySet::from((keys, values));
-
-                match &self.config.print_mode {
-                    PrintMode::FormattedDefault | PrintMode::FormattedNotPretty => {
-                        display_set.format(self.config, &padding_collection)
-                    }
-                    PrintMode::RawNewline | PrintMode::RawZero => display_set
-                        .iter()
-                        .enumerate()
-                        .map(|(idx, snap_or_live_set)| {
-                            (DisplaySetType::from(idx), snap_or_live_set)
-                        })
-                        .filter(|(display_set_type, _snap_or_live_set)| {
-                            display_set_type.filter_bulk_exclusions(&self.config)
-                        })
-                        .map(|(display_set_type, vec_path_data)| {
-                            vec_path_data
-                                .iter()
-                                .map(|path_data| {
-                                    path_data.format(
-                                        self.config,
-                                        &display_set_type,
-                                        &padding_collection,
-                                    )
-                                })
-                                .collect::<String>()
-                        })
-                        .collect(),
+                if self.len() == 1 {
+                    return global_display_set.format(self.config, &padding_collection);
                 }
-            })
-            .collect::<String>()
+
+                // else re compute for each instance and print per instance, now with uniform padding
+                self.iter()
+                    .map(|(key, values)| {
+                        let keys: Vec<&PathData> = vec![key];
+                        let values: Vec<&PathData> = values.iter().collect();
+
+                        let display_set = DisplaySet::from((keys, values));
+
+                        display_set.format(self.config, &padding_collection)
+                    })
+                    .collect::<String>()
+            }
+            PrintMode::RawNewline | PrintMode::RawZero => {
+                let delimiter = delimiter();
+
+                // else re compute for each instance and print per instance, now with uniform padding
+                self.iter()
+                    .map(|(key, values)| {
+                        let keys: Vec<&PathData> = vec![key];
+                        let values: Vec<&PathData> = values.iter().collect();
+
+                        let display_set = DisplaySet::from((keys, values));
+
+                        display_set
+                            .iter()
+                            .enumerate()
+                            .map(|(idx, snap_or_live_set)| {
+                                (DisplaySetType::from(idx), snap_or_live_set)
+                            })
+                            .filter(|(display_set_type, _snap_or_live_set)| {
+                                display_set_type.filter_bulk_exclusions(&self.config)
+                            })
+                            .flat_map(|(_display_set_type, vec_path_data)| vec_path_data)
+                            .map(|pd| format!("{}{}", pd.path().to_string_lossy(), delimiter))
+                            .collect::<String>()
+                    })
+                    .collect::<String>()
+            }
+        }
     }
 }
 
@@ -280,10 +280,7 @@ impl PathData {
                 let padding = PRETTY_FIXED_WIDTH_PADDING;
                 (size, path, padding)
             }
-            PrintMode::RawNewline | PrintMode::RawZero => {
-                let buffer = format!("{}{}", self.path().to_string_lossy(), delimiter());
-                return buffer;
-            }
+            PrintMode::RawNewline | PrintMode::RawZero => unreachable!(),
         };
 
         let display_date = if self.opt_metadata().is_some() {
