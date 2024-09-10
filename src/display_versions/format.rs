@@ -177,30 +177,36 @@ impl<'a> DisplaySet<'a> {
                     // add each buffer to the set - print fancy border string above, below and between sets
                     if matches!(config.print_mode, PrintMode::FormattedNotPretty) {
                         display_set_buffer += &component_buffer;
-                    } else if matches!(display_set_type, DisplaySetType::IsSnap) {
-                        if component_buffer.is_empty() {
-                            let live_pathdata = self.inner[1][0];
+                        return display_set_buffer;
+                    }
 
-                            let warning = live_pathdata.warning_underlying_snaps(config);
-                            let warning_len = warning.chars().count();
-                            let border_len = border.chars().count();
+                    match &display_set_type {
+                        DisplaySetType::IsSnap => {
+                            if component_buffer.is_empty() {
+                                let live_pathdata = self.inner[1][0];
 
-                            if warning_len > border_len {
-                                let diff = warning_len - border_len;
-                                let mut new_border = border.trim_end().to_string();
-                                new_border += &format!("{:─<diff$}\n", "");
-                                border = new_border;
+                                let warning = live_pathdata.warning_underlying_snaps(config);
+                                let warning_len = warning.chars().count();
+                                let border_len = border.chars().count();
+
+                                if warning_len > border_len {
+                                    let diff = warning_len - border_len;
+                                    let mut new_border = border.trim_end().to_string();
+                                    new_border += &format!("{:─<diff$}\n", "");
+                                    border = new_border;
+                                }
+
+                                component_buffer = warning.to_string();
                             }
 
-                            component_buffer = warning.to_string();
+                            display_set_buffer += &border;
+                            display_set_buffer += &component_buffer;
+                            display_set_buffer += &border;
                         }
-
-                        display_set_buffer += &border;
-                        display_set_buffer += &component_buffer;
-                        display_set_buffer += &border;
-                    } else {
-                        display_set_buffer += &component_buffer;
-                        display_set_buffer += &border;
+                        DisplaySetType::IsLive => {
+                            display_set_buffer += &component_buffer;
+                            display_set_buffer += &border;
+                        }
                     }
 
                     display_set_buffer
@@ -236,7 +242,7 @@ impl PathData {
                 let padding = NOT_SO_PRETTY_FIXED_WIDTH_PADDING;
                 (size, path, padding)
             }
-            _ => {
+            PrintMode::FormattedDefault => {
                 // print with padding and pretty border lines and ls colors
                 let size = {
                     let size = if self.opt_metadata().is_some() {
@@ -271,6 +277,7 @@ impl PathData {
                 let padding = PRETTY_FIXED_WIDTH_PADDING;
                 (size, path, padding)
             }
+            _ => unreachable!(),
         };
 
         let display_date = if self.opt_metadata().is_some() {
