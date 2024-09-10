@@ -57,8 +57,6 @@ impl<'a> VersionsDisplayWrapper<'a> {
             return global_display_set.format(self.config, &padding_collection);
         }
 
-        let delimiter = delimiter();
-
         // else re compute for each instance and print per instance, now with uniform padding
         self.iter()
             .map(|(key, values)| {
@@ -78,14 +76,21 @@ impl<'a> VersionsDisplayWrapper<'a> {
                             (DisplaySetType::from(idx), snap_or_live_set)
                         })
                         .filter(|(display_set_type, _snap_or_live_set)| {
-                            display_set_type.filter_bulk_exclusions(self.config)
+                            display_set_type.filter_bulk_exclusions(&self.config)
                         })
-                        .flat_map(|(_idx, snap_or_live_set)| snap_or_live_set)
-                        .fold(String::new(), |mut buffer, path_data| {
-                            buffer.push_str(&path_data.path().to_string_lossy());
-                            buffer.push(delimiter);
-                            buffer
-                        }),
+                        .map(|(display_set_type, vec_path_data)| {
+                            vec_path_data
+                                .iter()
+                                .map(|path_data| {
+                                    path_data.format(
+                                        self.config,
+                                        &display_set_type,
+                                        &padding_collection,
+                                    )
+                                })
+                                .collect::<String>()
+                        })
+                        .collect(),
                 }
             })
             .collect::<String>()
@@ -275,7 +280,12 @@ impl PathData {
                 let padding = PRETTY_FIXED_WIDTH_PADDING;
                 (size, path, padding)
             }
-            _ => unreachable!(),
+            PrintMode::RawNewline | PrintMode::RawZero => {
+                let mut buffer = String::new();
+                buffer.push_str(&self.path().to_string_lossy());
+                buffer.push(delimiter());
+                return buffer;
+            }
         };
 
         let display_date = if self.opt_metadata().is_some() {
