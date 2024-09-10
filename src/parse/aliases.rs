@@ -121,6 +121,7 @@ impl MapOfAliases {
         let map_of_aliases: BTreeMap<Box<Path>, RemotePathAndFsType> = aliases_iter
             .into_iter()
             .filter_map(|(local_dir, snap_dir)| {
+                // why get snap dir?  because local dir is alias, snap dir must be a dataset
                 match map_of_datasets
                     .get_key_value(snap_dir.as_ref())
                     .map(|(k, _v)| k.clone())
