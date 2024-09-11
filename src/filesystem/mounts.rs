@@ -15,9 +15,9 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed wth this source code.
 
+use crate::filesystem::snaps::MapOfSnaps;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{find_common_path, get_mount_command};
-use crate::filesystem::snaps::MapOfSnaps;
 use crate::{
     BTRFS_SNAPPER_HIDDEN_DIRECTORY,
     GLOBAL_CONFIG,

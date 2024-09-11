@@ -18,10 +18,10 @@
 use crate::config::install_hot_keys::install_hot_keys;
 use crate::data::filesystem_info::FilesystemInfo;
 use crate::data::paths::{PathData, PathDeconstruction, ZfsSnapPathGuard};
+use crate::filesystem::mounts::{FilesystemType, ROOT_PATH};
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{pwd, HttmIsDir};
 use crate::lookup::file_mounts::MountDisplay;
-use crate::filesystem::mounts::{FilesystemType, ROOT_PATH};
 use clap::parser::ValuesRef;
 use clap::{crate_name, crate_version, Arg, ArgAction, ArgMatches};
 use indicatif::ProgressBar;
@@ -667,14 +667,14 @@ impl Config {
         let opt_local_dir = matches.get_one::<String>("LOCAL_DIR");
 
         let dataset_collection = FilesystemInfo::new(
-                opt_alt_replicated,
-                opt_debug,
-                opt_remote_dir,
-                opt_local_dir,
-                opt_map_aliases,
-                opt_alt_store,
-                pwd.clone(),
-            )?;
+            opt_alt_replicated,
+            opt_debug,
+            opt_remote_dir,
+            opt_local_dir,
+            opt_map_aliases,
+            opt_alt_store,
+            pwd.clone(),
+        )?;
 
         let opt_json = matches.get_flag("JSON");
 

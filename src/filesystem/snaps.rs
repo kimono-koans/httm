@@ -15,9 +15,10 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
+use super::mounts::ROOT_PATH;
+use crate::filesystem::mounts::{DatasetMetadata, FilesystemType, BTRFS_ROOT_SUBVOL, PROC_MOUNTS};
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{get_btrfs_command, user_has_effective_root};
-use crate::filesystem::mounts::{DatasetMetadata, FilesystemType, BTRFS_ROOT_SUBVOL, PROC_MOUNTS};
 use crate::{
     BTRFS_SNAPPER_HIDDEN_DIRECTORY,
     BTRFS_SNAPPER_SUFFIX,
@@ -34,8 +35,6 @@ use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::process::Command as ExecProcess;
 use std::sync::{Arc, Once};
-
-use super::mounts::ROOT_PATH;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MapOfSnaps {
@@ -207,8 +206,9 @@ impl MapOfSnaps {
                             opt_debug,
                         );
 
-                        opt_snap_location
-                            .map(|snap_location| (snap_location.into_boxed_path(), snap_name.into()))
+                        opt_snap_location.map(|snap_location| {
+                            (snap_location.into_boxed_path(), snap_name.into())
+                        })
                     })
                     .collect()
             }) {
@@ -303,7 +303,8 @@ impl MapOfSnaps {
                     .find(|(_mount, metadata)| match &metadata.fs_type {
                         FilesystemType::Btrfs(Some(additional_data)) => {
                             metadata.source.as_ref() == base_mount_source
-                                && additional_data.base_subvol.as_ref() == BTRFS_ROOT_SUBVOL.as_path()
+                                && additional_data.base_subvol.as_ref()
+                                    == BTRFS_ROOT_SUBVOL.as_path()
                         }
                         _ => false,
                     })

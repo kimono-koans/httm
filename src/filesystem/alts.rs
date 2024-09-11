@@ -15,8 +15,8 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::library::results::{HttmError, HttmResult};
 use crate::filesystem::mounts::MapOfDatasets;
+use crate::library::results::{HttmError, HttmResult};
 use rayon::prelude::*;
 use std::collections::BTreeMap;
 use std::ops::Deref;

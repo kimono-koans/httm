@@ -17,6 +17,7 @@
 
 use crate::config::generate::{BulkExclusion, Config, PrintMode};
 use crate::data::paths::{PathData, PHANTOM_DATE, PHANTOM_SIZE};
+use crate::filesystem::mounts::IsFilterDir;
 use crate::library::utility::{
     date_string,
     delimiter,
@@ -25,7 +26,6 @@ use crate::library::utility::{
     DateFormat,
 };
 use crate::lookup::versions::ProximateDatasetAndOptAlts;
-use crate::filesystem::mounts::IsFilterDir;
 use crate::DisplayWrapper;
 use std::borrow::Cow;
 use std::ops::Deref;
