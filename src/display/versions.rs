@@ -26,7 +26,7 @@ use crate::library::utility::{
 };
 use crate::lookup::versions::ProximateDatasetAndOptAlts;
 use crate::parse::mounts::IsFilterDir;
-use crate::VersionsDisplayWrapper;
+use crate::DisplayWrapper;
 use std::borrow::Cow;
 use std::ops::Deref;
 use terminal_size::{terminal_size, Height, Width};
@@ -40,7 +40,7 @@ pub const NOT_SO_PRETTY_FIXED_WIDTH_PADDING: &str = "\t";
 // and we add 2 quotation marks to the path when we format
 pub const QUOTATION_MARKS_LEN: usize = 2;
 
-impl<'a> VersionsDisplayWrapper<'a> {
+impl<'a> DisplayWrapper<'a> {
     pub fn format(&self) -> String {
         // if a single instance immediately return the global we already prepared
         match &self.config.print_mode {

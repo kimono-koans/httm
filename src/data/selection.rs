@@ -18,7 +18,7 @@
 use crate::background::recursive::PathProvenance;
 use crate::config::generate::{DedupBy, PrintMode};
 use crate::data::paths::PathData;
-use crate::display_versions::wrapper::VersionsDisplayWrapper;
+use crate::display::wrapper::DisplayWrapper;
 use crate::library::results::HttmResult;
 use crate::library::utility::paint_string;
 use crate::lookup::versions::Versions;
@@ -67,8 +67,7 @@ impl SelectionCandidate {
         let all_snap_versions: VersionsMap =
             [Versions::new(&display_pathdata, &display_config)?.into_inner()].into();
 
-        let output_buf =
-            VersionsDisplayWrapper::from(&display_config, all_snap_versions).to_string();
+        let output_buf = DisplayWrapper::from(&display_config, all_snap_versions).to_string();
 
         Ok(output_buf)
     }

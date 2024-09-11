@@ -17,7 +17,7 @@
 
 use super::browse::InteractiveBrowse;
 use crate::config::generate::{PrintMode, SelectMode};
-use crate::display_versions::wrapper::VersionsDisplayWrapper;
+use crate::display::wrapper::DisplayWrapper;
 use crate::interactive::preview::PreviewSelection;
 use crate::interactive::view_mode::{MultiSelect, ViewMode};
 use crate::library::results::{HttmError, HttmResult};
@@ -73,7 +73,7 @@ impl TryFrom<&mut InteractiveBrowse> for InteractiveSelect {
             // same stuff we do at fn exec, snooze...
             let display_config = Config::from(interactive_browse.selected_pathdata.clone());
 
-            let display_map = VersionsDisplayWrapper::from(&display_config, versions_map);
+            let display_map = DisplayWrapper::from(&display_config, versions_map);
 
             let selection_buffer = display_map.to_string();
 

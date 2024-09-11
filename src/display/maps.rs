@@ -17,7 +17,7 @@
 
 use crate::config::generate::PrintMode;
 use crate::data::paths::{PathData, ZfsSnapPathGuard};
-use crate::display_versions::format::{NOT_SO_PRETTY_FIXED_WIDTH_PADDING, QUOTATION_MARKS_LEN};
+use crate::display::versions::{NOT_SO_PRETTY_FIXED_WIDTH_PADDING, QUOTATION_MARKS_LEN};
 use crate::library::utility::delimiter;
 use crate::{MountsForFiles, SnapNameMap, VersionsMap, GLOBAL_CONFIG};
 use serde::ser::SerializeMap;

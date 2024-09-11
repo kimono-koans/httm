@@ -20,12 +20,10 @@ mod data {
     pub mod paths;
     pub mod selection;
 }
-mod display_map {
-    pub mod format;
-}
-mod display_versions {
-    pub mod format;
+mod display {
+    pub mod maps;
     pub mod num_versions;
+    pub mod versions;
     pub mod wrapper;
 }
 mod background {
@@ -79,8 +77,8 @@ use crate::interactive::browse::InteractiveBrowse;
 use crate::interactive::select::InteractiveSelect;
 use background::recursive::NonInteractiveRecursiveWrapper;
 use config::generate::{Config, ExecMode};
-use display_map::format::PrintAsMap;
-use display_versions::wrapper::VersionsDisplayWrapper;
+use display::maps::PrintAsMap;
+use display::wrapper::DisplayWrapper;
 use interactive::prune::PruneSnaps;
 use interactive::restore::InteractiveRestore;
 use library::results::HttmResult;
@@ -149,8 +147,7 @@ fn exec() -> HttmResult<()> {
                     let versions_map =
                         VersionsMap::new(&GLOBAL_CONFIG, &browse_result.selected_pathdata)?;
 
-                    let output_buf =
-                        VersionsDisplayWrapper::from(&GLOBAL_CONFIG, versions_map).to_string();
+                    let output_buf = DisplayWrapper::from(&GLOBAL_CONFIG, versions_map).to_string();
 
                     print_output_buf(&output_buf)
                 }
@@ -159,7 +156,7 @@ fn exec() -> HttmResult<()> {
         // ExecMode::BasicDisplay will be just printed, we already know the paths
         ExecMode::BasicDisplay | ExecMode::NumVersions(_) => {
             let versions_map = VersionsMap::new(&GLOBAL_CONFIG, &GLOBAL_CONFIG.paths)?;
-            let output_buf = VersionsDisplayWrapper::from(&GLOBAL_CONFIG, versions_map).to_string();
+            let output_buf = DisplayWrapper::from(&GLOBAL_CONFIG, versions_map).to_string();
 
             print_output_buf(&output_buf)
         }

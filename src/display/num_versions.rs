@@ -17,12 +17,12 @@
 
 use crate::config::generate::{NumVersionsMode, PrintMode};
 use crate::data::paths::PathData;
-use crate::display_map::format::PrintAsMap;
+use crate::display::maps::PrintAsMap;
 use crate::library::utility::delimiter;
 use crate::lookup::versions::VersionsMap;
-use crate::{VersionsDisplayWrapper, GLOBAL_CONFIG};
+use crate::{DisplayWrapper, GLOBAL_CONFIG};
 
-impl<'a> VersionsDisplayWrapper<'a> {
+impl<'a> DisplayWrapper<'a> {
     pub fn format_as_num_versions(&self, num_versions_mode: &NumVersionsMode) -> String {
         // let delimiter = get_delimiter(config);
         let delimiter = delimiter();

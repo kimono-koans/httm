@@ -17,7 +17,7 @@
 
 use crate::config::generate::{BulkExclusion, Config, ExecMode, PrintMode};
 use crate::data::paths::PathData;
-use crate::display_map::format::PrintAsMap;
+use crate::display::maps::PrintAsMap;
 use crate::library::utility::delimiter;
 use crate::lookup::versions::VersionsMap;
 use serde::ser::SerializeMap;
@@ -25,12 +25,12 @@ use serde::{Serialize, Serializer};
 use std::collections::BTreeMap;
 use std::ops::Deref;
 
-pub struct VersionsDisplayWrapper<'a> {
+pub struct DisplayWrapper<'a> {
     pub config: &'a Config,
     pub map: VersionsMap,
 }
 
-impl<'a> std::string::ToString for VersionsDisplayWrapper<'a> {
+impl<'a> std::string::ToString for DisplayWrapper<'a> {
     fn to_string(&self) -> String {
         match &self.config.exec_mode {
             ExecMode::NumVersions(num_versions_mode) => {
@@ -52,7 +52,7 @@ impl<'a> std::string::ToString for VersionsDisplayWrapper<'a> {
     }
 }
 
-impl<'a> Deref for VersionsDisplayWrapper<'a> {
+impl<'a> Deref for DisplayWrapper<'a> {
     type Target = BTreeMap<PathData, Vec<PathData>>;
 
     fn deref(&self) -> &Self::Target {
@@ -60,7 +60,7 @@ impl<'a> Deref for VersionsDisplayWrapper<'a> {
     }
 }
 
-impl<'a> VersionsDisplayWrapper<'a> {
+impl<'a> DisplayWrapper<'a> {
     pub fn from(config: &'a Config, map: VersionsMap) -> Self {
         Self { config, map }
     }
@@ -86,7 +86,7 @@ impl<'a> VersionsDisplayWrapper<'a> {
     }
 }
 
-impl<'a> Serialize for VersionsDisplayWrapper<'a> {
+impl<'a> Serialize for DisplayWrapper<'a> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,

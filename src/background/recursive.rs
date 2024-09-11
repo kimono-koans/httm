@@ -18,7 +18,7 @@
 use crate::background::deleted::SpawnDeletedThread;
 use crate::config::generate::{DeletedMode, ExecMode};
 use crate::data::paths::{BasicDirEntryInfo, PathData};
-use crate::display_versions::wrapper::VersionsDisplayWrapper;
+use crate::display::wrapper::DisplayWrapper;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{print_output_buf, HttmIsDir};
 use crate::parse::mounts::{IsFilterDir, MaxLen};
@@ -419,7 +419,7 @@ impl NonInteractiveRecursiveWrapper {
         let pseudo_live_set: Vec<PathData> = entries.into_iter().map(PathData::from).collect();
 
         let versions_map = VersionsMap::new(&GLOBAL_CONFIG, &pseudo_live_set)?;
-        let output_buf = VersionsDisplayWrapper::from(&GLOBAL_CONFIG, versions_map).to_string();
+        let output_buf = DisplayWrapper::from(&GLOBAL_CONFIG, versions_map).to_string();
 
         print_output_buf(&output_buf)
     }
