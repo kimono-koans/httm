@@ -17,7 +17,7 @@
 
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{get_btrfs_command, user_has_effective_root};
-use crate::parse::mounts::{DatasetMetadata, FilesystemType, BTRFS_ROOT_SUBVOL, PROC_MOUNTS};
+use crate::filesystem::mounts::{DatasetMetadata, FilesystemType, BTRFS_ROOT_SUBVOL, PROC_MOUNTS};
 use crate::{
     BTRFS_SNAPPER_HIDDEN_DIRECTORY,
     BTRFS_SNAPPER_SUFFIX,

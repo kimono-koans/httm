@@ -15,10 +15,9 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::library::results::{HttmError, HttmResult};
-use crate::parse::aliases::MapOfAliases;
-use crate::parse::alts::MapOfAlts;
-use crate::parse::mounts::{
+use crate::filesystem::aliases::MapOfAliases;
+use crate::filesystem::alts::MapOfAlts;
+use crate::filesystem::mounts::{
     BaseFilesystemInfo,
     FilesystemType,
     FilterDirs,
@@ -26,7 +25,8 @@ use crate::parse::mounts::{
     TM_DIR_LOCAL_PATH,
     TM_DIR_REMOTE_PATH,
 };
-use crate::parse::snaps::MapOfSnaps;
+use crate::filesystem::snaps::MapOfSnaps;
+use crate::library::results::{HttmError, HttmResult};
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, PartialEq, Eq)]

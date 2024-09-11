@@ -16,9 +16,9 @@
 // that was distributed with this source code.
 
 use crate::data::paths::{PathData, PathDeconstruction};
+use crate::filesystem::mounts::FilesystemType;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::user_has_effective_root;
-use crate::parse::mounts::FilesystemType;
 use crate::roll_forward::exec::RollForward;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command as ExecProcess, Stdio};

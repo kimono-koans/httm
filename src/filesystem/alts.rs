@@ -16,7 +16,7 @@
 // that was distributed with this source code.
 
 use crate::library::results::{HttmError, HttmResult};
-use crate::parse::mounts::MapOfDatasets;
+use crate::filesystem::mounts::MapOfDatasets;
 use rayon::prelude::*;
 use std::collections::BTreeMap;
 use std::ops::Deref;

@@ -21,7 +21,7 @@ use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::display::wrapper::DisplayWrapper;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{print_output_buf, HttmIsDir};
-use crate::parse::mounts::{IsFilterDir, MaxLen};
+use crate::filesystem::mounts::{IsFilterDir, MaxLen};
 use crate::{VersionsMap, BTRFS_SNAPPER_HIDDEN_DIRECTORY, GLOBAL_CONFIG, ZFS_HIDDEN_DIRECTORY};
 use rayon::{Scope, ThreadPool};
 use skim::prelude::*;

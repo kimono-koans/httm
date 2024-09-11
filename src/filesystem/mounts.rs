@@ -17,7 +17,7 @@
 
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{find_common_path, get_mount_command};
-use crate::parse::snaps::MapOfSnaps;
+use crate::filesystem::snaps::MapOfSnaps;
 use crate::{
     BTRFS_SNAPPER_HIDDEN_DIRECTORY,
     GLOBAL_CONFIG,

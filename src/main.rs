@@ -60,7 +60,7 @@ mod lookup {
     pub mod snap_names;
     pub mod versions;
 }
-mod parse {
+mod filesystem {
     pub mod aliases;
     pub mod alts;
     pub mod mounts;

@@ -18,7 +18,7 @@
 use crate::config::generate::{Config, DedupBy, ExecMode, LastSnapMode};
 use crate::data::paths::{CompareVersionsContainer, PathData, PathDeconstruction};
 use crate::library::results::{HttmError, HttmResult};
-use crate::parse::mounts::LinkType;
+use crate::filesystem::mounts::LinkType;
 use crate::GLOBAL_CONFIG;
 use hashbrown::HashSet;
 use rayon::prelude::*;

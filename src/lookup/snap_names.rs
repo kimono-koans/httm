@@ -19,7 +19,7 @@ use crate::config::generate::ListSnapsFilters;
 use crate::data::paths::{PathData, PathDeconstruction, ZfsSnapPathGuard};
 use crate::library::results::{HttmError, HttmResult};
 use crate::lookup::versions::VersionsMap;
-use crate::parse::mounts::FilesystemType;
+use crate::filesystem::mounts::FilesystemType;
 use rayon::prelude::*;
 use std::collections::BTreeMap;
 use std::ops::Deref;

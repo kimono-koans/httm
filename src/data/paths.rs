@@ -18,10 +18,10 @@
 use super::selection::SelectionCandidate;
 use crate::background::recursive::PathProvenance;
 use crate::config::generate::{DedupBy, PrintMode};
+use crate::filesystem::mounts::{FilesystemType, MaxLen};
 use crate::library::file_ops::HashFileContents;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{date_string, display_human_size, DateFormat};
-use crate::parse::mounts::{FilesystemType, MaxLen};
 use crate::{GLOBAL_CONFIG, ZFS_SNAPSHOT_DIRECTORY};
 use realpath_ext::{realpath, RealpathFlags};
 use serde::ser::SerializeStruct;
