@@ -280,7 +280,7 @@ impl BaseFilesystemInfo {
                             link_type: LinkType::Network,
                         },
                     )),
-                    _ => Either::Right(Arc::from(dest_path)),
+                    _ => Either::Right(dest_path),
                 },
                 BTRFS_FSTYPE => {
                     let keyed_options: BTreeMap<&str, &str> = mount_info
@@ -313,7 +313,7 @@ impl BaseFilesystemInfo {
                     ))
                 }
                 NILFS2_FSTYPE => Either::Left((
-                    Arc::from(dest_path),
+                    dest_path,
                     DatasetMetadata {
                         source: mount_info.source.into_boxed_path(),
                         fs_type: FilesystemType::Nilfs2,
@@ -322,17 +322,17 @@ impl BaseFilesystemInfo {
                 )),
                 _ if mount_info.source.to_string_lossy().contains(RESTIC_FSTYPE) => {
                     let base_path = if let Some(FilesystemType::Restic(_)) = opt_alt_store {
-                        dest_path
+                        dest_path.to_path_buf()
                     } else {
-                        Arc::from(dest_path.as_ref().join(RESTIC_LATEST_SNAPSHOT_DIRECTORY))
+                        dest_path.as_ref().join(RESTIC_LATEST_SNAPSHOT_DIRECTORY)
                     };
 
-                    let canonical_path: PathBuf =
-                        realpath(&base_path, RealpathFlags::ALLOW_MISSING)
-                            .unwrap_or_else(|_| base_path.to_path_buf());
+                    let canonical_path = realpath(&base_path, RealpathFlags::ALLOW_MISSING)
+                        .unwrap_or_else(|_| base_path.to_path_buf())
+                        .into();
 
                     Either::Left((
-                        Arc::from(canonical_path),
+                        canonical_path,
                         DatasetMetadata {
                             source: mount_info.source.into_boxed_path(),
                             fs_type: FilesystemType::Restic(None),
@@ -340,7 +340,7 @@ impl BaseFilesystemInfo {
                         },
                     ))
                 }
-                _ => Either::Right(Arc::from(dest_path)),
+                _ => Either::Right(dest_path),
             });
 
         Ok((map_of_datasets, filter_dirs))
@@ -429,9 +429,9 @@ impl BaseFilesystemInfo {
                     )),
                     _ if source.to_string_lossy().contains(RESTIC_FSTYPE) => {
                         let base_path = if let Some(FilesystemType::Restic(_)) = opt_alt_store {
-                            mount
+                            mount.to_path_buf()
                         } else {
-                            Arc::from(mount.join(RESTIC_LATEST_SNAPSHOT_DIRECTORY))
+                            mount.join(RESTIC_LATEST_SNAPSHOT_DIRECTORY)
                         };
 
                         let canonical_path = realpath(&base_path, RealpathFlags::ALLOW_MISSING)
@@ -447,7 +447,7 @@ impl BaseFilesystemInfo {
                             },
                         ))
                     }
-                    _ => Either::Right(Arc::from(mount)),
+                    _ => Either::Right(mount),
                 },
             );
 
