@@ -16,8 +16,8 @@
 // that was distributed with this source code.
 
 use crate::background::recursive::{PathProvenance, SharedRecursive};
-use crate::config::generate::DeletedMode;
-use crate::data::paths::{BasicDirEntryInfo, PathData};
+use crate::config::generate::{DeletedMode, ExecMode};
+use crate::data::paths::BasicDirEntryInfo;
 use crate::library::results::HttmResult;
 use crate::lookup::deleted::DeletedFiles;
 use crate::GLOBAL_CONFIG;
@@ -27,7 +27,7 @@ use std::path::Path;
 use std::sync::atomic::AtomicBool;
 
 pub struct DeletedSearch {
-    requested_dir: PathData,
+    requested_dir: BasicDirEntryInfo,
     skim_tx: SkimItemSender,
     hangup: Arc<AtomicBool>,
 }
@@ -42,24 +42,21 @@ impl DeletedSearch {
     ) {
         let new = Self::new(requested_dir, skim_tx.clone(), hangup.clone());
 
-        deleted_scope.spawn(move |_| {
-            let _ = new.run_loop();
+        deleted_scope.spawn(move |inner| {
+            let _ = new.run_loop(inner);
         })
     }
 
     fn new(requested_dir: &Path, skim_tx: SkimItemSender, hangup: Arc<AtomicBool>) -> Self {
         Self {
-            requested_dir: PathData::from(requested_dir),
+            requested_dir: BasicDirEntryInfo::new(requested_dir.to_path_buf(), None),
             skim_tx,
             hangup,
         }
     }
 
-    fn run_loop(&self) -> HttmResult<()> {
-        let mut queue = vec![BasicDirEntryInfo::new(
-            self.requested_dir.path().to_path_buf(),
-            None,
-        )];
+    fn run_loop(&self, inner: &Scope) -> HttmResult<()> {
+        let mut queue = vec![self.requested_dir.clone()];
 
         while let Some(deleted_dir) = queue.pop() {
             // check -- should deleted threads keep working?
@@ -70,7 +67,15 @@ impl DeletedSearch {
             }
 
             if let Ok(mut res) = self.enter_directory(&deleted_dir.path()) {
-                queue.append(&mut res);
+                match GLOBAL_CONFIG.exec_mode {
+                    ExecMode::Interactive(_) => {
+                        queue.append(&mut res);
+                    }
+                    ExecMode::NonInteractiveRecursive(_) => res.iter().for_each(|dir| {
+                        Self::spawn(dir.path(), inner, &self.skim_tx, &self.hangup)
+                    }),
+                    _ => unreachable!(),
+                }
             }
         }
 
