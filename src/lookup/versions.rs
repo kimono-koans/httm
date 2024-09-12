@@ -318,12 +318,6 @@ impl<'a> RelativePathAndSnapMounts<'a> {
         }
     }
 
-    pub fn last_version(&self) -> Option<PathData> {
-        let mut sorted_versions = self.versions_processed(&DedupBy::Disable);
-
-        sorted_versions.pop()
-    }
-
     #[inline(always)]
     fn all_versions_unprocessed(&'a self) -> impl Iterator<Item = PathData> + 'a {
         // get the DirEntry for our snapshot path which will have all our possible

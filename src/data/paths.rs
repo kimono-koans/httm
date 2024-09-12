@@ -54,6 +54,12 @@ impl From<&DirEntry> for BasicDirEntryInfo {
     }
 }
 
+impl From<BasicDirEntryInfo> for PathBuf {
+    fn from(entry: BasicDirEntryInfo) -> Self {
+        entry.path
+    }
+}
+
 impl BasicDirEntryInfo {
     pub fn new(path: PathBuf, opt_filetype: Option<FileType>) -> Self {
         Self { path, opt_filetype }

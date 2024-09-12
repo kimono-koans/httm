@@ -15,7 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::background::deleted::SpawnDeletedThread;
+use crate::background::deleted::DeletedSearch;
 use crate::config::generate::{DeletedMode, ExecMode};
 use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::display::wrapper::DisplayWrapper;
@@ -185,7 +185,7 @@ impl RecursiveMainLoop {
         )?;
 
         if let Some(deleted_scope) = opt_deleted_scope {
-            SpawnDeletedThread::exec(requested_dir, deleted_scope, skim_tx, hangup);
+            DeletedSearch::spawn(requested_dir, deleted_scope, skim_tx, hangup);
         }
 
         Ok(vec_dirs)

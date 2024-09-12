@@ -18,58 +18,79 @@
 use crate::background::recursive::{PathProvenance, SharedRecursive};
 use crate::config::generate::DeletedMode;
 use crate::data::paths::{BasicDirEntryInfo, PathData};
-use crate::library::results::{HttmError, HttmResult};
+use crate::library::results::HttmResult;
 use crate::lookup::deleted::DeletedFiles;
-use crate::lookup::versions::ProximateDatasetAndOptAlts;
 use crate::GLOBAL_CONFIG;
 use rayon::Scope;
 use skim::prelude::*;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::atomic::AtomicBool;
 
-pub struct SpawnDeletedThread {
-    requested_dir: PathBuf,
+pub struct DeletedSearch {
+    requested_dir: PathData,
     skim_tx: SkimItemSender,
     hangup: Arc<AtomicBool>,
 }
 
-impl SpawnDeletedThread {
+impl DeletedSearch {
     // "spawn" a lighter weight rayon/greenish thread for enumerate_deleted, if needed
-    pub fn exec(
+    pub fn spawn(
         requested_dir: &Path,
         deleted_scope: &Scope,
         skim_tx: &SkimItemSender,
         hangup: &Arc<AtomicBool>,
     ) {
-        let new = Self::new(requested_dir, skim_tx, hangup);
+        let new = Self::new(requested_dir, skim_tx.clone(), hangup.clone());
 
         deleted_scope.spawn(move |_| {
-            let _ = new.enter_directory();
+            let _ = new.run_loop();
         })
     }
 
-    fn new(requested_dir: &Path, skim_tx: &SkimItemSender, hangup: &Arc<AtomicBool>) -> Self {
+    fn new(requested_dir: &Path, skim_tx: SkimItemSender, hangup: Arc<AtomicBool>) -> Self {
         Self {
-            requested_dir: requested_dir.to_path_buf(),
-            skim_tx: skim_tx.clone(),
-            hangup: hangup.clone(),
+            requested_dir: PathData::from(requested_dir),
+            skim_tx,
+            hangup,
         }
     }
 
+    fn run_loop(&self) -> HttmResult<()> {
+        let mut queue = vec![BasicDirEntryInfo::new(
+            self.requested_dir.path().to_path_buf(),
+            None,
+        )];
+
+        while let Some(deleted_dir) = queue.pop() {
+            // check -- should deleted threads keep working?
+            // exit/error on disconnected channel, which closes
+            // at end of browse scope
+            if self.hangup.load(Ordering::Relaxed) {
+                break;
+            }
+
+            if let Ok(mut res) = self.enter_directory(&deleted_dir.path()) {
+                queue.append(&mut res);
+            }
+        }
+
+        Ok(())
+    }
+
     // deleted file search for all modes
-    fn enter_directory(self) -> HttmResult<()> {
+    fn enter_directory(&self, requested_dir: &Path) -> HttmResult<Vec<BasicDirEntryInfo>> {
         // check -- should deleted threads keep working?
         // exit/error on disconnected channel, which closes
         // at end of browse scope
         if self.hangup.as_ref().load(Ordering::Relaxed) {
-            return Ok(());
+            return Ok(Vec::new());
         }
 
         // obtain all unique deleted, unordered, unsorted, will need to fix
-        let vec_deleted = DeletedFiles::new(&self.requested_dir)?.into_inner();
+        let vec_deleted = DeletedFiles::new(&requested_dir)?.into_inner();
 
         if vec_deleted.is_empty() {
-            return Ok(());
+            return Ok(Vec::new());
         }
 
         // combined entries will be sent or printed, but we need the vec_dirs to recurse
@@ -83,7 +104,7 @@ impl SpawnDeletedThread {
             vec_files,
             &vec_dirs,
             PathProvenance::IsPhantom,
-            &self.requested_dir,
+            &requested_dir,
             &self.skim_tx,
         )?;
 
@@ -94,141 +115,10 @@ impl SpawnDeletedThread {
         // are transmission errors, which are handled elsewhere
         if GLOBAL_CONFIG.opt_deleted_mode != Some(DeletedMode::DepthOfOne)
             && GLOBAL_CONFIG.opt_recursive
-            && !vec_dirs.is_empty()
         {
-            // get latest in time per our policy
-            //
-            // this is very similar to VersionsMap, but of course returns only last in time
-            // for directory paths during deleted searches.  it's important to have a policy, here,
-            // last in time, for which directory we return during deleted searches, because
-            // different snapshot-ed dirs may contain different files.
-
-            // this fn is also missing parallel iter fns, to make the searches more responsive
-            // by leaving parallel search for the interactive views
-            return vec_dirs
-                .into_iter()
-                .map(PathData::from)
-                .filter_map(|path_data| {
-                    ProximateDatasetAndOptAlts::new(&path_data).ok().and_then(
-                        |proximate_dataset_and_opt_alts| {
-                            proximate_dataset_and_opt_alts
-                                .into_search_bundles()
-                                .filter_map(|search_bundle| search_bundle.last_version())
-                                .max_by_key(|pathdata| pathdata.metadata_infallible().mtime())
-                        },
-                    )
-                })
-                .try_for_each(|deleted_dir| {
-                    RecurseBehindDeletedDir::exec(
-                        &deleted_dir.path(),
-                        &self.requested_dir,
-                        &self.skim_tx,
-                        &self.hangup,
-                    )
-                });
+            return Ok(vec_dirs);
         }
 
-        Ok(())
-    }
-}
-
-struct RecurseBehindDeletedDir {
-    vec_dirs: Vec<BasicDirEntryInfo>,
-    deleted_dir_on_snap: PathBuf,
-    pseudo_live_dir: PathBuf,
-}
-
-impl RecurseBehindDeletedDir {
-    // searches for all files behind the dirs that have been deleted
-    // recurses over all dir entries and creates pseudo live versions
-    // for them all, policy is to use the latest snapshot version before
-    // deletion
-    fn exec(
-        deleted_dir: &Path,
-        requested_dir: &Path,
-        skim_tx: &SkimItemSender,
-        hangup: &Arc<AtomicBool>,
-    ) -> HttmResult<()> {
-        // check -- should deleted threads keep working?
-        // exit/error on disconnected channel, which closes
-        // at end of browse scope
-        if hangup.load(Ordering::Relaxed) {
-            return Ok(());
-        }
-
-        let mut queue = match &deleted_dir.file_name() {
-            Some(dir_name) => {
-                let from_deleted_dir = deleted_dir
-                    .parent()
-                    .ok_or_else(|| HttmError::new("Not a valid directory name!"))?;
-
-                let from_requested_dir = requested_dir;
-
-                match RecurseBehindDeletedDir::enter_directory(
-                    Path::new(dir_name),
-                    from_deleted_dir,
-                    from_requested_dir,
-                    skim_tx,
-                ) {
-                    Ok(res) if !res.vec_dirs.is_empty() => Vec::from([res]),
-                    _ => return Ok(()),
-                }
-            }
-            None => return Err(HttmError::new("Not a valid directory name!").into()),
-        };
-
-        while let Some(item) = queue.pop() {
-            if hangup.load(Ordering::Relaxed) {
-                return Ok(());
-            }
-
-            let mut new = item
-                .vec_dirs
-                .into_iter()
-                .map(|basic_info| {
-                    let dir_name = Path::new(basic_info.filename());
-                    RecurseBehindDeletedDir::enter_directory(
-                        dir_name,
-                        &item.deleted_dir_on_snap,
-                        &item.pseudo_live_dir,
-                        skim_tx,
-                    )
-                })
-                .flatten()
-                .collect();
-
-            queue.append(&mut new);
-        }
-
-        Ok(())
-    }
-
-    fn enter_directory(
-        dir_name: &Path,
-        from_deleted_dir: &Path,
-        from_requested_dir: &Path,
-        skim_tx: &SkimItemSender,
-    ) -> HttmResult<RecurseBehindDeletedDir> {
-        // deleted_dir_on_snap is the path from the deleted dir on the snapshot
-        // pseudo_live_dir is the path from the fake, deleted directory that once was
-        let deleted_dir_on_snap = from_deleted_dir.to_path_buf().join(dir_name);
-        let pseudo_live_dir = from_requested_dir.to_path_buf().join(dir_name);
-
-        let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
-            SharedRecursive::entries_partitioned(&deleted_dir_on_snap)?;
-
-        SharedRecursive::combine_and_send_entries(
-            vec_files,
-            &vec_dirs,
-            PathProvenance::IsPhantom,
-            &pseudo_live_dir,
-            skim_tx,
-        )?;
-
-        Ok(RecurseBehindDeletedDir {
-            vec_dirs,
-            deleted_dir_on_snap,
-            pseudo_live_dir,
-        })
+        Ok(Vec::new())
     }
 }
