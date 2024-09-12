@@ -16,7 +16,7 @@
 // that was distributed with this source code.
 
 use crate::background::recursive::{PathProvenance, SharedRecursive};
-use crate::config::generate::{DeletedMode, ExecMode};
+use crate::config::generate::DeletedMode;
 use crate::data::paths::BasicDirEntryInfo;
 use crate::library::results::HttmResult;
 use crate::lookup::deleted::DeletedFiles;
@@ -42,8 +42,8 @@ impl DeletedSearch {
     ) {
         let new = Self::new(requested_dir, skim_tx.clone(), hangup.clone());
 
-        deleted_scope.spawn(move |inner| {
-            let _ = new.run_loop(inner);
+        deleted_scope.spawn(move |_| {
+            let _ = new.run_loop();
         })
     }
 
@@ -55,7 +55,7 @@ impl DeletedSearch {
         }
     }
 
-    fn run_loop(&self, inner: &Scope) -> HttmResult<()> {
+    fn run_loop(&self) -> HttmResult<()> {
         let mut queue = vec![self.requested_dir.clone()];
 
         while let Some(deleted_dir) = queue.pop() {
@@ -67,15 +67,7 @@ impl DeletedSearch {
             }
 
             if let Ok(mut res) = self.enter_directory(&deleted_dir.path()) {
-                match GLOBAL_CONFIG.exec_mode {
-                    ExecMode::Interactive(_) => {
-                        queue.append(&mut res);
-                    }
-                    ExecMode::NonInteractiveRecursive(_) => res.iter().for_each(|dir| {
-                        Self::spawn(dir.path(), inner, &self.skim_tx, &self.hangup)
-                    }),
-                    _ => unreachable!(),
-                }
+                queue.append(&mut res);
             }
         }
 
