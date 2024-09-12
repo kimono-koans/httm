@@ -19,7 +19,8 @@ use crate::background::recursive::{PathProvenance, SharedRecursive};
 use crate::config::generate::DeletedMode;
 use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::library::results::{HttmError, HttmResult};
-use crate::lookup::deleted::{DeletedFiles, LastInTimeSet};
+use crate::lookup::deleted::DeletedFiles;
+use crate::lookup::versions::ProximateDatasetAndOptAlts;
 use crate::GLOBAL_CONFIG;
 use rayon::Scope;
 use skim::prelude::*;
@@ -96,10 +97,27 @@ impl SpawnDeletedThread {
             && !vec_dirs.is_empty()
         {
             // get latest in time per our policy
-            let path_set: Vec<PathData> = vec_dirs.into_iter().map(PathData::from).collect();
+            //
+            // this is very similar to VersionsMap, but of course returns only last in time
+            // for directory paths during deleted searches.  it's important to have a policy, here,
+            // last in time, for which directory we return during deleted searches, because
+            // different snapshot-ed dirs may contain different files.
 
-            return LastInTimeSet::new(path_set)?
-                .iter()
+            // this fn is also missing parallel iter fns, to make the searches more responsive
+            // by leaving parallel search for the interactive views
+            return vec_dirs
+                .into_iter()
+                .map(PathData::from)
+                .filter_map(|path_data| {
+                    ProximateDatasetAndOptAlts::new(&path_data).ok().and_then(
+                        |proximate_dataset_and_opt_alts| {
+                            proximate_dataset_and_opt_alts
+                                .into_search_bundles()
+                                .filter_map(|search_bundle| search_bundle.last_version())
+                                .max_by_key(|pathdata| pathdata.metadata_infallible().mtime())
+                        },
+                    )
+                })
                 .try_for_each(|deleted_dir| {
                     RecurseBehindDeletedDir::exec(
                         &deleted_dir.path(),

@@ -21,7 +21,6 @@ use crate::lookup::versions::{ProximateDatasetAndOptAlts, RelativePathAndSnapMou
 use hashbrown::{HashMap, HashSet};
 use std::ffi::OsString;
 use std::fs::read_dir;
-use std::ops::Deref;
 use std::path::Path;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -99,42 +98,5 @@ impl DeletedFiles {
             .flatten()
             .map(|dir_entry| (dir_entry.file_name(), BasicDirEntryInfo::from(&dir_entry)))
             .collect::<HashMap<OsString, BasicDirEntryInfo>>()
-    }
-}
-
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub struct LastInTimeSet {
-    inner: Vec<PathData>,
-}
-
-impl Deref for LastInTimeSet {
-    type Target = Vec<PathData>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.inner
-    }
-}
-
-impl LastInTimeSet {
-    // this is very similar to VersionsMap, but of course returns only last in time
-    // for directory paths during deleted searches.  it's important to have a policy, here,
-    // last in time, for which directory we return during deleted searches, because
-    // different snapshot-ed dirs may contain different files.
-
-    // this fn is also missing parallel iter fns, to make the searches more responsive
-    // by leaving parallel search for the interactive views
-    pub fn new(path_set: Vec<PathData>) -> HttmResult<Self> {
-        let res = path_set
-            .iter()
-            .flat_map(ProximateDatasetAndOptAlts::new)
-            .filter_map(|prox_opt_alts| {
-                prox_opt_alts
-                    .into_search_bundles()
-                    .filter_map(|search_bundle| search_bundle.last_version())
-                    .max_by_key(|pathdata| pathdata.metadata_infallible().mtime())
-            })
-            .collect();
-
-        Ok(Self { inner: res })
     }
 }
