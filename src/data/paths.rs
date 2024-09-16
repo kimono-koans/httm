@@ -464,7 +464,7 @@ impl PathMetadata {
     }
 }
 
-impl<'a> PartialOrd for PathMetadata {
+impl PartialOrd for PathMetadata {
     #[inline(always)]
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
