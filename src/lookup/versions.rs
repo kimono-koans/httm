@@ -16,13 +16,12 @@
 // that was distributed with this source code.
 
 use crate::config::generate::{Config, DedupBy, ExecMode, LastSnapMode};
-use crate::data::paths::{CompareVersionsContainer, PathData, PathDeconstruction};
+use crate::data::paths::{CompareContentsContainer, PathData, PathDeconstruction};
 use crate::filesystem::mounts::LinkType;
 use crate::library::results::{HttmError, HttmResult};
 use crate::GLOBAL_CONFIG;
 use hashbrown::HashSet;
 use rayon::prelude::*;
-use std::cmp::Ordering;
 use std::collections::BTreeMap;
 use std::io::ErrorKind;
 use std::ops::{Deref, DerefMut};
@@ -366,13 +365,21 @@ impl<'a> RelativePathAndSnapMounts<'a> {
                 vec.sort_unstable_by_key(|pathdata| pathdata.metadata_infallible().mtime());
                 vec
             }
-            DedupBy::Contents | DedupBy::Metadata => {
-                let mut vec: Vec<CompareVersionsContainer> = iter
-                    .map(|pathdata| CompareVersionsContainer::new(pathdata, dedup_by))
+            DedupBy::Metadata => {
+                let mut vec: Vec<PathData> = iter.collect();
+
+                vec.sort_unstable_by_key(|pathdata| pathdata.metadata_infallible().mtime());
+                vec.dedup_by_key(|a| a.metadata_infallible());
+
+                vec
+            }
+            DedupBy::Contents => {
+                let mut vec: Vec<CompareContentsContainer> = iter
+                    .map(|pathdata| CompareContentsContainer::new(pathdata, dedup_by))
                     .collect();
 
                 vec.sort_unstable();
-                vec.dedup_by(|a, b| a.cmp(&b) == Ordering::Equal);
+                vec.dedup();
 
                 vec.into_iter().map(|container| container.into()).collect()
             }

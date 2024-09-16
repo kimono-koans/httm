@@ -464,6 +464,24 @@ impl PathMetadata {
     }
 }
 
+impl<'a> PartialOrd for PathMetadata {
+    #[inline(always)]
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for PathMetadata {
+    #[inline(always)]
+    fn cmp(&self, other: &Self) -> Ordering {
+        if self.mtime() == other.mtime() {
+            return self.size().cmp(&other.size());
+        }
+
+        self.mtime().cmp(&other.mtime())
+    }
+}
+
 pub const PHANTOM_DATE: SystemTime = SystemTime::UNIX_EPOCH;
 pub const PHANTOM_SIZE: u64 = 0u64;
 
@@ -473,19 +491,19 @@ pub const PHANTOM_PATH_METADATA: PathMetadata = PathMetadata {
 };
 
 #[derive(Eq, PartialEq)]
-pub struct CompareVersionsContainer {
+pub struct CompareContentsContainer {
     pathdata: PathData,
     opt_hash: Option<OnceLock<u64>>,
 }
 
-impl<'a> PartialOrd for CompareVersionsContainer {
+impl<'a> PartialOrd for CompareContentsContainer {
     #[inline(always)]
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl Ord for CompareVersionsContainer {
+impl Ord for CompareContentsContainer {
     #[inline(always)]
     fn cmp(&self, other: &Self) -> Ordering {
         if self.mtime() == other.mtime() {
@@ -505,14 +523,14 @@ impl Ord for CompareVersionsContainer {
     }
 }
 
-impl From<CompareVersionsContainer> for PathData {
+impl From<CompareContentsContainer> for PathData {
     #[inline(always)]
-    fn from(value: CompareVersionsContainer) -> Self {
+    fn from(value: CompareContentsContainer) -> Self {
         value.pathdata
     }
 }
 
-impl CompareVersionsContainer {
+impl CompareContentsContainer {
     #[inline(always)]
     pub fn new(pathdata: PathData, snaps_of_type: &DedupBy) -> Self {
         let opt_hash = match snaps_of_type {
@@ -520,7 +538,7 @@ impl CompareVersionsContainer {
             DedupBy::Metadata | DedupBy::Disable => None,
         };
 
-        CompareVersionsContainer { pathdata, opt_hash }
+        CompareContentsContainer { pathdata, opt_hash }
     }
 
     #[inline(always)]
