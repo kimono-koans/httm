@@ -368,7 +368,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
             DedupBy::Metadata => {
                 let mut vec: Vec<PathData> = iter.collect();
 
-                vec.sort_unstable_by_key(|pathdata| pathdata.metadata_infallible().mtime());
+                vec.sort_unstable_by_key(|pathdata| pathdata.metadata_infallible());
                 vec.dedup_by_key(|a| a.metadata_infallible());
 
                 vec
