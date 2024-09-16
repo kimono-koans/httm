@@ -506,6 +506,7 @@ impl Ord for CompareVersionsContainer {
 }
 
 impl From<CompareVersionsContainer> for PathData {
+    #[inline(always)]
     fn from(value: CompareVersionsContainer) -> Self {
         value.pathdata
     }
