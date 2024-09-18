@@ -17,7 +17,7 @@
 
 use super::selection::SelectionCandidate;
 use crate::background::recursive::PathProvenance;
-use crate::config::generate::{DedupBy, PrintMode};
+use crate::config::generate::PrintMode;
 use crate::filesystem::mounts::{FilesystemType, MaxLen};
 use crate::library::file_ops::HashFileContents;
 use crate::library::results::{HttmError, HttmResult};
@@ -476,11 +476,13 @@ impl Ord for PathMetadata {
     fn cmp(&self, other: &Self) -> Ordering {
         let time_order: Ordering = self.mtime().cmp(&other.mtime());
 
-        if time_order.is_eq() {
-            return self.size().cmp(&other.size());
+        let size_order: Ordering = self.size().cmp(&other.size());
+
+        if time_order.is_ne() {
+            return time_order;
         }
 
-        time_order
+        size_order
     }
 }
 
@@ -492,13 +494,21 @@ pub const PHANTOM_PATH_METADATA: PathMetadata = PathMetadata {
     modify_time: PHANTOM_DATE,
 };
 
-#[derive(Eq, PartialEq)]
+#[derive(Debug)]
 pub struct CompareContentsContainer {
     pathdata: PathData,
-    opt_hash: Option<OnceLock<u64>>,
+    hash: OnceLock<u64>,
 }
 
-impl<'a> PartialOrd for CompareContentsContainer {
+impl Eq for CompareContentsContainer {}
+
+impl PartialEq for CompareContentsContainer {
+    fn eq(&self, other: &Self) -> bool {
+        self.cmp(&other).is_eq()
+    }
+}
+
+impl PartialOrd for CompareContentsContainer {
     #[inline(always)]
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
@@ -510,20 +520,19 @@ impl Ord for CompareContentsContainer {
     fn cmp(&self, other: &Self) -> Ordering {
         let time_order: Ordering = self.mtime().cmp(&other.mtime());
 
-        if time_order.is_eq() {
-            return self.size().cmp(&other.size());
+        let size_order: Ordering = self.size().cmp(&other.size());
+
+        if time_order.is_ne() {
+            return time_order;
         }
 
-        // if files, differ re mtime, but have same size, we test by bytes whether the same
-        if self.size() == other.size()
-            && self.opt_hash.is_some()
-            // if above is true/false then "&& other.opt_hash.is_some()" is the same
-            && self.is_same_file_contents(other)
-        {
-            return Ordering::Equal;
+        if size_order.is_ne() {
+            return size_order;
         }
 
-        time_order
+        let contents_order = self.cmp_file_contents(other);
+
+        contents_order
     }
 }
 
@@ -534,17 +543,17 @@ impl From<CompareContentsContainer> for PathData {
     }
 }
 
-impl CompareContentsContainer {
+impl From<PathData> for CompareContentsContainer {
     #[inline(always)]
-    pub fn new(pathdata: PathData, snaps_of_type: &DedupBy) -> Self {
-        let opt_hash = match snaps_of_type {
-            DedupBy::Contents => Some(OnceLock::new()),
-            DedupBy::Metadata | DedupBy::Disable => None,
-        };
-
-        CompareContentsContainer { pathdata, opt_hash }
+    fn from(pathdata: PathData) -> Self {
+        Self {
+            pathdata,
+            hash: OnceLock::new(),
+        }
     }
+}
 
+impl CompareContentsContainer {
     #[inline(always)]
     pub fn mtime(&self) -> SystemTime {
         self.pathdata.metadata_infallible().modify_time
@@ -556,42 +565,19 @@ impl CompareContentsContainer {
     }
 
     #[allow(unused_assignments)]
-    pub fn is_same_file_contents(&self, other: &Self) -> bool {
-        // SAFETY: Unwrap will fail on opt_hash is None, here we've guarded this above
-        let self_hash_cell = self
-            .opt_hash
-            .as_ref()
-            .expect("opt_hash should be check prior to this point and must be Some");
-        let other_hash_cell = other
-            .opt_hash
-            .as_ref()
-            .expect("opt_hash should be check prior to this point and must be Some");
-
-        let (self_hash, other_hash): (HttmResult<u64>, HttmResult<u64>) = rayon::join(
+    pub fn cmp_file_contents(&self, other: &Self) -> Ordering {
+        let (self_hash, other_hash): (&u64, &u64) = rayon::join(
             || {
-                if let Some(hash_value) = self_hash_cell.get() {
-                    return Ok(*hash_value);
-                };
-
-                Ok(*self_hash_cell
-                    .get_or_init(|| HashFileContents::path_to_hash(self.pathdata.path())))
+                self.hash
+                    .get_or_init(|| HashFileContents::path_to_hash(self.pathdata.path()))
             },
             || {
-                if let Some(hash_value) = other_hash_cell.get() {
-                    return Ok(*hash_value);
-                }
-
-                Ok(*other_hash_cell
-                    .get_or_init(|| HashFileContents::path_to_hash(other.pathdata.path())))
+                other
+                    .hash
+                    .get_or_init(|| HashFileContents::path_to_hash(other.pathdata.path()))
             },
         );
 
-        if let Ok(res_self) = self_hash {
-            if let Ok(res_other) = other_hash {
-                return res_self == res_other;
-            }
-        }
-
-        false
+        self_hash.cmp(&other_hash)
     }
 }

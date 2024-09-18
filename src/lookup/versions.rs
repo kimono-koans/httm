@@ -377,7 +377,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
             }
             DedupBy::Contents => {
                 let mut vec: Vec<CompareContentsContainer> = iter
-                    .map(|pathdata| CompareContentsContainer::new(pathdata, dedup_by))
+                    .map(|pathdata| CompareContentsContainer::from(pathdata))
                     .collect();
 
                 vec.sort_unstable();
