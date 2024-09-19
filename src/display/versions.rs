@@ -29,7 +29,7 @@ use crate::lookup::versions::ProximateDatasetAndOptAlts;
 use crate::DisplayWrapper;
 use std::borrow::Cow;
 use std::ops::Deref;
-use std::time::UNIX_EPOCH;
+use std::time::{Duration, UNIX_EPOCH};
 use terminal_size::{terminal_size, Height, Width};
 
 // 2 space wide padding - used between date and size, and size and path
@@ -92,7 +92,9 @@ impl<'a> DisplayWrapper<'a> {
                             .map(|pd| {
                                 if matches!(&self.config.print_mode, PrintMode::FormattedCsv) {
                                     let time = pd.metadata_infallible().mtime();
-                                    let since_epoch = time.duration_since(UNIX_EPOCH).unwrap();
+                                    let since_epoch = time
+                                        .duration_since(UNIX_EPOCH)
+                                        .unwrap_or_else(|_| Duration::from_secs(0));
 
                                     return format!(
                                         "{:?},{},{}{}",
