@@ -401,7 +401,7 @@ fn parse_args() -> ArgMatches {
             Arg::new("CSV")
                 .long("csv")
                 .help("display all information, delimited by a comma.")
-                .conflicts_with_all(&["RAW", "ZEROS", "NOT_SO_PRETTY", "NUM_VERSIONS"])
+                .conflicts_with_all(&["RAW", "ZEROS", "NOT_SO_PRETTY"])
                 .display_order(18)
                 .action(ArgAction::SetTrue)
         )
