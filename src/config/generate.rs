@@ -81,6 +81,7 @@ pub enum RestoreMode {
 pub enum PrintMode {
     FormattedDefault,
     FormattedNotPretty,
+    FormattedCsv,
     RawNewline,
     RawZero,
 }
@@ -382,7 +383,7 @@ fn parse_args() -> ArgMatches {
                 .long("raw")
                 .visible_alias("newline")
                 .help("display the snapshot locations only, without extraneous information, delimited by a NEWLINE character.")
-                .conflicts_with_all(&["ZEROS", "NOT_SO_PRETTY"])
+                .conflicts_with_all(&["ZEROS", "CSV", "NOT_SO_PRETTY", "NUM_VERSIONS"])
                 .display_order(16)
                 .action(ArgAction::SetTrue)
         )
@@ -392,9 +393,16 @@ fn parse_args() -> ArgMatches {
                 .long("zero")
                 .visible_alias("null")
                 .help("display the snapshot locations only, without extraneous information, delimited by a NULL character.")
-                .conflicts_with_all(&["RAW", "NOT_SO_PRETTY"])
-                
+                .conflicts_with_all(&["RAW", "CSV", "NOT_SO_PRETTY", "NUM_VERSIONS"])
                 .display_order(17)
+                .action(ArgAction::SetTrue)
+        )
+        .arg(
+            Arg::new("CSV")
+                .long("csv")
+                .help("display all information, delimited by a comma.")
+                .conflicts_with_all(&["RAW", "ZEROS", "NOT_SO_PRETTY", "NUM_VERSIONS"])
+                .display_order(18)
                 .action(ArgAction::SetTrue)
         )
         .arg(
@@ -402,8 +410,8 @@ fn parse_args() -> ArgMatches {
                 .long("not-so-pretty")
                 .visible_aliases(&["tabs", "plain-jane", "not-pretty"])
                 .help("display the ordinary output, but tab delimited, without any pretty border lines.")
-                .conflicts_with_all(&["RAW", "ZEROS"])
-                .display_order(18)
+                .conflicts_with_all(&["RAW", "ZEROS", "CSV", "NUM_VERSIONS"])
+                .display_order(19)
                 .action(ArgAction::SetTrue)
         )
         .arg(
@@ -411,7 +419,8 @@ fn parse_args() -> ArgMatches {
                 .long("json")
                 .help("display the ordinary output, but as formatted JSON.")
                 .conflicts_with_all(&["SELECT", "RESTORE"])
-                .display_order(19)
+                .display_order(20)
+                .conflicts_with_all(&["CSV"])
                 .action(ArgAction::SetTrue)
         )
         .arg(
@@ -419,7 +428,7 @@ fn parse_args() -> ArgMatches {
                 .long("omit-ditto")
                 .help("omit display of the snapshot version which may be identical to the live version. By default, `httm` displays all snapshot versions and the live version).")
                 .conflicts_with_all(&["NUM_VERSIONS"])
-                .display_order(20)
+                .display_order(21)
                 .action(ArgAction::SetTrue)
         )
         .arg(
@@ -428,7 +437,7 @@ fn parse_args() -> ArgMatches {
                 .help("by default, in the interactive modes, httm will filter out files residing upon non-supported datasets (like ext4, tmpfs, procfs, sysfs, or devtmpfs, etc.), and within any \"common\" snapshot paths. \
                 Here, one may select to disable such filtering. httm, however, will always show the input path, and results from behind any input path when that is the path being searched.")
                 
-                .display_order(21)
+                .display_order(22)
                 .action(ArgAction::SetTrue)
         )
         .arg(
@@ -437,7 +446,7 @@ fn parse_args() -> ArgMatches {
                 .aliases(&["no-hide", "nohide", "filter-hidden"])
                 .help("do not show information regarding hidden files and directories (those that start with a \'.\') in the recursive or interactive modes.")
                 
-                .display_order(22)
+                .display_order(23)
                 .action(ArgAction::SetTrue)
         )
         .arg(
@@ -446,7 +455,7 @@ fn parse_args() -> ArgMatches {
                 .aliases(&["same-filesystem", "single-filesystem", "one-fs", "onefs"])
                 .requires("RECURSIVE")
                 .help("limit recursive search to file and directories on the same filesystem/device as the target directory.")
-                .display_order(23)
+                .display_order(24)
                 .action(ArgAction::SetTrue)
         )
         .arg(
@@ -454,7 +463,7 @@ fn parse_args() -> ArgMatches {
                 .long("no-traverse")
                 .help("in recursive mode, don't traverse symlinks. Although httm does its best to prevent searching pathologically recursive symlink-ed paths, \
                 here, you may disable symlink traversal completely. NOTE: httm will never traverse symlinks when a requested recursive search is on the root/base directory (\"/\").")
-                .display_order(24)
+                .display_order(25)
                 .action(ArgAction::SetTrue)
         )
         .arg(
@@ -462,7 +471,7 @@ fn parse_args() -> ArgMatches {
                 .long("no-live")
                 .visible_aliases(&["dead", "disco"])
                 .help("only display information concerning snapshot versions (display no information regarding live versions of files or directories).")
-                .display_order(25)
+                .display_order(26)
                 .action(ArgAction::SetTrue)
         )
         .arg(
@@ -476,7 +485,7 @@ fn parse_args() -> ArgMatches {
                 Before use, be careful that the repository is mounted.  You may need superuser privileges to view a repository mounted with superuser permission.  \
                 httm also includes a helper script called \"equine\" which can assist you in mounting remote and local Time Machine snapshots.")
                 .conflicts_with_all(["MAP_ALIASES"])
-                .display_order(26)
+                .display_order(27)
                 .action(ArgAction::Append)
         )
         .arg(
@@ -487,7 +496,7 @@ fn parse_args() -> ArgMatches {
                 Useful for finding the \"files that once were\" and displaying only those pseudo-live/zombie files.")
                 .conflicts_with_all(&["BROWSE", "SELECT", "RESTORE", "SNAPSHOT", "LAST_SNAP", "NOT_SO_PRETTY"])
                 .requires("DELETED")
-                .display_order(27)
+                .display_order(28)
                 .action(ArgAction::SetTrue)
         )
         .arg(
@@ -503,7 +512,7 @@ fn parse_args() -> ArgMatches {
                 .use_value_delimiter(true)
                 .value_parser(clap::builder::ValueParser::os_string())
                 .num_args(0..=1)
-                .display_order(28)
+                .display_order(29)
                 .action(ArgAction::Append)
         )
         .arg(
@@ -521,7 +530,7 @@ fn parse_args() -> ArgMatches {
                 (and \"single-no-snap\" will print those without a snap taken, and \"single-with-snap\" will print those with a snap taken), \
                 and \"multiple\" will print only filenames which only have multiple versions.")
                 .conflicts_with_all(&["LAST_SNAP", "BROWSE", "SELECT", "RESTORE", "RECURSIVE", "SNAPSHOT", "NO_LIVE", "NO_SNAP", "OMIT_DITTO"])
-                .display_order(29)
+                .display_order(30)
                 .action(ArgAction::Append)
         )
         .arg(
@@ -532,7 +541,7 @@ fn parse_args() -> ArgMatches {
                 .help("DEPRECATED. Use MAP_ALIASES. Manually specify that mount point for ZFS (directory which contains a \".zfs\" directory) or btrfs-snapper \
                 (directory which contains a \".snapshots\" directory), such as the local mount point for a remote share. You may also set via the HTTM_REMOTE_DIR environment variable.")
                 .value_parser(clap::builder::ValueParser::os_string())
-                .display_order(30)
+                .display_order(31)
                 .action(ArgAction::Append)
         )
         .arg(
@@ -545,14 +554,14 @@ fn parse_args() -> ArgMatches {
                 You may also set via the environment variable HTTM_LOCAL_DIR.")
                 .requires("REMOTE_DIR")
                 .value_parser(clap::builder::ValueParser::os_string())
-                .display_order(31)
+                .display_order(32)
                 .action(ArgAction::Append)
         )
         .arg(
             Arg::new("UTC")
                 .long("utc")
                 .help("use UTC for date display and timestamps")
-                .display_order(32)
+                .display_order(33)
                 .action(ArgAction::SetTrue)
         )
         .arg(
@@ -561,14 +570,14 @@ fn parse_args() -> ArgMatches {
                 .help("by default, when copying files from snapshots, httm will first attempt a zero copy \"reflink\" clone on systems that support it. \
                 Here, you may disable that behavior, and force httm to use the fall back diff copy behavior as the default. \
                 You may also set an environment variable to any value, \"HTTM_NO_CLONE\" to disable.")
-                .display_order(33)
+                .display_order(34)
                 .action(ArgAction::SetTrue)
         )
         .arg(
             Arg::new("DEBUG")
                 .long("debug")
                 .help("print configuration and debugging info")
-                .display_order(34)
+                .display_order(35)
                 .action(ArgAction::SetTrue)
         )
         .arg(
@@ -576,7 +585,7 @@ fn parse_args() -> ArgMatches {
                 .long("install-zsh-hot-keys")
                 .help("install zsh hot keys to the users home directory, and then exit")
                 .exclusive(true)
-                .display_order(35)
+                .display_order(36)
                 .action(ArgAction::SetTrue)
         )
         .get_matches()
@@ -678,7 +687,9 @@ impl Config {
 
         let opt_json = matches.get_flag("JSON");
 
-        let mut print_mode = if matches.get_flag("ZEROS") {
+        let mut print_mode = if matches.get_flag("CSV") {
+            PrintMode::FormattedCsv
+        } else if matches.get_flag("ZEROS") {
             PrintMode::RawZero
         } else if matches.get_flag("RAW") {
             PrintMode::RawNewline
@@ -743,7 +754,7 @@ impl Config {
         if matches!(opt_num_versions, Some(NumVersionsMode::AllGraph))
             && !matches!(print_mode, PrintMode::FormattedDefault)
         {
-            return Err(HttmError::new("The NUM_VERSIONS graph mode and the RAW or ZEROS display modes are an invalid combination.").into());
+            return Err(HttmError::new("The NUM_VERSIONS graph mode and the CSV or RAW or ZEROS display modes are an invalid combination.").into());
         }
 
         let opt_mount_display = match matches

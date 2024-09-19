@@ -163,7 +163,9 @@ impl InteractiveSelect {
                     PrintMode::RawNewline | PrintMode::RawZero => {
                         format!("{}{delimiter}", snap_path.to_string_lossy())
                     }
-                    PrintMode::FormattedDefault | PrintMode::FormattedNotPretty => {
+                    PrintMode::FormattedDefault
+                    | PrintMode::FormattedNotPretty
+                    | PrintMode::FormattedCsv => {
                         format!("\"{}\"{delimiter}", snap_path.to_string_lossy())
                     }
                 };

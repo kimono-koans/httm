@@ -29,6 +29,7 @@ use crate::lookup::versions::ProximateDatasetAndOptAlts;
 use crate::DisplayWrapper;
 use std::borrow::Cow;
 use std::ops::Deref;
+use std::time::UNIX_EPOCH;
 use terminal_size::{terminal_size, Height, Width};
 
 // 2 space wide padding - used between date and size, and size and path
@@ -67,7 +68,7 @@ impl<'a> DisplayWrapper<'a> {
                     })
                     .collect::<String>()
             }
-            PrintMode::RawNewline | PrintMode::RawZero => {
+            PrintMode::FormattedCsv | PrintMode::RawNewline | PrintMode::RawZero => {
                 let delimiter = delimiter();
 
                 // else re compute for each instance and print per instance, now with uniform padding
@@ -88,7 +89,22 @@ impl<'a> DisplayWrapper<'a> {
                                 display_set_type.filter_bulk_exclusions(&self.config)
                             })
                             .flat_map(|(_display_set_type, vec_path_data)| vec_path_data)
-                            .map(|pd| format!("{}{}", pd.path().to_string_lossy(), delimiter))
+                            .map(|pd| {
+                                if matches!(&self.config.print_mode, PrintMode::FormattedCsv) {
+                                    let time = pd.metadata_infallible().mtime();
+                                    let since_epoch = time.duration_since(UNIX_EPOCH).unwrap();
+
+                                    return format!(
+                                        "{:?},{},{}{}",
+                                        since_epoch,
+                                        pd.metadata_infallible().size(),
+                                        pd.path().to_string_lossy(),
+                                        delimiter
+                                    );
+                                }
+
+                                format!("{}{}", pd.path().to_string_lossy(), delimiter)
+                            })
                             .collect::<String>()
                     })
                     .collect::<String>()
@@ -280,7 +296,7 @@ impl PathData {
                 let padding = PRETTY_FIXED_WIDTH_PADDING;
                 (size, path, padding)
             }
-            PrintMode::RawNewline | PrintMode::RawZero => unreachable!(),
+            PrintMode::RawNewline | PrintMode::RawZero | PrintMode::FormattedCsv => unreachable!(),
         };
 
         let display_date = if self.opt_metadata().is_some() {

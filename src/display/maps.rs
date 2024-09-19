@@ -127,7 +127,9 @@ impl std::string::ToString for PrintAsMap {
                         buffer
                     })
             }
-            PrintMode::FormattedDefault | PrintMode::FormattedNotPretty => self.format(),
+            PrintMode::FormattedDefault
+            | PrintMode::FormattedNotPretty
+            | PrintMode::FormattedCsv => self.format(),
         }
     }
 }
@@ -142,9 +144,10 @@ impl PrintAsMap {
 
     pub fn to_json(&self) -> String {
         let res = match GLOBAL_CONFIG.print_mode {
-            PrintMode::FormattedNotPretty | PrintMode::RawNewline | PrintMode::RawZero => {
-                serde_json::to_string(&self)
-            }
+            PrintMode::FormattedNotPretty
+            | PrintMode::RawNewline
+            | PrintMode::RawZero
+            | PrintMode::FormattedCsv => serde_json::to_string(&self),
             PrintMode::FormattedDefault => serde_json::to_string_pretty(&self),
         };
 

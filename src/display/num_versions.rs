@@ -96,7 +96,10 @@ impl<'a> DisplayWrapper<'a> {
                         delimiter,
                         width = padding
                     )),
-                    PrintMode::FormattedNotPretty | PrintMode::RawNewline | PrintMode::RawZero => {
+                    PrintMode::FormattedNotPretty
+                    | PrintMode::RawNewline
+                    | PrintMode::RawZero
+                    | PrintMode::FormattedCsv => {
                         unreachable!()
                     }
                 }
@@ -119,6 +122,9 @@ impl<'a> DisplayWrapper<'a> {
                     }
                     PrintMode::FormattedNotPretty | PrintMode::RawNewline | PrintMode::RawZero => {
                         Some(format!("{}\t{num_versions}{}", display_path, delimiter))
+                    }
+                    PrintMode::FormattedCsv => {
+                        Some(format!("{},{num_versions}{}", display_path, delimiter))
                     }
                 }
             }
