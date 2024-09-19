@@ -420,7 +420,7 @@ fn parse_args() -> ArgMatches {
                 .help("display the ordinary output, but as formatted JSON.")
                 .conflicts_with_all(&["SELECT", "RESTORE"])
                 .display_order(20)
-                .conflicts_with_all(&["CSV"])
+                .conflicts_with_all(&["CSV", "NUM_VERSIONS"])
                 .action(ArgAction::SetTrue)
         )
         .arg(
@@ -435,8 +435,7 @@ fn parse_args() -> ArgMatches {
             Arg::new("NO_FILTER")
                 .long("no-filter")
                 .help("by default, in the interactive modes, httm will filter out files residing upon non-supported datasets (like ext4, tmpfs, procfs, sysfs, or devtmpfs, etc.), and within any \"common\" snapshot paths. \
-                Here, one may select to disable such filtering. httm, however, will always show the input path, and results from behind any input path when that is the path being searched.")
-                
+                Here, one may select to disable such filtering. httm, however, will always show the input path, and results from behind any input path when that is the path being searched.") 
                 .display_order(22)
                 .action(ArgAction::SetTrue)
         )
@@ -445,7 +444,6 @@ fn parse_args() -> ArgMatches {
                 .long("no-hidden")
                 .aliases(&["no-hide", "nohide", "filter-hidden"])
                 .help("do not show information regarding hidden files and directories (those that start with a \'.\') in the recursive or interactive modes.")
-                
                 .display_order(23)
                 .action(ArgAction::SetTrue)
         )
@@ -529,7 +527,7 @@ fn parse_args() -> ArgMatches {
                 \"single\" will print only filenames which only have one version, \
                 (and \"single-no-snap\" will print those without a snap taken, and \"single-with-snap\" will print those with a snap taken), \
                 and \"multiple\" will print only filenames which only have multiple versions.")
-                .conflicts_with_all(&["LAST_SNAP", "BROWSE", "SELECT", "RESTORE", "RECURSIVE", "SNAPSHOT", "NO_LIVE", "NO_SNAP", "OMIT_DITTO"])
+                .conflicts_with_all(&["LAST_SNAP", "BROWSE", "SELECT", "RESTORE", "RECURSIVE", "SNAPSHOT", "NO_LIVE", "NO_SNAP", "OMIT_DITTO", "CSV", "JSON", "RAW", "ZEROS"])
                 .display_order(30)
                 .action(ArgAction::Append)
         )
@@ -750,7 +748,7 @@ impl Config {
             Some("multiple") => Some(NumVersionsMode::Multiple),
             _ => None,
         };
-        
+
         let opt_mount_display = match matches
             .get_one::<String>("FILE_MOUNT")
             .map(|inner| inner.as_str())
