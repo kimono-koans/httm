@@ -383,7 +383,7 @@ fn parse_args() -> ArgMatches {
                 .long("raw")
                 .visible_alias("newline")
                 .help("display the snapshot locations only, without extraneous information, delimited by a NEWLINE character.")
-                .conflicts_with_all(&["ZEROS", "CSV", "NOT_SO_PRETTY", "NUM_VERSIONS"])
+                .conflicts_with_all(&["ZEROS", "CSV", "NOT_SO_PRETTY"])
                 .display_order(16)
                 .action(ArgAction::SetTrue)
         )
@@ -393,7 +393,7 @@ fn parse_args() -> ArgMatches {
                 .long("zero")
                 .visible_alias("null")
                 .help("display the snapshot locations only, without extraneous information, delimited by a NULL character.")
-                .conflicts_with_all(&["RAW", "CSV", "NOT_SO_PRETTY", "NUM_VERSIONS"])
+                .conflicts_with_all(&["RAW", "CSV", "NOT_SO_PRETTY"])
                 .display_order(17)
                 .action(ArgAction::SetTrue)
         )
@@ -410,7 +410,7 @@ fn parse_args() -> ArgMatches {
                 .long("not-so-pretty")
                 .visible_aliases(&["tabs", "plain-jane", "not-pretty"])
                 .help("display the ordinary output, but tab delimited, without any pretty border lines.")
-                .conflicts_with_all(&["RAW", "ZEROS", "CSV", "NUM_VERSIONS"])
+                .conflicts_with_all(&["RAW", "ZEROS", "CSV"])
                 .display_order(19)
                 .action(ArgAction::SetTrue)
         )
@@ -420,7 +420,7 @@ fn parse_args() -> ArgMatches {
                 .help("display the ordinary output, but as formatted JSON.")
                 .conflicts_with_all(&["SELECT", "RESTORE"])
                 .display_order(20)
-                .conflicts_with_all(&["CSV", "NUM_VERSIONS"])
+                .conflicts_with_all(&["CSV"])
                 .action(ArgAction::SetTrue)
         )
         .arg(
@@ -748,6 +748,12 @@ impl Config {
             Some("multiple") => Some(NumVersionsMode::Multiple),
             _ => None,
         };
+
+        if matches!(opt_num_versions, Some(NumVersionsMode::AllGraph))
+            && !matches!(print_mode, PrintMode::FormattedDefault)
+        {
+            return Err(HttmError::new("The NUM_VERSIONS graph mode and the RAW or ZEROS display modes are an invalid combination.").into());
+        }
 
         let opt_mount_display = match matches
             .get_one::<String>("FILE_MOUNT")
