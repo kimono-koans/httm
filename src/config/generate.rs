@@ -401,7 +401,7 @@ fn parse_args() -> ArgMatches {
             Arg::new("CSV")
                 .long("csv")
                 .help("display all information, delimited by a comma.")
-                .conflicts_with_all(&["RAW", "ZEROS", "NOT_SO_PRETTY"])
+                .conflicts_with_all(&["RAW", "ZEROS", "NOT_SO_PRETTY", "JSON"])
                 .display_order(18)
                 .action(ArgAction::SetTrue)
         )
@@ -527,7 +527,7 @@ fn parse_args() -> ArgMatches {
                 \"single\" will print only filenames which only have one version, \
                 (and \"single-no-snap\" will print those without a snap taken, and \"single-with-snap\" will print those with a snap taken), \
                 and \"multiple\" will print only filenames which only have multiple versions.")
-                .conflicts_with_all(&["LAST_SNAP", "BROWSE", "SELECT", "RESTORE", "RECURSIVE", "SNAPSHOT", "NO_LIVE", "NO_SNAP", "OMIT_DITTO", "CSV", "JSON", "RAW", "ZEROS"])
+                .conflicts_with_all(&["LAST_SNAP", "BROWSE", "SELECT", "RESTORE", "RECURSIVE", "SNAPSHOT", "NO_LIVE", "NO_SNAP", "OMIT_DITTO"])
                 .display_order(30)
                 .action(ArgAction::Append)
         )
