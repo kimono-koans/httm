@@ -883,7 +883,7 @@ impl Config {
 
         let mut exec_mode = if let Some(full_snap_name) = matches.get_one::<String>("ROLL_FORWARD")
         {
-            ExecMode::RollForward(full_snap_name.to_string())
+            ExecMode::RollForward(full_snap_name.to_owned())
         } else if let Some(num_versions_mode) = opt_num_versions {
             ExecMode::NumVersions(num_versions_mode)
         } else if let Some(mount_display) = opt_mount_display {
