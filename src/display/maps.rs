@@ -176,12 +176,16 @@ impl PrintAsMap {
                 }
             })
             .map(|(key, values)| {
-                let display_path =
-                    if matches!(&GLOBAL_CONFIG.print_mode, PrintMode::FormattedNotPretty) {
-                        key.clone()
-                    } else {
-                        format!("\"{key}\"")
-                    };
+                let display_path = if matches!(
+                    &GLOBAL_CONFIG.print_mode,
+                    PrintMode::FormattedNotPretty | PrintMode::FormattedCsv
+                ) {
+                    key.clone()
+                } else {
+                    format!("\"{key}\"")
+                };
+
+                let last = values.len() - 1;
 
                 let values_string: String = values
                     .iter()
@@ -189,6 +193,12 @@ impl PrintAsMap {
                     .map(|(idx, value)| {
                         if matches!(&GLOBAL_CONFIG.print_mode, PrintMode::FormattedNotPretty) {
                             format!("{NOT_SO_PRETTY_FIXED_WIDTH_PADDING}{value}")
+                        } else if matches!(&GLOBAL_CONFIG.print_mode, PrintMode::FormattedCsv) {
+                            if idx == last {
+                                return format!("{value}");
+                            }
+
+                            format!("{value},")
                         } else if idx == 0 {
                             format!(
                                 "{:<width$} : \"{}\"\n",
@@ -202,7 +212,10 @@ impl PrintAsMap {
                     })
                     .collect::<String>();
 
-                if matches!(&GLOBAL_CONFIG.print_mode, PrintMode::FormattedNotPretty) {
+                if matches!(
+                    &GLOBAL_CONFIG.print_mode,
+                    PrintMode::FormattedNotPretty | PrintMode::FormattedCsv
+                ) {
                     format!("{display_path}:{values_string}\n")
                 } else {
                     values_string

@@ -750,13 +750,7 @@ impl Config {
             Some("multiple") => Some(NumVersionsMode::Multiple),
             _ => None,
         };
-
-        if matches!(opt_num_versions, Some(NumVersionsMode::AllGraph))
-            && !matches!(print_mode, PrintMode::FormattedDefault)
-        {
-            return Err(HttmError::new("The NUM_VERSIONS graph mode and the CSV or RAW or ZEROS display modes are an invalid combination.").into());
-        }
-
+        
         let opt_mount_display = match matches
             .get_one::<String>("FILE_MOUNT")
             .map(|inner| inner.as_str())

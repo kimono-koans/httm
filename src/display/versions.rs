@@ -97,7 +97,7 @@ impl<'a> DisplayWrapper<'a> {
                                     );
 
                                     return format!(
-                                        "{},{},{}{}",
+                                        "{},{},\"{}\"{}",
                                         pretty_date,
                                         pd.metadata_infallible().size(),
                                         pd.path().to_string_lossy(),
