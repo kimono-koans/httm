@@ -44,7 +44,7 @@ impl<'a> DisplayWrapper<'a> {
     pub fn format(&self) -> String {
         // if a single instance immediately return the global we already prepared
         match &self.config.print_mode {
-            PrintMode::Formatted(_format_mode) => {
+            PrintMode::Formatted(_) => {
                 let keys: Vec<&PathData> = self.keys().collect();
                 let values: Vec<&PathData> = self.values().flatten().collect();
 
