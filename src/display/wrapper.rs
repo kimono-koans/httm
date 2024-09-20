@@ -15,7 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::config::generate::{BulkExclusion, Config, ExecMode, PrintMode};
+use crate::config::generate::{BulkExclusion, Config, ExecMode, FormattedMode, PrintMode};
 use crate::data::paths::PathData;
 use crate::display::maps::PrintAsMap;
 use crate::library::utility::delimiter;
@@ -67,11 +67,8 @@ impl<'a> DisplayWrapper<'a> {
 
     pub fn to_json(&self) -> String {
         let res = match self.config.print_mode {
-            PrintMode::FormattedNotPretty
-            | PrintMode::RawNewline
-            | PrintMode::RawZero
-            | PrintMode::FormattedCsv => serde_json::to_string(self),
-            PrintMode::FormattedDefault => serde_json::to_string_pretty(self),
+            PrintMode::Formatted(FormattedMode::Default) => serde_json::to_string_pretty(self),
+            _ => serde_json::to_string(self),
         };
 
         match res {

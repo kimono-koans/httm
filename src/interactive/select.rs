@@ -160,12 +160,10 @@ impl InteractiveSelect {
             SelectMode::Path => {
                 let delimiter = delimiter();
                 let output_buf = match GLOBAL_CONFIG.print_mode {
-                    PrintMode::RawNewline | PrintMode::RawZero => {
+                    PrintMode::Raw(_) => {
                         format!("{}{delimiter}", snap_path.to_string_lossy())
                     }
-                    PrintMode::FormattedDefault
-                    | PrintMode::FormattedNotPretty
-                    | PrintMode::FormattedCsv => {
+                    PrintMode::Formatted(_) => {
                         format!("\"{}\"{delimiter}", snap_path.to_string_lossy())
                     }
                 };

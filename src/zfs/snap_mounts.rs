@@ -42,10 +42,7 @@ impl SnapshotMounts {
             let output_buf: String = snapshot_names
                 .iter()
                 .map(|snap_name| {
-                    if matches!(
-                        GLOBAL_CONFIG.print_mode,
-                        PrintMode::RawNewline | PrintMode::RawZero
-                    ) {
+                    if let PrintMode::Raw(_) = GLOBAL_CONFIG.print_mode {
                         let delimiter = delimiter();
                         format!("{}{delimiter}", &snap_name)
                     } else {

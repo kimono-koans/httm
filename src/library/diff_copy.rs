@@ -79,7 +79,7 @@ static IS_CLONE_COMPATIBLE: LazyLock<AtomicBool> = LazyLock::new(|| {
             return AtomicBool::new(false);
         }
 
-        if matches!(GLOBAL_CONFIG.exec_mode, ExecMode::RollForward(_)) {
+        if let ExecMode::RollForward(_) = GLOBAL_CONFIG.exec_mode {
             return AtomicBool::new(false);
         }
     }

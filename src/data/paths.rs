@@ -412,10 +412,7 @@ impl Serialize for PathMetadata {
     {
         let mut state = serializer.serialize_struct("PathData", 2)?;
 
-        if matches!(
-            GLOBAL_CONFIG.print_mode,
-            PrintMode::RawNewline | PrintMode::RawZero
-        ) {
+        if let PrintMode::Raw(_) = GLOBAL_CONFIG.print_mode {
             state.serialize_field("size", &self.size)?;
             state.serialize_field("modify_time", &self.modify_time)?;
         } else {

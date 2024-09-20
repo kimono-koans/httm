@@ -79,11 +79,21 @@ pub enum RestoreMode {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PrintMode {
-    FormattedDefault,
-    FormattedNotPretty,
-    FormattedCsv,
-    RawNewline,
-    RawZero,
+    Formatted(FormattedMode),
+    Raw(RawMode),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RawMode {
+    Csv,
+    Newline,
+    Zero,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum FormattedMode {
+    Default,
+    NotPretty,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -686,15 +696,15 @@ impl Config {
         let opt_json = matches.get_flag("JSON");
 
         let mut print_mode = if matches.get_flag("CSV") {
-            PrintMode::FormattedCsv
+            PrintMode::Raw(RawMode::Csv)
         } else if matches.get_flag("ZEROS") {
-            PrintMode::RawZero
+            PrintMode::Raw(RawMode::Zero)
         } else if matches.get_flag("RAW") {
-            PrintMode::RawNewline
+            PrintMode::Raw(RawMode::Newline)
         } else if matches.get_flag("NOT_SO_PRETTY") {
-            PrintMode::FormattedNotPretty
+            PrintMode::Formatted(FormattedMode::NotPretty)
         } else {
-            PrintMode::FormattedDefault
+            PrintMode::Formatted(FormattedMode::Default)
         };
 
         let opt_bulk_exclusion = if matches.get_flag("NO_LIVE") {
@@ -706,7 +716,7 @@ impl Config {
         };
 
         if let Some(BulkExclusion::NoSnap) = opt_bulk_exclusion {
-            if let PrintMode::FormattedNotPretty | PrintMode::FormattedDefault = print_mode {
+            if let PrintMode::Formatted(FormattedMode::Default) = print_mode {
                 return Err(HttmError::new(
                     "NO_SNAP is only available if RAW or ZEROS are specified.",
                 )
@@ -750,7 +760,7 @@ impl Config {
         };
 
         if matches!(opt_num_versions, Some(NumVersionsMode::AllGraph))
-            && !matches!(print_mode, PrintMode::FormattedDefault)
+            && !matches!(print_mode, PrintMode::Formatted(FormattedMode::Default))
         {
             return Err(HttmError::new("The NUM_VERSIONS graph mode and the RAW or ZEROS display modes are an invalid combination.").into());
         }
@@ -842,7 +852,7 @@ impl Config {
         if opt_last_snap.is_some()
             && matches!(opt_interactive_mode, Some(InteractiveMode::Select(_)))
         {
-            print_mode = PrintMode::RawNewline
+            print_mode = PrintMode::Raw(RawMode::Newline)
         }
 
         let opt_snap_file_mount =
@@ -1174,7 +1184,7 @@ impl Config {
                         .collect(),
                 )
             } else {
-                Some(rest.iter().map(|item| (*item).to_string()).collect())
+                Some(rest.iter().map(|item| item.to_string()).collect())
             }
         } else {
             None

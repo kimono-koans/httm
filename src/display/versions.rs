@@ -15,7 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::config::generate::{BulkExclusion, Config, PrintMode};
+use crate::config::generate::{BulkExclusion, Config, FormattedMode, PrintMode, RawMode};
 use crate::data::paths::{PathData, PHANTOM_DATE, PHANTOM_SIZE};
 use crate::filesystem::mounts::IsFilterDir;
 use crate::library::utility::{
@@ -44,7 +44,7 @@ impl<'a> DisplayWrapper<'a> {
     pub fn format(&self) -> String {
         // if a single instance immediately return the global we already prepared
         match &self.config.print_mode {
-            PrintMode::FormattedDefault | PrintMode::FormattedNotPretty => {
+            PrintMode::Formatted(_format_mode) => {
                 let keys: Vec<&PathData> = self.keys().collect();
                 let values: Vec<&PathData> = self.values().flatten().collect();
 
@@ -67,7 +67,7 @@ impl<'a> DisplayWrapper<'a> {
                     })
                     .collect::<String>()
             }
-            PrintMode::FormattedCsv | PrintMode::RawNewline | PrintMode::RawZero => {
+            PrintMode::Raw(raw_mode) => {
                 let delimiter = delimiter();
 
                 // else re compute for each instance and print per instance, now with uniform padding
@@ -89,7 +89,7 @@ impl<'a> DisplayWrapper<'a> {
                             })
                             .flat_map(|(_display_set_type, vec_path_data)| vec_path_data)
                             .map(|pd| {
-                                if matches!(&self.config.print_mode, PrintMode::FormattedCsv) {
+                                if matches!(raw_mode, RawMode::Csv) {
                                     let pretty_date = date_string(
                                         self.config.requested_utc_offset,
                                         &pd.metadata_infallible().mtime(),
@@ -196,7 +196,10 @@ impl<'a> DisplaySet<'a> {
                         .collect();
 
                     // add each buffer to the set - print fancy border string above, below and between sets
-                    if matches!(config.print_mode, PrintMode::FormattedNotPretty) {
+                    if matches!(
+                        config.print_mode,
+                        PrintMode::Formatted(FormattedMode::NotPretty)
+                    ) {
                         display_set_buffer += &component_buffer;
                         return display_set_buffer;
                     }
@@ -249,7 +252,7 @@ impl PathData {
 
         // tab delimited if "no pretty", no border lines, and no colors
         let (display_size, display_path, display_padding) = match &config.print_mode {
-            PrintMode::FormattedNotPretty => {
+            PrintMode::Formatted(FormattedMode::NotPretty) => {
                 // displays blanks for phantom values, equaling their dummy lens and dates.
                 //
                 // we use a dummy instead of a None value here.  Basically, sometimes, we want
@@ -263,7 +266,7 @@ impl PathData {
                 let padding = NOT_SO_PRETTY_FIXED_WIDTH_PADDING;
                 (size, path, padding)
             }
-            PrintMode::FormattedDefault => {
+            PrintMode::Formatted(FormattedMode::Default) => {
                 // print with padding and pretty border lines and ls colors
                 let size = {
                     let size = if self.opt_metadata().is_some() {
@@ -298,7 +301,7 @@ impl PathData {
                 let padding = PRETTY_FIXED_WIDTH_PADDING;
                 (size, path, padding)
             }
-            PrintMode::RawNewline | PrintMode::RawZero | PrintMode::FormattedCsv => unreachable!(),
+            _ => unreachable!(),
         };
 
         let display_date = if self.opt_metadata().is_some() {

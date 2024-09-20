@@ -16,7 +16,7 @@
 // that was distributed with this source code.
 
 use crate::background::recursive::PathProvenance;
-use crate::config::generate::{DedupBy, PrintMode};
+use crate::config::generate::{DedupBy, FormattedMode, PrintMode};
 use crate::data::paths::PathData;
 use crate::display::wrapper::DisplayWrapper;
 use crate::library::results::HttmResult;
@@ -151,7 +151,7 @@ impl From<Vec<PathData>> for Config {
             opt_omit_ditto: config.opt_omit_ditto,
             requested_utc_offset: config.requested_utc_offset,
             exec_mode: ExecMode::BasicDisplay,
-            print_mode: PrintMode::FormattedDefault,
+            print_mode: PrintMode::Formatted(FormattedMode::Default),
             dataset_collection: config.dataset_collection.clone(),
             pwd: config.pwd.clone(),
             opt_requested_dir: config.opt_requested_dir.clone(),

@@ -15,7 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::config::generate::PrintMode;
+use crate::config::generate::{FormattedMode, PrintMode, RawMode};
 use crate::data::paths::{PathData, ZfsSnapPathGuard};
 use crate::display::versions::{NOT_SO_PRETTY_FIXED_WIDTH_PADDING, QUOTATION_MARKS_LEN};
 use crate::library::utility::delimiter;
@@ -118,7 +118,7 @@ impl std::string::ToString for PrintAsMap {
         let delimiter = delimiter();
 
         match &GLOBAL_CONFIG.print_mode {
-            PrintMode::RawNewline | PrintMode::RawZero => {
+            PrintMode::Raw(_) => {
                 self.values()
                     .flatten()
                     .fold(String::new(), |mut buffer, value| {
@@ -127,9 +127,7 @@ impl std::string::ToString for PrintAsMap {
                         buffer
                     })
             }
-            PrintMode::FormattedDefault
-            | PrintMode::FormattedNotPretty
-            | PrintMode::FormattedCsv => self.format(),
+            PrintMode::Formatted(_) => self.format(),
         }
     }
 }
@@ -144,11 +142,8 @@ impl PrintAsMap {
 
     pub fn to_json(&self) -> String {
         let res = match GLOBAL_CONFIG.print_mode {
-            PrintMode::FormattedNotPretty
-            | PrintMode::RawNewline
-            | PrintMode::RawZero
-            | PrintMode::FormattedCsv => serde_json::to_string(&self),
-            PrintMode::FormattedDefault => serde_json::to_string_pretty(&self),
+            PrintMode::Formatted(FormattedMode::Default) => serde_json::to_string_pretty(&self),
+            _ => serde_json::to_string(&self),
         };
 
         match res {
@@ -176,12 +171,14 @@ impl PrintAsMap {
                 }
             })
             .map(|(key, values)| {
-                let display_path =
-                    if matches!(&GLOBAL_CONFIG.print_mode, PrintMode::FormattedNotPretty) {
-                        key.clone()
-                    } else {
-                        format!("\"{key}\"")
-                    };
+                let display_path = if matches!(
+                    &GLOBAL_CONFIG.print_mode,
+                    PrintMode::Formatted(FormattedMode::NotPretty)
+                ) {
+                    key.clone()
+                } else {
+                    format!("\"{key}\"")
+                };
 
                 let last = values.len() - 1;
 
@@ -189,9 +186,13 @@ impl PrintAsMap {
                     .iter()
                     .enumerate()
                     .map(|(idx, value)| {
-                        if matches!(&GLOBAL_CONFIG.print_mode, PrintMode::FormattedNotPretty) {
+                        if matches!(
+                            &GLOBAL_CONFIG.print_mode,
+                            PrintMode::Formatted(FormattedMode::NotPretty)
+                        ) {
                             format!("{NOT_SO_PRETTY_FIXED_WIDTH_PADDING}{value}")
-                        } else if matches!(&GLOBAL_CONFIG.print_mode, PrintMode::FormattedCsv) {
+                        } else if matches!(&GLOBAL_CONFIG.print_mode, PrintMode::Raw(RawMode::Csv))
+                        {
                             if idx == last {
                                 return format!("{value}");
                             }
@@ -210,7 +211,10 @@ impl PrintAsMap {
                     })
                     .collect::<String>();
 
-                if matches!(&GLOBAL_CONFIG.print_mode, PrintMode::FormattedNotPretty) {
+                if matches!(
+                    &GLOBAL_CONFIG.print_mode,
+                    PrintMode::Formatted(FormattedMode::NotPretty)
+                ) {
                     format!("{display_path}:{values_string}\n")
                 } else {
                     values_string

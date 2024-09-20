@@ -15,7 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::config::generate::{NumVersionsMode, PrintMode};
+use crate::config::generate::{FormattedMode, NumVersionsMode, PrintMode, RawMode};
 use crate::data::paths::PathData;
 use crate::display::maps::PrintAsMap;
 use crate::library::utility::delimiter;
@@ -89,17 +89,14 @@ impl<'a> DisplayWrapper<'a> {
                 };
 
                 match print_mode {
-                    PrintMode::FormattedDefault => Some(format!(
+                    PrintMode::Formatted(FormattedMode::Default) => Some(format!(
                         "{:<width$} : {:*<num_versions$}{}",
                         display_path,
                         "",
                         delimiter,
                         width = padding
                     )),
-                    PrintMode::FormattedNotPretty
-                    | PrintMode::RawNewline
-                    | PrintMode::RawZero
-                    | PrintMode::FormattedCsv => {
+                    _ => {
                         unreachable!()
                     }
                 }
@@ -110,21 +107,21 @@ impl<'a> DisplayWrapper<'a> {
                 };
 
                 match print_mode {
-                    PrintMode::FormattedDefault => Some(format!(
+                    PrintMode::Formatted(FormattedMode::Default) => Some(format!(
                         "{:<width$} : {}{}",
                         display_path,
                         num_versions,
                         delimiter,
                         width = padding
                     )),
-                    PrintMode::RawNewline | PrintMode::RawZero if total_num_paths == 1 => {
+                    PrintMode::Raw(RawMode::Csv) => {
+                        Some(format!("{},{num_versions}{}", display_path, delimiter))
+                    }
+                    PrintMode::Raw(_) if total_num_paths == 1 => {
                         Some(format!("{num_versions}{}", delimiter))
                     }
-                    PrintMode::FormattedNotPretty | PrintMode::RawNewline | PrintMode::RawZero => {
+                    PrintMode::Formatted(FormattedMode::NotPretty) | _ => {
                         Some(format!("{}\t{num_versions}{}", display_path, delimiter))
-                    }
-                    PrintMode::FormattedCsv => {
-                        Some(format!("{},{num_versions}{}", display_path, delimiter))
                     }
                 }
             }

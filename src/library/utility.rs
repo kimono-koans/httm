@@ -15,7 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::config::generate::PrintMode;
+use crate::config::generate::{PrintMode, RawMode};
 use crate::data::paths::{BasicDirEntryInfo, PathData, PathMetadata};
 use crate::data::selection::SelectionCandidate;
 use crate::library::results::{HttmError, HttmResult};
@@ -59,7 +59,7 @@ pub fn user_has_effective_root(msg: &str) -> HttmResult<()> {
 }
 
 pub fn delimiter() -> char {
-    if matches!(GLOBAL_CONFIG.print_mode, PrintMode::RawZero) {
+    if let PrintMode::Raw(RawMode::Zero) = GLOBAL_CONFIG.print_mode {
         return '\0';
     }
 
