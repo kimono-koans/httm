@@ -67,9 +67,10 @@ impl<'a> DisplayWrapper<'a> {
 
     pub fn to_json(&self) -> String {
         let res = match self.config.print_mode {
-            PrintMode::FormattedNotPretty | PrintMode::RawNewline | PrintMode::RawZero => {
-                serde_json::to_string(self)
-            }
+            PrintMode::FormattedNotPretty
+            | PrintMode::RawNewline
+            | PrintMode::RawZero
+            | PrintMode::FormattedCsv => serde_json::to_string(self),
             PrintMode::FormattedDefault => serde_json::to_string_pretty(self),
         };
 

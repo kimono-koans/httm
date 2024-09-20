@@ -127,7 +127,9 @@ impl std::string::ToString for PrintAsMap {
                         buffer
                     })
             }
-            PrintMode::FormattedDefault | PrintMode::FormattedNotPretty => self.format(),
+            PrintMode::FormattedDefault
+            | PrintMode::FormattedNotPretty
+            | PrintMode::FormattedCsv => self.format(),
         }
     }
 }
@@ -142,9 +144,10 @@ impl PrintAsMap {
 
     pub fn to_json(&self) -> String {
         let res = match GLOBAL_CONFIG.print_mode {
-            PrintMode::FormattedNotPretty | PrintMode::RawNewline | PrintMode::RawZero => {
-                serde_json::to_string(&self)
-            }
+            PrintMode::FormattedNotPretty
+            | PrintMode::RawNewline
+            | PrintMode::RawZero
+            | PrintMode::FormattedCsv => serde_json::to_string(&self),
             PrintMode::FormattedDefault => serde_json::to_string_pretty(&self),
         };
 
@@ -180,12 +183,20 @@ impl PrintAsMap {
                         format!("\"{key}\"")
                     };
 
+                let last = values.len() - 1;
+
                 let values_string: String = values
                     .iter()
                     .enumerate()
                     .map(|(idx, value)| {
                         if matches!(&GLOBAL_CONFIG.print_mode, PrintMode::FormattedNotPretty) {
                             format!("{NOT_SO_PRETTY_FIXED_WIDTH_PADDING}{value}")
+                        } else if matches!(&GLOBAL_CONFIG.print_mode, PrintMode::FormattedCsv) {
+                            if idx == last {
+                                return format!("{value}");
+                            }
+
+                            format!("{value},")
                         } else if idx == 0 {
                             format!(
                                 "{:<width$} : \"{}\"\n",
