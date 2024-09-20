@@ -72,7 +72,7 @@ impl<'a> DisplayWrapper<'a> {
 
                 // else re compute for each instance and print per instance, now with uniform padding
                 self.iter()
-                    .map(|(key, values)| {
+                    .fold(String::new(), |mut buffer, (key, values)| {
                         let keys: Vec<&PathData> = vec![key];
                         let values: Vec<&PathData> = values.iter().collect();
 
@@ -88,28 +88,47 @@ impl<'a> DisplayWrapper<'a> {
                                 display_set_type.filter_bulk_exclusions(&self.config)
                             })
                             .flat_map(|(_display_set_type, vec_path_data)| vec_path_data)
-                            .map(|pd| {
+                            .for_each(|pd| {
                                 if matches!(raw_mode, RawMode::Csv) {
-                                    let pretty_date = date_string(
-                                        self.config.requested_utc_offset,
-                                        &pd.metadata_infallible().mtime(),
-                                        DateFormat::Timestamp,
-                                    );
+                                    let line = match pd.opt_metadata() {
+                                        Some(md) => {
+                                            let date = date_string(
+                                                self.config.requested_utc_offset,
+                                                &md.mtime(),
+                                                DateFormat::Timestamp,
+                                            );
 
-                                    return format!(
-                                        "{},{},\"{}\"{}",
-                                        pretty_date,
-                                        pd.metadata_infallible().size(),
-                                        pd.path().to_string_lossy(),
-                                        delimiter
-                                    );
+                                            let size = md.size();
+
+                                            format!(
+                                                "{},{},\"{}\"{}",
+                                                date,
+                                                size,
+                                                pd.path().to_string_lossy(),
+                                                delimiter
+                                            )
+                                        }
+                                        None => {
+                                            format!(
+                                                ",,\"{}\"{}",
+                                                pd.path().to_string_lossy(),
+                                                delimiter
+                                            )
+                                        }
+                                    };
+
+                                    return buffer.push_str(&line);
                                 }
 
-                                format!("{}{}", pd.path().to_string_lossy(), delimiter)
-                            })
-                            .collect::<String>()
+                                buffer.push_str(&format!(
+                                    "{}{}",
+                                    pd.path().to_string_lossy(),
+                                    delimiter
+                                ));
+                            });
+
+                        buffer
                     })
-                    .collect::<String>()
             }
         }
     }
