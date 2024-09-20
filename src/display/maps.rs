@@ -115,17 +115,31 @@ impl std::string::ToString for PrintAsMap {
             return self.to_json();
         }
 
-        let delimiter = delimiter();
-
         match &GLOBAL_CONFIG.print_mode {
             PrintMode::Raw(_) => {
-                self.values()
-                    .flatten()
-                    .fold(String::new(), |mut buffer, value| {
-                        buffer.push_str(value);
-                        buffer.push(delimiter);
-                        buffer
-                    })
+                let delimiter = if let PrintMode::Raw(RawMode::Csv) = GLOBAL_CONFIG.print_mode {
+                    ','
+                } else {
+                    delimiter()
+                };
+
+                let values = self.values().flatten().enumerate();
+
+                let last = values.clone().count() - 1;
+
+                values.fold(String::new(), |mut buffer, (idx, value)| {
+                    buffer.push_str(value);
+
+                    if let PrintMode::Raw(RawMode::Csv) = GLOBAL_CONFIG.print_mode {
+                        if last == idx {
+                            buffer.push('\n');
+                            return buffer;
+                        }
+                    }
+
+                    buffer.push(delimiter);
+                    buffer
+                })
             }
             PrintMode::Formatted(_) => self.format(),
         }
@@ -180,8 +194,6 @@ impl PrintAsMap {
                     format!("\"{key}\"")
                 };
 
-                let last = values.len() - 1;
-
                 let values_string: String = values
                     .iter()
                     .enumerate()
@@ -191,13 +203,6 @@ impl PrintAsMap {
                             PrintMode::Formatted(FormattedMode::NotPretty)
                         ) {
                             format!("{NOT_SO_PRETTY_FIXED_WIDTH_PADDING}{value}")
-                        } else if matches!(&GLOBAL_CONFIG.print_mode, PrintMode::Raw(RawMode::Csv))
-                        {
-                            if idx == last {
-                                return format!("{value}");
-                            }
-
-                            format!("{value},")
                         } else if idx == 0 {
                             format!(
                                 "{:<width$} : \"{}\"\n",
