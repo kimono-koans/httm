@@ -88,8 +88,8 @@ impl<'a> DisplayWrapper<'a> {
                                 display_set_type.filter_bulk_exclusions(&self.config)
                             })
                             .flat_map(|(_display_set_type, vec_path_data)| vec_path_data)
-                            .for_each(|pd| {
-                                if matches!(raw_mode, RawMode::Csv) {
+                            .for_each(|pd| match raw_mode {
+                                RawMode::Csv => {
                                     let line = match pd.opt_metadata() {
                                         Some(md) => {
                                             let date = date_string(
@@ -117,14 +117,15 @@ impl<'a> DisplayWrapper<'a> {
                                         }
                                     };
 
-                                    return buffer.push_str(&line);
+                                    buffer.push_str(&line);
                                 }
-
-                                buffer.push_str(&format!(
-                                    "{}{}",
-                                    pd.path().to_string_lossy(),
-                                    delimiter
-                                ));
+                                RawMode::Newline | RawMode::Zero => {
+                                    buffer.push_str(&format!(
+                                        "{}{}",
+                                        pd.path().to_string_lossy(),
+                                        delimiter
+                                    ));
+                                }
                             });
 
                         buffer
