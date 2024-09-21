@@ -268,7 +268,7 @@ fn parse_args() -> ArgMatches {
                 or a user can simply update the modify time via 'touch'. If only this flag is specified, the \"contents\" option compares the actual file contents of file versions, if their sizes match, \
                 and overrides the default \"metadata\" behavior. The \"contents\" option can be expensive, as the file versions need to be read back and compared, and should probably only be used for smaller files. \
                 Given how expensive this operation can be, for larger files or files with many versions, \"contents\" option is not shown in Interactive browse mode, \
-                but after a selection is made, can be utilized in Select or Restore modes. The \"disable\" \"all\" or \"no-filter\" option dumps all snapshot versions, and no attempt is made to determine if the file versions are distinct.")
+                but after a selection is made, can be utilized, when enabled, in Select or Restore modes. The \"disable\" \"all\" or \"no-filter\" option dumps all snapshot versions, and no attempt is made to determine if the file versions are distinct.")
                 .display_order(9)
                 .action(ArgAction::Append)
         )
