@@ -123,23 +123,24 @@ impl std::string::ToString for PrintAsMap {
                     delimiter()
                 };
 
-                let values = self.values().flatten().enumerate();
+                let last = self.values().len() - 1;
 
-                let last = values.clone().count() - 1;
+                self.values().flatten().enumerate().fold(
+                    String::new(),
+                    |mut buffer, (idx, value)| {
+                        buffer.push_str(value);
 
-                values.fold(String::new(), |mut buffer, (idx, value)| {
-                    buffer.push_str(value);
-
-                    if let PrintMode::Raw(RawMode::Csv) = GLOBAL_CONFIG.print_mode {
-                        if last == idx {
-                            buffer.push('\n');
-                            return buffer;
+                        if let PrintMode::Raw(RawMode::Csv) = GLOBAL_CONFIG.print_mode {
+                            if last == idx {
+                                buffer.push('\n');
+                                return buffer;
+                            }
                         }
-                    }
 
-                    buffer.push(delimiter);
-                    buffer
-                })
+                        buffer.push(delimiter);
+                        buffer
+                    },
+                )
             }
             PrintMode::Formatted(_) => self.format(),
         }
