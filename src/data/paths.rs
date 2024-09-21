@@ -473,11 +473,11 @@ impl Ord for PathMetadata {
     fn cmp(&self, other: &Self) -> Ordering {
         let time_order: Ordering = self.mtime().cmp(&other.mtime());
 
-        let size_order: Ordering = self.size().cmp(&other.size());
-
         if time_order.is_ne() {
             return time_order;
         }
+
+        let size_order: Ordering = self.size().cmp(&other.size());
 
         size_order
     }
@@ -515,21 +515,17 @@ impl PartialOrd for CompareContentsContainer {
 impl Ord for CompareContentsContainer {
     #[inline(always)]
     fn cmp(&self, other: &Self) -> Ordering {
-        let time_order: Ordering = self.mtime().cmp(&other.mtime());
-
         let size_order: Ordering = self.size().cmp(&other.size());
 
-        if time_order.is_ne() {
-            return time_order;
+        if size_order.is_eq() {
+            let contents_order = self.cmp_file_contents(other);
+
+            return contents_order;
         }
 
-        if size_order.is_ne() {
-            return size_order;
-        }
+        let time_order: Ordering = self.mtime().cmp(&other.mtime());
 
-        let contents_order = self.cmp_file_contents(other);
-
-        contents_order
+        time_order
     }
 }
 
