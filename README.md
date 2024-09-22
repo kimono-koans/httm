@@ -23,7 +23,7 @@
 * 4 native interactive modes: browse, select, prune and restore
 * ANSI `ls` colors from your environment
 * Detect and display categories of unique file versions available (`multiple`, `single`, `single-with-snap`,..., etc.)
-* Select from several formatting styles (newline, null, tab delimited, JSON, etc.).  Parseable ... or not ...  oh my!
+* Select from several formatting styles (newline, null, tab delimited, JSON, CSV, etc.).  Parseable ... or not ...  oh my!
 * Packaged scripts which help you, and show you how to, use `httm`: [ounce](https://github.com/kimono-koans/httm/blob/master/scripts/ounce.bash), [bowie](https://github.com/kimono-koans/httm/blob/master/scripts/bowie.bash), [equine](https://github.com/kimono-koans/httm/blob/master/scripts/equine.bash), and [nicotine](https://github.com/kimono-koans/httm/blob/master/scripts/nicotine.bash)
 * Supports ZFS/BTRFS/NILFS2 snapshots, and Restic and Time Machine backups!
 
