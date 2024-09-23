@@ -259,7 +259,7 @@ impl<'a> Entries<'a> {
                     // once was" in their browse panel
                     combined
                         .into_iter()
-                        .map(|entry| entry.into_pseudo_live_version(self.requested_dir))
+                        .filter_map(|entry| entry.into_pseudo_live_version(self.requested_dir))
                         .collect()
                 }
             };
