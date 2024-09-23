@@ -162,6 +162,7 @@ impl<'a> RecursiveSearch<'a> {
             DeletedSearch::spawn(requested_dir, deleted_scope, skim_tx, hangup);
         }
 
+        // entries struct is consumed, but we return vec_dirs here to continue to feed the queue
         entries.combine_and_send(PathProvenance::FromLiveDataset, skim_tx)
     }
 }
@@ -210,35 +211,33 @@ impl<'a> Entries<'a> {
         let mut combined = self.vec_files;
         combined.extend_from_slice(&self.vec_dirs);
 
-        {
-            let entries_ready_to_send = match is_phantom {
-                PathProvenance::FromLiveDataset => {
-                    // live - not phantom
-                    match GLOBAL_CONFIG.opt_deleted_mode {
-                        Some(DeletedMode::Only) => Vec::new(),
-                        _ if matches!(
-                            GLOBAL_CONFIG.exec_mode,
-                            ExecMode::NonInteractiveRecursive(_)
-                        ) =>
-                        {
-                            Vec::new()
-                        }
-                        _ => combined,
+        let entries_ready_to_send = match is_phantom {
+            PathProvenance::FromLiveDataset => {
+                // live - not phantom
+                match GLOBAL_CONFIG.opt_deleted_mode {
+                    Some(DeletedMode::Only) => Vec::new(),
+                    _ if matches!(
+                        GLOBAL_CONFIG.exec_mode,
+                        ExecMode::NonInteractiveRecursive(_)
+                    ) =>
+                    {
+                        Vec::new()
                     }
+                    _ => combined,
                 }
-                PathProvenance::IsPhantom => {
-                    // this function creates dummy "live versions" values to match deleted files
-                    // which have been found on snapshots, so we return to the user "the path that
-                    // once was" in their browse panel
-                    combined
-                        .into_iter()
-                        .filter_map(|entry| entry.into_pseudo_live_version(self.requested_dir))
-                        .collect()
-                }
-            };
+            }
+            PathProvenance::IsPhantom => {
+                // this function creates dummy "live versions" values to match deleted files
+                // which have been found on snapshots, so we return to the user "the path that
+                // once was" in their browse panel
+                combined
+                    .into_iter()
+                    .filter_map(|entry| entry.into_pseudo_live_version(self.requested_dir))
+                    .collect()
+            }
+        };
 
-            DisplayOrTransmit::new(entries_ready_to_send, is_phantom, skim_tx).exec()?;
-        }
+        DisplayOrTransmit::new(entries_ready_to_send, is_phantom, skim_tx).exec()?;
 
         // here we consume the struct after sending the entries,
         // however we still need the dirs to populate the loop's queue
