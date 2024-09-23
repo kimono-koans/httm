@@ -20,25 +20,14 @@ use crate::config::generate::{DeletedMode, ExecMode};
 use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::display::wrapper::DisplayWrapper;
 use crate::library::results::{HttmError, HttmResult};
-use crate::library::utility::{print_output_buf, HttmIsDir};
+use crate::library::utility::print_output_buf;
 use crate::{VersionsMap, GLOBAL_CONFIG};
 use rayon::{Scope, ThreadPool};
 use skim::prelude::*;
 use std::fs::read_dir;
-use std::os::unix::fs::MetadataExt;
 use std::path::Path;
 use std::sync::atomic::AtomicBool;
-use std::sync::{Arc, LazyLock};
-
-static OPT_REQUESTED_DIR_DEV: LazyLock<u64> = LazyLock::new(|| {
-    GLOBAL_CONFIG
-        .opt_requested_dir
-        .as_ref()
-        .expect("opt_requested_dir should be Some value at this point in execution")
-        .symlink_metadata()
-        .expect("Cannot read metadata for directory requested for search.")
-        .dev()
-});
+use std::sync::Arc;
 
 #[derive(Clone, Copy)]
 pub enum PathProvenance {
@@ -190,36 +179,7 @@ impl<'a> Entries<'a> {
             // checking file_type on dir entries is always preferable
             // as it is much faster than a metadata call on the path
             .map(|dir_entry| BasicDirEntryInfo::from(&dir_entry))
-            .filter(|entry| {
-                if GLOBAL_CONFIG.opt_no_filter {
-                    return true;
-                }
-
-                if GLOBAL_CONFIG.opt_no_hidden
-                    && entry.filename().to_string_lossy().starts_with('.')
-                {
-                    return false;
-                }
-
-                if GLOBAL_CONFIG.opt_one_filesystem {
-                    match entry.path().metadata() {
-                        Ok(path_md) if *OPT_REQUESTED_DIR_DEV == path_md.dev() => {}
-                        _ => {
-                            // if we can't read the metadata for a path,
-                            // we probably shouldn't show it either
-                            return false;
-                        }
-                    }
-                }
-
-                if let Ok(file_type) = entry.filetype() {
-                    if file_type.is_dir() {
-                        return !entry.is_exclude_path();
-                    }
-                }
-
-                true
-            })
+            .filter(|entry| entry.all_exclusions())
             .partition(|entry| entry.is_entry_dir());
 
         Ok(Self {

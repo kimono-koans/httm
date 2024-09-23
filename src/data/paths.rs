@@ -35,9 +35,20 @@ use std::cmp::{Ord, Ordering, PartialOrd};
 use std::ffi::OsStr;
 use std::fs::{symlink_metadata, DirEntry, FileType, Metadata};
 use std::hash::Hash;
+use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 use std::sync::{LazyLock, OnceLock};
 use std::time::SystemTime;
+
+static OPT_REQUESTED_DIR_DEV: LazyLock<u64> = LazyLock::new(|| {
+    GLOBAL_CONFIG
+        .opt_requested_dir
+        .as_ref()
+        .expect("opt_requested_dir should be Some value at this point in execution")
+        .symlink_metadata()
+        .expect("Cannot read metadata for directory requested for search.")
+        .dev()
+});
 
 static DATASET_MAX_LEN: LazyLock<usize> =
     LazyLock::new(|| GLOBAL_CONFIG.dataset_collection.map_of_datasets.max_len());
@@ -106,7 +117,47 @@ impl BasicDirEntryInfo {
         self.httm_is_dir()
     }
 
-    pub fn is_exclude_path(&self) -> bool {
+    // this function creates dummy "live versions" values to match deleted files
+    // which have been found on snapshots, we return to the user "the path that
+    // once was" in their browse panel
+    pub fn into_pseudo_live_version(self, pseudo_live_dir: &Path) -> Option<Self> {
+        let path = pseudo_live_dir.join(self.path().file_name()?);
+
+        let opt_filetype = *self.opt_filetype();
+
+        Some(Self { path, opt_filetype })
+    }
+
+    pub fn all_exclusions(&self) -> bool {
+        if GLOBAL_CONFIG.opt_no_filter {
+            return true;
+        }
+
+        if GLOBAL_CONFIG.opt_no_hidden && self.filename().to_string_lossy().starts_with('.') {
+            return false;
+        }
+
+        if GLOBAL_CONFIG.opt_one_filesystem {
+            match self.path().metadata() {
+                Ok(path_md) if *OPT_REQUESTED_DIR_DEV == path_md.dev() => {}
+                _ => {
+                    // if we can't read the metadata for a path,
+                    // we probably shouldn't show it either
+                    return false;
+                }
+            }
+        }
+
+        if let Ok(file_type) = self.filetype() {
+            if file_type.is_dir() {
+                return !self.is_path_excluded();
+            }
+        }
+
+        true
+    }
+
+    fn is_path_excluded(&self) -> bool {
         // FYI path is always a relative path, but no need to canonicalize as
         // partial eq for paths is comparison of components iter
         let path = self.path();
@@ -139,17 +190,6 @@ impl BasicDirEntryInfo {
         }
 
         path.is_filter_dir()
-    }
-
-    // this function creates dummy "live versions" values to match deleted files
-    // which have been found on snapshots, we return to the user "the path that
-    // once was" in their browse panel
-    pub fn into_pseudo_live_version(self, pseudo_live_dir: &Path) -> Option<Self> {
-        let path = pseudo_live_dir.join(self.path().file_name()?);
-
-        let opt_filetype = *self.opt_filetype();
-
-        Some(Self { path, opt_filetype })
     }
 }
 

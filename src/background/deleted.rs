@@ -90,19 +90,25 @@ impl DeletedSearch {
             return Ok(Vec::new());
         }
 
-        // combined entries will be sent or printed, but we need the vec_dirs to recurse
-        let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
-            vec_deleted.into_iter().partition(|entry| {
-                // no need to traverse symlinks in deleted search
-                entry.is_entry_dir()
-            });
+        // create entries struct here
+        let entries = {
+            let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
+                vec_deleted
+                    .into_iter()
+                    .filter(|entry| entry.all_exclusions())
+                    .partition(|entry| {
+                        // no need to traverse symlinks in deleted search
+                        entry.is_entry_dir()
+                    });
 
-        let entries = Entries {
-            requested_dir,
-            vec_dirs,
-            vec_files,
+            Entries {
+                requested_dir,
+                vec_dirs,
+                vec_files,
+            }
         };
 
+        // combined entries will be sent or printed, but we need the vec_dirs to recurse
         let vec_dirs = entries.combine_and_send(PathProvenance::IsPhantom, &self.skim_tx)?;
 
         // disable behind deleted dirs with DepthOfOne,
