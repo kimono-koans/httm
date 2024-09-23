@@ -21,6 +21,7 @@ use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::display::wrapper::DisplayWrapper;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::print_output_buf;
+use crate::lookup::deleted::DeletedFiles;
 use crate::{VersionsMap, GLOBAL_CONFIG};
 use rayon::{Scope, ThreadPool};
 use skim::prelude::*;
@@ -155,7 +156,7 @@ impl<'a> RecursiveSearch<'a> {
         hangup: &Arc<AtomicBool>,
     ) -> HttmResult<Vec<BasicDirEntryInfo>> {
         // combined entries will be sent or printed, but we need the vec_dirs to recurse
-        let entries = Entries::new(requested_dir)?;
+        let entries = Entries::new(requested_dir, &PathProvenance::FromLiveDataset)?;
 
         if let Some(deleted_scope) = opt_deleted_scope {
             DeletedSearch::spawn(requested_dir, deleted_scope, skim_tx, hangup);
@@ -172,15 +173,27 @@ pub struct Entries<'a> {
 }
 
 impl<'a> Entries<'a> {
-    pub fn new(requested_dir: &'a Path) -> HttmResult<Self> {
+    pub fn new(requested_dir: &'a Path, path_provenance: &PathProvenance) -> HttmResult<Self> {
         // separates entries into dirs and files
-        let (vec_dirs, vec_files) = read_dir(requested_dir)?
-            .flatten()
-            // checking file_type on dir entries is always preferable
-            // as it is much faster than a metadata call on the path
-            .map(|dir_entry| BasicDirEntryInfo::from(&dir_entry))
-            .filter(|entry| entry.all_exclusions())
-            .partition(|entry| entry.is_entry_dir());
+        let (vec_dirs, vec_files) = match path_provenance {
+            PathProvenance::FromLiveDataset => {
+                read_dir(requested_dir)?
+                    .flatten()
+                    // checking file_type on dir entries is always preferable
+                    // as it is much faster than a metadata call on the path
+                    .map(|dir_entry| BasicDirEntryInfo::from(&dir_entry))
+                    .filter(|entry| entry.all_exclusions())
+                    .partition(|entry| entry.is_entry_dir())
+            }
+            PathProvenance::IsPhantom => {
+                // obtain all unique deleted, unordered, unsorted, will need to fix
+                DeletedFiles::new(&requested_dir)?
+                    .into_inner()
+                    .into_iter()
+                    .filter(|entry| entry.all_exclusions())
+                    .partition(|entry| entry.is_entry_dir())
+            }
+        };
 
         Ok(Self {
             requested_dir,

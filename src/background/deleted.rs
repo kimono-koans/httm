@@ -19,7 +19,6 @@ use crate::background::recursive::{Entries, PathProvenance};
 use crate::config::generate::DeletedMode;
 use crate::data::paths::BasicDirEntryInfo;
 use crate::library::results::HttmResult;
-use crate::lookup::deleted::DeletedFiles;
 use crate::GLOBAL_CONFIG;
 use rayon::Scope;
 use skim::prelude::*;
@@ -83,30 +82,8 @@ impl DeletedSearch {
             return Ok(Vec::new());
         }
 
-        // obtain all unique deleted, unordered, unsorted, will need to fix
-        let vec_deleted = DeletedFiles::new(&requested_dir)?.into_inner();
-
-        if vec_deleted.is_empty() {
-            return Ok(Vec::new());
-        }
-
         // create entries struct here
-        let entries = {
-            let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
-                vec_deleted
-                    .into_iter()
-                    .filter(|entry| entry.all_exclusions())
-                    .partition(|entry| {
-                        // no need to traverse symlinks in deleted search
-                        entry.is_entry_dir()
-                    });
-
-            Entries {
-                requested_dir,
-                vec_dirs,
-                vec_files,
-            }
-        };
+        let entries = Entries::new(requested_dir, &PathProvenance::IsPhantom)?;
 
         // combined entries will be sent or printed, but we need the vec_dirs to recurse
         let vec_dirs = entries.combine_and_send(PathProvenance::IsPhantom, &self.skim_tx)?;
