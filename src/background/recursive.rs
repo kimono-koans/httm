@@ -261,7 +261,7 @@ impl<'a> Entries<'a> {
                 }
             };
 
-            DisplayOrTransmit::exec(entries_ready_to_send, is_phantom, skim_tx)?;
+            DisplayOrTransmit::new(entries_ready_to_send, is_phantom, skim_tx).exec()?;
         }
 
         Ok(self.vec_dirs)
@@ -286,19 +286,31 @@ impl<'a> Entries<'a> {
     }
 }
 
-struct DisplayOrTransmit;
+struct DisplayOrTransmit<'a> {
+    entries: Vec<BasicDirEntryInfo>,
+    is_phantom: PathProvenance,
+    skim_tx: &'a SkimItemSender,
+}
 
-impl DisplayOrTransmit {
-    fn exec(
+impl<'a> DisplayOrTransmit<'a> {
+    fn new(
         entries: Vec<BasicDirEntryInfo>,
         is_phantom: PathProvenance,
-        skim_tx: &SkimItemSender,
-    ) -> HttmResult<()> {
+        skim_tx: &'a SkimItemSender,
+    ) -> Self {
+        Self {
+            entries,
+            is_phantom,
+            skim_tx,
+        }
+    }
+
+    fn exec(self) -> HttmResult<()> {
         // send to the interactive view, or print directly, never return back
         match &GLOBAL_CONFIG.exec_mode {
-            ExecMode::Interactive(_) => Self::transmit(entries, is_phantom, skim_tx)?,
+            ExecMode::Interactive(_) => self.transmit()?,
             ExecMode::NonInteractiveRecursive(progress_bar) => {
-                if entries.is_empty() {
+                if self.entries.is_empty() {
                     if GLOBAL_CONFIG.opt_recursive {
                         progress_bar.tick();
                     } else {
@@ -308,7 +320,7 @@ impl DisplayOrTransmit {
             )
                     }
                 } else {
-                    NonInteractiveRecursiveWrapper::print(entries)?;
+                    NonInteractiveRecursiveWrapper::print(self.entries)?;
 
                     // keeps spinner from squashing last line of output
                     if GLOBAL_CONFIG.opt_recursive {
@@ -322,17 +334,14 @@ impl DisplayOrTransmit {
         Ok(())
     }
 
-    fn transmit(
-        entries: Vec<BasicDirEntryInfo>,
-        is_phantom: PathProvenance,
-        skim_tx: &SkimItemSender,
-    ) -> HttmResult<()> {
+    fn transmit(self) -> HttmResult<()> {
         // don't want a par_iter here because it will block and wait for all
         // results, instead of printing and recursing into the subsequent dirs
-        entries
+        self.entries
             .into_iter()
             .try_for_each(|basic_info| {
-                skim_tx.try_send(Arc::new(basic_info.into_selection(&is_phantom)))
+                self.skim_tx
+                    .try_send(Arc::new(basic_info.into_selection(&self.is_phantom)))
             })
             .map_err(std::convert::Into::into)
     }
