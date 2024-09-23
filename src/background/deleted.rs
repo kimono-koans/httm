@@ -83,10 +83,10 @@ impl DeletedSearch {
         }
 
         // create entries struct here
-        let entries = Entries::new(requested_dir, &PathProvenance::IsPhantom)?;
+        let entries = Entries::new(requested_dir, &PathProvenance::IsPhantom, &self.skim_tx)?;
 
         // combined entries will be sent or printed, but we need the vec_dirs to recurse
-        let vec_dirs = entries.combine_and_send(PathProvenance::IsPhantom, &self.skim_tx)?;
+        let vec_dirs = entries.combine_and_send()?;
 
         // disable behind deleted dirs with DepthOfOne,
         // otherwise recurse and find all those deleted files

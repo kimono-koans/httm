@@ -104,11 +104,13 @@ impl<'a> RecursiveSearch<'a> {
 
         let initial_entries = Entries {
             requested_dir: self.requested_dir,
+            is_phantom: &PathProvenance::FromLiveDataset,
+            skim_tx: &self.skim_tx,
             vec_dirs: initial_vec_dirs,
             vec_files: Vec::new(),
         };
 
-        initial_entries.combine_and_send(PathProvenance::FromLiveDataset, &self.skim_tx)?;
+        initial_entries.combine_and_send()?;
 
         // runs once for non-recursive but also "primes the pump"
         // for recursive to have items available, also only place an
@@ -156,25 +158,31 @@ impl<'a> RecursiveSearch<'a> {
         hangup: &Arc<AtomicBool>,
     ) -> HttmResult<Vec<BasicDirEntryInfo>> {
         // combined entries will be sent or printed, but we need the vec_dirs to recurse
-        let entries = Entries::new(requested_dir, &PathProvenance::FromLiveDataset)?;
+        let entries = Entries::new(requested_dir, &PathProvenance::FromLiveDataset, skim_tx)?;
 
         if let Some(deleted_scope) = opt_deleted_scope {
             DeletedSearch::spawn(requested_dir, deleted_scope, skim_tx, hangup);
         }
 
         // entries struct is consumed, but we return vec_dirs here to continue to feed the queue
-        entries.combine_and_send(PathProvenance::FromLiveDataset, skim_tx)
+        entries.combine_and_send()
     }
 }
 
 pub struct Entries<'a> {
     pub requested_dir: &'a Path,
+    pub is_phantom: &'a PathProvenance,
+    pub skim_tx: &'a SkimItemSender,
     pub vec_dirs: Vec<BasicDirEntryInfo>,
     pub vec_files: Vec<BasicDirEntryInfo>,
 }
 
 impl<'a> Entries<'a> {
-    pub fn new(requested_dir: &'a Path, is_phantom: &PathProvenance) -> HttmResult<Self> {
+    pub fn new(
+        requested_dir: &'a Path,
+        is_phantom: &'a PathProvenance,
+        skim_tx: &'a SkimItemSender,
+    ) -> HttmResult<Self> {
         // separates entries into dirs and files
         let (vec_dirs, vec_files) = match is_phantom {
             PathProvenance::FromLiveDataset => {
@@ -198,20 +206,18 @@ impl<'a> Entries<'a> {
 
         Ok(Self {
             requested_dir,
+            is_phantom,
+            skim_tx,
             vec_dirs,
             vec_files,
         })
     }
 
-    pub fn combine_and_send(
-        self,
-        is_phantom: PathProvenance,
-        skim_tx: &SkimItemSender,
-    ) -> HttmResult<Vec<BasicDirEntryInfo>> {
+    pub fn combine_and_send(self) -> HttmResult<Vec<BasicDirEntryInfo>> {
         let mut combined = self.vec_files;
         combined.extend_from_slice(&self.vec_dirs);
 
-        let entries_ready_to_send = match is_phantom {
+        let entries_ready_to_send = match self.is_phantom {
             PathProvenance::FromLiveDataset => {
                 // live - not phantom
                 match GLOBAL_CONFIG.opt_deleted_mode {
@@ -237,7 +243,7 @@ impl<'a> Entries<'a> {
             }
         };
 
-        DisplayOrTransmit::new(entries_ready_to_send, is_phantom, skim_tx).exec()?;
+        DisplayOrTransmit::new(entries_ready_to_send, self.is_phantom, self.skim_tx).exec()?;
 
         // here we consume the struct after sending the entries,
         // however we still need the dirs to populate the loop's queue
@@ -248,14 +254,14 @@ impl<'a> Entries<'a> {
 
 struct DisplayOrTransmit<'a> {
     entries: Vec<BasicDirEntryInfo>,
-    is_phantom: PathProvenance,
+    is_phantom: &'a PathProvenance,
     skim_tx: &'a SkimItemSender,
 }
 
 impl<'a> DisplayOrTransmit<'a> {
     fn new(
         entries: Vec<BasicDirEntryInfo>,
-        is_phantom: PathProvenance,
+        is_phantom: &'a PathProvenance,
         skim_tx: &'a SkimItemSender,
     ) -> Self {
         Self {
