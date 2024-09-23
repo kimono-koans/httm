@@ -94,7 +94,7 @@ impl DeletedSearch {
         let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
             vec_deleted.into_iter().partition(|entry| {
                 // no need to traverse symlinks in deleted search
-                SharedRecursive::is_entry_dir(entry)
+                entry.is_entry_dir()
             });
 
         SharedRecursive::combine_and_send_entries(

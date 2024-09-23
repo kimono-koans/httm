@@ -18,11 +18,16 @@
 use super::selection::SelectionCandidate;
 use crate::background::recursive::PathProvenance;
 use crate::config::generate::PrintMode;
-use crate::filesystem::mounts::{FilesystemType, MaxLen};
+use crate::filesystem::mounts::{FilesystemType, IsFilterDir, MaxLen};
 use crate::library::file_ops::HashFileContents;
 use crate::library::results::{HttmError, HttmResult};
-use crate::library::utility::{date_string, display_human_size, DateFormat};
-use crate::{GLOBAL_CONFIG, ZFS_SNAPSHOT_DIRECTORY};
+use crate::library::utility::{date_string, display_human_size, DateFormat, HttmIsDir};
+use crate::{
+    BTRFS_SNAPPER_HIDDEN_DIRECTORY,
+    GLOBAL_CONFIG,
+    ZFS_HIDDEN_DIRECTORY,
+    ZFS_SNAPSHOT_DIRECTORY,
+};
 use realpath_ext::{realpath, RealpathFlags};
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
@@ -36,6 +41,9 @@ use std::time::SystemTime;
 
 static DATASET_MAX_LEN: LazyLock<usize> =
     LazyLock::new(|| GLOBAL_CONFIG.dataset_collection.map_of_datasets.max_len());
+
+static FILTER_DIRS_MAX_LEN: LazyLock<usize> =
+    LazyLock::new(|| GLOBAL_CONFIG.dataset_collection.filter_dirs.max_len());
 
 // only the most basic data from a DirEntry
 // for use to display in browse window and internally
@@ -85,6 +93,52 @@ impl BasicDirEntryInfo {
         let mut selection: SelectionCandidate = self.into();
         selection.set_phantom(is_phantom);
         selection
+    }
+
+    pub fn is_entry_dir(&self) -> bool {
+        // must do is_dir() look up on DirEntry file_type() as look up on Path will traverse links!
+        if GLOBAL_CONFIG.opt_no_traverse {
+            if let Ok(file_type) = self.filetype() {
+                return file_type.is_dir();
+            }
+        }
+
+        self.httm_is_dir()
+    }
+
+    pub fn is_exclude_path(&self) -> bool {
+        // FYI path is always a relative path, but no need to canonicalize as
+        // partial eq for paths is comparison of components iter
+        let path = self.path();
+
+        // never check the hidden snapshot directory for live files (duh)
+        // didn't think this was possible until I saw a SMB share return
+        // a .zfs dir entry
+        if path.ends_with(ZFS_HIDDEN_DIRECTORY) || path.ends_with(BTRFS_SNAPPER_HIDDEN_DIRECTORY) {
+            return true;
+        }
+
+        // is a common btrfs snapshot dir?
+        if let Some(common_snap_dir) = &GLOBAL_CONFIG.dataset_collection.opt_common_snap_dir {
+            if path == common_snap_dir.as_ref() {
+                return true;
+            }
+        }
+
+        // check whether user requested this dir specifically, then we will show
+        if let Some(user_requested_dir) = GLOBAL_CONFIG.opt_requested_dir.as_ref() {
+            if user_requested_dir.as_path() == path {
+                return false;
+            }
+        }
+
+        // finally : is a non-supported dataset?
+        // bailout easily if path is larger than max_filter_dir len
+        if path.components().count() > *FILTER_DIRS_MAX_LEN {
+            return false;
+        }
+
+        path.is_filter_dir()
     }
 }
 

@@ -19,10 +19,9 @@ use crate::background::deleted::DeletedSearch;
 use crate::config::generate::{DeletedMode, ExecMode};
 use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::display::wrapper::DisplayWrapper;
-use crate::filesystem::mounts::{IsFilterDir, MaxLen};
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{print_output_buf, HttmIsDir};
-use crate::{VersionsMap, BTRFS_SNAPPER_HIDDEN_DIRECTORY, GLOBAL_CONFIG, ZFS_HIDDEN_DIRECTORY};
+use crate::{VersionsMap, GLOBAL_CONFIG};
 use rayon::{Scope, ThreadPool};
 use skim::prelude::*;
 use std::fs::read_dir;
@@ -40,9 +39,6 @@ static OPT_REQUESTED_DIR_DEV: LazyLock<u64> = LazyLock::new(|| {
         .expect("Cannot read metadata for directory requested for search.")
         .dev()
 });
-
-static FILTER_DIRS_MAX_LEN: LazyLock<usize> =
-    LazyLock::new(|| GLOBAL_CONFIG.dataset_collection.filter_dirs.max_len());
 
 #[derive(Clone, Copy)]
 pub enum PathProvenance {
@@ -261,61 +257,15 @@ impl SharedRecursive {
 
                 if let Ok(file_type) = entry.filetype() {
                     if file_type.is_dir() {
-                        return !Self::exclude_path(entry);
+                        return !entry.is_exclude_path();
                     }
                 }
 
                 true
             })
-            .partition(Self::is_entry_dir);
+            .partition(|entry| entry.is_entry_dir());
 
         Ok((vec_dirs, vec_files))
-    }
-
-    pub fn is_entry_dir(entry: &BasicDirEntryInfo) -> bool {
-        // must do is_dir() look up on DirEntry file_type() as look up on Path will traverse links!
-        if GLOBAL_CONFIG.opt_no_traverse {
-            if let Ok(file_type) = entry.filetype() {
-                return file_type.is_dir();
-            }
-        }
-
-        entry.httm_is_dir()
-    }
-
-    fn exclude_path(entry: &BasicDirEntryInfo) -> bool {
-        // FYI path is always a relative path, but no need to canonicalize as
-        // partial eq for paths is comparison of components iter
-        let path = entry.path();
-
-        // never check the hidden snapshot directory for live files (duh)
-        // didn't think this was possible until I saw a SMB share return
-        // a .zfs dir entry
-        if path.ends_with(ZFS_HIDDEN_DIRECTORY) || path.ends_with(BTRFS_SNAPPER_HIDDEN_DIRECTORY) {
-            return true;
-        }
-
-        // is a common btrfs snapshot dir?
-        if let Some(common_snap_dir) = &GLOBAL_CONFIG.dataset_collection.opt_common_snap_dir {
-            if path == common_snap_dir.as_ref() {
-                return true;
-            }
-        }
-
-        // check whether user requested this dir specifically, then we will show
-        if let Some(user_requested_dir) = GLOBAL_CONFIG.opt_requested_dir.as_ref() {
-            if user_requested_dir.as_path() == path {
-                return false;
-            }
-        }
-
-        // finally : is a non-supported dataset?
-        // bailout easily if path is larger than max_filter_dir len
-        if path.components().count() > *FILTER_DIRS_MAX_LEN {
-            return false;
-        }
-
-        path.is_filter_dir()
     }
 
     // this function creates dummy "live versions" values to match deleted files
