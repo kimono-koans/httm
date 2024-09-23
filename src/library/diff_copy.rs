@@ -287,7 +287,7 @@ impl DiffCopy {
                 // However,	a return of zero  for  a  non-zero  len  argument
                 // indicates that the offset for infd is at or beyond EOF.
                 Ok(bytes_written) if bytes_written == 0usize && len != 0usize => {
-                    return Err(ErrorKind::UnexpectedEof)
+                    return Err(HttmError::new("Amount written == 0 for a file len > 0.").into());
                 }
                 Ok(bytes_written) => {
                     amt_written += bytes_written as u64;
