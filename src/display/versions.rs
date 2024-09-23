@@ -30,6 +30,7 @@ use crate::DisplayWrapper;
 use std::borrow::Cow;
 use std::ops::Deref;
 use terminal_size::{terminal_size, Height, Width};
+use time::UtcOffset;
 
 // 2 space wide padding - used between date and size, and size and path
 pub const PRETTY_FIXED_WIDTH_PADDING: &str = "  ";
@@ -67,71 +68,37 @@ impl<'a> DisplayWrapper<'a> {
                     })
                     .collect::<String>()
             }
-            PrintMode::Raw(raw_mode) => {
-                let delimiter = delimiter();
-
-                // else re compute for each instance and print per instance, now with uniform padding
-                self.iter()
-                    .fold(String::new(), |mut buffer, (key, values)| {
-                        let keys: Vec<&PathData> = vec![key];
-                        let values: Vec<&PathData> = values.iter().collect();
-
-                        let display_set = DisplaySet::from((keys, values));
-
-                        display_set
-                            .iter()
-                            .enumerate()
-                            .map(|(idx, snap_or_live_set)| {
-                                (DisplaySetType::from(idx), snap_or_live_set)
-                            })
-                            .filter(|(display_set_type, _snap_or_live_set)| {
-                                display_set_type.filter_bulk_exclusions(&self.config)
-                            })
-                            .flat_map(|(_display_set_type, vec_path_data)| vec_path_data)
-                            .for_each(|pd| match raw_mode {
-                                RawMode::Csv => {
-                                    let line = match pd.opt_metadata() {
-                                        Some(md) => {
-                                            let date = date_string(
-                                                self.config.requested_utc_offset,
-                                                &md.mtime(),
-                                                DateFormat::Timestamp,
-                                            );
-
-                                            let size = md.size();
-
-                                            format!(
-                                                "{},{},\"{}\"{}",
-                                                date,
-                                                size,
-                                                pd.path().to_string_lossy(),
-                                                delimiter
-                                            )
-                                        }
-                                        None => {
-                                            format!(
-                                                ",,\"{}\"{}",
-                                                pd.path().to_string_lossy(),
-                                                delimiter
-                                            )
-                                        }
-                                    };
-
-                                    buffer.push_str(&line);
-                                }
-                                RawMode::Newline | RawMode::Zero => {
-                                    buffer.push_str(&format!(
-                                        "{}{}",
-                                        pd.path().to_string_lossy(),
-                                        delimiter
-                                    ));
-                                }
-                            });
-
-                        buffer
-                    })
-            }
+            PrintMode::Raw(raw_mode) => self.raw(&raw_mode),
         }
+    }
+
+    fn raw(&self, raw_mode: &RawMode) -> String {
+        let delimiter = delimiter();
+
+        // else re compute for each instance and print per instance, now with uniform padding
+        self.iter()
+            .map(|(key, values)| {
+                let keys: Vec<&PathData> = vec![key];
+                let values: Vec<&PathData> = values.iter().collect();
+
+                DisplaySet::from((keys, values))
+            })
+            .enumerate()
+            .map(|(idx, snap_or_live_set)| (DisplaySetType::from(idx), snap_or_live_set))
+            .filter(|(display_set_type, _snap_or_live_set)| {
+                display_set_type.filter_bulk_exclusions(&self.config)
+            })
+            .map(|(_display_set_type, display_set)| display_set)
+            .map(|display_set| {
+                display_set
+                    .iter()
+                    .flatten()
+                    .map(|path_data| {
+                        path_data.raw(raw_mode, delimiter, self.config.requested_utc_offset)
+                    })
+                    .collect::<String>()
+            })
+            .collect::<String>()
     }
 }
 
@@ -353,6 +320,38 @@ impl PathData {
             }
             Some(_) => {
                 "WARN: No snapshot version exists for the specified file.\n"
+            }
+        }
+    }
+
+    pub fn raw(
+        &self,
+        raw_mode: &RawMode,
+        delimiter: char,
+        requested_utc_offset: UtcOffset,
+    ) -> String {
+        match raw_mode {
+            RawMode::Csv => match self.opt_metadata() {
+                Some(md) => {
+                    let date =
+                        date_string(requested_utc_offset, &md.mtime(), DateFormat::Timestamp);
+
+                    let size = md.size();
+
+                    format!(
+                        "{},{},\"{}\"{}",
+                        date,
+                        size,
+                        self.path().to_string_lossy(),
+                        delimiter
+                    )
+                }
+                None => {
+                    format!(",,\"{}\"{}", self.path().to_string_lossy(), delimiter)
+                }
+            },
+            RawMode::Newline | RawMode::Zero => {
+                format!("{}{}", self.path().to_string_lossy(), delimiter)
             }
         }
     }
