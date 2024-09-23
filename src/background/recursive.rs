@@ -263,7 +263,7 @@ impl<'a> Entries<'a> {
                 }
             };
 
-            Self::display_or_transmit(entries_ready_to_send, is_phantom, skim_tx)?;
+            DisplayOrTransmit::exec(entries_ready_to_send, is_phantom, skim_tx)?;
         }
 
         Ok(self.vec_dirs)
@@ -286,8 +286,12 @@ impl<'a> Entries<'a> {
             })
             .collect()
     }
+}
 
-    fn display_or_transmit(
+struct DisplayOrTransmit;
+
+impl DisplayOrTransmit {
+    fn exec(
         entries: Vec<BasicDirEntryInfo>,
         is_phantom: PathProvenance,
         skim_tx: &SkimItemSender,
