@@ -371,8 +371,8 @@ impl PaddingCollection {
         // calculate padding and borders for display later
         let (size_padding_len, fancy_border_len) = display_set.iter().flatten().fold(
             (0usize, 0usize),
-            |(mut size_padding_len, mut fancy_border_len), pathdata| {
-                let metadata = pathdata.metadata_infallible();
+            |(mut size_padding_len, mut fancy_border_len), path_data| {
+                let metadata = path_data.metadata_infallible();
 
                 let (display_date, display_size, display_path) = {
                     let date = date_string(
@@ -385,7 +385,7 @@ impl PaddingCollection {
                         display_human_size(metadata.size()),
                         width = size_padding_len
                     );
-                    let path = pathdata.path().to_string_lossy();
+                    let path = path_data.path().to_string_lossy();
 
                     (date, size, path)
                 };
