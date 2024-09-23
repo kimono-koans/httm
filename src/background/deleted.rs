@@ -15,7 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::background::recursive::{PathProvenance, SharedRecursive};
+use crate::background::recursive::{Entries, PathProvenance};
 use crate::config::generate::DeletedMode;
 use crate::data::paths::BasicDirEntryInfo;
 use crate::library::results::HttmResult;
@@ -97,13 +97,13 @@ impl DeletedSearch {
                 entry.is_entry_dir()
             });
 
-        SharedRecursive::combine_and_send_entries(
+        let entries = Entries {
+            requested_dir,
+            vec_dirs,
             vec_files,
-            &vec_dirs,
-            PathProvenance::IsPhantom,
-            &requested_dir,
-            &self.skim_tx,
-        )?;
+        };
+
+        let vec_dirs = entries.combine_and_send(PathProvenance::IsPhantom, &self.skim_tx)?;
 
         // disable behind deleted dirs with DepthOfOne,
         // otherwise recurse and find all those deleted files

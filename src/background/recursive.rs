@@ -112,13 +112,13 @@ impl<'a> RecursiveSearch<'a> {
             initial_vec_dirs.push(double_dot_as_entry)
         }
 
-        SharedRecursive::combine_and_send_entries(
-            vec![],
-            &initial_vec_dirs,
-            PathProvenance::FromLiveDataset,
-            self.requested_dir,
-            &self.skim_tx,
-        )?;
+        let initial_entries = Entries {
+            requested_dir: self.requested_dir,
+            vec_dirs: initial_vec_dirs,
+            vec_files: Vec::new(),
+        };
+
+        initial_entries.combine_and_send(PathProvenance::FromLiveDataset, &self.skim_tx)?;
 
         // runs once for non-recursive but also "primes the pump"
         // for recursive to have items available, also only place an
@@ -166,16 +166,9 @@ impl<'a> RecursiveSearch<'a> {
         hangup: &Arc<AtomicBool>,
     ) -> HttmResult<Vec<BasicDirEntryInfo>> {
         // combined entries will be sent or printed, but we need the vec_dirs to recurse
-        let (vec_dirs, vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
-            SharedRecursive::entries_partitioned(requested_dir)?;
+        let entries = Entries::new(requested_dir)?;
 
-        SharedRecursive::combine_and_send_entries(
-            vec_files,
-            &vec_dirs,
-            PathProvenance::FromLiveDataset,
-            requested_dir,
-            skim_tx,
-        )?;
+        let vec_dirs = entries.combine_and_send(PathProvenance::FromLiveDataset, skim_tx)?;
 
         if let Some(deleted_scope) = opt_deleted_scope {
             DeletedSearch::spawn(requested_dir, deleted_scope, skim_tx, hangup);
@@ -185,48 +178,14 @@ impl<'a> RecursiveSearch<'a> {
     }
 }
 
-pub struct SharedRecursive;
+pub struct Entries<'a> {
+    pub requested_dir: &'a Path,
+    pub vec_dirs: Vec<BasicDirEntryInfo>,
+    pub vec_files: Vec<BasicDirEntryInfo>,
+}
 
-impl SharedRecursive {
-    pub fn combine_and_send_entries(
-        vec_files: Vec<BasicDirEntryInfo>,
-        vec_dirs: &[BasicDirEntryInfo],
-        is_phantom: PathProvenance,
-        requested_dir: &Path,
-        skim_tx: &SkimItemSender,
-    ) -> HttmResult<()> {
-        let mut combined = vec_files;
-        combined.extend_from_slice(vec_dirs);
-
-        let entries = match is_phantom {
-            PathProvenance::FromLiveDataset => {
-                // live - not phantom
-                match GLOBAL_CONFIG.opt_deleted_mode {
-                    Some(DeletedMode::Only) => return Ok(()),
-                    Some(DeletedMode::DepthOfOne | DeletedMode::All) | None => {
-                        // never show live files is display recursive/deleted only file mode
-                        if matches!(
-                            GLOBAL_CONFIG.exec_mode,
-                            ExecMode::NonInteractiveRecursive(_)
-                        ) {
-                            return Ok(());
-                        }
-                        combined
-                    }
-                }
-            }
-            PathProvenance::IsPhantom => {
-                // deleted - phantom
-                Self::pseudo_live_versions(combined, requested_dir)
-            }
-        };
-
-        Self::display_or_transmit(entries, is_phantom, skim_tx)
-    }
-
-    pub fn entries_partitioned(
-        requested_dir: &Path,
-    ) -> HttmResult<(Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>)> {
+impl<'a> Entries<'a> {
+    pub fn new(requested_dir: &'a Path) -> HttmResult<Self> {
         // separates entries into dirs and files
         let (vec_dirs, vec_files) = read_dir(requested_dir)?
             .flatten()
@@ -265,7 +224,49 @@ impl SharedRecursive {
             })
             .partition(|entry| entry.is_entry_dir());
 
-        Ok((vec_dirs, vec_files))
+        Ok(Self {
+            requested_dir,
+            vec_dirs,
+            vec_files,
+        })
+    }
+
+    pub fn combine_and_send(
+        self,
+        is_phantom: PathProvenance,
+        skim_tx: &SkimItemSender,
+    ) -> HttmResult<Vec<BasicDirEntryInfo>> {
+        let mut combined = self.vec_files;
+        combined.extend_from_slice(&self.vec_dirs);
+
+        {
+            let entries_ready_to_send = match is_phantom {
+                PathProvenance::FromLiveDataset => {
+                    // live - not phantom
+                    match GLOBAL_CONFIG.opt_deleted_mode {
+                        Some(DeletedMode::Only) => return Ok(Vec::new()),
+                        Some(DeletedMode::DepthOfOne | DeletedMode::All) | None => {
+                            // never show live files is display recursive/deleted only file mode
+                            if matches!(
+                                GLOBAL_CONFIG.exec_mode,
+                                ExecMode::NonInteractiveRecursive(_)
+                            ) {
+                                return Ok(Vec::new());
+                            }
+                            combined
+                        }
+                    }
+                }
+                PathProvenance::IsPhantom => {
+                    // deleted - phantom
+                    Self::pseudo_live_versions(combined, &self.requested_dir)
+                }
+            };
+
+            Self::display_or_transmit(entries_ready_to_send, is_phantom, skim_tx)?;
+        }
+
+        Ok(self.vec_dirs)
     }
 
     // this function creates dummy "live versions" values to match deleted files
