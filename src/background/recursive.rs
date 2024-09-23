@@ -256,8 +256,13 @@ impl<'a> Entries<'a> {
                     }
                 }
                 PathProvenance::IsPhantom => {
-                    // deleted - phantom
-                    Self::pseudo_live_versions(combined, &self.requested_dir)
+                    // this function creates dummy "live versions" values to match deleted files
+                    // which have been found on snapshots, so we return to the user "the path that
+                    // once was" in their browse panel
+                    combined
+                        .into_iter()
+                        .map(|entry| entry.into_pseudo_live_version(self.requested_dir))
+                        .collect()
                 }
             };
 
@@ -265,24 +270,6 @@ impl<'a> Entries<'a> {
         }
 
         Ok(self.vec_dirs)
-    }
-
-    // this function creates dummy "live versions" values to match deleted files
-    // which have been found on snapshots, we return to the user "the path that
-    // once was" in their browse panel
-    fn pseudo_live_versions(
-        entries: Vec<BasicDirEntryInfo>,
-        pseudo_live_dir: &Path,
-    ) -> Vec<BasicDirEntryInfo> {
-        entries
-            .into_iter()
-            .map(|basic_info| {
-                BasicDirEntryInfo::new(
-                    pseudo_live_dir.join(basic_info.path().file_name().unwrap_or_default()),
-                    *basic_info.opt_filetype(),
-                )
-            })
-            .collect()
     }
 }
 

@@ -140,6 +140,16 @@ impl BasicDirEntryInfo {
 
         path.is_filter_dir()
     }
+
+    // this function creates dummy "live versions" values to match deleted files
+    // which have been found on snapshots, we return to the user "the path that
+    // once was" in their browse panel
+    pub fn into_pseudo_live_version(self, pseudo_live_dir: &Path) -> Self {
+        Self {
+            path: pseudo_live_dir.join(self.path().file_name().unwrap_or_default()),
+            opt_filetype: *self.opt_filetype(),
+        }
+    }
 }
 
 impl Into<SelectionCandidate> for BasicDirEntryInfo {
