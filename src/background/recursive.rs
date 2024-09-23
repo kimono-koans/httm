@@ -315,12 +315,12 @@ impl<'a> DisplayOrTransmit<'a> {
                         progress_bar.tick();
                     } else {
                         eprintln!(
-              "NOTICE: httm could not find any deleted files at this directory level.  \
-                        Perhaps try specifying a deleted mode in combination with \"--recursive\"."
-            )
+                            "NOTICE: httm could not find any deleted files at this directory level.  \
+                            Perhaps try specifying a deleted mode in combination with \"--recursive\"."
+                        )
                     }
                 } else {
-                    NonInteractiveRecursiveWrapper::print(self.entries)?;
+                    self.display()?;
 
                     // keeps spinner from squashing last line of output
                     if GLOBAL_CONFIG.opt_recursive {
@@ -344,6 +344,15 @@ impl<'a> DisplayOrTransmit<'a> {
                     .try_send(Arc::new(basic_info.into_selection(&self.is_phantom)))
             })
             .map_err(std::convert::Into::into)
+    }
+
+    fn display(self) -> HttmResult<()> {
+        let pseudo_live_set: Vec<PathData> = self.entries.into_iter().map(PathData::from).collect();
+
+        let versions_map = VersionsMap::new(&GLOBAL_CONFIG, &pseudo_live_set)?;
+        let output_buf = DisplayWrapper::from(&GLOBAL_CONFIG, versions_map).to_string();
+
+        print_output_buf(&output_buf)
     }
 }
 
@@ -372,14 +381,5 @@ impl NonInteractiveRecursiveWrapper {
         }
 
         Ok(())
-    }
-
-    fn print(entries: Vec<BasicDirEntryInfo>) -> HttmResult<()> {
-        let pseudo_live_set: Vec<PathData> = entries.into_iter().map(PathData::from).collect();
-
-        let versions_map = VersionsMap::new(&GLOBAL_CONFIG, &pseudo_live_set)?;
-        let output_buf = DisplayWrapper::from(&GLOBAL_CONFIG, versions_map).to_string();
-
-        print_output_buf(&output_buf)
     }
 }
