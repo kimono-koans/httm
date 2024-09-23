@@ -244,17 +244,15 @@ impl<'a> Entries<'a> {
                 PathProvenance::FromLiveDataset => {
                     // live - not phantom
                     match GLOBAL_CONFIG.opt_deleted_mode {
-                        Some(DeletedMode::Only) => return Ok(Vec::new()),
-                        Some(DeletedMode::DepthOfOne | DeletedMode::All) | None => {
-                            // never show live files is display recursive/deleted only file mode
-                            if matches!(
-                                GLOBAL_CONFIG.exec_mode,
-                                ExecMode::NonInteractiveRecursive(_)
-                            ) {
-                                return Ok(Vec::new());
-                            }
-                            combined
+                        Some(DeletedMode::Only) => Vec::new(),
+                        _ if matches!(
+                            GLOBAL_CONFIG.exec_mode,
+                            ExecMode::NonInteractiveRecursive(_)
+                        ) =>
+                        {
+                            Vec::new()
                         }
+                        _ => combined,
                     }
                 }
                 PathProvenance::IsPhantom => {
