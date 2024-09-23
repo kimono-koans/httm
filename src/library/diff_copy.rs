@@ -285,8 +285,10 @@ impl DiffCopy {
                 len,
             ) {
                 // However,	a return of zero  for  a  non-zero  len  argument
-                // indicates that the offset for infd is at or	beyond EOF.
-                Ok(bytes_written) if bytes_written == 0usize => return Ok(()),
+                // indicates that the offset for infd is at or beyond EOF.
+                Ok(bytes_written) if bytes_written == 0usize && len != 0usize => {
+                    return Err(ErrorKind::UnexpectedEof)
+                }
                 Ok(bytes_written) => {
                     amt_written += bytes_written as u64;
 
