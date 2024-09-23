@@ -50,31 +50,29 @@ pub enum PathProvenance {
     IsPhantom,
 }
 
-pub struct RecursiveSearch;
+pub struct RecursiveSearch<'a> {
+    requested_dir: &'a Path,
+    skim_tx: SkimItemSender,
+    hangup: Arc<AtomicBool>,
+    started: Arc<AtomicBool>,
+}
 
-impl RecursiveSearch {
-    pub fn exec(
-        requested_dir: &Path,
+impl<'a> RecursiveSearch<'a> {
+    pub fn new(
+        requested_dir: &'a Path,
         skim_tx: SkimItemSender,
         hangup: Arc<AtomicBool>,
         started: Arc<AtomicBool>,
-    ) {
-        fn run_loop(
-            requested_dir: &Path,
-            skim_tx: SkimItemSender,
-            opt_deleted_scope: Option<&Scope>,
-            hangup: Arc<AtomicBool>,
-            started: Arc<AtomicBool>,
-        ) {
-            // this runs the main loop for live file searches, see the referenced struct below
-            // we are in our own detached system thread, so print error and exit if error trickles up
-            RecursiveMainLoop::exec(requested_dir, opt_deleted_scope, &skim_tx, hangup, started)
-                .unwrap_or_else(|error| {
-                    eprintln!("Error: {error}");
-                    std::process::exit(1)
-                });
+    ) -> Self {
+        Self {
+            requested_dir,
+            skim_tx,
+            hangup,
+            started,
         }
+    }
 
+    pub fn exec(&self) {
         if GLOBAL_CONFIG.opt_deleted_mode.is_some() {
             // thread pool allows deleted to have its own scope, which means
             // all threads must complete before the scope exits.  this is important
@@ -85,41 +83,33 @@ impl RecursiveSearch {
                 .expect("Could not initialize rayon threadpool for recursive deleted search");
 
             pool.in_place_scope(|deleted_scope| {
-                run_loop(
-                    requested_dir,
-                    skim_tx,
-                    Some(deleted_scope),
-                    hangup.clone(),
-                    started,
-                )
+                self.run_loop(Some(deleted_scope));
             })
         } else {
-            run_loop(requested_dir, skim_tx, None, hangup, started)
+            self.run_loop(None);
         }
     }
-}
 
-// this is the main loop to recurse all files
-pub struct RecursiveMainLoop;
+    fn run_loop(&self, opt_deleted_scope: Option<&Scope>) {
+        // this runs the main loop for live file searches, see the referenced struct below
+        // we are in our own detached system thread, so print error and exit if error trickles up
+        self.loop_body(opt_deleted_scope).unwrap_or_else(|error| {
+            eprintln!("ERROR: {error}");
+            std::process::exit(1)
+        });
+    }
 
-impl RecursiveMainLoop {
-    fn exec(
-        requested_dir: &Path,
-        opt_deleted_scope: Option<&Scope>,
-        skim_tx: &SkimItemSender,
-        hangup: Arc<AtomicBool>,
-        started: Arc<AtomicBool>,
-    ) -> HttmResult<()> {
+    fn loop_body(&self, opt_deleted_scope: Option<&Scope>) -> HttmResult<()> {
         // the user may specify a dir for browsing,
         // but wants to restore that directory,
         // so here we add the directory and its parent as a selection item
         let dot_as_entry = BasicDirEntryInfo::new(
-            requested_dir.to_path_buf(),
-            Some(requested_dir.metadata()?.file_type()),
+            self.requested_dir.to_path_buf(),
+            Some(self.requested_dir.metadata()?.file_type()),
         );
         let mut initial_vec_dirs = vec![dot_as_entry];
 
-        if let Some(parent) = requested_dir.parent() {
+        if let Some(parent) = self.requested_dir.parent() {
             let double_dot_as_entry =
                 BasicDirEntryInfo::new(parent.to_path_buf(), Some(parent.metadata()?.file_type()));
 
@@ -130,17 +120,21 @@ impl RecursiveMainLoop {
             vec![],
             &initial_vec_dirs,
             PathProvenance::FromLiveDataset,
-            requested_dir,
-            skim_tx,
+            self.requested_dir,
+            &self.skim_tx,
         )?;
 
         // runs once for non-recursive but also "primes the pump"
         // for recursive to have items available, also only place an
         // error can stop execution
-        let mut queue: Vec<BasicDirEntryInfo> =
-            Self::enter_directory(requested_dir, opt_deleted_scope, skim_tx, &hangup)?;
+        let mut queue: Vec<BasicDirEntryInfo> = Self::enter_directory(
+            self.requested_dir,
+            opt_deleted_scope,
+            &self.skim_tx,
+            &self.hangup,
+        )?;
 
-        started.store(true, Ordering::SeqCst);
+        self.started.store(true, Ordering::SeqCst);
 
         if GLOBAL_CONFIG.opt_recursive {
             // condition kills iter when user has made a selection
@@ -149,15 +143,18 @@ impl RecursiveMainLoop {
                 // check -- should deleted threads keep working?
                 // exit/error on disconnected channel, which closes
                 // at end of browse scope
-                if hangup.load(Ordering::Relaxed) {
+                if self.hangup.load(Ordering::Relaxed) {
                     break;
                 }
 
                 // no errors will be propagated in recursive mode
                 // far too likely to run into a dir we don't have permissions to view
-                if let Ok(mut items) =
-                    Self::enter_directory(&item.path(), opt_deleted_scope, skim_tx, &hangup)
-                {
+                if let Ok(mut items) = Self::enter_directory(
+                    &item.path(),
+                    opt_deleted_scope,
+                    &self.skim_tx,
+                    &self.hangup,
+                ) {
                     queue.append(&mut items)
                 }
             }
@@ -402,7 +399,7 @@ impl NonInteractiveRecursiveWrapper {
 
         match &GLOBAL_CONFIG.opt_requested_dir {
             Some(requested_dir) => {
-                RecursiveSearch::exec(requested_dir, dummy_skim_tx, hangup, started);
+                RecursiveSearch::new(requested_dir, dummy_skim_tx, hangup, started).exec();
             }
             None => {
                 return Err(HttmError::new(
