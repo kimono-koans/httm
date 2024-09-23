@@ -173,9 +173,9 @@ pub struct Entries<'a> {
 }
 
 impl<'a> Entries<'a> {
-    pub fn new(requested_dir: &'a Path, path_provenance: &PathProvenance) -> HttmResult<Self> {
+    pub fn new(requested_dir: &'a Path, is_phantom: &PathProvenance) -> HttmResult<Self> {
         // separates entries into dirs and files
-        let (vec_dirs, vec_files) = match path_provenance {
+        let (vec_dirs, vec_files) = match is_phantom {
             PathProvenance::FromLiveDataset => {
                 read_dir(requested_dir)?
                     .flatten()
