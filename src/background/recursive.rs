@@ -168,13 +168,11 @@ impl<'a> RecursiveSearch<'a> {
         // combined entries will be sent or printed, but we need the vec_dirs to recurse
         let entries = Entries::new(requested_dir)?;
 
-        let vec_dirs = entries.combine_and_send(PathProvenance::FromLiveDataset, skim_tx)?;
-
         if let Some(deleted_scope) = opt_deleted_scope {
             DeletedSearch::spawn(requested_dir, deleted_scope, skim_tx, hangup);
         }
 
-        Ok(vec_dirs)
+        entries.combine_and_send(PathProvenance::FromLiveDataset, skim_tx)
     }
 }
 
@@ -269,6 +267,9 @@ impl<'a> Entries<'a> {
             DisplayOrTransmit::new(entries_ready_to_send, is_phantom, skim_tx).exec()?;
         }
 
+        // here we consume the struct after sending the entries,
+        // however we still need the dirs to populate the loop's queue
+        // so we return the vec of dirs here
         Ok(self.vec_dirs)
     }
 }
