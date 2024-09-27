@@ -29,7 +29,7 @@
 
 Use in combination with you favorite shell's hot keys for even more fun.
 
-Inspired by the [findoid](https://github.com/jimsalterjrs/sanoid) script, [fzf](https://github.com/junegunn/fzf), [skim]() and many [zsh](https://www.zsh.org) key bindings.
+Inspired by the [findoid](https://github.com/jimsalterjrs/sanoid) script, [fzf](https://github.com/junegunn/fzf), [skim](https://github.com/lotabout/skim) and many [zsh](https://www.zsh.org) key bindings.
 
 ## Install via Native Packages
 
