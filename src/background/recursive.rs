@@ -178,6 +178,7 @@ pub struct Entries<'a> {
 }
 
 impl<'a> Entries<'a> {
+    #[inline(always)]
     pub fn new(
         requested_dir: &'a Path,
         is_phantom: &'a PathProvenance,
