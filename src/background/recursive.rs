@@ -213,6 +213,7 @@ impl<'a> Entries<'a> {
         })
     }
 
+    #[inline(always)]
     pub fn combine_and_send(self) -> HttmResult<Vec<BasicDirEntryInfo>> {
         let mut combined = self.vec_files;
         combined.extend_from_slice(&self.vec_dirs);
@@ -253,19 +254,19 @@ impl<'a> Entries<'a> {
 }
 
 struct DisplayOrTransmit<'a> {
-    entries: Vec<BasicDirEntryInfo>,
+    combined_entries: Vec<BasicDirEntryInfo>,
     is_phantom: &'a PathProvenance,
     skim_tx: &'a SkimItemSender,
 }
 
 impl<'a> DisplayOrTransmit<'a> {
     fn new(
-        entries: Vec<BasicDirEntryInfo>,
+        combined_entries: Vec<BasicDirEntryInfo>,
         is_phantom: &'a PathProvenance,
         skim_tx: &'a SkimItemSender,
     ) -> Self {
         Self {
-            entries,
+            combined_entries,
             is_phantom,
             skim_tx,
         }
@@ -276,7 +277,7 @@ impl<'a> DisplayOrTransmit<'a> {
         match &GLOBAL_CONFIG.exec_mode {
             ExecMode::Interactive(_) => self.transmit()?,
             ExecMode::NonInteractiveRecursive(progress_bar) => {
-                if self.entries.is_empty() {
+                if self.combined_entries.is_empty() {
                     if GLOBAL_CONFIG.opt_recursive {
                         progress_bar.tick();
                     } else {
@@ -303,7 +304,7 @@ impl<'a> DisplayOrTransmit<'a> {
     fn transmit(self) -> HttmResult<()> {
         // don't want a par_iter here because it will block and wait for all
         // results, instead of printing and recursing into the subsequent dirs
-        self.entries
+        self.combined_entries
             .into_iter()
             .try_for_each(|basic_info| {
                 self.skim_tx
@@ -313,7 +314,11 @@ impl<'a> DisplayOrTransmit<'a> {
     }
 
     fn display(self) -> HttmResult<()> {
-        let pseudo_live_set: Vec<PathData> = self.entries.into_iter().map(PathData::from).collect();
+        let pseudo_live_set: Vec<PathData> = self
+            .combined_entries
+            .into_iter()
+            .map(PathData::from)
+            .collect();
 
         let versions_map = VersionsMap::new(&GLOBAL_CONFIG, &pseudo_live_set)?;
         let output_buf = DisplayWrapper::from(&GLOBAL_CONFIG, versions_map).to_string();
