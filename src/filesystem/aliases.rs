@@ -145,17 +145,33 @@ impl MapOfAliases {
                     }
                 }
             })
-            .filter_map(|(local_dir, remote_dir)| {
-                FilesystemType::new(&remote_dir).map(|fs_type| {
-                    (
+            .filter_map(
+                |(local_dir, remote_dir)| match FilesystemType::new(&remote_dir) {
+                    Some(fs_type) => Some((
                         local_dir,
                         RemotePathAndFsType {
                             remote_dir,
                             fs_type,
                         },
-                    )
-                })
-            })
+                    )),
+                    None => {
+                        match base_fs_info
+                            .map_of_datasets
+                            .get(&remote_dir)
+                            .map(|md| md.fs_type.clone())
+                        {
+                            Some(FilesystemType::Btrfs(opt_additional_data)) => Some((
+                                local_dir,
+                                RemotePathAndFsType {
+                                    remote_dir,
+                                    fs_type: FilesystemType::Btrfs(opt_additional_data),
+                                },
+                            )),
+                            _ => None,
+                        }
+                    }
+                },
+            )
             .collect();
 
         if map_of_aliases.is_empty() {
