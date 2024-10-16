@@ -61,7 +61,7 @@ impl FilesystemInfo {
 
         // only create a map of aliases if necessary (aliases conflicts with alt stores)
         let opt_map_of_aliases = MapOfAliases::new(
-            &base_fs_info.map_of_datasets,
+            &mut base_fs_info,
             opt_raw_aliases,
             opt_remote_dir,
             opt_local_dir,

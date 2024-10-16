@@ -15,6 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
+use super::mounts::BaseFilesystemInfo;
 use crate::filesystem::mounts::{DatasetMetadata, FilesystemType};
 use crate::library::results::{HttmError, HttmResult};
 use std::collections::BTreeMap;
@@ -49,7 +50,7 @@ impl Deref for MapOfAliases {
 
 impl MapOfAliases {
     pub fn new(
-        map_of_datasets: &BTreeMap<Arc<Path>, DatasetMetadata>,
+        base_fs_info: &mut BaseFilesystemInfo,
         opt_raw_aliases: Option<Vec<String>>,
         opt_remote_dir: Option<&String>,
         opt_local_dir: Option<&String>,
@@ -122,7 +123,8 @@ impl MapOfAliases {
             .into_iter()
             .filter_map(|(local_dir, snap_dir)| {
                 // why get snap dir?  because local dir is alias, snap dir must be a dataset
-                match map_of_datasets
+                match base_fs_info
+                    .map_of_datasets
                     .get_key_value(snap_dir.as_ref())
                     .map(|(k, _v)| k.clone())
                 {
