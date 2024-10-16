@@ -16,7 +16,7 @@
 // that was distributed with this source code.
 
 use super::mounts::BaseFilesystemInfo;
-use crate::filesystem::mounts::{DatasetMetadata, FilesystemType};
+use crate::filesystem::mounts::FilesystemType;
 use crate::library::results::{HttmError, HttmResult};
 use std::collections::BTreeMap;
 use std::ops::Deref;
