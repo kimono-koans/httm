@@ -74,7 +74,7 @@ impl ViewMode {
             .exact(true)
             .multi(opt_multi)
             .regex(false)
-            .tiebreak(Some("length,index".to_string()))
+            .tiebreak(Some("score,index".to_string()))
             .header(Some(&header))
             .build()
             .expect("Could not initialized skim options for select_restore_view");
