@@ -344,12 +344,23 @@ impl MapOfSnaps {
         ) -> HttmResult<Vec<Box<Path>>> {
             let snaps: Vec<Box<Path>> = match &dataset_metadata.fs_type {
                 FilesystemType::Btrfs(_) => {
-                    read_dir(mount_point_path.join(BTRFS_SNAPPER_HIDDEN_DIRECTORY))?
-                        .flatten()
-                        .par_bridge()
-                        .map(|entry| entry.path().join(BTRFS_SNAPPER_SUFFIX))
-                        .map(|path| path.into_boxed_path())
-                        .collect()
+                    match read_dir(mount_point_path.join(BTRFS_SNAPPER_HIDDEN_DIRECTORY)) {
+                        Err(err) => {
+                            if err.kind() == std::io::ErrorKind::PermissionDenied {
+                                eprintln!("NOTICE: Permission denied to view snapshots on mount: {:?}", mount_point_path);
+                            }
+
+                            Vec::new()
+                        }
+                        Ok(read_dir)=> {
+                            read_dir
+                                .flatten()
+                                .par_bridge()
+                                .map(|entry| entry.path().join(BTRFS_SNAPPER_SUFFIX))
+                                .map(|path| path.into_boxed_path())
+                                .collect()
+                        }
+                    }
                 }
                 FilesystemType::Restic(None) => {
                     // base is latest, parent is the snap path
