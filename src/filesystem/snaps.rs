@@ -347,7 +347,7 @@ impl MapOfSnaps {
                     match read_dir(mount_point_path.join(BTRFS_SNAPPER_HIDDEN_DIRECTORY)) {
                         Err(err) => {
                             if err.kind() == std::io::ErrorKind::PermissionDenied {
-                                eprintln!("NOTICE: Permission denied to view snapshots on mount: {:?}", mount_point_path);
+                                eprintln!("NOTICE: Permission denied to read snapshot locations from defined mount: {:?}", mount_point_path);
                             }
 
                             Vec::new()
