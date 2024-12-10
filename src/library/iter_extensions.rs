@@ -94,7 +94,9 @@ pub mod group_map {
                 vec_val.push(val);
             }
             None => {
-                lookup.insert_unique_unchecked(key, [val].into());
+                unsafe {
+                    lookup.insert_unique_unchecked(key, [val].into());
+                };
             }
         });
 

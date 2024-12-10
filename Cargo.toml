@@ -60,6 +60,7 @@ proc-mounts = { version = "0.3.0", default-features = false }
 hashbrown = { version = "0.15.2", default-features = false, features = [
     "rayon",
     "inline-more",
+    "default-hasher",
 ] }
 nix = { version = "0.29.0", default-features = false, features = [
     "fs",

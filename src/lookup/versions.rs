@@ -420,7 +420,9 @@ impl NetworkAutoMount {
         }
 
         if let Ok(mut cached_result) = CACHE_RESULT.try_write() {
-            cached_result.insert_unique_unchecked(bundle.dataset_of_interest.to_path_buf());
+            unsafe {
+                cached_result.insert_unique_unchecked(bundle.dataset_of_interest.to_path_buf());
+            };
 
             bundle.snap_mounts.iter().for_each(|snap_path| {
                 let _ = std::fs::read_dir(snap_path)
