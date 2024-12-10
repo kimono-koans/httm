@@ -1,8 +1,13 @@
-accepted = ["Apache-2.0", "MIT", "MPL-2.0", "Unicode-TOU", "Unicode-DFS-2016", "BSD-3-Clause"]
-targets = [
-    "x86_64-unknown-linux-gnu",
-    "x86_64-unknown-linux-musl",
+accepted = [
+    "Apache-2.0",
+    "MIT",
+    "MPL-2.0",
+    "Unicode-TOU",
+    "Unicode-DFS-2016",
+    "BSD-3-Clause",
+    "Zlib",
 ]
+targets = ["x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 ignore-build-dependencies = false
 ignore-dev-dependencies = false
 ignore-transitive-dependencies = false
