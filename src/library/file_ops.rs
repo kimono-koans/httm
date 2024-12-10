@@ -295,11 +295,15 @@ pub struct HashFileContents<'a> {
 
 impl<'a> HashFileContents<'a> {
     pub fn path_to_hash(path: &Path) -> u64 {
-        let mut ahasher = ahash::AHasher::default();
+        use foldhash::fast::RandomState;
+        use std::hash::{BuildHasher, Hasher};
 
-        HashFileContents::from(path).hash(&mut ahasher);
+        let random_state = RandomState::default();
+        let mut hash = random_state.build_hasher();
 
-        ahasher.finish()
+        HashFileContents::from(path).hash(&mut hash);
+
+        hash.finish()
     }
 }
 
