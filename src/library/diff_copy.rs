@@ -246,11 +246,11 @@ impl DiffCopy {
 
     #[inline]
     fn hash(bytes: &[u8]) -> u64 {
-        use foldhash::fast::RandomState;
+        use foldhash::fast::FixedState;
         use std::hash::{BuildHasher, Hasher};
 
-        let random_state = RandomState::default();
-        let mut hash = random_state.build_hasher();
+        let s = LazyLock::new(|| FixedState::default());
+        let mut hash = s.build_hasher();
 
         hash.write(bytes);
         hash.finish()

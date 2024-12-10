@@ -25,6 +25,7 @@ use std::fs::{create_dir_all, read_dir, set_permissions};
 use std::iter::Iterator;
 use std::os::unix::fs::{chown, FileTypeExt, MetadataExt};
 use std::path::Path;
+use std::sync::LazyLock;
 
 const CHAR_KIND: SFlag = nix::sys::stat::SFlag::S_IFCHR;
 const BLK_KIND: SFlag = nix::sys::stat::SFlag::S_IFBLK;
@@ -295,11 +296,11 @@ pub struct HashFileContents<'a> {
 
 impl<'a> HashFileContents<'a> {
     pub fn path_to_hash(path: &Path) -> u64 {
-        use foldhash::fast::RandomState;
+        use foldhash::quality::FixedState;
         use std::hash::{BuildHasher, Hasher};
 
-        let random_state = RandomState::default();
-        let mut hash = random_state.build_hasher();
+        let s = LazyLock::new(|| FixedState::default());
+        let mut hash = s.build_hasher();
 
         HashFileContents::from(path).hash(&mut hash);
 
