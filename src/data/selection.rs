@@ -143,6 +143,7 @@ impl From<Vec<PathData>> for Config {
             opt_json: false,
             opt_one_filesystem: false,
             opt_no_clones: false,
+            opt_lazy: config.opt_lazy,
             opt_bulk_exclusion: None,
             opt_last_snap: None,
             opt_preview: None,

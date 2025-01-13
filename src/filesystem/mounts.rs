@@ -19,13 +19,8 @@ use crate::filesystem::snaps::MapOfSnaps;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{find_common_path, get_mount_command};
 use crate::{
-    BTRFS_SNAPPER_HIDDEN_DIRECTORY,
-    GLOBAL_CONFIG,
-    NILFS2_SNAPSHOT_ID_KEY,
-    RESTIC_LATEST_SNAPSHOT_DIRECTORY,
-    TM_DIR_LOCAL,
-    TM_DIR_REMOTE,
-    ZFS_HIDDEN_DIRECTORY,
+    BTRFS_SNAPPER_HIDDEN_DIRECTORY, GLOBAL_CONFIG, NILFS2_SNAPSHOT_ID_KEY,
+    RESTIC_LATEST_SNAPSHOT_DIRECTORY, TM_DIR_LOCAL, TM_DIR_REMOTE, ZFS_HIDDEN_DIRECTORY,
     ZFS_SNAPSHOT_DIRECTORY,
 };
 use proc_mounts::MountIter;
@@ -141,11 +136,13 @@ pub trait MaxLen {
 
 impl MaxLen for FilterDirs {
     fn max_len(&self) -> usize {
-        self.inner
-            .iter()
-            .map(|dir| dir.components().count())
-            .max()
-            .unwrap_or(usize::MAX)
+        *LazyLock::new(|| {
+            self.inner
+                .iter()
+                .map(|dir| dir.components().count())
+                .max()
+                .unwrap_or(usize::MAX)
+        })
     }
 }
 
@@ -170,11 +167,13 @@ impl From<BTreeMap<Arc<Path>, DatasetMetadata>> for MapOfDatasets {
 
 impl MaxLen for MapOfDatasets {
     fn max_len(&self) -> usize {
-        self.inner
-            .keys()
-            .map(|mount| mount.components().count())
-            .max()
-            .unwrap_or(usize::MAX)
+        *LazyLock::new(|| {
+            self.inner
+                .keys()
+                .map(|mount| mount.components().count())
+                .max()
+                .unwrap_or(usize::MAX)
+        })
     }
 }
 
@@ -187,23 +186,20 @@ pub static TM_DIR_LOCAL_PATH: LazyLock<PathBuf> = LazyLock::new(|| PathBuf::from
 
 pub struct BaseFilesystemInfo {
     pub map_of_datasets: MapOfDatasets,
-    pub map_of_snaps: MapOfSnaps,
     pub filter_dirs: FilterDirs,
 }
 
 impl BaseFilesystemInfo {
     // divide by the type of system we are on
     // Linux allows us the read proc mounts
-    pub fn new(opt_debug: bool, opt_alt_store: &Option<FilesystemType>) -> HttmResult<Self> {
-        let (mut raw_datasets, filter_dirs_set) = if PROC_MOUNTS.exists() {
+    pub fn new(opt_alt_store: &Option<FilesystemType>) -> HttmResult<Self> {
+        let (raw_datasets, filter_dirs_set) = if PROC_MOUNTS.exists() {
             Self::from_file(&PROC_MOUNTS, opt_alt_store)?
         } else if ETC_MNT_TAB.exists() {
             Self::from_file(&ETC_MNT_TAB, opt_alt_store)?
         } else {
             Self::from_mount_cmd(opt_alt_store)?
         };
-
-        let map_of_snaps = MapOfSnaps::new(&mut raw_datasets, opt_debug)?;
 
         let map_of_datasets = {
             MapOfDatasets {
@@ -219,7 +215,6 @@ impl BaseFilesystemInfo {
 
         Ok(BaseFilesystemInfo {
             map_of_datasets,
-            map_of_snaps,
             filter_dirs,
         })
     }
@@ -454,11 +449,7 @@ impl BaseFilesystemInfo {
         Ok((map_of_datasets, filter_dirs))
     }
 
-    pub fn from_blob_repo(
-        &mut self,
-        repo_type: &FilesystemType,
-        opt_debug: bool,
-    ) -> HttmResult<()> {
+    pub fn from_blob_repo(&mut self, repo_type: &FilesystemType) -> HttmResult<()> {
         let metadata = match repo_type {
             FilesystemType::Restic(_) => {
                 let retained_keys: Vec<Box<Path>> = self
@@ -514,11 +505,8 @@ impl BaseFilesystemInfo {
 
         let datasets = BTreeMap::from([(Arc::from(ROOT_PATH.as_ref()), metadata)]);
 
-        let snaps = MapOfSnaps::new(&datasets, opt_debug)?;
-
         *self = Self {
             map_of_datasets: datasets.into(),
-            map_of_snaps: snaps,
             filter_dirs: self.filter_dirs.clone(),
         };
 
@@ -527,30 +515,18 @@ impl BaseFilesystemInfo {
 
     // if we have some btrfs mounts, we check to see if there is a snap directory in common
     // so we can hide that common path from searches later
-    pub fn common_snap_dir(&self) -> Option<Box<Path>> {
+    pub fn common_snap_dir(&self, map_of_snaps: &MapOfSnaps) -> Option<Box<Path>> {
         let map_of_datasets: &MapOfDatasets = &self.map_of_datasets;
-        let map_of_snaps: &MapOfSnaps = &self.map_of_snaps;
 
-        if map_of_datasets
+        let filtered = map_of_datasets
             .par_iter()
-            .any(|(_mount, dataset_info)| !matches!(dataset_info.fs_type, FilesystemType::Zfs))
-        {
-            let vec_snaps: Vec<&Box<Path>> = map_of_datasets
-                .par_iter()
-                .filter(|(_mount, dataset_info)| {
-                    if matches!(dataset_info.fs_type, FilesystemType::Btrfs(_)) {
-                        return true;
-                    }
+            .filter(|(_mount, dataset_info)| !matches!(dataset_info.fs_type, FilesystemType::Zfs));
 
-                    false
-                })
-                .filter_map(|(mount, _dataset_info)| map_of_snaps.get(mount))
-                .flatten()
-                .collect();
+        let vec_snaps: Vec<&Box<Path>> = filtered
+            .filter_map(|(mount, _dataset_info)| map_of_snaps.get(mount))
+            .flatten()
+            .collect();
 
-            return find_common_path(vec_snaps);
-        }
-
-        None
+        find_common_path(vec_snaps)
     }
 }

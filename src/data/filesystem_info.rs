@@ -18,11 +18,7 @@
 use crate::filesystem::aliases::MapOfAliases;
 use crate::filesystem::alts::MapOfAlts;
 use crate::filesystem::mounts::{
-    BaseFilesystemInfo,
-    FilesystemType,
-    FilterDirs,
-    MapOfDatasets,
-    TM_DIR_LOCAL_PATH,
+    BaseFilesystemInfo, FilesystemType, FilterDirs, MapOfDatasets, TM_DIR_LOCAL_PATH,
     TM_DIR_REMOTE_PATH,
 };
 use crate::filesystem::snaps::MapOfSnaps;
@@ -33,10 +29,10 @@ use std::path::{Path, PathBuf};
 pub struct FilesystemInfo {
     // key: mount, val: (dataset/subvol, fs_type, mount_type)
     pub map_of_datasets: MapOfDatasets,
-    // key: mount, val: vec snap locations on disk (e.g. /.zfs/snapshot/snap_8a86e4fc_prepApt/home)
-    pub map_of_snaps: MapOfSnaps,
     // vec dirs to be filtered
     pub filter_dirs: FilterDirs,
+    // key: mount, val: vec snap locations on disk (e.g. /.zfs/snapshot/snap_8a86e4fc_prepApt/home)
+    pub opt_map_of_snaps: Option<MapOfSnaps>,
     // key: mount, val: alt dataset
     pub opt_map_of_alts: Option<MapOfAlts>,
     // key: local dir, val: (remote dir, fstype)
@@ -51,13 +47,14 @@ impl FilesystemInfo {
     pub fn new(
         opt_alt_replicated: bool,
         opt_debug: bool,
+        opt_lazy: bool,
         opt_remote_dir: Option<&String>,
         opt_local_dir: Option<&String>,
         opt_raw_aliases: Option<Vec<String>>,
         opt_alt_store: Option<FilesystemType>,
         pwd: PathBuf,
     ) -> HttmResult<FilesystemInfo> {
-        let mut base_fs_info = BaseFilesystemInfo::new(opt_debug, &opt_alt_store)?;
+        let mut base_fs_info = BaseFilesystemInfo::new(&opt_alt_store)?;
 
         // only create a map of aliases if necessary (aliases conflicts with alt stores)
         let opt_map_of_aliases = MapOfAliases::new(
@@ -73,7 +70,7 @@ impl FilesystemInfo {
 
         match opt_alt_store {
             Some(ref repo_type) => {
-                base_fs_info.from_blob_repo(&repo_type, opt_debug)?;
+                base_fs_info.from_blob_repo(&repo_type)?;
             }
             None if base_fs_info.map_of_datasets.is_empty() => {
                 // auto enable time machine alt store on mac when no datasets available, no working aliases, and paths exist
@@ -83,7 +80,7 @@ impl FilesystemInfo {
                     && TM_DIR_LOCAL_PATH.exists()
                 {
                     opt_alt_store.replace(FilesystemType::Apfs);
-                    base_fs_info.from_blob_repo(&FilesystemType::Apfs, opt_debug)?;
+                    base_fs_info.from_blob_repo(&FilesystemType::Apfs)?;
                 } else {
                     return Err(HttmError::new(
                         "httm could not find any valid datasets on the system.",
@@ -94,8 +91,16 @@ impl FilesystemInfo {
             _ => {}
         }
 
-        // for a collection of btrfs mounts, indicates a common snapshot directory to ignore
-        let opt_common_snap_dir = base_fs_info.common_snap_dir();
+        let (opt_map_of_snaps, opt_common_snap_dir) = if opt_lazy {
+            (None, None)
+        } else {
+            let map_of_snaps = MapOfSnaps::new(&mut base_fs_info.map_of_datasets, opt_debug)?;
+
+            // for a collection of btrfs mounts, indicates a common snapshot directory to ignore
+            let opt_common_snap_dir = base_fs_info.common_snap_dir(&map_of_snaps);
+
+            (Some(map_of_snaps), opt_common_snap_dir)
+        };
 
         // only create a map of alts if necessary
         let opt_map_of_alts = if opt_alt_replicated {
@@ -106,7 +111,7 @@ impl FilesystemInfo {
 
         Ok(FilesystemInfo {
             map_of_datasets: base_fs_info.map_of_datasets,
-            map_of_snaps: base_fs_info.map_of_snaps,
+            opt_map_of_snaps,
             filter_dirs: base_fs_info.filter_dirs,
             opt_map_of_alts,
             opt_common_snap_dir,

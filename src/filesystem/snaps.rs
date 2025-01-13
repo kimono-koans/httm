@@ -20,12 +20,8 @@ use crate::filesystem::mounts::{DatasetMetadata, FilesystemType, BTRFS_ROOT_SUBV
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{get_btrfs_command, user_has_effective_root};
 use crate::{
-    BTRFS_SNAPPER_HIDDEN_DIRECTORY,
-    BTRFS_SNAPPER_SUFFIX,
-    RESTIC_SNAPSHOT_DIRECTORY,
-    TM_DIR_LOCAL,
-    TM_DIR_REMOTE,
-    ZFS_SNAPSHOT_DIRECTORY,
+    BTRFS_SNAPPER_HIDDEN_DIRECTORY, BTRFS_SNAPPER_SUFFIX, RESTIC_SNAPSHOT_DIRECTORY, TM_DIR_LOCAL,
+    TM_DIR_REMOTE, ZFS_SNAPSHOT_DIRECTORY,
 };
 use proc_mounts::MountIter;
 use rayon::prelude::*;
@@ -63,42 +59,10 @@ impl MapOfSnaps {
     ) -> HttmResult<Self> {
         let map_of_snaps: BTreeMap<Arc<Path>, Vec<Box<Path>>> = map_of_datasets
             .par_iter()
-            .map(|(mount, dataset_info)| {      
-                let snap_mounts: Vec<Box<Path>> = match &dataset_info.fs_type {
-                    FilesystemType::Zfs | FilesystemType::Nilfs2 | FilesystemType::Apfs | FilesystemType::Restic(_) | FilesystemType::Btrfs(None) => {
-                        Self::from_defined_mounts(mount, dataset_info)
-                    }
-                    // btrfs Some mounts are potential local mount
-                    FilesystemType::Btrfs(Some(additional_data)) => {
-                        let map = Self::from_btrfs_cmd(
-                            mount,
-                            dataset_info,
-                            &additional_data.base_subvol,
-                            map_of_datasets,
-                            opt_debug,
-                        );
+            .map(|(mount, dataset_info)| {
+                let snaps = Self::snaps_from_mount(mount, dataset_info, map_of_datasets, opt_debug);
 
-                        if map.is_empty() {
-                            static NOTICE_FALLBACK: Once = Once::new();
-
-                            NOTICE_FALLBACK.call_once(|| {
-                                eprintln!(
-                                    "NOTICE: Falling back to detection of btrfs snapshot mounts perhaps defined by Snapper re: mount: {:?}", mount
-                                );
-                            });
-
-                            Self::from_defined_mounts(mount, dataset_info)
-                        } else {
-                            additional_data.snap_names.get_or_init(|| {
-                                map.clone()
-                            });
-
-                            map.into_keys().collect()
-                        }
-                    }
-                };
-
-                (mount.clone(), snap_mounts)
+                (mount.clone(), snaps)
             })
             .collect();
 
@@ -127,6 +91,48 @@ impl MapOfSnaps {
         }
 
         Ok(map_of_snaps.into())
+    }
+
+    #[inline(always)]
+    pub fn snaps_from_mount(
+        mount: &Path,
+        dataset_info: &DatasetMetadata,
+        map_of_datasets: &BTreeMap<Arc<Path>, DatasetMetadata>,
+        opt_debug: bool,
+    ) -> Vec<Box<Path>> {
+        match &dataset_info.fs_type {
+            FilesystemType::Zfs
+            | FilesystemType::Nilfs2
+            | FilesystemType::Apfs
+            | FilesystemType::Restic(_)
+            | FilesystemType::Btrfs(None) => Self::from_defined_mounts(mount, dataset_info),
+            // btrfs Some mounts are potential local mount
+            FilesystemType::Btrfs(Some(additional_data)) => {
+                let map = Self::from_btrfs_cmd(
+                    mount,
+                    dataset_info,
+                    &additional_data.base_subvol,
+                    map_of_datasets,
+                    opt_debug,
+                );
+
+                if map.is_empty() {
+                    static NOTICE_FALLBACK: Once = Once::new();
+
+                    NOTICE_FALLBACK.call_once(|| {
+                    eprintln!(
+                        "NOTICE: Falling back to detection of btrfs snapshot mounts perhaps defined by Snapper re: mount: {:?}", mount
+                    );
+                });
+
+                    Self::from_defined_mounts(mount, dataset_info)
+                } else {
+                    additional_data.snap_names.get_or_init(|| map.clone());
+
+                    map.into_keys().collect()
+                }
+            }
+        }
     }
 
     // build paths to all snap mounts
@@ -334,9 +340,10 @@ impl MapOfSnaps {
         }
     }
 
-    fn from_defined_mounts(
-        mount_point_path: &Path,
-        dataset_metadata: &DatasetMetadata,
+    #[inline(always)]
+    pub fn from_defined_mounts<'a>(
+        mount_point_path: &'a Path,
+        dataset_metadata: &'a DatasetMetadata,
     ) -> Vec<Box<Path>> {
         fn inner(
             mount_point_path: &Path,
@@ -352,14 +359,12 @@ impl MapOfSnaps {
 
                             Vec::new()
                         }
-                        Ok(read_dir)=> {
-                            read_dir
-                                .flatten()
-                                .par_bridge()
-                                .map(|entry| entry.path().join(BTRFS_SNAPPER_SUFFIX))
-                                .map(|path| path.into_boxed_path())
-                                .collect()
-                        }
+                        Ok(read_dir) => read_dir
+                            .flatten()
+                            .par_bridge()
+                            .map(|entry| entry.path().join(BTRFS_SNAPPER_SUFFIX))
+                            .map(|path| path.into_boxed_path())
+                            .collect(),
                     }
                 }
                 FilesystemType::Restic(None) => {
