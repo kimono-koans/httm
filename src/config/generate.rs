@@ -582,10 +582,20 @@ fn parse_args() -> ArgMatches {
                 .action(ArgAction::SetTrue)
         )
         .arg(
+            Arg::new("LAZY")
+                .long("lazy")
+                .help("by default, all snapshot locations are discovered at initial program execution, however, here, \
+                a user may request that the program lazily wait until a search is executed before resolving any path's snapshot locations.  \
+                This provides the most accurate metadata possible, but, given the additional IO, may feel slower on older systems, with only marginal benefit.  \
+                For now, this option is only available on filesystems with well defined snapshot locations (not BTRFS datasets).")
+                .display_order(35)
+                .action(ArgAction::SetTrue)
+        )
+        .arg(
             Arg::new("DEBUG")
                 .long("debug")
                 .help("print configuration and debugging info")
-                .display_order(35)
+                .display_order(36)
                 .action(ArgAction::SetTrue)
         )
         .arg(
@@ -593,7 +603,7 @@ fn parse_args() -> ArgMatches {
                 .long("install-zsh-hot-keys")
                 .help("install zsh hot keys to the users home directory, and then exit")
                 .exclusive(true)
-                .display_order(36)
+                .display_order(37)
                 .action(ArgAction::SetTrue)
         )
         .get_matches()
@@ -612,6 +622,7 @@ pub struct Config {
     pub opt_json: bool,
     pub opt_one_filesystem: bool,
     pub opt_no_clones: bool,
+    pub opt_lazy: bool,
     pub dedup_by: DedupBy,
     pub opt_bulk_exclusion: Option<BulkExclusion>,
     pub opt_last_snap: Option<LastSnapMode>,
@@ -650,6 +661,7 @@ impl Config {
         };
 
         let opt_debug = matches.get_flag("DEBUG");
+        let opt_lazy = matches.get_flag("LAZY");
 
         // current working directory will be helpful in a number of places
         let pwd = pwd()?;
@@ -686,6 +698,7 @@ impl Config {
         let dataset_collection = FilesystemInfo::new(
             opt_alt_replicated,
             opt_debug,
+            opt_lazy,
             opt_remote_dir,
             opt_local_dir,
             opt_map_aliases,
@@ -984,6 +997,7 @@ impl Config {
             opt_json,
             opt_one_filesystem,
             opt_no_clones,
+            opt_lazy,
             dedup_by,
             requested_utc_offset,
             exec_mode,

@@ -18,6 +18,7 @@
 use crate::config::generate::{Config, DedupBy, ExecMode, LastSnapMode};
 use crate::data::paths::{CompareContentsContainer, PathData, PathDeconstruction};
 use crate::filesystem::mounts::LinkType;
+use crate::filesystem::snaps::MapOfSnaps;
 use crate::library::results::{HttmError, HttmResult};
 use crate::GLOBAL_CONFIG;
 use hashbrown::HashSet;
@@ -278,8 +279,8 @@ impl<'a> ProximateDatasetAndOptAlts<'a> {
 #[derive(Debug, Clone)]
 pub struct RelativePathAndSnapMounts<'a> {
     pub relative_path: &'a Path,
-    pub snap_mounts: &'a [Box<Path>],
     pub dataset_of_interest: &'a Path,
+    pub snap_mounts: Vec<Box<Path>>,
 }
 
 impl<'a> RelativePathAndSnapMounts<'a> {
@@ -289,15 +290,22 @@ impl<'a> RelativePathAndSnapMounts<'a> {
         //
         // for native searches the prefix is are the dirs below the most proximate dataset
         // for user specified dirs/aliases these are specified by the user
-        GLOBAL_CONFIG
-            .dataset_collection
-            .map_of_snaps
-            .get(dataset_of_interest)
-            .map(|snap_mounts| Self {
-                relative_path,
-                snap_mounts,
-                dataset_of_interest,
-            })
+        let opt_snap_mounts = match &GLOBAL_CONFIG.dataset_collection.opt_map_of_snaps {
+            Some(map_of_snaps) => map_of_snaps
+                .get(dataset_of_interest)
+                .map(|snap_mounts| snap_mounts.clone()),
+            None => GLOBAL_CONFIG
+                .dataset_collection
+                .map_of_datasets
+                .get(dataset_of_interest)
+                .map(|md| MapOfSnaps::from_defined_mounts(&dataset_of_interest, md)),
+        };
+
+        opt_snap_mounts.map(|snap_mounts| Self {
+            relative_path,
+            dataset_of_interest,
+            snap_mounts,
+        })
     }
 
     #[inline(always)]
@@ -397,6 +405,18 @@ enum NetworkAutoMount {
 impl NetworkAutoMount {
     #[inline(always)]
     fn new(bundle: &RelativePathAndSnapMounts) -> NetworkAutoMount {
+        static ANY_NETWORK_MOUNTS: LazyLock<bool> = LazyLock::new(|| {
+            GLOBAL_CONFIG
+                .dataset_collection
+                .map_of_datasets
+                .values()
+                .any(|md| matches!(md.link_type, LinkType::Network))
+        });
+
+        if !*ANY_NETWORK_MOUNTS {
+            return NetworkAutoMount::Break;
+        }
+
         if GLOBAL_CONFIG
             .dataset_collection
             .map_of_datasets
@@ -405,7 +425,7 @@ impl NetworkAutoMount {
             .unwrap_or_else(|| true)
         {
             return NetworkAutoMount::Break;
-        }
+        };
 
         static CACHE_RESULT: LazyLock<RwLock<HashSet<PathBuf>>> =
             LazyLock::new(|| RwLock::new(HashSet::new()));

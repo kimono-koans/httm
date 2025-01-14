@@ -83,7 +83,7 @@ impl DeletedFiles {
         // compare local filenames to all unique snap filenames - none values are unique, here
         search_bundle
             .snap_mounts
-            .iter()
+            .into_iter()
             .map(|path| path.join(search_bundle.relative_path.as_os_str()))
             .flat_map(std::fs::read_dir)
             .flatten()

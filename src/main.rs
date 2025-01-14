@@ -75,6 +75,8 @@ mod zfs {
 use crate::config::generate::InteractiveMode;
 use crate::interactive::browse::InteractiveBrowse;
 use crate::interactive::select::InteractiveSelect;
+use crate::library::utility::date_string;
+use crate::library::utility::DateFormat;
 use background::recursive::NonInteractiveRecursiveWrapper;
 use config::generate::{Config, ExecMode};
 use display::maps::PrintAsMap;
@@ -88,6 +90,7 @@ use lookup::snap_names::SnapNameMap;
 use lookup::versions::VersionsMap;
 use roll_forward::exec::RollForward;
 use std::sync::LazyLock;
+use std::time::SystemTime;
 use zfs::snap_mounts::SnapshotMounts;
 
 pub const ZFS_HIDDEN_DIRECTORY: &str = ".zfs";
@@ -149,6 +152,21 @@ fn exec() -> HttmResult<()> {
 
                     let output_buf = DisplayWrapper::from(&GLOBAL_CONFIG, versions_map).to_string();
 
+                    if GLOBAL_CONFIG.opt_lazy {
+                        let date_string = date_string(
+                            GLOBAL_CONFIG.requested_utc_offset,
+                            &SystemTime::now(),
+                            DateFormat::Timestamp,
+                        );
+
+                        let notice = format!(
+                            "NOTICE: Snapshot data accurate as of system time: {}\n",
+                            date_string
+                        );
+
+                        eprintln!("{}", &notice);
+                    }
+
                     print_output_buf(&output_buf)
                 }
             }
@@ -157,6 +175,21 @@ fn exec() -> HttmResult<()> {
         ExecMode::BasicDisplay | ExecMode::NumVersions(_) => {
             let versions_map = VersionsMap::new(&GLOBAL_CONFIG, &GLOBAL_CONFIG.paths)?;
             let output_buf = DisplayWrapper::from(&GLOBAL_CONFIG, versions_map).to_string();
+
+            if GLOBAL_CONFIG.opt_lazy {
+                let date_string = date_string(
+                    GLOBAL_CONFIG.requested_utc_offset,
+                    &SystemTime::now(),
+                    DateFormat::Timestamp,
+                );
+
+                let notice = format!(
+                    "NOTICE: Snapshot data accurate as of system time: {}\n",
+                    date_string
+                );
+
+                eprintln!("{}", &notice);
+            }
 
             print_output_buf(&output_buf)
         }
@@ -170,6 +203,21 @@ fn exec() -> HttmResult<()> {
             let printable_map = PrintAsMap::from(&snap_name_map);
             let output_buf = printable_map.to_string();
 
+            if GLOBAL_CONFIG.opt_lazy {
+                let date_string = date_string(
+                    GLOBAL_CONFIG.requested_utc_offset,
+                    &SystemTime::now(),
+                    DateFormat::Timestamp,
+                );
+
+                let notice = format!(
+                    "NOTICE: Snapshot data accurate as of system time: {}\n",
+                    date_string
+                );
+
+                eprintln!("{}", &notice);
+            }
+
             print_output_buf(&output_buf)
         }
         ExecMode::Prune(opt_filters) => {
@@ -180,6 +228,21 @@ fn exec() -> HttmResult<()> {
             let mounts_map = &MountsForFiles::new(mount_display)?;
             let printable_map: PrintAsMap = mounts_map.into();
             let output_buf = printable_map.to_string();
+
+            if GLOBAL_CONFIG.opt_lazy {
+                let date_string = date_string(
+                    GLOBAL_CONFIG.requested_utc_offset,
+                    &SystemTime::now(),
+                    DateFormat::Timestamp,
+                );
+
+                let notice = format!(
+                    "NOTICE: Snapshot data accurate as of system time: {}\n",
+                    date_string
+                );
+
+                eprintln!("{}", &notice);
+            }
 
             print_output_buf(&output_buf)
         }

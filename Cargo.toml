@@ -37,7 +37,7 @@ xattr = { version = "1.4.0", default-features = false, optional = true }
 
 [dependencies]
 foldhash = { version = "0.1.4", default-features = true }
-clap = { version = "4.5.23", default-features = true, features = [
+clap = { version = "4.5.26", default-features = true, features = [
     "std",
     "cargo",
 ] }
