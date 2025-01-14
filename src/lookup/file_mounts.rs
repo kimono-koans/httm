@@ -73,14 +73,16 @@ impl<'a> MountsForFiles<'a> {
         let set: Vec<ProximateDatasetAndOptAlts> = GLOBAL_CONFIG
             .paths
             .par_iter()
-            .filter_map(|pd| match ProximateDatasetAndOptAlts::new(pd) {
-                Ok(prox_opt_alts) => Some(prox_opt_alts),
-                Err(err) => {
-                    if !is_interactive_mode {
+            .map(|pd| ProximateDatasetAndOptAlts::new(pd))
+            .filter_map(|prox_opt_alts| {
+                if !is_interactive_mode {
+                    if let Err(err) = prox_opt_alts {
                         eprintln!("WARN: {:?}", err.to_string())
                     }
-                    None
+                    return None;
                 }
+
+                prox_opt_alts.ok()
             })
             .map(|prox_opt_alts| {
                 if !is_interactive_mode
