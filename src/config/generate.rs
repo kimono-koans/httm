@@ -584,6 +584,8 @@ fn parse_args() -> ArgMatches {
         .arg(
             Arg::new("LAZY")
                 .long("lazy")
+                .short('L')
+                .alias("realtime")
                 .help("by default, all snapshot locations are discovered at initial program execution, however, here, \
                 a user may request that the program lazily wait until a search is executed before resolving any path's snapshot locations.  \
                 This provides the most accurate metadata possible, but, given the additional IO, may feel slower on older systems, with only marginal benefit.  \

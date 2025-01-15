@@ -160,7 +160,7 @@ fn exec() -> HttmResult<()> {
                         );
 
                         let notice = format!(
-                            "NOTICE: Snapshot data accurate as of system time: {}\n",
+                            "NOTICE: Snapshot data accurate as of system time: {}",
                             date_string
                         );
 
@@ -184,7 +184,7 @@ fn exec() -> HttmResult<()> {
                 );
 
                 let notice = format!(
-                    "NOTICE: Snapshot data accurate as of system time: {}\n",
+                    "NOTICE: Snapshot data accurate as of system time: {}",
                     date_string
                 );
 
@@ -211,7 +211,7 @@ fn exec() -> HttmResult<()> {
                 );
 
                 let notice = format!(
-                    "NOTICE: Snapshot data accurate as of system time: {}\n",
+                    "NOTICE: Snapshot data accurate as of system time: {}",
                     date_string
                 );
 
@@ -237,7 +237,7 @@ fn exec() -> HttmResult<()> {
                 );
 
                 let notice = format!(
-                    "NOTICE: Snapshot data accurate as of system time: {}\n",
+                    "NOTICE: Snapshot data accurate as of system time: {}",
                     date_string
                 );
 
