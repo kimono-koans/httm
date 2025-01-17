@@ -23,6 +23,7 @@ use crate::library::results::{HttmError, HttmResult};
 use crate::GLOBAL_CONFIG;
 use hashbrown::HashSet;
 use rayon::prelude::*;
+use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::io::ErrorKind;
 use std::ops::{Deref, DerefMut};
@@ -280,7 +281,7 @@ impl<'a> ProximateDatasetAndOptAlts<'a> {
 pub struct RelativePathAndSnapMounts<'a> {
     pub relative_path: &'a Path,
     pub dataset_of_interest: &'a Path,
-    pub snap_mounts: Vec<Box<Path>>,
+    pub snap_mounts: Cow<'a, Vec<Box<Path>>>,
 }
 
 impl<'a> RelativePathAndSnapMounts<'a> {
@@ -293,12 +294,14 @@ impl<'a> RelativePathAndSnapMounts<'a> {
         let opt_snap_mounts = match &GLOBAL_CONFIG.dataset_collection.opt_map_of_snaps {
             Some(map_of_snaps) => map_of_snaps
                 .get(dataset_of_interest)
-                .map(|snap_mounts| snap_mounts.clone()),
+                .map(|snap_mounts| snap_mounts)
+                .map(|snap_mounts| Cow::Borrowed(snap_mounts)),
             None => GLOBAL_CONFIG
                 .dataset_collection
                 .map_of_datasets
                 .get(dataset_of_interest)
-                .map(|md| MapOfSnaps::from_defined_mounts(&dataset_of_interest, md)),
+                .map(|md| MapOfSnaps::from_defined_mounts(&dataset_of_interest, md))
+                .map(|snap_mounts| Cow::Owned(snap_mounts)),
         };
 
         opt_snap_mounts.map(|snap_mounts| Self {
