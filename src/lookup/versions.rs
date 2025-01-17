@@ -68,17 +68,14 @@ impl VersionsMap {
 
         let all_snap_versions: BTreeMap<PathData, Vec<PathData>> = path_set
             .par_iter()
-            .map(|path_data| Versions::new(path_data, config))
-            .filter_map(|versions| {
-                if !is_interactive_mode {
-                    if let Err(err) = versions {
+            .filter_map(|pathdata| match Versions::new(pathdata, config) {
+                Ok(versions) => Some(versions),
+                Err(err) => {
+                    if !is_interactive_mode {
                         eprintln!("WARN: {}", err.to_string())
                     }
-
-                    return None;
+                    None
                 }
-
-                versions.ok()
             })
             .map(|versions| {
                 if !is_interactive_mode
