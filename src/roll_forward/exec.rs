@@ -190,17 +190,15 @@ impl RollForward {
             .par_iter()
             .filter(|(key, _values)| !exclusions.contains(key.as_path()))
             .flat_map(|(_key, values)| values.iter().max_by_key(|event| event.time))
-            .for_each(|event| match &event.diff_type {
-                DiffType::Renamed(new_file) if exclusions.contains(new_file) => (),
-                _ => {
-                    let _ = self.diff_action(event);
-                }
-            });
+            .try_for_each(|event| match &event.diff_type {
+                DiffType::Renamed(new_file) if exclusions.contains(new_file) => Ok(()),
+                _ => self.diff_action(event),
+            })?;
 
-        self.verify()
+        self.cleanup_and_verify()
     }
 
-    fn verify(&self) -> HttmResult<()> {
+    fn cleanup_and_verify(&self) -> HttmResult<()> {
         let snap_dataset = self.snap_dataset();
 
         let mut directory_list: Vec<PathBuf> = vec![snap_dataset.clone()];
@@ -255,7 +253,13 @@ impl RollForward {
             .try_for_each(|(snap_path, live_path)| {
                 self.progress_bar.tick();
 
-                Preserve::direct(&snap_path, &live_path)?;
+                // zfs diff sometimes doesn't pick up events on empty dirs
+                // so here we check that dirs were copied over
+                if snap_path.try_exists()? && !live_path.try_exists()? {
+                    Self::copy(&snap_path, &live_path)?
+                } else {
+                    Preserve::direct(&snap_path, &live_path)?;
+                }
 
                 is_metadata_same(&snap_path, &live_path)
             })?;
@@ -377,7 +381,7 @@ impl RollForward {
 
                 Self::overwrite_or_remove(&snap_new_file_name, new_file_name)?;
 
-                if snap_file_path.exists() {
+                if snap_file_path.try_exists()? {
                     Self::copy(&snap_file_path, &event.path_buf)?
                 }
 
@@ -414,7 +418,7 @@ impl RollForward {
 
     fn overwrite_or_remove(src: &Path, dst: &Path) -> HttmResult<()> {
         // overwrite
-        if src.exists() {
+        if src.try_exists()? {
             return Self::copy(src, dst);
         }
 
@@ -424,13 +428,13 @@ impl RollForward {
 
     pub fn remove(dst: &Path) -> HttmResult<()> {
         // overwrite
-        if !dst.exists() {
+        if !dst.try_exists()? {
             return Ok(());
         }
 
         match Remove::recursive_quiet(dst) {
             Ok(_) => {
-                if dst.exists() {
+                if dst.try_exists()? {
                     let msg = format!("File should not exist after deletion {:?}", dst);
                     return Err(HttmError::new(&msg).into());
                 }

@@ -582,10 +582,10 @@ fn parse_args() -> ArgMatches {
                 .action(ArgAction::SetTrue)
         )
         .arg(
-            Arg::new("LAZY")
+            Arg::new("LAZY_SNAP_EVAL")
                 .long("lazy")
                 .short('L')
-                .alias("realtime")
+                .aliases(&["realtime", "lazy-snap"])
                 .help("by default, all snapshot locations are discovered at initial program execution, however, here, \
                 a user may request that the program lazily wait until a search is executed before resolving any path's snapshot locations.  \
                 This provides the most accurate metadata possible, but, given the additional IO, may feel slower on older systems, with only marginal benefit.  \
@@ -663,7 +663,7 @@ impl Config {
         };
 
         let opt_debug = matches.get_flag("DEBUG");
-        let opt_lazy = matches.get_flag("LAZY");
+        let opt_lazy = matches.get_flag("LAZY_SNAP_EVAL");
 
         // current working directory will be helpful in a number of places
         let pwd = pwd()?;
