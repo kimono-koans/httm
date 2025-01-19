@@ -124,7 +124,7 @@ impl HttmCopy {
     }
 }
 
-struct DiffCopy;
+pub struct DiffCopy;
 
 impl DiffCopy {
     fn new(src_file: &File, dst_file: &mut File) -> HttmResult<()> {
@@ -316,7 +316,7 @@ impl DiffCopy {
         Err(HttmError::new("Operating system does not support copy_file_ranges.").into())
     }
 
-    fn confirm(src: &Path, dst: &Path) -> HttmResult<()> {
+    pub fn confirm(src: &Path, dst: &Path) -> HttmResult<()> {
         let src_test = PathData::from(src);
         let dst_test = PathData::from(dst);
 
