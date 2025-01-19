@@ -231,6 +231,12 @@ impl RollForward {
             .try_for_each(|(snap_path, live_path)| {
                 self.progress_bar.tick();
 
+                // zfs diff sometimes doesn't pick up rename events
+                // here we cleanup
+                if snap_path.try_exists()? && !live_path.try_exists()? {
+                    Copy::direct_quiet(&snap_path, &live_path, true)?
+                }
+
                 is_metadata_same(&snap_path, &live_path)
             })?;
 
@@ -253,10 +259,10 @@ impl RollForward {
             .try_for_each(|(snap_path, live_path)| {
                 self.progress_bar.tick();
 
-                // zfs diff sometimes doesn't pick up events on empty dirs
-                // so here we check that dirs were copied over
+                // zfs diff sometimes doesn't pick up rename events
+                // here we cleanup
                 if snap_path.try_exists()? && !live_path.try_exists()? {
-                    Self::copy(&snap_path, &live_path)?
+                    Copy::direct_quiet(&snap_path, &live_path, true)?
                 } else {
                     Preserve::direct(&snap_path, &live_path)?;
                 }
