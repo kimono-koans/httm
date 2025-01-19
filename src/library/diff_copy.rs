@@ -46,7 +46,7 @@
 use crate::data::paths::PathData;
 use crate::library::results::{HttmError, HttmResult};
 use crate::zfs::run_command::RunZFSCommand;
-use crate::{ExecMode, GLOBAL_CONFIG, IN_BUFFER_SIZE};
+use crate::{GLOBAL_CONFIG, IN_BUFFER_SIZE};
 use std::fs::{File, OpenOptions};
 use std::io::{BufRead, BufReader, BufWriter, ErrorKind, Seek, SeekFrom, Write};
 use std::os::fd::{AsFd, BorrowedFd};
@@ -76,10 +76,6 @@ static IS_CLONE_COMPATIBLE: LazyLock<AtomicBool> = LazyLock::new(|| {
             || stdout.contains("zfs-2.2-")
             || stdout.contains("zfs-kmod-2.2-")
         {
-            return AtomicBool::new(false);
-        }
-
-        if let ExecMode::RollForward(_) = GLOBAL_CONFIG.exec_mode {
             return AtomicBool::new(false);
         }
     }
@@ -145,6 +141,11 @@ impl DiffCopy {
                     if GLOBAL_CONFIG.opt_debug {
                         eprintln!("DEBUG: copy_file_range call successful.");
                     }
+
+                    // re docs, both a flush and a sync seem to be required re consistency
+                    dst_file.flush()?;
+                    dst_file.sync_data()?;
+
                     return Ok(());
                 }
                 Err(err) => {
@@ -276,53 +277,42 @@ impl DiffCopy {
     ) -> HttmResult<()> {
         #[cfg(any(target_os = "linux", target_os = "freebsd"))]
         {
-            let mut amt_written = 0u64;
+            let mut amt_written = 0usize;
 
-            // copy_file_range needs to be run in a loop as it is interruptible
-            match nix::fcntl::copy_file_range(
-                src_file_fd,
-                Some(&mut (amt_written as i64)),
-                dst_file_fd,
-                Some(&mut (amt_written as i64)),
-                len,
-            ) {
-                // However,	a return of zero  for  a  non-zero  len  argument
-                // indicates that the offset for infd is at or beyond EOF.
-                Ok(bytes_written) if bytes_written == 0usize && len != 0usize => {
-                    return Err(HttmError::new("Amount written == 0 for a file len > 0.  This may indicate that the offset for source file is at or beyond EOF.").into());
-                }
-                Ok(bytes_written) => {
-                    amt_written += bytes_written as u64;
+            while amt_written < len {
+                match nix::fcntl::copy_file_range(src_file_fd, None, dst_file_fd, None, len) {
+                    Ok(bytes_written) if bytes_written == 0 => break,
+                    Ok(bytes_written) => {
+                        amt_written += bytes_written;
 
-                    if amt_written == len as u64 {
-                        return Ok(());
-                    }
-
-                    if amt_written < len as u64 {
-                        //  Upon successful completion, copy_file_range() will  return  the  number  of  bytes  copied
-                        //  between files.  This could be less than the length originally requested.
-                        return Ok(());
-                    }
-
-                    if amt_written > len as u64 {
-                        return Err(HttmError::new("Amount written larger than file len.").into());
-                    }
-                }
-                Err(err) => match err {
-                    nix::errno::Errno::ENOSYS => {
-                        return Err(HttmError::new(
-                            "Operating system does not support copy_file_ranges.",
-                        )
-                        .into())
-                    }
-                    _ => {
-                        if GLOBAL_CONFIG.opt_debug {
-                            eprintln!("DEBUG: copy_file_range call failed for the following reason: {}\nDEBUG: Falling back to default diff copy behavior.", err);
+                        if amt_written > len {
+                            return Err(
+                                HttmError::new("Amount written larger than file len.").into()
+                            );
                         }
                     }
-                },
+                    Err(err) => match err {
+                        nix::errno::Errno::ENOSYS => {
+                            return Err(HttmError::new(
+                                "Operating system does not support copy_file_ranges.",
+                            )
+                            .into())
+                        }
+                        _ => {
+                            if GLOBAL_CONFIG.opt_debug {
+                                eprintln!("DEBUG: copy_file_range call failed for the following reason: {}\nDEBUG: Falling back to default diff copy behavior.", err);
+                            }
+
+                            return Err(Box::new(err));
+                        }
+                    },
+                }
             }
+
+            return Ok(());
         }
+
+        #[cfg(not(any(target_os = "linux", target_os = "freebsd")))]
         Err(HttmError::new("Operating system does not support copy_file_ranges.").into())
     }
 
