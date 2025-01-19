@@ -281,7 +281,7 @@ impl<'a> ProximateDatasetAndOptAlts<'a> {
 pub struct RelativePathAndSnapMounts<'a> {
     pub relative_path: &'a Path,
     pub dataset_of_interest: &'a Path,
-    pub snap_mounts: Cow<'a, Vec<Box<Path>>>,
+    pub snap_mounts: Cow<'a, [Box<Path>]>,
 }
 
 impl<'a> RelativePathAndSnapMounts<'a> {
@@ -295,7 +295,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
             Some(map_of_snaps) => map_of_snaps
                 .get(dataset_of_interest)
                 .map(|snap_mounts| snap_mounts)
-                .map(|snap_mounts| Cow::Borrowed(snap_mounts)),
+                .map(|snap_mounts| Cow::Borrowed(snap_mounts.as_slice())),
             None => GLOBAL_CONFIG
                 .dataset_collection
                 .map_of_datasets
