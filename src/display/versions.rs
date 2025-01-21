@@ -19,11 +19,7 @@ use crate::config::generate::{BulkExclusion, Config, FormattedMode, PrintMode, R
 use crate::data::paths::{PathData, PHANTOM_DATE, PHANTOM_SIZE};
 use crate::filesystem::mounts::IsFilterDir;
 use crate::library::utility::{
-    date_string,
-    delimiter,
-    display_human_size,
-    paint_string,
-    DateFormat,
+    date_string, delimiter, display_human_size, paint_string, DateFormat,
 };
 use crate::lookup::versions::ProximateDatasetAndOptAlts;
 use crate::DisplayWrapper;
@@ -134,9 +130,8 @@ impl From<usize> for DisplaySetType {
     #[inline]
     fn from(value: usize) -> Self {
         match value {
-            0 => DisplaySetType::IsSnap,
-            1 => DisplaySetType::IsLive,
-            _ => unreachable!(),
+            1usize => DisplaySetType::IsSnap,
+            _ => DisplaySetType::IsLive,
         }
     }
 }
