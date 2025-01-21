@@ -75,8 +75,6 @@ mod zfs {
 use crate::config::generate::InteractiveMode;
 use crate::interactive::browse::InteractiveBrowse;
 use crate::interactive::select::InteractiveSelect;
-use crate::library::utility::date_string;
-use crate::library::utility::DateFormat;
 use background::recursive::NonInteractiveRecursiveWrapper;
 use config::generate::{Config, ExecMode};
 use display::maps::PrintAsMap;
@@ -84,13 +82,13 @@ use display::wrapper::DisplayWrapper;
 use interactive::prune::PruneSnaps;
 use interactive::restore::InteractiveRestore;
 use library::results::HttmResult;
+use library::utility::print_lazy_timestamp;
 use library::utility::print_output_buf;
 use lookup::file_mounts::MountsForFiles;
 use lookup::snap_names::SnapNameMap;
 use lookup::versions::VersionsMap;
 use roll_forward::exec::RollForward;
 use std::sync::LazyLock;
-use std::time::SystemTime;
 use zfs::snap_mounts::SnapshotMounts;
 
 pub const ZFS_HIDDEN_DIRECTORY: &str = ".zfs";
@@ -152,20 +150,7 @@ fn exec() -> HttmResult<()> {
 
                     let output_buf = DisplayWrapper::from(&GLOBAL_CONFIG, versions_map).to_string();
 
-                    if GLOBAL_CONFIG.opt_lazy {
-                        let date_string = date_string(
-                            GLOBAL_CONFIG.requested_utc_offset,
-                            &SystemTime::now(),
-                            DateFormat::Timestamp,
-                        );
-
-                        let notice = format!(
-                            "NOTICE: Snapshot data accurate as of system time: {}",
-                            date_string
-                        );
-
-                        eprintln!("{}", &notice);
-                    }
+                    print_lazy_timestamp();
 
                     print_output_buf(&output_buf)
                 }
@@ -176,20 +161,7 @@ fn exec() -> HttmResult<()> {
             let versions_map = VersionsMap::new(&GLOBAL_CONFIG, &GLOBAL_CONFIG.paths)?;
             let output_buf = DisplayWrapper::from(&GLOBAL_CONFIG, versions_map).to_string();
 
-            if GLOBAL_CONFIG.opt_lazy {
-                let date_string = date_string(
-                    GLOBAL_CONFIG.requested_utc_offset,
-                    &SystemTime::now(),
-                    DateFormat::Timestamp,
-                );
-
-                let notice = format!(
-                    "NOTICE: Snapshot data accurate as of system time: {}",
-                    date_string
-                );
-
-                eprintln!("{}", &notice);
-            }
+            print_lazy_timestamp();
 
             print_output_buf(&output_buf)
         }
@@ -203,20 +175,7 @@ fn exec() -> HttmResult<()> {
             let printable_map = PrintAsMap::from(&snap_name_map);
             let output_buf = printable_map.to_string();
 
-            if GLOBAL_CONFIG.opt_lazy {
-                let date_string = date_string(
-                    GLOBAL_CONFIG.requested_utc_offset,
-                    &SystemTime::now(),
-                    DateFormat::Timestamp,
-                );
-
-                let notice = format!(
-                    "NOTICE: Snapshot data accurate as of system time: {}",
-                    date_string
-                );
-
-                eprintln!("{}", &notice);
-            }
+            print_lazy_timestamp();
 
             print_output_buf(&output_buf)
         }
@@ -229,20 +188,7 @@ fn exec() -> HttmResult<()> {
             let printable_map: PrintAsMap = mounts_map.into();
             let output_buf = printable_map.to_string();
 
-            if GLOBAL_CONFIG.opt_lazy {
-                let date_string = date_string(
-                    GLOBAL_CONFIG.requested_utc_offset,
-                    &SystemTime::now(),
-                    DateFormat::Timestamp,
-                );
-
-                let notice = format!(
-                    "NOTICE: Snapshot data accurate as of system time: {}",
-                    date_string
-                );
-
-                eprintln!("{}", &notice);
-            }
+            print_lazy_timestamp();
 
             print_output_buf(&output_buf)
         }
