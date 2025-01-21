@@ -64,37 +64,32 @@ impl<'a> DisplayWrapper<'a> {
                     })
                     .collect::<String>()
             }
-            PrintMode::Raw(raw_mode) => self.raw(&raw_mode),
-        }
-    }
+            PrintMode::Raw(raw_mode) => {
+                // else re compute for each instance and print per instance, now with uniform padding
+                self.iter()
+                    .map(|(key, values)| {
+                        let keys: Vec<&PathData> = vec![key];
+                        let values: Vec<&PathData> = values.iter().collect();
 
-    fn raw(&self, raw_mode: &RawMode) -> String {
-        let delimiter = delimiter();
+                        let display_set = DisplaySet::from((keys, values));
+                        let delimiter = delimiter();
 
-        // else re compute for each instance and print per instance, now with uniform padding
-        self.iter()
-            .map(|(key, values)| {
-                let keys: Vec<&PathData> = vec![key];
-                let values: Vec<&PathData> = values.iter().collect();
-
-                DisplaySet::from((keys, values))
-            })
-            .enumerate()
-            .map(|(idx, snap_or_live_set)| (DisplaySetType::from(idx), snap_or_live_set))
-            .filter(|(display_set_type, _snap_or_live_set)| {
-                display_set_type.filter_bulk_exclusions(&self.config)
-            })
-            .map(|(_display_set_type, display_set)| display_set)
-            .map(|display_set| {
-                display_set
-                    .iter()
-                    .flatten()
-                    .map(|path_data| {
-                        path_data.raw(raw_mode, delimiter, self.config.requested_utc_offset)
+                        display_set
+                            .deref()
+                            .iter()
+                            .enumerate()
+                            .filter(|(idx, _set)| {
+                                let dst = DisplaySetType::from(*idx);
+                                dst.filter_bulk_exclusions(&self.config)
+                            })
+                            .map(|(_idx, set)| set)
+                            .flatten()
+                            .map(|pd| pd.raw(raw_mode, delimiter, self.config.requested_utc_offset))
+                            .collect::<String>()
                     })
                     .collect::<String>()
-            })
-            .collect::<String>()
+            }
+        }
     }
 }
 
@@ -130,8 +125,9 @@ impl From<usize> for DisplaySetType {
     #[inline]
     fn from(value: usize) -> Self {
         match value {
-            1usize => DisplaySetType::IsSnap,
-            _ => DisplaySetType::IsLive,
+            0usize => DisplaySetType::IsSnap,
+            1usize => DisplaySetType::IsLive,
+            _ => unreachable!(),
         }
     }
 }
