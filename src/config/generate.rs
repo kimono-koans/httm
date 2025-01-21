@@ -503,7 +503,6 @@ fn parse_args() -> ArgMatches {
                 .help("only display information concerning 'pseudo-live' versions in any Display Recursive mode (in --deleted, --recursive, but non-interactive modes). \
                 Useful for finding the \"files that once were\" and displaying only those pseudo-live/zombie files.")
                 .conflicts_with_all(&["BROWSE", "SELECT", "RESTORE", "SNAPSHOT", "LAST_SNAP", "NOT_SO_PRETTY"])
-                .requires("DELETED")
                 .display_order(28)
                 .action(ArgAction::SetTrue)
         )
