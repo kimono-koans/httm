@@ -23,10 +23,7 @@ use crate::library::file_ops::HashFileContents;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{date_string, display_human_size, DateFormat, HttmIsDir};
 use crate::{
-    BTRFS_SNAPPER_HIDDEN_DIRECTORY,
-    GLOBAL_CONFIG,
-    ZFS_HIDDEN_DIRECTORY,
-    ZFS_SNAPSHOT_DIRECTORY,
+    BTRFS_SNAPPER_HIDDEN_DIRECTORY, GLOBAL_CONFIG, ZFS_HIDDEN_DIRECTORY, ZFS_SNAPSHOT_DIRECTORY,
 };
 use realpath_ext::{realpath, RealpathFlags};
 use serde::ser::SerializeStruct;
@@ -284,7 +281,7 @@ impl PathData {
         let self_hash = HashFileContents::path_to_hash(self.path());
         let other_hash = HashFileContents::path_to_hash(other.path());
 
-        self_hash.cmp(&other_hash) == Ordering::Equal
+        self_hash == other_hash
     }
 }
 
