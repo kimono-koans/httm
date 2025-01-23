@@ -46,6 +46,7 @@
 use crate::data::paths::PathData;
 use crate::library::results::{HttmError, HttmResult};
 use crate::zfs::run_command::RunZFSCommand;
+use crate::ExecMode;
 use crate::{GLOBAL_CONFIG, IN_BUFFER_SIZE};
 use std::fs::{File, OpenOptions};
 use std::io::{BufRead, BufReader, BufWriter, ErrorKind, Seek, SeekFrom, Write};
@@ -76,6 +77,10 @@ static IS_CLONE_COMPATIBLE: LazyLock<AtomicBool> = LazyLock::new(|| {
             || stdout.contains("zfs-2.2-")
             || stdout.contains("zfs-kmod-2.2-")
         {
+            return AtomicBool::new(false);
+        }
+
+        if let ExecMode::RollForward(_) = GLOBAL_CONFIG.exec_mode {
             return AtomicBool::new(false);
         }
     }
@@ -281,7 +286,6 @@ impl DiffCopy {
 
             while amt_written < len {
                 match nix::fcntl::copy_file_range(src_file_fd, None, dst_file_fd, None, len) {
-                    Ok(bytes_written) if bytes_written == 0 => break,
                     Ok(bytes_written) => {
                         amt_written += bytes_written;
 
