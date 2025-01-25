@@ -235,6 +235,9 @@ impl RollForward {
                 // zfs diff sometimes doesn't pick up rename events
                 // here we cleanup
                 if snap_path.try_exists()? && !live_path.try_exists()? {
+                    if GLOBAL_CONFIG.opt_debug {
+                        eprintln!("DEBUG: Cleanup required {:?}::{:?}", snap_path, live_path);
+                    }
                     Copy::direct_quiet(&snap_path, &live_path, true)?
                 }
 
@@ -267,6 +270,9 @@ impl RollForward {
                 // zfs diff sometimes doesn't pick up rename events
                 // here we cleanup
                 if snap_path.try_exists()? && !live_path.try_exists()? {
+                    if GLOBAL_CONFIG.opt_debug {
+                        eprintln!("DEBUG: Cleanup required {:?}::{:?}", snap_path, live_path);
+                    }
                     Copy::direct_quiet(&snap_path, &live_path, true)?
                 } else {
                     Preserve::direct(&snap_path, &live_path)?;
