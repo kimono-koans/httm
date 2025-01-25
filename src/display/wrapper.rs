@@ -42,7 +42,7 @@ impl<'a> std::string::ToString for DisplayWrapper<'a> {
                     return printable_map.to_string();
                 }
 
-                if self.config.opt_json {
+                if self.config.bools.opt_json {
                     return self.to_json();
                 }
 

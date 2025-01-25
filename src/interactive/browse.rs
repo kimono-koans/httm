@@ -118,7 +118,7 @@ impl InteractiveBrowse {
             .preview_window(Some("up:50%"))
             .preview(Some(""))
             .nosort(true)
-            .exact(GLOBAL_CONFIG.opt_exact)
+            .exact(GLOBAL_CONFIG.bools.opt_exact)
             .header(Some(&header))
             .multi(opt_multi)
             .regex(false)

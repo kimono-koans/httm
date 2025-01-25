@@ -117,11 +117,11 @@ impl HttmCopy {
         loop {
             match DiffCopy::new(&src_file, &mut dst_file) {
                 Ok(_) => {
-                    if GLOBAL_CONFIG.opt_no_clones && !GLOBAL_CONFIG.opt_debug {
+                    if GLOBAL_CONFIG.bools.opt_no_clones && !GLOBAL_CONFIG.bools.opt_debug {
                         break;
                     }
 
-                    if GLOBAL_CONFIG.opt_debug {
+                    if GLOBAL_CONFIG.bools.opt_debug {
                         eprintln!("DEBUG: Write to file completed.  Confirmation initiated.");
                     }
 
@@ -154,7 +154,7 @@ impl DiffCopy {
     fn new(src_file: &File, dst_file: &mut File) -> HttmResult<()> {
         let src_len = src_file.metadata()?.len() as usize;
 
-        if !GLOBAL_CONFIG.opt_no_clones
+        if !GLOBAL_CONFIG.bools.opt_no_clones
             && IS_CLONE_COMPATIBLE.load(std::sync::atomic::Ordering::Relaxed)
         {
             let src_fd = src_file.as_fd();
@@ -162,7 +162,7 @@ impl DiffCopy {
 
             match Self::copy_file_range(src_fd, dst_fd, src_len) {
                 Ok(_) => {
-                    if GLOBAL_CONFIG.opt_debug {
+                    if GLOBAL_CONFIG.bools.opt_debug {
                         eprintln!("DEBUG: copy_file_range call successful.");
                     }
 
@@ -174,7 +174,7 @@ impl DiffCopy {
                 }
                 Err(err) => {
                     IS_CLONE_COMPATIBLE.store(false, std::sync::atomic::Ordering::Relaxed);
-                    if GLOBAL_CONFIG.opt_debug {
+                    if GLOBAL_CONFIG.bools.opt_debug {
                         eprintln!(
                             "DEBUG: copy_file_range call unsuccessful for the following reason: \"{:?}\".\n
                             DEBUG: Retrying a conventional diff copy.",
@@ -344,7 +344,7 @@ impl DiffCopy {
         let dst_test = PathData::from(dst);
 
         if src_test.is_same_file_contents(&dst_test) {
-            if GLOBAL_CONFIG.opt_debug {
+            if GLOBAL_CONFIG.bools.opt_debug {
                 eprintln!(
                     "DEBUG: Copy successful.  File contents of {} and {} are the same.",
                     src.display(),

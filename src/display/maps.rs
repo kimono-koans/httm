@@ -111,7 +111,7 @@ impl From<&SnapNameMap> for PrintAsMap {
 
 impl std::string::ToString for PrintAsMap {
     fn to_string(&self) -> String {
-        if GLOBAL_CONFIG.opt_json {
+        if GLOBAL_CONFIG.bools.opt_json {
             return self.to_json();
         }
 

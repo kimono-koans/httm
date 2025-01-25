@@ -238,7 +238,7 @@ impl RollForward {
                     Copy::direct_quiet(&snap_path, &live_path, true)?
                 }
 
-                if GLOBAL_CONFIG.opt_debug {
+                if GLOBAL_CONFIG.bools.opt_debug {
                     DiffCopy::confirm(&snap_path, &live_path)?
                 }
 
@@ -272,7 +272,7 @@ impl RollForward {
                     Preserve::direct(&snap_path, &live_path)?;
                 }
 
-                if GLOBAL_CONFIG.opt_debug {
+                if GLOBAL_CONFIG.bools.opt_debug {
                     DiffCopy::confirm(&snap_path, &live_path)?
                 }
 

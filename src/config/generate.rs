@@ -613,17 +613,6 @@ fn parse_args() -> ArgMatches {
 #[derive(Debug, Clone)]
 pub struct Config {
     pub paths: Vec<PathData>,
-    pub opt_recursive: bool,
-    pub opt_exact: bool,
-    pub opt_no_filter: bool,
-    pub opt_debug: bool,
-    pub opt_no_traverse: bool,
-    pub opt_omit_ditto: bool,
-    pub opt_no_hidden: bool,
-    pub opt_json: bool,
-    pub opt_one_filesystem: bool,
-    pub opt_no_clones: bool,
-    pub opt_lazy: bool,
     pub dedup_by: DedupBy,
     pub opt_bulk_exclusion: Option<BulkExclusion>,
     pub opt_last_snap: Option<LastSnapMode>,
@@ -635,13 +624,29 @@ pub struct Config {
     pub print_mode: PrintMode,
     pub dataset_collection: FilesystemInfo,
     pub pwd: PathBuf,
+    pub bools: Bools,
+}
+
+#[derive(Debug, Clone)]
+pub struct Bools {
+    pub opt_recursive: bool,
+    pub opt_exact: bool,
+    pub opt_no_filter: bool,
+    pub opt_debug: bool,
+    pub opt_no_traverse: bool,
+    pub opt_omit_ditto: bool,
+    pub opt_no_hidden: bool,
+    pub opt_json: bool,
+    pub opt_one_filesystem: bool,
+    pub opt_no_clones: bool,
+    pub opt_lazy: bool,
 }
 
 impl Config {
     pub fn new() -> HttmResult<Self> {
         let arg_matches = parse_args();
         let config = Config::from_matches(&arg_matches)?;
-        if config.opt_debug {
+        if config.bools.opt_debug {
             eprintln!("{config:#?}");
         }
         Ok(config)
@@ -983,9 +988,7 @@ impl Config {
             );
         }
 
-        let config = Config {
-            paths,
-            opt_bulk_exclusion,
+        let bools = Bools {
             opt_recursive,
             opt_exact,
             opt_debug,
@@ -993,12 +996,17 @@ impl Config {
             opt_omit_ditto,
             opt_no_hidden,
             opt_no_filter,
-            opt_last_snap,
-            opt_preview,
             opt_json,
             opt_one_filesystem,
             opt_no_clones,
             opt_lazy,
+        };
+
+        let config = Config {
+            paths,
+            opt_bulk_exclusion,
+            opt_last_snap,
+            opt_preview,
             dedup_by,
             requested_utc_offset,
             exec_mode,
@@ -1007,6 +1015,7 @@ impl Config {
             dataset_collection,
             pwd,
             opt_requested_dir,
+            bools,
         };
 
         Ok(config)

@@ -109,7 +109,7 @@ impl VersionsMap {
         }
 
         // process last snap mode after omit_ditto
-        if config.opt_omit_ditto {
+        if config.bools.opt_omit_ditto {
             versions_map.omit_ditto()
         }
 

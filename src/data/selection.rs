@@ -16,6 +16,7 @@
 // that was distributed with this source code.
 
 use crate::background::recursive::PathProvenance;
+use crate::config::generate::Bools;
 use crate::config::generate::{DedupBy, FormattedMode, PrintMode};
 use crate::data::paths::PathData;
 use crate::display::wrapper::DisplayWrapper;
@@ -131,9 +132,8 @@ impl SkimItem for SelectionCandidate {
 impl From<Vec<PathData>> for Config {
     fn from(vec: Vec<PathData>) -> Config {
         let config = &GLOBAL_CONFIG;
-        // generate a config for a preview display only
-        Self {
-            paths: vec,
+
+        let bools = Bools {
             opt_recursive: false,
             opt_exact: false,
             opt_no_filter: false,
@@ -143,19 +143,25 @@ impl From<Vec<PathData>> for Config {
             opt_json: false,
             opt_one_filesystem: false,
             opt_no_clones: false,
-            opt_lazy: config.opt_lazy,
+            opt_lazy: config.bools.opt_lazy,
+            opt_omit_ditto: config.bools.opt_omit_ditto,
+        };
+
+        // generate a config for a preview display only
+        Self {
+            paths: vec,
             opt_bulk_exclusion: None,
             opt_last_snap: None,
             opt_preview: None,
             opt_deleted_mode: None,
             dedup_by: DedupBy::Metadata,
-            opt_omit_ditto: config.opt_omit_ditto,
             requested_utc_offset: config.requested_utc_offset,
             exec_mode: ExecMode::BasicDisplay,
             print_mode: PrintMode::Formatted(FormattedMode::Default),
             dataset_collection: config.dataset_collection.clone(),
             pwd: config.pwd.clone(),
             opt_requested_dir: config.opt_requested_dir.clone(),
+            bools,
         }
     }
 }

@@ -94,7 +94,7 @@ impl DeletedSearch {
         // don't propagate errors, errors we are most concerned about
         // are transmission errors, which are handled elsewhere
         if GLOBAL_CONFIG.opt_deleted_mode != Some(DeletedMode::DepthOfOne)
-            && GLOBAL_CONFIG.opt_recursive
+            && GLOBAL_CONFIG.bools.opt_recursive
         {
             return Ok(vec_dirs);
         }

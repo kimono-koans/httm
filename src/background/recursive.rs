@@ -124,7 +124,7 @@ impl<'a> RecursiveSearch<'a> {
 
         self.started.store(true, Ordering::SeqCst);
 
-        if GLOBAL_CONFIG.opt_recursive {
+        if GLOBAL_CONFIG.bools.opt_recursive {
             // condition kills iter when user has made a selection
             // pop_back makes this a LIFO queue which is supposedly better for caches
             while let Some(item) = queue.pop() {
@@ -279,7 +279,7 @@ impl<'a> DisplayOrTransmit<'a> {
             ExecMode::Interactive(_) => self.transmit()?,
             ExecMode::NonInteractiveRecursive(progress_bar) => {
                 if self.combined_entries.is_empty() {
-                    if GLOBAL_CONFIG.opt_recursive {
+                    if GLOBAL_CONFIG.bools.opt_recursive {
                         progress_bar.tick();
                     } else {
                         eprintln!(
@@ -291,7 +291,7 @@ impl<'a> DisplayOrTransmit<'a> {
                     self.display()?;
 
                     // keeps spinner from squashing last line of output
-                    if GLOBAL_CONFIG.opt_recursive {
+                    if GLOBAL_CONFIG.bools.opt_recursive {
                         eprintln!();
                     }
                 }

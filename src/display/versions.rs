@@ -122,7 +122,7 @@ pub enum DisplaySetType {
 }
 
 impl From<usize> for DisplaySetType {
-    #[inline]
+    #[inline(always)]
     fn from(value: usize) -> Self {
         match value {
             0usize => DisplaySetType::IsSnap,
@@ -303,7 +303,7 @@ impl PathData {
             None => {
                 "WARN: Could not determine path's most proximate dataset.\n"
             }
-            Some(_) if config.opt_omit_ditto => {
+            Some(_) if config.bools.opt_omit_ditto => {
                 "WARN: Omitting the only snapshot version available, which is identical to the live file.\n"
             }
             Some(_) if self.path().is_filter_dir() => {
@@ -315,6 +315,7 @@ impl PathData {
         }
     }
 
+    #[inline(always)]
     pub fn raw(
         &self,
         raw_mode: &RawMode,

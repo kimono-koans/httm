@@ -117,7 +117,7 @@ fn cmp_path<A: AsRef<Path>, B: AsRef<Path>>(a: A, b: B) -> Option<PathBuf> {
 
 // only safe to do in non-interactive sessions
 pub fn print_lazy_timestamp() {
-    if GLOBAL_CONFIG.opt_lazy {
+    if GLOBAL_CONFIG.bools.opt_lazy {
         let date_string = date_string(
             GLOBAL_CONFIG.requested_utc_offset,
             &SystemTime::now(),

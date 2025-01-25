@@ -105,7 +105,7 @@ impl ViewMode {
             let _ = handle.join();
         };
 
-        if GLOBAL_CONFIG.opt_debug {
+        if GLOBAL_CONFIG.bools.opt_debug {
             if let Some(preview_command) = preview_selection.opt_preview_command.as_deref() {
                 eprintln!("DEBUG: Preview command executed: {}", preview_command)
             }
