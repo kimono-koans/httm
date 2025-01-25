@@ -322,7 +322,7 @@ impl DiffCopy {
                             .into())
                         }
                         _ => {
-                            if GLOBAL_CONFIG.opt_debug {
+                            if GLOBAL_CONFIG.bools.opt_debug {
                                 eprintln!("DEBUG: copy_file_range call failed for the following reason: {}\nDEBUG: Falling back to default diff copy behavior.", err);
                             }
 
