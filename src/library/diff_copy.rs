@@ -46,7 +46,6 @@
 use crate::data::paths::PathData;
 use crate::library::results::{HttmError, HttmResult};
 use crate::zfs::run_command::RunZFSCommand;
-use crate::ExecMode;
 use crate::{GLOBAL_CONFIG, IN_BUFFER_SIZE};
 use std::fs::{File, OpenOptions};
 use std::io::{BufRead, BufReader, BufWriter, ErrorKind, Seek, SeekFrom, Write};
@@ -77,10 +76,6 @@ static IS_CLONE_COMPATIBLE: LazyLock<AtomicBool> = LazyLock::new(|| {
             || stdout.contains("zfs-2.2-")
             || stdout.contains("zfs-kmod-2.2-")
         {
-            return AtomicBool::new(false);
-        }
-
-        if let ExecMode::RollForward(_) = GLOBAL_CONFIG.exec_mode {
             return AtomicBool::new(false);
         }
     }
@@ -116,16 +111,40 @@ impl HttmCopy {
             .read(true)
             .create(true)
             .open(dst)?;
+
         dst_file.set_len(src_len)?;
 
-        match DiffCopy::new(&src_file, &mut dst_file) {
-            Ok(_) if GLOBAL_CONFIG.opt_debug => {
-                eprintln!("DEBUG: Write to file completed.  Confirmation initiated.");
-                DiffCopy::confirm(src, dst)
+        loop {
+            match DiffCopy::new(&src_file, &mut dst_file) {
+                Ok(_) => {
+                    if GLOBAL_CONFIG.opt_no_clones && !GLOBAL_CONFIG.opt_debug {
+                        break;
+                    }
+
+                    if GLOBAL_CONFIG.opt_debug {
+                        eprintln!("DEBUG: Write to file completed.  Confirmation initiated.");
+                    }
+
+                    match DiffCopy::confirm(src, dst) {
+                        Ok(_) => break,
+                        Err(err) => {
+                            if IS_CLONE_COMPATIBLE.load(std::sync::atomic::Ordering::Relaxed) {
+                                return Err(err);
+                            }
+
+                            eprintln!("WARN: Could not confirm copy_file_range: {}", err);
+
+                            IS_CLONE_COMPATIBLE.store(false, std::sync::atomic::Ordering::Relaxed);
+
+                            continue;
+                        }
+                    }
+                }
+                Err(err) => return Err(err),
             }
-            Ok(_) => Ok(()),
-            Err(err) => Err(err),
         }
+
+        Ok(())
     }
 }
 
@@ -133,7 +152,7 @@ pub struct DiffCopy;
 
 impl DiffCopy {
     fn new(src_file: &File, dst_file: &mut File) -> HttmResult<()> {
-        let src_len = src_file.metadata()?.len();
+        let src_len = src_file.metadata()?.len() as usize;
 
         if !GLOBAL_CONFIG.opt_no_clones
             && IS_CLONE_COMPATIBLE.load(std::sync::atomic::Ordering::Relaxed)
@@ -141,7 +160,7 @@ impl DiffCopy {
             let src_fd = src_file.as_fd();
             let dst_fd = dst_file.as_fd();
 
-            match Self::copy_file_range(src_fd, dst_fd, src_len as usize) {
+            match Self::copy_file_range(src_fd, dst_fd, src_len) {
                 Ok(_) => {
                     if GLOBAL_CONFIG.opt_debug {
                         eprintln!("DEBUG: copy_file_range call successful.");
@@ -325,11 +344,13 @@ impl DiffCopy {
         let dst_test = PathData::from(dst);
 
         if src_test.is_same_file_contents(&dst_test) {
-            eprintln!(
-                "DEBUG: Copy successful.  File contents of {} and {} are the same.",
-                src.display(),
-                dst.display()
-            );
+            if GLOBAL_CONFIG.opt_debug {
+                eprintln!(
+                    "DEBUG: Copy successful.  File contents of {} and {} are the same.",
+                    src.display(),
+                    dst.display()
+                );
+            }
 
             Ok(())
         } else {
