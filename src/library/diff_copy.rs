@@ -128,7 +128,7 @@ impl HttmCopy {
                     match DiffCopy::confirm(src, dst) {
                         Ok(_) => break,
                         Err(err) => {
-                            if IS_CLONE_COMPATIBLE.load(std::sync::atomic::Ordering::Relaxed) {
+                            if !IS_CLONE_COMPATIBLE.load(std::sync::atomic::Ordering::Relaxed) {
                                 return Err(err);
                             }
 
