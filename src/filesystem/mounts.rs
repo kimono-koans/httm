@@ -525,6 +525,10 @@ impl BaseFilesystemInfo {
             .flatten()
             .collect();
 
+        if vec_snaps.is_empty() {
+            return None;
+        }
+
         find_common_path(vec_snaps)
     }
 }
