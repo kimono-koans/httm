@@ -114,37 +114,33 @@ impl HttmCopy {
 
         dst_file.set_len(src_len)?;
 
-        loop {
-            match DiffCopy::new(&src_file, &mut dst_file) {
-                Ok(_) => {
-                    if GLOBAL_CONFIG.opt_no_clones && !GLOBAL_CONFIG.opt_debug {
-                        break;
-                    }
+        match DiffCopy::new(&src_file, &mut dst_file) {
+            Ok(_) => {
+                if GLOBAL_CONFIG.opt_no_clones && !GLOBAL_CONFIG.opt_debug {
+                    return Ok(());
+                }
 
-                    if GLOBAL_CONFIG.opt_debug {
-                        eprintln!("DEBUG: Write to file completed.  Confirmation initiated.");
-                    }
+                if GLOBAL_CONFIG.opt_debug {
+                    eprintln!("DEBUG: Write to file completed.  Confirmation initiated.");
+                }
 
-                    match DiffCopy::confirm(src, dst) {
-                        Ok(_) => break,
-                        Err(err) => {
-                            if !IS_CLONE_COMPATIBLE.load(std::sync::atomic::Ordering::Relaxed) {
-                                return Err(err);
-                            }
-
-                            eprintln!("WARN: Could not confirm copy_file_range: {}", err);
-
-                            // IS_CLONE_COMPATIBLE.store(false, std::sync::atomic::Ordering::Relaxed);
-
-                            return DiffCopy::write_no_cow(&src_file, &dst_file);
+                match DiffCopy::confirm(src, dst) {
+                    Ok(_) => Ok(()),
+                    Err(err) => {
+                        if !IS_CLONE_COMPATIBLE.load(std::sync::atomic::Ordering::Relaxed) {
+                            return Err(err);
                         }
+
+                        eprintln!("WARN: Could not confirm copy_file_range: {}", err);
+
+                        // IS_CLONE_COMPATIBLE.store(false, std::sync::atomic::Ordering::Relaxed);
+
+                        DiffCopy::write_no_cow(&src_file, &dst_file)
                     }
                 }
-                Err(err) => return Err(err),
             }
+            Err(err) => Err(err),
         }
-
-        Ok(())
     }
 }
 
