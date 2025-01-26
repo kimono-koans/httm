@@ -50,7 +50,7 @@ impl Deref for MapOfAlts {
 impl MapOfAlts {
     // instead of looking up, precompute possible alt replicated mounts before exec
     pub fn new(map_of_datasets: &MapOfDatasets) -> Self {
-        let res: BTreeMap<Arc<Path>, AltMetadata> = map_of_datasets
+        let inner: BTreeMap<Arc<Path>, AltMetadata> = map_of_datasets
             .par_iter()
             .flat_map(|(mount, _dataset_info)| {
                 Self::from_mount(mount, map_of_datasets)
@@ -59,21 +59,18 @@ impl MapOfAlts {
             })
             .collect();
 
-        res.into()
+        Self { inner }
     }
 
     fn from_mount(
         proximate_dataset_mount: &Path,
         map_of_datasets: &MapOfDatasets,
     ) -> HttmResult<AltMetadata> {
-        let fs_name = match map_of_datasets
+        let Some(fs_name) = map_of_datasets
             .get(proximate_dataset_mount)
             .map(|p| p.source.as_os_str())
-        {
-            Some(name) => name,
-            None => {
-                return Err(HttmError::new("httm was unable to detect an alternate replicated mount point.  Perhaps the replicated filesystem is not mounted?").into());
-            }
+        else {
+            return Err(HttmError::new("httm was unable to detect an alternate replicated mount point.  Perhaps the replicated filesystem is not mounted?").into());
         };
 
         // find a filesystem that ends with our most local filesystem name
@@ -91,6 +88,7 @@ impl MapOfAlts {
             Err(HttmError::new("httm was unable to detect an alternate replicated mount point.  Perhaps the replicated filesystem is not mounted?").into())
         } else {
             alt_replicated_mounts.sort_unstable_by_key(|path| path.as_os_str().len());
+
             Ok(AltMetadata {
                 opt_datasets_of_interest: Some(alt_replicated_mounts),
             })

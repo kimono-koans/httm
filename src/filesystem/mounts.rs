@@ -518,11 +518,9 @@ impl BaseFilesystemInfo {
     pub fn common_snap_dir(&self, map_of_snaps: &MapOfSnaps) -> Option<Box<Path>> {
         let map_of_datasets: &MapOfDatasets = &self.map_of_datasets;
 
-        let filtered = map_of_datasets
+        let vec_snaps: Vec<&Box<Path>> = map_of_datasets
             .par_iter()
-            .filter(|(_mount, dataset_info)| !matches!(dataset_info.fs_type, FilesystemType::Zfs));
-
-        let vec_snaps: Vec<&Box<Path>> = filtered
+            .filter(|(_mount, dataset_info)| dataset_info.fs_type != FilesystemType::Zfs)
             .filter_map(|(mount, _dataset_info)| map_of_snaps.get(mount))
             .flatten()
             .collect();

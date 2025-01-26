@@ -160,6 +160,8 @@ impl MapOfAliases {
             return Ok(None);
         }
 
-        Ok(Some(map_of_aliases.into()))
+        Ok(Some(Self {
+            inner: map_of_aliases,
+        }))
     }
 }

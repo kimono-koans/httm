@@ -90,7 +90,9 @@ impl MapOfSnaps {
             }
         }
 
-        Ok(map_of_snaps.into())
+        Ok(Self {
+            inner: map_of_snaps,
+        })
     }
 
     #[inline(always)]
@@ -120,10 +122,10 @@ impl MapOfSnaps {
                     static NOTICE_FALLBACK: Once = Once::new();
 
                     NOTICE_FALLBACK.call_once(|| {
-                    eprintln!(
-                        "NOTICE: Falling back to detection of btrfs snapshot mounts perhaps defined by Snapper re: mount: {:?}", mount
-                    );
-                });
+                        eprintln!(
+                            "NOTICE: Falling back to detection of btrfs snapshot mounts perhaps defined by Snapper re: mount: {:?}", mount
+                        );
+                    });
 
                     Self::from_defined_mounts(mount, dataset_info)
                 } else {
@@ -449,9 +451,6 @@ impl MapOfSnaps {
             Ok(snaps)
         }
 
-        match inner(mount_point_path, dataset_metadata) {
-            Ok(res) => res,
-            Err(_err) => Vec::new(),
-        }
+        inner(mount_point_path, dataset_metadata).unwrap_or_default()
     }
 }
