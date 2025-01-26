@@ -16,7 +16,6 @@
 // that was distributed with this source code.
 
 mod data {
-    pub mod filesystem_info;
     pub mod paths;
     pub mod selection;
 }
@@ -63,6 +62,7 @@ mod lookup {
 mod filesystem {
     pub mod aliases;
     pub mod alts;
+    pub mod collection;
     pub mod mounts;
     pub mod snaps;
 }

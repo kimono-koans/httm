@@ -16,8 +16,8 @@
 // that was distributed with this source code.
 
 use crate::config::install_hot_keys::install_hot_keys;
-use crate::data::filesystem_info::FilesystemInfo;
 use crate::data::paths::{PathData, PathDeconstruction, ZfsSnapPathGuard};
+use crate::filesystem::collection::FilesystemInfo;
 use crate::filesystem::mounts::{FilesystemType, ROOT_PATH};
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{pwd, HttmIsDir};
