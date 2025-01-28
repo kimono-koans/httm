@@ -291,7 +291,10 @@ impl<'a> RelativePathAndSnapMounts<'a> {
         //
         // for native searches the prefix is are the dirs below the most proximate dataset
         // for user specified dirs/aliases these are specified by the user
-        let opt_snap_mounts = if GLOBAL_CONFIG.opt_lazy || GLOBAL_CONFIG.paths.len() == 1 {
+        let opt_snap_mounts = if GLOBAL_CONFIG.opt_lazy
+            || (matches!(GLOBAL_CONFIG.exec_mode, ExecMode::BasicDisplay)
+                && GLOBAL_CONFIG.paths.len() == 1)
+        {
             GLOBAL_CONFIG
                 .dataset_collection
                 .map_of_datasets

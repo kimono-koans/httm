@@ -73,6 +73,7 @@ mod zfs {
 }
 
 use crate::config::generate::InteractiveMode;
+use crate::filesystem::snaps::MapOfSnaps;
 use crate::interactive::browse::InteractiveBrowse;
 use crate::interactive::select::InteractiveSelect;
 use background::recursive::NonInteractiveRecursiveWrapper;
@@ -88,7 +89,7 @@ use lookup::file_mounts::MountsForFiles;
 use lookup::snap_names::SnapNameMap;
 use lookup::versions::VersionsMap;
 use roll_forward::exec::RollForward;
-use std::ops::Deref;
+use std::path::Path;
 use std::sync::LazyLock;
 use zfs::snap_mounts::SnapshotMounts;
 
@@ -124,14 +125,11 @@ static GLOBAL_CONFIG: LazyLock<Config> = LazyLock::new(|| {
         .unwrap()
 });
 
-use crate::filesystem::snaps::MapOfSnaps;
-use std::path::Path;
-
 // key: mount, val: vec snap locations on disk (e.g. /.zfs/snapshot/snap_8a86e4fc_prepApt/home)
 //pub opt_map_of_snaps: Option<MapOfSnaps>,
 static MAP_OF_SNAPS: LazyLock<MapOfSnaps> = LazyLock::new(|| {
     MapOfSnaps::new(
-        GLOBAL_CONFIG.dataset_collection.map_of_datasets.deref(),
+        &GLOBAL_CONFIG.dataset_collection.map_of_datasets,
         GLOBAL_CONFIG.opt_debug,
     )
     .map_err(|error| {
