@@ -699,8 +699,6 @@ impl Config {
 
         let dataset_collection = FilesystemInfo::new(
             opt_alt_replicated,
-            opt_debug,
-            opt_lazy,
             opt_remote_dir,
             opt_local_dir,
             opt_map_aliases,

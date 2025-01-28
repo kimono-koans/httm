@@ -21,8 +21,10 @@ use crate::filesystem::mounts::{
     BaseFilesystemInfo, FilesystemType, FilterDirs, MapOfDatasets, TM_DIR_LOCAL_PATH,
     TM_DIR_REMOTE_PATH,
 };
-use crate::filesystem::snaps::MapOfSnaps;
 use crate::library::results::{HttmError, HttmResult};
+use crate::library::utility::find_common_path;
+use crate::MapOfSnaps;
+use rayon::prelude::*;
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -31,14 +33,10 @@ pub struct FilesystemInfo {
     pub map_of_datasets: MapOfDatasets,
     // vec dirs to be filtered
     pub filter_dirs: FilterDirs,
-    // key: mount, val: vec snap locations on disk (e.g. /.zfs/snapshot/snap_8a86e4fc_prepApt/home)
-    pub opt_map_of_snaps: Option<MapOfSnaps>,
     // key: mount, val: alt dataset
     pub opt_map_of_alts: Option<MapOfAlts>,
     // key: local dir, val: (remote dir, fstype)
     pub opt_map_of_aliases: Option<MapOfAliases>,
-    // opt single dir to to be filtered re: btrfs common snap dir
-    pub opt_common_snap_dir: Option<Box<Path>>,
     // opt possible opt store type
     pub opt_alt_store: Option<FilesystemType>,
 }
@@ -46,8 +44,6 @@ pub struct FilesystemInfo {
 impl FilesystemInfo {
     pub fn new(
         opt_alt_replicated: bool,
-        opt_debug: bool,
-        opt_lazy: bool,
         opt_remote_dir: Option<&String>,
         opt_local_dir: Option<&String>,
         opt_raw_aliases: Option<Vec<String>>,
@@ -57,13 +53,17 @@ impl FilesystemInfo {
         let mut base_fs_info = BaseFilesystemInfo::new(&opt_alt_store)?;
 
         // only create a map of aliases if necessary (aliases conflicts with alt stores)
-        let opt_map_of_aliases = MapOfAliases::new(
-            &base_fs_info.map_of_datasets,
-            opt_raw_aliases,
-            opt_remote_dir,
-            opt_local_dir,
-            &pwd,
-        )?;
+        let opt_map_of_aliases = if opt_raw_aliases.is_none() && opt_remote_dir.is_none() {
+            None
+        } else {
+            MapOfAliases::new(
+                &base_fs_info.map_of_datasets,
+                opt_raw_aliases,
+                opt_remote_dir,
+                opt_local_dir,
+                &pwd,
+            )?
+        };
 
         // prep any blob repos
         let mut opt_alt_store = opt_alt_store;
@@ -91,17 +91,6 @@ impl FilesystemInfo {
             _ => {}
         }
 
-        let (opt_map_of_snaps, opt_common_snap_dir) = if opt_lazy {
-            (None, None)
-        } else {
-            let map_of_snaps = MapOfSnaps::new(&mut base_fs_info.map_of_datasets, opt_debug)?;
-
-            // for a collection of btrfs mounts, indicates a common snapshot directory to ignore
-            let opt_common_snap_dir = base_fs_info.common_snap_dir(&map_of_snaps);
-
-            (Some(map_of_snaps), opt_common_snap_dir)
-        };
-
         // only create a map of alts if necessary
         let opt_map_of_alts = if opt_alt_replicated {
             Some(MapOfAlts::new(&base_fs_info.map_of_datasets))
@@ -111,12 +100,29 @@ impl FilesystemInfo {
 
         Ok(FilesystemInfo {
             map_of_datasets: base_fs_info.map_of_datasets,
-            opt_map_of_snaps,
             filter_dirs: base_fs_info.filter_dirs,
             opt_map_of_alts,
-            opt_common_snap_dir,
             opt_map_of_aliases,
             opt_alt_store,
         })
+    }
+
+    // if we have some btrfs mounts, we check to see if there is a snap directory in common
+    // so we can hide that common path from searches later
+    pub fn common_snap_dir(&self, map_of_snaps: &MapOfSnaps) -> Option<Box<Path>> {
+        let map_of_datasets: &MapOfDatasets = &self.map_of_datasets;
+
+        let vec_snaps: Vec<&Box<Path>> = map_of_datasets
+            .par_iter()
+            .filter(|(_mount, dataset_info)| dataset_info.fs_type != FilesystemType::Zfs)
+            .filter_map(|(mount, _dataset_info)| map_of_snaps.get(mount))
+            .flatten()
+            .collect();
+
+        if vec_snaps.is_empty() {
+            return None;
+        }
+
+        find_common_path(vec_snaps)
     }
 }

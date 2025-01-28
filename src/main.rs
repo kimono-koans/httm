@@ -88,6 +88,7 @@ use lookup::file_mounts::MountsForFiles;
 use lookup::snap_names::SnapNameMap;
 use lookup::versions::VersionsMap;
 use roll_forward::exec::RollForward;
+use std::ops::Deref;
 use std::sync::LazyLock;
 use zfs::snap_mounts::SnapshotMounts;
 
@@ -121,6 +122,36 @@ static GLOBAL_CONFIG: LazyLock<Config> = LazyLock::new(|| {
             std::process::exit(1)
         })
         .unwrap()
+});
+
+use crate::filesystem::snaps::MapOfSnaps;
+use std::path::Path;
+
+// key: mount, val: vec snap locations on disk (e.g. /.zfs/snapshot/snap_8a86e4fc_prepApt/home)
+//pub opt_map_of_snaps: Option<MapOfSnaps>,
+static MAP_OF_SNAPS: LazyLock<MapOfSnaps> = LazyLock::new(|| {
+    MapOfSnaps::new(
+        GLOBAL_CONFIG.dataset_collection.map_of_datasets.deref(),
+        GLOBAL_CONFIG.opt_debug,
+    )
+    .map_err(|error| {
+        eprintln!("Error: {error}");
+        std::process::exit(1)
+    })
+    .unwrap()
+});
+
+// opt single dir to to be filtered re: btrfs common snap dir
+//pub opt_common_snap_dir: Option<Box<Path>>,
+// for a collection of btrfs mounts, indicates a common snapshot directory to ignore
+static OPT_COMMON_SNAP_DIR: LazyLock<Option<Box<Path>>> = LazyLock::new(|| {
+    if GLOBAL_CONFIG.opt_lazy {
+        return None;
+    }
+
+    GLOBAL_CONFIG
+        .dataset_collection
+        .common_snap_dir(&MAP_OF_SNAPS)
 });
 
 fn exec() -> HttmResult<()> {
