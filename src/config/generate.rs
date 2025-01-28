@@ -484,6 +484,16 @@ fn parse_args() -> ArgMatches {
                 .action(ArgAction::SetTrue)
         )
         .arg(
+            Arg::new("NO_SNAP")
+                .long("no-snap")
+                .visible_aliases(&["undead", "zombie"])
+                .help("only display information concerning 'pseudo-live' versions in any Display Recursive mode (in --deleted, --recursive, but non-interactive modes). \
+                Useful for finding the \"files that once were\" and displaying only those pseudo-live/zombie files.")
+                .conflicts_with_all(&["BROWSE", "SELECT", "RESTORE", "SNAPSHOT", "LAST_SNAP", "NOT_SO_PRETTY"])
+                .display_order(27)
+                .action(ArgAction::SetTrue)
+        )
+        .arg(
             Arg::new("ALT_STORE")
                 .long("alt-store")
                 .alias("store")
@@ -494,18 +504,8 @@ fn parse_args() -> ArgMatches {
                 Before use, be careful that the repository is mounted.  You may need superuser privileges to view a repository mounted with superuser permission.  \
                 httm also includes a helper script called \"equine\" which can assist you in mounting remote and local Time Machine snapshots.")
                 .conflicts_with_all(["MAP_ALIASES"])
-                .display_order(27)
-                .action(ArgAction::Append)
-        )
-        .arg(
-            Arg::new("NO_SNAP")
-                .long("no-snap")
-                .visible_aliases(&["undead", "zombie"])
-                .help("only display information concerning 'pseudo-live' versions in any Display Recursive mode (in --deleted, --recursive, but non-interactive modes). \
-                Useful for finding the \"files that once were\" and displaying only those pseudo-live/zombie files.")
-                .conflicts_with_all(&["BROWSE", "SELECT", "RESTORE", "SNAPSHOT", "LAST_SNAP", "NOT_SO_PRETTY"])
                 .display_order(28)
-                .action(ArgAction::SetTrue)
+                .action(ArgAction::Append)
         )
         .arg(
             Arg::new("MAP_ALIASES")
