@@ -15,8 +15,9 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use super::mounts::ROOT_PATH;
-use crate::filesystem::mounts::{DatasetMetadata, FilesystemType, BTRFS_ROOT_SUBVOL, PROC_MOUNTS};
+use crate::filesystem::mounts::{
+    DatasetMetadata, FilesystemType, BTRFS_ROOT_SUBVOL, PROC_MOUNTS, ROOT_PATH,
+};
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{get_btrfs_command, user_has_effective_root};
 use crate::{
@@ -66,28 +67,29 @@ impl MapOfSnaps {
             })
             .collect();
 
-        if map_of_snaps.iter().any(|(_mount, snaps)| snaps.is_empty()) {
-            if opt_debug {
-                eprintln!("WARN: httm relies on the user (and/or the filesystem's auto-mounter) to mount snapshots.  Make certain any snapshots the user may want to view are mounted, or are able to be mounted, and/or the user has the correct permissions to view.");
-            }
+        if opt_debug {
+            if map_of_snaps.iter().any(|(_mount, snaps)| snaps.is_empty()) {
+                eprintln!("DEBUG: httm relies on the user (and/or the filesystem's auto-mounter) to mount snapshots.  \
+                Make certain any snapshots the user may want to view are mounted, or are able to be mounted, \
+                and/or the user has the correct permissions to view.");
 
-            if map_of_snaps.values().count() == 0 {
-                return Err(HttmError::new(
-                    "httm could not find any valid snapshots on the system.  Quitting.",
-                )
-                .into());
-            }
-
-            if opt_debug {
-                map_of_snaps.iter().for_each(|(mount, snaps)| {
-                    if snaps.is_empty() {
+                map_of_snaps
+                    .iter()
+                    .filter(|(_mount, snaps)| snaps.is_empty())
+                    .for_each(|(mount, _snaps)| {
                         eprintln!(
-                            "WARN: Mount {:?} appears to have no snapshots available.",
+                            "DEBUG: Mount {:?} appears to have no snapshots available.",
                             mount
                         )
-                    }
-                })
+                    })
             }
+        }
+
+        if map_of_snaps.values().count() == 0 {
+            return Err(HttmError::new(
+                "httm could not find any valid snapshots on the system.  Quitting.",
+            )
+            .into());
         }
 
         Ok(Self {
@@ -107,7 +109,9 @@ impl MapOfSnaps {
             | FilesystemType::Nilfs2
             | FilesystemType::Apfs
             | FilesystemType::Restic(_)
-            | FilesystemType::Btrfs(None) => Self::from_defined_mounts(mount, dataset_info),
+            | FilesystemType::Btrfs(None) => {
+                Self::from_defined_mounts(mount, dataset_info, opt_debug)
+            }
             // btrfs Some mounts are potential local mount
             FilesystemType::Btrfs(Some(additional_data)) => {
                 let map = Self::from_btrfs_cmd(
@@ -127,7 +131,7 @@ impl MapOfSnaps {
                         );
                     });
 
-                    Self::from_defined_mounts(mount, dataset_info)
+                    Self::from_defined_mounts(mount, dataset_info, opt_debug)
                 } else {
                     additional_data.snap_names.get_or_init(|| map.clone());
 
@@ -346,28 +350,20 @@ impl MapOfSnaps {
     pub fn from_defined_mounts<'a>(
         mount_point_path: &'a Path,
         dataset_metadata: &'a DatasetMetadata,
+        opt_debug: bool,
     ) -> Vec<Box<Path>> {
         fn inner(
             mount_point_path: &Path,
             dataset_metadata: &DatasetMetadata,
-        ) -> HttmResult<Vec<Box<Path>>> {
+        ) -> std::io::Result<Vec<Box<Path>>> {
             let snaps: Vec<Box<Path>> = match &dataset_metadata.fs_type {
                 FilesystemType::Btrfs(_) => {
-                    match read_dir(mount_point_path.join(BTRFS_SNAPPER_HIDDEN_DIRECTORY)) {
-                        Err(err) => {
-                            if err.kind() == std::io::ErrorKind::PermissionDenied {
-                                eprintln!("WARN: Permission denied to read snapshot locations from defined mount: {:?}", mount_point_path);
-                            }
-
-                            Vec::new()
-                        }
-                        Ok(read_dir) => read_dir
-                            .flatten()
-                            .par_bridge()
-                            .map(|entry| entry.path().join(BTRFS_SNAPPER_SUFFIX))
-                            .map(|path| path.into_boxed_path())
-                            .collect(),
-                    }
+                    read_dir(mount_point_path.join(BTRFS_SNAPPER_HIDDEN_DIRECTORY))?
+                        .flatten()
+                        .par_bridge()
+                        .map(|entry| entry.path().join(BTRFS_SNAPPER_SUFFIX))
+                        .map(|path| path.into_boxed_path())
+                        .collect()
                 }
                 FilesystemType::Restic(None) => {
                     // base is latest, parent is the snap path
@@ -451,6 +447,23 @@ impl MapOfSnaps {
             Ok(snaps)
         }
 
-        inner(mount_point_path, dataset_metadata).unwrap_or_default()
+        match inner(mount_point_path, dataset_metadata) {
+            Err(err) => {
+                if opt_debug {
+                    match err.kind() {
+                        std::io::ErrorKind::PermissionDenied => {
+                            eprintln!("DEBUG: Permission denied to read snapshot locations from defined mount: {:?}", mount_point_path);
+                        }
+                        _ => eprintln!(
+                            "DEBUG: An error was encountered while attempting to read from snapshots locations for mount: {:?}\nERROR: {:?}",
+                            err, mount_point_path
+                        ),
+                    }
+                }
+
+                Vec::new()
+            }
+            Ok(vec) => vec,
+        }
     }
 }

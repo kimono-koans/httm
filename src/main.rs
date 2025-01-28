@@ -119,7 +119,7 @@ fn main() {
 static GLOBAL_CONFIG: LazyLock<Config> = LazyLock::new(|| {
     Config::new()
         .map_err(|error| {
-            eprintln!("Error: {error}");
+            eprintln!("ERROR: {error}");
             std::process::exit(1)
         })
         .unwrap()
@@ -128,15 +128,21 @@ static GLOBAL_CONFIG: LazyLock<Config> = LazyLock::new(|| {
 // key: mount, val: vec snap locations on disk (e.g. /.zfs/snapshot/snap_8a86e4fc_prepApt/home)
 //pub opt_map_of_snaps: Option<MapOfSnaps>,
 static MAP_OF_SNAPS: LazyLock<MapOfSnaps> = LazyLock::new(|| {
-    MapOfSnaps::new(
+    let map_of_snaps = MapOfSnaps::new(
         &GLOBAL_CONFIG.dataset_collection.map_of_datasets,
         GLOBAL_CONFIG.opt_debug,
     )
     .map_err(|error| {
-        eprintln!("Error: {error}");
+        eprintln!("ERROR: {error}");
         std::process::exit(1)
     })
-    .unwrap()
+    .unwrap();
+
+    if GLOBAL_CONFIG.opt_debug {
+        eprintln!("{map_of_snaps:#?}");
+    }
+
+    map_of_snaps
 });
 
 // opt single dir to to be filtered re: btrfs common snap dir
@@ -147,9 +153,15 @@ static OPT_COMMON_SNAP_DIR: LazyLock<Option<Box<Path>>> = LazyLock::new(|| {
         return None;
     }
 
-    GLOBAL_CONFIG
+    let opt_common_snap_dir = GLOBAL_CONFIG
         .dataset_collection
-        .common_snap_dir(&MAP_OF_SNAPS)
+        .common_snap_dir(&MAP_OF_SNAPS);
+
+    if GLOBAL_CONFIG.opt_debug && opt_common_snap_dir.is_some() {
+        eprintln!("{opt_common_snap_dir:#?}")
+    }
+
+    opt_common_snap_dir
 });
 
 fn exec() -> HttmResult<()> {
