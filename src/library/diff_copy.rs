@@ -104,7 +104,7 @@ impl HttmCopy {
     pub fn new(src: &Path, dst: &Path) -> HttmResult<()> {
         // create source file reader
         let src_file = std::fs::OpenOptions::new().read(true).open(src)?;
-        let src_len = src_file.metadata()?.len();
+        let src_len = src.symlink_metadata()?.len();
 
         let mut dst_file = OpenOptions::new()
             .write(true)

@@ -45,6 +45,7 @@ impl Copy {
 
     pub fn direct(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<()> {
         Self::direct_quiet(src, dst, should_preserve)?;
+
         eprintln!("{}: {:?} -> {:?}", Blue.paint("Restored "), src, dst);
 
         Ok(())
@@ -79,7 +80,7 @@ impl Copy {
     }
 
     fn special_file(src: &Path, dst: &Path) -> HttmResult<()> {
-        let src_metadata = src.metadata()?;
+        let src_metadata = src.symlink_metadata()?;
         let src_file_type = src_metadata.file_type();
         let src_mode_bits = src_metadata.mode();
         #[cfg(target_os = "linux")]

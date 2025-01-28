@@ -86,7 +86,13 @@ impl HardLinkMap {
 
                     false
                 })
-                .filter_map(|entry| entry.path().metadata().ok().map(|md| (md.ino(), entry)))
+                .filter_map(|entry| {
+                    entry
+                        .path()
+                        .symlink_metadata()
+                        .ok()
+                        .map(|md| (md.ino(), entry))
+                })
                 .for_each(|(ino, entry)| match tmp.get_mut(&ino) {
                     Some(values) => values.push(entry),
                     None => {
