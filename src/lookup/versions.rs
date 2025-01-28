@@ -20,7 +20,7 @@ use crate::data::paths::{CompareContentsContainer, PathData, PathDeconstruction}
 use crate::filesystem::mounts::LinkType;
 use crate::filesystem::snaps::MapOfSnaps;
 use crate::library::results::{HttmError, HttmResult};
-use crate::GLOBAL_CONFIG;
+use crate::{GLOBAL_CONFIG, MAP_OF_SNAPS};
 use hashbrown::HashSet;
 use rayon::prelude::*;
 use std::borrow::Cow;
@@ -291,17 +291,20 @@ impl<'a> RelativePathAndSnapMounts<'a> {
         //
         // for native searches the prefix is are the dirs below the most proximate dataset
         // for user specified dirs/aliases these are specified by the user
-        let opt_snap_mounts = match &GLOBAL_CONFIG.dataset_collection.opt_map_of_snaps {
-            Some(map_of_snaps) => map_of_snaps
-                .get(dataset_of_interest)
-                .map(|snap_mounts| snap_mounts)
-                .map(|snap_mounts| Cow::Borrowed(snap_mounts.as_slice())),
-            None => GLOBAL_CONFIG
+        let opt_snap_mounts = if GLOBAL_CONFIG.opt_lazy
+            || (matches!(GLOBAL_CONFIG.exec_mode, ExecMode::BasicDisplay)
+                && GLOBAL_CONFIG.paths.len() == 1)
+        {
+            GLOBAL_CONFIG
                 .dataset_collection
                 .map_of_datasets
                 .get(dataset_of_interest)
                 .map(|md| MapOfSnaps::from_defined_mounts(&dataset_of_interest, md))
-                .map(|snap_mounts| Cow::Owned(snap_mounts)),
+                .map(|snap_mounts| Cow::Owned(snap_mounts))
+        } else {
+            MAP_OF_SNAPS
+                .get(dataset_of_interest)
+                .map(|snap_mounts| Cow::Borrowed(snap_mounts.as_slice()))
         };
 
         opt_snap_mounts.map(|snap_mounts| Self {

@@ -15,9 +15,8 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed wth this source code.
 
-use crate::filesystem::snaps::MapOfSnaps;
 use crate::library::results::{HttmError, HttmResult};
-use crate::library::utility::{find_common_path, get_mount_command};
+use crate::library::utility::get_mount_command;
 use crate::{
     BTRFS_SNAPPER_HIDDEN_DIRECTORY, GLOBAL_CONFIG, NILFS2_SNAPSHOT_ID_KEY,
     RESTIC_LATEST_SNAPSHOT_DIRECTORY, TM_DIR_LOCAL, TM_DIR_REMOTE, ZFS_HIDDEN_DIRECTORY,
@@ -511,24 +510,5 @@ impl BaseFilesystemInfo {
         };
 
         Ok(())
-    }
-
-    // if we have some btrfs mounts, we check to see if there is a snap directory in common
-    // so we can hide that common path from searches later
-    pub fn common_snap_dir(&self, map_of_snaps: &MapOfSnaps) -> Option<Box<Path>> {
-        let map_of_datasets: &MapOfDatasets = &self.map_of_datasets;
-
-        let vec_snaps: Vec<&Box<Path>> = map_of_datasets
-            .par_iter()
-            .filter(|(_mount, dataset_info)| dataset_info.fs_type != FilesystemType::Zfs)
-            .filter_map(|(mount, _dataset_info)| map_of_snaps.get(mount))
-            .flatten()
-            .collect();
-
-        if vec_snaps.is_empty() {
-            return None;
-        }
-
-        find_common_path(vec_snaps)
     }
 }

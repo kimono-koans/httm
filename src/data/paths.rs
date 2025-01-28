@@ -23,7 +23,8 @@ use crate::library::file_ops::HashFileContents;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{date_string, display_human_size, DateFormat, HttmIsDir};
 use crate::{
-    BTRFS_SNAPPER_HIDDEN_DIRECTORY, GLOBAL_CONFIG, ZFS_HIDDEN_DIRECTORY, ZFS_SNAPSHOT_DIRECTORY,
+    BTRFS_SNAPPER_HIDDEN_DIRECTORY, GLOBAL_CONFIG, OPT_COMMON_SNAP_DIR, ZFS_HIDDEN_DIRECTORY,
+    ZFS_SNAPSHOT_DIRECTORY,
 };
 use realpath_ext::{realpath, RealpathFlags};
 use serde::ser::SerializeStruct;
@@ -167,8 +168,8 @@ impl BasicDirEntryInfo {
         }
 
         // is a common btrfs snapshot dir?
-        if let Some(common_snap_dir) = &GLOBAL_CONFIG.dataset_collection.opt_common_snap_dir {
-            if path == common_snap_dir.as_ref() {
+        if let Some(common_snap_dir) = OPT_COMMON_SNAP_DIR.as_deref() {
+            if path == common_snap_dir {
                 return true;
             }
         }
