@@ -143,6 +143,7 @@ const NATIVE_SNAP_SUFFIXES: [&str; 4] = [
     "httmSnapRestore",
 ];
 
+#[inline(always)]
 fn parse_args() -> ArgMatches {
     clap::command!(crate_name!())
         .about("httm prints the size, date and corresponding locations of available unique versions of files residing on snapshots. \
@@ -638,17 +639,10 @@ pub struct Config {
     pub pwd: PathBuf,
 }
 
-impl Config {
-    pub fn new() -> HttmResult<Self> {
-        let arg_matches = parse_args();
-        let config = Config::from_matches(&arg_matches)?;
-        if config.opt_debug {
-            eprintln!("{config:#?}");
-        }
-        Ok(config)
-    }
+impl TryFrom<&ArgMatches> for Config {
+    type Error = Box<dyn std::error::Error + Send + Sync>;
 
-    fn from_matches(matches: &ArgMatches) -> HttmResult<Self> {
+    fn try_from(matches: &ArgMatches) -> HttmResult<Self> {
         if matches.get_flag("ZSH_HOT_KEYS") {
             install_hot_keys()?
         }
@@ -1010,7 +1004,19 @@ impl Config {
 
         Ok(config)
     }
+}
 
+impl Config {
+    pub fn new() -> HttmResult<Self> {
+        let arg_matches = parse_args();
+        let config = Config::try_from(&arg_matches)?;
+        if config.opt_debug {
+            eprintln!("{config:#?}");
+        }
+        Ok(config)
+    }
+
+    #[inline(always)]
     pub fn paths(
         opt_os_values: Option<ValuesRef<'_, PathBuf>>,
         exec_mode: &ExecMode,
@@ -1104,6 +1110,7 @@ impl Config {
         Ok(broken_string)
     }
 
+    #[inline(always)]
     pub fn opt_requested_dir(
         exec_mode: &mut ExecMode,
         deleted_mode: &mut Option<DeletedMode>,
