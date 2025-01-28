@@ -107,7 +107,7 @@ impl FilesystemInfo {
         })
     }
 
-    // if we have some btrfs mounts, we check to see if there is a snap directory in common
+    // if we have some non-ZFS mounts, we check to see if there is a snap directory in common
     // so we can hide that common path from searches later
     pub fn common_snap_dir(&self, map_of_snaps: &MapOfSnaps) -> Option<Box<Path>> {
         let map_of_datasets: &MapOfDatasets = &self.map_of_datasets;
