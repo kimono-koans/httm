@@ -62,8 +62,8 @@ pub struct BasicDirEntryInfo {
     opt_filetype: Option<FileType>,
 }
 
-impl From<&DirEntry> for BasicDirEntryInfo {
-    fn from(dir_entry: &DirEntry) -> Self {
+impl From<DirEntry> for BasicDirEntryInfo {
+    fn from(dir_entry: DirEntry) -> Self {
         BasicDirEntryInfo {
             path: dir_entry.path(),
             opt_filetype: dir_entry.file_type().ok(),

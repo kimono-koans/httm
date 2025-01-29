@@ -90,6 +90,6 @@ impl DeletedFiles {
             .flatten()
             .flatten()
             .filter(|dir_entry| !local_filenames_set.contains(&dir_entry.file_name()))
-            .map(|dir_entry| (dir_entry.file_name(), BasicDirEntryInfo::from(&dir_entry)))
+            .map(|dir_entry| (dir_entry.file_name(), BasicDirEntryInfo::from(dir_entry)))
     }
 }

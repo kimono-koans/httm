@@ -191,7 +191,7 @@ impl<'a> Entries<'a> {
                     .flatten()
                     // checking file_type on dir entries is always preferable
                     // as it is much faster than a metadata call on the path
-                    .map(|dir_entry| BasicDirEntryInfo::from(&dir_entry))
+                    .map(|dir_entry| BasicDirEntryInfo::from(dir_entry))
                     .filter(|entry| entry.all_exclusions())
                     .partition(|entry| entry.is_entry_dir())
             }

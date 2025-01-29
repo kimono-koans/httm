@@ -70,7 +70,7 @@ impl HardLinkMap {
                     .flatten()
                     // checking file_type on dir entries is always preferable
                     // as it is much faster than a metadata call on the path
-                    .map(|dir_entry| BasicDirEntryInfo::from(&dir_entry))
+                    .map(|dir_entry| BasicDirEntryInfo::from(dir_entry))
                     .partition(|dir_entry| dir_entry.path().is_dir());
 
             let mut combined = vec_files;
