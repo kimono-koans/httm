@@ -100,7 +100,7 @@ impl InteractiveRestore {
                             ) {
                                 Ok(_) => {}
                                 Err(err) => {
-                                    eprintln!("{:?}", err.to_string());
+                                    eprintln!("{}", err);
 
                                     eprintln!("Attempting rollback to snapshot guard.");
 
