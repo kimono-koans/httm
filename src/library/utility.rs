@@ -257,6 +257,7 @@ impl PaintString for &SelectionCandidate {
     fn ls_style(&self) -> Option<&lscolors::style::Style> {
         ENV_LS_COLORS.style_for(self)
     }
+
     fn is_phantom(&self) -> bool {
         self.file_type().is_none()
     }

@@ -105,7 +105,7 @@ impl<'a> RecursiveSearch<'a> {
 
         let initial_entries = Entries {
             requested_dir: self.requested_dir,
-            is_phantom: &PathProvenance::FromLiveDataset,
+            path_provenance: &PathProvenance::FromLiveDataset,
             skim_tx: &self.skim_tx,
             vec_dirs: initial_vec_dirs,
             vec_files: Vec::new(),
@@ -172,7 +172,7 @@ impl<'a> RecursiveSearch<'a> {
 
 pub struct Entries<'a> {
     pub requested_dir: &'a Path,
-    pub is_phantom: &'a PathProvenance,
+    pub path_provenance: &'a PathProvenance,
     pub skim_tx: &'a SkimItemSender,
     pub vec_dirs: Vec<BasicDirEntryInfo>,
     pub vec_files: Vec<BasicDirEntryInfo>,
@@ -182,11 +182,11 @@ impl<'a> Entries<'a> {
     #[inline(always)]
     pub fn new(
         requested_dir: &'a Path,
-        is_phantom: &'a PathProvenance,
+        path_provenance: &'a PathProvenance,
         skim_tx: &'a SkimItemSender,
     ) -> HttmResult<Self> {
         // separates entries into dirs and files
-        let (vec_dirs, vec_files) = match is_phantom {
+        let (vec_dirs, vec_files) = match path_provenance {
             PathProvenance::FromLiveDataset => {
                 read_dir(requested_dir)?
                     .flatten()
@@ -208,7 +208,7 @@ impl<'a> Entries<'a> {
 
         Ok(Self {
             requested_dir,
-            is_phantom,
+            path_provenance,
             skim_tx,
             vec_dirs,
             vec_files,
@@ -220,7 +220,7 @@ impl<'a> Entries<'a> {
         let mut combined = self.vec_files;
         combined.extend_from_slice(&self.vec_dirs);
 
-        let entries_ready_to_send = match self.is_phantom {
+        let entries_ready_to_send = match self.path_provenance {
             PathProvenance::FromLiveDataset => {
                 // live - not phantom
                 match GLOBAL_CONFIG.opt_deleted_mode {
@@ -246,7 +246,7 @@ impl<'a> Entries<'a> {
             }
         };
 
-        DisplayOrTransmit::new(entries_ready_to_send, self.is_phantom, self.skim_tx).exec()?;
+        DisplayOrTransmit::new(entries_ready_to_send, self.path_provenance, self.skim_tx).exec()?;
 
         // here we consume the struct after sending the entries,
         // however we still need the dirs to populate the loop's queue
