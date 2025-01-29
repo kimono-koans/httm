@@ -25,6 +25,7 @@ use crate::library::utility::{date_string, DateFormat};
 use crate::zfs::snap_guard::SnapGuard;
 use crate::GLOBAL_CONFIG;
 use nu_ansi_term::Color::LightYellow;
+use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 use terminal_size::{Height, Width};
 
@@ -97,11 +98,25 @@ impl InteractiveRestore {
                                 &new_file_path_buf,
                                 should_preserve,
                             ) {
-                                let msg = format!(
-                                    "httm restore failed for the following reason: {}.\n\
-                            Attempting roll back to precautionary pre-execution snapshot.",
-                                    err
-                                );
+                                let msg = match err
+                                    .downcast_ref::<std::io::Error>()
+                                    .map(|err| err.kind())
+                                {
+                                    Some(ErrorKind::PermissionDenied) => {
+                                        format!(
+                                            "httm restore failed because user lacks permission to restore to the following location: {:?}.\n\
+                                    Attempting roll back to precautionary pre-execution snapshot.",
+                                            new_file_path_buf
+                                        )
+                                    }
+                                    _ => {
+                                        format!(
+                                            "httm restore failed for the following reason: {:?}.\n\
+                                    Attempting roll back to precautionary pre-execution snapshot.",
+                                            err
+                                        )
+                                    }
+                                };
 
                                 eprintln!("{}", msg);
 
@@ -118,10 +133,24 @@ impl InteractiveRestore {
                                 &new_file_path_buf,
                                 should_preserve,
                             ) {
-                                let msg = format!(
-                                    "httm restore failed for the following reason: {}.",
-                                    err
-                                );
+                                let msg = match err
+                                    .downcast_ref::<std::io::Error>()
+                                    .map(|err| err.kind())
+                                {
+                                    Some(ErrorKind::PermissionDenied) => {
+                                        format!(
+                                            "httm restore failed because user lacks permission to restore to the following location: {:?}.",
+                                            &new_file_path_buf
+                                        )
+                                    }
+                                    _ => {
+                                        format!(
+                                            "httm restore failed for the following reason: {:?}.",
+                                            err
+                                        )
+                                    }
+                                };
+
                                 return Err(HttmError::new(&msg).into());
                             }
                         }
