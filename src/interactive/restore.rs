@@ -93,24 +93,21 @@ impl InteractiveRestore {
                             let snap_guard: SnapGuard =
                                 SnapGuard::try_from(new_file_path_buf.as_path())?;
 
-                            match Self::restore_action(
+                            if let Err(err) = Self::restore_action(
                                 &snap_pathdata.path(),
                                 &new_file_path_buf.as_path(),
                                 should_preserve,
                             ) {
-                                Ok(_) => {}
-                                Err(err) => {
-                                    eprintln!("{}", err);
-
-                                    eprintln!("Attempting rollback to snapshot guard.");
-
-                                    snap_guard
-                                        .rollback()
-                                        .map(|_| println!("Rollback succeeded."))?;
-
-                                    std::process::exit(1);
-                                }
+                                eprintln!("{}", err);
                             }
+
+                            eprintln!("Attempting rollback to snapshot guard.");
+
+                            snap_guard
+                                .rollback()
+                                .map(|_| println!("Rollback succeeded."))?;
+
+                            std::process::exit(1);
                         }
                         _ => Self::restore_action(
                             &snap_pathdata.path(),
