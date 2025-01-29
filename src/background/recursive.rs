@@ -18,6 +18,7 @@
 use crate::background::deleted::DeletedSearch;
 use crate::config::generate::{DeletedMode, ExecMode};
 use crate::data::paths::{BasicDirEntryInfo, PathData};
+use crate::data::selection::SelectionCandidate;
 use crate::display::wrapper::DisplayWrapper;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::print_output_buf;
@@ -256,19 +257,19 @@ impl<'a> Entries<'a> {
 
 struct DisplayOrTransmit<'a> {
     combined_entries: Vec<BasicDirEntryInfo>,
-    is_phantom: &'a PathProvenance,
+    path_provenance: &'a PathProvenance,
     skim_tx: &'a SkimItemSender,
 }
 
 impl<'a> DisplayOrTransmit<'a> {
     fn new(
         combined_entries: Vec<BasicDirEntryInfo>,
-        is_phantom: &'a PathProvenance,
+        path_provenance: &'a PathProvenance,
         skim_tx: &'a SkimItemSender,
     ) -> Self {
         Self {
             combined_entries,
-            is_phantom,
+            path_provenance,
             skim_tx,
         }
     }
@@ -307,9 +308,11 @@ impl<'a> DisplayOrTransmit<'a> {
         // results, instead of printing and recursing into the subsequent dirs
         self.combined_entries
             .into_iter()
-            .try_for_each(|basic_info| {
-                self.skim_tx
-                    .try_send(Arc::new(basic_info.into_selection(&self.is_phantom)))
+            .map(|basic_dir_entry_info| {
+                SelectionCandidate::new(basic_dir_entry_info, &self.path_provenance)
+            })
+            .try_for_each(|selection_candidate| {
+                self.skim_tx.try_send(Arc::new(selection_candidate))
             })
             .map_err(std::convert::Into::into)
     }

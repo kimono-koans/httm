@@ -15,8 +15,6 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use super::selection::SelectionCandidate;
-use crate::background::recursive::PathProvenance;
 use crate::config::generate::PrintMode;
 use crate::filesystem::mounts::{FilesystemType, IsFilterDir, MaxLen};
 use crate::library::file_ops::HashFileContents;
@@ -90,12 +88,6 @@ impl BasicDirEntryInfo {
 
     pub fn to_path_buf(self) -> PathBuf {
         self.path
-    }
-
-    pub fn into_selection(self, is_phantom: &PathProvenance) -> SelectionCandidate {
-        let mut selection: SelectionCandidate = self.into();
-        selection.set_phantom(is_phantom);
-        selection
     }
 
     pub fn is_entry_dir(&self) -> bool {
@@ -182,12 +174,6 @@ impl BasicDirEntryInfo {
         }
 
         path.is_filter_dir()
-    }
-}
-
-impl Into<SelectionCandidate> for BasicDirEntryInfo {
-    fn into(self) -> SelectionCandidate {
-        unsafe { std::mem::transmute(self) }
     }
 }
 

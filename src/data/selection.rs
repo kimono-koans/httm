@@ -17,6 +17,7 @@
 
 use crate::background::recursive::PathProvenance;
 use crate::config::generate::{DedupBy, FormattedMode, PrintMode};
+use crate::data::paths::BasicDirEntryInfo;
 use crate::data::paths::PathData;
 use crate::display::wrapper::DisplayWrapper;
 use crate::library::results::HttmResult;
@@ -39,8 +40,14 @@ pub struct SelectionCandidate {
 }
 
 impl SelectionCandidate {
-    pub fn new(path: PathBuf, opt_filetype: Option<FileType>) -> Self {
-        Self { path, opt_filetype }
+    pub fn new(basic_dir_entry_info: BasicDirEntryInfo, path_provenance: &PathProvenance) -> Self {
+        let mut res: Self = unsafe { std::mem::transmute(basic_dir_entry_info) };
+
+        if let PathProvenance::IsPhantom = path_provenance {
+            res.opt_filetype = None;
+        }
+
+        res
     }
 
     pub fn path(&self) -> &Path {
@@ -49,13 +56,6 @@ impl SelectionCandidate {
 
     pub fn opt_filetype(&self) -> &Option<FileType> {
         &self.opt_filetype
-    }
-
-    pub fn set_phantom(&mut self, is_phantom: &PathProvenance) {
-        match is_phantom {
-            PathProvenance::FromLiveDataset => {}
-            PathProvenance::IsPhantom => self.opt_filetype = None,
-        }
     }
 
     fn preview_view(&self) -> HttmResult<String> {
