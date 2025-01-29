@@ -93,67 +93,30 @@ impl InteractiveRestore {
                             let snap_guard: SnapGuard =
                                 SnapGuard::try_from(new_file_path_buf.as_path())?;
 
-                            if let Err(err) = Copy::recursive(
+                            match Self::restore_action(
                                 &snap_pathdata.path(),
-                                &new_file_path_buf,
+                                &new_file_path_buf.as_path(),
                                 should_preserve,
                             ) {
-                                let msg = match err
-                                    .downcast_ref::<std::io::Error>()
-                                    .map(|err| err.kind())
-                                {
-                                    Some(ErrorKind::PermissionDenied) => {
-                                        format!(
-                                            "httm restore failed because user lacks permission to restore to the following location: {:?}.\n\
-                                    Attempting roll back to precautionary pre-execution snapshot.",
-                                            new_file_path_buf
-                                        )
-                                    }
-                                    _ => {
-                                        format!(
-                                            "httm restore failed for the following reason: {:?}.\n\
-                                    Attempting roll back to precautionary pre-execution snapshot.",
-                                            err
-                                        )
-                                    }
-                                };
+                                Ok(_) => {}
+                                Err(err) => {
+                                    eprintln!("{:?}", err.to_string());
 
-                                eprintln!("{}", msg);
+                                    eprintln!("Attempting rollback to snapshot guard.");
 
-                                snap_guard
-                                    .rollback()
-                                    .map(|_| println!("Rollback succeeded."))?;
+                                    snap_guard
+                                        .rollback()
+                                        .map(|_| println!("Rollback succeeded."))?;
 
-                                std::process::exit(1);
+                                    std::process::exit(1);
+                                }
                             }
                         }
-                        _ => {
-                            if let Err(err) = Copy::recursive(
-                                &snap_pathdata.path(),
-                                &new_file_path_buf,
-                                should_preserve,
-                            ) {
-                                let msg = match err
-                                    .downcast_ref::<std::io::Error>()
-                                    .map(|err| err.kind())
-                                {
-                                    Some(ErrorKind::PermissionDenied) => {
-                                        format!(
-                                            "httm restore failed because user lacks permission to restore to the following location: {:?}.",
-                                            &new_file_path_buf
-                                        )
-                                    }
-                                    _ => {
-                                        format!(
-                                            "httm restore failed for the following reason: {:?}.",
-                                            err
-                                        )
-                                    }
-                                };
-
-                                return Err(HttmError::new(&msg).into());
-                            }
-                        }
+                        _ => Self::restore_action(
+                            &snap_pathdata.path(),
+                            &new_file_path_buf.as_path(),
+                            should_preserve,
+                        )?,
                     }
 
                     let result_buffer = format!(
@@ -174,6 +137,26 @@ impl InteractiveRestore {
                 // if not yes or no, then noop and continue to the next iter of loop
                 _ => {}
             }
+        }
+
+        Ok(())
+    }
+
+    fn restore_action(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<()> {
+        if let Err(err) = Copy::recursive(src, dst, should_preserve) {
+            let msg = match err.downcast_ref::<std::io::Error>().map(|err| err.kind()) {
+                Some(ErrorKind::PermissionDenied) => {
+                    format!(
+                        "httm restore failed because user lacks permission to restore to the following location: {:?}.",
+                        dst
+                    )
+                }
+                _ => {
+                    format!("httm restore failed for the following reason: {:?}.", err)
+                }
+            };
+
+            return Err(HttmError::new(&msg).into());
         }
 
         Ok(())

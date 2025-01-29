@@ -94,6 +94,7 @@ impl<'a> RecursiveSearch<'a> {
             self.requested_dir.to_path_buf(),
             Some(self.requested_dir.metadata()?.file_type()),
         );
+
         let mut initial_vec_dirs = vec![dot_as_entry];
 
         if let Some(parent) = self.requested_dir.parent() {
@@ -104,7 +105,6 @@ impl<'a> RecursiveSearch<'a> {
         }
 
         let initial_entries = Entries {
-            requested_dir: self.requested_dir,
             path_provenance: &PathProvenance::FromLiveDataset,
             skim_tx: &self.skim_tx,
             vec_dirs: initial_vec_dirs,
@@ -117,11 +117,20 @@ impl<'a> RecursiveSearch<'a> {
         // for recursive to have items available, also only place an
         // error can stop execution
         let mut queue: Vec<BasicDirEntryInfo> = Self::enter_directory(
-            self.requested_dir,
-            opt_deleted_scope,
+            &self.requested_dir,
             &self.skim_tx,
             &self.hangup,
+            &PathProvenance::FromLiveDataset,
         )?;
+
+        if let Some(deleted_scope) = opt_deleted_scope {
+            DeletedSearch::spawn(
+                &&self.requested_dir,
+                deleted_scope,
+                self.skim_tx.clone(),
+                self.hangup.clone(),
+            );
+        }
 
         self.started.store(true, Ordering::SeqCst);
 
@@ -136,13 +145,22 @@ impl<'a> RecursiveSearch<'a> {
                     break;
                 }
 
+                if let Some(deleted_scope) = opt_deleted_scope {
+                    DeletedSearch::spawn(
+                        &item.path(),
+                        deleted_scope,
+                        self.skim_tx.clone(),
+                        self.hangup.clone(),
+                    );
+                }
+
                 // no errors will be propagated in recursive mode
                 // far too likely to run into a dir we don't have permissions to view
                 if let Ok(mut items) = Self::enter_directory(
                     &item.path(),
-                    opt_deleted_scope,
                     &self.skim_tx,
                     &self.hangup,
+                    &PathProvenance::FromLiveDataset,
                 ) {
                     queue.append(&mut items)
                 }
@@ -152,26 +170,41 @@ impl<'a> RecursiveSearch<'a> {
         Ok(())
     }
 
-    fn enter_directory(
+    // deleted file search for all modes
+    #[inline(always)]
+    pub fn enter_directory(
         requested_dir: &Path,
-        opt_deleted_scope: Option<&Scope>,
         skim_tx: &SkimItemSender,
         hangup: &Arc<AtomicBool>,
+        path_provenance: &PathProvenance,
     ) -> HttmResult<Vec<BasicDirEntryInfo>> {
-        // combined entries will be sent or printed, but we need the vec_dirs to recurse
-        let entries = Entries::new(requested_dir, &PathProvenance::FromLiveDataset, skim_tx)?;
-
-        if let Some(deleted_scope) = opt_deleted_scope {
-            DeletedSearch::spawn(requested_dir, deleted_scope, skim_tx, hangup);
+        // check -- should deleted threads keep working?
+        // exit/error on disconnected channel, which closes
+        // at end of browse scope
+        if hangup.load(Ordering::Relaxed) {
+            return Ok(Vec::new());
         }
 
-        // entries struct is consumed, but we return vec_dirs here to continue to feed the queue
-        entries.combine_and_send()
+        // create entries struct here
+        let entries = Entries::new(requested_dir, &path_provenance, &skim_tx)?;
+
+        // combined entries will be sent or printed, but we need the vec_dirs to recurse
+        let vec_dirs = entries.combine_and_send()?;
+
+        // disable behind deleted dirs with DepthOfOne,
+        // otherwise recurse and find all those deleted files
+        //
+        // don't propagate errors, errors we are most concerned about
+        // are transmission errors, which are handled elsewhere
+        if let Some(DeletedMode::DepthOfOne) = GLOBAL_CONFIG.opt_deleted_mode {
+            return Ok(Vec::new());
+        }
+
+        Ok(vec_dirs)
     }
 }
 
 pub struct Entries<'a> {
-    pub requested_dir: &'a Path,
     pub path_provenance: &'a PathProvenance,
     pub skim_tx: &'a SkimItemSender,
     pub vec_dirs: Vec<BasicDirEntryInfo>,
@@ -207,7 +240,6 @@ impl<'a> Entries<'a> {
         };
 
         Ok(Self {
-            requested_dir,
             path_provenance,
             skim_tx,
             vec_dirs,
@@ -217,32 +249,20 @@ impl<'a> Entries<'a> {
 
     #[inline(always)]
     pub fn combine_and_send(self) -> HttmResult<Vec<BasicDirEntryInfo>> {
-        let mut combined = self.vec_files;
-        combined.extend_from_slice(&self.vec_dirs);
-
         let entries_ready_to_send = match self.path_provenance {
-            PathProvenance::FromLiveDataset => {
-                // live - not phantom
-                match GLOBAL_CONFIG.opt_deleted_mode {
-                    Some(DeletedMode::Only) => Vec::new(),
-                    _ if matches!(
+            PathProvenance::FromLiveDataset
+                if matches!(GLOBAL_CONFIG.opt_deleted_mode, Some(DeletedMode::Only))
+                    || matches!(
                         GLOBAL_CONFIG.exec_mode,
                         ExecMode::NonInteractiveRecursive(_)
                     ) =>
-                    {
-                        Vec::new()
-                    }
-                    _ => combined,
-                }
+            {
+                Vec::new()
             }
-            PathProvenance::IsPhantom => {
-                // this function creates dummy "live versions" values to match deleted files
-                // which have been found on snapshots, so we return to the user "the path that
-                // once was" in their browse panel
+            PathProvenance::FromLiveDataset | PathProvenance::IsPhantom => {
+                let mut combined = self.vec_files;
+                combined.extend_from_slice(&self.vec_dirs);
                 combined
-                    .into_iter()
-                    .filter_map(|entry| entry.into_pseudo_live_version(self.requested_dir))
-                    .collect()
             }
         };
 

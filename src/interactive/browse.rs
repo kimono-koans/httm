@@ -137,7 +137,7 @@ impl InteractiveBrowse {
             }
             Some(output) => {
                 // hangup the channel so the background recursive search can gracefully cleanup and exit
-                hangup_clone.store(true, Ordering::Relaxed);
+                hangup_clone.store(true, Ordering::Release);
 
                 #[cfg(feature = "malloc_trim")]
                 #[cfg(target_os = "linux")]

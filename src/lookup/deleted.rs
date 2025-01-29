@@ -18,7 +18,7 @@
 use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::library::results::HttmResult;
 use crate::lookup::versions::{ProximateDatasetAndOptAlts, RelativePathAndSnapMounts};
-use hashbrown::{HashMap, HashSet};
+use hashbrown::HashSet;
 use std::ffi::OsString;
 use std::fs::read_dir;
 use std::path::Path;
@@ -28,9 +28,6 @@ pub struct DeletedFiles {
     inner: Vec<BasicDirEntryInfo>,
 }
 
-// deleted lookup is a dumb impl. if we want to rank outputs, get last in time, etc.
-// we do that elsewhere.  deleted is simply about finding at least one version of a deleted file
-// this, believe it or not, will be faster
 impl DeletedFiles {
     pub fn new(requested_dir: &Path) -> HttmResult<Self> {
         // get all local entries we need to compare against these to know
@@ -42,9 +39,20 @@ impl DeletedFiles {
             .map(|dir_entry| dir_entry.file_name())
             .collect();
 
-        let inner = Self::unique_deleted_for_dir(requested_dir, &local_filenames_set)?;
+        let all_file_names = Self::all_file_names(requested_dir)?;
 
-        Ok(Self { inner })
+        let pseudo_live_versions = all_file_names
+            .difference(&local_filenames_set)
+            .into_iter()
+            // this iter creates dummy "live versions" values to match deleted files
+            // which have been found on snapshots, so we return to the user "the path that
+            // once was" in their browse panel
+            .map(|file_name| Self::into_pseudo_live_version(&file_name, requested_dir))
+            .collect();
+
+        Ok(Self {
+            inner: pseudo_live_versions,
+        })
     }
 
     #[inline(always)]
@@ -53,10 +61,7 @@ impl DeletedFiles {
     }
 
     #[inline(always)]
-    fn unique_deleted_for_dir<'a>(
-        requested_dir: &'a Path,
-        local_filenames_set: &'a HashSet<OsString>,
-    ) -> HttmResult<Vec<BasicDirEntryInfo>> {
+    fn all_file_names<'a>(requested_dir: &'a Path) -> HttmResult<HashSet<OsString>> {
         // we always need a requesting dir because we are comparing the files in the
         // requesting dir to those of their relative dirs on snapshots
         let path_data = PathData::from(requested_dir);
@@ -64,22 +69,20 @@ impl DeletedFiles {
         // create vec of all local and replicated backups at once
         //
         // we need to make certain that what we return from possibly multiple datasets are unique
-        let unique_deleted_for_dir: HashMap<OsString, BasicDirEntryInfo> =
+
+        let unique_deleted_file_names_for_dir: HashSet<OsString> =
             ProximateDatasetAndOptAlts::new(&path_data)?
                 .into_search_bundles()
-                .flat_map(|search_bundle| {
-                    Self::deleted_files_for_dataset(search_bundle, &local_filenames_set)
-                })
+                .flat_map(|search_bundle| Self::all_file_names_for_directory(search_bundle))
                 .collect();
 
-        Ok(unique_deleted_for_dir.into_values().collect())
+        Ok(unique_deleted_file_names_for_dir)
     }
 
     #[inline(always)]
-    fn deleted_files_for_dataset<'a>(
+    fn all_file_names_for_directory<'a>(
         search_bundle: RelativePathAndSnapMounts<'a>,
-        local_filenames_set: &'a HashSet<OsString>,
-    ) -> impl Iterator<Item = (OsString, BasicDirEntryInfo)> + 'a {
+    ) -> impl Iterator<Item = OsString> + 'a {
         // compare local filenames to all unique snap filenames - none values are unique, here
         search_bundle
             .snap_mounts
@@ -89,7 +92,18 @@ impl DeletedFiles {
             .flat_map(std::fs::read_dir)
             .flatten()
             .flatten()
-            .filter(|dir_entry| !local_filenames_set.contains(&dir_entry.file_name()))
-            .map(|dir_entry| (dir_entry.file_name(), BasicDirEntryInfo::from(dir_entry)))
+            .map(|dir_entry| dir_entry.file_name())
+    }
+
+    // this function creates dummy "live versions" values to match deleted files
+    // which have been found on snapshots, we return to the user "the path that
+    // once was" in their browse panel
+    #[inline(always)]
+    fn into_pseudo_live_version(file_name: &OsString, pseudo_live_dir: &Path) -> BasicDirEntryInfo {
+        let path = pseudo_live_dir.join(file_name);
+
+        let opt_filetype = None;
+
+        BasicDirEntryInfo::new(path, opt_filetype)
     }
 }
