@@ -36,7 +36,7 @@ exacl = { version = "0.12.0", default-features = false, optional = true }
 xattr = { version = "1.4.0", default-features = false, optional = true }
 
 [dependencies]
-tokio = { version = "1.43.0", default-features = true, features = [
+tokio = { version = "1.43.0", default-features = false, features = [
     "rt",
     "rt-multi-thread",
 ] }
