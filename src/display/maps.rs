@@ -64,19 +64,19 @@ impl<'a> From<&MountsForFiles<'a>> for PrintAsMap {
         let inner = mounts_for_files
             .iter()
             .map(|prox| {
-                let pathdata = prox.pathdata;
+                let path_data = prox.path_data;
 
                 let res = prox
                     .datasets_of_interest()
                     .map(PathData::from)
-                    .filter_map(|mount| match &ZfsSnapPathGuard::new(prox.pathdata) {
+                    .filter_map(|mount| match &ZfsSnapPathGuard::new(prox.path_data) {
                         Some(spg) => mount_display.display(spg, &mount),
-                        None => mount_display.display(pathdata, &mount),
+                        None => mount_display.display(path_data, &mount),
                     })
                     .map(|path| path.to_string_lossy().to_string())
                     .collect();
 
-                (pathdata.path().to_string_lossy().to_string(), res)
+                (path_data.path().to_string_lossy().to_string(), res)
             })
             .collect();
         Self { inner }

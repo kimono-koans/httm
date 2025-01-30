@@ -68,7 +68,10 @@ impl MapOfSnaps {
             .collect();
 
         if opt_debug {
-            if map_of_snaps.iter().any(|(_mount, snaps)| snaps.is_empty()) {
+            if map_of_snaps
+                .par_iter()
+                .any(|(_mount, snaps)| snaps.is_empty())
+            {
                 eprintln!("DEBUG: httm relies on the user (and/or the filesystem's auto-mounter) to mount snapshots.  \
                 Make certain any snapshots the user may want to view are mounted, or are able to be mounted, \
                 and/or the user has the correct permissions to view.");
@@ -85,7 +88,7 @@ impl MapOfSnaps {
             }
         }
 
-        if map_of_snaps.values().count() == 0 {
+        if map_of_snaps.values().flatten().count() == 0 {
             return Err(HttmError::new(
                 "httm could not find any valid snapshots on the system.  Quitting.",
             )

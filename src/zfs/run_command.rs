@@ -168,30 +168,30 @@ pub enum ZfsAllowPriv {
 
 impl ZfsAllowPriv {
     pub fn from_path(&self, path: &Path) -> HttmResult<PathBuf> {
-        let pathdata = PathData::from(path);
+        let path_data = PathData::from(path);
 
-        ZfsAllowPriv::from_opt_proximate_dataset(&self, &pathdata, None)
+        ZfsAllowPriv::from_opt_proximate_dataset(&self, &path_data, None)
     }
 
     pub fn from_opt_proximate_dataset(
         &self,
-        pathdata: &PathData,
+        path_data: &PathData,
         opt_proximate_dataset: Option<&Path>,
     ) -> HttmResult<PathBuf> {
-        let Some(fs_name) = pathdata.source(opt_proximate_dataset) else {
+        let Some(fs_name) = path_data.source(opt_proximate_dataset) else {
             let msg = format!(
                 "Could not determine dataset name from path given: {:?}",
-                pathdata.path()
+                path_data.path()
             );
             return Err(HttmError::new(&msg).into());
         };
 
-        match pathdata.fs_type(opt_proximate_dataset) {
+        match path_data.fs_type(opt_proximate_dataset) {
             Some(FilesystemType::Zfs) => {}
             _ => {
                 let msg = format!(
                     "httm only supports snapshot guards for ZFS paths.  Path is not located on a ZFS dataset: {:?}",
-                    pathdata.path()
+                    path_data.path()
                 );
                 return Err(HttmError::new(&msg).into());
             }

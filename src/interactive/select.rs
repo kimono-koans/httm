@@ -39,12 +39,13 @@ impl TryFrom<&mut InteractiveBrowse> for InteractiveSelect {
     type Error = Box<dyn std::error::Error + Send + Sync>;
 
     fn try_from(interactive_browse: &mut InteractiveBrowse) -> HttmResult<Self> {
-        let versions_map = VersionsMap::new(&GLOBAL_CONFIG, &interactive_browse.selected_pathdata)?;
+        let versions_map =
+            VersionsMap::new(&GLOBAL_CONFIG, &interactive_browse.selected_path_data)?;
 
         // snap and live set has no snaps
         if versions_map.is_empty() {
             let paths: Vec<String> = interactive_browse
-                .selected_pathdata
+                .selected_path_data
                 .iter()
                 .map(|path| path.path().to_string_lossy().to_string())
                 .collect();
@@ -56,13 +57,13 @@ impl TryFrom<&mut InteractiveBrowse> for InteractiveSelect {
             return Err(HttmError::new(&msg).into());
         }
 
-        let opt_live_version: Option<String> = if interactive_browse.selected_pathdata.len() > 1 {
+        let opt_live_version: Option<String> = if interactive_browse.selected_path_data.len() > 1 {
             None
         } else {
             interactive_browse
-                .selected_pathdata
+                .selected_path_data
                 .get(0)
-                .map(|pathdata| pathdata.path().to_string_lossy().into_owned())
+                .map(|path_data| path_data.path().to_string_lossy().into_owned())
         };
 
         let view_mode = ViewMode::Select(opt_live_version.clone());
@@ -71,7 +72,7 @@ impl TryFrom<&mut InteractiveBrowse> for InteractiveSelect {
             Self::last_snap(&versions_map)
         } else {
             // same stuff we do at fn exec, snooze...
-            let display_config = Config::from(interactive_browse.selected_pathdata.clone());
+            let display_config = Config::from(interactive_browse.selected_path_data.clone());
 
             let display_map = DisplayWrapper::from(&display_config, versions_map);
 
@@ -144,7 +145,7 @@ impl InteractiveSelect {
                 }
             })
             .flatten()
-            .map(|pathdata| pathdata.path().to_string_lossy().to_string())
+            .map(|path_data| path_data.path().to_string_lossy().to_string())
             .collect()
     }
 

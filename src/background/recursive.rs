@@ -67,7 +67,7 @@ impl<'a> RecursiveSearch<'a> {
             // all deleted threads have completed
             let pool: ThreadPool = rayon::ThreadPoolBuilder::new()
                 .build()
-                .expect("Could not initialize rayon threadpool for recursive deleted search");
+                .expect("Could not initialize rayon thread pool for recursive deleted search");
 
             pool.in_place_scope(|deleted_scope| {
                 self.run_loop(Some(deleted_scope));
@@ -117,7 +117,7 @@ impl<'a> RecursiveSearch<'a> {
         // for recursive to have items available, also only place an
         // error can stop execution
         let mut queue: Vec<BasicDirEntryInfo> = Self::enter_directory(
-            &self.requested_dir,
+            self.requested_dir,
             &self.skim_tx,
             &self.hangup,
             &PathProvenance::FromLiveDataset,
@@ -125,7 +125,7 @@ impl<'a> RecursiveSearch<'a> {
 
         if let Some(deleted_scope) = opt_deleted_scope {
             DeletedSearch::spawn(
-                &&self.requested_dir,
+                &self.requested_dir,
                 deleted_scope,
                 self.skim_tx.clone(),
                 self.hangup.clone(),
@@ -191,15 +191,6 @@ impl<'a> RecursiveSearch<'a> {
         // combined entries will be sent or printed, but we need the vec_dirs to recurse
         let vec_dirs = entries.combine_and_send()?;
 
-        // disable behind deleted dirs with DepthOfOne,
-        // otherwise recurse and find all those deleted files
-        //
-        // don't propagate errors, errors we are most concerned about
-        // are transmission errors, which are handled elsewhere
-        if let Some(DeletedMode::DepthOfOne) = GLOBAL_CONFIG.opt_deleted_mode {
-            return Ok(Vec::new());
-        }
-
         Ok(vec_dirs)
     }
 }
@@ -231,11 +222,15 @@ impl<'a> Entries<'a> {
             }
             PathProvenance::IsPhantom => {
                 // obtain all unique deleted, unordered, unsorted, will need to fix
-                DeletedFiles::new(&requested_dir)?
+                DeletedFiles::new(&requested_dir)
                     .into_inner()
                     .into_iter()
-                    .filter(|entry| entry.all_exclusions())
-                    .partition(|entry| entry.is_entry_dir())
+                    .partition(|pseudo_entry| {
+                        pseudo_entry
+                            .opt_filetype()
+                            .map(|file_type| file_type.is_dir())
+                            .unwrap_or_else(|| false)
+                    })
             }
         };
 
@@ -271,6 +266,7 @@ impl<'a> Entries<'a> {
         // here we consume the struct after sending the entries,
         // however we still need the dirs to populate the loop's queue
         // so we return the vec of dirs here
+
         Ok(self.vec_dirs)
     }
 }
@@ -298,23 +294,22 @@ impl<'a> DisplayOrTransmit<'a> {
         // send to the interactive view, or print directly, never return back
         match &GLOBAL_CONFIG.exec_mode {
             ExecMode::Interactive(_) => self.transmit()?,
-            ExecMode::NonInteractiveRecursive(progress_bar) => {
-                if self.combined_entries.is_empty() {
-                    if GLOBAL_CONFIG.opt_recursive {
-                        progress_bar.tick();
-                    } else {
-                        eprintln!(
-                            "NOTICE: httm could not find any deleted files at this directory level.  \
-                            Perhaps try specifying a deleted mode in combination with \"--recursive\"."
-                        )
-                    }
+            ExecMode::NonInteractiveRecursive(progress_bar) if self.combined_entries.is_empty() => {
+                if GLOBAL_CONFIG.opt_recursive {
+                    progress_bar.tick();
                 } else {
-                    self.display()?;
+                    eprintln!(
+                        "NOTICE: httm could not find any deleted files at this directory level.  \
+                        Perhaps try specifying a deleted mode in combination with \"--recursive\"."
+                    )
+                }
+            }
+            ExecMode::NonInteractiveRecursive(_) => {
+                self.display()?;
 
-                    // keeps spinner from squashing last line of output
-                    if GLOBAL_CONFIG.opt_recursive {
-                        eprintln!();
-                    }
+                // keeps spinner from squashing last line of output
+                if GLOBAL_CONFIG.opt_recursive {
+                    eprintln!();
                 }
             }
             _ => unreachable!(),

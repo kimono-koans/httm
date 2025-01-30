@@ -85,10 +85,10 @@ impl SnapshotMounts {
         let vec_snapshot_names: Vec<String> = mounts_for_files
             .iter()
             .map(|prox| {
-                let pathdata = prox.pathdata;
+                let path_data = prox.path_data;
 
                 let fs_name = ZfsAllowPriv::Snapshot
-                    .from_opt_proximate_dataset(&pathdata, Some(prox.proximate_dataset))
+                    .from_opt_proximate_dataset(&path_data, Some(prox.proximate_dataset))
                     .map_err(|err| HttmError::from(err))?;
 
                 let snapshot_name = format!(

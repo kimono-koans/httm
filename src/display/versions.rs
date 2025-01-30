@@ -65,28 +65,30 @@ impl<'a> DisplayWrapper<'a> {
                     .collect::<String>()
             }
             PrintMode::Raw(raw_mode) => {
+                let delimiter: char = delimiter();
+
                 // else re compute for each instance and print per instance, now with uniform padding
                 self.iter()
                     .map(|(key, values)| {
                         let keys: Vec<&PathData> = vec![key];
                         let values: Vec<&PathData> = values.iter().collect();
 
-                        let display_set = DisplaySet::from((keys, values));
-                        let delimiter = delimiter();
-
+                        (keys, values)
+                    })
+                    .map(|(keys, values)| DisplaySet::from((keys, values)))
+                    .map(|display_set| {
                         display_set
-                            .deref()
-                            .iter()
+                            .into_inner()
+                            .into_iter()
                             .enumerate()
                             .filter(|(idx, _set)| {
-                                let dst = DisplaySetType::from(*idx);
-                                dst.filter_bulk_exclusions(&self.config)
+                                DisplaySetType::from(*idx).filter_bulk_exclusions(&self.config)
                             })
                             .map(|(_idx, set)| set)
                             .flatten()
-                            .map(|pd| pd.raw(raw_mode, delimiter, self.config.requested_utc_offset))
-                            .collect::<String>()
                     })
+                    .flatten()
+                    .map(|pd| pd.raw_format(raw_mode, delimiter, self.config.requested_utc_offset))
                     .collect::<String>()
             }
         }
@@ -154,7 +156,7 @@ impl DisplaySetType {
 impl<'a> DisplaySet<'a> {
     #[inline(always)]
     pub fn format(&self, config: &Config, padding_collection: &PaddingCollection) -> String {
-        let mut border: String = padding_collection.fancy_border_string.to_string();
+        let mut border: String = padding_collection.fancy_border_string.clone();
 
         // get the display buffer for each set snaps and live
         self.iter()
@@ -214,6 +216,10 @@ impl<'a> DisplaySet<'a> {
                     display_set_buffer
                 },
             )
+    }
+
+    fn into_inner(self) -> [Vec<&'a PathData>; 2] {
+        self.inner
     }
 }
 
@@ -315,7 +321,8 @@ impl PathData {
         }
     }
 
-    pub fn raw(
+    #[inline(always)]
+    pub fn raw_format(
         &self,
         raw_mode: &RawMode,
         delimiter: char,

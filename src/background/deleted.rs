@@ -17,6 +17,7 @@
 
 use crate::background::recursive::PathProvenance;
 use crate::background::recursive::RecursiveSearch;
+use crate::config::generate::DeletedMode;
 use crate::data::paths::BasicDirEntryInfo;
 use crate::library::results::HttmResult;
 use crate::GLOBAL_CONFIG;
@@ -64,13 +65,21 @@ impl DeletedSearch {
                     break;
                 }
 
-                if let Ok(mut res) = RecursiveSearch::enter_directory(
+                if let Ok(mut items) = RecursiveSearch::enter_directory(
                     &item.path(),
                     &skim_tx,
                     &hangup,
                     &PathProvenance::IsPhantom,
                 ) {
-                    queue.append(&mut res);
+                    // disable behind deleted dirs with DepthOfOne,
+                    // otherwise recurse and find all those deleted files
+                    //
+                    // don't propagate errors, errors we are most concerned about
+                    // are transmission errors, which are handled elsewhere
+                    match GLOBAL_CONFIG.opt_deleted_mode {
+                        Some(DeletedMode::DepthOfOne) => (),
+                        _ => queue.append(&mut items),
+                    }
                 }
             }
         }

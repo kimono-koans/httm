@@ -69,7 +69,7 @@ impl VersionsMap {
 
         let all_snap_versions: BTreeMap<PathData, Vec<PathData>> = path_set
             .par_iter()
-            .filter_map(|pathdata| match Versions::new(pathdata, config) {
+            .filter_map(|path_data| match Versions::new(path_data, config) {
                 Ok(versions) => Some(versions),
                 Err(err) => {
                     if !is_interactive_mode {
@@ -100,7 +100,7 @@ impl VersionsMap {
         if versions_map.values().all(std::vec::Vec::is_empty)
             && versions_map
                 .keys()
-                .all(|pathdata| pathdata.opt_metadata().is_none())
+                .all(|path_data| path_data.opt_metadata().is_none())
         {
             return Err(HttmError::new(
                 "httm could find neither a live version, nor any snapshot version for all the specified paths, so, umm, 🤷? Please try another file.",
@@ -120,34 +120,34 @@ impl VersionsMap {
         Ok(versions_map)
     }
 
-    pub fn is_live_version_redundant(live_pathdata: &PathData, snaps: &[PathData]) -> bool {
+    pub fn is_live_version_redundant(live_path_data: &PathData, snaps: &[PathData]) -> bool {
         if let Some(last_snap) = snaps.last() {
-            return last_snap.opt_metadata() == live_pathdata.opt_metadata();
+            return last_snap.opt_metadata() == live_path_data.opt_metadata();
         }
 
         false
     }
 
     fn omit_ditto(&mut self) {
-        self.iter_mut().for_each(|(pathdata, snaps)| {
+        self.iter_mut().for_each(|(path_data, snaps)| {
             // process omit_ditto before last snap
-            if Self::is_live_version_redundant(pathdata, snaps) {
+            if Self::is_live_version_redundant(path_data, snaps) {
                 snaps.pop();
             }
         });
     }
 
     fn last_snap(&mut self, last_snap_mode: &LastSnapMode) {
-        self.iter_mut().for_each(|(pathdata, snaps)| {
+        self.iter_mut().for_each(|(path_data, snaps)| {
             *snaps = match snaps.last() {
                 // if last() is some, then should be able to unwrap pop()
                 Some(last) => match last_snap_mode {
                     LastSnapMode::Any => vec![last.to_owned()],
-                    LastSnapMode::DittoOnly if pathdata.opt_metadata() == last.opt_metadata() => {
+                    LastSnapMode::DittoOnly if path_data.opt_metadata() == last.opt_metadata() => {
                         vec![last.to_owned()]
                     }
                     LastSnapMode::NoDittoExclusive | LastSnapMode::NoDittoInclusive
-                        if pathdata.opt_metadata() != last.opt_metadata() =>
+                        if path_data.opt_metadata() != last.opt_metadata() =>
                     {
                         vec![last.to_owned()]
                     }
@@ -155,7 +155,7 @@ impl VersionsMap {
                 },
                 None => match last_snap_mode {
                     LastSnapMode::Without | LastSnapMode::NoDittoInclusive => {
-                        vec![pathdata.clone()]
+                        vec![path_data.clone()]
                     }
                     _ => Vec::new(),
                 },
@@ -171,9 +171,9 @@ pub struct Versions {
 
 impl Versions {
     #[inline(always)]
-    pub fn new(pathdata: &PathData, config: &Config) -> HttmResult<Self> {
-        let prox_opt_alts = ProximateDatasetAndOptAlts::new(pathdata)?;
-        let live_path = prox_opt_alts.pathdata.clone();
+    pub fn new(path_data: &PathData, config: &Config) -> HttmResult<Self> {
+        let prox_opt_alts = ProximateDatasetAndOptAlts::new(path_data)?;
+        let live_path = prox_opt_alts.path_data.clone();
         let snap_versions: Vec<PathData> = prox_opt_alts
             .into_search_bundles()
             .flat_map(|relative_path_snap_mounts| {
@@ -195,7 +195,7 @@ impl Versions {
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct ProximateDatasetAndOptAlts<'a> {
-    pub pathdata: &'a PathData,
+    pub path_data: &'a PathData,
     pub proximate_dataset: &'a Path,
     pub relative_path: &'a Path,
     pub opt_alts: Option<&'a Vec<Box<Path>>>,
@@ -204,7 +204,7 @@ pub struct ProximateDatasetAndOptAlts<'a> {
 impl<'a> Ord for ProximateDatasetAndOptAlts<'a> {
     #[inline]
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.pathdata.cmp(&other.pathdata)
+        self.path_data.cmp(&other.path_data)
     }
 }
 
@@ -217,7 +217,7 @@ impl<'a> PartialOrd for ProximateDatasetAndOptAlts<'a> {
 
 impl<'a> ProximateDatasetAndOptAlts<'a> {
     #[inline(always)]
-    pub fn new(pathdata: &'a PathData) -> HttmResult<Self> {
+    pub fn new(path_data: &'a PathData) -> HttmResult<Self> {
         // here, we take our file path and get back possibly multiple ZFS dataset mountpoints
         // and our most proximate dataset mount point (which is always the same) for
         // a single file
@@ -231,13 +231,13 @@ impl<'a> ProximateDatasetAndOptAlts<'a> {
         // will compare the most proximate dataset to our our canonical path and the difference
         // between ZFS mount point and the canonical path is the path we will use to search the
         // hidden snapshot dirs
-        let (proximate_dataset, relative_path) = pathdata
+        let (proximate_dataset, relative_path) = path_data
             .alias()
             .map(|alias| (alias.proximate_dataset, alias.relative_path))
             .map_or_else(
                 || {
-                    pathdata.proximate_dataset().and_then(|proximate_dataset| {
-                        pathdata
+                    path_data.proximate_dataset().and_then(|proximate_dataset| {
+                        path_data
                             .relative_path(proximate_dataset)
                             .map(|relative_path| (proximate_dataset, relative_path))
                     })
@@ -253,7 +253,7 @@ impl<'a> ProximateDatasetAndOptAlts<'a> {
             .and_then(|alt_metadata| alt_metadata.opt_datasets_of_interest.as_ref());
 
         Ok(Self {
-            pathdata,
+            path_data,
             proximate_dataset,
             relative_path,
             opt_alts,
@@ -385,20 +385,20 @@ impl<'a> RelativePathAndSnapMounts<'a> {
         match dedup_by {
             DedupBy::Disable => {
                 let mut vec: Vec<PathData> = iter.collect();
-                vec.sort_unstable_by_key(|pathdata| pathdata.metadata_infallible().mtime());
+                vec.sort_unstable_by_key(|path_data| path_data.metadata_infallible().mtime());
                 vec
             }
             DedupBy::Metadata => {
                 let mut vec: Vec<PathData> = iter.collect();
 
-                vec.sort_unstable_by_key(|pathdata| pathdata.metadata_infallible());
+                vec.sort_unstable_by_key(|path_data| path_data.metadata_infallible());
                 vec.dedup_by_key(|a| a.metadata_infallible());
 
                 vec
             }
             DedupBy::Contents => {
                 let mut vec: Vec<CompareContentsContainer> = iter
-                    .map(|pathdata| CompareContentsContainer::from(pathdata))
+                    .map(|path_data| CompareContentsContainer::from(path_data))
                     .collect();
 
                 vec.sort_unstable();

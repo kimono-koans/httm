@@ -51,14 +51,14 @@ impl InteractiveRestore {
     }
 
     fn restore_per_path(&self, snap_path_string: &str) -> HttmResult<()> {
-        // build pathdata from selection buffer parsed string
+        // build path_data from selection buffer parsed string
         //
         // request is also sanity check for snap path exists below when we check
-        // if snap_pathdata is_phantom below
-        let snap_pathdata = PathData::from(Path::new(snap_path_string));
+        // if snap_path_data is_phantom below
+        let snap_path_data = PathData::from(Path::new(snap_path_string));
 
         // build new place to send file
-        let new_file_path_buf = self.build_new_file_path(&snap_pathdata)?;
+        let new_file_path_buf = self.build_new_file_path(&snap_path_data)?;
 
         let should_preserve = Self::should_preserve_attributes();
 
@@ -71,7 +71,7 @@ impl InteractiveRestore {
             ─────────────────────────────────────────────────────────────────────────────────────────\n\
             YES\n\
             NO",
-            snap_pathdata.path()
+            snap_path_data.path()
         );
 
         // loop until user consents or doesn't
@@ -94,7 +94,7 @@ impl InteractiveRestore {
                                 SnapGuard::try_from(new_file_path_buf.as_path())?;
 
                             if let Err(err) = Self::restore_action(
-                                &snap_pathdata.path(),
+                                &snap_path_data.path(),
                                 &new_file_path_buf.as_path(),
                                 should_preserve,
                             ) {
@@ -110,7 +110,7 @@ impl InteractiveRestore {
                             std::process::exit(1);
                         }
                         _ => Self::restore_action(
-                            &snap_pathdata.path(),
+                            &snap_path_data.path(),
                             &new_file_path_buf.as_path(),
                             should_preserve,
                         )?,
@@ -121,7 +121,7 @@ impl InteractiveRestore {
                             \tsource:\t{:?}\n\
                             \ttarget:\t{new_file_path_buf:?}\n\n\
                             Restore completed successfully.",
-                        snap_pathdata.path()
+                        snap_path_data.path()
                     );
 
                     let summary_string = LightYellow.paint(Self::summary_string());
@@ -129,7 +129,7 @@ impl InteractiveRestore {
                     break println!("{summary_string}{result_buffer}");
                 }
                 "NO" | "N" => {
-                    break println!("User declined restore of: {:?}", snap_pathdata.path())
+                    break println!("User declined restore of: {:?}", snap_path_data.path())
                 }
                 // if not yes or no, then noop and continue to the next iter of loop
                 _ => {}
@@ -177,17 +177,17 @@ impl InteractiveRestore {
         )
     }
 
-    pub fn opt_live_version(&self, snap_pathdata: &PathData) -> HttmResult<PathBuf> {
+    pub fn opt_live_version(&self, snap_path_data: &PathData) -> HttmResult<PathBuf> {
         match &self.opt_live_version {
             Some(live_version) => Some(PathBuf::from(live_version)),
             None => {
-                ZfsSnapPathGuard::new(snap_pathdata).and_then(|snap_guard| snap_guard.live_path())
+                ZfsSnapPathGuard::new(snap_path_data).and_then(|snap_guard| snap_guard.live_path())
             }
         }
         .ok_or_else(|| HttmError::new("Could not determine a possible live version.").into())
     }
 
-    fn build_new_file_path(&self, snap_pathdata: &PathData) -> HttmResult<PathBuf> {
+    fn build_new_file_path(&self, snap_path_data: &PathData) -> HttmResult<PathBuf> {
         // build new place to send file
         if matches!(
             GLOBAL_CONFIG.exec_mode,
@@ -198,20 +198,20 @@ impl InteractiveRestore {
             // so, if you were in /etc and wanted to restore /etc/samba/smb.conf, httm will make certain to overwrite
             // at /etc/samba/smb.conf
 
-            return self.opt_live_version(snap_pathdata);
+            return self.opt_live_version(snap_path_data);
         }
 
-        let snap_filename = snap_pathdata
+        let snap_filename = snap_path_data
             .path()
             .file_name()
             .expect("Could not obtain a file name for the snap file version of path given")
             .to_string_lossy()
             .into_owned();
 
-        let Some(snap_metadata) = snap_pathdata.opt_metadata() else {
+        let Some(snap_metadata) = snap_path_data.opt_metadata() else {
             let msg = format!(
                 "Source location: {:?} does not exist on disk Quitting.",
-                snap_pathdata.path()
+                snap_path_data.path()
             );
             return Err(HttmError::new(&msg).into());
         };

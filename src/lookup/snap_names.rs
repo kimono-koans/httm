@@ -51,11 +51,11 @@ impl SnapNameMap {
     ) -> HttmResult<Self> {
         let inner: BTreeMap<PathData, Vec<String>> = versions_map
             .iter()
-            .filter(|(pathdata, snaps)| {
+            .filter(|(path_data, snaps)| {
                 if snaps.is_empty() {
                     let msg = format!(
                         "httm could not find any snapshots for the file specified: {:?}",
-                        pathdata.path()
+                        path_data.path()
                     );
                     eprintln!("WARN: {msg}");
                     return false;
@@ -63,10 +63,10 @@ impl SnapNameMap {
 
                 true
             })
-            .filter_map(|(pathdata, snaps)| {
-               let opt_proximate_dataset = pathdata.proximate_dataset().ok();
+            .filter_map(|(path_data, snaps)| {
+               let opt_proximate_dataset = path_data.proximate_dataset().ok();
 
-               match pathdata.fs_type(opt_proximate_dataset) {
+               match path_data.fs_type(opt_proximate_dataset) {
                     Some(FilesystemType::Zfs) => {
                         // use par iter here because no one else is using the global rayon threadpool any more
                         let snap_names: Vec<PathBuf> = snaps
@@ -76,20 +76,20 @@ impl SnapNameMap {
                             })
                             .collect();
 
-                        Some((pathdata, snap_names))
+                        Some((path_data, snap_names))
                     }
                     Some(FilesystemType::Btrfs(opt_additional_btrfs_data)) => {
                         if let Some(additional_btrfs_data) = opt_additional_btrfs_data {
                             if let Some(new_map) = additional_btrfs_data.snap_names.get() {
                                 let values: Vec<PathBuf> = new_map.values().cloned().map(|k| k.into_path_buf()).collect();
-                                return Some((pathdata, values))
+                                return Some((path_data, values))
                             }                             
                         }
                         
                         None
                     },
                     _ => {
-                        eprintln!("ERROR: LIST_SNAPS is a ZFS and btrfs only option.  Path does not appear to be on a supported dataset: {:?}", pathdata.path());
+                        eprintln!("ERROR: LIST_SNAPS is a ZFS and btrfs only option.  Path does not appear to be on a supported dataset: {:?}", path_data.path());
                         None
                     }   
                 }
@@ -98,7 +98,7 @@ impl SnapNameMap {
                 let vec_snaps: Vec<_> = snaps.iter().map(|p| p.to_string_lossy().to_string()).collect();
                 (mount, vec_snaps)
             })
-            .filter(|(_pathdata, snaps)| {
+            .filter(|(_path_data, snaps)| {
                 if let Some(filters) = opt_filters {
                     if let Some(names) = &filters.name_filters {
                         return names.iter().any(|pattern| snaps.iter().any(|snap| snap.contains(pattern)));
@@ -106,7 +106,7 @@ impl SnapNameMap {
                 }
                 true
             })
-            .filter_map(|(pathdata, mut vec_snaps)| {
+            .filter_map(|(path_data, mut vec_snaps)| {
                 if let Some(mode_filter) = opt_filters {
                     if mode_filter.omit_num_snaps != 0 {
                         let opt_amt_less = vec_snaps.len().checked_sub(mode_filter.omit_num_snaps);
@@ -126,7 +126,7 @@ impl SnapNameMap {
                     }
                 }
 
-                Some((pathdata.to_owned(), vec_snaps))
+                Some((path_data.to_owned(), vec_snaps))
             })
             .collect();
 

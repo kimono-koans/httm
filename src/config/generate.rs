@@ -1060,7 +1060,7 @@ impl Config {
             }
         };
 
-        // deduplicate pathdata and sort if in display mode --
+        // deduplicate path_data and sort if in display mode --
         // so input of ./.z* and ./.zshrc will only print ./.zshrc once
         paths = if paths.len() > 1 {
             paths.sort_unstable();
@@ -1142,9 +1142,11 @@ impl Config {
                                     }
                                 }
                             }
-                            // silently disable NonInteractiveRecursive when path given is not a directory
+                            // disable NonInteractiveRecursive when path given is not a directory
                             // switch to a standard Display mode
                             ExecMode::NonInteractiveRecursive(_) => {
+                                eprintln!("WARN: Disabling non-interactive recursive mode as requested directory either does not exist or is not a directory.  \
+                                Switching to display mode.");
                                 *exec_mode = ExecMode::BasicDisplay;
                                 *deleted_mode = None;
                                 None

@@ -227,11 +227,11 @@ impl Preserve {
     }
 
     pub fn recursive(src: &Path, dst: &Path) -> HttmResult<()> {
-        let dst_pathdata: PathData = dst.into();
+        let dst_path_data: PathData = dst.into();
 
-        let proximate_dataset_mount = dst_pathdata.proximate_dataset()?;
+        let proximate_dataset_mount = dst_path_data.proximate_dataset()?;
 
-        let Ok(relative_path) = dst_pathdata.relative_path(proximate_dataset_mount) else {
+        let Ok(relative_path) = dst_path_data.relative_path(proximate_dataset_mount) else {
             let msg = format!(
                 "Could not determine relative path for destination: {:?}",
                 dst

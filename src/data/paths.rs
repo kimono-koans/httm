@@ -49,9 +49,6 @@ static OPT_REQUESTED_DIR_DEV: LazyLock<u64> = LazyLock::new(|| {
 static DATASET_MAX_LEN: LazyLock<usize> =
     LazyLock::new(|| GLOBAL_CONFIG.dataset_collection.map_of_datasets.max_len());
 
-static FILTER_DIRS_MAX_LEN: LazyLock<usize> =
-    LazyLock::new(|| GLOBAL_CONFIG.dataset_collection.filter_dirs.max_len());
-
 // only the most basic data from a DirEntry
 // for use to display in browse window and internally
 #[derive(Debug, Clone, Eq, Hash, PartialEq)]
@@ -154,12 +151,6 @@ impl BasicDirEntryInfo {
             if user_requested_dir.as_path() == path {
                 return false;
             }
-        }
-
-        // finally : is a non-supported dataset?
-        // bailout easily if path is larger than max_filter_dir len
-        if path.components().count() > *FILTER_DIRS_MAX_LEN {
-            return false;
         }
 
         path.is_filter_dir()
@@ -358,16 +349,16 @@ impl<'a> std::ops::Deref for ZfsSnapPathGuard<'a> {
 }
 
 impl<'a> ZfsSnapPathGuard<'a> {
-    pub fn new(pathdata: &'a PathData) -> Option<Self> {
-        if !Self::is_zfs_snap_path(pathdata) {
+    pub fn new(path_data: &'a PathData) -> Option<Self> {
+        if !Self::is_zfs_snap_path(path_data) {
             return None;
         }
 
-        Some(Self { inner: pathdata })
+        Some(Self { inner: path_data })
     }
 
-    pub fn is_zfs_snap_path(pathdata: &'a PathData) -> bool {
-        pathdata
+    pub fn is_zfs_snap_path(path_data: &'a PathData) -> bool {
+        path_data
             .path_buf
             .to_string_lossy()
             .contains(ZFS_SNAPSHOT_DIRECTORY)
@@ -565,7 +556,7 @@ pub const PHANTOM_PATH_METADATA: PathMetadata = PathMetadata {
 
 #[derive(Debug)]
 pub struct CompareContentsContainer {
-    pathdata: PathData,
+    path_data: PathData,
     hash: OnceLock<u64>,
 }
 
@@ -604,15 +595,15 @@ impl Ord for CompareContentsContainer {
 impl From<CompareContentsContainer> for PathData {
     #[inline(always)]
     fn from(value: CompareContentsContainer) -> Self {
-        value.pathdata
+        value.path_data
     }
 }
 
 impl From<PathData> for CompareContentsContainer {
     #[inline(always)]
-    fn from(pathdata: PathData) -> Self {
+    fn from(path_data: PathData) -> Self {
         Self {
-            pathdata,
+            path_data,
             hash: OnceLock::new(),
         }
     }
@@ -621,12 +612,12 @@ impl From<PathData> for CompareContentsContainer {
 impl CompareContentsContainer {
     #[inline(always)]
     pub fn mtime(&self) -> SystemTime {
-        self.pathdata.metadata_infallible().modify_time
+        self.path_data.metadata_infallible().modify_time
     }
 
     #[inline(always)]
     pub fn size(&self) -> u64 {
-        self.pathdata.metadata_infallible().size
+        self.path_data.metadata_infallible().size
     }
 
     #[allow(unused_assignments)]
@@ -634,12 +625,12 @@ impl CompareContentsContainer {
         let (self_hash, other_hash): (&u64, &u64) = rayon::join(
             || {
                 self.hash
-                    .get_or_init(|| HashFileContents::path_to_hash(self.pathdata.path()))
+                    .get_or_init(|| HashFileContents::path_to_hash(self.path_data.path()))
             },
             || {
                 other
                     .hash
-                    .get_or_init(|| HashFileContents::path_to_hash(other.pathdata.path()))
+                    .get_or_init(|| HashFileContents::path_to_hash(other.path_data.path()))
             },
         );
 

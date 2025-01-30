@@ -61,11 +61,11 @@ impl SelectionCandidate {
     fn preview_view(&self) -> HttmResult<String> {
         // generate a config for display
         let display_config: Config = Config::from(self);
-        let display_pathdata = PathData::from(&self.path);
+        let display_path_data = PathData::from(&self.path);
 
         // finally run search on those paths
         let all_snap_versions: VersionsMap =
-            [Versions::new(&display_pathdata, &display_config)?.into_inner()].into();
+            [Versions::new(&display_path_data, &display_config)?.into_inner()].into();
 
         let output_buf = DisplayWrapper::from(&display_config, all_snap_versions).to_string();
 

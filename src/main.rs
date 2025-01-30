@@ -187,7 +187,7 @@ fn exec() -> HttmResult<()> {
                 // InteractiveMode::Browse executes back through fn exec() in main.rs
                 InteractiveMode::Browse => {
                     let versions_map =
-                        VersionsMap::new(&GLOBAL_CONFIG, &browse_result.selected_pathdata)?;
+                        VersionsMap::new(&GLOBAL_CONFIG, &browse_result.selected_path_data)?;
 
                     let output_buf = DisplayWrapper::from(&GLOBAL_CONFIG, versions_map).to_string();
 

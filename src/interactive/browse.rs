@@ -28,7 +28,7 @@ use std::thread::JoinHandle;
 
 #[derive(Debug)]
 pub struct InteractiveBrowse {
-    pub selected_pathdata: Vec<PathData>,
+    pub selected_path_data: Vec<PathData>,
     pub opt_background_handle: Option<JoinHandle<()>>,
 }
 
@@ -39,7 +39,7 @@ impl InteractiveBrowse {
             Some(requested_dir) => {
                 let res = Self::view(requested_dir)?;
 
-                if res.selected_pathdata.is_empty() {
+                if res.selected_path_data.is_empty() {
                     return Err(HttmError::new(
                         "None of the selected strings could be converted to paths.",
                     )
@@ -57,7 +57,7 @@ impl InteractiveBrowse {
                         let selected_file = first_path.clone();
 
                         Self {
-                            selected_pathdata: vec![selected_file],
+                            selected_path_data: vec![selected_file],
                             opt_background_handle: None,
                         }
                     }
@@ -137,21 +137,21 @@ impl InteractiveBrowse {
             }
             Some(output) => {
                 // hangup the channel so the background recursive search can gracefully cleanup and exit
-                hangup_clone.store(true, Ordering::SeqCst);
+                hangup_clone.store(true, Ordering::Release);
 
                 #[cfg(feature = "malloc_trim")]
                 #[cfg(target_os = "linux")]
                 #[cfg(target_env = "gnu")]
                 Self::malloc_trim();
 
-                let selected_pathdata: Vec<PathData> = output
+                let selected_path_data: Vec<PathData> = output
                     .selected_items
                     .iter()
                     .map(|item| PathData::from(Path::new(item.output().as_ref())))
                     .collect();
 
                 Ok(Self {
-                    selected_pathdata,
+                    selected_path_data,
                     opt_background_handle: Some(background_handle),
                 })
             }
