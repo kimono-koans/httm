@@ -113,7 +113,7 @@ impl<'a> RecursiveSearch<'a> {
             &PathProvenance::FromLiveDataset,
         )?;
 
-        let mut join_handles = Vec::new();
+        let mut deleted_join_handles = Vec::new();
 
         if GLOBAL_CONFIG.opt_deleted_mode.is_some() {
             // Spawn a future onto the runtime
@@ -123,7 +123,7 @@ impl<'a> RecursiveSearch<'a> {
 
             let hangup = self.hangup.clone();
 
-            join_handles
+            deleted_join_handles
                 .push(handle.spawn(async { DeletedSearch::run_loop(request, skim_tx, hangup) }));
         }
 
@@ -148,7 +148,7 @@ impl<'a> RecursiveSearch<'a> {
 
                     let hangup = self.hangup.clone();
 
-                    join_handles.push(
+                    deleted_join_handles.push(
                         handle.spawn(async { DeletedSearch::run_loop(request, skim_tx, hangup) }),
                     );
                 }
@@ -166,7 +166,10 @@ impl<'a> RecursiveSearch<'a> {
             }
         }
 
-        while join_handles.iter().any(|handle| !handle.is_finished()) {}
+        while deleted_join_handles
+            .iter()
+            .any(|handle| !handle.is_finished())
+        {}
 
         Ok(())
     }
