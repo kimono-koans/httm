@@ -298,23 +298,22 @@ impl<'a> DisplayOrTransmit<'a> {
         // send to the interactive view, or print directly, never return back
         match &GLOBAL_CONFIG.exec_mode {
             ExecMode::Interactive(_) => self.transmit()?,
-            ExecMode::NonInteractiveRecursive(progress_bar) => {
-                if self.combined_entries.is_empty() {
-                    if GLOBAL_CONFIG.opt_recursive {
-                        progress_bar.tick();
-                    } else {
-                        eprintln!(
-                            "NOTICE: httm could not find any deleted files at this directory level.  \
-                            Perhaps try specifying a deleted mode in combination with \"--recursive\"."
-                        )
-                    }
+            ExecMode::NonInteractiveRecursive(progress_bar) if self.combined_entries.is_empty() => {
+                if GLOBAL_CONFIG.opt_recursive {
+                    progress_bar.tick();
                 } else {
-                    self.display()?;
+                    eprintln!(
+                        "NOTICE: httm could not find any deleted files at this directory level.  \
+                        Perhaps try specifying a deleted mode in combination with \"--recursive\"."
+                    )
+                }
+            }
+            ExecMode::NonInteractiveRecursive(_) => {
+                self.display()?;
 
-                    // keeps spinner from squashing last line of output
-                    if GLOBAL_CONFIG.opt_recursive {
-                        eprintln!();
-                    }
+                // keeps spinner from squashing last line of output
+                if GLOBAL_CONFIG.opt_recursive {
+                    eprintln!();
                 }
             }
             _ => unreachable!(),
