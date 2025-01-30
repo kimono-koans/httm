@@ -36,6 +36,10 @@ exacl = { version = "0.12.0", default-features = false, optional = true }
 xattr = { version = "1.4.0", default-features = false, optional = true }
 
 [dependencies]
+tokio = { version = "1.43.0", default-features = true, features = [
+    "rt",
+    "rt-multi-thread",
+] }
 foldhash = { version = "0.1.4", default-features = false }
 clap = { version = "4.5.27", default-features = true, features = ["cargo"] }
 crossbeam-channel = { version = "0.5.14", default-features = false }

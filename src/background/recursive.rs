@@ -24,12 +24,12 @@ use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::print_output_buf;
 use crate::lookup::deleted::DeletedFiles;
 use crate::{VersionsMap, GLOBAL_CONFIG};
-use rayon::{Scope, ThreadPool};
 use skim::prelude::*;
 use std::fs::read_dir;
 use std::path::Path;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
+use tokio::runtime::{Handle, Runtime};
 
 #[derive(Clone, Copy)]
 pub enum PathProvenance {
@@ -60,33 +60,23 @@ impl<'a> RecursiveSearch<'a> {
     }
 
     pub fn exec(&self) {
-        if GLOBAL_CONFIG.opt_deleted_mode.is_some() {
-            // thread pool allows deleted to have its own scope, which means
-            // all threads must complete before the scope exits.  this is important
-            // for display recursive searches as the live enumeration will end before
-            // all deleted threads have completed
-            let pool: ThreadPool = rayon::ThreadPoolBuilder::new()
-                .build()
-                .expect("Could not initialize rayon threadpool for recursive deleted search");
+        let rt = Runtime::new().unwrap();
 
-            pool.in_place_scope(|deleted_scope| {
-                self.run_loop(Some(deleted_scope));
-            })
-        } else {
-            self.run_loop(None);
-        }
+        let handle = rt.handle();
+
+        self.run_loop(handle);
     }
 
-    fn run_loop(&self, opt_deleted_scope: Option<&Scope>) {
+    fn run_loop(&self, handle: &Handle) {
         // this runs the main loop for live file searches, see the referenced struct below
         // we are in our own detached system thread, so print error and exit if error trickles up
-        self.loop_body(opt_deleted_scope).unwrap_or_else(|error| {
+        self.loop_body(handle).unwrap_or_else(|error| {
             eprintln!("ERROR: {error}");
             std::process::exit(1)
         });
     }
 
-    fn loop_body(&self, opt_deleted_scope: Option<&Scope>) -> HttmResult<()> {
+    fn loop_body(&self, handle: &Handle) -> HttmResult<()> {
         // the user may specify a dir for browsing,
         // but wants to restore that directory,
         // so here we add the directory and its parent as a selection item
@@ -123,13 +113,18 @@ impl<'a> RecursiveSearch<'a> {
             &PathProvenance::FromLiveDataset,
         )?;
 
-        if let Some(deleted_scope) = opt_deleted_scope {
-            DeletedSearch::spawn(
-                &&self.requested_dir,
-                deleted_scope,
-                self.skim_tx.clone(),
-                self.hangup.clone(),
-            );
+        let mut join_handles = Vec::new();
+
+        if GLOBAL_CONFIG.opt_deleted_mode.is_some() {
+            // Spawn a future onto the runtime
+            let request = self.requested_dir.to_path_buf();
+
+            let skim_tx = self.skim_tx.clone();
+
+            let hangup = self.hangup.clone();
+
+            join_handles
+                .push(handle.spawn(async { DeletedSearch::run_loop(request, skim_tx, hangup) }));
         }
 
         self.started.store(true, Ordering::SeqCst);
@@ -145,12 +140,16 @@ impl<'a> RecursiveSearch<'a> {
                     break;
                 }
 
-                if let Some(deleted_scope) = opt_deleted_scope {
-                    DeletedSearch::spawn(
-                        &item.path(),
-                        deleted_scope,
-                        self.skim_tx.clone(),
-                        self.hangup.clone(),
+                if GLOBAL_CONFIG.opt_deleted_mode.is_some() {
+                    // Spawn a future onto the runtime
+                    let request = item.clone().to_path_buf();
+
+                    let skim_tx = self.skim_tx.clone();
+
+                    let hangup = self.hangup.clone();
+
+                    join_handles.push(
+                        handle.spawn(async { DeletedSearch::run_loop(request, skim_tx, hangup) }),
                     );
                 }
 
@@ -166,6 +165,8 @@ impl<'a> RecursiveSearch<'a> {
                 }
             }
         }
+
+        while join_handles.iter().any(|handle| !handle.is_finished()) {}
 
         Ok(())
     }

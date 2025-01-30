@@ -20,30 +20,14 @@ use crate::background::recursive::RecursiveSearch;
 use crate::data::paths::BasicDirEntryInfo;
 use crate::library::results::HttmResult;
 use crate::GLOBAL_CONFIG;
-use rayon::Scope;
 use skim::prelude::*;
-use std::path::Path;
 use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
 
 pub struct DeletedSearch;
 
 impl DeletedSearch {
-    // "spawn" a lighter weight rayon/greenish thread for enumerate_deleted, if needed
-    pub fn spawn(
-        requested_dir: &Path,
-        deleted_scope: &Scope,
-        skim_tx: SkimItemSender,
-        hangup: Arc<AtomicBool>,
-    ) {
-        let deleted_dir = requested_dir.to_path_buf();
-
-        deleted_scope.spawn(move |_| {
-            let _ = Self::run_loop(deleted_dir, skim_tx.clone(), hangup.clone());
-        })
-    }
-
-    fn run_loop(
+    pub fn run_loop(
         deleted_dir: PathBuf,
         skim_tx: SkimItemSender,
         hangup: Arc<AtomicBool>,
