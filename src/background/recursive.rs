@@ -129,7 +129,7 @@ impl<'a> RecursiveSearch<'a> {
             let hangup = self.hangup.clone();
 
             deleted_join_handles
-                .push(handle.spawn(async { DeletedSearch::run_loop(request, skim_tx, hangup) }));
+                .push(handle.spawn_blocking(|| DeletedSearch::run_loop(request, skim_tx, hangup)));
         }
 
         self.started.store(true, Ordering::SeqCst);
@@ -154,7 +154,7 @@ impl<'a> RecursiveSearch<'a> {
                     let hangup = self.hangup.clone();
 
                     deleted_join_handles.push(
-                        handle.spawn(async { DeletedSearch::run_loop(request, skim_tx, hangup) }),
+                        handle.spawn_blocking(|| DeletedSearch::run_loop(request, skim_tx, hangup)),
                     );
                 }
 
