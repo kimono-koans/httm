@@ -29,7 +29,7 @@ use std::fs::read_dir;
 use std::path::Path;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
-use tokio::runtime::{Handle, Runtime};
+use tokio::runtime::Runtime;
 
 #[derive(Clone, Copy)]
 pub enum PathProvenance {
@@ -42,6 +42,7 @@ pub struct RecursiveSearch<'a> {
     skim_tx: SkimItemSender,
     hangup: Arc<AtomicBool>,
     started: Arc<AtomicBool>,
+    rt: Runtime,
 }
 
 impl<'a> RecursiveSearch<'a> {
@@ -51,35 +52,39 @@ impl<'a> RecursiveSearch<'a> {
         hangup: Arc<AtomicBool>,
         started: Arc<AtomicBool>,
     ) -> Self {
+        let rt = Runtime::new().unwrap();
+
         Self {
             requested_dir,
             skim_tx,
             hangup,
             started,
+            rt,
         }
     }
 
     pub fn exec(&self) {
-        let rt = Runtime::new().unwrap();
-
-        let handle = rt.handle();
-
-        self.run_loop(handle);
+        self.rt.block_on(async {
+            self.run_loop();
+        })
     }
 
-    fn run_loop(&self, handle: &Handle) {
+    fn run_loop(&self) {
         // this runs the main loop for live file searches, see the referenced struct below
         // we are in our own detached system thread, so print error and exit if error trickles up
-        self.loop_body(handle).unwrap_or_else(|error| {
+        self.loop_body().unwrap_or_else(|error| {
             eprintln!("ERROR: {error}");
             std::process::exit(1)
         });
     }
 
-    fn loop_body(&self, handle: &Handle) -> HttmResult<()> {
+    fn loop_body(&self) -> HttmResult<()> {
         // the user may specify a dir for browsing,
         // but wants to restore that directory,
         // so here we add the directory and its parent as a selection item
+
+        let handle = self.rt.handle();
+
         let dot_as_entry = BasicDirEntryInfo::new(
             self.requested_dir.to_path_buf(),
             Some(self.requested_dir.metadata()?.file_type()),
