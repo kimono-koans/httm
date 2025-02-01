@@ -37,7 +37,7 @@ jobs:
       with:
           files: target/debian/httm*.*
     - name: Upload both build artifacts to GH action
-      uses: actions/upload-artifact@v3.1.0
+      uses: actions/upload-artifact@v4
       with:
         name: cargo-deb-upload
         path: target/debian/httm*.*
