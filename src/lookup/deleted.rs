@@ -16,6 +16,7 @@
 // that was distributed with this source code.
 
 use crate::data::paths::{BasicDirEntryInfo, PathData};
+use crate::library::iter_extensions::HttmIter;
 use crate::lookup::versions::{ProximateDatasetAndOptAlts, RelativePathAndSnapMounts};
 use hashbrown::HashMap;
 use hashbrown::HashSet;
@@ -87,10 +88,10 @@ impl DeletedFiles {
             return HashMap::new();
         };
 
-        let unique_deleted_file_names_for_dir: HashMap<OsString, Option<FileType>> = prox_opt_alts
+        let unique_deleted_file_names_for_dir = prox_opt_alts
             .into_search_bundles()
             .flat_map(|search_bundle| Self::names_and_types_for_directory(search_bundle))
-            .collect();
+            .collect_no_update_values();
 
         unique_deleted_file_names_for_dir
     }

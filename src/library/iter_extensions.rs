@@ -73,6 +73,15 @@ pub trait HttmIter: Iterator {
     {
         group_map::into_group_map_by(self, f)
     }
+
+    #[allow(dead_code)]
+    fn collect_no_update_values<K, V>(self) -> HashMap<K, V>
+    where
+        Self: Iterator<Item = (K, V)> + Sized,
+        K: Hash + Eq,
+    {
+        collect_no_update_values::collect_no_update_values(self)
+    }
 }
 
 impl<T: ?Sized> HttmIter for T where T: Iterator {}
@@ -109,5 +118,31 @@ pub mod group_map {
         K: Hash + Eq,
     {
         into_group_map(iter.map(|v| (f(&v), v)))
+    }
+}
+
+pub mod collect_no_update_values {
+    use hashbrown::HashMap;
+    use std::hash::Hash;
+    use std::iter::Iterator;
+
+    #[allow(dead_code)]
+    pub fn collect_no_update_values<I, K, V>(iter: I) -> HashMap<K, V>
+    where
+        I: Iterator<Item = (K, V)>,
+        K: Hash + Eq,
+    {
+        let mut lookup: HashMap<K, V> = HashMap::with_capacity(iter.size_hint().0);
+
+        iter.for_each(|(key, val)| match lookup.get(&key) {
+            Some(_) => {}
+            None => {
+                unsafe {
+                    lookup.insert_unique_unchecked(key, val);
+                };
+            }
+        });
+
+        lookup
     }
 }
