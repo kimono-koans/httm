@@ -20,6 +20,7 @@ use crate::lookup::versions::{ProximateDatasetAndOptAlts, RelativePathAndSnapMou
 use hashbrown::HashMap;
 use hashbrown::HashSet;
 use std::ffi::OsString;
+use std::fs::FileType;
 use std::path::Path;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -34,7 +35,7 @@ impl DeletedFiles {
         //
         // create a collection of local file names
 
-        let all_file_names = Self::all_file_names(requested_dir);
+        let all_file_names = Self::all_names_and_types(requested_dir);
 
         if all_file_names.is_empty() {
             return Self { inner: Vec::new() };
@@ -73,7 +74,7 @@ impl DeletedFiles {
     }
 
     #[inline(always)]
-    fn all_file_names<'a>(requested_dir: &'a Path) -> HashMap<OsString, BasicDirEntryInfo> {
+    fn all_names_and_types<'a>(requested_dir: &'a Path) -> HashMap<OsString, Option<FileType>> {
         // we always need a requesting dir because we are comparing the files in the
         // requesting dir to those of their relative dirs on snapshots
         let path_data = PathData::from(requested_dir);
@@ -86,18 +87,18 @@ impl DeletedFiles {
             return HashMap::new();
         };
 
-        let unique_deleted_file_names_for_dir: HashMap<OsString, BasicDirEntryInfo> = prox_opt_alts
+        let unique_deleted_file_names_for_dir: HashMap<OsString, Option<FileType>> = prox_opt_alts
             .into_search_bundles()
-            .flat_map(|search_bundle| Self::all_file_names_for_directory(search_bundle))
+            .flat_map(|search_bundle| Self::names_and_types_for_directory(search_bundle))
             .collect();
 
         unique_deleted_file_names_for_dir
     }
 
     #[inline(always)]
-    fn all_file_names_for_directory<'a>(
+    fn names_and_types_for_directory<'a>(
         search_bundle: RelativePathAndSnapMounts<'a>,
-    ) -> impl Iterator<Item = (OsString, BasicDirEntryInfo)> + 'a {
+    ) -> impl Iterator<Item = (OsString, Option<FileType>)> + 'a {
         // compare local filenames to all unique snap filenames - none values are unique, here
         search_bundle
             .snap_mounts
@@ -109,7 +110,7 @@ impl DeletedFiles {
             .flat_map(std::fs::read_dir)
             .flatten()
             .flatten()
-            .map(|dir_entry| (dir_entry.file_name(), BasicDirEntryInfo::from(dir_entry)))
+            .map(|dir_entry| (dir_entry.file_name(), dir_entry.file_type().ok()))
     }
 
     // this function creates dummy "live versions" values to match deleted files
@@ -117,15 +118,13 @@ impl DeletedFiles {
     // once was" in their browse panel
     #[inline(always)]
     fn into_pseudo_live_version<'a>(
-        map: HashMap<OsString, BasicDirEntryInfo>,
+        map: HashMap<OsString, Option<FileType>>,
         pseudo_live_dir: &'a Path,
     ) -> impl Iterator<Item = BasicDirEntryInfo> + 'a {
-        map.into_iter().map(|(file_name, basic_info)| {
+        map.into_iter().map(|(file_name, opt_file_type)| {
             let path = pseudo_live_dir.join(file_name);
 
-            let opt_filetype = *basic_info.opt_filetype();
-
-            BasicDirEntryInfo::new(path, opt_filetype)
+            BasicDirEntryInfo::new(path, opt_file_type)
         })
     }
 }
