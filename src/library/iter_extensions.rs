@@ -134,9 +134,8 @@ pub mod collect_no_update_values {
     {
         let mut lookup: HashMap<K, V> = HashMap::with_capacity(iter.size_hint().0);
 
-        iter.for_each(|(key, val)| match lookup.get(&key) {
-            Some(_) => {}
-            None => {
+        iter.for_each(|(key, val)| {
+            if !lookup.contains_key(&key) {
                 unsafe {
                     lookup.insert_unique_unchecked(key, val);
                 };
