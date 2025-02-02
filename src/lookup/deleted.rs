@@ -44,26 +44,22 @@ impl DeletedFiles {
         // this iter creates dummy "live versions" values to match deleted files
         // which have been found on snapshots, so we return to the user "the path that
         // once was" in their browse panel
-        let live_path_set: HashSet<BasicDirEntryInfo> = match std::fs::read_dir(requested_dir) {
-            Ok(read_dir) => read_dir
+        if let Ok(read_dir) = std::fs::read_dir(requested_dir) {
+            let live_path_set: HashSet<BasicDirEntryInfo> = read_dir
                 .flatten()
                 .into_iter()
                 .map(|entry| BasicDirEntryInfo::from(entry))
-                .collect(),
-            Err(_) => {
-                return Self {
-                    inner: all_pseudo_live_versions,
-                }
-            }
-        };
+                .collect();
 
-        Self::remove_live_paths(&mut all_pseudo_live_versions, &live_path_set);
+            Self::remove_live_paths(&mut all_pseudo_live_versions, &live_path_set);
+        }
 
         Self {
             inner: all_pseudo_live_versions,
         }
     }
 
+    #[inline(always)]
     fn remove_live_paths(
         all_pseudo_live_versions: &mut HashSet<BasicDirEntryInfo>,
         live_path_set: &HashSet<BasicDirEntryInfo>,
