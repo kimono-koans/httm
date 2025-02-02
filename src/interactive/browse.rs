@@ -146,7 +146,7 @@ impl InteractiveBrowse {
 
                 let selected_path_data: Vec<PathData> = output
                     .selected_items
-                    .iter()
+                    .into_iter()
                     .map(|item| PathData::from(Path::new(item.output().as_ref())))
                     .collect();
 
