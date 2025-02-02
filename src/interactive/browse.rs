@@ -99,11 +99,6 @@ impl InteractiveBrowse {
                 started,
             )
             .exec();
-
-            #[cfg(feature = "malloc_trim")]
-            #[cfg(target_os = "linux")]
-            #[cfg(target_env = "gnu")]
-            Self::malloc_trim();
         });
 
         let header: String = ViewMode::Browse.print_header();
