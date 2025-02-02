@@ -16,9 +16,7 @@
 // that was distributed with this source code.
 
 use crate::data::paths::{BasicDirEntryInfo, PathData};
-use crate::library::iter_extensions::HttmIter;
 use crate::lookup::versions::{ProximateDatasetAndOptAlts, RelativePathAndSnapMounts};
-use hashbrown::HashMap;
 use hashbrown::HashSet;
 use std::ffi::OsString;
 use std::fs::FileType;
@@ -26,7 +24,7 @@ use std::path::Path;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct DeletedFiles {
-    inner: Vec<BasicDirEntryInfo>,
+    inner: HashSet<BasicDirEntryInfo>,
 }
 
 impl DeletedFiles {
@@ -35,18 +33,17 @@ impl DeletedFiles {
         // what is a deleted file
         //
         // create a collection of local file names
+        let mut all_pseudo_live_versions = Self::all_pseudo_live_versions(requested_dir);
 
-        let all_file_names = Self::all_names_and_types(requested_dir);
-
-        if all_file_names.is_empty() {
-            return Self { inner: Vec::new() };
+        if all_pseudo_live_versions.is_empty() {
+            return Self {
+                inner: all_pseudo_live_versions,
+            };
         }
 
         // this iter creates dummy "live versions" values to match deleted files
         // which have been found on snapshots, so we return to the user "the path that
         // once was" in their browse panel
-        let pseudo_live_versions = Self::into_pseudo_live_version(all_file_names, requested_dir);
-
         let local_filenames_set: HashSet<BasicDirEntryInfo> = match std::fs::read_dir(requested_dir)
         {
             Ok(read_dir) => read_dir
@@ -56,26 +53,27 @@ impl DeletedFiles {
                 .collect(),
             Err(_) => {
                 return Self {
-                    inner: pseudo_live_versions.collect(),
+                    inner: all_pseudo_live_versions,
                 }
             }
         };
 
-        let difference = pseudo_live_versions
-            .into_iter()
-            .filter(|entry| !local_filenames_set.contains(entry))
-            .collect();
+        local_filenames_set.into_iter().for_each(|live_file| {
+            let _ = all_pseudo_live_versions.remove(&live_file);
+        });
 
-        Self { inner: difference }
+        Self {
+            inner: all_pseudo_live_versions,
+        }
     }
 
     #[inline(always)]
-    pub fn into_inner(self) -> Vec<BasicDirEntryInfo> {
+    pub fn into_inner(self) -> HashSet<BasicDirEntryInfo> {
         self.inner
     }
 
     #[inline(always)]
-    fn all_names_and_types<'a>(requested_dir: &'a Path) -> HashMap<OsString, Option<FileType>> {
+    fn all_pseudo_live_versions<'a>(requested_dir: &'a Path) -> HashSet<BasicDirEntryInfo> {
         // we always need a requesting dir because we are comparing the files in the
         // requesting dir to those of their relative dirs on snapshots
         let path_data = PathData::from(requested_dir);
@@ -85,21 +83,24 @@ impl DeletedFiles {
         // we need to make certain that what we return from possibly multiple datasets are unique
 
         let Ok(prox_opt_alts) = ProximateDatasetAndOptAlts::new(&path_data) else {
-            return HashMap::new();
+            return HashSet::new();
         };
 
-        let unique_deleted_file_names_for_dir = prox_opt_alts
+        let unique_deleted_file_names_for_dir: HashSet<BasicDirEntryInfo> = prox_opt_alts
             .into_search_bundles()
-            .flat_map(|search_bundle| Self::names_and_types_for_directory(search_bundle))
-            .collect_no_update_values();
+            .flat_map(|search_bundle| {
+                Self::names_and_types_for_directory(&requested_dir, search_bundle)
+            })
+            .collect();
 
         unique_deleted_file_names_for_dir
     }
 
     #[inline(always)]
     fn names_and_types_for_directory<'a>(
+        pseudo_live_dir: &'a Path,
         search_bundle: RelativePathAndSnapMounts<'a>,
-    ) -> impl Iterator<Item = (OsString, Option<FileType>)> + 'a {
+    ) -> impl Iterator<Item = BasicDirEntryInfo> + 'a {
         // compare local filenames to all unique snap filenames - none values are unique, here
         search_bundle
             .snap_mounts
@@ -111,7 +112,13 @@ impl DeletedFiles {
             .flat_map(std::fs::read_dir)
             .flatten()
             .flatten()
-            .map(|dir_entry| (dir_entry.file_name(), dir_entry.file_type().ok()))
+            .map(|dir_entry| {
+                Self::into_pseudo_live_version(
+                    dir_entry.file_name(),
+                    pseudo_live_dir,
+                    dir_entry.file_type().ok(),
+                )
+            })
     }
 
     // this function creates dummy "live versions" values to match deleted files
@@ -119,13 +126,12 @@ impl DeletedFiles {
     // once was" in their browse panel
     #[inline(always)]
     fn into_pseudo_live_version<'a>(
-        map: HashMap<OsString, Option<FileType>>,
+        file_name: OsString,
         pseudo_live_dir: &'a Path,
-    ) -> impl Iterator<Item = BasicDirEntryInfo> + 'a {
-        map.into_iter().map(|(file_name, opt_file_type)| {
-            let path = pseudo_live_dir.join(file_name);
+        opt_file_type: Option<FileType>,
+    ) -> BasicDirEntryInfo {
+        let path = pseudo_live_dir.join(file_name);
 
-            BasicDirEntryInfo::new(path, opt_file_type)
-        })
+        BasicDirEntryInfo::new(path, opt_file_type)
     }
 }
