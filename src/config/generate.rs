@@ -210,7 +210,7 @@ fn parse_args() -> ArgMatches {
                 .short('d')
                 .long("deleted")
                 .default_missing_value("all")
-                .value_parser(["all", "single", "only"])
+                .value_parser(["all", "single", "only", "one"])
                 .num_args(0..=1)
                 .require_equals(true)
                 .help("show deleted files in interactive modes. In non-interactive modes, do a search for all files deleted from a specified directory. \
@@ -796,7 +796,7 @@ impl TryFrom<&ArgMatches> for Config {
             .map(|inner| inner.as_str())
         {
             Some("" | "all") => Some(DeletedMode::All),
-            Some("single") => Some(DeletedMode::DepthOfOne),
+            Some("single" | "one") => Some(DeletedMode::DepthOfOne),
             Some("only") => Some(DeletedMode::Only),
             _ => None,
         };
