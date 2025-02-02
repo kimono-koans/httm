@@ -34,18 +34,7 @@ impl InteractiveBrowse {
     pub fn new() -> HttmResult<Self> {
         let browse_result = match &GLOBAL_CONFIG.opt_requested_dir {
             // collect string paths from what we get from lookup_view
-            Some(requested_dir) => {
-                let res = Self::view(requested_dir)?;
-
-                if res.selected_path_data.is_empty() {
-                    return Err(HttmError::new(
-                        "None of the selected strings could be converted to paths.",
-                    )
-                    .into());
-                }
-
-                res
-            }
+            Some(requested_dir) => Self::view(requested_dir)?,
             None => {
                 // go to interactive_select early if user has already requested a file
                 // and we are in the appropriate mode Select or Restore, see struct Config,
@@ -145,6 +134,13 @@ impl InteractiveBrowse {
                     #[cfg(target_env = "gnu")]
                     Self::malloc_trim();
                 });
+
+                if selected_path_data.is_empty() {
+                    return Err(HttmError::new(
+                        "None of the selected strings could be converted to paths.",
+                    )
+                    .into());
+                }
 
                 Ok(Self { selected_path_data })
             }
