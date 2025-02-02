@@ -93,7 +93,9 @@ impl TryFrom<&mut InteractiveBrowse> for InteractiveSelect {
                 let selected_line = view_mode.view_buffer(&selection_buffer, MultiSelect::On)?;
 
                 if let Some(background_handle) = interactive_browse.opt_background_handle.take() {
-                    let _ = background_handle.join();
+                    rayon::spawn(|| {
+                        let _ = background_handle.join();
+                    });
                 }
 
                 let requested_file_names = selected_line
