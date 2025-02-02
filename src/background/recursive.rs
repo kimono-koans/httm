@@ -90,28 +90,7 @@ impl<'a> RecursiveSearch<'a> {
         // the user may specify a dir for browsing,
         // but wants to restore that directory,
         // so here we add the directory and its parent as a selection item
-        let dot_as_entry = BasicDirEntryInfo::new(
-            self.requested_dir.to_path_buf(),
-            Some(self.requested_dir.metadata()?.file_type()),
-        );
-
-        let mut initial_vec_dirs = vec![dot_as_entry];
-
-        if let Some(parent) = self.requested_dir.parent() {
-            let double_dot_as_entry =
-                BasicDirEntryInfo::new(parent.to_path_buf(), Some(parent.metadata()?.file_type()));
-
-            initial_vec_dirs.push(double_dot_as_entry)
-        }
-
-        let initial_entries = Entries {
-            path_provenance: &PathProvenance::FromLiveDataset,
-            skim_tx: &self.skim_tx,
-            vec_dirs: initial_vec_dirs,
-            vec_files: Vec::new(),
-        };
-
-        initial_entries.combine_and_send()?;
+        self.add_dot_entries()?;
 
         // runs once for non-recursive but also "primes the pump"
         // for recursive to have items available, also only place an
@@ -132,7 +111,7 @@ impl<'a> RecursiveSearch<'a> {
             );
         }
 
-        self.started.store(true, Ordering::SeqCst);
+        self.started.store(true, Ordering::Release);
 
         if GLOBAL_CONFIG.opt_recursive {
             // condition kills iter when user has made a selection
@@ -166,6 +145,33 @@ impl<'a> RecursiveSearch<'a> {
                 }
             }
         }
+
+        Ok(())
+    }
+
+    fn add_dot_entries(&self) -> HttmResult<()> {
+        let dot_as_entry = BasicDirEntryInfo::new(
+            self.requested_dir.to_path_buf(),
+            Some(self.requested_dir.metadata()?.file_type()),
+        );
+
+        let mut initial_vec_dirs = vec![dot_as_entry];
+
+        if let Some(parent) = self.requested_dir.parent() {
+            let double_dot_as_entry =
+                BasicDirEntryInfo::new(parent.to_path_buf(), Some(parent.metadata()?.file_type()));
+
+            initial_vec_dirs.push(double_dot_as_entry)
+        }
+
+        let initial_entries = Entries {
+            path_provenance: &PathProvenance::FromLiveDataset,
+            skim_tx: &self.skim_tx,
+            vec_dirs: initial_vec_dirs,
+            vec_files: Vec::new(),
+        };
+
+        initial_entries.combine_and_send()?;
 
         Ok(())
     }

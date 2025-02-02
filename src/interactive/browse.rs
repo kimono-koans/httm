@@ -108,7 +108,7 @@ impl InteractiveBrowse {
             .build()
             .expect("Could not initialized skim options for browse_view");
 
-        while !started_clone.load(Ordering::SeqCst) {}
+        while !started_clone.load(Ordering::Relaxed) {}
 
         // run_with() reads and shows items from the thread stream created above
         match skim::Skim::run_with(&skim_opts, Some(rx_item)) {
@@ -118,7 +118,7 @@ impl InteractiveBrowse {
             }
             Some(output) => {
                 // hangup the channel so the background recursive search can gracefully cleanup and exit
-                hangup_clone.store(true, Ordering::SeqCst);
+                hangup_clone.store(true, Ordering::Release);
 
                 let selected_path_data: Vec<PathData> = output
                     .selected_items

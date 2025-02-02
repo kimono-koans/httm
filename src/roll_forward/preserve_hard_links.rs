@@ -187,7 +187,7 @@ impl<'a> PreserveHardLinks<'a> {
                         .ok_or_else(|| HttmError::new("Could obtain live path for snap path"))?;
 
                     if !snap_path.exists() {
-                        NONE_REMOVED.store(false, std::sync::atomic::Ordering::Relaxed);
+                        NONE_REMOVED.store(false, std::sync::atomic::Ordering::Release);
                         return Self::rm_hard_link(live_path.path());
                     }
 
@@ -233,7 +233,7 @@ impl<'a> PreserveHardLinks<'a> {
                     .iter()
                     .filter(|(_live_path, snap_path)| snap_path.exists())
                     .try_for_each(|(live_path, snap_path)| {
-                        NONE_PRESERVED.store(false, std::sync::atomic::Ordering::Relaxed);
+                        NONE_PRESERVED.store(false, std::sync::atomic::Ordering::Release);
 
                         match opt_original {
                             Some(original) if original == live_path => {
