@@ -24,12 +24,10 @@ use crossbeam_channel::unbounded;
 use skim::prelude::*;
 use std::path::Path;
 use std::sync::atomic::AtomicBool;
-use std::thread::JoinHandle;
 
 #[derive(Debug)]
 pub struct InteractiveBrowse {
     pub selected_path_data: Vec<PathData>,
-    pub opt_background_handle: Option<JoinHandle<()>>,
 }
 
 impl InteractiveBrowse {
@@ -58,7 +56,6 @@ impl InteractiveBrowse {
 
                         Self {
                             selected_path_data: vec![selected_file],
-                            opt_background_handle: None,
                         }
                     }
                     // Config::from should never allow us to have an instance where we don't
@@ -145,10 +142,16 @@ impl InteractiveBrowse {
                     .map(|item| PathData::from(Path::new(item.output().as_ref())))
                     .collect();
 
-                Ok(Self {
-                    selected_path_data,
-                    opt_background_handle: Some(background_handle),
-                })
+                rayon::spawn(|| {
+                    let _ = background_handle.join();
+
+                    #[cfg(feature = "malloc_trim")]
+                    #[cfg(target_os = "linux")]
+                    #[cfg(target_env = "gnu")]
+                    Self::malloc_trim();
+                });
+
+                Ok(Self { selected_path_data })
             }
             None => Err(HttmError::new("httm interactive file browse session failed.").into()),
         }

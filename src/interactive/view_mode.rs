@@ -102,7 +102,9 @@ impl ViewMode {
         };
 
         if let Some(handle) = opt_ingest_handle {
-            let _ = handle.join();
+            rayon::spawn(|| {
+                let _ = handle.join();
+            });
         };
 
         if GLOBAL_CONFIG.opt_debug {
