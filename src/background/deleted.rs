@@ -49,6 +49,10 @@ impl DeletedSearch {
         skim_tx: SkimItemSender,
         hangup: Arc<AtomicBool>,
     ) -> HttmResult<()> {
+        if hangup.load(Ordering::Relaxed) {
+            return Ok(());
+        }
+
         let mut queue: Vec<BasicDirEntryInfo> = RecursiveSearch::enter_directory(
             &deleted_dir,
             &skim_tx,
@@ -56,12 +60,19 @@ impl DeletedSearch {
             &PathProvenance::IsPhantom,
         )?;
 
+        if matches!(
+            GLOBAL_CONFIG.opt_deleted_mode,
+            Some(DeletedMode::DepthOfOne)
+        ) {
+            return Ok(());
+        }
+
         if GLOBAL_CONFIG.opt_recursive {
             while let Some(item) = queue.pop() {
                 // check -- should deleted threads keep working?
                 // exit/error on disconnected channel, which closes
                 // at end of browse scope
-                if hangup.load(Ordering::Acquire) {
+                if hangup.load(Ordering::Relaxed) {
                     break;
                 }
 
@@ -76,10 +87,7 @@ impl DeletedSearch {
                     //
                     // don't propagate errors, errors we are most concerned about
                     // are transmission errors, which are handled elsewhere
-                    match GLOBAL_CONFIG.opt_deleted_mode {
-                        Some(DeletedMode::DepthOfOne) => (),
-                        _ => queue.append(&mut items),
-                    }
+                    queue.append(&mut items);
                 }
             }
         }
