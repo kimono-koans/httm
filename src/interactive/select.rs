@@ -95,6 +95,11 @@ impl TryFrom<&mut InteractiveBrowse> for InteractiveSelect {
                 if let Some(background_handle) = interactive_browse.opt_background_handle.take() {
                     rayon::spawn(|| {
                         let _ = background_handle.join();
+
+                        #[cfg(feature = "malloc_trim")]
+                        #[cfg(target_os = "linux")]
+                        #[cfg(target_env = "gnu")]
+                        InteractiveBrowse::malloc_trim();
                     });
                 }
 

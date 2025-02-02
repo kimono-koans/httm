@@ -77,7 +77,7 @@ impl InteractiveBrowse {
     #[cfg(feature = "malloc_trim")]
     #[cfg(target_os = "linux")]
     #[cfg(target_env = "gnu")]
-    fn malloc_trim() {
+    pub fn malloc_trim() {
         unsafe {
             let _ = libc::malloc_trim(0usize);
         }
@@ -138,11 +138,6 @@ impl InteractiveBrowse {
             Some(output) => {
                 // hangup the channel so the background recursive search can gracefully cleanup and exit
                 hangup_clone.store(true, Ordering::SeqCst);
-
-                #[cfg(feature = "malloc_trim")]
-                #[cfg(target_os = "linux")]
-                #[cfg(target_env = "gnu")]
-                Self::malloc_trim();
 
                 let selected_path_data: Vec<PathData> = output
                     .selected_items
