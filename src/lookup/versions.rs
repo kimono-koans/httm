@@ -20,6 +20,7 @@ use crate::data::paths::{CompareContentsContainer, PathData, PathDeconstruction}
 use crate::filesystem::mounts::LinkType;
 use crate::filesystem::snaps::MapOfSnaps;
 use crate::library::results::{HttmError, HttmResult};
+use crate::library::utility::TIMESTAMP;
 use crate::{GLOBAL_CONFIG, MAP_OF_SNAPS};
 use hashbrown::HashSet;
 use rayon::prelude::*;
@@ -296,7 +297,8 @@ impl<'a> RelativePathAndSnapMounts<'a> {
                 (matches!(GLOBAL_CONFIG.exec_mode, ExecMode::BasicDisplay)
                     && GLOBAL_CONFIG.paths.len() == 1)
             }) {
-            GLOBAL_CONFIG
+            // now process snaps
+            let res = GLOBAL_CONFIG
                 .dataset_collection
                 .map_of_datasets
                 .get(dataset_of_interest)
@@ -307,7 +309,15 @@ impl<'a> RelativePathAndSnapMounts<'a> {
                         GLOBAL_CONFIG.opt_debug,
                     )
                 })
-                .map(|snap_mounts| Cow::Owned(snap_mounts))
+                .map(|snap_mounts| Cow::Owned(snap_mounts));
+
+            // force eval of timestamp here to be used later
+            let timestamp = LazyLock::force(&TIMESTAMP);
+
+            // make certain the compiler doesn't optimize this out
+            assert_eq!(timestamp, &*TIMESTAMP);
+
+            res
         } else {
             MAP_OF_SNAPS
                 .get(dataset_of_interest)

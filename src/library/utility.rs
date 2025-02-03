@@ -115,6 +115,8 @@ fn cmp_path<A: AsRef<Path>, B: AsRef<Path>>(a: A, b: B) -> Option<PathBuf> {
     }
 }
 
+pub static TIMESTAMP: LazyLock<SystemTime> = LazyLock::new(|| SystemTime::now());
+
 // only safe to do in non-interactive sessions
 pub fn print_lazy_timestamp() {
     match GLOBAL_CONFIG.exec_mode {
@@ -126,7 +128,7 @@ pub fn print_lazy_timestamp() {
             if GLOBAL_CONFIG.opt_lazy && GLOBAL_CONFIG.opt_debug {
                 let date_string = date_string(
                     GLOBAL_CONFIG.requested_utc_offset,
-                    &SystemTime::now(),
+                    &TIMESTAMP,
                     DateFormat::Timestamp,
                 );
 
