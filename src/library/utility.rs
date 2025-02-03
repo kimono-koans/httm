@@ -115,10 +115,8 @@ fn cmp_path<A: AsRef<Path>, B: AsRef<Path>>(a: A, b: B) -> Option<PathBuf> {
     }
 }
 
-pub static TIMESTAMP: LazyLock<SystemTime> = LazyLock::new(|| SystemTime::now());
-
 // only safe to do in non-interactive sessions
-pub fn print_lazy_timestamp() {
+pub fn print_lazy_timestamp(timestamp: &SystemTime) {
     match GLOBAL_CONFIG.exec_mode {
         ExecMode::BasicDisplay
         | ExecMode::NumVersions(_)
@@ -128,7 +126,7 @@ pub fn print_lazy_timestamp() {
             if GLOBAL_CONFIG.opt_lazy && GLOBAL_CONFIG.opt_debug {
                 let date_string = date_string(
                     GLOBAL_CONFIG.requested_utc_offset,
-                    &TIMESTAMP,
+                    timestamp,
                     DateFormat::Timestamp,
                 );
 
@@ -145,8 +143,6 @@ pub fn print_lazy_timestamp() {
 }
 
 pub fn print_output_buf(output_buf: &str) -> HttmResult<()> {
-    print_lazy_timestamp();
-
     // mutex keeps threads from writing over each other
     let out = std::io::stdout();
     let mut out_locked = out.lock();

@@ -20,7 +20,7 @@ use crate::data::paths::{CompareContentsContainer, PathData, PathDeconstruction}
 use crate::filesystem::mounts::LinkType;
 use crate::filesystem::snaps::MapOfSnaps;
 use crate::library::results::{HttmError, HttmResult};
-use crate::library::utility::TIMESTAMP;
+use crate::library::utility::print_lazy_timestamp;
 use crate::{GLOBAL_CONFIG, MAP_OF_SNAPS};
 use hashbrown::HashSet;
 use rayon::prelude::*;
@@ -30,6 +30,7 @@ use std::io::ErrorKind;
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 use std::sync::{LazyLock, RwLock};
+use std::time::SystemTime;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VersionsMap {
@@ -311,11 +312,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
                 })
                 .map(|snap_mounts| Cow::Owned(snap_mounts));
 
-            // force eval of timestamp here to be used later
-            let timestamp = LazyLock::force(&TIMESTAMP);
-
-            // make certain the compiler doesn't optimize this out
-            assert_eq!(timestamp, &*TIMESTAMP);
+            print_lazy_timestamp(&SystemTime::now());
 
             res
         } else {
