@@ -15,7 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::config::generate::{ExecMode, InteractiveMode, PrintMode, RawMode};
+use crate::config::generate::{PrintMode, RawMode};
 use crate::data::paths::{BasicDirEntryInfo, PathData, PathMetadata};
 use crate::data::selection::SelectionCandidate;
 use crate::library::results::{HttmError, HttmResult};
@@ -115,38 +115,7 @@ fn cmp_path<A: AsRef<Path>, B: AsRef<Path>>(a: A, b: B) -> Option<PathBuf> {
     }
 }
 
-pub static TIMESTAMP: LazyLock<SystemTime> = LazyLock::new(|| SystemTime::now());
-
-// only safe to do in non-interactive sessions
-pub fn print_lazy_timestamp() {
-    match GLOBAL_CONFIG.exec_mode {
-        ExecMode::BasicDisplay
-        | ExecMode::NumVersions(_)
-        | ExecMode::SnapsForFiles(_)
-        | ExecMode::MountsForFiles(_)
-        | ExecMode::Interactive(InteractiveMode::Browse) => {
-            if GLOBAL_CONFIG.opt_lazy && GLOBAL_CONFIG.opt_debug {
-                let date_string = date_string(
-                    GLOBAL_CONFIG.requested_utc_offset,
-                    &TIMESTAMP,
-                    DateFormat::Timestamp,
-                );
-
-                let notice = format!(
-                    "DEBUG: Snapshot data accurate as of system time: {}",
-                    date_string
-                );
-
-                eprintln!("{}", &notice)
-            }
-        }
-        _ => {}
-    }
-}
-
 pub fn print_output_buf(output_buf: &str) -> HttmResult<()> {
-    print_lazy_timestamp();
-
     // mutex keeps threads from writing over each other
     let out = std::io::stdout();
     let mut out_locked = out.lock();
