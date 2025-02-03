@@ -83,7 +83,6 @@ use display::wrapper::DisplayWrapper;
 use interactive::prune::PruneSnaps;
 use interactive::restore::InteractiveRestore;
 use library::results::HttmResult;
-use library::utility::print_lazy_timestamp;
 use library::utility::print_output_buf;
 use lookup::file_mounts::MountsForFiles;
 use lookup::snap_names::SnapNameMap;
@@ -191,8 +190,6 @@ fn exec() -> HttmResult<()> {
 
                     let output_buf = DisplayWrapper::from(&GLOBAL_CONFIG, versions_map).to_string();
 
-                    print_lazy_timestamp();
-
                     print_output_buf(&output_buf)
                 }
             }
@@ -201,8 +198,6 @@ fn exec() -> HttmResult<()> {
         ExecMode::BasicDisplay | ExecMode::NumVersions(_) => {
             let versions_map = VersionsMap::new(&GLOBAL_CONFIG, &GLOBAL_CONFIG.paths)?;
             let output_buf = DisplayWrapper::from(&GLOBAL_CONFIG, versions_map).to_string();
-
-            print_lazy_timestamp();
 
             print_output_buf(&output_buf)
         }
@@ -216,8 +211,6 @@ fn exec() -> HttmResult<()> {
             let printable_map = PrintAsMap::from(&snap_name_map);
             let output_buf = printable_map.to_string();
 
-            print_lazy_timestamp();
-
             print_output_buf(&output_buf)
         }
         ExecMode::Prune(opt_filters) => {
@@ -228,8 +221,6 @@ fn exec() -> HttmResult<()> {
             let mounts_map = &MountsForFiles::new(mount_display)?;
             let printable_map: PrintAsMap = mounts_map.into();
             let output_buf = printable_map.to_string();
-
-            print_lazy_timestamp();
 
             print_output_buf(&output_buf)
         }
