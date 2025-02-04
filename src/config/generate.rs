@@ -657,7 +657,6 @@ impl TryFrom<&ArgMatches> for Config {
         };
 
         let opt_debug = matches.get_flag("DEBUG");
-        let opt_lazy = matches.get_flag("LAZY_SNAP_EVAL");
 
         // current working directory will be helpful in a number of places
         let pwd = pwd()?;
@@ -931,6 +930,9 @@ impl TryFrom<&ArgMatches> for Config {
         let opt_os_values = matches.get_many::<PathBuf>("INPUT_FILES");
 
         let paths: Vec<PathData> = Self::paths(opt_os_values, &exec_mode, &pwd)?;
+
+        let opt_lazy = matches.get_flag("LAZY_SNAP_EVAL")
+            || (matches!(exec_mode, ExecMode::BasicDisplay) && paths.len() == 1);
 
         // for exec_modes in which we can only take a single directory, process how we handle those here
         let opt_requested_dir: Option<PathBuf> =
