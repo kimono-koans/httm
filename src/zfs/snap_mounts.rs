@@ -15,12 +15,12 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use super::run_command::{RunZFSCommand, ZfsAllowPriv};
 use crate::config::generate::PrintMode;
 use crate::library::iter_extensions::HttmIter;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{date_string, delimiter, print_output_buf, DateFormat};
 use crate::lookup::file_mounts::{MountDisplay, MountsForFiles};
+use crate::zfs::run_command::{RunZFSCommand, ZfsAllowPriv};
 use crate::GLOBAL_CONFIG;
 use std::collections::BTreeMap;
 use std::time::SystemTime;
