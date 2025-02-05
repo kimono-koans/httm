@@ -114,7 +114,7 @@ impl InteractiveBrowse {
             .build()
             .expect("Could not initialized skim options for browse_view");
 
-        while !started_clone.load(Ordering::Relaxed) {}
+        while !started_clone.load(Ordering::SeqCst) {}
 
         // run_with() reads and shows items from the thread stream created above
         match skim::Skim::run_with(&skim_opts, Some(rx_item)) {

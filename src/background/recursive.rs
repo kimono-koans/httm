@@ -111,7 +111,7 @@ impl<'a> RecursiveSearch<'a> {
             );
         }
 
-        self.started.store(true, Ordering::Release);
+        self.started.store(true, Ordering::SeqCst);
 
         if GLOBAL_CONFIG.opt_recursive {
             // condition kills iter when user has made a selection
