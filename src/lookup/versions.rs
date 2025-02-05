@@ -260,10 +260,12 @@ impl<'a> ProximateDatasetAndOptAlts<'a> {
         })
     }
 
+    #[inline(always)]
     pub fn path_data(&self) -> &PathData {
         &self.path_data
     }
 
+    #[inline(always)]
     pub fn proximate_dataset(&self) -> &Path {
         &self.proximate_dataset
     }
@@ -326,10 +328,12 @@ impl<'a> RelativePathAndSnapMounts<'a> {
         })
     }
 
+    #[inline(always)]
     pub fn snap_mounts(&'a self) -> &'a [Box<Path>] {
         &self.snap_mounts
     }
 
+    #[inline(always)]
     pub fn relative_path(&'a self) -> &'a Path {
         &self.relative_path
     }
