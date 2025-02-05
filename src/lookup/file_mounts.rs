@@ -84,12 +84,12 @@ impl<'a> MountsForFiles<'a> {
             })
             .map(|prox_opt_alts| {
                 if !is_interactive_mode
-                    && prox_opt_alts.path_data.opt_metadata().is_none()
+                    && prox_opt_alts.path_data().opt_metadata().is_none()
                     && prox_opt_alts.datasets_of_interest().count() == 0
                 {
                     eprintln!(
                         "WARN: Input file may have never existed: {:?}",
-                        prox_opt_alts.path_data.path()
+                        prox_opt_alts.path_data().path()
                     );
                 }
 
@@ -105,7 +105,7 @@ impl<'a> MountsForFiles<'a> {
             .all(|prox| prox.datasets_of_interest().count() == 0)
             || set
                 .iter()
-                .all(|prox| prox.path_data.opt_metadata().is_none())
+                .all(|prox| prox.path_data().opt_metadata().is_none())
         {
             return Err(HttmError::new(
                 "httm could either not find any mounts for the path/s specified, or all the path do not exist, so, umm, 🤷? Please try another path.",

@@ -105,10 +105,10 @@ impl DeletedFiles {
     ) -> impl Iterator<Item = BasicDirEntryInfo> + 'a {
         // compare local filenames to all unique snap filenames - none values are unique, here
         search_bundle
-            .snap_mounts
-            .into_owned()
+            .snap_mounts()
+            .to_owned()
             .into_iter()
-            .map(|path| path.join(search_bundle.relative_path.as_os_str()))
+            .map(move |path| path.join(search_bundle.relative_path().as_os_str()))
             // important to note: this is a read dir on snapshots directories,
             // b/c read dir on deleted dirs from a live filesystem will fail
             .flat_map(std::fs::read_dir)

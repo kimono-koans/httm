@@ -195,10 +195,10 @@ impl Versions {
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct ProximateDatasetAndOptAlts<'a> {
-    pub path_data: &'a PathData,
-    pub proximate_dataset: &'a Path,
-    pub relative_path: &'a Path,
-    pub opt_alts: Option<&'a [Box<Path>]>,
+    path_data: &'a PathData,
+    proximate_dataset: &'a Path,
+    relative_path: &'a Path,
+    opt_alts: Option<&'a [Box<Path>]>,
 }
 
 impl<'a> Ord for ProximateDatasetAndOptAlts<'a> {
@@ -260,6 +260,14 @@ impl<'a> ProximateDatasetAndOptAlts<'a> {
         })
     }
 
+    pub fn path_data(&self) -> &PathData {
+        &self.path_data
+    }
+
+    pub fn proximate_dataset(&self) -> &Path {
+        &self.proximate_dataset
+    }
+
     #[inline(always)]
     pub fn datasets_of_interest(&'a self) -> impl Iterator<Item = &'a Path> {
         let alts = self.opt_alts.into_iter().flatten().map(|p| p.as_ref());
@@ -279,9 +287,9 @@ impl<'a> ProximateDatasetAndOptAlts<'a> {
 
 #[derive(Debug, Clone)]
 pub struct RelativePathAndSnapMounts<'a> {
-    pub relative_path: &'a Path,
-    pub dataset_of_interest: &'a Path,
-    pub snap_mounts: Cow<'a, [Box<Path>]>,
+    relative_path: &'a Path,
+    dataset_of_interest: &'a Path,
+    snap_mounts: Cow<'a, [Box<Path>]>,
 }
 
 impl<'a> RelativePathAndSnapMounts<'a> {
@@ -316,6 +324,14 @@ impl<'a> RelativePathAndSnapMounts<'a> {
             dataset_of_interest,
             snap_mounts,
         })
+    }
+
+    pub fn snap_mounts(&'a self) -> &'a [Box<Path>] {
+        &self.snap_mounts
+    }
+
+    pub fn relative_path(&'a self) -> &'a Path {
+        &self.relative_path
     }
 
     #[inline(always)]
