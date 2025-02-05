@@ -50,10 +50,6 @@ impl SelectionCandidate {
         res
     }
 
-    pub fn path(&self) -> &Path {
-        &self.path
-    }
-
     pub fn opt_filetype(&self) -> &Option<FileType> {
         &self.opt_filetype
     }
