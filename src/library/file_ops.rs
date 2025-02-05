@@ -18,10 +18,13 @@
 use crate::data::paths::{PathData, PathDeconstruction};
 use crate::library::diff_copy::HttmCopy;
 use crate::library::results::{HttmError, HttmResult};
+use crate::library::utility::is_metadata_same;
 use crate::{GLOBAL_CONFIG, IN_BUFFER_SIZE};
 use nix::sys::stat::SFlag;
 use nu_ansi_term::Color::{Blue, Red};
 use std::fs::{create_dir_all, read_dir, set_permissions};
+use std::hash::{Hash, Hasher};
+use std::io::{BufRead, BufReader, ErrorKind};
 use std::iter::Iterator;
 use std::os::unix::fs::{chown, FileTypeExt, MetadataExt};
 use std::path::Path;
@@ -286,10 +289,6 @@ impl Remove {
         Ok(())
     }
 }
-
-use super::utility::is_metadata_same;
-use std::hash::{Hash, Hasher};
-use std::io::{BufRead, BufReader, ErrorKind};
 
 pub struct HashFileContents<'a> {
     inner: &'a Path,
