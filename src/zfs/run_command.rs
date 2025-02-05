@@ -37,8 +37,14 @@ impl RunZFSCommand {
         Ok(Self { zfs_command })
     }
 
-    pub fn get_command_path(&self) -> &Path {
-        &self.zfs_command
+    pub fn version(&self) -> HttmResult<String> {
+        let process_output = ExecProcess::new(&self.zfs_command).arg("-V").output()?;
+
+        if !process_output.stderr.is_empty() {
+            return Err(HttmError::new(std::str::from_utf8(&process_output.stderr)?).into());
+        }
+
+        Ok(std::string::String::from_utf8(process_output.stdout)?)
     }
 
     pub fn snapshot(&self, snapshot_names: &[String]) -> HttmResult<()> {

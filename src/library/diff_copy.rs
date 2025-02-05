@@ -51,39 +51,28 @@ use std::fs::{File, OpenOptions};
 use std::io::{BufRead, BufReader, BufWriter, ErrorKind, Seek, SeekFrom, Write};
 use std::os::fd::{AsFd, BorrowedFd};
 use std::path::Path;
-use std::process::Command as ExecProcess;
 use std::sync::atomic::AtomicBool;
 use std::sync::LazyLock;
 
 static IS_CLONE_COMPATIBLE: LazyLock<AtomicBool> = LazyLock::new(|| {
-    if let Ok(run_zfs) = RunZFSCommand::new() {
-        let Ok(process_output) = ExecProcess::new(run_zfs.get_command_path())
-            .arg("-V")
-            .output()
-        else {
-            return AtomicBool::new(false);
-        };
+    let Ok(zfs_cmd) = RunZFSCommand::new() else {
+        return AtomicBool::new(false);
+    };
 
-        if !process_output.stderr.is_empty() {
-            return AtomicBool::new(false);
-        }
-
-        let Ok(stdout) = std::str::from_utf8(&process_output.stdout) else {
-            return AtomicBool::new(false);
-        };
-
-        if stdout.contains("zfs-2.2.0")
-            || stdout.contains("zfs-kmod-2.2.0")
-            || stdout.contains("zfs-2.2.1")
-            || stdout.contains("zfs-kmod-2.2.1")
-            || stdout.contains("zfs-2.2-")
-            || stdout.contains("zfs-kmod-2.2-")
+    match zfs_cmd.version() {
+        Err(_) => return AtomicBool::new(false),
+        Ok(stdout)
+            if stdout.contains("zfs-2.2.0")
+                || stdout.contains("zfs-kmod-2.2.0")
+                || stdout.contains("zfs-2.2.1")
+                || stdout.contains("zfs-kmod-2.2.1")
+                || stdout.contains("zfs-2.2-")
+                || stdout.contains("zfs-kmod-2.2-") =>
         {
             return AtomicBool::new(false);
         }
+        Ok(_) => return AtomicBool::new(true),
     }
-
-    AtomicBool::new(true)
 });
 
 enum DstFileState {
