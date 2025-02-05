@@ -250,7 +250,7 @@ impl<'a> ProximateDatasetAndOptAlts<'a> {
             .opt_map_of_alts
             .as_ref()
             .and_then(|map_of_alts| map_of_alts.get(proximate_dataset))
-            .and_then(|alt_metadata| alt_metadata.opt_datasets_of_interest.as_deref());
+            .and_then(|alt_metadata| alt_metadata.deref().as_deref());
 
         Ok(Self {
             path_data,

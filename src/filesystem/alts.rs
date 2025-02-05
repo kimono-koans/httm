@@ -30,7 +30,15 @@ pub struct MapOfAlts {
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct AltMetadata {
-    pub opt_datasets_of_interest: Option<Vec<Box<Path>>>,
+    opt_datasets_of_interest: Option<Vec<Box<Path>>>,
+}
+
+impl Deref for AltMetadata {
+    type Target = Option<Vec<Box<Path>>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.opt_datasets_of_interest
+    }
 }
 
 impl From<BTreeMap<Arc<Path>, AltMetadata>> for MapOfAlts {
