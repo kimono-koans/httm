@@ -22,7 +22,7 @@ use crate::library::iter_extensions::HttmIter;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{is_metadata_same, user_has_effective_root};
 use crate::roll_forward::diff_events::{DiffEvent, DiffType};
-use crate::roll_forward::preserve_hard_links::{PreserveHardLinks, SpawnPreserveLinks};
+use crate::roll_forward::preserve_hard_links::SpawnPreserveLinks;
 use crate::zfs::run_command::RunZFSCommand;
 use crate::zfs::snap_guard::{PrecautionarySnapType, SnapGuard};
 use crate::{GLOBAL_CONFIG, ZFS_SNAPSHOT_DIRECTORY};
@@ -128,8 +128,6 @@ impl RollForward {
     fn roll_forward(&self) -> HttmResult<()> {
         let spawn_res = SpawnPreserveLinks::new(self);
 
-        let (snap_handle, live_handle) = spawn_res.into_inner();
-
         let run_zfs = RunZFSCommand::new()?;
 
         let mut process_handle = run_zfs.diff(&self)?;
@@ -177,17 +175,7 @@ impl RollForward {
             return Err(HttmError::new(&msg).into());
         }
 
-        // need to wait for these to finish before executing any diff_action
-        let snap_map = snap_handle
-            .join()
-            .map_err(|_err| HttmError::new("Thread panicked!"))??;
-
-        let live_map = live_handle
-            .join()
-            .map_err(|_err| HttmError::new("Thread panicked!"))??;
-
-        let preserve_hard_links = PreserveHardLinks::new(&live_map, &snap_map, self.to_owned())?;
-        let exclusions = preserve_hard_links.exec()?;
+        let exclusions = spawn_res.into_preserve_hard_links(&self)?.exec()?;
 
         // into iter and reverse because we want to go largest first
         eprintln!("Reversing 'zfs diff' actions.");

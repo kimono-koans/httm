@@ -48,13 +48,22 @@ impl SpawnPreserveLinks {
         }
     }
 
-    pub fn into_inner(
+    pub fn into_preserve_hard_links(
         self,
-    ) -> (
-        JoinHandle<HttmResult<HardLinkMap>>,
-        JoinHandle<HttmResult<HardLinkMap>>,
-    ) {
-        (self.snap_handle, self.live_handle)
+        roll_forward: &RollForward,
+    ) -> HttmResult<PreserveHardLinks> {
+        // need to wait for these to finish before executing any diff_action
+        let snap_map = self
+            .snap_handle
+            .join()
+            .map_err(|_err| HttmError::new("Thread panicked!"))??;
+
+        let live_map = self
+            .live_handle
+            .join()
+            .map_err(|_err| HttmError::new("Thread panicked!"))??;
+
+        PreserveHardLinks::new(live_map, snap_map, roll_forward)
     }
 }
 
@@ -129,15 +138,15 @@ impl HardLinkMap {
 }
 
 pub struct PreserveHardLinks<'a> {
-    live_map: &'a HardLinkMap,
-    snap_map: &'a HardLinkMap,
+    live_map: HardLinkMap,
+    snap_map: HardLinkMap,
     roll_forward: &'a RollForward,
 }
 
 impl<'a> PreserveHardLinks<'a> {
     pub fn new(
-        live_map: &'a HardLinkMap,
-        snap_map: &'a HardLinkMap,
+        live_map: HardLinkMap,
+        snap_map: HardLinkMap,
         roll_forward: &'a RollForward,
     ) -> HttmResult<Self> {
         Ok(Self {
