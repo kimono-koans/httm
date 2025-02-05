@@ -128,7 +128,7 @@ impl InteractiveBrowse {
             }
             Some(output) => {
                 // hangup the channel so the background recursive search can gracefully cleanup and exit
-                hangup_clone.store(true, Ordering::Release);
+                hangup_clone.store(true, Ordering::SeqCst);
 
                 let selected_path_data: Vec<PathData> = output
                     .selected_items
