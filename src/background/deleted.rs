@@ -82,13 +82,6 @@ impl DeletedSearch {
                     &hangup,
                     &PathProvenance::IsPhantom,
                 ) {
-                    // check -- should deleted threads keep working?
-                    // exit/error on disconnected channel, which closes
-                    // at end of browse scope
-                    if hangup.load(Ordering::Relaxed) {
-                        break;
-                    }
-
                     // disable behind deleted dirs with DepthOfOne,
                     // otherwise recurse and find all those deleted files
                     //
