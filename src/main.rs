@@ -106,10 +106,14 @@ fn main() {
     match exec() {
         Ok(_) => std::process::exit(0),
         Err(error) => {
-            eprintln!("ERROR: {error}");
-            std::process::exit(1)
+            exit_error(error);
         }
     }
+}
+
+fn exit_error(error: Box<dyn std::error::Error + Send + Sync>) {
+    eprintln!("ERROR: {error}");
+    std::process::exit(1)
 }
 
 // get our program args and generate a config for use
@@ -117,8 +121,7 @@ fn main() {
 static GLOBAL_CONFIG: LazyLock<Config> = LazyLock::new(|| {
     Config::new()
         .map_err(|error| {
-            eprintln!("ERROR: {error}");
-            std::process::exit(1)
+            exit_error(error);
         })
         .unwrap()
 });
@@ -131,8 +134,7 @@ static MAP_OF_SNAPS: LazyLock<MapOfSnaps> = LazyLock::new(|| {
         GLOBAL_CONFIG.opt_debug,
     )
     .map_err(|error| {
-        eprintln!("ERROR: {error}");
-        std::process::exit(1)
+        exit_error(error);
     })
     .unwrap();
 
