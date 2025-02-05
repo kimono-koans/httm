@@ -30,6 +30,8 @@ use skim::prelude::*;
 use std::ops::Deref;
 use std::path::Path;
 use std::sync::atomic::AtomicBool;
+use std::thread::sleep;
+use std::time::Duration;
 
 #[derive(Debug)]
 pub struct InteractiveBrowse {
@@ -114,7 +116,9 @@ impl InteractiveBrowse {
             .build()
             .expect("Could not initialized skim options for browse_view");
 
-        while !started_clone.load(Ordering::SeqCst) {}
+        while !started_clone.load(Ordering::SeqCst) {
+            sleep(Duration::from_millis(15));
+        }
 
         // run_with() reads and shows items from the thread stream created above
         match skim::Skim::run_with(&skim_opts, Some(rx_item)) {
