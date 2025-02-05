@@ -39,7 +39,7 @@ pub struct RollForward {
     dataset: String,
     snap: String,
     progress_bar: ProgressBar,
-    pub proximate_dataset_mount: Arc<Path>,
+    proximate_dataset_mount: Arc<Path>,
 }
 
 impl RollForward {
@@ -69,6 +69,10 @@ impl RollForward {
             progress_bar,
             proximate_dataset_mount,
         })
+    }
+
+    pub fn proximate_dataset_mount(&self) -> &Path {
+        self.proximate_dataset_mount.as_ref()
     }
 
     pub fn full_name(&self) -> String {
@@ -124,7 +128,7 @@ impl RollForward {
     fn roll_forward(&self) -> HttmResult<()> {
         let spawn_res = SpawnPreserveLinks::new(self);
 
-        let (snap_handle, live_handle) = (spawn_res.snap_handle, spawn_res.live_handle);
+        let (snap_handle, live_handle) = spawn_res.into_inner();
 
         let run_zfs = RunZFSCommand::new()?;
 

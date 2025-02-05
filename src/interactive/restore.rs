@@ -30,16 +30,14 @@ use std::path::{Path, PathBuf};
 use terminal_size::{Height, Width};
 
 pub struct InteractiveRestore {
-    pub snap_path_strings: Vec<String>,
-    pub opt_live_version: Option<String>,
+    _view_mode: ViewMode,
+    snap_path_strings: Vec<String>,
+    opt_live_version: Option<String>,
 }
 
 impl From<InteractiveSelect> for InteractiveRestore {
     fn from(interactive_select: InteractiveSelect) -> Self {
-        Self {
-            snap_path_strings: interactive_select.snap_path_strings,
-            opt_live_version: interactive_select.opt_live_version,
-        }
+        unsafe { std::mem::transmute(interactive_select) }
     }
 }
 

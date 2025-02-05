@@ -21,7 +21,6 @@ mod data {
 }
 mod display {
     pub mod maps;
-    pub mod num_versions;
     pub mod versions;
     pub mod wrapper;
 }
@@ -168,25 +167,27 @@ fn exec() -> HttmResult<()> {
     match &GLOBAL_CONFIG.exec_mode {
         // ExecMode::Interactive *may* return back to this function to be printed
         ExecMode::Interactive(interactive_mode) => {
-            let mut browse_result = InteractiveBrowse::new()?;
+            let browse_result = InteractiveBrowse::new()?;
 
             match interactive_mode {
                 InteractiveMode::Restore(_) => {
-                    let interactive_select = InteractiveSelect::try_from(&mut browse_result)?;
+                    let interactive_select: InteractiveSelect =
+                        InteractiveBrowse::try_into(browse_result)?;
 
                     let interactive_restore = InteractiveRestore::from(interactive_select);
 
                     interactive_restore.restore()
                 }
                 InteractiveMode::Select(select_mode) => {
-                    let interactive_select = InteractiveSelect::try_from(&mut browse_result)?;
+                    let interactive_select: InteractiveSelect =
+                        InteractiveBrowse::try_into(browse_result)?;
 
                     interactive_select.print_selections(&select_mode)
                 }
                 // InteractiveMode::Browse executes back through fn exec() in main.rs
                 InteractiveMode::Browse => {
                     let versions_map =
-                        VersionsMap::new(&GLOBAL_CONFIG, &browse_result.selected_path_data)?;
+                        VersionsMap::new(&GLOBAL_CONFIG, &browse_result.selected_path_data())?;
 
                     let output_buf = DisplayWrapper::from(&GLOBAL_CONFIG, versions_map).to_string();
 

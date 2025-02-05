@@ -25,7 +25,7 @@ use std::process::{Child, Command as ExecProcess, Stdio};
 use which::which;
 
 pub struct RunZFSCommand {
-    pub zfs_command: PathBuf,
+    zfs_command: PathBuf,
 }
 
 impl RunZFSCommand {
@@ -35,6 +35,10 @@ impl RunZFSCommand {
         })?;
 
         Ok(Self { zfs_command })
+    }
+
+    pub fn get_command_path(&self) -> &Path {
+        &self.zfs_command
     }
 
     pub fn snapshot(&self, snapshot_names: &[String]) -> HttmResult<()> {

@@ -18,11 +18,8 @@
 use crate::config::generate::{BulkExclusion, Config, FormattedMode, PrintMode, RawMode};
 use crate::data::paths::{PathData, PHANTOM_DATE, PHANTOM_SIZE};
 use crate::filesystem::mounts::IsFilterDir;
-use crate::library::utility::{
-    date_string, delimiter, display_human_size, paint_string, DateFormat,
-};
+use crate::library::utility::{date_string, display_human_size, paint_string, DateFormat};
 use crate::lookup::versions::ProximateDatasetAndOptAlts;
-use crate::DisplayWrapper;
 use std::borrow::Cow;
 use std::ops::Deref;
 use terminal_size::{terminal_size, Height, Width};
@@ -36,64 +33,6 @@ pub const PRETTY_FIXED_WIDTH_PADDING_LEN_X2: usize = 4;
 pub const NOT_SO_PRETTY_FIXED_WIDTH_PADDING: &str = "\t";
 // and we add 2 quotation marks to the path when we format
 pub const QUOTATION_MARKS_LEN: usize = 2;
-
-impl<'a> DisplayWrapper<'a> {
-    pub fn format(&self) -> String {
-        // if a single instance immediately return the global we already prepared
-        match &self.config.print_mode {
-            PrintMode::Formatted(_) => {
-                let keys: Vec<&PathData> = self.keys().collect();
-                let values: Vec<&PathData> = self.values().flatten().collect();
-
-                let global_display_set = DisplaySet::from((keys, values));
-                let padding_collection = PaddingCollection::new(self.config, &global_display_set);
-
-                if self.len() == 1 {
-                    return global_display_set.format(self.config, &padding_collection);
-                }
-
-                // else re compute for each instance and print per instance, now with uniform padding
-                self.iter()
-                    .map(|(key, values)| {
-                        let keys: Vec<&PathData> = vec![key];
-                        let values: Vec<&PathData> = values.iter().collect();
-
-                        let display_set = DisplaySet::from((keys, values));
-
-                        display_set.format(self.config, &padding_collection)
-                    })
-                    .collect::<String>()
-            }
-            PrintMode::Raw(raw_mode) => {
-                let delimiter: char = delimiter();
-
-                // else re compute for each instance and print per instance, now with uniform padding
-                self.iter()
-                    .map(|(key, values)| {
-                        let keys: Vec<&PathData> = vec![key];
-                        let values: Vec<&PathData> = values.iter().collect();
-
-                        (keys, values)
-                    })
-                    .map(|(keys, values)| DisplaySet::from((keys, values)))
-                    .map(|display_set| {
-                        display_set
-                            .into_inner()
-                            .into_iter()
-                            .enumerate()
-                            .filter(|(idx, _set)| {
-                                DisplaySetType::from(*idx).filter_bulk_exclusions(&self.config)
-                            })
-                            .map(|(_idx, set)| set)
-                            .flatten()
-                    })
-                    .flatten()
-                    .map(|pd| pd.raw_format(raw_mode, delimiter, self.config.requested_utc_offset))
-                    .collect::<String>()
-            }
-        }
-    }
-}
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct DisplaySet<'a> {
@@ -136,7 +75,7 @@ impl From<usize> for DisplaySetType {
 
 impl DisplaySetType {
     #[inline(always)]
-    fn filter_bulk_exclusions(&self, config: &Config) -> bool {
+    pub fn filter_bulk_exclusions(&self, config: &Config) -> bool {
         match &self {
             DisplaySetType::IsLive
                 if matches!(config.opt_bulk_exclusion, Some(BulkExclusion::NoLive)) =>
@@ -218,7 +157,7 @@ impl<'a> DisplaySet<'a> {
             )
     }
 
-    fn into_inner(self) -> [Vec<&'a PathData>; 2] {
+    pub fn into_inner(self) -> [Vec<&'a PathData>; 2] {
         self.inner
     }
 }

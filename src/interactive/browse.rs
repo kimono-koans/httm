@@ -17,17 +17,23 @@
 
 use crate::background::recursive::RecursiveSearch;
 use crate::data::paths::PathData;
+use crate::interactive::view_mode::MultiSelect;
 use crate::interactive::view_mode::ViewMode;
 use crate::library::results::{HttmError, HttmResult};
+use crate::Config;
+use crate::DisplayWrapper;
+use crate::InteractiveSelect;
+use crate::VersionsMap;
 use crate::GLOBAL_CONFIG;
 use crossbeam_channel::unbounded;
 use skim::prelude::*;
+use std::ops::Deref;
 use std::path::Path;
 use std::sync::atomic::AtomicBool;
 
 #[derive(Debug)]
 pub struct InteractiveBrowse {
-    pub selected_path_data: Vec<PathData>,
+    selected_path_data: Vec<PathData>,
 }
 
 impl InteractiveBrowse {
@@ -146,5 +152,98 @@ impl InteractiveBrowse {
             }
             None => Err(HttmError::new("httm interactive file browse session failed.").into()),
         }
+    }
+
+    pub fn selected_path_data(&self) -> &[PathData] {
+        &self.selected_path_data
+    }
+}
+
+impl TryInto<InteractiveSelect> for InteractiveBrowse {
+    type Error = Box<dyn std::error::Error + Send + Sync>;
+
+    fn try_into(self) -> HttmResult<InteractiveSelect> {
+        let versions_map = VersionsMap::new(&GLOBAL_CONFIG, &self.selected_path_data)?;
+
+        // snap and live set has no snaps
+        if versions_map.is_empty() {
+            let paths: Vec<String> = self
+                .selected_path_data
+                .iter()
+                .map(|path| path.path().to_string_lossy().to_string())
+                .collect();
+            let msg = format!(
+                "{}{:?}",
+                "Cannot select or restore from the following paths as they have no snapshots:\n",
+                paths
+            );
+            return Err(HttmError::new(&msg).into());
+        }
+
+        let opt_live_version: Option<String> = if self.selected_path_data.len() > 1 {
+            None
+        } else {
+            self.selected_path_data
+                .get(0)
+                .map(|path_data| path_data.path().to_string_lossy().into_owned())
+        };
+
+        let view_mode = ViewMode::Select(opt_live_version.clone());
+
+        let snap_path_strings = if GLOBAL_CONFIG.opt_last_snap.is_some() {
+            InteractiveSelect::last_snap(&versions_map)
+        } else {
+            // same stuff we do at fn exec, snooze...
+            let display_config = Config::from(self.selected_path_data.clone());
+
+            let display_map = DisplayWrapper::from(&display_config, versions_map);
+
+            let selection_buffer = display_map.to_string();
+
+            display_map.deref().iter().try_for_each(|(live, snaps)| {
+                if snaps.is_empty() {
+                    let msg = format!("Path {:?} has no snapshots available.", live.path());
+                    return Err(HttmError::new(&msg));
+                }
+
+                Ok(())
+            })?;
+
+            // loop until user selects a valid snapshot version
+            loop {
+                // get the file name
+                let selected_line = view_mode.view_buffer(&selection_buffer, MultiSelect::On)?;
+
+                let requested_file_names = selected_line
+                    .iter()
+                    .filter_map(|selection| {
+                        // ... we want everything between the quotes
+                        selection
+                            .split_once("\"")
+                            .and_then(|(_lhs, rhs)| rhs.rsplit_once("\""))
+                            .map(|(lhs, _rhs)| lhs)
+                    })
+                    .filter(|selection_buffer| {
+                        // and cannot select a 'live' version or other invalid value.
+                        display_map
+                            .keys()
+                            .all(|key| key.path() != Path::new(selection_buffer))
+                    })
+                    .map(|selection_buffer| selection_buffer.to_string())
+                    .collect::<Vec<String>>();
+
+                if requested_file_names.is_empty() {
+                    continue;
+                }
+
+                break requested_file_names;
+            }
+        };
+
+        Ok(InteractiveSelect::new(
+            view_mode,
+            snap_path_strings,
+            opt_live_version,
+        ))
     }
 }

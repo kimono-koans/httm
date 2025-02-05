@@ -25,7 +25,7 @@ pub type HttmResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
 #[derive(Debug)]
 pub struct HttmError {
-    pub details: String,
+    details: String,
 }
 
 impl From<Box<dyn std::error::Error + Send + Sync>> for HttmError {

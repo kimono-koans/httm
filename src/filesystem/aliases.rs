@@ -24,8 +24,14 @@ use std::sync::Arc;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RemotePathAndFsType {
-    pub remote_dir: Arc<Path>,
-    pub fs_type: FilesystemType,
+    remote_dir: Arc<Path>,
+    fs_type: FilesystemType,
+}
+
+impl RemotePathAndFsType {
+    pub fn remote_dir(&self) -> &Path {
+        &self.remote_dir
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -257,10 +257,10 @@ impl<'a> PathDeconstruction<'a> for PathData {
             .and_then(|map_of_aliases| {
                 self.path_buf.ancestors().find_map(|ancestor| {
                     map_of_aliases.get(ancestor).and_then(|metadata| {
-                        Some(AliasedPath {
-                            proximate_dataset: metadata.remote_dir.as_ref(),
-                            relative_path: &self.path_buf.strip_prefix(ancestor).ok()?,
-                        })
+                        Some(AliasedPath::new(
+                            metadata.remote_dir(),
+                            &self.path_buf.strip_prefix(ancestor).ok()?,
+                        ))
                     })
                 })
             })
@@ -332,8 +332,24 @@ impl<'a> PathDeconstruction<'a> for PathData {
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct AliasedPath<'a> {
-    pub proximate_dataset: &'a Path,
-    pub relative_path: &'a Path,
+    proximate_dataset: &'a Path,
+    relative_path: &'a Path,
+}
+
+impl<'a> AliasedPath<'a> {
+    pub fn new(proximate_dataset: &'a Path, relative_path: &'a Path) -> Self {
+        Self {
+            proximate_dataset,
+            relative_path,
+        }
+    }
+    pub fn proximate_dataset(&self) -> &'a Path {
+        &self.proximate_dataset
+    }
+
+    pub fn relative_path(&self) -> &'a Path {
+        &self.relative_path
+    }
 }
 
 pub struct ZfsSnapPathGuard<'a> {

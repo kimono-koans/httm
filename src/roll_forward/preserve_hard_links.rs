@@ -29,15 +29,15 @@ use std::sync::atomic::AtomicBool;
 use std::thread::JoinHandle;
 
 pub struct SpawnPreserveLinks {
-    pub snap_handle: JoinHandle<HttmResult<HardLinkMap>>,
-    pub live_handle: JoinHandle<HttmResult<HardLinkMap>>,
+    snap_handle: JoinHandle<HttmResult<HardLinkMap>>,
+    live_handle: JoinHandle<HttmResult<HardLinkMap>>,
 }
 
 impl SpawnPreserveLinks {
     pub fn new(roll_forward: &RollForward) -> Self {
         let snap_dataset = roll_forward.snap_dataset();
 
-        let proximate_dataset_mount = roll_forward.proximate_dataset_mount.clone();
+        let proximate_dataset_mount = roll_forward.proximate_dataset_mount().to_path_buf();
 
         let snap_handle = std::thread::spawn(move || HardLinkMap::new(&snap_dataset));
         let live_handle = std::thread::spawn(move || HardLinkMap::new(&proximate_dataset_mount));
@@ -46,6 +46,15 @@ impl SpawnPreserveLinks {
             snap_handle,
             live_handle,
         }
+    }
+
+    pub fn into_inner(
+        self,
+    ) -> (
+        JoinHandle<HttmResult<HardLinkMap>>,
+        JoinHandle<HttmResult<HardLinkMap>>,
+    ) {
+        (self.snap_handle, self.live_handle)
     }
 }
 

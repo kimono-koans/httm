@@ -198,7 +198,7 @@ pub struct ProximateDatasetAndOptAlts<'a> {
     pub path_data: &'a PathData,
     pub proximate_dataset: &'a Path,
     pub relative_path: &'a Path,
-    pub opt_alts: Option<&'a Vec<Box<Path>>>,
+    pub opt_alts: Option<&'a [Box<Path>]>,
 }
 
 impl<'a> Ord for ProximateDatasetAndOptAlts<'a> {
@@ -233,7 +233,7 @@ impl<'a> ProximateDatasetAndOptAlts<'a> {
         // hidden snapshot dirs
         let (proximate_dataset, relative_path) = path_data
             .alias()
-            .map(|alias| (alias.proximate_dataset, alias.relative_path))
+            .map(|alias| (alias.proximate_dataset(), alias.relative_path()))
             .map_or_else(
                 || {
                     path_data.proximate_dataset().and_then(|proximate_dataset| {
@@ -250,7 +250,7 @@ impl<'a> ProximateDatasetAndOptAlts<'a> {
             .opt_map_of_alts
             .as_ref()
             .and_then(|map_of_alts| map_of_alts.get(proximate_dataset))
-            .and_then(|alt_metadata| alt_metadata.opt_datasets_of_interest.as_ref());
+            .and_then(|alt_metadata| alt_metadata.opt_datasets_of_interest.as_deref());
 
         Ok(Self {
             path_data,

@@ -57,7 +57,10 @@ use std::sync::LazyLock;
 
 static IS_CLONE_COMPATIBLE: LazyLock<AtomicBool> = LazyLock::new(|| {
     if let Ok(run_zfs) = RunZFSCommand::new() {
-        let Ok(process_output) = ExecProcess::new(&run_zfs.zfs_command).arg("-V").output() else {
+        let Ok(process_output) = ExecProcess::new(run_zfs.get_command_path())
+            .arg("-V")
+            .output()
+        else {
             return AtomicBool::new(false);
         };
 

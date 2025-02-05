@@ -202,10 +202,10 @@ impl<'a> RecursiveSearch<'a> {
 }
 
 pub struct Entries<'a> {
-    pub path_provenance: &'a PathProvenance,
-    pub skim_tx: &'a SkimItemSender,
-    pub vec_dirs: Vec<BasicDirEntryInfo>,
-    pub vec_files: Vec<BasicDirEntryInfo>,
+    path_provenance: &'a PathProvenance,
+    skim_tx: &'a SkimItemSender,
+    vec_dirs: Vec<BasicDirEntryInfo>,
+    vec_files: Vec<BasicDirEntryInfo>,
 }
 
 impl<'a> Entries<'a> {
