@@ -108,7 +108,7 @@ impl DeletedFiles {
             .snap_mounts()
             .to_owned()
             .into_iter()
-            .map(move |path| path.join(search_bundle.relative_path().as_os_str()))
+            .map(move |path| path.join(search_bundle.relative_path()))
             // important to note: this is a read dir on snapshots directories,
             // b/c read dir on deleted dirs from a live filesystem will fail
             .flat_map(std::fs::read_dir)
