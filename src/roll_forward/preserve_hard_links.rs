@@ -28,13 +28,14 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicBool;
 use std::thread::JoinHandle;
 
-pub struct SpawnPreserveLinks {
+pub struct SpawnPreserveLinks<'a> {
     snap_handle: JoinHandle<HttmResult<HardLinkMap>>,
     live_handle: JoinHandle<HttmResult<HardLinkMap>>,
+    roll_forward: &'a RollForward,
 }
 
-impl SpawnPreserveLinks {
-    pub fn new(roll_forward: &RollForward) -> Self {
+impl<'a> SpawnPreserveLinks<'a> {
+    pub fn new(roll_forward: &'a RollForward) -> Self {
         let snap_dataset = roll_forward.snap_dataset();
 
         let proximate_dataset_mount = roll_forward.proximate_dataset_mount().to_path_buf();
@@ -45,25 +46,8 @@ impl SpawnPreserveLinks {
         Self {
             snap_handle,
             live_handle,
+            roll_forward,
         }
-    }
-
-    pub fn into_preserve_hard_links(
-        self,
-        roll_forward: &RollForward,
-    ) -> HttmResult<PreserveHardLinks> {
-        // need to wait for these to finish before executing any diff_action
-        let snap_map = self
-            .snap_handle
-            .join()
-            .map_err(|_err| HttmError::new("Thread panicked!"))??;
-
-        let live_map = self
-            .live_handle
-            .join()
-            .map_err(|_err| HttmError::new("Thread panicked!"))??;
-
-        PreserveHardLinks::new(live_map, snap_map, roll_forward)
     }
 }
 
@@ -143,19 +127,30 @@ pub struct PreserveHardLinks<'a> {
     roll_forward: &'a RollForward,
 }
 
-impl<'a> PreserveHardLinks<'a> {
-    pub fn new(
-        live_map: HardLinkMap,
-        snap_map: HardLinkMap,
-        roll_forward: &'a RollForward,
-    ) -> HttmResult<Self> {
+impl<'a> TryFrom<SpawnPreserveLinks<'a>> for PreserveHardLinks<'a> {
+    type Error = Box<dyn std::error::Error + Send + Sync>;
+
+    fn try_from(value: SpawnPreserveLinks<'a>) -> Result<Self, Self::Error> {
+        // need to wait for these to finish before executing any diff_action
+        let snap_map = value
+            .snap_handle
+            .join()
+            .map_err(|_err| HttmError::new("Thread panicked!"))??;
+
+        let live_map = value
+            .live_handle
+            .join()
+            .map_err(|_err| HttmError::new("Thread panicked!"))??;
+
         Ok(Self {
             live_map,
             snap_map,
-            roll_forward,
+            roll_forward: value.roll_forward,
         })
     }
+}
 
+impl<'a> PreserveHardLinks<'a> {
     pub fn exec(&self) -> HttmResult<HashSet<PathBuf>> {
         eprintln!("Removing and preserving the difference between live and snap orphans.");
         let mut exclusions = self.diff_orphans()?;

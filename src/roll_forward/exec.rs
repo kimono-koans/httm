@@ -22,7 +22,7 @@ use crate::library::iter_extensions::HttmIter;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{is_metadata_same, user_has_effective_root};
 use crate::roll_forward::diff_events::{DiffEvent, DiffType};
-use crate::roll_forward::preserve_hard_links::SpawnPreserveLinks;
+use crate::roll_forward::preserve_hard_links::{PreserveHardLinks, SpawnPreserveLinks};
 use crate::zfs::run_command::RunZFSCommand;
 use crate::zfs::snap_guard::{PrecautionarySnapType, SnapGuard};
 use crate::{GLOBAL_CONFIG, ZFS_SNAPSHOT_DIRECTORY};
@@ -175,7 +175,7 @@ impl RollForward {
             return Err(HttmError::new(&msg).into());
         }
 
-        let exclusions = spawn_res.into_preserve_hard_links(&self)?.exec()?;
+        let exclusions = PreserveHardLinks::try_from(spawn_res)?.exec()?;
 
         // into iter and reverse because we want to go largest first
         eprintln!("Reversing 'zfs diff' actions.");
