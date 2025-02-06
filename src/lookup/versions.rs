@@ -67,33 +67,8 @@ impl VersionsMap {
     pub fn new(config: &Config, path_set: &[PathData]) -> HttmResult<VersionsMap> {
         let is_interactive_mode = matches!(GLOBAL_CONFIG.exec_mode, ExecMode::Interactive(_));
 
-        let all_snap_versions: BTreeMap<PathData, Vec<PathData>> = path_set
-            .par_iter()
-            .filter_map(|path_data| match Versions::new(path_data, config) {
-                Ok(versions) => Some(versions),
-                Err(err) => {
-                    if !is_interactive_mode {
-                        eprintln!("WARN: {}", err.to_string())
-                    }
-                    None
-                }
-            })
-            .map(|versions| {
-                if !is_interactive_mode
-                    && versions.live_path.opt_metadata().is_none()
-                    && versions.snap_versions.is_empty()
-                {
-                    eprintln!(
-                        "WARN: Input file may have never existed: {:?}",
-                        versions.live_path.path()
-                    );
-                }
-
-                versions.into_inner()
-            })
-            .collect();
-
-        let mut versions_map: VersionsMap = all_snap_versions.into();
+        let versions_map: VersionsMap =
+            Self::get_versions_multiple_paths(config, path_set, is_interactive_mode).into();
 
         // check if all files (snap and live) do not exist, if this is true, then user probably messed up
         // and entered a file that never existed (that is, perhaps a wrong file name)?
@@ -108,28 +83,78 @@ impl VersionsMap {
             .into());
         }
 
-        // process last snap mode after omit_ditto
-        if config.opt_omit_ditto {
-            versions_map.omit_ditto()
-        }
-
-        if let Some(last_snap_mode) = &config.opt_last_snap {
-            versions_map.last_snap(last_snap_mode)
-        }
-
         Ok(versions_map)
     }
 
+    #[inline(always)]
+    pub fn get_versions_single_path(
+        config: &Config,
+        path_data: &PathData,
+        is_interactive_mode: bool,
+    ) -> Option<(PathData, Vec<PathData>)> {
+        let mut opt_map: Option<(PathData, Vec<PathData>)> = match Versions::new(path_data, config)
+        {
+            Ok(versions) => Some(versions),
+            Err(err) => {
+                if !is_interactive_mode {
+                    eprintln!("WARN: {}", err.to_string())
+                }
+
+                None
+            }
+        }
+        .map(|versions| {
+            if !is_interactive_mode
+                && versions.live_path.opt_metadata().is_none()
+                && versions.snap_versions.is_empty()
+            {
+                eprintln!(
+                    "WARN: Input file may have never existed: {:?}",
+                    versions.live_path.path()
+                );
+            }
+
+            versions.into_inner()
+        });
+
+        // process last snap mode after omit_ditto
+        if config.opt_omit_ditto {
+            Self::omit_ditto(&mut opt_map);
+        }
+
+        if let Some(last_snap_mode) = &config.opt_last_snap {
+            Self::last_snap(&mut opt_map, last_snap_mode);
+        }
+
+        opt_map
+    }
+
+    #[inline(always)]
+    fn get_versions_multiple_paths(
+        config: &Config,
+        path_set: &[PathData],
+        is_interactive_mode: bool,
+    ) -> BTreeMap<PathData, Vec<PathData>> {
+        path_set
+            .par_iter()
+            .filter_map(|path_data| {
+                Self::get_versions_single_path(config, path_data, is_interactive_mode)
+            })
+            .collect()
+    }
+
+    #[inline(always)]
     pub fn is_live_version_redundant(live_path_data: &PathData, snaps: &[PathData]) -> bool {
         if let Some(last_snap) = snaps.last() {
-            return last_snap.opt_metadata() == live_path_data.opt_metadata();
+            return last_snap.metadata_infallible() == live_path_data.metadata_infallible();
         }
 
         false
     }
 
-    fn omit_ditto(&mut self) {
-        self.iter_mut().for_each(|(path_data, snaps)| {
+    #[inline(always)]
+    fn omit_ditto(opt_map: &mut Option<(PathData, Vec<PathData>)>) {
+        opt_map.iter_mut().for_each(|(path_data, snaps)| {
             // process omit_ditto before last snap
             if Self::is_live_version_redundant(path_data, snaps) {
                 snaps.pop();
@@ -137,8 +162,9 @@ impl VersionsMap {
         });
     }
 
-    fn last_snap(&mut self, last_snap_mode: &LastSnapMode) {
-        self.iter_mut().for_each(|(path_data, snaps)| {
+    #[inline(always)]
+    fn last_snap(opt_map: &mut Option<(PathData, Vec<PathData>)>, last_snap_mode: &LastSnapMode) {
+        opt_map.iter_mut().for_each(|(path_data, snaps)| {
             *snaps = match snaps.last() {
                 // if last() is some, then should be able to unwrap pop()
                 Some(last) => match last_snap_mode {

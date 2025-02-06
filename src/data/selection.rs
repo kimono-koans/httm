@@ -22,10 +22,10 @@ use crate::data::paths::PathData;
 use crate::display::wrapper::DisplayWrapper;
 use crate::library::results::HttmResult;
 use crate::library::utility::paint_string;
-use crate::lookup::versions::Versions;
 use crate::{Config, ExecMode, VersionsMap, GLOBAL_CONFIG};
 use lscolors::Colorable;
 use skim::prelude::*;
+use std::collections::BTreeMap;
 use std::fs::FileType;
 use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
@@ -58,10 +58,17 @@ impl SelectionCandidate {
         // generate a config for display
         let display_config: Config = Config::from(self);
         let display_path_data = PathData::from(&self.path);
+        static IS_INTERACTIVE_MODE: bool = true;
 
         // finally run search on those paths
-        let all_snap_versions: VersionsMap =
-            [Versions::new(&display_path_data, &display_config)?.into_inner()].into();
+        let all_snap_versions: VersionsMap = VersionsMap::get_versions_single_path(
+            &display_config,
+            &display_path_data,
+            IS_INTERACTIVE_MODE,
+        )
+        .into_iter()
+        .collect::<BTreeMap<PathData, Vec<PathData>>>()
+        .into();
 
         let output_buf = DisplayWrapper::from(&display_config, all_snap_versions).to_string();
 
