@@ -41,21 +41,14 @@ pub struct RecursiveSearch<'a> {
     requested_dir: &'a Path,
     skim_tx: SkimItemSender,
     hangup: Arc<AtomicBool>,
-    started: Arc<AtomicBool>,
 }
 
 impl<'a> RecursiveSearch<'a> {
-    pub fn new(
-        requested_dir: &'a Path,
-        skim_tx: SkimItemSender,
-        hangup: Arc<AtomicBool>,
-        started: Arc<AtomicBool>,
-    ) -> Self {
+    pub fn new(requested_dir: &'a Path, skim_tx: SkimItemSender, hangup: Arc<AtomicBool>) -> Self {
         Self {
             requested_dir,
             skim_tx,
             hangup,
-            started,
         }
     }
 
@@ -110,8 +103,6 @@ impl<'a> RecursiveSearch<'a> {
                 self.hangup.clone(),
             );
         }
-
-        self.started.store(true, Ordering::SeqCst);
 
         if GLOBAL_CONFIG.opt_recursive {
             // condition kills iter when user has made a selection
@@ -366,7 +357,7 @@ impl NonInteractiveRecursiveWrapper {
 
         match &GLOBAL_CONFIG.opt_requested_dir {
             Some(requested_dir) => {
-                RecursiveSearch::new(requested_dir, dummy_skim_tx, hangup, started).exec();
+                RecursiveSearch::new(requested_dir, dummy_skim_tx, hangup).exec();
             }
             None => {
                 return Err(HttmError::new(

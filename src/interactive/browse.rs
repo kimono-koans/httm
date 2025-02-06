@@ -30,8 +30,6 @@ use skim::prelude::*;
 use std::ops::Deref;
 use std::path::Path;
 use std::sync::atomic::AtomicBool;
-use std::thread::sleep;
-use std::time::Duration;
 
 #[derive(Debug)]
 pub struct InteractiveBrowse {
@@ -79,23 +77,15 @@ impl InteractiveBrowse {
 
     fn view(requested_dir: &Path) -> HttmResult<Self> {
         // prep thread spawn
-        let started = Arc::new(AtomicBool::new(false));
         let hangup = Arc::new(AtomicBool::new(false));
         let hangup_clone = hangup.clone();
-        let started_clone = started.clone();
         let requested_dir_clone = requested_dir.to_path_buf();
         let (tx_item, rx_item): (SkimItemSender, SkimItemReceiver) = unbounded();
 
         // thread spawn fn enumerate_directory - permits recursion into dirs without blocking
         let background_handle = std::thread::spawn(move || {
             // no way to propagate error from closure so exit and explain error here
-            RecursiveSearch::new(
-                &requested_dir_clone,
-                tx_item.clone(),
-                hangup.clone(),
-                started,
-            )
-            .exec();
+            RecursiveSearch::new(&requested_dir_clone, tx_item.clone(), hangup.clone()).exec();
         });
 
         let header: String = ViewMode::Browse.print_header();
@@ -115,10 +105,6 @@ impl InteractiveBrowse {
             .algorithm(FuzzyAlgorithm::Simple)
             .build()
             .expect("Could not initialized skim options for browse_view");
-
-        while !started_clone.load(Ordering::SeqCst) {
-            sleep(Duration::from_millis(15));
-        }
 
         // run_with() reads and shows items from the thread stream created above
         match skim::Skim::run_with(&skim_opts, Some(rx_item)) {
