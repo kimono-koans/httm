@@ -92,8 +92,7 @@ impl VersionsMap {
         path_data: &PathData,
         is_interactive_mode: bool,
     ) -> Option<(PathData, Vec<PathData>)> {
-        let mut opt_map: Option<(PathData, Vec<PathData>)> = match Versions::new(path_data, config)
-        {
+        match Versions::new(path_data, config) {
             Ok(versions) => Some(versions),
             Err(err) => {
                 if !is_interactive_mode {
@@ -115,18 +114,21 @@ impl VersionsMap {
             }
 
             versions.into_inner()
-        });
+        })
+        .map(|(path_data, mut snaps)| {
+            if config.opt_omit_ditto {
+                Self::omit_ditto(&path_data, &mut snaps);
+            }
 
-        // process last snap mode after omit_ditto
-        if config.opt_omit_ditto {
-            Self::omit_ditto(&mut opt_map);
-        }
+            (path_data, snaps)
+        })
+        .map(|(path_data, mut snaps)| {
+            if let Some(last_snap_mode) = &config.opt_last_snap {
+                Self::last_snap(&path_data, &mut snaps, &last_snap_mode);
+            }
 
-        if let Some(last_snap_mode) = &config.opt_last_snap {
-            Self::last_snap(&mut opt_map, last_snap_mode);
-        }
-
-        opt_map
+            (path_data, snaps)
+        })
     }
 
     #[inline(always)]
@@ -137,7 +139,7 @@ impl VersionsMap {
     ) -> BTreeMap<PathData, Vec<PathData>> {
         path_set
             .par_iter()
-            .filter_map(|path_data| {
+            .flat_map(|path_data| {
                 Self::get_versions_single_path(config, path_data, is_interactive_mode)
             })
             .collect()
@@ -153,40 +155,35 @@ impl VersionsMap {
     }
 
     #[inline(always)]
-    fn omit_ditto(opt_map: &mut Option<(PathData, Vec<PathData>)>) {
-        opt_map.iter_mut().for_each(|(path_data, snaps)| {
-            // process omit_ditto before last snap
-            if Self::is_live_version_redundant(path_data, snaps) {
-                snaps.pop();
-            }
-        });
+    fn omit_ditto(path_data: &PathData, snaps: &mut Vec<PathData>) {
+        if Self::is_live_version_redundant(&path_data, &snaps) {
+            snaps.pop();
+        }
     }
 
     #[inline(always)]
-    fn last_snap(opt_map: &mut Option<(PathData, Vec<PathData>)>, last_snap_mode: &LastSnapMode) {
-        opt_map.iter_mut().for_each(|(path_data, snaps)| {
-            *snaps = match snaps.last() {
-                // if last() is some, then should be able to unwrap pop()
-                Some(last) => match last_snap_mode {
-                    LastSnapMode::Any => vec![last.to_owned()],
-                    LastSnapMode::DittoOnly if path_data.opt_metadata() == last.opt_metadata() => {
-                        vec![last.to_owned()]
-                    }
-                    LastSnapMode::NoDittoExclusive | LastSnapMode::NoDittoInclusive
-                        if path_data.opt_metadata() != last.opt_metadata() =>
-                    {
-                        vec![last.to_owned()]
-                    }
-                    _ => Vec::new(),
-                },
-                None => match last_snap_mode {
-                    LastSnapMode::Without | LastSnapMode::NoDittoInclusive => {
-                        vec![path_data.clone()]
-                    }
-                    _ => Vec::new(),
-                },
-            };
-        });
+    fn last_snap(path_data: &PathData, snaps: &mut Vec<PathData>, last_snap_mode: &LastSnapMode) {
+        *snaps = match snaps.last() {
+            // if last() is some, then should be able to unwrap pop()
+            Some(last) => match last_snap_mode {
+                LastSnapMode::Any => vec![last.to_owned()],
+                LastSnapMode::DittoOnly if path_data.opt_metadata() == last.opt_metadata() => {
+                    vec![last.to_owned()]
+                }
+                LastSnapMode::NoDittoExclusive | LastSnapMode::NoDittoInclusive
+                    if path_data.opt_metadata() != last.opt_metadata() =>
+                {
+                    vec![last.to_owned()]
+                }
+                _ => Vec::new(),
+            },
+            None => match last_snap_mode {
+                LastSnapMode::Without | LastSnapMode::NoDittoInclusive => {
+                    vec![path_data.clone()]
+                }
+                _ => Vec::new(),
+            },
+        };
     }
 }
 
