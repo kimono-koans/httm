@@ -61,15 +61,12 @@ impl SelectionCandidate {
         static IS_INTERACTIVE_MODE: bool = true;
 
         // finally run search on those paths
-        let all_snap_versions: VersionsMap = VersionsMap::get_versions_single_path(
-            &display_config,
-            &display_path_data,
-            IS_INTERACTIVE_MODE,
-        )
-        .into_iter()
-        .map(|versions| versions.into_inner())
-        .collect::<BTreeMap<PathData, Vec<PathData>>>()
-        .into();
+        let all_snap_versions: VersionsMap =
+            VersionsMap::from_single_path(&display_config, &display_path_data, IS_INTERACTIVE_MODE)
+                .into_iter()
+                .map(|versions| versions.into_inner())
+                .collect::<BTreeMap<PathData, Vec<PathData>>>()
+                .into();
 
         let output_buf = DisplayWrapper::from(&display_config, all_snap_versions).to_string();
 

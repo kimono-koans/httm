@@ -68,7 +68,7 @@ impl VersionsMap {
         let is_interactive_mode = matches!(GLOBAL_CONFIG.exec_mode, ExecMode::Interactive(_));
 
         let versions_map: VersionsMap =
-            Self::get_versions_multiple_paths(config, path_set, is_interactive_mode).into();
+            Self::from_multiple_paths(config, path_set, is_interactive_mode).into();
 
         // check if all files (snap and live) do not exist, if this is true, then user probably messed up
         // and entered a file that never existed (that is, perhaps a wrong file name)?
@@ -87,22 +87,20 @@ impl VersionsMap {
     }
 
     #[inline(always)]
-    fn get_versions_multiple_paths(
+    fn from_multiple_paths(
         config: &Config,
         path_set: &[PathData],
         is_interactive_mode: bool,
     ) -> BTreeMap<PathData, Vec<PathData>> {
         path_set
             .par_iter()
-            .flat_map(|path_data| {
-                Self::get_versions_single_path(config, path_data, is_interactive_mode)
-            })
+            .flat_map(|path_data| Self::from_single_path(config, path_data, is_interactive_mode))
             .map(|versions| versions.into_inner())
             .collect()
     }
 
     #[inline(always)]
-    pub fn get_versions_single_path(
+    pub fn from_single_path(
         config: &Config,
         path_data: &PathData,
         is_interactive_mode: bool,
