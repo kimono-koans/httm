@@ -67,6 +67,7 @@ impl SelectionCandidate {
             IS_INTERACTIVE_MODE,
         )
         .into_iter()
+        .map(|versions| versions.into_inner())
         .collect::<BTreeMap<PathData, Vec<PathData>>>()
         .into();
 

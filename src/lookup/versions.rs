@@ -97,6 +97,7 @@ impl VersionsMap {
             .flat_map(|path_data| {
                 Self::get_versions_single_path(config, path_data, is_interactive_mode)
             })
+            .map(|versions| versions.into_inner())
             .collect()
     }
 
@@ -105,7 +106,7 @@ impl VersionsMap {
         config: &Config,
         path_data: &PathData,
         is_interactive_mode: bool,
-    ) -> Option<(PathData, Vec<PathData>)> {
+    ) -> Option<Versions> {
         match Versions::new(path_data, config) {
             Ok(versions) => Some(versions),
             Err(err) => {
@@ -118,77 +119,36 @@ impl VersionsMap {
         }
         .map(|versions| {
             if !is_interactive_mode
-                && versions.live_path.opt_metadata().is_none()
+                && versions.path_data_key.opt_metadata().is_none()
                 && versions.snap_versions.is_empty()
             {
                 eprintln!(
                     "WARN: Input file may have never existed: {:?}",
-                    versions.live_path.path()
+                    versions.path_data_key.path()
                 );
             }
 
-            versions.into_inner()
+            versions
         })
-        .map(|(path_data, mut snaps)| {
+        .map(|mut versions| {
             if config.opt_omit_ditto {
-                Self::omit_ditto(&path_data, &mut snaps);
+                versions.omit_ditto();
             }
 
-            (path_data, snaps)
+            versions
         })
-        .map(|(path_data, mut snaps)| {
+        .map(|mut versions| {
             if let Some(last_snap_mode) = &config.opt_last_snap {
-                Self::last_snap(&path_data, &mut snaps, &last_snap_mode);
+                versions.last_snap(last_snap_mode);
             }
 
-            (path_data, snaps)
+            versions
         })
-    }
-
-    #[inline(always)]
-    pub fn is_live_version_redundant(live_path_data: &PathData, snaps: &[PathData]) -> bool {
-        if let Some(last_snap) = snaps.last() {
-            return last_snap.metadata_infallible() == live_path_data.metadata_infallible();
-        }
-
-        false
-    }
-
-    #[inline(always)]
-    fn omit_ditto(path_data: &PathData, snaps: &mut Vec<PathData>) {
-        if Self::is_live_version_redundant(&path_data, &snaps) {
-            snaps.pop();
-        }
-    }
-
-    #[inline(always)]
-    fn last_snap(path_data: &PathData, snaps: &mut Vec<PathData>, last_snap_mode: &LastSnapMode) {
-        *snaps = match snaps.last() {
-            // if last() is some, then should be able to unwrap pop()
-            Some(last) => match last_snap_mode {
-                LastSnapMode::Any => vec![last.to_owned()],
-                LastSnapMode::DittoOnly if path_data.opt_metadata() == last.opt_metadata() => {
-                    vec![last.to_owned()]
-                }
-                LastSnapMode::NoDittoExclusive | LastSnapMode::NoDittoInclusive
-                    if path_data.opt_metadata() != last.opt_metadata() =>
-                {
-                    vec![last.to_owned()]
-                }
-                _ => Vec::new(),
-            },
-            None => match last_snap_mode {
-                LastSnapMode::Without | LastSnapMode::NoDittoInclusive => {
-                    vec![path_data.clone()]
-                }
-                _ => Vec::new(),
-            },
-        };
     }
 }
 
 pub struct Versions {
-    live_path: PathData,
+    path_data_key: PathData,
     snap_versions: Vec<PathData>,
 }
 
@@ -196,7 +156,7 @@ impl Versions {
     #[inline(always)]
     pub fn new(path_data: &PathData, config: &Config) -> HttmResult<Self> {
         let prox_opt_alts = ProximateDatasetAndOptAlts::new(path_data)?;
-        let live_path = prox_opt_alts.path_data.clone();
+        let path_data_key = prox_opt_alts.path_data.clone();
         let snap_versions: Vec<PathData> = prox_opt_alts
             .into_search_bundles()
             .flat_map(|relative_path_snap_mounts| {
@@ -205,14 +165,72 @@ impl Versions {
             .collect();
 
         Ok(Self {
-            live_path,
+            path_data_key,
             snap_versions,
         })
     }
 
+    pub fn live_path_data(&self) -> &PathData {
+        &self.path_data_key
+    }
+
+    pub fn snap_versions(&self) -> &[PathData] {
+        &self.snap_versions
+    }
+
+    pub fn from_raw(path_data_key: PathData, snap_versions: Vec<PathData>) -> Self {
+        Self {
+            path_data_key,
+            snap_versions,
+        }
+    }
+
     #[inline(always)]
     pub fn into_inner(self) -> (PathData, Vec<PathData>) {
-        (self.live_path, self.snap_versions)
+        (self.path_data_key, self.snap_versions)
+    }
+
+    #[inline(always)]
+    pub fn is_live_version_redundant(&self) -> bool {
+        if let Some(last_snap) = self.snap_versions.last() {
+            return last_snap.metadata_infallible() == self.path_data_key.metadata_infallible();
+        }
+
+        false
+    }
+
+    #[inline(always)]
+    fn omit_ditto(&mut self) {
+        if self.is_live_version_redundant() {
+            self.snap_versions.pop();
+        }
+    }
+
+    #[inline(always)]
+    fn last_snap(&mut self, last_snap_mode: &LastSnapMode) {
+        self.snap_versions = match self.snap_versions.last() {
+            // if last() is some, then should be able to unwrap pop()
+            Some(last) => match last_snap_mode {
+                LastSnapMode::Any => vec![last.to_owned()],
+                LastSnapMode::DittoOnly
+                    if self.path_data_key.opt_metadata() == last.opt_metadata() =>
+                {
+                    vec![last.to_owned()]
+                }
+                LastSnapMode::NoDittoExclusive | LastSnapMode::NoDittoInclusive
+                    if self.path_data_key.opt_metadata() != last.opt_metadata() =>
+                {
+                    vec![last.to_owned()]
+                }
+                _ => Vec::new(),
+            },
+            None => match last_snap_mode {
+                LastSnapMode::Without | LastSnapMode::NoDittoInclusive => {
+                    vec![self.path_data_key.clone()]
+                }
+                _ => Vec::new(),
+            },
+        };
     }
 }
 

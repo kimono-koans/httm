@@ -23,7 +23,7 @@ use crate::display::versions::DisplaySet;
 use crate::display::versions::DisplaySetType;
 use crate::display::versions::PaddingCollection;
 use crate::library::utility::delimiter;
-use crate::lookup::versions::VersionsMap;
+use crate::lookup::versions::{Versions, VersionsMap};
 use crate::GLOBAL_CONFIG;
 use serde::ser::SerializeMap;
 use serde::{Serialize, Serializer};
@@ -105,14 +105,16 @@ impl<'a> DisplayWrapper<'a> {
         let print_mode = &GLOBAL_CONFIG.print_mode;
 
         let write_out_buffer: String = self
-            .iter()
-            .filter_map(|(live_version, snaps)| {
+            .map
+            .deref()
+            .into_iter()
+            .map(|(live_version, snaps)| Versions::from_raw(live_version.clone(), snaps.clone()))
+            .filter_map(|versions| {
                 Self::parse_num_versions(
                     num_versions_mode,
                     print_mode,
                     delimiter,
-                    live_version,
-                    snaps,
+                    &versions,
                     map_padding,
                     total_num_paths,
                 )
@@ -142,18 +144,17 @@ impl<'a> DisplayWrapper<'a> {
         num_versions_mode: &NumVersionsMode,
         print_mode: &PrintMode,
         delimiter: char,
-        live_version: &PathData,
-        snaps: &[PathData],
+        versions: &Versions,
         padding: usize,
         total_num_paths: usize,
     ) -> Option<String> {
-        let display_path = live_version.path().display();
+        let display_path = versions.live_path_data().path().display();
 
-        let mut num_versions = snaps.len();
+        let mut num_versions = versions.snap_versions().len();
 
         match num_versions_mode {
             NumVersionsMode::AllGraph => {
-                if !VersionsMap::is_live_version_redundant(live_version, snaps) {
+                if !versions.is_live_version_redundant() {
                     num_versions += 1
                 };
 
@@ -171,7 +172,7 @@ impl<'a> DisplayWrapper<'a> {
                 }
             }
             NumVersionsMode::AllNumerals => {
-                if !VersionsMap::is_live_version_redundant(live_version, snaps) {
+                if !versions.is_live_version_redundant() {
                     num_versions += 1
                 };
 
@@ -195,9 +196,7 @@ impl<'a> DisplayWrapper<'a> {
                 }
             }
             NumVersionsMode::Multiple => {
-                if num_versions == 0
-                    || (num_versions == 1
-                        && VersionsMap::is_live_version_redundant(live_version, snaps))
+                if num_versions == 0 || (num_versions == 1 && versions.is_live_version_redundant())
                 {
                     None
                 } else {
@@ -205,9 +204,7 @@ impl<'a> DisplayWrapper<'a> {
                 }
             }
             NumVersionsMode::SingleAll => {
-                if num_versions == 0
-                    || (num_versions == 1
-                        && VersionsMap::is_live_version_redundant(live_version, snaps))
+                if num_versions == 0 || (num_versions == 1 && versions.is_live_version_redundant())
                 {
                     Some(format!("{display_path}{delimiter}"))
                 } else {
@@ -222,8 +219,7 @@ impl<'a> DisplayWrapper<'a> {
                 }
             }
             NumVersionsMode::SingleWithSnap => {
-                if num_versions == 1 && VersionsMap::is_live_version_redundant(live_version, snaps)
-                {
+                if num_versions == 1 && versions.is_live_version_redundant() {
                     Some(format!("{display_path}{delimiter}"))
                 } else {
                     None
