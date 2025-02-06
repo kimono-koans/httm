@@ -363,7 +363,6 @@ impl MapOfSnaps {
                 FilesystemType::Btrfs(_) => {
                     read_dir(mount_point_path.join(BTRFS_SNAPPER_HIDDEN_DIRECTORY))?
                         .flatten()
-                        .par_bridge()
                         .map(|entry| entry.path().join(BTRFS_SNAPPER_SUFFIX))
                         .map(|path| path.into_boxed_path())
                         .collect()
