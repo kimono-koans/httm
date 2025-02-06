@@ -87,6 +87,20 @@ impl VersionsMap {
     }
 
     #[inline(always)]
+    fn get_versions_multiple_paths(
+        config: &Config,
+        path_set: &[PathData],
+        is_interactive_mode: bool,
+    ) -> BTreeMap<PathData, Vec<PathData>> {
+        path_set
+            .par_iter()
+            .flat_map(|path_data| {
+                Self::get_versions_single_path(config, path_data, is_interactive_mode)
+            })
+            .collect()
+    }
+
+    #[inline(always)]
     pub fn get_versions_single_path(
         config: &Config,
         path_data: &PathData,
@@ -129,20 +143,6 @@ impl VersionsMap {
 
             (path_data, snaps)
         })
-    }
-
-    #[inline(always)]
-    fn get_versions_multiple_paths(
-        config: &Config,
-        path_set: &[PathData],
-        is_interactive_mode: bool,
-    ) -> BTreeMap<PathData, Vec<PathData>> {
-        path_set
-            .par_iter()
-            .flat_map(|path_data| {
-                Self::get_versions_single_path(config, path_data, is_interactive_mode)
-            })
-            .collect()
     }
 
     #[inline(always)]
