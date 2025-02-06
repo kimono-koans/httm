@@ -494,7 +494,7 @@ dependencies = [
 
 [[package]]
 name = "httm"
-version = "0.45.7"
+version = "0.45.8"
 dependencies = [
  "clap 4.5.28",
  "crossbeam-channel",
@@ -1101,9 +1101,9 @@ dependencies = [
 
 [[package]]
 name = "two_percent"
-version = "0.12.4"
+version = "0.12.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f1c64dadf8a0870094a27f8dbb4bc73065b8fc147b2506fb39d18cb8652adf04"
+checksum = "7bee04a68ba030557be61861fed37d6211edae41aee8f49b4f5ccf8811308f2a"
 dependencies = [
  "bitflags 2.8.0",
  "crossbeam-channel",
