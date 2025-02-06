@@ -394,7 +394,6 @@ impl MapOfSnaps {
                     .collect(),
                 FilesystemType::Zfs => read_dir(mount_point_path.join(ZFS_SNAPSHOT_DIRECTORY))?
                     .flatten()
-                    .par_bridge()
                     .map(|entry| entry.path())
                     .map(|path| path.into_boxed_path())
                     .collect(),

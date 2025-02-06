@@ -50,7 +50,7 @@ impl SnapNameMap {
         opt_filters: &Option<ListSnapsFilters>,
     ) -> HttmResult<Self> {
         let inner: BTreeMap<PathData, Vec<String>> = versions_map
-            .iter()
+            .par_iter()
             .filter(|(path_data, snaps)| {
                 if snaps.is_empty() {
                     let msg = format!(
@@ -70,7 +70,7 @@ impl SnapNameMap {
                     Some(FilesystemType::Zfs) => {
                         // use par iter here because no one else is using the global rayon threadpool any more
                         let snap_names: Vec<PathBuf> = snaps
-                            .par_iter()
+                            .iter()
                             .filter_map(|snap_pd| {
                                 ZfsSnapPathGuard::new(snap_pd).and_then(|spd| spd.source(opt_proximate_dataset))
                             })
