@@ -157,18 +157,18 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "4.5.28"
+version = "4.5.29"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3e77c3243bd94243c03672cb5154667347c457ca271254724f9f393aee1c05ff"
+checksum = "8acebd8ad879283633b343856142139f2da2317c96b05b4dd6181c61e2480184"
 dependencies = [
  "clap_builder",
 ]
 
 [[package]]
 name = "clap_builder"
-version = "4.5.27"
+version = "4.5.29"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1b26884eb4b57140e4d2d93652abfa49498b938b3c9179f9fc487b0acc3edad7"
+checksum = "f6ba32cbda51c7e1dfd49acc1457ba1a7dec5b64fe360e828acb13ca8dc9c2f9"
 dependencies = [
  "anstream",
  "anstyle",
@@ -428,9 +428,9 @@ checksum = "a0d2fde1f7b3d48b8395d5f2de76c18a528bd6a9cdde438df747bfcba3e05d6f"
 
 [[package]]
 name = "fuzzy-muff"
-version = "0.4.4"
+version = "0.4.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3cbc684bd61ed0261e69157be98828f8029bb41e89c998215b865def7c04754e"
+checksum = "153f892e3b3fa9776c089671da4b88fde31b32764f06fd9715afa513fc462704"
 dependencies = [
  "thread_local",
 ]
@@ -496,7 +496,7 @@ dependencies = [
 name = "httm"
 version = "0.46.0"
 dependencies = [
- "clap 4.5.28",
+ "clap 4.5.29",
  "crossbeam-channel",
  "exacl",
  "foldhash",
@@ -1101,9 +1101,9 @@ dependencies = [
 
 [[package]]
 name = "two_percent"
-version = "0.12.6"
+version = "0.12.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dd8f4dc7a320bb2c79bbb484e92670824207e5da8201a96eaa38d9691f934223"
+checksum = "8fe3e0d83f98cb2e195c3cac55f37a3947986de3b854525d011b91f4e380d7ec"
 dependencies = [
  "bitflags 2.8.0",
  "crossbeam-channel",
