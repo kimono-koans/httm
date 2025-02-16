@@ -428,9 +428,9 @@ checksum = "a0d2fde1f7b3d48b8395d5f2de76c18a528bd6a9cdde438df747bfcba3e05d6f"
 
 [[package]]
 name = "fuzzy-muff"
-version = "0.4.6"
+version = "0.4.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "153f892e3b3fa9776c089671da4b88fde31b32764f06fd9715afa513fc462704"
+checksum = "461f60d37a86fe3978bd9d1fc97837b7de0c5a83bffaa899c2d9e5a35378df51"
 dependencies = [
  "thread_local",
 ]
@@ -1101,9 +1101,9 @@ dependencies = [
 
 [[package]]
 name = "two_percent"
-version = "0.12.8"
+version = "0.12.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8fe3e0d83f98cb2e195c3cac55f37a3947986de3b854525d011b91f4e380d7ec"
+checksum = "c2ee2ecc08f770336d92e07f67cc23f0639f45e27777385b4f9e4028ec18cbe8"
 dependencies = [
  "bitflags 2.8.0",
  "crossbeam-channel",

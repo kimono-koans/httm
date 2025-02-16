@@ -26,6 +26,7 @@ use crate::lookup::deleted::DeletedFiles;
 use crate::{VersionsMap, GLOBAL_CONFIG};
 use rayon::{Scope, ThreadPool};
 use skim::prelude::*;
+use skim::SkimItem;
 use std::fs::read_dir;
 use std::path::Path;
 use std::sync::atomic::AtomicBool;
@@ -318,15 +319,20 @@ impl<'a> DisplayOrTransmit<'a> {
     fn transmit(self) -> HttmResult<()> {
         // don't want a par_iter here because it will block and wait for all
         // results, instead of printing and recursing into the subsequent dirs
-        self.combined_entries
+        let vec: Vec<Arc<dyn SkimItem>> = self
+            .combined_entries
             .into_iter()
             .map(|basic_dir_entry_info| {
-                SelectionCandidate::new(basic_dir_entry_info, &self.path_provenance)
+                let item: Arc<dyn SkimItem> = Arc::new(SelectionCandidate::new(
+                    basic_dir_entry_info,
+                    &self.path_provenance,
+                ));
+
+                item
             })
-            .try_for_each(|selection_candidate| {
-                self.skim_tx.try_send(Arc::new(selection_candidate))
-            })
-            .map_err(std::convert::Into::into)
+            .collect();
+
+        self.skim_tx.try_send(vec).map_err(std::convert::Into::into)
     }
 
     fn display(self) -> HttmResult<()> {
