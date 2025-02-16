@@ -332,7 +332,7 @@ impl<'a> DisplayOrTransmit<'a> {
             })
             .collect();
 
-        self.skim_tx.try_send(vec).map_err(std::convert::Into::into)
+        self.skim_tx.send(vec).map_err(std::convert::Into::into)
     }
 
     fn display(self) -> HttmResult<()> {
