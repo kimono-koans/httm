@@ -67,9 +67,9 @@ impl From<DirEntry> for BasicDirEntryInfo {
 }
 
 impl BasicDirEntryInfo {
-    pub fn new(path: PathBuf, opt_filetype: Option<FileType>) -> Self {
+    pub fn new(path: &Path, opt_filetype: Option<FileType>) -> Self {
         Self {
-            path: path.into_boxed_path(),
+            path: path.into(),
             opt_filetype,
         }
     }

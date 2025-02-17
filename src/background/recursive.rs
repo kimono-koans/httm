@@ -143,7 +143,7 @@ impl<'a> RecursiveSearch<'a> {
 
     fn add_dot_entries(&self) -> HttmResult<()> {
         let dot_as_entry = BasicDirEntryInfo::new(
-            self.requested_dir.to_path_buf(),
+            self.requested_dir,
             Some(self.requested_dir.metadata()?.file_type()),
         );
 
@@ -151,7 +151,7 @@ impl<'a> RecursiveSearch<'a> {
 
         if let Some(parent) = self.requested_dir.parent() {
             let double_dot_as_entry =
-                BasicDirEntryInfo::new(parent.to_path_buf(), Some(parent.metadata()?.file_type()));
+                BasicDirEntryInfo::new(parent, Some(parent.metadata()?.file_type()));
 
             initial_vec_dirs.push(double_dot_as_entry)
         }
