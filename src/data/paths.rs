@@ -53,14 +53,14 @@ static DATASET_MAX_LEN: LazyLock<usize> =
 // for use to display in browse window and internally
 #[derive(Debug, Clone, Eq, Hash, PartialEq)]
 pub struct BasicDirEntryInfo {
-    path: PathBuf,
+    path: Box<Path>,
     opt_filetype: Option<FileType>,
 }
 
 impl From<DirEntry> for BasicDirEntryInfo {
     fn from(dir_entry: DirEntry) -> Self {
         BasicDirEntryInfo {
-            path: dir_entry.path(),
+            path: dir_entry.path().into_boxed_path(),
             opt_filetype: dir_entry.file_type().ok(),
         }
     }
@@ -68,7 +68,10 @@ impl From<DirEntry> for BasicDirEntryInfo {
 
 impl BasicDirEntryInfo {
     pub fn new(path: PathBuf, opt_filetype: Option<FileType>) -> Self {
-        Self { path, opt_filetype }
+        Self {
+            path: path.into_boxed_path(),
+            opt_filetype,
+        }
     }
 
     pub fn filename(&self) -> &OsStr {
@@ -84,7 +87,7 @@ impl BasicDirEntryInfo {
     }
 
     pub fn to_path_buf(self) -> PathBuf {
-        self.path
+        self.path.to_path_buf()
     }
 
     pub fn is_entry_dir(&self) -> bool {

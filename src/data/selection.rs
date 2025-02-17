@@ -35,7 +35,7 @@ use std::sync::LazyLock;
 // LsColors -- see preview_view, preview for how preview is done
 // and impl Colorable for how we paint the path strings
 pub struct SelectionCandidate {
-    path: PathBuf,
+    path: Box<Path>,
     opt_filetype: Option<FileType>,
 }
 
@@ -90,9 +90,9 @@ impl SelectionCandidate {
 
         // this only works because we do not resolve symlinks when doing traversal
         match self.path.strip_prefix(*REQUESTED_DIR) {
-            Ok(_) if self.path.as_path() == *REQUESTED_DIR => Cow::Borrowed("."),
+            Ok(_) if self.path.as_ref() == *REQUESTED_DIR => Cow::Borrowed("."),
             Ok(stripped) => stripped.to_string_lossy(),
-            Err(_) if Some(self.path.as_path()) == *REQUESTED_DIR_PARENT => Cow::Borrowed(".."),
+            Err(_) if Some(self.path.as_ref()) == *REQUESTED_DIR_PARENT => Cow::Borrowed(".."),
             Err(_) => self.path.to_string_lossy(),
         }
     }
@@ -100,7 +100,7 @@ impl SelectionCandidate {
 
 impl Colorable for &SelectionCandidate {
     fn path(&self) -> PathBuf {
-        self.path.clone()
+        self.path.to_path_buf()
     }
     fn file_name(&self) -> std::ffi::OsString {
         self.path.file_name().unwrap_or_default().to_os_string()
