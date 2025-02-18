@@ -157,18 +157,18 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "4.5.29"
+version = "4.5.30"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8acebd8ad879283633b343856142139f2da2317c96b05b4dd6181c61e2480184"
+checksum = "92b7b18d71fad5313a1e320fa9897994228ce274b60faa4d694fe0ea89cd9e6d"
 dependencies = [
  "clap_builder",
 ]
 
 [[package]]
 name = "clap_builder"
-version = "4.5.29"
+version = "4.5.30"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f6ba32cbda51c7e1dfd49acc1457ba1a7dec5b64fe360e828acb13ca8dc9c2f9"
+checksum = "a35db2071778a7344791a4fb4f95308b5673d219dee3ae348b86642574ecc90c"
 dependencies = [
  "anstream",
  "anstyle",
@@ -494,9 +494,9 @@ dependencies = [
 
 [[package]]
 name = "httm"
-version = "0.46.2"
+version = "0.46.3"
 dependencies = [
- "clap 4.5.29",
+ "clap 4.5.30",
  "crossbeam-channel",
  "exacl",
  "foldhash",
@@ -1101,9 +1101,9 @@ dependencies = [
 
 [[package]]
 name = "two_percent"
-version = "0.12.9"
+version = "0.12.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c2ee2ecc08f770336d92e07f67cc23f0639f45e27777385b4f9e4028ec18cbe8"
+checksum = "b6680874b34917a3f5d4fdcbcf44282505de7978147fd2a4c5a323c284180fe4"
 dependencies = [
  "bitflags 2.8.0",
  "crossbeam-channel",
