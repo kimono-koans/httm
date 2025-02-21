@@ -20,10 +20,10 @@ use crate::data::paths::{PathData, PathDeconstruction, ZfsSnapPathGuard};
 use crate::filesystem::collection::FilesystemInfo;
 use crate::filesystem::mounts::{FilesystemType, ROOT_PATH};
 use crate::library::results::{HttmError, HttmResult};
-use crate::library::utility::{pwd, HttmIsDir};
+use crate::library::utility::{HttmIsDir, pwd};
 use crate::lookup::file_mounts::MountDisplay;
 use clap::parser::ValuesRef;
-use clap::{crate_name, crate_version, Arg, ArgAction, ArgMatches};
+use clap::{Arg, ArgAction, ArgMatches, crate_name, crate_version};
 use indicatif::ProgressBar;
 use rayon::iter::{ParallelBridge, ParallelIterator};
 use std::io::Read;
@@ -1129,7 +1129,7 @@ impl Config {
                     // handle non-directories
                     1 => {
                         match exec_mode {
-                            ExecMode::Interactive(ref interactive_mode) => {
+                            ExecMode::Interactive(interactive_mode) => {
                                 match interactive_mode {
                                     InteractiveMode::Browse => {
                                         // doesn't make sense to have a non-dir in these modes
@@ -1147,8 +1147,10 @@ impl Config {
                             // disable NonInteractiveRecursive when path given is not a directory
                             // switch to a standard Display mode
                             ExecMode::NonInteractiveRecursive(_) => {
-                                eprintln!("WARN: Disabling non-interactive recursive mode as requested directory either does not exist or is not a directory.  \
-                                Switching to display mode.");
+                                eprintln!(
+                                    "WARN: Disabling non-interactive recursive mode as requested directory either does not exist or is not a directory.  \
+                                Switching to display mode."
+                                );
                                 *exec_mode = ExecMode::BasicDisplay;
                                 *deleted_mode = None;
                                 None
