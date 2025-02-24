@@ -23,14 +23,14 @@ use crate::display::wrapper::DisplayWrapper;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::print_output_buf;
 use crate::lookup::deleted::DeletedFiles;
-use crate::{VersionsMap, GLOBAL_CONFIG};
+use crate::{GLOBAL_CONFIG, VersionsMap};
 use rayon::{Scope, ThreadPool};
-use skim::prelude::*;
 use skim::SkimItem;
+use skim::prelude::*;
 use std::fs::read_dir;
 use std::path::Path;
-use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
 
 #[derive(Clone, Copy)]
 pub enum PathProvenance {
@@ -104,6 +104,9 @@ impl<'a> RecursiveSearch<'a> {
                 self.hangup.clone(),
             );
         }
+
+        // yield to the interactive/main thread here
+        std::thread::yield_now();
 
         if GLOBAL_CONFIG.opt_recursive {
             // condition kills iter when user has made a selection
@@ -358,7 +361,6 @@ impl NonInteractiveRecursiveWrapper {
     pub fn exec() -> HttmResult<()> {
         // won't be sending anything anywhere, this just allows us to reuse enumerate_directory
         let (dummy_skim_tx, _): (SkimItemSender, SkimItemReceiver) = unbounded();
-        let started = Arc::new(AtomicBool::new(true));
         let hangup = Arc::new(AtomicBool::new(false));
 
         match &GLOBAL_CONFIG.opt_requested_dir {
@@ -369,7 +371,7 @@ impl NonInteractiveRecursiveWrapper {
                 return Err(HttmError::new(
                     "requested_dir should never be None in Display Recursive mode",
                 )
-                .into())
+                .into());
             }
         }
 
