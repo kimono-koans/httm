@@ -1,7 +1,7 @@
 [package]
 name = "httm"
 authors = ["Robert Swinford <robert.swinford <...at...> gmail.com>"]
-version = "0.46.3"
+version = "0.46.4"
 edition = "2024"
 keywords = ["zfs", "backup", "restore", "cli-utility", "snapshot"]
 description = "A CLI tool for viewing snapshot file versions on ZFS and btrfs datasets"
@@ -31,13 +31,13 @@ malloc_trim = ["skim/malloc_trim", "libc"]
 licensing = ["lms", "itertools"]
 
 [target.'cfg(unix)'.dependencies]
-libc = { version = "0.2.169", default-features = false, optional = true }
+libc = { version = "0.2.170", default-features = false, optional = true }
 exacl = { version = "0.12.0", default-features = false, optional = true }
 xattr = { version = "1.4.0", default-features = false, optional = true }
 
 [dependencies]
 foldhash = { version = "0.1.4", default-features = false }
-clap = { version = "4.5.30", default-features = true, features = ["cargo"] }
+clap = { version = "4.5.31", default-features = true, features = ["cargo"] }
 crossbeam-channel = { version = "0.5.14", default-features = false }
 time = { version = "0.3.37", default-features = false, features = [
     "formatting",
