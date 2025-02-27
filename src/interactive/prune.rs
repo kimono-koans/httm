@@ -85,7 +85,7 @@ impl InteractivePrune {
             Before httm destroys these snapshot/s, it would like your consent. Continue? (YES/NO)\n\
             ─────────────────────────────────────────────────────────────────────────────\n\
             YES\n\
-            NO",
+            NO\n",
             file_names_string, snap_names_string
         );
 

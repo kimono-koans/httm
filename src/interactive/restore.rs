@@ -15,15 +15,15 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
+use crate::GLOBAL_CONFIG;
 use crate::config::generate::{ExecMode, InteractiveMode, RestoreMode, RestoreSnapGuard};
 use crate::data::paths::{PathData, PathDeconstruction, ZfsSnapPathGuard};
 use crate::interactive::select::InteractiveSelect;
 use crate::interactive::view_mode::{MultiSelect, ViewMode};
 use crate::library::file_ops::Copy;
 use crate::library::results::{HttmError, HttmResult};
-use crate::library::utility::{date_string, DateFormat};
+use crate::library::utility::{DateFormat, date_string};
 use crate::zfs::snap_guard::SnapGuard;
-use crate::GLOBAL_CONFIG;
 use nu_ansi_term::Color::LightYellow;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
@@ -68,7 +68,7 @@ impl InteractiveRestore {
             Before httm performs a restore, it would like your consent. Continue? (YES/NO)\n\
             ─────────────────────────────────────────────────────────────────────────────────────────\n\
             YES\n\
-            NO",
+            NO\n",
             snap_path_data.path()
         );
 
@@ -127,7 +127,7 @@ impl InteractiveRestore {
                     break println!("{summary_string}{result_buffer}");
                 }
                 "NO" | "N" => {
-                    break println!("User declined restore of: {:?}", snap_path_data.path())
+                    break println!("User declined restore of: {:?}", snap_path_data.path());
                 }
                 // if not yes or no, then noop and continue to the next iter of loop
                 _ => {}
