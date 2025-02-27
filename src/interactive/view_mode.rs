@@ -17,7 +17,7 @@
 
 use crate::interactive::preview::PreviewSelection;
 use crate::library::results::HttmError;
-use crate::{HttmResult, GLOBAL_CONFIG};
+use crate::{GLOBAL_CONFIG, HttmResult};
 use skim::prelude::*;
 use std::io::Cursor;
 
@@ -83,7 +83,7 @@ impl ViewMode {
         let item_reader = SkimItemReader::new(item_reader_opts);
 
         let (items, opt_ingest_handle) =
-            item_reader.of_bufread(Box::new(Cursor::new(buffer.trim().to_owned())));
+            item_reader.of_bufread(Box::new(Cursor::new(buffer.to_owned())));
 
         // run_with() reads and shows items from the thread stream created above
         let res = match skim::Skim::run_with(&skim_opts, Some(items)) {
