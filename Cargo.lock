@@ -639,9 +639,9 @@ dependencies = [
 
 [[package]]
 name = "log"
-version = "0.4.25"
+version = "0.4.26"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "04cbf5b083de1c7e0222a7a51dbfdba1cbe1c6ab0b15e29fff3f6c077fd9cd9f"
+checksum = "30bde2b3dc3671ae49d8e2e9f044c7c005836e7a023ee57cffa25ab82764bb9e"
 
 [[package]]
 name = "lscolors"
@@ -1101,9 +1101,9 @@ dependencies = [
 
 [[package]]
 name = "two_percent"
-version = "0.12.10"
+version = "0.12.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b6680874b34917a3f5d4fdcbcf44282505de7978147fd2a4c5a323c284180fe4"
+checksum = "f0db8e914915becc38ae5600686b3dd8ed10dcfd18dbb86af1ed0e01cc3efb51"
 dependencies = [
  "bitflags 2.8.0",
  "crossbeam-channel",
