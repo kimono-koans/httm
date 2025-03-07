@@ -15,16 +15,16 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
+use crate::Config;
+use crate::DisplayWrapper;
+use crate::GLOBAL_CONFIG;
+use crate::InteractiveSelect;
+use crate::VersionsMap;
 use crate::background::recursive::RecursiveSearch;
 use crate::data::paths::PathData;
 use crate::interactive::view_mode::MultiSelect;
 use crate::interactive::view_mode::ViewMode;
 use crate::library::results::{HttmError, HttmResult};
-use crate::Config;
-use crate::DisplayWrapper;
-use crate::InteractiveSelect;
-use crate::VersionsMap;
-use crate::GLOBAL_CONFIG;
 use crossbeam_channel::unbounded;
 use skim::prelude::*;
 use std::ops::Deref;
@@ -101,7 +101,7 @@ impl InteractiveBrowse {
             .header(Some(&header))
             .multi(opt_multi)
             .regex(false)
-            .tiebreak(Some("score,-index".to_string()))
+            .tiebreak(Some("score,index,-length".to_string()))
             .algorithm(FuzzyAlgorithm::Simple)
             .build()
             .expect("Could not initialized skim options for browse_view");
