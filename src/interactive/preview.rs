@@ -15,9 +15,9 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
+use crate::GLOBAL_CONFIG;
 use crate::interactive::view_mode::ViewMode;
 use crate::library::results::{HttmError, HttmResult};
-use crate::GLOBAL_CONFIG;
 use std::path::PathBuf;
 use which::which;
 
@@ -31,10 +31,10 @@ impl PreviewSelection {
         //let (opt_preview_window, opt_preview_command) =
         let res = match &GLOBAL_CONFIG.opt_preview {
             Some(defined_command) if matches!(view_mode, ViewMode::Select(_)) => {
-                let opt_live_version = if let ViewMode::Select(opt) = view_mode {
-                    opt
-                } else {
-                    unreachable!()
+                let ViewMode::Select(opt_live_version) = view_mode else {
+                    unreachable!(
+                        "This condition should not possible because condition is immediately guarded."
+                    )
                 };
 
                 let opt_preview_command = Some(Self::parse_preview_command(
