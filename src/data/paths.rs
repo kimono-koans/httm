@@ -19,17 +19,17 @@ use crate::config::generate::PrintMode;
 use crate::filesystem::mounts::{FilesystemType, IsFilterDir, MaxLen};
 use crate::library::file_ops::HashFileContents;
 use crate::library::results::{HttmError, HttmResult};
-use crate::library::utility::{date_string, display_human_size, DateFormat, HttmIsDir};
+use crate::library::utility::{DateFormat, HttmIsDir, date_string, display_human_size};
 use crate::{
     BTRFS_SNAPPER_HIDDEN_DIRECTORY, GLOBAL_CONFIG, OPT_COMMON_SNAP_DIR, ZFS_HIDDEN_DIRECTORY,
     ZFS_SNAPSHOT_DIRECTORY,
 };
-use realpath_ext::{realpath, RealpathFlags};
+use realpath_ext::{RealpathFlags, realpath};
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
 use std::cmp::{Ord, Ordering, PartialOrd};
 use std::ffi::OsStr;
-use std::fs::{symlink_metadata, DirEntry, FileType, Metadata};
+use std::fs::{DirEntry, FileType, Metadata, symlink_metadata};
 use std::hash::Hash;
 use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
@@ -167,13 +167,13 @@ pub trait PathDeconstruction<'a> {
     fn fs_type(&self, opt_proximate_dataset_mount: Option<&'a Path>) -> Option<FilesystemType>;
     fn relative_path(&'a self, proximate_dataset_mount: &'a Path) -> HttmResult<&'a Path>;
     fn proximate_dataset(&'a self) -> HttmResult<&'a Path>;
-    fn live_path(&self) -> Option<PathBuf>;
+    fn live_path(&self) -> Option<Box<Path>>;
 }
 
 // detailed info required to differentiate and display file versions
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct PathData {
-    path_buf: PathBuf,
+    path_buf: Box<Path>,
     metadata: Option<PathMetadata>,
 }
 
@@ -217,8 +217,9 @@ impl PathData {
         //
         // in general we handle those cases elsewhere, like the ingest
         // of input files in Config::from for deleted relative paths, etc.
-        let canonical_path: PathBuf =
-            realpath(path, RealpathFlags::ALLOW_MISSING).unwrap_or_else(|_| path.to_path_buf());
+        let canonical_path: Box<Path> = realpath(path, RealpathFlags::ALLOW_MISSING)
+            .unwrap_or_else(|_| path.to_path_buf())
+            .into_boxed_path();
 
         let path_metadata = opt_metadata.and_then(|md| PathMetadata::new(&md));
 
@@ -269,7 +270,7 @@ impl<'a> PathDeconstruction<'a> for PathData {
             })
     }
 
-    fn live_path(&self) -> Option<PathBuf> {
+    fn live_path(&self) -> Option<Box<Path>> {
         Some(self.path_buf.clone())
     }
 
@@ -390,7 +391,7 @@ impl<'a> PathDeconstruction<'a> for ZfsSnapPathGuard<'_> {
         None
     }
 
-    fn live_path(&self) -> Option<PathBuf> {
+    fn live_path(&self) -> Option<Box<Path>> {
         self.inner
             .path_buf
             .to_string_lossy()
@@ -399,7 +400,9 @@ impl<'a> PathDeconstruction<'a> for ZfsSnapPathGuard<'_> {
                 relative_and_snap_name
                     .split_once("/")
                     .map(|(_snap_name, relative)| {
-                        PathBuf::from(proximate_dataset_mount).join(Path::new(relative))
+                        PathBuf::from(proximate_dataset_mount)
+                            .join(Path::new(relative))
+                            .into_boxed_path()
                     })
             })
     }
@@ -455,11 +458,17 @@ impl<'a> PathDeconstruction<'a> for ZfsSnapPathGuard<'_> {
                 Some(PathBuf::from(res))
             }
             Some(_md) => {
-                eprintln!("WARN: {:?} is located on a non-ZFS dataset.  httm can only list snapshot names for ZFS datasets.", self.inner.path_buf);
+                eprintln!(
+                    "WARN: {:?} is located on a non-ZFS dataset.  httm can only list snapshot names for ZFS datasets.",
+                    self.inner.path_buf
+                );
                 None
             }
             _ => {
-                eprintln!("WARN: {:?} is not located on a discoverable dataset.  httm can only list snapshot names for ZFS datasets.", self.inner.path_buf);
+                eprintln!(
+                    "WARN: {:?} is not located on a discoverable dataset.  httm can only list snapshot names for ZFS datasets.",
+                    self.inner.path_buf
+                );
                 None
             }
         }
