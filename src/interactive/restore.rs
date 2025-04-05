@@ -89,11 +89,11 @@ impl InteractiveRestore {
                             RestoreMode::Overwrite(RestoreSnapGuard::Guarded),
                         )) => {
                             let snap_guard: SnapGuard =
-                                SnapGuard::try_from(new_file_path_buf.as_path())?;
+                                SnapGuard::try_from(new_file_path_buf.as_ref())?;
 
                             if let Err(err) = Self::restore_action(
                                 &snap_path_data.path(),
-                                &new_file_path_buf.as_path(),
+                                &new_file_path_buf.as_ref(),
                                 should_preserve,
                             ) {
                                 eprintln!("{:?}", err);
@@ -109,7 +109,7 @@ impl InteractiveRestore {
                         }
                         _ => Self::restore_action(
                             &snap_path_data.path(),
-                            &new_file_path_buf.as_path(),
+                            &new_file_path_buf.as_ref(),
                             should_preserve,
                         )?,
                     }
@@ -175,9 +175,9 @@ impl InteractiveRestore {
         )
     }
 
-    pub fn opt_live_version(&self, snap_path_data: &PathData) -> HttmResult<PathBuf> {
+    pub fn opt_live_version(&self, snap_path_data: &PathData) -> HttmResult<Box<Path>> {
         match &self.opt_live_version {
-            Some(live_version) => Some(PathBuf::from(live_version)),
+            Some(live_version) => Some(PathBuf::from(live_version).into_boxed_path()),
             None => {
                 ZfsSnapPathGuard::new(snap_path_data).and_then(|snap_guard| snap_guard.live_path())
             }
@@ -185,7 +185,7 @@ impl InteractiveRestore {
         .ok_or_else(|| HttmError::new("Could not determine a possible live version.").into())
     }
 
-    fn build_new_file_path(&self, snap_path_data: &PathData) -> HttmResult<PathBuf> {
+    fn build_new_file_path(&self, snap_path_data: &PathData) -> HttmResult<Box<Path>> {
         // build new place to send file
         if matches!(
             GLOBAL_CONFIG.exec_mode,
@@ -234,7 +234,7 @@ impl InteractiveRestore {
                     HttmError::new("httm will not restore to that file location, as a file with the same path name already exists. Quitting.").into(),
                 )
         } else {
-            Ok(new_file_path_buf)
+            Ok(new_file_path_buf.into_boxed_path())
         }
     }
 }
