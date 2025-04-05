@@ -411,16 +411,14 @@ impl<'a> PathDeconstruction<'a> for ZfsSnapPathGuard<'_> {
         self.relative_path(proximate_dataset_mount)
             .ok()
             .map(|relative| {
-                let pb: PathBuf = self
-                    .inner
+                self.inner
                     .path_buf
                     .ancestors()
                     .zip(relative.ancestors())
                     .skip_while(|(a_path, b_path)| a_path == b_path)
                     .map(|(a_path, _b_path)| a_path)
-                    .collect();
-
-                pb.into_boxed_path()
+                    .collect::<PathBuf>()
+                    .into_boxed_path()
             })
     }
 
