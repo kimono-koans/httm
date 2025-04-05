@@ -290,7 +290,7 @@ impl<'a> PreserveHardLinks<'a> {
             .flat_map(|(_key, values)| values)
             .map(|snap_entry| {
                 self.roll_forward
-                    .live_path(&snap_entry.path().to_owned())
+                    .live_path(snap_entry.path())
                     .ok_or_else(|| HttmError::new("Could obtain live path for snap path").into())
             })
             .collect::<HttmResult<HashSet<PathBuf>>>()

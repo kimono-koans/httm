@@ -47,7 +47,10 @@ impl RollForward {
         let (dataset, snap) = if let Some(res) = full_snap_name.split_once('@') {
             res
         } else {
-            let msg = format!("\"{}\" is not a valid data set name.  A valid ZFS snapshot name requires a '@' separating dataset name and snapshot name.", &full_snap_name);
+            let msg = format!(
+                "\"{}\" is not a valid data set name.  A valid ZFS snapshot name requires a '@' separating dataset name and snapshot name.",
+                &full_snap_name
+            );
             return Err(HttmError::new(&msg).into());
         };
 
@@ -109,7 +112,7 @@ impl RollForward {
 
         SnapGuard::new(
             &self.dataset,
-            PrecautionarySnapType::PostRollForward(self.snap.to_owned()),
+            PrecautionarySnapType::PostRollForward(self.snap.clone()),
         )?;
 
         Ok(())
@@ -166,7 +169,10 @@ impl RollForward {
         // Here, we print only as NOTICE
         if let Ok(buf) = Self::zfs_diff_std_err(opt_stderr) {
             if !buf.is_empty() {
-                eprintln!("NOTICE: 'zfs diff' reported an error.  At this point of execution, these are usually inconsequential: {}", buf.trim());
+                eprintln!(
+                    "NOTICE: 'zfs diff' reported an error.  At this point of execution, these are usually inconsequential: {}",
+                    buf.trim()
+                );
             }
         }
 
