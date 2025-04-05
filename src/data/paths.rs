@@ -86,10 +86,6 @@ impl BasicDirEntryInfo {
         &self.opt_filetype
     }
 
-    pub fn to_path_buf(self) -> PathBuf {
-        self.path.to_path_buf()
-    }
-
     pub fn is_entry_dir(&self) -> bool {
         // must do is_dir() look up on DirEntry file_type() as look up on Path will traverse links!
         if GLOBAL_CONFIG.opt_no_traverse {

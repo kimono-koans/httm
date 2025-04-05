@@ -15,10 +15,10 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
+use crate::RollForward;
 use crate::data::paths::BasicDirEntryInfo;
 use crate::library::file_ops::{Copy, Preserve, Remove};
 use crate::library::results::{HttmError, HttmResult};
-use crate::RollForward;
 use hashbrown::{HashMap, HashSet};
 use nu_ansi_term::Color::{Green, Yellow};
 use rayon::prelude::*;
@@ -111,7 +111,7 @@ impl HardLinkMap {
         let remainder = remain_tmp
             .into_values()
             .flatten()
-            .map(|entry| entry.to_path_buf())
+            .map(|entry| entry.path().to_path_buf())
             .collect();
 
         Ok(Self {
@@ -156,8 +156,8 @@ impl<'a> PreserveHardLinks<'a> {
         let mut exclusions = self.diff_orphans()?;
 
         eprintln!(
-      "Removing the intersection of the live and snap hard link maps to generate snap orphans."
-    );
+            "Removing the intersection of the live and snap hard link maps to generate snap orphans."
+        );
         let intersection = self.remove_map_intersection()?;
         exclusions.extend(intersection);
 
@@ -169,7 +169,7 @@ impl<'a> PreserveHardLinks<'a> {
                 .clone()
                 .into_values()
                 .flatten()
-                .map(|entry| entry.to_path_buf()),
+                .map(|entry| entry.path().to_path_buf()),
         );
 
         eprintln!("Preserving necessary links from the snapshot dataset.");
@@ -180,7 +180,7 @@ impl<'a> PreserveHardLinks<'a> {
                 .clone()
                 .into_values()
                 .flatten()
-                .map(|entry| entry.to_path_buf()),
+                .map(|entry| entry.path().to_path_buf()),
         );
 
         Ok(exclusions)
@@ -329,7 +329,7 @@ impl<'a> PreserveHardLinks<'a> {
             .clone()
             .into_values()
             .flatten()
-            .map(|entry| entry.to_path_buf())
+            .map(|entry| entry.path().to_path_buf())
             .collect();
 
         let orphans_intersection = live_map_as_set.intersection(&snaps_to_live_map);
