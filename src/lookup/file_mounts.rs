@@ -21,7 +21,7 @@ use crate::lookup::versions::ProximateDatasetAndOptAlts;
 use crate::{ExecMode, GLOBAL_CONFIG};
 use rayon::prelude::*;
 use std::ops::Deref;
-use std::path::PathBuf;
+use std::path::Path;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MountDisplay {
@@ -31,7 +31,7 @@ pub enum MountDisplay {
 }
 
 impl MountDisplay {
-    pub fn display<'a, T>(&self, path: &'a T, mount: &'a PathData) -> Option<PathBuf>
+    pub fn display<'a, T>(&self, path: &'a T, mount: &'a PathData) -> Option<Box<Path>>
     where
         T: PathDeconstruction<'a> + ?Sized,
     {
@@ -41,7 +41,7 @@ impl MountDisplay {
             MountDisplay::RelativePath => path
                 .relative_path(&mount.path())
                 .ok()
-                .map(|path| path.to_path_buf()),
+                .map(|path| path.into()),
         }
     }
 }

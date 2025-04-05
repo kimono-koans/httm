@@ -23,7 +23,7 @@ use crate::lookup::versions::VersionsMap;
 use rayon::prelude::*;
 use std::collections::BTreeMap;
 use std::ops::Deref;
-use std::path::PathBuf;
+use std::path::Path;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SnapNameMap {
@@ -68,8 +68,8 @@ impl SnapNameMap {
 
                match path_data.fs_type(opt_proximate_dataset) {
                     Some(FilesystemType::Zfs) => {
-                        // use par iter here because no one else is using the global rayon threadpool any more
-                        let snap_names: Vec<PathBuf> = snaps
+                        // use par iter here because no one else is using the global rayon thread pool any more
+                        let snap_names: Vec<Box<Path>> = snaps
                             .iter()
                             .filter_map(|snap_pd| {
                                 ZfsSnapPathGuard::new(snap_pd).and_then(|spd| spd.source(opt_proximate_dataset))
@@ -81,7 +81,7 @@ impl SnapNameMap {
                     Some(FilesystemType::Btrfs(opt_additional_btrfs_data)) => {
                         if let Some(additional_btrfs_data) = opt_additional_btrfs_data {
                             if let Some(new_map) = additional_btrfs_data.snap_names.get() {
-                                let values: Vec<PathBuf> = new_map.values().cloned().map(|k| k.into_path_buf()).collect();
+                                let values: Vec<Box<Path>> = new_map.values().cloned().collect();
                                 return Some((path_data, values))
                             }                             
                         }

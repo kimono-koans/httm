@@ -162,8 +162,8 @@ impl BasicDirEntryInfo {
 
 pub trait PathDeconstruction<'a> {
     fn alias(&self) -> Option<AliasedPath>;
-    fn target(&self, proximate_dataset_mount: &Path) -> Option<PathBuf>;
-    fn source(&self, opt_proximate_dataset_mount: Option<&'a Path>) -> Option<PathBuf>;
+    fn target(&self, proximate_dataset_mount: &Path) -> Option<Box<Path>>;
+    fn source(&self, opt_proximate_dataset_mount: Option<&'a Path>) -> Option<Box<Path>>;
     fn fs_type(&self, opt_proximate_dataset_mount: Option<&'a Path>) -> Option<FilesystemType>;
     fn relative_path(&'a self, proximate_dataset_mount: &'a Path) -> HttmResult<&'a Path>;
     fn proximate_dataset(&'a self) -> HttmResult<&'a Path>;
@@ -284,11 +284,11 @@ impl<'a> PathDeconstruction<'a> for PathData {
             .map_err(|err| err.into())
     }
 
-    fn target(&self, proximate_dataset_mount: &Path) -> Option<PathBuf> {
-        Some(proximate_dataset_mount.to_path_buf())
+    fn target(&self, proximate_dataset_mount: &Path) -> Option<Box<Path>> {
+        Some(proximate_dataset_mount.into())
     }
 
-    fn source(&self, opt_proximate_dataset_mount: Option<&'a Path>) -> Option<PathBuf> {
+    fn source(&self, opt_proximate_dataset_mount: Option<&'a Path>) -> Option<Box<Path>> {
         let mount: &Path =
             opt_proximate_dataset_mount.map_or_else(|| self.proximate_dataset().ok(), Some)?;
 
@@ -296,7 +296,7 @@ impl<'a> PathDeconstruction<'a> for PathData {
             .dataset_collection
             .map_of_datasets
             .get(mount)
-            .map(|md| md.source.to_path_buf())
+            .map(|md| md.source.clone())
     }
 
     #[inline(always)]
@@ -407,17 +407,20 @@ impl<'a> PathDeconstruction<'a> for ZfsSnapPathGuard<'_> {
             })
     }
 
-    fn target(&self, proximate_dataset_mount: &Path) -> Option<PathBuf> {
+    fn target(&self, proximate_dataset_mount: &Path) -> Option<Box<Path>> {
         self.relative_path(proximate_dataset_mount)
             .ok()
             .map(|relative| {
-                self.inner
+                let pb: PathBuf = self
+                    .inner
                     .path_buf
                     .ancestors()
                     .zip(relative.ancestors())
                     .skip_while(|(a_path, b_path)| a_path == b_path)
                     .map(|(a_path, _b_path)| a_path)
-                    .collect()
+                    .collect();
+
+                pb.into_boxed_path()
             })
     }
 
@@ -438,7 +441,7 @@ impl<'a> PathDeconstruction<'a> for ZfsSnapPathGuard<'_> {
             })
     }
 
-    fn source(&self, _opt_proximate_dataset_mount: Option<&'a Path>) -> Option<PathBuf> {
+    fn source(&self, _opt_proximate_dataset_mount: Option<&'a Path>) -> Option<Box<Path>> {
         let path_string = &self.inner.path_buf.to_string_lossy();
 
         let (dataset_path, relative_and_snap) =
@@ -455,7 +458,7 @@ impl<'a> PathDeconstruction<'a> for ZfsSnapPathGuard<'_> {
         {
             Some(md) if md.fs_type == FilesystemType::Zfs => {
                 let res = format!("{}@{snap_name}", md.source.to_string_lossy());
-                Some(PathBuf::from(res))
+                Some(PathBuf::from(res).into_boxed_path())
             }
             Some(_md) => {
                 eprintln!(
