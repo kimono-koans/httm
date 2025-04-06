@@ -24,6 +24,7 @@ use lscolors::{Colorable, LsColors, Style};
 use nu_ansi_term::AnsiString;
 use nu_ansi_term::Style as AnsiTermStyle;
 use number_prefix::NumberPrefix;
+use std::borrow::Cow;
 use std::fs::FileType;
 use std::io::Write;
 use std::iter::Iterator;
@@ -202,10 +203,12 @@ static ENV_LS_COLORS: LazyLock<LsColors> =
 static PHANTOM_STYLE: LazyLock<AnsiTermStyle> =
     LazyLock::new(|| nu_ansi_term::Style::default().dimmed());
 
-pub fn paint_string<'a, T>(path: &'a T, display_name: &'a str) -> AnsiString<'a>
+pub fn paint_string<'a, T>(path: &'a T) -> AnsiString<'a>
 where
     T: PaintString,
 {
+    let display_name = path.name();
+
     if path.is_phantom() {
         // paint all other phantoms/deleted files the same color, light pink
         return PHANTOM_STYLE.paint(display_name);
@@ -224,6 +227,7 @@ where
 pub trait PaintString {
     fn ls_style(&self) -> Option<&'_ lscolors::style::Style>;
     fn is_phantom(&self) -> bool;
+    fn name(&self) -> Cow<str>;
 }
 
 impl PaintString for &PathData {
@@ -232,6 +236,9 @@ impl PaintString for &PathData {
     }
     fn is_phantom(&self) -> bool {
         self.opt_metadata().is_none()
+    }
+    fn name(&self) -> Cow<str> {
+        self.path().to_string_lossy()
     }
 }
 
@@ -242,6 +249,10 @@ impl PaintString for &SelectionCandidate {
 
     fn is_phantom(&self) -> bool {
         self.file_type().is_none()
+    }
+
+    fn name(&self) -> Cow<str> {
+        self.display_name()
     }
 }
 

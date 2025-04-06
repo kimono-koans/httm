@@ -73,7 +73,7 @@ impl SelectionCandidate {
         Ok(output_buf)
     }
 
-    fn display_name(&self) -> Cow<str> {
+    pub fn display_name(&self) -> Cow<str> {
         static REQUESTED_DIR: LazyLock<&Path> = LazyLock::new(|| {
             GLOBAL_CONFIG
                 .opt_requested_dir
@@ -118,7 +118,7 @@ impl SkimItem for SelectionCandidate {
         self.display_name()
     }
     fn display(&self, _context: DisplayContext<'_>) -> AnsiString {
-        AnsiString::parse(&paint_string(&self, &self.display_name()).to_string())
+        AnsiString::parse(&paint_string(&self).to_string())
     }
     fn output(&self) -> Cow<str> {
         self.path.to_string_lossy()
