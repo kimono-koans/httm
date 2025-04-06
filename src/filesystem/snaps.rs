@@ -16,7 +16,7 @@
 // that was distributed with this source code.
 
 use crate::filesystem::mounts::{
-    DatasetMetadata, FilesystemType, BTRFS_ROOT_SUBVOL, PROC_MOUNTS, ROOT_PATH,
+    BTRFS_ROOT_SUBVOL, DatasetMetadata, FilesystemType, PROC_MOUNTS, ROOT_PATH,
 };
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{get_btrfs_command, user_has_effective_root};
@@ -72,9 +72,11 @@ impl MapOfSnaps {
                 .par_iter()
                 .any(|(_mount, snaps)| snaps.is_empty())
             {
-                eprintln!("DEBUG: httm relies on the user (and/or the filesystem's auto-mounter) to mount snapshots.  \
+                eprintln!(
+                    "DEBUG: httm relies on the user (and/or the filesystem's auto-mounter) to mount snapshots.  \
                 Make certain any snapshots the user may want to view are mounted, or are able to be mounted, \
-                and/or the user has the correct permissions to view.");
+                and/or the user has the correct permissions to view."
+                );
 
                 map_of_snaps
                     .iter()
@@ -152,8 +154,7 @@ impl MapOfSnaps {
         map_of_datasets: &BTreeMap<Arc<Path>, DatasetMetadata>,
         opt_debug: bool,
     ) -> BTreeMap<Box<Path>, Box<Path>> {
-        const BTRFS_COMMAND_REQUIRES_ROOT: &str =
-            "btrfs mounts detected.  User must have super user permissions to determine the location of btrfs snapshots";
+        const BTRFS_COMMAND_REQUIRES_ROOT: &str = "btrfs mounts detected.  User must have super user permissions to determine the location of btrfs snapshots";
 
         if let Err(_err) = user_has_effective_root(&BTRFS_COMMAND_REQUIRES_ROOT) {
             static USER_HAS_ROOT_WARNING: Once = Once::new();
@@ -453,7 +454,10 @@ impl MapOfSnaps {
                 if opt_debug {
                     match err.kind() {
                         std::io::ErrorKind::PermissionDenied => {
-                            eprintln!("DEBUG: Permission denied to read snapshot locations from defined mount: {:?}", mount_point_path);
+                            eprintln!(
+                                "DEBUG: Permission denied to read snapshot locations from defined mount: {:?}",
+                                mount_point_path
+                            );
                         }
                         _ => eprintln!(
                             "DEBUG: An error was encountered while attempting to read from snapshots locations for mount: {:?}\nERROR: {:?}",
