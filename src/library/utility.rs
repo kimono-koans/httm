@@ -15,22 +15,22 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
+use crate::GLOBAL_CONFIG;
 use crate::config::generate::{PrintMode, RawMode};
 use crate::data::paths::{BasicDirEntryInfo, PathData, PathMetadata};
 use crate::data::selection::SelectionCandidate;
 use crate::library::results::{HttmError, HttmResult};
-use crate::GLOBAL_CONFIG;
 use lscolors::{Colorable, LsColors, Style};
+use nu_ansi_term::AnsiString;
 use nu_ansi_term::Style as AnsiTermStyle;
 use number_prefix::NumberPrefix;
-use std::borrow::Cow;
 use std::fs::FileType;
 use std::io::Write;
 use std::iter::Iterator;
 use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
 use std::time::SystemTime;
-use time::{format_description, OffsetDateTime, UtcOffset};
+use time::{OffsetDateTime, UtcOffset, format_description};
 use which::which;
 
 pub fn get_mount_command() -> HttmResult<PathBuf> {
@@ -202,23 +202,23 @@ static ENV_LS_COLORS: LazyLock<LsColors> =
 static PHANTOM_STYLE: LazyLock<AnsiTermStyle> =
     LazyLock::new(|| nu_ansi_term::Style::default().dimmed());
 
-pub fn paint_string<T>(path: T, display_name: &str) -> Cow<str>
+pub fn paint_string<'a, T>(path: &'a T, display_name: &'a str) -> AnsiString<'a>
 where
     T: PaintString,
 {
     if path.is_phantom() {
         // paint all other phantoms/deleted files the same color, light pink
-        return Cow::Owned(PHANTOM_STYLE.paint(display_name).to_string());
+        return PHANTOM_STYLE.paint(display_name);
     }
 
     if let Some(style) = path.ls_style() {
         let ansi_style: &AnsiTermStyle = &Style::to_nu_ansi_term_style(style);
-        return Cow::Owned(ansi_style.paint(display_name).to_string());
+        return ansi_style.paint(display_name);
     }
 
     // if a non-phantom file that should not be colored (sometimes -- your regular files)
     // or just in case if all else fails, don't paint and return string
-    Cow::Borrowed(display_name)
+    nu_ansi_term::AnsiString::from(display_name)
 }
 
 pub trait PaintString {

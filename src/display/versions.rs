@@ -16,13 +16,15 @@
 // that was distributed with this source code.
 
 use crate::config::generate::{BulkExclusion, Config, FormattedMode, PrintMode, RawMode};
-use crate::data::paths::{PathData, PHANTOM_DATE, PHANTOM_SIZE};
+use crate::data::paths::{PHANTOM_DATE, PHANTOM_SIZE, PathData};
 use crate::filesystem::mounts::IsFilterDir;
-use crate::library::utility::{date_string, display_human_size, paint_string, DateFormat};
+use crate::library::utility::{DateFormat, date_string, display_human_size, paint_string};
 use crate::lookup::versions::ProximateDatasetAndOptAlts;
+use nu_ansi_term::AnsiGenericString;
 use std::borrow::Cow;
+use std::fmt::Debug;
 use std::ops::Deref;
-use terminal_size::{terminal_size, Height, Width};
+use terminal_size::{Height, Width, terminal_size};
 use time::UtcOffset;
 
 // 2 space wide padding - used between date and size, and size and path
@@ -209,9 +211,11 @@ impl PathData {
                     // paint the live strings with ls colors - idx == 1 is 2nd or live set
                     let painted_path_str = match display_set_type {
                         DisplaySetType::IsLive => {
-                            paint_string(self, path_buf.to_str().unwrap_or_default())
+                            paint_string(&self, path_buf.to_str().unwrap_or_default())
                         }
-                        DisplaySetType::IsSnap => path_buf.to_string_lossy(),
+                        DisplaySetType::IsSnap => {
+                            AnsiGenericString::from(path_buf.to_string_lossy())
+                        }
                     };
 
                     Cow::Owned(format!(
@@ -245,18 +249,14 @@ impl PathData {
 
     fn warning_underlying_snaps<'a>(&'a self, config: &Config) -> &'a str {
         match ProximateDatasetAndOptAlts::new(self).ok() {
-            None => {
-                "WARN: Could not determine path's most proximate dataset.\n"
-            }
+            None => "WARN: Could not determine path's most proximate dataset.\n",
             Some(_) if config.opt_omit_ditto => {
                 "WARN: Omitting the only snapshot version available, which is identical to the live file.\n"
             }
             Some(_) if self.path().is_filter_dir() => {
                 "WARN: Most proximate dataset for path is an unsupported filesystem.\n"
             }
-            Some(_) => {
-                "WARN: No snapshot version exists for the specified file.\n"
-            }
+            Some(_) => "WARN: No snapshot version exists for the specified file.\n",
         }
     }
 

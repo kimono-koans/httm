@@ -22,7 +22,7 @@ use crate::data::paths::PathData;
 use crate::display::wrapper::DisplayWrapper;
 use crate::library::results::HttmResult;
 use crate::library::utility::paint_string;
-use crate::{Config, ExecMode, VersionsMap, GLOBAL_CONFIG};
+use crate::{Config, ExecMode, GLOBAL_CONFIG, VersionsMap};
 use lscolors::Colorable;
 use skim::prelude::*;
 use std::collections::BTreeMap;
@@ -118,7 +118,7 @@ impl SkimItem for SelectionCandidate {
         self.display_name()
     }
     fn display(&self, _context: DisplayContext<'_>) -> AnsiString {
-        AnsiString::parse(&paint_string(self, &self.display_name()))
+        AnsiString::parse(&paint_string(&self, &self.display_name()).to_string())
     }
     fn output(&self) -> Cow<str> {
         self.path.to_string_lossy()
