@@ -131,7 +131,7 @@ where
 {
     let path = entry.path();
 
-    match entry.filetype() {
+    match entry.file_type() {
         Ok(file_type) => match file_type {
             file_type if file_type.is_dir() => true,
             file_type if file_type.is_file() => false,
@@ -154,7 +154,7 @@ where
 }
 pub trait HttmIsDir<'a> {
     fn httm_is_dir(&self) -> bool;
-    fn filetype(&self) -> Result<FileType, std::io::Error>;
+    fn file_type(&self) -> Result<FileType, std::io::Error>;
     fn path(&'a self) -> &'a Path;
 }
 
@@ -162,7 +162,7 @@ impl<T: AsRef<Path>> HttmIsDir<'_> for T {
     fn httm_is_dir(&self) -> bool {
         httm_is_dir(self)
     }
-    fn filetype(&self) -> Result<FileType, std::io::Error> {
+    fn file_type(&self) -> Result<FileType, std::io::Error> {
         Ok(self.as_ref().symlink_metadata()?.file_type())
     }
     fn path(&self) -> &Path {
@@ -174,7 +174,7 @@ impl<'a> HttmIsDir<'a> for PathData {
     fn httm_is_dir(&self) -> bool {
         httm_is_dir(self)
     }
-    fn filetype(&self) -> Result<FileType, std::io::Error> {
+    fn file_type(&self) -> Result<FileType, std::io::Error> {
         Ok(self.path().symlink_metadata()?.file_type())
     }
     fn path(&'a self) -> &'a Path {
@@ -186,7 +186,7 @@ impl<'a> HttmIsDir<'a> for BasicDirEntryInfo {
     fn httm_is_dir(&self) -> bool {
         httm_is_dir(self)
     }
-    fn filetype(&self) -> Result<FileType, std::io::Error> {
+    fn file_type(&self) -> Result<FileType, std::io::Error> {
         //  of course, this is a placeholder error, we just need an error to report back
         //  why not store the error in the struct instead?  because it's more complex.  it might
         //  make it harder to copy around etc
