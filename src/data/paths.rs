@@ -190,14 +190,14 @@ pub struct PathData {
 impl PartialOrd for PathData {
     #[inline]
     fn partial_cmp(&self, other: &PathData) -> Option<Ordering> {
-        Some(self.path().cmp(&other.path()))
+        Some(self.path_buf.cmp(&other.path_buf))
     }
 }
 
 impl Ord for PathData {
     #[inline]
     fn cmp(&self, other: &PathData) -> Ordering {
-        self.path().cmp(&other.path())
+        self.path_buf.cmp(&other.path_buf)
     }
 }
 
