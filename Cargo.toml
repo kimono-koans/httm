@@ -1,7 +1,7 @@
 [package]
 name = "httm"
 authors = ["Robert Swinford <robert.swinford <...at...> gmail.com>"]
-version = "0.46.6"
+version = "0.46.7"
 edition = "2024"
 keywords = ["zfs", "backup", "restore", "cli-utility", "snapshot"]
 description = "A CLI tool for viewing snapshot file versions on ZFS and btrfs datasets"
@@ -31,15 +31,15 @@ malloc_trim = ["skim/malloc_trim", "libc"]
 licensing = ["lms", "itertools"]
 
 [target.'cfg(unix)'.dependencies]
-libc = { version = "0.2.170", default-features = false, optional = true }
+libc = { version = "0.2.171", default-features = false, optional = true }
 exacl = { version = "0.12.0", default-features = false, optional = true }
 xattr = { version = "1.5.0", default-features = false, optional = true }
 
 [dependencies]
-foldhash = { version = "0.1.4", default-features = false }
-clap = { version = "4.5.31", default-features = true, features = ["cargo"] }
+foldhash = { version = "0.1.5", default-features = false }
+clap = { version = "4.5.35", default-features = true, features = ["cargo"] }
 crossbeam-channel = { version = "0.5.14", default-features = false }
-time = { version = "0.3.39", default-features = false, features = [
+time = { version = "0.3.41", default-features = false, features = [
     "formatting",
     "local-offset",
 ] }
@@ -49,7 +49,7 @@ nu-ansi-term = { version = "0.50.1", default-features = false }
 lscolors = { version = "0.20.0", default-features = false, features = [
     "nu-ansi-term",
 ] }
-terminal_size = { version = "0.4.1", default-features = false }
+terminal_size = { version = "0.4.2", default-features = false }
 which = { version = "7.0.2", default-features = false }
 rayon = { version = "1.10.0", default-features = false }
 indicatif = { version = "0.17.11", default-features = false }
@@ -63,7 +63,7 @@ nix = { version = "0.29.0", default-features = false, features = [
     "user",
     "zerocopy",
 ] }
-serde = { version = "1.0.218", default-features = false }
+serde = { version = "1.0.219", default-features = false }
 serde_json = { version = "1.0.140", default-features = false, features = [
     "preserve_order",
 ] }
