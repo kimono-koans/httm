@@ -15,12 +15,12 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
+use crate::GLOBAL_CONFIG;
 use crate::background::recursive::PathProvenance;
 use crate::background::recursive::RecursiveSearch;
 use crate::config::generate::DeletedMode;
 use crate::data::paths::BasicDirEntryInfo;
 use crate::library::results::HttmResult;
-use crate::GLOBAL_CONFIG;
 use rayon::Scope;
 use skim::prelude::*;
 use std::path::Path;
