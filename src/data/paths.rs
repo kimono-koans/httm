@@ -51,11 +51,25 @@ static DATASET_MAX_LEN: LazyLock<usize> =
 
 // only the most basic data from a DirEntry
 // for use to display in browse window and internally
-#[derive(Debug, Clone, Eq, Hash, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct BasicDirEntryInfo {
     path: Box<Path>,
     opt_filetype: Option<FileType>,
 }
+
+impl Hash for BasicDirEntryInfo {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.path.hash(state);
+    }
+}
+
+impl PartialEq for BasicDirEntryInfo {
+    fn eq(&self, other: &Self) -> bool {
+        self.path.eq(&other.path)
+    }
+}
+
+impl Eq for BasicDirEntryInfo {}
 
 impl From<DirEntry> for BasicDirEntryInfo {
     fn from(dir_entry: DirEntry) -> Self {
