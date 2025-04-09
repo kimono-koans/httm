@@ -65,7 +65,7 @@ impl DeletedFiles {
         all_pseudo_live_versions: &mut HashSet<BasicDirEntryInfo>,
         live_path_set: &HashSet<BasicDirEntryInfo>,
     ) {
-        live_path_set.into_iter().for_each(|live_file| {
+        live_path_set.iter().for_each(|live_file| {
             let _ = all_pseudo_live_versions.remove(live_file);
         });
     }
