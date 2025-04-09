@@ -307,7 +307,7 @@ impl<'a> ChecksumFileContents<'a> {
         let s = FixedState::default();
         let mut hash = s.build_hasher();
 
-        ChecksumFileContents::from(self.inner).hash(&mut hash);
+        self.hash(&mut hash);
 
         hash.finish()
     }
