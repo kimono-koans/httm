@@ -76,7 +76,7 @@ pub trait HttmIter: Iterator {
     }
 
     #[allow(dead_code)]
-    fn collect_map_no_update_values<K, V>(self) -> HashMap<K, V>
+    fn collect_map_no_update<K, V>(self) -> HashMap<K, V>
     where
         Self: Iterator<Item = (K, V)> + Sized,
         K: Hash + Eq,
@@ -85,7 +85,7 @@ pub trait HttmIter: Iterator {
     }
 
     #[allow(dead_code)]
-    fn collect_set_no_update_values<K>(self) -> HashSet<K>
+    fn collect_set_no_update<K>(self) -> HashSet<K>
     where
         Self: Iterator<Item = K> + Sized,
         K: Hash + Eq,

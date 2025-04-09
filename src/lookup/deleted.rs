@@ -16,6 +16,7 @@
 // that was distributed with this source code.
 
 use crate::data::paths::{BasicDirEntryInfo, PathData};
+use crate::library::iter_extensions::HttmIter;
 use crate::lookup::versions::{ProximateDatasetAndOptAlts, RelativePathAndSnapMounts};
 use hashbrown::HashSet;
 use std::ffi::OsString;
@@ -49,7 +50,7 @@ impl DeletedFiles {
                 .flatten()
                 .into_iter()
                 .map(|entry| BasicDirEntryInfo::from(entry))
-                .collect();
+                .collect_set_no_update();
 
             Self::remove_live_paths(&mut all_pseudo_live_versions, &live_path_set);
         }
@@ -93,7 +94,7 @@ impl DeletedFiles {
             .flat_map(|search_bundle| {
                 Self::names_and_types_for_directory(&requested_dir, search_bundle)
             })
-            .collect();
+            .collect_set_no_update();
 
         unique_deleted_file_names_for_dir
     }
