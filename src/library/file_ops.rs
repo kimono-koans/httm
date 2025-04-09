@@ -26,9 +26,8 @@ use std::fs::{create_dir_all, read_dir, set_permissions};
 use std::hash::{Hash, Hasher};
 use std::io::{BufRead, BufReader, ErrorKind};
 use std::iter::Iterator;
-use std::os::unix::fs::{chown, FileTypeExt, MetadataExt};
+use std::os::unix::fs::{FileTypeExt, MetadataExt, chown};
 use std::path::Path;
-use std::sync::LazyLock;
 
 const CHAR_KIND: SFlag = nix::sys::stat::SFlag::S_IFCHR;
 const BLK_KIND: SFlag = nix::sys::stat::SFlag::S_IFBLK;
@@ -110,18 +109,18 @@ impl Copy {
             nix::unistd::mkfifo(dst, dst_mode)?;
         } else if is_socket {
             let msg = format!(
-            "WARN: Source path could not be copied.  Source path is a socket, and sockets are not considered within the scope of httm.  \
+                "WARN: Source path could not be copied.  Source path is a socket, and sockets are not considered within the scope of httm.  \
             Traditionally, sockets could not be copied, and they should always be recreated by the generating daemon, when deleted: \"{}\"",
-            src.display()
-        );
+                src.display()
+            );
             eprintln!("{}", msg)
         } else {
             let msg = format!(
-            "httm could not determine the source path's file type, and therefore it could not be copied.  \
+                "httm could not determine the source path's file type, and therefore it could not be copied.  \
             The source path was not recognized as a directory, regular file, device, fifo, socket, or symlink.  \
             Other special file types (like doors and event ports) are unsupported: \"{}\"",
-            src.display()
-        );
+                src.display()
+            );
             return Err(HttmError::new(&msg).into());
         }
 
@@ -156,8 +155,14 @@ impl Copy {
                 Err(err) => {
                     if is_metadata_same(src, dst).is_ok() {
                         if GLOBAL_CONFIG.opt_debug {
-                            eprintln!("WARN: The OS reports an error that it was unable to copy file metadata for the following reason: {}", err.to_string().trim_end());
-                            eprintln!("NOTICE: This is most likely because such feature is unsupported by this OS.  httm confirms basic file metadata (size and mtime) are the same for transfer: {:?} -> {:?}.", src, dst)
+                            eprintln!(
+                                "WARN: The OS reports an error that it was unable to copy file metadata for the following reason: {}",
+                                err.to_string().trim_end()
+                            );
+                            eprintln!(
+                                "NOTICE: This is most likely because such feature is unsupported by this OS.  httm confirms basic file metadata (size and mtime) are the same for transfer: {:?} -> {:?}.",
+                                src, dst
+                            )
                         }
                     } else {
                         return Err(err);
@@ -290,31 +295,31 @@ impl Remove {
     }
 }
 
-pub struct HashFileContents<'a> {
+pub struct ChecksumFileContents<'a> {
     inner: &'a Path,
 }
 
-impl<'a> HashFileContents<'a> {
-    pub fn path_to_hash(path: &Path) -> u64 {
+impl<'a> ChecksumFileContents<'a> {
+    pub fn checksum(&self) -> u64 {
         use foldhash::quality::FixedState;
         use std::hash::{BuildHasher, Hasher};
 
-        let s = LazyLock::new(|| FixedState::default());
+        let s = FixedState::default();
         let mut hash = s.build_hasher();
 
-        HashFileContents::from(path).hash(&mut hash);
+        ChecksumFileContents::from(self.inner).hash(&mut hash);
 
         hash.finish()
     }
 }
 
-impl<'a> From<&'a Path> for HashFileContents<'a> {
+impl<'a> From<&'a Path> for ChecksumFileContents<'a> {
     fn from(path: &'a Path) -> Self {
         Self { inner: path }
     }
 }
 
-impl<'a> Hash for HashFileContents<'a> {
+impl<'a> Hash for ChecksumFileContents<'a> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         let Some(self_file) = std::fs::OpenOptions::new()
             .read(true)

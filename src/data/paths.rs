@@ -17,7 +17,7 @@
 
 use crate::config::generate::PrintMode;
 use crate::filesystem::mounts::{FilesystemType, IsFilterDir, MaxLen};
-use crate::library::file_ops::HashFileContents;
+use crate::library::file_ops::ChecksumFileContents;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{DateFormat, HttmIsDir, date_string, display_human_size};
 use crate::{
@@ -253,8 +253,8 @@ impl PathData {
     }
 
     pub fn is_same_file_contents(&self, other: &Self) -> bool {
-        let self_hash = HashFileContents::path_to_hash(self.path());
-        let other_hash = HashFileContents::path_to_hash(other.path());
+        let self_hash = ChecksumFileContents::from(self.path()).checksum();
+        let other_hash = ChecksumFileContents::from(other.path()).checksum();
 
         self_hash == other_hash
     }
@@ -664,12 +664,12 @@ impl CompareContentsContainer {
         let (self_hash, other_hash): (&u64, &u64) = rayon::join(
             || {
                 self.hash
-                    .get_or_init(|| HashFileContents::path_to_hash(self.path_data.path()))
+                    .get_or_init(|| ChecksumFileContents::from(self.path_data.path()).checksum())
             },
             || {
                 other
                     .hash
-                    .get_or_init(|| HashFileContents::path_to_hash(other.path_data.path()))
+                    .get_or_init(|| ChecksumFileContents::from(other.path_data.path()).checksum())
             },
         );
 
