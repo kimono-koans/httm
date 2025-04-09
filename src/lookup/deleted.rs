@@ -28,44 +28,48 @@ pub struct DeletedFiles {
     inner: HashSet<BasicDirEntryInfo>,
 }
 
+impl From<HashSet<BasicDirEntryInfo>> for DeletedFiles {
+    fn from(value: HashSet<BasicDirEntryInfo>) -> Self {
+        Self { inner: value }
+    }
+}
+
 impl DeletedFiles {
     pub fn new(requested_dir: &Path) -> Self {
         // get all local entries we need to compare against these to know
         // what is a deleted file
         //
         // create a collection of local file names
-        let mut all_pseudo_live_versions = Self::all_pseudo_live_versions(requested_dir);
+        let mut deleted_files: DeletedFiles =
+            Self::unique_pseudo_live_versions(requested_dir).into();
 
-        if all_pseudo_live_versions.is_empty() {
-            return Self {
-                inner: all_pseudo_live_versions,
-            };
+        if deleted_files.inner.is_empty() {
+            return deleted_files;
         }
 
         // this iter creates dummy "live versions" values to match deleted files
         // which have been found on snapshots, so we return to the user "the path that
         // once was" in their browse panel
         if let Ok(read_dir) = std::fs::read_dir(requested_dir) {
-            let live_path_set: HashSet<BasicDirEntryInfo> = read_dir
+            let live_paths: HashSet<BasicDirEntryInfo> = read_dir
                 .flatten()
                 .map(|entry| BasicDirEntryInfo::from(entry))
                 .collect_set_no_update();
 
-            Self::remove_live_paths(&mut all_pseudo_live_versions, &live_path_set);
+            if live_paths.is_empty() {
+                return deleted_files;
+            }
+
+            deleted_files.remove_live_paths(&live_paths);
         }
 
-        Self {
-            inner: all_pseudo_live_versions,
-        }
+        deleted_files
     }
 
     #[inline(always)]
-    fn remove_live_paths(
-        all_pseudo_live_versions: &mut HashSet<BasicDirEntryInfo>,
-        live_path_set: &HashSet<BasicDirEntryInfo>,
-    ) {
-        live_path_set.iter().for_each(|live_file| {
-            let _ = all_pseudo_live_versions.remove(live_file);
+    fn remove_live_paths(&mut self, live_paths: &HashSet<BasicDirEntryInfo>) {
+        live_paths.iter().for_each(|live_file| {
+            let _ = self.inner.remove(live_file);
         });
     }
 
@@ -75,7 +79,7 @@ impl DeletedFiles {
     }
 
     #[inline(always)]
-    fn all_pseudo_live_versions<'a>(requested_dir: &'a Path) -> HashSet<BasicDirEntryInfo> {
+    fn unique_pseudo_live_versions<'a>(requested_dir: &'a Path) -> HashSet<BasicDirEntryInfo> {
         // we always need a requesting dir because we are comparing the files in the
         // requesting dir to those of their relative dirs on snapshots
         let path_data = PathData::from(requested_dir);
@@ -91,7 +95,7 @@ impl DeletedFiles {
         let unique_deleted_file_names_for_dir: HashSet<BasicDirEntryInfo> = prox_opt_alts
             .into_search_bundles()
             .flat_map(|search_bundle| {
-                Self::names_and_types_for_directory(&requested_dir, search_bundle)
+                Self::all_snapshot_paths_for_directory(&requested_dir, search_bundle)
             })
             .collect_set_no_update();
 
@@ -99,7 +103,7 @@ impl DeletedFiles {
     }
 
     #[inline(always)]
-    fn names_and_types_for_directory<'a>(
+    fn all_snapshot_paths_for_directory<'a>(
         pseudo_live_dir: &'a Path,
         search_bundle: RelativePathAndSnapMounts<'a>,
     ) -> impl Iterator<Item = BasicDirEntryInfo> + 'a {
