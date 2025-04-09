@@ -48,7 +48,6 @@ impl DeletedFiles {
         if let Ok(read_dir) = std::fs::read_dir(requested_dir) {
             let live_path_set: HashSet<BasicDirEntryInfo> = read_dir
                 .flatten()
-                .into_iter()
                 .map(|entry| BasicDirEntryInfo::from(entry))
                 .collect_set_no_update();
 
