@@ -39,8 +39,7 @@ impl DeletedFiles {
         // creates dummy "live versions" values to match deleted files
         // which have been found on snapshots, so we return to the user "the path that
         // once was" in their browse panel
-        let mut deleted_files: DeletedFiles =
-            Self::unique_pseudo_live_versions(requested_dir).into();
+        let mut deleted_files: DeletedFiles = Self::unique_pseudo_live_versions(requested_dir);
 
         if deleted_files.is_empty() {
             return deleted_files;
@@ -85,7 +84,7 @@ impl DeletedFiles {
     }
 
     #[inline(always)]
-    fn unique_pseudo_live_versions<'a>(requested_dir: &'a Path) -> HashSet<BasicDirEntryInfo> {
+    fn unique_pseudo_live_versions<'a>(requested_dir: &'a Path) -> DeletedFiles {
         // we always need a requesting dir because we are comparing the files in the
         // requesting dir to those of their relative dirs on snapshots
         let path_data = PathData::from(requested_dir);
@@ -95,7 +94,7 @@ impl DeletedFiles {
         // we need to make certain that what we return from possibly multiple datasets are unique
 
         let Ok(prox_opt_alts) = ProximateDatasetAndOptAlts::new(&path_data) else {
-            return HashSet::new();
+            return HashSet::new().into();
         };
 
         let unique_deleted_file_names_for_dir: HashSet<BasicDirEntryInfo> = prox_opt_alts
@@ -105,7 +104,9 @@ impl DeletedFiles {
             })
             .collect_set_no_update();
 
-        unique_deleted_file_names_for_dir
+        Self {
+            inner: unique_deleted_file_names_for_dir,
+        }
     }
 
     #[inline(always)]
