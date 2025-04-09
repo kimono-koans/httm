@@ -36,20 +36,21 @@ impl From<HashSet<BasicDirEntryInfo>> for DeletedFiles {
 
 impl DeletedFiles {
     pub fn new(requested_dir: &Path) -> Self {
+        // creates dummy "live versions" values to match deleted files
+        // which have been found on snapshots, so we return to the user "the path that
+        // once was" in their browse panel
+        let mut deleted_files: DeletedFiles =
+            Self::unique_pseudo_live_versions(requested_dir).into();
+
+        if deleted_files.is_empty() {
+            return deleted_files;
+        }
+
         // get all local entries we need to compare against these to know
         // what is a deleted file
         //
         // create a collection of local file names
-        let mut deleted_files: DeletedFiles =
-            Self::unique_pseudo_live_versions(requested_dir).into();
-
-        if deleted_files.inner.is_empty() {
-            return deleted_files;
-        }
-
-        // this iter creates dummy "live versions" values to match deleted files
-        // which have been found on snapshots, so we return to the user "the path that
-        // once was" in their browse panel
+        // dir may or may not still exist
         if let Ok(read_dir) = std::fs::read_dir(requested_dir) {
             let live_paths: HashSet<BasicDirEntryInfo> = read_dir
                 .flatten()
@@ -64,6 +65,11 @@ impl DeletedFiles {
         }
 
         deleted_files
+    }
+
+    #[inline(always)]
+    fn is_empty(&mut self) -> bool {
+        self.inner.is_empty()
     }
 
     #[inline(always)]
