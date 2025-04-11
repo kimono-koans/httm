@@ -253,8 +253,10 @@ impl PathData {
     }
 
     pub fn is_same_file_contents(&self, other: &Self) -> bool {
-        let self_hash = ChecksumFileContents::from(self.path()).checksum();
-        let other_hash = ChecksumFileContents::from(other.path()).checksum();
+        let (self_hash, other_hash): (u64, u64) = rayon::join(
+            || ChecksumFileContents::from(self.path()).checksum(),
+            || ChecksumFileContents::from(other.path()).checksum(),
+        );
 
         self_hash == other_hash
     }
