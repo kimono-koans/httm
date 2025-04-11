@@ -105,9 +105,6 @@ impl<'a> RecursiveSearch<'a> {
             );
         }
 
-        // yield to the interactive/main thread here
-        std::thread::yield_now();
-
         if GLOBAL_CONFIG.opt_recursive {
             // condition kills iter when user has made a selection
             // pop_back makes this a LIFO queue which is supposedly better for caches
