@@ -15,13 +15,13 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
+use crate::GLOBAL_CONFIG;
 use crate::config::generate::PrintMode;
 use crate::library::iter_extensions::HttmIter;
 use crate::library::results::{HttmError, HttmResult};
-use crate::library::utility::{date_string, delimiter, print_output_buf, DateFormat};
+use crate::library::utility::{DateFormat, date_string, delimiter, print_output_buf};
 use crate::lookup::file_mounts::{MountDisplay, MountsForFiles};
 use crate::zfs::run_command::{RunZFSCommand, ZfsAllowPriv};
-use crate::GLOBAL_CONFIG;
 use std::collections::BTreeMap;
 use std::time::SystemTime;
 
@@ -62,12 +62,16 @@ impl SnapshotMounts {
         // splits according to pool name, then the rest of the snap name
         match snapshot_name.split_once('/') {
             Some((pool_name, _snap_name)) => Ok(pool_name.into()),
-            None => {
-                let msg = format!(
-                    "Could not determine pool name from the constructed snapshot name: {snapshot_name}"
-                );
-                Err(HttmError::new(&msg).into())
-            }
+            // what if no "/", then pool name is dataset name
+            None => match snapshot_name.split_once('@') {
+                Some((pool_name, _snap_name)) => Ok(pool_name.into()),
+                None => {
+                    let msg = format!(
+                        "Could not determine pool name from the constructed snapshot name: {snapshot_name}"
+                    );
+                    Err(HttmError::new(&msg).into())
+                }
+            },
         }
     }
 
