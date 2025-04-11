@@ -15,6 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
+use crate::GLOBAL_CONFIG;
 use crate::config::generate::{BulkExclusion, Config, FormattedMode, PrintMode, RawMode};
 use crate::data::paths::{PHANTOM_DATE, PHANTOM_SIZE, PathData};
 use crate::filesystem::mounts::IsFilterDir;
@@ -24,6 +25,7 @@ use nu_ansi_term::AnsiGenericString;
 use std::borrow::Cow;
 use std::fmt::Debug;
 use std::ops::Deref;
+use std::sync::LazyLock;
 use terminal_size::{Height, Width, terminal_size};
 use time::UtcOffset;
 
@@ -35,6 +37,28 @@ pub const PRETTY_FIXED_WIDTH_PADDING_LEN_X2: usize = 4;
 pub const NOT_SO_PRETTY_FIXED_WIDTH_PADDING: &str = "\t";
 // and we add 2 quotation marks to the path when we format
 pub const QUOTATION_MARKS_LEN: usize = 2;
+
+static PHANTOM_DATE_PAD_STR: LazyLock<String> = LazyLock::new(|| {
+    format!(
+        "{:<width$}",
+        "",
+        width = date_string(
+            GLOBAL_CONFIG.requested_utc_offset,
+            &PHANTOM_DATE,
+            DateFormat::Display
+        )
+        .chars()
+        .count()
+    )
+});
+
+static PHANTOM_SIZE_PAD_STR: LazyLock<String> = LazyLock::new(|| {
+    format!(
+        "{:<width$}",
+        "",
+        width = display_human_size(PHANTOM_SIZE).chars().count()
+    )
+});
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct DisplaySet<'a> {
@@ -185,7 +209,7 @@ impl PathData {
                 let size = if self.opt_metadata().is_some() {
                     Cow::Owned(display_human_size(metadata.size()))
                 } else {
-                    Cow::Borrowed(&padding_collection.phantom_size_pad_str)
+                    Cow::Borrowed(&*PHANTOM_SIZE_PAD_STR)
                 };
                 let path = self.path().to_string_lossy();
                 let padding = NOT_SO_PRETTY_FIXED_WIDTH_PADDING;
@@ -197,7 +221,7 @@ impl PathData {
                     let size = if self.opt_metadata().is_some() {
                         Cow::Owned(display_human_size(metadata.size()))
                     } else {
-                        Cow::Borrowed(&padding_collection.phantom_size_pad_str)
+                        Cow::Borrowed(&*PHANTOM_SIZE_PAD_STR)
                     };
                     Cow::Owned(format!(
                         "{:>width$}",
@@ -236,7 +260,7 @@ impl PathData {
                 DateFormat::Display,
             ))
         } else {
-            Cow::Borrowed(&padding_collection.phantom_date_pad_str)
+            Cow::Borrowed(&*PHANTOM_DATE_PAD_STR)
         };
 
         format!(
@@ -295,8 +319,6 @@ impl PathData {
 pub struct PaddingCollection {
     pub size_padding_len: usize,
     pub fancy_border_string: String,
-    pub phantom_date_pad_str: String,
-    pub phantom_size_pad_str: String,
 }
 
 impl PaddingCollection {
@@ -339,28 +361,9 @@ impl PaddingCollection {
 
         let fancy_border_string: String = Self::fancy_border_string(fancy_border_len);
 
-        let phantom_date_pad_str = format!(
-            "{:<width$}",
-            "",
-            width = date_string(
-                config.requested_utc_offset,
-                &PHANTOM_DATE,
-                DateFormat::Display
-            )
-            .chars()
-            .count()
-        );
-        let phantom_size_pad_str = format!(
-            "{:<width$}",
-            "",
-            width = display_human_size(PHANTOM_SIZE).chars().count()
-        );
-
         PaddingCollection {
             size_padding_len,
             fancy_border_string,
-            phantom_date_pad_str,
-            phantom_size_pad_str,
         }
     }
 
