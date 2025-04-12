@@ -197,7 +197,23 @@ impl PathData {
         padding_collection: &PaddingCollection,
     ) -> String {
         // obtain metadata for timestamp and size
-        let metadata = self.metadata_infallible();
+        let (raw_size, display_date) = match self.opt_metadata() {
+            Some(metadata) => {
+                let size = Cow::Owned(display_human_size(metadata.size()));
+
+                let display_date = Cow::Owned(date_string(
+                    config.requested_utc_offset,
+                    &metadata.mtime(),
+                    DateFormat::Display,
+                ));
+
+                (size, display_date)
+            }
+            None => (
+                Cow::Borrowed(&*PHANTOM_SIZE_PAD_STR),
+                Cow::Borrowed(&*PHANTOM_DATE_PAD_STR),
+            ),
+        };
 
         // tab delimited if "no pretty", no border lines, and no colors
         let (display_size, display_path, display_padding) = match &config.print_mode {
@@ -206,29 +222,17 @@ impl PathData {
                 //
                 // we use a dummy instead of a None value here.  Basically, sometimes, we want
                 // to print the request even if a live file does not exist
-                let size = if self.opt_metadata().is_some() {
-                    Cow::Owned(display_human_size(metadata.size()))
-                } else {
-                    Cow::Borrowed(&*PHANTOM_SIZE_PAD_STR)
-                };
                 let path = self.path().to_string_lossy();
                 let padding = NOT_SO_PRETTY_FIXED_WIDTH_PADDING;
-                (size, path, padding)
+                (raw_size, path, padding)
             }
             PrintMode::Formatted(FormattedMode::Default) => {
                 // print with padding and pretty border lines and ls colors
-                let size = {
-                    let size = if self.opt_metadata().is_some() {
-                        Cow::Owned(display_human_size(metadata.size()))
-                    } else {
-                        Cow::Borrowed(&*PHANTOM_SIZE_PAD_STR)
-                    };
-                    Cow::Owned(format!(
-                        "{:>width$}",
-                        size,
-                        width = padding_collection.size_padding_len
-                    ))
-                };
+                let size = Cow::Owned(format!(
+                    "{:>width$}",
+                    raw_size,
+                    width = padding_collection.size_padding_len
+                ));
                 let path = {
                     let path_buf = &self.path();
 
@@ -251,16 +255,6 @@ impl PathData {
                 (size, path, padding)
             }
             _ => unreachable!(),
-        };
-
-        let display_date = if self.opt_metadata().is_some() {
-            Cow::Owned(date_string(
-                config.requested_utc_offset,
-                &metadata.mtime(),
-                DateFormat::Display,
-            ))
-        } else {
-            Cow::Borrowed(&*PHANTOM_DATE_PAD_STR)
         };
 
         format!(
