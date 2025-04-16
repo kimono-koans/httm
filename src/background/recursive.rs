@@ -40,12 +40,16 @@ pub enum PathProvenance {
 
 pub struct RecursiveSearch<'a> {
     requested_dir: &'a Path,
-    skim_tx: SkimItemSender,
+    skim_tx: Option<&'a SkimItemSender>,
     hangup: Arc<AtomicBool>,
 }
 
 impl<'a> RecursiveSearch<'a> {
-    pub fn new(requested_dir: &'a Path, skim_tx: SkimItemSender, hangup: Arc<AtomicBool>) -> Self {
+    pub fn new(
+        requested_dir: &'a Path,
+        skim_tx: Option<&'a SkimItemSender>,
+        hangup: Arc<AtomicBool>,
+    ) -> Self {
         Self {
             requested_dir,
             skim_tx,
@@ -91,7 +95,7 @@ impl<'a> RecursiveSearch<'a> {
         // error can stop execution
         let mut queue: Vec<BasicDirEntryInfo> = Self::enter_directory(
             self.requested_dir,
-            &self.skim_tx,
+            self.skim_tx,
             &self.hangup,
             &PathProvenance::FromLiveDataset,
         )?;
@@ -100,7 +104,7 @@ impl<'a> RecursiveSearch<'a> {
             DeletedSearch::spawn(
                 &self.requested_dir,
                 deleted_scope,
-                self.skim_tx.clone(),
+                self.skim_tx.cloned(),
                 self.hangup.clone(),
             );
         }
@@ -120,7 +124,7 @@ impl<'a> RecursiveSearch<'a> {
                     DeletedSearch::spawn(
                         &item.path(),
                         deleted_scope,
-                        self.skim_tx.clone(),
+                        self.skim_tx.cloned(),
                         self.hangup.clone(),
                     );
                 }
@@ -129,7 +133,7 @@ impl<'a> RecursiveSearch<'a> {
                 // far too likely to run into a dir we don't have permissions to view
                 if let Ok(mut items) = Self::enter_directory(
                     &item.path(),
-                    &self.skim_tx,
+                    self.skim_tx,
                     &self.hangup,
                     &PathProvenance::FromLiveDataset,
                 ) {
@@ -158,7 +162,7 @@ impl<'a> RecursiveSearch<'a> {
 
         let initial_entries = Entries {
             path_provenance: &PathProvenance::FromLiveDataset,
-            skim_tx: &self.skim_tx,
+            skim_tx: self.skim_tx,
             vec_dirs: initial_vec_dirs,
             vec_files: Vec::new(),
         };
@@ -172,7 +176,7 @@ impl<'a> RecursiveSearch<'a> {
     #[inline(always)]
     pub fn enter_directory(
         requested_dir: &Path,
-        skim_tx: &SkimItemSender,
+        skim_tx: Option<&SkimItemSender>,
         hangup: &Arc<AtomicBool>,
         path_provenance: &PathProvenance,
     ) -> HttmResult<Vec<BasicDirEntryInfo>> {
@@ -184,7 +188,7 @@ impl<'a> RecursiveSearch<'a> {
         }
 
         // create entries struct here
-        let entries = Entries::new(requested_dir, &path_provenance, &skim_tx)?;
+        let entries = Entries::new(requested_dir, &path_provenance, skim_tx.clone())?;
 
         // combined entries will be sent or printed, but we need the vec_dirs to recurse
         let vec_dirs = entries.combine_and_send()?;
@@ -195,7 +199,7 @@ impl<'a> RecursiveSearch<'a> {
 
 pub struct Entries<'a> {
     path_provenance: &'a PathProvenance,
-    skim_tx: &'a SkimItemSender,
+    skim_tx: Option<&'a SkimItemSender>,
     vec_dirs: Vec<BasicDirEntryInfo>,
     vec_files: Vec<BasicDirEntryInfo>,
 }
@@ -205,7 +209,7 @@ impl<'a> Entries<'a> {
     pub fn new(
         requested_dir: &'a Path,
         path_provenance: &'a PathProvenance,
-        skim_tx: &'a SkimItemSender,
+        skim_tx: Option<&'a SkimItemSender>,
     ) -> HttmResult<Self> {
         // separates entries into dirs and files
         let (vec_dirs, vec_files) = match path_provenance {
@@ -272,14 +276,14 @@ impl<'a> Entries<'a> {
 struct DisplayOrTransmit<'a> {
     combined_entries: Vec<BasicDirEntryInfo>,
     path_provenance: &'a PathProvenance,
-    skim_tx: &'a SkimItemSender,
+    skim_tx: Option<&'a SkimItemSender>,
 }
 
 impl<'a> DisplayOrTransmit<'a> {
     fn new(
         combined_entries: Vec<BasicDirEntryInfo>,
         path_provenance: &'a PathProvenance,
-        skim_tx: &'a SkimItemSender,
+        skim_tx: Option<&'a SkimItemSender>,
     ) -> Self {
         Self {
             combined_entries,
@@ -332,7 +336,10 @@ impl<'a> DisplayOrTransmit<'a> {
             })
             .collect();
 
-        self.skim_tx.send(vec).map_err(std::convert::Into::into)
+        self.skim_tx
+            .expect("Sender must be Some in any interactive mode")
+            .send(vec)
+            .map_err(std::convert::Into::into)
     }
 
     fn display(self) -> HttmResult<()> {
@@ -357,12 +364,12 @@ impl NonInteractiveRecursiveWrapper {
     #[allow(unused_variables)]
     pub fn exec() -> HttmResult<()> {
         // won't be sending anything anywhere, this just allows us to reuse enumerate_directory
-        let (dummy_skim_tx, _): (SkimItemSender, SkimItemReceiver) = unbounded();
+        let opt_skim_tx = None;
         let hangup = Arc::new(AtomicBool::new(false));
 
         match &GLOBAL_CONFIG.opt_requested_dir {
             Some(requested_dir) => {
-                RecursiveSearch::new(requested_dir, dummy_skim_tx, hangup).exec();
+                RecursiveSearch::new(requested_dir, opt_skim_tx, hangup).exec();
             }
             None => {
                 return Err(HttmError::new(

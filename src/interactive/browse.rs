@@ -85,7 +85,7 @@ impl InteractiveBrowse {
         // thread spawn fn enumerate_directory - permits recursion into dirs without blocking
         let background_handle = std::thread::spawn(move || {
             // no way to propagate error from closure so exit and explain error here
-            RecursiveSearch::new(&requested_dir_clone, tx_item.clone(), hangup.clone()).exec();
+            RecursiveSearch::new(&requested_dir_clone, Some(&tx_item), hangup.clone()).exec();
         });
 
         let header: String = ViewMode::Browse.print_header();

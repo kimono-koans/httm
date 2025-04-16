@@ -34,7 +34,7 @@ impl DeletedSearch {
     pub fn spawn(
         requested_dir: &Path,
         deleted_scope: &Scope,
-        skim_tx: SkimItemSender,
+        skim_tx: Option<SkimItemSender>,
         hangup: Arc<AtomicBool>,
     ) {
         let deleted_dir = requested_dir.to_path_buf();
@@ -46,7 +46,7 @@ impl DeletedSearch {
 
     fn run_loop(
         deleted_dir: PathBuf,
-        skim_tx: SkimItemSender,
+        skim_tx: Option<SkimItemSender>,
         hangup: Arc<AtomicBool>,
     ) -> HttmResult<()> {
         if hangup.load(Ordering::Relaxed) {
@@ -55,7 +55,7 @@ impl DeletedSearch {
 
         let mut queue: Vec<BasicDirEntryInfo> = RecursiveSearch::enter_directory(
             &deleted_dir,
-            &skim_tx,
+            skim_tx.as_ref(),
             &hangup,
             &PathProvenance::IsPhantom,
         )?;
@@ -78,7 +78,7 @@ impl DeletedSearch {
 
                 if let Ok(mut items) = RecursiveSearch::enter_directory(
                     &item.path(),
-                    &skim_tx,
+                    skim_tx.as_ref(),
                     &hangup,
                     &PathProvenance::IsPhantom,
                 ) {
