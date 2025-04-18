@@ -15,6 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
+use crate::GLOBAL_CONFIG;
 use crate::config::generate::{BulkExclusion, Config, ExecMode, FormattedMode, PrintMode};
 use crate::config::generate::{NumVersionsMode, RawMode};
 use crate::data::paths::PathData;
@@ -24,7 +25,6 @@ use crate::display::versions::DisplaySetType;
 use crate::display::versions::PaddingCollection;
 use crate::library::utility::delimiter;
 use crate::lookup::versions::{Versions, VersionsMap};
-use crate::GLOBAL_CONFIG;
 use serde::ser::SerializeMap;
 use serde::{Serialize, Serializer};
 use std::collections::BTreeMap;
@@ -80,7 +80,13 @@ impl<'a> DisplayWrapper<'a> {
                             .into_iter()
                             .enumerate()
                             .filter(|(idx, _set)| {
-                                DisplaySetType::from(*idx).filter_bulk_exclusions(&self.config)
+                                let display_set_type = DisplaySetType::from(*idx);
+
+                                if let Some(bulk_exclusion) = &self.config.opt_bulk_exclusion {
+                                    return display_set_type.filter_bulk_exclusions(bulk_exclusion);
+                                }
+
+                                true
                             })
                             .map(|(_idx, set)| set)
                             .flatten()
