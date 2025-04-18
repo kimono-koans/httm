@@ -101,18 +101,10 @@ impl From<usize> for DisplaySetType {
 
 impl DisplaySetType {
     #[inline(always)]
-    pub fn filter_bulk_exclusions(&self, config: &Config) -> bool {
+    pub fn filter_bulk_exclusions(&self, bulk_exclusion: &BulkExclusion) -> bool {
         match &self {
-            DisplaySetType::IsLive
-                if matches!(config.opt_bulk_exclusion, Some(BulkExclusion::NoLive)) =>
-            {
-                false
-            }
-            DisplaySetType::IsSnap
-                if matches!(config.opt_bulk_exclusion, Some(BulkExclusion::NoSnap)) =>
-            {
-                false
-            }
+            DisplaySetType::IsLive if matches!(bulk_exclusion, BulkExclusion::NoLive) => false,
+            DisplaySetType::IsSnap if matches!(bulk_exclusion, BulkExclusion::NoSnap) => false,
             _ => true,
         }
     }
@@ -128,7 +120,11 @@ impl<'a> DisplaySet<'a> {
             .enumerate()
             .map(|(idx, snap_or_live_set)| (DisplaySetType::from(idx), snap_or_live_set))
             .filter(|(display_set_type, _snap_or_live_set)| {
-                display_set_type.filter_bulk_exclusions(config)
+                if let Some(bulk_exclusion) = &config.opt_bulk_exclusion {
+                    return display_set_type.filter_bulk_exclusions(bulk_exclusion);
+                }
+
+                true
             })
             .fold(
                 String::new(),
@@ -141,10 +137,7 @@ impl<'a> DisplaySet<'a> {
                         .collect();
 
                     // add each buffer to the set - print fancy border string above, below and between sets
-                    if matches!(
-                        config.print_mode,
-                        PrintMode::Formatted(FormattedMode::NotPretty)
-                    ) {
+                    if let PrintMode::Formatted(FormattedMode::NotPretty) = config.print_mode {
                         display_set_buffer += &component_buffer;
                         return display_set_buffer;
                     }
