@@ -17,8 +17,8 @@
 
 use crate::GLOBAL_CONFIG;
 use crate::config::generate::{BulkExclusion, Config, FormattedMode, PrintMode, RawMode};
-use crate::data::paths::{PHANTOM_DATE, PHANTOM_SIZE, PathData};
-use crate::filesystem::mounts::IsFilterDir;
+use crate::data::paths::{PHANTOM_DATE, PHANTOM_SIZE, PathData, PathDeconstruction};
+use crate::filesystem::mounts::{IsFilterDir, ROOT_PATH};
 use crate::library::utility::{DateFormat, date_string, display_human_size, paint_string};
 use nu_ansi_term::AnsiGenericString;
 use std::borrow::Cow;
@@ -255,12 +255,14 @@ impl PathData {
         )
     }
 
-    fn warning_underlying_snaps<'a>(&'a self) -> &'a str {
-        if self.path().is_filter_dir() {
-            return "WARN: Most proximate dataset for path is an unsupported filesystem.\n";
+    fn warning_underlying_snaps(&self) -> &str {
+        match self.proximate_dataset().ok() {
+            None => "WARN: Could not determine path's most proximate dataset.\n",
+            _ if self.path().ancestors().any(|mount| mount.is_filter_dir()) => {
+                "WARN: Most proximate dataset for path is an unsupported filesystem.\n"
+            }
+            _ => "WARN: No snapshot version exists for the specified file.\n",
         }
-
-        "WARN: No snapshot version exists for the specified file.\n"
     }
 
     #[inline(always)]
