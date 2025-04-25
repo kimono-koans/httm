@@ -20,7 +20,6 @@ use crate::config::generate::{BulkExclusion, Config, FormattedMode, PrintMode, R
 use crate::data::paths::{PHANTOM_DATE, PHANTOM_SIZE, PathData};
 use crate::filesystem::mounts::IsFilterDir;
 use crate::library::utility::{DateFormat, date_string, display_human_size, paint_string};
-use crate::lookup::versions::ProximateDatasetAndOptAlts;
 use nu_ansi_term::AnsiGenericString;
 use std::borrow::Cow;
 use std::fmt::Debug;
@@ -147,7 +146,7 @@ impl<'a> DisplaySet<'a> {
                             if component_buffer.is_empty() {
                                 let live_path_data = self.inner[1][0];
 
-                                let warning = live_path_data.warning_underlying_snaps(config);
+                                let warning = live_path_data.warning_underlying_snaps();
                                 let warning_len = warning.chars().count();
                                 let border_len = border.chars().count();
 
@@ -256,17 +255,12 @@ impl PathData {
         )
     }
 
-    fn warning_underlying_snaps<'a>(&'a self, config: &Config) -> &'a str {
-        match ProximateDatasetAndOptAlts::new(self).ok() {
-            None => "WARN: Could not determine path's most proximate dataset.\n",
-            Some(_) if config.opt_omit_ditto => {
-                "WARN: Omitting the only snapshot version available, which is identical to the live file.\n"
-            }
-            Some(_) if self.path().is_filter_dir() => {
-                "WARN: Most proximate dataset for path is an unsupported filesystem.\n"
-            }
-            Some(_) => "WARN: No snapshot version exists for the specified file.\n",
+    fn warning_underlying_snaps<'a>(&'a self) -> &'a str {
+        if self.path().is_filter_dir() {
+            return "WARN: Most proximate dataset for path is an unsupported filesystem.\n";
         }
+
+        "WARN: No snapshot version exists for the specified file.\n"
     }
 
     #[inline(always)]

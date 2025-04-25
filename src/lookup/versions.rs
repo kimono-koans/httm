@@ -130,6 +130,13 @@ impl VersionsMap {
         })
         .map(|mut versions| {
             if config.opt_omit_ditto {
+                    if !is_interactive_mode && versions.snap_versions.len() == 1 {
+                    eprintln!(
+                        "WARN: Omitting the only snapshot version available, which is identical to the live file: {:?}\n",
+                        versions.snap_versions[0]
+                    );
+                }
+
                 versions.omit_ditto();
             }
 
