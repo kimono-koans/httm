@@ -115,28 +115,8 @@ impl VersionsMap {
                 None
             }
         }
-        .map(|versions| {
-            if !is_interactive_mode
-                && versions.path_data_key.opt_metadata().is_none()
-                && versions.snap_versions.is_empty()
-            {
-                eprintln!(
-                    "WARN: Input file may have never existed: {:?}",
-                    versions.path_data_key.path()
-                );
-            }
-
-            versions
-        })
         .map(|mut versions| {
             if config.opt_omit_ditto {
-                    if !is_interactive_mode && versions.snap_versions.len() == 1 {
-                    eprintln!(
-                        "WARN: Omitting the only snapshot version available, which is identical to the live file: {:?}\n",
-                        versions.snap_versions[0]
-                    );
-                }
-
                 versions.omit_ditto();
             }
 

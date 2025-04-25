@@ -146,7 +146,7 @@ impl<'a> DisplaySet<'a> {
                             if component_buffer.is_empty() {
                                 let live_path_data = self.inner[1][0];
 
-                                let warning = live_path_data.warning_underlying_snaps();
+                                let warning = live_path_data.warn_on_empty_snaps(config);
                                 let warning_len = warning.chars().count();
                                 let border_len = border.chars().count();
 
@@ -255,11 +255,15 @@ impl PathData {
         )
     }
 
-    fn warning_underlying_snaps(&self) -> &str {
+    fn warn_on_empty_snaps(&self, config: &Config) -> &str {
         match self.proximate_dataset().ok() {
-            None => "WARN: Could not determine path's most proximate dataset.\n",
+            None => "WARN: Could not determine live path's most proximate dataset.\n",
             _ if self.path().ancestors().any(|mount| mount.is_filter_dir()) => {
                 "WARN: Most proximate dataset for path is an unsupported filesystem.\n"
+            }
+            _ if self.opt_metadata().is_none() => "WARN: Input file may have never existed.\n",
+            _ if config.opt_omit_ditto => {
+                "WARN: Omit ditto enabled.  Possibly omitting the only snapshot version available.\n"
             }
             _ => "WARN: No snapshot version exists for the specified file.\n",
         }
