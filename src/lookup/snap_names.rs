@@ -51,11 +51,11 @@ impl SnapNameMap {
     ) -> HttmResult<Self> {
         let inner: BTreeMap<PathData, Vec<String>> = versions_map
             .par_iter()
-            .filter(|(path_data, snaps)| {
+            .filter(|(prox_opt_alts, snaps)| {
                 if snaps.is_empty() {
                     let msg = format!(
                         "httm could not find any snapshots for the file specified: {:?}",
-                        path_data.path()
+                        prox_opt_alts.path_data().path()
                     );
                     eprintln!("WARN: {msg}");
                     return false;
@@ -63,10 +63,10 @@ impl SnapNameMap {
 
                 true
             })
-            .filter_map(|(path_data, snaps)| {
-               let opt_proximate_dataset = path_data.proximate_dataset().ok();
+            .filter_map(|(prox_opt_alts, snaps)| {
+               let opt_proximate_dataset = Some(prox_opt_alts.proximate_dataset());
 
-               match path_data.fs_type(opt_proximate_dataset) {
+               match prox_opt_alts.path_data().fs_type(opt_proximate_dataset) {
                     Some(FilesystemType::Zfs) => {
                         // use par iter here because no one else is using the global rayon thread pool any more
                         let snap_names: Vec<Box<Path>> = snaps
@@ -76,20 +76,20 @@ impl SnapNameMap {
                             })
                             .collect();
 
-                        Some((path_data, snap_names))
+                        Some((prox_opt_alts.path_data(), snap_names))
                     }
                     Some(FilesystemType::Btrfs(opt_additional_btrfs_data)) => {
                         if let Some(additional_btrfs_data) = opt_additional_btrfs_data {
                             if let Some(new_map) = additional_btrfs_data.snap_names.get() {
                                 let values: Vec<Box<Path>> = new_map.values().cloned().collect();
-                                return Some((path_data, values))
+                                return Some((prox_opt_alts.path_data(), values))
                             }                             
                         }
                         
                         None
                     },
                     _ => {
-                        eprintln!("ERROR: LIST_SNAPS is a ZFS and btrfs only option.  Path does not appear to be on a supported dataset: {:?}", path_data.path());
+                        eprintln!("ERROR: LIST_SNAPS is a ZFS and btrfs only option.  Path does not appear to be on a supported dataset: {:?}", prox_opt_alts.path_data().path());
                         None
                     }   
                 }

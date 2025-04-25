@@ -190,14 +190,20 @@ impl TryInto<InteractiveSelect> for InteractiveBrowse {
 
             let selection_buffer = display_map.to_string();
 
-            display_map.deref().iter().try_for_each(|(live, snaps)| {
-                if snaps.is_empty() {
-                    let msg = format!("Path {:?} has no snapshots available.", live.path());
-                    return Err(HttmError::new(&msg));
-                }
+            display_map
+                .deref()
+                .iter()
+                .try_for_each(|(prox_opt_alts, snaps)| {
+                    if snaps.is_empty() {
+                        let msg = format!(
+                            "Path {:?} has no snapshots available.",
+                            prox_opt_alts.path_data().path()
+                        );
+                        return Err(HttmError::new(&msg));
+                    }
 
-                Ok(())
-            })?;
+                    Ok(())
+                })?;
 
             // loop until user selects a valid snapshot version
             loop {
@@ -217,7 +223,7 @@ impl TryInto<InteractiveSelect> for InteractiveBrowse {
                         // and cannot select a 'live' version or other invalid value.
                         display_map
                             .keys()
-                            .all(|key| key.path() != Path::new(selection_buffer))
+                            .all(|key| key.path_data().path() != Path::new(selection_buffer))
                     })
                     .map(|selection_buffer| selection_buffer.to_string())
                     .collect::<Vec<String>>();

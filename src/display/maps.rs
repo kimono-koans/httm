@@ -19,7 +19,7 @@ use crate::config::generate::{FormattedMode, PrintMode, RawMode};
 use crate::data::paths::{PathData, ZfsSnapPathGuard};
 use crate::display::versions::{NOT_SO_PRETTY_FIXED_WIDTH_PADDING, QUOTATION_MARKS_LEN};
 use crate::library::utility::delimiter;
-use crate::{MountsForFiles, SnapNameMap, VersionsMap, GLOBAL_CONFIG};
+use crate::{GLOBAL_CONFIG, MountsForFiles, SnapNameMap, VersionsMap};
 use serde::ser::SerializeMap;
 use serde::{Serialize, Serializer};
 use std::collections::BTreeMap;
@@ -83,7 +83,7 @@ impl<'a> From<&MountsForFiles<'a>> for PrintAsMap {
     }
 }
 
-impl From<&VersionsMap> for PrintAsMap {
+impl<'a> From<&'a VersionsMap<'a>> for PrintAsMap {
     fn from(map: &VersionsMap) -> Self {
         let inner = map
             .iter()
@@ -92,7 +92,7 @@ impl From<&VersionsMap> for PrintAsMap {
                     .iter()
                     .map(|value| value.path().to_string_lossy().to_string())
                     .collect();
-                (key.path().to_string_lossy().to_string(), res)
+                (key.path_data().path().to_string_lossy().to_string(), res)
             })
             .collect();
         Self { inner }

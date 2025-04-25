@@ -24,6 +24,7 @@ use crate::display::versions::DisplaySet;
 use crate::display::versions::DisplaySetType;
 use crate::display::versions::PaddingCollection;
 use crate::library::utility::delimiter;
+use crate::lookup::versions::ProximateDatasetAndOptAlts;
 use crate::lookup::versions::{Versions, VersionsMap};
 use serde::ser::SerializeMap;
 use serde::{Serialize, Serializer};
@@ -32,7 +33,7 @@ use std::ops::Deref;
 
 pub struct DisplayWrapper<'a> {
     config: &'a Config,
-    map: VersionsMap,
+    map: VersionsMap<'a>,
 }
 
 impl<'a> DisplayWrapper<'a> {
@@ -40,20 +41,21 @@ impl<'a> DisplayWrapper<'a> {
         // if a single instance immediately return the global we already prepared
         match &self.config.print_mode {
             PrintMode::Formatted(_) => {
-                let keys: Vec<&PathData> = self.keys().collect();
-                let values: Vec<&PathData> = self.values().flatten().collect();
+                let keys: Vec<&PathData> = self.map.keys().map(|key| key.path_data()).collect();
+                let values: Vec<&PathData> = self.map.values().flatten().collect();
 
                 let global_display_set = DisplaySet::from((keys, values));
                 let padding_collection = PaddingCollection::new(self.config, &global_display_set);
 
-                if self.len() == 1 {
+                if self.map.len() == 1 {
                     return global_display_set.format(self.config, &padding_collection);
                 }
 
                 // else re compute for each instance and print per instance, now with uniform padding
-                self.iter()
+                self.map
+                    .iter()
                     .map(|(key, values)| {
-                        let keys: Vec<&PathData> = vec![key];
+                        let keys: Vec<&PathData> = vec![key.path_data()];
                         let values: Vec<&PathData> = values.iter().collect();
 
                         let display_set = DisplaySet::from((keys, values));
@@ -66,9 +68,10 @@ impl<'a> DisplayWrapper<'a> {
                 let delimiter: char = delimiter();
 
                 // else re compute for each instance and print per instance, now with uniform padding
-                self.iter()
+                self.map
+                    .iter()
                     .map(|(key, values)| {
-                        let keys: Vec<&PathData> = vec![key];
+                        let keys: Vec<&PathData> = vec![key.path_data()];
                         let values: Vec<&PathData> = values.iter().collect();
 
                         (keys, values)
@@ -106,7 +109,7 @@ impl<'a> DisplayWrapper<'a> {
 
         let map_padding = printable_map.map_padding();
 
-        let total_num_paths = self.len();
+        let total_num_paths = self.map.len();
 
         let print_mode = &GLOBAL_CONFIG.print_mode;
 
@@ -114,7 +117,9 @@ impl<'a> DisplayWrapper<'a> {
             .map
             .deref()
             .into_iter()
-            .map(|(live_version, snaps)| Versions::from_raw(live_version.clone(), snaps.clone()))
+            .filter_map(|(prox_opt_alts, snaps)| {
+                Versions::from_raw(prox_opt_alts.clone(), snaps.clone()).ok()
+            })
             .filter_map(|versions| {
                 Self::parse_num_versions(
                     num_versions_mode,
@@ -258,7 +263,7 @@ impl<'a> std::string::ToString for DisplayWrapper<'a> {
 }
 
 impl<'a> Deref for DisplayWrapper<'a> {
-    type Target = BTreeMap<PathData, Vec<PathData>>;
+    type Target = BTreeMap<ProximateDatasetAndOptAlts<'a>, Vec<PathData>>;
 
     fn deref(&self) -> &Self::Target {
         &self.map
@@ -266,7 +271,7 @@ impl<'a> Deref for DisplayWrapper<'a> {
 }
 
 impl<'a> DisplayWrapper<'a> {
-    pub fn from(config: &'a Config, map: VersionsMap) -> Self {
+    pub fn from(config: &'a Config, map: VersionsMap<'a>) -> Self {
         Self { config, map }
     }
 
@@ -300,12 +305,17 @@ impl<'a> Serialize for DisplayWrapper<'a> {
             .clone()
             .into_iter()
             .map(|(key, values)| match &self.config.opt_bulk_exclusion {
-                Some(BulkExclusion::NoLive) => (key.path().display().to_string(), values),
-                Some(BulkExclusion::NoSnap) => (key.path().display().to_string(), vec![key]),
+                Some(BulkExclusion::NoLive) => {
+                    (key.path_data().path().display().to_string(), values)
+                }
+                Some(BulkExclusion::NoSnap) => (
+                    key.path_data().path().display().to_string(),
+                    vec![key.path_data().clone()],
+                ),
                 None => {
                     let mut new_values = values;
-                    new_values.push(key.clone());
-                    (key.path().display().to_string(), new_values)
+                    new_values.push(key.path_data().clone());
+                    (key.path_data().path().display().to_string(), new_values)
                 }
             })
             .collect();

@@ -31,40 +31,40 @@ use std::path::{Path, PathBuf};
 use std::sync::{LazyLock, RwLock};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct VersionsMap {
-    inner: BTreeMap<PathData, Vec<PathData>>,
+pub struct VersionsMap<'a> {
+    inner: BTreeMap<ProximateDatasetAndOptAlts<'a>, Vec<PathData>>,
 }
 
-impl From<BTreeMap<PathData, Vec<PathData>>> for VersionsMap {
-    fn from(map: BTreeMap<PathData, Vec<PathData>>) -> Self {
+impl<'a> From<BTreeMap<ProximateDatasetAndOptAlts<'a>, Vec<PathData>>> for VersionsMap<'a> {
+    fn from(map: BTreeMap<ProximateDatasetAndOptAlts<'a>, Vec<PathData>>) -> Self {
         Self { inner: map }
     }
 }
 
-impl From<[(PathData, Vec<PathData>); 1]> for VersionsMap {
-    fn from(slice: [(PathData, Vec<PathData>); 1]) -> Self {
+impl<'a> From<[(ProximateDatasetAndOptAlts<'a>, Vec<PathData>); 1]> for VersionsMap<'a> {
+    fn from(slice: [(ProximateDatasetAndOptAlts<'a>, Vec<PathData>); 1]) -> Self {
         Self {
             inner: slice.into(),
         }
     }
 }
 
-impl Deref for VersionsMap {
-    type Target = BTreeMap<PathData, Vec<PathData>>;
+impl<'a> Deref for VersionsMap<'a> {
+    type Target = BTreeMap<ProximateDatasetAndOptAlts<'a>, Vec<PathData>>;
 
     fn deref(&self) -> &Self::Target {
         &self.inner
     }
 }
 
-impl DerefMut for VersionsMap {
-    fn deref_mut(&mut self) -> &mut BTreeMap<PathData, Vec<PathData>> {
+impl<'a> DerefMut for VersionsMap<'a> {
+    fn deref_mut(&mut self) -> &mut BTreeMap<ProximateDatasetAndOptAlts<'a>, Vec<PathData>> {
         &mut self.inner
     }
 }
 
-impl VersionsMap {
-    pub fn new(config: &Config, path_set: &[PathData]) -> HttmResult<VersionsMap> {
+impl<'a> VersionsMap<'a> {
+    pub fn new(config: &'a Config, path_set: &'a [PathData]) -> HttmResult<VersionsMap<'a>> {
         let is_interactive_mode = matches!(GLOBAL_CONFIG.exec_mode, ExecMode::Interactive(_));
 
         let versions_map: VersionsMap =
@@ -75,7 +75,7 @@ impl VersionsMap {
         if versions_map.values().all(std::vec::Vec::is_empty)
             && versions_map
                 .keys()
-                .all(|path_data| path_data.opt_metadata().is_none())
+                .all(|prox_opt_alts| prox_opt_alts.path_data.opt_metadata().is_none())
         {
             return Err(HttmError::new(
                 "httm could find neither a live version, nor any snapshot version for all the specified paths, so, umm, 🤷? Please try another file.",
@@ -88,23 +88,23 @@ impl VersionsMap {
 
     #[inline(always)]
     fn from_multiple_paths(
-        config: &Config,
-        path_set: &[PathData],
+        config: &'a Config,
+        path_set: &'a [PathData],
         is_interactive_mode: bool,
-    ) -> BTreeMap<PathData, Vec<PathData>> {
+    ) -> BTreeMap<ProximateDatasetAndOptAlts<'a>, Vec<PathData>> {
         path_set
             .par_iter()
             .flat_map(|path_data| Self::from_single_path(config, path_data, is_interactive_mode))
-            .map(|versions| versions.into_inner())
+            .map(|versions| (versions.prox_opt_alts, versions.snap_versions))
             .collect()
     }
 
     #[inline(always)]
     pub fn from_single_path(
-        config: &Config,
-        path_data: &PathData,
+        config: &'a Config,
+        path_data: &'a PathData,
         is_interactive_mode: bool,
-    ) -> Option<Versions> {
+    ) -> Option<Versions<'a>> {
         match Versions::new(path_data, config) {
             Ok(versions) => Some(versions),
             Err(err) => {
@@ -117,12 +117,12 @@ impl VersionsMap {
         }
         .map(|versions| {
             if !is_interactive_mode
-                && versions.path_data_key.opt_metadata().is_none()
+                && versions.prox_opt_alts.path_data.opt_metadata().is_none()
                 && versions.snap_versions.is_empty()
             {
                 eprintln!(
                     "WARN: Input file may have never existed: {:?}",
-                    versions.path_data_key.path()
+                    versions.prox_opt_alts.path_data.path()
                 );
             }
 
@@ -145,16 +145,15 @@ impl VersionsMap {
     }
 }
 
-pub struct Versions {
-    path_data_key: PathData,
+pub struct Versions<'a> {
+    prox_opt_alts: ProximateDatasetAndOptAlts<'a>,
     snap_versions: Vec<PathData>,
 }
 
-impl Versions {
+impl<'a> Versions<'a> {
     #[inline(always)]
-    pub fn new(path_data: &PathData, config: &Config) -> HttmResult<Self> {
+    pub fn new(path_data: &'a PathData, config: &'a Config) -> HttmResult<Self> {
         let prox_opt_alts = ProximateDatasetAndOptAlts::new(path_data)?;
-        let path_data_key = prox_opt_alts.path_data.clone();
         let snap_versions: Vec<PathData> = prox_opt_alts
             .into_search_bundles()
             .flat_map(|relative_path_snap_mounts| {
@@ -163,35 +162,39 @@ impl Versions {
             .collect();
 
         Ok(Self {
-            path_data_key,
+            prox_opt_alts,
             snap_versions,
         })
     }
 
     pub fn live_path_data(&self) -> &PathData {
-        &self.path_data_key
+        &self.prox_opt_alts.path_data
     }
 
     pub fn snap_versions(&self) -> &[PathData] {
         &self.snap_versions
     }
 
-    pub fn from_raw(path_data_key: PathData, snap_versions: Vec<PathData>) -> Self {
-        Self {
-            path_data_key,
+    pub fn from_raw(
+        prox_opt_alts: ProximateDatasetAndOptAlts<'a>,
+        snap_versions: Vec<PathData>,
+    ) -> HttmResult<Self> {
+        Ok(Self {
+            prox_opt_alts,
             snap_versions,
-        }
+        })
     }
 
     #[inline(always)]
-    pub fn into_inner(self) -> (PathData, Vec<PathData>) {
-        (self.path_data_key, self.snap_versions)
+    pub fn into_inner(self) -> (ProximateDatasetAndOptAlts<'a>, Vec<PathData>) {
+        (self.prox_opt_alts, self.snap_versions)
     }
 
     #[inline(always)]
     pub fn is_live_version_redundant(&self) -> bool {
         if let Some(last_snap) = self.snap_versions.last() {
-            return last_snap.metadata_infallible() == self.path_data_key.metadata_infallible();
+            return last_snap.metadata_infallible()
+                == self.prox_opt_alts.path_data.metadata_infallible();
         }
 
         false
@@ -211,12 +214,12 @@ impl Versions {
             Some(last) => match last_snap_mode {
                 LastSnapMode::Any => vec![last.to_owned()],
                 LastSnapMode::DittoOnly
-                    if self.path_data_key.opt_metadata() == last.opt_metadata() =>
+                    if self.prox_opt_alts.path_data.opt_metadata() == last.opt_metadata() =>
                 {
                     vec![last.to_owned()]
                 }
                 LastSnapMode::NoDittoExclusive | LastSnapMode::NoDittoInclusive
-                    if self.path_data_key.opt_metadata() != last.opt_metadata() =>
+                    if self.prox_opt_alts.path_data.opt_metadata() != last.opt_metadata() =>
                 {
                     vec![last.to_owned()]
                 }
@@ -224,7 +227,7 @@ impl Versions {
             },
             None => match last_snap_mode {
                 LastSnapMode::Without | LastSnapMode::NoDittoInclusive => {
-                    vec![self.path_data_key.clone()]
+                    vec![self.prox_opt_alts.path_data.clone()]
                 }
                 _ => Vec::new(),
             },

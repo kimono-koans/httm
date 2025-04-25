@@ -22,6 +22,7 @@ use crate::data::paths::PathData;
 use crate::display::wrapper::DisplayWrapper;
 use crate::library::results::HttmResult;
 use crate::library::utility::paint_string;
+use crate::lookup::versions::ProximateDatasetAndOptAlts;
 use crate::{Config, ExecMode, GLOBAL_CONFIG, VersionsMap};
 use lscolors::Colorable;
 use skim::prelude::*;
@@ -58,14 +59,14 @@ impl SelectionCandidate {
         // generate a config for display
         let display_config: Config = Config::from(self);
         let display_path_data = PathData::from(&self.path);
-        static IS_INTERACTIVE_MODE: bool = true;
+        const IS_INTERACTIVE_MODE: bool = true;
 
         // finally run search on those paths
         let all_snap_versions: VersionsMap =
             VersionsMap::from_single_path(&display_config, &display_path_data, IS_INTERACTIVE_MODE)
                 .into_iter()
                 .map(|versions| versions.into_inner())
-                .collect::<BTreeMap<PathData, Vec<PathData>>>()
+                .collect::<BTreeMap<ProximateDatasetAndOptAlts<'_>, Vec<PathData>>>()
                 .into();
 
         let output_buf = DisplayWrapper::from(&display_config, all_snap_versions).to_string();
