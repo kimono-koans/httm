@@ -16,10 +16,12 @@
 // that was distributed with this source code.
 
 use crate::GLOBAL_CONFIG;
+use crate::config::generate::DedupBy;
 use crate::config::generate::{BulkExclusion, Config, FormattedMode, PrintMode, RawMode};
-use crate::data::paths::{PHANTOM_DATE, PHANTOM_SIZE, PathData, PathDeconstruction};
+use crate::data::paths::{PHANTOM_DATE, PHANTOM_SIZE, PathData};
 use crate::filesystem::mounts::IsFilterDir;
 use crate::library::utility::{DateFormat, date_string, display_human_size, paint_string};
+use crate::lookup::versions::ProximateDatasetAndOptAlts;
 use nu_ansi_term::AnsiGenericString;
 use std::borrow::Cow;
 use std::fmt::Debug;
@@ -256,14 +258,23 @@ impl PathData {
     }
 
     fn warn_on_empty_snaps(&self, config: &Config) -> &str {
-        match self.proximate_dataset().ok() {
+        match ProximateDatasetAndOptAlts::new(self).ok() {
             None => "WARN: Could not determine live path's most proximate dataset.\n",
             _ if self.path().ancestors().any(|mount| mount.is_filter_dir()) => {
                 "WARN: Most proximate dataset for path is an unsupported filesystem.\n"
             }
             _ if self.opt_metadata().is_none() => "WARN: Input file may have never existed.\n",
-            _ if config.opt_omit_ditto => {
-                "WARN: Omit ditto enabled.  Possibly omitting the only snapshot version available.\n"
+            Some(prox_opt_alts)
+                if config.opt_omit_ditto
+                    && prox_opt_alts
+                        .into_search_bundles()
+                        .flat_map(|relative_path_and_snap_mounts| {
+                            relative_path_and_snap_mounts.versions_processed(&DedupBy::Disable)
+                        })
+                        .count()
+                        != 0 =>
+            {
+                "WARN: Omit ditto enabled.  Omitting the only snapshot version available.\n"
             }
             _ => "WARN: No snapshot version exists for the specified file.\n",
         }
