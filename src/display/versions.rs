@@ -18,7 +18,7 @@
 use crate::GLOBAL_CONFIG;
 use crate::config::generate::{BulkExclusion, Config, FormattedMode, PrintMode, RawMode};
 use crate::data::paths::{PHANTOM_DATE, PHANTOM_SIZE, PathData, PathDeconstruction};
-use crate::filesystem::mounts::{IsFilterDir, ROOT_PATH};
+use crate::filesystem::mounts::IsFilterDir;
 use crate::library::utility::{DateFormat, date_string, display_human_size, paint_string};
 use nu_ansi_term::AnsiGenericString;
 use std::borrow::Cow;
