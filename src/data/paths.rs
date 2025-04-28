@@ -605,31 +605,7 @@ impl Eq for CompareContentsContainer {}
 
 impl PartialEq for CompareContentsContainer {
     fn eq(&self, other: &Self) -> bool {
-        self.cmp(&other).is_eq()
-    }
-}
-
-impl PartialOrd for CompareContentsContainer {
-    #[inline(always)]
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for CompareContentsContainer {
-    #[inline(always)]
-    fn cmp(&self, other: &Self) -> Ordering {
-        let size_order: Ordering = self.size().cmp(&other.size());
-
-        if size_order.is_eq() {
-            let contents_order = self.cmp_file_contents(other);
-
-            return contents_order;
-        }
-
-        let time_order: Ordering = self.mtime().cmp(&other.mtime());
-
-        time_order
+        self.cmp_file_contents(other).is_eq()
     }
 }
 
@@ -654,11 +630,6 @@ impl CompareContentsContainer {
     #[inline(always)]
     pub fn mtime(&self) -> SystemTime {
         self.path_data.metadata_infallible().modify_time
-    }
-
-    #[inline(always)]
-    pub fn size(&self) -> u64 {
-        self.path_data.metadata_infallible().size
     }
 
     #[allow(unused_assignments)]
