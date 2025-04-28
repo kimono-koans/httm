@@ -628,8 +628,8 @@ impl From<PathData> for CompareContentsContainer {
 
 impl CompareContentsContainer {
     #[inline(always)]
-    pub fn mtime(&self) -> SystemTime {
-        self.path_data.metadata_infallible().modify_time
+    pub fn metadata_infallible(&self) -> PathMetadata {
+        self.path_data.metadata_infallible()
     }
 
     #[allow(unused_assignments)]
