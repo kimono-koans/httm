@@ -601,14 +601,6 @@ pub struct CompareContentsContainer {
     hash: OnceLock<u64>,
 }
 
-impl Eq for CompareContentsContainer {}
-
-impl PartialEq for CompareContentsContainer {
-    fn eq(&self, other: &Self) -> bool {
-        self.cmp_file_contents(other).is_eq()
-    }
-}
-
 impl From<CompareContentsContainer> for PathData {
     #[inline(always)]
     fn from(value: CompareContentsContainer) -> Self {
