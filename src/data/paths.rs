@@ -618,18 +618,21 @@ impl PartialOrd for CompareContentsContainer {
 
 impl Ord for CompareContentsContainer {
     #[inline(always)]
+    // reverse normal ordering because comparisons should be size first here
     fn cmp(&self, other: &Self) -> Ordering {
         let size_order: Ordering = self.size().cmp(&other.size());
 
-        if size_order.is_eq() {
-            let contents_order = self.cmp_file_contents(other);
-
-            return contents_order;
+        if size_order.is_ne() {
+            return size_order;
         }
 
         let time_order: Ordering = self.mtime().cmp(&other.mtime());
 
-        time_order
+        if time_order.is_eq() {
+            return Ordering::Equal;
+        }
+
+        self.cmp_file_contents(other)
     }
 }
 
@@ -651,16 +654,25 @@ impl From<PathData> for CompareContentsContainer {
 }
 
 impl CompareContentsContainer {
+    #[allow(unused)]
     #[inline(always)]
     pub fn mtime(&self) -> SystemTime {
         self.path_data.metadata_infallible().modify_time
     }
 
+    #[allow(unused)]
     #[inline(always)]
     pub fn size(&self) -> u64 {
         self.path_data.metadata_infallible().size
     }
 
+    #[allow(unused)]
+    #[inline(always)]
+    pub fn metadata_infallible(&self) -> PathMetadata {
+        self.path_data.metadata_infallible()
+    }
+
+    #[allow(unused)]
     #[allow(unused_assignments)]
     pub fn cmp_file_contents(&self, other: &Self) -> Ordering {
         let (self_hash, other_hash): (&u64, &u64) = rayon::join(
