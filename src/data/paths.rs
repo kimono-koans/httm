@@ -539,6 +539,7 @@ impl Serialize for PathMetadata {
 pub struct PathMetadata {
     size: u64,
     modify_time: SystemTime,
+    birth_time: SystemTime,
 }
 
 impl PathMetadata {
@@ -546,9 +547,13 @@ impl PathMetadata {
     #[inline(always)]
     pub fn new(md: &Metadata) -> Option<Self> {
         // may fail on systems that don't collect a modify time
-        md.modified().ok().map(|time| PathMetadata {
+        let modify_time = md.modified().ok()?;
+        let birth_time = md.created().ok()?;
+
+        Some(PathMetadata {
             size: md.len(),
-            modify_time: time,
+            modify_time,
+            birth_time,
         })
     }
 
@@ -557,6 +562,12 @@ impl PathMetadata {
     #[inline(always)]
     pub fn mtime(&self) -> SystemTime {
         self.modify_time
+    }
+
+    #[allow(dead_code)]
+    #[inline(always)]
+    pub fn btime(&self) -> SystemTime {
+        self.birth_time
     }
 
     #[inline(always)]
@@ -593,6 +604,7 @@ pub const PHANTOM_SIZE: u64 = 0u64;
 pub const PHANTOM_PATH_METADATA: PathMetadata = PathMetadata {
     size: PHANTOM_SIZE,
     modify_time: PHANTOM_DATE,
+    birth_time: PHANTOM_DATE,
 };
 
 #[derive(Debug)]
@@ -626,9 +638,10 @@ impl Ord for CompareContentsContainer {
             return size_order;
         }
 
-        let time_order: Ordering = self.mtime().cmp(&other.mtime());
+        let mtime_order: Ordering = self.mtime().cmp(&other.mtime());
+        let btime_order: Ordering = self.btime().cmp(&other.btime());
 
-        if time_order.is_eq() {
+        if mtime_order.is_eq() && btime_order.is_eq() {
             return Ordering::Equal;
         }
 
@@ -658,6 +671,12 @@ impl CompareContentsContainer {
     #[inline(always)]
     pub fn mtime(&self) -> SystemTime {
         self.path_data.metadata_infallible().modify_time
+    }
+
+    #[allow(unused)]
+    #[inline(always)]
+    pub fn btime(&self) -> SystemTime {
+        self.path_data.metadata_infallible().birth_time
     }
 
     #[allow(unused)]
