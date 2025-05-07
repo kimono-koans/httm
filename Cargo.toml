@@ -59,12 +59,13 @@ hashbrown = { version = "0.15.3", default-features = false, features = [
     "inline-more",
     "default-hasher",
 ] }
-nix = { version = "0.30.0", default-features = false, features = [
+nix = { version = "0.30.1", default-features = false, features = [
     "user",
     "zerocopy",
 ] }
-serde = { version = "1.0.219", default-features = false }
+serde = { version = "1.0.219", default-features = false, features = ["alloc"] }
 serde_json = { version = "1.0.140", default-features = false, features = [
+    "alloc",
     "preserve_order",
 ] }
 realpath-ext = { version = "0.1.3", default-features = false, features = [
