@@ -111,7 +111,7 @@ impl BasicDirEntryInfo {
         self.httm_is_dir()
     }
 
-    pub fn all_exclusions(&self) -> bool {
+    pub fn recursive_search_filter(&self) -> bool {
         if GLOBAL_CONFIG.opt_no_filter {
             return true;
         }

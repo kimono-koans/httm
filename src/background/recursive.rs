@@ -90,7 +90,7 @@ impl<'a> RecursiveSearch<'a> {
         // so here we add the directory and its parent as a selection item
         self.add_dot_entries()?;
 
-        // runs once for non-recursive but also "primes the pump"
+        // runs once for non-recur sive but also "primes the pump"
         // for recursive to have items available, also only place an
         // error can stop execution
         let mut queue: Vec<BasicDirEntryInfo> = Self::enter_directory(
@@ -219,7 +219,7 @@ impl<'a> Entries<'a> {
                     // checking file_type on dir entries is always preferable
                     // as it is much faster than a metadata call on the path
                     .map(|dir_entry| BasicDirEntryInfo::from(dir_entry))
-                    .filter(|entry| entry.all_exclusions())
+                    .filter(|entry| entry.recursive_search_filter())
                     .partition(|entry| entry.is_entry_dir())
             }
             PathProvenance::IsPhantom => {
