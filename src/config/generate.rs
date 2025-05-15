@@ -323,13 +323,14 @@ fn parse_args() -> ArgMatches {
                 .value_parser(clap::value_parser!(String))
                 .num_args(1)
                 .require_equals(true)
-                .help("traditionally 'zfs rollback' is a destructive operation, whereas httm roll-forward is non-destructive. \
-                httm will copy only files and their attributes that have changed since a specified snapshot, from that snapshot, to its live dataset. \
+                .help("traditionally 'zfs rollback' is a destructive operation, whereas this flag is non-destructive, \
+                as it preserves interstitial snapshots, and requires a snapshot guard before taking any action.  \
+                If this flag is specified with a snapshot name, httm will copy those files and their attributes that have changed since a specified snapshot, from that snapshot, to the live dataset. \
                 httm will also take two precautionary snapshots, one before and one after the copy. \
                 Should the roll forward fail for any reason, httm will rollback to the pre-execution state. \
                 CAVEATS: This is a ZFS only option which requires super user privileges.  \
-                Not all filesystem features are supported (for instance, Solaris door or sockets on the snapshot) and may cause a roll forward to fail.  \
-                Certain special/files objects will be copied or recreated, but are not guaranteed to be in the same state as the snapshot (for instance, FIFO buffers).")
+                Not all filesystem features are supported (for instance, Unix sockets on the snapshot) and may cause a roll forward to fail.  \
+                Moreover, certain special/files objects will be copied or recreated, but are not guaranteed to be in the same state as the snapshot (for instance, FIFO buffers).")
                 .conflicts_with_all(&["BROWSE", "RESTORE", "ALT_REPLICATED", "REMOTE_DIR", "LOCAL_DIR"])
                 .display_order(13)
                 .action(ArgAction::Append)
@@ -360,9 +361,9 @@ fn parse_args() -> ArgMatches {
                 .require_equals(true)
                 .help("by default, display the all mount point/s of all dataset/s which contain/s the input file/s. \
                 This argument optionally takes a value to display other information about the path. Possible values are: \
-                \"mount\" or \"target\" or \"directory\", return the directory upon which the underlying dataset or device of the mount, \
-                \"source\" or \"device\" or \"dataset\", return the underlying dataset/device of the mount, and, \
-                \"relative-path\" or \"relative\", return the path relative to the underlying dataset/device of the mount.")
+                \"mount\" or \"target\" or \"directory\", the default value, returns the mount/directory of a file's underlying dataset, \
+                \"source\" or \"device\" or \"dataset\", returns a file's underlying dataset/device, and, \
+                \"relative-path\" or \"relative\", returns a file's relative path from the underlying mount.")
                 .conflicts_with_all(&["BROWSE", "SELECT", "RESTORE"])
                 .display_order(14)
                 .action(ArgAction::Append)
