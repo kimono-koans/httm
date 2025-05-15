@@ -151,9 +151,11 @@ fn parse_args() -> ArgMatches {
         .version(crate_version!())
         .arg(
             Arg::new("INPUT_FILES")
-                .help("in any non-interactive mode (when BROWSE, SELECT, or RESTORE are not specified), put requested paths after any program flags. If you include no paths as arguments, \
-                then httm will pause waiting for input on stdin. In any interactive mode (when BROWSE, SELECT, or RESTORE are specified), this is the directory search path.  \
-                If no directory is specified, httm will use the current working directory.")
+                .help("in the non-interactive modes (when BROWSE, SELECT, or RESTORE are not specified), \
+                user may specify one or many paths for a simple display of snapshot versions.  \
+                If no paths are included as arguments, then httm will pause waiting for paths to be piped in via stdin (e.g. 'find . | httm').  \
+                In the interactive modes (when BROWSE, SELECT, or RESTORE are specified), user may specify one base directory from which to begin a search.  \
+                If the interactive modes, if no directory is specified, httm will use the current working directory.")
                 .value_parser(clap::value_parser!(PathBuf))
                 .num_args(0..)
                 .display_order(1)
@@ -501,8 +503,9 @@ fn parse_args() -> ArgMatches {
                 .require_equals(true)
                 .value_parser(["restic", "timemachine"])
                 .help("give priority to specified alternative backups stores, like Restic, and Time Machine.  \
-                If this flag is specified, httm will place any discovered alternative backups store snapshots as snapshots for the root mount point (\"/\").  \
-                Before use, be sure that any such repository is mounted.  You may need superuser privileges to view a repository mounted with superuser permission.  \
+                If this flag is specified, httm will place any discovered alternative backups store as priority snapshots for the root mount point (\"/\"), \
+                ignoring other, potentially more direct, mounts.  Before use, be sure that any such repository is mounted.  \
+                You may need superuser privileges to view a repository mounted with superuser permission.  \
                 NOTE: httm includes a helper script called \"equine\" which can assist you in mounting remote and local Time Machine snapshots.")
                 .conflicts_with_all(["MAP_ALIASES"])
                 .display_order(28)
@@ -577,7 +580,7 @@ fn parse_args() -> ArgMatches {
             Arg::new("NO_CLONES")
                 .long("no-clones")
                 .help("by default, when copying files from snapshots, httm will first attempt a zero copy \"reflink\" clone on systems that support it. \
-                Here, you may disable that behavior, and force httm to use the diff copy behavior as the default. \
+                Here, you may disable that behavior, and force httm to use the default copy behavior. \
                 You may also set an environment variable to any value, \"HTTM_NO_CLONE\" to disable.")
                 .display_order(34)
                 .action(ArgAction::SetTrue)
