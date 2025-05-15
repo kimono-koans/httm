@@ -265,7 +265,7 @@ fn parse_args() -> ArgMatches {
                 .default_missing_value("contents")
                 .require_equals(true)
                 .help("comparing file versions solely on the basis of size and modify time (the default \"metadata\" behavior) may return what appear to be \"false positives\".  \
-                This is because modify time is not a precise measure of whether a file has actually changed. A program might overwrite a file with the same contents, \
+                This is because metadata, specifically modify time and size, is not a precise measure of whether a file has actually changed. A program might overwrite a file with the same contents, \
                 and/or a user can simply update the modify time via 'touch'. When specified with the \"contents\" option, httm compares the actual file contents of same-sized file versions, \
                 overriding the default \"metadata\" only behavior. The \"contents\" option can be expensive, as the file versions need to be read back and compared, and, thus, should probably only be used for smaller files. \
                 Given how expensive this operation can be, for larger files or files with many versions, if specified, the \"contents\" option is not shown in BROWSE mode, \
