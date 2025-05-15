@@ -151,10 +151,9 @@ fn parse_args() -> ArgMatches {
         .version(crate_version!())
         .arg(
             Arg::new("INPUT_FILES")
-                .help("in any non-interactive mode, put requested paths here. If you include no paths as arguments, \
-                then httm will pause waiting for input on stdin. In any interactive mode, \
-                this is the directory search path. If no directory is specified, \
-                httm will use the current working directory.")
+                .help("in any non-interactive mode (when BROWSE, SELECT, or RESTORE are not specified), put requested paths after any program flags. If you include no paths as arguments, \
+                then httm will pause waiting for input on stdin. In any interactive mode (when BROWSE, SELECT, or RESTORE are specified), this is the directory search path.  \
+                If no directory is specified, httm will use the current working directory.")
                 .value_parser(clap::value_parser!(PathBuf))
                 .num_args(0..)
                 .display_order(1)
@@ -181,7 +180,7 @@ fn parse_args() -> ArgMatches {
                 .help("interactive browse and search a specified directory to display unique file versions. \
                 Continue to another dialog to select a snapshot version to dump to stdout. This argument optionally takes a value. \
                 Default behavior/value is to simply print the path name, but, if the path is a file, the user can print the file's contents by giving the value \"contents\", \
-                or print the PREVIEW output by giving the value \"preview\".")
+                or print any PREVIEW output by giving the value \"preview\".")
                 .conflicts_with("RESTORE")
                 .display_order(3)
                 .action(ArgAction::Append)
@@ -197,10 +196,10 @@ fn parse_args() -> ArgMatches {
                 .help("interactive browse and search a specified directory to display unique file versions. Continue to another dialog to select a snapshot version to restore. \
                 This argument optionally takes a value. Default behavior/value is a non-destructive \"copy\" to the current working directory with a new name, \
                 so as not to overwrite any \"live\" file version. However, the user may specify \"overwrite\" (or \"yolo\") to restore to the same file location. Note, \"overwrite\" can be a DESTRUCTIVE operation. \
-                Overwrite mode will attempt to preserve attributes, like the permissions/mode, timestamps, xattrs and ownership of the selected snapshot file version (this is and will likely remain a UNIX only feature). \
+                Overwrite mode will attempt to preserve attributes, like the permissions/mode, timestamps, xattrs and ownership of the selected snapshot file version. \
                 In order to preserve such attributes in \"copy\" mode, specify the \"copy-and-preserve\" value. User may also specify \"guard\". \
                 Guard mode has the same semantics as \"overwrite\" but will attempt to take a precautionary snapshot before any overwrite action occurs. \
-                Note: Guard mode is a ZFS only option. User may also set via the HTTM_RESTORE_MODE environment variable.")
+                Note: Guard mode is a ZFS only option. User may also set the restore mode via the HTTM_RESTORE_MODE environment variable.")
                 .conflicts_with("SELECT")
                 .display_order(4)
                 .action(ArgAction::Append)
@@ -213,10 +212,10 @@ fn parse_args() -> ArgMatches {
                 .value_parser(["all", "single", "only", "one"])
                 .num_args(0..=1)
                 .require_equals(true)
-                .help("show deleted files in interactive modes. In non-interactive modes, do a search for all files deleted from a specified directory. \
-                This argument optionally takes a value. The default behavior/value is \"all\". \
+                .help("show deleted files in interactive modes (BROWSE, SELECT and RESTORE). When an interactive mode is not specified, search for all files deleted from a specified directory. \
+                This argument optionally takes a value. When specified, the default behavior/value is \"all\". \
                 If \"only\" is specified, then, in the interactive modes, non-deleted files will be excluded from the search. \
-                If \"single\" is specified, then, deleted files behind deleted directories, (that is -- files with a depth greater than one) will be ignored.")
+                If \"single\" is specified, then, deleted files behind deleted directories, (files with a depth greater than one) will be ignored.")
                 .display_order(5)
                 .action(ArgAction::Append)
         )
@@ -225,7 +224,7 @@ fn parse_args() -> ArgMatches {
                 .short('R')
                 .long("recursive")
                 .conflicts_with_all(&["SNAPSHOT"])
-                .help("recurse into the selected directory to find more files. Only available in interactive and deleted file modes.")
+                .help("recurse into the selected directory to find more files and directories. Only available in interactive (BROWSE, SELECT and RESTORE) and DELETED file modes.")
                 .display_order(6)
                 .action(ArgAction::SetTrue)
         )
@@ -245,10 +244,11 @@ fn parse_args() -> ArgMatches {
             Arg::new("PREVIEW")
                 .short('p')
                 .long("preview")
-                .help("user may specify a command to preview snapshots while in a snapshot selection view. This argument optionally takes a value specifying the command to be executed. \
-                The default value/command, if no command value specified, is a 'bowie' formatted 'diff'. \
+                .help("user may specify a command to preview snapshots while in a snapshot selection view.  \
+                This argument optionally takes a value specifying the command to be executed.  \
+                The default value/command, if no command value specified, is a 'bowie' formatted 'diff'.  \
                 User defined commands must specify the snapshot file name \"{snap_file}\" and the live file name \"{live_file}\" within their shell command. \
-                NOTE: 'bash' is required to bootstrap any preview script, even if user defined preview commands or script is written in a different language.")
+                NOTE: 'bash' is required to bootstrap any preview script, even if the user specifies their own preview command, written in a different shell language.")
                 .value_parser(clap::value_parser!(String))
                 .num_args(0..=1)
                 .require_equals(true)
@@ -264,12 +264,12 @@ fn parse_args() -> ArgMatches {
                 .visible_aliases(&["unique", "uniqueness"])
                 .default_missing_value("contents")
                 .require_equals(true)
-                .help("comparing file versions solely on the basis of size and modify time (the default \"metadata\" behavior) may return what appear to be \"false positives\", \
-                in the sense that, modify time is not a precise measure of whether a file has actually changed. A program might overwrite a file with the same contents, \
-                or a user can simply update the modify time via 'touch'. If only this flag is specified, the \"contents\" option compares the actual file contents of file versions, if the files' sizes match, but the files' modify and birth times do not, \
-                and overrides the default \"metadata\" behavior. The \"contents\" option can be expensive, as the file versions need to be read back and compared, and should probably only be used for smaller files. \
-                Given how expensive this operation can be, for larger files or files with many versions, \"contents\" option is not shown in Interactive browse mode, \
-                but after a selection is made, can be utilized, when enabled, in Select or Restore modes. The \"disable\" \"all\" or \"no-filter\" option dumps all snapshot versions, and no attempt is made to determine if the file versions are distinct.")
+                .help("comparing file versions solely on the basis of size and modify time (the default \"metadata\" behavior) may return what appear to be \"false positives\".  \
+                This is because modify time is not a precise measure of whether a file has actually changed. A program might overwrite a file with the same contents, \
+                and/or a user can simply update the modify time via 'touch'. When specified with the \"contents\" option, httm compares the actual file contents of same-sized file versions, \
+                overriding the default \"metadata\" only behavior. The \"contents\" option can be expensive, as the file versions need to be read back and compared, and, thus, should probably only be used for smaller files. \
+                Given how expensive this operation can be, for larger files or files with many versions, if specified, the \"contents\" option is not shown in BROWSE mode, \
+                but after a selection is made, can be utilized, when enabled, in SELECT or RESTORE modes. The \"disable\" \"all\" or \"no-filter\" option dumps all snapshot versions, without deduplication.")
                 .display_order(9)
                 .action(ArgAction::Append)
         )
@@ -305,8 +305,8 @@ fn parse_args() -> ArgMatches {
                 .require_equals(true)
                 .help("display snapshots names for a file. This argument optionally takes a value. \
                 By default, this argument will return all available snapshot names. \
-                When the DEDUP_BY flag is not specified but the LIST_SNAPS is, the default DEDUP_BY level is \"all\" snapshots. \
-                User may limit type of snapshots returned via specifying the DEDUP_BY flag. \
+                When the DEDUP_BY flag is not specified, but LIST_SNAPS is, the default DEDUP_BY level is \"all\" snapshots. \
+                Thus the user may limit type of snapshots returned via specifying the DEDUP_BY flag. \
                 The user may also omit the most recent \"n\" snapshots from any list. \
                 By appending a comma, this argument also filters those snapshots which contain the specified pattern/s. \
                 A value of \"5,prep_Apt\" would return the snapshot names of only the last 5 (at most) of all snapshot versions which contain \"prep_Apt\". \
@@ -326,11 +326,10 @@ fn parse_args() -> ArgMatches {
                 .help("traditionally 'zfs rollback' is a destructive operation, whereas httm roll-forward is non-destructive. \
                 httm will copy only files and their attributes that have changed since a specified snapshot, from that snapshot, to its live dataset. \
                 httm will also take two precautionary snapshots, one before and one after the copy. \
-                Should the roll forward fail for any reason, httm will roll back to the pre-execution state. \
-                Caveats: This is a ZFS only option which requires super user privileges.  \
-                Not all filesystem features are supported (for instance, Solaris door or sockets on the snapshot) and will cause a roll forward to fail.  \
-                Certain special/files objects will be copied or recreated, but are not guaranteed to be in the same state as the snapshot (for instance, fifos).\
-                The block clone copying so many file in parallel may also cause a kernel crash on some configurations, and is therefore disabled in this mode.")
+                Should the roll forward fail for any reason, httm will rollback to the pre-execution state. \
+                CAVEATS: This is a ZFS only option which requires super user privileges.  \
+                Not all filesystem features are supported (for instance, Solaris door or sockets on the snapshot) and may cause a roll forward to fail.  \
+                Certain special/files objects will be copied or recreated, but are not guaranteed to be in the same state as the snapshot (for instance, FIFO buffers).")
                 .conflicts_with_all(&["BROWSE", "RESTORE", "ALT_REPLICATED", "REMOTE_DIR", "LOCAL_DIR"])
                 .display_order(13)
                 .action(ArgAction::Append)
@@ -340,10 +339,10 @@ fn parse_args() -> ArgMatches {
                 .long("prune")
                 .aliases(&["purge"])
                 .help("prune all snapshot/s which contain the input file/s on that file's most immediate mount via \"zfs destroy\". \
-                \"zfs destroy\" is a DESTRUCTIVE operation which *does not* only apply to the file in question, but the entire snapshot upon which it resides. \
+                \"zfs destroy\" is a DESTRUCTIVE operation which DOES NOT ONLY APPLY to the file in question, but the entire snapshot upon which it resides. \
                 Careless use may cause you to lose snapshot data you care about. \
                 This argument requires and will be filtered according to any values specified at LIST_SNAPS. \
-                User may also enable SELECT mode to make a granular selection of specific snapshots to prune. \
+                User may also enable SELECT mode to make a more granular selection of specific snapshots to prune. \
                 Note: This is a ZFS only option.")
                 .conflicts_with_all(&["BROWSE", "RESTORE", "ALT_REPLICATED", "REMOTE_DIR", "LOCAL_DIR"])                
                 .display_order(13)
@@ -437,7 +436,7 @@ fn parse_args() -> ArgMatches {
         .arg(
             Arg::new("OMIT_DITTO")
                 .long("omit-ditto")
-                .help("omit display of the snapshot version which may be identical to the live version. By default, `httm` displays all snapshot versions and the live version).")
+                .help("omit display of the snapshot version which may be identical to any live version. By default, `httm` displays all snapshot versions and the live version).")
                 .conflicts_with_all(&["NUM_VERSIONS"])
                 .display_order(21)
                 .action(ArgAction::SetTrue)
@@ -446,7 +445,7 @@ fn parse_args() -> ArgMatches {
             Arg::new("NO_FILTER")
                 .long("no-filter")
                 .help("by default, in the interactive modes, httm will filter out files residing upon non-supported datasets (like ext4, tmpfs, procfs, sysfs, or devtmpfs, etc.), and within any \"common\" snapshot paths. \
-                Here, one may select to disable such filtering. httm, however, will always show the input path, and results from behind any input path when that is the path being searched.") 
+                Here, one may select to disable such filtering. Note, httm will always show the input path, and results from behind any input path when that is the directory path being searched.") 
                 .display_order(22)
                 .action(ArgAction::SetTrue)
         )
@@ -479,7 +478,7 @@ fn parse_args() -> ArgMatches {
             Arg::new("NO_LIVE")
                 .long("no-live")
                 .visible_aliases(&["dead", "disco"])
-                .help("only display information concerning snapshot versions (display no information regarding live versions of files or directories).")
+                .help("only display information concerning snapshot versions (display no information regarding live versions of files or directories) in any Display Recursive mode (when DELETED and RECURSIVE are specified, but not an interactive mode).")
                 .conflicts_with_all(&["BROWSE", "SELECT", "RESTORE", "SNAPSHOT", "LAST_SNAP", "NOT_SO_PRETTY"])
                 .display_order(26)
                 .action(ArgAction::SetTrue)
@@ -488,7 +487,7 @@ fn parse_args() -> ArgMatches {
             Arg::new("NO_SNAP")
                 .long("no-snap")
                 .visible_aliases(&["undead", "zombie"])
-                .help("only display information concerning 'pseudo-live' versions in any Display Recursive mode (in --deleted, --recursive, but non-interactive modes). \
+                .help("only display information concerning 'pseudo-live' versions in any Display Recursive mode (when DELETED and RECURSIVE are specified, but not an interactive mode). \
                 Useful for finding the \"files that once were\" and displaying only those pseudo-live/zombie files.")
                 .conflicts_with_all(&["BROWSE", "SELECT", "RESTORE", "SNAPSHOT", "LAST_SNAP", "NOT_SO_PRETTY"])
                 .display_order(27)
@@ -500,10 +499,10 @@ fn parse_args() -> ArgMatches {
                 .alias("store")
                 .require_equals(true)
                 .value_parser(["restic", "timemachine"])
-                .help("give priority to discovered alternative backups stores, like Restic, and Time Machine.  \
-                If this flag is specified, httm will drop non-alternative store datasets and place said alternative backups store snapshots, as snapshots for the root mount point (\"/\").  \
-                Before use, be careful that the repository is mounted.  You may need superuser privileges to view a repository mounted with superuser permission.  \
-                httm also includes a helper script called \"equine\" which can assist you in mounting remote and local Time Machine snapshots.")
+                .help("give priority to specified alternative backups stores, like Restic, and Time Machine.  \
+                If this flag is specified, httm will place any discovered alternative backups store snapshots as snapshots for the root mount point (\"/\").  \
+                Before use, be sure that any such repository is mounted.  You may need superuser privileges to view a repository mounted with superuser permission.  \
+                NOTE: httm includes a helper script called \"equine\" which can assist you in mounting remote and local Time Machine snapshots.")
                 .conflicts_with_all(["MAP_ALIASES"])
                 .display_order(28)
                 .action(ArgAction::Append)
@@ -515,7 +514,7 @@ fn parse_args() -> ArgMatches {
                 .help("manually map a local directory (eg. \"/Users/<User Name>\") as an alias of a mount point for ZFS or btrfs, \
                 such as the local mount point for a backup on a remote share (eg. \"/Volumes/Home\"). \
                 This option is useful if you wish to view snapshot versions from within the local directory you back up to a remote network share. \
-                This option requires a value. Such a value is delimited by a colon, ':', and is specified in the form <LOCAL_DIR>:<REMOTE_DIR> \
+                This option requires a value pair. Each pair is delimited by a colon, ':', and is specified in the form <LOCAL_DIR>:<REMOTE_DIR> \
                 (eg. --map-aliases /Users/<User Name>:/Volumes/Home). Multiple maps may be specified delimited by a comma, ','. \
                 You may also set via the environment variable HTTM_MAP_ALIASES.")
                 .use_value_delimiter(true)
@@ -577,7 +576,7 @@ fn parse_args() -> ArgMatches {
             Arg::new("NO_CLONES")
                 .long("no-clones")
                 .help("by default, when copying files from snapshots, httm will first attempt a zero copy \"reflink\" clone on systems that support it. \
-                Here, you may disable that behavior, and force httm to use the fall back diff copy behavior as the default. \
+                Here, you may disable that behavior, and force httm to use the diff copy behavior as the default. \
                 You may also set an environment variable to any value, \"HTTM_NO_CLONE\" to disable.")
                 .display_order(34)
                 .action(ArgAction::SetTrue)
@@ -589,8 +588,8 @@ fn parse_args() -> ArgMatches {
                 .aliases(&["realtime", "lazy-snap"])
                 .help("by default, all snapshot locations are discovered at initial program execution, however, here, \
                 a user may request that the program lazily wait until a search is executed before resolving any path's snapshot locations.  \
-                This provides the most accurate metadata possible, but, given the additional IO, may feel slower on older systems, with only marginal benefit.  \
-                For now, this option is only available on filesystems with well defined snapshot locations (not BTRFS datasets).")
+                This provides the most accurate snapshot versions possible, but, given the additional metadata IO, may feel slower on older systems, with only marginal benefit.  \
+                NOTE: This option is also only available on filesystems with well defined snapshot locations (that is, not BTRFS datasets).")
                 .display_order(35)
                 .action(ArgAction::SetTrue)
         )
