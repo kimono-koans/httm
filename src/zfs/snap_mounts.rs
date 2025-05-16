@@ -58,20 +58,22 @@ impl SnapshotMounts {
     }
 
     pub fn pool_from_snap_name(snapshot_name: &str) -> HttmResult<String> {
-        // split on "/" why?  because a snap looks like: rpool/kimono@snap...
-        // splits according to pool name, then the rest of the snap name
-        match snapshot_name.split_once('/') {
-            Some((pool_name, _snap_name)) => Ok(pool_name.into()),
-            // what if no "/", then pool name is dataset name
-            None => match snapshot_name.split_once('@') {
-                Some((pool_name, _snap_name)) => Ok(pool_name.into()),
-                None => {
-                    let msg = format!(
-                        "Could not determine pool name from the constructed snapshot name: {snapshot_name}"
-                    );
-                    Err(HttmError::new(&msg).into())
+        match snapshot_name.split_once('@') {
+            Some((dataset_name, _snap_name)) => {
+                // split on "/" why?  because a snap looks like: rpool/kimono@snap...
+                // splits according to pool name, then the rest of the snap name
+                match dataset_name.split_once('/') {
+                    Some((pool_name, _the_rest)) => Ok(pool_name.into()),
+                    // what if no "/", then pool name is dataset name
+                    None => Ok(dataset_name.into()),
                 }
-            },
+            }
+            None => {
+                let msg = format!(
+                    "Could not determine pool name from the constructed snapshot name: {snapshot_name}"
+                );
+                Err(HttmError::new(&msg).into())
+            }
         }
     }
 
