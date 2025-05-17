@@ -30,14 +30,18 @@ use std::path::{Path, PathBuf};
 use terminal_size::{Height, Width};
 
 pub struct InteractiveRestore {
-    _view_mode: ViewMode,
+    view_mode: ViewMode,
     snap_path_strings: Vec<String>,
     opt_live_version: Option<String>,
 }
 
 impl From<InteractiveSelect> for InteractiveRestore {
     fn from(interactive_select: InteractiveSelect) -> Self {
-        unsafe { std::mem::transmute(interactive_select) }
+        let mut res: InteractiveRestore = unsafe { std::mem::transmute(interactive_select) };
+
+        res.view_mode = ViewMode::Restore;
+
+        res
     }
 }
 
@@ -74,9 +78,9 @@ impl InteractiveRestore {
 
         // loop until user consents or doesn't
         loop {
-            let view_mode = ViewMode::Restore;
-
-            let selection = view_mode.view_buffer(&restore_buffer, MultiSelect::Off)?;
+            let selection = self
+                .view_mode
+                .view_buffer(&restore_buffer, MultiSelect::Off)?;
 
             let user_consent = selection
                 .get(0)
