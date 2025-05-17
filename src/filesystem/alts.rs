@@ -93,13 +93,13 @@ impl MapOfAlts {
 
         if alt_replicated_mounts.is_empty() {
             // could not find the any replicated mounts
-            Err(HttmError::new("httm was unable to detect an alternate replicated mount point.  Perhaps the replicated filesystem is not mounted?").into())
-        } else {
-            alt_replicated_mounts.sort_unstable_by_key(|path| path.as_os_str().len());
-
-            Ok(AltMetadata {
-                opt_datasets_of_interest: Some(alt_replicated_mounts),
-            })
+            return Err(HttmError::new("httm was unable to detect an alternate replicated mount point.  Perhaps the replicated filesystem is not mounted?").into());
         }
+
+        alt_replicated_mounts.sort_unstable_by_key(|path| path.as_os_str().len());
+
+        Ok(AltMetadata {
+            opt_datasets_of_interest: Some(alt_replicated_mounts),
+        })
     }
 }
