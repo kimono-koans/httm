@@ -1,12 +1,52 @@
-accepted = [
-    "Apache-2.0",
-    "MIT",
-    "MPL-2.0",
-    "Unicode-TOU",
-    "Unicode-DFS-2016",
-    "Zlib",
+accepted = ["Apache-2.0", "MIT", "MPL-2.0"]
+targets = [
+    "x86_64-unknown-linux-gnu",
+    "x86_64-unknown-linux-musl",
+    "stable-aarch64-apple-darwin",
+    "x86_64-unknown-freebsd",
 ]
-targets = ["x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
-ignore-build-dependencies = false
-ignore-dev-dependencies = false
+ignore-build-dependencies = true
+ignore-dev-dependencies = true
 ignore-transitive-dependencies = false
+
+[unicode-ident]
+accepted = ["Unicode-DFS-2016"]
+
+[foldhash]
+accepted = ["Zlib"]
+
+[rustix]
+accepted = ["Apache-2.0 WITH LLVM-exception"]
+
+[rustix.clarify]
+license = "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT"
+
+[[rustix.clarify.git]]
+path = "LICENSE-MIT"
+checksum = "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+
+[[rustix.clarify.git]]
+path = "LICENSE-APACHE"
+checksum = "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+
+[[rustix.clarify.git]]
+path = "LICENSE-Apache-2.0_WITH_LLVM-exception"
+checksum = "268872b9816f90fd8e85db5a28d33f8150ebb8dd016653fb39ef1f94f2686bc5"
+
+[linux-raw-sys]
+accepted = ["Apache-2.0 WITH LLVM-exception"]
+
+[linux-raw-sys.clarify]
+license = "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT"
+
+[[linux-raw-sys.clarify.git]]
+path = "LICENSE-MIT"
+checksum = "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+
+[[linux-raw-sys.clarify.git]]
+path = "LICENSE-APACHE"
+checksum = "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+
+[[linux-raw-sys.clarify.git]]
+path = "LICENSE-Apache-2.0_WITH_LLVM-exception"
+checksum = "268872b9816f90fd8e85db5a28d33f8150ebb8dd016653fb39ef1f94f2686bc5"
