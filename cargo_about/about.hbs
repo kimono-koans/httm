@@ -9,26 +9,32 @@
                 background: #333;
                 color: white;
             }
+
             a {
                 color: skyblue;
             }
         }
+
         .container {
             font-family: sans-serif;
             max-width: 800px;
             margin: 0 auto;
         }
+
         .intro {
             text-align: center;
         }
+
         .licenses-list {
             list-style-type: none;
             margin: 0;
             padding: 0;
         }
+
         .license-used-by {
             margin-top: -10px;
         }
+
         .license-text {
             max-height: 200px;
             overflow-y: scroll;
@@ -41,9 +47,13 @@
     <main class="container">
         <div class="intro">
             <h1>Third Party Licenses</h1>
-            <p>The httm source code itself does not bundle any third party libraries, but it depends on a number of libraries which carry their own copyright notices and license terms. These libraries are normally all linked statically into the binary distributions of httm:</p>
+            <p>httm depends upon a number of open source libraries, and some of these libraries have their own
+                copyrights and
+                license
+                terms.
+                This page lists the licenses of the projects used by httm.</p>
         </div>
-    
+
         <h2>Overview of licenses:</h2>
         <ul class="licenses-overview">
             {{#each overview}}
@@ -59,7 +69,9 @@
                 <h4>Used by:</h4>
                 <ul class="license-used-by">
                     {{#each used_by}}
-                    <li><a href="{{#if crate.repository}} {{crate.repository}} {{else}} https://crates.io/crates/{{crate.name}} {{/if}}">{{crate.name}} {{crate.version}}</a></li>
+                    <li><a
+                            href="{{#if crate.repository}} {{crate.repository}} {{else}} https://crates.io/crates/{{crate.name}} {{/if}}">{{crate.name}}
+                            {{crate.version}}</a></li>
                     {{/each}}
                 </ul>
                 <pre class="license-text">{{text}}</pre>
