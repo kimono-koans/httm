@@ -23,7 +23,6 @@ use crate::library::results::{HttmError, HttmResult};
 use lscolors::{Colorable, LsColors, Style};
 use nu_ansi_term::AnsiString;
 use nu_ansi_term::Style as AnsiTermStyle;
-use number_prefix::NumberPrefix;
 use std::borrow::Cow;
 use std::fs::FileType;
 use std::io::Write;
@@ -32,6 +31,7 @@ use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
 use std::time::SystemTime;
 use time::{OffsetDateTime, UtcOffset, format_description};
+use unit_prefix::NumberPrefix;
 use which::which;
 
 pub fn get_mount_command() -> HttmResult<PathBuf> {
