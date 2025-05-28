@@ -62,7 +62,7 @@ impl SelectionCandidate {
 
         // finally run search on those paths
         let all_snap_versions: VersionsMap =
-            VersionsMap::from_single_path(&display_config, &display_path_data, IS_INTERACTIVE_MODE)
+            VersionsMap::once(&display_config, &display_path_data, IS_INTERACTIVE_MODE)
                 .into_iter()
                 .map(|versions| versions.into_inner())
                 .collect::<BTreeMap<PathData, Vec<PathData>>>()
