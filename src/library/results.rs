@@ -42,14 +42,20 @@ impl From<Box<dyn std::error::Error + Send + Sync>> for HttmError {
     }
 }
 
+impl From<String> for HttmError {
+    fn from(value: String) -> Self {
+        HttmError { details: value }
+    }
+}
+
 impl HttmError {
-    pub fn new(msg: &str) -> Self {
+    pub fn new<T: AsRef<str>>(msg: T) -> Self {
         HttmError {
-            details: msg.to_owned(),
+            details: msg.as_ref().to_string(),
         }
     }
-    pub fn with_context(msg: &str, err: &dyn Error) -> Self {
-        let msg_plus_context = format!("{msg} : {err:?}");
+    pub fn with_context<T: AsRef<str>>(msg: T, err: &dyn Error) -> Self {
+        let msg_plus_context = format!("{} : {err:?}", msg.as_ref());
 
         HttmError {
             details: msg_plus_context,
