@@ -26,7 +26,7 @@ pub type HttmResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
 #[derive(Debug)]
 pub struct HttmError {
     details: String,
-    cause: Option<Box<dyn std::error::Error + Send + Sync>>,
+    source: Option<String>,
 }
 
 impl<T> From<HttmError> for HttmResult<T> {
@@ -35,11 +35,11 @@ impl<T> From<HttmError> for HttmResult<T> {
     }
 }
 
-impl From<Box<dyn std::error::Error + Send + Sync>> for HttmError {
-    fn from(value: Box<dyn std::error::Error + Send + Sync>) -> Self {
+impl From<Box<dyn Error + Send + Sync>> for HttmError {
+    fn from(value: Box<dyn Error + Send + Sync>) -> Self {
         Self {
             details: value.to_string(),
-            cause: value.into(),
+            source: None,
         }
     }
 }
@@ -48,22 +48,18 @@ impl From<String> for HttmError {
     fn from(value: String) -> Self {
         HttmError {
             details: value,
-            cause: None,
+            source: None,
         }
     }
 }
 
-impl Error for HttmError {
-    fn description(&self) -> &str {
-        &self.details
-    }
-}
+impl Error for HttmError {}
 
 impl From<IoError> for HttmError {
     fn from(err: IoError) -> Self {
         HttmError {
             details: err.to_string(),
-            cause: Some(err.into()),
+            source: None,
         }
     }
 }
@@ -72,25 +68,22 @@ impl HttmError {
     pub fn new<T: AsRef<str>>(msg: T) -> Self {
         HttmError {
             details: msg.as_ref().to_string(),
-            cause: None,
+            source: None,
         }
     }
-    pub fn with_cause<T: AsRef<str>>(
-        msg: T,
-        err: Box<dyn std::error::Error + Send + Sync>,
-    ) -> Self {
+    pub fn with_source<T: AsRef<str>, E: Error>(msg: T, err: E) -> Self {
         HttmError {
             details: msg.as_ref().to_string(),
-            cause: Some(err),
+            source: Some(err.to_string()),
         }
     }
 }
 
 impl fmt::Display for HttmError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match &self.cause {
-            Some(cause) => {
-                let msg = format!("{} : {:?}", self.details, cause);
+        match &self.source {
+            Some(source) => {
+                let msg = format!("{} : {:?}", self.details, source);
                 write!(f, "{}", msg)
             }
             None => {
