@@ -17,7 +17,6 @@
 
 use std::error::Error;
 use std::fmt;
-use std::io::Error as IoError;
 
 // wrap this complex looking error type, which is used everywhere,
 // into something more simple looking. This error, FYI, is really easy to use with rayon.
@@ -54,15 +53,6 @@ impl From<String> for HttmError {
 }
 
 impl Error for HttmError {}
-
-impl From<IoError> for HttmError {
-    fn from(err: IoError) -> Self {
-        HttmError {
-            details: err.to_string(),
-            source: None,
-        }
-    }
-}
 
 impl HttmError {
     pub fn new<T: AsRef<str>>(msg: T) -> Self {
