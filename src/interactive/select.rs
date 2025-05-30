@@ -88,8 +88,8 @@ impl InteractiveSelect {
             }
             SelectMode::Contents => {
                 if !snap_path.is_file() {
-                    let msg = format!("Path is not a file: {:?}", snap_path);
-                    return HttmError::from(msg).into();
+                    let description = format!("Path is not a file: {:?}", snap_path);
+                    return HttmError::from(description).into();
                 }
                 let mut f = std::fs::OpenOptions::new().read(true).open(snap_path)?;
                 let mut contents = Vec::new();
@@ -139,11 +139,11 @@ impl InteractiveSelect {
                             Ok(())
                         }
                         None => {
-                            let msg = format!(
+                            let description = format!(
                                 "Preview command output was empty for path: {:?}",
                                 snap_path
                             );
-                            HttmError::from(msg).into()
+                            HttmError::from(description).into()
                         }
                     },
                 }

@@ -337,13 +337,13 @@ impl DiffCopy {
         if src_test.is_same_file_contents(&dst_test) {
             Ok(())
         } else {
-            let msg = format!(
+            let description = format!(
                 "Copy failed.  File contents of {} and {} are NOT the same.",
                 src.display(),
                 dst.display()
             );
 
-            HttmError::from(msg).into()
+            HttmError::from(description).into()
         }
     }
 }

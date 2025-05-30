@@ -47,11 +47,11 @@ impl RollForward {
         let (dataset, snap) = if let Some(res) = full_snap_name.split_once('@') {
             res
         } else {
-            let msg = format!(
+            let description = format!(
                 "\"{}\" is not a valid data set name.  A valid ZFS snapshot name requires a '@' separating dataset name and snapshot name.",
                 &full_snap_name
             );
-            return HttmError::from(msg).into();
+            return HttmError::from(description).into();
         };
 
         let dataset_path = Path::new(&dataset);
@@ -95,12 +95,12 @@ impl RollForward {
                 println!("httm roll forward completed successfully.");
             }
             Err(err) => {
-                let msg = format!(
+                let description = format!(
                     "httm roll forward failed for the following reason: {}.\n\
                 Attempting roll back to precautionary pre-execution snapshot.",
                     err
                 );
-                eprintln!("{}", msg);
+                eprintln!("{}", description);
 
                 snap_guard
                     .rollback()
@@ -143,13 +143,13 @@ impl RollForward {
         let mut stream_peekable = stream.peekable();
 
         if stream_peekable.peek().is_none() {
-            let msg = Self::zfs_diff_std_err(opt_stderr)?;
+            let err_string = Self::zfs_diff_std_err(opt_stderr)?;
 
-            if msg.is_empty() {
+            if err_string.is_empty() {
                 return HttmError::new("'zfs diff' reported no changes to dataset").into();
             }
 
-            return HttmError::from(msg).into();
+            return HttmError::from(err_string).into();
         }
 
         // zfs-diff can return multiple file actions for a single inode, here we dedup
@@ -177,8 +177,8 @@ impl RollForward {
         }
 
         if !parse_errors.is_empty() {
-            let msg: String = parse_errors.into_iter().map(|e| e.to_string()).collect();
-            return HttmError::from(msg).into();
+            let description: String = parse_errors.into_iter().map(|e| e.to_string()).collect();
+            return HttmError::from(description).into();
         }
 
         let exclusions = PreserveHardLinks::try_from(spawn_res)?.exec()?;
@@ -412,11 +412,11 @@ impl RollForward {
     pub fn copy(src: &Path, dst: &Path) -> HttmResult<()> {
         if let Err(err) = Copy::direct_quiet(src, dst, true) {
             eprintln!("Error: {}", err);
-            let msg = format!(
+            let description = format!(
                 "Could not overwrite {:?} with snapshot file version {:?}",
                 dst, src
             );
-            return HttmError::from(msg).into();
+            return HttmError::from(description).into();
         }
 
         Preserve::direct(src, dst)?;
@@ -454,14 +454,14 @@ impl RollForward {
         match Remove::recursive_quiet(dst) {
             Ok(_) => {
                 if dst.try_exists()? {
-                    let msg = format!("File should not exist after deletion {:?}", dst);
-                    return HttmError::from(msg).into();
+                    let description = format!("File should not exist after deletion {:?}", dst);
+                    return HttmError::from(description).into();
                 }
             }
             Err(err) => {
                 eprintln!("Error: {}", err);
-                let msg = format!("Could not delete file {:?}", dst);
-                return HttmError::from(msg).into();
+                let description = format!("Could not delete file {:?}", dst);
+                return HttmError::from(description).into();
             }
         }
 

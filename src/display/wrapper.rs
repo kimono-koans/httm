@@ -128,7 +128,7 @@ impl<'a> DisplayWrapper<'a> {
             .collect();
 
         if write_out_buffer.is_empty() {
-            let msg = match num_versions_mode {
+            let description = match num_versions_mode {
                 NumVersionsMode::Multiple => {
                     "Notification: No paths which have multiple versions exist."
                 }
@@ -140,7 +140,7 @@ impl<'a> DisplayWrapper<'a> {
                 // NumVersionsMode::All empty should be dealt with earlier at lookup_exec
                 NumVersionsMode::AllNumerals | NumVersionsMode::AllGraph => unreachable!(),
             };
-            eprintln!("{msg}");
+            eprintln!("{description}");
         }
 
         write_out_buffer

@@ -60,7 +60,9 @@ impl RunZFSCommand {
 
         // stderr_string is a string not an error, so here we build an err or output
         if !stderr_string.is_empty() {
-            let msg = if stderr_string.contains("cannot create snapshots : permission denied") {
+            let description = if stderr_string
+                .contains("cannot create snapshots : permission denied")
+            {
                 "httm must have root privileges to snapshot a filesystem".to_owned()
             } else {
                 "httm was unable to take snapshots. The 'zfs' command issued the following error: "
@@ -68,7 +70,7 @@ impl RunZFSCommand {
                     + stderr_string
             };
 
-            return HttmError::from(msg).into();
+            return HttmError::from(description).into();
         }
 
         Ok(())
@@ -86,13 +88,15 @@ impl RunZFSCommand {
 
         // stderr_string is a string not an error, so here we build an err or output
         if !stderr_string.is_empty() {
-            let msg = if stderr_string.contains("cannot destroy snapshots: permission denied") {
+            let description = if stderr_string
+                .contains("cannot destroy snapshots: permission denied")
+            {
                 "httm may need root privileges to 'zfs rollback' a filesystem".to_owned()
             } else {
                 "httm was unable to rollback the snapshot name. The 'zfs' command issued the following error: ".to_owned() + stderr_string
             };
 
-            return HttmError::from(msg).into();
+            return HttmError::from(description).into();
         }
 
         Ok(())
@@ -110,7 +114,9 @@ impl RunZFSCommand {
 
         // stderr_string is a string not an error, so here we build an err or output
         if !stderr_string.is_empty() {
-            let msg = if stderr_string.contains("cannot destroy snapshots: permission denied") {
+            let description = if stderr_string
+                .contains("cannot destroy snapshots: permission denied")
+            {
                 "httm must have root privileges to destroy a snapshot filesystem".to_owned()
             } else {
                 "httm was unable to destroy snapshots. The 'zfs' command issued the following error: "
@@ -118,7 +124,7 @@ impl RunZFSCommand {
                 + stderr_string
             };
 
-            return HttmError::from(msg).into();
+            return HttmError::from(description).into();
         }
 
         Ok(())
@@ -135,9 +141,9 @@ impl RunZFSCommand {
 
         // stderr_string is a string not an error, so here we build an err or output
         if !stderr_string.is_empty() {
-            let msg = "httm was unable to determine 'zfs allow' for the path given. The 'zfs' command issued the following error: ".to_owned() + stderr_string;
+            let description = "httm was unable to determine 'zfs allow' for the path given. The 'zfs' command issued the following error: ".to_owned() + stderr_string;
 
-            return HttmError::from(msg).into();
+            return HttmError::from(description).into();
         }
 
         let user_name = std::env::var("USER")?;
@@ -148,9 +154,9 @@ impl RunZFSCommand {
                 .iter()
                 .all(|p| stdout_string.contains(p))
         {
-            let msg = "User does not have 'zfs allow' privileges for the path given.";
+            let description = "User does not have 'zfs allow' privileges for the path given.";
 
-            return HttmError::new(msg).into();
+            return HttmError::new(description).into();
         }
 
         Ok(())
@@ -189,21 +195,21 @@ impl ZfsAllowPriv {
         opt_proximate_dataset: Option<&Path>,
     ) -> HttmResult<Box<Path>> {
         let Some(fs_name) = path_data.source(opt_proximate_dataset) else {
-            let msg = format!(
+            let description = format!(
                 "Could not determine dataset name from path given: {:?}",
                 path_data.path()
             );
-            return HttmError::from(msg).into();
+            return HttmError::from(description).into();
         };
 
         match path_data.fs_type(opt_proximate_dataset) {
             Some(FilesystemType::Zfs) => {}
             _ => {
-                let msg = format!(
+                let description = format!(
                     "httm only supports snapshot guards for ZFS paths.  Path is not located on a ZFS dataset: {:?}",
                     path_data.path()
                 );
-                return HttmError::from(msg).into();
+                return HttmError::from(description).into();
             }
         }
 
@@ -213,12 +219,12 @@ impl ZfsAllowPriv {
     }
 
     pub fn from_fs_name(&self, fs_name: &str) -> HttmResult<()> {
-        let msg = match self {
+        let description = match self {
             ZfsAllowPriv::Rollback => "A rollback after a restore action",
             ZfsAllowPriv::Snapshot => "A snapshot guard before restore action",
         };
 
-        if let Err(root_error) = user_has_effective_root(msg) {
+        if let Err(root_error) = user_has_effective_root(description) {
             if let Err(_allow_priv_error) = self.user_has_zfs_allow_priv(fs_name) {
                 return Err(root_error);
             }

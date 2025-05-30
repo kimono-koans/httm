@@ -145,16 +145,16 @@ impl InteractiveRestore {
         if let Err(err) = Copy::recursive(src, dst, should_preserve) {
             match err.downcast_ref::<std::io::Error>().map(|err| err.kind()) {
                 Some(ErrorKind::PermissionDenied) => {
-                    let msg = format!(
+                    let description = format!(
                         "httm restore failed because user lacks permission to restore to the following location: {:?}.",
                         dst
                     );
 
-                    return HttmError::from(msg).into();
+                    return HttmError::from(description).into();
                 }
                 _ => {
-                    let msg = format!("httm restore failed for the following reason");
-                    return HttmError::with_source(&msg, err.as_ref()).into();
+                    let description = format!("httm restore failed for the following reason");
+                    return HttmError::with_source(&description, err.as_ref()).into();
                 }
             };
         }
@@ -212,11 +212,11 @@ impl InteractiveRestore {
             .into_owned();
 
         let Some(snap_metadata) = snap_path_data.opt_metadata() else {
-            let msg = format!(
+            let description = format!(
                 "Source location: {:?} does not exist on disk Quitting.",
                 snap_path_data.path()
             );
-            return HttmError::from(msg).into();
+            return HttmError::from(description).into();
         };
 
         // remove leading dots

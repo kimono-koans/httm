@@ -162,12 +162,12 @@ impl TryInto<InteractiveSelect> for InteractiveBrowse {
                 .iter()
                 .map(|path| path.path().to_string_lossy().to_string())
                 .collect();
-            let msg = format!(
+            let description = format!(
                 "{}{:?}",
                 "Cannot select or restore from the following paths as they have no snapshots:\n",
                 paths
             );
-            return HttmError::from(msg).into();
+            return HttmError::from(description).into();
         }
 
         let opt_live_version: Option<String> = if self.selected_path_data.len() > 1 {
@@ -192,8 +192,8 @@ impl TryInto<InteractiveSelect> for InteractiveBrowse {
 
             display_map.deref().iter().try_for_each(|(live, snaps)| {
                 if snaps.is_empty() {
-                    let msg = format!("Path {:?} has no snapshots available.", live.path());
-                    return HttmError::from(msg).into();
+                    let description = format!("Path {:?} has no snapshots available.", live.path());
+                    return HttmError::from(description).into();
                 }
 
                 Ok(())

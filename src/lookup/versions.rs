@@ -78,12 +78,12 @@ impl VersionsMap {
         {
             let paths: Vec<&Path> = path_set.iter().map(|path_data| path_data.path()).collect();
 
-            let msg = format!(
+            let description = format!(
                 "Requested paths do not currently exist, and httm could not find any deleted versions in snapshots:\n{:?}\nSo, umm, 🤷, please check that you typed the correct path, and/or try again with a different path.",
                 paths
             );
 
-            return HttmError::from(msg).into();
+            return HttmError::from(description).into();
         }
 
         Ok(versions_map)

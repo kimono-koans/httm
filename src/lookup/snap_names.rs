@@ -53,11 +53,11 @@ impl SnapNameMap {
             .par_iter()
             .filter(|(path_data, snaps)| {
                 if snaps.is_empty() {
-                    let msg = format!(
+                    let description = format!(
                         "httm could not find any snapshots for the file specified: {:?}",
                         path_data.path()
                     );
-                    eprintln!("WARN: {msg}");
+                    eprintln!("WARN: {description}");
                     return false;
                 }
 

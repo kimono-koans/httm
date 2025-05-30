@@ -348,11 +348,11 @@ impl<'a> PreserveHardLinks<'a> {
 
     fn hard_link(&self, original: &Path, link: &Path) -> HttmResult<()> {
         if !original.exists() {
-            let msg = format!(
+            let description = format!(
                 "Cannot link because original path does not exists: {:?}",
                 original
             );
-            return HttmError::from(msg).into();
+            return HttmError::from(description).into();
         }
 
         if link.exists() {
@@ -372,8 +372,8 @@ impl<'a> PreserveHardLinks<'a> {
         if let Err(err) = std::fs::hard_link(original, link) {
             if !link.exists() {
                 eprintln!("Error: {}", err);
-                let msg = format!("Could not link file {:?} to {:?}", original, link);
-                return HttmError::from(msg).into();
+                let description = format!("Could not link file {:?} to {:?}", original, link);
+                return HttmError::from(description).into();
             }
         }
 
@@ -392,15 +392,16 @@ impl<'a> PreserveHardLinks<'a> {
         match Remove::recursive_quiet(link) {
             Ok(_) => {
                 if link.exists() {
-                    let msg = format!("Target link should not exist after removal {:?}", link);
-                    return HttmError::from(msg).into();
+                    let description =
+                        format!("Target link should not exist after removal {:?}", link);
+                    return HttmError::from(description).into();
                 }
             }
             Err(err) => {
                 if link.exists() {
                     eprintln!("Error: {}", err);
-                    let msg = format!("Could not remove link {:?}", link);
-                    return HttmError::from(msg).into();
+                    let description = format!("Could not remove link {:?}", link);
+                    return HttmError::from(description).into();
                 }
             }
         }

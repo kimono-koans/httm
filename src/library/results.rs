@@ -24,7 +24,7 @@ pub type HttmResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
 #[derive(Debug)]
 pub struct HttmError {
-    details: String,
+    description: String,
     source: Option<String>,
 }
 
@@ -37,7 +37,7 @@ impl<T> From<HttmError> for HttmResult<T> {
 impl From<Box<dyn Error + Send + Sync>> for HttmError {
     fn from(value: Box<dyn Error + Send + Sync>) -> Self {
         Self {
-            details: value.to_string(),
+            description: value.to_string(),
             source: None,
         }
     }
@@ -46,7 +46,7 @@ impl From<Box<dyn Error + Send + Sync>> for HttmError {
 impl From<String> for HttmError {
     fn from(value: String) -> Self {
         HttmError {
-            details: value,
+            description: value,
             source: None,
         }
     }
@@ -55,15 +55,15 @@ impl From<String> for HttmError {
 impl Error for HttmError {}
 
 impl HttmError {
-    pub fn new<T: AsRef<str>>(msg: T) -> Self {
+    pub fn new<T: AsRef<str>>(description: T) -> Self {
         HttmError {
-            details: msg.as_ref().to_string(),
+            description: description.as_ref().to_string(),
             source: None,
         }
     }
-    pub fn with_source<T: AsRef<str>, E: Error>(msg: T, err: E) -> Self {
+    pub fn with_source<T: AsRef<str>, E: Error>(description: T, err: E) -> Self {
         HttmError {
-            details: msg.as_ref().to_string(),
+            description: description.as_ref().to_string(),
             source: Some(err.to_string()),
         }
     }
@@ -73,11 +73,11 @@ impl fmt::Display for HttmError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self.source {
             Some(source) => {
-                let msg = format!("{} : {:?}", self.details, source);
-                write!(f, "{}", msg)
+                let description = format!("{} : {:?}", self.description, source);
+                write!(f, "{}", description)
             }
             None => {
-                write!(f, "{}", self.details)
+                write!(f, "{}", self.description)
             }
         }
     }

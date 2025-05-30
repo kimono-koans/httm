@@ -40,8 +40,8 @@ impl Copy {
             create_dir_all(dst_parent)?;
             Ok(())
         } else {
-            let msg = format!("Could not detect a parent for destination file: {:?}", dst);
-            HttmError::from(msg).into()
+            let description = format!("Could not detect a parent for destination file: {:?}", dst);
+            HttmError::from(description).into()
         }
     }
 
@@ -108,20 +108,20 @@ impl Copy {
             // create new fifo
             nix::unistd::mkfifo(dst, dst_mode)?;
         } else if is_socket {
-            let msg = format!(
+            let description = format!(
                 "WARN: Source path could not be copied.  Source path is a socket, and sockets are not considered within the scope of httm.  \
             Traditionally, sockets could not be copied, and they should always be recreated by the generating daemon, when deleted: \"{}\"",
                 src.display()
             );
-            eprintln!("{}", msg)
+            eprintln!("{}", description)
         } else {
-            let msg = format!(
+            let description = format!(
                 "httm could not determine the source path's file type, and therefore it could not be copied.  \
             The source path was not recognized as a directory, regular file, device, fifo, socket, or symlink.  \
             Other special file types (like doors and event ports) are unsupported: \"{}\"",
                 src.display()
             );
-            return HttmError::from(msg).into();
+            return HttmError::from(description).into();
         }
 
         Ok(())
@@ -240,11 +240,11 @@ impl Preserve {
         let proximate_dataset_mount = dst_path_data.proximate_dataset()?;
 
         let Ok(relative_path) = dst_path_data.relative_path(proximate_dataset_mount) else {
-            let msg = format!(
+            let description = format!(
                 "Could not determine relative path for destination: {:?}",
                 dst
             );
-            return HttmError::from(msg).into();
+            return HttmError::from(description).into();
         };
 
         let relative_path_components_len = relative_path.components().count();

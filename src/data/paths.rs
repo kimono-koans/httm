@@ -326,11 +326,11 @@ impl<'a> PathDeconstruction<'a> for PathData {
                     .contains_key(*ancestor)
             })
             .ok_or_else(|| {
-                let msg = format!(
+                let description = format!(
                     "httm could not identify any proximate dataset for path: {:?}",
                     self.path_buf
                 );
-                HttmError::from(msg).into()
+                HttmError::from(description).into()
             })
     }
 
@@ -443,11 +443,11 @@ impl<'a> PathDeconstruction<'a> for ZfsSnapPathGuard<'_> {
             .next()
             .and_then(|snapshot_name| snapshot_stripped_set.strip_prefix(snapshot_name).ok())
             .ok_or_else(|| {
-                let msg = format!(
+                let description = format!(
                     "httm could not identify any relative path for path: {:?}",
                     self.path_buf
                 );
-                HttmError::from(msg).into()
+                HttmError::from(description).into()
             })
     }
 
