@@ -154,7 +154,7 @@ impl InteractiveRestore {
                 }
                 _ => {
                     let msg = format!("httm restore failed for the following reason");
-                    return HttmError::with_context(&msg, err.as_ref()).into();
+                    return HttmError::with_cause(&msg, err).into();
                 }
             };
         }

@@ -26,6 +26,7 @@ pub type HttmResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
 #[derive(Debug)]
 pub struct HttmError {
     details: String,
+    cause: Option<Box<dyn std::error::Error + Send + Sync>>,
 }
 
 impl<T> From<HttmError> for HttmResult<T> {
@@ -38,34 +39,17 @@ impl From<Box<dyn std::error::Error + Send + Sync>> for HttmError {
     fn from(value: Box<dyn std::error::Error + Send + Sync>) -> Self {
         Self {
             details: value.to_string(),
+            cause: value.into(),
         }
     }
 }
 
 impl From<String> for HttmError {
     fn from(value: String) -> Self {
-        HttmError { details: value }
-    }
-}
-
-impl HttmError {
-    pub fn new<T: AsRef<str>>(msg: T) -> Self {
         HttmError {
-            details: msg.as_ref().to_string(),
+            details: value,
+            cause: None,
         }
-    }
-    pub fn with_context<T: AsRef<str>, E: Error>(msg: T, err: E) -> Self {
-        let msg_plus_context = format!("{} : {:?}", msg.as_ref(), err);
-
-        HttmError {
-            details: msg_plus_context,
-        }
-    }
-}
-
-impl fmt::Display for HttmError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.details)
     }
 }
 
@@ -75,16 +59,43 @@ impl Error for HttmError {
     }
 }
 
-impl From<&dyn Error> for HttmError {
-    fn from(err: &dyn Error) -> Self {
-        let context = format!("{err:?}");
-        HttmError { details: context }
+impl From<IoError> for HttmError {
+    fn from(err: IoError) -> Self {
+        HttmError {
+            details: err.to_string(),
+            cause: Some(err.into()),
+        }
     }
 }
 
-impl From<IoError> for HttmError {
-    fn from(err: IoError) -> Self {
-        let context = format!("{err:?}");
-        HttmError { details: context }
+impl HttmError {
+    pub fn new<T: AsRef<str>>(msg: T) -> Self {
+        HttmError {
+            details: msg.as_ref().to_string(),
+            cause: None,
+        }
+    }
+    pub fn with_cause<T: AsRef<str>>(
+        msg: T,
+        err: Box<dyn std::error::Error + Send + Sync>,
+    ) -> Self {
+        HttmError {
+            details: msg.as_ref().to_string(),
+            cause: Some(err),
+        }
+    }
+}
+
+impl fmt::Display for HttmError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match &self.cause {
+            Some(cause) => {
+                let msg = format!("{} : {:?}", self.details, cause);
+                write!(f, "{}", msg)
+            }
+            None => {
+                write!(f, "{}", self.details)
+            }
+        }
     }
 }
