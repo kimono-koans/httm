@@ -73,7 +73,7 @@ impl fmt::Display for HttmError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self.source {
             Some(source) => {
-                let description = format!("{}\nSOURCE:{}", self.description, source);
+                let description = format!("{}\nSOURCE: {}", self.description, source);
                 write!(f, "{}", description)
             }
             None => {
