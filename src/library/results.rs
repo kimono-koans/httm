@@ -54,8 +54,8 @@ impl HttmError {
             details: msg.as_ref().to_string(),
         }
     }
-    pub fn with_context<T: AsRef<str>>(msg: T, err: &dyn Error) -> Self {
-        let msg_plus_context = format!("{} : {err:?}", msg.as_ref());
+    pub fn with_context<T: AsRef<str>, E: Error>(msg: T, err: E) -> Self {
+        let msg_plus_context = format!("{} : {:?}", msg.as_ref(), err);
 
         HttmError {
             details: msg_plus_context,
