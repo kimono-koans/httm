@@ -100,7 +100,7 @@ impl InteractiveRestore {
                                 &new_file_path_buf.as_ref(),
                                 should_preserve,
                             ) {
-                                eprintln!("{:?}", err);
+                                eprintln!("{}", err);
 
                                 eprintln!("Attempting rollback to snapshot guard.");
 
@@ -143,19 +143,20 @@ impl InteractiveRestore {
 
     fn restore_action(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<()> {
         if let Err(err) = Copy::recursive(src, dst, should_preserve) {
-            let msg = match err.downcast_ref::<std::io::Error>().map(|err| err.kind()) {
+            match err.downcast_ref::<std::io::Error>().map(|err| err.kind()) {
                 Some(ErrorKind::PermissionDenied) => {
-                    format!(
+                    let msg = format!(
                         "httm restore failed because user lacks permission to restore to the following location: {:?}.",
                         dst
-                    )
+                    );
+
+                    return HttmError::new(&msg).into();
                 }
                 _ => {
-                    format!("httm restore failed for the following reason: {:?}.", err)
+                    let msg = format!("httm restore failed for the following reason");
+                    return HttmError::with_context(&msg, err.as_ref()).into();
                 }
             };
-
-            return Err(HttmError::new(&msg).into());
         }
 
         Ok(())

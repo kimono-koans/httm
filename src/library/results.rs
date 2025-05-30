@@ -28,6 +28,12 @@ pub struct HttmError {
     details: String,
 }
 
+impl<T> From<HttmError> for HttmResult<T> {
+    fn from(value: HttmError) -> Self {
+        Err(Box::new(value))
+    }
+}
+
 impl From<Box<dyn std::error::Error + Send + Sync>> for HttmError {
     fn from(value: Box<dyn std::error::Error + Send + Sync>) -> Self {
         Self {
