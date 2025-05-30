@@ -15,6 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
+use crate::MapOfSnaps;
 use crate::filesystem::aliases::MapOfAliases;
 use crate::filesystem::alts::MapOfAlts;
 use crate::filesystem::mounts::{
@@ -23,7 +24,6 @@ use crate::filesystem::mounts::{
 };
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::find_common_path;
-use crate::MapOfSnaps;
 use rayon::prelude::*;
 use std::path::{Path, PathBuf};
 
@@ -82,10 +82,8 @@ impl FilesystemInfo {
                     opt_alt_store.replace(FilesystemType::Apfs);
                     base_fs_info.from_blob_repo(&FilesystemType::Apfs)?;
                 } else {
-                    return Err(HttmError::new(
-                        "httm could not find any valid datasets on the system.",
-                    )
-                    .into());
+                    return HttmError::new("httm could not find any valid datasets on the system.")
+                        .into();
                 }
             }
             _ => {}

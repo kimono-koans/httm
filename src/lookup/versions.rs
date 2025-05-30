@@ -76,10 +76,10 @@ impl VersionsMap {
                 .keys()
                 .all(|path_data| path_data.opt_metadata().is_none())
         {
-            return Err(HttmError::new(
+            return HttmError::new(
                 "httm could find neither a live version, nor any snapshot version for all the specified paths, so, umm, 🤷? Please try another file.",
             )
-            .into());
+            .into();
         }
 
         Ok(versions_map)

@@ -91,10 +91,10 @@ impl MapOfSnaps {
         }
 
         if map_of_snaps.values().flatten().count() == 0 {
-            return Err(HttmError::new(
+            return HttmError::new(
                 "httm could not find any valid snapshots on the system.  Quitting.",
             )
-            .into());
+            .into();
         }
 
         Ok(Self {

@@ -216,7 +216,7 @@ impl InteractiveRestore {
                 "Source location: {:?} does not exist on disk Quitting.",
                 snap_path_data.path()
             );
-            return Err(HttmError::new(&msg).into());
+            return HttmError::new(&msg).into();
         };
 
         // remove leading dots

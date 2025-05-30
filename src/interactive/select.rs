@@ -15,13 +15,13 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
+use crate::GLOBAL_CONFIG;
 use crate::config::generate::{PrintMode, SelectMode};
 use crate::interactive::preview::PreviewSelection;
 use crate::interactive::view_mode::ViewMode;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{delimiter, print_output_buf};
 use crate::lookup::versions::VersionsMap;
-use crate::GLOBAL_CONFIG;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::Command as ExecProcess;
@@ -89,7 +89,7 @@ impl InteractiveSelect {
             SelectMode::Contents => {
                 if !snap_path.is_file() {
                     let msg = format!("Path is not a file: {:?}", snap_path);
-                    return Err(HttmError::new(&msg).into());
+                    return HttmError::new(&msg).into();
                 }
                 let mut f = std::fs::OpenOptions::new().read(true).open(snap_path)?;
                 let mut contents = Vec::new();
@@ -109,7 +109,7 @@ impl InteractiveSelect {
                 let cmd = if let Some(command) = preview_selection.opt_preview_command {
                     command.replace("$snap_file", &format!("{:?}", snap_path))
                 } else {
-                    return Err(HttmError::new("Could not parse preview command").into());
+                    return HttmError::new("Could not parse preview command").into();
                 };
 
                 let env_command =
@@ -143,7 +143,7 @@ impl InteractiveSelect {
                                 "Preview command output was empty for path: {:?}",
                                 snap_path
                             );
-                            Err(HttmError::new(&msg).into())
+                            HttmError::new(&msg).into()
                         }
                     },
                 }

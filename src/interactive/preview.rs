@@ -68,10 +68,10 @@ impl PreviewSelection {
                 _ => match which("cat") {
                     Ok(_) => "if [[ -s \"$snap_file\" ]]; then cat \"$snap_file\"; else printf \"WARN: \"$snap_file\" is empty\"; fi".to_string(),
                     Err(_) => {
-                        return Err(HttmError::new(
+                        return HttmError::new(
                             "'cat' executable could not be found in the user's PATH. 'cat' is necessary for executing a bare preview command.",
                         )
-                        .into())
+                        .into()
                     }
                 },
             }
@@ -79,20 +79,20 @@ impl PreviewSelection {
             match defined_command.split_ascii_whitespace().next() {
                 Some(potential_executable) => {
                     if which(potential_executable).is_err() {
-                        return Err(HttmError::new("User specified a preview variable for a live version, but a live version for the file selected does not exist.").into());
+                        return HttmError::new("User specified a preview variable for a live version, but a live version for the file selected does not exist.").into();
                     }
                 }
                 None => {
-                    return Err(HttmError::new(
+                    return HttmError::new(
                         "httm could not determine a valid preview command from user's input.",
                     )
-                    .into());
+                    .into();
                 }
             }
 
             let parsed_command = match opt_live_version {
                 Some(live_version) if defined_command.contains("{live_file}") && !PathBuf::from(live_version).exists() => {
-                    return Err(HttmError::new("User specified a preview variable for a live version, but a live version for the file selected does not exist.").into())
+                    return HttmError::new("User specified a preview variable for a live version, but a live version for the file selected does not exist.").into()
                 },
                 Some(live_version) => {
                     defined_command
@@ -100,7 +100,7 @@ impl PreviewSelection {
                         .replace("{live_file}", format!("\"{live_version}\"").as_str())
                 },
                 None if defined_command.contains("{live_file}") => {
-                    return Err(HttmError::new("User specified a preview variable for a live version, but a live version could not be determined.").into())
+                    return HttmError::new("User specified a preview variable for a live version, but a live version could not be determined.").into()
                 },
                 None => {
                     defined_command

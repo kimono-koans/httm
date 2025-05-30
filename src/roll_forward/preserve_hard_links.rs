@@ -352,7 +352,7 @@ impl<'a> PreserveHardLinks<'a> {
                 "Cannot link because original path does not exists: {:?}",
                 original
             );
-            return Err(HttmError::new(&msg).into());
+            return HttmError::new(&msg).into();
         }
 
         if link.exists() {
@@ -373,14 +373,14 @@ impl<'a> PreserveHardLinks<'a> {
             if !link.exists() {
                 eprintln!("Error: {}", err);
                 let msg = format!("Could not link file {:?} to {:?}", original, link);
-                return Err(HttmError::new(&msg).into());
+                return HttmError::new(&msg).into();
             }
         }
 
         if let Some(snap_path) = self.roll_forward.snap_path(link) {
             Preserve::direct(&snap_path, link)?;
         } else {
-            return Err(HttmError::new("Could not obtain snap path").into());
+            return HttmError::new("Could not obtain snap path").into();
         }
 
         eprintln!("{}: {:?} -> {:?}", Yellow.paint("Linked  "), original, link);
@@ -393,14 +393,14 @@ impl<'a> PreserveHardLinks<'a> {
             Ok(_) => {
                 if link.exists() {
                     let msg = format!("Target link should not exist after removal {:?}", link);
-                    return Err(HttmError::new(&msg).into());
+                    return HttmError::new(&msg).into();
                 }
             }
             Err(err) => {
                 if link.exists() {
                     eprintln!("Error: {}", err);
                     let msg = format!("Could not remove link {:?}", link);
-                    return Err(HttmError::new(&msg).into());
+                    return HttmError::new(&msg).into();
                 }
             }
         }

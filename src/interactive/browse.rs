@@ -132,15 +132,15 @@ impl InteractiveBrowse {
                 });
 
                 if selected_path_data.is_empty() {
-                    return Err(HttmError::new(
+                    return HttmError::new(
                         "None of the selected strings could be converted to paths.",
                     )
-                    .into());
+                    .into();
                 }
 
                 Ok(Self { selected_path_data })
             }
-            None => Err(HttmError::new("httm interactive file browse session failed.").into()),
+            None => HttmError::new("httm interactive file browse session failed.").into(),
         }
     }
 
@@ -167,7 +167,7 @@ impl TryInto<InteractiveSelect> for InteractiveBrowse {
                 "Cannot select or restore from the following paths as they have no snapshots:\n",
                 paths
             );
-            return Err(HttmError::new(&msg).into());
+            return HttmError::new(&msg).into();
         }
 
         let opt_live_version: Option<String> = if self.selected_path_data.len() > 1 {
@@ -193,7 +193,7 @@ impl TryInto<InteractiveSelect> for InteractiveBrowse {
             display_map.deref().iter().try_for_each(|(live, snaps)| {
                 if snaps.is_empty() {
                     let msg = format!("Path {:?} has no snapshots available.", live.path());
-                    return Err(HttmError::new(&msg));
+                    return HttmError::new(&msg).into();
                 }
 
                 Ok(())

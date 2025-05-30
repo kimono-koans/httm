@@ -726,10 +726,8 @@ impl TryFrom<&ArgMatches> for Config {
 
         if let Some(BulkExclusion::NoSnap) = opt_bulk_exclusion {
             if let PrintMode::Formatted(FormattedMode::Default) = print_mode {
-                return Err(HttmError::new(
-                    "NO_SNAP is only available if RAW or ZEROS are specified.",
-                )
-                .into());
+                return HttmError::new("NO_SNAP is only available if RAW or ZEROS are specified.")
+                    .into();
             }
         }
 
@@ -771,7 +769,7 @@ impl TryFrom<&ArgMatches> for Config {
         if matches!(opt_num_versions, Some(NumVersionsMode::AllGraph))
             && !matches!(print_mode, PrintMode::Formatted(FormattedMode::Default))
         {
-            return Err(HttmError::new("The NUM_VERSIONS graph mode and the RAW or ZEROS display modes are an invalid combination.").into());
+            return HttmError::new("The NUM_VERSIONS graph mode and the RAW or ZEROS display modes are an invalid combination.").into();
         }
 
         let opt_mount_display = match matches
@@ -850,10 +848,10 @@ impl TryFrom<&ArgMatches> for Config {
         };
 
         if opt_no_hidden && !opt_recursive && opt_interactive_mode.is_none() {
-            return Err(HttmError::new(
+            return HttmError::new(
                 "FILTER_HIDDEN is only available if either an interactive mode or recursive mode is specified.",
             )
-            .into());
+            .into();
         }
 
         // if in last snap and select mode we will want to return a raw value,
@@ -869,10 +867,10 @@ impl TryFrom<&ArgMatches> for Config {
                 if requested_snapshot_suffix == &"httmSnapFileMount" {
                     Some(requested_snapshot_suffix.to_owned())
                 } else if requested_snapshot_suffix.contains(char::is_whitespace) {
-                    return Err(HttmError::new(
+                    return HttmError::new(
                         "httm will only accept snapshot suffixes which don't contain whitespace",
                     )
-                    .into());
+                    .into();
                 } else {
                     Some(requested_snapshot_suffix.to_owned())
                 }
@@ -923,10 +921,8 @@ impl TryFrom<&ArgMatches> for Config {
         };
 
         if opt_no_filter && !opt_recursive {
-            return Err(HttmError::new(
-                "NO_FILTER only available when recursive search is enabled.",
-            )
-            .into());
+            return HttmError::new("NO_FILTER only available when recursive search is enabled.")
+                .into();
         }
 
         // paths are immediately converted to our PathData struct
@@ -942,10 +938,8 @@ impl TryFrom<&ArgMatches> for Config {
             Self::opt_requested_dir(&mut exec_mode, &mut opt_deleted_mode, &paths, &pwd)?;
 
         if opt_one_filesystem && opt_requested_dir.is_none() {
-            return Err(HttmError::new(
-                "ONE_FILESYSTEM requires a requested path for RECURSIVE search",
-            )
-            .into());
+            return HttmError::new("ONE_FILESYSTEM requires a requested path for RECURSIVE search")
+                .into();
         }
 
         // doesn't make sense to follow symlinks when you're searching the whole system,
@@ -959,26 +953,24 @@ impl TryFrom<&ArgMatches> for Config {
         };
 
         if !matches!(opt_deleted_mode, None | Some(DeletedMode::All)) && !opt_recursive {
-            return Err(HttmError::new(
+            return HttmError::new(
                 "Deleted modes other than \"all\" require recursive mode is enabled. Quitting.",
             )
-            .into());
+            .into();
         }
 
         let opt_omit_ditto = matches.get_flag("OMIT_DITTO");
 
         // opt_omit_identical doesn't make sense in Display Recursive mode as no live files will exists?
         if opt_omit_ditto && matches!(exec_mode, ExecMode::NonInteractiveRecursive(_)) {
-            return Err(HttmError::new(
+            return HttmError::new(
                 "OMIT_DITTO not available when a deleted recursive search is specified. Quitting.",
             )
-            .into());
+            .into();
         }
 
         if opt_last_snap.is_some() && matches!(exec_mode, ExecMode::NonInteractiveRecursive(_)) {
-            return Err(
-                HttmError::new("LAST_SNAP is not available in Display Recursive Mode.").into(),
-            );
+            return HttmError::new("LAST_SNAP is not available in Display Recursive Mode.").into();
         }
 
         let config = Config {
@@ -1136,10 +1128,10 @@ impl Config {
                                 match interactive_mode {
                                     InteractiveMode::Browse => {
                                         // doesn't make sense to have a non-dir in these modes
-                                        return Err(HttmError::new(
+                                        return HttmError::new(
                                                     "Path specified is not a directory, and therefore not suitable for browsing.",
                                                 )
-                                                .into());
+                                                .into();
                                     }
                                     InteractiveMode::Restore(_) | InteractiveMode::Select(_) => {
                                         // non-dir file will just cause us to skip the lookup phase
@@ -1161,10 +1153,10 @@ impl Config {
                             _ => unreachable!(),
                         }
                     }
-                    n if n > 1 => return Err(HttmError::new(
+                    n if n > 1 => return HttmError::new(
                         "May only specify one path in the display recursive or interactive modes.",
                     )
-                    .into()),
+                    .into(),
                     _ => {
                         unreachable!()
                     }

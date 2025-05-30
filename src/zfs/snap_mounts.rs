@@ -72,7 +72,7 @@ impl SnapshotMounts {
                 let msg = format!(
                     "Could not determine pool name from the constructed snapshot name: {snapshot_name}"
                 );
-                Err(HttmError::new(&msg).into())
+                HttmError::new(&msg).into()
             }
         }
     }
@@ -109,10 +109,10 @@ impl SnapshotMounts {
             .collect::<Result<Vec<String>, HttmError>>()?;
 
         if vec_snapshot_names.is_empty() {
-            return Err(HttmError::new(
+            return HttmError::new(
                 "httm could not generate any valid snapshot names from requested input.  Quitting.",
             )
-            .into());
+            .into();
         }
 
         // why all this garbage with BTreeMaps, etc.? ZFS will not allow one to take snapshots
@@ -135,7 +135,7 @@ impl SnapshotMounts {
             .collect();
 
         if map_snapshot_names.is_empty() {
-            return Err(HttmError::new("httm could not generate a valid map of snapshot names from the requested input.  Quitting.").into());
+            return HttmError::new("httm could not generate a valid map of snapshot names from the requested input.  Quitting.").into();
         }
 
         Ok(map_snapshot_names)

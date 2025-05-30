@@ -41,7 +41,7 @@ impl RunZFSCommand {
         let process_output = ExecProcess::new(&self.zfs_command).arg("-V").output()?;
 
         if !process_output.stderr.is_empty() {
-            return Err(HttmError::new(std::str::from_utf8(&process_output.stderr)?).into());
+            return HttmError::new(std::str::from_utf8(&process_output.stderr)?).into();
         }
 
         Ok(std::string::String::from_utf8(process_output.stdout)?)
@@ -68,7 +68,7 @@ impl RunZFSCommand {
                     + stderr_string
             };
 
-            return Err(HttmError::new(&msg).into());
+            return HttmError::new(&msg).into();
         }
 
         Ok(())
@@ -92,7 +92,7 @@ impl RunZFSCommand {
                 "httm was unable to rollback the snapshot name. The 'zfs' command issued the following error: ".to_owned() + stderr_string
             };
 
-            return Err(HttmError::new(&msg).into());
+            return HttmError::new(&msg).into();
         }
 
         Ok(())
@@ -118,7 +118,7 @@ impl RunZFSCommand {
                 + stderr_string
             };
 
-            return Err(HttmError::new(&msg).into());
+            return HttmError::new(&msg).into();
         }
 
         Ok(())
@@ -137,7 +137,7 @@ impl RunZFSCommand {
         if !stderr_string.is_empty() {
             let msg = "httm was unable to determine 'zfs allow' for the path given. The 'zfs' command issued the following error: ".to_owned() + stderr_string;
 
-            return Err(HttmError::new(&msg).into());
+            return HttmError::new(&msg).into();
         }
 
         let user_name = std::env::var("USER")?;
@@ -150,7 +150,7 @@ impl RunZFSCommand {
         {
             let msg = "User does not have 'zfs allow' privileges for the path given.";
 
-            return Err(HttmError::new(msg).into());
+            return HttmError::new(msg).into();
         }
 
         Ok(())
@@ -193,7 +193,7 @@ impl ZfsAllowPriv {
                 "Could not determine dataset name from path given: {:?}",
                 path_data.path()
             );
-            return Err(HttmError::new(&msg).into());
+            return HttmError::new(&msg).into();
         };
 
         match path_data.fs_type(opt_proximate_dataset) {
@@ -203,7 +203,7 @@ impl ZfsAllowPriv {
                     "httm only supports snapshot guards for ZFS paths.  Path is not located on a ZFS dataset: {:?}",
                     path_data.path()
                 );
-                return Err(HttmError::new(&msg).into());
+                return HttmError::new(&msg).into();
             }
         }
 

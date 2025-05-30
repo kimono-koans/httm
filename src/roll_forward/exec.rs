@@ -51,7 +51,7 @@ impl RollForward {
                 "\"{}\" is not a valid data set name.  A valid ZFS snapshot name requires a '@' separating dataset name and snapshot name.",
                 &full_snap_name
             );
-            return Err(HttmError::new(&msg).into());
+            return HttmError::new(&msg).into();
         };
 
         let dataset_path = Path::new(&dataset);
@@ -146,10 +146,10 @@ impl RollForward {
             let msg = Self::zfs_diff_std_err(opt_stderr)?;
 
             if msg.is_empty() {
-                return Err(HttmError::new("'zfs diff' reported no changes to dataset").into());
+                return HttmError::new("'zfs diff' reported no changes to dataset").into();
             }
 
-            return Err(HttmError::new(&msg).into());
+            return HttmError::new(&msg).into();
         }
 
         // zfs-diff can return multiple file actions for a single inode, here we dedup
@@ -178,7 +178,7 @@ impl RollForward {
 
         if !parse_errors.is_empty() {
             let msg: String = parse_errors.into_iter().map(|e| e.to_string()).collect();
-            return Err(HttmError::new(&msg).into());
+            return HttmError::new(&msg).into();
         }
 
         let exclusions = PreserveHardLinks::try_from(spawn_res)?.exec()?;
@@ -327,7 +327,7 @@ impl RollForward {
 
                 Ok(ret)
             }
-            None => Err(HttmError::new("'zfs diff' reported no changes to dataset").into()),
+            None => HttmError::new("'zfs diff' reported no changes to dataset").into(),
         }
     }
 
@@ -359,7 +359,7 @@ impl RollForward {
                     time_str,
                 )
             }
-            _ => Err(HttmError::new("Could not parse diff event").into()),
+            _ => HttmError::new("Could not parse diff event").into(),
         }
     }
 
@@ -416,7 +416,7 @@ impl RollForward {
                 "Could not overwrite {:?} with snapshot file version {:?}",
                 dst, src
             );
-            return Err(HttmError::new(&msg).into());
+            return HttmError::new(&msg).into();
         }
 
         Preserve::direct(src, dst)?;
@@ -455,13 +455,13 @@ impl RollForward {
             Ok(_) => {
                 if dst.try_exists()? {
                     let msg = format!("File should not exist after deletion {:?}", dst);
-                    return Err(HttmError::new(&msg).into());
+                    return HttmError::new(&msg).into();
                 }
             }
             Err(err) => {
                 eprintln!("Error: {}", err);
                 let msg = format!("Could not delete file {:?}", dst);
-                return Err(HttmError::new(&msg).into());
+                return HttmError::new(&msg).into();
             }
         }
 

@@ -98,7 +98,7 @@ impl ViewMode {
                 .map(|i| i.output().into_owned())
                 .collect(),
             None => {
-                return Err(HttmError::new("httm select/restore/prune session failed.").into());
+                return HttmError::new("httm select/restore/prune session failed.").into();
             }
         };
 

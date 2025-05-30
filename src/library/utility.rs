@@ -53,7 +53,7 @@ pub fn get_btrfs_command() -> HttmResult<PathBuf> {
 pub fn user_has_effective_root(msg: &str) -> HttmResult<()> {
     if !nix::unistd::geteuid().is_root() {
         let err = format!("Superuser privileges are required to execute: {}.", msg);
-        return Err(HttmError::new(&err).into());
+        return HttmError::new(&err).into();
     }
 
     Ok(())
@@ -313,17 +313,17 @@ where
 {
     if src.opt_metadata().is_none() {
         let msg = format!("Metadata not found: {:?}", src.path());
-        return Err(HttmError::new(&msg).into());
+        return HttmError::new(&msg).into();
     }
 
     if src.path().is_symlink() && (src.path().read_link().ok() != dst.path().read_link().ok()) {
         let msg = format!("Symlink do not match: {:?}", src.path());
-        return Err(HttmError::new(&msg).into());
+        return HttmError::new(&msg).into();
     }
 
     if src.opt_metadata() != dst.opt_metadata() {
         let msg = format!("Metadata mismatch: {:?} !-> {:?}", src.path(), dst.path());
-        return Err(HttmError::new(&msg).into());
+        return HttmError::new(&msg).into();
     }
 
     Ok(())
@@ -350,10 +350,10 @@ impl<T: AsRef<Path>> ComparePathMetadata for T {
 
 pub fn pwd() -> HttmResult<PathBuf> {
     let Ok(pwd) = std::env::current_dir() else {
-        return Err(HttmError::new(
+        return HttmError::new(
             "Working directory does not exist or your do not have permissions to access it.",
         )
-        .into());
+        .into();
     };
 
     Ok(pwd)

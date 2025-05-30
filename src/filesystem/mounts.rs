@@ -25,7 +25,7 @@ use crate::{
 use proc_mounts::MountIter;
 use rayon::iter::Either;
 use rayon::prelude::*;
-use realpath_ext::{realpath, RealpathFlags};
+use realpath_ext::{RealpathFlags, realpath};
 use std::collections::{BTreeMap, BTreeSet};
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
@@ -354,7 +354,7 @@ impl BaseFilesystemInfo {
         let stderr_string = std::str::from_utf8(&command_output.stderr)?;
 
         if !stderr_string.is_empty() {
-            return Err(HttmError::new(stderr_string).into());
+            return HttmError::new(stderr_string).into();
         }
 
         let stdout_string = std::str::from_utf8(&command_output.stdout)?;
@@ -459,10 +459,10 @@ impl BaseFilesystemInfo {
                     .collect();
 
                 if retained_keys.is_empty() {
-                    return Err(HttmError::new(
+                    return HttmError::new(
                         "No supported Restic datasets were found on the system.",
                     )
-                    .into());
+                    .into();
                 }
 
                 let repos: Vec<Box<Path>> = retained_keys;
@@ -475,17 +475,17 @@ impl BaseFilesystemInfo {
             }
             FilesystemType::Apfs => {
                 if !cfg!(target_os = "macos") {
-                    return Err(HttmError::new(
+                    return HttmError::new(
                                     "Time Machine is only supported on Mac OS.  This appears to be an unsupported OS."
                                 )
-                                .into());
+                                .into();
                 }
 
                 if !TM_DIR_REMOTE_PATH.exists() && !TM_DIR_LOCAL_PATH.exists() {
-                    return Err(HttmError::new(
+                    return HttmError::new(
                                     "Neither a local nor a remote Time Machine path seems to exist for this system."
                                 )
-                                .into());
+                                .into();
                 }
 
                 DatasetMetadata {
@@ -495,10 +495,10 @@ impl BaseFilesystemInfo {
                 }
             }
             _ => {
-                return Err(HttmError::new(
+                return HttmError::new(
                     "The file system type specified is not a supported alternative store.",
                 )
-                .into());
+                .into();
             }
         };
 

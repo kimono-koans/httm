@@ -51,8 +51,8 @@ use std::fs::{File, OpenOptions};
 use std::io::{BufRead, BufReader, BufWriter, ErrorKind, Seek, SeekFrom, Write};
 use std::os::fd::{AsFd, BorrowedFd};
 use std::path::Path;
-use std::sync::atomic::AtomicBool;
 use std::sync::LazyLock;
+use std::sync::atomic::AtomicBool;
 
 static IS_CLONE_COMPATIBLE: LazyLock<AtomicBool> = LazyLock::new(|| {
     let Ok(zfs_cmd) = RunZFSCommand::new() else {
@@ -294,7 +294,7 @@ impl DiffCopy {
             while amt_written < len {
                 match nix::fcntl::copy_file_range(src_file_fd, None, dst_file_fd, None, len) {
                     Ok(bytes_written) if bytes_written == 0 && amt_written == 0 => {
-                        return Err(HttmError::new("Bytes written == 0, which indicates the file offset of fd_in is at or past the end of file.").into())
+                        return HttmError::new("Bytes written == 0, which indicates the file offset of fd_in is at or past the end of file.").into()
                     }
                     Ok(bytes_written) => {
                         amt_written += bytes_written;
@@ -307,10 +307,10 @@ impl DiffCopy {
                     }
                     Err(err) => match err {
                         nix::errno::Errno::ENOSYS => {
-                            return Err(HttmError::new(
+                            return HttmError::new(
                                 "Operating system does not support copy_file_ranges.",
                             )
-                            .into())
+                            .into()
                         }
                         _ => {
                             if GLOBAL_CONFIG.opt_debug {
@@ -327,7 +327,7 @@ impl DiffCopy {
         }
 
         #[cfg(not(any(target_os = "linux", target_os = "freebsd")))]
-        Err(HttmError::new("Operating system does not support copy_file_ranges.").into())
+        HttmError::new("Operating system does not support copy_file_ranges.").into()
     }
 
     pub fn confirm(src: &Path, dst: &Path) -> HttmResult<()> {
@@ -343,7 +343,7 @@ impl DiffCopy {
                 dst.display()
             );
 
-            Err(HttmError::new(&msg).into())
+            HttmError::new(&msg).into()
         }
     }
 }

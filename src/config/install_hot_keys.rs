@@ -30,13 +30,11 @@ pub fn install_hot_keys() -> HttmResult<()> {
         if let Ok(path) = PathBuf::from(&home).canonicalize() {
             path
         } else {
-            return Err(HttmError::new(
-                "$HOME, as set in your environment, does not appear to exist",
-            )
-            .into());
+            return HttmError::new("$HOME, as set in your environment, does not appear to exist")
+                .into();
         }
     } else {
-        return Err(HttmError::new("$HOME does not appear to be set in your environment").into());
+        return HttmError::new("$HOME does not appear to be set in your environment").into();
     };
 
     // check whether httm-key-bindings.zsh is already sourced
@@ -69,10 +67,10 @@ pub fn install_hot_keys() -> HttmResult<()> {
             "\n# httm: zsh hot keys script\nsource ~/.httm-key-bindings.zsh\n".as_bytes(),
         )?;
     } else {
-        return Err(HttmError::new(
+        return HttmError::new(
             "httm: zsh hot keys appear to already be sourced in the user's ~/.zshrc. Quitting. ",
         )
-        .into());
+        .into();
     }
 
     // create key binding file -- done at compile time
@@ -115,7 +113,7 @@ pub fn install_hot_keys() -> HttmResult<()> {
                 "Opening ~/.httm-key-bindings.zsh.tmp file failed for the following reason: ",
                 &err,
             )
-            .into())
+            .into());
         }
     }
 

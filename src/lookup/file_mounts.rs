@@ -107,10 +107,10 @@ impl<'a> MountsForFiles<'a> {
                 .iter()
                 .all(|prox| prox.path_data().opt_metadata().is_none())
         {
-            return Err(HttmError::new(
+            return HttmError::new(
                 "httm could either not find any mounts for the path/s specified, or all the path do not exist, so, umm, 🤷? Please try another path.",
             )
-            .into());
+            .into();
         }
 
         Ok(Self {

@@ -377,10 +377,10 @@ impl NonInteractiveRecursiveWrapper {
                 RecursiveSearch::new(requested_dir, opt_skim_tx, hangup).exec();
             }
             None => {
-                return Err(HttmError::new(
+                return HttmError::new(
                     "requested_dir should never be None in Display Recursive mode",
                 )
-                .into());
+                .into();
             }
         }
 
