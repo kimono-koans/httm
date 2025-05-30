@@ -41,7 +41,7 @@ impl Copy {
             Ok(())
         } else {
             let msg = format!("Could not detect a parent for destination file: {:?}", dst);
-            HttmError::new(&msg).into()
+            HttmError::from(msg).into()
         }
     }
 
@@ -121,7 +121,7 @@ impl Copy {
             Other special file types (like doors and event ports) are unsupported: \"{}\"",
                 src.display()
             );
-            return HttmError::new(&msg).into();
+            return HttmError::from(msg).into();
         }
 
         Ok(())
@@ -244,7 +244,7 @@ impl Preserve {
                 "Could not determine relative path for destination: {:?}",
                 dst
             );
-            return HttmError::new(&msg).into();
+            return HttmError::from(msg).into();
         };
 
         let relative_path_components_len = relative_path.components().count();

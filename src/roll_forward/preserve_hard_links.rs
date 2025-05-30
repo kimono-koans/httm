@@ -352,7 +352,7 @@ impl<'a> PreserveHardLinks<'a> {
                 "Cannot link because original path does not exists: {:?}",
                 original
             );
-            return HttmError::new(&msg).into();
+            return HttmError::from(msg).into();
         }
 
         if link.exists() {
@@ -373,7 +373,7 @@ impl<'a> PreserveHardLinks<'a> {
             if !link.exists() {
                 eprintln!("Error: {}", err);
                 let msg = format!("Could not link file {:?} to {:?}", original, link);
-                return HttmError::new(&msg).into();
+                return HttmError::from(msg).into();
             }
         }
 
@@ -393,14 +393,14 @@ impl<'a> PreserveHardLinks<'a> {
             Ok(_) => {
                 if link.exists() {
                     let msg = format!("Target link should not exist after removal {:?}", link);
-                    return HttmError::new(&msg).into();
+                    return HttmError::from(msg).into();
                 }
             }
             Err(err) => {
                 if link.exists() {
                     eprintln!("Error: {}", err);
                     let msg = format!("Could not remove link {:?}", link);
-                    return HttmError::new(&msg).into();
+                    return HttmError::from(msg).into();
                 }
             }
         }

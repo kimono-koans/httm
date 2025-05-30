@@ -51,7 +51,7 @@ impl RollForward {
                 "\"{}\" is not a valid data set name.  A valid ZFS snapshot name requires a '@' separating dataset name and snapshot name.",
                 &full_snap_name
             );
-            return HttmError::new(&msg).into();
+            return HttmError::from(msg).into();
         };
 
         let dataset_path = Path::new(&dataset);
@@ -149,7 +149,7 @@ impl RollForward {
                 return HttmError::new("'zfs diff' reported no changes to dataset").into();
             }
 
-            return HttmError::new(&msg).into();
+            return HttmError::from(msg).into();
         }
 
         // zfs-diff can return multiple file actions for a single inode, here we dedup
@@ -178,7 +178,7 @@ impl RollForward {
 
         if !parse_errors.is_empty() {
             let msg: String = parse_errors.into_iter().map(|e| e.to_string()).collect();
-            return HttmError::new(&msg).into();
+            return HttmError::from(msg).into();
         }
 
         let exclusions = PreserveHardLinks::try_from(spawn_res)?.exec()?;
@@ -416,7 +416,7 @@ impl RollForward {
                 "Could not overwrite {:?} with snapshot file version {:?}",
                 dst, src
             );
-            return HttmError::new(&msg).into();
+            return HttmError::from(msg).into();
         }
 
         Preserve::direct(src, dst)?;
@@ -455,13 +455,13 @@ impl RollForward {
             Ok(_) => {
                 if dst.try_exists()? {
                     let msg = format!("File should not exist after deletion {:?}", dst);
-                    return HttmError::new(&msg).into();
+                    return HttmError::from(msg).into();
                 }
             }
             Err(err) => {
                 eprintln!("Error: {}", err);
                 let msg = format!("Could not delete file {:?}", dst);
-                return HttmError::new(&msg).into();
+                return HttmError::from(msg).into();
             }
         }
 

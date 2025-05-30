@@ -72,7 +72,7 @@ impl SnapshotMounts {
                 let msg = format!(
                     "Could not determine pool name from the constructed snapshot name: {snapshot_name}"
                 );
-                HttmError::new(&msg).into()
+                HttmError::from(msg).into()
             }
         }
     }

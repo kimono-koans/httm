@@ -150,7 +150,7 @@ impl InteractiveRestore {
                         dst
                     );
 
-                    return HttmError::new(&msg).into();
+                    return HttmError::from(msg).into();
                 }
                 _ => {
                     let msg = format!("httm restore failed for the following reason");
@@ -216,7 +216,7 @@ impl InteractiveRestore {
                 "Source location: {:?} does not exist on disk Quitting.",
                 snap_path_data.path()
             );
-            return HttmError::new(&msg).into();
+            return HttmError::from(msg).into();
         };
 
         // remove leading dots

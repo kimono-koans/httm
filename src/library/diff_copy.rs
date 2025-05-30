@@ -343,7 +343,7 @@ impl DiffCopy {
                 dst.display()
             );
 
-            HttmError::new(&msg).into()
+            HttmError::from(msg).into()
         }
     }
 }

@@ -313,17 +313,17 @@ where
 {
     if src.opt_metadata().is_none() {
         let msg = format!("Metadata not found: {:?}", src.path());
-        return HttmError::new(&msg).into();
+        return HttmError::from(msg).into();
     }
 
     if src.path().is_symlink() && (src.path().read_link().ok() != dst.path().read_link().ok()) {
         let msg = format!("Symlink do not match: {:?}", src.path());
-        return HttmError::new(&msg).into();
+        return HttmError::from(msg).into();
     }
 
     if src.opt_metadata() != dst.opt_metadata() {
         let msg = format!("Metadata mismatch: {:?} !-> {:?}", src.path(), dst.path());
-        return HttmError::new(&msg).into();
+        return HttmError::from(msg).into();
     }
 
     Ok(())

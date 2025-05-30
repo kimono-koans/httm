@@ -330,7 +330,7 @@ impl<'a> PathDeconstruction<'a> for PathData {
                     "httm could not identify any proximate dataset for path: {:?}",
                     self.path_buf
                 );
-                HttmError::new(&msg).into()
+                HttmError::from(msg).into()
             })
     }
 
@@ -447,7 +447,7 @@ impl<'a> PathDeconstruction<'a> for ZfsSnapPathGuard<'_> {
                     "httm could not identify any relative path for path: {:?}",
                     self.path_buf
                 );
-                HttmError::new(&msg).into()
+                HttmError::from(msg).into()
             })
     }
 
