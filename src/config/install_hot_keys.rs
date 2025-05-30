@@ -48,7 +48,7 @@ pub fn install_hot_keys() -> HttmResult<()> {
         .open(zshrc_path)
         .map_err(|err| {
             HttmError::with_source(
-                "Opening user's ~/.zshrc file failed for the following reason: ",
+                "Opening user's ~/.zshrc file failed for the following reason:",
                 err,
             )
         })?;
@@ -104,7 +104,7 @@ pub fn install_hot_keys() -> HttmResult<()> {
                     eprintln!("httm: zsh hot keys were installed successfully.");
                 }
                 Err(err) => {
-                    return Err(HttmError::with_source("httm: could not move .httm-key-bindings.zsh.tmp to .httm-key-bindings.zsh for the following reason: ", err).into())
+                    return Err(HttmError::with_source("httm: could not move .httm-key-bindings.zsh.tmp to .httm-key-bindings.zsh for the following reason:", err).into())
                 }
             }
         }

@@ -153,7 +153,7 @@ impl InteractiveRestore {
                     return HttmError::from(description).into();
                 }
                 _ => {
-                    let description = format!("httm restore failed for the following reason");
+                    let description = format!("httm restore failed for the following reason:");
                     return HttmError::with_source(&description, err.as_ref()).into();
                 }
             };
