@@ -402,7 +402,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
             (joined_path.clone(), future)
         });
 
-        let mut res = Vec::new();
+        let mut vec = Vec::new();
 
         smol::block_on(async {
             while let Some((joined_path, future)) = stream.next().await {
@@ -410,7 +410,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
                     Ok(md) => {
                         // why not PathData::new()? because symlinks will resolve!
                         // symlinks from a snap will end up looking just like the link target, so this is very confusing...
-                        res.push(PathData::new(&joined_path, Some(md)));
+                        vec.push(PathData::new(&joined_path, Some(md)));
                     }
                     Err(err) => {
                         match err.kind() {
@@ -433,7 +433,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
             }
         });
 
-        res
+        vec
     }
 
     // remove duplicates with the same system modify time and size/file len (or contents! See --DEDUP_BY)
