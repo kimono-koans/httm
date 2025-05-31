@@ -21,9 +21,10 @@ use crate::filesystem::mounts::LinkType;
 use crate::filesystem::snaps::MapOfSnaps;
 use crate::library::results::{HttmError, HttmResult};
 use crate::{GLOBAL_CONFIG, MAP_OF_SNAPS};
+use futures::future::join_all;
+use futures::{self, FutureExt};
 use hashbrown::HashSet;
 use rayon::prelude::*;
-use smol::prelude::*;
 use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::io::ErrorKind;
@@ -394,45 +395,39 @@ impl<'a> RelativePathAndSnapMounts<'a> {
         let iter = self
             .snap_mounts
             .iter()
-            .map(|snap_path| snap_path.join(self.relative_path));
+            .map(|snap_path| snap_path.join(self.relative_path))
+            .map(|joined_path| {
+                let future_metadata = smol::fs::symlink_metadata(joined_path.clone());
 
-        let mut stream = smol::stream::iter(iter).map(|joined_path| {
-            let future = smol::fs::symlink_metadata(joined_path.clone());
-            (joined_path.clone(), future)
-        });
+                future_metadata.map(|res| (joined_path, res))
+            });
 
-        let mut vec = Vec::new();
-
-        smol::block_on(async {
-            while let Some((joined_path, future)) = stream.next().await {
-                match future.await {
-                    Ok(md) => {
-                        // why not PathData::new()? because symlinks will resolve!
-                        // symlinks from a snap will end up looking just like the link target, so this is very confusing...
-                        vec.push(PathData::new(&joined_path, Some(md)));
-                    }
-                    Err(err) => {
-                        match err.kind() {
-                            // if we do not have permissions to read the snapshot directories
-                            // fail/panic printing a descriptive error instead of flattening
-                            ErrorKind::PermissionDenied => {
-                                eprintln!(
-                                    "Error: When httm tried to find a file contained within a snapshot directory, permission was denied.  \
-                                Perhaps you need to use sudo or equivalent to view the contents of this snapshot (for instance, btrfs by default creates privileged snapshots).  \
-                                \nDetails: {err}"
-                                );
-                                std::process::exit(1)
-                            }
-                            // if file metadata is not found, or is otherwise not available,
-                            // continue, it simply means we do not have a snapshot of this file
-                            _ => continue,
+        smol::block_on(async { join_all(iter).await }).into_iter().filter_map(|(joined_path, res)| {
+            match res {
+                Ok(md) => {
+                    // why not PathData::new()? because symlinks will resolve!
+                    // symlinks from a snap will end up looking just like the link target, so this is very confusing...
+                    Some(PathData::new(&joined_path, Some(md)))
+                }
+                Err(err) => {
+                    match err.kind() {
+                        // if we do not have permissions to read the snapshot directories
+                        // fail/panic printing a descriptive error instead of flattening
+                        ErrorKind::PermissionDenied => {
+                            eprintln!(
+                                "Error: When httm tried to find a file contained within a snapshot directory, permission was denied.  \
+                                        Perhaps you need to use sudo or equivalent to view the contents of this snapshot (for instance, btrfs by default creates privileged snapshots).  \
+                                        \nDetails: {err}"
+                            );
+                            std::process::exit(1)
                         }
+                        // if file metadata is not found, or is otherwise not available,
+                        // continue, it simply means we do not have a snapshot of this file
+                        _ => None,
                     }
                 }
             }
-        });
-
-        vec
+        }).collect()
     }
 
     // remove duplicates with the same system modify time and size/file len (or contents! See --DEDUP_BY)
