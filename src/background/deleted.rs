@@ -20,6 +20,7 @@ use crate::background::recursive::PathProvenance;
 use crate::background::recursive::RecursiveSearch;
 use crate::config::generate::DeletedMode;
 use crate::data::paths::BasicDirEntryInfo;
+use crate::library::results::HttmError;
 use crate::library::results::HttmResult;
 use rayon::Scope;
 use skim::prelude::*;
@@ -58,9 +59,8 @@ impl DeletedSearch {
     }
 
     fn run_loop(&self) -> HttmResult<()> {
-        if self.hangup.load(Ordering::Relaxed) {
-            return Ok(());
-        }
+        // check to see whether we need to continue
+        self.hangup_check()?;
 
         // yield to other rayon work on this worker thread
         self.timeout_loop()?;
@@ -81,13 +81,10 @@ impl DeletedSearch {
 
         if GLOBAL_CONFIG.opt_recursive {
             while let Some(item) = queue.pop() {
-                // check -- should deleted threads keep working?
-                // exit/error on disconnected channel, which closes
-                // at end of browse scope
-                if self.hangup.load(Ordering::Relaxed) {
-                    return Ok(());
-                }
+                // check to see whether we need to continue
+                self.hangup_check()?;
 
+                // yield to other rayon work on this worker thread
                 self.timeout_loop()?;
 
                 if let Ok(mut items) = RecursiveSearch::enter_directory(
@@ -118,9 +115,7 @@ impl DeletedSearch {
             match rayon::yield_local() {
                 Some(rayon::Yield::Executed) => {
                     // wait 1 ms and then continue
-                    if self.hangup.load(Ordering::Relaxed) {
-                        return Ok(());
-                    }
+                    self.hangup_check()?;
 
                     if timeout < 16 {
                         timeout *= 2
@@ -134,6 +129,14 @@ impl DeletedSearch {
                     "None should be impossible as this loop should only ever execute on a Rayon thread."
                 ),
             }
+        }
+
+        Ok(())
+    }
+
+    fn hangup_check(&self) -> HttmResult<()> {
+        if self.hangup.load(Ordering::Relaxed) {
+            return HttmError::new("Thread requested to hangup!").into();
         }
 
         Ok(())
