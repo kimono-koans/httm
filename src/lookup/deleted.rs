@@ -120,15 +120,16 @@ impl DeletedFiles {
     }
 
     #[inline(always)]
-    fn snapshot_paths_for_directory<'a>(
+    fn names_and_types_for_directory<'a>(
         pseudo_live_dir: &'a Path,
-        search_bundle: &'a RelativePathAndSnapMounts<'a>,
-    ) -> Vec<BasicDirEntryInfo> {
+        search_bundle: RelativePathAndSnapMounts<'a>,
+    ) -> impl Iterator<Item = BasicDirEntryInfo> + 'a {
         // compare local filenames to all unique snap filenames - none values are unique, here
         search_bundle
             .snap_mounts()
-            .iter()
-            .map(|path| path.join(search_bundle.relative_path()))
+            .to_owned()
+            .into_iter()
+            .map(move |path| path.join(search_bundle.relative_path()))
             // important to note: this is a read dir on snapshots directories,
             // b/c read dir on deleted dirs from a live filesystem will fail
             .flat_map(std::fs::read_dir)
@@ -141,7 +142,6 @@ impl DeletedFiles {
                     dir_entry.file_type().ok(),
                 )
             })
-            .collect()
     }
 
     // this function creates dummy "live versions" values to match deleted files
