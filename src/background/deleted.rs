@@ -26,6 +26,10 @@ use skim::prelude::*;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
+use std::thread::sleep;
+use std::time::Duration;
+
+const TIMEOUT: Duration = std::time::Duration::from_millis(1);
 
 pub struct DeletedSearch;
 
@@ -51,6 +55,21 @@ impl DeletedSearch {
     ) -> HttmResult<()> {
         if hangup.load(Ordering::Relaxed) {
             return Ok(());
+        }
+
+        // yield to other rayon work on this worker thread
+        loop {
+            match rayon::yield_local() {
+                Some(rayon::Yield::Executed) => {
+                    // wait 1 ms and then continue
+                    sleep(TIMEOUT);
+                    continue;
+                }
+                Some(rayon::Yield::Idle) => break,
+                None => unreachable!(
+                    "None should be impossible as this loop should only ever execute on a Rayon thread."
+                ),
+            }
         }
 
         let mut queue: Vec<BasicDirEntryInfo> = RecursiveSearch::enter_directory(
