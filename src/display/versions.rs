@@ -269,7 +269,7 @@ impl PathData {
                     && prox_opt_alts
                         .into_search_bundles()
                         .flat_map(|relative_path_and_snap_mounts| {
-                            relative_path_and_snap_mounts.versions_processed(&DedupBy::Disable)
+                            relative_path_and_snap_mounts.version_search(&DedupBy::Disable)
                         })
                         .count()
                         != 0 =>

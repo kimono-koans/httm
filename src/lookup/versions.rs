@@ -148,7 +148,7 @@ impl Versions {
         let snap_versions: Vec<PathData> = prox_opt_alts
             .into_search_bundles()
             .flat_map(|relative_path_snap_mounts| {
-                relative_path_snap_mounts.versions_processed(&config.dedup_by)
+                relative_path_snap_mounts.version_search(&config.dedup_by)
             })
             .collect();
 
@@ -316,6 +316,11 @@ impl<'a> ProximateDatasetAndOptAlts<'a> {
     }
 }
 
+enum NetworkAutoMount {
+    Break,
+    Continue,
+}
+
 #[derive(Debug, Clone)]
 pub struct RelativePathAndSnapMounts<'a> {
     relative_path: &'a Path,
@@ -365,25 +370,6 @@ impl<'a> RelativePathAndSnapMounts<'a> {
     #[inline(always)]
     pub fn relative_path(&'a self) -> &'a Path {
         &self.relative_path
-    }
-
-    #[inline(always)]
-    pub fn versions_processed(&'a self, dedup_by: &DedupBy) -> Vec<PathData> {
-        loop {
-            let mut all_versions = self.all_versions_unprocessed();
-
-            Self::sort_dedup_versions(&mut all_versions, dedup_by);
-
-            if all_versions.is_empty() {
-                // opendir and readdir iter on the snap path are necessary to mount snapshots over SMB
-                match NetworkAutoMount::new(&self) {
-                    NetworkAutoMount::Break => break all_versions,
-                    NetworkAutoMount::Continue => continue,
-                }
-            }
-
-            break all_versions;
-        }
     }
 
     #[inline(always)]
@@ -449,15 +435,28 @@ impl<'a> RelativePathAndSnapMounts<'a> {
             }
         }
     }
-}
-enum NetworkAutoMount {
-    Break,
-    Continue,
-}
 
-impl NetworkAutoMount {
     #[inline(always)]
-    fn new(bundle: &RelativePathAndSnapMounts) -> NetworkAutoMount {
+    pub fn version_search(&'a self, dedup_by: &DedupBy) -> Vec<PathData> {
+        loop {
+            let mut all_versions = self.all_versions_unprocessed();
+
+            Self::sort_dedup_versions(&mut all_versions, dedup_by);
+
+            if all_versions.is_empty() {
+                // opendir and readdir iter on the snap path are necessary to mount snapshots over SMB
+                match self.network_auto_mount() {
+                    NetworkAutoMount::Break => break all_versions,
+                    NetworkAutoMount::Continue => continue,
+                }
+            }
+
+            break all_versions;
+        }
+    }
+
+    #[inline(always)]
+    fn network_auto_mount(&self) -> NetworkAutoMount {
         static ANY_NETWORK_MOUNTS: LazyLock<bool> = LazyLock::new(|| {
             GLOBAL_CONFIG
                 .dataset_collection
@@ -473,7 +472,7 @@ impl NetworkAutoMount {
         if GLOBAL_CONFIG
             .dataset_collection
             .map_of_datasets
-            .get(bundle.dataset_of_interest)
+            .get(self.dataset_of_interest)
             .map(|md| matches!(md.link_type, LinkType::Local))
             .unwrap_or_else(|| true)
         {
@@ -486,7 +485,7 @@ impl NetworkAutoMount {
         if CACHE_RESULT
             .try_read()
             .ok()
-            .map(|cached_result| cached_result.contains(bundle.dataset_of_interest))
+            .map(|cached_result| cached_result.contains(self.dataset_of_interest))
             .unwrap_or_else(|| true)
         {
             return NetworkAutoMount::Break;
@@ -494,10 +493,10 @@ impl NetworkAutoMount {
 
         if let Ok(mut cached_result) = CACHE_RESULT.try_write() {
             unsafe {
-                cached_result.insert_unique_unchecked(bundle.dataset_of_interest.to_path_buf());
+                cached_result.insert_unique_unchecked(self.dataset_of_interest.to_path_buf());
             };
 
-            bundle.snap_mounts.iter().for_each(|snap_path| {
+            self.snap_mounts.iter().for_each(|snap_path| {
                 let _ = std::fs::read_dir(snap_path)
                     .into_iter()
                     .flatten()
