@@ -190,7 +190,7 @@ pub struct PathData {
 impl Default for PathData {
     fn default() -> Self {
         Self {
-            path_buf: PathBuf::new().into_boxed_path(),
+            path_buf: EMPTY_PATH.clone(),
             metadata: None,
         }
     }
@@ -609,6 +609,7 @@ impl Ord for PathMetadata {
 
 pub const PHANTOM_DATE: SystemTime = SystemTime::UNIX_EPOCH;
 pub const PHANTOM_SIZE: u64 = 0u64;
+pub const EMPTY_PATH: LazyLock<Box<Path>> = LazyLock::new(|| PathBuf::new().into_boxed_path());
 
 pub const PHANTOM_PATH_METADATA: PathMetadata = PathMetadata {
     size: PHANTOM_SIZE,
