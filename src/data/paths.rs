@@ -187,15 +187,6 @@ pub struct PathData {
     metadata: Option<PathMetadata>,
 }
 
-impl Default for PathData {
-    fn default() -> Self {
-        Self {
-            path_buf: EMPTY_PATH.clone(),
-            metadata: None,
-        }
-    }
-}
-
 impl PartialOrd for PathData {
     #[inline]
     fn partial_cmp(&self, other: &PathData) -> Option<Ordering> {
@@ -609,7 +600,6 @@ impl Ord for PathMetadata {
 
 pub const PHANTOM_DATE: SystemTime = SystemTime::UNIX_EPOCH;
 pub const PHANTOM_SIZE: u64 = 0u64;
-pub const EMPTY_PATH: LazyLock<Box<Path>> = LazyLock::new(|| PathBuf::new().into_boxed_path());
 
 pub const PHANTOM_PATH_METADATA: PathMetadata = PathMetadata {
     size: PHANTOM_SIZE,

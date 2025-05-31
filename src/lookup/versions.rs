@@ -448,9 +448,8 @@ impl<'a> RelativePathAndSnapMounts<'a> {
                 vec.dedup_by_key(|a| a.metadata_infallible());
             }
             DedupBy::Contents => {
-                let mut container_vec: Vec<CompareContentsContainer> = vec
+                let mut container_vec: Vec<CompareContentsContainer> = std::mem::take(vec)
                     .into_iter()
-                    .map(|path_data| std::mem::take(path_data))
                     .map(|path_data| CompareContentsContainer::from(path_data))
                     .collect();
 
