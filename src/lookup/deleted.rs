@@ -110,7 +110,7 @@ impl DeletedFiles {
         let unique_deleted_file_names_for_dir: HashSet<BasicDirEntryInfo> = prox_opt_alts
             .into_search_bundles()
             .flat_map(|search_bundle| {
-                Self::snapshot_paths_for_directory(&requested_dir, &search_bundle)
+                Self::snapshot_paths_for_directory(&requested_dir, search_bundle)
             })
             .collect_set_no_update();
 
@@ -120,7 +120,7 @@ impl DeletedFiles {
     }
 
     #[inline(always)]
-    fn names_and_types_for_directory<'a>(
+    fn snapshot_paths_for_directory<'a>(
         pseudo_live_dir: &'a Path,
         search_bundle: RelativePathAndSnapMounts<'a>,
     ) -> impl Iterator<Item = BasicDirEntryInfo> + 'a {
