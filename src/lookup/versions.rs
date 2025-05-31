@@ -373,7 +373,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
     }
 
     #[inline(always)]
-    fn all_versions_unprocessed(&'a self) -> Vec<PathData> {
+    fn all_versions(&'a self) -> Vec<PathData> {
         // get the DirEntry for our snapshot path which will have all our possible
         // snapshots, like so: .zfs/snapshots/<some snap name>/
         self
@@ -439,19 +439,19 @@ impl<'a> RelativePathAndSnapMounts<'a> {
     #[inline(always)]
     pub fn version_search(&'a self, dedup_by: &DedupBy) -> Vec<PathData> {
         loop {
-            let mut all_versions = self.all_versions_unprocessed();
+            let mut versions = self.all_versions();
 
-            Self::sort_dedup_versions(&mut all_versions, dedup_by);
+            Self::sort_dedup_versions(&mut versions, dedup_by);
 
-            if all_versions.is_empty() {
+            if versions.is_empty() {
                 // opendir and readdir iter on the snap path are necessary to mount snapshots over SMB
                 match self.network_auto_mount() {
-                    NetworkAutoMount::Break => break all_versions,
+                    NetworkAutoMount::Break => break versions,
                     NetworkAutoMount::Continue => continue,
                 }
             }
 
-            break all_versions;
+            break versions;
         }
     }
 
