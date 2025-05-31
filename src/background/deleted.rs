@@ -122,7 +122,9 @@ impl DeletedSearch {
                         return Ok(());
                     }
 
-                    timeout *= 2;
+                    if timeout < 16 {
+                        timeout *= 2
+                    };
 
                     sleep(std::time::Duration::from_millis(timeout));
                     continue;
