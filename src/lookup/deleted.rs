@@ -19,6 +19,7 @@ use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::library::iter_extensions::HttmIter;
 use crate::lookup::versions::{ProximateDatasetAndOptAlts, RelativePathAndSnapMounts};
 use hashbrown::HashSet;
+use smol::stream::StreamExt;
 use std::ffi::OsString;
 use std::fs::FileType;
 use std::path::Path;
@@ -100,7 +101,7 @@ impl DeletedFiles {
         let unique_deleted_file_names_for_dir: HashSet<BasicDirEntryInfo> = prox_opt_alts
             .into_search_bundles()
             .flat_map(|search_bundle| {
-                Self::all_snapshot_paths_for_directory(&requested_dir, search_bundle)
+                Self::all_snapshot_paths_for_directory(&requested_dir, &search_bundle)
             })
             .collect_set_no_update();
 
@@ -112,26 +113,42 @@ impl DeletedFiles {
     #[inline(always)]
     fn all_snapshot_paths_for_directory<'a>(
         pseudo_live_dir: &'a Path,
-        search_bundle: RelativePathAndSnapMounts<'a>,
-    ) -> impl Iterator<Item = BasicDirEntryInfo> + 'a {
+        search_bundle: &'a RelativePathAndSnapMounts<'a>,
+    ) -> Vec<BasicDirEntryInfo> {
         // compare local filenames to all unique snap filenames - none values are unique, here
-        search_bundle
+        let iter = search_bundle
             .snap_mounts()
-            .to_owned()
-            .into_iter()
-            .map(move |path| path.join(search_bundle.relative_path()))
-            // important to note: this is a read dir on snapshots directories,
-            // b/c read dir on deleted dirs from a live filesystem will fail
-            .flat_map(std::fs::read_dir)
-            .flatten()
-            .flatten()
-            .map(|dir_entry| {
-                Self::into_pseudo_live_version(
-                    dir_entry.file_name(),
-                    pseudo_live_dir,
-                    dir_entry.file_type().ok(),
-                )
-            })
+            .iter()
+            .map(|path| path.join(search_bundle.relative_path()));
+        // important to note: this is a read dir on snapshots directories,
+        // b/c read dir on deleted dirs from a live filesystem will fail
+
+        let mut stream = smol::stream::iter(iter).map(|path| smol::fs::read_dir(path));
+
+        let mut vec = Vec::new();
+
+        smol::block_on(async {
+            while let Some(future) = stream.next().await {
+                match future.await {
+                    Ok(mut read_dir) => {
+                        // why not PathData::new()? because symlinks will resolve!
+                        // symlinks from a snap will end up looking just like the link target, so this is very confusing...
+                        while let Ok(Some(entry)) = read_dir.try_next().await {
+                            let item = Self::into_pseudo_live_version(
+                                entry.file_name(),
+                                pseudo_live_dir,
+                                entry.file_type().await.ok(),
+                            );
+
+                            vec.push(item);
+                        }
+                    }
+                    _ => continue,
+                }
+            }
+        });
+
+        vec
     }
 
     // this function creates dummy "live versions" values to match deleted files

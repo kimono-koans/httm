@@ -398,7 +398,6 @@ impl<'a> RelativePathAndSnapMounts<'a> {
 
         let mut stream = smol::stream::iter(iter).map(|joined_path| {
             let future = smol::fs::symlink_metadata(joined_path.clone());
-
             (joined_path.clone(), future)
         });
 
