@@ -396,15 +396,15 @@ impl<'a> RelativePathAndSnapMounts<'a> {
             .iter()
             .map(|snap_path| snap_path.join(self.relative_path));
 
+        let mut stream = smol::stream::iter(iter).map(|joined_path| {
+            let future = smol::fs::symlink_metadata(joined_path.clone());
+
+            (joined_path.clone(), future)
+        });
+
         let mut res = Vec::new();
 
         smol::block_on(async {
-            let mut stream = smol::stream::iter(iter).map(|joined_path| {
-                let future = smol::fs::symlink_metadata(joined_path.clone());
-
-                (joined_path.clone(), future)
-            });
-
             while let Some((joined_path, future)) = stream.next().await {
                 match future.await {
                     Ok(md) => {
