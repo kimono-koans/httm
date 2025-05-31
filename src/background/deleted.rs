@@ -31,9 +31,21 @@ use std::time::Duration;
 
 const TIMEOUT: Duration = std::time::Duration::from_millis(1);
 
-pub struct DeletedSearch;
+pub struct DeletedSearch {
+    deleted_dir: PathBuf,
+    skim_tx: Option<SkimItemSender>,
+    hangup: Arc<AtomicBool>,
+}
 
 impl DeletedSearch {
+    fn new(deleted_dir: PathBuf, skim_tx: Option<SkimItemSender>, hangup: Arc<AtomicBool>) -> Self {
+        Self {
+            deleted_dir,
+            skim_tx,
+            hangup,
+        }
+    }
+
     // "spawn" a lighter weight rayon/greenish thread for enumerate_deleted, if needed
     pub fn spawn(
         requested_dir: &Path,
@@ -44,38 +56,22 @@ impl DeletedSearch {
         let deleted_dir = requested_dir.to_path_buf();
 
         deleted_scope.spawn(move |_| {
-            let _ = Self::run_loop(deleted_dir, skim_tx.clone(), hangup.clone());
+            let _ = Self::new(deleted_dir, skim_tx.clone(), hangup.clone()).run_loop();
         })
     }
 
-    fn run_loop(
-        deleted_dir: PathBuf,
-        skim_tx: Option<SkimItemSender>,
-        hangup: Arc<AtomicBool>,
-    ) -> HttmResult<()> {
-        if hangup.load(Ordering::Relaxed) {
+    fn run_loop(&self) -> HttmResult<()> {
+        if self.hangup.load(Ordering::Relaxed) {
             return Ok(());
         }
 
         // yield to other rayon work on this worker thread
-        loop {
-            match rayon::yield_local() {
-                Some(rayon::Yield::Executed) => {
-                    // wait 1 ms and then continue
-                    sleep(TIMEOUT);
-                    continue;
-                }
-                Some(rayon::Yield::Idle) => break,
-                None => unreachable!(
-                    "None should be impossible as this loop should only ever execute on a Rayon thread."
-                ),
-            }
-        }
+        self.timeout_loop()?;
 
         let mut queue: Vec<BasicDirEntryInfo> = RecursiveSearch::enter_directory(
-            &deleted_dir,
-            skim_tx.as_ref(),
-            &hangup,
+            &self.deleted_dir,
+            self.skim_tx.as_ref(),
+            &self.hangup,
             &PathProvenance::IsPhantom,
         )?;
 
@@ -91,14 +87,16 @@ impl DeletedSearch {
                 // check -- should deleted threads keep working?
                 // exit/error on disconnected channel, which closes
                 // at end of browse scope
-                if hangup.load(Ordering::Relaxed) {
-                    break;
+                if self.hangup.load(Ordering::Relaxed) {
+                    return Ok(());
                 }
+
+                self.timeout_loop()?;
 
                 if let Ok(mut items) = RecursiveSearch::enter_directory(
                     &item.path(),
-                    skim_tx.as_ref(),
-                    &hangup,
+                    self.skim_tx.as_ref(),
+                    &self.hangup,
                     &PathProvenance::IsPhantom,
                 ) {
                     // disable behind deleted dirs with DepthOfOne,
@@ -108,6 +106,29 @@ impl DeletedSearch {
                     // are transmission errors, which are handled elsewhere
                     queue.append(&mut items);
                 }
+            }
+        }
+
+        Ok(())
+    }
+
+    fn timeout_loop(&self) -> HttmResult<()> {
+        // yield to other rayon work on this worker thread
+        loop {
+            match rayon::yield_local() {
+                Some(rayon::Yield::Executed) => {
+                    // wait 1 ms and then continue
+                    if self.hangup.load(Ordering::Relaxed) {
+                        return Ok(());
+                    }
+
+                    sleep(TIMEOUT);
+                    continue;
+                }
+                Some(rayon::Yield::Idle) => break,
+                None => unreachable!(
+                    "None should be impossible as this loop should only ever execute on a Rayon thread."
+                ),
             }
         }
 
