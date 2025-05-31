@@ -27,9 +27,6 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
 use std::thread::sleep;
-use std::time::Duration;
-
-const TIMEOUT: Duration = std::time::Duration::from_millis(1);
 
 pub struct DeletedSearch {
     deleted_dir: PathBuf,
@@ -114,6 +111,9 @@ impl DeletedSearch {
 
     fn timeout_loop(&self) -> HttmResult<()> {
         // yield to other rayon work on this worker thread
+
+        let mut timeout = 1;
+
         loop {
             match rayon::yield_local() {
                 Some(rayon::Yield::Executed) => {
@@ -122,7 +122,9 @@ impl DeletedSearch {
                         return Ok(());
                     }
 
-                    sleep(TIMEOUT);
+                    timeout *= 2;
+
+                    sleep(std::time::Duration::from_millis(timeout));
                     continue;
                 }
                 Some(rayon::Yield::Idle) => break,
