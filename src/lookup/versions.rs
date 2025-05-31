@@ -370,24 +370,24 @@ impl<'a> RelativePathAndSnapMounts<'a> {
     #[inline(always)]
     pub fn versions_processed(&'a self, dedup_by: &DedupBy) -> Vec<PathData> {
         loop {
-            let all_versions = self.all_versions_unprocessed();
+            let mut all_versions = self.all_versions_unprocessed();
 
-            let res = Self::sort_dedup_versions(all_versions, dedup_by);
+            Self::sort_dedup_versions(&mut all_versions, dedup_by);
 
-            if res.is_empty() {
+            if all_versions.is_empty() {
                 // opendir and readdir iter on the snap path are necessary to mount snapshots over SMB
                 match NetworkAutoMount::new(&self) {
-                    NetworkAutoMount::Break => break res,
+                    NetworkAutoMount::Break => break all_versions,
                     NetworkAutoMount::Continue => continue,
                 }
             }
 
-            break res;
+            break all_versions;
         }
     }
 
     #[inline(always)]
-    fn all_versions_unprocessed(&'a self) -> impl Iterator<Item = PathData> + 'a {
+    fn all_versions_unprocessed(&'a self) -> Vec<PathData> {
         // get the DirEntry for our snapshot path which will have all our possible
         // snapshots, like so: .zfs/snapshots/<some snap name>/
         self
@@ -419,44 +419,37 @@ impl<'a> RelativePathAndSnapMounts<'a> {
                         }
                     },
                 }
-            })
+            }).collect()
     }
 
-    // remove duplicates with the same system modify time and size/file len (or contents! See --DEDUP_BY)
     #[inline(always)]
-    fn sort_dedup_versions(
-        iter: impl Iterator<Item = PathData>,
-        dedup_by: &DedupBy,
-    ) -> Vec<PathData> {
+    fn sort_dedup_versions(vec: &mut Vec<PathData>, dedup_by: &DedupBy) {
         match dedup_by {
             DedupBy::Disable => {
-                let mut vec: Vec<PathData> = iter.collect();
                 vec.sort_unstable_by_key(|path_data| path_data.metadata_infallible());
-                vec
             }
             DedupBy::Metadata => {
-                let mut vec: Vec<PathData> = iter.collect();
-
                 vec.sort_unstable_by_key(|path_data| path_data.metadata_infallible());
                 vec.dedup_by_key(|a| a.metadata_infallible());
-
-                vec
             }
             DedupBy::Contents => {
-                let mut vec: Vec<CompareContentsContainer> = iter
+                let mut container_vec: Vec<CompareContentsContainer> = std::mem::take(vec)
+                    .into_iter()
                     .map(|path_data| CompareContentsContainer::from(path_data))
                     .collect();
 
-                vec.sort_unstable();
-                vec.dedup();
-                vec.sort_unstable_by_key(|path_data| path_data.metadata_infallible());
+                container_vec.sort_unstable();
+                container_vec.dedup();
+                container_vec.sort_unstable_by_key(|path_data| path_data.metadata_infallible());
 
-                vec.into_iter().map(|container| container.into()).collect()
+                *vec = container_vec
+                    .into_iter()
+                    .map(|container| container.into())
+                    .collect()
             }
         }
     }
 }
-
 enum NetworkAutoMount {
     Break,
     Continue,
