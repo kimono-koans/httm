@@ -74,6 +74,7 @@ realpath-ext = { version = "0.1.3", default-features = false, features = [
 # these are strictly not required to build, only included for attribution sake (to be picked up by cargo_about)
 lms = { version = "0.4.0", default-features = false, optional = true }
 itertools = { version = "0.14.0", default-features = false, optional = true }
+smol = "2.0.2"
 
 [patch.crates-io]
 indicatif = { git = "https://github.com/console-rs/indicatif" }

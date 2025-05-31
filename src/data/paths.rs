@@ -187,6 +187,15 @@ pub struct PathData {
     metadata: Option<PathMetadata>,
 }
 
+impl Default for PathData {
+    fn default() -> Self {
+        Self {
+            path_buf: PathBuf::new().into_boxed_path(),
+            metadata: None,
+        }
+    }
+}
+
 impl PartialOrd for PathData {
     #[inline]
     fn partial_cmp(&self, other: &PathData) -> Option<Ordering> {

@@ -23,6 +23,7 @@ use crate::library::results::{HttmError, HttmResult};
 use crate::{GLOBAL_CONFIG, MAP_OF_SNAPS};
 use hashbrown::HashSet;
 use rayon::prelude::*;
+use smol::prelude::*;
 use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::io::ErrorKind;
@@ -370,88 +371,97 @@ impl<'a> RelativePathAndSnapMounts<'a> {
     #[inline(always)]
     pub fn versions_processed(&'a self, dedup_by: &DedupBy) -> Vec<PathData> {
         loop {
-            let all_versions = self.all_versions_unprocessed();
+            let mut all_versions = self.all_versions_unprocessed();
 
-            let res = Self::sort_dedup_versions(all_versions, dedup_by);
+            Self::sort_dedup_versions(&mut all_versions, dedup_by);
 
-            if res.is_empty() {
+            if all_versions.is_empty() {
                 // opendir and readdir iter on the snap path are necessary to mount snapshots over SMB
                 match NetworkAutoMount::new(&self) {
-                    NetworkAutoMount::Break => break res,
+                    NetworkAutoMount::Break => break all_versions,
                     NetworkAutoMount::Continue => continue,
                 }
             }
 
-            break res;
+            break all_versions;
         }
     }
 
     #[inline(always)]
-    fn all_versions_unprocessed(&'a self) -> impl Iterator<Item = PathData> + 'a {
+    fn all_versions_unprocessed(&'a self) -> Vec<PathData> {
         // get the DirEntry for our snapshot path which will have all our possible
         // snapshots, like so: .zfs/snapshots/<some snap name>/
-        self
+        let iter = self
             .snap_mounts
             .iter()
-            .map(|snap_path| {
-                snap_path.join(self.relative_path)
-            })
-            .filter_map(|joined_path| {
-                match joined_path.symlink_metadata() {
+            .map(|snap_path| snap_path.join(self.relative_path));
+
+        let mut res = Vec::new();
+
+        smol::block_on(async {
+            let mut stream = smol::stream::iter(iter).map(|joined_path| {
+                let future = smol::fs::symlink_metadata(joined_path.clone());
+
+                (joined_path.clone(), future)
+            });
+
+            while let Some((joined_path, future)) = stream.next().await {
+                match future.await {
                     Ok(md) => {
                         // why not PathData::new()? because symlinks will resolve!
                         // symlinks from a snap will end up looking just like the link target, so this is very confusing...
-                        Some(PathData::new(&joined_path, Some(md)))
-                    },
+                        res.push(PathData::new(&joined_path, Some(md)));
+                    }
                     Err(err) => {
                         match err.kind() {
                             // if we do not have permissions to read the snapshot directories
                             // fail/panic printing a descriptive error instead of flattening
                             ErrorKind::PermissionDenied => {
-                                eprintln!("Error: When httm tried to find a file contained within a snapshot directory, permission was denied.  \
+                                eprintln!(
+                                    "Error: When httm tried to find a file contained within a snapshot directory, permission was denied.  \
                                 Perhaps you need to use sudo or equivalent to view the contents of this snapshot (for instance, btrfs by default creates privileged snapshots).  \
-                                \nDetails: {err}");
+                                \nDetails: {err}"
+                                );
                                 std::process::exit(1)
-                            },
-                            // if file metadata is not found, or is otherwise not available, 
+                            }
+                            // if file metadata is not found, or is otherwise not available,
                             // continue, it simply means we do not have a snapshot of this file
-                            _ => None,
+                            _ => continue,
                         }
-                    },
+                    }
                 }
-            })
+            }
+        });
+
+        res
     }
 
     // remove duplicates with the same system modify time and size/file len (or contents! See --DEDUP_BY)
     #[inline(always)]
-    fn sort_dedup_versions(
-        iter: impl Iterator<Item = PathData>,
-        dedup_by: &DedupBy,
-    ) -> Vec<PathData> {
+    fn sort_dedup_versions(vec: &mut Vec<PathData>, dedup_by: &DedupBy) {
         match dedup_by {
             DedupBy::Disable => {
-                let mut vec: Vec<PathData> = iter.collect();
                 vec.sort_unstable_by_key(|path_data| path_data.metadata_infallible());
-                vec
             }
             DedupBy::Metadata => {
-                let mut vec: Vec<PathData> = iter.collect();
-
                 vec.sort_unstable_by_key(|path_data| path_data.metadata_infallible());
                 vec.dedup_by_key(|a| a.metadata_infallible());
-
-                vec
             }
             DedupBy::Contents => {
-                let mut vec: Vec<CompareContentsContainer> = iter
+                let mut container_vec: Vec<CompareContentsContainer> = vec
+                    .into_iter()
+                    .map(|path_data| std::mem::take(path_data))
                     .map(|path_data| CompareContentsContainer::from(path_data))
                     .collect();
 
-                vec.sort_unstable();
-                vec.dedup();
-                vec.sort_unstable_by_key(|path_data| path_data.metadata_infallible());
+                container_vec.sort_unstable();
+                container_vec.dedup();
+                container_vec.sort_unstable_by_key(|path_data| path_data.metadata_infallible());
 
-                vec.into_iter().map(|container| container.into()).collect()
+                *vec = container_vec
+                    .into_iter()
+                    .map(|container| container.into())
+                    .collect()
             }
         }
     }
