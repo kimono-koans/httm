@@ -291,7 +291,7 @@ impl<'a> Entries<'a> {
             PathProvenance::FromLiveDataset | PathProvenance::IsPhantom => {
                 let mut combined = paths_partitioned.vec_files;
 
-                combined.extend_from_slice(paths_partitioned.vec_dirs.as_slice());
+                combined.extend_from_slice(&paths_partitioned.vec_dirs);
                 combined
             }
         };
