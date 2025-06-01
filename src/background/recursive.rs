@@ -96,12 +96,7 @@ impl<'a> RecursiveSearch<'a> {
         let mut queue: Vec<BasicDirEntryInfo> = self.enter_directory(self.requested_dir)?;
 
         if let Some(deleted_scope) = opt_deleted_scope {
-            DeletedSearch::spawn(
-                &self.requested_dir,
-                deleted_scope,
-                self.opt_skim_tx.cloned(),
-                self.hangup.clone(),
-            );
+            self.spawn_deleted_search(&self.requested_dir, deleted_scope);
         }
 
         if GLOBAL_CONFIG.opt_recursive {
@@ -116,12 +111,7 @@ impl<'a> RecursiveSearch<'a> {
                 }
 
                 if let Some(deleted_scope) = opt_deleted_scope {
-                    DeletedSearch::spawn(
-                        &item.path(),
-                        deleted_scope,
-                        self.opt_skim_tx.cloned(),
-                        self.hangup.clone(),
-                    );
+                    self.spawn_deleted_search(&item.path(), deleted_scope);
                 }
 
                 // no errors will be propagated in recursive mode
@@ -133,6 +123,15 @@ impl<'a> RecursiveSearch<'a> {
         }
 
         Ok(())
+    }
+
+    fn spawn_deleted_search(&self, requested_dir: &'a Path, deleted_scope: &Scope<'_>) {
+        DeletedSearch::spawn(
+            requested_dir,
+            deleted_scope,
+            self.opt_skim_tx.cloned(),
+            self.hangup.clone(),
+        )
     }
 
     fn add_dot_entries(&self) -> HttmResult<()> {
@@ -174,6 +173,10 @@ pub trait CommonSearch {
 }
 
 impl CommonSearch for &RecursiveSearch<'_> {
+    fn enter_directory(&self, requested_dir: &Path) -> HttmResult<Vec<BasicDirEntryInfo>> {
+        enter_directory(self, requested_dir)
+    }
+
     fn hangup(&self) -> bool {
         self.hangup.load(Ordering::Relaxed)
     }
@@ -184,10 +187,6 @@ impl CommonSearch for &RecursiveSearch<'_> {
             path_provenance: &PathProvenance::FromLiveDataset,
             opt_skim_tx: self.opt_skim_tx,
         }
-    }
-
-    fn enter_directory(&self, requested_dir: &Path) -> HttmResult<Vec<BasicDirEntryInfo>> {
-        enter_directory(self, requested_dir)
     }
 }
 

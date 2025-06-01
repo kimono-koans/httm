@@ -38,6 +38,10 @@ pub struct DeletedSearch {
 }
 
 impl CommonSearch for &DeletedSearch {
+    fn enter_directory(&self, requested_dir: &Path) -> HttmResult<Vec<BasicDirEntryInfo>> {
+        enter_directory(self, requested_dir)
+    }
+
     fn hangup(&self) -> bool {
         self.hangup.load(Ordering::Relaxed)
     }
@@ -48,10 +52,6 @@ impl CommonSearch for &DeletedSearch {
             &PathProvenance::IsPhantom,
             self.opt_skim_tx.as_ref(),
         )
-    }
-
-    fn enter_directory(&self, requested_dir: &Path) -> HttmResult<Vec<BasicDirEntryInfo>> {
-        enter_directory(self, requested_dir)
     }
 }
 
