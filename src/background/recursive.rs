@@ -111,7 +111,7 @@ impl<'a> RecursiveSearch<'a> {
                 // check -- should deleted threads keep working?
                 // exit/error on disconnected channel, which closes
                 // at end of browse scope
-                if self.hangup.load(Ordering::Relaxed) {
+                if self.hangup() {
                     break;
                 }
 
