@@ -50,10 +50,7 @@ impl CommonSearch for &DeletedSearch {
         )
     }
 
-    fn enter_directory<'a>(
-        &'a self,
-        requested_dir: &'a Path,
-    ) -> HttmResult<Vec<BasicDirEntryInfo>> {
+    fn enter_directory(&self, requested_dir: &Path) -> HttmResult<Vec<BasicDirEntryInfo>> {
         enter_directory(self, requested_dir)
     }
 }

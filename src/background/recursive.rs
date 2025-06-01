@@ -170,8 +170,7 @@ impl<'a> RecursiveSearch<'a> {
 pub trait CommonSearch {
     fn hangup(&self) -> bool;
     fn into_entries<'a>(&'a self, requested_dir: &'a Path) -> Entries<'a>;
-    fn enter_directory<'a>(&'a self, requested_dir: &'a Path)
-    -> HttmResult<Vec<BasicDirEntryInfo>>;
+    fn enter_directory(&self, requested_dir: &Path) -> HttmResult<Vec<BasicDirEntryInfo>>;
 }
 
 impl CommonSearch for &RecursiveSearch<'_> {
@@ -187,10 +186,7 @@ impl CommonSearch for &RecursiveSearch<'_> {
         }
     }
 
-    fn enter_directory<'a>(
-        &'a self,
-        requested_dir: &'a Path,
-    ) -> HttmResult<Vec<BasicDirEntryInfo>> {
+    fn enter_directory(&self, requested_dir: &Path) -> HttmResult<Vec<BasicDirEntryInfo>> {
         enter_directory(self, requested_dir)
     }
 }
