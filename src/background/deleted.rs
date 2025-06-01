@@ -41,14 +41,12 @@ impl CommonSearch for &DeletedSearch {
     fn hangup(&self) -> bool {
         self.hangup.load(Ordering::Relaxed)
     }
-}
 
-impl<'a> From<&'a DeletedSearch> for Entries<'a> {
-    fn from(value: &'a DeletedSearch) -> Entries<'a> {
+    fn into_entries<'a>(&'a self, requested_dir: &'a Path) -> Entries<'a> {
         Entries::new(
-            &value.deleted_dir,
+            requested_dir,
             &PathProvenance::IsPhantom,
-            value.opt_skim_tx.as_ref(),
+            self.opt_skim_tx.as_ref(),
         )
     }
 }
@@ -87,7 +85,7 @@ impl DeletedSearch {
         // yield to other rayon work on this worker thread
         self.timeout_loop()?;
 
-        let mut queue: Vec<BasicDirEntryInfo> = enter_directory(self)?;
+        let mut queue: Vec<BasicDirEntryInfo> = enter_directory(self, &self.deleted_dir)?;
 
         if matches!(
             GLOBAL_CONFIG.opt_deleted_mode,
@@ -104,13 +102,7 @@ impl DeletedSearch {
                 // yield to other rayon work on this worker thread
                 self.timeout_loop()?;
 
-                let new = Self::new(
-                    item.path().to_path_buf(),
-                    self.opt_skim_tx.clone(),
-                    self.hangup.clone(),
-                );
-
-                if let Ok(mut items) = enter_directory(&new) {
+                if let Ok(mut items) = enter_directory(self, &item.path()) {
                     // disable behind deleted dirs with DepthOfOne,
                     // otherwise recurse and find all those deleted files
                     //

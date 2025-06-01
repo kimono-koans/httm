@@ -93,7 +93,7 @@ impl<'a> RecursiveSearch<'a> {
         // runs once for non-recur sive but also "primes the pump"
         // for recursive to have items available, also only place an
         // error can stop execution
-        let mut queue: Vec<BasicDirEntryInfo> = enter_directory(self)?;
+        let mut queue: Vec<BasicDirEntryInfo> = enter_directory(self, self.requested_dir)?;
 
         if let Some(deleted_scope) = opt_deleted_scope {
             DeletedSearch::spawn(
@@ -126,7 +126,7 @@ impl<'a> RecursiveSearch<'a> {
 
                 // no errors will be propagated in recursive mode
                 // far too likely to run into a dir we don't have permissions to view
-                if let Ok(mut items) = enter_directory(self) {
+                if let Ok(mut items) = enter_directory(self, item.path()) {
                     queue.append(&mut items)
                 }
             }
@@ -150,7 +150,7 @@ impl<'a> RecursiveSearch<'a> {
             initial_vec_dirs.push(double_dot_as_entry)
         }
 
-        let initial_entries = Entries {
+        let entries = Entries {
             requested_dir: self.requested_dir,
             path_provenance: &PathProvenance::FromLiveDataset,
             opt_skim_tx: self.opt_skim_tx,
@@ -161,7 +161,7 @@ impl<'a> RecursiveSearch<'a> {
             vec_files: Vec::new(),
         };
 
-        initial_entries.combine_and_deliver(paths_partitioned)?;
+        entries.combine_and_deliver(paths_partitioned)?;
 
         Ok(())
     }
@@ -169,30 +169,31 @@ impl<'a> RecursiveSearch<'a> {
 
 pub trait CommonSearch {
     fn hangup(&self) -> bool;
+    fn into_entries<'a>(&'a self, requested_dir: &'a Path) -> Entries<'a>;
 }
 
 impl CommonSearch for &RecursiveSearch<'_> {
     fn hangup(&self) -> bool {
         self.hangup.load(Ordering::Relaxed)
     }
-}
 
-impl<'a> From<&'a RecursiveSearch<'a>> for Entries<'a> {
-    fn from(value: &'a RecursiveSearch) -> Entries<'a> {
-        Entries::new(
-            value.requested_dir,
-            &PathProvenance::FromLiveDataset,
-            value.opt_skim_tx,
-        )
+    fn into_entries<'a>(&'a self, requested_dir: &'a Path) -> Entries<'a> {
+        Entries {
+            requested_dir,
+            path_provenance: &PathProvenance::FromLiveDataset,
+            opt_skim_tx: self.opt_skim_tx,
+        }
     }
 }
 
 // deleted file search for all modes
 #[inline(always)]
-pub fn enter_directory<'a, T>(search: T) -> HttmResult<Vec<BasicDirEntryInfo>>
+pub fn enter_directory<'a, T>(
+    search: T,
+    requested_dir: &'a Path,
+) -> HttmResult<Vec<BasicDirEntryInfo>>
 where
     T: CommonSearch,
-    Entries<'a>: From<T>,
 {
     // check -- should deleted threads keep working?
     // exit/error on disconnected channel, which closes
@@ -202,7 +203,7 @@ where
     }
 
     // create entries struct here
-    let entries = Entries::from(search);
+    let entries = search.into_entries(requested_dir);
 
     let paths_partitioned = PathsPartitioned::new(&entries)?;
 
