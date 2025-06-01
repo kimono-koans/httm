@@ -314,12 +314,13 @@ impl<'a> Entries<'a> {
             ExecMode::NonInteractiveRecursive(progress_bar) if combined_entries.is_empty() => {
                 if GLOBAL_CONFIG.opt_recursive {
                     progress_bar.tick();
-                } else {
-                    eprintln!(
-                        "NOTICE: httm could not find any deleted files at this directory level.  \
-                        Perhaps try specifying a deleted mode in combination with \"--recursive\"."
-                    )
+                    return Ok(());
                 }
+
+                eprintln!(
+                    "NOTICE: httm could not find any deleted files at this directory level.  \
+                        Perhaps try specifying a deleted mode in combination with \"--recursive\"."
+                )
             }
             ExecMode::NonInteractiveRecursive(_) => {
                 self.display(combined_entries)?;
