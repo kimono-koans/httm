@@ -49,6 +49,13 @@ impl CommonSearch for &DeletedSearch {
             self.opt_skim_tx.as_ref(),
         )
     }
+
+    fn enter_directory<'a>(
+        &'a self,
+        requested_dir: &'a Path,
+    ) -> HttmResult<Vec<BasicDirEntryInfo>> {
+        enter_directory(self, requested_dir)
+    }
 }
 
 impl DeletedSearch {
@@ -85,7 +92,7 @@ impl DeletedSearch {
         // yield to other rayon work on this worker thread
         self.timeout_loop()?;
 
-        let mut queue: Vec<BasicDirEntryInfo> = enter_directory(self, &self.deleted_dir)?;
+        let mut queue: Vec<BasicDirEntryInfo> = self.enter_directory(&self.deleted_dir)?;
 
         if matches!(
             GLOBAL_CONFIG.opt_deleted_mode,
@@ -102,7 +109,7 @@ impl DeletedSearch {
                 // yield to other rayon work on this worker thread
                 self.timeout_loop()?;
 
-                if let Ok(mut items) = enter_directory(self, &item.path()) {
+                if let Ok(mut items) = self.enter_directory(&item.path()) {
                     // disable behind deleted dirs with DepthOfOne,
                     // otherwise recurse and find all those deleted files
                     //

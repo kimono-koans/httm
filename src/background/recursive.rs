@@ -93,7 +93,7 @@ impl<'a> RecursiveSearch<'a> {
         // runs once for non-recur sive but also "primes the pump"
         // for recursive to have items available, also only place an
         // error can stop execution
-        let mut queue: Vec<BasicDirEntryInfo> = enter_directory(self, self.requested_dir)?;
+        let mut queue: Vec<BasicDirEntryInfo> = self.enter_directory(self.requested_dir)?;
 
         if let Some(deleted_scope) = opt_deleted_scope {
             DeletedSearch::spawn(
@@ -126,7 +126,7 @@ impl<'a> RecursiveSearch<'a> {
 
                 // no errors will be propagated in recursive mode
                 // far too likely to run into a dir we don't have permissions to view
-                if let Ok(mut items) = enter_directory(self, item.path()) {
+                if let Ok(mut items) = self.enter_directory(item.path()) {
                     queue.append(&mut items)
                 }
             }
@@ -170,6 +170,8 @@ impl<'a> RecursiveSearch<'a> {
 pub trait CommonSearch {
     fn hangup(&self) -> bool;
     fn into_entries<'a>(&'a self, requested_dir: &'a Path) -> Entries<'a>;
+    fn enter_directory<'a>(&'a self, requested_dir: &'a Path)
+    -> HttmResult<Vec<BasicDirEntryInfo>>;
 }
 
 impl CommonSearch for &RecursiveSearch<'_> {
@@ -184,12 +186,19 @@ impl CommonSearch for &RecursiveSearch<'_> {
             opt_skim_tx: self.opt_skim_tx,
         }
     }
+
+    fn enter_directory<'a>(
+        &'a self,
+        requested_dir: &'a Path,
+    ) -> HttmResult<Vec<BasicDirEntryInfo>> {
+        enter_directory(self, requested_dir)
+    }
 }
 
 // deleted file search for all modes
 #[inline(always)]
 pub fn enter_directory<'a, T>(
-    search: T,
+    search: &T,
     requested_dir: &'a Path,
 ) -> HttmResult<Vec<BasicDirEntryInfo>>
 where
