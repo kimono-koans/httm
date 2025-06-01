@@ -38,11 +38,11 @@ pub struct DeletedSearch {
 }
 
 impl CommonSearch for &DeletedSearch {
-    fn hangup(&self) -> &Arc<AtomicBool> {
-        &self.hangup
+    fn hangup(&self) -> bool {
+        self.hangup.load(Ordering::Relaxed)
     }
 
-    fn into_entries(&self) -> HttmResult<Entries> {
+    fn into_entries<'a>(&'a self) -> Entries<'a> {
         // create entries struct here
         Entries::new(
             &self.deleted_dir,
@@ -152,7 +152,7 @@ impl DeletedSearch {
     }
 
     fn hangup_check(&self) -> HttmResult<()> {
-        if self.hangup.load(Ordering::Relaxed) {
+        if self.hangup() {
             return HttmError::new("Thread requested to hangup!").into();
         }
 

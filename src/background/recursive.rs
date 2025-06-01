@@ -151,29 +151,33 @@ impl<'a> RecursiveSearch<'a> {
         }
 
         let initial_entries = Entries {
+            requested_dir: self.requested_dir,
             path_provenance: &PathProvenance::FromLiveDataset,
             opt_skim_tx: self.opt_skim_tx,
+        };
+
+        let paths_partitioned = PathsPartitioned {
             vec_dirs: initial_vec_dirs,
             vec_files: Vec::new(),
         };
 
-        initial_entries.combine_and_send()?;
+        initial_entries.combine_and_deliver(paths_partitioned)?;
 
         Ok(())
     }
 }
 
 pub trait CommonSearch {
-    fn hangup(&self) -> &Arc<AtomicBool>;
-    fn into_entries(&self) -> HttmResult<Entries>;
+    fn hangup(&self) -> bool;
+    fn into_entries(&self) -> Entries;
 }
 
 impl CommonSearch for &RecursiveSearch<'_> {
-    fn hangup(&self) -> &Arc<AtomicBool> {
-        &self.hangup
+    fn hangup(&self) -> bool {
+        self.hangup.load(Ordering::Relaxed)
     }
 
-    fn into_entries(&self) -> HttmResult<Entries> {
+    fn into_entries(&self) -> Entries {
         // create entries struct here
         Entries::new(
             self.requested_dir,
@@ -189,22 +193,28 @@ pub fn enter_directory<T: CommonSearch>(search: T) -> HttmResult<Vec<BasicDirEnt
     // check -- should deleted threads keep working?
     // exit/error on disconnected channel, which closes
     // at end of browse scope
-    if search.hangup().load(Ordering::Relaxed) {
+    if search.hangup() {
         return Ok(Vec::new());
     }
 
     // create entries struct here
-    let entries = search.into_entries()?;
+    let entries = search.into_entries();
+
+    let paths_partitioned = entries.get_paths_partitioned()?;
 
     // combined entries will be sent or printed, but we need the vec_dirs to recurse
-    let vec_dirs = entries.combine_and_send()?;
+    let vec_dirs = entries.combine_and_deliver(paths_partitioned)?;
 
     Ok(vec_dirs)
 }
 
 pub struct Entries<'a> {
+    requested_dir: &'a Path,
     path_provenance: &'a PathProvenance,
     opt_skim_tx: Option<&'a SkimItemSender>,
+}
+
+struct PathsPartitioned {
     vec_dirs: Vec<BasicDirEntryInfo>,
     vec_files: Vec<BasicDirEntryInfo>,
 }
@@ -215,11 +225,19 @@ impl<'a> Entries<'a> {
         requested_dir: &'a Path,
         path_provenance: &'a PathProvenance,
         opt_skim_tx: Option<&'a SkimItemSender>,
-    ) -> HttmResult<Self> {
+    ) -> Self {
+        Self {
+            requested_dir,
+            path_provenance,
+            opt_skim_tx,
+        }
+    }
+
+    fn get_paths_partitioned(&self) -> HttmResult<PathsPartitioned> {
         // separates entries into dirs and files
-        let (vec_dirs, vec_files) = match path_provenance {
+        let (vec_dirs, vec_files) = match self.path_provenance {
             PathProvenance::FromLiveDataset => {
-                read_dir(requested_dir)?
+                read_dir(self.requested_dir)?
                     .flatten()
                     // checking file_type on dir entries is always preferable
                     // as it is much faster than a metadata call on the path
@@ -229,7 +247,7 @@ impl<'a> Entries<'a> {
             }
             PathProvenance::IsPhantom => {
                 // obtain all unique deleted, unordered, unsorted, will need to fix
-                DeletedFiles::from(requested_dir)
+                DeletedFiles::from(self.requested_dir)
                     .into_inner()
                     .into_iter()
                     .partition(|pseudo_entry| {
@@ -241,16 +259,17 @@ impl<'a> Entries<'a> {
             }
         };
 
-        Ok(Self {
-            path_provenance,
-            opt_skim_tx,
+        Ok(PathsPartitioned {
             vec_dirs,
             vec_files,
         })
     }
 
     #[inline(always)]
-    pub fn combine_and_send(self) -> HttmResult<Vec<BasicDirEntryInfo>> {
+    fn combine_and_deliver(
+        &self,
+        paths_partitioned: PathsPartitioned,
+    ) -> HttmResult<Vec<BasicDirEntryInfo>> {
         let entries_ready_to_send = match self.path_provenance {
             PathProvenance::FromLiveDataset
                 if matches!(GLOBAL_CONFIG.opt_deleted_mode, Some(DeletedMode::Only))
@@ -262,51 +281,26 @@ impl<'a> Entries<'a> {
                 Vec::new()
             }
             PathProvenance::FromLiveDataset | PathProvenance::IsPhantom => {
-                let mut combined = self.vec_files;
-                combined.extend_from_slice(&self.vec_dirs);
+                let mut combined = paths_partitioned.vec_files;
+
+                combined.extend_from_slice(paths_partitioned.vec_dirs.as_slice());
                 combined
             }
         };
 
-        DisplayOrTransmit::new(
-            entries_ready_to_send,
-            self.path_provenance,
-            self.opt_skim_tx,
-        )
-        .exec()?;
+        self.display_or_transmit(entries_ready_to_send)?;
 
         // here we consume the struct after sending the entries,
         // however we still need the dirs to populate the loop's queue
         // so we return the vec of dirs here
-
-        Ok(self.vec_dirs)
-    }
-}
-
-struct DisplayOrTransmit<'a> {
-    combined_entries: Vec<BasicDirEntryInfo>,
-    path_provenance: &'a PathProvenance,
-    opt_skim_tx: Option<&'a SkimItemSender>,
-}
-
-impl<'a> DisplayOrTransmit<'a> {
-    fn new(
-        combined_entries: Vec<BasicDirEntryInfo>,
-        path_provenance: &'a PathProvenance,
-        opt_skim_tx: Option<&'a SkimItemSender>,
-    ) -> Self {
-        Self {
-            combined_entries,
-            path_provenance,
-            opt_skim_tx,
-        }
+        Ok(paths_partitioned.vec_dirs)
     }
 
-    fn exec(self) -> HttmResult<()> {
+    fn display_or_transmit(&self, combined_entries: Vec<BasicDirEntryInfo>) -> HttmResult<()> {
         // send to the interactive view, or print directly, never return back
         match &GLOBAL_CONFIG.exec_mode {
-            ExecMode::Interactive(_) => self.transmit()?,
-            ExecMode::NonInteractiveRecursive(progress_bar) if self.combined_entries.is_empty() => {
+            ExecMode::Interactive(_) => self.transmit(combined_entries)?,
+            ExecMode::NonInteractiveRecursive(progress_bar) if combined_entries.is_empty() => {
                 if GLOBAL_CONFIG.opt_recursive {
                     progress_bar.tick();
                 } else {
@@ -317,7 +311,7 @@ impl<'a> DisplayOrTransmit<'a> {
                 }
             }
             ExecMode::NonInteractiveRecursive(_) => {
-                self.display()?;
+                self.display(combined_entries)?;
 
                 // keeps spinner from squashing last line of output
                 if GLOBAL_CONFIG.opt_recursive {
@@ -330,11 +324,10 @@ impl<'a> DisplayOrTransmit<'a> {
         Ok(())
     }
 
-    fn transmit(self) -> HttmResult<()> {
+    fn transmit(&self, combined_entries: Vec<BasicDirEntryInfo>) -> HttmResult<()> {
         // don't want a par_iter here because it will block and wait for all
         // results, instead of printing and recursing into the subsequent dirs
-        let vec: Vec<Arc<dyn SkimItem>> = self
-            .combined_entries
+        let vec: Vec<Arc<dyn SkimItem>> = combined_entries
             .into_iter()
             .map(|basic_dir_entry_info| {
                 let item: Arc<dyn SkimItem> = Arc::new(SelectionCandidate::new(
@@ -352,12 +345,9 @@ impl<'a> DisplayOrTransmit<'a> {
             .map_err(std::convert::Into::into)
     }
 
-    fn display(self) -> HttmResult<()> {
-        let pseudo_live_set: Vec<PathData> = self
-            .combined_entries
-            .into_iter()
-            .map(PathData::from)
-            .collect();
+    fn display(&self, combined_entries: Vec<BasicDirEntryInfo>) -> HttmResult<()> {
+        let pseudo_live_set: Vec<PathData> =
+            combined_entries.into_iter().map(PathData::from).collect();
 
         let versions_map = VersionsMap::new(&GLOBAL_CONFIG, &pseudo_live_set)?;
         let output_buf = DisplayWrapper::from(&GLOBAL_CONFIG, versions_map).to_string();
