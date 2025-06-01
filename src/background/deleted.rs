@@ -41,11 +41,6 @@ impl CommonSearch for &DeletedSearch {
     fn hangup(&self) -> bool {
         self.hangup.load(Ordering::Relaxed)
     }
-
-    fn into_entries(&self) -> Entries<'_> {
-        // create entries struct here
-        (*self).into()
-    }
 }
 
 impl<'a> From<&'a DeletedSearch> for Entries<'a> {

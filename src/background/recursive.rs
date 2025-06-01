@@ -169,17 +169,11 @@ impl<'a> RecursiveSearch<'a> {
 
 pub trait CommonSearch {
     fn hangup(&self) -> bool;
-    fn into_entries(&self) -> Entries;
 }
 
 impl CommonSearch for &RecursiveSearch<'_> {
     fn hangup(&self) -> bool {
         self.hangup.load(Ordering::Relaxed)
-    }
-
-    fn into_entries(&self) -> Entries<'_> {
-        // create entries struct here
-        (*self).into()
     }
 }
 
@@ -195,7 +189,11 @@ impl<'a> From<&'a RecursiveSearch<'a>> for Entries<'a> {
 
 // deleted file search for all modes
 #[inline(always)]
-pub fn enter_directory<T: CommonSearch>(search: T) -> HttmResult<Vec<BasicDirEntryInfo>> {
+pub fn enter_directory<'a, T>(search: T) -> HttmResult<Vec<BasicDirEntryInfo>>
+where
+    T: CommonSearch,
+    Entries<'a>: From<T>,
+{
     // check -- should deleted threads keep working?
     // exit/error on disconnected channel, which closes
     // at end of browse scope
@@ -204,7 +202,7 @@ pub fn enter_directory<T: CommonSearch>(search: T) -> HttmResult<Vec<BasicDirEnt
     }
 
     // create entries struct here
-    let entries = search.into_entries();
+    let entries = Entries::from(search);
 
     let paths_partitioned = PathsPartitioned::new(&entries)?;
 
