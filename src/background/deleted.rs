@@ -16,8 +16,10 @@
 // that was distributed with this source code.
 
 use crate::GLOBAL_CONFIG;
+use crate::background::recursive::CommonSearch;
+use crate::background::recursive::Entries;
 use crate::background::recursive::PathProvenance;
-use crate::background::recursive::RecursiveSearch;
+use crate::background::recursive::enter_directory;
 use crate::config::generate::DeletedMode;
 use crate::data::paths::BasicDirEntryInfo;
 use crate::library::results::HttmError;
@@ -31,15 +33,34 @@ use std::thread::sleep;
 
 pub struct DeletedSearch {
     deleted_dir: PathBuf,
-    skim_tx: Option<SkimItemSender>,
+    opt_skim_tx: Option<SkimItemSender>,
     hangup: Arc<AtomicBool>,
 }
 
+impl CommonSearch for &DeletedSearch {
+    fn hangup(&self) -> &Arc<AtomicBool> {
+        &self.hangup
+    }
+
+    fn into_entries(&self) -> HttmResult<Entries> {
+        // create entries struct here
+        Entries::new(
+            &self.deleted_dir,
+            &PathProvenance::IsPhantom,
+            self.opt_skim_tx.as_ref(),
+        )
+    }
+}
+
 impl DeletedSearch {
-    fn new(deleted_dir: PathBuf, skim_tx: Option<SkimItemSender>, hangup: Arc<AtomicBool>) -> Self {
+    fn new(
+        deleted_dir: PathBuf,
+        opt_skim_tx: Option<SkimItemSender>,
+        hangup: Arc<AtomicBool>,
+    ) -> Self {
         Self {
             deleted_dir,
-            skim_tx,
+            opt_skim_tx,
             hangup,
         }
     }
@@ -48,13 +69,13 @@ impl DeletedSearch {
     pub fn spawn(
         requested_dir: &Path,
         deleted_scope: &Scope,
-        skim_tx: Option<SkimItemSender>,
+        opt_skim_tx: Option<SkimItemSender>,
         hangup: Arc<AtomicBool>,
     ) {
         let deleted_dir = requested_dir.to_path_buf();
 
         deleted_scope.spawn(move |_| {
-            let _ = Self::new(deleted_dir, skim_tx.clone(), hangup.clone()).run_loop();
+            let _ = Self::new(deleted_dir, opt_skim_tx.clone(), hangup.clone()).run_loop();
         })
     }
 
@@ -65,12 +86,7 @@ impl DeletedSearch {
         // yield to other rayon work on this worker thread
         self.timeout_loop()?;
 
-        let mut queue: Vec<BasicDirEntryInfo> = RecursiveSearch::enter_directory(
-            &self.deleted_dir,
-            self.skim_tx.as_ref(),
-            &self.hangup,
-            &PathProvenance::IsPhantom,
-        )?;
+        let mut queue: Vec<BasicDirEntryInfo> = enter_directory(self)?;
 
         if matches!(
             GLOBAL_CONFIG.opt_deleted_mode,
@@ -87,12 +103,13 @@ impl DeletedSearch {
                 // yield to other rayon work on this worker thread
                 self.timeout_loop()?;
 
-                if let Ok(mut items) = RecursiveSearch::enter_directory(
-                    &item.path(),
-                    self.skim_tx.as_ref(),
-                    &self.hangup,
-                    &PathProvenance::IsPhantom,
-                ) {
+                let new = Self::new(
+                    item.path().to_path_buf(),
+                    self.opt_skim_tx.clone(),
+                    self.hangup.clone(),
+                );
+
+                if let Ok(mut items) = enter_directory(&new) {
                     // disable behind deleted dirs with DepthOfOne,
                     // otherwise recurse and find all those deleted files
                     //

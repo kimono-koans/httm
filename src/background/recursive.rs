@@ -93,12 +93,7 @@ impl<'a> RecursiveSearch<'a> {
         // runs once for non-recur sive but also "primes the pump"
         // for recursive to have items available, also only place an
         // error can stop execution
-        let mut queue: Vec<BasicDirEntryInfo> = Self::enter_directory(
-            self.requested_dir,
-            self.opt_skim_tx,
-            &self.hangup,
-            &PathProvenance::FromLiveDataset,
-        )?;
+        let mut queue: Vec<BasicDirEntryInfo> = enter_directory(self)?;
 
         if let Some(deleted_scope) = opt_deleted_scope {
             DeletedSearch::spawn(
@@ -131,12 +126,7 @@ impl<'a> RecursiveSearch<'a> {
 
                 // no errors will be propagated in recursive mode
                 // far too likely to run into a dir we don't have permissions to view
-                if let Ok(mut items) = Self::enter_directory(
-                    &item.path(),
-                    self.opt_skim_tx,
-                    &self.hangup,
-                    &PathProvenance::FromLiveDataset,
-                ) {
+                if let Ok(mut items) = enter_directory(self) {
                     queue.append(&mut items)
                 }
             }
@@ -171,30 +161,45 @@ impl<'a> RecursiveSearch<'a> {
 
         Ok(())
     }
+}
 
-    // deleted file search for all modes
-    #[inline(always)]
-    pub fn enter_directory(
-        requested_dir: &Path,
-        opt_skim_tx: Option<&SkimItemSender>,
-        hangup: &Arc<AtomicBool>,
-        path_provenance: &PathProvenance,
-    ) -> HttmResult<Vec<BasicDirEntryInfo>> {
-        // check -- should deleted threads keep working?
-        // exit/error on disconnected channel, which closes
-        // at end of browse scope
-        if hangup.load(Ordering::Relaxed) {
-            return Ok(Vec::new());
-        }
+pub trait CommonSearch {
+    fn hangup(&self) -> &Arc<AtomicBool>;
+    fn into_entries(&self) -> HttmResult<Entries>;
+}
 
-        // create entries struct here
-        let entries = Entries::new(requested_dir, &path_provenance, opt_skim_tx.clone())?;
-
-        // combined entries will be sent or printed, but we need the vec_dirs to recurse
-        let vec_dirs = entries.combine_and_send()?;
-
-        Ok(vec_dirs)
+impl CommonSearch for &RecursiveSearch<'_> {
+    fn hangup(&self) -> &Arc<AtomicBool> {
+        &self.hangup
     }
+
+    fn into_entries(&self) -> HttmResult<Entries> {
+        // create entries struct here
+        Entries::new(
+            self.requested_dir,
+            &PathProvenance::FromLiveDataset,
+            self.opt_skim_tx,
+        )
+    }
+}
+
+// deleted file search for all modes
+#[inline(always)]
+pub fn enter_directory<T: CommonSearch>(search: T) -> HttmResult<Vec<BasicDirEntryInfo>> {
+    // check -- should deleted threads keep working?
+    // exit/error on disconnected channel, which closes
+    // at end of browse scope
+    if search.hangup().load(Ordering::Relaxed) {
+        return Ok(Vec::new());
+    }
+
+    // create entries struct here
+    let entries = search.into_entries()?;
+
+    // combined entries will be sent or printed, but we need the vec_dirs to recurse
+    let vec_dirs = entries.combine_and_send()?;
+
+    Ok(vec_dirs)
 }
 
 pub struct Entries<'a> {
