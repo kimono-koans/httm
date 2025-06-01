@@ -52,7 +52,7 @@ impl<'a> From<&'a DeletedSearch> for Entries<'a> {
     fn from(value: &'a DeletedSearch) -> Entries<'a> {
         Entries::new(
             &value.deleted_dir,
-            &PathProvenance::FromLiveDataset,
+            &PathProvenance::IsPhantom,
             value.opt_skim_tx.as_ref(),
         )
     }
