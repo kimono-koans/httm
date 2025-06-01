@@ -177,12 +177,18 @@ impl CommonSearch for &RecursiveSearch<'_> {
         self.hangup.load(Ordering::Relaxed)
     }
 
-    fn into_entries(&self) -> Entries {
+    fn into_entries(&self) -> Entries<'_> {
         // create entries struct here
+        (*self).into()
+    }
+}
+
+impl<'a> From<&'a RecursiveSearch<'a>> for Entries<'a> {
+    fn from(value: &'a RecursiveSearch) -> Entries<'a> {
         Entries::new(
-            self.requested_dir,
+            value.requested_dir,
             &PathProvenance::FromLiveDataset,
-            self.opt_skim_tx,
+            value.opt_skim_tx,
         )
     }
 }

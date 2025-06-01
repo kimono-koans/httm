@@ -42,12 +42,18 @@ impl CommonSearch for &DeletedSearch {
         self.hangup.load(Ordering::Relaxed)
     }
 
-    fn into_entries<'a>(&'a self) -> Entries<'a> {
+    fn into_entries(&self) -> Entries<'_> {
         // create entries struct here
+        (*self).into()
+    }
+}
+
+impl<'a> From<&'a DeletedSearch> for Entries<'a> {
+    fn from(value: &'a DeletedSearch) -> Entries<'a> {
         Entries::new(
-            &self.deleted_dir,
-            &PathProvenance::IsPhantom,
-            self.opt_skim_tx.as_ref(),
+            &value.deleted_dir,
+            &PathProvenance::FromLiveDataset,
+            value.opt_skim_tx.as_ref(),
         )
     }
 }
