@@ -200,7 +200,7 @@ pub fn enter_directory<T: CommonSearch>(search: T) -> HttmResult<Vec<BasicDirEnt
     // create entries struct here
     let entries = search.into_entries();
 
-    let paths_partitioned = entries.get_paths_partitioned()?;
+    let paths_partitioned = PathsPartitioned::new(&entries)?;
 
     // combined entries will be sent or printed, but we need the vec_dirs to recurse
     let vec_dirs = entries.combine_and_deliver(paths_partitioned)?;
@@ -208,15 +208,49 @@ pub fn enter_directory<T: CommonSearch>(search: T) -> HttmResult<Vec<BasicDirEnt
     Ok(vec_dirs)
 }
 
+struct PathsPartitioned {
+    vec_dirs: Vec<BasicDirEntryInfo>,
+    vec_files: Vec<BasicDirEntryInfo>,
+}
+
+impl PathsPartitioned {
+    fn new(entries: &Entries) -> HttmResult<PathsPartitioned> {
+        // separates entries into dirs and files
+        let (vec_dirs, vec_files) = match entries.path_provenance {
+            PathProvenance::FromLiveDataset => {
+                read_dir(entries.requested_dir)?
+                    .flatten()
+                    // checking file_type on dir entries is always preferable
+                    // as it is much faster than a metadata call on the path
+                    .map(|dir_entry| BasicDirEntryInfo::from(dir_entry))
+                    .filter(|entry| entry.recursive_search_filter())
+                    .partition(|entry| entry.is_entry_dir())
+            }
+            PathProvenance::IsPhantom => {
+                // obtain all unique deleted, unordered, unsorted, will need to fix
+                DeletedFiles::from(entries.requested_dir)
+                    .into_inner()
+                    .into_iter()
+                    .partition(|pseudo_entry| {
+                        pseudo_entry
+                            .opt_filetype()
+                            .map(|file_type| file_type.is_dir())
+                            .unwrap_or_else(|| false)
+                    })
+            }
+        };
+
+        Ok(Self {
+            vec_dirs,
+            vec_files,
+        })
+    }
+}
+
 pub struct Entries<'a> {
     requested_dir: &'a Path,
     path_provenance: &'a PathProvenance,
     opt_skim_tx: Option<&'a SkimItemSender>,
-}
-
-struct PathsPartitioned {
-    vec_dirs: Vec<BasicDirEntryInfo>,
-    vec_files: Vec<BasicDirEntryInfo>,
 }
 
 impl<'a> Entries<'a> {
@@ -231,38 +265,6 @@ impl<'a> Entries<'a> {
             path_provenance,
             opt_skim_tx,
         }
-    }
-
-    fn get_paths_partitioned(&self) -> HttmResult<PathsPartitioned> {
-        // separates entries into dirs and files
-        let (vec_dirs, vec_files) = match self.path_provenance {
-            PathProvenance::FromLiveDataset => {
-                read_dir(self.requested_dir)?
-                    .flatten()
-                    // checking file_type on dir entries is always preferable
-                    // as it is much faster than a metadata call on the path
-                    .map(|dir_entry| BasicDirEntryInfo::from(dir_entry))
-                    .filter(|entry| entry.recursive_search_filter())
-                    .partition(|entry| entry.is_entry_dir())
-            }
-            PathProvenance::IsPhantom => {
-                // obtain all unique deleted, unordered, unsorted, will need to fix
-                DeletedFiles::from(self.requested_dir)
-                    .into_inner()
-                    .into_iter()
-                    .partition(|pseudo_entry| {
-                        pseudo_entry
-                            .opt_filetype()
-                            .map(|file_type| file_type.is_dir())
-                            .unwrap_or_else(|| false)
-                    })
-            }
-        };
-
-        Ok(PathsPartitioned {
-            vec_dirs,
-            vec_files,
-        })
     }
 
     #[inline(always)]
