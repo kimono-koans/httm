@@ -67,7 +67,7 @@ OPTIONS:
 		Execute directly on path/s instead of wrapping a target executable.
 
 	--give-priv:
-		To use $ounce you will need privileges to snapshot ZFS datasets, and the prefered scheme is
+		To use $ounce you will need privileges to snapshot ZFS datasets, and the preferred scheme is
 		\"zfs-allow\".  Executing this option will give the current user snapshot privileges on all
 		imported pools via \"zfs-allow\" . NOTE: The user must execute --give-priv as an unprivileged user.
 		The user will be prompted later for elevated privileges.
@@ -297,7 +297,7 @@ function exec_args {
 	[[ ${#filenames_array[@]} -ne 0 ]] || return 0
 
 	filenames_string="$( echo ${filenames_array[@]} )"
-	[[ -n "$filenames_string" ]] || print_err_exit "bash could not covert file names from array to string."
+	[[ -n "$filenames_string" ]] || print_err_exit "bash could not convert file names from array to string."
 	
 	# now, httm will dynamically determine the location of
 	# the file's ZFS dataset and snapshot that mount

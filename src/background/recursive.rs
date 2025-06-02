@@ -90,7 +90,7 @@ impl<'a> RecursiveSearch<'a> {
         // so here we add the directory and its parent as a selection item
         self.add_dot_entries()?;
 
-        // runs once for non-recur sive but also "primes the pump"
+        // runs once for non-recursive but also "primes the pump"
         // for recursive to have items available, also only place an
         // error can stop execution
         let mut queue: Vec<BasicDirEntryInfo> = self.enter_directory(self.requested_dir)?;
