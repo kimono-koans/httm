@@ -43,7 +43,7 @@ OPTIONS:
 	--output-dir:
 		Select the output directory.  Default is the current working directory.
 	--no-archive
-		Disable archive creation.  Create a new $git respository (e.g. named \"\$file1-git\") 
+		Disable archive creation.  Create a new $git repository (e.g. named \"\$file1-git\") 
 		in the output directory.
 	--debug:
 		Show $git and $tar command output.  Default is to complete silence both.
@@ -132,8 +132,8 @@ function get_unique_versions {
 	local -a version_list
 
 	# all we care about is unique file versions, unique directory versions aren't useful
-	# in this context, as we are recursing and commiting every file we find, we can skip 
-	# commiting all directory versions we find
+	# in this context, as we are recursing and committing every file we find, we can skip 
+	# committing all directory versions we find
 	[[ -d "$path" ]] || while read -r line; do
 		version_list+=("$line")
 	done <<<"$(httm -n --omit-ditto "$path")"
