@@ -151,10 +151,10 @@ impl DeletedFiles {
     fn into_pseudo_live_version<'a>(
         file_name: OsString,
         pseudo_live_dir: &'a Path,
-        opt_file_type: Option<FileType>,
+        opt_filetype: Option<FileType>,
     ) -> BasicDirEntryInfo {
         let path = pseudo_live_dir.join(file_name);
 
-        BasicDirEntryInfo::new(&path, opt_file_type)
+        BasicDirEntryInfo::new(&path, opt_filetype)
     }
 }

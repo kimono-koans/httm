@@ -21,7 +21,8 @@ use crate::data::paths::BasicDirEntryInfo;
 use crate::data::paths::PathData;
 use crate::display::wrapper::DisplayWrapper;
 use crate::library::results::HttmResult;
-use crate::library::utility::paint_string;
+use crate::library::utility::PaintString;
+use crate::lookup::versions::Versions;
 use crate::{Config, ExecMode, GLOBAL_CONFIG, VersionsMap};
 use lscolors::Colorable;
 use skim::prelude::*;
@@ -50,8 +51,13 @@ impl SelectionCandidate {
         res
     }
 
-    pub fn opt_filetype(&self) -> &Option<FileType> {
-        &self.opt_filetype
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+
+    pub fn opt_filetype(&self) -> Option<FileType> {
+        self.opt_filetype
+            .or_else(|| Versions::phantom_filetype(&self.path))
     }
 
     fn preview_view(&self) -> HttmResult<String> {
@@ -61,14 +67,14 @@ impl SelectionCandidate {
         static IS_INTERACTIVE_MODE: bool = true;
 
         // finally run search on those paths
-        let all_snap_versions: VersionsMap =
+        let versions_map: VersionsMap =
             VersionsMap::from_one_path(&display_config, &display_path_data, IS_INTERACTIVE_MODE)
                 .into_iter()
                 .map(|versions| versions.into_inner())
                 .collect::<BTreeMap<PathData, Vec<PathData>>>()
                 .into();
 
-        let output_buf = DisplayWrapper::from(&display_config, all_snap_versions).to_string();
+        let output_buf = DisplayWrapper::from(&display_config, versions_map).to_string();
 
         Ok(output_buf)
     }
@@ -98,7 +104,7 @@ impl SelectionCandidate {
     }
 }
 
-impl Colorable for &SelectionCandidate {
+impl Colorable for SelectionCandidate {
     fn path(&self) -> PathBuf {
         self.path.to_path_buf()
     }
@@ -106,7 +112,7 @@ impl Colorable for &SelectionCandidate {
         self.path.file_name().unwrap_or_default().to_os_string()
     }
     fn file_type(&self) -> Option<FileType> {
-        *self.opt_filetype()
+        self.opt_filetype()
     }
     fn metadata(&self) -> Option<std::fs::Metadata> {
         self.path.symlink_metadata().ok()
@@ -118,7 +124,7 @@ impl SkimItem for SelectionCandidate {
         self.display_name()
     }
     fn display(&self, _context: DisplayContext<'_>) -> AnsiString {
-        AnsiString::parse(&paint_string(&self).to_string())
+        AnsiString::parse(&self.paint_string().to_string())
     }
     fn output(&self) -> Cow<str> {
         self.path.to_string_lossy()

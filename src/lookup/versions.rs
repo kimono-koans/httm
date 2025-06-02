@@ -25,7 +25,7 @@ use hashbrown::HashSet;
 use rayon::prelude::*;
 use std::borrow::Cow;
 use std::collections::BTreeMap;
-use std::fs::Metadata;
+use std::fs::FileType;
 use std::io::ErrorKind;
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
@@ -160,7 +160,7 @@ impl Versions {
         })
     }
 
-    pub fn phantom_metadata<P: AsRef<Path>>(path: P) -> Option<Metadata> {
+    pub fn phantom_filetype<P: AsRef<Path>>(path: P) -> Option<FileType> {
         let path_data: &PathData = &PathData::from(path);
         let prox_opt_alts = ProximateDatasetAndOptAlts::new(path_data).ok()?;
         let one_version = RelativePathAndSnapMounts::new(
@@ -169,7 +169,13 @@ impl Versions {
         )
         .and_then(|relative_path_and_snap_mounts| relative_path_and_snap_mounts.one_version());
 
-        one_version.and_then(|version| version.path().symlink_metadata().ok())
+        one_version.and_then(|version| {
+            version
+                .path()
+                .symlink_metadata()
+                .ok()
+                .map(|md| md.file_type())
+        })
     }
 
     pub fn live_path_data(&self) -> &PathData {
@@ -392,7 +398,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
             Ok(md) => {
                 // why not PathData::new()? because symlinks will resolve!
                 // symlinks from a snap will end up looking just like the link target, so this is very confusing...
-                Some(PathData::new(&joined_path, Some(md)))
+                Some(PathData::from_snapshots(&joined_path, Some(md)))
             }
             Err(err) => {
                 match err.kind() {
