@@ -118,7 +118,7 @@ impl SkimItem for SelectionCandidate {
         self.display_name()
     }
     fn display(&self, _context: DisplayContext<'_>) -> AnsiString {
-        AnsiString::parse(&paint_string(&self).to_string())
+        AnsiString::parse(&paint_string(&self).as_str())
     }
     fn output(&self) -> Cow<str> {
         self.path.to_string_lossy()
