@@ -20,6 +20,7 @@ use crate::config::generate::{PrintMode, RawMode};
 use crate::data::paths::{BasicDirEntryInfo, PathData, PathMetadata};
 use crate::data::selection::SelectionCandidate;
 use crate::library::results::{HttmError, HttmResult};
+use crate::lookup::versions::Versions;
 use lscolors::{Colorable, LsColors, Style};
 use nu_ansi_term::AnsiString;
 use nu_ansi_term::Style as AnsiTermStyle;
@@ -203,18 +204,26 @@ static ENV_LS_COLORS: LazyLock<LsColors> =
 static PHANTOM_STYLE: LazyLock<AnsiTermStyle> =
     LazyLock::new(|| nu_ansi_term::Style::default().dimmed());
 
-pub fn paint_string<'a, T>(path: &'a T) -> AnsiString<'a>
+pub fn paint_string<'a, T>(item: &'a T) -> AnsiString<'a>
 where
     T: PaintString,
 {
-    let display_name = path.name();
+    let display_name = item.name();
 
-    if path.is_phantom() {
-        // paint all other phantoms/deleted files the same color, light pink
+    if item.is_phantom() {
+        let path = &item.as_path();
+        let opt_metadata = Versions::phantom_metadata(path);
+        let phantom_style = ENV_LS_COLORS.style_for_path_with_metadata(path, opt_metadata.as_ref());
+
+        if let Some(style) = phantom_style {
+            let ansi_style: &AnsiTermStyle = &Style::to_nu_ansi_term_style(style).strikethrough();
+            return ansi_style.paint(display_name);
+        }
+
         return PHANTOM_STYLE.paint(display_name);
     }
 
-    if let Some(style) = path.ls_style() {
+    if let Some(style) = item.ls_style() {
         let ansi_style: &AnsiTermStyle = &Style::to_nu_ansi_term_style(style);
         return ansi_style.paint(display_name);
     }
@@ -228,6 +237,7 @@ pub trait PaintString {
     fn ls_style(&self) -> Option<&'_ lscolors::style::Style>;
     fn is_phantom(&self) -> bool;
     fn name(&self) -> Cow<str>;
+    fn as_path(&self) -> PathBuf;
 }
 
 impl PaintString for &PathData {
@@ -239,6 +249,9 @@ impl PaintString for &PathData {
     }
     fn name(&self) -> Cow<str> {
         self.path().to_string_lossy()
+    }
+    fn as_path(&self) -> PathBuf {
+        self.path().into()
     }
 }
 
@@ -253,6 +266,9 @@ impl PaintString for &SelectionCandidate {
 
     fn name(&self) -> Cow<str> {
         self.display_name()
+    }
+    fn as_path(&self) -> PathBuf {
+        self.path()
     }
 }
 
