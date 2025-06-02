@@ -103,9 +103,6 @@ impl DeletedSearch {
                 // check to see whether we need to continue
                 self.hangup_check()?;
 
-                // yield to other rayon work on this worker thread
-                self.timeout_loop()?;
-
                 if let Ok(mut items) = self.enter_directory(&item.path()) {
                     // disable behind deleted dirs with DepthOfOne,
                     // otherwise recurse and find all those deleted files
@@ -128,13 +125,13 @@ impl DeletedSearch {
         loop {
             match rayon::yield_local() {
                 Some(rayon::Yield::Executed) => {
-                    // wait 1 ms and then continue
                     self.hangup_check()?;
 
                     if timeout < 16 {
                         timeout *= 2
                     };
 
+                    // wait timeout ms and then continue
                     sleep(std::time::Duration::from_millis(timeout));
                     continue;
                 }
