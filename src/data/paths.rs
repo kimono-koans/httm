@@ -182,7 +182,7 @@ pub trait PathDeconstruction<'a> {
 }
 
 // detailed info required to differentiate and display file versions
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Debug, Hash)]
 pub struct PathData {
     path_buf: Box<Path>,
     opt_path_metadata: Option<PathMetadata>,
@@ -204,6 +204,14 @@ impl lscolors::Colorable for PathData {
         self.path_buf.symlink_metadata().ok()
     }
 }
+
+impl PartialEq for PathData {
+    fn eq(&self, other: &Self) -> bool {
+        self.path_buf.eq(&other.path_buf)
+    }
+}
+
+impl Eq for PathData {}
 
 impl PartialOrd for PathData {
     #[inline]
