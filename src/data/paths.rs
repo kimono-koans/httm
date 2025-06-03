@@ -21,7 +21,6 @@ use crate::library::file_ops::ChecksumFileContents;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::ENV_LS_COLORS;
 use crate::library::utility::{DateFormat, HttmIsDir, date_string, display_human_size};
-use crate::lookup::versions::Versions;
 use crate::{
     BTRFS_SNAPPER_HIDDEN_DIRECTORY, GLOBAL_CONFIG, OPT_COMMON_SNAP_DIR, ZFS_HIDDEN_DIRECTORY,
     ZFS_SNAPSHOT_DIRECTORY,
@@ -100,7 +99,6 @@ impl BasicDirEntryInfo {
 
     pub fn opt_filetype(&self) -> Option<FileType> {
         self.opt_filetype
-            .or_else(|| Versions::phantom_filetype(&self.path))
     }
 
     pub fn is_entry_dir(&self) -> bool {

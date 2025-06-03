@@ -22,7 +22,6 @@ use crate::data::paths::PathData;
 use crate::display::wrapper::DisplayWrapper;
 use crate::library::results::HttmResult;
 use crate::library::utility::PaintString;
-use crate::lookup::versions::Versions;
 use crate::{Config, ExecMode, GLOBAL_CONFIG, VersionsMap};
 use lscolors::Colorable;
 use skim::prelude::*;
@@ -57,7 +56,6 @@ impl SelectionCandidate {
 
     pub fn opt_filetype(&self) -> Option<FileType> {
         self.opt_filetype
-            .or_else(|| Versions::phantom_filetype(&self.path))
     }
 
     fn preview_view(&self) -> HttmResult<String> {

@@ -160,6 +160,7 @@ impl Versions {
         })
     }
 
+    #[allow(dead_code)]
     pub fn phantom_filetype<P: AsRef<Path>>(path: P) -> Option<FileType> {
         let path_data: &PathData = &PathData::from(path);
         let prox_opt_alts = ProximateDatasetAndOptAlts::new(path_data).ok()?;
