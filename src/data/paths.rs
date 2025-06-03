@@ -611,7 +611,7 @@ impl Serialize for PathMetadata {
     }
 }
 
-#[derive(Copy, Clone, Debug, Eq, Hash, PartialEq)]
+#[derive(Copy, Clone, Debug, Hash)]
 pub struct PathMetadata {
     size: u64,
     modify_time: SystemTime,
@@ -649,6 +649,14 @@ impl PathMetadata {
     #[inline(always)]
     pub fn size(&self) -> u64 {
         self.size
+    }
+}
+
+impl Eq for PathMetadata {}
+
+impl PartialEq for PathMetadata {
+    fn eq(&self, other: &Self) -> bool {
+        self.modify_time == other.modify_time && self.size == other.size
     }
 }
 
