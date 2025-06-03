@@ -162,8 +162,9 @@ impl Versions {
 
     #[allow(dead_code)]
     pub fn phantom_filetype<P: AsRef<Path>>(path: P) -> Option<FileType> {
-        let path_data: &PathData = &PathData::from(path);
-        let prox_opt_alts = ProximateDatasetAndOptAlts::new(path_data).ok()?;
+        let path_data: PathData =
+            PathData::cheap(path.as_ref(), path.as_ref().symlink_metadata().ok());
+        let prox_opt_alts = ProximateDatasetAndOptAlts::new(&path_data).ok()?;
         let one_version = RelativePathAndSnapMounts::new(
             &prox_opt_alts.relative_path,
             &prox_opt_alts.proximate_dataset,

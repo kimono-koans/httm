@@ -97,7 +97,7 @@ impl DeletedFiles {
     fn unique_pseudo_live_versions<'a>(requested_dir: &'a Path) -> DeletedFiles {
         // we always need a requesting dir because we are comparing the files in the
         // requesting dir to those of their relative dirs on snapshots
-        let path_data = PathData::from(requested_dir);
+        let path_data = PathData::cheap(requested_dir, requested_dir.symlink_metadata().ok());
 
         // create vec of all local and replicated backups at once
         //
