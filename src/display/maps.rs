@@ -19,7 +19,7 @@ use crate::config::generate::{FormattedMode, PrintMode, RawMode};
 use crate::data::paths::{PathData, ZfsSnapPathGuard};
 use crate::display::versions::{NOT_SO_PRETTY_FIXED_WIDTH_PADDING, QUOTATION_MARKS_LEN};
 use crate::library::utility::delimiter;
-use crate::{MountsForFiles, SnapNameMap, VersionsMap, GLOBAL_CONFIG};
+use crate::{GLOBAL_CONFIG, MountsForFiles, SnapNameMap, VersionsMap};
 use serde::ser::SerializeMap;
 use serde::{Serialize, Serializer};
 use std::collections::BTreeMap;

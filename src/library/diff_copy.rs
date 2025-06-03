@@ -43,7 +43,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::data::paths::PathData;
+use crate::library::file_ops::is_same_file_contents;
 use crate::library::results::{HttmError, HttmResult};
 use crate::zfs::run_command::RunZFSCommand;
 use crate::{GLOBAL_CONFIG, IN_BUFFER_SIZE};
@@ -331,10 +331,7 @@ impl DiffCopy {
     }
 
     pub fn confirm(src: &Path, dst: &Path) -> HttmResult<()> {
-        let src_test = PathData::from(src);
-        let dst_test = PathData::from(dst);
-
-        if src_test.is_same_file_contents(&dst_test) {
+        if is_same_file_contents(src, dst) {
             Ok(())
         } else {
             let description = format!(

@@ -399,7 +399,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
             Ok(md) => {
                 // why not PathData::new()? because symlinks will resolve!
                 // symlinks from a snap will end up looking just like the link target, so this is very confusing...
-                Some(PathData::from_snapshots(&joined_path, Some(md)))
+                Some(PathData::cheap(&joined_path, Some(md)))
             }
             Err(err) => {
                 match err.kind() {

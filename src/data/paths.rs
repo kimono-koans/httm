@@ -282,7 +282,7 @@ impl PathData {
     }
 
     #[inline(always)]
-    pub fn from_snapshots(path: &Path, opt_metadata: Option<Metadata>) -> Self {
+    pub fn cheap(path: &Path, opt_metadata: Option<Metadata>) -> Self {
         // canonicalize() on any path that DNE will throw an error
         //
         // in general we handle those cases elsewhere, like the ingest
@@ -323,15 +323,6 @@ impl PathData {
     pub fn metadata_infallible(&self) -> PathMetadata {
         self.opt_path_metadata
             .unwrap_or_else(|| PHANTOM_PATH_METADATA)
-    }
-
-    pub fn is_same_file_contents(&self, other: &Self) -> bool {
-        let (self_hash, other_hash): (u64, u64) = rayon::join(
-            || ChecksumFileContents::from(self.path()).checksum(),
-            || ChecksumFileContents::from(other.path()).checksum(),
-        );
-
-        self_hash == other_hash
     }
 }
 
