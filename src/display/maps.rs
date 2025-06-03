@@ -68,7 +68,7 @@ impl<'a> From<&MountsForFiles<'a>> for PrintAsMap {
 
                 let res = prox
                     .datasets_of_interest()
-                    .map(|path| PathData::cheap(path, path.symlink_metadata().ok()))
+                    .map(|path| PathData::cheap(path))
                     .filter_map(|mount| match &ZfsSnapPathGuard::new(path_data) {
                         Some(spg) => mount_display.display(spg, &mount),
                         None => mount_display.display(path_data, &mount),
