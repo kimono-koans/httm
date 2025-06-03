@@ -1,7 +1,7 @@
 [package]
 name = "httm"
 authors = ["Robert Swinford <robert.swinford <...at...> gmail.com>"]
-version = "0.47.1"
+version = "0.48.0"
 edition = "2024"
 keywords = ["zfs", "backup", "restore", "cli-utility", "snapshot"]
 description = "A CLI tool for viewing snapshot file versions on ZFS and btrfs datasets"
@@ -37,7 +37,7 @@ xattr = { version = "1.5.0", default-features = false, optional = true }
 
 [dependencies]
 foldhash = { version = "0.1.5", default-features = false }
-clap = { version = "4.5.38", default-features = true, features = ["cargo"] }
+clap = { version = "4.5.39", default-features = true, features = ["cargo"] }
 crossbeam-channel = { version = "0.5.15", default-features = false }
 time = { version = "0.3.41", default-features = false, features = [
     "formatting",
