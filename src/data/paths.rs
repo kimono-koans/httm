@@ -30,7 +30,7 @@ use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
 use std::cmp::{Ord, Ordering, PartialOrd};
 use std::ffi::OsStr;
-use std::fs::{DirEntry, FileType, Metadata, symlink_metadata};
+use std::fs::{DirEntry, FileType, Metadata};
 use std::hash::Hash;
 use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
@@ -222,8 +222,7 @@ impl Ord for PathData {
 impl<T: AsRef<Path>> From<T> for PathData {
     fn from(path: T) -> Self {
         // this metadata() function will not traverse symlinks
-        let opt_metadata = symlink_metadata(path.as_ref()).ok();
-        PathData::new(path.as_ref(), opt_metadata)
+        PathData::new(path.as_ref())
     }
 }
 
@@ -232,30 +231,17 @@ impl<T: AsRef<Path>> From<T> for PathData {
 impl From<BasicDirEntryInfo> for PathData {
     fn from(basic_info: BasicDirEntryInfo) -> Self {
         // this metadata() function will not traverse symlinks
-        let path_buf = basic_info.path;
+        let path = basic_info.path;
 
-        let opt_metadata = path_buf.symlink_metadata().ok();
+        let opt_metadata = path.symlink_metadata().ok();
 
-        let opt_path_metadata = opt_metadata.as_ref().and_then(|md| PathMetadata::new(md));
-
-        let opt_file_type = opt_metadata.as_ref().map(|md| md.file_type());
-
-        let opt_style = opt_metadata
-            .and_then(|md| ENV_LS_COLORS.style_for_path_with_metadata(&path_buf, Some(md).as_ref()))
-            .copied();
-
-        Self {
-            path_buf,
-            opt_path_metadata,
-            opt_style,
-            opt_file_type,
-        }
+        Self::from_raw(path, opt_metadata)
     }
 }
 
 impl PathData {
     #[inline(always)]
-    pub fn new(path: &Path, opt_metadata: Option<Metadata>) -> Self {
+    pub fn new(path: &Path) -> Self {
         // canonicalize() on any path that DNE will throw an error
         //
         // in general we handle those cases elsewhere, like the ingest
@@ -264,9 +250,20 @@ impl PathData {
             .unwrap_or_else(|_| path.to_path_buf())
             .into_boxed_path();
 
+        let opt_metadata = std::fs::symlink_metadata(canonical_path.as_ref()).ok();
+
+        Self::from_raw(canonical_path, opt_metadata)
+    }
+
+    #[inline(always)]
+    pub fn from_raw(path: Box<Path>, opt_metadata: Option<Metadata>) -> Self {
+        // canonicalize() on any path that DNE will throw an error
+        //
+        // in general we handle those cases elsewhere, like the ingest
+        // of input files in Config::from for deleted relative paths, etc.
         let opt_style = opt_metadata
             .as_ref()
-            .and_then(|md| ENV_LS_COLORS.style_for_path_with_metadata(&canonical_path, Some(md)))
+            .and_then(|md| ENV_LS_COLORS.style_for_path_with_metadata(&path, Some(md)))
             .copied();
 
         let opt_file_type = opt_metadata.as_ref().map(|md| md.file_type());
@@ -274,7 +271,7 @@ impl PathData {
         let opt_path_metadata = opt_metadata.and_then(|md| PathMetadata::new(&md));
 
         Self {
-            path_buf: canonical_path,
+            path_buf: path.into(),
             opt_path_metadata,
             opt_style,
             opt_file_type,
@@ -287,14 +284,10 @@ impl PathData {
         //
         // in general we handle those cases elsewhere, like the ingest
         // of input files in Config::from for deleted relative paths, etc.
-        let canonical_path: Box<Path> = realpath(path, RealpathFlags::ALLOW_MISSING)
-            .unwrap_or_else(|_| path.to_path_buf())
-            .into_boxed_path();
-
         let opt_path_metadata = opt_metadata.and_then(|md| PathMetadata::new(&md));
 
         Self {
-            path_buf: canonical_path,
+            path_buf: path.into(),
             opt_path_metadata,
             opt_style: None,
             opt_file_type: None,
