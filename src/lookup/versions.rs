@@ -25,6 +25,7 @@ use hashbrown::HashSet;
 use rayon::prelude::*;
 use std::borrow::Cow;
 use std::collections::BTreeMap;
+use std::fs::FileType;
 use std::io::ErrorKind;
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
@@ -156,6 +157,24 @@ impl Versions {
         Ok(Self {
             path_data_key,
             snap_versions,
+        })
+    }
+
+    pub fn phantom_filetype<P: AsRef<Path>>(path: P) -> Option<FileType> {
+        let path_data: &PathData = &PathData::from(path);
+        let prox_opt_alts = ProximateDatasetAndOptAlts::new(path_data).ok()?;
+        let one_version = RelativePathAndSnapMounts::new(
+            &prox_opt_alts.relative_path,
+            &prox_opt_alts.proximate_dataset,
+        )
+        .and_then(|relative_path_and_snap_mounts| relative_path_and_snap_mounts.one_version());
+
+        one_version.and_then(|version| {
+            version
+                .path()
+                .symlink_metadata()
+                .ok()
+                .map(|md| md.file_type())
         })
     }
 
@@ -374,39 +393,52 @@ impl<'a> RelativePathAndSnapMounts<'a> {
     }
 
     #[inline(always)]
+    fn match_metadata(&self, joined_path: PathBuf) -> Option<PathData> {
+        match joined_path.symlink_metadata() {
+            Ok(md) => {
+                // why not PathData::new()? because symlinks will resolve!
+                // symlinks from a snap will end up looking just like the link target, so this is very confusing...
+                Some(PathData::from_snapshots(&joined_path, Some(md)))
+            }
+            Err(err) => {
+                match err.kind() {
+                    // if we do not have permissions to read the snapshot directories
+                    // fail/panic printing a descriptive error instead of flattening
+                    ErrorKind::PermissionDenied => {
+                        eprintln!(
+                            "Error: When httm tried to find a file contained within a snapshot directory, permission was denied.  \
+                        Perhaps you need to use sudo or equivalent to view the contents of this snapshot (for instance, btrfs by default creates privileged snapshots).  \
+                        \nDetails: {err}"
+                        );
+                        std::process::exit(1)
+                    }
+                    // if file metadata is not found, or is otherwise not available,
+                    // continue, it simply means we do not have a snapshot of this file
+                    _ => None,
+                }
+            }
+        }
+    }
+
+    #[inline(always)]
+    fn one_version(&'a self) -> Option<PathData> {
+        // get the DirEntry for our snapshot path which will have all our possible
+        // snapshots, like so: .zfs/snapshots/<some snap name>/
+        self.snap_mounts
+            .iter()
+            .map(|snap_path| snap_path.join(self.relative_path))
+            .find_map(|joined_path| self.match_metadata(joined_path))
+    }
+
+    #[inline(always)]
     fn all_versions(&'a self) -> Vec<PathData> {
         // get the DirEntry for our snapshot path which will have all our possible
         // snapshots, like so: .zfs/snapshots/<some snap name>/
-        self
-            .snap_mounts
+        self.snap_mounts
             .iter()
-            .map(|snap_path| {
-                snap_path.join(self.relative_path)
-            })
-            .filter_map(|joined_path| {
-                match joined_path.symlink_metadata() {
-                    Ok(md) => {
-                        // why not PathData::new()? because symlinks will resolve!
-                        // symlinks from a snap will end up looking just like the link target, so this is very confusing...
-                        Some(PathData::new(&joined_path, Some(md)))
-                    },
-                    Err(err) => {
-                        match err.kind() {
-                            // if we do not have permissions to read the snapshot directories
-                            // fail/panic printing a descriptive error instead of flattening
-                            ErrorKind::PermissionDenied => {
-                                eprintln!("Error: When httm tried to find a file contained within a snapshot directory, permission was denied.  \
-                                Perhaps you need to use sudo or equivalent to view the contents of this snapshot (for instance, btrfs by default creates privileged snapshots).  \
-                                \nDetails: {err}");
-                                std::process::exit(1)
-                            },
-                            // if file metadata is not found, or is otherwise not available, 
-                            // continue, it simply means we do not have a snapshot of this file
-                            _ => None,
-                        }
-                    },
-                }
-            }).collect()
+            .map(|snap_path| snap_path.join(self.relative_path))
+            .filter_map(|joined_path| self.match_metadata(joined_path))
+            .collect()
     }
 
     #[inline(always)]

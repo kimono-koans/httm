@@ -20,9 +20,8 @@ use crate::config::generate::{PrintMode, RawMode};
 use crate::data::paths::{BasicDirEntryInfo, PathData, PathMetadata};
 use crate::data::selection::SelectionCandidate;
 use crate::library::results::{HttmError, HttmResult};
-use lscolors::{Colorable, LsColors, Style};
+use lscolors::{LsColors, Style};
 use nu_ansi_term::AnsiString;
-use nu_ansi_term::Style as AnsiTermStyle;
 use std::borrow::Cow;
 use std::fs::FileType;
 use std::io::Write;
@@ -175,7 +174,12 @@ impl<'a> HttmIsDir<'a> for PathData {
         httm_is_dir(self)
     }
     fn file_type(&self) -> Result<FileType, std::io::Error> {
-        Ok(self.path().symlink_metadata()?.file_type())
+        //  of course, this is a placeholder error, we just need an error to report back
+        //  why not store the error in the struct instead?  because it's more complex.  it might
+        //  make it harder to copy around etc
+        Ok(self
+            .opt_file_type()
+            .ok_or_else(|| std::io::ErrorKind::NotFound)?)
     }
     fn path(&'a self) -> &'a Path {
         &self.path()
@@ -198,41 +202,40 @@ impl<'a> HttmIsDir<'a> for BasicDirEntryInfo {
     }
 }
 
-static ENV_LS_COLORS: LazyLock<LsColors> =
+pub static ENV_LS_COLORS: LazyLock<LsColors> =
     LazyLock::new(|| LsColors::from_env().unwrap_or_default());
-static PHANTOM_STYLE: LazyLock<AnsiTermStyle> =
-    LazyLock::new(|| nu_ansi_term::Style::default().dimmed());
+static BASE_STYLE: LazyLock<nu_ansi_term::Style> = LazyLock::new(|| nu_ansi_term::Style::default());
+static PHANTOM_STYLE: LazyLock<nu_ansi_term::Style> = LazyLock::new(|| BASE_STYLE.dimmed());
 
-pub fn paint_string<'a, T>(path: &'a T) -> AnsiString<'a>
+pub fn paint_string<'a, T>(item: &'a T) -> AnsiString<'a>
 where
     T: PaintString,
 {
-    let display_name = path.name();
+    let display_name = item.name();
 
-    if path.is_phantom() {
-        // paint all other phantoms/deleted files the same color, light pink
-        return PHANTOM_STYLE.paint(display_name);
+    match item
+        .ls_style()
+        .map(|style| Style::to_nu_ansi_term_style(&style))
+    {
+        Some(ansi_style) if !item.is_phantom() => ansi_style.paint(display_name),
+        None if !item.is_phantom() => BASE_STYLE.paint(display_name),
+        _ => PHANTOM_STYLE.paint(display_name),
     }
-
-    if let Some(style) = path.ls_style() {
-        let ansi_style: &AnsiTermStyle = &Style::to_nu_ansi_term_style(style);
-        return ansi_style.paint(display_name);
-    }
-
-    // if a non-phantom file that should not be colored (sometimes -- your regular files)
-    // or just in case if all else fails, don't paint and return string
-    nu_ansi_term::AnsiString::from(display_name)
 }
 
 pub trait PaintString {
-    fn ls_style(&self) -> Option<&'_ lscolors::style::Style>;
+    fn paint_string<'a>(&'a self) -> AnsiString<'a>;
+    fn ls_style(&self) -> Option<lscolors::style::Style>;
     fn is_phantom(&self) -> bool;
     fn name(&self) -> Cow<str>;
 }
 
-impl PaintString for &PathData {
-    fn ls_style(&self) -> Option<&lscolors::style::Style> {
-        ENV_LS_COLORS.style_for_path(&self.path())
+impl PaintString for PathData {
+    fn paint_string<'a>(&'a self) -> AnsiString<'a> {
+        paint_string(self)
+    }
+    fn ls_style(&self) -> Option<lscolors::style::Style> {
+        self.opt_style()
     }
     fn is_phantom(&self) -> bool {
         self.opt_metadata().is_none()
@@ -242,17 +245,35 @@ impl PaintString for &PathData {
     }
 }
 
-impl PaintString for &SelectionCandidate {
-    fn ls_style(&self) -> Option<&lscolors::style::Style> {
-        ENV_LS_COLORS.style_for(self)
+impl PaintString for SelectionCandidate {
+    fn paint_string<'a>(&'a self) -> AnsiString<'a> {
+        paint_string(self)
     }
-
+    fn ls_style(&self) -> Option<lscolors::style::Style> {
+        ENV_LS_COLORS.style_for(self).copied()
+    }
     fn is_phantom(&self) -> bool {
-        self.file_type().is_none()
+        self.opt_filetype().is_none()
     }
-
     fn name(&self) -> Cow<str> {
-        self.display_name()
+        let mut display_name = self.display_name().to_string();
+
+        match self.opt_filetype() {
+            Some(ft) if !ft.is_symlink() && !ft.is_dir() => (),
+            Some(ft) if ft.is_dir() && display_name != "/" => display_name.push('/'),
+            Some(ft) if ft.is_symlink() => match std::fs::read_link(self.path()).ok() {
+                Some(link_target) => {
+                    let link_name = format!(" -> {}", link_target.to_string_lossy());
+                    display_name.push_str(&link_name);
+                }
+                None => {
+                    display_name.push_str(" -> ?");
+                }
+            },
+            _ => (),
+        }
+
+        Cow::Owned(display_name)
     }
 }
 

@@ -20,7 +20,8 @@ use crate::config::generate::DedupBy;
 use crate::config::generate::{BulkExclusion, Config, FormattedMode, PrintMode, RawMode};
 use crate::data::paths::{PHANTOM_DATE, PHANTOM_SIZE, PathData};
 use crate::filesystem::mounts::IsFilterDir;
-use crate::library::utility::{DateFormat, date_string, display_human_size, paint_string};
+use crate::library::utility::PaintString;
+use crate::library::utility::{DateFormat, date_string, display_human_size};
 use crate::lookup::versions::ProximateDatasetAndOptAlts;
 use nu_ansi_term::AnsiGenericString;
 use std::borrow::Cow;
@@ -228,12 +229,11 @@ impl PathData {
                     width = padding_collection.size_padding_len
                 ));
                 let path = {
-                    let path_buf = &self.path();
-
                     // paint the live strings with ls colors - idx == 1 is 2nd or live set
                     let painted_path_str = match display_set_type {
-                        DisplaySetType::IsLive => paint_string(&self),
+                        DisplaySetType::IsLive => self.paint_string(),
                         DisplaySetType::IsSnap => {
+                            let path_buf = &self.path();
                             AnsiGenericString::from(path_buf.to_string_lossy())
                         }
                     };

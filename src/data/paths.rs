@@ -19,7 +19,9 @@ use crate::config::generate::PrintMode;
 use crate::filesystem::mounts::{FilesystemType, IsFilterDir, MaxLen};
 use crate::library::file_ops::ChecksumFileContents;
 use crate::library::results::{HttmError, HttmResult};
+use crate::library::utility::ENV_LS_COLORS;
 use crate::library::utility::{DateFormat, HttmIsDir, date_string, display_human_size};
+use crate::lookup::versions::Versions;
 use crate::{
     BTRFS_SNAPPER_HIDDEN_DIRECTORY, GLOBAL_CONFIG, OPT_COMMON_SNAP_DIR, ZFS_HIDDEN_DIRECTORY,
     ZFS_SNAPSHOT_DIRECTORY,
@@ -96,8 +98,9 @@ impl BasicDirEntryInfo {
         &self.path
     }
 
-    pub fn opt_filetype(&self) -> &Option<FileType> {
-        &self.opt_filetype
+    pub fn opt_filetype(&self) -> Option<FileType> {
+        self.opt_filetype
+            .or_else(|| Versions::phantom_filetype(&self.path))
     }
 
     pub fn is_entry_dir(&self) -> bool {
@@ -184,7 +187,24 @@ pub trait PathDeconstruction<'a> {
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct PathData {
     path_buf: Box<Path>,
-    metadata: Option<PathMetadata>,
+    opt_path_metadata: Option<PathMetadata>,
+    opt_style: Option<lscolors::Style>,
+    opt_file_type: Option<FileType>,
+}
+
+impl lscolors::Colorable for PathData {
+    fn path(&self) -> PathBuf {
+        self.path_buf.to_path_buf()
+    }
+    fn file_name(&self) -> std::ffi::OsString {
+        self.path_buf.file_name().unwrap_or_default().to_os_string()
+    }
+    fn file_type(&self) -> Option<FileType> {
+        self.path().symlink_metadata().ok().map(|md| md.file_type())
+    }
+    fn metadata(&self) -> Option<std::fs::Metadata> {
+        self.path_buf.symlink_metadata().ok()
+    }
 }
 
 impl PartialOrd for PathData {
@@ -214,9 +234,24 @@ impl<T: AsRef<Path>> From<T> for PathData {
 impl From<BasicDirEntryInfo> for PathData {
     fn from(basic_info: BasicDirEntryInfo) -> Self {
         // this metadata() function will not traverse symlinks
-        let opt_metadata = basic_info.path.symlink_metadata().ok();
-        let path = basic_info.path;
-        Self::new(&path, opt_metadata)
+        let path_buf = basic_info.path;
+
+        let opt_metadata = path_buf.symlink_metadata().ok();
+
+        let opt_path_metadata = opt_metadata.as_ref().and_then(|md| PathMetadata::new(md));
+
+        let opt_file_type = opt_metadata.as_ref().map(|md| md.file_type());
+
+        let opt_style = opt_metadata
+            .and_then(|md| ENV_LS_COLORS.style_for_path_with_metadata(&path_buf, Some(md).as_ref()))
+            .copied();
+
+        Self {
+            path_buf,
+            opt_path_metadata,
+            opt_style,
+            opt_file_type,
+        }
     }
 }
 
@@ -231,11 +266,40 @@ impl PathData {
             .unwrap_or_else(|_| path.to_path_buf())
             .into_boxed_path();
 
-        let path_metadata = opt_metadata.and_then(|md| PathMetadata::new(&md));
+        let opt_style = opt_metadata
+            .as_ref()
+            .and_then(|md| ENV_LS_COLORS.style_for_path_with_metadata(&canonical_path, Some(md)))
+            .copied();
+
+        let opt_file_type = opt_metadata.as_ref().map(|md| md.file_type());
+
+        let opt_path_metadata = opt_metadata.and_then(|md| PathMetadata::new(&md));
 
         Self {
             path_buf: canonical_path,
-            metadata: path_metadata,
+            opt_path_metadata,
+            opt_style,
+            opt_file_type,
+        }
+    }
+
+    #[inline(always)]
+    pub fn from_snapshots(path: &Path, opt_metadata: Option<Metadata>) -> Self {
+        // canonicalize() on any path that DNE will throw an error
+        //
+        // in general we handle those cases elsewhere, like the ingest
+        // of input files in Config::from for deleted relative paths, etc.
+        let canonical_path: Box<Path> = realpath(path, RealpathFlags::ALLOW_MISSING)
+            .unwrap_or_else(|_| path.to_path_buf())
+            .into_boxed_path();
+
+        let opt_path_metadata = opt_metadata.and_then(|md| PathMetadata::new(&md));
+
+        Self {
+            path_buf: canonical_path,
+            opt_path_metadata,
+            opt_style: None,
+            opt_file_type: None,
         }
     }
 
@@ -243,13 +307,24 @@ impl PathData {
         &self.path_buf
     }
 
-    pub fn opt_metadata<'a>(&'a self) -> &'a Option<PathMetadata> {
-        &self.metadata
+    pub fn opt_metadata(&self) -> Option<PathMetadata> {
+        self.opt_path_metadata
+    }
+
+    pub fn opt_style(&self) -> Option<lscolors::Style> {
+        self.opt_style
+            .or_else(|| ENV_LS_COLORS.style_for_path(self.path()).copied())
+    }
+
+    pub fn opt_file_type(&self) -> Option<FileType> {
+        self.opt_file_type
+            .or_else(|| self.path().symlink_metadata().ok().map(|md| md.file_type()))
     }
 
     #[inline(always)]
     pub fn metadata_infallible(&self) -> PathMetadata {
-        self.metadata.unwrap_or_else(|| PHANTOM_PATH_METADATA)
+        self.opt_path_metadata
+            .unwrap_or_else(|| PHANTOM_PATH_METADATA)
     }
 
     pub fn is_same_file_contents(&self, other: &Self) -> bool {
@@ -504,7 +579,7 @@ impl Serialize for PathData {
         let mut state = serializer.serialize_struct("PathData", 2)?;
 
         state.serialize_field("path", &self.path_buf)?;
-        state.serialize_field("metadata", &self.metadata)?;
+        state.serialize_field("metadata", &self.opt_path_metadata)?;
         state.end()
     }
 }
