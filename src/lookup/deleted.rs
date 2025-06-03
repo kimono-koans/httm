@@ -135,11 +135,17 @@ impl DeletedFiles {
             .flat_map(std::fs::read_dir)
             .flatten()
             .flatten()
-            .map(|dir_entry| {
+            .filter_map(|dir_entry| {
+                dir_entry
+                    .file_type()
+                    .ok()
+                    .map(|file_type| (dir_entry, file_type))
+            })
+            .map(|(dir_entry, file_type)| {
                 Self::into_pseudo_live_version(
                     dir_entry.file_name(),
                     pseudo_live_dir,
-                    dir_entry.file_type().ok(),
+                    Some(file_type),
                 )
             })
     }
