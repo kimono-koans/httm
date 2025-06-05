@@ -151,7 +151,7 @@ impl Copy {
         Ok(())
     }
 
-    fn direct_quiet(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<()> {
+    pub fn direct_quiet(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<()> {
         if src.is_dir() {
             create_dir_all(&dst)?;
         } else {

@@ -410,7 +410,7 @@ impl RollForward {
     }
 
     pub fn copy(src: &Path, dst: &Path) -> HttmResult<()> {
-        if let Err(err) = Copy::recursive_quiet(src, dst, true) {
+        if let Err(err) = Copy::direct_quiet(src, dst, true) {
             eprintln!("Error: {}", err);
             let description = format!(
                 "Could not overwrite {:?} with snapshot file version {:?}",
