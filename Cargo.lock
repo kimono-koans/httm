@@ -554,18 +554,18 @@ checksum = "7baab56125e25686df467fe470785512329883aab42696d661247aca2a2896e4"
 dependencies = [
  "console",
  "lazy_static",
- "number_prefix 0.3.0",
+ "number_prefix",
  "regex",
 ]
 
 [[package]]
 name = "indicatif"
 version = "0.17.11"
-source = "git+https://github.com/console-rs/indicatif#458e4dc391c1b001937e502bd450a0bfc8b4d9f6"
+source = "git+https://github.com/kimono-koans/indicatif#5106b7017552f6771ae4123c37e65500d7d08798"
 dependencies = [
  "console",
- "number_prefix 0.4.0",
  "portable-atomic",
+ "unit-prefix",
  "web-time",
 ]
 
@@ -719,12 +719,6 @@ name = "number_prefix"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "17b02fc0ff9a9e4b35b3342880f48e896ebf69f2967921fe8646bf5b7125956a"
-
-[[package]]
-name = "number_prefix"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "830b246a0e5f20af87141b25c173cd1b609bd7779a4617d6ec582abaf90870f3"
 
 [[package]]
 name = "once_cell"
