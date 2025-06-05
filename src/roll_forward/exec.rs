@@ -232,7 +232,7 @@ impl RollForward {
 
                 // zfs diff sometimes doesn't pick up rename events
                 // here we cleanup
-                if snap_path.try_exists()? && !live_path.try_exists()? {
+                if snap_path.exists() && !live_path.exists() {
                     if GLOBAL_CONFIG.opt_debug {
                         eprintln!("DEBUG: Cleanup required {:?}::{:?}", snap_path, live_path);
                     }
@@ -267,7 +267,7 @@ impl RollForward {
 
                 // zfs diff sometimes doesn't pick up rename events
                 // here we cleanup
-                if snap_path.try_exists()? && !live_path.try_exists()? {
+                if snap_path.exists() && !live_path.exists() {
                     if GLOBAL_CONFIG.opt_debug {
                         eprintln!("DEBUG: Cleanup required {:?}::{:?}", snap_path, live_path);
                     }
@@ -400,7 +400,7 @@ impl RollForward {
 
                 Self::overwrite_or_remove(&snap_new_file_name, new_file_name)?;
 
-                if snap_file_path.try_exists()? {
+                if snap_file_path.exists() {
                     Self::copy(&snap_file_path, &event.path_buf)?
                 }
 
@@ -437,7 +437,7 @@ impl RollForward {
 
     fn overwrite_or_remove(src: &Path, dst: &Path) -> HttmResult<()> {
         // overwrite
-        if src.try_exists()? {
+        if src.exists() {
             return Self::copy(src, dst);
         }
 
@@ -447,13 +447,13 @@ impl RollForward {
 
     pub fn remove(dst: &Path) -> HttmResult<()> {
         // overwrite
-        if !dst.try_exists()? {
+        if !dst.exists() {
             return Ok(());
         }
 
         match Remove::recursive_quiet(dst) {
             Ok(_) => {
-                if dst.try_exists()? {
+                if dst.exists() {
                     let description = format!("File should not exist after deletion {:?}", dst);
                     return HttmError::from(description).into();
                 }
