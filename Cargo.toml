@@ -76,7 +76,7 @@ lms = { version = "0.4.0", default-features = false, optional = true }
 itertools = { version = "0.14.0", default-features = false, optional = true }
 
 [patch.crates-io]
-indicatif = { git = "https://github.com/kimono-koans/indicatif", branch = "switch_to_unit_prefix" }
+indicatif = { git = "https://github.com/console-rs/indicatif" }
 
 [package.metadata.deb]
 maintainer = "kimono koans <https://github.com/kimono-koans/>"
