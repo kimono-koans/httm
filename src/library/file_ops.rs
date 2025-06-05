@@ -35,6 +35,53 @@ const BLK_KIND: SFlag = nix::sys::stat::SFlag::S_IFBLK;
 pub struct Copy;
 
 impl Copy {
+    pub fn recursive_quiet(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<()> {
+        if src.is_dir() {
+            Self::direct_quiet(src, dst, should_preserve)?;
+
+            for entry in read_dir(&src)?.flatten() {
+                let file_type = entry.file_type()?;
+                let entry_src = entry.path();
+                let entry_dst = dst.join(entry.file_name());
+
+                if entry_src.exists() {
+                    if file_type.is_dir() {
+                        Self::recursive_quiet(&entry_src, &entry_dst, should_preserve)?;
+                    } else {
+                        Self::direct_quiet(&entry_src, &entry_dst, should_preserve)?;
+                    }
+                }
+            }
+        } else {
+            Self::direct_quiet(&src, dst, should_preserve)?;
+        }
+
+        if should_preserve {
+            // macos likes to fail on the metadata copy
+            match Preserve::recursive(src, dst) {
+                Ok(_) => {}
+                Err(err) => {
+                    if is_metadata_same(src, dst).is_ok() {
+                        if GLOBAL_CONFIG.opt_debug {
+                            eprintln!(
+                                "WARN: The OS reports an error that it was unable to copy file metadata for the following reason: {}",
+                                err.to_string().trim_end()
+                            );
+                            eprintln!(
+                                "NOTICE: This is most likely because such feature is unsupported by this OS.  httm confirms basic file metadata (size and mtime) are the same for transfer: {:?} -> {:?}.",
+                                src, dst
+                            )
+                        }
+                    } else {
+                        return Err(err);
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
     pub fn generate_dst_parent(dst: &Path) -> HttmResult<()> {
         if let Some(dst_parent) = dst.parent() {
             create_dir_all(dst_parent)?;
@@ -45,31 +92,29 @@ impl Copy {
         }
     }
 
-    pub fn atomic_swap(
-        src: &Path,
-        dst: &Path,
-        dst_tmp_path: &Path,
-        should_preserve: bool,
-    ) -> HttmResult<()> {
-        fn swap(
-            src: &Path,
-            dst: &Path,
-            dst_tmp_path: &Path,
-            should_preserve: bool,
-        ) -> HttmResult<()> {
-            Copy::recursive_quiet(src, dst_tmp_path, should_preserve)?;
-            Remove::recursive_quiet(dst)?;
-            Rename::direct_quiet(dst_tmp_path, &dst)?;
+    pub fn direct_quiet(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<()> {
+        if src.is_dir() {
+            create_dir_all(&dst)?;
+        } else {
+            Self::generate_dst_parent(&dst)?;
 
-            Ok(())
+            if src.is_file() {
+                HttmCopy::new(&src, &dst)?;
+            } else {
+                if dst.exists() {
+                    Remove::recursive_quiet(dst)?;
+                }
+                if src.is_symlink() {
+                    let link_target = std::fs::read_link(&src)?;
+                    std::os::unix::fs::symlink(&link_target, &dst)?;
+                } else {
+                    Self::special_file(src, dst)?;
+                }
+            }
         }
 
-        if let Err(err) = swap(src, dst, dst_tmp_path, should_preserve) {
-            if dst_tmp_path.exists() {
-                let _ = Remove::recursive_quiet(&dst_tmp_path);
-            }
-
-            return Err(err.into());
+        if should_preserve {
+            Preserve::direct(src, dst)?
         }
 
         Ok(())
@@ -121,76 +166,31 @@ impl Copy {
         Ok(())
     }
 
-    pub fn recursive_quiet(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<()> {
-        if src.is_dir() {
-            Self::direct_quiet(src, dst, should_preserve)?;
+    pub fn atomic_swap(
+        src: &Path,
+        dst: &Path,
+        dst_tmp_path: &Path,
+        should_preserve: bool,
+    ) -> HttmResult<()> {
+        fn swap(
+            src: &Path,
+            dst: &Path,
+            dst_tmp_path: &Path,
+            should_preserve: bool,
+        ) -> HttmResult<()> {
+            Copy::recursive_quiet(src, dst_tmp_path, should_preserve)?;
+            Remove::recursive_quiet(dst)?;
+            Rename::direct_quiet(dst_tmp_path, &dst)?;
 
-            for entry in read_dir(&src)?.flatten() {
-                let file_type = entry.file_type()?;
-                let entry_src = entry.path();
-                let entry_dst = dst.join(entry.file_name());
-
-                if entry_src.exists() {
-                    if file_type.is_dir() {
-                        Self::recursive_quiet(&entry_src, &entry_dst, should_preserve)?;
-                    } else {
-                        Self::direct_quiet(&entry_src, &entry_dst, should_preserve)?;
-                    }
-                }
-            }
-        } else {
-            Self::direct_quiet(&src, dst, should_preserve)?;
+            Ok(())
         }
 
-        if should_preserve {
-            // macos likes to fail on the metadata copy
-            match Preserve::recursive(src, dst) {
-                Ok(_) => {}
-                Err(err) => {
-                    if is_metadata_same(src, dst).is_ok() {
-                        if GLOBAL_CONFIG.opt_debug {
-                            eprintln!(
-                                "WARN: The OS reports an error that it was unable to copy file metadata for the following reason: {}",
-                                err.to_string().trim_end()
-                            );
-                            eprintln!(
-                                "NOTICE: This is most likely because such feature is unsupported by this OS.  httm confirms basic file metadata (size and mtime) are the same for transfer: {:?} -> {:?}.",
-                                src, dst
-                            )
-                        }
-                    } else {
-                        return Err(err);
-                    }
-                }
+        if let Err(err) = swap(src, dst, dst_tmp_path, should_preserve) {
+            if dst_tmp_path.exists() {
+                let _ = Remove::recursive_quiet(&dst_tmp_path);
             }
-        }
 
-        Ok(())
-    }
-
-    pub fn direct_quiet(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<()> {
-        if src.is_dir() {
-            create_dir_all(&dst)?;
-        } else {
-            Self::generate_dst_parent(&dst)?;
-
-            if src.is_file() {
-                HttmCopy::new(&src, &dst)?;
-            } else {
-                if dst.exists() {
-                    Remove::recursive_quiet(dst)?;
-                }
-                if src.is_symlink() {
-                    let link_target = std::fs::read_link(&src)?;
-                    std::os::unix::fs::symlink(&link_target, &dst)?;
-                } else {
-                    Self::special_file(src, dst)?;
-                }
-            }
-        }
-
-        if should_preserve {
-            Preserve::direct(src, dst)?
+            return Err(err.into());
         }
 
         Ok(())
