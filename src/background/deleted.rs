@@ -29,7 +29,7 @@ use skim::prelude::*;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
-use std::thread::sleep;
+//use std::thread::sleep;
 
 pub struct DeletedSearch {
     deleted_dir: PathBuf,
@@ -87,7 +87,7 @@ impl DeletedSearch {
         self.hangup_check()?;
 
         // yield to other rayon work on this worker thread
-        self.timeout_loop()?;
+        //self.timeout_loop()?;
 
         let mut queue: Vec<BasicDirEntryInfo> = self.enter_directory(&self.deleted_dir)?;
 
@@ -117,7 +117,7 @@ impl DeletedSearch {
         Ok(())
     }
 
-    fn timeout_loop(&self) -> HttmResult<()> {
+    /*     fn timeout_loop(&self) -> HttmResult<()> {
         // yield to other rayon work on this worker thread
 
         let mut timeout = 1;
@@ -143,7 +143,7 @@ impl DeletedSearch {
         }
 
         Ok(())
-    }
+    } */
 
     fn hangup_check(&self) -> HttmResult<()> {
         if self.hangup() {
