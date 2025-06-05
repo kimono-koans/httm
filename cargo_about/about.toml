@@ -10,7 +10,7 @@ ignore-dev-dependencies = true
 ignore-transitive-dependencies = false
 
 [unicode-ident]
-accepted = ["Unicode-DFS-2016"]
+accepted = ["Unicode-DFS-2016", "Unicode-3.0"]
 
 [foldhash]
 accepted = ["Zlib"]

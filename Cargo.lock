@@ -484,7 +484,7 @@ dependencies = [
 
 [[package]]
 name = "httm"
-version = "0.48.1"
+version = "0.48.2"
 dependencies = [
  "clap 4.5.39",
  "crossbeam-channel",
@@ -1071,9 +1071,9 @@ dependencies = [
 
 [[package]]
 name = "two_percent"
-version = "0.12.14"
+version = "0.12.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "07426e23fc767f356690e57db0e9767aabcceb87d5449ee39772a051f5517a74"
+checksum = "d3f87f04451f927ebdeaddfcdf9e25f803057eaecca4861876258023d838f47b"
 dependencies = [
  "bitflags 2.9.1",
  "crossbeam-channel",
@@ -1233,11 +1233,10 @@ dependencies = [
 
 [[package]]
 name = "which"
-version = "7.0.3"
+version = "8.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "24d643ce3fd3e5b54854602a080f34fb10ab75e0b813ee32d00ca2b44fa74762"
+checksum = "d3fabb953106c3c8eea8306e4393700d7657561cb43122571b172bbfb7c7ba1d"
 dependencies = [
- "either",
  "env_home",
  "rustix",
  "winsafe",
