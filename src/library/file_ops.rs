@@ -51,9 +51,26 @@ impl Copy {
         dst_tmp_path: &Path,
         should_preserve: bool,
     ) -> HttmResult<()> {
-        Copy::recursive_quiet(src, dst_tmp_path, should_preserve)?;
-        Remove::recursive_quiet(dst)?;
-        Rename::direct_quiet(dst_tmp_path, &dst)?;
+        fn swap(
+            src: &Path,
+            dst: &Path,
+            dst_tmp_path: &Path,
+            should_preserve: bool,
+        ) -> HttmResult<()> {
+            Copy::recursive_quiet(src, dst_tmp_path, should_preserve)?;
+            Remove::recursive_quiet(dst)?;
+            Rename::direct_quiet(dst_tmp_path, &dst)?;
+
+            Ok(())
+        }
+
+        if let Err(err) = swap(src, dst, dst_tmp_path, should_preserve) {
+            if dst_tmp_path.exists() {
+                let _ = Remove::recursive_quiet(&dst_tmp_path);
+            }
+
+            return Err(err.into());
+        }
 
         Ok(())
     }

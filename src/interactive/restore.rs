@@ -20,7 +20,7 @@ use crate::config::generate::{ExecMode, InteractiveMode, RestoreMode, RestoreSna
 use crate::data::paths::{PathData, PathDeconstruction, ZfsSnapPathGuard};
 use crate::interactive::select::InteractiveSelect;
 use crate::interactive::view_mode::{MultiSelect, ViewMode};
-use crate::library::file_ops::{Copy, Remove};
+use crate::library::file_ops::Copy;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{DateFormat, date_string, make_tmp_path};
 use crate::zfs::snap_guard::SnapGuard;
@@ -154,10 +154,7 @@ impl InteractiveRestore {
             None => {
                 let dst_tmp_path: PathBuf = make_tmp_path(&dst);
 
-                Copy::atomic_swap(src, dst, &dst_tmp_path, should_preserve).map_err(|err| {
-                    let _ = Remove::recursive_quiet(&dst_tmp_path);
-                    err
-                })
+                Copy::atomic_swap(src, dst, &dst_tmp_path, should_preserve)
             }
         };
 
