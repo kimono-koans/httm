@@ -236,7 +236,7 @@ impl RollForward {
                     if GLOBAL_CONFIG.opt_debug {
                         eprintln!("DEBUG: Cleanup required {:?}::{:?}", snap_path, live_path);
                     }
-                    Copy::direct_quiet(&snap_path, &live_path, true)?
+                    Copy::recursive_quiet(&snap_path, &live_path, true)?
                 }
 
                 if GLOBAL_CONFIG.opt_debug {
@@ -271,7 +271,7 @@ impl RollForward {
                     if GLOBAL_CONFIG.opt_debug {
                         eprintln!("DEBUG: Cleanup required {:?}::{:?}", snap_path, live_path);
                     }
-                    Copy::direct_quiet(&snap_path, &live_path, true)?
+                    Copy::recursive_quiet(&snap_path, &live_path, true)?
                 } else {
                     Preserve::direct(&snap_path, &live_path)?;
                 }
@@ -410,7 +410,7 @@ impl RollForward {
     }
 
     pub fn copy(src: &Path, dst: &Path) -> HttmResult<()> {
-        if let Err(err) = Copy::direct_quiet(src, dst, true) {
+        if let Err(err) = Copy::recursive_quiet(src, dst, true) {
             eprintln!("Error: {}", err);
             let description = format!(
                 "Could not overwrite {:?} with snapshot file version {:?}",

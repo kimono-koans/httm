@@ -20,12 +20,11 @@ use crate::config::generate::{ExecMode, InteractiveMode, RestoreMode, RestoreSna
 use crate::data::paths::{PathData, PathDeconstruction, ZfsSnapPathGuard};
 use crate::interactive::select::InteractiveSelect;
 use crate::interactive::view_mode::{MultiSelect, ViewMode};
-use crate::library::file_ops::{Copy, Remove, Rename};
+use crate::library::file_ops::{Copy, Remove};
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{DateFormat, date_string};
 use crate::zfs::snap_guard::SnapGuard;
-use nu_ansi_term::Color::Blue;
-use nu_ansi_term::Color::LightYellow;
+use nu_ansi_term::Color::{Blue, LightYellow};
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 use terminal_size::{Height, Width};
@@ -99,6 +98,7 @@ impl InteractiveRestore {
                             if let Err(err) = Self::restore_action(
                                 &snap_path_data.path(),
                                 &new_file_path_buf.as_ref(),
+                                Some(&snap_guard),
                                 should_preserve,
                             ) {
                                 eprintln!("{}", err);
@@ -115,6 +115,7 @@ impl InteractiveRestore {
                         _ => Self::restore_action(
                             &snap_path_data.path(),
                             &new_file_path_buf.as_ref(),
+                            None,
                             should_preserve,
                         )?,
                     }
@@ -142,27 +143,25 @@ impl InteractiveRestore {
         Ok(())
     }
 
-    fn restore_action(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<()> {
-        let dst_tmp_path: PathBuf = dst.with_extension("tmp_httm");
+    fn restore_action(
+        src: &Path,
+        dst: &Path,
+        guarded: Option<&SnapGuard>,
+        should_preserve: bool,
+    ) -> HttmResult<()> {
+        let copy_res = match guarded {
+            Some(_) => Copy::recursive_quiet(src, dst, should_preserve),
+            None => {
+                let dst_tmp_path: PathBuf = dst.with_extension("tmp_httm");
 
-        fn swap(
-            src: &Path,
-            dst: &Path,
-            dst_tmp_path: &Path,
-            should_preserve: bool,
-        ) -> HttmResult<()> {
-            Copy::recursive_quiet(src, dst_tmp_path, should_preserve)?;
-            Remove::recursive_quiet(dst)?;
-            Rename::direct_quiet(dst_tmp_path, &dst)?;
+                Copy::atomic_swap(src, dst, &dst_tmp_path, should_preserve).map_err(|err| {
+                    let _ = Remove::recursive_quiet(&dst_tmp_path);
+                    err
+                })
+            }
+        };
 
-            eprintln!("{}: {:?} -> {:?}", Blue.paint("Restored "), src, dst);
-
-            Ok(())
-        }
-
-        if let Err(err) = swap(src, dst, &dst_tmp_path, should_preserve) {
-            Remove::recursive_quiet(&dst_tmp_path)?;
-
+        if let Err(err) = copy_res {
             match err.downcast_ref::<std::io::Error>().map(|err| err.kind()) {
                 Some(ErrorKind::PermissionDenied) => {
                     let description = format!(
@@ -178,6 +177,8 @@ impl InteractiveRestore {
                 }
             };
         }
+
+        eprintln!("{}: {:?} -> {:?}", Blue.paint("Restored "), src, dst);
 
         Ok(())
     }

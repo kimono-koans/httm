@@ -45,30 +45,15 @@ impl Copy {
         }
     }
 
-    pub fn direct_quiet(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<()> {
-        if src.is_dir() {
-            create_dir_all(&dst)?;
-        } else {
-            Self::generate_dst_parent(&dst)?;
-
-            if src.is_file() {
-                HttmCopy::new(&src, &dst)?;
-            } else {
-                if dst.exists() {
-                    Remove::recursive_quiet(dst)?;
-                }
-                if src.is_symlink() {
-                    let link_target = std::fs::read_link(&src)?;
-                    std::os::unix::fs::symlink(&link_target, &dst)?;
-                } else {
-                    Self::special_file(src, dst)?;
-                }
-            }
-        }
-
-        if should_preserve {
-            Preserve::direct(src, dst)?
-        }
+    pub fn atomic_swap(
+        src: &Path,
+        dst: &Path,
+        dst_tmp_path: &Path,
+        should_preserve: bool,
+    ) -> HttmResult<()> {
+        Copy::recursive_quiet(src, dst_tmp_path, should_preserve)?;
+        Remove::recursive_quiet(dst)?;
+        Rename::direct_quiet(dst_tmp_path, &dst)?;
 
         Ok(())
     }
@@ -161,6 +146,34 @@ impl Copy {
                     }
                 }
             }
+        }
+
+        Ok(())
+    }
+
+    fn direct_quiet(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<()> {
+        if src.is_dir() {
+            create_dir_all(&dst)?;
+        } else {
+            Self::generate_dst_parent(&dst)?;
+
+            if src.is_file() {
+                HttmCopy::new(&src, &dst)?;
+            } else {
+                if dst.exists() {
+                    Remove::recursive_quiet(dst)?;
+                }
+                if src.is_symlink() {
+                    let link_target = std::fs::read_link(&src)?;
+                    std::os::unix::fs::symlink(&link_target, &dst)?;
+                } else {
+                    Self::special_file(src, dst)?;
+                }
+            }
+        }
+
+        if should_preserve {
+            Preserve::direct(src, dst)?
         }
 
         Ok(())
