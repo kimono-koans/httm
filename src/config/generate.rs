@@ -188,21 +188,36 @@ fn parse_args() -> ArgMatches {
                 .action(ArgAction::Append)
         )
         .arg(
-            Arg::new("RESTORE")
-                .short('r')
-                .long("restore")
-                .value_parser(["copy", "copy-and-preserve", "overwrite", "yolo", "guard"])
+            Arg::new("COPY")
+                .short('c')
+                .long("copy")
+                .value_parser(["copy", "copy-and-preserve", "preserve"])
                 .num_args(0..=1)
                 .default_missing_value("copy")
                 .require_equals(true)
-                .help("interactive browse and search a specified directory to display unique file versions. Continue to another dialog to select a snapshot version to restore. \
+                .help("interactive browse and search a specified directory to display unique file versions. Continue to another dialog to select a snapshot version to copy. \
                 This argument optionally takes a value. Default behavior/value is a non-destructive \"copy\" to the current working directory with a new name, \
-                so as not to overwrite any \"live\" file version. However, the user may specify \"overwrite\" (or \"yolo\") to restore to the same file location. Note, \"overwrite\" can be a DESTRUCTIVE operation. \
+                so as not to overwrite any \"live\" file version. However, the user may specify the \"preserve\" value.  \
+                Preserve mode will attempt to preserve attributes, like the permissions/mode, timestamps, xattrs and ownership of the selected snapshot file version.  \
+                User may also set the copy/restore mode via the HTTM_RESTORE_MODE environment variable.")
+                .conflicts_with_all(&["BROWSE", "SELECT", "RESTORE"])
+                .display_order(4)
+                .action(ArgAction::Append)
+        )
+        .arg(
+            Arg::new("RESTORE")
+                .short('r')
+                .long("restore")
+                .value_parser(["overwrite", "yolo", "guard"])
+                .num_args(0..=1)
+                .default_missing_value("overwrite")
+                .require_equals(true)
+                .help("interactive browse and search a specified directory to display unique file versions. Continue to another dialog to select a snapshot version to restore. \
+                This argument optionally takes a value. Default behavior/value is \"overwrite\" (or \"yolo\") to restore to the same file location. Note, \"overwrite\" can be a DESTRUCTIVE operation. \
                 Overwrite mode will attempt to preserve attributes, like the permissions/mode, timestamps, xattrs and ownership of the selected snapshot file version. \
-                In order to preserve such attributes in \"copy\" mode, specify the \"copy-and-preserve\" value. User may also specify \"guard\". \
-                Guard mode has the same semantics as \"overwrite\" but will attempt to take a precautionary snapshot before any overwrite action occurs. \
-                Note: Guard mode is a ZFS only option. User may also set the restore mode via the HTTM_RESTORE_MODE environment variable.")
-                .conflicts_with("SELECT")
+                User may also specify \"guard\".  Guard mode has the same semantics as \"overwrite\" but will attempt to take a precautionary snapshot before any overwrite action occurs. \
+                Note: Guard mode is a ZFS only option. User may also set the copy/restore mode via the HTTM_RESTORE_MODE environment variable.")
+                .conflicts_with_all(&["BROWSE", "SELECT", "COPY"])
                 .display_order(4)
                 .action(ArgAction::Append)
         )
@@ -802,7 +817,9 @@ impl TryFrom<&ArgMatches> for Config {
         };
 
         let opt_select_mode = matches.get_one::<String>("SELECT");
-        let opt_restore_mode = matches.get_one::<String>("RESTORE");
+        let opt_restore_mode = matches
+            .get_one::<String>("RESTORE")
+            .or_else(|| matches.get_one::<String>("COPY"));
 
         let opt_interactive_mode = if let Some(var_restore_mode) = opt_restore_mode {
             let mut restore_mode = var_restore_mode.to_string();
@@ -818,7 +835,9 @@ impl TryFrom<&ArgMatches> for Config {
                 "overwrite" | "yolo" => Some(InteractiveMode::Restore(RestoreMode::Overwrite(
                     RestoreSnapGuard::NotGuarded,
                 ))),
-                "copy-and-preserve" => Some(InteractiveMode::Restore(RestoreMode::CopyAndPreserve)),
+                "copy-and-preserve" | "preserve" => {
+                    Some(InteractiveMode::Restore(RestoreMode::CopyAndPreserve))
+                }
                 _ => Some(InteractiveMode::Restore(RestoreMode::CopyOnly)),
             }
         } else if opt_select_mode.is_some() || opt_preview.is_some() {
