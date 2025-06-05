@@ -561,7 +561,7 @@ dependencies = [
 [[package]]
 name = "indicatif"
 version = "0.17.11"
-source = "git+https://github.com/kimono-koans/indicatif#5106b7017552f6771ae4123c37e65500d7d08798"
+source = "git+https://github.com/kimono-koans/indicatif?branch=switch_to_unit_prefix#372c22c92dc93b2a22d6b51335fcca4682597568"
 dependencies = [
  "console",
  "portable-atomic",
