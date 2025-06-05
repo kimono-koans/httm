@@ -76,12 +76,8 @@ pub fn delimiter() -> char {
 //     }
 // }
 
-const TMP_SUFFIX: &str = ".tmp";
-
 pub fn make_tmp_path(path: &Path) -> PathBuf {
-    let path_string = path.to_string_lossy().to_string();
-    let res = path_string + TMP_SUFFIX;
-    PathBuf::from(res)
+    path.with_extension("tmp_httm")
 }
 
 pub fn find_common_path<I, P>(paths: I) -> Option<Box<Path>>

@@ -22,7 +22,7 @@ use crate::interactive::select::InteractiveSelect;
 use crate::interactive::view_mode::{MultiSelect, ViewMode};
 use crate::library::file_ops::{Copy, Remove};
 use crate::library::results::{HttmError, HttmResult};
-use crate::library::utility::{DateFormat, date_string};
+use crate::library::utility::{DateFormat, date_string, make_tmp_path};
 use crate::zfs::snap_guard::SnapGuard;
 use nu_ansi_term::Color::{Blue, LightYellow};
 use std::io::ErrorKind;
@@ -152,7 +152,7 @@ impl InteractiveRestore {
         let copy_res = match guarded {
             Some(_) => Copy::recursive_quiet(src, dst, should_preserve),
             None => {
-                let dst_tmp_path: PathBuf = dst.with_extension("tmp_httm");
+                let dst_tmp_path: PathBuf = make_tmp_path(&dst);
 
                 Copy::atomic_swap(src, dst, &dst_tmp_path, should_preserve).map_err(|err| {
                     let _ = Remove::recursive_quiet(&dst_tmp_path);

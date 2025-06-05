@@ -15,6 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
+use crate::library::file_ops::Rename;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::make_tmp_path;
 use std::fs::OpenOptions;
@@ -96,15 +97,15 @@ pub fn install_hot_keys() -> HttmResult<()> {
             drop(zsh_script_file);
 
             // then move tmp file to the final location
-            match std::fs::rename(
-                zsh_script_tmp_path,
-                zsh_script_path,
+            match Rename::direct_quiet(
+                &zsh_script_tmp_path,
+                &zsh_script_path,
             ) {
                 Ok(_) => {
                     eprintln!("httm: zsh hot keys were installed successfully.");
                 }
                 Err(err) => {
-                    return Err(HttmError::with_source("httm: could not move .httm-key-bindings.zsh.tmp to .httm-key-bindings.zsh for the following reason:", err).into())
+                    return Err(HttmError::with_source("httm: could not move .httm-key-bindings.zsh.tmp to .httm-key-bindings.zsh for the following reason:", err.as_ref()).into())
                 }
             }
         }
