@@ -20,10 +20,11 @@ use crate::config::generate::{ExecMode, InteractiveMode, RestoreMode, RestoreSna
 use crate::data::paths::{PathData, PathDeconstruction, ZfsSnapPathGuard};
 use crate::interactive::select::InteractiveSelect;
 use crate::interactive::view_mode::{MultiSelect, ViewMode};
-use crate::library::file_ops::Copy;
+use crate::library::file_ops::{Copy, Remove, Rename};
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{DateFormat, date_string};
 use crate::zfs::snap_guard::SnapGuard;
+use nu_ansi_term::Color::Blue;
 use nu_ansi_term::Color::LightYellow;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
@@ -142,7 +143,26 @@ impl InteractiveRestore {
     }
 
     fn restore_action(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<()> {
-        if let Err(err) = Copy::recursive(src, dst, should_preserve) {
+        let dst_tmp_path: PathBuf = dst.with_extension("tmp_httm");
+
+        fn swap(
+            src: &Path,
+            dst: &Path,
+            dst_tmp_path: &Path,
+            should_preserve: bool,
+        ) -> HttmResult<()> {
+            Copy::recursive_quiet(src, dst_tmp_path, should_preserve)?;
+            Remove::recursive_quiet(dst)?;
+            Rename::direct_quiet(dst_tmp_path, &dst)?;
+
+            eprintln!("{}: {:?} -> {:?}", Blue.paint("Restored "), src, dst);
+
+            Ok(())
+        }
+
+        if let Err(err) = swap(src, dst, &dst_tmp_path, should_preserve) {
+            Remove::recursive_quiet(&dst_tmp_path)?;
+
             match err.downcast_ref::<std::io::Error>().map(|err| err.kind()) {
                 Some(ErrorKind::PermissionDenied) => {
                     let description = format!(

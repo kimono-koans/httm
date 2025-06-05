@@ -21,7 +21,7 @@ use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::is_metadata_same;
 use crate::{GLOBAL_CONFIG, IN_BUFFER_SIZE};
 use nix::sys::stat::SFlag;
-use nu_ansi_term::Color::{Blue, Red};
+use nu_ansi_term::Color::{Red, Yellow};
 use std::fs::{create_dir_all, read_dir, set_permissions};
 use std::hash::{Hash, Hasher};
 use std::io::{BufRead, BufReader, ErrorKind};
@@ -43,14 +43,6 @@ impl Copy {
             let description = format!("Could not detect a parent for destination file: {:?}", dst);
             HttmError::from(description).into()
         }
-    }
-
-    pub fn direct(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<()> {
-        Self::direct_quiet(src, dst, should_preserve)?;
-
-        eprintln!("{}: {:?} -> {:?}", Blue.paint("Restored "), src, dst);
-
-        Ok(())
     }
 
     pub fn direct_quiet(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<()> {
@@ -127,9 +119,9 @@ impl Copy {
         Ok(())
     }
 
-    pub fn recursive(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<()> {
+    pub fn recursive_quiet(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<()> {
         if src.is_dir() {
-            Self::direct(src, dst, should_preserve)?;
+            Self::direct_quiet(src, dst, should_preserve)?;
 
             for entry in read_dir(&src)?.flatten() {
                 let file_type = entry.file_type()?;
@@ -138,14 +130,14 @@ impl Copy {
 
                 if entry_src.exists() {
                     if file_type.is_dir() {
-                        Self::recursive(&entry_src, &entry_dst, should_preserve)?;
+                        Self::recursive_quiet(&entry_src, &entry_dst, should_preserve)?;
                     } else {
-                        Self::direct(&entry_src, &entry_dst, should_preserve)?;
+                        Self::direct_quiet(&entry_src, &entry_dst, should_preserve)?;
                     }
                 }
             }
         } else {
-            Self::direct(&src, dst, should_preserve)?;
+            Self::direct_quiet(&src, dst, should_preserve)?;
         }
 
         if should_preserve {
@@ -170,6 +162,25 @@ impl Copy {
                 }
             }
         }
+
+        Ok(())
+    }
+}
+
+pub struct Rename;
+
+impl Rename {
+    #[allow(dead_code)]
+    pub fn direct(src: &Path, dst: &Path) -> HttmResult<()> {
+        Self::direct_quiet(src, dst)?;
+
+        eprintln!("{}: {:?} -> {:?}", Yellow.paint("Renamed "), src, dst);
+
+        Ok(())
+    }
+
+    pub fn direct_quiet(src: &Path, dst: &Path) -> HttmResult<()> {
+        std::fs::rename(src, dst)?;
 
         Ok(())
     }
