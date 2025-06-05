@@ -78,25 +78,16 @@ impl SelectionCandidate {
     }
 
     pub fn display_name(&self) -> Cow<str> {
-        static REQUESTED_DIR: LazyLock<&Path> = LazyLock::new(|| {
-            GLOBAL_CONFIG
-                .opt_requested_dir
-                .as_ref()
-                .expect("requested_dir should never be None in Interactive Browse mode")
-        });
+        static PWD_DIR: LazyLock<&Path> = LazyLock::new(|| GLOBAL_CONFIG.pwd.as_ref());
 
-        static REQUESTED_DIR_PARENT: LazyLock<Option<&Path>> = LazyLock::new(|| {
-            GLOBAL_CONFIG
-                .opt_requested_dir
-                .as_ref()
-                .and_then(|path| path.parent())
-        });
+        static PWD_DIR_PARENT: LazyLock<Option<&Path>> =
+            LazyLock::new(|| GLOBAL_CONFIG.pwd.parent());
 
         // this only works because we do not resolve symlinks when doing traversal
-        match self.path.strip_prefix(*REQUESTED_DIR) {
-            Ok(_) if self.path.as_ref() == *REQUESTED_DIR => Cow::Borrowed("."),
+        match self.path.strip_prefix(*PWD_DIR) {
+            Ok(_) if self.path.as_ref() == *PWD_DIR => Cow::Borrowed("."),
             Ok(stripped) => stripped.to_string_lossy(),
-            Err(_) if Some(self.path.as_ref()) == *REQUESTED_DIR_PARENT => Cow::Borrowed(".."),
+            Err(_) if Some(self.path.as_ref()) == *PWD_DIR_PARENT => Cow::Borrowed(".."),
             Err(_) => self.path.to_string_lossy(),
         }
     }
