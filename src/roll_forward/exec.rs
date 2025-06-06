@@ -44,13 +44,13 @@ pub struct RollForward {
     snap: String,
     progress_bar: ProgressBar,
     proximate_dataset_mount: Arc<Path>,
-    permissions: Permissions,
-    ownership: Ownership,
+    perm_and_own: PermissionsAndOwnership,
 }
 
-struct Ownership {
+struct PermissionsAndOwnership {
     uid: u32,
     gid: u32,
+    permissions: Permissions,
 }
 
 impl RollForward {
@@ -88,8 +88,11 @@ impl RollForward {
             snap: snap.to_string(),
             progress_bar,
             proximate_dataset_mount,
-            permissions,
-            ownership: Ownership { uid, gid },
+            perm_and_own: PermissionsAndOwnership {
+                uid,
+                gid,
+                permissions,
+            },
         })
     }
 
@@ -118,15 +121,18 @@ impl RollForward {
     fn reset_permissions(&self) -> HttmResult<()> {
         // Mode
         {
-            set_permissions(self.proximate_dataset_mount(), self.permissions.clone())?
+            set_permissions(
+                self.proximate_dataset_mount(),
+                self.perm_and_own.permissions.clone(),
+            )?
         }
 
         // Ownership
         {
             chown(
                 self.proximate_dataset_mount(),
-                Some(self.ownership.uid),
-                Some(self.ownership.gid),
+                Some(self.perm_and_own.uid),
+                Some(self.perm_and_own.gid),
             )?
         }
 
