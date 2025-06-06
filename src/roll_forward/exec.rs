@@ -29,8 +29,12 @@ use crate::{GLOBAL_CONFIG, ZFS_SNAPSHOT_DIRECTORY};
 use indicatif::ProgressBar;
 use nu_ansi_term::Color::{Blue, Red};
 use rayon::prelude::*;
+use std::fs::Permissions;
 use std::fs::read_dir;
+use std::fs::set_permissions;
 use std::io::{BufRead, Read};
+use std::os::unix::fs::chown;
+use std::os::unix::fs::{MetadataExt, PermissionsExt};
 use std::path::{Path, PathBuf};
 use std::process::{ChildStderr, ChildStdout};
 use std::sync::Arc;
@@ -40,6 +44,64 @@ pub struct RollForward {
     snap: String,
     progress_bar: ProgressBar,
     proximate_dataset_mount: Arc<Path>,
+    directory_lock: DirectoryLock,
+}
+
+struct DirectoryLock {
+    path: Box<Path>,
+    uid: u32,
+    gid: u32,
+    permissions: Permissions,
+}
+
+impl DirectoryLock {
+    fn new(proximate_dataset_mount: &Path) -> HttmResult<Self> {
+        let path = proximate_dataset_mount;
+        let md = path.metadata()?;
+
+        let permissions = md.permissions();
+        let uid = md.uid();
+        let gid = md.gid();
+
+        Ok(Self {
+            path: path.into(),
+            uid,
+            gid,
+            permissions,
+        })
+    }
+
+    fn lock(&self) -> HttmResult<()> {
+        let exclusive = Permissions::from_mode(0o600);
+        let root_uid = 0;
+        let root_gid = 0;
+
+        // Mode
+        {
+            set_permissions(&self.path, exclusive)?
+        }
+
+        // Ownership
+        {
+            chown(&self.path, Some(root_uid), Some(root_gid))?
+        }
+
+        Ok(())
+    }
+
+    fn unlock(&self) -> HttmResult<()> {
+        // Mode
+        {
+            set_permissions(&self.path, self.permissions.clone())?
+        }
+
+        // Ownership
+        {
+            chown(&self.path, Some(self.uid), Some(self.gid))?
+        }
+
+        Ok(())
+    }
 }
 
 impl RollForward {
@@ -66,11 +128,14 @@ impl RollForward {
 
         let progress_bar: ProgressBar = indicatif::ProgressBar::new_spinner();
 
+        let directory_lock = DirectoryLock::new(&proximate_dataset_mount)?;
+
         Ok(Self {
             dataset: dataset.to_string(),
             snap: snap.to_string(),
             progress_bar,
             proximate_dataset_mount,
+            directory_lock,
         })
     }
 
@@ -90,7 +155,7 @@ impl RollForward {
         let snap_guard: SnapGuard =
             SnapGuard::new(&self.dataset, PrecautionarySnapType::PreRollForward)?;
 
-        match self.roll_forward() {
+        match self.roll_forward_wrapped() {
             Ok(_) => {
                 println!("httm roll forward completed successfully.");
             }
@@ -118,14 +183,12 @@ impl RollForward {
         Ok(())
     }
 
-    fn zfs_diff_std_err(opt_stderr: Option<ChildStderr>) -> HttmResult<String> {
-        let mut buf = String::new();
+    fn roll_forward_wrapped(&self) -> HttmResult<()> {
+        self.directory_lock.lock()?;
+        self.roll_forward()?;
+        self.directory_lock.unlock()?;
 
-        if let Some(mut stderr) = opt_stderr {
-            stderr.read_to_string(&mut buf)?;
-        }
-
-        Ok(buf)
+        Ok(())
     }
 
     fn roll_forward(&self) -> HttmResult<()> {
@@ -233,9 +296,7 @@ impl RollForward {
                 // zfs diff sometimes doesn't pick up rename events
                 // here we cleanup
                 if snap_path.exists() && !live_path.exists() {
-                    if GLOBAL_CONFIG.opt_debug {
-                        eprintln!("DEBUG: Cleanup required {:?}::{:?}", snap_path, live_path);
-                    }
+                    eprintln!("DEBUG: Cleanup required {:?}::{:?}", snap_path, live_path);
                     Copy::recursive_quiet(&snap_path, &live_path, true)?
                 }
 
@@ -268,9 +329,7 @@ impl RollForward {
                 // zfs diff sometimes doesn't pick up rename events
                 // here we cleanup
                 if snap_path.exists() && !live_path.exists() {
-                    if GLOBAL_CONFIG.opt_debug {
-                        eprintln!("DEBUG: Cleanup required {:?}::{:?}", snap_path, live_path);
-                    }
+                    eprintln!("DEBUG: Cleanup required {:?}::{:?}", snap_path, live_path);
                     Copy::recursive_quiet(&snap_path, &live_path, true)?
                 } else {
                     Preserve::direct(&snap_path, &live_path)?;
@@ -296,6 +355,16 @@ impl RollForward {
         eprintln!("OK");
 
         Ok(())
+    }
+
+    fn zfs_diff_std_err(opt_stderr: Option<ChildStderr>) -> HttmResult<String> {
+        let mut buf = String::new();
+
+        if let Some(mut stderr) = opt_stderr {
+            stderr.read_to_string(&mut buf)?;
+        }
+
+        Ok(buf)
     }
 
     pub fn live_path(&self, snap_path: &Path) -> Option<PathBuf> {
@@ -426,13 +495,12 @@ impl RollForward {
     }
 
     pub fn snap_dataset(&self) -> PathBuf {
-        [
-            self.proximate_dataset_mount.as_ref(),
-            Path::new(ZFS_SNAPSHOT_DIRECTORY),
-            Path::new(&self.snap),
-        ]
-        .iter()
-        .collect()
+        let mut path = self.proximate_dataset_mount.to_path_buf();
+
+        path.push(ZFS_SNAPSHOT_DIRECTORY);
+        path.push(&self.snap);
+
+        path
     }
 
     fn overwrite_or_remove(src: &Path, dst: &Path) -> HttmResult<()> {
