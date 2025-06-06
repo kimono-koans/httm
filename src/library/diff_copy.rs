@@ -186,7 +186,7 @@ impl CloneCopy {
         if let Err(err) = Self::copy_file_range(src_fd, dst_fd, src_len) {
             // IS_CLONE_COMPATIBLE.store(false, std::sync::atomic::Ordering::Relaxed);
             let description =
-                format!("DEBUG: copy_file_range call unsuccessful for the following reason:");
+                format!("DEBUG: copy_file_range call unsuccessful for the following reason");
             return HttmError::with_source(description, err.as_ref()).into();
         }
 
