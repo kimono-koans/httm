@@ -269,6 +269,7 @@ impl DiffCopy {
         hash.finish()
     }
 
+    #[inline]
     fn write_to_offset(
         dst_writer: &mut BufWriter<&File>,
         src_read: &[u8],
@@ -282,6 +283,7 @@ impl DiffCopy {
     }
 
     #[allow(unreachable_code, unused_variables)]
+    #[inline]
     fn copy_file_range(
         src_file_fd: BorrowedFd,
         dst_file_fd: BorrowedFd,
