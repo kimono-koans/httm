@@ -44,13 +44,70 @@ pub struct RollForward {
     snap: String,
     progress_bar: ProgressBar,
     proximate_dataset_mount: Arc<Path>,
-    perm_and_own: PermissionsAndOwnership,
+    directory_lock: DirectoryLock,
 }
 
-struct PermissionsAndOwnership {
+struct DirectoryLock {
+    path: Box<Path>,
     uid: u32,
     gid: u32,
     permissions: Permissions,
+}
+
+impl Drop for DirectoryLock {
+    fn drop(&mut self) {
+        let _ = self.unlock();
+    }
+}
+
+impl DirectoryLock {
+    fn new(proximate_dataset_mount: &Path) -> HttmResult<Self> {
+        let path = proximate_dataset_mount;
+        let md = path.metadata()?;
+
+        let permissions = md.permissions();
+        let uid = md.uid();
+        let gid = md.gid();
+
+        Ok(Self {
+            path: path.into(),
+            uid,
+            gid,
+            permissions,
+        })
+    }
+
+    fn lock(&self) -> HttmResult<()> {
+        let exclusive = Permissions::from_mode(0o600);
+        let root_uid = 0;
+        let root_gid = 0;
+
+        // Mode
+        {
+            set_permissions(&self.path, exclusive)?
+        }
+
+        // Ownership
+        {
+            chown(&self.path, Some(root_uid), Some(root_gid))?
+        }
+
+        Ok(())
+    }
+
+    fn unlock(&self) -> HttmResult<()> {
+        // Mode
+        {
+            set_permissions(&self.path, self.permissions.clone())?
+        }
+
+        // Ownership
+        {
+            chown(&self.path, Some(self.uid), Some(self.gid))?
+        }
+
+        Ok(())
+    }
 }
 
 impl RollForward {
@@ -77,66 +134,15 @@ impl RollForward {
 
         let progress_bar: ProgressBar = indicatif::ProgressBar::new_spinner();
 
-        let md = proximate_dataset_mount.as_ref().metadata()?;
-
-        let permissions = md.permissions();
-        let uid = md.uid();
-        let gid = md.gid();
+        let directory_lock = DirectoryLock::new(&proximate_dataset_mount)?;
 
         Ok(Self {
             dataset: dataset.to_string(),
             snap: snap.to_string(),
             progress_bar,
             proximate_dataset_mount,
-            perm_and_own: PermissionsAndOwnership {
-                uid,
-                gid,
-                permissions,
-            },
+            directory_lock,
         })
-    }
-
-    fn set_exclusive_permissions(&self) -> HttmResult<()> {
-        let exclusive = Permissions::from_mode(0o600);
-        let root_uid = 0;
-        let root_gid = 0;
-
-        // Mode
-        {
-            set_permissions(self.proximate_dataset_mount(), exclusive)?
-        }
-
-        // Ownership
-        {
-            chown(
-                self.proximate_dataset_mount(),
-                Some(root_uid),
-                Some(root_gid),
-            )?
-        }
-
-        Ok(())
-    }
-
-    fn reset_permissions(&self) -> HttmResult<()> {
-        // Mode
-        {
-            set_permissions(
-                self.proximate_dataset_mount(),
-                self.perm_and_own.permissions.clone(),
-            )?
-        }
-
-        // Ownership
-        {
-            chown(
-                self.proximate_dataset_mount(),
-                Some(self.perm_and_own.uid),
-                Some(self.perm_and_own.gid),
-            )?
-        }
-
-        Ok(())
     }
 
     pub fn proximate_dataset_mount(&self) -> &Path {
@@ -155,15 +161,15 @@ impl RollForward {
         let snap_guard: SnapGuard =
             SnapGuard::new(&self.dataset, PrecautionarySnapType::PreRollForward)?;
 
-        self.set_exclusive_permissions()?;
+        self.directory_lock.lock()?;
 
         match self.roll_forward() {
             Ok(_) => {
-                self.reset_permissions()?;
+                self.directory_lock.unlock()?;
                 println!("httm roll forward completed successfully.");
             }
             Err(err) => {
-                self.reset_permissions()?;
+                self.directory_lock.unlock()?;
 
                 let description = format!(
                     "httm roll forward failed for the following reason: {}.\n\
