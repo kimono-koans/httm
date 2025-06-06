@@ -496,13 +496,12 @@ impl RollForward {
     }
 
     pub fn snap_dataset(&self) -> PathBuf {
-        [
-            self.proximate_dataset_mount.as_ref(),
-            Path::new(ZFS_SNAPSHOT_DIRECTORY),
-            Path::new(&self.snap),
-        ]
-        .iter()
-        .collect()
+        let mut path = self.proximate_dataset_mount.as_ref().to_path_buf();
+
+        path.push(ZFS_SNAPSHOT_DIRECTORY);
+        path.push(&self.snap);
+
+        path
     }
 
     fn overwrite_or_remove(src: &Path, dst: &Path) -> HttmResult<()> {
