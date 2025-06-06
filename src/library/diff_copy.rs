@@ -43,10 +43,14 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::config::generate::{ExecMode, InteractiveMode};
 use crate::library::file_ops::is_same_file_contents;
 use crate::library::results::{HttmError, HttmResult};
 use crate::zfs::run_command::RunZFSCommand;
 use crate::{GLOBAL_CONFIG, IN_BUFFER_SIZE};
+use indicatif::{ProgressBar, ProgressStyle};
+use std::borrow::Cow;
+use std::ffi::OsStr;
 use std::fs::{File, OpenOptions};
 use std::io::{BufRead, BufReader, BufWriter, ErrorKind, Seek, SeekFrom, Write};
 use std::os::fd::{AsFd, BorrowedFd};
@@ -106,10 +110,15 @@ impl HttmCopy {
 
         dst_file.set_len(src_len)?;
 
+        let file_name = src
+            .file_name()
+            .unwrap_or_else(|| OsStr::new("/"))
+            .to_string_lossy();
+
         if !GLOBAL_CONFIG.opt_no_clones
             && IS_CLONE_COMPATIBLE.load(std::sync::atomic::Ordering::Relaxed)
         {
-            match CloneCopy::new(&src_file, &mut dst_file) {
+            match CloneCopy::new(file_name.clone(), &src_file, &mut dst_file) {
                 Ok(_) => {
                     if GLOBAL_CONFIG.opt_debug {
                         eprintln!("DEBUG: copy_file_range call successful.");
@@ -132,30 +141,35 @@ impl HttmCopy {
             }
         }
 
-        match DiffCopy::new(&src_file, &mut dst_file) {
-            Ok(_) => {
-                if GLOBAL_CONFIG.opt_no_clones && !GLOBAL_CONFIG.opt_debug {
-                    return Ok(());
-                }
+        DiffCopy::new(file_name, &src_file, &mut dst_file, src_len)?;
 
-                if GLOBAL_CONFIG.opt_debug {
-                    eprintln!("DEBUG: Write to file completed.  Confirmation initiated.");
-                }
+        if GLOBAL_CONFIG.opt_debug {
+            eprintln!("DEBUG: Write to file completed.  Confirmation initiated.");
+            Self::confirm(src, dst)?;
+        }
 
-                match Self::confirm(src, dst) {
-                    Ok(_) => Ok(()),
-                    Err(err) => {
-                        if !IS_CLONE_COMPATIBLE.load(std::sync::atomic::Ordering::Relaxed) {
-                            return Err(err);
-                        }
+        Ok(())
+    }
 
-                        eprintln!("WARN: Could not confirm copy_file_range: {}", err);
+    fn opt_bar(file_name: Cow<str>, len: u64) -> HttmResult<Option<ProgressBar>> {
+        match GLOBAL_CONFIG.exec_mode {
+            ExecMode::Interactive(InteractiveMode::Restore(_)) => {
+                let bar = ProgressBar::new(len).with_style(ProgressStyle::with_template(
+                    "[{decimal_total_bytes}] {bar:40.cyan/blue} {msg}",
+                )?);
 
-                        DiffCopy::write_no_cow(&src_file, &dst_file)
-                    }
-                }
+                bar.set_message(file_name.to_string());
+                Ok(Some(bar))
             }
-            Err(err) => Err(err),
+            _ if len.gt(&1_000_000_000) => {
+                let bar = ProgressBar::new(len).with_style(ProgressStyle::with_template(
+                    "[{decimal_total_bytes}] {bar:40.cyan/blue} {msg}",
+                )?);
+
+                bar.set_message(file_name.to_string());
+                Ok(Some(bar))
+            }
+            _ => Ok(None),
         }
     }
 
@@ -177,13 +191,13 @@ impl HttmCopy {
 pub struct CloneCopy;
 
 impl CloneCopy {
-    fn new(src_file: &File, dst_file: &mut File) -> HttmResult<()> {
+    fn new(file_name: Cow<str>, src_file: &File, dst_file: &mut File) -> HttmResult<()> {
         let src_len = src_file.metadata()?.len();
 
         let src_fd = src_file.as_fd();
         let dst_fd = dst_file.as_fd();
 
-        if let Err(err) = Self::copy_file_range(src_fd, dst_fd, src_len) {
+        if let Err(err) = Self::copy_file_range(file_name, src_fd, dst_fd, src_len) {
             // IS_CLONE_COMPATIBLE.store(false, std::sync::atomic::Ordering::Relaxed);
             let description =
                 format!("DEBUG: copy_file_range call unsuccessful for the following reason");
@@ -200,6 +214,7 @@ impl CloneCopy {
     #[allow(unreachable_code, unused_variables)]
     #[inline]
     fn copy_file_range(
+        file_name: Cow<str>,
         src_file_fd: BorrowedFd,
         dst_file_fd: BorrowedFd,
         len: u64,
@@ -208,6 +223,8 @@ impl CloneCopy {
         {
             let mut amt_written = 0u64;
             let mut remainder = len as usize;
+
+            let opt_bar = HttmCopy::opt_bar(file_name, len)?;
 
             while remainder > 0 {
                 let mut off_src = amt_written as i64;
@@ -226,6 +243,10 @@ impl CloneCopy {
                     Ok(bytes_written) => {
                         amt_written += bytes_written as u64;
                         remainder = len.saturating_sub(amt_written) as usize;
+
+                        if let Some(ref bar) = opt_bar {
+                            bar.inc(bytes_written as u64)
+                        }
 
                         if amt_written > len {
                             return Err(
@@ -254,6 +275,10 @@ impl CloneCopy {
                 }
             }
 
+            if let Some(ref bar) = opt_bar {
+                bar.finish_and_clear()
+            }
+
             return Ok(());
         }
 
@@ -265,8 +290,8 @@ impl CloneCopy {
 pub struct DiffCopy;
 
 impl DiffCopy {
-    fn new(src_file: &File, dst_file: &mut File) -> HttmResult<()> {
-        Self::write_no_cow(&src_file, &dst_file)?;
+    fn new(file_name: Cow<str>, src_file: &File, dst_file: &mut File, len: u64) -> HttmResult<()> {
+        Self::write_no_cow(file_name, &src_file, &dst_file, len)?;
 
         // re docs, both a flush and a sync seem to be required re consistency
         dst_file.flush()?;
@@ -276,7 +301,12 @@ impl DiffCopy {
     }
 
     #[inline]
-    fn write_no_cow(src_file: &File, dst_file: &File) -> HttmResult<()> {
+    fn write_no_cow(
+        file_name: Cow<str>,
+        src_file: &File,
+        dst_file: &File,
+        len: u64,
+    ) -> HttmResult<()> {
         // create destination file writer and maybe reader
         // only include dst file reader if the dst file exists
         // otherwise we just write to that location
@@ -288,6 +318,8 @@ impl DiffCopy {
 
         // cur pos - byte offset in file,
         let mut cur_pos = 0u64;
+
+        let opt_bar = HttmCopy::opt_bar(file_name, len)?;
 
         loop {
             match src_reader.fill_buf() {
@@ -325,6 +357,10 @@ impl DiffCopy {
                         }
                     };
 
+                    if let Some(ref bar) = opt_bar {
+                        bar.inc(src_amt_read as u64)
+                    }
+
                     cur_pos += src_amt_read as u64;
 
                     src_reader.consume(src_amt_read);
@@ -337,6 +373,10 @@ impl DiffCopy {
                     _ => return Err(err.into()),
                 },
             };
+        }
+
+        if let Some(ref bar) = opt_bar {
+            bar.finish_and_clear();
         }
 
         Ok(())
