@@ -496,7 +496,7 @@ impl RollForward {
     }
 
     pub fn snap_dataset(&self) -> PathBuf {
-        let mut path = self.proximate_dataset_mount.as_ref().to_path_buf();
+        let mut path = self.proximate_dataset_mount.to_path_buf();
 
         path.push(ZFS_SNAPSHOT_DIRECTORY);
         path.push(&self.snap);
