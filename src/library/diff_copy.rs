@@ -299,7 +299,6 @@ impl DiffCopy {
         #[cfg(any(target_os = "linux", target_os = "freebsd"))]
         {
             let mut amt_written = 0u64;
-
             let mut remainder = len as usize;
 
             while amt_written < len {
