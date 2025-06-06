@@ -155,16 +155,11 @@ impl RollForward {
         let snap_guard: SnapGuard =
             SnapGuard::new(&self.dataset, PrecautionarySnapType::PreRollForward)?;
 
-        self.directory_lock.lock()?;
-
-        match self.roll_forward() {
+        match self.roll_forward_wrapped() {
             Ok(_) => {
-                self.directory_lock.unlock()?;
                 println!("httm roll forward completed successfully.");
             }
             Err(err) => {
-                self.directory_lock.unlock()?;
-
                 let description = format!(
                     "httm roll forward failed for the following reason: {}.\n\
                 Attempting roll back to precautionary pre-execution snapshot.",
@@ -196,6 +191,14 @@ impl RollForward {
         }
 
         Ok(buf)
+    }
+
+    fn roll_forward_wrapped(&self) -> HttmResult<()> {
+        self.directory_lock.lock()?;
+        self.roll_forward()?;
+        self.directory_lock.unlock()?;
+
+        Ok(())
     }
 
     fn roll_forward(&self) -> HttmResult<()> {

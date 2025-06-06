@@ -497,7 +497,7 @@ impl<'a> PathDeconstruction<'a> for ZfsSnapPathGuard<'_> {
                     .split_once("/")
                     .map(|(_snap_name, relative)| {
                         PathBuf::from(proximate_dataset_mount)
-                            .join(Path::new(relative))
+                            .join(relative)
                             .into_boxed_path()
                     })
             })
