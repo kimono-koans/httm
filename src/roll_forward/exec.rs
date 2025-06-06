@@ -183,16 +183,6 @@ impl RollForward {
         Ok(())
     }
 
-    fn zfs_diff_std_err(opt_stderr: Option<ChildStderr>) -> HttmResult<String> {
-        let mut buf = String::new();
-
-        if let Some(mut stderr) = opt_stderr {
-            stderr.read_to_string(&mut buf)?;
-        }
-
-        Ok(buf)
-    }
-
     fn roll_forward_wrapped(&self) -> HttmResult<()> {
         self.directory_lock.lock()?;
         self.roll_forward()?;
@@ -369,6 +359,16 @@ impl RollForward {
         eprintln!("OK");
 
         Ok(())
+    }
+
+    fn zfs_diff_std_err(opt_stderr: Option<ChildStderr>) -> HttmResult<String> {
+        let mut buf = String::new();
+
+        if let Some(mut stderr) = opt_stderr {
+            stderr.read_to_string(&mut buf)?;
+        }
+
+        Ok(buf)
     }
 
     pub fn live_path(&self, snap_path: &Path) -> Option<PathBuf> {
