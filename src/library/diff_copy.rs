@@ -140,34 +140,43 @@ pub struct DiffCopy;
 
 impl DiffCopy {
     fn new(src_file: &File, dst_file: &mut File) -> HttmResult<()> {
-        let src_len = src_file.metadata()?.len() as usize;
+        let src_len = src_file.metadata()?.len();
+        let mut retries = 0;
 
-        if !GLOBAL_CONFIG.opt_no_clones
-            && IS_CLONE_COMPATIBLE.load(std::sync::atomic::Ordering::Relaxed)
-        {
-            let src_fd = src_file.as_fd();
-            let dst_fd = dst_file.as_fd();
+        loop {
+            if !GLOBAL_CONFIG.opt_no_clones
+                && IS_CLONE_COMPATIBLE.load(std::sync::atomic::Ordering::Relaxed)
+            {
+                let src_fd = src_file.as_fd();
+                let dst_fd = dst_file.as_fd();
 
-            match Self::copy_file_range(src_fd, dst_fd, src_len) {
-                Ok(_) => {
-                    if GLOBAL_CONFIG.opt_debug {
-                        eprintln!("DEBUG: copy_file_range call successful.");
+                match Self::copy_file_range(src_fd, dst_fd, src_len) {
+                    Ok(_) => {
+                        if GLOBAL_CONFIG.opt_debug {
+                            eprintln!("DEBUG: copy_file_range call successful.");
+                        }
+
+                        // re docs, both a flush and a sync seem to be required re consistency
+                        dst_file.flush()?;
+                        dst_file.sync_data()?;
+
+                        return Ok(());
                     }
+                    Err(err) => {
+                        // IS_CLONE_COMPATIBLE.store(false, std::sync::atomic::Ordering::Relaxed);
+                        if GLOBAL_CONFIG.opt_debug {
+                            eprintln!(
+                                "DEBUG: copy_file_range call unsuccessful for the following reason: \"{:?}\".\n
+                                DEBUG: Retrying a conventional diff copy.",
+                                err
+                            );
+                        }
 
-                    // re docs, both a flush and a sync seem to be required re consistency
-                    dst_file.flush()?;
-                    dst_file.sync_data()?;
+                        retries += 1;
 
-                    return Ok(());
-                }
-                Err(err) => {
-                    // IS_CLONE_COMPATIBLE.store(false, std::sync::atomic::Ordering::Relaxed);
-                    if GLOBAL_CONFIG.opt_debug {
-                        eprintln!(
-                            "DEBUG: copy_file_range call unsuccessful for the following reason: \"{:?}\".\n
-                            DEBUG: Retrying a conventional diff copy.",
-                            err
-                        );
+                        if retries >= 2 {
+                            break;
+                        }
                     }
                 }
             }
@@ -285,19 +294,25 @@ impl DiffCopy {
     fn copy_file_range(
         src_file_fd: BorrowedFd,
         dst_file_fd: BorrowedFd,
-        len: usize,
+        len: u64,
     ) -> HttmResult<()> {
         #[cfg(any(target_os = "linux", target_os = "freebsd"))]
         {
-            let mut amt_written = 0usize;
+            let mut amt_written = 0u64;
+
+            let mut remainder = len as usize;
 
             while amt_written < len {
-                match nix::fcntl::copy_file_range(src_file_fd, None, dst_file_fd, None, len) {
+                let mut off_in = amt_written as i64;
+                let mut off_out = off_in.clone();
+
+                match nix::fcntl::copy_file_range(src_file_fd, Some(&mut off_in), dst_file_fd, Some(&mut off_out), remainder) {
                     Ok(bytes_written) if bytes_written == 0 && amt_written == 0 => {
                         return HttmError::new("Bytes written == 0, which indicates the file offset of fd_in is at or past the end of file.").into()
                     }
                     Ok(bytes_written) => {
-                        amt_written += bytes_written;
+                        amt_written += bytes_written as u64;
+                        remainder -= bytes_written as usize;
 
                         if amt_written > len {
                             return Err(
