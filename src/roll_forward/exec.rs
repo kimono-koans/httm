@@ -54,12 +54,6 @@ struct DirectoryLock {
     permissions: Permissions,
 }
 
-impl Drop for DirectoryLock {
-    fn drop(&mut self) {
-        let _ = self.unlock();
-    }
-}
-
 impl DirectoryLock {
     fn new(proximate_dataset_mount: &Path) -> HttmResult<Self> {
         let path = proximate_dataset_mount;
