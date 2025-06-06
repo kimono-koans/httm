@@ -225,23 +225,17 @@ impl CloneCopy {
         {
             let mut amt_written = 0u64;
             let mut remainder = len as usize;
-            const STD_WRITE_LEN: usize = 512_000_000usize;
 
             while remainder > 0 {
                 let mut off_src = amt_written as i64;
                 let mut off_dst = off_src.clone();
-                let write_len = if remainder < STD_WRITE_LEN {
-                    remainder
-                } else {
-                    STD_WRITE_LEN
-                };
 
                 match nix::fcntl::copy_file_range(
                     src_file_fd,
                     Some(&mut off_src),
                     dst_file_fd,
                     Some(&mut off_dst),
-                    write_len,
+                    remainder,
                 ) {
                     // a return of zero for a non-zero len argument
                     // indicates that the offset for infd is at or beyond EOF.
