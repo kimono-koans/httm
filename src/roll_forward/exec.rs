@@ -185,10 +185,10 @@ impl RollForward {
 
     fn roll_forward_wrapped(&self) -> HttmResult<()> {
         self.directory_lock.lock()?;
-        self.roll_forward()?;
+        let res = self.roll_forward();
         self.directory_lock.unlock()?;
 
-        Ok(())
+        res
     }
 
     fn roll_forward(&self) -> HttmResult<()> {
