@@ -293,16 +293,16 @@ impl DiffCopy {
             let mut remainder = len as usize;
 
             while amt_written < len {
-                let mut off_in = amt_written as i64;
-                let mut off_out = off_in.clone();
+                let mut off_src = amt_written as i64;
+                let mut off_dst = off_src.clone();
 
-                match nix::fcntl::copy_file_range(src_file_fd, Some(&mut off_in), dst_file_fd, Some(&mut off_out), remainder) {
+                match nix::fcntl::copy_file_range(src_file_fd, Some(&mut off_src), dst_file_fd, Some(&mut off_dst), remainder) {
                     Ok(bytes_written) if bytes_written == 0 && amt_written == 0 => {
                         return HttmError::new("Bytes written == 0, which indicates the file offset of fd_in is at or past the end of file.").into()
                     }
                     Ok(bytes_written) => {
                         amt_written += bytes_written as u64;
-                        remainder -= bytes_written as usize;
+                        remainder = (len - amt_written) as usize;
 
                         if amt_written > len {
                             return Err(
