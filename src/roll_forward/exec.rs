@@ -16,7 +16,7 @@
 // that was distributed with this source code.
 
 use crate::data::paths::{PathData, PathDeconstruction};
-use crate::library::diff_copy::DiffCopy;
+use crate::library::diff_copy::HttmCopy;
 use crate::library::file_ops::{Copy, Preserve, Remove};
 use crate::library::iter_extensions::HttmIter;
 use crate::library::results::{HttmError, HttmResult};
@@ -240,7 +240,7 @@ impl RollForward {
                 }
 
                 if GLOBAL_CONFIG.opt_debug {
-                    DiffCopy::confirm(&snap_path, &live_path)?
+                    HttmCopy::confirm(&snap_path, &live_path)?
                 }
 
                 is_metadata_same(&snap_path, &live_path)
@@ -277,7 +277,7 @@ impl RollForward {
                 }
 
                 if GLOBAL_CONFIG.opt_debug {
-                    DiffCopy::confirm(&snap_path, &live_path)?
+                    HttmCopy::confirm(&snap_path, &live_path)?
                 }
 
                 is_metadata_same(&snap_path, &live_path)

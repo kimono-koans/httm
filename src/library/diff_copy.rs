@@ -106,6 +106,32 @@ impl HttmCopy {
 
         dst_file.set_len(src_len)?;
 
+        if !GLOBAL_CONFIG.opt_no_clones
+            && IS_CLONE_COMPATIBLE.load(std::sync::atomic::Ordering::Relaxed)
+        {
+            match CloneCopy::new(&src_file, &mut dst_file) {
+                Ok(_) => {
+                    if GLOBAL_CONFIG.opt_debug {
+                        eprintln!("DEBUG: copy_file_range call successful.");
+                    }
+
+                    return Ok(());
+                }
+                Err(err) => {
+                    IS_CLONE_COMPATIBLE.store(false, std::sync::atomic::Ordering::Relaxed);
+                    if GLOBAL_CONFIG.opt_debug {
+                        if GLOBAL_CONFIG.opt_debug {
+                            eprintln!(
+                                "DEBUG: copy_file_range call unsuccessful for the following reason: \"{:?}\".\n
+                                DEBUG: Retrying a conventional diff copy.",
+                                err
+                            );
+                        }
+                    }
+                }
+            }
+        }
+
         match DiffCopy::new(&src_file, &mut dst_file) {
             Ok(_) => {
                 if GLOBAL_CONFIG.opt_no_clones && !GLOBAL_CONFIG.opt_debug {
@@ -116,7 +142,7 @@ impl HttmCopy {
                     eprintln!("DEBUG: Write to file completed.  Confirmation initiated.");
                 }
 
-                match DiffCopy::confirm(src, dst) {
+                match Self::confirm(src, dst) {
                     Ok(_) => Ok(()),
                     Err(err) => {
                         if !IS_CLONE_COMPATIBLE.load(std::sync::atomic::Ordering::Relaxed) {
@@ -125,8 +151,6 @@ impl HttmCopy {
 
                         eprintln!("WARN: Could not confirm copy_file_range: {}", err);
 
-                        // IS_CLONE_COMPATIBLE.store(false, std::sync::atomic::Ordering::Relaxed);
-
                         DiffCopy::write_no_cow(&src_file, &dst_file)
                     }
                 }
@@ -134,45 +158,114 @@ impl HttmCopy {
             Err(err) => Err(err),
         }
     }
+
+    pub fn confirm(src: &Path, dst: &Path) -> HttmResult<()> {
+        if is_same_file_contents(src, dst) {
+            Ok(())
+        } else {
+            let description = format!(
+                "Copy failed.  File contents of {} and {} are NOT the same.",
+                src.display(),
+                dst.display()
+            );
+
+            HttmError::from(description).into()
+        }
+    }
+}
+
+pub struct CloneCopy;
+
+impl CloneCopy {
+    fn new(src_file: &File, dst_file: &mut File) -> HttmResult<()> {
+        let src_len = src_file.metadata()?.len();
+
+        let src_fd = src_file.as_fd();
+        let dst_fd = dst_file.as_fd();
+
+        if let Err(err) = Self::copy_file_range(src_fd, dst_fd, src_len) {
+            // IS_CLONE_COMPATIBLE.store(false, std::sync::atomic::Ordering::Relaxed);
+            let description =
+                format!("DEBUG: copy_file_range call unsuccessful for the following reason:");
+            return HttmError::with_source(description, err.as_ref()).into();
+        }
+
+        // re docs, both a flush and a sync seem to be required re consistency
+        dst_file.flush()?;
+        dst_file.sync_data()?;
+
+        Ok(())
+    }
+
+    #[allow(unreachable_code, unused_variables)]
+    #[inline]
+    fn copy_file_range(
+        src_file_fd: BorrowedFd,
+        dst_file_fd: BorrowedFd,
+        len: u64,
+    ) -> HttmResult<()> {
+        #[cfg(any(target_os = "linux", target_os = "freebsd"))]
+        {
+            let mut amt_written = 0u64;
+            let mut remainder = len as usize;
+
+            while remainder > 0 {
+                let mut off_src = amt_written as i64;
+                let mut off_dst = off_src.clone();
+
+                match nix::fcntl::copy_file_range(
+                    src_file_fd,
+                    Some(&mut off_src),
+                    dst_file_fd,
+                    Some(&mut off_dst),
+                    remainder,
+                ) {
+                    // a return of zero for a non-zero len argument
+                    // indicates that the offset for infd is at or beyond EOF.
+                    Ok(bytes_written) if bytes_written == 0 && remainder != 0 => break,
+                    Ok(bytes_written) => {
+                        amt_written += bytes_written as u64;
+                        remainder = len.saturating_sub(amt_written) as usize;
+
+                        if amt_written > len {
+                            return Err(
+                                HttmError::new("Amount written larger than file len.").into()
+                            );
+                        }
+                    }
+                    Err(err) => match err {
+                        nix::errno::Errno::ENOSYS => {
+                            return HttmError::new(
+                                "Operating system does not support copy_file_ranges.",
+                            )
+                            .into();
+                        }
+                        _ => {
+                            if GLOBAL_CONFIG.opt_debug {
+                                eprintln!(
+                                    "DEBUG: copy_file_range call failed for the following reason: {}\nDEBUG: Falling back to default diff copy behavior.",
+                                    err
+                                );
+                            }
+
+                            return Err(Box::new(err));
+                        }
+                    },
+                }
+            }
+
+            return Ok(());
+        }
+
+        #[cfg(not(any(target_os = "linux", target_os = "freebsd")))]
+        HttmError::new("Operating system does not support copy_file_ranges.").into()
+    }
 }
 
 pub struct DiffCopy;
 
 impl DiffCopy {
     fn new(src_file: &File, dst_file: &mut File) -> HttmResult<()> {
-        let src_len = src_file.metadata()?.len();
-
-        if !GLOBAL_CONFIG.opt_no_clones
-            && IS_CLONE_COMPATIBLE.load(std::sync::atomic::Ordering::Relaxed)
-        {
-            let src_fd = src_file.as_fd();
-            let dst_fd = dst_file.as_fd();
-
-            match Self::copy_file_range(src_fd, dst_fd, src_len) {
-                Ok(_) => {
-                    if GLOBAL_CONFIG.opt_debug {
-                        eprintln!("DEBUG: copy_file_range call successful.");
-                    }
-
-                    // re docs, both a flush and a sync seem to be required re consistency
-                    dst_file.flush()?;
-                    dst_file.sync_data()?;
-
-                    return Ok(());
-                }
-                Err(err) => {
-                    // IS_CLONE_COMPATIBLE.store(false, std::sync::atomic::Ordering::Relaxed);
-                    if GLOBAL_CONFIG.opt_debug {
-                        eprintln!(
-                                "DEBUG: copy_file_range call unsuccessful for the following reason: \"{:?}\".\n
-                                DEBUG: Retrying a conventional diff copy.",
-                                err
-                            );
-                    }
-                }
-            }
-        }
-
         Self::write_no_cow(&src_file, &dst_file)?;
 
         // re docs, both a flush and a sync seem to be required re consistency
@@ -280,83 +373,5 @@ impl DiffCopy {
         dst_writer.write_all(src_read)?;
 
         Ok(())
-    }
-
-    #[allow(unreachable_code, unused_variables)]
-    #[inline]
-    fn copy_file_range(
-        src_file_fd: BorrowedFd,
-        dst_file_fd: BorrowedFd,
-        len: u64,
-    ) -> HttmResult<()> {
-        #[cfg(any(target_os = "linux", target_os = "freebsd"))]
-        {
-            let mut amt_written = 0u64;
-            let mut remainder = len as usize;
-
-            while remainder > 0 {
-                let mut off_src = amt_written as i64;
-                let mut off_dst = off_src.clone();
-
-                match nix::fcntl::copy_file_range(
-                    src_file_fd,
-                    Some(&mut off_src),
-                    dst_file_fd,
-                    Some(&mut off_dst),
-                    remainder,
-                ) {
-                    // a return of zero for a non-zero len argument
-                    // indicates that the offset for infd is at or beyond EOF.
-                    Ok(bytes_written) if bytes_written == 0 && remainder != 0 => break,
-                    Ok(bytes_written) => {
-                        amt_written += bytes_written as u64;
-                        remainder = len.saturating_sub(amt_written) as usize;
-
-                        if amt_written > len {
-                            return Err(
-                                HttmError::new("Amount written larger than file len.").into()
-                            );
-                        }
-                    }
-                    Err(err) => match err {
-                        nix::errno::Errno::ENOSYS => {
-                            return HttmError::new(
-                                "Operating system does not support copy_file_ranges.",
-                            )
-                            .into();
-                        }
-                        _ => {
-                            if GLOBAL_CONFIG.opt_debug {
-                                eprintln!(
-                                    "DEBUG: copy_file_range call failed for the following reason: {}\nDEBUG: Falling back to default diff copy behavior.",
-                                    err
-                                );
-                            }
-
-                            return Err(Box::new(err));
-                        }
-                    },
-                }
-            }
-
-            return Ok(());
-        }
-
-        #[cfg(not(any(target_os = "linux", target_os = "freebsd")))]
-        HttmError::new("Operating system does not support copy_file_ranges.").into()
-    }
-
-    pub fn confirm(src: &Path, dst: &Path) -> HttmResult<()> {
-        if is_same_file_contents(src, dst) {
-            Ok(())
-        } else {
-            let description = format!(
-                "Copy failed.  File contents of {} and {} are NOT the same.",
-                src.display(),
-                dst.display()
-            );
-
-            HttmError::from(description).into()
-        }
     }
 }
