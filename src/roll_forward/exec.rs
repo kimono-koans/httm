@@ -29,8 +29,12 @@ use crate::{GLOBAL_CONFIG, ZFS_SNAPSHOT_DIRECTORY};
 use indicatif::ProgressBar;
 use nu_ansi_term::Color::{Blue, Red};
 use rayon::prelude::*;
+use std::fs::Permissions;
 use std::fs::read_dir;
+use std::fs::set_permissions;
 use std::io::{BufRead, Read};
+use std::os::unix::fs::chown;
+use std::os::unix::fs::{MetadataExt, PermissionsExt};
 use std::path::{Path, PathBuf};
 use std::process::{ChildStderr, ChildStdout};
 use std::sync::Arc;
@@ -40,6 +44,13 @@ pub struct RollForward {
     snap: String,
     progress_bar: ProgressBar,
     proximate_dataset_mount: Arc<Path>,
+    permissions: Permissions,
+    ownership: Ownership,
+}
+
+struct Ownership {
+    uid: u32,
+    gid: u32,
 }
 
 impl RollForward {
@@ -66,12 +77,60 @@ impl RollForward {
 
         let progress_bar: ProgressBar = indicatif::ProgressBar::new_spinner();
 
+        let md = proximate_dataset_mount.as_ref().metadata()?;
+
+        let permissions = md.permissions();
+        let uid = md.uid();
+        let gid = md.gid();
+
         Ok(Self {
             dataset: dataset.to_string(),
             snap: snap.to_string(),
             progress_bar,
             proximate_dataset_mount,
+            permissions,
+            ownership: Ownership { uid, gid },
         })
+    }
+
+    fn set_exclusive_permissions(&self) -> HttmResult<()> {
+        let exclusive = Permissions::from_mode(0o600);
+        let root_uid = 0;
+        let root_gid = 0;
+
+        // Mode
+        {
+            set_permissions(self.proximate_dataset_mount(), exclusive)?
+        }
+
+        // Ownership
+        {
+            chown(
+                self.proximate_dataset_mount(),
+                Some(root_uid),
+                Some(root_gid),
+            )?
+        }
+
+        Ok(())
+    }
+
+    fn reset_permissions(&self) -> HttmResult<()> {
+        // Mode
+        {
+            set_permissions(self.proximate_dataset_mount(), self.permissions.clone())?
+        }
+
+        // Ownership
+        {
+            chown(
+                self.proximate_dataset_mount(),
+                Some(self.ownership.uid),
+                Some(self.ownership.gid),
+            )?
+        }
+
+        Ok(())
     }
 
     pub fn proximate_dataset_mount(&self) -> &Path {
@@ -90,11 +149,16 @@ impl RollForward {
         let snap_guard: SnapGuard =
             SnapGuard::new(&self.dataset, PrecautionarySnapType::PreRollForward)?;
 
+        self.set_exclusive_permissions()?;
+
         match self.roll_forward() {
             Ok(_) => {
+                self.reset_permissions()?;
                 println!("httm roll forward completed successfully.");
             }
             Err(err) => {
+                self.reset_permissions()?;
+
                 let description = format!(
                     "httm roll forward failed for the following reason: {}.\n\
                 Attempting roll back to precautionary pre-execution snapshot.",
