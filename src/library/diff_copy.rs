@@ -292,7 +292,7 @@ impl DiffCopy {
             let mut amt_written = 0u64;
             let mut remainder = len as usize;
 
-            while amt_written < len {
+            while remainder > 0 {
                 let mut off_src = amt_written as i64;
                 let mut off_dst = off_src.clone();
 
