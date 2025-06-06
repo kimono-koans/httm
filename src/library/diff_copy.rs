@@ -141,42 +141,33 @@ pub struct DiffCopy;
 impl DiffCopy {
     fn new(src_file: &File, dst_file: &mut File) -> HttmResult<()> {
         let src_len = src_file.metadata()?.len();
-        let mut retries = 0;
 
-        loop {
-            if !GLOBAL_CONFIG.opt_no_clones
-                && IS_CLONE_COMPATIBLE.load(std::sync::atomic::Ordering::Relaxed)
-            {
-                let src_fd = src_file.as_fd();
-                let dst_fd = dst_file.as_fd();
+        if !GLOBAL_CONFIG.opt_no_clones
+            && IS_CLONE_COMPATIBLE.load(std::sync::atomic::Ordering::Relaxed)
+        {
+            let src_fd = src_file.as_fd();
+            let dst_fd = dst_file.as_fd();
 
-                match Self::copy_file_range(src_fd, dst_fd, src_len) {
-                    Ok(_) => {
-                        if GLOBAL_CONFIG.opt_debug {
-                            eprintln!("DEBUG: copy_file_range call successful.");
-                        }
-
-                        // re docs, both a flush and a sync seem to be required re consistency
-                        dst_file.flush()?;
-                        dst_file.sync_data()?;
-
-                        return Ok(());
+            match Self::copy_file_range(src_fd, dst_fd, src_len) {
+                Ok(_) => {
+                    if GLOBAL_CONFIG.opt_debug {
+                        eprintln!("DEBUG: copy_file_range call successful.");
                     }
-                    Err(err) => {
-                        // IS_CLONE_COMPATIBLE.store(false, std::sync::atomic::Ordering::Relaxed);
-                        if GLOBAL_CONFIG.opt_debug {
-                            eprintln!(
+
+                    // re docs, both a flush and a sync seem to be required re consistency
+                    dst_file.flush()?;
+                    dst_file.sync_data()?;
+
+                    return Ok(());
+                }
+                Err(err) => {
+                    // IS_CLONE_COMPATIBLE.store(false, std::sync::atomic::Ordering::Relaxed);
+                    if GLOBAL_CONFIG.opt_debug {
+                        eprintln!(
                                 "DEBUG: copy_file_range call unsuccessful for the following reason: \"{:?}\".\n
                                 DEBUG: Retrying a conventional diff copy.",
                                 err
                             );
-                        }
-
-                        retries += 1;
-
-                        if retries >= 2 {
-                            break;
-                        }
                     }
                 }
             }
