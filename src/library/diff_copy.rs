@@ -296,13 +296,19 @@ impl DiffCopy {
                 let mut off_src = amt_written as i64;
                 let mut off_dst = off_src.clone();
 
-                match nix::fcntl::copy_file_range(src_file_fd, Some(&mut off_src), dst_file_fd, Some(&mut off_dst), remainder) {
-                    Ok(bytes_written) if bytes_written == 0 && amt_written == 0 => {
-                        return HttmError::new("Bytes written == 0, which indicates the file offset of fd_in is at or past the end of file.").into()
-                    }
+                match nix::fcntl::copy_file_range(
+                    src_file_fd,
+                    Some(&mut off_src),
+                    dst_file_fd,
+                    Some(&mut off_dst),
+                    remainder,
+                ) {
+                    // a return of zero for a non-zero len argument
+                    // indicates that the offset for infd is at or beyond EOF.
+                    Ok(bytes_written) if bytes_written == 0 && remainder != 0 => break,
                     Ok(bytes_written) => {
                         amt_written += bytes_written as u64;
-                        remainder = (len - amt_written) as usize;
+                        remainder = len.saturating_sub(amt_written) as usize;
 
                         if amt_written > len {
                             return Err(
@@ -315,11 +321,14 @@ impl DiffCopy {
                             return HttmError::new(
                                 "Operating system does not support copy_file_ranges.",
                             )
-                            .into()
+                            .into();
                         }
                         _ => {
                             if GLOBAL_CONFIG.opt_debug {
-                                eprintln!("DEBUG: copy_file_range call failed for the following reason: {}\nDEBUG: Falling back to default diff copy behavior.", err);
+                                eprintln!(
+                                    "DEBUG: copy_file_range call failed for the following reason: {}\nDEBUG: Falling back to default diff copy behavior.",
+                                    err
+                                );
                             }
 
                             return Err(Box::new(err));
