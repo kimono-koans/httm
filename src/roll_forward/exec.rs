@@ -441,14 +441,11 @@ impl RollForward {
             .relative_path(&self.proximate_dataset_mount)
             .ok()
             .map(|relative_path| {
-                let snap_file_path: PathBuf = [
-                    self.proximate_dataset_mount.as_ref(),
-                    Path::new(ZFS_SNAPSHOT_DIRECTORY),
-                    Path::new(&self.snap),
-                    relative_path,
-                ]
-                .iter()
-                .collect();
+                let mut snap_file_path: PathBuf = self.proximate_dataset_mount.to_path_buf();
+
+                snap_file_path.push(ZFS_SNAPSHOT_DIRECTORY);
+                snap_file_path.push(&self.snap);
+                snap_file_path.push(relative_path);
 
                 snap_file_path
             })
