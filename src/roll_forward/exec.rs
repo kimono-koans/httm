@@ -76,6 +76,8 @@ impl DirectoryLock {
         let root_uid = 0;
         let root_gid = 0;
 
+        eprintln!("Locking dataset... : {:?}", self.path);
+
         // Mode
         {
             set_permissions(&self.path, exclusive)?
@@ -90,6 +92,8 @@ impl DirectoryLock {
     }
 
     fn unlock(&self) -> HttmResult<()> {
+        eprintln!("Unlocking dataset... : {:?}", self.path);
+
         // Mode
         {
             set_permissions(&self.path, self.permissions.clone())?
