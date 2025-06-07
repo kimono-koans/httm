@@ -340,10 +340,10 @@ fn parse_args() -> ArgMatches {
                 .value_parser(clap::value_parser!(String))
                 .num_args(1)
                 .require_equals(true)
-                .help("traditionally 'zfs rollback' is a destructive operation, whereas this flag is non-destructive, \
-                as it preserves interstitial snapshots, and requires a snapshot guard before taking any action.  \
-                If this flag is specified with a snapshot name, httm will copy those files and their attributes that have changed since a specified snapshot, from that snapshot, to the live dataset. \
-                httm will also take two precautionary snapshots, one before and one after the copy. \
+                .help("'zfs rollback' is a destructive operation, whereas this operation is non-destructive. \
+                This operation preserves interstitial snapshots, and requires a snapshot guard before taking any action.  \
+                If this flag is specified (along with the required snapshot name), httm will copy those files and their attributes that have changed since the specified snapshot to the live dataset. \
+                httm will also take two precautionary guard snapshots, one before and one after the copy. \
                 Should the roll forward fail for any reason, httm will rollback to the pre-execution state. \
                 CAVEATS: This is a ZFS only option which requires super user privileges.  \
                 Not all filesystem features are supported (for instance, Unix sockets on the snapshot) and may cause a roll forward to fail.  \
