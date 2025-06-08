@@ -102,7 +102,7 @@ impl DirectoryLock {
 
     fn wrap_function<F>(&self, action: F) -> HttmResult<()>
     where
-        F: Fn() -> HttmResult<()>,
+        F: FnOnce() -> HttmResult<()>,
     {
         self.lock()?;
         let res = action();
@@ -224,9 +224,11 @@ impl RollForward {
 
         // zfs-diff can return multiple file actions for a single inode, here we dedup
         eprintln!("Building a map of ZFS filesystem events since the specified snapshot.");
-        let ingest = self.ingest(&mut opt_stdout)?;
+        let stream = self.ingest(&mut opt_stdout)?;
 
-        if ingest.is_empty() {
+        let mut peekable_stream = stream.peekable();
+
+        if peekable_stream.peek().is_none() {
             let err_string = Self::zfs_diff_std_err(opt_stderr)?;
 
             if err_string.is_empty() {
@@ -237,7 +239,7 @@ impl RollForward {
         }
 
         let mut parse_errors = vec![];
-        let group_map = ingest
+        let group_map = peekable_stream
             .into_iter()
             .filter_map(|event| {
                 self.progress_bar.tick();
@@ -420,22 +422,20 @@ impl RollForward {
             })
     }
 
-    fn ingest(&self, output: &mut Option<ChildStdout>) -> HttmResult<Vec<HttmResult<DiffEvent>>> {
+    fn ingest(
+        &self,
+        output: &mut Option<ChildStdout>,
+    ) -> HttmResult<impl Iterator<Item = HttmResult<DiffEvent>>> {
         const IN_BUFFER_SIZE: usize = 65_536;
 
         match output {
             Some(output) => {
                 let stdout_buffer = std::io::BufReader::with_capacity(IN_BUFFER_SIZE, output);
 
-                let ret: Vec<HttmResult<DiffEvent>> = stdout_buffer
-                    .lines()
-                    .par_bridge()
-                    .flatten()
-                    .map(|line| {
-                        self.progress_bar.tick();
-                        Self::ingest_by_line(&line)
-                    })
-                    .collect();
+                let ret = stdout_buffer.lines().flatten().map(|line| {
+                    self.progress_bar.tick();
+                    Self::ingest_by_line(&line)
+                });
 
                 Ok(ret)
             }
