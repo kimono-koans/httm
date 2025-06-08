@@ -346,7 +346,7 @@ impl RollForward {
                 // zfs diff sometimes doesn't pick up some rename events
                 // here we cleanup
                 eprintln!("DEBUG: Cleanup required {:?} -> {:?}", snap_path, live_path);
-                Self::overwrite_or_remove(&snap_path, &live_path)?;
+                Copy::recursive_quiet(&snap_path, &live_path, true)?;
 
                 is_metadata_same(&snap_path, &&live_path)
             })
