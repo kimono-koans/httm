@@ -344,9 +344,6 @@ impl RollForward {
                 eprintln!("DEBUG: Cleanup required {:?}::{:?}", snap_path, live_path);
                 Copy::recursive_quiet(&snap_path, &live_path, true)?;
 
-                // doesn't seem to be a reason to do this
-                //Preserve::direct(&snap_path, &live_path)?;
-
                 if GLOBAL_CONFIG.opt_debug {
                     HttmCopy::confirm(&snap_path, &live_path)?
                 }
