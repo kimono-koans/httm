@@ -39,14 +39,6 @@ use std::path::{Path, PathBuf};
 use std::process::{ChildStderr, ChildStdout};
 use std::sync::Arc;
 
-pub struct RollForward {
-    dataset: String,
-    snap: String,
-    progress_bar: ProgressBar,
-    proximate_dataset_mount: Arc<Path>,
-    directory_lock: DirectoryLock,
-}
-
 struct DirectoryLock {
     path: Box<Path>,
     uid: u32,
@@ -108,6 +100,14 @@ impl DirectoryLock {
     }
 }
 
+pub struct RollForward {
+    dataset: String,
+    snap: String,
+    progress_bar: ProgressBar,
+    proximate_dataset_mount: Arc<Path>,
+    directory_lock: DirectoryLock,
+}
+
 impl RollForward {
     pub fn new(full_snap_name: &str) -> HttmResult<Self> {
         let (dataset, snap) = if let Some(res) = full_snap_name.split_once('@') {
@@ -120,15 +120,9 @@ impl RollForward {
             return HttmError::from(description).into();
         };
 
-        let dataset_path = Path::new(&dataset);
+        let source_device = Path::new(&dataset);
 
-        let proximate_dataset_mount = GLOBAL_CONFIG
-            .dataset_collection
-            .map_of_datasets
-            .iter()
-            .find(|(_mount, md)| md.source.as_ref() == dataset_path)
-            .map(|(mount, _)| mount.clone())
-            .ok_or_else(|| HttmError::new("Could not determine proximate dataset mount"))?;
+        let proximate_dataset_mount = Self::proximate_dataset_from_source(source_device)?;
 
         let progress_bar: ProgressBar = indicatif::ProgressBar::new_spinner();
 
@@ -141,6 +135,16 @@ impl RollForward {
             proximate_dataset_mount,
             directory_lock,
         })
+    }
+
+    fn proximate_dataset_from_source(source_device: &Path) -> HttmResult<Arc<Path>> {
+        GLOBAL_CONFIG
+            .dataset_collection
+            .map_of_datasets
+            .iter()
+            .find(|(_mount, md)| md.source.as_ref() == source_device)
+            .map(|(mount, _)| mount.clone())
+            .ok_or_else(|| HttmError::new("Could not determine proximate dataset mount").into())
     }
 
     pub fn proximate_dataset_mount(&self) -> &Path {
