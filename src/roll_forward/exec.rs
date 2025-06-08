@@ -161,6 +161,15 @@ impl RollForward {
         self.proximate_dataset_mount.as_ref()
     }
 
+    pub fn snap_dataset(&self) -> PathBuf {
+        let mut path = self.proximate_dataset_mount.to_path_buf();
+
+        path.push(ZFS_SNAPSHOT_DIRECTORY);
+        path.push(&self.snap);
+
+        path
+    }
+
     pub fn full_name(&self) -> String {
         format!("{}@{}", self.dataset, self.snap)
     }
@@ -367,6 +376,21 @@ impl RollForward {
             })
     }
 
+    pub fn snap_path(&self, path: &Path) -> Option<PathBuf> {
+        PathData::from(path)
+            .relative_path(&self.proximate_dataset_mount)
+            .ok()
+            .map(|relative_path| {
+                let mut snap_file_path: PathBuf = self.proximate_dataset_mount.to_path_buf();
+
+                snap_file_path.push(ZFS_SNAPSHOT_DIRECTORY);
+                snap_file_path.push(&self.snap);
+                snap_file_path.push(relative_path);
+
+                snap_file_path
+            })
+    }
+
     fn ingest(
         output: &mut Option<ChildStdout>,
     ) -> HttmResult<impl Iterator<Item = HttmResult<DiffEvent>> + '_> {
@@ -419,21 +443,6 @@ impl RollForward {
         }
     }
 
-    pub fn snap_path(&self, path: &Path) -> Option<PathBuf> {
-        PathData::from(path)
-            .relative_path(&self.proximate_dataset_mount)
-            .ok()
-            .map(|relative_path| {
-                let mut snap_file_path: PathBuf = self.proximate_dataset_mount.to_path_buf();
-
-                snap_file_path.push(ZFS_SNAPSHOT_DIRECTORY);
-                snap_file_path.push(&self.snap);
-                snap_file_path.push(relative_path);
-
-                snap_file_path
-            })
-    }
-
     fn diff_action(&self, event: &DiffEvent) -> HttmResult<()> {
         let snap_file_path = self
             .snap_path(&event.path_buf)
@@ -476,15 +485,6 @@ impl RollForward {
 
         eprintln!("{}: {:?} -> {:?}", Blue.paint("Restored "), src, dst);
         Ok(())
-    }
-
-    pub fn snap_dataset(&self) -> PathBuf {
-        let mut path = self.proximate_dataset_mount.to_path_buf();
-
-        path.push(ZFS_SNAPSHOT_DIRECTORY);
-        path.push(&self.snap);
-
-        path
     }
 
     fn overwrite_or_remove(src: &Path, dst: &Path) -> HttmResult<()> {
