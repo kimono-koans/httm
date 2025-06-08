@@ -17,23 +17,32 @@
 
 use crate::GLOBAL_CONFIG;
 use crate::config::generate::{PrintMode, RawMode};
-use crate::data::paths::{BasicDirEntryInfo, PathData, PathMetadata};
+use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::data::selection::SelectionCandidate;
 use crate::library::results::{HttmError, HttmResult};
 use lscolors::{LsColors, Style};
 use nu_ansi_term::AnsiString;
 use std::borrow::Cow;
 use std::fs::FileType;
-use std::fs::Metadata;
 use std::io::Write;
 use std::iter::Iterator;
-use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
 use std::time::SystemTime;
 use time::{OffsetDateTime, UtcOffset, format_description};
 use unit_prefix::NumberPrefix;
 use which::which;
+
+pub fn pwd() -> HttmResult<PathBuf> {
+    let Ok(pwd) = std::env::current_dir() else {
+        return HttmError::new(
+            "Working directory does not exist or your do not have permissions to access it.",
+        )
+        .into();
+    };
+
+    Ok(pwd)
+}
 
 pub fn get_mount_command() -> HttmResult<PathBuf> {
     which("mount").map_err(|_err| {
@@ -326,55 +335,37 @@ pub fn display_human_size(size: u64) -> String {
     }
 }
 
-pub fn is_metadata_same<T>(src: T, dst: T) -> HttmResult<()>
+pub fn is_metadata_same<P>(src: P, dst: P) -> HttmResult<()>
 where
-    T: ComparePathMetadata,
+    P: AsRef<Path>,
 {
-    let opt_md = src.opt_metadata();
+    let src_pd = PathData::cheap(src.as_ref());
+    let dst_pd = PathData::cheap(dst.as_ref());
 
-    if opt_md.is_none() {
-        let description = format!("Metadata not found: {:?}", src.path());
+    if src_pd.opt_metadata().is_none() {
+        let description = format!("Metadata not found: {:?}", src.as_ref());
         return HttmError::from(description).into();
     }
 
-    if src.path().is_symlink() && (src.path().read_link().ok() != dst.path().read_link().ok()) {
-        let description = format!("Symlink do not match: {:?}", src.path());
+    if dst_pd.opt_metadata().is_none() {
+        let description = format!("Metadata not found: {:?}", dst.as_ref());
         return HttmError::from(description).into();
     }
 
-    if src.opt_metadata().map(|md| (md.modified(), md.len()))
-        != dst.opt_metadata().map(|md| (md.modified(), md.len()))
+    if src.as_ref().is_symlink() && (src.as_ref().read_link().ok() != dst.as_ref().read_link().ok())
     {
+        let description = format!(
+            "Symlink targets do not match: {:?} -> {:?}",
+            src.as_ref(),
+            dst.as_ref()
+        );
+        return HttmError::from(description).into();
+    }
+
+    if src_pd.opt_metadata() != dst_pd.opt_metadata() {
         let description = format!("Metadata mismatch: {:?} !-> {:?}", src.path(), dst.path());
         return HttmError::from(description).into();
     }
 
     Ok(())
-}
-
-pub trait ComparePathMetadata {
-    fn opt_metadata(&self) -> Option<Metadata>;
-    fn path(&self) -> &Path;
-}
-
-impl<T: AsRef<Path>> ComparePathMetadata for T {
-    fn opt_metadata(&self) -> Option<Metadata> {
-        // never follow symlinks for comparison
-        self.as_ref().symlink_metadata().ok()
-    }
-
-    fn path(&self) -> &Path {
-        self.as_ref()
-    }
-}
-
-pub fn pwd() -> HttmResult<PathBuf> {
-    let Ok(pwd) = std::env::current_dir() else {
-        return HttmError::new(
-            "Working directory does not exist or your do not have permissions to access it.",
-        )
-        .into();
-    };
-
-    Ok(pwd)
 }
