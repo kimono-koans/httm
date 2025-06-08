@@ -37,7 +37,7 @@ use std::os::unix::fs::chown;
 use std::os::unix::fs::{MetadataExt, PermissionsExt};
 use std::path::{Path, PathBuf};
 use std::process::{ChildStderr, ChildStdout};
-use std::sync::Arc;
+use std::sync::{Arc, Once};
 
 struct DirectoryLock {
     path: Box<Path>,
@@ -295,28 +295,7 @@ impl RollForward {
         // reverse because we want to work from the bottom up
         file_list.reverse();
 
-        file_list
-            .into_iter()
-            .filter_map(|snap_path| {
-                self.live_path(&snap_path)
-                    .map(|live_path| (snap_path, live_path))
-            })
-            .try_for_each(|(snap_path, live_path)| {
-                self.progress_bar.tick();
-
-                // zfs diff sometimes doesn't pick up some rename events
-                // here we cleanup
-                if snap_path.exists() && !live_path.exists() {
-                    eprintln!("DEBUG: Cleanup required {:?}::{:?}", snap_path, live_path);
-                    Copy::recursive_quiet(&snap_path, &live_path, true)?
-                }
-
-                if GLOBAL_CONFIG.opt_debug {
-                    HttmCopy::confirm(&snap_path, &live_path)?
-                }
-
-                is_metadata_same(&snap_path, &live_path)
-            })?;
+        self.verify_from_list(file_list)?;
 
         self.progress_bar.finish_and_clear();
         eprintln!("OK");
@@ -328,31 +307,7 @@ impl RollForward {
         // reverse because we want to work from the bottom up
         directory_list.reverse();
 
-        directory_list
-            .into_iter()
-            .filter_map(|snap_path| {
-                self.live_path(&snap_path)
-                    .map(|live_path| (snap_path, live_path))
-            })
-            .try_for_each(|(snap_path, live_path)| {
-                self.progress_bar.tick();
-
-                // zfs diff sometimes doesn't pick up some rename events
-                // here we cleanup
-                if snap_path.exists() && !live_path.exists() {
-                    eprintln!("DEBUG: Cleanup required {:?}::{:?}", snap_path, live_path);
-                    Copy::recursive_quiet(&snap_path, &live_path, true)?
-                }
-
-                // doesn't seem to be a reason to do this
-                //Preserve::direct(&snap_path, &live_path)?;
-
-                if GLOBAL_CONFIG.opt_debug {
-                    HttmCopy::confirm(&snap_path, &live_path)?
-                }
-
-                is_metadata_same(&snap_path, &live_path)
-            })?;
+        self.verify_from_list(directory_list)?;
 
         // copy attributes for base dataset, our recursive attr copy stops
         // before including the base dataset
@@ -367,6 +322,37 @@ impl RollForward {
         eprintln!("OK");
 
         Ok(())
+    }
+
+    fn verify_from_list(&self, list: Vec<PathBuf>) -> HttmResult<()> {
+        list.into_iter()
+            .filter_map(|snap_path| {
+                self.live_path(&snap_path)
+                    .map(|live_path| (snap_path, live_path))
+            })
+            .filter_map(|(snap_path, live_path)| {
+                self.progress_bar.tick();
+
+                match is_metadata_same(&snap_path, &live_path) {
+                    Ok(_) => None,
+                    Err(_) => Some((snap_path, live_path)),
+                }
+            })
+            .try_for_each(|(snap_path, live_path)| {
+                // zfs diff sometimes doesn't pick up some rename events
+                // here we cleanup
+                eprintln!("DEBUG: Cleanup required {:?}::{:?}", snap_path, live_path);
+                Copy::recursive_quiet(&snap_path, &live_path, true)?;
+
+                // doesn't seem to be a reason to do this
+                //Preserve::direct(&snap_path, &live_path)?;
+
+                if GLOBAL_CONFIG.opt_debug {
+                    HttmCopy::confirm(&snap_path, &live_path)?
+                }
+
+                is_metadata_same(&snap_path, &live_path)
+            })
     }
 
     fn zfs_diff_std_err(opt_stderr: Option<ChildStderr>) -> HttmResult<String> {
