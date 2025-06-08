@@ -400,10 +400,10 @@ impl RollForward {
             Some(output) => {
                 let stdout_buffer = std::io::BufReader::with_capacity(IN_BUFFER_SIZE, output);
 
-                let ret = stdout_buffer.lines().map(|res| {
-                    res.map_err(|e| e.into())
-                        .and_then(|line| Self::ingest_by_line(&line))
-                });
+                let ret = stdout_buffer
+                    .lines()
+                    .flatten()
+                    .map(|line| Self::ingest_by_line(&line));
 
                 Ok(ret)
             }
