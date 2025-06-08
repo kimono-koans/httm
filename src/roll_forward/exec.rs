@@ -222,8 +222,8 @@ impl RollForward {
         let mut opt_stdout = process_handle.stdout.take();
 
         // zfs-diff can return multiple file actions for a single inode, here we dedup
-        eprint!("Building a map of ZFS filesystem events since the specified snapshot: ");
-        let ingest = Self::ingest(&mut opt_stdout)?;
+        eprint!("Building a map of ZFS filesystem events since the specified snapshot.");
+        let ingest = self.ingest(&mut opt_stdout)?;
 
         if ingest.is_empty() {
             let err_string = Self::zfs_diff_std_err(opt_stderr)?;
@@ -244,7 +244,6 @@ impl RollForward {
             })
             .into_group_map_by(|event| event.path_buf.clone());
         self.progress_bar.finish_and_clear();
-        eprintln!("OK");
 
         // These errors usually don't matter, if we make it this far.  Most are of the form:
         // "Unable to determine path or stats for object 99694 in ...: File exists"
@@ -409,7 +408,7 @@ impl RollForward {
             })
     }
 
-    fn ingest(output: &mut Option<ChildStdout>) -> HttmResult<Vec<HttmResult<DiffEvent>>> {
+    fn ingest(&self, output: &mut Option<ChildStdout>) -> HttmResult<Vec<HttmResult<DiffEvent>>> {
         const IN_BUFFER_SIZE: usize = 65_536;
 
         match output {
@@ -420,7 +419,10 @@ impl RollForward {
                     .lines()
                     .par_bridge()
                     .flatten()
-                    .map(|line| Self::ingest_by_line(&line))
+                    .map(|line| {
+                        self.progress_bar.tick();
+                        Self::ingest_by_line(&line)
+                    })
                     .collect();
 
                 Ok(ret)
