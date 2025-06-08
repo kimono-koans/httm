@@ -25,6 +25,7 @@ use crate::roll_forward::preserve_hard_links::{PreserveHardLinks, SpawnPreserveL
 use crate::zfs::run_command::RunZFSCommand;
 use crate::zfs::snap_guard::{PrecautionarySnapType, SnapGuard};
 use crate::{GLOBAL_CONFIG, ZFS_SNAPSHOT_DIRECTORY};
+use hashbrown::HashSet;
 use indicatif::ProgressBar;
 use nu_ansi_term::Color::{Blue, Red};
 use rayon::prelude::*;
@@ -266,16 +267,34 @@ impl RollForward {
 
         // into iter and reverse because we want to go largest first
         eprintln!("Reversing 'zfs diff' actions.");
-        group_map
-            .par_iter()
-            .filter(|(key, _values)| !exclusions.contains(key.as_path()))
-            .flat_map(|(_key, values)| values.iter().max_by_key(|event| event.time))
-            .try_for_each(|event| match &event.diff_type {
-                DiffType::Renamed(new_file) if exclusions.contains(new_file) => Ok(()),
-                _ => self.diff_action(event),
-            })?;
+        let (vec_dirs, vec_files): (Vec<(PathBuf, DiffEvent)>, Vec<(PathBuf, DiffEvent)>) =
+            group_map
+                .into_par_iter()
+                .filter(|(key, _values)| !exclusions.contains(key.as_path()))
+                .flat_map(|(key, values)| {
+                    values
+                        .into_iter()
+                        .max_by_key(|event| event.time)
+                        .map(|max| (key, max))
+                })
+                .partition(|(key, _value)| key.is_dir());
+
+        self.roll_from_list(vec_files, &exclusions)?;
+        self.roll_from_list(vec_dirs, &exclusions)?;
 
         self.cleanup_and_verify()
+    }
+
+    fn roll_from_list(
+        &self,
+        list: Vec<(PathBuf, DiffEvent)>,
+        exclusions: &HashSet<PathBuf>,
+    ) -> HttmResult<()> {
+        list.par_iter()
+            .try_for_each(|(_key, value)| match &value.diff_type {
+                DiffType::Renamed(new_file) if exclusions.contains(new_file) => Ok(()),
+                _ => self.diff_action(value),
+            })
     }
 
     fn cleanup_and_verify(&self) -> HttmResult<()> {
