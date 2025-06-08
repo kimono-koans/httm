@@ -37,7 +37,7 @@ use std::os::unix::fs::chown;
 use std::os::unix::fs::{MetadataExt, PermissionsExt};
 use std::path::{Path, PathBuf};
 use std::process::{ChildStderr, ChildStdout};
-use std::sync::{Arc, Once};
+use std::sync::Arc;
 
 struct DirectoryLock {
     path: Box<Path>,
