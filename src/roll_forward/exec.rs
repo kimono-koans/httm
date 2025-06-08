@@ -68,7 +68,7 @@ impl DirectoryLock {
         let root_uid = 0;
         let root_gid = 0;
 
-        eprintln!("Locking dataset... : {:?}", self.path);
+        eprintln!("Locking dataset: {:?}", self.path);
 
         // Mode
         {
@@ -84,7 +84,7 @@ impl DirectoryLock {
     }
 
     fn unlock(&self) -> HttmResult<()> {
-        eprintln!("Unlocking dataset... : {:?}", self.path);
+        eprintln!("Unlocking dataset: {:?}", self.path);
 
         // Mode
         {
@@ -304,7 +304,7 @@ impl RollForward {
             .try_for_each(|(snap_path, live_path)| {
                 self.progress_bar.tick();
 
-                // zfs diff sometimes doesn't pick up rename events
+                // zfs diff sometimes doesn't pick up some rename events
                 // here we cleanup
                 if snap_path.exists() && !live_path.exists() {
                     eprintln!("DEBUG: Cleanup required {:?}::{:?}", snap_path, live_path);
@@ -337,14 +337,15 @@ impl RollForward {
             .try_for_each(|(snap_path, live_path)| {
                 self.progress_bar.tick();
 
-                // zfs diff sometimes doesn't pick up rename events
+                // zfs diff sometimes doesn't pick up some rename events
                 // here we cleanup
                 if snap_path.exists() && !live_path.exists() {
                     eprintln!("DEBUG: Cleanup required {:?}::{:?}", snap_path, live_path);
                     Copy::recursive_quiet(&snap_path, &live_path, true)?
-                } else {
-                    Preserve::direct(&snap_path, &live_path)?;
                 }
+
+                // doesn't seem to be a reason to do this
+                //Preserve::direct(&snap_path, &live_path)?;
 
                 if GLOBAL_CONFIG.opt_debug {
                     HttmCopy::confirm(&snap_path, &live_path)?
@@ -353,7 +354,7 @@ impl RollForward {
                 is_metadata_same(&snap_path, &live_path)
             })?;
 
-        // copy attributes for base dataset, our recursive attr copy does stops
+        // copy attributes for base dataset, our recursive attr copy stops
         // before including the base dataset
         let live_dataset = self
             .live_path(&snap_dataset)
