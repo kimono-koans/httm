@@ -16,7 +16,6 @@
 // that was distributed with this source code.
 
 use crate::data::paths::{PathData, PathDeconstruction};
-use crate::library::diff_copy::HttmCopy;
 use crate::library::file_ops::{Copy, Preserve, Remove};
 use crate::library::iter_extensions::HttmIter;
 use crate::library::results::{HttmError, HttmResult};
@@ -291,11 +290,8 @@ impl RollForward {
         }
         eprintln!("OK");
 
-        eprint!("Verifying files and symlinks: ");
         // first pass only verify non-directories
-        file_list.sort_unstable();
-        // reverse because we want to work from the bottom up
-        file_list.reverse();
+        eprint!("Verifying files and symlinks: ");
 
         self.verify_from_list(file_list)?;
 
@@ -305,11 +301,10 @@ impl RollForward {
         eprint!("Verifying directories: ");
         // 2nd pass checks dirs - why?  we don't check dirs on first pass,
         // because copying of data may have changed dir size/mtime
-        directory_list.sort_unstable();
-        // reverse because we want to work from the bottom up
-        directory_list.reverse();
-
         self.verify_from_list(directory_list)?;
+
+        self.progress_bar.finish_and_clear();
+        eprintln!("OK");
 
         // copy attributes for base dataset, our recursive attr copy stops
         // before including the base dataset
@@ -317,14 +312,15 @@ impl RollForward {
             let _ = Preserve::direct(&snap_dataset, &live_dataset);
         }
 
-        self.progress_bar.finish_and_clear();
-        eprintln!("OK");
-
         Ok(())
     }
 
-    fn verify_from_list(&self, list: Vec<PathBuf>) -> HttmResult<()> {
-        list.into_iter()
+    fn verify_from_list(&self, mut list: Vec<PathBuf>) -> HttmResult<()> {
+        list.sort_unstable();
+        // reverse because we want to work from the bottom up
+        list.reverse();
+
+        list.iter()
             .filter_map(|snap_path| {
                 self.live_path(&snap_path)
                     .map(|live_path| (snap_path, live_path))
@@ -332,7 +328,7 @@ impl RollForward {
             .filter_map(|(snap_path, live_path)| {
                 self.progress_bar.tick();
 
-                match is_metadata_same(&snap_path, &live_path) {
+                match is_metadata_same(&snap_path, &&live_path) {
                     Ok(_) => None,
                     Err(_) => Some((snap_path, live_path)),
                 }
@@ -341,17 +337,9 @@ impl RollForward {
                 // zfs diff sometimes doesn't pick up some rename events
                 // here we cleanup
                 eprintln!("DEBUG: Cleanup required {:?} -> {:?}", snap_path, live_path);
-                if Preserve::direct(&snap_path, &live_path).is_err()
-                    || is_metadata_same(&snap_path, &live_path).is_err()
-                {
-                    Self::overwrite_or_remove(&snap_path, &live_path)?;
-                }
+                Self::overwrite_or_remove(&snap_path, &live_path)?;
 
-                if GLOBAL_CONFIG.opt_debug {
-                    HttmCopy::confirm(&snap_path, &live_path)?
-                }
-
-                is_metadata_same(&snap_path, &live_path)
+                is_metadata_same(&snap_path, &&live_path)
             })
     }
 

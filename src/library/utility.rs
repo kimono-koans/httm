@@ -363,7 +363,13 @@ where
     }
 
     if src_pd.opt_metadata() != dst_pd.opt_metadata() {
-        let description = format!("Metadata mismatch: {:?} !-> {:?}", src.path(), dst.path());
+        let description = format!(
+            "Metadata mismatch: {:?}::{:?} !-> {:?}::{:?}",
+            src.path(),
+            src_pd.opt_metadata(),
+            dst.path(),
+            dst_pd.opt_metadata()
+        );
         return HttmError::from(description).into();
     }
 
