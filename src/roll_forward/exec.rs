@@ -220,11 +220,11 @@ impl RollForward {
         let opt_stderr = process_handle.stderr.take();
         let mut opt_stdout = process_handle.stdout.take();
 
-        let stream = Self::ingest(&mut opt_stdout)?;
+        // zfs-diff can return multiple file actions for a single inode, here we dedup
+        eprint!("Building a map of ZFS filesystem events since the specified snapshot: ");
+        let ingest = Self::ingest(&mut opt_stdout)?;
 
-        let mut stream_peekable = stream.peekable();
-
-        if stream_peekable.peek().is_none() {
+        if ingest.is_empty() {
             let err_string = Self::zfs_diff_std_err(opt_stderr)?;
 
             if err_string.is_empty() {
@@ -234,17 +234,16 @@ impl RollForward {
             return HttmError::from(err_string).into();
         }
 
-        // zfs-diff can return multiple file actions for a single inode, here we dedup
-        eprintln!("Building a map of ZFS filesystem events since the specified snapshot.");
         let mut parse_errors = vec![];
-        let group_map = stream_peekable
-            .map(|event| {
+        let group_map = ingest
+            .into_iter()
+            .filter_map(|event| {
                 self.progress_bar.tick();
-                event
+                event.map_err(|e| parse_errors.push(e)).ok()
             })
-            .filter_map(|res| res.map_err(|e| parse_errors.push(e)).ok())
             .into_group_map_by(|event| event.path_buf.clone());
         self.progress_bar.finish_and_clear();
+        eprintln!("OK");
 
         // These errors usually don't matter, if we make it this far.  Most are of the form:
         // "Unable to determine path or stats for object 99694 in ...: File exists"
@@ -391,19 +390,19 @@ impl RollForward {
             })
     }
 
-    fn ingest(
-        output: &mut Option<ChildStdout>,
-    ) -> HttmResult<impl Iterator<Item = HttmResult<DiffEvent>> + '_> {
+    fn ingest(output: &mut Option<ChildStdout>) -> HttmResult<Vec<HttmResult<DiffEvent>>> {
         const IN_BUFFER_SIZE: usize = 65_536;
 
         match output {
             Some(output) => {
                 let stdout_buffer = std::io::BufReader::with_capacity(IN_BUFFER_SIZE, output);
 
-                let ret = stdout_buffer
+                let ret: Vec<HttmResult<DiffEvent>> = stdout_buffer
                     .lines()
+                    .par_bridge()
                     .flatten()
-                    .map(|line| Self::ingest_by_line(&line));
+                    .map(|line| Self::ingest_by_line(&line))
+                    .collect();
 
                 Ok(ret)
             }
