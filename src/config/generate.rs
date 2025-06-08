@@ -348,7 +348,7 @@ fn parse_args() -> ArgMatches {
                 Should the roll forward fail for any reason, httm will rollback to the pre-execution state. \
                 CAVEATS: This is a ZFS only option which requires super user privileges.  \
                 Not all filesystem features are supported (for instance, Unix sockets on the snapshot will need to be recreated) and may cause a roll forward to fail.  \
-                Moreover, certain special/files objects will be copied or recreated, but are not guaranteed to be in the same state as the snapshot (for instance, FIFO buffers).")
+                Moreover, certain special objects/files will be copied or recreated, but are not guaranteed to be in the same state as the snapshot (for instance, FIFO buffers).")
                 .conflicts_with_all(&["BROWSE", "RESTORE", "ALT_REPLICATED", "REMOTE_DIR", "LOCAL_DIR"])
                 .display_order(14)
                 .action(ArgAction::Append)
