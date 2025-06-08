@@ -98,6 +98,17 @@ impl DirectoryLock {
 
         Ok(())
     }
+
+    fn wrap_function<F>(&self, action: F) -> HttmResult<()>
+    where
+        F: Fn() -> HttmResult<()>,
+    {
+        self.lock()?;
+        let res = action();
+        self.unlock()?;
+
+        res
+    }
 }
 
 pub struct RollForward {
@@ -163,7 +174,7 @@ impl RollForward {
         let snap_guard: SnapGuard =
             SnapGuard::new(&self.dataset, PrecautionarySnapType::PreRollForward)?;
 
-        match self.roll_forward_wrapped() {
+        match self.directory_lock.wrap_function(|| self.roll_forward()) {
             Ok(_) => {
                 println!("httm roll forward completed successfully.");
             }
@@ -189,14 +200,6 @@ impl RollForward {
         )?;
 
         Ok(())
-    }
-
-    fn roll_forward_wrapped(&self) -> HttmResult<()> {
-        self.directory_lock.lock()?;
-        let res = self.roll_forward();
-        self.directory_lock.unlock()?;
-
-        res
     }
 
     fn roll_forward(&self) -> HttmResult<()> {
