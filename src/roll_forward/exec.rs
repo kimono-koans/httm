@@ -358,6 +358,7 @@ impl RollForward {
                 // metadata mismatch could be due to size mismatch due to compression!
                 match is_metadata_same(&snap_path, &&live_path) {
                     Ok(_) => None,
+                    Err(_) if snap_path.is_dir() => None,
                     Err(_) => Some((snap_path, live_path)),
                 }
             })
