@@ -362,7 +362,7 @@ where
         return HttmError::from(description).into();
     }
 
-    if src_pd.metadata_infallible().mtime() != dst_pd.metadata_infallible().mtime() {
+    if src_pd.opt_metadata() != dst_pd.opt_metadata() {
         let description = format!(
             "Metadata mismatch: {:?}::{:?} !-> {:?}::{:?}",
             src.path(),

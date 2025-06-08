@@ -16,6 +16,7 @@
 // that was distributed with this source code.
 
 use crate::data::paths::{PathData, PathDeconstruction};
+use crate::library::diff_copy::HttmCopy;
 use crate::library::file_ops::{Copy, Preserve, Remove};
 use crate::library::iter_extensions::HttmIter;
 use crate::library::results::{HttmError, HttmResult};
@@ -354,18 +355,24 @@ impl RollForward {
             .filter_map(|(snap_path, live_path)| {
                 self.progress_bar.tick();
 
+                // metadata mismatch could be due to size mismatch due to compression!
                 match is_metadata_same(&snap_path, &&live_path) {
                     Ok(_) => None,
                     Err(_) => Some((snap_path, live_path)),
                 }
             })
+            .filter_map(|(snap_path, live_path)| {
+                // ... so we confirm with a checksum
+                match HttmCopy::confirm(&snap_path, &live_path) {
+                    Ok(_) => None,
+                    Err(_) => Some((snap_path, live_path)),
+                }
+            })
             .try_for_each(|(snap_path, live_path)| {
-                // zfs diff sometimes doesn't pick up some rename events
-                // here we cleanup
                 eprintln!("DEBUG: Cleanup required {:?} -> {:?}", snap_path, live_path);
                 Copy::recursive_quiet(&snap_path, &live_path, true)?;
 
-                is_metadata_same(&snap_path, &&live_path)
+                HttmCopy::confirm(&snap_path, &live_path)
             })
     }
 
