@@ -274,16 +274,18 @@ impl RollForward {
     fn cleanup_and_verify(&self) -> HttmResult<()> {
         let snap_dataset = self.snap_dataset();
 
-        let mut directory_list: Vec<PathBuf> = vec![snap_dataset.clone()];
+        let mut directory_list: Vec<PathBuf> = Vec::new();
         let mut file_list: Vec<PathBuf> = Vec::new();
+        let mut queue: Vec<PathBuf> = vec![snap_dataset.clone()];
 
         eprint!("Building file and directory list: ");
-        while let Some(item) = directory_list.pop() {
+        while let Some(item) = queue.pop() {
             let (mut vec_dirs, mut vec_files): (Vec<PathBuf>, Vec<PathBuf>) = read_dir(&item)?
                 .flatten()
                 .map(|dir_entry| dir_entry.path())
                 .partition(|path| path.is_dir());
 
+            queue.extend_from_slice(&vec_dirs);
             directory_list.append(&mut vec_dirs);
             file_list.append(&mut vec_files);
         }
@@ -311,14 +313,11 @@ impl RollForward {
 
         // copy attributes for base dataset, our recursive attr copy stops
         // before including the base dataset
-        let live_dataset = self
-            .live_path(&snap_dataset)
-            .ok_or_else(|| HttmError::new("Could not generate live path"))?;
-
-        let _ = Preserve::direct(&snap_dataset, &live_dataset);
+        if let Some(live_dataset) = self.live_path(&snap_dataset) {
+            let _ = Preserve::direct(&snap_dataset, &live_dataset);
+        }
 
         self.progress_bar.finish_and_clear();
-
         eprintln!("OK");
 
         Ok(())
