@@ -471,8 +471,9 @@ impl RollForward {
         // we should make sure it has the latest data, so a simple rename is not enough
         // this is internal to the fn Self::remove()
         match &event.diff_type {
-            DiffType::Removed | DiffType::Modified => Self::copy(&snap_file_path, &event.path_buf),
-            DiffType::Created => Self::overwrite_or_remove(&snap_file_path, &event.path_buf),
+            DiffType::Created | DiffType::Removed | DiffType::Modified => {
+                Self::overwrite_or_remove(&snap_file_path, &event.path_buf)
+            }
             DiffType::Renamed(new_file_name) => {
                 let snap_new_file_name = self.snap_path(new_file_name).ok_or_else(|| {
                     HttmError::new("Could not obtain snap file path for live version.")
@@ -480,9 +481,7 @@ impl RollForward {
 
                 Self::overwrite_or_remove(&snap_new_file_name, new_file_name)?;
 
-                if snap_file_path.exists() {
-                    Self::copy(&snap_file_path, &event.path_buf)?
-                }
+                Self::overwrite_or_remove(&snap_file_path, &event.path_buf)?;
 
                 Ok(())
             }
