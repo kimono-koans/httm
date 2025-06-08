@@ -476,8 +476,9 @@ impl RollForward {
     }
 
     fn diff_action(&self, event: &DiffEvent) -> HttmResult<()> {
+        let live_file_path = event.path_buf.as_ref();
         let snap_file_path = self
-            .snap_path(&event.path_buf)
+            .snap_path(&live_file_path)
             .ok_or_else(|| HttmError::new("Could not obtain snap file path for live version."))?;
 
         // zfs-diff can return multiple file actions for a single inode
@@ -486,7 +487,7 @@ impl RollForward {
         // this is internal to the fn Self::remove()
         match &event.diff_type {
             DiffType::Created | DiffType::Removed | DiffType::Modified => {
-                Self::overwrite_or_remove(&snap_file_path, &event.path_buf)
+                Self::overwrite_or_remove(&snap_file_path, live_file_path)
             }
             DiffType::Renamed(new_file_name) => {
                 Self::overwrite_or_remove(&snap_file_path, new_file_name)?;
