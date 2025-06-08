@@ -341,7 +341,11 @@ impl RollForward {
                 // zfs diff sometimes doesn't pick up some rename events
                 // here we cleanup
                 eprintln!("DEBUG: Cleanup required {:?} -> {:?}", snap_path, live_path);
-                Self::overwrite_or_remove(&snap_path, &live_path)?;
+                if Preserve::direct(&snap_path, &live_path).is_err()
+                    || is_metadata_same(&snap_path, &live_path).is_err()
+                {
+                    Self::overwrite_or_remove(&snap_path, &live_path)?;
+                }
 
                 if GLOBAL_CONFIG.opt_debug {
                     HttmCopy::confirm(&snap_path, &live_path)?

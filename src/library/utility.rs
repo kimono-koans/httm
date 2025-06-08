@@ -24,8 +24,10 @@ use lscolors::{LsColors, Style};
 use nu_ansi_term::AnsiString;
 use std::borrow::Cow;
 use std::fs::FileType;
+use std::fs::Metadata;
 use std::io::Write;
 use std::iter::Iterator;
+use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
 use std::time::SystemTime;
@@ -328,7 +330,9 @@ pub fn is_metadata_same<T>(src: T, dst: T) -> HttmResult<()>
 where
     T: ComparePathMetadata,
 {
-    if src.opt_metadata().is_none() {
+    let opt_md = src.opt_metadata();
+
+    if opt_md.is_none() {
         let description = format!("Metadata not found: {:?}", src.path());
         return HttmError::from(description).into();
     }
@@ -338,7 +342,9 @@ where
         return HttmError::from(description).into();
     }
 
-    if src.opt_metadata() != dst.opt_metadata() {
+    if src.opt_metadata().map(|md| (md.modified(), md.len()))
+        != dst.opt_metadata().map(|md| (md.modified(), md.len()))
+    {
         let description = format!("Metadata mismatch: {:?} !-> {:?}", src.path(), dst.path());
         return HttmError::from(description).into();
     }
@@ -347,17 +353,14 @@ where
 }
 
 pub trait ComparePathMetadata {
-    fn opt_metadata(&self) -> Option<PathMetadata>;
+    fn opt_metadata(&self) -> Option<Metadata>;
     fn path(&self) -> &Path;
 }
 
 impl<T: AsRef<Path>> ComparePathMetadata for T {
-    fn opt_metadata(&self) -> Option<PathMetadata> {
+    fn opt_metadata(&self) -> Option<Metadata> {
         // never follow symlinks for comparison
-        self.as_ref()
-            .symlink_metadata()
-            .ok()
-            .and_then(|md| PathMetadata::new(&md))
+        self.as_ref().symlink_metadata().ok()
     }
 
     fn path(&self) -> &Path {
