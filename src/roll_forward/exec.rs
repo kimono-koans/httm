@@ -291,8 +291,8 @@ impl RollForward {
 
         eprint!("Verifying files and symlinks: ");
         // first pass only verify non-directories
-        file_list.sort_by_key(|path| path.components().count());
-
+        file_list.sort_unstable();
+        // reverse because we want to work from the bottom up
         file_list.reverse();
 
         file_list
@@ -324,8 +324,8 @@ impl RollForward {
         eprint!("Verifying directories: ");
         // 2nd pass checks dirs - why?  we don't check dirs on first pass,
         // because copying of data may have changed dir size/mtime
-        directory_list.sort_by_key(|path| path.components().count());
-
+        directory_list.sort_unstable();
+        // reverse because we want to work from the bottom up
         directory_list.reverse();
 
         directory_list
