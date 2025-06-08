@@ -223,7 +223,7 @@ impl RollForward {
         let mut opt_stdout = process_handle.stdout.take();
 
         // zfs-diff can return multiple file actions for a single inode, here we dedup
-        eprint!("Building a map of ZFS filesystem events since the specified snapshot.");
+        eprintln!("Building a map of ZFS filesystem events since the specified snapshot.");
         let ingest = self.ingest(&mut opt_stdout)?;
 
         if ingest.is_empty() {
