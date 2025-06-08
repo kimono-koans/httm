@@ -341,8 +341,8 @@ impl RollForward {
             .try_for_each(|(snap_path, live_path)| {
                 // zfs diff sometimes doesn't pick up some rename events
                 // here we cleanup
-                eprintln!("DEBUG: Cleanup required {:?}::{:?}", snap_path, live_path);
-                Copy::recursive_quiet(&snap_path, &live_path, true)?;
+                eprintln!("DEBUG: Cleanup required {:?} -> {:?}", snap_path, live_path);
+                Self::copy(&snap_path, &live_path)?;
 
                 if GLOBAL_CONFIG.opt_debug {
                     HttmCopy::confirm(&snap_path, &live_path)?
