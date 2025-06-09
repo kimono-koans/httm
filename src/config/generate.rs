@@ -340,7 +340,7 @@ fn parse_args() -> ArgMatches {
                 .value_parser(clap::value_parser!(String))
                 .num_args(1)
                 .require_equals(true)
-                .help("'zfs rollback' is a destructive operation, whereas this operation is non-destructive. \
+                .help("whereas 'zfs rollback' is a destructive operation, this operation is non-destructive. \
                 This operation preserves interstitial snapshots, and requires a snapshot guard before taking any action.  \
                 If this flag is specified (along with the required snapshot name), \
                 httm will modify (copy and delete) those files and their attributes (preserving hard links) that have changed since the specified snapshot to the live dataset. \
