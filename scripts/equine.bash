@@ -129,7 +129,10 @@ function mount_remote() {
 
 	if [[ "$( mount | grep -c "$dirname" )" -eq 0 ]]; then
 		printf "%s\n" "Connecting to remote Time Machine: $server ..."
-		[[ -d "$dirname" ]] || mkdir -p "$dirname"
+		
+		[[ -d "$dirname" ]] || mkdir -p "$dirname" || \
+		print_err_exit "mkdir failed, likely because it was prevented by System Integrity Protection, may need to disable Filesystem Protections"
+		
 		mount_smbfs -o nobrowse "$server" "$dirname" 2>/dev/null || true
 	else
 		printf "%s\n" "Skip connecting to remote server, as Time Machine already mounted ..."
@@ -161,11 +164,16 @@ function mount_remote() {
 
 	[[ "$( mount | grep -c "$image_name" )" -gt 0 ]] || print_err_exit "Time machine disk image did not mount"
 
-	[[ -d "/Volumes/.timemachine/$uuid" ]] || mkdir -p "/Volumes/.timemachine/$uuid"
+	[[ -d "/Volumes/.timemachine/$uuid" ]] || mkdir -p "/Volumes/.timemachine/$uuid" || \
+	print_err_exit "mkdir failed, likely because it was prevented by System Integrity Protection, may need to disable Filesystem Protections"
+	
 	printf "%s\n" "Mounting snapshots..."
 	for snap in $( echo "$backups" | xargs basename ); do
-		[[ -d "/Volumes/.timemachine/$uuid/$snap" ]] || mkdir -p "/Volumes/.timemachine/$uuid/$snap"
+		[[ -d "/Volumes/.timemachine/$uuid/$snap" ]] || mkdir -p "/Volumes/.timemachine/$uuid/$snap" || \
+		print_err_exit "mkdir failed, likely because it was prevented by System Integrity Protection, may need to disable Filesystem Protections"
+		
 		printf "%s\n" "Mounting snapshot "com.apple.TimeMachine.$snap" from "$device" at "/Volumes/.timemachine/$uuid/$snap""
+		
 		[[ -d "/Volumes/.timemachine/$uuid/$snap" ]] && mount_apfs -o ro,nobrowse,noowners,noatime,nodev,nosuid -s "com.apple.TimeMachine.$snap" "$device" "/Volumes/.timemachine/$uuid/$snap" 2>/dev/null || true
 	done
 }
@@ -220,7 +228,8 @@ function mount_local() {
 
 		local snap_uuid="$( echo $snap | cut -d'.' -f4 )"
 		[[ -d "/Volumes/com.apple.TimeMachine.localsnapshots/Backups.backupdb/$hostname/$snap_uuid/Data" ]] || \
-		mkdir -p "/Volumes/com.apple.TimeMachine.localsnapshots/Backups.backupdb/$hostname/$snap_uuid/Data"
+		mkdir -p "/Volumes/com.apple.TimeMachine.localsnapshots/Backups.backupdb/$hostname/$snap_uuid/Data" || \
+		print_err_exit "mkdir failed, likely because it was prevented by System Integrity Protection, may need to disable Filesystem Protections"
 
 		printf "%s\n" "Mounting snapshot "$snap" from "$device" at "/Volumes/com.apple.TimeMachine.localsnapshots/Backups.backupdb/$hostname/$snap_uuid/Data""
 		[[ -d "/Volumes/com.apple.TimeMachine.localsnapshots/Backups.backupdb/$hostname/$snap_uuid/Data" ]] && \
