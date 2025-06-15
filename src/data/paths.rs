@@ -198,8 +198,7 @@ impl lscolors::Colorable for PathData {
         self.path_buf.file_name().unwrap_or_default().to_os_string()
     }
     fn file_type(&self) -> Option<FileType> {
-        self.opt_file_type
-            .or_else(|| self.metadata().map(|md| md.file_type()))
+        self.opt_file_type()
     }
     fn metadata(&self) -> Option<std::fs::Metadata> {
         self.path_buf.symlink_metadata().ok()
