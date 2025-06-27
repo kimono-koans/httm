@@ -356,9 +356,9 @@ impl<'a> RelativePathAndSnapMounts<'a> {
         //
         // for native searches the prefix is are the dirs below the most proximate dataset
         // for user specified dirs/aliases these are specified by the user
-        let opt_snap_mounts = if !GLOBAL_CONFIG.opt_debug && GLOBAL_CONFIG.opt_lazy {
+        if !GLOBAL_CONFIG.opt_debug && GLOBAL_CONFIG.opt_lazy {
             // now process snaps
-            GLOBAL_CONFIG
+            return GLOBAL_CONFIG
                 .dataset_collection
                 .map_of_datasets
                 .get(dataset_of_interest)
@@ -370,17 +370,21 @@ impl<'a> RelativePathAndSnapMounts<'a> {
                     )
                 })
                 .map(|snap_mounts| Cow::Owned(snap_mounts))
-        } else {
-            MAP_OF_SNAPS
-                .get(dataset_of_interest)
-                .map(|snap_mounts| Cow::Borrowed(snap_mounts.as_slice()))
-        };
+                .map(|snap_mounts| Self {
+                    relative_path,
+                    dataset_of_interest,
+                    snap_mounts,
+                });
+        }
 
-        opt_snap_mounts.map(|snap_mounts| Self {
-            relative_path,
-            dataset_of_interest,
-            snap_mounts,
-        })
+        MAP_OF_SNAPS
+            .get(dataset_of_interest)
+            .map(|snap_mounts| Cow::Borrowed(snap_mounts.as_slice()))
+            .map(|snap_mounts| Self {
+                relative_path,
+                dataset_of_interest,
+                snap_mounts,
+            })
     }
 
     #[inline(always)]
