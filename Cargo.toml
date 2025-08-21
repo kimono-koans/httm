@@ -31,30 +31,30 @@ malloc_trim = ["skim/malloc_trim", "libc"]
 licensing = ["lms", "itertools"]
 
 [target.'cfg(unix)'.dependencies]
-libc = { version = "0.2.172", default-features = false, optional = true }
+libc = { version = "0.2.175", default-features = false, optional = true }
 exacl = { version = "0.12.0", default-features = false, optional = true }
-xattr = { version = "1.5.0", default-features = false, optional = true }
+xattr = { version = "1.5.1", default-features = false, optional = true }
 
 [dependencies]
 foldhash = { version = "0.1.5", default-features = false }
-clap = { version = "4.5.39", default-features = true, features = ["cargo"] }
+clap = { version = "4.5.45", default-features = true, features = ["cargo"] }
 crossbeam-channel = { version = "0.5.15", default-features = false }
 time = { version = "0.3.41", default-features = false, features = [
     "formatting",
     "local-offset",
 ] }
 unit-prefix = { version = "0.5.1", default-features = false }
-skim = { version = "0.12.15", default-features = false, package = "two_percent" }
+skim = { version = "0.12.16", default-features = false, package = "two_percent" }
 nu-ansi-term = { version = "0.50.1", default-features = false }
 lscolors = { version = "0.20.0", default-features = false, features = [
     "nu-ansi-term",
 ] }
-terminal_size = { version = "0.4.2", default-features = false }
+terminal_size = { version = "0.4.3", default-features = false }
 which = { version = "8.0.0", default-features = false, features = ["real-sys"] }
-rayon = { version = "1.10.0", default-features = false }
-indicatif = { version = "0.17.11", default-features = false }
+rayon = { version = "1.11.0", default-features = false }
+indicatif = { version = "0.18.0", default-features = false }
 proc-mounts = { version = "0.3.0", default-features = false }
-hashbrown = { version = "0.15.4", default-features = false, features = [
+hashbrown = { version = "0.15.5", default-features = false, features = [
     "rayon",
     "inline-more",
     "default-hasher",
@@ -64,7 +64,7 @@ nix = { version = "0.30.1", default-features = false, features = [
     "zerocopy",
 ] }
 serde = { version = "1.0.219", default-features = false, features = ["alloc"] }
-serde_json = { version = "1.0.140", default-features = false, features = [
+serde_json = { version = "1.0.143", default-features = false, features = [
     "alloc",
     "preserve_order",
 ] }
@@ -75,8 +75,8 @@ realpath-ext = { version = "0.1.3", default-features = false, features = [
 lms = { version = "0.4.0", default-features = false, optional = true }
 itertools = { version = "0.14.0", default-features = false, optional = true }
 
-[patch.crates-io]
-indicatif = { git = "https://github.com/console-rs/indicatif" }
+#[patch.crates-io]
+#indicatif = { git = "https://github.com/console-rs/indicatif" }
 
 [package.metadata.deb]
 maintainer = "kimono koans <https://github.com/kimono-koans/>"
