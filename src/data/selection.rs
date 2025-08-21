@@ -77,7 +77,7 @@ impl SelectionCandidate {
         Ok(output_buf)
     }
 
-    pub fn display_name(&self) -> Cow<str> {
+    pub fn display_name(&self) -> Cow<'_, str> {
         static PWD_DIR: LazyLock<&Path> = LazyLock::new(|| GLOBAL_CONFIG.pwd.as_ref());
 
         static PWD_DIR_PARENT: LazyLock<Option<&Path>> =
@@ -109,13 +109,13 @@ impl Colorable for SelectionCandidate {
 }
 
 impl SkimItem for SelectionCandidate {
-    fn text(&self) -> Cow<str> {
+    fn text(&self) -> Cow<'_, str> {
         self.display_name()
     }
     fn display(&self, _context: DisplayContext<'_>) -> AnsiString {
         AnsiString::parse(&self.paint_string().to_string())
     }
-    fn output(&self) -> Cow<str> {
+    fn output(&self) -> Cow<'_, str> {
         self.path.to_string_lossy()
     }
     fn preview(&self, _: PreviewContext<'_>) -> skim::ItemPreview {

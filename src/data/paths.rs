@@ -172,7 +172,7 @@ impl BasicDirEntryInfo {
 }
 
 pub trait PathDeconstruction<'a> {
-    fn alias(&self) -> Option<AliasedPath>;
+    fn alias(&self) -> Option<AliasedPath<'_>>;
     fn target(&self, proximate_dataset_mount: &Path) -> Option<Box<Path>>;
     fn source(&self, opt_proximate_dataset_mount: Option<&Path>) -> Option<Box<Path>>;
     fn fs_type(&self, opt_proximate_dataset_mount: Option<&Path>) -> Option<FilesystemType>;
@@ -347,7 +347,7 @@ impl PathData {
 }
 
 impl<'a> PathDeconstruction<'a> for PathData {
-    fn alias(&self) -> Option<AliasedPath> {
+    fn alias(&self) -> Option<AliasedPath<'_>> {
         // find_map_first should return the first seq result with a par_iter
         // but not with a par_bridge
         GLOBAL_CONFIG
@@ -482,7 +482,7 @@ impl<'a> ZfsSnapPathGuard<'a> {
 }
 
 impl<'a> PathDeconstruction<'a> for ZfsSnapPathGuard<'_> {
-    fn alias(&self) -> Option<AliasedPath> {
+    fn alias(&self) -> Option<AliasedPath<'_>> {
         // aliases aren't allowed for snap paths
         None
     }

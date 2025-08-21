@@ -234,7 +234,7 @@ pub trait PaintString {
     fn paint_string<'a>(&'a self) -> AnsiString<'a>;
     fn ls_style(&self) -> Option<lscolors::style::Style>;
     fn is_phantom(&self) -> bool;
-    fn name(&self) -> Cow<str>;
+    fn name(&self) -> Cow<'_, str>;
 }
 
 impl PaintString for PathData {
@@ -247,7 +247,7 @@ impl PaintString for PathData {
     fn is_phantom(&self) -> bool {
         self.opt_metadata().is_none()
     }
-    fn name(&self) -> Cow<str> {
+    fn name(&self) -> Cow<'_, str> {
         self.path().to_string_lossy()
     }
 }
@@ -262,7 +262,7 @@ impl PaintString for SelectionCandidate {
     fn is_phantom(&self) -> bool {
         self.opt_filetype().is_none()
     }
-    fn name(&self) -> Cow<str> {
+    fn name(&self) -> Cow<'_, str> {
         let mut display_name = self.display_name().to_string();
 
         match self.opt_filetype() {
