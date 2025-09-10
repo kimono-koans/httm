@@ -16,7 +16,7 @@ maintenance = { status = "actively-developed" }
 
 [profile.deb]
 lto = true
-opt-level = "z"
+opt-level = "s"
 codegen-units = 1
 panic = "abort"
 inherits = "release"
@@ -36,10 +36,10 @@ exacl = { version = "0.12.0", default-features = false, optional = true }
 xattr = { version = "1.5.1", default-features = false, optional = true }
 
 [dependencies]
-foldhash = { version = "0.1.5", default-features = false }
-clap = { version = "4.5.45", default-features = true, features = ["cargo"] }
+foldhash = { version = "0.2.0", default-features = false }
+clap = { version = "4.5.47", default-features = true, features = ["cargo"] }
 crossbeam-channel = { version = "0.5.15", default-features = false }
-time = { version = "0.3.41", default-features = false, features = [
+time = { version = "0.3.43", default-features = false, features = [
     "formatting",
     "local-offset",
 ] }
@@ -54,7 +54,7 @@ which = { version = "8.0.0", default-features = false, features = ["real-sys"] }
 rayon = { version = "1.11.0", default-features = false }
 indicatif = { version = "0.18.0", default-features = false }
 proc-mounts = { version = "0.3.0", default-features = false }
-hashbrown = { version = "0.15.5", default-features = false, features = [
+hashbrown = { version = "0.16.0", default-features = false, features = [
     "rayon",
     "inline-more",
     "default-hasher",
