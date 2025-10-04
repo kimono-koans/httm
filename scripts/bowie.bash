@@ -189,7 +189,7 @@ display_diff_file() {
 
 	if [[ -n "$_alt_bowie_command" && -n "$previous_version" ]]; then
 		# print that current version and previous version differ, or are the same
-		(diff --color=always -q --label "$previous_version" <( "$_alt_bowie_command" "$previous_version" ) --label "$current_version" <( "$_alt_bowie_command" "$current_version" ) || true)
+		(diff --color=always -q "$previous_version" "$current_version" || true)
 		# print the difference between that current version and previous_version
 		(diff --color=always -T --label "$previous_version" <( "$_alt_bowie_command" "$previous_version" ) --label "$current_version" <( "$_alt_bowie_command" "$current_version" ) || true)
 	elif [[ -n "$previous_version" ]]; then
@@ -208,9 +208,11 @@ display_diff_directory() {
 
 	if [[ -n "$previous_version" ]]; then
 		# print that current version and previous version differ, or are the same
-		(diff --color=always -rq --label "$previous_version" <( tree "$previous_version" | tail -n +2 ) --label "$current_version" <( tree "$current_version" | tail -n +2 ) || true)
+		local diff="$((diff --color=always -rq "$previous_version" "$current_version" 2>&1 | head -1 ) || true)"
 		# print the difference between that current version and previous_version
-		(diff --color=always -T --label "$previous_version" <( tree "$previous_version" | tail -n +2 ) --label "$current_version" <( tree "$current_version" | tail -n +2 ) || true)
+		[[ -z "$diff" ]] || printf "Directories "$previous_version" and "$current_version" differ\n" && \
+			(diff --color=always -T --label "$previous_version" <( tree -Ra "$previous_version" | tail -n +2 ) --label "$current_version" <( tree -Ra "$current_version" | tail -n +2 ) || true)
+
 	else
 		print_err "No previous snapshot version available for: $current_version"
 	fi
