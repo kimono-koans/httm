@@ -155,7 +155,7 @@ show_single_change() {
 
 	display_header "$current_version"
 	check_not_identical "$previous_version" "$current_version"
-	display_diff "$previous_version" "$current_version"
+	display_diff_file "$previous_version" "$current_version"
 }
 
 show_direct() {
@@ -169,7 +169,7 @@ show_direct() {
 	elif [[ -z "$(diff -q "$previous_version" "$current_version")" ]]; then
 		printf "The selected/last snapshot version and live file are 'diff'-identical, but have different modification times.  Perhaps try --all."
 	else
-		display_diff "$previous_version" "$current_version"
+		display_diff_file "$previous_version" "$current_version"
 	fi
 }
 
@@ -284,7 +284,7 @@ exec_main() {
 			continue
 		fi
 
-		if [[ ! -f "${canonical_path}" ]] && [[ ! -z "$_alt_bowie_command" ]] ; then
+		if [[ ! -f "${canonical_path}" ]] && [[ -n "$_alt_bowie_command" ]] ; then
 			print_err "Skipping path which is not a file when --command is set: "$a"."
 			continue
 		fi
