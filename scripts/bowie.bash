@@ -172,8 +172,8 @@ show_direct() {
 	elif [[ -z "$(diff -q "$previous_version" "$current_version")" ]]; then
 		printf "The selected/last snapshot version and live file are 'diff'-identical, but have different modification times.  Perhaps try --all."
 	else
-		[[ ! -f "$current_version" ]] || display_diff_file "$previous_version" "$current_version"
-		[[ -f "$current_version" ]] || display_diff_directory "$previous_version" "$current_version"
+		display_diff_file "$previous_version" "$current_version"
+		#[[ -f "$current_version" ]] || display_diff_directory "$previous_version" "$current_version"
 	fi
 }
 
