@@ -155,7 +155,10 @@ show_single_change() {
 
 	display_header "$current_version"
 	check_not_identical "$previous_version" "$current_version"
-	display_diff_file "$previous_version" "$current_version"
+
+	[[ ! -f "$current_version" ]] || display_diff_file "$previous_version" "$current_version"
+	[[ -f "$current_version" ]] || display_diff_directory "$previous_version" "$current_version"
+
 }
 
 show_direct() {
@@ -169,7 +172,8 @@ show_direct() {
 	elif [[ -z "$(diff -q "$previous_version" "$current_version")" ]]; then
 		printf "The selected/last snapshot version and live file are 'diff'-identical, but have different modification times.  Perhaps try --all."
 	else
-		display_diff_file "$previous_version" "$current_version"
+		[[ ! -f "$current_version" ]] || display_diff_file "$previous_version" "$current_version"
+		[[ -f "$current_version" ]] || display_diff_directory "$previous_version" "$current_version"
 	fi
 }
 
@@ -208,10 +212,10 @@ display_diff_directory() {
 
 	if [[ -n "$previous_version" ]]; then
 		# print that current version and previous version differ, or are the same
-		local diff="$((diff --color=always -rq "$previous_version" "$current_version" 2>&1 | head -1 ) || true)"
+		local diff_head="$((diff --color=always -rq "$previous_version" "$current_version" 2>/dev/null | head -1 ) || true)"
 		# print the difference between that current version and previous_version
-		[[ -z "$diff" ]] || printf "Directories "$previous_version" and "$current_version" differ\n" && \
-			(diff --color=always -T --label "$previous_version" <( tree -Ra "$previous_version" | tail -n +2 ) --label "$current_version" <( tree -Ra "$current_version" | tail -n +2 ) || true)
+		[[ -z "$diff_head" ]] || printf "Directories "$previous_version" and "$current_version" differ\n" && \
+			(diff --color=always -T --label "$previous_version" <( tree -RDsa "$previous_version" | tail -n +2 ) --label "$current_version" <( tree -RDsa "$current_version" | tail -n +2 ) || true)
 
 	else
 		print_err "No previous snapshot version available for: $current_version"
