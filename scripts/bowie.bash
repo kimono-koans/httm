@@ -84,16 +84,26 @@ prep_exec() {
 		command -v httm
 		exit 0
 	)" ]] || print_err_exit "'httm' is required to execute 'bowie'.  Please check that 'httm' is in your path."
+	[[ -n "$(
+		command -v tree
+		exit 0
+	)" ]] || print_err_exit "'tree' is required to execute 'bowie'.  Please check that 'tree' is in your path."
 }
 
 show_all_changes() {
 	local filename="$1"
 	local previous_version=""
 	local -a all_versions
+	local dedup_by=""
+
+	[[ ! -f "$filename" ]] || dedup_by="contents"
+	[[ -f "$filename" ]] || dedup_by="disable"
+
 
 	while read -r line; do
 		all_versions+=("$line")
-	done <<<"$(httm -n --dedup-by=contents --omit-ditto "$filename")"
+	done <<<"$(httm -n --dedup-by="$dedup_by" --omit-ditto "$filename")"
+
 
 	# check if versions array is not empty
 	if [[ ${#all_versions[@]} -eq 0 ]]; then
@@ -113,7 +123,8 @@ show_all_changes() {
 			continue
 		fi
 
-		display_diff "$previous_version" "$current_version"
+		[[ ! -f "$filename" ]] || display_diff_file "$previous_version" "$current_version"
+		[[ -f "$filename" ]] || display_diff_directory "$previous_version" "$current_version"
 
 		# set current_version to previous_version
 		previous_version="$current_version"
@@ -172,20 +183,34 @@ __
 
 }
 
-display_diff() {
+display_diff_file() {
 	local previous_version="$1"
 	local current_version="$2"
 
 	if [[ -n "$_alt_bowie_command" && -n "$previous_version" ]]; then
 		# print that current version and previous version differ, or are the same
-		(diff --color=always -q <( "$_alt_bowie_command" "$previous_version" ) <( "$_alt_bowie_command" "$current_version" ) || true)
+		(diff --color=always -q --label "$previous_version" <( "$_alt_bowie_command" "$previous_version" ) --label "$current_version" <( "$_alt_bowie_command" "$current_version" ) || true)
 		# print the difference between that current version and previous_version
-		(diff --color=always -T <( "$_alt_bowie_command" "$previous_version" ) <( "$_alt_bowie_command" "$current_version" ) || true)
+		(diff --color=always -T --label "$previous_version" <( "$_alt_bowie_command" "$previous_version" ) --label "$current_version" <( "$_alt_bowie_command" "$current_version" ) || true)
 	elif [[ -n "$previous_version" ]]; then
 		# print that current version and previous version differ, or are the same
 		(diff --color=always -q "$previous_version" "$current_version" || true)
 		# print the difference between that current version and previous_version
 		(diff --color=always -T "$previous_version" "$current_version" || true)
+	else
+		print_err "No previous snapshot version available for: $current_version"
+	fi
+}
+
+display_diff_directory() {
+	local previous_version="$1"
+	local current_version="$2"
+
+	if [[ -n "$previous_version" ]]; then
+		# print that current version and previous version differ, or are the same
+		(diff --color=always -rq --label "$previous_version" <( tree "$previous_version" | tail -n +2 ) --label "$current_version" <( tree "$current_version" | tail -n +2 ) || true)
+		# print the difference between that current version and previous_version
+		(diff --color=always -T --label "$previous_version" <( tree "$previous_version" | tail -n +2 ) --label "$current_version" <( tree "$current_version" | tail -n +2 ) || true)
 	else
 		print_err "No previous snapshot version available for: $current_version"
 	fi
@@ -257,8 +282,8 @@ exec_main() {
 			continue
 		fi
 
-		if [[ ! -f "${canonical_path}" ]]; then
-			print_err "Skipping path which is not a file: "$a"."
+		if [[ ! -f "${canonical_path}" ]] && [[ ! -z "$_alt_bowie_command" ]] ; then
+			print_err "Skipping path which is not a file when --command is set: "$a"."
 			continue
 		fi
 
