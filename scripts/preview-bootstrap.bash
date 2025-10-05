@@ -21,7 +21,7 @@ set -euf -o pipefail
 #set -x
 
 print_err_exit() {
-	print_err "$@"
+	print_err "${@}"
 	exit 1
 }
 
@@ -30,7 +30,7 @@ print_err() {
 }
 
 print_warn_exit() {
-	print_warn "$@"
+	print_warn "${@}"
 	exit 0
 }
 

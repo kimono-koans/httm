@@ -120,7 +120,7 @@ function run_loop() {
 
     local sudo_program="$( prep_sudo )"
 
-    for f in "$@"; do
+    for f in "${@}"; do
 
         local file_name=""
         file_name="$( readlink -e "$f" 2>/dev/null; exit 0 )"
@@ -142,4 +142,4 @@ function run_loop() {
 
 }
 
-run_loop "$@"
+run_loop "${@}"

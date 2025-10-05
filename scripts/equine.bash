@@ -69,7 +69,7 @@ OPTIONS:
 }
 
 print_err_exit() {
-	print_err "$@"
+	print_err "${@}"
 	exit 1
 }
 
@@ -274,4 +274,4 @@ function exec_equine() {
 	done
 }
 
-exec_equine "$@"
+exec_equine "${@}"

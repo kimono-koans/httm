@@ -57,7 +57,7 @@ OPTIONS:
 }
 
 print_err_exit() {
-	print_err "$@"
+	print_err "${@}"
 	exit 1
 }
 
@@ -323,4 +323,4 @@ function nicotine {
 
 }
 
-nicotine "$@"
+nicotine "${@}"

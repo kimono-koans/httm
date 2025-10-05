@@ -66,7 +66,7 @@ OPTIONS:
 }
 
 print_err_exit() {
-	print_err "$@"
+	print_err "${@}"
 	exit 1
 }
 
@@ -303,4 +303,4 @@ exec_main() {
 	done
 }
 
-exec_main "$@"
+exec_main "${@}"
