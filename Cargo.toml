@@ -89,6 +89,7 @@ depends = ["libc6"]
 recommends = [
     "bash",
     "coreutils",
+    "findutils",
     "grep",
     "tree",
     "strace",
