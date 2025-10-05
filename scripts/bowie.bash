@@ -84,10 +84,6 @@ prep_exec() {
 		command -v httm
 		exit 0
 	)" ]] || print_err_exit "'httm' is required to execute 'bowie'.  Please check that 'httm' is in your path."
-	[[ -n "$(
-		command -v tree
-		exit 0
-	)" ]] || print_err_exit "'tree' is required to execute 'bowie'.  Please check that 'tree' is in your path."
 }
 
 show_all_changes() {
@@ -207,6 +203,11 @@ display_diff_file() {
 }
 
 display_diff_directory() {
+	[[ -n "$(
+		command -v tree
+		exit 0
+	)" ]] || print_err_exit "'tree' is required to execute 'bowie' on directories.  Please check that 'tree' is in your path."
+
 	local previous_version="$1"
 	local current_version="$2"
 
