@@ -380,7 +380,7 @@ function ounce_of_prevention {
 		background_pid="$!"
 
 		# main exec
-		stdbuf -i0 -o0 -e0 strace -A -o "| stdbuf -i0 -o0 -e0 cat -u > $temp_pipe" -f -e open,openat,openat2 -y --seccomp-bpf -- "$program_name" "$@"
+		stdbuf -i0 -o0 -e0 strace -A -o "| stdbuf -i0 -o0 -e0 cat -u > $temp_pipe" -f -e open,openat,openat2 -y --seccomp-bpf -- "$program_name" "${@}"
 
 		# cleanup
 		wait "$background_pid"
@@ -388,24 +388,24 @@ function ounce_of_prevention {
 		local background_pid
 
 		log_info "ounce session opened in background mode with: $program_name"
-		exec_args "$@" &
+		exec_args "${@}" &
 		background_pid="$!"
 
-		"$program_name" "$@"
+		"$program_name" "${@}"
 
 		wait "$background_pid"
 	elif $direct; then
 		log_info "ounce session opened in direct mode"
-		exec_args "$@"
+		exec_args "${@}"
 	else
 		# check the program name is executable
 		[[ -x "$program_name" ]] || print_err_exit "'ounce' requires a valid executable name as the first argument."
 		log_info "ounce session opened in wrapper mode with: $program_name"
-		exec_args "$@"
-		"$program_name" "$@"
+		exec_args "${@}"
+		"$program_name" "${@}"
 	fi
 
 	log_info "ounce session closed"
 }
 
-ounce_of_prevention "$@"
+ounce_of_prevention "${@}"
