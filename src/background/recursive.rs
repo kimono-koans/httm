@@ -142,14 +142,14 @@ impl<'a> RecursiveSearch<'a> {
     fn add_dot_entries(&self) -> HttmResult<()> {
         let dot_as_entry = BasicDirEntryInfo::new(
             self.requested_dir,
-            Some(self.requested_dir.metadata()?.file_type()),
+            Some(self.requested_dir.symlink_metadata()?.file_type()),
         );
 
         let mut initial_vec_dirs = vec![dot_as_entry];
 
         if let Some(parent) = self.requested_dir.parent() {
             let double_dot_as_entry =
-                BasicDirEntryInfo::new(parent, Some(parent.metadata()?.file_type()));
+                BasicDirEntryInfo::new(parent, Some(parent.symlink_metadata()?.file_type()));
 
             initial_vec_dirs.push(double_dot_as_entry)
         }
