@@ -267,6 +267,7 @@ impl<'a> HttmIsDir<'a> for BasicDirEntryInfo {
         //  why not store the error in the struct instead?  because it's more complex.  it might
         //  make it harder to copy around etc
         self.opt_filetype()
+            .copied()
             .ok_or_else(|| std::io::Error::from(std::io::ErrorKind::NotFound))
     }
     fn path(&'a self) -> &'a Path {

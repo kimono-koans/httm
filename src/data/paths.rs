@@ -121,8 +121,8 @@ impl BasicDirEntryInfo {
         &self.path
     }
 
-    pub fn opt_filetype(&self) -> Option<FileType> {
-        self.opt_filetype.clone()
+    pub fn opt_filetype(&self) -> Option<&FileType> {
+        self.opt_filetype.as_ref()
     }
 
     pub fn opt_metadata(&self) -> Option<Metadata> {
@@ -312,7 +312,7 @@ impl From<&SelectionCandidate> for PathData {
             path_buf: selection_candidate.path().into(),
             opt_path_metadata,
             opt_style,
-            opt_file_type: selection_candidate.opt_filetype(),
+            opt_file_type: selection_candidate.opt_filetype().copied(),
         }
     }
 }

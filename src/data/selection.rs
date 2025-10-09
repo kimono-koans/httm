@@ -62,8 +62,8 @@ impl SelectionCandidate {
         &self.path
     }
 
-    pub fn opt_filetype(&self) -> Option<FileType> {
-        self.opt_filetype.clone()
+    pub fn opt_filetype(&self) -> Option<&FileType> {
+        self.opt_filetype.as_ref()
     }
 
     pub fn opt_metadata(&self) -> Option<&Metadata> {
@@ -115,7 +115,7 @@ impl lscolors::Colorable for SelectionCandidate {
         self.path().file_name().unwrap_or_default().to_os_string()
     }
     fn file_type(&self) -> Option<FileType> {
-        self.opt_filetype()
+        self.opt_filetype().copied()
     }
     fn metadata(&self) -> Option<std::fs::Metadata> {
         self.path().symlink_metadata().ok()
