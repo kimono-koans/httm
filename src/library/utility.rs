@@ -24,7 +24,7 @@ use lscolors::{LsColors, Style};
 use nu_ansi_term::AnsiString;
 use std::borrow::Cow;
 use std::cell::RefMut;
-use std::fs::{FileType, Metadata};
+use std::fs::FileType;
 use std::hash::Hash;
 use std::io::Write;
 use std::iter::Iterator;
@@ -133,11 +133,11 @@ pub fn print_output_buf(output_buf: &str) -> HttmResult<()> {
     out_locked.flush().map_err(std::convert::Into::into)
 }
 
-pub fn was_previously_listed<'a, T: HttmIsDir<'a> + ?Sized>(
-    entry: &'a T,
+pub fn was_previously_listed<T: AsRef<Path>>(
+    entry: &T,
     opt_path_map: Option<&mut RefMut<'_, hashbrown::HashSet<UniqueInode>>>,
 ) -> Option<bool> {
-    let file_id = UniqueInode::new(entry)?;
+    let file_id = UniqueInode::new(entry.path())?;
 
     let path_map = opt_path_map?;
 
@@ -150,8 +150,8 @@ pub struct UniqueInode {
 }
 
 impl UniqueInode {
-    fn new<'a, T: HttmIsDir<'a> + ?Sized>(entry: &'a T) -> Option<Self> {
-        let entry_metadata = entry.metadata()?;
+    fn new<T: AsRef<Path> + ?Sized>(entry: &T) -> Option<Self> {
+        let entry_metadata = entry.path().metadata().ok()?;
 
         Some(Self {
             ino: entry_metadata.ino(),
@@ -214,7 +214,6 @@ pub trait HttmIsDir<'a> {
     ) -> bool;
     fn file_type(&self) -> Result<FileType, std::io::Error>;
     fn path(&'a self) -> &'a Path;
-    fn metadata(&'a self) -> Option<Metadata>;
 }
 
 impl<T: AsRef<Path>> HttmIsDir<'_> for T {
@@ -229,9 +228,6 @@ impl<T: AsRef<Path>> HttmIsDir<'_> for T {
     }
     fn path(&self) -> &Path {
         self.as_ref()
-    }
-    fn metadata(&'_ self) -> Option<Metadata> {
-        self.path().symlink_metadata().ok()
     }
 }
 
@@ -253,9 +249,6 @@ impl<'a> HttmIsDir<'a> for PathData {
     fn path(&'a self) -> &'a Path {
         &self.path()
     }
-    fn metadata(&'_ self) -> Option<Metadata> {
-        self.path().symlink_metadata().ok()
-    }
 }
 
 impl<'a> HttmIsDir<'a> for BasicDirEntryInfo {
@@ -274,10 +267,6 @@ impl<'a> HttmIsDir<'a> for BasicDirEntryInfo {
     }
     fn path(&'a self) -> &'a Path {
         &self.path()
-    }
-    fn metadata(&'_ self) -> Option<Metadata> {
-        self.opt_metadata()
-            .or_else(|| self.path().symlink_metadata().ok())
     }
 }
 

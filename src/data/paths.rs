@@ -142,7 +142,7 @@ impl BasicDirEntryInfo {
         match opt_path_map {
             Some(path_map) => match path_map.try_borrow_mut() {
                 Ok(mut locked) => {
-                    match was_previously_listed(self, Some(&mut locked)) {
+                    match was_previously_listed(&self.path(), Some(&mut locked)) {
                         Some(was_previously_listed) if was_previously_listed => {
                             return false;
                         }
