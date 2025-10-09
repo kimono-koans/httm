@@ -136,21 +136,21 @@ pub fn print_output_buf(output_buf: &str) -> HttmResult<()> {
 
 pub fn was_previously_listed<'a, T: HttmIsDir<'a> + ?Sized>(
     entry: &'a T,
-    opt_path_map: Option<&mut MutexGuard<HashSet<UniqueFile>>>,
+    opt_path_map: Option<&mut MutexGuard<HashSet<UniqueInode>>>,
 ) -> Option<bool> {
-    let file_id = UniqueFile::new(entry)?;
+    let file_id = UniqueInode::new(entry)?;
 
     let path_map = opt_path_map?;
 
     Some(!path_map.insert(file_id))
 }
 
-pub struct UniqueFile {
+pub struct UniqueInode {
     ino: u64,
     dev: u64,
 }
 
-impl UniqueFile {
+impl UniqueInode {
     fn new<'a, T: HttmIsDir<'a> + ?Sized>(entry: &'a T) -> Option<Self> {
         Some(Self {
             ino: entry.metadata()?.ino(),
@@ -159,15 +159,15 @@ impl UniqueFile {
     }
 }
 
-impl PartialEq for UniqueFile {
+impl PartialEq for UniqueInode {
     fn eq(&self, other: &Self) -> bool {
         self.ino == other.ino && self.dev == other.dev
     }
 }
 
-impl Eq for UniqueFile {}
+impl Eq for UniqueInode {}
 
-impl Hash for UniqueFile {
+impl Hash for UniqueInode {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.ino.hash(state);
         self.dev.hash(state);
@@ -177,7 +177,7 @@ impl Hash for UniqueFile {
 // is this path/dir_entry something we should count as a directory for our purposes?
 pub fn httm_is_dir<'a, T>(
     entry: &'a T,
-    opt_path_map: Option<&mut MutexGuard<HashSet<UniqueFile>>>,
+    opt_path_map: Option<&mut MutexGuard<HashSet<UniqueInode>>>,
 ) -> bool
 where
     T: HttmIsDir<'a> + ?Sized,
@@ -207,14 +207,14 @@ where
 }
 
 pub trait HttmIsDir<'a> {
-    fn httm_is_dir(&self, path_map: Option<&mut MutexGuard<HashSet<UniqueFile>>>) -> bool;
+    fn httm_is_dir(&self, path_map: Option<&mut MutexGuard<HashSet<UniqueInode>>>) -> bool;
     fn file_type(&self) -> Result<FileType, std::io::Error>;
     fn path(&'a self) -> &'a Path;
     fn metadata(&'a self) -> Option<Metadata>;
 }
 
 impl<T: AsRef<Path>> HttmIsDir<'_> for T {
-    fn httm_is_dir(&self, path_map: Option<&mut MutexGuard<HashSet<UniqueFile>>>) -> bool {
+    fn httm_is_dir(&self, path_map: Option<&mut MutexGuard<HashSet<UniqueInode>>>) -> bool {
         httm_is_dir(self, path_map)
     }
     fn file_type(&self) -> Result<FileType, std::io::Error> {
@@ -229,7 +229,7 @@ impl<T: AsRef<Path>> HttmIsDir<'_> for T {
 }
 
 impl<'a> HttmIsDir<'a> for PathData {
-    fn httm_is_dir(&self, path_map: Option<&mut MutexGuard<HashSet<UniqueFile>>>) -> bool {
+    fn httm_is_dir(&self, path_map: Option<&mut MutexGuard<HashSet<UniqueInode>>>) -> bool {
         httm_is_dir(self, path_map)
     }
     fn file_type(&self) -> Result<FileType, std::io::Error> {
@@ -249,7 +249,7 @@ impl<'a> HttmIsDir<'a> for PathData {
 }
 
 impl<'a> HttmIsDir<'a> for BasicDirEntryInfo {
-    fn httm_is_dir(&self, path_map: Option<&mut MutexGuard<HashSet<UniqueFile>>>) -> bool {
+    fn httm_is_dir(&self, path_map: Option<&mut MutexGuard<HashSet<UniqueInode>>>) -> bool {
         httm_is_dir(self, path_map)
     }
     fn file_type(&self) -> Result<FileType, std::io::Error> {

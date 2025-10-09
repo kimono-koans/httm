@@ -30,7 +30,7 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
 //use std::thread::sleep;
-use crate::library::utility::UniqueFile;
+use crate::library::utility::UniqueInode;
 use hashbrown::HashSet;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -50,7 +50,7 @@ impl CommonSearch for &DeletedSearch {
         self.hangup.load(Ordering::Relaxed)
     }
 
-    fn opt_path_map(&self) -> Option<Arc<Mutex<HashSet<UniqueFile>>>> {
+    fn opt_path_map(&self) -> Option<Arc<Mutex<HashSet<UniqueInode>>>> {
         None
     }
 

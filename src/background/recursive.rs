@@ -20,7 +20,7 @@ use crate::config::generate::{DeletedMode, ExecMode};
 use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::display::wrapper::DisplayWrapper;
 use crate::library::results::{HttmError, HttmResult};
-use crate::library::utility::UniqueFile;
+use crate::library::utility::UniqueInode;
 use crate::library::utility::print_output_buf;
 use crate::lookup::deleted::DeletedFiles;
 use crate::{GLOBAL_CONFIG, VersionsMap};
@@ -44,7 +44,7 @@ pub struct RecursiveSearch<'a> {
     requested_dir: &'a Path,
     opt_skim_tx: Option<&'a SkimItemSender>,
     hangup: Arc<AtomicBool>,
-    path_map: Arc<Mutex<HashSet<UniqueFile>>>,
+    path_map: Arc<Mutex<HashSet<UniqueInode>>>,
 }
 
 impl<'a> RecursiveSearch<'a> {
@@ -53,7 +53,7 @@ impl<'a> RecursiveSearch<'a> {
         opt_skim_tx: Option<&'a SkimItemSender>,
         hangup: Arc<AtomicBool>,
     ) -> Self {
-        let path_map: Arc<Mutex<HashSet<UniqueFile>>> = Arc::new(Mutex::new(HashSet::new()));
+        let path_map: Arc<Mutex<HashSet<UniqueInode>>> = Arc::new(Mutex::new(HashSet::new()));
 
         Self {
             requested_dir,
@@ -174,7 +174,7 @@ impl<'a> RecursiveSearch<'a> {
 
 pub trait CommonSearch {
     fn hangup(&self) -> bool;
-    fn opt_path_map(&self) -> Option<Arc<Mutex<HashSet<UniqueFile>>>>;
+    fn opt_path_map(&self) -> Option<Arc<Mutex<HashSet<UniqueInode>>>>;
     fn into_entries<'a>(&'a self, requested_dir: &'a Path) -> Entries<'a>;
     fn enter_directory(&self, requested_dir: &Path) -> HttmResult<Vec<BasicDirEntryInfo>>;
 }
@@ -188,7 +188,7 @@ impl CommonSearch for &RecursiveSearch<'_> {
         self.hangup.load(Ordering::Relaxed)
     }
 
-    fn opt_path_map(&self) -> Option<Arc<Mutex<HashSet<UniqueFile>>>> {
+    fn opt_path_map(&self) -> Option<Arc<Mutex<HashSet<UniqueInode>>>> {
         Some(self.path_map.clone())
     }
 
@@ -236,7 +236,7 @@ struct PathsPartitioned {
 impl PathsPartitioned {
     fn new(
         entries: &Entries,
-        opt_path_map: Option<Arc<Mutex<HashSet<UniqueFile>>>>,
+        opt_path_map: Option<Arc<Mutex<HashSet<UniqueInode>>>>,
     ) -> HttmResult<PathsPartitioned> {
         // separates entries into dirs and files
         let (vec_dirs, vec_files) = match entries.path_provenance {

@@ -22,7 +22,7 @@ use crate::filesystem::mounts::{FilesystemType, IsFilterDir, MaxLen};
 use crate::library::file_ops::ChecksumFileContents;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::ENV_LS_COLORS;
-use crate::library::utility::UniqueFile;
+use crate::library::utility::UniqueInode;
 use crate::library::utility::was_previously_listed;
 use crate::library::utility::{DateFormat, HttmIsDir, date_string, display_human_size};
 use crate::{
@@ -131,7 +131,7 @@ impl BasicDirEntryInfo {
             .and_then(|de| de.metadata().ok())
     }
 
-    pub fn is_entry_dir(&self, opt_path_map: Option<Arc<Mutex<HashSet<UniqueFile>>>>) -> bool {
+    pub fn is_entry_dir(&self, opt_path_map: Option<Arc<Mutex<HashSet<UniqueInode>>>>) -> bool {
         // must do is_dir() look up on DirEntry file_type() as look up on Path will traverse links!
         if GLOBAL_CONFIG.opt_no_traverse {
             if let Ok(file_type) = self.file_type() {
