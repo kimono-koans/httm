@@ -58,7 +58,7 @@ impl SelectionCandidate {
     }
 
     pub fn opt_filetype(&self) -> Option<FileType> {
-        self.opt_filetype
+        self.opt_filetype.clone()
     }
 
     fn preview_view(&self) -> HttmResult<String> {

@@ -103,7 +103,8 @@ impl BasicDirEntryInfo {
     pub fn new(path: &Path, opt_filetype: Option<FileType>) -> Self {
         Self {
             path: path.into(),
-            opt_filetype,
+            opt_filetype: opt_filetype
+                .or_else(|| path.symlink_metadata().ok().map(|md| md.file_type())),
             opt_dir_entry: None,
         }
     }
@@ -121,7 +122,7 @@ impl BasicDirEntryInfo {
     }
 
     pub fn opt_filetype(&self) -> Option<FileType> {
-        self.opt_filetype
+        self.opt_filetype.clone()
     }
 
     pub fn opt_metadata(&self) -> Option<Metadata> {
