@@ -30,6 +30,7 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
 //use std::thread::sleep;
+use crate::ExecMode;
 use crate::library::utility::UniqueInode;
 use hashbrown::HashSet;
 use std::sync::Arc;
@@ -117,40 +118,17 @@ impl DeletedSearch {
                 self.hangup_check()?;
                 let _ = self.enter_directory(&item.path(), &mut queue);
 
-                std::thread::yield_now();
+                if !matches!(
+                    GLOBAL_CONFIG.exec_mode,
+                    ExecMode::NonInteractiveRecursive(_)
+                ) {
+                    std::thread::yield_now();
+                }
             }
         }
 
         Ok(())
     }
-
-    /*     fn timeout_loop(&self) -> HttmResult<()> {
-        // yield to other rayon work on this worker thread
-
-        let mut timeout = 1;
-
-        loop {
-            match rayon::yield_local() {
-                Some(rayon::Yield::Executed) => {
-                    self.hangup_check()?;
-
-                    if timeout < 16 {
-                        timeout *= 2
-                    };
-
-                    // wait timeout ms and then continue
-                    sleep(std::time::Duration::from_millis(timeout));
-                    continue;
-                }
-                Some(rayon::Yield::Idle) => break,
-                None => unreachable!(
-                    "None should be impossible as this loop should only ever execute on a Rayon thread."
-                ),
-            }
-        }
-
-        Ok(())
-    } */
 
     fn hangup_check(&self) -> HttmResult<()> {
         if self.hangup() {

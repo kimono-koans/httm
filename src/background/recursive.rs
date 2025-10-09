@@ -125,7 +125,12 @@ impl<'a> RecursiveSearch<'a> {
                 // far too likely to run into a dir we don't have permissions to view
                 let _ = self.enter_directory(item.path(), &mut queue);
 
-                std::thread::yield_now();
+                if !matches!(
+                    GLOBAL_CONFIG.exec_mode,
+                    ExecMode::NonInteractiveRecursive(_)
+                ) {
+                    std::thread::yield_now();
+                }
             }
         }
 
