@@ -20,14 +20,15 @@ use crate::config::generate::{PrintMode, RawMode};
 use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::data::selection::SelectionCandidate;
 use crate::library::results::{HttmError, HttmResult};
+use hashbrown::HashSet;
 use lscolors::{LsColors, Style};
 use nu_ansi_term::AnsiString;
 use std::borrow::Cow;
-use std::fs::FileType;
+use std::fs::{FileType, Metadata};
 use std::io::Write;
 use std::iter::Iterator;
 use std::path::{Path, PathBuf};
-use std::sync::LazyLock;
+use std::sync::{LazyLock, Mutex};
 use std::time::SystemTime;
 use time::{OffsetDateTime, UtcOffset, format_description};
 use unit_prefix::NumberPrefix;
@@ -135,7 +136,11 @@ pub fn httm_is_dir<'a, T>(entry: &'a T) -> bool
 where
     T: HttmIsDir<'a> + ?Sized,
 {
-    let path = entry.path();
+    match was_previously_listed(entry) {
+        Some(was_previously_listed) if was_previously_listed => return false,
+        Some(_) => (),
+        None => return false,
+    }
 
     match entry.file_type() {
         Ok(file_type) => match file_type {
@@ -143,11 +148,13 @@ where
             file_type if file_type.is_file() => false,
             file_type if file_type.is_symlink() => {
                 // canonicalize will read_link/resolve the link for us
-                match path.canonicalize() {
+                match entry.path().read_link() {
                     Ok(link_target) if !link_target.is_dir() => false,
-                    Ok(link_target) => {
-                        find_common_path([link_target, path.to_path_buf()].into_iter()).is_none()
-                    }
+                    Ok(link_target) => match was_previously_listed(&link_target) {
+                        Some(was_previously_listed) if was_previously_listed => return false,
+                        Some(_) => true,
+                        None => return false,
+                    },
                     // we get an error? still pass the path on, as we get a good path from the dir entry
                     _ => false,
                 }
@@ -158,10 +165,61 @@ where
         _ => false,
     }
 }
+
+use std::hash::Hash;
+use std::os::unix::fs::MetadataExt;
+
+struct UniqueFile {
+    ino: u64,
+    dev: u64,
+}
+
+impl UniqueFile {
+    fn new<'a, T: HttmIsDir<'a> + ?Sized>(entry: &'a T) -> Option<Self> {
+        Some(Self {
+            ino: entry.metadata()?.ino(),
+            dev: entry.metadata()?.dev(),
+        })
+    }
+}
+
+impl PartialEq for UniqueFile {
+    fn eq(&self, other: &Self) -> bool {
+        self.ino == other.ino && self.dev == other.dev
+    }
+}
+
+impl Eq for UniqueFile {}
+
+impl Hash for UniqueFile {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.ino.hash(state);
+        self.dev.hash(state);
+    }
+}
+
+fn was_previously_listed<'a, T: HttmIsDir<'a> + ?Sized>(entry: &'a T) -> Option<bool> {
+    static DEREF_PATH_MAP: LazyLock<Mutex<HashSet<UniqueFile>>> =
+        LazyLock::new(|| Mutex::new(HashSet::new()));
+
+    let file_id = UniqueFile::new(entry)?;
+
+    match DEREF_PATH_MAP.lock() {
+        Ok(mut locked) => {
+            return Some(!locked.insert(file_id));
+        }
+        Err(_err) => {
+            DEREF_PATH_MAP.clear_poison();
+            return None;
+        }
+    }
+}
+
 pub trait HttmIsDir<'a> {
     fn httm_is_dir(&self) -> bool;
     fn file_type(&self) -> Result<FileType, std::io::Error>;
     fn path(&'a self) -> &'a Path;
+    fn metadata(&'a self) -> Option<Metadata>;
 }
 
 impl<T: AsRef<Path>> HttmIsDir<'_> for T {
@@ -173,6 +231,9 @@ impl<T: AsRef<Path>> HttmIsDir<'_> for T {
     }
     fn path(&self) -> &Path {
         self.as_ref()
+    }
+    fn metadata(&'_ self) -> Option<Metadata> {
+        self.path().symlink_metadata().ok()
     }
 }
 
@@ -191,6 +252,9 @@ impl<'a> HttmIsDir<'a> for PathData {
     fn path(&'a self) -> &'a Path {
         &self.path()
     }
+    fn metadata(&'_ self) -> Option<Metadata> {
+        self.path().symlink_metadata().ok()
+    }
 }
 
 impl<'a> HttmIsDir<'a> for BasicDirEntryInfo {
@@ -206,6 +270,9 @@ impl<'a> HttmIsDir<'a> for BasicDirEntryInfo {
     }
     fn path(&'a self) -> &'a Path {
         &self.path()
+    }
+    fn metadata(&'_ self) -> Option<Metadata> {
+        self.path().symlink_metadata().ok()
     }
 }
 
