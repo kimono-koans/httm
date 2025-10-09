@@ -20,15 +20,18 @@ use crate::config::generate::{DeletedMode, ExecMode};
 use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::display::wrapper::DisplayWrapper;
 use crate::library::results::{HttmError, HttmResult};
+use crate::library::utility::UniqueFile;
 use crate::library::utility::print_output_buf;
 use crate::lookup::deleted::DeletedFiles;
 use crate::{GLOBAL_CONFIG, VersionsMap};
+use hashbrown::HashSet;
 use rayon::{Scope, ThreadPool};
 use skim::SkimItem;
 use skim::prelude::*;
 use std::fs::read_dir;
 use std::path::Path;
 use std::sync::Arc;
+use std::sync::Mutex;
 use std::sync::atomic::AtomicBool;
 
 #[derive(Clone, Copy)]
@@ -41,6 +44,7 @@ pub struct RecursiveSearch<'a> {
     requested_dir: &'a Path,
     opt_skim_tx: Option<&'a SkimItemSender>,
     hangup: Arc<AtomicBool>,
+    path_map: Arc<Mutex<HashSet<UniqueFile>>>,
 }
 
 impl<'a> RecursiveSearch<'a> {
@@ -49,10 +53,13 @@ impl<'a> RecursiveSearch<'a> {
         opt_skim_tx: Option<&'a SkimItemSender>,
         hangup: Arc<AtomicBool>,
     ) -> Self {
+        let path_map: Arc<Mutex<HashSet<UniqueFile>>> = Arc::new(Mutex::new(HashSet::new()));
+
         Self {
             requested_dir,
             opt_skim_tx,
             hangup,
+            path_map,
         }
     }
 
@@ -95,7 +102,7 @@ impl<'a> RecursiveSearch<'a> {
         let mut queue: Vec<BasicDirEntryInfo> = self.enter_directory(self.requested_dir)?;
 
         if let Some(deleted_scope) = opt_deleted_scope {
-            self.spawn_deleted_search(&self.requested_dir, deleted_scope);
+            self.spawn_deleted_search(&self.requested_dir, deleted_scope, self.path_map.clone());
         }
 
         if GLOBAL_CONFIG.opt_recursive {
@@ -110,7 +117,7 @@ impl<'a> RecursiveSearch<'a> {
                 }
 
                 if let Some(deleted_scope) = opt_deleted_scope {
-                    self.spawn_deleted_search(&item.path(), deleted_scope);
+                    self.spawn_deleted_search(&item.path(), deleted_scope, self.path_map.clone());
                 }
 
                 // no errors will be propagated in recursive mode
@@ -124,12 +131,18 @@ impl<'a> RecursiveSearch<'a> {
         Ok(())
     }
 
-    fn spawn_deleted_search(&self, requested_dir: &'a Path, deleted_scope: &Scope<'_>) {
+    fn spawn_deleted_search(
+        &self,
+        requested_dir: &'a Path,
+        deleted_scope: &Scope<'_>,
+        path_map: Arc<Mutex<HashSet<UniqueFile>>>,
+    ) {
         DeletedSearch::spawn(
             requested_dir,
             deleted_scope,
             self.opt_skim_tx.cloned(),
             self.hangup.clone(),
+            path_map,
         )
     }
 
@@ -167,6 +180,7 @@ impl<'a> RecursiveSearch<'a> {
 
 pub trait CommonSearch {
     fn hangup(&self) -> bool;
+    fn path_map(&self) -> Arc<Mutex<HashSet<UniqueFile>>>;
     fn into_entries<'a>(&'a self, requested_dir: &'a Path) -> Entries<'a>;
     fn enter_directory(&self, requested_dir: &Path) -> HttmResult<Vec<BasicDirEntryInfo>>;
 }
@@ -178,6 +192,10 @@ impl CommonSearch for &RecursiveSearch<'_> {
 
     fn hangup(&self) -> bool {
         self.hangup.load(Ordering::Relaxed)
+    }
+
+    fn path_map(&self) -> Arc<Mutex<HashSet<UniqueFile>>> {
+        self.path_map.clone()
     }
 
     fn into_entries<'a>(&'a self, requested_dir: &'a Path) -> Entries<'a> {
@@ -208,7 +226,7 @@ where
     // create entries struct here
     let entries = search.into_entries(requested_dir);
 
-    let paths_partitioned = PathsPartitioned::new(&entries)?;
+    let paths_partitioned = PathsPartitioned::new(&entries, search.path_map())?;
 
     // combined entries will be sent or printed, but we need the vec_dirs to recurse
     let vec_dirs = entries.combine_and_deliver(paths_partitioned)?;
@@ -222,7 +240,10 @@ struct PathsPartitioned {
 }
 
 impl PathsPartitioned {
-    fn new(entries: &Entries) -> HttmResult<PathsPartitioned> {
+    fn new(
+        entries: &Entries,
+        path_map: Arc<Mutex<HashSet<UniqueFile>>>,
+    ) -> HttmResult<PathsPartitioned> {
         // separates entries into dirs and files
         let (vec_dirs, vec_files) = match entries.path_provenance {
             PathProvenance::FromLiveDataset => {
@@ -232,7 +253,7 @@ impl PathsPartitioned {
                     // as it is much faster than a metadata call on the path
                     .map(|dir_entry| BasicDirEntryInfo::from(dir_entry))
                     .filter(|entry| entry.recursive_search_filter())
-                    .partition(|entry| entry.is_entry_dir())
+                    .partition(|entry| entry.is_entry_dir(path_map.clone()))
             }
             PathProvenance::IsPhantom => {
                 // obtain all unique deleted, unordered, unsorted, will need to fix

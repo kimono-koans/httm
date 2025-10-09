@@ -22,12 +22,14 @@ use crate::filesystem::mounts::{FilesystemType, IsFilterDir, MaxLen};
 use crate::library::file_ops::ChecksumFileContents;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::ENV_LS_COLORS;
+use crate::library::utility::UniqueFile;
 use crate::library::utility::was_previously_listed;
 use crate::library::utility::{DateFormat, HttmIsDir, date_string, display_human_size};
 use crate::{
     BTRFS_SNAPPER_HIDDEN_DIRECTORY, GLOBAL_CONFIG, OPT_COMMON_SNAP_DIR, ZFS_HIDDEN_DIRECTORY,
     ZFS_SNAPSHOT_DIRECTORY,
 };
+use hashbrown::HashSet;
 use realpath_ext::{RealpathFlags, realpath};
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
@@ -37,6 +39,8 @@ use std::fs::{DirEntry, FileType, Metadata};
 use std::hash::Hash;
 use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use std::sync::Mutex;
 use std::sync::{LazyLock, OnceLock};
 use std::time::SystemTime;
 
@@ -127,7 +131,7 @@ impl BasicDirEntryInfo {
             .and_then(|de| de.metadata().ok())
     }
 
-    pub fn is_entry_dir(&self) -> bool {
+    pub fn is_entry_dir(&self, path_map: Arc<Mutex<HashSet<UniqueFile>>>) -> bool {
         // must do is_dir() look up on DirEntry file_type() as look up on Path will traverse links!
         if GLOBAL_CONFIG.opt_no_traverse {
             if let Ok(file_type) = self.file_type() {
@@ -135,13 +139,13 @@ impl BasicDirEntryInfo {
             }
         }
 
-        match was_previously_listed(self) {
+        match was_previously_listed(self, path_map.clone()) {
             Some(was_previously_listed) if was_previously_listed => return false,
             Some(_) => (),
             None => return false,
         }
 
-        self.httm_is_dir()
+        self.httm_is_dir(path_map)
     }
 
     pub fn recursive_search_filter(&self) -> bool {

@@ -20,7 +20,7 @@ use crate::data::paths::{PathData, PathDeconstruction, ZfsSnapPathGuard};
 use crate::filesystem::collection::FilesystemInfo;
 use crate::filesystem::mounts::{FilesystemType, ROOT_PATH};
 use crate::library::results::{HttmError, HttmResult};
-use crate::library::utility::{HttmIsDir, pwd};
+use crate::library::utility::pwd;
 use crate::lookup::file_mounts::MountDisplay;
 use clap::parser::ValuesRef;
 use clap::{Arg, ArgAction, ArgMatches, crate_name, crate_version};
@@ -1140,7 +1140,7 @@ impl Config {
                     0 => Some(pwd.to_path_buf()),
                     // use our bespoke is_dir fn for determining whether a dir here see pub httm_is_dir
                     // safe to index as we know the paths len is 1
-                    1 if paths[0].httm_is_dir() => Some(paths[0].path().to_path_buf()),
+                    1 if paths[0].path().is_dir() => Some(paths[0].path().to_path_buf()),
                     // handle non-directories
                     1 => {
                         match exec_mode {
