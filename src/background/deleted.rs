@@ -116,6 +116,8 @@ impl DeletedSearch {
                 // check to see whether we need to continue
                 self.hangup_check()?;
                 let _ = self.enter_directory(&item.path(), &mut queue);
+
+                std::thread::yield_now();
             }
         }
 

@@ -124,6 +124,8 @@ impl<'a> RecursiveSearch<'a> {
                 // no errors will be propagated in recursive mode
                 // far too likely to run into a dir we don't have permissions to view
                 let _ = self.enter_directory(item.path(), &mut queue);
+
+                std::thread::yield_now();
             }
         }
 
