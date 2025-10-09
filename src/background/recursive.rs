@@ -95,7 +95,6 @@ impl<'a> RecursiveSearch<'a> {
         // but wants to restore that directory,
         // so here we add the directory and its parent as a selection item
         self.add_dot_entries()?;
-        thread::park();
 
         // runs once for non-recursive but also "primes the pump"
         // for recursive to have items available, also only place an
@@ -109,6 +108,8 @@ impl<'a> RecursiveSearch<'a> {
         }
 
         if GLOBAL_CONFIG.opt_recursive {
+            thread::park();
+
             let mut total_items = 0;
 
             // condition kills iter when user has made a selection
