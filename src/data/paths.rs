@@ -21,10 +21,10 @@ use crate::data::selection::SelectionCandidate;
 use crate::filesystem::mounts::{FilesystemType, IsFilterDir, MaxLen};
 use crate::library::file_ops::ChecksumFileContents;
 use crate::library::results::{HttmError, HttmResult};
-use crate::library::utility::ENV_LS_COLORS;
 use crate::library::utility::UniqueInode;
 use crate::library::utility::was_previously_listed;
 use crate::library::utility::{DateFormat, HttmIsDir, date_string, display_human_size};
+use crate::library::utility::{ENV_LS_COLORS, PaintString};
 use crate::{
     BTRFS_SNAPPER_HIDDEN_DIRECTORY, GLOBAL_CONFIG, OPT_COMMON_SNAP_DIR, ZFS_HIDDEN_DIRECTORY,
     ZFS_SNAPSHOT_DIRECTORY,
@@ -300,14 +300,9 @@ impl From<&SelectionCandidate> for PathData {
         //
         // in general we handle those cases elsewhere, like the ingest
         // of input files in Config::from for deleted relative paths, etc.
-        let path = selection_candidate.path();
-        let opt_metadata = path.symlink_metadata().ok();
+        let opt_metadata = selection_candidate.opt_metadata();
         let opt_path_metadata = opt_metadata.as_ref().and_then(|md| PathMetadata::new(&md));
-        let opt_style = opt_metadata.as_ref().and_then(|md| {
-            ENV_LS_COLORS
-                .style_for_path_with_metadata(path, Some(&md))
-                .copied()
-        });
+        let opt_style = selection_candidate.ls_style();
 
         PathData {
             path_buf: selection_candidate.path().into(),

@@ -24,10 +24,10 @@ use crate::library::utility::PaintString;
 use crate::{Config, ExecMode, GLOBAL_CONFIG, VersionsMap};
 use skim::prelude::*;
 use std::collections::BTreeMap;
-use std::fs::FileType;
+use std::fs::{FileType, Metadata};
 use std::path::Path;
 use std::path::PathBuf;
-use std::sync::LazyLock;
+use std::sync::{LazyLock, OnceLock};
 
 // these represent the items ready for selection and preview
 // contains everything one needs to request preview and paint with
@@ -36,6 +36,7 @@ use std::sync::LazyLock;
 pub struct SelectionCandidate {
     path: Box<Path>,
     opt_filetype: Option<FileType>,
+    opt_metadata: OnceLock<Option<Metadata>>,
 }
 
 impl SelectionCandidate {
@@ -44,7 +45,11 @@ impl SelectionCandidate {
         opt_filetype: Option<FileType>,
         path_provenance: &PathProvenance,
     ) -> Self {
-        let mut res: Self = Self { path, opt_filetype };
+        let mut res: Self = Self {
+            path,
+            opt_filetype,
+            opt_metadata: OnceLock::new(),
+        };
 
         if let PathProvenance::IsPhantom = path_provenance {
             res.opt_filetype = None;
@@ -59,6 +64,12 @@ impl SelectionCandidate {
 
     pub fn opt_filetype(&self) -> Option<FileType> {
         self.opt_filetype.clone()
+    }
+
+    pub fn opt_metadata(&self) -> Option<&Metadata> {
+        self.opt_metadata
+            .get_or_init(|| self.path().symlink_metadata().ok())
+            .as_ref()
     }
 
     fn preview_view(&self) -> HttmResult<String> {
