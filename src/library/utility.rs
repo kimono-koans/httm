@@ -199,17 +199,17 @@ impl Hash for UniqueFile {
 }
 
 fn was_previously_listed<'a, T: HttmIsDir<'a> + ?Sized>(entry: &'a T) -> Option<bool> {
-    static DEREF_PATH_MAP: LazyLock<Mutex<HashSet<UniqueFile>>> =
+    static PATH_MAP: LazyLock<Mutex<HashSet<UniqueFile>>> =
         LazyLock::new(|| Mutex::new(HashSet::new()));
 
     let file_id = UniqueFile::new(entry)?;
 
-    match DEREF_PATH_MAP.lock() {
+    match PATH_MAP.lock() {
         Ok(mut locked) => {
             return Some(!locked.insert(file_id));
         }
         Err(_err) => {
-            DEREF_PATH_MAP.clear_poison();
+            PATH_MAP.clear_poison();
             return None;
         }
     }
