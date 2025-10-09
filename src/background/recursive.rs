@@ -107,6 +107,8 @@ impl<'a> RecursiveSearch<'a> {
         }
 
         if GLOBAL_CONFIG.opt_recursive {
+            let mut total_items = 0;
+
             // condition kills iter when user has made a selection
             // pop_back makes this a LIFO queue which is supposedly better for caches
             while let Some(item) = queue.pop() {
@@ -125,10 +127,13 @@ impl<'a> RecursiveSearch<'a> {
                 // far too likely to run into a dir we don't have permissions to view
                 let _ = self.enter_directory(item.path(), &mut queue);
 
+                total_items += 1;
+
                 if !matches!(
                     GLOBAL_CONFIG.exec_mode,
                     ExecMode::NonInteractiveRecursive(_)
-                ) {
+                ) && total_items % 10 == 0
+                {
                     std::thread::yield_now();
                 }
             }

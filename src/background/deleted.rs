@@ -113,15 +113,20 @@ impl DeletedSearch {
         }
 
         if GLOBAL_CONFIG.opt_recursive {
+            let mut total_items = 0;
+
             while let Some(item) = queue.pop() {
                 // check to see whether we need to continue
                 self.hangup_check()?;
                 let _ = self.enter_directory(&item.path(), &mut queue);
 
+                total_items += 1;
+
                 if !matches!(
                     GLOBAL_CONFIG.exec_mode,
                     ExecMode::NonInteractiveRecursive(_)
-                ) {
+                ) && total_items % 10 == 0
+                {
                     std::thread::yield_now();
                 }
             }
