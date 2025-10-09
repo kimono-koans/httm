@@ -98,7 +98,9 @@ impl<'a> RecursiveSearch<'a> {
         // runs once for non-recursive but also "primes the pump"
         // for recursive to have items available, also only place an
         // error can stop execution
-        let mut queue: Vec<BasicDirEntryInfo> = self.enter_directory(self.requested_dir)?;
+        let mut queue: Vec<BasicDirEntryInfo> = Vec::new();
+
+        self.enter_directory(self.requested_dir, &mut queue)?;
 
         if let Some(deleted_scope) = opt_deleted_scope {
             self.spawn_deleted_search(&self.requested_dir, deleted_scope);
@@ -121,9 +123,7 @@ impl<'a> RecursiveSearch<'a> {
 
                 // no errors will be propagated in recursive mode
                 // far too likely to run into a dir we don't have permissions to view
-                if let Ok(mut items) = self.enter_directory(item.path()) {
-                    queue.append(&mut items)
-                }
+                let _ = self.enter_directory(item.path(), &mut queue);
             }
         }
 
@@ -172,12 +172,20 @@ pub trait CommonSearch {
     fn hangup(&self) -> bool;
     fn opt_path_map(&self) -> Option<&RefCell<HashSet<UniqueInode>>>;
     fn into_entries<'a>(&'a self, requested_dir: &'a Path) -> Entries<'a>;
-    fn enter_directory(&self, requested_dir: &Path) -> HttmResult<Vec<BasicDirEntryInfo>>;
+    fn enter_directory(
+        &self,
+        requested_dir: &Path,
+        queue: &mut Vec<BasicDirEntryInfo>,
+    ) -> HttmResult<()>;
 }
 
 impl CommonSearch for &RecursiveSearch<'_> {
-    fn enter_directory(&self, requested_dir: &Path) -> HttmResult<Vec<BasicDirEntryInfo>> {
-        enter_directory(self, requested_dir)
+    fn enter_directory(
+        &self,
+        requested_dir: &Path,
+        queue: &mut Vec<BasicDirEntryInfo>,
+    ) -> HttmResult<()> {
+        enter_directory(self, requested_dir, queue)
     }
 
     fn hangup(&self) -> bool {
@@ -202,7 +210,8 @@ impl CommonSearch for &RecursiveSearch<'_> {
 pub fn enter_directory<'a, T>(
     search: &T,
     requested_dir: &'a Path,
-) -> HttmResult<Vec<BasicDirEntryInfo>>
+    queue: &mut Vec<BasicDirEntryInfo>,
+) -> HttmResult<()>
 where
     T: CommonSearch,
 {
@@ -210,7 +219,7 @@ where
     // exit/error on disconnected channel, which closes
     // at end of browse scope
     if search.hangup() {
-        return Ok(Vec::new());
+        return Ok(());
     }
 
     // create entries struct here
@@ -221,7 +230,9 @@ where
     // combined entries will be sent or printed, but we need the vec_dirs to recurse
     let vec_dirs = entries.combine_and_deliver(paths_partitioned)?;
 
-    Ok(vec_dirs)
+    queue.extend(vec_dirs.into_iter());
+
+    Ok(())
 }
 
 struct PathsPartitioned {

@@ -41,8 +41,12 @@ pub struct DeletedSearch {
 }
 
 impl CommonSearch for &DeletedSearch {
-    fn enter_directory(&self, requested_dir: &Path) -> HttmResult<Vec<BasicDirEntryInfo>> {
-        enter_directory(self, requested_dir)
+    fn enter_directory(
+        &self,
+        requested_dir: &Path,
+        queue: &mut Vec<BasicDirEntryInfo>,
+    ) -> HttmResult<()> {
+        enter_directory(self, requested_dir, queue)
     }
 
     fn hangup(&self) -> bool {
@@ -96,7 +100,9 @@ impl DeletedSearch {
         // yield to other rayon work on this worker thread
         //self.timeout_loop()?;
 
-        let mut queue: Vec<BasicDirEntryInfo> = self.enter_directory(&self.deleted_dir)?;
+        let mut queue = Vec::new();
+
+        self.enter_directory(&self.deleted_dir, &mut queue)?;
 
         if matches!(
             GLOBAL_CONFIG.opt_deleted_mode,
@@ -109,15 +115,7 @@ impl DeletedSearch {
             while let Some(item) = queue.pop() {
                 // check to see whether we need to continue
                 self.hangup_check()?;
-
-                if let Ok(mut items) = self.enter_directory(&item.path()) {
-                    // disable behind deleted dirs with DepthOfOne,
-                    // otherwise recurse and find all those deleted files
-                    //
-                    // don't propagate errors, errors we are most concerned about
-                    // are transmission errors, which are handled elsewhere
-                    queue.append(&mut items);
-                }
+                let _ = self.enter_directory(&item.path(), &mut queue);
             }
         }
 
