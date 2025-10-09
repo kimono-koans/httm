@@ -107,7 +107,6 @@ impl InteractiveBrowse {
             .expect("Could not initialized skim options for browse_view");
 
         {
-            std::thread::current().unpark();
             background_handle.thread().unpark();
         }
 
