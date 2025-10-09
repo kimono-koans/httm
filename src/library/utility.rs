@@ -136,9 +136,11 @@ pub fn print_output_buf(output_buf: &str) -> HttmResult<()> {
 
 pub fn was_previously_listed<'a, T: HttmIsDir<'a> + ?Sized>(
     entry: &'a T,
-    path_map: Arc<Mutex<HashSet<UniqueFile>>>,
+    opt_path_map: Option<Arc<Mutex<HashSet<UniqueFile>>>>,
 ) -> Option<bool> {
     let file_id = UniqueFile::new(entry)?;
+
+    let path_map = opt_path_map?;
 
     match path_map.lock() {
         Ok(mut locked) => {
@@ -181,7 +183,10 @@ impl Hash for UniqueFile {
 }
 
 // is this path/dir_entry something we should count as a directory for our purposes?
-pub fn httm_is_dir<'a, T>(entry: &'a T, path_map: Arc<Mutex<HashSet<UniqueFile>>>) -> bool
+pub fn httm_is_dir<'a, T>(
+    entry: &'a T,
+    opt_path_map: Option<Arc<Mutex<HashSet<UniqueFile>>>>,
+) -> bool
 where
     T: HttmIsDir<'a> + ?Sized,
 {
@@ -193,10 +198,10 @@ where
                 // canonicalize will read_link/resolve the link for us
                 match entry.path().read_link() {
                     Ok(link_target) if !link_target.is_dir() => false,
-                    Ok(link_target) => match was_previously_listed(&link_target, path_map) {
-                        Some(was_previously_listed) if was_previously_listed => return false,
+                    Ok(link_target) => match was_previously_listed(&link_target, opt_path_map) {
+                        Some(was_previously_listed) if was_previously_listed => false,
                         Some(_) => true,
-                        None => return false,
+                        None => false,
                     },
                     // we get an error? still pass the path on, as we get a good path from the dir entry
                     _ => false,
@@ -210,14 +215,14 @@ where
 }
 
 pub trait HttmIsDir<'a> {
-    fn httm_is_dir(&self, path_map: Arc<Mutex<HashSet<UniqueFile>>>) -> bool;
+    fn httm_is_dir(&self, path_map: Option<Arc<Mutex<HashSet<UniqueFile>>>>) -> bool;
     fn file_type(&self) -> Result<FileType, std::io::Error>;
     fn path(&'a self) -> &'a Path;
     fn metadata(&'a self) -> Option<Metadata>;
 }
 
 impl<T: AsRef<Path>> HttmIsDir<'_> for T {
-    fn httm_is_dir(&self, path_map: Arc<Mutex<HashSet<UniqueFile>>>) -> bool {
+    fn httm_is_dir(&self, path_map: Option<Arc<Mutex<HashSet<UniqueFile>>>>) -> bool {
         httm_is_dir(self, path_map)
     }
     fn file_type(&self) -> Result<FileType, std::io::Error> {
@@ -232,7 +237,7 @@ impl<T: AsRef<Path>> HttmIsDir<'_> for T {
 }
 
 impl<'a> HttmIsDir<'a> for PathData {
-    fn httm_is_dir(&self, path_map: Arc<Mutex<HashSet<UniqueFile>>>) -> bool {
+    fn httm_is_dir(&self, path_map: Option<Arc<Mutex<HashSet<UniqueFile>>>>) -> bool {
         httm_is_dir(self, path_map)
     }
     fn file_type(&self) -> Result<FileType, std::io::Error> {
@@ -252,7 +257,7 @@ impl<'a> HttmIsDir<'a> for PathData {
 }
 
 impl<'a> HttmIsDir<'a> for BasicDirEntryInfo {
-    fn httm_is_dir(&self, path_map: Arc<Mutex<HashSet<UniqueFile>>>) -> bool {
+    fn httm_is_dir(&self, path_map: Option<Arc<Mutex<HashSet<UniqueFile>>>>) -> bool {
         httm_is_dir(self, path_map)
     }
     fn file_type(&self) -> Result<FileType, std::io::Error> {

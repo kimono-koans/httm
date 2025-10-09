@@ -39,7 +39,6 @@ pub struct DeletedSearch {
     deleted_dir: PathBuf,
     opt_skim_tx: Option<SkimItemSender>,
     hangup: Arc<AtomicBool>,
-    path_map: Arc<Mutex<HashSet<UniqueFile>>>,
 }
 
 impl CommonSearch for &DeletedSearch {
@@ -51,8 +50,8 @@ impl CommonSearch for &DeletedSearch {
         self.hangup.load(Ordering::Relaxed)
     }
 
-    fn path_map(&self) -> Arc<Mutex<HashSet<UniqueFile>>> {
-        self.path_map.clone()
+    fn opt_path_map(&self) -> Option<Arc<Mutex<HashSet<UniqueFile>>>> {
+        None
     }
 
     fn into_entries<'a>(&'a self, requested_dir: &'a Path) -> Entries<'a> {
@@ -69,13 +68,11 @@ impl DeletedSearch {
         deleted_dir: PathBuf,
         opt_skim_tx: Option<SkimItemSender>,
         hangup: Arc<AtomicBool>,
-        path_map: Arc<Mutex<HashSet<UniqueFile>>>,
     ) -> Self {
         Self {
             deleted_dir,
             opt_skim_tx,
             hangup,
-            path_map,
         }
     }
 
@@ -85,18 +82,11 @@ impl DeletedSearch {
         deleted_scope: &Scope,
         opt_skim_tx: Option<SkimItemSender>,
         hangup: Arc<AtomicBool>,
-        path_map: Arc<Mutex<HashSet<UniqueFile>>>,
     ) {
         let deleted_dir = requested_dir.to_path_buf();
 
         deleted_scope.spawn(move |_| {
-            let _ = Self::new(
-                deleted_dir,
-                opt_skim_tx.clone(),
-                hangup.clone(),
-                path_map.clone(),
-            )
-            .run_loop();
+            let _ = Self::new(deleted_dir, opt_skim_tx.clone(), hangup.clone()).run_loop();
         })
     }
 

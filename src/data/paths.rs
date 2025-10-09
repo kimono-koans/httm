@@ -131,7 +131,7 @@ impl BasicDirEntryInfo {
             .and_then(|de| de.metadata().ok())
     }
 
-    pub fn is_entry_dir(&self, path_map: Arc<Mutex<HashSet<UniqueFile>>>) -> bool {
+    pub fn is_entry_dir(&self, opt_path_map: Option<Arc<Mutex<HashSet<UniqueFile>>>>) -> bool {
         // must do is_dir() look up on DirEntry file_type() as look up on Path will traverse links!
         if GLOBAL_CONFIG.opt_no_traverse {
             if let Ok(file_type) = self.file_type() {
@@ -139,13 +139,12 @@ impl BasicDirEntryInfo {
             }
         }
 
-        match was_previously_listed(self, path_map.clone()) {
+        match was_previously_listed(self, opt_path_map.clone()) {
             Some(was_previously_listed) if was_previously_listed => return false,
-            Some(_) => (),
-            None => return false,
+            Some(_) | None => (),
         }
 
-        self.httm_is_dir(path_map)
+        self.httm_is_dir(opt_path_map)
     }
 
     pub fn recursive_search_filter(&self) -> bool {
