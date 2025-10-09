@@ -168,8 +168,8 @@ impl BasicDirEntryInfo {
         }
 
         if GLOBAL_CONFIG.opt_one_filesystem {
-            match self.path().metadata() {
-                Ok(path_md) if *OPT_REQUESTED_DIR_DEV == path_md.dev() => {}
+            match self.opt_metadata() {
+                Some(path_md) if *OPT_REQUESTED_DIR_DEV == path_md.dev() => {}
                 _ => {
                     // if we can't read the metadata for a path,
                     // we probably shouldn't show it either
