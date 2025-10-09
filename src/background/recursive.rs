@@ -91,12 +91,11 @@ impl<'a> RecursiveSearch<'a> {
     }
 
     fn loop_body(&self, opt_deleted_scope: Option<&Scope>) -> HttmResult<()> {
-        thread::park();
-
         // the user may specify a dir for browsing,
         // but wants to restore that directory,
         // so here we add the directory and its parent as a selection item
         self.add_dot_entries()?;
+        thread::park();
 
         // runs once for non-recursive but also "primes the pump"
         // for recursive to have items available, also only place an
