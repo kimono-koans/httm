@@ -151,9 +151,11 @@ pub struct UniqueInode {
 
 impl UniqueInode {
     fn new<'a, T: HttmIsDir<'a> + ?Sized>(entry: &'a T) -> Option<Self> {
+        let entry_metadata = entry.metadata()?;
+
         Some(Self {
-            ino: entry.metadata()?.ino(),
-            dev: entry.metadata()?.dev(),
+            ino: entry_metadata.ino(),
+            dev: entry_metadata.dev(),
         })
     }
 }
