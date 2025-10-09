@@ -133,7 +133,7 @@ pub fn print_output_buf(output_buf: &str) -> HttmResult<()> {
     out_locked.flush().map_err(std::convert::Into::into)
 }
 
-pub fn was_previously_listed(
+pub fn dir_was_previously_listed(
     entry: &BasicDirEntryInfo,
     opt_path_map: Option<&mut RefMut<'_, hashbrown::HashSet<UniqueInode>>>,
 ) -> Option<bool> {
@@ -194,8 +194,8 @@ where
                     Ok(link_target) => {
                         let entry = BasicDirEntryInfo::new(&link_target, None);
 
-                        match was_previously_listed(&entry, opt_path_map) {
-                            Some(was_previously_listed) if was_previously_listed => false,
+                        match dir_was_previously_listed(&entry, opt_path_map) {
+                            Some(dir_was_previously_listed) if dir_was_previously_listed => false,
                             Some(_) => true,
                             None => false,
                         }
