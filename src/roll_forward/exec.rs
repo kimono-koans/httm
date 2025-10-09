@@ -50,7 +50,7 @@ struct DirectoryLock {
 impl DirectoryLock {
     fn new(proximate_dataset_mount: &Path) -> HttmResult<Self> {
         let path = proximate_dataset_mount;
-        let md = path.metadata()?;
+        let md = path.symlink_metadata()?;
 
         let permissions = md.permissions();
         let uid = md.uid();
