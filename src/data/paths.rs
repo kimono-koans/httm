@@ -126,9 +126,13 @@ impl BasicDirEntryInfo {
     }
 
     pub fn opt_metadata(&self) -> Option<Metadata> {
-        self.opt_dir_entry
-            .as_ref()
-            .and_then(|de| de.metadata().ok())
+        match self.opt_filetype() {
+            Some(ft) if ft.is_symlink() => self.path().metadata().ok(),
+            _ => self
+                .opt_dir_entry
+                .as_ref()
+                .and_then(|de| de.metadata().ok()),
+        }
     }
 
     pub fn is_entry_dir(&self, opt_path_map: Option<&RefCell<HashSet<UniqueInode>>>) -> bool {
@@ -142,7 +146,7 @@ impl BasicDirEntryInfo {
         match opt_path_map {
             Some(path_map) => match path_map.try_borrow_mut() {
                 Ok(mut locked) => {
-                    match was_previously_listed(&self.path(), Some(&mut locked)) {
+                    match was_previously_listed(&self, Some(&mut locked)) {
                         Some(was_previously_listed) if was_previously_listed => {
                             return false;
                         }

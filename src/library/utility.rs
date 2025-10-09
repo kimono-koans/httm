@@ -133,11 +133,11 @@ pub fn print_output_buf(output_buf: &str) -> HttmResult<()> {
     out_locked.flush().map_err(std::convert::Into::into)
 }
 
-pub fn was_previously_listed<T: AsRef<Path>>(
-    entry: &T,
+pub fn was_previously_listed(
+    entry: &BasicDirEntryInfo,
     opt_path_map: Option<&mut RefMut<'_, hashbrown::HashSet<UniqueInode>>>,
 ) -> Option<bool> {
-    let file_id = UniqueInode::new(entry.path())?;
+    let file_id = UniqueInode::new(entry)?;
 
     let path_map = opt_path_map?;
 
@@ -150,8 +150,8 @@ pub struct UniqueInode {
 }
 
 impl UniqueInode {
-    fn new<T: AsRef<Path> + ?Sized>(entry: &T) -> Option<Self> {
-        let entry_metadata = entry.path().metadata().ok()?;
+    fn new(entry: &BasicDirEntryInfo) -> Option<Self> {
+        let entry_metadata = entry.opt_metadata()?;
 
         Some(Self {
             ino: entry_metadata.ino(),
@@ -191,11 +191,15 @@ where
                 // canonicalize will read_link/resolve the link for us
                 match entry.path().read_link() {
                     Ok(link_target) if !link_target.is_dir() => false,
-                    Ok(link_target) => match was_previously_listed(&link_target, opt_path_map) {
-                        Some(was_previously_listed) if was_previously_listed => false,
-                        Some(_) => true,
-                        None => false,
-                    },
+                    Ok(link_target) => {
+                        let entry = BasicDirEntryInfo::new(&link_target, None);
+
+                        match was_previously_listed(&entry, opt_path_map) {
+                            Some(was_previously_listed) if was_previously_listed => false,
+                            Some(_) => true,
+                            None => false,
+                        }
+                    }
                     // we get an error? still pass the path on, as we get a good path from the dir entry
                     _ => false,
                 }
