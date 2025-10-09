@@ -110,12 +110,7 @@ impl BasicDirEntryInfo {
     }
 
     pub fn into_selection_candidate(self, path_provenance: &PathProvenance) -> SelectionCandidate {
-        let opt_style = self
-            .opt_metadata()
-            .and_then(|md| ENV_LS_COLORS.style_for_path_with_metadata(self.path(), Some(&md)))
-            .copied();
-
-        SelectionCandidate::new(self.path, self.opt_filetype, opt_style, path_provenance)
+        SelectionCandidate::new(self.path, self.opt_filetype, path_provenance)
     }
 
     pub fn filename(&self) -> &OsStr {
@@ -305,12 +300,14 @@ impl From<&SelectionCandidate> for PathData {
         //
         // in general we handle those cases elsewhere, like the ingest
         // of input files in Config::from for deleted relative paths, etc.
-        let opt_style = selection_candidate.opt_style();
-        let opt_path_metadata = selection_candidate
-            .path()
-            .symlink_metadata()
-            .ok()
-            .and_then(|md| PathMetadata::new(&md));
+        let path = selection_candidate.path();
+        let opt_metadata = path.symlink_metadata().ok();
+        let opt_path_metadata = opt_metadata.as_ref().and_then(|md| PathMetadata::new(&md));
+        let opt_style = opt_metadata.as_ref().and_then(|md| {
+            ENV_LS_COLORS
+                .style_for_path_with_metadata(path, Some(&md))
+                .copied()
+        });
 
         PathData {
             path_buf: selection_candidate.path().into(),

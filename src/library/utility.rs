@@ -327,7 +327,7 @@ impl PaintString for SelectionCandidate {
         paint_string(self)
     }
     fn ls_style(&self) -> Option<lscolors::style::Style> {
-        self.opt_style()
+        ENV_LS_COLORS.style_for_path(self.path()).copied()
     }
     fn is_phantom(&self) -> bool {
         self.opt_filetype().is_none()
