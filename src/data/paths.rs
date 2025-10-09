@@ -278,28 +278,24 @@ impl From<BasicDirEntryInfo> for PathData {
 
         let path = basic_info.path;
 
-        Self::new_raw(path, opt_metadata)
+        Self::with_metadata(path, opt_metadata)
     }
 }
 
 impl PathData {
     #[inline(always)]
     pub fn new(path: &Path) -> Self {
-        // canonicalize() on any path that DNE will throw an error
-        //
-        // in general we handle those cases elsewhere, like the ingest
-        // of input files in Config::from for deleted relative paths, etc.
         let canonical_path: Box<Path> = realpath(path, RealpathFlags::ALLOW_MISSING)
             .unwrap_or_else(|_| path.to_path_buf())
             .into_boxed_path();
 
         let opt_metadata = std::fs::symlink_metadata(canonical_path.as_ref()).ok();
 
-        Self::new_raw(canonical_path, opt_metadata)
+        Self::with_metadata(canonical_path, opt_metadata)
     }
 
     #[inline(always)]
-    pub fn new_raw(path: Box<Path>, opt_metadata: Option<Metadata>) -> Self {
+    pub fn with_metadata(path: Box<Path>, opt_metadata: Option<Metadata>) -> Self {
         // canonicalize() on any path that DNE will throw an error
         //
         // in general we handle those cases elsewhere, like the ingest
@@ -322,31 +318,10 @@ impl PathData {
     }
 
     #[inline(always)]
-    pub fn cheap(path: &Path) -> Self {
-        // canonicalize() on any path that DNE will throw an error
-        //
-        // in general we handle those cases elsewhere, like the ingest
-        // of input files in Config::from for deleted relative paths, etc.
-        let opt_path_metadata = path
-            .symlink_metadata()
-            .ok()
+    pub fn without_styling(path: &Path, opt_metadata: Option<Metadata>) -> Self {
+        let opt_path_metadata = opt_metadata
+            .or_else(|| path.symlink_metadata().ok())
             .and_then(|md| PathMetadata::new(&md));
-
-        Self {
-            path_buf: path.into(),
-            opt_path_metadata,
-            opt_style: None,
-            opt_file_type: None,
-        }
-    }
-
-    #[inline(always)]
-    pub fn cheap_raw(path: &Path, opt_metadata: Option<Metadata>) -> Self {
-        // canonicalize() on any path that DNE will throw an error
-        //
-        // in general we handle those cases elsewhere, like the ingest
-        // of input files in Config::from for deleted relative paths, etc.
-        let opt_path_metadata = opt_metadata.and_then(|md| PathMetadata::new(&md));
 
         Self {
             path_buf: path.into(),

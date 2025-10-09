@@ -26,6 +26,7 @@ use clap::parser::ValuesRef;
 use clap::{Arg, ArgAction, ArgMatches, crate_name, crate_version};
 use indicatif::ProgressBar;
 use rayon::iter::{ParallelBridge, ParallelIterator};
+use std::fs::read_link;
 use std::io::Read;
 use std::ops::Index;
 use std::path::{Path, PathBuf};
@@ -1138,9 +1139,13 @@ impl Config {
             ExecMode::Interactive(_) | ExecMode::NonInteractiveRecursive(_) => {
                 match paths.len() {
                     0 => Some(pwd.to_path_buf()),
-                    // use our bespoke is_dir fn for determining whether a dir here see pub httm_is_dir
                     // safe to index as we know the paths len is 1
-                    1 if paths[0].path().is_dir() => Some(paths[0].path().to_path_buf()),
+                    1 if paths[0].opt_file_type().is_some_and(|ft| {
+                        ft.is_dir() || (ft.is_symlink() && read_link(paths[0].path()).is_ok())
+                    }) =>
+                    {
+                        Some(paths[0].path().to_path_buf())
+                    }
                     // handle non-directories
                     1 => {
                         match exec_mode {

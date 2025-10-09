@@ -406,8 +406,8 @@ pub fn is_metadata_same<P>(src: P, dst: P) -> HttmResult<()>
 where
     P: AsRef<Path>,
 {
-    let src_pd = PathData::cheap(src.as_ref());
-    let dst_pd = PathData::cheap(dst.as_ref());
+    let src_pd = PathData::without_styling(src.as_ref(), None);
+    let dst_pd = PathData::without_styling(dst.as_ref(), None);
 
     if src_pd.opt_metadata().is_none() {
         let description = format!("Metadata not found: {:?}", src.as_ref());

@@ -162,7 +162,7 @@ impl Versions {
 
     #[allow(dead_code)]
     pub fn phantom_filetype<P: AsRef<Path>>(path: P) -> Option<FileType> {
-        let path_data: PathData = PathData::cheap(path.as_ref());
+        let path_data: PathData = PathData::without_styling(path.as_ref(), None);
         let prox_opt_alts = ProximateDatasetAndOptAlts::new(&path_data).ok()?;
         let one_version = RelativePathAndSnapMounts::new(
             &prox_opt_alts.relative_path,
@@ -403,7 +403,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
             Ok(md) => {
                 // why not PathData::new()? because symlinks will resolve!
                 // symlinks from a snap will end up looking just like the link target, so this is very confusing...
-                Some(PathData::cheap_raw(&joined_path, Some(md)))
+                Some(PathData::without_styling(&joined_path, Some(md)))
             }
             Err(err) => {
                 match err.kind() {
