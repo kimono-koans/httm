@@ -25,8 +25,10 @@ use lscolors::{LsColors, Style};
 use nu_ansi_term::AnsiString;
 use std::borrow::Cow;
 use std::fs::{FileType, Metadata};
+use std::hash::Hash;
 use std::io::Write;
 use std::iter::Iterator;
+use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 use std::sync::{LazyLock, Mutex};
 use std::time::SystemTime;
@@ -165,9 +167,6 @@ where
         _ => false,
     }
 }
-
-use std::hash::Hash;
-use std::os::unix::fs::MetadataExt;
 
 struct UniqueFile {
     ino: u64,
