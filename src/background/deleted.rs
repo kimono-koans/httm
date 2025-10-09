@@ -129,7 +129,7 @@ impl DeletedSearch {
                 if !matches!(
                     GLOBAL_CONFIG.exec_mode,
                     ExecMode::NonInteractiveRecursive(_)
-                ) && total_items % (1000 / num_cores) == 0
+                ) && total_items % (500 / num_cores) == 0
                 {
                     std::thread::yield_now();
                 }
