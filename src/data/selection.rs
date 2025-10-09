@@ -22,11 +22,11 @@ use crate::display::wrapper::DisplayWrapper;
 use crate::library::results::HttmResult;
 use crate::library::utility::PaintString;
 use crate::{Config, ExecMode, GLOBAL_CONFIG, VersionsMap};
-use lscolors::Colorable;
+use lscolors::Style;
 use skim::prelude::*;
 use std::collections::BTreeMap;
 use std::fs::FileType;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::LazyLock;
 
 // these represent the items ready for selection and preview
@@ -36,15 +36,21 @@ use std::sync::LazyLock;
 pub struct SelectionCandidate {
     path: Box<Path>,
     opt_filetype: Option<FileType>,
+    opt_style: Option<lscolors::Style>,
 }
 
 impl SelectionCandidate {
     pub fn new(
         path: Box<Path>,
         opt_filetype: Option<FileType>,
+        opt_style: Option<lscolors::Style>,
         path_provenance: &PathProvenance,
     ) -> Self {
-        let mut res: Self = Self { path, opt_filetype };
+        let mut res: Self = Self {
+            path,
+            opt_filetype,
+            opt_style,
+        };
 
         if let PathProvenance::IsPhantom = path_provenance {
             res.opt_filetype = None;
@@ -59,6 +65,10 @@ impl SelectionCandidate {
 
     pub fn opt_filetype(&self) -> Option<FileType> {
         self.opt_filetype.clone()
+    }
+
+    pub fn opt_style(&self) -> Option<Style> {
+        self.opt_style.clone()
     }
 
     fn preview_view(&self) -> HttmResult<String> {
@@ -93,21 +103,6 @@ impl SelectionCandidate {
             Err(_) if Some(self.path.as_ref()) == *PWD_DIR_PARENT => Cow::Borrowed(".."),
             Err(_) => self.path.to_string_lossy(),
         }
-    }
-}
-
-impl Colorable for SelectionCandidate {
-    fn path(&self) -> PathBuf {
-        self.path.to_path_buf()
-    }
-    fn file_name(&self) -> std::ffi::OsString {
-        self.path.file_name().unwrap_or_default().to_os_string()
-    }
-    fn file_type(&self) -> Option<FileType> {
-        self.opt_filetype()
-    }
-    fn metadata(&self) -> Option<std::fs::Metadata> {
-        self.path.symlink_metadata().ok()
     }
 }
 

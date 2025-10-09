@@ -110,7 +110,12 @@ impl BasicDirEntryInfo {
     }
 
     pub fn into_selection_candidate(self, path_provenance: &PathProvenance) -> SelectionCandidate {
-        SelectionCandidate::new(self.path, self.opt_filetype, path_provenance)
+        let opt_style = self
+            .opt_metadata()
+            .and_then(|md| ENV_LS_COLORS.style_for_path_with_metadata(self.path(), Some(&md)))
+            .copied();
+
+        SelectionCandidate::new(self.path, self.opt_filetype, opt_style, path_provenance)
     }
 
     pub fn filename(&self) -> &OsStr {
@@ -134,7 +139,7 @@ impl BasicDirEntryInfo {
     pub fn is_entry_dir(&self, opt_path_map: Option<&RefCell<HashSet<UniqueInode>>>) -> bool {
         // must do is_dir() look up on DirEntry file_type() as look up on Path will traverse links!
         if GLOBAL_CONFIG.opt_no_traverse {
-            if let Ok(file_type) = self.file_type() {
+            if let Some(file_type) = self.opt_filetype() {
                 return file_type.is_dir();
             }
         }
