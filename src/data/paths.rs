@@ -139,12 +139,25 @@ impl BasicDirEntryInfo {
             }
         }
 
-        match was_previously_listed(self, opt_path_map.clone()) {
-            Some(was_previously_listed) if was_previously_listed => return false,
-            Some(_) | None => (),
+        match opt_path_map {
+            Some(path_map) => match path_map.lock() {
+                Ok(mut locked) => {
+                    match was_previously_listed(self, Some(&mut locked)) {
+                        Some(was_previously_listed) if was_previously_listed => {
+                            return false;
+                        }
+                        _ => return self.httm_is_dir(Some(&mut locked)),
+                    };
+                }
+                Err(_) => {
+                    path_map.clear_poison();
+                    return self.httm_is_dir(None);
+                }
+            },
+            None => {
+                return self.httm_is_dir(None);
+            }
         }
-
-        self.httm_is_dir(opt_path_map)
     }
 
     pub fn recursive_search_filter(&self) -> bool {

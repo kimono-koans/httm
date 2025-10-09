@@ -30,8 +30,8 @@ use std::io::Write;
 use std::iter::Iterator;
 use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
-use std::sync::{LazyLock, Mutex};
+use std::sync::LazyLock;
+use std::sync::MutexGuard;
 use std::time::SystemTime;
 use time::{OffsetDateTime, UtcOffset, format_description};
 use unit_prefix::NumberPrefix;
@@ -136,21 +136,13 @@ pub fn print_output_buf(output_buf: &str) -> HttmResult<()> {
 
 pub fn was_previously_listed<'a, T: HttmIsDir<'a> + ?Sized>(
     entry: &'a T,
-    opt_path_map: Option<Arc<Mutex<HashSet<UniqueFile>>>>,
+    opt_path_map: Option<&mut MutexGuard<HashSet<UniqueFile>>>,
 ) -> Option<bool> {
     let file_id = UniqueFile::new(entry)?;
 
     let path_map = opt_path_map?;
 
-    match path_map.lock() {
-        Ok(mut locked) => {
-            return Some(!locked.insert(file_id));
-        }
-        Err(_err) => {
-            path_map.clear_poison();
-            return None;
-        }
-    }
+    Some(!path_map.insert(file_id))
 }
 
 pub struct UniqueFile {
@@ -185,7 +177,7 @@ impl Hash for UniqueFile {
 // is this path/dir_entry something we should count as a directory for our purposes?
 pub fn httm_is_dir<'a, T>(
     entry: &'a T,
-    opt_path_map: Option<Arc<Mutex<HashSet<UniqueFile>>>>,
+    opt_path_map: Option<&mut MutexGuard<HashSet<UniqueFile>>>,
 ) -> bool
 where
     T: HttmIsDir<'a> + ?Sized,
@@ -215,14 +207,14 @@ where
 }
 
 pub trait HttmIsDir<'a> {
-    fn httm_is_dir(&self, path_map: Option<Arc<Mutex<HashSet<UniqueFile>>>>) -> bool;
+    fn httm_is_dir(&self, path_map: Option<&mut MutexGuard<HashSet<UniqueFile>>>) -> bool;
     fn file_type(&self) -> Result<FileType, std::io::Error>;
     fn path(&'a self) -> &'a Path;
     fn metadata(&'a self) -> Option<Metadata>;
 }
 
 impl<T: AsRef<Path>> HttmIsDir<'_> for T {
-    fn httm_is_dir(&self, path_map: Option<Arc<Mutex<HashSet<UniqueFile>>>>) -> bool {
+    fn httm_is_dir(&self, path_map: Option<&mut MutexGuard<HashSet<UniqueFile>>>) -> bool {
         httm_is_dir(self, path_map)
     }
     fn file_type(&self) -> Result<FileType, std::io::Error> {
@@ -237,7 +229,7 @@ impl<T: AsRef<Path>> HttmIsDir<'_> for T {
 }
 
 impl<'a> HttmIsDir<'a> for PathData {
-    fn httm_is_dir(&self, path_map: Option<Arc<Mutex<HashSet<UniqueFile>>>>) -> bool {
+    fn httm_is_dir(&self, path_map: Option<&mut MutexGuard<HashSet<UniqueFile>>>) -> bool {
         httm_is_dir(self, path_map)
     }
     fn file_type(&self) -> Result<FileType, std::io::Error> {
@@ -257,7 +249,7 @@ impl<'a> HttmIsDir<'a> for PathData {
 }
 
 impl<'a> HttmIsDir<'a> for BasicDirEntryInfo {
-    fn httm_is_dir(&self, path_map: Option<Arc<Mutex<HashSet<UniqueFile>>>>) -> bool {
+    fn httm_is_dir(&self, path_map: Option<&mut MutexGuard<HashSet<UniqueFile>>>) -> bool {
         httm_is_dir(self, path_map)
     }
     fn file_type(&self) -> Result<FileType, std::io::Error> {
