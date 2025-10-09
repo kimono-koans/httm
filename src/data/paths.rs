@@ -294,6 +294,31 @@ impl From<BasicDirEntryInfo> for PathData {
     }
 }
 
+impl From<&SelectionCandidate> for PathData {
+    fn from(selection_candidate: &SelectionCandidate) -> PathData {
+        // canonicalize() on any path that DNE will throw an error
+        //
+        // in general we handle those cases elsewhere, like the ingest
+        // of input files in Config::from for deleted relative paths, etc.
+        let path = selection_candidate.path();
+        let opt_metadata = path.symlink_metadata().ok();
+
+        let opt_style = opt_metadata
+            .as_ref()
+            .and_then(|md| ENV_LS_COLORS.style_for_path_with_metadata(&path, Some(md)))
+            .copied();
+
+        let opt_path_metadata = opt_metadata.and_then(|md| PathMetadata::new(&md));
+
+        PathData {
+            path_buf: selection_candidate.path().into(),
+            opt_path_metadata,
+            opt_style,
+            opt_file_type: selection_candidate.opt_filetype(),
+        }
+    }
+}
+
 impl PathData {
     #[inline(always)]
     pub fn new(path: &Path) -> Self {

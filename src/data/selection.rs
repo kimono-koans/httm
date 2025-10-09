@@ -161,7 +161,7 @@ impl From<Vec<PathData>> for Config {
 
 impl From<&SelectionCandidate> for Config {
     fn from(selection_candidate: &SelectionCandidate) -> Config {
-        let vec = vec![PathData::from(&selection_candidate.path)];
+        let vec = vec![PathData::from(selection_candidate)];
 
         Config::from(vec)
     }
