@@ -50,7 +50,7 @@ impl CommonSearch for &DeletedSearch {
         self.hangup.load(Ordering::Relaxed)
     }
 
-    fn opt_path_map(&self) -> Option<Arc<Mutex<HashSet<UniqueInode>>>> {
+    fn opt_path_map(&self) -> Option<&Mutex<HashSet<UniqueInode>>> {
         None
     }
 

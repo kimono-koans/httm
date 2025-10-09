@@ -174,7 +174,7 @@ impl<'a> RecursiveSearch<'a> {
 
 pub trait CommonSearch {
     fn hangup(&self) -> bool;
-    fn opt_path_map(&self) -> Option<Arc<Mutex<HashSet<UniqueInode>>>>;
+    fn opt_path_map(&self) -> Option<&Mutex<HashSet<UniqueInode>>>;
     fn into_entries<'a>(&'a self, requested_dir: &'a Path) -> Entries<'a>;
     fn enter_directory(&self, requested_dir: &Path) -> HttmResult<Vec<BasicDirEntryInfo>>;
 }
@@ -188,8 +188,8 @@ impl CommonSearch for &RecursiveSearch<'_> {
         self.hangup.load(Ordering::Relaxed)
     }
 
-    fn opt_path_map(&self) -> Option<Arc<Mutex<HashSet<UniqueInode>>>> {
-        Some(self.path_map.clone())
+    fn opt_path_map(&self) -> Option<&Mutex<HashSet<UniqueInode>>> {
+        Some(self.path_map.as_ref())
     }
 
     fn into_entries<'a>(&'a self, requested_dir: &'a Path) -> Entries<'a> {
@@ -220,7 +220,7 @@ where
     // create entries struct here
     let entries = search.into_entries(requested_dir);
 
-    let paths_partitioned = PathsPartitioned::new(&entries, &search.opt_path_map())?;
+    let paths_partitioned = PathsPartitioned::new(&entries, search.opt_path_map())?;
 
     // combined entries will be sent or printed, but we need the vec_dirs to recurse
     let vec_dirs = entries.combine_and_deliver(paths_partitioned)?;
@@ -236,7 +236,7 @@ struct PathsPartitioned {
 impl PathsPartitioned {
     fn new(
         entries: &Entries,
-        opt_path_map: &Option<Arc<Mutex<HashSet<UniqueInode>>>>,
+        opt_path_map: Option<&Mutex<HashSet<UniqueInode>>>,
     ) -> HttmResult<PathsPartitioned> {
         // separates entries into dirs and files
         let (vec_dirs, vec_files) = match entries.path_provenance {
@@ -247,7 +247,7 @@ impl PathsPartitioned {
                     // as it is much faster than a metadata call on the path
                     .map(|dir_entry| BasicDirEntryInfo::from(dir_entry))
                     .filter(|entry| entry.recursive_search_filter())
-                    .partition(|entry| entry.is_entry_dir(&opt_path_map))
+                    .partition(|entry| entry.is_entry_dir(opt_path_map))
             }
             PathProvenance::IsPhantom => {
                 // obtain all unique deleted, unordered, unsorted, will need to fix
