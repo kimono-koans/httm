@@ -75,7 +75,7 @@ impl ViewMode {
             .multi(opt_multi)
             .regex(false)
             .tiebreak(Some("score,index,-length".to_string()))
-            .algorithm(FuzzyAlgorithm::Simple)
+            .algorithm(FuzzyAlgorithm::SkimV2)
             .header(Some(&header))
             .build()
             .expect("Could not initialized skim options for select_restore_view");
