@@ -310,7 +310,7 @@ impl PaintString for PathData {
         self.opt_style()
     }
     fn is_phantom(&self) -> bool {
-        self.opt_metadata().is_none()
+        self.opt_path_metadata().is_none()
     }
     fn name(&self) -> Cow<'_, str> {
         self.path().to_string_lossy()
@@ -411,12 +411,12 @@ where
     let src_pd = PathData::without_styling(src.as_ref(), None);
     let dst_pd = PathData::without_styling(dst.as_ref(), None);
 
-    if src_pd.opt_metadata().is_none() {
+    if src_pd.opt_path_metadata().is_none() {
         let description = format!("Metadata not found: {:?}", src.as_ref());
         return HttmError::from(description).into();
     }
 
-    if dst_pd.opt_metadata().is_none() {
+    if dst_pd.opt_path_metadata().is_none() {
         let description = format!("Metadata not found: {:?}", dst.as_ref());
         return HttmError::from(description).into();
     }
@@ -431,13 +431,13 @@ where
         return HttmError::from(description).into();
     }
 
-    if src_pd.opt_metadata() != dst_pd.opt_metadata() {
+    if src_pd.opt_path_metadata() != dst_pd.opt_path_metadata() {
         let description = format!(
             "Metadata mismatch: {:?}::{:?} !-> {:?}::{:?}",
             src.path(),
-            src_pd.opt_metadata(),
+            src_pd.opt_path_metadata(),
             dst.path(),
-            dst_pd.opt_metadata()
+            dst_pd.opt_path_metadata()
         );
         return HttmError::from(description).into();
     }

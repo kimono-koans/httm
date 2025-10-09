@@ -192,7 +192,7 @@ impl PathData {
         padding_collection: &PaddingCollection,
     ) -> String {
         // obtain metadata for timestamp and size
-        let (raw_size, display_date) = match self.opt_metadata() {
+        let (raw_size, display_date) = match self.opt_path_metadata() {
             Some(metadata) => {
                 let size = Cow::Owned(display_human_size(metadata.size()));
 
@@ -263,7 +263,7 @@ impl PathData {
             _ if self.path().ancestors().any(|mount| mount.is_filter_dir()) => {
                 "WARN: Most proximate dataset for path is an unsupported filesystem.\n"
             }
-            _ if self.opt_metadata().is_none() => "WARN: Input file may have never existed.\n",
+            _ if self.opt_path_metadata().is_none() => "WARN: Input file may have never existed.\n",
             Some(prox_opt_alts)
                 if config.opt_omit_ditto
                     && prox_opt_alts
@@ -288,7 +288,7 @@ impl PathData {
         requested_utc_offset: UtcOffset,
     ) -> String {
         match raw_mode {
-            RawMode::Csv => match self.opt_metadata() {
+            RawMode::Csv => match self.opt_path_metadata() {
                 Some(md) => {
                     let date =
                         date_string(requested_utc_offset, &md.mtime(), DateFormat::Timestamp);

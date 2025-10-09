@@ -370,7 +370,7 @@ impl PathData {
         &self.path_buf
     }
 
-    pub fn opt_metadata(&self) -> Option<PathMetadata> {
+    pub fn opt_path_metadata(&self) -> Option<PathMetadata> {
         self.opt_path_metadata
     }
 

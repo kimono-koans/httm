@@ -76,7 +76,7 @@ impl VersionsMap {
         if versions_map.values().all(std::vec::Vec::is_empty)
             && versions_map
                 .keys()
-                .all(|path_data| path_data.opt_metadata().is_none())
+                .all(|path_data| path_data.opt_path_metadata().is_none())
         {
             let paths: Vec<&Path> = path_set.iter().map(|path_data| path_data.path()).collect();
 
@@ -222,12 +222,12 @@ impl Versions {
             Some(last) => match last_snap_mode {
                 LastSnapMode::Any => vec![last.to_owned()],
                 LastSnapMode::DittoOnly
-                    if self.path_data_key.opt_metadata() == last.opt_metadata() =>
+                    if self.path_data_key.opt_path_metadata() == last.opt_path_metadata() =>
                 {
                     vec![last.to_owned()]
                 }
                 LastSnapMode::NoDittoExclusive | LastSnapMode::NoDittoInclusive
-                    if self.path_data_key.opt_metadata() != last.opt_metadata() =>
+                    if self.path_data_key.opt_path_metadata() != last.opt_path_metadata() =>
                 {
                     vec![last.to_owned()]
                 }

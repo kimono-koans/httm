@@ -229,7 +229,7 @@ impl InteractiveRestore {
             .to_string_lossy()
             .into_owned();
 
-        let Some(snap_metadata) = snap_path_data.opt_metadata() else {
+        let Some(snap_metadata) = snap_path_data.opt_path_metadata() else {
             let description = format!(
                 "Source location: {:?} does not exist on disk Quitting.",
                 snap_path_data.path()
