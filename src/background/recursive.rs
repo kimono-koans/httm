@@ -135,7 +135,7 @@ impl<'a> RecursiveSearch<'a> {
                 if !matches!(
                     GLOBAL_CONFIG.exec_mode,
                     ExecMode::NonInteractiveRecursive(_)
-                ) && total_items % 100 == 0
+                ) && total_items % 1000 == 0
                 {
                     std::thread::yield_now();
                 }

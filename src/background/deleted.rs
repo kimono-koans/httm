@@ -26,6 +26,7 @@ use crate::library::results::HttmError;
 use crate::library::results::HttmResult;
 use rayon::Scope;
 use skim::prelude::*;
+use std::num::NonZero;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
@@ -114,6 +115,9 @@ impl DeletedSearch {
 
         if GLOBAL_CONFIG.opt_recursive {
             let mut total_items = 0;
+            let num_cores: usize = std::thread::available_parallelism()
+                .unwrap_or_else(|_| NonZero::new(4usize).unwrap())
+                .into();
 
             while let Some(item) = queue.pop() {
                 // check to see whether we need to continue
@@ -125,7 +129,7 @@ impl DeletedSearch {
                 if !matches!(
                     GLOBAL_CONFIG.exec_mode,
                     ExecMode::NonInteractiveRecursive(_)
-                ) && total_items % 100 == 0
+                ) && total_items % (1000 / num_cores) == 0
                 {
                     std::thread::yield_now();
                 }
