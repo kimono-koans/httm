@@ -20,6 +20,7 @@ use crate::filesystem::mounts::{FilesystemType, IsFilterDir, MaxLen};
 use crate::library::file_ops::ChecksumFileContents;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::ENV_LS_COLORS;
+use crate::library::utility::was_previously_listed;
 use crate::library::utility::{DateFormat, HttmIsDir, date_string, display_human_size};
 use crate::{
     BTRFS_SNAPPER_HIDDEN_DIRECTORY, GLOBAL_CONFIG, OPT_COMMON_SNAP_DIR, ZFS_HIDDEN_DIRECTORY,
@@ -107,6 +108,12 @@ impl BasicDirEntryInfo {
             if let Ok(file_type) = self.file_type() {
                 return file_type.is_dir();
             }
+        }
+
+        match was_previously_listed(self) {
+            Some(was_previously_listed) if was_previously_listed => return false,
+            Some(_) => (),
+            None => return false,
         }
 
         self.httm_is_dir()

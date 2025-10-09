@@ -133,38 +133,20 @@ pub fn print_output_buf(output_buf: &str) -> HttmResult<()> {
     out_locked.flush().map_err(std::convert::Into::into)
 }
 
-// is this path/dir_entry something we should count as a directory for our purposes?
-pub fn httm_is_dir<'a, T>(entry: &'a T) -> bool
-where
-    T: HttmIsDir<'a> + ?Sized,
-{
-    match was_previously_listed(entry) {
-        Some(was_previously_listed) if was_previously_listed => return false,
-        Some(_) => (),
-        None => return false,
-    }
+pub fn was_previously_listed<'a, T: HttmIsDir<'a> + ?Sized>(entry: &'a T) -> Option<bool> {
+    static PATH_MAP: LazyLock<Mutex<HashSet<UniqueFile>>> =
+        LazyLock::new(|| Mutex::new(HashSet::new()));
 
-    match entry.file_type() {
-        Ok(file_type) => match file_type {
-            file_type if file_type.is_dir() => true,
-            file_type if file_type.is_file() => false,
-            file_type if file_type.is_symlink() => {
-                // canonicalize will read_link/resolve the link for us
-                match entry.path().read_link() {
-                    Ok(link_target) if !link_target.is_dir() => false,
-                    Ok(link_target) => match was_previously_listed(&link_target) {
-                        Some(was_previously_listed) if was_previously_listed => return false,
-                        Some(_) => true,
-                        None => return false,
-                    },
-                    // we get an error? still pass the path on, as we get a good path from the dir entry
-                    _ => false,
-                }
-            }
-            // char, block, etc devices(?), None/Errs are not dirs, and we have a good path to pass on, so false
-            _ => false,
-        },
-        _ => false,
+    let file_id = UniqueFile::new(entry)?;
+
+    match PATH_MAP.lock() {
+        Ok(mut locked) => {
+            return Some(!locked.insert(file_id));
+        }
+        Err(_err) => {
+            PATH_MAP.clear_poison();
+            return None;
+        }
     }
 }
 
@@ -197,20 +179,32 @@ impl Hash for UniqueFile {
     }
 }
 
-fn was_previously_listed<'a, T: HttmIsDir<'a> + ?Sized>(entry: &'a T) -> Option<bool> {
-    static PATH_MAP: LazyLock<Mutex<HashSet<UniqueFile>>> =
-        LazyLock::new(|| Mutex::new(HashSet::new()));
-
-    let file_id = UniqueFile::new(entry)?;
-
-    match PATH_MAP.lock() {
-        Ok(mut locked) => {
-            return Some(!locked.insert(file_id));
-        }
-        Err(_err) => {
-            PATH_MAP.clear_poison();
-            return None;
-        }
+// is this path/dir_entry something we should count as a directory for our purposes?
+pub fn httm_is_dir<'a, T>(entry: &'a T) -> bool
+where
+    T: HttmIsDir<'a> + ?Sized,
+{
+    match entry.file_type() {
+        Ok(file_type) => match file_type {
+            file_type if file_type.is_dir() => true,
+            file_type if file_type.is_file() => false,
+            file_type if file_type.is_symlink() => {
+                // canonicalize will read_link/resolve the link for us
+                match entry.path().read_link() {
+                    Ok(link_target) if !link_target.is_dir() => false,
+                    Ok(link_target) => match was_previously_listed(&link_target) {
+                        Some(was_previously_listed) if was_previously_listed => return false,
+                        Some(_) => true,
+                        None => return false,
+                    },
+                    // we get an error? still pass the path on, as we get a good path from the dir entry
+                    _ => false,
+                }
+            }
+            // char, block, etc devices(?), None/Errs are not dirs, and we have a good path to pass on, so false
+            _ => false,
+        },
+        _ => false,
     }
 }
 
