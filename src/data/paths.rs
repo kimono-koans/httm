@@ -62,7 +62,7 @@ static DATASET_MAX_LEN: LazyLock<usize> =
 pub struct BasicDirEntryInfo {
     path: Box<Path>,
     opt_filetype: Option<FileType>,
-    opt_dir_entry: Option<Box<DirEntry>>,
+    opt_dir_entry: Option<DirEntry>,
 }
 
 impl Clone for BasicDirEntryInfo {
@@ -94,7 +94,7 @@ impl From<DirEntry> for BasicDirEntryInfo {
         BasicDirEntryInfo {
             path: dir_entry.path().into_boxed_path(),
             opt_filetype: dir_entry.file_type().ok(),
-            opt_dir_entry: Some(dir_entry.into()),
+            opt_dir_entry: Some(dir_entry),
         }
     }
 }
