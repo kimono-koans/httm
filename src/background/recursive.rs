@@ -18,7 +18,6 @@
 use crate::background::deleted::DeletedSearch;
 use crate::config::generate::{DeletedMode, ExecMode};
 use crate::data::paths::{BasicDirEntryInfo, PathData};
-use crate::data::selection::SelectionCandidate;
 use crate::display::wrapper::DisplayWrapper;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::print_output_buf;
@@ -342,10 +341,8 @@ impl<'a> Entries<'a> {
         let vec: Vec<Arc<dyn SkimItem>> = combined_entries
             .into_iter()
             .map(|basic_dir_entry_info| {
-                let item: Arc<dyn SkimItem> = Arc::new(SelectionCandidate::new(
-                    basic_dir_entry_info,
-                    &self.path_provenance,
-                ));
+                let item: Arc<dyn SkimItem> =
+                    Arc::new(basic_dir_entry_info.into_selection_candidate(self.path_provenance));
 
                 item
             })

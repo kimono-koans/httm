@@ -15,7 +15,9 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
+use crate::background::recursive::PathProvenance;
 use crate::config::generate::PrintMode;
+use crate::data::selection::SelectionCandidate;
 use crate::filesystem::mounts::{FilesystemType, IsFilterDir, MaxLen};
 use crate::library::file_ops::ChecksumFileContents;
 use crate::library::results::{HttmError, HttmResult};
@@ -53,10 +55,21 @@ static DATASET_MAX_LEN: LazyLock<usize> =
 
 // only the most basic data from a DirEntry
 // for use to display in browse window and internally
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct BasicDirEntryInfo {
     path: Box<Path>,
     opt_filetype: Option<FileType>,
+    opt_dir_entry: Option<Box<DirEntry>>,
+}
+
+impl Clone for BasicDirEntryInfo {
+    fn clone(&self) -> Self {
+        Self {
+            path: self.path.clone(),
+            opt_filetype: self.opt_filetype.clone(),
+            opt_dir_entry: None,
+        }
+    }
 }
 
 impl Hash for BasicDirEntryInfo {
@@ -78,6 +91,7 @@ impl From<DirEntry> for BasicDirEntryInfo {
         BasicDirEntryInfo {
             path: dir_entry.path().into_boxed_path(),
             opt_filetype: dir_entry.file_type().ok(),
+            opt_dir_entry: Some(dir_entry.into()),
         }
     }
 }
@@ -87,7 +101,12 @@ impl BasicDirEntryInfo {
         Self {
             path: path.into(),
             opt_filetype,
+            opt_dir_entry: None,
         }
+    }
+
+    pub fn into_selection_candidate(self, path_provenance: &PathProvenance) -> SelectionCandidate {
+        SelectionCandidate::new(self.path, self.opt_filetype, path_provenance)
     }
 
     pub fn filename(&self) -> &OsStr {
@@ -100,6 +119,12 @@ impl BasicDirEntryInfo {
 
     pub fn opt_filetype(&self) -> Option<FileType> {
         self.opt_filetype
+    }
+
+    pub fn opt_metadata(&self) -> Option<Metadata> {
+        self.opt_dir_entry
+            .as_ref()
+            .and_then(|de| de.metadata().ok())
     }
 
     pub fn is_entry_dir(&self) -> bool {

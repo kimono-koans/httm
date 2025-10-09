@@ -265,7 +265,8 @@ impl<'a> HttmIsDir<'a> for BasicDirEntryInfo {
         &self.path()
     }
     fn metadata(&'_ self) -> Option<Metadata> {
-        self.path().symlink_metadata().ok()
+        self.opt_metadata()
+            .or_else(|| self.path().symlink_metadata().ok())
     }
 }
 
