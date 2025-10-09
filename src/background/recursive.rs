@@ -228,9 +228,9 @@ where
     let paths_partitioned = PathsPartitioned::new(&entries, search.opt_path_map())?;
 
     // combined entries will be sent or printed, but we need the vec_dirs to recurse
-    let vec_dirs = entries.combine_and_deliver(paths_partitioned)?;
+    let mut vec_dirs = entries.combine_and_deliver(paths_partitioned)?;
 
-    queue.extend(vec_dirs.into_iter());
+    queue.append(&mut vec_dirs);
 
     Ok(())
 }
