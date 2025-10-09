@@ -32,6 +32,7 @@ use std::fs::read_dir;
 use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
+use std::thread;
 
 #[derive(Clone, Copy)]
 pub enum PathProvenance {
@@ -90,6 +91,8 @@ impl<'a> RecursiveSearch<'a> {
     }
 
     fn loop_body(&self, opt_deleted_scope: Option<&Scope>) -> HttmResult<()> {
+        thread::park();
+
         // the user may specify a dir for browsing,
         // but wants to restore that directory,
         // so here we add the directory and its parent as a selection item
@@ -132,7 +135,7 @@ impl<'a> RecursiveSearch<'a> {
                 if !matches!(
                     GLOBAL_CONFIG.exec_mode,
                     ExecMode::NonInteractiveRecursive(_)
-                ) && total_items % 10 == 0
+                ) && total_items % 100 == 0
                 {
                     std::thread::yield_now();
                 }

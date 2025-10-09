@@ -125,7 +125,7 @@ impl DeletedSearch {
                 if !matches!(
                     GLOBAL_CONFIG.exec_mode,
                     ExecMode::NonInteractiveRecursive(_)
-                ) && total_items % 10 == 0
+                ) && total_items % 100 == 0
                 {
                     std::thread::yield_now();
                 }
