@@ -32,7 +32,6 @@ use std::fs::read_dir;
 use std::path::Path;
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
-use std::thread;
 
 #[derive(Clone, Copy)]
 pub enum PathProvenance {
@@ -73,7 +72,7 @@ impl<'a> RecursiveSearch<'a> {
                 .build()
                 .expect("Could not initialize rayon thread pool for recursive deleted search");
 
-            pool.in_place_scope(|deleted_scope| {
+            pool.scope(|deleted_scope| {
                 self.run_loop(Some(deleted_scope));
             })
         } else {
@@ -108,8 +107,6 @@ impl<'a> RecursiveSearch<'a> {
         }
 
         if GLOBAL_CONFIG.opt_recursive {
-            thread::park();
-
             let mut total_items = 0;
 
             let interactive = !matches!(

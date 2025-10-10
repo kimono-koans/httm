@@ -106,10 +106,6 @@ impl InteractiveBrowse {
             .build()
             .expect("Could not initialized skim options for browse_view");
 
-        {
-            background_handle.thread().unpark();
-        }
-
         // run_with() reads and shows items from the thread stream created above
         match skim::Skim::run_with(&skim_opts, Some(rx_item)) {
             Some(output) if output.is_abort => {
