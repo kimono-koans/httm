@@ -396,11 +396,17 @@ impl<'a> Hash for ChecksumFileContents<'a> {
     }
 }
 
-pub fn is_same_file_contents(first: &Path, second: &Path) -> bool {
-    let (self_hash, other_hash): (u64, u64) = rayon::join(
-        || ChecksumFileContents::from(first).checksum(),
-        || ChecksumFileContents::from(second.as_ref()).checksum(),
-    );
+impl<'a> Eq for ChecksumFileContents<'a> {}
 
-    self_hash == other_hash
+impl<'a> PartialEq for ChecksumFileContents<'a> {
+    fn eq(&self, other: &Self) -> bool {
+        let (self_hash, other_hash): (u64, u64) =
+            rayon::join(|| self.checksum(), || other.checksum());
+
+        self_hash == other_hash
+    }
+}
+
+pub fn is_same_file_contents(first: &Path, second: &Path) -> bool {
+    ChecksumFileContents::from(first) == ChecksumFileContents::from(second)
 }
