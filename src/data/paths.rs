@@ -787,13 +787,6 @@ impl Ord for CompareContentsContainer {
             return size_order;
         }
 
-        let mtime_order: Ordering = self.mtime().cmp(&other.mtime());
-        let btime_order: Ordering = self.btime().cmp(&other.btime());
-
-        if mtime_order.is_eq() && btime_order.is_eq() {
-            return Ordering::Equal;
-        }
-
         self.cmp_file_contents(other)
     }
 }
