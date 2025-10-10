@@ -781,6 +781,12 @@ impl Ord for CompareContentsContainer {
     #[inline(always)]
     // reverse normal ordering because comparisons should be size first here
     fn cmp(&self, other: &Self) -> Ordering {
+        let time_order: Ordering = self.mtime().cmp(&other.mtime());
+
+        if time_order.is_ne() {
+            return time_order;
+        }
+
         let size_order: Ordering = self.size().cmp(&other.size());
 
         if size_order.is_ne() {
