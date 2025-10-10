@@ -64,25 +64,27 @@ impl SelectionCandidate {
         opt_metadata: Option<Metadata>,
         path_provenance: &PathProvenance,
     ) -> Self {
-        let mut md = OnceLock::new();
-        let mut style = OnceLock::new();
-        let mut ft = opt_filetype;
+        match path_provenance {
+            PathProvenance::FromLiveDataset => {
+                let md = OnceLock::new();
 
-        if opt_metadata.is_some() {
-            md.get_or_init(|| opt_metadata);
-        }
+                if opt_metadata.is_some() {
+                    md.get_or_init(|| opt_metadata);
+                }
 
-        if let PathProvenance::IsPhantom = path_provenance {
-            ft = None;
-            md = OnceLock::from(None);
-            style = OnceLock::from(None);
-        }
-
-        Self {
-            path,
-            opt_filetype: ft,
-            opt_style: style,
-            opt_metadata: md,
+                Self {
+                    path,
+                    opt_filetype,
+                    opt_style: OnceLock::new(),
+                    opt_metadata: md,
+                }
+            }
+            PathProvenance::IsPhantom => Self {
+                path,
+                opt_filetype: None,
+                opt_metadata: OnceLock::from(None),
+                opt_style: OnceLock::from(None),
+            },
         }
     }
 
