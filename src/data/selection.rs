@@ -74,8 +74,8 @@ impl SelectionCandidate {
         self.opt_style
     }
 
-    pub fn opt_metadata(&self) -> Option<Metadata> {
-        self.opt_metadata.clone()
+    pub fn opt_metadata(&self) -> Option<&Metadata> {
+        self.opt_metadata.as_ref()
     }
 
     fn preview_view(&self) -> HttmResult<String> {

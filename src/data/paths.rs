@@ -63,6 +63,7 @@ pub struct BasicDirEntryInfo {
     path: Box<Path>,
     opt_filetype: Option<FileType>,
     opt_dir_entry: Option<DirEntry>,
+    opt_metadata: OnceLock<Option<Metadata>>,
 }
 
 impl Clone for BasicDirEntryInfo {
@@ -71,6 +72,7 @@ impl Clone for BasicDirEntryInfo {
             path: self.path.clone(),
             opt_filetype: self.opt_filetype.clone(),
             opt_dir_entry: None,
+            opt_metadata: OnceLock::new(),
         }
     }
 }
@@ -95,6 +97,7 @@ impl From<DirEntry> for BasicDirEntryInfo {
             path: dir_entry.path().into_boxed_path(),
             opt_filetype: dir_entry.file_type().ok(),
             opt_dir_entry: Some(dir_entry),
+            opt_metadata: OnceLock::new(),
         }
     }
 }
@@ -114,7 +117,7 @@ impl lscolors::Colorable for BasicDirEntryInfo {
         self.opt_filetype().copied()
     }
     fn metadata(&self) -> Option<std::fs::Metadata> {
-        self.opt_metadata()
+        self.opt_metadata().cloned()
     }
 }
 
@@ -125,12 +128,13 @@ impl BasicDirEntryInfo {
             opt_filetype: opt_filetype
                 .or_else(|| path.symlink_metadata().ok().map(|md| md.file_type())),
             opt_dir_entry: None,
+            opt_metadata: OnceLock::new(),
         }
     }
 
     pub fn into_selection_candidate(self, path_provenance: &PathProvenance) -> SelectionCandidate {
         let opt_style = ENV_LS_COLORS.style_for(&self);
-        let opt_metadata = self.opt_metadata();
+        let opt_metadata = self.opt_metadata.into_inner().flatten();
 
         SelectionCandidate::new(
             self.path,
@@ -153,10 +157,14 @@ impl BasicDirEntryInfo {
         self.opt_filetype.as_ref()
     }
 
-    pub fn opt_metadata(&self) -> Option<Metadata> {
-        self.opt_dir_entry
+    pub fn opt_metadata(&self) -> Option<&Metadata> {
+        self.opt_metadata
+            .get_or_init(|| {
+                self.opt_dir_entry
+                    .as_ref()
+                    .and_then(|de| de.metadata().ok())
+            })
             .as_ref()
-            .and_then(|de| de.metadata().ok())
     }
 
     pub fn is_entry_dir(&self, opt_path_map: Option<&RefCell<HashSet<UniqueInode>>>) -> bool {
@@ -299,11 +307,8 @@ impl<T: AsRef<Path>> From<T> for PathData {
 impl From<BasicDirEntryInfo> for PathData {
     fn from(basic_info: BasicDirEntryInfo) -> Self {
         // this metadata() function will not traverse symlinks
-        let opt_metadata = basic_info.opt_metadata();
-
         let path = basic_info.path;
-
-        Self::with_metadata(path, opt_metadata)
+        Self::with_metadata(path, basic_info.opt_metadata.into_inner().flatten())
     }
 }
 
@@ -315,6 +320,7 @@ impl From<&SelectionCandidate> for PathData {
         // of input files in Config::from for deleted relative paths, etc.
         let opt_metadata = selection_candidate
             .opt_metadata()
+            .cloned()
             .or_else(|| selection_candidate.path().symlink_metadata().ok());
         let opt_path_metadata = opt_metadata.and_then(|md| PathMetadata::new(&md));
         let opt_style = selection_candidate.ls_style();

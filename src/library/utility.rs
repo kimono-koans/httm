@@ -154,7 +154,7 @@ impl UniqueInode {
         // deref if needed!
         let entry_metadata = match entry.opt_filetype() {
             Some(ft) if ft.is_symlink() => entry.path().metadata().ok(),
-            Some(_) => entry.opt_metadata(),
+            Some(_) => entry.opt_metadata().cloned(),
             None => entry.path().metadata().ok(),
         };
 
