@@ -1141,7 +1141,11 @@ impl Config {
                     0 => Some(pwd.to_path_buf()),
                     // safe to index as we know the paths len is 1
                     1 if paths[0].opt_file_type().is_some_and(|ft| {
-                        ft.is_dir() || (ft.is_symlink() && read_link(paths[0].path()).is_ok())
+                        ft.is_dir()
+                            || (ft.is_symlink()
+                                && read_link(paths[0].path())
+                                    .ok()
+                                    .is_some_and(|link_target| link_target.is_dir()))
                     }) =>
                     {
                         Some(paths[0].path().to_path_buf())
