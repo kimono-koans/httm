@@ -94,10 +94,10 @@ impl SelectionCandidate {
         self.opt_filetype.as_ref()
     }
 
-    pub fn opt_style(&self) -> Option<Style> {
-        *self
-            .opt_style
+    pub fn opt_style(&self) -> Option<&Style> {
+        self.opt_style
             .get_or_init(|| ENV_LS_COLORS.style_for(&self).copied())
+            .as_ref()
     }
 
     pub fn opt_metadata(&self) -> Option<&Metadata> {
