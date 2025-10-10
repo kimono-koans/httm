@@ -133,13 +133,18 @@ impl BasicDirEntryInfo {
     }
 
     pub fn into_selection_candidate(self, path_provenance: &PathProvenance) -> SelectionCandidate {
-        let opt_style = ENV_LS_COLORS.style_for(&self);
+        let opt_style = if self.opt_metadata.get().is_some() {
+            ENV_LS_COLORS.style_for(&self).copied()
+        } else {
+            None
+        };
+
         let opt_metadata = self.opt_metadata.into_inner().flatten();
 
         SelectionCandidate::new(
             self.path,
             self.opt_filetype,
-            opt_style.copied(),
+            opt_style,
             opt_metadata,
             path_provenance,
         )
