@@ -334,24 +334,30 @@ impl PaintString for SelectionCandidate {
         self.opt_filetype().is_none()
     }
     fn name(&self) -> Cow<'_, str> {
-        let mut display_name = self.display_name().to_string();
+        let display_name = self.display_name();
 
         match self.opt_filetype() {
-            Some(ft) if ft.is_file() => (),
-            Some(ft) if ft.is_dir() && display_name != "/" => display_name.push('/'),
+            Some(ft) if ft.is_file() => display_name,
+            Some(ft) if ft.is_dir() && display_name != "/" => {
+                let mut res = display_name.to_string();
+                res.push('/');
+                Cow::Owned(res)
+            }
             Some(ft) if ft.is_symlink() => match std::fs::read_link(self.path()).ok() {
                 Some(link_target) => {
                     let link_name = format!(" -> {}", link_target.to_string_lossy());
-                    display_name.push_str(&link_name);
+                    let mut res = display_name.to_string();
+                    res.push_str(&link_name);
+                    Cow::Owned(res)
                 }
                 None => {
-                    display_name.push_str(" -> ?");
+                    let mut res = display_name.to_string();
+                    res.push_str(" -> ?");
+                    Cow::Owned(res)
                 }
             },
-            _ => (),
+            _ => display_name,
         }
-
-        Cow::Owned(display_name)
     }
 }
 
