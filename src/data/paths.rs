@@ -99,6 +99,25 @@ impl From<DirEntry> for BasicDirEntryInfo {
     }
 }
 
+impl lscolors::Colorable for BasicDirEntryInfo {
+    fn path(&self) -> PathBuf {
+        self.path().to_path_buf()
+    }
+    fn file_name(&self) -> std::ffi::OsString {
+        self.opt_dir_entry
+            .as_ref()
+            .map(|de| de.file_name())
+            .unwrap_or_default()
+            .to_os_string()
+    }
+    fn file_type(&self) -> Option<FileType> {
+        self.opt_filetype().copied()
+    }
+    fn metadata(&self) -> Option<std::fs::Metadata> {
+        self.opt_metadata()
+    }
+}
+
 impl BasicDirEntryInfo {
     pub fn new(path: &Path, opt_filetype: Option<FileType>) -> Self {
         Self {
@@ -110,12 +129,14 @@ impl BasicDirEntryInfo {
     }
 
     pub fn into_selection_candidate(self, path_provenance: &PathProvenance) -> SelectionCandidate {
-        let opt_metadata = self
-            .opt_dir_entry
-            .as_ref()
-            .and_then(|de| de.metadata().ok());
+        let opt_style = ENV_LS_COLORS.style_for(&self);
 
-        SelectionCandidate::new(self.path, self.opt_filetype, opt_metadata, path_provenance)
+        SelectionCandidate::new(
+            self.path,
+            self.opt_filetype,
+            opt_style.copied(),
+            path_provenance,
+        )
     }
 
     pub fn filename(&self) -> &OsStr {
