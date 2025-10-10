@@ -61,36 +61,29 @@ impl SelectionCandidate {
     pub fn new(
         path: Box<Path>,
         opt_filetype: Option<FileType>,
-        opt_style: Option<Style>,
         opt_metadata: Option<Metadata>,
         path_provenance: &PathProvenance,
     ) -> Self {
-        let style = if opt_style.is_some() {
-            OnceLock::from(opt_style)
-        } else {
-            OnceLock::new()
-        };
+        let mut md = OnceLock::new();
+        let mut style = OnceLock::new();
+        let mut ft = opt_filetype;
 
-        let md = if opt_metadata.is_some() {
-            OnceLock::from(opt_metadata)
-        } else {
-            OnceLock::new()
-        };
-
-        let mut res: Self = Self {
-            path,
-            opt_filetype,
-            opt_style: style,
-            opt_metadata: md,
-        };
-
-        if let PathProvenance::IsPhantom = path_provenance {
-            res.opt_filetype = None;
-            res.opt_metadata = OnceLock::from(None);
-            res.opt_style = OnceLock::from(None);
+        if opt_metadata.is_some() {
+            md.get_or_init(|| opt_metadata);
         }
 
-        res
+        if let PathProvenance::IsPhantom = path_provenance {
+            ft = None;
+            md = OnceLock::from(None);
+            style = OnceLock::from(None);
+        }
+
+        Self {
+            path,
+            opt_filetype: ft,
+            opt_style: style,
+            opt_metadata: md,
+        }
     }
 
     pub fn path(&self) -> &Path {
