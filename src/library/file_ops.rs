@@ -407,6 +407,21 @@ impl<'a> PartialEq for ChecksumFileContents<'a> {
     }
 }
 
+impl<'a> Ord for ChecksumFileContents<'a> {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        let (self_hash, other_hash): (u64, u64) =
+            rayon::join(|| self.checksum(), || other.checksum());
+
+        self_hash.cmp(&other_hash)
+    }
+}
+
+impl<'a> PartialOrd for ChecksumFileContents<'a> {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
 pub fn is_same_file_contents(first: &Path, second: &Path) -> bool {
-    ChecksumFileContents::from(first) == ChecksumFileContents::from(second)
+    ChecksumFileContents::from(first).eq(&ChecksumFileContents::from(second))
 }
