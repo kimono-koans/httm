@@ -27,7 +27,6 @@ use skim::prelude::*;
 use std::collections::BTreeMap;
 use std::fs::{FileType, Metadata};
 use std::path::Path;
-use std::path::PathBuf;
 use std::sync::LazyLock;
 
 // these represent the items ready for selection and preview
@@ -38,6 +37,7 @@ pub struct SelectionCandidate {
     path: Box<Path>,
     opt_filetype: Option<FileType>,
     opt_style: Option<Style>,
+    opt_metadata: Option<Metadata>,
 }
 
 impl SelectionCandidate {
@@ -45,12 +45,14 @@ impl SelectionCandidate {
         path: Box<Path>,
         opt_filetype: Option<FileType>,
         opt_style: Option<Style>,
+        opt_metadata: Option<Metadata>,
         path_provenance: &PathProvenance,
     ) -> Self {
         let mut res: Self = Self {
             path,
             opt_filetype,
             opt_style,
+            opt_metadata,
         };
 
         if let PathProvenance::IsPhantom = path_provenance {
@@ -73,7 +75,7 @@ impl SelectionCandidate {
     }
 
     pub fn opt_metadata(&self) -> Option<Metadata> {
-        self.path().symlink_metadata().ok()
+        self.opt_metadata.clone()
     }
 
     fn preview_view(&self) -> HttmResult<String> {
@@ -114,21 +116,6 @@ impl SelectionCandidate {
             Err(_) if Some(self.path.as_ref()) == *REQUESTED_DIR_PARENT => Cow::Borrowed(".."),
             Err(_) => self.path.to_string_lossy(),
         }
-    }
-}
-
-impl lscolors::Colorable for SelectionCandidate {
-    fn path(&self) -> PathBuf {
-        self.path().to_path_buf()
-    }
-    fn file_name(&self) -> std::ffi::OsString {
-        self.path().file_name().unwrap_or_default().to_os_string()
-    }
-    fn file_type(&self) -> Option<FileType> {
-        self.opt_filetype().copied()
-    }
-    fn metadata(&self) -> Option<std::fs::Metadata> {
-        self.opt_metadata()
     }
 }
 

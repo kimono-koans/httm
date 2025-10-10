@@ -130,11 +130,13 @@ impl BasicDirEntryInfo {
 
     pub fn into_selection_candidate(self, path_provenance: &PathProvenance) -> SelectionCandidate {
         let opt_style = ENV_LS_COLORS.style_for(&self);
+        let opt_metadata = self.opt_metadata();
 
         SelectionCandidate::new(
             self.path,
             self.opt_filetype,
             opt_style.copied(),
+            opt_metadata,
             path_provenance,
         )
     }
@@ -311,7 +313,9 @@ impl From<&SelectionCandidate> for PathData {
         //
         // in general we handle those cases elsewhere, like the ingest
         // of input files in Config::from for deleted relative paths, etc.
-        let opt_metadata = selection_candidate.opt_metadata();
+        let opt_metadata = selection_candidate
+            .opt_metadata()
+            .or_else(|| selection_candidate.path().symlink_metadata().ok());
         let opt_path_metadata = opt_metadata.and_then(|md| PathMetadata::new(&md));
         let opt_style = selection_candidate.ls_style();
 
