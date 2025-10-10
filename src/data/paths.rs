@@ -30,6 +30,7 @@ use crate::{
     ZFS_SNAPSHOT_DIRECTORY,
 };
 use hashbrown::HashSet;
+use lscolors::Colorable;
 use realpath_ext::{RealpathFlags, realpath};
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
@@ -102,7 +103,7 @@ impl From<DirEntry> for BasicDirEntryInfo {
     }
 }
 
-impl lscolors::Colorable for BasicDirEntryInfo {
+impl Colorable for BasicDirEntryInfo {
     fn path(&self) -> PathBuf {
         self.path().to_path_buf()
     }
@@ -220,7 +221,7 @@ impl BasicDirEntryInfo {
             }
         }
 
-        if let Ok(file_type) = self.file_type() {
+        if let Some(file_type) = self.opt_filetype() {
             if file_type.is_dir() {
                 return !self.is_path_excluded();
             }

@@ -20,14 +20,16 @@ use crate::config::generate::{DedupBy, FormattedMode, PrintMode};
 use crate::data::paths::PathData;
 use crate::display::wrapper::DisplayWrapper;
 use crate::library::results::HttmResult;
-use crate::library::utility::PaintString;
+use crate::library::utility::{ENV_LS_COLORS, PaintString};
 use crate::{Config, ExecMode, GLOBAL_CONFIG, VersionsMap};
+use lscolors::Colorable;
 use lscolors::Style;
 use skim::prelude::*;
 use std::collections::BTreeMap;
 use std::fs::{FileType, Metadata};
 use std::path::Path;
-use std::sync::LazyLock;
+use std::path::PathBuf;
+use std::sync::{LazyLock, OnceLock};
 
 // these represent the items ready for selection and preview
 // contains everything one needs to request preview and paint with
@@ -36,8 +38,23 @@ use std::sync::LazyLock;
 pub struct SelectionCandidate {
     path: Box<Path>,
     opt_filetype: Option<FileType>,
-    opt_style: Option<Style>,
-    opt_metadata: Option<Metadata>,
+    opt_style: OnceLock<Option<Style>>,
+    opt_metadata: OnceLock<Option<Metadata>>,
+}
+
+impl Colorable for &SelectionCandidate {
+    fn path(&self) -> PathBuf {
+        self.path.to_path_buf()
+    }
+    fn file_name(&self) -> std::ffi::OsString {
+        self.path().file_name().unwrap_or_default().to_os_string()
+    }
+    fn file_type(&self) -> Option<FileType> {
+        self.opt_filetype().copied()
+    }
+    fn metadata(&self) -> Option<std::fs::Metadata> {
+        self.opt_metadata().cloned()
+    }
 }
 
 impl SelectionCandidate {
@@ -48,17 +65,29 @@ impl SelectionCandidate {
         opt_metadata: Option<Metadata>,
         path_provenance: &PathProvenance,
     ) -> Self {
+        let style = if opt_style.is_some() {
+            OnceLock::from(opt_style)
+        } else {
+            OnceLock::new()
+        };
+
+        let md = if opt_metadata.is_some() {
+            OnceLock::from(opt_metadata)
+        } else {
+            OnceLock::new()
+        };
+
         let mut res: Self = Self {
             path,
             opt_filetype,
-            opt_style,
-            opt_metadata,
+            opt_style: style,
+            opt_metadata: md,
         };
 
         if let PathProvenance::IsPhantom = path_provenance {
             res.opt_filetype = None;
-            res.opt_metadata = None;
-            res.opt_style = None;
+            res.opt_metadata = OnceLock::from(None);
+            res.opt_style = OnceLock::from(None);
         }
 
         res
@@ -73,11 +102,15 @@ impl SelectionCandidate {
     }
 
     pub fn opt_style(&self) -> Option<Style> {
-        self.opt_style
+        *self
+            .opt_style
+            .get_or_init(|| ENV_LS_COLORS.style_for(&self).copied())
     }
 
     pub fn opt_metadata(&self) -> Option<&Metadata> {
-        self.opt_metadata.as_ref()
+        self.opt_metadata
+            .get_or_init(|| self.path().symlink_metadata().ok())
+            .as_ref()
     }
 
     fn preview_view(&self) -> HttmResult<String> {
