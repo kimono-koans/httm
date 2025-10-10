@@ -109,6 +109,7 @@ pub enum DedupBy {
     Disable,
     Metadata,
     Contents,
+    Suspect,
 }
 
 #[derive(Debug, Clone)]
@@ -277,7 +278,7 @@ fn parse_args() -> ArgMatches {
         .arg(
             Arg::new("DEDUP_BY")
                 .long("dedup-by")
-                .value_parser(["disable", "all", "no-filter", "metadata", "contents"])
+                .value_parser(["disable", "all", "no-filter", "metadata", "contents", "suspect"])
                 .num_args(0..=1)
                 .visible_aliases(&["unique", "uniqueness"])
                 .default_missing_value("contents")
@@ -287,7 +288,8 @@ fn parse_args() -> ArgMatches {
                 and/or a user can simply update the modify time via 'touch'. When specified with the \"contents\" option, httm compares the actual file contents of same-sized file versions, \
                 overriding the default \"metadata\" only behavior. The \"contents\" option can be expensive, as the file versions need to be read back and compared, and, thus, should probably only be used for smaller files. \
                 Given how expensive this operation can be, for larger files or files with many versions, if specified, the \"contents\" option is not shown in BROWSE mode, \
-                but after a selection is made, can be utilized, when enabled, in SELECT or RESTORE modes. The \"disable\" \"all\" or \"no-filter\" option dumps all snapshot versions, without deduplication.")
+                but after a selection is made, can be utilized, when enabled, in SELECT or RESTORE modes.  The \"suspect\" option only compares file contents when a file's metadata makes it likely it may have new file contents, \
+                such as when it has a new inode or birth time.  The \"disable\" \"all\" or \"no-filter\" option dumps all snapshot versions, without deduplication.")
                 .display_order(10)
                 .action(ArgAction::Append)
         )
@@ -863,6 +865,7 @@ impl TryFrom<&ArgMatches> for Config {
             _ if matches.get_flag("PRUNE") => DedupBy::Disable,
             Some("all" | "no-filter" | "disable") => DedupBy::Disable,
             Some("contents") => DedupBy::Contents,
+            Some("suspect") => DedupBy::Suspect,
             Some("metadata" | _) => DedupBy::Metadata,
             _ if matches.contains_id("LIST_SNAPS") => DedupBy::Disable,
             None => DedupBy::Metadata,

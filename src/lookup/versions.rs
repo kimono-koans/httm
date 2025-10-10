@@ -456,7 +456,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
                 vec.sort_unstable_by_key(|path_data| path_data.metadata_infallible());
                 vec.dedup_by_key(|a| a.metadata_infallible());
             }
-            DedupBy::Contents => {
+            DedupBy::Contents | DedupBy::Suspect => {
                 let mut container_vec: Vec<CompareContentsContainer> = std::mem::take(vec)
                     .into_iter()
                     .map(|path_data| CompareContentsContainer::from(path_data))

@@ -16,7 +16,7 @@
 // that was distributed with this source code.
 
 use crate::background::recursive::PathProvenance;
-use crate::config::generate::PrintMode;
+use crate::config::generate::{DedupBy, PrintMode};
 use crate::data::selection::SelectionCandidate;
 use crate::filesystem::mounts::{FilesystemType, IsFilterDir, MaxLen};
 use crate::library::file_ops::ChecksumFileContents;
@@ -679,6 +679,7 @@ impl Serialize for PathMetadata {
 #[derive(Copy, Clone, Debug, Hash)]
 pub struct PathMetadata {
     size: u64,
+    inode: u64,
     modify_time: SystemTime,
     birth_time: SystemTime,
 }
@@ -690,11 +691,13 @@ impl PathMetadata {
         // may fail on systems that don't collect a modify time
         let modify_time = md.modified().ok()?;
         let birth_time = md.created().ok()?;
+        let inode = md.ino();
 
         Some(PathMetadata {
             size: md.len(),
             modify_time,
             birth_time,
+            inode,
         })
     }
 
@@ -709,6 +712,12 @@ impl PathMetadata {
     #[inline(always)]
     pub fn btime(&self) -> SystemTime {
         self.birth_time
+    }
+
+    #[allow(dead_code)]
+    #[inline(always)]
+    pub fn inode(&self) -> u64 {
+        self.inode
     }
 
     #[inline(always)]
@@ -749,8 +758,10 @@ impl Ord for PathMetadata {
 
 pub const PHANTOM_DATE: SystemTime = SystemTime::UNIX_EPOCH;
 pub const PHANTOM_SIZE: u64 = 0u64;
+pub const PHANTOM_INODE: u64 = 0u64;
 
 pub const PHANTOM_PATH_METADATA: PathMetadata = PathMetadata {
+    inode: PHANTOM_INODE,
     size: PHANTOM_SIZE,
     modify_time: PHANTOM_DATE,
     birth_time: PHANTOM_DATE,
@@ -787,6 +798,15 @@ impl Ord for CompareContentsContainer {
             return size_order;
         }
 
+        if matches!(GLOBAL_CONFIG.dedup_by, DedupBy::Suspect) {
+            let btime_order: Ordering = self.btime().cmp(&other.btime());
+            let inode_order: Ordering = self.inode().cmp(&other.inode());
+
+            if btime_order.is_eq() && inode_order.is_eq() {
+                return Ordering::Equal;
+            }
+        }
+
         self.cmp_file_contents(other)
     }
 }
@@ -819,6 +839,12 @@ impl CompareContentsContainer {
     #[inline(always)]
     pub fn btime(&self) -> SystemTime {
         self.path_data.metadata_infallible().birth_time
+    }
+
+    #[allow(unused)]
+    #[inline(always)]
+    pub fn inode(&self) -> u64 {
+        self.path_data.metadata_infallible().inode
     }
 
     #[allow(unused)]
