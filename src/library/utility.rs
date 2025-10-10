@@ -151,11 +151,16 @@ pub struct UniqueInode {
 
 impl UniqueInode {
     fn new(entry: &BasicDirEntryInfo) -> Option<Self> {
-        let entry_metadata = entry.opt_metadata()?;
+        // deref if needed!
+        let entry_metadata = match entry.opt_filetype() {
+            Some(ft) if ft.is_symlink() => entry.path().metadata().ok(),
+            Some(_) => entry.opt_metadata(),
+            None => entry.path().metadata().ok(),
+        };
 
         Some(Self {
-            ino: entry_metadata.ino(),
-            dev: entry_metadata.dev(),
+            ino: entry_metadata.as_ref()?.ino(),
+            dev: entry_metadata.as_ref()?.dev(),
         })
     }
 }
@@ -323,11 +328,7 @@ impl PaintString for SelectionCandidate {
         paint_string(self)
     }
     fn ls_style(&self) -> Option<lscolors::style::Style> {
-        self.opt_metadata().and_then(|md| {
-            ENV_LS_COLORS
-                .style_for_path_with_metadata(self.path(), Some(md))
-                .copied()
-        })
+        ENV_LS_COLORS.style_for(self).copied()
     }
     fn is_phantom(&self) -> bool {
         self.opt_filetype().is_none()

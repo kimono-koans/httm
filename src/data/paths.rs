@@ -110,7 +110,12 @@ impl BasicDirEntryInfo {
     }
 
     pub fn into_selection_candidate(self, path_provenance: &PathProvenance) -> SelectionCandidate {
-        SelectionCandidate::new(self.path, self.opt_filetype, path_provenance)
+        let opt_metadata = self
+            .opt_dir_entry
+            .as_ref()
+            .and_then(|de| de.metadata().ok());
+
+        SelectionCandidate::new(self.path, self.opt_filetype, opt_metadata, path_provenance)
     }
 
     pub fn filename(&self) -> &OsStr {
@@ -126,13 +131,9 @@ impl BasicDirEntryInfo {
     }
 
     pub fn opt_metadata(&self) -> Option<Metadata> {
-        match self.opt_filetype() {
-            Some(ft) if ft.is_symlink() => self.path().metadata().ok(),
-            _ => self
-                .opt_dir_entry
-                .as_ref()
-                .and_then(|de| de.metadata().ok()),
-        }
+        self.opt_dir_entry
+            .as_ref()
+            .and_then(|de| de.metadata().ok())
     }
 
     pub fn is_entry_dir(&self, opt_path_map: Option<&RefCell<HashSet<UniqueInode>>>) -> bool {
@@ -239,21 +240,6 @@ pub struct PathData {
     opt_path_metadata: Option<PathMetadata>,
     opt_style: Option<lscolors::Style>,
     opt_file_type: Option<FileType>,
-}
-
-impl lscolors::Colorable for PathData {
-    fn path(&self) -> PathBuf {
-        self.path_buf.to_path_buf()
-    }
-    fn file_name(&self) -> std::ffi::OsString {
-        self.path_buf.file_name().unwrap_or_default().to_os_string()
-    }
-    fn file_type(&self) -> Option<FileType> {
-        self.opt_file_type()
-    }
-    fn metadata(&self) -> Option<std::fs::Metadata> {
-        self.path_buf.symlink_metadata().ok()
-    }
 }
 
 impl PartialEq for PathData {

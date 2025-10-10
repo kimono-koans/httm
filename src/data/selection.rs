@@ -43,12 +43,13 @@ impl SelectionCandidate {
     pub fn new(
         path: Box<Path>,
         opt_filetype: Option<FileType>,
+        opt_metadata: Option<Metadata>,
         path_provenance: &PathProvenance,
     ) -> Self {
         let mut res: Self = Self {
             path,
             opt_filetype,
-            opt_metadata: OnceLock::new(),
+            opt_metadata: OnceLock::from(opt_metadata),
         };
 
         if let PathProvenance::IsPhantom = path_provenance {
@@ -92,16 +93,22 @@ impl SelectionCandidate {
     }
 
     pub fn display_name(&self) -> Cow<'_, str> {
-        static PWD_DIR: LazyLock<&Path> = LazyLock::new(|| GLOBAL_CONFIG.pwd.as_ref());
+        static REQUESTED_DIR: LazyLock<&Path> = LazyLock::new(|| {
+            GLOBAL_CONFIG
+                .opt_requested_dir
+                .as_ref()
+                .unwrap_or_else(|| &GLOBAL_CONFIG.pwd)
+                .as_ref()
+        });
 
-        static PWD_DIR_PARENT: LazyLock<Option<&Path>> =
-            LazyLock::new(|| GLOBAL_CONFIG.pwd.parent());
+        static REQUESTED_DIR_PARENT: LazyLock<Option<&Path>> =
+            LazyLock::new(|| REQUESTED_DIR.parent());
 
         // this only works because we do not resolve symlinks when doing traversal
-        match self.path.strip_prefix(*PWD_DIR) {
-            Ok(_) if self.path.as_ref() == *PWD_DIR => Cow::Borrowed("."),
+        match self.path.strip_prefix(*REQUESTED_DIR) {
+            Ok(_) if self.path.as_ref() == *REQUESTED_DIR => Cow::Borrowed("."),
             Ok(stripped) => stripped.to_string_lossy(),
-            Err(_) if Some(self.path.as_ref()) == *PWD_DIR_PARENT => Cow::Borrowed(".."),
+            Err(_) if Some(self.path.as_ref()) == *REQUESTED_DIR_PARENT => Cow::Borrowed(".."),
             Err(_) => self.path.to_string_lossy(),
         }
     }
@@ -118,7 +125,7 @@ impl lscolors::Colorable for SelectionCandidate {
         self.opt_filetype().copied()
     }
     fn metadata(&self) -> Option<std::fs::Metadata> {
-        self.path().symlink_metadata().ok()
+        self.opt_metadata().cloned()
     }
 }
 
