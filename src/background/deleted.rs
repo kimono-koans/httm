@@ -34,6 +34,7 @@ use crate::ExecMode;
 use crate::library::utility::UniqueInode;
 use hashbrown::HashSet;
 use std::sync::Arc;
+use std::sync::Mutex;
 
 pub struct DeletedSearch {
     deleted_dir: PathBuf,
@@ -54,7 +55,7 @@ impl CommonSearch for &DeletedSearch {
         self.hangup.load(Ordering::Relaxed)
     }
 
-    fn opt_path_map(&self) -> Option<&RefCell<HashSet<UniqueInode>>> {
+    fn opt_path_map(&self) -> Option<&Mutex<HashSet<UniqueInode>>> {
         None
     }
 

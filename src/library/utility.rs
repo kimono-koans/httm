@@ -23,7 +23,6 @@ use crate::library::results::{HttmError, HttmResult};
 use lscolors::{LsColors, Style};
 use nu_ansi_term::AnsiString;
 use std::borrow::Cow;
-use std::cell::RefMut;
 use std::fs::FileType;
 use std::hash::Hash;
 use std::io::Write;
@@ -31,6 +30,7 @@ use std::iter::Iterator;
 use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
+use std::sync::MutexGuard;
 use std::time::SystemTime;
 use time::{OffsetDateTime, UtcOffset, format_description};
 use unit_prefix::NumberPrefix;
@@ -135,7 +135,7 @@ pub fn print_output_buf(output_buf: &str) -> HttmResult<()> {
 
 pub fn dir_was_previously_listed(
     entry: &BasicDirEntryInfo,
-    opt_path_map: Option<&mut RefMut<'_, hashbrown::HashSet<UniqueInode>>>,
+    opt_path_map: Option<&mut MutexGuard<hashbrown::HashSet<UniqueInode>>>,
 ) -> Option<bool> {
     let file_id = UniqueInode::new(entry)?;
 
@@ -183,7 +183,7 @@ impl Hash for UniqueInode {
 // is this path/dir_entry something we should count as a directory for our purposes?
 pub fn httm_is_dir<'a, T>(
     entry: &'a T,
-    opt_path_map: Option<&mut RefMut<'_, hashbrown::HashSet<UniqueInode>>>,
+    opt_path_map: Option<&mut MutexGuard<hashbrown::HashSet<UniqueInode>>>,
 ) -> bool
 where
     T: HttmIsDir<'a> + ?Sized,
@@ -219,7 +219,7 @@ where
 pub trait HttmIsDir<'a> {
     fn httm_is_dir(
         &self,
-        path_map: Option<&mut RefMut<'_, hashbrown::HashSet<UniqueInode>>>,
+        path_map: Option<&mut MutexGuard<hashbrown::HashSet<UniqueInode>>>,
     ) -> bool;
     fn file_type(&self) -> Result<FileType, std::io::Error>;
     fn path(&'a self) -> &'a Path;
@@ -228,7 +228,7 @@ pub trait HttmIsDir<'a> {
 impl<T: AsRef<Path>> HttmIsDir<'_> for T {
     fn httm_is_dir(
         &self,
-        path_map: Option<&mut RefMut<'_, hashbrown::HashSet<UniqueInode>>>,
+        path_map: Option<&mut MutexGuard<hashbrown::HashSet<UniqueInode>>>,
     ) -> bool {
         httm_is_dir(self, path_map)
     }
@@ -243,10 +243,11 @@ impl<T: AsRef<Path>> HttmIsDir<'_> for T {
 impl<'a> HttmIsDir<'a> for PathData {
     fn httm_is_dir(
         &self,
-        path_map: Option<&mut RefMut<'_, hashbrown::HashSet<UniqueInode>>>,
+        path_map: Option<&mut MutexGuard<hashbrown::HashSet<UniqueInode>>>,
     ) -> bool {
         httm_is_dir(self, path_map)
     }
+
     fn file_type(&self) -> Result<FileType, std::io::Error> {
         //  of course, this is a placeholder error, we just need an error to report back
         //  why not store the error in the struct instead?  because it's more complex.  it might
@@ -263,7 +264,7 @@ impl<'a> HttmIsDir<'a> for PathData {
 impl<'a> HttmIsDir<'a> for BasicDirEntryInfo {
     fn httm_is_dir(
         &self,
-        path_map: Option<&mut RefMut<'_, hashbrown::HashSet<UniqueInode>>>,
+        path_map: Option<&mut MutexGuard<hashbrown::HashSet<UniqueInode>>>,
     ) -> bool {
         httm_is_dir(self, path_map)
     }
