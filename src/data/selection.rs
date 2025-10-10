@@ -47,7 +47,7 @@ impl Colorable for &SelectionCandidate {
         self.path.to_path_buf()
     }
     fn file_name(&self) -> std::ffi::OsString {
-        self.path().file_name().unwrap_or_default().to_os_string()
+        self.path.file_name().unwrap_or_default().to_os_string()
     }
     fn file_type(&self) -> Option<FileType> {
         self.opt_filetype().copied()

@@ -308,13 +308,14 @@ impl<T: AsRef<Path>> From<T> for PathData {
     }
 }
 
-// don't use new(), because DirEntry includes the canonical path
-// saves a few stat/md calls
 impl From<BasicDirEntryInfo> for PathData {
     fn from(basic_info: BasicDirEntryInfo) -> Self {
-        // this metadata() function will not traverse symlinks
-        let path = basic_info.path;
-        Self::with_metadata(path, basic_info.opt_metadata.into_inner().flatten())
+        let opt_metadata = basic_info
+            .opt_metadata()
+            .cloned()
+            .or_else(|| basic_info.path().symlink_metadata().ok());
+
+        Self::with_metadata(basic_info.path, opt_metadata)
     }
 }
 
