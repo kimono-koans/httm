@@ -337,7 +337,7 @@ impl PaintString for SelectionCandidate {
         let mut display_name = self.display_name().to_string();
 
         match self.opt_filetype() {
-            Some(ft) if !ft.is_symlink() && !ft.is_dir() => (),
+            Some(ft) if ft.is_file() => (),
             Some(ft) if ft.is_dir() && display_name != "/" => display_name.push('/'),
             Some(ft) if ft.is_symlink() => match std::fs::read_link(self.path()).ok() {
                 Some(link_target) => {
