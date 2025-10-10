@@ -118,6 +118,10 @@ impl DeletedSearch {
             let num_cores: usize = std::thread::available_parallelism()
                 .unwrap_or_else(|_| NonZero::new(4usize).unwrap())
                 .into();
+            let interactive = !matches!(
+                GLOBAL_CONFIG.exec_mode,
+                ExecMode::NonInteractiveRecursive(_)
+            );
 
             while let Some(item) = queue.pop() {
                 // check to see whether we need to continue
@@ -126,11 +130,7 @@ impl DeletedSearch {
 
                 total_items += 1;
 
-                if !matches!(
-                    GLOBAL_CONFIG.exec_mode,
-                    ExecMode::NonInteractiveRecursive(_)
-                ) && total_items % (500 / num_cores) == 0
-                {
+                if interactive && total_items % (100 / num_cores) == 0 {
                     std::thread::yield_now();
                 }
             }

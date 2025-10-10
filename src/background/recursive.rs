@@ -112,6 +112,11 @@ impl<'a> RecursiveSearch<'a> {
 
             let mut total_items = 0;
 
+            let interactive = !matches!(
+                GLOBAL_CONFIG.exec_mode,
+                ExecMode::NonInteractiveRecursive(_)
+            );
+
             // condition kills iter when user has made a selection
             // pop_back makes this a LIFO queue which is supposedly better for caches
             while let Some(item) = queue.pop() {
@@ -132,11 +137,7 @@ impl<'a> RecursiveSearch<'a> {
 
                 total_items += 1;
 
-                if !matches!(
-                    GLOBAL_CONFIG.exec_mode,
-                    ExecMode::NonInteractiveRecursive(_)
-                ) && total_items % 500 == 0
-                {
+                if interactive && total_items % 100 == 0 {
                     std::thread::yield_now();
                 }
             }
