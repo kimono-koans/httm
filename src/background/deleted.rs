@@ -22,7 +22,6 @@ use crate::background::recursive::PathProvenance;
 use crate::background::recursive::enter_directory;
 use crate::config::generate::DeletedMode;
 use crate::data::paths::BasicDirEntryInfo;
-use crate::library::results::HttmError;
 use crate::library::results::HttmResult;
 use rayon::Scope;
 use skim::prelude::*;
@@ -97,7 +96,9 @@ impl DeletedSearch {
 
     fn run_loop(&self) -> HttmResult<()> {
         // check to see whether we need to continue
-        self.hangup_check()?;
+        if self.hangup() {
+            return Ok(());
+        };
 
         // yield to other rayon work on this worker thread
         //self.timeout_loop()?;
@@ -125,7 +126,9 @@ impl DeletedSearch {
 
             while let Some(item) = queue.pop() {
                 // check to see whether we need to continue
-                self.hangup_check()?;
+                if self.hangup() {
+                    return Ok(());
+                }
                 let _ = self.enter_directory(&item.path(), &mut queue);
 
                 total_items += 1;
@@ -134,14 +137,6 @@ impl DeletedSearch {
                     std::thread::yield_now();
                 }
             }
-        }
-
-        Ok(())
-    }
-
-    fn hangup_check(&self) -> HttmResult<()> {
-        if self.hangup() {
-            return HttmError::new("Thread requested to hangup!").into();
         }
 
         Ok(())
