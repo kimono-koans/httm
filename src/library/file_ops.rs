@@ -403,7 +403,7 @@ impl<'a> PartialEq for ChecksumFileContents<'a> {
         let (self_hash, other_hash): (u64, u64) =
             rayon::join(|| self.checksum(), || other.checksum());
 
-        self_hash == other_hash
+        self_hash.eq(&other_hash)
     }
 }
 
