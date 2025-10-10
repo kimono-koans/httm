@@ -58,6 +58,7 @@ impl SelectionCandidate {
         if let PathProvenance::IsPhantom = path_provenance {
             res.opt_filetype = None;
             res.opt_metadata = None;
+            res.opt_style = None;
         }
 
         res
