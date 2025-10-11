@@ -497,14 +497,17 @@ impl<'a> RelativePathAndSnapMounts<'a> {
                 proximate_plus_neighbors
                     .iter()
                     .filter_map(|dataset| Self::snap_mounts_from_dataset_of_interest(dataset))
-                    .map(|bundle| bundle.to_vec())
-                    .flatten()
-                    .for_each(|snap_path| {
-                        let _ = std::fs::read_dir(snap_path)
+                    .map(|bundle| bundle)
+                    .for_each(|bundle| {
+                        let _ = bundle
                             .into_iter()
+                            .map(|snap_path| std::fs::read_dir(snap_path))
+                            .flatten()
                             .flatten()
                             .flatten()
                             .next();
+
+                        std::thread::yield_now();
                     });
             });
         }
