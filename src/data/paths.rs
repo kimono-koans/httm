@@ -395,6 +395,24 @@ impl PathData {
         self.opt_path_metadata
             .unwrap_or_else(|| PHANTOM_PATH_METADATA)
     }
+
+    #[inline(always)]
+    pub fn proximate_family(proximate_dataset: &Path) -> Vec<PathBuf> {
+        // for /usr/bin, we prefer the most proximate: /usr/bin to /usr and /
+        // ancestors() iterates in this top-down order, when a value: dataset/fstype is available
+        // we map to return the key, instead of the value
+        let mut res: Vec<PathBuf> = GLOBAL_CONFIG
+            .dataset_collection
+            .map_of_datasets
+            .keys()
+            .filter(|path| path.starts_with(proximate_dataset))
+            .map(|path| path.to_path_buf())
+            .collect();
+
+        res.sort_by_key(|path| path.as_os_str().len());
+
+        res
+    }
 }
 
 impl<'a> PathDeconstruction<'a> for PathData {

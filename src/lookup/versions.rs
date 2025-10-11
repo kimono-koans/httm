@@ -331,6 +331,16 @@ impl<'a> RelativePathAndSnapMounts<'a> {
         //
         // for native searches the prefix is are the dirs below the most proximate dataset
         // for user specified dirs/aliases these are specified by the user
+        Self::snap_mounts_from_dataset_of_interest(dataset_of_interest).map(|snap_mounts| Self {
+            relative_path,
+            dataset_of_interest,
+            snap_mounts,
+        })
+    }
+
+    fn snap_mounts_from_dataset_of_interest(
+        dataset_of_interest: &Path,
+    ) -> Option<Cow<'_, [Box<Path>]>> {
         if !GLOBAL_CONFIG.opt_debug && GLOBAL_CONFIG.opt_lazy {
             // now process snaps
             return GLOBAL_CONFIG
@@ -344,22 +354,12 @@ impl<'a> RelativePathAndSnapMounts<'a> {
                         GLOBAL_CONFIG.opt_debug,
                     )
                 })
-                .map(|snap_mounts| Cow::Owned(snap_mounts))
-                .map(|snap_mounts| Self {
-                    relative_path,
-                    dataset_of_interest,
-                    snap_mounts,
-                });
+                .map(|snap_mounts| Cow::Owned(snap_mounts));
         }
 
         MAP_OF_SNAPS
             .get(dataset_of_interest)
             .map(|snap_mounts| Cow::Borrowed(snap_mounts.as_slice()))
-            .map(|snap_mounts| Self {
-                relative_path,
-                dataset_of_interest,
-                snap_mounts,
-            })
     }
 
     #[inline(always)]
@@ -463,67 +463,41 @@ impl<'a> RelativePathAndSnapMounts<'a> {
         versions
     }
 
-    /* #[inline(always)]
-       fn network_auto_mount(&self) -> TickleAutoMount {
-           static ANY_NETWORK_MOUNTS: LazyLock<bool> = LazyLock::new(|| {
-               GLOBAL_CONFIG
-                   .dataset_collection
-                   .map_of_datasets
-                   .values()
-                   .any(|md| matches!(md.link_type, LinkType::Network))
-           });
-
-           if !*ANY_NETWORK_MOUNTS {
-               return TickleAutoMount::Break;
-           }
-
-           if GLOBAL_CONFIG
-               .dataset_collection
-               .map_of_datasets
-               .get(self.dataset_of_interest)
-               .is_some_and(|md| matches!(md.link_type, LinkType::Local))
-           {
-               return TickleAutoMount::Break;
-           };
-
-           self.tickle_auto_mount()
-       }
-    */
-
     #[inline(always)]
     fn tickle_auto_mount(&self) {
         static CACHE_RESULT: LazyLock<RwLock<HashSet<PathBuf>>> =
             LazyLock::new(|| RwLock::new(HashSet::new()));
 
         if CACHE_RESULT
-            .try_read()
+            .read()
             .ok()
             .is_some_and(|cached_result| cached_result.contains(self.dataset_of_interest))
         {
             return;
         }
 
-        if let Ok(mut cached_result) = CACHE_RESULT.try_write() {
+        if let Ok(mut cached_result) = CACHE_RESULT.write() {
             if cached_result.insert(self.dataset_of_interest.to_path_buf()) {
-                let snap_mounts = self.snap_mounts.as_ref().to_vec();
+                let proximate_family = PathData::proximate_family(self.dataset_of_interest);
+                let proximate_family_clone = proximate_family.clone();
 
                 rayon::spawn(move || {
-                    snap_mounts.iter().for_each(|snap_path| {
-                        let _ = std::fs::read_dir(snap_path)
-                            .into_iter()
-                            .flatten()
-                            .flatten()
-                            .next();
-                    });
+                    proximate_family_clone
+                        .iter()
+                        .filter_map(|dataset| Self::snap_mounts_from_dataset_of_interest(dataset))
+                        .map(|bundle| bundle.to_vec())
+                        .flatten()
+                        .for_each(|snap_path| {
+                            let _ = std::fs::read_dir(snap_path)
+                                .into_iter()
+                                .flatten()
+                                .flatten()
+                                .next();
+                        });
                 });
+
+                cached_result.extend(proximate_family);
             }
         }
     }
 }
-
-/*
-enum TickleAutoMount {
-    Break,
-    Continue,
-}
- */
