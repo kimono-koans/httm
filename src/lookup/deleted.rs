@@ -127,7 +127,7 @@ impl DeletedFiles {
         search_bundle: RelativePathAndSnapMounts<'a>,
     ) -> HashSet<BasicDirEntryInfo> {
         // compare local filenames to all unique snap filenames - none values are unique, here
-        let iter = search_bundle
+        search_bundle
             .snap_mounts()
             .into_iter()
             .map(|path| path.join(search_bundle.relative_path()))
@@ -148,10 +148,8 @@ impl DeletedFiles {
                     pseudo_live_dir,
                     Some(file_type),
                 )
-            });
-
-        // SAFETY: Known safe because the file names must be unique in a single directory
-        unsafe { iter.collect_unique() }
+            })
+            .collect_set_no_update()
     }
 
     // this function creates dummy "live versions" values to match deleted files
