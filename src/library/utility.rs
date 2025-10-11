@@ -136,12 +136,16 @@ pub fn print_output_buf(output_buf: &str) -> HttmResult<()> {
 pub fn dir_was_previously_listed(
     entry: &BasicDirEntryInfo,
     opt_path_map: Option<&mut RefMut<'_, hashbrown::HashSet<UniqueInode>>>,
-) -> Option<bool> {
-    let file_id = UniqueInode::new(entry)?;
+) -> bool {
+    let Some(file_id) = UniqueInode::new(entry) else {
+        return true;
+    };
 
-    let path_map = opt_path_map?;
+    let Some(path_map) = opt_path_map else {
+        return true;
+    };
 
-    Some(!path_map.insert(file_id))
+    !path_map.insert(file_id)
 }
 
 pub struct UniqueInode {
@@ -199,11 +203,7 @@ where
                     Ok(link_target) => {
                         let entry = BasicDirEntryInfo::new(&link_target, None);
 
-                        match dir_was_previously_listed(&entry, opt_path_map) {
-                            Some(dir_was_previously_listed) if dir_was_previously_listed => false,
-                            Some(_) => true,
-                            None => false,
-                        }
+                        !dir_was_previously_listed(&entry, opt_path_map)
                     }
                     // we get an error? still pass the path on, as we get a good path from the dir entry
                     _ => false,
