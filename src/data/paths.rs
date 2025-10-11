@@ -397,7 +397,7 @@ impl PathData {
     }
 
     #[inline(always)]
-    pub fn proximate_family(&self, proximate_dataset: &Path) -> Vec<PathBuf> {
+    pub fn proximate_neighbors(&self, proximate_dataset: &Path) -> Vec<PathBuf> {
         // for /usr/bin, we prefer the most proximate: /usr/bin to /usr and /
         // ancestors() iterates in this top-down order, when a value: dataset/fstype is available
         // we map to return the key, instead of the value
@@ -715,6 +715,7 @@ impl Serialize for PathMetadata {
 pub struct PathMetadata {
     size: u64,
     inode: u64,
+    dev: u64,
     modify_time: SystemTime,
     birth_time: SystemTime,
 }
@@ -727,12 +728,14 @@ impl PathMetadata {
         let modify_time = md.modified().ok()?;
         let birth_time = md.created().ok()?;
         let inode = md.ino();
+        let dev = md.dev();
 
         Some(PathMetadata {
             size: md.len(),
             modify_time,
             birth_time,
             inode,
+            dev,
         })
     }
 
@@ -753,6 +756,12 @@ impl PathMetadata {
     #[inline(always)]
     pub fn inode(&self) -> u64 {
         self.inode
+    }
+
+    #[allow(dead_code)]
+    #[inline(always)]
+    pub fn dev(&self) -> u64 {
+        self.dev
     }
 
     #[inline(always)]
@@ -794,8 +803,10 @@ impl Ord for PathMetadata {
 pub const PHANTOM_DATE: SystemTime = SystemTime::UNIX_EPOCH;
 pub const PHANTOM_SIZE: u64 = 0u64;
 pub const PHANTOM_INODE: u64 = 0u64;
+pub const PHANTOM_DEV: u64 = 0u64;
 
 pub const PHANTOM_PATH_METADATA: PathMetadata = PathMetadata {
+    dev: PHANTOM_DEV,
     inode: PHANTOM_INODE,
     size: PHANTOM_SIZE,
     modify_time: PHANTOM_DATE,
@@ -886,6 +897,12 @@ impl CompareContentsContainer {
     #[inline(always)]
     pub fn inode(&self) -> u64 {
         self.path_data.metadata_infallible().inode
+    }
+
+    #[allow(unused)]
+    #[inline(always)]
+    pub fn dev(&self) -> u64 {
+        self.path_data.metadata_infallible().dev
     }
 
     #[allow(unused)]
