@@ -25,6 +25,7 @@ use crate::filesystem::mounts::{
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::find_common_path;
 use rayon::prelude::*;
+use std::borrow::Cow;
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -46,7 +47,7 @@ impl FilesystemInfo {
         opt_alt_replicated: bool,
         opt_remote_dir: Option<&String>,
         opt_local_dir: Option<&String>,
-        opt_raw_aliases: Option<Vec<String>>,
+        opt_raw_aliases: Option<Vec<Cow<str>>>,
         opt_alt_store: Option<FilesystemType>,
         pwd: PathBuf,
     ) -> HttmResult<FilesystemInfo> {

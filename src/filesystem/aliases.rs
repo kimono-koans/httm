@@ -17,6 +17,7 @@
 
 use crate::filesystem::mounts::{DatasetMetadata, FilesystemType};
 use crate::library::results::{HttmError, HttmResult};
+use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::ops::Deref;
 use std::path::Path;
@@ -56,17 +57,17 @@ impl Deref for MapOfAliases {
 impl MapOfAliases {
     pub fn new(
         map_of_datasets: &BTreeMap<Arc<Path>, DatasetMetadata>,
-        opt_raw_aliases: Option<Vec<String>>,
+        opt_raw_aliases: Option<Vec<Cow<str>>>,
         opt_remote_dir: Option<&String>,
         opt_local_dir: Option<&String>,
         pwd: &Path,
     ) -> HttmResult<Option<MapOfAliases>> {
-        let alias_values: Option<Vec<String>> = match std::env::var_os("HTTM_MAP_ALIASES") {
+        let alias_values: Option<Vec<Cow<str>>> = match std::env::var_os("HTTM_MAP_ALIASES") {
             Some(env_map_alias) => Some(
                 env_map_alias
                     .to_string_lossy()
                     .split_terminator(',')
-                    .map(|s| s.to_owned())
+                    .map(|s: &str| Cow::Owned(s.to_string()))
                     .collect(),
             ),
             None => opt_raw_aliases,

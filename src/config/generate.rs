@@ -26,6 +26,7 @@ use clap::parser::ValuesRef;
 use clap::{Arg, ArgAction, ArgMatches, crate_name, crate_version};
 use indicatif::ProgressBar;
 use rayon::iter::{ParallelBridge, ParallelIterator};
+use std::borrow::Cow;
 use std::fs::read_link;
 use std::io::Read;
 use std::ops::Index;
@@ -685,12 +686,9 @@ impl TryFrom<&ArgMatches> for Config {
 
         // obtain a map of datasets, a map of snapshot directories, and possibly a map of
         // alternate filesystems and map of aliases if the user requests
-        let mut opt_map_aliases: Option<Vec<String>> =
-            matches.get_raw("MAP_ALIASES").map(|aliases| {
-                aliases
-                    .map(|os_str| os_str.to_string_lossy().to_string())
-                    .collect()
-            });
+        let mut opt_map_aliases: Option<Vec<Cow<str>>> = matches
+            .get_raw("MAP_ALIASES")
+            .map(|aliases| aliases.map(|os_str| os_str.to_string_lossy()).collect());
 
         let opt_alt_store: Option<FilesystemType> = match matches
             .get_one::<String>("ALT_STORE")
