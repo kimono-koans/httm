@@ -296,9 +296,9 @@ where
         .ls_style()
         .map(|style| Style::to_nu_ansi_term_style(&style))
     {
-        Some(ansi_style) if !item.is_phantom() => ansi_style.paint(display_name),
-        None if !item.is_phantom() => BASE_STYLE.paint(display_name),
-        _ => PHANTOM_STYLE.paint(display_name),
+        _ if item.is_phantom() => PHANTOM_STYLE.paint(display_name),
+        Some(ansi_style) => ansi_style.paint(display_name),
+        None => BASE_STYLE.paint(display_name),
     }
 }
 
