@@ -414,7 +414,7 @@ impl PathData {
             _ => Vec::new(),
         };
 
-        let top_level_iter = std::fs::read_dir(self.path())
+        let dir_iter = std::fs::read_dir(self.path())
             .into_iter()
             .flatten()
             .flatten()
@@ -429,9 +429,9 @@ impl PathData {
             })
             .filter_map(|pd| pd.proximate_dataset().ok().map(|path| path.to_owned()));
 
-        res.extend(top_level_iter);
+        res.extend(dir_iter);
 
-        res.sort_by_key(|path| path.as_os_str().len());
+        res.sort();
         res.dedup();
 
         res

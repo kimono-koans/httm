@@ -451,9 +451,9 @@ impl<'a> RelativePathAndSnapMounts<'a> {
 
     #[inline(always)]
     pub fn version_search(&'a self, dedup_by: &DedupBy) -> Vec<PathData> {
-        static RECHECK: OnceLock<bool> = OnceLock::new();
+        static PREHEAT: OnceLock<bool> = OnceLock::new();
 
-        RECHECK.get_or_init(|| {
+        PREHEAT.get_or_init(|| {
             matches!(GLOBAL_CONFIG.exec_mode, ExecMode::Interactive(_))
                 || GLOBAL_CONFIG
                     .dataset_collection
@@ -462,8 +462,8 @@ impl<'a> RelativePathAndSnapMounts<'a> {
                     .any(|md| matches!(md.link_type, LinkType::Network))
         });
 
-        if *RECHECK.get().unwrap_or(&true) {
-            self.tickle_auto_mount();
+        if *PREHEAT.get().unwrap_or(&true) {
+            self.preheat_auto_mount();
         }
 
         let mut versions = self.all_versions();
@@ -474,7 +474,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
     }
 
     #[inline(always)]
-    fn tickle_auto_mount(&self) {
+    fn preheat_auto_mount(&self) {
         static CACHE_RESULT: LazyLock<RwLock<HashSet<PathBuf>>> =
             LazyLock::new(|| RwLock::new(HashSet::new()));
 
