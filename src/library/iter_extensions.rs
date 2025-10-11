@@ -92,6 +92,15 @@ pub trait HttmIter: Iterator {
     {
         collect_no_update::collect_set_no_update(self)
     }
+
+    #[allow(dead_code)]
+    unsafe fn collect_unique<K>(self) -> HashSet<K>
+    where
+        Self: Iterator<Item = K> + Sized,
+        K: Hash + Eq,
+    {
+        unsafe { collect_no_update::collect_unique(self) }
+    }
 }
 
 impl<T: ?Sized> HttmIter for T where T: Iterator {}
@@ -170,6 +179,23 @@ pub mod collect_no_update {
                     lookup.insert_unique_unchecked(key);
                 };
             }
+        });
+
+        lookup
+    }
+
+    #[allow(dead_code)]
+    pub unsafe fn collect_unique<I, K>(iter: I) -> HashSet<K>
+    where
+        I: Iterator<Item = K>,
+        K: Hash + Eq,
+    {
+        let mut lookup: HashSet<K> = HashSet::with_capacity(iter.size_hint().0);
+
+        iter.for_each(|key| {
+            unsafe {
+                lookup.insert_unique_unchecked(key);
+            };
         });
 
         lookup

@@ -107,15 +107,17 @@ impl DeletedFiles {
             return Self::default();
         };
 
-        let unique_deleted_file_names_for_dir: HashSet<BasicDirEntryInfo> = prox_opt_alts
+        match prox_opt_alts
             .into_search_bundles()
-            .flat_map(|search_bundle| {
-                Self::snapshot_paths_for_directory(&requested_dir, search_bundle)
-            })
-            .collect_set_no_update();
-
-        Self {
-            inner: unique_deleted_file_names_for_dir,
+            .map(|search_bundle| Self::snapshot_paths_for_directory(&requested_dir, search_bundle))
+            .reduce(|mut acc, next| {
+                acc.extend(next);
+                acc
+            }) {
+            Some(unique_deleted_file_names_for_dir) => Self {
+                inner: unique_deleted_file_names_for_dir,
+            },
+            None => Self::default(),
         }
     }
 
@@ -123,13 +125,12 @@ impl DeletedFiles {
     fn snapshot_paths_for_directory<'a>(
         pseudo_live_dir: &'a Path,
         search_bundle: RelativePathAndSnapMounts<'a>,
-    ) -> impl Iterator<Item = BasicDirEntryInfo> + 'a {
+    ) -> HashSet<BasicDirEntryInfo> {
         // compare local filenames to all unique snap filenames - none values are unique, here
-        search_bundle
+        let iter = search_bundle
             .snap_mounts()
-            .to_owned()
             .into_iter()
-            .map(move |path| path.join(search_bundle.relative_path()))
+            .map(|path| path.join(search_bundle.relative_path()))
             // important to note: this is a read dir on snapshots directories,
             // b/c read dir on deleted dirs from a live filesystem will fail
             .flat_map(std::fs::read_dir)
@@ -147,7 +148,10 @@ impl DeletedFiles {
                     pseudo_live_dir,
                     Some(file_type),
                 )
-            })
+            });
+
+        // SAFETY: Known safe because the file names must be unique in a single directory
+        unsafe { iter.collect_unique() }
     }
 
     // this function creates dummy "live versions" values to match deleted files
