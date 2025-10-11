@@ -25,7 +25,6 @@ use hashbrown::HashSet;
 use rayon::prelude::*;
 use std::borrow::Cow;
 use std::collections::BTreeMap;
-use std::fs::FileType;
 use std::io::ErrorKind;
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
@@ -157,25 +156,6 @@ impl Versions {
         Ok(Self {
             path_data_key,
             snap_versions,
-        })
-    }
-
-    #[allow(dead_code)]
-    pub fn phantom_filetype<P: AsRef<Path>>(path: P) -> Option<FileType> {
-        let path_data: PathData = PathData::without_styling(path.as_ref(), None);
-        let prox_opt_alts = ProximateDatasetAndOptAlts::new(&path_data).ok()?;
-        let one_version = RelativePathAndSnapMounts::new(
-            &prox_opt_alts.relative_path,
-            &prox_opt_alts.proximate_dataset,
-        )
-        .and_then(|relative_path_and_snap_mounts| relative_path_and_snap_mounts.one_version());
-
-        one_version.and_then(|version| {
-            version
-                .path()
-                .symlink_metadata()
-                .ok()
-                .map(|md| md.file_type())
         })
     }
 
@@ -418,16 +398,6 @@ impl<'a> RelativePathAndSnapMounts<'a> {
                 }
             }
         }
-    }
-
-    #[inline(always)]
-    fn one_version(&'a self) -> Option<PathData> {
-        // get the DirEntry for our snapshot path which will have all our possible
-        // snapshots, like so: .zfs/snapshots/<some snap name>/
-        self.snap_mounts
-            .iter()
-            .map(|snap_path| snap_path.join(self.relative_path))
-            .find_map(|joined_path| self.match_metadata(joined_path))
     }
 
     #[inline(always)]
