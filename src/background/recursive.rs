@@ -28,10 +28,11 @@ use hashbrown::HashSet;
 use rayon::{Scope, ThreadPool};
 use skim::SkimItem;
 use skim::prelude::*;
+use std::cell::RefCell;
 use std::fs::read_dir;
 use std::path::Path;
+use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
-use std::sync::{Arc, Mutex};
 
 #[derive(Clone, Copy)]
 pub enum PathProvenance {
@@ -43,7 +44,7 @@ pub struct RecursiveSearch<'a> {
     requested_dir: &'a Path,
     opt_skim_tx: Option<&'a SkimItemSender>,
     hangup: Arc<AtomicBool>,
-    path_map: Mutex<HashSet<UniqueInode>>,
+    path_map: RefCell<HashSet<UniqueInode>>,
 }
 
 impl<'a> RecursiveSearch<'a> {
@@ -52,7 +53,7 @@ impl<'a> RecursiveSearch<'a> {
         opt_skim_tx: Option<&'a SkimItemSender>,
         hangup: Arc<AtomicBool>,
     ) -> Self {
-        let path_map: Mutex<HashSet<UniqueInode>> = Mutex::new(HashSet::new());
+        let path_map: RefCell<HashSet<UniqueInode>> = RefCell::new(HashSet::new());
 
         Self {
             requested_dir,
@@ -72,7 +73,7 @@ impl<'a> RecursiveSearch<'a> {
                 .build()
                 .expect("Could not initialize rayon thread pool for recursive deleted search");
 
-            pool.scope(|deleted_scope| {
+            pool.in_place_scope(|deleted_scope| {
                 self.run_loop(Some(deleted_scope));
             })
         } else {
@@ -182,7 +183,7 @@ impl<'a> RecursiveSearch<'a> {
 
 pub trait CommonSearch {
     fn hangup(&self) -> bool;
-    fn opt_path_map(&self) -> Option<&Mutex<HashSet<UniqueInode>>>;
+    fn opt_path_map(&self) -> Option<&RefCell<HashSet<UniqueInode>>>;
     fn into_entries<'a>(&'a self, requested_dir: &'a Path) -> Entries<'a>;
     fn enter_directory(
         &self,
@@ -204,7 +205,7 @@ impl CommonSearch for &RecursiveSearch<'_> {
         self.hangup.load(Ordering::Relaxed)
     }
 
-    fn opt_path_map(&self) -> Option<&Mutex<HashSet<UniqueInode>>> {
+    fn opt_path_map(&self) -> Option<&RefCell<HashSet<UniqueInode>>> {
         Some(&self.path_map)
     }
 
@@ -255,7 +256,7 @@ struct PathsPartitioned {
 impl PathsPartitioned {
     fn new(
         entries: &Entries,
-        opt_path_map: Option<&Mutex<HashSet<UniqueInode>>>,
+        opt_path_map: Option<&RefCell<HashSet<UniqueInode>>>,
     ) -> HttmResult<PathsPartitioned> {
         // separates entries into dirs and files
         let (vec_dirs, vec_files) = match entries.path_provenance {

@@ -34,13 +34,13 @@ use lscolors::Colorable;
 use realpath_ext::{RealpathFlags, realpath};
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
+use std::cell::RefCell;
 use std::cmp::{Ord, Ordering, PartialOrd};
 use std::ffi::OsStr;
 use std::fs::{DirEntry, FileType, Metadata};
 use std::hash::Hash;
 use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
 use std::sync::{LazyLock, OnceLock};
 use std::time::SystemTime;
 
@@ -161,7 +161,7 @@ impl BasicDirEntryInfo {
             .as_ref()
     }
 
-    pub fn is_entry_dir(&self, opt_path_map: Option<&Mutex<HashSet<UniqueInode>>>) -> bool {
+    pub fn is_entry_dir(&self, opt_path_map: Option<&RefCell<HashSet<UniqueInode>>>) -> bool {
         // must do is_dir() look up on DirEntry file_type() as look up on Path will traverse links!
         if GLOBAL_CONFIG.opt_no_traverse {
             if let Some(file_type) = self.opt_filetype() {
@@ -170,7 +170,7 @@ impl BasicDirEntryInfo {
         }
 
         match opt_path_map {
-            Some(path_map) => match path_map.lock() {
+            Some(path_map) => match path_map.try_borrow_mut() {
                 Ok(mut locked) => {
                     match dir_was_previously_listed(&self, Some(&mut locked)) {
                         Some(dir_was_previously_listed) if dir_was_previously_listed => {
@@ -180,7 +180,6 @@ impl BasicDirEntryInfo {
                     };
                 }
                 Err(_err) => {
-                    path_map.clear_poison();
                     return self.httm_is_dir(None);
                 }
             },
