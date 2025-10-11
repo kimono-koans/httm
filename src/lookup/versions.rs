@@ -312,13 +312,18 @@ impl<'a> ProximateDatasetAndOptAlts<'a> {
     #[inline(always)]
     pub fn into_search_bundles(&'a self) -> impl Iterator<Item = RelativePathAndSnapMounts<'a>> {
         self.datasets_of_interest().flat_map(|dataset_of_interest| {
-            RelativePathAndSnapMounts::new(&self.relative_path, &dataset_of_interest)
+            RelativePathAndSnapMounts::new(
+                self.path_data,
+                &self.relative_path,
+                &dataset_of_interest,
+            )
         })
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct RelativePathAndSnapMounts<'a> {
+    path_data: &'a PathData,
     relative_path: &'a Path,
     dataset_of_interest: &'a Path,
     snap_mounts: Cow<'a, [Box<Path>]>,
@@ -326,12 +331,17 @@ pub struct RelativePathAndSnapMounts<'a> {
 
 impl<'a> RelativePathAndSnapMounts<'a> {
     #[inline(always)]
-    pub fn new(relative_path: &'a Path, dataset_of_interest: &'a Path) -> Option<Self> {
+    pub fn new(
+        path_data: &'a PathData,
+        relative_path: &'a Path,
+        dataset_of_interest: &'a Path,
+    ) -> Option<Self> {
         // building our relative path by removing parent below the snap dir
         //
         // for native searches the prefix is are the dirs below the most proximate dataset
         // for user specified dirs/aliases these are specified by the user
         Self::snap_mounts_from_dataset_of_interest(dataset_of_interest).map(|snap_mounts| Self {
+            path_data,
             relative_path,
             dataset_of_interest,
             snap_mounts,
@@ -478,7 +488,8 @@ impl<'a> RelativePathAndSnapMounts<'a> {
 
         if let Ok(mut cached_result) = CACHE_RESULT.write() {
             if cached_result.insert(self.dataset_of_interest.to_path_buf()) {
-                let proximate_family = PathData::proximate_family(self.dataset_of_interest);
+                let proximate_family =
+                    PathData::proximate_family(self.path_data, self.dataset_of_interest);
                 let proximate_family_clone = proximate_family.clone();
 
                 rayon::spawn(move || {

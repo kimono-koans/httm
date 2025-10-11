@@ -397,19 +397,39 @@ impl PathData {
     }
 
     #[inline(always)]
-    pub fn proximate_family(proximate_dataset: &Path) -> Vec<PathBuf> {
+    pub fn proximate_family(&self, proximate_dataset: &Path) -> Vec<PathBuf> {
         // for /usr/bin, we prefer the most proximate: /usr/bin to /usr and /
         // ancestors() iterates in this top-down order, when a value: dataset/fstype is available
         // we map to return the key, instead of the value
-        let mut res: Vec<PathBuf> = GLOBAL_CONFIG
-            .dataset_collection
-            .map_of_datasets
-            .keys()
-            .filter(|path| path.starts_with(proximate_dataset))
-            .map(|path| path.to_path_buf())
-            .collect();
+        let mut res = match self
+            .path()
+            .parent()
+            .map(|path| PathData::from(path))
+            .map(|path| path.proximate_dataset().ok().map(|path| path.to_owned()))
+            .flatten()
+        {
+            Some(parent_dataset) if parent_dataset != proximate_dataset => {
+                vec![parent_dataset]
+            }
+            _ => Vec::new(),
+        };
+
+        let top_level_iter = std::fs::read_dir(self.path())
+            .into_iter()
+            .flatten()
+            .flatten()
+            .filter_map(|de| match de.file_type().ok() {
+                Some(ft) if ft.is_dir() => Some(de.path()),
+                Some(ft) if ft.is_symlink() => std::fs::read_link(de.path()).ok(),
+                _ => None,
+            })
+            .map(|path| PathData::from(&path))
+            .filter_map(|pd| pd.proximate_dataset().ok().map(|path| path.to_owned()));
+
+        res.extend(top_level_iter);
 
         res.sort_by_key(|path| path.as_os_str().len());
+        res.dedup();
 
         res
     }
