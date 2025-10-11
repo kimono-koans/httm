@@ -17,6 +17,7 @@
 
 use crate::config::generate::{Config, DedupBy, ExecMode, LastSnapMode};
 use crate::data::paths::{CompareContentsContainer, PathData, PathDeconstruction};
+use crate::filesystem::mounts::LinkType;
 use crate::filesystem::snaps::MapOfSnaps;
 use crate::library::results::{HttmError, HttmResult};
 use crate::{GLOBAL_CONFIG, MAP_OF_SNAPS};
@@ -470,7 +471,13 @@ impl<'a> RelativePathAndSnapMounts<'a> {
 
     #[inline(always)]
     pub fn version_search(&'a self, dedup_by: &DedupBy) -> Vec<PathData> {
-        if matches!(GLOBAL_CONFIG.exec_mode, ExecMode::Interactive(_)) {
+        if matches!(GLOBAL_CONFIG.exec_mode, ExecMode::Interactive(_))
+            || GLOBAL_CONFIG
+                .dataset_collection
+                .map_of_datasets
+                .values()
+                .any(|md| matches!(md.link_type, LinkType::Network))
+        {
             self.tickle_auto_mount();
         }
 
