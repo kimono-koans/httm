@@ -68,7 +68,7 @@ impl From<&Path> for DeletedFiles {
                 return deleted_files;
             }
 
-            deleted_files.remove_live_paths(&live_paths);
+            deleted_files.remove_live_paths(&live_paths)
         }
 
         deleted_files
@@ -83,9 +83,7 @@ impl DeletedFiles {
 
     #[inline(always)]
     fn remove_live_paths(&mut self, live_paths: &HashSet<BasicDirEntryInfo>) {
-        live_paths.iter().for_each(|live_file| {
-            let _ = self.inner.remove(live_file);
-        });
+        self.inner.retain(|item| !live_paths.contains(item));
     }
 
     #[inline(always)]
