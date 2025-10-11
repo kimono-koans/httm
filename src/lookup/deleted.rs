@@ -62,7 +62,7 @@ impl From<&Path> for DeletedFiles {
             let live_paths: HashSet<BasicDirEntryInfo> = read_dir
                 .flatten()
                 .map(|entry| BasicDirEntryInfo::from(entry))
-                .collect();
+                .collect_set_no_update();
 
             if live_paths.is_empty() {
                 return deleted_files;
@@ -112,7 +112,7 @@ impl DeletedFiles {
             .flat_map(|search_bundle| {
                 Self::snapshot_paths_for_directory(&requested_dir, search_bundle)
             })
-            .collect();
+            .collect_set_no_update();
 
         Self {
             inner: unique_deleted_file_names_for_dir,
@@ -123,12 +123,13 @@ impl DeletedFiles {
     fn snapshot_paths_for_directory<'a>(
         pseudo_live_dir: &'a Path,
         search_bundle: RelativePathAndSnapMounts<'a>,
-    ) -> Vec<BasicDirEntryInfo> {
+    ) -> impl Iterator<Item = BasicDirEntryInfo> + 'a {
         // compare local filenames to all unique snap filenames - none values are unique, here
         search_bundle
             .snap_mounts()
+            .to_owned()
             .into_iter()
-            .map(|path| path.join(search_bundle.relative_path()))
+            .map(move |path| path.join(search_bundle.relative_path()))
             // important to note: this is a read dir on snapshots directories,
             // b/c read dir on deleted dirs from a live filesystem will fail
             .flat_map(std::fs::read_dir)
@@ -147,7 +148,6 @@ impl DeletedFiles {
                     Some(file_type),
                 )
             })
-            .collect()
     }
 
     // this function creates dummy "live versions" values to match deleted files
