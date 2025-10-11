@@ -471,7 +471,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
     #[inline(always)]
     pub fn version_search(&'a self, dedup_by: &DedupBy) -> Vec<PathData> {
         if matches!(GLOBAL_CONFIG.exec_mode, ExecMode::Interactive(_)) {
-            let _ = self.tickle_auto_mount();
+            self.tickle_auto_mount();
         }
 
         let mut versions = self.all_versions();
