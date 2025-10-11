@@ -511,8 +511,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
             .dataset_collection
             .map_of_datasets
             .get(self.dataset_of_interest)
-            .map(|md| matches!(md.link_type, LinkType::Local))
-            .unwrap_or_else(|| true)
+            .is_some_and(|md| matches!(md.link_type, LinkType::Local))
         {
             return NetworkAutoMount::Break;
         };
@@ -523,8 +522,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
         if CACHE_RESULT
             .try_read()
             .ok()
-            .map(|cached_result| cached_result.contains(self.dataset_of_interest))
-            .unwrap_or_else(|| true)
+            .is_some_and(|cached_result| cached_result.contains(self.dataset_of_interest))
         {
             return NetworkAutoMount::Break;
         }

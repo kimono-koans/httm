@@ -276,8 +276,7 @@ impl PathsPartitioned {
                     .partition(|pseudo_entry| {
                         pseudo_entry
                             .opt_filetype()
-                            .map(|file_type| file_type.is_dir())
-                            .unwrap_or_else(|| false)
+                            .is_some_and(|file_type| file_type.is_dir())
                     })
             }
         };
