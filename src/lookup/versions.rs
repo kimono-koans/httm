@@ -17,7 +17,6 @@
 
 use crate::config::generate::{Config, DedupBy, ExecMode, LastSnapMode};
 use crate::data::paths::{CompareContentsContainer, PathData, PathDeconstruction};
-use crate::filesystem::mounts::LinkType;
 use crate::filesystem::snaps::MapOfSnaps;
 use crate::library::results::{HttmError, HttmResult};
 use crate::{GLOBAL_CONFIG, MAP_OF_SNAPS};
@@ -476,54 +475,43 @@ impl<'a> RelativePathAndSnapMounts<'a> {
 
     #[inline(always)]
     pub fn version_search(&'a self, dedup_by: &DedupBy) -> Vec<PathData> {
-        loop {
-            {
-                if matches!(GLOBAL_CONFIG.exec_mode, ExecMode::Interactive(_)) {
-                    let _ = self.tickle_auto_mount();
-                }
-            }
-
-            let mut versions = self.all_versions();
-
-            Self::sort_dedup_versions(&mut versions, dedup_by);
-
-            if versions.is_empty() {
-                // opendir and readdir iter on the snap path are necessary to mount snapshots over SMB
-                match self.network_auto_mount() {
-                    TickleAutoMount::Break => break versions,
-                    TickleAutoMount::Continue => continue,
-                }
-            }
-
-            break versions;
-        }
-    }
-
-    #[inline(always)]
-    fn network_auto_mount(&self) -> TickleAutoMount {
-        static ANY_NETWORK_MOUNTS: LazyLock<bool> = LazyLock::new(|| {
-            GLOBAL_CONFIG
-                .dataset_collection
-                .map_of_datasets
-                .values()
-                .any(|md| matches!(md.link_type, LinkType::Network))
-        });
-
-        if !*ANY_NETWORK_MOUNTS {
-            return TickleAutoMount::Break;
+        if matches!(GLOBAL_CONFIG.exec_mode, ExecMode::Interactive(_)) {
+            let _ = self.tickle_auto_mount();
         }
 
-        if GLOBAL_CONFIG
-            .dataset_collection
-            .map_of_datasets
-            .get(self.dataset_of_interest)
-            .is_some_and(|md| matches!(md.link_type, LinkType::Local))
-        {
-            return TickleAutoMount::Break;
-        };
+        let mut versions = self.all_versions();
 
-        self.tickle_auto_mount()
+        Self::sort_dedup_versions(&mut versions, dedup_by);
+
+        versions
     }
+
+    /* #[inline(always)]
+       fn network_auto_mount(&self) -> TickleAutoMount {
+           static ANY_NETWORK_MOUNTS: LazyLock<bool> = LazyLock::new(|| {
+               GLOBAL_CONFIG
+                   .dataset_collection
+                   .map_of_datasets
+                   .values()
+                   .any(|md| matches!(md.link_type, LinkType::Network))
+           });
+
+           if !*ANY_NETWORK_MOUNTS {
+               return TickleAutoMount::Break;
+           }
+
+           if GLOBAL_CONFIG
+               .dataset_collection
+               .map_of_datasets
+               .get(self.dataset_of_interest)
+               .is_some_and(|md| matches!(md.link_type, LinkType::Local))
+           {
+               return TickleAutoMount::Break;
+           };
+
+           self.tickle_auto_mount()
+       }
+    */
 
     #[inline(always)]
     fn tickle_auto_mount(&self) -> TickleAutoMount {
