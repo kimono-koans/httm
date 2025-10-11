@@ -52,7 +52,6 @@
 // DEALINGS IN THE SOFTWARE.
 
 use hashbrown::HashMap;
-use hashbrown::HashSet;
 use std::hash::Hash;
 use std::iter::Iterator;
 
@@ -73,24 +72,6 @@ pub trait HttmIter: Iterator {
         F: Fn(&V) -> K,
     {
         group_map::into_group_map_by(self, f)
-    }
-
-    #[allow(dead_code)]
-    fn collect_map_no_update<K, V>(self) -> HashMap<K, V>
-    where
-        Self: Iterator<Item = (K, V)> + Sized,
-        K: Hash + Eq,
-    {
-        collect_no_update::collect_map_no_update(self)
-    }
-
-    #[allow(dead_code)]
-    fn collect_set_no_update<K>(self) -> HashSet<K>
-    where
-        Self: Iterator<Item = K> + Sized,
-        K: Hash + Eq,
-    {
-        collect_no_update::collect_set_no_update(self)
     }
 }
 
@@ -128,50 +109,5 @@ pub mod group_map {
         K: Hash + Eq,
     {
         into_group_map(iter.map(|v| (f(&v), v)))
-    }
-}
-
-pub mod collect_no_update {
-    use hashbrown::HashMap;
-    use hashbrown::HashSet;
-    use std::hash::Hash;
-    use std::iter::Iterator;
-
-    #[allow(dead_code)]
-    pub fn collect_map_no_update<I, K, V>(iter: I) -> HashMap<K, V>
-    where
-        I: Iterator<Item = (K, V)>,
-        K: Hash + Eq,
-    {
-        let mut lookup: HashMap<K, V> = HashMap::with_capacity(iter.size_hint().0);
-
-        iter.for_each(|(key, val)| {
-            if !lookup.contains_key(&key) {
-                unsafe {
-                    lookup.insert_unique_unchecked(key, val);
-                };
-            }
-        });
-
-        lookup
-    }
-
-    #[allow(dead_code)]
-    pub fn collect_set_no_update<I, K>(iter: I) -> HashSet<K>
-    where
-        I: Iterator<Item = K>,
-        K: Hash + Eq,
-    {
-        let mut lookup: HashSet<K> = HashSet::with_capacity(iter.size_hint().0);
-
-        iter.for_each(|key| {
-            if !lookup.contains(&key) {
-                unsafe {
-                    lookup.insert_unique_unchecked(key);
-                };
-            }
-        });
-
-        lookup
     }
 }
