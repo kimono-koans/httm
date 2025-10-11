@@ -66,16 +66,14 @@ impl DerefMut for VersionsMap {
 
 impl VersionsMap {
     pub fn new(config: &Config, path_set: &[PathData]) -> HttmResult<VersionsMap> {
-        let is_interactive_mode = matches!(GLOBAL_CONFIG.exec_mode, ExecMode::Interactive(_));
-
         let versions_map: VersionsMap = if path_set.len() == 1 {
-            Self::from_one_path(config, &path_set[0], is_interactive_mode)
+            Self::from_one_path(config, &path_set[0])
                 .into_iter()
                 .map(|v| v.into_inner())
                 .collect::<BTreeMap<PathData, Vec<PathData>>>()
                 .into()
         } else {
-            Self::from_many_paths(config, path_set, is_interactive_mode).into()
+            Self::from_many_paths(config, path_set).into()
         };
 
         // check if all files (snap and live) do not exist, if this is true, then user probably messed up
@@ -102,21 +100,18 @@ impl VersionsMap {
     fn from_many_paths(
         config: &Config,
         path_set: &[PathData],
-        is_interactive_mode: bool,
     ) -> BTreeMap<PathData, Vec<PathData>> {
         path_set
             .par_iter()
-            .flat_map(|path_data| Self::from_one_path(config, path_data, is_interactive_mode))
+            .flat_map(|path_data| Self::from_one_path(config, path_data))
             .map(|versions| versions.into_inner())
             .collect()
     }
 
     #[inline(always)]
-    pub fn from_one_path(
-        config: &Config,
-        path_data: &PathData,
-        is_interactive_mode: bool,
-    ) -> Option<Versions> {
+    pub fn from_one_path(config: &Config, path_data: &PathData) -> Option<Versions> {
+        let is_interactive_mode = matches!(GLOBAL_CONFIG.exec_mode, ExecMode::Interactive(_));
+
         match Versions::new(path_data, config) {
             Ok(versions) => Some(versions),
             Err(err) => {

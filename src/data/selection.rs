@@ -25,7 +25,6 @@ use crate::{Config, ExecMode, GLOBAL_CONFIG, VersionsMap};
 use lscolors::Colorable;
 use lscolors::Style;
 use skim::prelude::*;
-use std::collections::BTreeMap;
 use std::fs::{FileType, Metadata};
 use std::path::Path;
 use std::path::PathBuf;
@@ -111,16 +110,10 @@ impl SelectionCandidate {
     fn preview_view(&self) -> HttmResult<String> {
         // generate a config for display
         let display_config: Config = Config::from(self);
-        let display_path_data = PathData::from(&self.path);
-        static IS_INTERACTIVE_MODE: bool = true;
+        let display_path_data = vec![PathData::from(&self.path)];
 
         // finally run search on those paths
-        let versions_map: VersionsMap =
-            VersionsMap::from_one_path(&display_config, &display_path_data, IS_INTERACTIVE_MODE)
-                .into_iter()
-                .map(|versions| versions.into_inner())
-                .collect::<BTreeMap<PathData, Vec<PathData>>>()
-                .into();
+        let versions_map: VersionsMap = VersionsMap::new(&display_config, &display_path_data)?;
 
         let output_buf = DisplayWrapper::from(&display_config, versions_map).to_string();
 
