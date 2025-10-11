@@ -50,7 +50,6 @@ use crate::zfs::run_command::RunZFSCommand;
 use crate::{GLOBAL_CONFIG, IN_BUFFER_SIZE};
 use indicatif::{ProgressBar, ProgressStyle};
 use std::borrow::Cow;
-use std::ffi::OsStr;
 use std::fs::{File, OpenOptions};
 use std::io::{BufRead, BufReader, BufWriter, ErrorKind, Seek, SeekFrom, Write};
 use std::os::fd::{AsFd, BorrowedFd};
@@ -110,10 +109,7 @@ impl HttmCopy {
 
         dst_file.set_len(src_len)?;
 
-        let file_name = src
-            .file_name()
-            .unwrap_or_else(|| OsStr::new("/"))
-            .to_string_lossy();
+        let file_name = src.file_name().unwrap_or_default().to_string_lossy();
 
         let opt_bar = Self::opt_bar(file_name, src_len)?;
 
