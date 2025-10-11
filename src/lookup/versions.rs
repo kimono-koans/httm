@@ -497,7 +497,6 @@ impl<'a> RelativePathAndSnapMounts<'a> {
                 proximate_plus_neighbors
                     .iter()
                     .filter_map(|dataset| Self::snap_mounts_from_dataset_of_interest(dataset))
-                    .map(|bundle| bundle)
                     .for_each(|bundle| {
                         let _ = bundle
                             .into_iter()
