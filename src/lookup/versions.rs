@@ -109,7 +109,7 @@ impl VersionsMap {
     }
 
     #[inline(always)]
-    pub fn from_one_path(config: &Config, path_data: &PathData) -> Option<Versions> {
+    fn from_one_path(config: &Config, path_data: &PathData) -> Option<Versions> {
         let is_interactive_mode = matches!(GLOBAL_CONFIG.exec_mode, ExecMode::Interactive(_));
 
         match Versions::new(path_data, config) {
