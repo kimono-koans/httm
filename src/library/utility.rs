@@ -292,11 +292,14 @@ where
 {
     let display_name = item.name();
 
+    if item.is_phantom() {
+        return PHANTOM_STYLE.paint(display_name);
+    }
+
     match item
         .ls_style()
         .map(|style| Style::to_nu_ansi_term_style(&style))
     {
-        _ if item.is_phantom() => PHANTOM_STYLE.paint(display_name),
         Some(ansi_style) => ansi_style.paint(display_name),
         None => BASE_STYLE.paint(display_name),
     }
