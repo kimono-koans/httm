@@ -110,12 +110,10 @@ impl VersionsMap {
 
     #[inline(always)]
     fn from_one_path(config: &Config, path_data: &PathData) -> Option<Versions> {
-        let is_interactive_mode = matches!(GLOBAL_CONFIG.exec_mode, ExecMode::Interactive(_));
-
         match Versions::new(path_data, config) {
             Ok(versions) => Some(versions),
             Err(err) => {
-                if !is_interactive_mode {
+                if !matches!(GLOBAL_CONFIG.exec_mode, ExecMode::Interactive(_)) {
                     eprintln!("WARN: {}", err.to_string())
                 }
 
