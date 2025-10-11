@@ -103,16 +103,14 @@ impl DeletedFiles {
             return HashMap::new();
         };
 
-        match prox_opt_alts
+        prox_opt_alts
             .into_search_bundles()
             .map(|search_bundle| Self::snapshot_paths_for_directory(&requested_dir, search_bundle))
             .reduce(|mut acc, next| {
                 acc.extend(next);
                 acc
-            }) {
-            Some(unique_deleted_file_names_for_dir) => unique_deleted_file_names_for_dir,
-            None => HashMap::new(),
-        }
+            })
+            .unwrap_or_default()
     }
 
     #[inline(always)]
