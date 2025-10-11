@@ -28,7 +28,7 @@ use std::collections::BTreeMap;
 use std::io::ErrorKind;
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
-use std::sync::{LazyLock, OnceLock, RwLock};
+use std::sync::{Arc, LazyLock, OnceLock, RwLock};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VersionsMap {
@@ -475,8 +475,8 @@ impl<'a> RelativePathAndSnapMounts<'a> {
 
     #[inline(always)]
     fn preheat_auto_mount(&self) {
-        static CACHE_RESULT: LazyLock<RwLock<HashSet<PathBuf>>> =
-            LazyLock::new(|| RwLock::new(HashSet::new()));
+        static CACHE_RESULT: LazyLock<Arc<RwLock<HashSet<PathBuf>>>> =
+            LazyLock::new(|| Arc::new(RwLock::new(HashSet::new())));
 
         if CACHE_RESULT
             .read()
@@ -486,17 +486,16 @@ impl<'a> RelativePathAndSnapMounts<'a> {
             return;
         }
 
-        if let Ok(mut cached_result) = CACHE_RESULT.write() {
-            let proximate_plus_neighbors: Vec<PathBuf> =
-                PathData::proximate_plus_neighbors(self.path_data, self.dataset_of_interest)
-                    .into_iter()
-                    .filter(|item| cached_result.insert(item.clone()))
-                    .collect();
+        let map_clone = CACHE_RESULT.clone();
+        let path_data_clone = self.path_data.clone();
+        let dataset_of_interest_clone = self.dataset_of_interest.to_path_buf();
 
-            rayon::spawn(move || {
-                proximate_plus_neighbors
+        rayon::spawn(move || {
+            if let Ok(mut cached_result) = map_clone.write() {
+                PathData::proximate_plus_neighbors(&path_data_clone, &dataset_of_interest_clone)
                     .iter()
-                    .filter_map(|dataset| Self::snap_mounts_from_dataset_of_interest(dataset))
+                    .filter(|item| cached_result.insert(item.to_path_buf()))
+                    .filter_map(|dataset| Self::snap_mounts_from_dataset_of_interest(&dataset))
                     .for_each(|bundle| {
                         let _ = bundle
                             .into_iter()
@@ -508,7 +507,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
 
                         std::thread::yield_now();
                     });
-            });
-        }
+            }
+        });
     }
 }
