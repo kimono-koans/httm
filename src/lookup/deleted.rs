@@ -40,7 +40,7 @@ impl From<&Path> for DeletedFiles {
         // creates dummy "live versions" values to match deleted files
         // which have been found on snapshots, so we return to the user "the path that
         // once was" in their browse panel
-        let deleted_files: HashMap<OsString, BasicDirEntryInfo> =
+        let mut deleted_files: HashMap<OsString, BasicDirEntryInfo> =
             Self::unique_pseudo_live_versions(requested_dir);
 
         if deleted_files.is_empty() {
@@ -62,15 +62,7 @@ impl From<&Path> for DeletedFiles {
                 return Self::default();
             }
 
-            let deleted_file_names = deleted_files
-                .into_iter()
-                .filter(|(k, _v)| !live_paths.contains(k))
-                .map(|(_k, v)| v)
-                .collect();
-
-            return Self {
-                inner: deleted_file_names,
-            };
+            deleted_files.retain(|k, _v| !live_paths.contains(k));
         }
 
         let deleted_file_names = deleted_files.into_values().collect();
