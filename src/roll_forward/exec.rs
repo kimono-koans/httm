@@ -245,7 +245,8 @@ impl RollForward {
                 self.progress_bar.tick();
                 event.map_err(|e| parse_errors.push(e)).ok()
             })
-            .into_group_map_by(|event| event.path_buf.clone());
+            .into_group_map_by(|event| event.path_buf.to_path_buf());
+
         self.progress_bar.finish_and_clear();
 
         // These errors usually don't matter, if we make it this far.  Most are of the form:

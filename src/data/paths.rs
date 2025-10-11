@@ -270,7 +270,7 @@ pub struct PathData {
 
 impl PartialEq for PathData {
     fn eq(&self, other: &Self) -> bool {
-        self.path_buf.eq(&other.path_buf)
+        self.path().eq(other.path())
     }
 }
 
@@ -279,14 +279,14 @@ impl Eq for PathData {}
 impl PartialOrd for PathData {
     #[inline]
     fn partial_cmp(&self, other: &PathData) -> Option<Ordering> {
-        Some(self.path_buf.cmp(&other.path_buf))
+        Some(self.path().cmp(&other.path()))
     }
 }
 
 impl Ord for PathData {
     #[inline]
     fn cmp(&self, other: &PathData) -> Ordering {
-        self.path_buf.cmp(&other.path_buf)
+        self.path().cmp(&other.path())
     }
 }
 
@@ -413,11 +413,11 @@ impl<'a> PathDeconstruction<'a> for PathData {
             .opt_map_of_aliases
             .as_ref()
             .and_then(|map_of_aliases| {
-                self.path_buf.ancestors().find_map(|ancestor| {
+                self.path().ancestors().find_map(|ancestor| {
                     map_of_aliases.get(ancestor).and_then(|metadata| {
                         Some(AliasedPath::new(
                             metadata.remote_dir(),
-                            &self.path_buf.strip_prefix(ancestor).ok()?,
+                            &self.path().strip_prefix(ancestor).ok()?,
                         ))
                     })
                 })
@@ -425,7 +425,7 @@ impl<'a> PathDeconstruction<'a> for PathData {
     }
 
     fn live_path(&self) -> Option<Box<Path>> {
-        Some(self.path_buf.clone())
+        Some(self.path().into())
     }
 
     #[inline(always)]
@@ -433,7 +433,7 @@ impl<'a> PathDeconstruction<'a> for PathData {
         // path strip, if aliased
         // fallback if unable to find an alias or strip a prefix
         // (each an indication we should not be trying aliases)
-        self.path_buf
+        self.path()
             .strip_prefix(proximate_dataset_mount)
             .map_err(|err| err.into())
     }
@@ -458,7 +458,7 @@ impl<'a> PathDeconstruction<'a> for PathData {
         // for /usr/bin, we prefer the most proximate: /usr/bin to /usr and /
         // ancestors() iterates in this top-down order, when a value: dataset/fstype is available
         // we map to return the key, instead of the value
-        self.path_buf
+        self.path()
             .ancestors()
             .skip_while(|ancestor| ancestor.components().count() > *DATASET_MAX_LEN)
             .find(|ancestor| {
@@ -470,7 +470,7 @@ impl<'a> PathDeconstruction<'a> for PathData {
             .ok_or_else(|| {
                 let description = format!(
                     "httm could not identify any proximate dataset for path: {:?}",
-                    self.path_buf
+                    self.path()
                 );
                 HttmError::from(description).into()
             })
@@ -533,7 +533,7 @@ impl<'a> ZfsSnapPathGuard<'a> {
 
     pub fn is_zfs_snap_path(path_data: &'a PathData) -> bool {
         path_data
-            .path_buf
+            .path()
             .to_string_lossy()
             .contains(ZFS_SNAPSHOT_DIRECTORY)
     }
@@ -547,7 +547,7 @@ impl<'a> PathDeconstruction<'a> for ZfsSnapPathGuard<'_> {
 
     fn live_path(&self) -> Option<Box<Path>> {
         self.inner
-            .path_buf
+            .path()
             .to_string_lossy()
             .split_once(&format!("{ZFS_SNAPSHOT_DIRECTORY}/"))
             .and_then(|(proximate_dataset_mount, relative_and_snap_name)| {
@@ -566,7 +566,7 @@ impl<'a> PathDeconstruction<'a> for ZfsSnapPathGuard<'_> {
             .ok()
             .map(|relative| {
                 self.inner
-                    .path_buf
+                    .path()
                     .ancestors()
                     .zip(relative.ancestors())
                     .skip_while(|(a_path, b_path)| a_path == b_path)
@@ -587,14 +587,14 @@ impl<'a> PathDeconstruction<'a> for ZfsSnapPathGuard<'_> {
             .ok_or_else(|| {
                 let description = format!(
                     "httm could not identify any relative path for path: {:?}",
-                    self.path_buf
+                    self.path()
                 );
                 HttmError::from(description).into()
             })
     }
 
     fn source(&self, _opt_proximate_dataset_mount: Option<&Path>) -> Option<Box<Path>> {
-        let path_string = &self.inner.path_buf.to_string_lossy();
+        let path_string = &self.inner.path().to_string_lossy();
 
         let (dataset_path, relative_and_snap) =
             path_string.split_once(&format!("{ZFS_SNAPSHOT_DIRECTORY}/"))?;
@@ -615,14 +615,14 @@ impl<'a> PathDeconstruction<'a> for ZfsSnapPathGuard<'_> {
             Some(_md) => {
                 eprintln!(
                     "WARN: {:?} is located on a non-ZFS dataset.  httm can only list snapshot names for ZFS datasets.",
-                    self.inner.path_buf
+                    self.inner.path()
                 );
                 None
             }
             _ => {
                 eprintln!(
                     "WARN: {:?} is not located on a discoverable dataset.  httm can only list snapshot names for ZFS datasets.",
-                    self.inner.path_buf
+                    self.inner.path()
                 );
                 None
             }
@@ -645,7 +645,7 @@ impl Serialize for PathData {
     {
         let mut state = serializer.serialize_struct("PathData", 2)?;
 
-        state.serialize_field("path", &self.path_buf)?;
+        state.serialize_field("path", &self.path())?;
         state.serialize_field("metadata", &self.opt_path_metadata)?;
         state.end()
     }
