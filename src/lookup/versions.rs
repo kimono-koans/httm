@@ -29,7 +29,7 @@ use std::fs::FileType;
 use std::io::ErrorKind;
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
-use std::sync::{LazyLock, RwLock};
+use std::sync::{LazyLock, OnceLock, RwLock};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VersionsMap {
@@ -471,13 +471,18 @@ impl<'a> RelativePathAndSnapMounts<'a> {
 
     #[inline(always)]
     pub fn version_search(&'a self, dedup_by: &DedupBy) -> Vec<PathData> {
-        if matches!(GLOBAL_CONFIG.exec_mode, ExecMode::Interactive(_))
-            || GLOBAL_CONFIG
-                .dataset_collection
-                .map_of_datasets
-                .values()
-                .any(|md| matches!(md.link_type, LinkType::Network))
-        {
+        static RECHECK: OnceLock<bool> = OnceLock::new();
+
+        RECHECK.get_or_init(|| {
+            matches!(GLOBAL_CONFIG.exec_mode, ExecMode::Interactive(_))
+                || GLOBAL_CONFIG
+                    .dataset_collection
+                    .map_of_datasets
+                    .values()
+                    .any(|md| matches!(md.link_type, LinkType::Network))
+        });
+
+        if *RECHECK.get().unwrap_or(&true) {
             self.tickle_auto_mount();
         }
 
