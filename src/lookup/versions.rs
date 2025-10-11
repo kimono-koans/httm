@@ -337,7 +337,7 @@ impl<'a> ProximateDatasetAndOptAlts<'a> {
     }
 }
 
-enum NetworkAutoMount {
+enum TickleAutoMount {
     Break,
     Continue,
 }
@@ -477,6 +477,12 @@ impl<'a> RelativePathAndSnapMounts<'a> {
     #[inline(always)]
     pub fn version_search(&'a self, dedup_by: &DedupBy) -> Vec<PathData> {
         loop {
+            {
+                if matches!(GLOBAL_CONFIG.exec_mode, ExecMode::Interactive(_)) {
+                    let _ = self.tickle_auto_mount();
+                }
+            }
+
             let mut versions = self.all_versions();
 
             Self::sort_dedup_versions(&mut versions, dedup_by);
@@ -484,8 +490,8 @@ impl<'a> RelativePathAndSnapMounts<'a> {
             if versions.is_empty() {
                 // opendir and readdir iter on the snap path are necessary to mount snapshots over SMB
                 match self.network_auto_mount() {
-                    NetworkAutoMount::Break => break versions,
-                    NetworkAutoMount::Continue => continue,
+                    TickleAutoMount::Break => break versions,
+                    TickleAutoMount::Continue => continue,
                 }
             }
 
@@ -494,7 +500,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
     }
 
     #[inline(always)]
-    fn network_auto_mount(&self) -> NetworkAutoMount {
+    fn network_auto_mount(&self) -> TickleAutoMount {
         static ANY_NETWORK_MOUNTS: LazyLock<bool> = LazyLock::new(|| {
             GLOBAL_CONFIG
                 .dataset_collection
@@ -504,7 +510,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
         });
 
         if !*ANY_NETWORK_MOUNTS {
-            return NetworkAutoMount::Break;
+            return TickleAutoMount::Break;
         }
 
         if GLOBAL_CONFIG
@@ -513,9 +519,14 @@ impl<'a> RelativePathAndSnapMounts<'a> {
             .get(self.dataset_of_interest)
             .is_some_and(|md| matches!(md.link_type, LinkType::Local))
         {
-            return NetworkAutoMount::Break;
+            return TickleAutoMount::Break;
         };
 
+        self.tickle_auto_mount()
+    }
+
+    #[inline(always)]
+    fn tickle_auto_mount(&self) -> TickleAutoMount {
         static CACHE_RESULT: LazyLock<RwLock<HashSet<PathBuf>>> =
             LazyLock::new(|| RwLock::new(HashSet::new()));
 
@@ -524,7 +535,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
             .ok()
             .is_some_and(|cached_result| cached_result.contains(self.dataset_of_interest))
         {
-            return NetworkAutoMount::Break;
+            return TickleAutoMount::Break;
         }
 
         if let Ok(mut cached_result) = CACHE_RESULT.try_write() {
@@ -532,17 +543,21 @@ impl<'a> RelativePathAndSnapMounts<'a> {
                 cached_result.insert_unique_unchecked(self.dataset_of_interest.to_path_buf());
             };
 
-            self.snap_mounts.iter().for_each(|snap_path| {
-                let _ = std::fs::read_dir(snap_path)
-                    .into_iter()
-                    .flatten()
-                    .flatten()
-                    .next();
+            let snap_mounts = self.snap_mounts.as_ref().to_vec();
+
+            rayon::spawn(move || {
+                snap_mounts.iter().for_each(|snap_path| {
+                    let _ = std::fs::read_dir(snap_path)
+                        .into_iter()
+                        .flatten()
+                        .flatten()
+                        .next();
+                });
             });
 
-            return NetworkAutoMount::Continue;
+            return TickleAutoMount::Continue;
         }
 
-        NetworkAutoMount::Break
+        TickleAutoMount::Break
     }
 }
