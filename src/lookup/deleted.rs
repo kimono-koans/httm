@@ -53,12 +53,10 @@ impl From<&Path> for DeletedFiles {
         // create a collection of local file names
         // dir may or may not still exist
         if let Ok(read_dir) = std::fs::read_dir(requested_dir) {
-            let iter = read_dir
-                .flatten()
-                .map(|entry| (entry.file_name(), BasicDirEntryInfo::from(entry)));
+            let iter = read_dir.flatten().map(|entry| entry.file_name());
 
             // SAFETY: Known safe as single directory cannot contain same file names
-            let live_paths = unsafe { iter.collect_map_unique() };
+            let live_paths = unsafe { iter.collect_set_unique() };
 
             if live_paths.is_empty() {
                 return Self::default();
@@ -66,7 +64,7 @@ impl From<&Path> for DeletedFiles {
 
             let deleted_file_names = deleted_files
                 .into_iter()
-                .filter(|(k, _v)| !live_paths.contains_key(k))
+                .filter(|(k, _v)| !live_paths.contains(k))
                 .map(|(_k, v)| v)
                 .collect();
 
