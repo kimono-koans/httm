@@ -75,8 +75,10 @@ impl From<&Path> for DeletedFiles {
             };
         }
 
+        let deleted_file_names = deleted_files.into_values().collect();
+
         Self {
-            inner: deleted_files.into_values().collect(),
+            inner: deleted_file_names,
         }
     }
 }
