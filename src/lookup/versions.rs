@@ -336,11 +336,6 @@ impl<'a> ProximateDatasetAndOptAlts<'a> {
     }
 }
 
-enum TickleAutoMount {
-    Break,
-    Continue,
-}
-
 #[derive(Debug, Clone)]
 pub struct RelativePathAndSnapMounts<'a> {
     relative_path: &'a Path,
@@ -514,7 +509,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
     */
 
     #[inline(always)]
-    fn tickle_auto_mount(&self) -> TickleAutoMount {
+    fn tickle_auto_mount(&self) {
         static CACHE_RESULT: LazyLock<RwLock<HashSet<PathBuf>>> =
             LazyLock::new(|| RwLock::new(HashSet::new()));
 
@@ -523,29 +518,30 @@ impl<'a> RelativePathAndSnapMounts<'a> {
             .ok()
             .is_some_and(|cached_result| cached_result.contains(self.dataset_of_interest))
         {
-            return TickleAutoMount::Break;
+            return;
         }
 
         if let Ok(mut cached_result) = CACHE_RESULT.try_write() {
-            unsafe {
-                cached_result.insert_unique_unchecked(self.dataset_of_interest.to_path_buf());
-            };
+            if cached_result.insert(self.dataset_of_interest.to_path_buf()) {
+                let snap_mounts = self.snap_mounts.as_ref().to_vec();
 
-            let snap_mounts = self.snap_mounts.as_ref().to_vec();
-
-            rayon::spawn(move || {
-                snap_mounts.iter().for_each(|snap_path| {
-                    let _ = std::fs::read_dir(snap_path)
-                        .into_iter()
-                        .flatten()
-                        .flatten()
-                        .next();
+                rayon::spawn(move || {
+                    snap_mounts.iter().for_each(|snap_path| {
+                        let _ = std::fs::read_dir(snap_path)
+                            .into_iter()
+                            .flatten()
+                            .flatten()
+                            .next();
+                    });
                 });
-            });
-
-            return TickleAutoMount::Continue;
+            }
         }
-
-        TickleAutoMount::Break
     }
 }
+
+/*
+enum TickleAutoMount {
+    Break,
+    Continue,
+}
+ */
