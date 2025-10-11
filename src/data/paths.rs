@@ -801,10 +801,11 @@ impl Ord for CompareContentsContainer {
 
         if matches!(GLOBAL_CONFIG.dedup_by, DedupBy::Suspect) {
             let btime_order: Ordering = self.btime().cmp(&other.btime());
-            let mtime_order: Ordering = self.mtime().cmp(&other.mtime());
             let inode_order: Ordering = self.inode().cmp(&other.inode());
 
             if btime_order.is_eq() && inode_order.is_eq() {
+                let mtime_order: Ordering = self.mtime().cmp(&other.mtime());
+
                 if mtime_order.is_eq() {
                     return Ordering::Equal;
                 }
