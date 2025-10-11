@@ -169,20 +169,15 @@ impl BasicDirEntryInfo {
             }
         }
 
-        match opt_path_map {
-            Some(path_map) => match path_map.try_borrow_mut() {
-                Ok(mut locked) => {
-                    match dir_was_previously_listed(&self, Some(&mut locked)) {
-                        Some(dir_was_previously_listed) if dir_was_previously_listed => {
-                            return false;
-                        }
-                        _ => return self.httm_is_dir(Some(&mut locked)),
-                    };
-                }
-                Err(_err) => {
-                    return self.httm_is_dir(None);
-                }
-            },
+        match opt_path_map.and_then(|path_map| path_map.try_borrow_mut().ok()) {
+            Some(mut locked) => {
+                match dir_was_previously_listed(&self, Some(&mut locked)) {
+                    Some(dir_was_previously_listed) if dir_was_previously_listed => {
+                        return false;
+                    }
+                    _ => return self.httm_is_dir(Some(&mut locked)),
+                };
+            }
             None => {
                 return self.httm_is_dir(None);
             }
