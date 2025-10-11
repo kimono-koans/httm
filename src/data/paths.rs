@@ -397,11 +397,13 @@ impl PathData {
     }
 
     #[inline(always)]
-    pub fn proximate_neighbors(&self, proximate_dataset: &Path) -> Vec<PathBuf> {
+    pub fn proximate_plus_neighbors(&self, proximate_dataset: &Path) -> Vec<PathBuf> {
         // for /usr/bin, we prefer the most proximate: /usr/bin to /usr and /
         // ancestors() iterates in this top-down order, when a value: dataset/fstype is available
         // we map to return the key, instead of the value
-        let mut res = match self
+        let mut res = vec![proximate_dataset.to_path_buf()];
+
+        match self
             .path()
             .parent()
             .map(|path| PathData::without_styling(path, None))
@@ -409,9 +411,9 @@ impl PathData {
             .flatten()
         {
             Some(parent_dataset) if parent_dataset != proximate_dataset => {
-                vec![parent_dataset]
+                res.push(parent_dataset);
             }
-            _ => Vec::new(),
+            _ => (),
         };
 
         let dir_iter = std::fs::read_dir(self.path())

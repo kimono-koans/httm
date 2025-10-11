@@ -487,27 +487,26 @@ impl<'a> RelativePathAndSnapMounts<'a> {
         }
 
         if let Ok(mut cached_result) = CACHE_RESULT.write() {
-            if cached_result.insert(self.dataset_of_interest.to_path_buf()) {
-                let proximate_neighbors: Vec<PathBuf> =
-                    PathData::proximate_neighbors(self.path_data, self.dataset_of_interest)
-                        .into_iter()
-                        .filter(|item| cached_result.insert(item.clone()))
-                        .collect();
+            let proximate_plus_neighbors: Vec<PathBuf> =
+                PathData::proximate_plus_neighbors(self.path_data, self.dataset_of_interest)
+                    .into_iter()
+                    .filter(|item| cached_result.insert(item.clone()))
+                    .collect();
 
-                rayon::spawn(move || {
-                    proximate_neighbors
-                        .iter()
-                        .filter_map(|dataset| Self::snap_mounts_from_dataset_of_interest(dataset))
-                        .flat_map(|bundle| bundle.into_owned())
-                        .for_each(|snap_path| {
-                            let _ = std::fs::read_dir(snap_path)
-                                .into_iter()
-                                .flatten()
-                                .flatten()
-                                .next();
-                        });
-                });
-            }
+            rayon::spawn(move || {
+                proximate_plus_neighbors
+                    .iter()
+                    .filter_map(|dataset| Self::snap_mounts_from_dataset_of_interest(dataset))
+                    .map(|bundle| bundle.to_vec())
+                    .flatten()
+                    .for_each(|snap_path| {
+                        let _ = std::fs::read_dir(snap_path)
+                            .into_iter()
+                            .flatten()
+                            .flatten()
+                            .next();
+                    });
+            });
         }
     }
 }
