@@ -404,7 +404,7 @@ impl PathData {
         let mut res = match self
             .path()
             .parent()
-            .map(|path| PathData::from(path))
+            .map(|path| PathData::without_styling(path, None))
             .map(|path| path.proximate_dataset().ok().map(|path| path.to_owned()))
             .flatten()
         {
@@ -419,11 +419,14 @@ impl PathData {
             .flatten()
             .flatten()
             .filter_map(|de| match de.file_type().ok() {
-                Some(ft) if ft.is_dir() => Some(de.path()),
-                Some(ft) if ft.is_symlink() => std::fs::read_link(de.path()).ok(),
+                Some(ft) if ft.is_dir() => {
+                    Some(PathData::without_styling(&de.path(), de.metadata().ok()))
+                }
+                Some(ft) if ft.is_symlink() => std::fs::read_link(de.path())
+                    .ok()
+                    .map(|path| PathData::without_styling(&path, None)),
                 _ => None,
             })
-            .map(|path| PathData::from(&path))
             .filter_map(|pd| pd.proximate_dataset().ok().map(|path| path.to_owned()));
 
         res.extend(top_level_iter);
