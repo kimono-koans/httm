@@ -137,7 +137,7 @@ pub fn dir_was_previously_listed(
     entry: &BasicDirEntryInfo,
     opt_path_map: Option<&mut RefMut<'_, hashbrown::HashSet<UniqueInode>>>,
 ) -> bool {
-    let Some(file_id) = UniqueInode::new(entry) else {
+    let Ok(file_id) = UniqueInode::try_from(entry) else {
         return true;
     };
 
@@ -154,17 +154,37 @@ pub struct UniqueInode {
 }
 
 impl UniqueInode {
-    fn new(entry: &BasicDirEntryInfo) -> Option<Self> {
+    pub fn new(entry: &Path) -> HttmResult<UniqueInode> {
+        // deref if needed!
+        let entry_metadata = entry.symlink_metadata()?;
+
+        Ok(Self {
+            ino: entry_metadata.ino(),
+            dev: entry_metadata.dev(),
+        })
+    }
+}
+
+impl TryFrom<&BasicDirEntryInfo> for UniqueInode {
+    type Error = Box<dyn std::error::Error + Send + Sync>;
+
+    fn try_from(entry: &BasicDirEntryInfo) -> HttmResult<UniqueInode> {
         // deref if needed!
         let entry_metadata = match entry.opt_filetype() {
-            Some(ft) if ft.is_symlink() => entry.path().metadata().ok(),
-            Some(_) => entry.opt_metadata().cloned(),
-            None => entry.path().metadata().ok(),
+            Some(ft) if ft.is_symlink() => entry.path().metadata()?,
+            Some(_) => entry.opt_metadata().cloned().ok_or_else(|| {
+                let description = format!(
+                    "httm could not identify any metadata for path: {:?}",
+                    entry.path()
+                );
+                return HttmError::from(description);
+            })?,
+            None => entry.path().metadata()?,
         };
 
-        Some(Self {
-            ino: entry_metadata.as_ref()?.ino(),
-            dev: entry_metadata.as_ref()?.dev(),
+        Ok(Self {
+            ino: entry_metadata.ino(),
+            dev: entry_metadata.dev(),
         })
     }
 }

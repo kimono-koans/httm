@@ -19,6 +19,7 @@ use crate::config::generate::{Config, DedupBy, ExecMode, LastSnapMode};
 use crate::data::paths::{CompareContentsContainer, PathData, PathDeconstruction};
 use crate::filesystem::snaps::MapOfSnaps;
 use crate::library::results::{HttmError, HttmResult};
+use crate::library::utility::UniqueInode;
 use crate::{GLOBAL_CONFIG, MAP_OF_SNAPS};
 use hashbrown::HashSet;
 use rayon::prelude::*;
@@ -510,19 +511,23 @@ impl<'a> RelativePathAndSnapMounts<'a> {
 
     #[inline(always)]
     fn tickle_auto_mount(&self) {
-        static CACHE_RESULT: LazyLock<RwLock<HashSet<PathBuf>>> =
+        static CACHE_RESULT: LazyLock<RwLock<HashSet<UniqueInode>>> =
             LazyLock::new(|| RwLock::new(HashSet::new()));
+
+        let Ok(file_id) = UniqueInode::new(&self.dataset_of_interest) else {
+            return;
+        };
 
         if CACHE_RESULT
             .try_read()
             .ok()
-            .is_some_and(|cached_result| cached_result.contains(self.dataset_of_interest))
+            .is_some_and(|cached_result| cached_result.contains(&file_id))
         {
             return;
         }
 
         if let Ok(mut cached_result) = CACHE_RESULT.try_write() {
-            if cached_result.insert(self.dataset_of_interest.to_path_buf()) {
+            if cached_result.insert(file_id) {
                 let snap_mounts = self.snap_mounts.as_ref().to_vec();
 
                 rayon::spawn(move || {
