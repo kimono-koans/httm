@@ -68,7 +68,12 @@ impl InteractiveBrowse {
         };
 
         {
-            let _ = CACHE_RESULT.write().map(|mut map| map.clear());
+            match CACHE_RESULT.write() {
+                Ok(mut map) => map.clear(),
+                Err(_err) => {
+                    CACHE_RESULT.clear_poison();
+                }
+            };
         }
 
         Ok(browse_result)
