@@ -23,9 +23,10 @@ use std::ops::Deref;
 use std::path::Path;
 use std::sync::Arc;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct RemotePathAndFsType {
     remote_dir: Arc<Path>,
+    #[allow(dead_code)]
     fs_type: FilesystemType,
 }
 
@@ -35,7 +36,7 @@ impl RemotePathAndFsType {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct MapOfAliases {
     inner: BTreeMap<Box<Path>, RemotePathAndFsType>,
 }
@@ -114,7 +115,7 @@ impl MapOfAliases {
 
         // user defined dir exists?: check that path contains the hidden snapshot directory
         let snap_point = opt_snap_dir.map(|snap_dir| {
-            // local relative dir can be set at cmdline or as an env var,
+            // local relative dir can be set at command line or as an env var,
             // but defaults to current working directory if empty
             let local_dir = opt_local_dir.unwrap_or_else(|| pwd.into());
 

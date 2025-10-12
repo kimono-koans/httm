@@ -62,7 +62,7 @@ static PHANTOM_SIZE_PAD_STR: LazyLock<String> = LazyLock::new(|| {
     )
 });
 
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct DisplaySet<'a> {
     inner: [Vec<&'a PathData>; 2],
 }

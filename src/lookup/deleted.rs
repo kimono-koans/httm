@@ -25,7 +25,7 @@ use std::ffi::OsString;
 use std::fs::FileType;
 use std::path::Path;
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DeletedFiles {
     inner: Vec<BasicDirEntryInfo>,
 }

@@ -40,7 +40,7 @@ pub const NFS_FSTYPE: &str = "nfs";
 pub const AFP_FSTYPE: &str = "afpfs";
 pub const RESTIC_FSTYPE: &str = "restic";
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LinkType {
     Local,
     Network,

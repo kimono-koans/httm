@@ -28,7 +28,7 @@ use rayon::prelude::*;
 use std::borrow::Cow;
 use std::path::{Path, PathBuf};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct FilesystemInfo {
     // key: mount, val: (dataset/subvol, fs_type, mount_type)
     pub map_of_datasets: MapOfDatasets,
@@ -39,6 +39,7 @@ pub struct FilesystemInfo {
     // key: local dir, val: (remote dir, fstype)
     pub opt_map_of_aliases: Option<MapOfAliases>,
     // opt possible opt store type
+    #[allow(dead_code)]
     pub opt_alt_store: Option<FilesystemType>,
 }
 

@@ -23,12 +23,12 @@ use std::ops::Deref;
 use std::path::Path;
 use std::sync::Arc;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct MapOfAlts {
     inner: BTreeMap<Arc<Path>, AltMetadata>,
 }
 
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct AltMetadata {
     opt_datasets_of_interest: Option<Vec<Box<Path>>>,
 }
