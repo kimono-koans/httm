@@ -53,53 +53,53 @@ pub enum BulkExclusion {
     NoSnap,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub enum InteractiveMode {
     Browse,
     Select(SelectMode),
     Restore(RestoreMode),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub enum RestoreSnapGuard {
     Guarded,
     NotGuarded,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub enum SelectMode {
     Path,
     Contents,
     Preview,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub enum RestoreMode {
     CopyOnly,
     CopyAndPreserve,
     Overwrite(RestoreSnapGuard),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub enum PrintMode {
     Formatted(FormattedMode),
     Raw(RawMode),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub enum RawMode {
     Csv,
     Newline,
     Zero,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub enum FormattedMode {
     Default,
     NotPretty,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub enum DeletedMode {
     DepthOfOne,
     All,
@@ -121,7 +121,7 @@ pub struct ListSnapsFilters {
     pub name_filters: Option<Vec<String>>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub enum LastSnapMode {
     Any,
     Without,
@@ -130,7 +130,7 @@ pub enum LastSnapMode {
     NoDittoInclusive,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub enum NumVersionsMode {
     AllNumerals,
     AllGraph,
