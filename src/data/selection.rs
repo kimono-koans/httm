@@ -185,12 +185,12 @@ impl SkimItem for SelectionCandidate {
     }
 }
 
-impl From<Vec<PathData>> for Config {
-    fn from(vec: Vec<PathData>) -> Config {
+impl From<&[PathData]> for Config {
+    fn from(slice: &[PathData]) -> Config {
         let config = &GLOBAL_CONFIG;
         // generate a config for a preview display only
         Self {
-            paths: vec,
+            paths: slice.to_vec(),
             opt_recursive: false,
             opt_exact: false,
             opt_no_filter: false,
@@ -219,8 +219,8 @@ impl From<Vec<PathData>> for Config {
 
 impl From<&SelectionCandidate> for Config {
     fn from(selection_candidate: &SelectionCandidate) -> Config {
-        let vec = vec![PathData::from(selection_candidate)];
+        let vec = [PathData::from(selection_candidate)];
 
-        Config::from(vec)
+        Config::from(vec.as_slice())
     }
 }

@@ -198,7 +198,7 @@ impl TryInto<InteractiveSelect> for InteractiveBrowse {
             InteractiveSelect::last_snap(&versions_map)
         } else {
             // same stuff we do at fn exec, snooze...
-            let display_config = Config::from(self.selected_path_data.clone());
+            let display_config = Config::from(self.selected_path_data.as_slice());
 
             let display_map = DisplayWrapper::from(&display_config, versions_map);
 
