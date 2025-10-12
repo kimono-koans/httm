@@ -253,7 +253,7 @@ impl RollForward {
                 })
                 .filter(|(key, value)| match &value.diff_type {
                     DiffType::Renamed(new_file_name) => {
-                        !exclusions.contains(key.as_path()) || !exclusions.contains(new_file_name)
+                        !exclusions.contains(key.as_path()) && !exclusions.contains(new_file_name)
                     }
                     _ => !exclusions.contains(key.as_path()),
                 })
