@@ -409,8 +409,9 @@ impl PathData {
             .map(|path| PathData::without_styling(path, None))
             .map(|path| path.proximate_dataset().ok().map(|path| path.to_owned()))
             .flatten()
+            .filter(|parent_dataset| parent_dataset != proximate_dataset)
         {
-            Some(parent_dataset) if parent_dataset != proximate_dataset => {
+            Some(parent_dataset) => {
                 res.push(parent_dataset);
             }
             _ => (),
@@ -429,7 +430,8 @@ impl PathData {
                     .map(|path| PathData::without_styling(&path, None)),
                 _ => None,
             })
-            .filter_map(|pd| pd.proximate_dataset().ok().map(|path| path.to_owned()));
+            .filter_map(|pd| pd.proximate_dataset().ok().map(|path| path.to_owned()))
+            .filter(|parent_dataset| parent_dataset != proximate_dataset);
 
         res.extend(dir_iter);
 
