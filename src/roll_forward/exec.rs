@@ -32,6 +32,7 @@ use rayon::prelude::*;
 use std::fs::Permissions;
 use std::fs::read_dir;
 use std::fs::set_permissions;
+use std::io::ErrorKind;
 use std::io::{BufRead, Read};
 use std::os::unix::fs::chown;
 use std::os::unix::fs::{MetadataExt, PermissionsExt};
@@ -196,11 +197,9 @@ impl RollForward {
 
         // zfs-diff can return multiple file actions for a single inode, here we dedup
         eprintln!("Building a map of ZFS filesystem events since the specified snapshot.");
-        let stream = self.ingest(&mut opt_stdout)?;
+        let all_events = self.ingest(&mut opt_stdout)?;
 
-        let mut peekable_stream = stream.peekable();
-
-        if peekable_stream.peek().is_none() {
+        if all_events.is_empty() {
             let err_string = Self::zfs_diff_std_err(opt_stderr)?;
 
             if err_string.is_empty() {
@@ -211,7 +210,7 @@ impl RollForward {
         }
 
         let mut parse_errors = vec![];
-        let group_map = peekable_stream
+        let group_map = all_events
             .into_iter()
             .filter_map(|event| {
                 self.progress_bar.tick();
@@ -270,20 +269,47 @@ impl RollForward {
         Ok(buf)
     }
 
-    fn ingest(
-        &self,
-        output: &mut Option<ChildStdout>,
-    ) -> HttmResult<impl Iterator<Item = HttmResult<DiffEvent>>> {
+    fn ingest(&self, output: &mut Option<ChildStdout>) -> HttmResult<Vec<HttmResult<DiffEvent>>> {
         const IN_BUFFER_SIZE: usize = 65_536;
 
         match output {
             Some(output) => {
-                let stdout_buffer = std::io::BufReader::with_capacity(IN_BUFFER_SIZE, output);
+                let mut stdout_buffer = std::io::BufReader::with_capacity(IN_BUFFER_SIZE, output);
+                let mut ret: Vec<HttmResult<DiffEvent>> = Vec::new();
 
-                let ret = stdout_buffer.lines().flatten().map(|line| {
-                    self.progress_bar.tick();
-                    DiffEvent::new(&line)
-                });
+                loop {
+                    match stdout_buffer.fill_buf() {
+                        Ok(bytes) => {
+                            let bytes_len = bytes.len();
+                            let mut bytes_buffer = bytes.to_vec();
+                            stdout_buffer.consume(bytes_len);
+
+                            stdout_buffer.read_until(b'\n', &mut bytes_buffer)?;
+
+                            // break when there is nothing left to read
+                            if bytes_buffer.is_empty() {
+                                break;
+                            }
+
+                            ret.extend(
+                                std::str::from_utf8(stdout_buffer.buffer())?
+                                    .lines()
+                                    .filter(|line| !line.is_empty())
+                                    .map(|line| {
+                                        self.progress_bar.tick();
+                                        DiffEvent::new(&line)
+                                    }),
+                            );
+                        }
+                        Err(err) => match err.kind() {
+                            ErrorKind::Interrupted => continue,
+                            ErrorKind::UnexpectedEof => {
+                                return Err(err.into());
+                            }
+                            _ => return Err(err.into()),
+                        },
+                    }
+                }
 
                 Ok(ret)
             }

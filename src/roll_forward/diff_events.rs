@@ -86,14 +86,14 @@ impl DiffEvent {
         let split_line: Vec<&str> = line.split('\t').collect();
 
         let time_str = split_line
-            .first()
-            .ok_or_else(|| HttmError::new("Could not obtain a timestamp for diff event."))?;
+            .get(0)
+            .ok_or_else(|| HttmError::new("Could not obtain a timestamp for diff event"))?;
 
         let diff_type = split_line.get(1);
 
         let path = split_line
             .get(2)
-            .ok_or_else(|| HttmError::new("Could not obtain a path for diff event."))?;
+            .ok_or_else(|| HttmError::new("Could not obtain a path for diff event"))?;
 
         match diff_type {
             Some(&"-") => DiffEvent::from_parts(path, DiffType::Removed, time_str),
@@ -101,7 +101,7 @@ impl DiffEvent {
             Some(&"M") => DiffEvent::from_parts(path, DiffType::Modified, time_str),
             Some(&"R") => {
                 let new_file_name = split_line.get(3).ok_or_else(|| {
-                    HttmError::new("Could not obtain a new file name for diff event.")
+                    HttmError::new("Could not obtain a new file name for diff event")
                 })?;
 
                 DiffEvent::from_parts(
