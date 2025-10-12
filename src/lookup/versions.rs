@@ -459,8 +459,8 @@ impl<'a> RelativePathAndSnapMounts<'a> {
                 || GLOBAL_CONFIG
                     .dataset_collection
                     .map_of_datasets
-                    .values()
-                    .any(|md| matches!(md.link_type, LinkType::Network))
+                    .get(self.dataset_of_interest)
+                    .is_some_and(|md| matches!(md.link_type, LinkType::Network))
         });
 
         if *PREHEAT.get().unwrap_or(&true) {
