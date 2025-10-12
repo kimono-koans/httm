@@ -492,7 +492,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
         let path_data_clone = self.path_data.clone();
         let dataset_of_interest_clone = self.dataset_of_interest.to_path_buf();
 
-        rayon::spawn(move || {
+        rayon::spawn_fifo(move || {
             let mut backoff = 2;
 
             let vec: Vec<PathBuf> = loop {
@@ -526,7 +526,8 @@ impl<'a> RelativePathAndSnapMounts<'a> {
                         .flatten()
                         .flatten()
                         .flatten()
-                        .next();
+                        .next()
+                        .map(|item| item.file_name());
                 });
         });
     }
