@@ -164,15 +164,15 @@ function take_snap {
 
 	# mask all the errors from the first run without privileges,
 	# let the sudo run show errors
-	[[ -z "$utc" ]] || httm "$utc" --snap="$suffix" $filenames 2>&1 | grep -v "dataset already exists" | logger -t ounce || true
-	[[ -n "$utc" ]] || httm --snap="$suffix" $filenames 2>&1 | grep -v "dataset already exists" | logger -t ounce || true
+	[[ -z "$utc" ]] || ( httm "$utc" --snap="$suffix" $filenames 2>&1 | grep -v "dataset already exists" | logger -t ounce || true ) &
+	[[ -n "$utc" ]] || ( httm --snap="$suffix" $filenames 2>&1 | grep -v "dataset already exists" | logger -t ounce || true ) &
 
 	if [[ $? -ne 0 ]]; then
 		local sudo_program
 		sudo_program="$(prep_sudo)"
 
-		[[ -z "$utc" ]] || httm "$utc" --snap="$suffix" $filenames 2>&1 | grep -v "dataset already exists" | logger -t ounce || true
-		[[ -n "$utc" ]] || httm --snap="$suffix" $filenames 2>&1 | grep -v "dataset already exists" | logger -t ounce || true
+		[[ -z "$utc" ]] || ( httm "$utc" --snap="$suffix" $filenames 2>&1 | grep -v "dataset already exists" | logger -t ounce || true ) &
+		[[ -n "$utc" ]] || ( httm --snap="$suffix" $filenames 2>&1 | grep -v "dataset already exists" | logger -t ounce || true ) &
 
 		[[ $? -eq 0 ]] ||
 			print_err_exit "'ounce' failed with a 'httm'/'zfs' snapshot error.  Check you have the correct permissions to snapshot."
