@@ -33,6 +33,10 @@ use std::sync::atomic::AtomicU32;
 use std::sync::{LazyLock, OnceLock};
 use std::time::Duration;
 
+static RETRY_NOTICE: &str = "NOTICE: httm filesystem requests are delayed...\n
+We are probably waiting for your kernel auto-mounter to mount the snapshots which correspond to this file object.\n
+Try again soon.  Number of retries you have left before this timeout is removed for this file object: ";
+
 // these represent the items ready for selection and preview
 // contains everything one needs to request preview and paint with
 // LsColors -- see preview_view, preview for how preview is done
@@ -199,10 +203,7 @@ impl SkimItem for SelectionCandidate {
                 Ok(preview_output) => return skim::ItemPreview::AnsiText(preview_output),
                 Err(_) => {
                     let retries_left = 5 - retry_count;
-                    let err_output = format!("NOTICE: httm filesystem requests are delayed...\n
-                    We are probably waiting for your kernel auto-mounter to mount the snapshots for this object.\n
-                    Try again soon.  Number of retries you have left before this timeout is removed: {retries_left}\n
-                    --");
+                    let err_output = format!("{}{}\n--", RETRY_NOTICE, retries_left);
                     return skim::ItemPreview::AnsiText(err_output);
                 }
             }
