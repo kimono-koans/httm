@@ -161,6 +161,7 @@ impl SkimItem for SelectionCandidate {
 
         let time_out = match GLOBAL_CONFIG.opt_requested_dir.as_ref() {
             Some(requested_dir) if requested_dir == self.path() => REQUESTED_DIR_TIME_OUT,
+            _ if GLOBAL_CONFIG.opt_lazy => REQUESTED_DIR_TIME_OUT,
             _ => REGULAR_TIME_OUT,
         };
 
