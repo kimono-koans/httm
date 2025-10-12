@@ -157,7 +157,7 @@ impl SkimItem for SelectionCandidate {
     }
     fn preview(&self, _: PreviewContext<'_>) -> skim::ItemPreview {
         static REQUESTED_DIR_TIME_OUT: Duration = Duration::from_millis(200);
-        static REGULAR_TIME_OUT: Duration = Duration::from_millis(50);
+        static REGULAR_TIME_OUT: Duration = Duration::from_millis(100);
 
         let time_out = match GLOBAL_CONFIG.opt_requested_dir.as_ref() {
             Some(requested_dir) if requested_dir == self.path() => REQUESTED_DIR_TIME_OUT,
