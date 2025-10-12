@@ -527,8 +527,6 @@ impl<'a> RelativePathAndSnapMounts<'a> {
                         .flatten()
                         .flatten()
                         .next();
-
-                    std::thread::yield_now();
                 });
         });
     }
