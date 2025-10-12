@@ -304,20 +304,13 @@ impl RollForward {
         }
     }
 
-    fn roll_from_list(
-        &self,
-        mut list: Vec<(PathBuf, DiffEvent)>,
-        exclusions: &HashSet<PathBuf>,
-    ) -> HttmResult<()> {
-        list.sort_unstable_by_key(|(key, _value)| key.clone());
+    fn roll_from_list(&self, mut list: Vec<(PathBuf, DiffEvent)>) -> HttmResult<()> {
+        list.sort_unstable_by(|a, b| a.0.cmp(&b.0));
         // reverse because we want to work from the bottom up
         list.reverse();
 
         list.par_iter()
-            .try_for_each(|(_key, value)| match &value.diff_type {
-                DiffType::Renamed(new_file) if exclusions.contains(new_file) => Ok(()),
-                _ => value.reverse_action(&self),
-            })
+            .try_for_each(|(_key, value)| value.reverse_action(&self))
     }
 
     fn cleanup_and_verify(&self) -> HttmResult<()> {
