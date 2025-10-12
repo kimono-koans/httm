@@ -38,6 +38,7 @@ pub enum ExecMode {
     Interactive(InteractiveMode),
     NonInteractiveRecursive(indicatif::ProgressBar),
     BasicDisplay,
+    Preview,
     SnapFileMount(String),
     Prune(Option<ListSnapsFilters>),
     MountsForFiles(MountDisplay),
@@ -1071,6 +1072,7 @@ impl Config {
                     vec![PathData::from(pwd)]
                 }
                 ExecMode::BasicDisplay
+                | ExecMode::Preview
                 | ExecMode::SnapFileMount(_)
                 | ExecMode::Prune(_)
                 | ExecMode::MountsForFiles(_)
@@ -1194,6 +1196,7 @@ impl Config {
             }
 
             ExecMode::BasicDisplay
+            | ExecMode::Preview
             | ExecMode::RollForward(_)
             | ExecMode::SnapFileMount(_)
             | ExecMode::Prune(_)

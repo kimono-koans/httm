@@ -145,7 +145,7 @@ pub struct Versions {
 impl Versions {
     #[inline(always)]
     pub fn new(path_data: &PathData, config: &Config) -> HttmResult<Self> {
-        let prox_opt_alts = ProximateDatasetAndOptAlts::new(path_data)?;
+        let prox_opt_alts = ProximateDatasetAndOptAlts::new(path_data, config)?;
         let path_data_key = prox_opt_alts.path_data.clone();
         let snap_versions: Vec<PathData> = prox_opt_alts
             .into_search_bundles()
@@ -224,31 +224,18 @@ impl Versions {
     }
 }
 
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct ProximateDatasetAndOptAlts<'a> {
+    config: &'a Config,
     path_data: &'a PathData,
     proximate_dataset: &'a Path,
     relative_path: &'a Path,
     opt_alts: Option<&'a [Box<Path>]>,
 }
 
-impl<'a> Ord for ProximateDatasetAndOptAlts<'a> {
-    #[inline]
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.path_data.cmp(&other.path_data)
-    }
-}
-
-impl<'a> PartialOrd for ProximateDatasetAndOptAlts<'a> {
-    #[inline]
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
 impl<'a> ProximateDatasetAndOptAlts<'a> {
     #[inline(always)]
-    pub fn new(path_data: &'a PathData) -> HttmResult<Self> {
+    pub fn new(path_data: &'a PathData, config: &'a Config) -> HttmResult<Self> {
         // here, we take our file path and get back possibly multiple ZFS dataset mountpoints
         // and our most proximate dataset mount point (which is always the same) for
         // a single file
@@ -284,6 +271,7 @@ impl<'a> ProximateDatasetAndOptAlts<'a> {
             .and_then(|alt_metadata| alt_metadata.deref().as_deref());
 
         Ok(Self {
+            config,
             path_data,
             proximate_dataset,
             relative_path,
@@ -314,6 +302,7 @@ impl<'a> ProximateDatasetAndOptAlts<'a> {
     pub fn into_search_bundles(&'a self) -> impl Iterator<Item = RelativePathAndSnapMounts<'a>> {
         self.datasets_of_interest().flat_map(|dataset_of_interest| {
             RelativePathAndSnapMounts::new(
+                self.config,
                 self.path_data,
                 &self.relative_path,
                 &dataset_of_interest,
@@ -324,6 +313,7 @@ impl<'a> ProximateDatasetAndOptAlts<'a> {
 
 #[derive(Debug, Clone)]
 pub struct RelativePathAndSnapMounts<'a> {
+    config: &'a Config,
     path_data: &'a PathData,
     relative_path: &'a Path,
     dataset_of_interest: &'a Path,
@@ -333,37 +323,38 @@ pub struct RelativePathAndSnapMounts<'a> {
 impl<'a> RelativePathAndSnapMounts<'a> {
     #[inline(always)]
     pub fn new(
+        config: &'a Config,
         path_data: &'a PathData,
         relative_path: &'a Path,
         dataset_of_interest: &'a Path,
     ) -> Option<Self> {
-        // building our relative path by removing parent below the snap dir
+        // building our relative path, by removing parent below the snap dir
         //
         // for native searches the prefix is are the dirs below the most proximate dataset
         // for user specified dirs/aliases these are specified by the user
-        Self::snap_mounts_from_dataset_of_interest(dataset_of_interest).map(|snap_mounts| Self {
-            path_data,
-            relative_path,
-            dataset_of_interest,
-            snap_mounts,
+        Self::snap_mounts_from_dataset_of_interest(dataset_of_interest, config).map(|snap_mounts| {
+            Self {
+                config,
+                path_data,
+                relative_path,
+                dataset_of_interest,
+                snap_mounts,
+            }
         })
     }
 
     fn snap_mounts_from_dataset_of_interest(
         dataset_of_interest: &Path,
-    ) -> Option<Cow<'_, [Box<Path>]>> {
-        if !GLOBAL_CONFIG.opt_debug && GLOBAL_CONFIG.opt_lazy {
+        config: &Config,
+    ) -> Option<Cow<'a, [Box<Path>]>> {
+        if !config.opt_debug && config.opt_lazy {
             // now process snaps
-            return GLOBAL_CONFIG
+            return config
                 .dataset_collection
                 .map_of_datasets
                 .get(dataset_of_interest)
                 .map(|md| {
-                    MapOfSnaps::from_defined_mounts(
-                        &dataset_of_interest,
-                        md,
-                        GLOBAL_CONFIG.opt_debug,
-                    )
+                    MapOfSnaps::from_defined_mounts(&dataset_of_interest, md, config.opt_debug)
                 })
                 .map(|snap_mounts| Cow::Owned(snap_mounts));
         }
@@ -455,7 +446,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
         static PREHEAT: OnceLock<bool> = OnceLock::new();
 
         PREHEAT.get_or_init(|| {
-            matches!(GLOBAL_CONFIG.exec_mode, ExecMode::Interactive(_))
+            matches!(GLOBAL_CONFIG.exec_mode, ExecMode::Preview)
                 || GLOBAL_CONFIG
                     .dataset_collection
                     .map_of_datasets
@@ -488,6 +479,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
         let map_clone = CACHE_RESULT.clone();
         let path_data_clone = self.path_data.clone();
         let dataset_of_interest_clone = self.dataset_of_interest.to_path_buf();
+        let config_clone = self.config.clone();
 
         rayon::spawn_fifo(move || {
             let mut backoff = 2;
@@ -515,7 +507,9 @@ impl<'a> RelativePathAndSnapMounts<'a> {
             };
 
             vec.iter()
-                .filter_map(|dataset| Self::snap_mounts_from_dataset_of_interest(&dataset))
+                .filter_map(|dataset| {
+                    Self::snap_mounts_from_dataset_of_interest(&dataset, &config_clone)
+                })
                 .for_each(|bundle| {
                     let _ = bundle
                         .into_iter()

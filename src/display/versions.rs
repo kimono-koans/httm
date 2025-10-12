@@ -258,7 +258,7 @@ impl PathData {
     }
 
     fn warn_on_empty_snaps(&self, config: &Config) -> &str {
-        match ProximateDatasetAndOptAlts::new(self).ok() {
+        match ProximateDatasetAndOptAlts::new(self, config).ok() {
             None => "WARN: Could not determine live path's most proximate dataset.\n",
             _ if self.path().ancestors().any(|mount| mount.is_filter_dir()) => {
                 "WARN: Most proximate dataset for path is an unsupported filesystem.\n"
