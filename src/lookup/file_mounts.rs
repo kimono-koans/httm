@@ -74,7 +74,7 @@ impl<'a> MountsForFiles<'a> {
             .paths
             .par_iter()
             .filter_map(
-                |pd| match ProximateDatasetAndOptAlts::new(pd, &GLOBAL_CONFIG) {
+                |pd| match ProximateDatasetAndOptAlts::new(&GLOBAL_CONFIG, pd) {
                     Ok(prox_opt_alts) => Some(prox_opt_alts),
                     Err(err) => {
                         if !is_interactive_mode {

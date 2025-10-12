@@ -110,7 +110,7 @@ impl VersionsMap {
 
     #[inline(always)]
     fn from_one_path(config: &Config, path_data: &PathData) -> Option<Versions> {
-        match Versions::new(path_data, config) {
+        match Versions::new(config, path_data) {
             Ok(versions) => Some(versions),
             Err(err) => {
                 if !matches!(config.exec_mode, ExecMode::Interactive(_)) {
@@ -144,8 +144,8 @@ pub struct Versions {
 
 impl Versions {
     #[inline(always)]
-    pub fn new(path_data: &PathData, config: &Config) -> HttmResult<Self> {
-        let prox_opt_alts = ProximateDatasetAndOptAlts::new(path_data, config)?;
+    pub fn new(config: &Config, path_data: &PathData) -> HttmResult<Self> {
+        let prox_opt_alts = ProximateDatasetAndOptAlts::new(config, path_data)?;
         let path_data_key = prox_opt_alts.path_data.clone();
         let snap_versions: Vec<PathData> = prox_opt_alts
             .into_search_bundles()
@@ -235,7 +235,7 @@ pub struct ProximateDatasetAndOptAlts<'a> {
 
 impl<'a> ProximateDatasetAndOptAlts<'a> {
     #[inline(always)]
-    pub fn new(path_data: &'a PathData, config: &'a Config) -> HttmResult<Self> {
+    pub fn new(config: &'a Config, path_data: &'a PathData) -> HttmResult<Self> {
         // here, we take our file path and get back possibly multiple ZFS dataset mountpoints
         // and our most proximate dataset mount point (which is always the same) for
         // a single file

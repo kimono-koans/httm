@@ -92,7 +92,7 @@ impl DeletedFiles {
         //
         // we need to make certain that what we return from possibly multiple datasets are unique
 
-        let Ok(prox_opt_alts) = ProximateDatasetAndOptAlts::new(&path_data, &GLOBAL_CONFIG) else {
+        let Ok(prox_opt_alts) = ProximateDatasetAndOptAlts::new(&GLOBAL_CONFIG, &path_data) else {
             return HashMap::new();
         };
 
