@@ -160,7 +160,7 @@ impl SkimItem for SelectionCandidate {
         static REGULAR_TIME_OUT: Duration = Duration::from_millis(50);
 
         let time_out = match GLOBAL_CONFIG.opt_requested_dir.as_ref() {
-            Some(dir) if dir == self.path() => REQUESTED_DIR_TIME_OUT,
+            Some(requested_dir) if requested_dir == self.path() => REQUESTED_DIR_TIME_OUT,
             _ => REGULAR_TIME_OUT,
         };
 
@@ -176,7 +176,7 @@ impl SkimItem for SelectionCandidate {
         match r.recv_timeout(time_out) {
             Ok(preview_output) => skim::ItemPreview::AnsiText(preview_output),
             Err(_) => {
-                let err_output = "NOTICE: HTTM is delayed... \
+                let err_output = "NOTICE: httm is delayed... \
                 Probably waiting for your kernel auto-mounter to mount your snapshots for this file.  Try again soon.\n--".to_string();
                 skim::ItemPreview::AnsiText(err_output)
             }
