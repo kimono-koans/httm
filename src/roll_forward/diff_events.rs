@@ -85,33 +85,42 @@ impl DiffEvent {
     pub fn new(line: &str) -> HttmResult<DiffEvent> {
         let split_line: Vec<&str> = line.split('\t').collect();
 
-        let time_str = split_line
-            .get(0)
-            .ok_or_else(|| HttmError::new("Could not obtain a timestamp for diff event"))?;
-
-        let diff_type = split_line.get(1);
-
-        let path = split_line
-            .get(2)
-            .ok_or_else(|| HttmError::new("Could not obtain a path for diff event"))?;
-
-        match diff_type {
-            Some(&"-") => DiffEvent::from_parts(path, DiffType::Removed, time_str),
-            Some(&"+") => DiffEvent::from_parts(path, DiffType::Created, time_str),
-            Some(&"M") => DiffEvent::from_parts(path, DiffType::Modified, time_str),
-            Some(&"R") => {
-                let new_file_name = split_line.get(3).ok_or_else(|| {
-                    HttmError::new("Could not obtain a new file name for diff event")
-                })?;
-
-                DiffEvent::from_parts(
-                    path,
-                    DiffType::Renamed(PathBuf::from(new_file_name)),
-                    time_str,
-                )
+        match split_line.as_slice() {
+            [time_str, diff_type, path] => {
+                DiffEvent::from_parts(path, Self::parse_diff_type(diff_type, None)?, time_str)
             }
-            _ => HttmError::new("Could not parse diff event").into(),
+            [time_str, diff_type, path, new_file_name] => DiffEvent::from_parts(
+                path,
+                Self::parse_diff_type(diff_type, Some(&new_file_name))?,
+                time_str,
+            ),
+            _ => HttmError::new(format!("Could not parse diff event from line: {}", line)).into(),
         }
+    }
+
+    fn parse_diff_type(diff_type: &str, opt_new_file_name: Option<&str>) -> HttmResult<DiffType> {
+        let res = match diff_type {
+            "-" => DiffType::Removed,
+            "+" => DiffType::Created,
+            "M" => DiffType::Modified,
+            "R" => match opt_new_file_name {
+                Some(new_file_name) => DiffType::Renamed(PathBuf::from(new_file_name)),
+                None => {
+                    return Err(
+                        HttmError::new("No new file name exists for Rename DiffEvent").into(),
+                    );
+                }
+            },
+            _ => {
+                return Err(HttmError::new(format!(
+                    "Could not parse diff type from line: {}",
+                    diff_type
+                ))
+                .into());
+            }
+        };
+
+        Ok(res)
     }
 
     fn from_parts(path_string: &str, diff_type: DiffType, time_str: &str) -> HttmResult<Self> {

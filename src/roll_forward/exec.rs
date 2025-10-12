@@ -32,8 +32,7 @@ use rayon::prelude::*;
 use std::fs::Permissions;
 use std::fs::read_dir;
 use std::fs::set_permissions;
-use std::io::ErrorKind;
-use std::io::{BufRead, Read};
+use std::io::Read;
 use std::os::unix::fs::chown;
 use std::os::unix::fs::{MetadataExt, PermissionsExt};
 use std::path::{Path, PathBuf};
@@ -233,7 +232,10 @@ impl RollForward {
         }
 
         if !parse_errors.is_empty() {
-            let description: String = parse_errors.into_iter().map(|e| e.to_string()).collect();
+            let description: String = parse_errors
+                .into_iter()
+                .map(|e| format!("{}\n", e.to_string()))
+                .collect();
             return HttmError::from(description).into();
         }
 
@@ -243,7 +245,7 @@ impl RollForward {
         eprintln!("Reversing 'zfs diff' actions.");
         let (vec_dirs, vec_files): (Vec<(PathBuf, DiffEvent)>, Vec<(PathBuf, DiffEvent)>) =
             group_map
-                .into_par_iter()
+                .into_iter()
                 .filter(|(key, _values)| !exclusions.contains(key.as_path()))
                 .flat_map(|(key, values)| {
                     values
@@ -270,46 +272,21 @@ impl RollForward {
     }
 
     fn ingest(&self, output: &mut Option<ChildStdout>) -> HttmResult<Vec<HttmResult<DiffEvent>>> {
-        const IN_BUFFER_SIZE: usize = 65_536;
-
         match output {
             Some(output) => {
-                let mut stdout_buffer = std::io::BufReader::with_capacity(IN_BUFFER_SIZE, output);
-                let mut ret: Vec<HttmResult<DiffEvent>> = Vec::new();
+                let mut stdout_buffer = std::io::BufReader::new(output);
+                let mut string_buffer = String::new();
 
-                loop {
-                    match stdout_buffer.fill_buf() {
-                        Ok(bytes) => {
-                            let bytes_len = bytes.len();
-                            let mut bytes_buffer = bytes.to_vec();
-                            stdout_buffer.consume(bytes_len);
+                stdout_buffer.read_to_string(&mut string_buffer)?;
 
-                            stdout_buffer.read_until(b'\n', &mut bytes_buffer)?;
-
-                            // break when there is nothing left to read
-                            if bytes_buffer.is_empty() {
-                                break;
-                            }
-
-                            ret.extend(
-                                std::str::from_utf8(stdout_buffer.buffer())?
-                                    .lines()
-                                    .filter(|line| !line.is_empty())
-                                    .map(|line| {
-                                        self.progress_bar.tick();
-                                        DiffEvent::new(&line)
-                                    }),
-                            );
-                        }
-                        Err(err) => match err.kind() {
-                            ErrorKind::Interrupted => continue,
-                            ErrorKind::UnexpectedEof => {
-                                return Err(err.into());
-                            }
-                            _ => return Err(err.into()),
-                        },
-                    }
-                }
+                let ret = string_buffer
+                    .lines()
+                    .filter(|line| !line.is_empty())
+                    .map(|line| {
+                        self.progress_bar.tick();
+                        DiffEvent::new(&line)
+                    })
+                    .collect();
 
                 Ok(ret)
             }
