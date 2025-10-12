@@ -15,6 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
+use crate::GLOBAL_CONFIG;
 use crate::data::paths::{BasicDirEntryInfo, PathData};
 use crate::library::iter_extensions::HttmIter;
 use crate::lookup::versions::{ProximateDatasetAndOptAlts, RelativePathAndSnapMounts};
@@ -91,7 +92,7 @@ impl DeletedFiles {
         //
         // we need to make certain that what we return from possibly multiple datasets are unique
 
-        let Ok(prox_opt_alts) = ProximateDatasetAndOptAlts::new(&path_data) else {
+        let Ok(prox_opt_alts) = ProximateDatasetAndOptAlts::new(&GLOBAL_CONFIG, &path_data) else {
             return HashMap::new();
         };
 

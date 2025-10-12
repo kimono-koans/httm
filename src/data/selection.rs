@@ -237,7 +237,7 @@ impl From<&[PathData]> for Config {
             dedup_by: DedupBy::Metadata,
             opt_omit_ditto: config.opt_omit_ditto,
             requested_utc_offset: config.requested_utc_offset,
-            exec_mode: ExecMode::BasicDisplay,
+            exec_mode: ExecMode::Preview,
             print_mode: PrintMode::Formatted(FormattedMode::Default),
             dataset_collection: config.dataset_collection.clone(),
             pwd: config.pwd.clone(),
