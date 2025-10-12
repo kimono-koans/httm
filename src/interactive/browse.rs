@@ -27,9 +27,14 @@ use crate::interactive::view_mode::ViewMode;
 use crate::library::results::{HttmError, HttmResult};
 use crossbeam_channel::unbounded;
 use skim::prelude::*;
+use std::collections::HashSet;
 use std::ops::Deref;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicBool;
+use std::sync::{LazyLock, RwLock};
+
+pub static CACHE_RESULT: LazyLock<Arc<RwLock<HashSet<PathBuf>>>> =
+    LazyLock::new(|| Arc::new(RwLock::new(HashSet::new())));
 
 #[derive(Debug)]
 pub struct InteractiveBrowse {
@@ -61,6 +66,10 @@ impl InteractiveBrowse {
                 }
             }
         };
+
+        {
+            let _ = CACHE_RESULT.write().map(|mut map| map.clear());
+        }
 
         Ok(browse_result)
     }

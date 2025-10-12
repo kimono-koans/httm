@@ -19,16 +19,16 @@ use crate::config::generate::{Config, DedupBy, ExecMode, LastSnapMode};
 use crate::data::paths::{CompareContentsContainer, PathData, PathDeconstruction};
 use crate::filesystem::mounts::LinkType;
 use crate::filesystem::snaps::MapOfSnaps;
+use crate::interactive::browse::CACHE_RESULT;
 use crate::library::results::{HttmError, HttmResult};
 use crate::{GLOBAL_CONFIG, MAP_OF_SNAPS};
-use hashbrown::HashSet;
 use rayon::prelude::*;
 use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::io::ErrorKind;
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, LazyLock, OnceLock, RwLock, TryLockError};
+use std::sync::{OnceLock, TryLockError};
 use std::time::Duration;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -476,9 +476,6 @@ impl<'a> RelativePathAndSnapMounts<'a> {
 
     #[inline(always)]
     fn preheat_auto_mount(&self) {
-        static CACHE_RESULT: LazyLock<Arc<RwLock<HashSet<PathBuf>>>> =
-            LazyLock::new(|| Arc::new(RwLock::new(HashSet::new())));
-
         if CACHE_RESULT
             .try_read()
             .ok()
