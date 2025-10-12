@@ -22,6 +22,7 @@ use crate::display::wrapper::DisplayWrapper;
 use crate::library::results::HttmResult;
 use crate::library::utility::{ENV_LS_COLORS, PaintString};
 use crate::{Config, ExecMode, GLOBAL_CONFIG, VersionsMap};
+use crossbeam_channel::bounded;
 use lscolors::Colorable;
 use lscolors::Style;
 use skim::prelude::*;
@@ -29,11 +30,13 @@ use std::fs::{FileType, Metadata};
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::{LazyLock, OnceLock};
+use std::time::Duration;
 
 // these represent the items ready for selection and preview
 // contains everything one needs to request preview and paint with
 // LsColors -- see preview_view, preview for how preview is done
 // and impl Colorable for how we paint the path strings
+#[derive(Debug, Clone)]
 pub struct SelectionCandidate {
     path: Box<Path>,
     opt_filetype: Option<FileType>,
@@ -153,8 +156,31 @@ impl SkimItem for SelectionCandidate {
         self.path.to_string_lossy()
     }
     fn preview(&self, _: PreviewContext<'_>) -> skim::ItemPreview {
-        let preview_output = self.preview_view().unwrap_or_default();
-        skim::ItemPreview::AnsiText(preview_output)
+        static REQUESTED_DIR_TIME_OUT: Duration = Duration::from_millis(200);
+        static REGULAR_TIME_OUT: Duration = Duration::from_millis(50);
+
+        let time_out = match GLOBAL_CONFIG.opt_requested_dir.as_ref() {
+            Some(dir) if dir == self.path() => REQUESTED_DIR_TIME_OUT,
+            _ => REGULAR_TIME_OUT,
+        };
+
+        let (s, r) = bounded(1);
+
+        let cloned = self.clone();
+
+        rayon::spawn(move || {
+            let preview_output = cloned.preview_view().unwrap_or_default();
+            let _ = s.send(preview_output);
+        });
+
+        match r.recv_timeout(time_out) {
+            Ok(preview_output) => skim::ItemPreview::AnsiText(preview_output),
+            Err(_) => {
+                let err_output = "NOTICE: HTTM is delayed... \
+                Probably waiting for your kernel auto-mounter to mount your snapshots for this file.  Try again soon.\n--".to_string();
+                skim::ItemPreview::AnsiText(err_output)
+            }
+        }
     }
 }
 
