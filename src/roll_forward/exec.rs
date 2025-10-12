@@ -32,7 +32,7 @@ use rayon::prelude::*;
 use std::fs::Permissions;
 use std::fs::read_dir;
 use std::fs::set_permissions;
-use std::io::Read;
+use std::io::{BufRead, Read};
 use std::os::unix::fs::chown;
 use std::os::unix::fs::{MetadataExt, PermissionsExt};
 use std::path::{Path, PathBuf};
@@ -275,18 +275,28 @@ impl RollForward {
         match output {
             Some(output) => {
                 let mut stdout_buffer = std::io::BufReader::new(output);
-                let mut string_buffer = String::new();
+                let mut ret = Vec::new();
 
-                stdout_buffer.read_to_string(&mut string_buffer)?;
+                loop {
+                    let mut bytes_buffer = stdout_buffer.fill_buf()?.to_vec();
+                    stdout_buffer.consume(bytes_buffer.len());
+                    stdout_buffer.read_until(b'\n', &mut bytes_buffer)?;
 
-                let ret = string_buffer
-                    .lines()
-                    .filter(|line| !line.is_empty())
-                    .map(|line| {
-                        self.progress_bar.tick();
-                        DiffEvent::new(&line)
-                    })
-                    .collect();
+                    if bytes_buffer.is_empty() {
+                        break;
+                    }
+
+                    let iter = std::str::from_utf8_mut(&mut bytes_buffer)?
+                        .lines()
+                        .map(|line| {
+                            self.progress_bar.tick();
+                            DiffEvent::new(line)
+                        });
+
+                    ret.extend(iter);
+                }
+
+                self.progress_bar.finish_and_clear();
 
                 Ok(ret)
             }
