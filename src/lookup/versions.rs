@@ -15,13 +15,13 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
+use crate::MAP_OF_SNAPS;
 use crate::config::generate::{Config, DedupBy, ExecMode, LastSnapMode};
 use crate::data::paths::{CompareContentsContainer, PathData, PathDeconstruction};
 use crate::filesystem::mounts::LinkType;
 use crate::filesystem::snaps::MapOfSnaps;
 use crate::interactive::browse::CACHE_RESULT;
 use crate::library::results::{HttmError, HttmResult};
-use crate::{GLOBAL_CONFIG, MAP_OF_SNAPS};
 use rayon::prelude::*;
 use std::borrow::Cow;
 use std::collections::BTreeMap;
@@ -113,7 +113,7 @@ impl VersionsMap {
         match Versions::new(path_data, config) {
             Ok(versions) => Some(versions),
             Err(err) => {
-                if !matches!(GLOBAL_CONFIG.exec_mode, ExecMode::Interactive(_)) {
+                if !matches!(config.exec_mode, ExecMode::Interactive(_)) {
                     eprintln!("WARN: {}", err.to_string())
                 }
 
@@ -263,7 +263,7 @@ impl<'a> ProximateDatasetAndOptAlts<'a> {
                 Ok,
             )?;
 
-        let opt_alts = GLOBAL_CONFIG
+        let opt_alts = config
             .dataset_collection
             .opt_map_of_alts
             .as_ref()
@@ -446,8 +446,9 @@ impl<'a> RelativePathAndSnapMounts<'a> {
         static PREHEAT: OnceLock<bool> = OnceLock::new();
 
         PREHEAT.get_or_init(|| {
-            matches!(GLOBAL_CONFIG.exec_mode, ExecMode::Preview)
-                || GLOBAL_CONFIG
+            matches!(self.config.exec_mode, ExecMode::Preview)
+                || self
+                    .config
                     .dataset_collection
                     .map_of_datasets
                     .get(self.dataset_of_interest)
