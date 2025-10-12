@@ -29,6 +29,7 @@ use skim::prelude::*;
 use std::fs::{FileType, Metadata};
 use std::path::Path;
 use std::path::PathBuf;
+use std::sync::atomic::AtomicU32;
 use std::sync::{LazyLock, OnceLock};
 use std::time::Duration;
 
@@ -36,12 +37,25 @@ use std::time::Duration;
 // contains everything one needs to request preview and paint with
 // LsColors -- see preview_view, preview for how preview is done
 // and impl Colorable for how we paint the path strings
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct SelectionCandidate {
     path: Box<Path>,
     opt_filetype: Option<FileType>,
     opt_style: OnceLock<Option<Style>>,
     opt_metadata: OnceLock<Option<Metadata>>,
+    count: AtomicU32,
+}
+
+impl Clone for SelectionCandidate {
+    fn clone(&self) -> Self {
+        SelectionCandidate {
+            path: self.path.clone(),
+            opt_filetype: self.opt_filetype.clone(),
+            opt_style: OnceLock::new(),
+            opt_metadata: OnceLock::new(),
+            count: AtomicU32::default(),
+        }
+    }
 }
 
 impl Colorable for &SelectionCandidate {
@@ -79,6 +93,7 @@ impl SelectionCandidate {
                     opt_filetype,
                     opt_style: OnceLock::new(),
                     opt_metadata: md,
+                    count: AtomicU32::default(),
                 }
             }
             PathProvenance::IsPhantom => Self {
@@ -86,6 +101,7 @@ impl SelectionCandidate {
                 opt_filetype: None,
                 opt_metadata: OnceLock::from(None),
                 opt_style: OnceLock::from(None),
+                count: AtomicU32::default(),
             },
         }
     }
@@ -165,23 +181,35 @@ impl SkimItem for SelectionCandidate {
             _ => REGULAR_TIME_OUT,
         };
 
-        let (s, r) = bounded(1);
+        let retry_count = self.count.load(Ordering::Relaxed);
 
-        let cloned = self.clone();
+        if retry_count <= 5 {
+            self.count.fetch_add(1, Ordering::Relaxed);
 
-        rayon::spawn(move || {
-            let preview_output = cloned.preview_view().unwrap_or_default();
-            let _ = s.send(preview_output);
-        });
+            let (s, r) = bounded(1);
 
-        match r.recv_timeout(time_out) {
-            Ok(preview_output) => skim::ItemPreview::AnsiText(preview_output),
-            Err(_) => {
-                let err_output = "NOTICE: httm is delayed... \
-                Probably waiting for your kernel auto-mounter to mount your snapshots for this file.  Try again soon.\n--".to_string();
-                skim::ItemPreview::AnsiText(err_output)
+            let cloned = self.clone();
+
+            rayon::spawn(move || {
+                let preview_output = cloned.preview_view().unwrap_or_default();
+                let _ = s.send(preview_output);
+            });
+
+            match r.recv_timeout(time_out) {
+                Ok(preview_output) => return skim::ItemPreview::AnsiText(preview_output),
+                Err(_) => {
+                    let retries_left = 5 - retry_count;
+                    let err_output = format!("NOTICE: httm filesystem requests are delayed...\n
+                    We are probably waiting for your kernel auto-mounter to mount the snapshots for this object.\n
+                    Try again soon.  Number of retries you have left before this timeout is removed: {retries_left}\n
+                    --");
+                    return skim::ItemPreview::AnsiText(err_output);
+                }
             }
         }
+
+        let preview_output = self.preview_view().unwrap_or_default();
+        skim::ItemPreview::AnsiText(preview_output)
     }
 }
 
