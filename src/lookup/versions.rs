@@ -28,7 +28,8 @@ use std::collections::BTreeMap;
 use std::io::ErrorKind;
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, LazyLock, OnceLock, RwLock};
+use std::sync::{Arc, LazyLock, OnceLock, RwLock, TryLockError};
+use std::time::Duration;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VersionsMap {
@@ -479,9 +480,10 @@ impl<'a> RelativePathAndSnapMounts<'a> {
             LazyLock::new(|| Arc::new(RwLock::new(HashSet::new())));
 
         if CACHE_RESULT
-            .read()
+            .try_read()
             .ok()
-            .is_some_and(|cached_result| cached_result.contains(self.dataset_of_interest))
+            .map(|cached_result| cached_result.contains(self.dataset_of_interest))
+            .unwrap_or_else(|| true)
         {
             return;
         }
@@ -491,23 +493,43 @@ impl<'a> RelativePathAndSnapMounts<'a> {
         let dataset_of_interest_clone = self.dataset_of_interest.to_path_buf();
 
         rayon::spawn(move || {
-            if let Ok(mut cached_result) = map_clone.write() {
-                PathData::proximate_plus_neighbors(&path_data_clone, &dataset_of_interest_clone)
-                    .iter()
-                    .filter(|item| cached_result.insert(item.to_path_buf()))
-                    .filter_map(|dataset| Self::snap_mounts_from_dataset_of_interest(&dataset))
-                    .for_each(|bundle| {
-                        let _ = bundle
-                            .into_iter()
-                            .map(|snap_path| std::fs::read_dir(snap_path))
-                            .flatten()
-                            .flatten()
-                            .flatten()
-                            .next();
+            let mut backoff = 2;
 
-                        std::thread::yield_now();
-                    });
-            }
+            let vec: Vec<PathBuf> = loop {
+                match map_clone.try_write() {
+                    Ok(mut locked) => {
+                        break PathData::proximate_plus_neighbors(
+                            &path_data_clone,
+                            &dataset_of_interest_clone,
+                        )
+                        .into_iter()
+                        .filter(|item| locked.insert(item.to_path_buf()))
+                        .collect();
+                    }
+                    Err(err) => {
+                        if let TryLockError::Poisoned(_) = err {
+                            map_clone.clear_poison();
+                        }
+                        std::thread::sleep(Duration::from_millis(backoff));
+                        backoff *= 2;
+                        continue;
+                    }
+                }
+            };
+
+            vec.iter()
+                .filter_map(|dataset| Self::snap_mounts_from_dataset_of_interest(&dataset))
+                .for_each(|bundle| {
+                    let _ = bundle
+                        .into_iter()
+                        .map(|snap_path| std::fs::read_dir(snap_path))
+                        .flatten()
+                        .flatten()
+                        .flatten()
+                        .next();
+
+                    std::thread::yield_now();
+                });
         });
     }
 }
