@@ -17,7 +17,7 @@
 
 use crate::data::paths::{PathData, PathDeconstruction};
 use crate::library::diff_copy::HttmCopy;
-use crate::library::file_ops::{Copy, Preserve, Remove};
+use crate::library::file_ops::{Copy, Preserve};
 use crate::library::iter_extensions::HttmIter;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{is_metadata_same, user_has_effective_root};
@@ -28,7 +28,6 @@ use crate::zfs::snap_guard::{PrecautionarySnapType, SnapGuard};
 use crate::{GLOBAL_CONFIG, ZFS_SNAPSHOT_DIRECTORY};
 use hashbrown::HashSet;
 use indicatif::ProgressBar;
-use nu_ansi_term::Color::{Blue, Red};
 use rayon::prelude::*;
 use std::fs::Permissions;
 use std::fs::read_dir;
@@ -149,33 +148,6 @@ impl RollForward {
         })
     }
 
-    fn proximate_dataset_from_source(source_device: &Path) -> HttmResult<Arc<Path>> {
-        GLOBAL_CONFIG
-            .dataset_collection
-            .map_of_datasets
-            .iter()
-            .find(|(_mount, md)| md.source.as_ref() == source_device)
-            .map(|(mount, _)| mount.clone())
-            .ok_or_else(|| HttmError::new("Could not determine proximate dataset mount").into())
-    }
-
-    pub fn proximate_dataset_mount(&self) -> &Path {
-        self.proximate_dataset_mount.as_ref()
-    }
-
-    pub fn snap_dataset(&self) -> PathBuf {
-        let mut path = self.proximate_dataset_mount.to_path_buf();
-
-        path.push(ZFS_SNAPSHOT_DIRECTORY);
-        path.push(&self.snap);
-
-        path
-    }
-
-    pub fn full_name(&self) -> String {
-        format!("{}@{}", self.dataset, self.snap)
-    }
-
     pub fn exec(&self) -> HttmResult<()> {
         // ZFS allow is not sufficient so a ZFSAllowPriv guard isn't here either
         // we need root, so we do a raw SnapGuard after checking that we have root
@@ -288,6 +260,37 @@ impl RollForward {
         self.cleanup_and_verify()
     }
 
+    fn zfs_diff_std_err(opt_stderr: Option<ChildStderr>) -> HttmResult<String> {
+        let mut buf = String::new();
+
+        if let Some(mut stderr) = opt_stderr {
+            stderr.read_to_string(&mut buf)?;
+        }
+
+        Ok(buf)
+    }
+
+    fn ingest(
+        &self,
+        output: &mut Option<ChildStdout>,
+    ) -> HttmResult<impl Iterator<Item = HttmResult<DiffEvent>>> {
+        const IN_BUFFER_SIZE: usize = 65_536;
+
+        match output {
+            Some(output) => {
+                let stdout_buffer = std::io::BufReader::with_capacity(IN_BUFFER_SIZE, output);
+
+                let ret = stdout_buffer.lines().flatten().map(|line| {
+                    self.progress_bar.tick();
+                    DiffEvent::new(&line)
+                });
+
+                Ok(ret)
+            }
+            None => HttmError::new("'zfs diff' reported no changes to dataset").into(),
+        }
+    }
+
     fn roll_from_list(
         &self,
         mut list: Vec<(PathBuf, DiffEvent)>,
@@ -300,7 +303,7 @@ impl RollForward {
         list.par_iter()
             .try_for_each(|(_key, value)| match &value.diff_type {
                 DiffType::Renamed(new_file) if exclusions.contains(new_file) => Ok(()),
-                _ => self.diff_action(value),
+                _ => value.reverse_action(&self),
             })
     }
 
@@ -384,14 +387,31 @@ impl RollForward {
             })
     }
 
-    fn zfs_diff_std_err(opt_stderr: Option<ChildStderr>) -> HttmResult<String> {
-        let mut buf = String::new();
+    fn proximate_dataset_from_source(source_device: &Path) -> HttmResult<Arc<Path>> {
+        GLOBAL_CONFIG
+            .dataset_collection
+            .map_of_datasets
+            .iter()
+            .find(|(_mount, md)| md.source.as_ref() == source_device)
+            .map(|(mount, _)| mount.clone())
+            .ok_or_else(|| HttmError::new("Could not determine proximate dataset mount").into())
+    }
 
-        if let Some(mut stderr) = opt_stderr {
-            stderr.read_to_string(&mut buf)?;
-        }
+    pub fn proximate_dataset_mount(&self) -> &Path {
+        self.proximate_dataset_mount.as_ref()
+    }
 
-        Ok(buf)
+    pub fn snap_dataset(&self) -> PathBuf {
+        let mut path = self.proximate_dataset_mount.to_path_buf();
+
+        path.push(ZFS_SNAPSHOT_DIRECTORY);
+        path.push(&self.snap);
+
+        path
+    }
+
+    pub fn full_name(&self) -> String {
+        format!("{}@{}", self.dataset, self.snap)
     }
 
     pub fn live_path(&self, snap_path: &Path) -> Option<PathBuf> {
@@ -421,131 +441,5 @@ impl RollForward {
 
                 snap_file_path
             })
-    }
-
-    fn ingest(
-        &self,
-        output: &mut Option<ChildStdout>,
-    ) -> HttmResult<impl Iterator<Item = HttmResult<DiffEvent>>> {
-        const IN_BUFFER_SIZE: usize = 65_536;
-
-        match output {
-            Some(output) => {
-                let stdout_buffer = std::io::BufReader::with_capacity(IN_BUFFER_SIZE, output);
-
-                let ret = stdout_buffer.lines().flatten().map(|line| {
-                    self.progress_bar.tick();
-                    Self::ingest_by_line(&line)
-                });
-
-                Ok(ret)
-            }
-            None => HttmError::new("'zfs diff' reported no changes to dataset").into(),
-        }
-    }
-
-    fn ingest_by_line(line: &str) -> HttmResult<DiffEvent> {
-        let split_line: Vec<&str> = line.split('\t').collect();
-
-        let time_str = split_line
-            .first()
-            .ok_or_else(|| HttmError::new("Could not obtain a timestamp for diff event."))?;
-
-        let diff_type = split_line.get(1);
-
-        let path = split_line
-            .get(2)
-            .ok_or_else(|| HttmError::new("Could not obtain a path for diff event."))?;
-
-        match diff_type {
-            Some(&"-") => DiffEvent::new(path, DiffType::Removed, time_str),
-            Some(&"+") => DiffEvent::new(path, DiffType::Created, time_str),
-            Some(&"M") => DiffEvent::new(path, DiffType::Modified, time_str),
-            Some(&"R") => {
-                let new_file_name = split_line.get(3).ok_or_else(|| {
-                    HttmError::new("Could not obtain a new file name for diff event.")
-                })?;
-
-                DiffEvent::new(
-                    path,
-                    DiffType::Renamed(PathBuf::from(new_file_name)),
-                    time_str,
-                )
-            }
-            _ => HttmError::new("Could not parse diff event").into(),
-        }
-    }
-
-    fn diff_action(&self, event: &DiffEvent) -> HttmResult<()> {
-        let live_file_path = event.path_buf.as_ref();
-        let snap_file_path = self
-            .snap_path(&live_file_path)
-            .ok_or_else(|| HttmError::new("Could not obtain snap file path for live version."))?;
-
-        // zfs-diff can return multiple file actions for a single inode
-        // since we exclude older file actions, if rename or created is the last action,
-        // we should make sure it has the latest data, so a simple rename is not enough
-        // this is internal to the fn Self::remove()
-        match &event.diff_type {
-            DiffType::Created | DiffType::Removed | DiffType::Modified => {
-                Self::overwrite_or_remove(&snap_file_path, live_file_path)
-            }
-            DiffType::Renamed(new_file_name) => {
-                Self::overwrite_or_remove(&snap_file_path, new_file_name)?;
-
-                Ok(())
-            }
-        }
-    }
-
-    pub fn copy(src: &Path, dst: &Path) -> HttmResult<()> {
-        if let Err(err) = Copy::direct_quiet(src, dst, true) {
-            eprintln!("Error: {}", err);
-            let description = format!(
-                "Could not overwrite {:?} with snapshot file version {:?}",
-                dst, src
-            );
-            return HttmError::from(description).into();
-        }
-
-        Preserve::direct(src, dst)?;
-
-        eprintln!("{}: {:?} -> {:?}", Blue.paint("Restored "), src, dst);
-        Ok(())
-    }
-
-    fn overwrite_or_remove(src: &Path, dst: &Path) -> HttmResult<()> {
-        // overwrite
-        if src.exists() {
-            return Self::copy(src, dst);
-        }
-
-        // or remove
-        Self::remove(dst)
-    }
-
-    pub fn remove(dst: &Path) -> HttmResult<()> {
-        // overwrite
-        if !dst.exists() {
-            return Ok(());
-        }
-
-        match Remove::recursive_quiet(dst) {
-            Ok(_) => {
-                if dst.exists() {
-                    let description = format!("File should not exist after deletion {:?}", dst);
-                    return HttmError::from(description).into();
-                }
-            }
-            Err(err) => {
-                eprintln!("Error: {}", err);
-                let description = format!("Could not delete file {:?}", dst);
-                return HttmError::from(description).into();
-            }
-        }
-
-        eprintln!("{}: {:?} -> 🗑️", Red.paint("Removed  "), dst);
-
-        Ok(())
     }
 }

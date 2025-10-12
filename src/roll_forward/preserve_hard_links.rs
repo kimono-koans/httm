@@ -19,6 +19,7 @@ use crate::RollForward;
 use crate::data::paths::BasicDirEntryInfo;
 use crate::library::file_ops::{Copy, Preserve, Remove};
 use crate::library::results::{HttmError, HttmResult};
+use crate::roll_forward::diff_events::DiffEvent;
 use hashbrown::{HashMap, HashSet};
 use nu_ansi_term::Color::{Green, Yellow};
 use rayon::prelude::*;
@@ -250,12 +251,12 @@ impl<'a> PreserveHardLinks<'a> {
 
                         match opt_original {
                             Some(original) if original == live_path => {
-                                RollForward::copy(snap_path, live_path)
+                                DiffEvent::copy(snap_path, live_path)
                             }
                             Some(original) => self.hard_link(original, live_path),
                             None => {
                                 opt_original = Some(live_path);
-                                RollForward::copy(snap_path, live_path)
+                                DiffEvent::copy(snap_path, live_path)
                             }
                         }
                     })
@@ -305,7 +306,7 @@ impl<'a> PreserveHardLinks<'a> {
         live_diff
             .clone()
             .par_bridge()
-            .try_for_each(|path| RollForward::remove(path))?;
+            .try_for_each(|path| DiffEvent::remove(path))?;
 
         // only on snap dataset - means we want to copy these
         snap_diff.clone().par_bridge().try_for_each(|live_path| {
@@ -313,7 +314,7 @@ impl<'a> PreserveHardLinks<'a> {
                 RollForward::snap_path(self.roll_forward, live_path)
                     .ok_or_else(|| HttmError::new("Could obtain live path for snap path").into());
 
-            RollForward::copy(&snap_path?, live_path)
+            DiffEvent::copy(&snap_path?, live_path)
         })?;
 
         let combined = live_diff.chain(snap_diff).cloned().collect();
