@@ -26,7 +26,6 @@ use crate::roll_forward::preserve_hard_links::{PreserveHardLinks, SpawnPreserveL
 use crate::zfs::run_command::RunZFSCommand;
 use crate::zfs::snap_guard::{PrecautionarySnapType, SnapGuard};
 use crate::{GLOBAL_CONFIG, ZFS_SNAPSHOT_DIRECTORY};
-use hashbrown::HashSet;
 use indicatif::ProgressBar;
 use rayon::prelude::*;
 use std::fs::Permissions;
@@ -246,17 +245,22 @@ impl RollForward {
         let (vec_dirs, vec_files): (Vec<(PathBuf, DiffEvent)>, Vec<(PathBuf, DiffEvent)>) =
             group_map
                 .into_iter()
-                .filter(|(key, _values)| !exclusions.contains(key.as_path()))
                 .flat_map(|(key, values)| {
                     values
                         .into_iter()
                         .max_by_key(|event| event.time)
                         .map(|max| (key, max))
                 })
+                .filter(|(key, value)| match &value.diff_type {
+                    DiffType::Renamed(new_file_name) => {
+                        !exclusions.contains(key.as_path()) || !exclusions.contains(new_file_name)
+                    }
+                    _ => !exclusions.contains(key.as_path()),
+                })
                 .partition(|(key, _value)| key.is_dir());
 
-        self.roll_from_list(vec_files, &exclusions)?;
-        self.roll_from_list(vec_dirs, &exclusions)?;
+        self.roll_from_list(vec_files)?;
+        self.roll_from_list(vec_dirs)?;
 
         self.cleanup_and_verify()
     }
