@@ -444,7 +444,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
 
     #[inline(always)]
     pub fn version_search(&'a self, dedup_by: &DedupBy) -> Vec<PathData> {
-        if PreheatCache::is_enabled(self) {
+        if PreheatCache::should_enable(self) {
             let cache = PREHEAT_CACHE.get_or_init(|| PreheatCache::new());
             cache.exec(self);
         }
@@ -473,7 +473,7 @@ impl PreheatCache {
         }
     }
 
-    pub fn is_enabled(bundle: &RelativePathAndSnapMounts) -> bool {
+    pub fn should_enable(bundle: &RelativePathAndSnapMounts) -> bool {
         matches!(bundle.config.exec_mode, ExecMode::Preview)
             || bundle
                 .config
