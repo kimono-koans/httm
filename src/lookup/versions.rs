@@ -489,6 +489,9 @@ impl PreheatCache {
 
     #[allow(dead_code)]
     pub fn clear(&self) {
+        self.hangup
+            .store(true, std::sync::atomic::Ordering::Relaxed);
+
         let inner_clone = self.inner.clone();
 
         rayon::spawn(move || {
@@ -499,9 +502,6 @@ impl PreheatCache {
                 }
             };
         });
-
-        self.hangup
-            .store(true, std::sync::atomic::Ordering::Relaxed);
     }
 
     #[inline(always)]
