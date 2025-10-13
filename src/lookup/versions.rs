@@ -474,17 +474,13 @@ impl PreheatCache {
     }
 
     pub fn is_enabled(bundle: &RelativePathAndSnapMounts) -> bool {
-        static ENABLE_PREHEAT: OnceLock<bool> = OnceLock::new();
-
-        *ENABLE_PREHEAT.get_or_init(|| {
-            matches!(bundle.config.exec_mode, ExecMode::Preview)
-                || bundle
-                    .config
-                    .dataset_collection
-                    .map_of_datasets
-                    .get(bundle.dataset_of_interest)
-                    .is_some_and(|md| matches!(md.link_type, LinkType::Network))
-        })
+        matches!(bundle.config.exec_mode, ExecMode::Preview)
+            || bundle
+                .config
+                .dataset_collection
+                .map_of_datasets
+                .get(bundle.dataset_of_interest)
+                .is_some_and(|md| matches!(md.link_type, LinkType::Network))
     }
 
     #[allow(dead_code)]
