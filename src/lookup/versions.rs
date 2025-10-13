@@ -526,7 +526,7 @@ impl PreheatCache {
         let dataset_of_interest_clone = bundle.dataset_of_interest.to_path_buf();
         let config_clone = bundle.config.clone();
 
-        rayon::spawn(move || {
+        rayon::spawn_fifo(move || {
             let mut backoff = 2;
 
             let vec: Vec<PathBuf> = loop {

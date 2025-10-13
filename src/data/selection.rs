@@ -178,6 +178,7 @@ impl SkimItem for SelectionCandidate {
     fn preview(&self, _: PreviewContext<'_>) -> skim::ItemPreview {
         static REQUESTED_DIR_TIME_OUT: Duration = Duration::from_millis(200);
         static REGULAR_TIME_OUT: Duration = Duration::from_millis(100);
+        static MAX_RETRIES: u32 = 3u32;
 
         let time_out = match GLOBAL_CONFIG.opt_requested_dir.as_ref() {
             Some(requested_dir) if requested_dir == self.path() => REQUESTED_DIR_TIME_OUT,
@@ -187,7 +188,7 @@ impl SkimItem for SelectionCandidate {
 
         let retry_count = self.count.load(Ordering::Relaxed);
 
-        if retry_count <= 5 {
+        if retry_count <= MAX_RETRIES {
             self.count.fetch_add(1, Ordering::Relaxed);
 
             let (s, r) = bounded(1);
@@ -202,7 +203,7 @@ impl SkimItem for SelectionCandidate {
             match r.recv_timeout(time_out) {
                 Ok(preview_output) => return skim::ItemPreview::AnsiText(preview_output),
                 Err(_) => {
-                    let retries_left = 5 - retry_count;
+                    let retries_left = MAX_RETRIES - retry_count;
                     let err_output = format!("{}{}\n--", RETRY_NOTICE, retries_left);
                     return skim::ItemPreview::AnsiText(err_output);
                 }
