@@ -20,15 +20,15 @@ use crate::config::generate::{Config, DedupBy, ExecMode, LastSnapMode};
 use crate::data::paths::{CompareContentsContainer, PathData, PathDeconstruction};
 use crate::filesystem::mounts::LinkType;
 use crate::filesystem::snaps::MapOfSnaps;
-use crate::interactive::browse::CACHE_RESULT;
 use crate::library::results::{HttmError, HttmResult};
+use hashbrown::HashSet;
 use rayon::prelude::*;
 use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::io::ErrorKind;
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
-use std::sync::{OnceLock, TryLockError};
+use std::sync::{Arc, OnceLock, RwLock, TryLockError};
 use std::time::Duration;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -456,7 +456,8 @@ impl<'a> RelativePathAndSnapMounts<'a> {
         });
 
         if *PREHEAT.get().unwrap_or(&true) {
-            self.preheat_auto_mount();
+            let cache = PREHEAT_CACHE.get_or_init(|| PreheatCache::new());
+            cache.exec(self);
         }
 
         let mut versions = self.all_versions();
@@ -465,22 +466,52 @@ impl<'a> RelativePathAndSnapMounts<'a> {
 
         versions
     }
+}
+
+pub static PREHEAT_CACHE: OnceLock<PreheatCache> = OnceLock::new();
+
+#[derive(Debug, Clone)]
+pub struct PreheatCache {
+    inner: Arc<RwLock<HashSet<PathBuf>>>,
+}
+
+impl PreheatCache {
+    pub fn new() -> Self {
+        Self {
+            inner: Arc::new(RwLock::new(HashSet::new())),
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn clear(&self) {
+        let inner_clone = self.inner.clone();
+
+        rayon::spawn(move || {
+            match inner_clone.write() {
+                Ok(mut map) => map.clear(),
+                Err(_err) => {
+                    inner_clone.clear_poison();
+                }
+            };
+        });
+    }
 
     #[inline(always)]
-    fn preheat_auto_mount(&self) {
-        if CACHE_RESULT
+    pub fn exec(&self, bundle: &RelativePathAndSnapMounts) {
+        if self
+            .inner
             .try_read()
             .ok()
-            .map(|cached_result| cached_result.contains(self.dataset_of_interest))
+            .map(|cached_result| cached_result.contains(bundle.dataset_of_interest))
             .unwrap_or_else(|| true)
         {
             return;
         }
 
-        let map_clone = CACHE_RESULT.clone();
-        let path_data_clone = self.path_data.clone();
-        let dataset_of_interest_clone = self.dataset_of_interest.to_path_buf();
-        let config_clone = self.config.clone();
+        let map_clone = self.inner.clone();
+        let path_data_clone = bundle.path_data.clone();
+        let dataset_of_interest_clone = bundle.dataset_of_interest.to_path_buf();
+        let config_clone = bundle.config.clone();
 
         rayon::spawn_fifo(move || {
             let mut backoff = 2;
@@ -509,7 +540,10 @@ impl<'a> RelativePathAndSnapMounts<'a> {
 
             vec.iter()
                 .filter_map(|dataset| {
-                    Self::snap_mounts_from_dataset_of_interest(&dataset, &config_clone)
+                    RelativePathAndSnapMounts::snap_mounts_from_dataset_of_interest(
+                        &dataset,
+                        &config_clone,
+                    )
                 })
                 .for_each(|bundle| {
                     let _ = bundle

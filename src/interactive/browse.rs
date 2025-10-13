@@ -25,16 +25,12 @@ use crate::data::paths::PathData;
 use crate::interactive::view_mode::MultiSelect;
 use crate::interactive::view_mode::ViewMode;
 use crate::library::results::{HttmError, HttmResult};
+use crate::lookup::versions::PREHEAT_CACHE;
 use crossbeam_channel::unbounded;
 use skim::prelude::*;
-use std::collections::HashSet;
 use std::ops::Deref;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::atomic::AtomicBool;
-use std::sync::{LazyLock, RwLock};
-
-pub static CACHE_RESULT: LazyLock<Arc<RwLock<HashSet<PathBuf>>>> =
-    LazyLock::new(|| Arc::new(RwLock::new(HashSet::new())));
 
 #[derive(Debug)]
 pub struct InteractiveBrowse {
@@ -68,14 +64,9 @@ impl InteractiveBrowse {
         };
 
         {
-            rayon::spawn(|| {
-                match CACHE_RESULT.write() {
-                    Ok(mut map) => map.clear(),
-                    Err(_err) => {
-                        CACHE_RESULT.clear_poison();
-                    }
-                };
-            });
+            if let Some(cache) = PREHEAT_CACHE.get() {
+                cache.clear();
+            };
         }
 
         Ok(browse_result)
