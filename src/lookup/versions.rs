@@ -28,6 +28,7 @@ use std::collections::BTreeMap;
 use std::io::ErrorKind;
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, OnceLock, RwLock, TryLockError};
 use std::time::Duration;
 
@@ -461,12 +462,14 @@ pub static PREHEAT_CACHE: OnceLock<PreheatCache> = OnceLock::new();
 #[derive(Debug, Clone)]
 pub struct PreheatCache {
     inner: Arc<RwLock<HashSet<PathBuf>>>,
+    hangup: Arc<AtomicBool>,
 }
 
 impl PreheatCache {
     pub fn new() -> Self {
         Self {
             inner: Arc::new(RwLock::new(HashSet::new())),
+            hangup: Arc::new(AtomicBool::new(false)),
         }
     }
 
@@ -496,6 +499,9 @@ impl PreheatCache {
                 }
             };
         });
+
+        self.hangup
+            .store(true, std::sync::atomic::Ordering::Relaxed);
     }
 
     #[inline(always)]
@@ -510,7 +516,12 @@ impl PreheatCache {
             return;
         }
 
+        if self.hangup.load(std::sync::atomic::Ordering::Relaxed) {
+            return;
+        }
+
         let map_clone = self.inner.clone();
+        let hangup_clone = self.hangup.clone();
         let path_data_clone = bundle.path_data.clone();
         let dataset_of_interest_clone = bundle.dataset_of_interest.to_path_buf();
         let config_clone = bundle.config.clone();
@@ -519,6 +530,10 @@ impl PreheatCache {
             let mut backoff = 2;
 
             let vec: Vec<PathBuf> = loop {
+                if hangup_clone.load(std::sync::atomic::Ordering::Relaxed) {
+                    return;
+                }
+
                 match map_clone.try_write() {
                     Ok(mut locked) => {
                         break PathData::proximate_plus_neighbors(
@@ -547,6 +562,7 @@ impl PreheatCache {
                         &config_clone,
                     )
                 })
+                .take_while(|_bundle| !hangup_clone.load(std::sync::atomic::Ordering::Relaxed))
                 .for_each(|bundle| {
                     let _ = bundle
                         .into_iter()
