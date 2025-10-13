@@ -68,12 +68,14 @@ impl InteractiveBrowse {
         };
 
         {
-            match CACHE_RESULT.write() {
-                Ok(mut map) => map.clear(),
-                Err(_err) => {
-                    CACHE_RESULT.clear_poison();
-                }
-            };
+            rayon::spawn(|| {
+                match CACHE_RESULT.write() {
+                    Ok(mut map) => map.clear(),
+                    Err(_err) => {
+                        CACHE_RESULT.clear_poison();
+                    }
+                };
+            });
         }
 
         Ok(browse_result)
