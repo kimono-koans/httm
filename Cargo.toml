@@ -44,7 +44,7 @@ time = { version = "0.3.44", default-features = false, features = [
     "local-offset",
 ] }
 unit-prefix = { version = "0.5.1", default-features = false }
-skim = { version = "0.12.17", default-features = false, package = "two_percent" }
+skim = { version = "0.12.18", default-features = false, package = "two_percent" }
 nu-ansi-term = { version = "0.50.3", default-features = false }
 lscolors = { version = "0.20.0", default-features = false, features = [
     "nu-ansi-term",
