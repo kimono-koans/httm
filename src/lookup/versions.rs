@@ -22,7 +22,6 @@ use crate::filesystem::mounts::LinkType;
 use crate::filesystem::snaps::MapOfSnaps;
 use crate::library::results::{HttmError, HttmResult};
 use hashbrown::HashSet;
-use rayon::prelude::*;
 use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::io::ErrorKind;
@@ -408,7 +407,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
         // get the DirEntry for our snapshot path which will have all our possible
         // snapshots, like so: .zfs/snapshots/<some snap name>/
         self.snap_mounts
-            .iter()
+            .par_iter()
             .map(|snap_path| snap_path.join(self.relative_path))
             .filter_map(|joined_path| self.match_metadata(joined_path))
             .collect()
