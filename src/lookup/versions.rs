@@ -102,7 +102,7 @@ impl VersionsMap {
         path_set: &[PathData],
     ) -> BTreeMap<PathData, Vec<PathData>> {
         path_set
-            .par_iter()
+            .iter()
             .flat_map(|path_data| Self::from_one_path(config, path_data))
             .map(|versions| versions.into_inner())
             .collect()
@@ -407,7 +407,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
         // get the DirEntry for our snapshot path which will have all our possible
         // snapshots, like so: .zfs/snapshots/<some snap name>/
         self.snap_mounts
-            .par_iter()
+            .iter()
             .map(|snap_path| snap_path.join(self.relative_path))
             .filter_map(|joined_path| self.match_metadata(joined_path))
             .collect()
