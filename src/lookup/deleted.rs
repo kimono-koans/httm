@@ -17,9 +17,8 @@
 
 use crate::GLOBAL_CONFIG;
 use crate::data::paths::{BasicDirEntryInfo, PathData};
-use crate::library::iter_extensions::HttmIter;
 use crate::lookup::versions::{ProximateDatasetAndOptAlts, RelativePathAndSnapMounts};
-use hashbrown::HashMap;
+use hashbrown::{HashMap, HashSet};
 use std::ffi::OsStr;
 use std::ffi::OsString;
 use std::fs::FileType;
@@ -54,10 +53,8 @@ impl From<&Path> for DeletedFiles {
         // create a collection of local file names
         // dir may or may not still exist
         if let Ok(read_dir) = std::fs::read_dir(requested_dir) {
-            let iter = read_dir.flatten().map(|entry| entry.file_name());
-
-            // SAFETY: Known safe as single directory cannot contain same file names
-            let live_paths = unsafe { iter.collect_set_unique() };
+            let live_paths: HashSet<OsString> =
+                read_dir.flatten().map(|entry| entry.file_name()).collect();
 
             if live_paths.is_empty() {
                 return Self::default();
@@ -112,7 +109,7 @@ impl DeletedFiles {
         search_bundle: RelativePathAndSnapMounts<'a>,
     ) -> HashMap<OsString, BasicDirEntryInfo> {
         // compare local filenames to all unique snap filenames - none values are unique, here
-        let iter = search_bundle
+        search_bundle
             .snap_mounts()
             .into_iter()
             .map(|path| path.join(search_bundle.relative_path()))
@@ -133,10 +130,8 @@ impl DeletedFiles {
                     Self::into_pseudo_live_version(&file_name, pseudo_live_dir, Some(file_type));
 
                 (file_name, basic_info)
-            });
-
-        // SAFETY: Known safe as single directory cannot contain same file names
-        unsafe { iter.collect_map_unique() }
+            })
+            .collect()
     }
 
     // this function creates dummy "live versions" values to match deleted files
