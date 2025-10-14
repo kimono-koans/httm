@@ -25,7 +25,6 @@ use crate::lookup::file_mounts::MountDisplay;
 use clap::parser::ValuesRef;
 use clap::{Arg, ArgAction, ArgMatches, crate_name, crate_version};
 use indicatif::ProgressBar;
-use rayon::iter::{ParallelBridge, ParallelIterator};
 use std::borrow::Cow;
 use std::fs::read_link;
 use std::io::Read;
@@ -1044,7 +1043,6 @@ impl Config {
     ) -> HttmResult<Vec<PathData>> {
         let mut paths = if let Some(input_files) = opt_os_values {
             input_files
-                .par_bridge()
                 // canonicalize() on a deleted relative path will not exist,
                 // so we have to join with the pwd to make a path that
                 // will exist on a snapshot

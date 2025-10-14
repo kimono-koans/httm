@@ -25,7 +25,6 @@ use crate::{
     TM_DIR_REMOTE, ZFS_SNAPSHOT_DIRECTORY,
 };
 use proc_mounts::MountIter;
-use rayon::prelude::*;
 use std::collections::BTreeMap;
 use std::fs::read_dir;
 use std::ops::Deref;
@@ -59,7 +58,7 @@ impl MapOfSnaps {
         opt_debug: bool,
     ) -> HttmResult<Self> {
         let map_of_snaps: BTreeMap<Arc<Path>, Vec<Box<Path>>> = map_of_datasets
-            .par_iter()
+            .iter()
             .map(|(mount, dataset_info)| {
                 let snaps = Self::snaps_from_mount(mount, dataset_info, map_of_datasets, opt_debug);
 
@@ -68,10 +67,7 @@ impl MapOfSnaps {
             .collect();
 
         if opt_debug {
-            if map_of_snaps
-                .par_iter()
-                .any(|(_mount, snaps)| snaps.is_empty())
-            {
+            if map_of_snaps.iter().any(|(_mount, snaps)| snaps.is_empty()) {
                 eprintln!(
                     "DEBUG: httm relies on the user (and/or the filesystem's auto-mounter) to mount snapshots.  \
                 Make certain any snapshots the user may want to view are mounted, or are able to be mounted, \
@@ -208,7 +204,7 @@ impl MapOfSnaps {
             })
             .map(|snap_paths| {
                 snap_paths
-                    .par_lines()
+                    .lines()
                     .map(|line| line.trim())
                     .map(|line| Path::new(line))
                     .filter(|line| !line.as_os_str().is_empty())
@@ -384,9 +380,9 @@ impl MapOfSnaps {
                 }
                 FilesystemType::Restic(Some(additional_data)) => additional_data
                     .repos
-                    .par_iter()
+                    .iter()
                     .flat_map(|repo| read_dir(repo.join(RESTIC_SNAPSHOT_DIRECTORY)))
-                    .flatten_iter()
+                    .flatten()
                     .flatten()
                     .map(|dir_entry| dir_entry.path())
                     .map(|path| path.into_boxed_path())
@@ -402,28 +398,26 @@ impl MapOfSnaps {
 
                     if Path::new(&TM_DIR_LOCAL).exists() {
                         let local = read_dir(TM_DIR_LOCAL)?
-                            .par_bridge()
                             .flatten()
                             .flat_map(|entry| read_dir(entry.path()))
-                            .flatten_iter()
-                            .flatten_iter()
+                            .flatten()
+                            .flatten()
                             .map(|entry| entry.path().join("Data"))
                             .map(|path| path.into_boxed_path());
 
-                        res.par_extend(local);
+                        res.extend(local);
                     }
 
                     if Path::new(&TM_DIR_REMOTE).exists() {
                         let remote = read_dir(TM_DIR_REMOTE)?
-                            .par_bridge()
                             .flatten()
                             .flat_map(|entry| read_dir(entry.path()))
-                            .flatten_iter()
-                            .flatten_iter()
+                            .flatten()
+                            .flatten()
                             .map(|entry| entry.path().join(entry.file_name()).join("Data"))
                             .map(|path| path.into_boxed_path());
 
-                        res.par_extend(remote);
+                        res.extend(remote);
                     }
 
                     res
@@ -434,7 +428,6 @@ impl MapOfSnaps {
                     let mount_iter = MountIter::new_from_file(&*PROC_MOUNTS)?;
 
                     mount_iter
-                        .par_bridge()
                         .flatten()
                         .filter(|mount_info| Path::new(&mount_info.source) == source_path)
                         .filter(|mount_info| {

@@ -22,9 +22,9 @@ use crate::{
     RESTIC_LATEST_SNAPSHOT_DIRECTORY, TM_DIR_LOCAL, TM_DIR_REMOTE, ZFS_HIDDEN_DIRECTORY,
     ZFS_SNAPSHOT_DIRECTORY,
 };
+use itertools::Either;
+use itertools::Itertools;
 use proc_mounts::MountIter;
-use rayon::iter::Either;
-use rayon::prelude::*;
 use realpath_ext::{RealpathFlags, realpath};
 use std::collections::{BTreeMap, BTreeSet};
 use std::ops::Deref;
@@ -230,7 +230,6 @@ impl BaseFilesystemInfo {
             BTreeMap<Arc<Path>, DatasetMetadata>,
             BTreeSet<Arc<Path>>,
         ) = mount_iter
-            .par_bridge()
             .flatten()
             .filter(|mount_info| {
                 !mount_info
@@ -364,7 +363,7 @@ impl BaseFilesystemInfo {
             BTreeMap<Arc<Path>, DatasetMetadata>,
             BTreeSet<Arc<Path>>,
         ) = stdout_string
-            .par_lines()
+            .lines()
             // but exclude snapshot mounts.  we want the raw filesystem names.
             .filter(|line| !line.contains(ZFS_HIDDEN_DIRECTORY))
             .filter(|line| !line.contains(TM_DIR_REMOTE))
