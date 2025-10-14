@@ -28,7 +28,7 @@ std = ["xattrs", "malloc_trim"]
 acls = ["exacl"]
 xattrs = ["xattr"]
 malloc_trim = ["skim/malloc_trim", "libc"]
-licensing = ["lms", "itertools"]
+licensing = ["lms"]
 
 [target.'cfg(unix)'.dependencies]
 libc = { version = "0.2.177", default-features = false, optional = true }
@@ -71,9 +71,10 @@ serde_json = { version = "1.0.145", default-features = false, features = [
 realpath-ext = { version = "0.1.3", default-features = false, features = [
     "std",
 ] }
+itertools = { version = "0.14.0", default-features = false }
+
 # these are strictly not required to build, only included for attribution sake (to be picked up by cargo_about)
 lms = { version = "0.4.0", default-features = false, optional = true }
-itertools = { version = "0.14.0", default-features = false, optional = true }
 
 [package.metadata.deb]
 maintainer = "kimono koans <https://github.com/kimono-koans/>"

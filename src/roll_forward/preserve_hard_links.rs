@@ -22,7 +22,6 @@ use crate::library::results::{HttmError, HttmResult};
 use crate::roll_forward::diff_events::DiffEvent;
 use hashbrown::{HashMap, HashSet};
 use nu_ansi_term::Color::{Green, Yellow};
-use rayon::prelude::*;
 use std::fs::read_dir;
 use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
@@ -192,7 +191,7 @@ impl<'a> PreserveHardLinks<'a> {
 
         self.live_map
             .link_map
-            .par_iter()
+            .iter()
             .try_for_each(|(_key, values)| {
                 values.iter().try_for_each(|live_path| {
                     let snap_path = self
@@ -222,7 +221,7 @@ impl<'a> PreserveHardLinks<'a> {
 
         self.snap_map
             .link_map
-            .par_iter()
+            .iter()
             .try_for_each(|(_key, values)| {
                 let complemented_paths: Vec<(PathBuf, PathBuf)> = values
                     .iter()
@@ -274,7 +273,7 @@ impl<'a> PreserveHardLinks<'a> {
         // in self but not in other
         self.snap_map
             .remainder
-            .par_iter()
+            .iter()
             .map(|snap_path| {
                 self.roll_forward
                     .live_path(snap_path)
@@ -287,7 +286,7 @@ impl<'a> PreserveHardLinks<'a> {
         // in self but not in other
         self.snap_map
             .link_map
-            .par_iter()
+            .iter()
             .flat_map(|(_key, values)| values)
             .map(|snap_entry| {
                 self.roll_forward
@@ -305,11 +304,10 @@ impl<'a> PreserveHardLinks<'a> {
         // only on live dataset - means we want to delete these
         live_diff
             .clone()
-            .par_bridge()
             .try_for_each(|path| DiffEvent::remove(path))?;
 
         // only on snap dataset - means we want to copy these
-        snap_diff.clone().par_bridge().try_for_each(|live_path| {
+        snap_diff.clone().try_for_each(|live_path| {
             let snap_path: HttmResult<PathBuf> =
                 RollForward::snap_path(self.roll_forward, live_path)
                     .ok_or_else(|| HttmError::new("Could obtain live path for snap path").into());
@@ -339,7 +337,6 @@ impl<'a> PreserveHardLinks<'a> {
         // intersection is removed and recreated later, leaving dangling hard links
         orphans_intersection
             .clone()
-            .par_bridge()
             .try_for_each(|live_path| Self::rm_hard_link(live_path))?;
 
         let res = orphans_intersection.cloned().collect();

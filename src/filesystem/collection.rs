@@ -24,7 +24,6 @@ use crate::filesystem::mounts::{
 };
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::find_common_path;
-use rayon::prelude::*;
 use std::borrow::Cow;
 use std::path::{Path, PathBuf};
 
@@ -113,7 +112,7 @@ impl FilesystemInfo {
         let map_of_datasets: &MapOfDatasets = &self.map_of_datasets;
 
         let vec_snaps: Vec<&Box<Path>> = map_of_datasets
-            .par_iter()
+            .iter()
             .filter(|(_mount, dataset_info)| dataset_info.fs_type != FilesystemType::Zfs)
             .filter_map(|(mount, _dataset_info)| map_of_snaps.get(mount))
             .flatten()

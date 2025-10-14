@@ -19,7 +19,6 @@ use crate::data::paths::{PathData, PathDeconstruction};
 use crate::library::results::{HttmError, HttmResult};
 use crate::lookup::versions::ProximateDatasetAndOptAlts;
 use crate::{ExecMode, GLOBAL_CONFIG};
-use rayon::prelude::*;
 use std::ops::Deref;
 use std::path::Path;
 
@@ -72,7 +71,7 @@ impl<'a> MountsForFiles<'a> {
         // people should be able to search for deleted files in other modes
         let set: Vec<ProximateDatasetAndOptAlts> = GLOBAL_CONFIG
             .paths
-            .par_iter()
+            .iter()
             .filter_map(
                 |pd| match ProximateDatasetAndOptAlts::new(&GLOBAL_CONFIG, pd) {
                     Ok(prox_opt_alts) => Some(prox_opt_alts),

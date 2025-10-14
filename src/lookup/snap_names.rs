@@ -20,7 +20,6 @@ use crate::data::paths::{PathData, PathDeconstruction, ZfsSnapPathGuard};
 use crate::filesystem::mounts::FilesystemType;
 use crate::library::results::{HttmError, HttmResult};
 use crate::lookup::versions::VersionsMap;
-use rayon::prelude::*;
 use std::collections::BTreeMap;
 use std::ops::Deref;
 use std::path::Path;
@@ -50,7 +49,7 @@ impl SnapNameMap {
         opt_filters: &Option<ListSnapsFilters>,
     ) -> HttmResult<Self> {
         let inner: BTreeMap<PathData, Vec<String>> = versions_map
-            .par_iter()
+            .iter()
             .filter(|(path_data, snaps)| {
                 if snaps.is_empty() {
                     let description = format!(

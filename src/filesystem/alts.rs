@@ -17,7 +17,6 @@
 
 use crate::filesystem::mounts::MapOfDatasets;
 use crate::library::results::{HttmError, HttmResult};
-use rayon::prelude::*;
 use std::collections::BTreeMap;
 use std::ops::Deref;
 use std::path::Path;
@@ -59,7 +58,7 @@ impl MapOfAlts {
     // instead of looking up, precompute possible alt replicated mounts before exec
     pub fn new(map_of_datasets: &MapOfDatasets) -> Self {
         let inner: BTreeMap<Arc<Path>, AltMetadata> = map_of_datasets
-            .par_iter()
+            .iter()
             .flat_map(|(mount, _dataset_info)| {
                 Self::from_mount(mount, map_of_datasets)
                     .ok()
@@ -85,7 +84,7 @@ impl MapOfAlts {
         // but which has a prefix, like a different pool name: rpool might be
         // replicated to tank/rpool
         let mut alt_replicated_mounts: Vec<Box<Path>> = map_of_datasets
-            .par_iter()
+            .iter()
             .map(|(mount, dataset_info)| (mount, &dataset_info.source))
             .filter(|(_mount, source)| source.as_os_str() != fs_name && source.ends_with(fs_name))
             .map(|(mount, _source)| mount.as_ref().into())

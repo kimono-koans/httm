@@ -27,7 +27,6 @@ use crate::zfs::run_command::RunZFSCommand;
 use crate::zfs::snap_guard::{PrecautionarySnapType, SnapGuard};
 use crate::{GLOBAL_CONFIG, ZFS_SNAPSHOT_DIRECTORY};
 use indicatif::ProgressBar;
-use rayon::prelude::*;
 use std::fs::Permissions;
 use std::fs::read_dir;
 use std::fs::set_permissions;
@@ -313,7 +312,7 @@ impl RollForward {
         // reverse because we want to work from the bottom up
         list.reverse();
 
-        list.par_iter()
+        list.iter()
             .try_for_each(|(_key, value)| value.reverse_action(&self))
     }
 

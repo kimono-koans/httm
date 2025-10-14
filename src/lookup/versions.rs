@@ -22,7 +22,6 @@ use crate::filesystem::mounts::LinkType;
 use crate::filesystem::snaps::MapOfSnaps;
 use crate::library::results::{HttmError, HttmResult};
 use hashbrown::HashSet;
-use rayon::prelude::*;
 use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::io::ErrorKind;
@@ -103,7 +102,7 @@ impl VersionsMap {
         path_set: &[PathData],
     ) -> BTreeMap<PathData, Vec<PathData>> {
         path_set
-            .par_iter()
+            .iter()
             .flat_map(|path_data| Self::from_one_path(config, path_data))
             .map(|versions| versions.into_inner())
             .collect()
@@ -523,7 +522,7 @@ impl PreheatCache {
         let config_clone = bundle.config.clone();
 
         rayon::spawn_fifo(move || {
-            let mut backoff = 2;
+            let mut backoff: u64 = 2;
 
             let vec: Vec<PathBuf> = loop {
                 if hangup_clone.load(std::sync::atomic::Ordering::Relaxed) {
