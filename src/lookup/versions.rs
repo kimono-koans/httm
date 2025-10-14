@@ -522,7 +522,7 @@ impl PreheatCache {
         let config_clone = bundle.config.clone();
 
         rayon::spawn_fifo(move || {
-            let mut backoff = 2;
+            let mut backoff: u64 = 2;
 
             let vec: Vec<PathBuf> = loop {
                 if hangup_clone.load(std::sync::atomic::Ordering::Relaxed) {
