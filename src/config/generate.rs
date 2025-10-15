@@ -901,16 +901,10 @@ impl TryFrom<&ArgMatches> for Config {
                 eprintln!("Select mode for listed snapshots only available in PRUNE mode.")
             }
 
-            match matches.get_one::<String>("LIST_SNAPS") {
-                Some(value) if !value.is_empty() => {
-                    Some(ListSnapsFilters::new(value, select_mode)?)
-                }
-                _ => Some(ListSnapsFilters {
-                    select_mode,
-                    omit_num_snaps: 0usize,
-                    name_filters: None,
-                }),
-            }
+            Some(ListSnapsFilters::new(
+                matches.get_one::<String>("LIST_SNAPS"),
+                select_mode,
+            )?)
         } else {
             None
         };
@@ -1225,8 +1219,22 @@ impl ListSnapsFilters {
         self.name_filters.as_ref()
     }
 
-    pub fn new(values: &str, select_mode: bool) -> HttmResult<ListSnapsFilters> {
-        let mut raw = values.trim_end().split(',');
+    pub fn new(
+        opt_config_string: Option<&String>,
+        select_mode: bool,
+    ) -> HttmResult<ListSnapsFilters> {
+        let config_string = match opt_config_string {
+            Some(config_string) if !config_string.is_empty() => config_string,
+            _ => {
+                return Ok(ListSnapsFilters {
+                    select_mode,
+                    omit_num_snaps: 0usize,
+                    name_filters: None,
+                });
+            }
+        };
+
+        let mut raw = config_string.trim_end().split(',');
         let opt_number = raw.next();
         let mut rest: Vec<&str> = raw.collect();
 
@@ -1234,7 +1242,7 @@ impl ListSnapsFilters {
             match value.parse::<usize>() {
                 Ok(number) => number,
                 Err(_) => {
-                    rest = values.trim_end().split(',').collect();
+                    rest = config_string.trim_end().split(',').collect();
                     0usize
                 }
             }
