@@ -40,8 +40,9 @@ impl From<&Path> for DeletedFiles {
         // creates dummy "live versions" values to match deleted files
         // which have been found on snapshots, so we return to the user "the path that
         // once was" in their browse panel
-        let mut deleted_files: HashMap<OsString, BasicDirEntryInfo> =
-            Self::unique_pseudo_live_versions(requested_dir);
+        let Some(mut deleted_files) = Self::unique_pseudo_live_versions(requested_dir) else {
+            return Self::default();
+        };
 
         if deleted_files.is_empty() {
             return Self::default();
@@ -56,11 +57,9 @@ impl From<&Path> for DeletedFiles {
             let live_paths: HashSet<OsString> =
                 read_dir.flatten().map(|entry| entry.file_name()).collect();
 
-            if live_paths.is_empty() {
-                return Self::default();
+            if !live_paths.is_empty() {
+                deleted_files.retain(|k, _v| !live_paths.contains(k));
             }
-
-            deleted_files.retain(|k, _v| !live_paths.contains(k));
         }
 
         let deleted_file_names = deleted_files.into_values().collect();
@@ -80,7 +79,7 @@ impl DeletedFiles {
     #[inline(always)]
     fn unique_pseudo_live_versions<'a>(
         requested_dir: &'a Path,
-    ) -> HashMap<OsString, BasicDirEntryInfo> {
+    ) -> Option<HashMap<OsString, BasicDirEntryInfo>> {
         // we always need a requesting dir because we are comparing the files in the
         // requesting dir to those of their relative dirs on snapshots
         let path_data = PathData::without_styling(requested_dir, None);
@@ -90,7 +89,7 @@ impl DeletedFiles {
         // we need to make certain that what we return from possibly multiple datasets are unique
 
         let Ok(prox_opt_alts) = ProximateDatasetAndOptAlts::new(&GLOBAL_CONFIG, &path_data) else {
-            return HashMap::new();
+            return None;
         };
 
         prox_opt_alts
@@ -100,7 +99,6 @@ impl DeletedFiles {
                 acc.extend(next);
                 acc
             })
-            .unwrap_or_default()
     }
 
     #[inline(always)]
