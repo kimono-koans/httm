@@ -114,13 +114,6 @@ pub enum DedupBy {
 }
 
 #[derive(Debug, Clone)]
-pub struct ListSnapsFilters {
-    pub select_mode: bool,
-    pub omit_num_snaps: usize,
-    pub name_filters: Option<Vec<String>>,
-}
-
-#[derive(Debug, Clone)]
 pub enum LastSnapMode {
     Any,
     Without,
@@ -909,7 +902,9 @@ impl TryFrom<&ArgMatches> for Config {
             }
 
             match matches.get_one::<String>("LIST_SNAPS") {
-                Some(value) if !value.is_empty() => Some(Self::snap_filters(value, select_mode)?),
+                Some(value) if !value.is_empty() => {
+                    Some(ListSnapsFilters::new(value, select_mode)?)
+                }
                 _ => Some(ListSnapsFilters {
                     select_mode,
                     omit_num_snaps: 0usize,
@@ -1208,8 +1203,29 @@ impl Config {
         };
         Ok(res)
     }
+}
 
-    pub fn snap_filters(values: &str, select_mode: bool) -> HttmResult<ListSnapsFilters> {
+#[derive(Debug, Clone)]
+pub struct ListSnapsFilters {
+    select_mode: bool,
+    omit_num_snaps: usize,
+    name_filters: Option<Vec<String>>,
+}
+
+impl ListSnapsFilters {
+    pub fn select_mode(&self) -> bool {
+        self.select_mode
+    }
+
+    pub fn omit_num_snaps(&self) -> usize {
+        self.omit_num_snaps
+    }
+
+    pub fn name_filters(&self) -> Option<&Vec<String>> {
+        self.name_filters.as_ref()
+    }
+
+    pub fn new(values: &str, select_mode: bool) -> HttmResult<ListSnapsFilters> {
         let mut raw = values.trim_end().split(',');
         let opt_number = raw.next();
         let mut rest: Vec<&str> = raw.collect();

@@ -99,7 +99,7 @@ impl SnapNameMap {
             })
             .filter(|(_path_data, snaps)| {
                 if let Some(filters) = opt_filters {
-                    if let Some(names) = &filters.name_filters {
+                    if let Some(names) = filters.name_filters() {
                         return names.iter().any(|pattern| snaps.iter().any(|snap| snap.contains(pattern)));
                     }
                 }
@@ -107,8 +107,8 @@ impl SnapNameMap {
             })
             .filter_map(|(path_data, mut vec_snaps)| {
                 if let Some(mode_filter) = opt_filters {
-                    if mode_filter.omit_num_snaps != 0 {
-                        let opt_amt_less = vec_snaps.len().checked_sub(mode_filter.omit_num_snaps);
+                    if mode_filter.omit_num_snaps() != 0 {
+                        let opt_amt_less = vec_snaps.len().checked_sub(mode_filter.omit_num_snaps());
 
                         match opt_amt_less {
                             Some(amt_less) => {

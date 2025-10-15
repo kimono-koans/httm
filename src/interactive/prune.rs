@@ -32,7 +32,7 @@ impl PruneSnaps {
         let snap_name_map: SnapNameMap = SnapNameMap::new(versions_map, opt_filters)?;
 
         let select_mode = if let Some(filters) = opt_filters {
-            filters.select_mode
+            filters.select_mode()
         } else {
             false
         };
