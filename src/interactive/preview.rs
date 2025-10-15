@@ -41,7 +41,7 @@ impl PreviewSelection {
             Some(defined_command) if matches!(view_mode, ViewMode::Select(_)) => {
                 let ViewMode::Select(opt_live_version) = view_mode else {
                     unreachable!(
-                        "This condition should not possible because condition is immediately guarded."
+                        "This condition should not be possible because condition is immediately guarded."
                     )
                 };
 
