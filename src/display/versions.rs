@@ -115,7 +115,7 @@ impl DisplaySetType {
 impl<'a> DisplaySet<'a> {
     #[inline(always)]
     pub fn format(&self, config: &Config, padding_collection: &PaddingCollection) -> String {
-        let mut border: String = padding_collection.fancy_border_string.clone();
+        let mut border: Cow<'_, str> = padding_collection.fancy_border_string().into();
 
         // get the display buffer for each set snaps and live
         self.iter()
@@ -157,7 +157,7 @@ impl<'a> DisplaySet<'a> {
                                     let diff = warning_len - border_len;
                                     let mut new_border = border.trim_end().to_string();
                                     new_border += &format!("{:─<diff$}\n", "");
-                                    border = new_border;
+                                    border = new_border.into();
                                 }
 
                                 component_buffer = warning.to_string();
@@ -226,7 +226,7 @@ impl PathData {
                 let size = Cow::Owned(format!(
                     "{:>width$}",
                     raw_size,
-                    width = padding_collection.size_padding_len
+                    width = padding_collection.size_padding_len()
                 ));
                 let path = {
                     // paint the live strings with ls colors - idx == 1 is 2nd or live set
@@ -241,7 +241,7 @@ impl PathData {
                     Cow::Owned(format!(
                         "\"{:<width$}\"",
                         painted_path_str,
-                        width = padding_collection.size_padding_len
+                        width = padding_collection.size_padding_len()
                     ))
                 };
                 // displays blanks for phantom values, equaling their dummy lens and dates.
@@ -363,6 +363,14 @@ impl PaddingCollection {
             size_padding_len,
             fancy_border_string,
         }
+    }
+
+    fn size_padding_len(&self) -> usize {
+        self.size_padding_len
+    }
+
+    fn fancy_border_string(&self) -> &str {
+        self.fancy_border_string.as_ref()
     }
 
     #[inline(always)]
