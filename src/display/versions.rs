@@ -315,8 +315,8 @@ impl PathData {
 }
 
 pub struct PaddingCollection {
-    pub size_padding_len: usize,
-    pub fancy_border_string: String,
+    size_padding_len: usize,
+    fancy_border_string: String,
 }
 
 impl PaddingCollection {
@@ -357,7 +357,7 @@ impl PaddingCollection {
             },
         );
 
-        let fancy_border_string: String = Self::fancy_border_string(fancy_border_len);
+        let fancy_border_string: String = Self::get_fancy_border_string(fancy_border_len);
 
         PaddingCollection {
             size_padding_len,
@@ -366,7 +366,7 @@ impl PaddingCollection {
     }
 
     #[inline(always)]
-    fn fancy_border_string(fancy_border_len: usize) -> String {
+    fn get_fancy_border_string(fancy_border_len: usize) -> String {
         if let Some((Width(width), Height(_height))) = terminal_size() {
             let width_as_usize = width as usize;
 

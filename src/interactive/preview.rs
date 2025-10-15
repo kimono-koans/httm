@@ -22,11 +22,19 @@ use std::path::PathBuf;
 use which::which;
 
 pub struct PreviewSelection {
-    pub opt_preview_window: Option<String>,
-    pub opt_preview_command: Option<String>,
+    opt_preview_window: Option<String>,
+    opt_preview_command: Option<String>,
 }
 
 impl PreviewSelection {
+    pub fn opt_preview_window(&self) -> Option<&str> {
+        self.opt_preview_window.as_deref()
+    }
+
+    pub fn opt_preview_command(&self) -> Option<&str> {
+        self.opt_preview_command.as_deref()
+    }
+
     pub fn new(view_mode: &ViewMode) -> HttmResult<Self> {
         //let (opt_preview_window, opt_preview_command) =
         let res = match &GLOBAL_CONFIG.opt_preview {

@@ -106,7 +106,7 @@ impl InteractiveSelect {
 
                 let preview_selection = PreviewSelection::new(&view_mode)?;
 
-                let cmd = if let Some(command) = preview_selection.opt_preview_command {
+                let cmd = if let Some(command) = preview_selection.opt_preview_command() {
                     command.replace("$snap_file", &format!("{:?}", snap_path))
                 } else {
                     return HttmError::new("Could not parse preview command").into();

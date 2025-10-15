@@ -65,8 +65,8 @@ impl ViewMode {
 
         // build our browse view - less to do than before - no previews, looking through one 'lil buffer
         let skim_opts = SkimOptionsBuilder::default()
-            .preview_window(preview_selection.opt_preview_window.as_deref())
-            .preview(preview_selection.opt_preview_command.as_deref())
+            .preview_window(preview_selection.opt_preview_window())
+            .preview(preview_selection.opt_preview_command())
             .disabled(true)
             .tac(true)
             .nosort(true)
@@ -109,7 +109,7 @@ impl ViewMode {
         };
 
         if GLOBAL_CONFIG.opt_debug {
-            if let Some(preview_command) = preview_selection.opt_preview_command.as_deref() {
+            if let Some(preview_command) = preview_selection.opt_preview_command() {
                 eprintln!("DEBUG: Preview command executed: {}", preview_command)
             }
         }
