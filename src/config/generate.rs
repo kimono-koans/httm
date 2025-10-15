@@ -19,6 +19,7 @@ use crate::config::install_hot_keys::install_hot_keys;
 use crate::data::paths::{PathData, PathDeconstruction, ZfsSnapPathGuard};
 use crate::filesystem::collection::FilesystemInfo;
 use crate::filesystem::mounts::{FilesystemType, ROOT_PATH};
+use crate::interactive::preheat_cache::PreheatCache;
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::pwd;
 use crate::lookup::file_mounts::MountDisplay;
@@ -30,6 +31,7 @@ use std::fs::read_link;
 use std::io::Read;
 use std::ops::Index;
 use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 use time::UtcOffset;
 
 #[derive(Debug, Clone)]
@@ -648,6 +650,7 @@ pub struct Config {
     pub opt_preview: Option<String>,
     pub opt_deleted_mode: Option<DeletedMode>,
     pub opt_requested_dir: Option<PathBuf>,
+    pub opt_preheat_cache: OnceLock<PreheatCache>,
     pub requested_utc_offset: UtcOffset,
     pub exec_mode: ExecMode,
     pub print_mode: PrintMode,
@@ -984,6 +987,8 @@ impl TryFrom<&ArgMatches> for Config {
             return HttmError::new("LAST_SNAP is not available in Display Recursive Mode.").into();
         }
 
+        let opt_preheat_cache = OnceLock::new();
+
         let config = Config {
             paths,
             opt_bulk_exclusion,
@@ -1008,6 +1013,7 @@ impl TryFrom<&ArgMatches> for Config {
             dataset_collection,
             pwd,
             opt_requested_dir,
+            opt_preheat_cache,
         };
 
         Ok(config)

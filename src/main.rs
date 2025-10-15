@@ -30,6 +30,7 @@ mod background {
 }
 mod interactive {
     pub mod browse;
+    pub mod preheat_cache;
     pub mod preview;
     pub mod prune;
     pub mod restore;

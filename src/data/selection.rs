@@ -243,6 +243,7 @@ impl From<&[PathData]> for Config {
             dataset_collection: config.dataset_collection.clone(),
             pwd: config.pwd.clone(),
             opt_requested_dir: config.opt_requested_dir.clone(),
+            opt_preheat_cache: config.opt_preheat_cache.clone(),
         }
     }
 }

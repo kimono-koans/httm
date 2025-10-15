@@ -25,7 +25,6 @@ use crate::data::paths::PathData;
 use crate::interactive::view_mode::MultiSelect;
 use crate::interactive::view_mode::ViewMode;
 use crate::library::results::{HttmError, HttmResult};
-use crate::lookup::versions::PREHEAT_CACHE;
 use crossbeam_channel::unbounded;
 use skim::prelude::*;
 use std::ops::Deref;
@@ -64,7 +63,7 @@ impl InteractiveBrowse {
         };
 
         {
-            if let Some(cache) = PREHEAT_CACHE.get() {
+            if let Some(cache) = GLOBAL_CONFIG.opt_preheat_cache.get() {
                 cache.clear();
             };
         }

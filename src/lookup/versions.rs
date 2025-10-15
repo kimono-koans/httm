@@ -18,18 +18,17 @@
 use crate::MAP_OF_SNAPS;
 use crate::config::generate::{Config, DedupBy, ExecMode, LastSnapMode};
 use crate::data::paths::{CompareContentsContainer, PathData, PathDeconstruction};
-use crate::filesystem::mounts::LinkType;
 use crate::filesystem::snaps::MapOfSnaps;
+use crate::interactive::preheat_cache::PreheatCache;
 use crate::library::results::{HttmError, HttmResult};
-use hashbrown::HashSet;
+use rayon::iter::IntoParallelRefIterator;
+use rayon::iter::ParallelIterator;
+use rayon::slice::ParallelSlice;
 use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::io::ErrorKind;
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::AtomicBool;
-use std::sync::{Arc, OnceLock, RwLock, TryLockError};
-use std::time::Duration;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VersionsMap {
@@ -102,7 +101,7 @@ impl VersionsMap {
         path_set: &[PathData],
     ) -> BTreeMap<PathData, Vec<PathData>> {
         path_set
-            .iter()
+            .par_iter()
             .flat_map(|path_data| Self::from_one_path(config, path_data))
             .map(|versions| versions.into_inner())
             .collect()
@@ -343,7 +342,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
         })
     }
 
-    fn snap_mounts_from_dataset_of_interest(
+    pub fn snap_mounts_from_dataset_of_interest(
         dataset_of_interest: &Path,
         config: &Config,
     ) -> Option<Cow<'a, [Box<Path>]>> {
@@ -372,6 +371,21 @@ impl<'a> RelativePathAndSnapMounts<'a> {
     #[inline(always)]
     pub fn relative_path(&'a self) -> &'a Path {
         &self.relative_path
+    }
+
+    #[inline(always)]
+    pub fn dataset_of_interest(&'a self) -> &'a Path {
+        &self.dataset_of_interest
+    }
+
+    #[inline(always)]
+    pub fn config(&'a self) -> &'a Config {
+        &self.config
+    }
+
+    #[inline(always)]
+    pub fn path_data(&'a self) -> &'a PathData {
+        &self.path_data
     }
 
     #[inline(always)]
@@ -406,11 +420,28 @@ impl<'a> RelativePathAndSnapMounts<'a> {
     fn all_versions(&'a self) -> Vec<PathData> {
         // get the DirEntry for our snapshot path which will have all our possible
         // snapshots, like so: .zfs/snapshots/<some snap name>/
+        const CHUNK_SIZE: usize = 128;
+        let snap_mounts_len = self.snap_mounts.len();
+
+        if snap_mounts_len > CHUNK_SIZE {
+            return self
+                .snap_mounts
+                .par_chunks(CHUNK_SIZE)
+                .map(|chunk| {
+                    chunk
+                        .into_iter()
+                        .map(|snap_path| snap_path.join(self.relative_path))
+                        .filter_map(|joined_path| self.match_metadata(joined_path))
+                })
+                .flatten_iter()
+                .collect::<Vec<PathData>>();
+        }
+
         self.snap_mounts
-            .iter()
+            .into_iter()
             .map(|snap_path| snap_path.join(self.relative_path))
             .filter_map(|joined_path| self.match_metadata(joined_path))
-            .collect()
+            .collect::<Vec<PathData>>()
     }
 
     #[inline(always)]
@@ -444,7 +475,10 @@ impl<'a> RelativePathAndSnapMounts<'a> {
     #[inline(always)]
     pub fn version_search(&'a self, dedup_by: &DedupBy) -> Vec<PathData> {
         if PreheatCache::should_enable(self) {
-            let cache = PREHEAT_CACHE.get_or_init(|| PreheatCache::new());
+            let cache = self
+                .config
+                .opt_preheat_cache
+                .get_or_init(|| PreheatCache::new());
             cache.exec(self);
         }
 
@@ -453,120 +487,5 @@ impl<'a> RelativePathAndSnapMounts<'a> {
         Self::sort_dedup_versions(&mut versions, dedup_by);
 
         versions
-    }
-}
-
-pub static PREHEAT_CACHE: OnceLock<PreheatCache> = OnceLock::new();
-
-#[derive(Debug, Clone)]
-pub struct PreheatCache {
-    inner: Arc<RwLock<HashSet<PathBuf>>>,
-    hangup: Arc<AtomicBool>,
-}
-
-impl PreheatCache {
-    pub fn new() -> Self {
-        Self {
-            inner: Arc::new(RwLock::new(HashSet::new())),
-            hangup: Arc::new(AtomicBool::new(false)),
-        }
-    }
-
-    pub fn should_enable(bundle: &RelativePathAndSnapMounts) -> bool {
-        matches!(bundle.config.exec_mode, ExecMode::Preview)
-            || bundle
-                .config
-                .dataset_collection
-                .map_of_datasets
-                .get(bundle.dataset_of_interest)
-                .is_some_and(|md| matches!(md.link_type, LinkType::Network))
-    }
-
-    #[allow(dead_code)]
-    pub fn clear(&self) {
-        self.hangup
-            .store(true, std::sync::atomic::Ordering::Relaxed);
-
-        let inner_clone = self.inner.clone();
-
-        rayon::spawn(move || {
-            match inner_clone.write() {
-                Ok(mut map) => map.clear(),
-                Err(_err) => {
-                    inner_clone.clear_poison();
-                }
-            };
-        });
-    }
-
-    #[inline(always)]
-    pub fn exec(&self, bundle: &RelativePathAndSnapMounts) {
-        if self
-            .inner
-            .try_read()
-            .ok()
-            .map(|cached_result| cached_result.contains(bundle.dataset_of_interest))
-            .unwrap_or_else(|| true)
-        {
-            return;
-        }
-
-        if self.hangup.load(std::sync::atomic::Ordering::Relaxed) {
-            return;
-        }
-
-        let map_clone = self.inner.clone();
-        let hangup_clone = self.hangup.clone();
-        let path_data_clone = bundle.path_data.clone();
-        let dataset_of_interest_clone = bundle.dataset_of_interest.to_path_buf();
-        let config_clone = bundle.config.clone();
-
-        rayon::spawn_fifo(move || {
-            let mut backoff: u64 = 2;
-
-            let vec: Vec<PathBuf> = loop {
-                if hangup_clone.load(std::sync::atomic::Ordering::Relaxed) {
-                    return;
-                }
-
-                match map_clone.try_write() {
-                    Ok(mut locked) => {
-                        break PathData::proximate_plus_neighbors(
-                            &path_data_clone,
-                            &dataset_of_interest_clone,
-                        )
-                        .into_iter()
-                        .filter(|item| locked.insert(item.to_path_buf()))
-                        .collect();
-                    }
-                    Err(err) => {
-                        if let TryLockError::Poisoned(_) = err {
-                            map_clone.clear_poison();
-                        }
-                        std::thread::sleep(Duration::from_millis(backoff));
-                        backoff *= 2;
-                        continue;
-                    }
-                }
-            };
-
-            vec.iter()
-                .filter_map(|dataset| {
-                    RelativePathAndSnapMounts::snap_mounts_from_dataset_of_interest(
-                        &dataset,
-                        &config_clone,
-                    )
-                })
-                .take_while(|_bundle| !hangup_clone.load(std::sync::atomic::Ordering::Relaxed))
-                .for_each(|bundle| {
-                    let _ = bundle
-                        .into_iter()
-                        .map(|snap_path| std::fs::read_dir(snap_path))
-                        .flatten()
-                        .flatten()
-                        .flatten()
-                        .next();
-                });
-        });
     }
 }
