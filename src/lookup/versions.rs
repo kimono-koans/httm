@@ -420,7 +420,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
     fn all_versions(&'a self) -> Vec<PathData> {
         // get the DirEntry for our snapshot path which will have all our possible
         // snapshots, like so: .zfs/snapshots/<some snap name>/
-        const CHUNK_SIZE: usize = 128;
+        const CHUNK_SIZE: usize = 64;
         let snap_mounts_len = self.snap_mounts.len();
 
         if snap_mounts_len > CHUNK_SIZE {
