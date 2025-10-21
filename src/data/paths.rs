@@ -15,6 +15,8 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
+#[cfg(target_os = "macos")]
+use crate::MAC_OS_HIDDEN_DIRS;
 use crate::background::recursive::PathProvenance;
 use crate::config::generate::{DedupBy, PrintMode};
 use crate::data::selection::SelectionCandidate;
@@ -26,8 +28,8 @@ use crate::library::utility::dir_was_previously_listed;
 use crate::library::utility::{DateFormat, HttmIsDir, date_string, display_human_size};
 use crate::library::utility::{ENV_LS_COLORS, PaintString};
 use crate::{
-    BTRFS_SNAPPER_HIDDEN_DIRECTORY, GLOBAL_CONFIG, MAC_OS_HIDDEN_DIRS, OPT_COMMON_SNAP_DIR,
-    ZFS_HIDDEN_DIRECTORY, ZFS_SNAPSHOT_DIRECTORY,
+    BTRFS_SNAPPER_HIDDEN_DIRECTORY, GLOBAL_CONFIG, OPT_COMMON_SNAP_DIR, ZFS_HIDDEN_DIRECTORY,
+    ZFS_SNAPSHOT_DIRECTORY,
 };
 use hashbrown::HashSet;
 use lscolors::Colorable;
