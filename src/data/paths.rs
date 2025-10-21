@@ -238,10 +238,14 @@ impl BasicDirEntryInfo {
             }
         }
 
-        if cfg!(target_os = "macos") {
-            return MAC_OS_HIDDEN_DIRS
+        #[cfg(target_os = "macos")]
+        {
+            if MAC_OS_HIDDEN_DIRS
                 .iter()
-                .any(|path_str| Path::new(path_str) == self.path());
+                .any(|path_str| Path::new(path_str) == self.path())
+            {
+                return true;
+            };
         }
 
         path.is_filter_dir()
