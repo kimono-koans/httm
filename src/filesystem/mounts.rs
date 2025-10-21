@@ -32,9 +32,6 @@ use std::path::{Path, PathBuf};
 use std::process::Command as ExecProcess;
 use std::sync::{Arc, LazyLock, OnceLock};
 
-#[cfg(target_os = "macos")]
-use crate::DEV_FS;
-
 pub const ZFS_FSTYPE: &str = "zfs";
 pub const NILFS2_FSTYPE: &str = "nilfs2";
 pub const BTRFS_FSTYPE: &str = "btrfs";
@@ -211,7 +208,6 @@ impl BaseFilesystemInfo {
 
         #[cfg(target_os = "macos")]
         {
-            filter_dirs_set.insert(Arc::from(PathBuf::from(DEV_FS)));
             filter_dirs_set.insert(Arc::from(TM_DIR_LOCAL_PATH.as_path()));
             filter_dirs_set.insert(Arc::from(TM_DIR_REMOTE_PATH.as_path()));
         }
