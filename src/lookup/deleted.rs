@@ -44,10 +44,6 @@ impl From<&Path> for DeletedFiles {
             return Self::default();
         };
 
-        if deleted_files.is_empty() {
-            return Self::default();
-        }
-
         // get all local entries we need to compare against these to know
         // what is a deleted file
         //
@@ -92,25 +88,32 @@ impl DeletedFiles {
             return None;
         };
 
-        prox_opt_alts
-            .into_search_bundles()
-            .map(|search_bundle| Self::snapshot_paths_for_directory(&requested_dir, search_bundle))
-            .reduce(|mut acc, next| {
-                acc.extend(next);
-                acc
-            })
+        let pseudo_live_versions =
+            prox_opt_alts
+                .into_search_bundles()
+                .fold(HashMap::new(), |mut acc, search_bundle| {
+                    let iter = Self::deleted_paths_for_directory(&requested_dir, &search_bundle);
+                    acc.extend(iter);
+                    acc
+                });
+
+        if pseudo_live_versions.is_empty() {
+            return None;
+        }
+
+        Some(pseudo_live_versions)
     }
 
     #[inline(always)]
-    fn snapshot_paths_for_directory<'a>(
+    fn deleted_paths_for_directory<'a>(
         pseudo_live_dir: &'a Path,
-        search_bundle: RelativePathAndSnapMounts<'a>,
-    ) -> HashMap<OsString, BasicDirEntryInfo> {
+        search_bundle: &'a RelativePathAndSnapMounts<'a>,
+    ) -> impl Iterator<Item = (OsString, BasicDirEntryInfo)> + 'a {
         // compare local filenames to all unique snap filenames - none values are unique, here
         search_bundle
             .snap_mounts()
-            .into_iter()
-            .map(|path| path.join(search_bundle.relative_path()))
+            .iter()
+            .map(move |path| path.join(search_bundle.relative_path()))
             // important to note: this is a read dir on snapshots directories,
             // b/c read dir on deleted dirs from a live filesystem will fail
             .flat_map(std::fs::read_dir)
@@ -129,7 +132,6 @@ impl DeletedFiles {
 
                 (file_name, basic_info)
             })
-            .collect()
     }
 
     // this function creates dummy "live versions" values to match deleted files
