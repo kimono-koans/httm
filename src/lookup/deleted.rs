@@ -84,9 +84,7 @@ impl DeletedFiles {
         //
         // we need to make certain that what we return from possibly multiple datasets are unique
 
-        let Ok(prox_opt_alts) = ProximateDatasetAndOptAlts::new(&GLOBAL_CONFIG, &path_data) else {
-            return None;
-        };
+        let prox_opt_alts = ProximateDatasetAndOptAlts::new(&GLOBAL_CONFIG, &path_data).ok()?;
 
         let pseudo_live_versions =
             prox_opt_alts
