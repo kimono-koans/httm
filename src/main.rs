@@ -97,13 +97,13 @@ pub const ZFS_SNAPSHOT_DIRECTORY: &str = ".zfs/snapshot";
 pub const BTRFS_SNAPPER_HIDDEN_DIRECTORY: &str = ".snapshots";
 pub const TM_DIR_REMOTE: &str = "/Volumes/.timemachine";
 pub const TM_DIR_LOCAL: &str = "/Volumes/com.apple.TimeMachine.localsnapshots/Backups.backupdb";
-pub const BACKUPS_OF: &str = "Backups of";
+pub const BACKUPS_OF: &str = "/Volumes/Backups of";
 pub const BTRFS_SNAPPER_SUFFIX: &str = "snapshot";
 pub const NILFS2_SNAPSHOT_ID_KEY: &str = "cp=";
 pub const RESTIC_SNAPSHOT_DIRECTORY: &str = "snapshots";
 pub const RESTIC_LATEST_SNAPSHOT_DIRECTORY: &str = "snapshots/latest";
 pub const IN_BUFFER_SIZE: usize = 131_072;
-pub const DEV_TMP_FS: &str = "/dev";
+pub const DEV_FS: &str = "/dev";
 #[cfg(target_os = "macos")]
 pub const MAC_OS_HIDDEN_DIRS: [&str; 6] = [
     "/.vol",
