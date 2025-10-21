@@ -192,7 +192,7 @@ impl BaseFilesystemInfo {
     // divide by the type of system we are on
     // Linux allows us the read proc mounts
     pub fn new(opt_alt_store: &Option<FilesystemType>) -> HttmResult<Self> {
-        let (raw_datasets, filter_dirs_set) = if PROC_MOUNTS.exists() {
+        let (raw_datasets, mut filter_dirs_set) = if PROC_MOUNTS.exists() {
             Self::from_file(&PROC_MOUNTS, opt_alt_store)?
         } else if ETC_MNT_TAB.exists() {
             Self::from_file(&ETC_MNT_TAB, opt_alt_store)?
@@ -205,6 +205,11 @@ impl BaseFilesystemInfo {
                 inner: raw_datasets,
             }
         };
+
+        #[cfg(target_os = "macos")]
+        {
+            filter_dirs_set.insert(Arc::from(PathBuf::from("/dev")));
+        }
 
         let filter_dirs = {
             FilterDirs {
