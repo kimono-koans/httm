@@ -102,6 +102,7 @@ pub const NILFS2_SNAPSHOT_ID_KEY: &str = "cp=";
 pub const RESTIC_SNAPSHOT_DIRECTORY: &str = "snapshots";
 pub const RESTIC_LATEST_SNAPSHOT_DIRECTORY: &str = "snapshots/latest";
 pub const IN_BUFFER_SIZE: usize = 131_072;
+pub const DEV_TMP_FS: &str = "/dev";
 #[cfg(target_os = "macos")]
 pub const MAC_OS_HIDDEN_DIRS: [&str; 6] = [
     "/.vol",
