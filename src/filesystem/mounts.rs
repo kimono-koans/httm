@@ -28,6 +28,7 @@ use proc_mounts::MountIter;
 use realpath_ext::{RealpathFlags, realpath};
 use std::collections::{BTreeMap, BTreeSet};
 use std::ops::Deref;
+use std::ops::DerefMut;
 use std::path::{Path, PathBuf};
 use std::process::Command as ExecProcess;
 use std::sync::{Arc, LazyLock, OnceLock};
@@ -107,6 +108,12 @@ impl Deref for FilterDirs {
     }
 }
 
+impl DerefMut for FilterDirs {
+    fn deref_mut(&mut self) -> &mut BTreeSet<Arc<Path>> {
+        &mut self.inner
+    }
+}
+
 impl FilterDirs {
     pub fn is_filter_dir(&self, path: &Path) -> bool {
         self.iter().any(|filter_dir| path == filter_dir.as_ref())
@@ -158,6 +165,12 @@ impl Deref for MapOfDatasets {
     }
 }
 
+impl DerefMut for MapOfDatasets {
+    fn deref_mut(&mut self) -> &mut BTreeMap<Arc<Path>, DatasetMetadata> {
+        &mut self.inner
+    }
+}
+
 impl From<BTreeMap<Arc<Path>, DatasetMetadata>> for MapOfDatasets {
     fn from(value: BTreeMap<Arc<Path>, DatasetMetadata>) -> Self {
         Self { inner: value }
@@ -192,7 +205,7 @@ impl BaseFilesystemInfo {
     // divide by the type of system we are on
     // Linux allows us the read proc mounts
     pub fn new(opt_alt_store: &Option<FilesystemType>) -> HttmResult<Self> {
-        let (raw_datasets, mut filter_dirs_set) = if PROC_MOUNTS.exists() {
+        let (raw_datasets, filter_dirs_set) = if PROC_MOUNTS.exists() {
             Self::from_file(&PROC_MOUNTS, opt_alt_store)?
         } else if ETC_MNT_TAB.exists() {
             Self::from_file(&ETC_MNT_TAB, opt_alt_store)?
@@ -205,12 +218,6 @@ impl BaseFilesystemInfo {
                 inner: raw_datasets,
             }
         };
-
-        #[cfg(target_os = "macos")]
-        {
-            filter_dirs_set.insert(Arc::from(TM_DIR_LOCAL_PATH.as_path()));
-            filter_dirs_set.insert(Arc::from(TM_DIR_REMOTE_PATH.as_path()));
-        }
 
         let filter_dirs = {
             FilterDirs {
@@ -492,6 +499,14 @@ impl BaseFilesystemInfo {
                                     "Neither a local nor a remote Time Machine path seems to exist for this system."
                                 )
                                 .into();
+                }
+
+                {
+                    self.filter_dirs
+                        .insert(Arc::from(TM_DIR_LOCAL_PATH.as_path()));
+                    self.filter_dirs
+                        .insert(Arc::from(TM_DIR_REMOTE_PATH.as_path()));
+                    self.map_of_datasets.remove(ROOT_PATH.as_path());
                 }
 
                 DatasetMetadata {
