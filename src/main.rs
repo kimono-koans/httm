@@ -97,6 +97,7 @@ pub const ZFS_SNAPSHOT_DIRECTORY: &str = ".zfs/snapshot";
 pub const BTRFS_SNAPPER_HIDDEN_DIRECTORY: &str = ".snapshots";
 pub const TM_DIR_REMOTE: &str = "/Volumes/.timemachine";
 pub const TM_DIR_LOCAL: &str = "/Volumes/com.apple.TimeMachine.localsnapshots/Backups.backupdb";
+pub const BACKUPS_OF: &str = "Backups of";
 pub const BTRFS_SNAPPER_SUFFIX: &str = "snapshot";
 pub const NILFS2_SNAPSHOT_ID_KEY: &str = "cp=";
 pub const RESTIC_SNAPSHOT_DIRECTORY: &str = "snapshots";

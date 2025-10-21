@@ -18,7 +18,7 @@
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::get_mount_command;
 use crate::{
-    BTRFS_SNAPPER_HIDDEN_DIRECTORY, GLOBAL_CONFIG, NILFS2_SNAPSHOT_ID_KEY,
+    BACKUPS_OF, BTRFS_SNAPPER_HIDDEN_DIRECTORY, GLOBAL_CONFIG, NILFS2_SNAPSHOT_ID_KEY,
     RESTIC_LATEST_SNAPSHOT_DIRECTORY, TM_DIR_LOCAL, TM_DIR_REMOTE, ZFS_HIDDEN_DIRECTORY,
     ZFS_SNAPSHOT_DIRECTORY,
 };
@@ -378,6 +378,7 @@ impl BaseFilesystemInfo {
             .filter(|line| !line.contains(ZFS_HIDDEN_DIRECTORY))
             .filter(|line| !line.contains(TM_DIR_REMOTE))
             .filter(|line| !line.contains(TM_DIR_LOCAL))
+            .filter(|line| !line.contains(BACKUPS_OF))
             // mount cmd includes and " on " between src and rest
             .filter_map(|line| line.split_once(" on "))
             // where to split, to just have the src and dest of mounts
