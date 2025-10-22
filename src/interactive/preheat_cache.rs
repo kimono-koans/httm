@@ -15,8 +15,6 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::config::generate::ExecMode;
-use crate::filesystem::mounts::LinkType;
 use crate::lookup::versions::RelativePathAndSnapMounts;
 use hashbrown::HashSet;
 use std::path::PathBuf;
@@ -36,16 +34,6 @@ impl PreheatCache {
             set: RwLock::new(HashSet::new()),
             hangup: AtomicBool::new(false),
         })
-    }
-
-    pub fn should_enable(bundle: &RelativePathAndSnapMounts) -> bool {
-        matches!(bundle.config().exec_mode, ExecMode::Preview)
-            || bundle
-                .config()
-                .dataset_collection
-                .map_of_datasets
-                .get(bundle.dataset_of_interest())
-                .is_some_and(|md| matches!(md.link_type, LinkType::Network))
     }
 
     #[allow(dead_code)]

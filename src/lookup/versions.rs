@@ -15,12 +15,13 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::MAP_OF_SNAPS;
 use crate::config::generate::{Config, DedupBy, ExecMode, LastSnapMode};
 use crate::data::paths::{CompareContentsContainer, PathData, PathDeconstruction};
+use crate::filesystem::mounts::LinkType;
 use crate::filesystem::snaps::MapOfSnaps;
 use crate::interactive::preheat_cache::PreheatCache;
 use crate::library::results::{HttmError, HttmResult};
+use crate::{GLOBAL_CONFIG, MAP_OF_SNAPS};
 use rayon::iter::IntoParallelRefIterator;
 use rayon::iter::ParallelIterator;
 use rayon::slice::ParallelSlice;
@@ -474,9 +475,8 @@ impl<'a> RelativePathAndSnapMounts<'a> {
 
     #[inline(always)]
     pub fn version_search(&'a self, dedup_by: &DedupBy) -> Vec<PathData> {
-        if PreheatCache::should_enable(self) {
-            let cache = self
-                .config
+        if self.should_enable_preheat_cache() {
+            let cache = GLOBAL_CONFIG
                 .opt_preheat_cache
                 .get_or_init(|| PreheatCache::new());
             cache.exec(self);
@@ -487,5 +487,15 @@ impl<'a> RelativePathAndSnapMounts<'a> {
         Self::sort_dedup_versions(&mut versions, dedup_by);
 
         versions
+    }
+
+    fn should_enable_preheat_cache(&self) -> bool {
+        matches!(self.config().exec_mode, ExecMode::Preview)
+            || self
+                .config()
+                .dataset_collection
+                .map_of_datasets
+                .get(self.dataset_of_interest())
+                .is_some_and(|md| matches!(md.link_type, LinkType::Network))
     }
 }

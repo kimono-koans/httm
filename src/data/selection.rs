@@ -218,6 +218,7 @@ impl SkimItem for SelectionCandidate {
 impl From<&[PathData]> for Config {
     fn from(slice: &[PathData]) -> Config {
         let config = &GLOBAL_CONFIG;
+
         // generate a config for a preview display only
         Self {
             paths: slice.to_vec(),
