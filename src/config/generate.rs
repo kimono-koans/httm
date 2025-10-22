@@ -649,13 +649,13 @@ pub struct Config {
     pub opt_last_snap: Option<LastSnapMode>,
     pub opt_preview: Option<String>,
     pub opt_deleted_mode: Option<DeletedMode>,
-    pub opt_requested_dir: Option<PathBuf>,
+    pub opt_requested_dir: Option<Arc<Path>>,
     pub opt_preheat_cache: OnceLock<Arc<PreheatCache>>,
     pub requested_utc_offset: UtcOffset,
     pub exec_mode: ExecMode,
     pub print_mode: PrintMode,
-    pub dataset_collection: FilesystemInfo,
-    pub pwd: PathBuf,
+    pub dataset_collection: Arc<FilesystemInfo>,
+    pub pwd: Arc<Path>,
 }
 
 impl TryFrom<&ArgMatches> for Config {
@@ -678,7 +678,7 @@ impl TryFrom<&ArgMatches> for Config {
         let opt_debug = matches.get_flag("DEBUG");
 
         // current working directory will be helpful in a number of places
-        let pwd = pwd()?;
+        let pwd: Arc<Path> = pwd()?.into();
 
         // obtain a map of datasets, a map of snapshot directories, and possibly a map of
         // alternate filesystems and map of aliases if the user requests
@@ -706,14 +706,15 @@ impl TryFrom<&ArgMatches> for Config {
         let opt_remote_dir = matches.get_one::<String>("REMOTE_DIR");
         let opt_local_dir = matches.get_one::<String>("LOCAL_DIR");
 
-        let dataset_collection = FilesystemInfo::new(
+        let dataset_collection: Arc<FilesystemInfo> = FilesystemInfo::new(
             opt_alt_replicated,
             opt_remote_dir,
             opt_local_dir,
             opt_map_aliases,
             opt_alt_store,
-            pwd.clone(),
-        )?;
+            pwd.as_ref(),
+        )?
+        .into();
 
         let opt_json = matches.get_flag("JSON");
 
@@ -948,8 +949,9 @@ impl TryFrom<&ArgMatches> for Config {
             || (matches!(exec_mode, ExecMode::BasicDisplay) && paths.len() == 1);
 
         // for exec_modes in which we can only take a single directory, process how we handle those here
-        let opt_requested_dir: Option<PathBuf> =
-            Self::opt_requested_dir(&mut exec_mode, &mut opt_deleted_mode, &paths, &pwd)?;
+        let opt_requested_dir: Option<Arc<Path>> =
+            Self::opt_requested_dir(&mut exec_mode, &mut opt_deleted_mode, &paths, &pwd)?
+                .map(|inner| inner.into());
 
         if opt_one_filesystem && opt_requested_dir.is_none() {
             return HttmError::new("ONE_FILESYSTEM requires a requested path for RECURSIVE search")
@@ -960,7 +962,7 @@ impl TryFrom<&ArgMatches> for Config {
         // so we disable our bespoke "when to traverse symlinks" algo here, or if requested.
         let opt_no_traverse = matches.get_flag("NO_TRAVERSE") || {
             if let Some(user_requested_dir) = opt_requested_dir.as_ref() {
-                user_requested_dir.as_path() == ROOT_PATH.as_path()
+                user_requested_dir.as_ref() == ROOT_PATH.as_path()
             } else {
                 false
             }

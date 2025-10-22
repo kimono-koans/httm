@@ -181,7 +181,7 @@ impl SkimItem for SelectionCandidate {
         static MAX_RETRIES: u32 = 3u32;
 
         let time_out = match GLOBAL_CONFIG.opt_requested_dir.as_ref() {
-            Some(requested_dir) if requested_dir == self.path() => REQUESTED_DIR_TIME_OUT,
+            Some(requested_dir) if requested_dir.as_ref() == self.path() => REQUESTED_DIR_TIME_OUT,
             _ if GLOBAL_CONFIG.opt_lazy => REQUESTED_DIR_TIME_OUT,
             _ => REGULAR_TIME_OUT,
         };

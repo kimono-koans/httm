@@ -235,7 +235,7 @@ impl BasicDirEntryInfo {
 
         // check whether user requested this dir specifically, then we will show
         if let Some(user_requested_dir) = GLOBAL_CONFIG.opt_requested_dir.as_ref() {
-            if user_requested_dir.as_path() == path {
+            if user_requested_dir.as_ref() == path {
                 return false;
             }
         }

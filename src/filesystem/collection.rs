@@ -25,7 +25,7 @@ use crate::filesystem::mounts::{
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::find_common_path;
 use std::borrow::Cow;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 #[derive(Debug, Clone)]
 pub struct FilesystemInfo {
@@ -49,7 +49,7 @@ impl FilesystemInfo {
         opt_local_dir: Option<&String>,
         opt_raw_aliases: Option<Vec<Cow<str>>>,
         opt_alt_store: Option<FilesystemType>,
-        pwd: PathBuf,
+        pwd: &Path,
     ) -> HttmResult<FilesystemInfo> {
         let mut base_fs_info = BaseFilesystemInfo::new(&opt_alt_store)?;
 

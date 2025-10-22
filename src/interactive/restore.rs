@@ -246,7 +246,7 @@ impl InteractiveRestore {
                 &snap_metadata.mtime(),
                 DateFormat::Timestamp,
             );
-        let new_file_dir = GLOBAL_CONFIG.pwd.as_path();
+        let new_file_dir = GLOBAL_CONFIG.pwd.as_ref();
         let new_file_path_buf: PathBuf = new_file_dir.join(new_filename);
 
         // don't let the user rewrite one restore over another in non-overwrite mode
