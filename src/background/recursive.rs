@@ -271,7 +271,7 @@ impl PathsPartitioned {
             }
             PathProvenance::IsPhantom => {
                 // obtain all unique deleted, unordered, unsorted, will need to fix
-                DeletedFiles::from(entries.requested_dir)
+                DeletedFiles::new(entries.requested_dir)
                     .into_inner()
                     .into_iter()
                     .partition(|pseudo_entry| {

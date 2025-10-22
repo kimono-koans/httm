@@ -35,8 +35,8 @@ impl Default for DeletedFiles {
     }
 }
 
-impl From<&Path> for DeletedFiles {
-    fn from(requested_dir: &Path) -> Self {
+impl DeletedFiles {
+    pub fn new(requested_dir: &Path) -> Self {
         // creates dummy "live versions" values to match deleted files
         // which have been found on snapshots, so we return to the user "the path that
         // once was" in their browse panel
@@ -64,9 +64,7 @@ impl From<&Path> for DeletedFiles {
             inner: deleted_file_names,
         }
     }
-}
 
-impl DeletedFiles {
     #[inline(always)]
     pub fn into_inner(self) -> Vec<BasicDirEntryInfo> {
         self.inner
