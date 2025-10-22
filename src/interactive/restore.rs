@@ -35,17 +35,15 @@ pub struct InteractiveRestore {
     opt_live_version: Option<String>,
 }
 
-impl From<InteractiveSelect> for InteractiveRestore {
-    fn from(interactive_select: InteractiveSelect) -> Self {
+impl InteractiveRestore {
+    pub fn new(interactive_select: InteractiveSelect) -> Self {
         let mut res: InteractiveRestore = unsafe { std::mem::transmute(interactive_select) };
 
         res.view_mode = ViewMode::Restore;
 
         res
     }
-}
 
-impl InteractiveRestore {
     pub fn restore(&self) -> HttmResult<()> {
         self.snap_path_strings
             .iter()

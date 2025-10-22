@@ -187,7 +187,7 @@ fn exec() -> HttmResult<()> {
                     let interactive_select: InteractiveSelect =
                         InteractiveBrowse::try_into(browse_result)?;
 
-                    let interactive_restore = InteractiveRestore::from(interactive_select);
+                    let interactive_restore = InteractiveRestore::new(interactive_select);
 
                     interactive_restore.restore()
                 }
