@@ -24,18 +24,18 @@ use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, RwLock, TryLockError};
 use std::time::Duration;
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct PreheatCache {
-    inner: Arc<RwLock<HashSet<PathBuf>>>,
-    hangup: Arc<AtomicBool>,
+    set: RwLock<HashSet<PathBuf>>,
+    hangup: AtomicBool,
 }
 
 impl PreheatCache {
-    pub fn new() -> Self {
-        Self {
-            inner: Arc::new(RwLock::new(HashSet::new())),
-            hangup: Arc::new(AtomicBool::new(false)),
-        }
+    pub fn new() -> Arc<Self> {
+        Arc::new(Self {
+            set: RwLock::new(HashSet::new()),
+            hangup: AtomicBool::new(false),
+        })
     }
 
     pub fn should_enable(bundle: &RelativePathAndSnapMounts) -> bool {
@@ -49,26 +49,26 @@ impl PreheatCache {
     }
 
     #[allow(dead_code)]
-    pub fn clear(&self) {
+    pub fn clear(self: &Arc<Self>) {
         self.hangup
             .store(true, std::sync::atomic::Ordering::Relaxed);
 
-        let inner_clone = self.inner.clone();
+        let inner = self.clone();
 
         rayon::spawn(move || {
-            match inner_clone.write() {
+            match inner.set.write() {
                 Ok(mut map) => map.clear(),
                 Err(_err) => {
-                    inner_clone.clear_poison();
+                    inner.set.clear_poison();
                 }
             };
         });
     }
 
     #[inline(always)]
-    pub fn exec(&self, bundle: &RelativePathAndSnapMounts) {
+    pub fn exec(self: &Arc<Self>, bundle: &RelativePathAndSnapMounts) {
         if self
-            .inner
+            .set
             .try_read()
             .ok()
             .map(|cached_result| cached_result.contains(bundle.dataset_of_interest()))
@@ -81,8 +81,7 @@ impl PreheatCache {
             return;
         }
 
-        let map_clone = self.inner.clone();
-        let hangup_clone = self.hangup.clone();
+        let inner_clone = self.clone();
         let path_data_clone = bundle.path_data().clone();
         let dataset_of_interest_clone = bundle.dataset_of_interest().to_path_buf();
         let config_clone = bundle.config().clone();
@@ -91,11 +90,14 @@ impl PreheatCache {
             let mut backoff: u64 = 2;
 
             let vec: Vec<PathBuf> = loop {
-                if hangup_clone.load(std::sync::atomic::Ordering::Relaxed) {
+                if inner_clone
+                    .hangup
+                    .load(std::sync::atomic::Ordering::Relaxed)
+                {
                     return;
                 }
 
-                match map_clone.try_write() {
+                match inner_clone.set.try_write() {
                     Ok(mut locked) => {
                         break path_data_clone
                             .proximate_plus_neighbors(&dataset_of_interest_clone)
@@ -105,7 +107,7 @@ impl PreheatCache {
                     }
                     Err(err) => {
                         if let TryLockError::Poisoned(_) = err {
-                            map_clone.clear_poison();
+                            inner_clone.set.clear_poison();
                         }
                         std::thread::sleep(Duration::from_millis(backoff));
                         backoff *= 2;
@@ -121,7 +123,11 @@ impl PreheatCache {
                         &config_clone,
                     )
                 })
-                .take_while(|_bundle| !hangup_clone.load(std::sync::atomic::Ordering::Relaxed))
+                .take_while(|_bundle| {
+                    !inner_clone
+                        .hangup
+                        .load(std::sync::atomic::Ordering::Relaxed)
+                })
                 .for_each(|bundle| {
                     let _ = bundle
                         .into_iter()

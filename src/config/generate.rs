@@ -31,7 +31,7 @@ use std::fs::read_link;
 use std::io::Read;
 use std::ops::Index;
 use std::path::{Path, PathBuf};
-use std::sync::OnceLock;
+use std::sync::{Arc, OnceLock};
 use time::UtcOffset;
 
 #[derive(Debug, Clone)]
@@ -650,7 +650,7 @@ pub struct Config {
     pub opt_preview: Option<String>,
     pub opt_deleted_mode: Option<DeletedMode>,
     pub opt_requested_dir: Option<PathBuf>,
-    pub opt_preheat_cache: OnceLock<PreheatCache>,
+    pub opt_preheat_cache: OnceLock<Arc<PreheatCache>>,
     pub requested_utc_offset: UtcOffset,
     pub exec_mode: ExecMode,
     pub print_mode: PrintMode,
