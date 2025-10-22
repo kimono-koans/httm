@@ -475,12 +475,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
 
     #[inline(always)]
     pub fn version_search(&'a self, dedup_by: &DedupBy) -> Vec<PathData> {
-        if self.should_enable_preheat_cache() {
-            let cache = GLOBAL_CONFIG
-                .opt_preheat_cache
-                .get_or_init(|| PreheatCache::new());
-            cache.exec(self);
-        }
+        self.enable_preheat_cache();
 
         let mut versions = self.all_versions();
 
@@ -489,13 +484,19 @@ impl<'a> RelativePathAndSnapMounts<'a> {
         versions
     }
 
-    fn should_enable_preheat_cache(&self) -> bool {
-        matches!(self.config().exec_mode, ExecMode::Preview)
+    fn enable_preheat_cache(&self) {
+        if matches!(self.config().exec_mode, ExecMode::Preview)
             || self
                 .config()
                 .dataset_collection
                 .map_of_datasets
                 .get(self.dataset_of_interest())
                 .is_some_and(|md| matches!(md.link_type, LinkType::Network))
+        {
+            let cache = GLOBAL_CONFIG
+                .opt_preheat_cache
+                .get_or_init(|| PreheatCache::new());
+            cache.exec(self);
+        }
     }
 }
